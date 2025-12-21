@@ -1965,38 +1965,3 @@ USA ESTA RESPUESTA PARA LA OBJECION (adaptala a tu tono):
 # ============================================================
 # POSTGRESQL INTEGRATION (saves messages to DB for dashboard)
 # ============================================================
-async def _save_message_to_db(creator_id: str, sender_id: str, message_text: str, 
-                               direction: str, platform: str, username: str = "", name: str = ""):
-    """Helper to save message to PostgreSQL for dashboard sync"""
-    try:
-        from api.services.message_db import save_message_sync, get_or_create_lead_sync
-        
-        # Determine platform from sender_id prefix
-        if sender_id.startswith("tg_"):
-            platform = "telegram"
-        elif sender_id.startswith("ig_"):
-            platform = "instagram"
-        elif sender_id.startswith("wa_"):
-            platform = "whatsapp"
-        
-        # Ensure lead exists
-        lead = await create_lead_if_not_exists(
-            creator_id=creator_id,
-            platform_id=sender_id,
-            platform=platform,
-            username=username,
-            name=name
-        )
-        
-        # Save message
-        await save_message(
-            creator_id=creator_id,
-            follower_id=lead.get("id", sender_id),
-            message_text=message_text,
-            direction=direction,
-            platform=platform
-        )
-        
-    except Exception as e:
-        import logging
-        logging.getLogger("dm_agent").warning(f"Failed to save message to DB: {e}")
