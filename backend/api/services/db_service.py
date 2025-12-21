@@ -317,3 +317,111 @@ def get_lead_by_id(creator_name: str, lead_id: str):
         return None
     finally:
         session.close()
+
+# ============================================================
+# MESSAGE STORAGE FUNCTIONS (Added for dashboard sync)
+# ============================================================
+
+async def save_message(creator_id: str, follower_id: str, message_text: str, 
+                       direction: str = "inbound", platform: str = "instagram",
+                       message_id: str = None) -> dict:
+    """Save a message to the database"""
+    import uuid
+    from datetime import datetime, timezone
+    
+    msg_id = message_id or str(uuid.uuid4())
+    now = datetime.now(timezone.utc).isoformat()
+    
+    if USE_POSTGRES and pg_pool:
+        async with pg_pool.acquire() as conn:
+            await conn.execute("""
+                INSERT INTO messages (id, creator_id, follower_id, content, direction, platform, created_at)
+                VALUES ($1, $2, $3, $4, $5, $6, $7)
+                ON CONFLICT (id) DO NOTHING
+            """, msg_id, creator_id, follower_id, message_text, direction, platform, now)
+            
+            # Update lead message count
+            await conn.execute("""
+                UPDATE leads SET message_count = message_count + 1, last_message_at = $1
+                WHERE creator_id = $2 AND id = $3
+            """, now, creator_id, follower_id)
+    
+    return {"id": msg_id, "status": "saved"}
+
+
+async def get_messages(creator_id: str, follower_id: str = None, limit: int = 50) -> list:
+    """Get messages for a creator, optionally filtered by follower"""
+    if USE_POSTGRES and pg_pool:
+        async with pg_pool.acquire() as conn:
+            if follower_id:
+                rows = await conn.fetch("""
+                    SELECT * FROM messages 
+                    WHERE creator_id = $1 AND follower_id = $2
+                    ORDER BY created_at DESC LIMIT $3
+                """, creator_id, follower_id, limit)
+            else:
+                rows = await conn.fetch("""
+                    SELECT * FROM messages 
+                    WHERE creator_id = $1
+                    ORDER BY created_at DESC LIMIT $2
+                """, creator_id, limit)
+            return [dict(r) for r in rows]
+    return []
+
+
+async def get_message_count(creator_id: str) -> int:
+    """Get total message count for a creator"""
+    if USE_POSTGRES and pg_pool:
+        async with pg_pool.acquire() as conn:
+            result = await conn.fetchval("""
+                SELECT COUNT(*) FROM messages WHERE creator_id = $1
+            """, creator_id)
+            return result or 0
+    return 0
+
+
+async def get_lead_by_platform_id(creator_id: str, platform_id: str) -> dict:
+    """Get a lead by their platform-specific ID (e.g., ig_123, tg_456)"""
+    if USE_POSTGRES and pg_pool:
+        async with pg_pool.acquire() as conn:
+            row = await conn.fetchrow("""
+                SELECT * FROM leads 
+                WHERE creator_id = $1 AND (platform_id = $2 OR id::text = $2)
+                LIMIT 1
+            """, creator_id, platform_id)
+            if row:
+                return dict(row)
+    return None
+
+
+async def create_lead_if_not_exists(creator_id: str, platform_id: str, platform: str = "instagram",
+                                     username: str = "", name: str = "") -> dict:
+    """Create a lead if it doesn't exist, return existing or new lead"""
+    import uuid
+    from datetime import datetime, timezone
+    
+    existing = await get_lead_by_platform_id(creator_id, platform_id)
+    if existing:
+        return existing
+    
+    lead_id = str(uuid.uuid4())
+    now = datetime.now(timezone.utc).isoformat()
+    
+    if USE_POSTGRES and pg_pool:
+        async with pg_pool.acquire() as conn:
+            await conn.execute("""
+                INSERT INTO leads (id, creator_id, platform_id, platform, username, name, status, created_at, message_count)
+                VALUES ($1, $2, $3, $4, $5, $6, 'new', $7, 0)
+            """, lead_id, creator_id, platform_id, platform, username, name, now)
+            
+            return {
+                "id": lead_id,
+                "creator_id": creator_id,
+                "platform_id": platform_id,
+                "platform": platform,
+                "username": username,
+                "name": name,
+                "status": "new",
+                "created_at": now
+            }
+    return {"id": lead_id, "platform_id": platform_id}
