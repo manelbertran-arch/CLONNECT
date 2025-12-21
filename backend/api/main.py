@@ -372,7 +372,8 @@ def check_data_dir_health() -> Dict[str, Any]:
                 f.write("test")
             os.remove(test_file)
             writable = True
-        except:
+        except Exception as e:
+            logger.warning(f"Data path not writable: {e}")
             writable = False
 
         return {
@@ -1048,7 +1049,7 @@ async def telegram_webhook(request: Request):
 
         # Procesar con DMResponderAgent
         # Por ahora usamos "manel" como creator_id, luego se puede mapear por chat
-        creator_id = "manel"
+        creator_id = os.getenv("DEFAULT_CREATOR_ID", "manel")
 
         try:
             agent = get_dm_agent(creator_id)
@@ -2207,8 +2208,9 @@ async def admin_list_creators(
                 agent = get_dm_agent(creator_id)
                 metrics = await agent.get_metrics()
                 leads = await agent.get_leads()
-            except:
+            except Exception as e:
                 metrics = {}
+                logger.warning(f"Failed to get metrics for {creator_id}: {e}")
                 leads = []
 
             creator_stats.append({
@@ -2270,8 +2272,8 @@ async def admin_global_stats(
                 total_leads += len(leads)
                 total_hot_leads += len([l for l in leads if l.get("score", 0) >= 0.7])
                 total_conversations += len(conversations)
-            except:
-                pass
+            except Exception as e:
+                logger.warning(f"Failed to aggregate stats: {e}")
 
         return {
             "status": "ok",
@@ -2318,8 +2320,8 @@ async def admin_all_conversations(
                 for conv in conversations:
                     conv["creator_id"] = cid
                     all_conversations.append(conv)
-            except:
-                pass
+            except Exception as e:
+                logger.warning(f"Failed to get conversations: {e}")
 
         # Ordenar por última actividad
         all_conversations.sort(
@@ -2363,8 +2365,8 @@ async def admin_recent_alerts(
                         import json
                         alert = json.loads(line.strip())
                         alerts.append(alert)
-                    except:
-                        pass
+                    except Exception as e:
+                        logger.debug(f"Skipping malformed alert line: {e}")
 
         return {
             "status": "ok",
@@ -2498,8 +2500,8 @@ async def reset_creator_data(
     # Clear memory store cache if exists
     try:
         memory_store.clear_creator_cache(creator_id)
-    except:
-        pass  # Memory store may not have this method
+    except Exception as e:
+        logger.debug(f"Memory store cache clear skipped: {e}")
 
     return {
         "status": "ok" if not errors else "partial",
