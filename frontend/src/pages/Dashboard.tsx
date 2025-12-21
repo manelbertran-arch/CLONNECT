@@ -73,7 +73,7 @@ export default function Dashboard() {
   };
 
   const config = data?.config;
-  const creatorName = config?.name || config?.clone_name || "Creator";
+  const creatorName = data?.creator_name || config?.name || config?.clone_name || "Creator";
   const isActive = data?.clone_active ?? false;
 
   // Calculate progress based on leads goal
