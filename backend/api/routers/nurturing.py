@@ -6,9 +6,9 @@ logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/nurturing", tags=["nurturing"])
 
 DEFAULT_SEQUENCES = [
-    {"type": "welcome", "name": "Bienvenida", "description": "Secuencia de bienvenida", "enabled": False, "steps": 3, "enrolled": 0},
-    {"type": "abandoned_cart", "name": "Carrito Abandonado", "description": "Seguimiento interesados", "enabled": False, "steps": 2, "enrolled": 0},
-    {"type": "post_purchase", "name": "Post-Compra", "description": "Seguimiento post-compra", "enabled": False, "steps": 2, "enrolled": 0}
+    {"type": "welcome", "name": "Bienvenida", "description": "Secuencia de bienvenida", "enabled": False, "steps": [{"day": 1, "message": "Hola}, {"day": 3, "message": "¿Cómo vas?"}, {"day": 7, "message": "¿Te puedo ayudar?"}], "enrolled": 0},
+    {"type": "abandoned_cart", "name": "Carrito Abandonado", "description": "Seguimiento interesados", "enabled": False, "steps": [{"day": 1, "message": "Vi que te interesó..."}, {"day": 3, "message": "Última oportunidad"}], "enrolled": 0},
+    {"type": "post_purchase", "name": "Post-Compra", "description": "Seguimiento post-compra", "enabled": False, "steps": [{"day": 1, "message": "Gracias por tu compra"}, {"day": 7, "message": "¿Qué tal la experiencia?"}], "enrolled": 0}
 ]
 
 @router.get("/{creator_id}/sequences")

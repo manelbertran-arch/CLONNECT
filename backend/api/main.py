@@ -106,6 +106,8 @@ app.include_router(messages.router)
 app.include_router(payments.router)
 app.include_router(calendar.router)
 app.include_router(nurturing.router)
+from api.routers import knowledge
+app.include_router(knowledge.router)
 
 logging.info("Routers loaded: health, dashboard, config, leads, products")
 # AUTHENTICATION
