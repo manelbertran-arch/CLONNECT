@@ -1078,6 +1078,10 @@ USA ESTA RESPUESTA PARA LA OBJECION (adaptala a tu tono):
             # Guardar inmediatamente en memoria
             await self.memory_store.save(follower)
 
+            # Save to PostgreSQL
+            self._save_message_to_db(follower.follower_id, "user", message, intent.value if hasattr(intent, 'value') else str(intent))
+            self._save_message_to_db(follower.follower_id, "assistant", response, intent.value if hasattr(intent, 'value') else str(intent))
+
         # Verificar consentimiento GDPR (si esta habilitado)
         if REQUIRE_CONSENT:
             consent_response = await self._check_gdpr_consent(sender_id, message_text, follower)
@@ -1188,6 +1192,10 @@ USA ESTA RESPUESTA PARA LA OBJECION (adaptala a tu tono):
                 follower.last_messages = follower.last_messages[-20:]
 
             await self.memory_store.save(follower)
+
+            # Save to PostgreSQL
+            self._save_message_to_db(follower.follower_id, "user", message, intent.value if hasattr(intent, 'value') else str(intent))
+            self._save_message_to_db(follower.follower_id, "assistant", response, intent.value if hasattr(intent, 'value') else str(intent))
 
             return DMResponse(
                 response_text=response_text,
@@ -1489,6 +1497,10 @@ USA ESTA RESPUESTA PARA LA OBJECION (adaptala a tu tono):
             follower.is_lead = True
 
         await self.memory_store.save(follower)
+
+            # Save to PostgreSQL
+            self._save_message_to_db(follower.follower_id, "user", message, intent.value if hasattr(intent, 'value') else str(intent))
+            self._save_message_to_db(follower.follower_id, "assistant", response, intent.value if hasattr(intent, 'value') else str(intent))
 
 
         # === SAVE TO POSTGRESQL FOR DASHBOARD ===
@@ -1894,6 +1906,10 @@ USA ESTA RESPUESTA PARA LA OBJECION (adaptala a tu tono):
             # Save to memory store
             await self.memory_store.save(follower)
 
+            # Save to PostgreSQL
+            self._save_message_to_db(follower.follower_id, "user", message, intent.value if hasattr(intent, 'value') else str(intent))
+            self._save_message_to_db(follower.follower_id, "assistant", response, intent.value if hasattr(intent, 'value') else str(intent))
+
             logger.info(f"Saved manual message for {follower_id}")
             return True
 
@@ -1942,6 +1958,10 @@ USA ESTA RESPUESTA PARA LA OBJECION (adaptala a tu tono):
             # Save to memory store (no message added to history)
             await self.memory_store.save(follower)
 
+            # Save to PostgreSQL
+            self._save_message_to_db(follower.follower_id, "user", message, intent.value if hasattr(intent, 'value') else str(intent))
+            self._save_message_to_db(follower.follower_id, "assistant", response, intent.value if hasattr(intent, 'value') else str(intent))
+
             logger.info(f"Updated status for {follower_id}: {status} (intent: {old_score:.0%} → {purchase_intent:.0%})")
             return True
 
@@ -1952,38 +1972,3 @@ USA ESTA RESPUESTA PARA LA OBJECION (adaptala a tu tono):
 # ============================================================
 # POSTGRESQL INTEGRATION (saves messages to DB for dashboard)
 # ============================================================
-async def _save_message_to_db(creator_id: str, sender_id: str, message_text: str, 
-                               direction: str, platform: str, username: str = "", name: str = ""):
-    """Helper to save message to PostgreSQL for dashboard sync"""
-    try:
-        from api.services.message_db import save_message_sync, get_or_create_lead_sync
-        
-        # Determine platform from sender_id prefix
-        if sender_id.startswith("tg_"):
-            platform = "telegram"
-        elif sender_id.startswith("ig_"):
-            platform = "instagram"
-        elif sender_id.startswith("wa_"):
-            platform = "whatsapp"
-        
-        # Ensure lead exists
-        lead = await create_lead_if_not_exists(
-            creator_id=creator_id,
-            platform_id=sender_id,
-            platform=platform,
-            username=username,
-            name=name
-        )
-        
-        # Save message
-        await save_message(
-            creator_id=creator_id,
-            follower_id=lead.get("id", sender_id),
-            message_text=message_text,
-            direction=direction,
-            platform=platform
-        )
-        
-    except Exception as e:
-        import logging
-        logging.getLogger("dm_agent").warning(f"Failed to save message to DB: {e}")
