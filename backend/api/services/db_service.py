@@ -178,3 +178,142 @@ def get_dashboard_metrics(creator_name: str):
         }
     finally:
         session.close()
+
+# ============================================
+# CRUD COMPLETO - Phase 11
+# ============================================
+
+def create_product(creator_name: str, data: dict):
+    session = get_session()
+    if not session:
+        return None
+    try:
+        from api.models import Creator, Product
+        creator = session.query(Creator).filter_by(name=creator_name).first()
+        if not creator:
+            return None
+        product = Product(
+            creator_id=creator.id,
+            name=data.get("name", ""),
+            description=data.get("description", ""),
+            price=data.get("price", 0),
+            currency=data.get("currency", "EUR"),
+            is_active=data.get("is_active", True),
+        )
+        session.add(product)
+        session.commit()
+        return {"id": str(product.id), "name": product.name, "status": "created"}
+    except Exception as e:
+        session.rollback()
+        return None
+    finally:
+        session.close()
+
+def update_product(creator_name: str, product_id: str, data: dict):
+    session = get_session()
+    if not session:
+        return False
+    try:
+        from api.models import Creator, Product
+        import uuid
+        creator = session.query(Creator).filter_by(name=creator_name).first()
+        if not creator:
+            return False
+        product = session.query(Product).filter_by(creator_id=creator.id, id=uuid.UUID(product_id)).first()
+        if product:
+            for key, value in data.items():
+                if hasattr(product, key):
+                    setattr(product, key, value)
+            session.commit()
+            return True
+        return False
+    except Exception as e:
+        session.rollback()
+        return False
+    finally:
+        session.close()
+
+def delete_product(creator_name: str, product_id: str):
+    session = get_session()
+    if not session:
+        return False
+    try:
+        from api.models import Creator, Product
+        import uuid
+        creator = session.query(Creator).filter_by(name=creator_name).first()
+        if not creator:
+            return False
+        product = session.query(Product).filter_by(creator_id=creator.id, id=uuid.UUID(product_id)).first()
+        if product:
+            session.delete(product)
+            session.commit()
+            return True
+        return False
+    except Exception as e:
+        session.rollback()
+        return False
+    finally:
+        session.close()
+
+def update_lead(creator_name: str, lead_id: str, data: dict):
+    session = get_session()
+    if not session:
+        return False
+    try:
+        from api.models import Creator, Lead
+        import uuid
+        creator = session.query(Creator).filter_by(name=creator_name).first()
+        if not creator:
+            return False
+        lead = session.query(Lead).filter_by(creator_id=creator.id, id=uuid.UUID(lead_id)).first()
+        if lead:
+            for key, value in data.items():
+                if hasattr(lead, key):
+                    setattr(lead, key, value)
+            session.commit()
+            return True
+        return False
+    except Exception as e:
+        session.rollback()
+        return False
+    finally:
+        session.close()
+
+def delete_lead(creator_name: str, lead_id: str):
+    session = get_session()
+    if not session:
+        return False
+    try:
+        from api.models import Creator, Lead
+        import uuid
+        creator = session.query(Creator).filter_by(name=creator_name).first()
+        if not creator:
+            return False
+        lead = session.query(Lead).filter_by(creator_id=creator.id, id=uuid.UUID(lead_id)).first()
+        if lead:
+            session.delete(lead)
+            session.commit()
+            return True
+        return False
+    except Exception as e:
+        session.rollback()
+        return False
+    finally:
+        session.close()
+
+def get_lead_by_id(creator_name: str, lead_id: str):
+    session = get_session()
+    if not session:
+        return None
+    try:
+        from api.models import Creator, Lead
+        import uuid
+        creator = session.query(Creator).filter_by(name=creator_name).first()
+        if not creator:
+            return None
+        lead = session.query(Lead).filter_by(creator_id=creator.id, id=uuid.UUID(lead_id)).first()
+        if lead:
+            return {"id": str(lead.id), "platform_user_id": lead.platform_user_id, "platform": lead.platform, "username": lead.username, "full_name": lead.full_name, "status": lead.status, "score": lead.score, "purchase_intent": lead.purchase_intent, "context": lead.context or {}}
+        return None
+    finally:
+        session.close()
