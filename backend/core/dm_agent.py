@@ -1462,6 +1462,16 @@ USA ESTA RESPUESTA PARA LA OBJECION (adaptala a tu tono):
 
         await self.memory_store.save(follower)
 
+        # === SAVE TO POSTGRESQL FOR DASHBOARD ===
+        try:
+            from api.services.db_service import save_message, create_lead_if_not_exists
+            platform = "telegram" if follower.follower_id.startswith("tg_") else "instagram" if follower.follower_id.startswith("ig_") else "whatsapp"
+            lead = await create_lead_if_not_exists(self.creator_id, follower.follower_id, platform, follower.username or "", follower.name or "")
+            await save_message(self.creator_id, lead.get("id", follower.follower_id), message, "inbound", platform)
+            await save_message(self.creator_id, lead.get("id", follower.follower_id), response, "outbound", platform)
+        except Exception as db_err:
+            logger.warning(f"Failed to save to PostgreSQL: {db_err}")
+
     async def _schedule_nurturing_if_needed(
         self,
         follower_id: str,
@@ -1909,3 +1919,42 @@ USA ESTA RESPUESTA PARA LA OBJECION (adaptala a tu tono):
         except Exception as e:
             logger.error(f"Error updating follower status: {e}")
             return False
+
+# ============================================================
+# POSTGRESQL INTEGRATION (saves messages to DB for dashboard)
+# ============================================================
+async def _save_message_to_db(creator_id: str, sender_id: str, message_text: str, 
+                               direction: str, platform: str, username: str = "", name: str = ""):
+    """Helper to save message to PostgreSQL for dashboard sync"""
+    try:
+        from api.services.db_service import save_message, create_lead_if_not_exists
+        
+        # Determine platform from sender_id prefix
+        if sender_id.startswith("tg_"):
+            platform = "telegram"
+        elif sender_id.startswith("ig_"):
+            platform = "instagram"
+        elif sender_id.startswith("wa_"):
+            platform = "whatsapp"
+        
+        # Ensure lead exists
+        lead = await create_lead_if_not_exists(
+            creator_id=creator_id,
+            platform_id=sender_id,
+            platform=platform,
+            username=username,
+            name=name
+        )
+        
+        # Save message
+        await save_message(
+            creator_id=creator_id,
+            follower_id=lead.get("id", sender_id),
+            message_text=message_text,
+            direction=direction,
+            platform=platform
+        )
+        
+    except Exception as e:
+        import logging
+        logging.getLogger("dm_agent").warning(f"Failed to save message to DB: {e}")
