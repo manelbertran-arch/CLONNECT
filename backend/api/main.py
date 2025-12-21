@@ -100,6 +100,13 @@ app.include_router(config.router)
 app.include_router(leads.router)
 app.include_router(products.router)
 
+# Additional routers
+from api.routers import messages, payments, calendar, nurturing
+app.include_router(messages.router)
+app.include_router(payments.router)
+app.include_router(calendar.router)
+app.include_router(nurturing.router)
+
 logging.info("Routers loaded: health, dashboard, config, leads, products")
 # AUTHENTICATION
 # ---------------------------------------------------------
