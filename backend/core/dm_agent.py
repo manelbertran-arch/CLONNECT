@@ -508,22 +508,22 @@ class MemoryStore:
 class DMResponderAgent:
     """Agent principal que procesa DMs y genera respuestas personalizadas"""
 
-def _save_message_to_db(self, role: str, content: str, intent: str = None):
+    def _save_message_to_db(self, role: str, content: str, intent: str = None):
         """Save message to PostgreSQL database"""
         print(f"_save_message_to_db called: {role}, {content[:50]}...")
         if not USE_POSTGRES or not db_service:
-            print("PostgreSQL not available")
-            return
+        print("PostgreSQL not available")
+        return
         try:
-            creator_id = self.creator_id
-            follower_id = self.current_follower_id if hasattr(self, 'current_follower_id') else None
-            if not follower_id:
-                print("No follower_id available")
-                return
-            save_to_postgres(creator_id, follower_id, role, content, intent)
-            print(f"Message saved to PostgreSQL")
+        creator_id = self.creator_id
+        follower_id = self.current_follower_id if hasattr(self, 'current_follower_id') else None
+        if not follower_id:
+        print("No follower_id available")
+        return
+        save_to_postgres(creator_id, follower_id, role, content, intent)
+        print(f"Message saved to PostgreSQL")
         except Exception as e:
-            print(f"_save_message_to_db error: {e}")
+        print(f"_save_message_to_db error: {e}")
 
 
     def __init__(self, creator_id: str = "manel"):
