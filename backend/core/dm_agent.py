@@ -1062,6 +1062,9 @@ USA ESTA RESPUESTA PARA LA OBJECION (adaptala a tu tono):
             logger.info(f"Name extracted from message: '{extracted_name}' (was: '{old_name}')")
             # Guardar inmediatamente en memoria
             await self.memory_store.save(follower)
+            # Save to PostgreSQL
+            self._save_message_to_db(follower.follower_id, 'user', message, str(intent))
+            self._save_message_to_db(follower.follower_id, 'assistant', response, str(intent))
 
         # Verificar consentimiento GDPR (si esta habilitado)
         if REQUIRE_CONSENT:
@@ -1173,6 +1176,9 @@ USA ESTA RESPUESTA PARA LA OBJECION (adaptala a tu tono):
                 follower.last_messages = follower.last_messages[-20:]
 
             await self.memory_store.save(follower)
+            # Save to PostgreSQL
+            self._save_message_to_db(follower.follower_id, 'user', message, str(intent))
+            self._save_message_to_db(follower.follower_id, 'assistant', response, str(intent))
 
             return DMResponse(
                 response_text=response_text,
@@ -1474,6 +1480,9 @@ USA ESTA RESPUESTA PARA LA OBJECION (adaptala a tu tono):
             follower.is_lead = True
 
         await self.memory_store.save(follower)
+        # Save to PostgreSQL
+        self._save_message_to_db(follower.follower_id, 'user', message, str(intent))
+        self._save_message_to_db(follower.follower_id, 'assistant', response, str(intent))
 
 
         # === SAVE TO POSTGRESQL FOR DASHBOARD ===
@@ -1878,6 +1887,9 @@ USA ESTA RESPUESTA PARA LA OBJECION (adaptala a tu tono):
 
             # Save to memory store
             await self.memory_store.save(follower)
+            # Save to PostgreSQL
+            self._save_message_to_db(follower.follower_id, 'user', message, str(intent))
+            self._save_message_to_db(follower.follower_id, 'assistant', response, str(intent))
 
             logger.info(f"Saved manual message for {follower_id}")
             return True
@@ -1926,6 +1938,9 @@ USA ESTA RESPUESTA PARA LA OBJECION (adaptala a tu tono):
 
             # Save to memory store (no message added to history)
             await self.memory_store.save(follower)
+            # Save to PostgreSQL
+            self._save_message_to_db(follower.follower_id, 'user', message, str(intent))
+            self._save_message_to_db(follower.follower_id, 'assistant', response, str(intent))
 
             logger.info(f"Updated status for {follower_id}: {status} (intent: {old_score:.0%} → {purchase_intent:.0%})")
             return True
