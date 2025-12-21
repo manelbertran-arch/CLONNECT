@@ -88,6 +88,19 @@ if PROMETHEUS_AVAILABLE:
 
 
 # ---------------------------------------------------------
+
+# ---------------------------------------------------------
+# ROUTERS (modularized endpoints)
+# ---------------------------------------------------------
+from api.routers import health, dashboard, config, leads, products
+
+app.include_router(health.router)
+app.include_router(dashboard.router)
+app.include_router(config.router)
+app.include_router(leads.router)
+app.include_router(products.router)
+
+logging.info("Routers loaded: health, dashboard, config, leads, products")
 # AUTHENTICATION
 # ---------------------------------------------------------
 # Endpoints publicos (no requieren autenticacion)
