@@ -1,4 +1,4 @@
-"""Products endpoints"""
+"""Products endpoints with frontend compatibility"""
 from fastapi import APIRouter, HTTPException, Body
 import logging
 import os
@@ -13,6 +13,12 @@ if USE_DB:
     except ImportError:
         from api import db_service
 
+try:
+    from api.utils.response_adapter import adapt_products_response, adapt_product_response
+except ImportError:
+    def adapt_products_response(x): return x
+    def adapt_product_response(x): return x
+
 @router.get("/{creator_id}/products")
 async def get_products(creator_id: str, active_only: bool = True):
     if USE_DB:
@@ -21,7 +27,8 @@ async def get_products(creator_id: str, active_only: bool = True):
             if products is not None:
                 if active_only:
                     products = [p for p in products if p.get("is_active", True)]
-                return {"status": "ok", "products": products, "count": len(products)}
+                adapted = adapt_products_response(products)
+                return {"status": "ok", "products": adapted, "count": len(adapted)}
         except Exception as e:
             logger.warning(f"DB get products failed for {creator_id}: {e}")
     return {"status": "ok", "products": [], "count": 0}
@@ -32,7 +39,7 @@ async def create_product(creator_id: str, data: dict = Body(...)):
         try:
             result = db_service.create_product(creator_id, data)
             if result:
-                return {"status": "ok", "product": result}
+                return {"status": "ok", "product": adapt_product_response(result)}
         except Exception as e:
             logger.warning(f"DB create product failed: {e}")
     raise HTTPException(status_code=500, detail="Failed to create product")

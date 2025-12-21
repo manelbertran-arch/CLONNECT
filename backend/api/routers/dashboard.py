@@ -1,4 +1,4 @@
-"""Dashboard endpoints"""
+"""Dashboard endpoints with frontend compatibility"""
 from fastapi import APIRouter, HTTPException
 import logging
 import os
@@ -13,24 +13,38 @@ if USE_DB:
     except ImportError:
         from api import db_service
 
+try:
+    from api.utils.response_adapter import adapt_dashboard_response
+except ImportError:
+    def adapt_dashboard_response(x): return x
+
 @router.get("/{creator_id}/overview")
 async def dashboard_overview(creator_id: str):
     if USE_DB:
         try:
             metrics = db_service.get_dashboard_metrics(creator_id)
             if metrics:
-                return metrics
+                return adapt_dashboard_response(metrics)
         except Exception as e:
             logger.warning(f"DB metrics failed for {creator_id}: {e}")
-    return {"status": "ok", "metrics": {}, "bot_active": False, "creator_name": creator_id}
+    return adapt_dashboard_response({
+        "status": "ok",
+        "bot_active": False,
+        "creator_name": creator_id,
+        "metrics": {},
+        "total_leads": 0,
+        "hot_leads": 0,
+        "warm_leads": 0,
+        "cold_leads": 0
+    })
 
 @router.put("/{creator_id}/toggle")
-async def toggle_clone(creator_id: str, active: bool, reason: str = ""):
+async def toggle_clone(creator_id: str, active: bool = None, reason: str = ""):
     if USE_DB:
         try:
             result = db_service.toggle_bot(creator_id, active)
             if result is not None:
-                return {"status": "ok", "active": result}
+                return {"status": "ok", "active": result, "bot_active": result, "botActive": result}
         except Exception as e:
             logger.warning(f"DB toggle failed for {creator_id}: {e}")
     raise HTTPException(status_code=404, detail="Creator not found")
