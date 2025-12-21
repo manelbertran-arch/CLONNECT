@@ -155,6 +155,7 @@ def get_dashboard_metrics(creator_name: str):
         total_leads = len(leads)
         hot_leads = len([l for l in leads if l.purchase_intent and l.purchase_intent >= 0.7])
         warm_leads = len([l for l in leads if l.purchase_intent and 0.4 <= l.purchase_intent < 0.7])
+        customers = len([l for l in leads if l.context and l.context.get("is_customer")])
         lead_ids = [l.id for l in leads]
         total_messages = session.query(Message).filter(Message.lead_id.in_(lead_ids)).count() if lead_ids else 0
         return {
@@ -162,12 +163,17 @@ def get_dashboard_metrics(creator_name: str):
             "metrics": {
                 "total_messages": total_messages,
                 "total_conversations": total_leads,
+                "total_followers": total_leads,
                 "hot_leads": hot_leads,
+                "high_intent_followers": hot_leads,
                 "warm_leads": warm_leads,
                 "total_leads": total_leads,
+                "leads": total_leads,
+                "customers": customers,
                 "conversion_rate": 0.0,
             },
             "bot_active": creator.bot_active,
+            "clone_active": creator.bot_active,
             "creator_name": creator.clone_name or creator.name,
         }
     finally:
