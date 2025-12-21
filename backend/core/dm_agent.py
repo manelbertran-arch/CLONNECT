@@ -39,20 +39,6 @@ from core.metrics import (
     DM_PROCESSING_TIME
 )
 
-
-# PostgreSQL integration
-import os as _os
-USE_POSTGRES = bool(_os.getenv("DATABASE_URL"))
-db_service = None
-if USE_POSTGRES:
-    try:
-        from api.services import db_service
-    except ImportError:
-        try:
-            from api import db_service
-        except ImportError:
-            USE_POSTGRES = False
-
 logger = logging.getLogger(__name__)
 
 
@@ -508,23 +494,33 @@ class MemoryStore:
 class DMResponderAgent:
     """Agent principal que procesa DMs y genera respuestas personalizadas"""
 
-    def _save_message_to_db(self, role: str, content: str, intent: str = None):
-        """Save message to PostgreSQL database"""
-        print(f"_save_message_to_db called: {role}, {content[:50]}...")
-        if not USE_POSTGRES or not db_service:
-        print("PostgreSQL not available")
-        return
-        try:
-        creator_id = self.creator_id
-        follower_id = self.current_follower_id if hasattr(self, 'current_follower_id') else None
-        if not follower_id:
-        print("No follower_id available")
-        return
-        save_to_postgres(creator_id, follower_id, role, content, intent)
-        print(f"Message saved to PostgreSQL")
-        except Exception as e:
-        print(f"_save_message_to_db error: {e}")
 
+    def _save_message_to_db(self, follower_id: str, role: str, content: str, intent: str = None):
+        """Save message to PostgreSQL if available"""
+        logger.info(f"_save_message_to_db called: USE_POSTGRES={USE_POSTGRES}, db_service={db_service is not None}")
+        if not USE_POSTGRES:
+            logger.info(f"PostgreSQL disabled, skipping save for {follower_id}")
+            return
+        if not db_service:
+            logger.warning(f"db_service is None, cannot save message for {follower_id}")
+            return
+        try:
+            lead = db_service.get_lead_by_platform_id(self.creator_id, follower_id)
+            logger.info(f"get_lead_by_platform_id({self.creator_id}, {follower_id}) = {lead}")
+            if not lead:
+                lead = db_service.create_lead(self.creator_id, {
+                    "platform_user_id": follower_id,
+                    "platform": "telegram" if follower_id.startswith("tg_") else "instagram",
+                    "username": follower_id,
+                })
+                logger.info(f"create_lead result: {lead}")
+            if lead and "id" in lead:
+                result = db_service.save_message(lead["id"], role, content, intent)
+                logger.info(f"save_message result: {result} for {follower_id}")
+            else:
+                logger.error(f"No lead ID found for {follower_id}, lead={lead}")
+        except Exception as e:
+            logger.error(f"Failed to save message to PostgreSQL: {e}", exc_info=True)
 
     def __init__(self, creator_id: str = "manel"):
         self.creator_id = creator_id
@@ -1956,20 +1952,38 @@ USA ESTA RESPUESTA PARA LA OBJECION (adaptala a tu tono):
 # ============================================================
 # POSTGRESQL INTEGRATION (saves messages to DB for dashboard)
 # ============================================================
-def save_to_postgres(creator_id, follower_id, role, content, intent=None):
-    """Save message to PostgreSQL"""
-    if not USE_POSTGRES or not db_service:
-        return
+async def _save_message_to_db(creator_id: str, sender_id: str, message_text: str, 
+                               direction: str, platform: str, username: str = "", name: str = ""):
+    """Helper to save message to PostgreSQL for dashboard sync"""
     try:
-        lead = db_service.get_lead_by_platform_id(creator_id, follower_id)
-        if not lead:
-            lead = db_service.create_lead(creator_id, {
-                "platform_user_id": follower_id,
-                "platform": "telegram" if follower_id.startswith("tg_") else "instagram",
-                "username": follower_id,
-            })
-        if lead and "id" in lead:
-            db_service.save_message(lead["id"], role, content, intent)
+        from api.services.message_db import save_message_sync, get_or_create_lead_sync
+        
+        # Determine platform from sender_id prefix
+        if sender_id.startswith("tg_"):
+            platform = "telegram"
+        elif sender_id.startswith("ig_"):
+            platform = "instagram"
+        elif sender_id.startswith("wa_"):
+            platform = "whatsapp"
+        
+        # Ensure lead exists
+        lead = await create_lead_if_not_exists(
+            creator_id=creator_id,
+            platform_id=sender_id,
+            platform=platform,
+            username=username,
+            name=name
+        )
+        
+        # Save message
+        await save_message(
+            creator_id=creator_id,
+            follower_id=lead.get("id", sender_id),
+            message_text=message_text,
+            direction=direction,
+            platform=platform
+        )
+        
     except Exception as e:
         import logging
-        logging.getLogger("dm_agent").error(f"PostgreSQL save failed: {e}")
+        logging.getLogger("dm_agent").warning(f"Failed to save message to DB: {e}")
