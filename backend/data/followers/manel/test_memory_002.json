@@ -1,0 +1,56 @@
+{
+  "follower_id": "test_memory_002",
+  "creator_id": "manel",
+  "username": "",
+  "name": "",
+  "first_contact": "2025-12-21T14:34:02.914717",
+  "last_contact": "2025-12-21T13:34:03.151984+00:00",
+  "total_messages": 3,
+  "interests": [],
+  "products_discussed": [],
+  "objections_raised": [],
+  "purchase_intent_score": 0.0,
+  "is_lead": false,
+  "is_customer": false,
+  "preferred_language": "es",
+  "last_messages": [
+    {
+      "role": "user",
+      "content": "Mensaje 1",
+      "timestamp": "2025-12-21T13:34:03.034204+00:00"
+    },
+    {
+      "role": "assistant",
+      "content": "Gracias por escribir! En que puedo ayudarte?",
+      "timestamp": "2025-12-21T13:34:03.034204+00:00"
+    },
+    {
+      "role": "user",
+      "content": "Mensaje 2",
+      "timestamp": "2025-12-21T13:34:03.091780+00:00"
+    },
+    {
+      "role": "assistant",
+      "content": "Gracias por escribir! En que puedo ayudarte?",
+      "timestamp": "2025-12-21T13:34:03.091780+00:00"
+    },
+    {
+      "role": "user",
+      "content": "Mensaje 3",
+      "timestamp": "2025-12-21T13:34:03.151984+00:00"
+    },
+    {
+      "role": "assistant",
+      "content": "Gracias por escribir! En que puedo ayudarte?",
+      "timestamp": "2025-12-21T13:34:03.151984+00:00"
+    }
+  ],
+  "links_sent_count": 0,
+  "last_link_message_num": 0,
+  "objections_handled": [],
+  "arguments_used": [],
+  "greeting_variant_index": 0,
+  "last_greeting_style": "",
+  "last_emojis_used": [],
+  "messages_since_name_used": 3
+}

@@ -1,0 +1,38 @@
+{
+  "follower_id": "test_length_001",
+  "creator_id": "manel",
+  "username": "",
+  "name": "",
+  "first_contact": "2025-12-21T14:34:03.471822",
+  "last_contact": "2025-12-21T13:34:03.578141+00:00",
+  "total_messages": 1,
+  "interests": [],
+  "products_discussed": [
+    "curso-automatizacion"
+  ],
+  "objections_raised": [],
+  "purchase_intent_score": 0.5,
+  "is_lead": true,
+  "is_customer": false,
+  "preferred_language": "es",
+  "last_messages": [
+    {
+      "role": "user",
+      "content": "Cuentame sobre el curso",
+      "timestamp": "2025-12-21T13:34:03.578141+00:00"
+    },
+    {
+      "role": "assistant",
+      "content": "Me alegra que te interese! Cuentame, que necesitas exactamente?",
+      "timestamp": "2025-12-21T13:34:03.578141+00:00"
+    }
+  ],
+  "links_sent_count": 0,
+  "last_link_message_num": 0,
+  "objections_handled": [],
+  "arguments_used": [],
+  "greeting_variant_index": 0,
+  "last_greeting_style": "",
+  "last_emojis_used": [],
+  "messages_since_name_used": 1
+}

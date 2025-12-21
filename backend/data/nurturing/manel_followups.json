@@ -1,0 +1,407 @@
+[
+  {
+    "id": "manel_test_interest_001_interest_cold_0_1766324040",
+    "creator_id": "manel",
+    "follower_id": "test_interest_001",
+    "sequence_type": "interest_cold",
+    "step": 0,
+    "scheduled_at": "2025-12-22T14:34:00.664388",
+    "message_template": "Ey! Vi que te interesaba {product_name}. ¿Te quedó alguna duda? Estoy aquí para ayudarte 💪",
+    "status": "pending",
+    "created_at": "2025-12-21T14:34:00.664420",
+    "sent_at": null,
+    "metadata": {
+      "product_name": "Curso Automatizacion Total"
+    }
+  },
+  {
+    "id": "manel_test_interest_001_interest_cold_1_1766324040",
+    "creator_id": "manel",
+    "follower_id": "test_interest_001",
+    "sequence_type": "interest_cold",
+    "step": 1,
+    "scheduled_at": "2025-12-24T14:34:00.664388",
+    "message_template": "¿Qué tal? Solo quería recordarte que {product_name} sigue disponible. Si tienes preguntas, escríbeme sin compromiso.",
+    "status": "pending",
+    "created_at": "2025-12-21T14:34:00.664617",
+    "sent_at": null,
+    "metadata": {
+      "product_name": "Curso Automatizacion Total"
+    }
+  },
+  {
+    "id": "manel_test_interest_001_interest_cold_2_1766324040",
+    "creator_id": "manel",
+    "follower_id": "test_interest_001",
+    "sequence_type": "interest_cold",
+    "step": 2,
+    "scheduled_at": "2025-12-28T14:34:00.664388",
+    "message_template": "Última vez que te escribo sobre esto: {product_name} ha ayudado a +200 personas. Si en algún momento te interesa, aquí estaré. ¡Un abrazo!",
+    "status": "pending",
+    "created_at": "2025-12-21T14:34:00.664714",
+    "sent_at": null,
+    "metadata": {
+      "product_name": "Curso Automatizacion Total"
+    }
+  },
+  {
+    "id": "manel_test_strong_002_abandoned_0_1766324040",
+    "creator_id": "manel",
+    "follower_id": "test_strong_002",
+    "sequence_type": "abandoned",
+    "step": 0,
+    "scheduled_at": "2025-12-21T15:34:00.864816",
+    "message_template": "Ey! Vi que estabas a punto de apuntarte a {product_name}. ¿Te surgió algún problema? Te ayudo con lo que necesites.",
+    "status": "pending",
+    "created_at": "2025-12-21T14:34:00.864859",
+    "sent_at": null,
+    "metadata": {
+      "product_name": "Curso Automatizacion Total"
+    }
+  },
+  {
+    "id": "manel_test_strong_002_abandoned_1_1766324040",
+    "creator_id": "manel",
+    "follower_id": "test_strong_002",
+    "sequence_type": "abandoned",
+    "step": 1,
+    "scheduled_at": "2025-12-22T14:34:00.864816",
+    "message_template": "Hola! Solo quería asegurarme de que pudiste ver toda la info de {product_name}. Si te quedó alguna duda, escríbeme.",
+    "status": "pending",
+    "created_at": "2025-12-21T14:34:00.865040",
+    "sent_at": null,
+    "metadata": {
+      "product_name": "Curso Automatizacion Total"
+    }
+  },
+  {
+    "id": "manel_test_objection_001_objection_price_0_1766324040",
+    "creator_id": "manel",
+    "follower_id": "test_objection_001",
+    "sequence_type": "objection_price",
+    "step": 0,
+    "scheduled_at": "2025-12-23T14:34:00.972809",
+    "message_template": "Hola! Estuve pensando en lo que me dijiste sobre el precio. ¿Sabías que {product_name} tiene garantía de 30 días? Si no ves resultados, te devuelvo el dinero. Sin preguntas.",
+    "status": "pending",
+    "created_at": "2025-12-21T14:34:00.972839",
+    "sent_at": null,
+    "metadata": {
+      "product_name": "mi producto"
+    }
+  },
+  {
+    "id": "manel_test_tiempo_001_objection_time_0_1766324041",
+    "creator_id": "manel",
+    "follower_id": "test_tiempo_001",
+    "sequence_type": "objection_time",
+    "step": 0,
+    "scheduled_at": "2025-12-23T14:34:01.197000",
+    "message_template": "Ey! Sobre lo del tiempo: {product_name} está diseñado para gente ocupada. Son solo 15 min al día. ¿Te cuento cómo funciona?",
+    "status": "pending",
+    "created_at": "2025-12-21T14:34:01.197049",
+    "sent_at": null,
+    "metadata": {
+      "product_name": "Curso Automatizacion Total"
+    }
+  },
+  {
+    "id": "manel_test_question_003_interest_cold_0_1766324041",
+    "creator_id": "manel",
+    "follower_id": "test_question_003",
+    "sequence_type": "interest_cold",
+    "step": 0,
+    "scheduled_at": "2025-12-22T14:34:01.530607",
+    "message_template": "Ey! Vi que te interesaba {product_name}. ¿Te quedó alguna duda? Estoy aquí para ayudarte 💪",
+    "status": "pending",
+    "created_at": "2025-12-21T14:34:01.530639",
+    "sent_at": null,
+    "metadata": {
+      "product_name": "Curso Automatizacion Total"
+    }
+  },
+  {
+    "id": "manel_test_question_003_interest_cold_1_1766324041",
+    "creator_id": "manel",
+    "follower_id": "test_question_003",
+    "sequence_type": "interest_cold",
+    "step": 1,
+    "scheduled_at": "2025-12-24T14:34:01.530607",
+    "message_template": "¿Qué tal? Solo quería recordarte que {product_name} sigue disponible. Si tienes preguntas, escríbeme sin compromiso.",
+    "status": "pending",
+    "created_at": "2025-12-21T14:34:01.530790",
+    "sent_at": null,
+    "metadata": {
+      "product_name": "Curso Automatizacion Total"
+    }
+  },
+  {
+    "id": "manel_test_question_003_interest_cold_2_1766324041",
+    "creator_id": "manel",
+    "follower_id": "test_question_003",
+    "sequence_type": "interest_cold",
+    "step": 2,
+    "scheduled_at": "2025-12-28T14:34:01.530607",
+    "message_template": "Última vez que te escribo sobre esto: {product_name} ha ayudado a +200 personas. Si en algún momento te interesa, aquí estaré. ¡Un abrazo!",
+    "status": "pending",
+    "created_at": "2025-12-21T14:34:01.530885",
+    "sent_at": null,
+    "metadata": {
+      "product_name": "Curso Automatizacion Total"
+    }
+  },
+  {
+    "id": "manel_test_bye_001_interest_cold_0_1766324042",
+    "creator_id": "manel",
+    "follower_id": "test_bye_001",
+    "sequence_type": "interest_cold",
+    "step": 0,
+    "scheduled_at": "2025-12-22T14:34:02.533797",
+    "message_template": "Ey! Vi que te interesaba {product_name}. ¿Te quedó alguna duda? Estoy aquí para ayudarte 💪",
+    "status": "pending",
+    "created_at": "2025-12-21T14:34:02.533820",
+    "sent_at": null,
+    "metadata": {
+      "product_name": "Curso Automatizacion Total"
+    }
+  },
+  {
+    "id": "manel_test_bye_001_interest_cold_1_1766324042",
+    "creator_id": "manel",
+    "follower_id": "test_bye_001",
+    "sequence_type": "interest_cold",
+    "step": 1,
+    "scheduled_at": "2025-12-24T14:34:02.533797",
+    "message_template": "¿Qué tal? Solo quería recordarte que {product_name} sigue disponible. Si tienes preguntas, escríbeme sin compromiso.",
+    "status": "pending",
+    "created_at": "2025-12-21T14:34:02.533941",
+    "sent_at": null,
+    "metadata": {
+      "product_name": "Curso Automatizacion Total"
+    }
+  },
+  {
+    "id": "manel_test_bye_001_interest_cold_2_1766324042",
+    "creator_id": "manel",
+    "follower_id": "test_bye_001",
+    "sequence_type": "interest_cold",
+    "step": 2,
+    "scheduled_at": "2025-12-28T14:34:02.533797",
+    "message_template": "Última vez que te escribo sobre esto: {product_name} ha ayudado a +200 personas. Si en algún momento te interesa, aquí estaré. ¡Un abrazo!",
+    "status": "pending",
+    "created_at": "2025-12-21T14:34:02.534023",
+    "sent_at": null,
+    "metadata": {
+      "product_name": "Curso Automatizacion Total"
+    }
+  },
+  {
+    "id": "manel_test_bye_002_objection_later_0_1766324042",
+    "creator_id": "manel",
+    "follower_id": "test_bye_002",
+    "sequence_type": "objection_later",
+    "step": 0,
+    "scheduled_at": "2025-12-23T14:34:02.672140",
+    "message_template": "Ey! ¿Ya tuviste tiempo de pensarlo? {product_name} sigue aquí esperándote. Sin presión, pero si tienes preguntas, escríbeme.",
+    "status": "pending",
+    "created_at": "2025-12-21T14:34:02.672151",
+    "sent_at": null,
+    "metadata": {
+      "product_name": "mi producto"
+    }
+  },
+  {
+    "id": "manel_test_bye_002_objection_later_1_1766324042",
+    "creator_id": "manel",
+    "follower_id": "test_bye_002",
+    "sequence_type": "objection_later",
+    "step": 1,
+    "scheduled_at": "2025-12-28T14:34:02.672140",
+    "message_template": "Hola! Hace una semana hablamos de {product_name}. ¿Sigues interesado? Si cambió algo, cuéntame.",
+    "status": "pending",
+    "created_at": "2025-12-21T14:34:02.672198",
+    "sent_at": null,
+    "metadata": {
+      "product_name": "mi producto"
+    }
+  },
+  {
+    "id": "manel_test_memory_001_interest_cold_0_1766324042",
+    "creator_id": "manel",
+    "follower_id": "test_memory_001",
+    "sequence_type": "interest_cold",
+    "step": 0,
+    "scheduled_at": "2025-12-22T14:34:02.757074",
+    "message_template": "Ey! Vi que te interesaba {product_name}. ¿Te quedó alguna duda? Estoy aquí para ayudarte 💪",
+    "status": "cancelled",
+    "created_at": "2025-12-21T14:34:02.757088",
+    "sent_at": null,
+    "metadata": {
+      "product_name": "Curso Automatizacion Total"
+    }
+  },
+  {
+    "id": "manel_test_memory_001_interest_cold_1_1766324042",
+    "creator_id": "manel",
+    "follower_id": "test_memory_001",
+    "sequence_type": "interest_cold",
+    "step": 1,
+    "scheduled_at": "2025-12-24T14:34:02.757074",
+    "message_template": "¿Qué tal? Solo quería recordarte que {product_name} sigue disponible. Si tienes preguntas, escríbeme sin compromiso.",
+    "status": "cancelled",
+    "created_at": "2025-12-21T14:34:02.757142",
+    "sent_at": null,
+    "metadata": {
+      "product_name": "Curso Automatizacion Total"
+    }
+  },
+  {
+    "id": "manel_test_memory_001_interest_cold_2_1766324042",
+    "creator_id": "manel",
+    "follower_id": "test_memory_001",
+    "sequence_type": "interest_cold",
+    "step": 2,
+    "scheduled_at": "2025-12-28T14:34:02.757074",
+    "message_template": "Última vez que te escribo sobre esto: {product_name} ha ayudado a +200 personas. Si en algún momento te interesa, aquí estaré. ¡Un abrazo!",
+    "status": "cancelled",
+    "created_at": "2025-12-21T14:34:02.757183",
+    "sent_at": null,
+    "metadata": {
+      "product_name": "Curso Automatizacion Total"
+    }
+  },
+  {
+    "id": "manel_test_memory_001_interest_cold_0_1766324042",
+    "creator_id": "manel",
+    "follower_id": "test_memory_001",
+    "sequence_type": "interest_cold",
+    "step": 0,
+    "scheduled_at": "2025-12-22T14:34:02.902715",
+    "message_template": "Ey! Vi que te interesaba {product_name}. ¿Te quedó alguna duda? Estoy aquí para ayudarte 💪",
+    "status": "pending",
+    "created_at": "2025-12-21T14:34:02.902736",
+    "sent_at": null,
+    "metadata": {
+      "product_name": "Curso Automatizacion Total"
+    }
+  },
+  {
+    "id": "manel_test_memory_001_interest_cold_1_1766324042",
+    "creator_id": "manel",
+    "follower_id": "test_memory_001",
+    "sequence_type": "interest_cold",
+    "step": 1,
+    "scheduled_at": "2025-12-24T14:34:02.902715",
+    "message_template": "¿Qué tal? Solo quería recordarte que {product_name} sigue disponible. Si tienes preguntas, escríbeme sin compromiso.",
+    "status": "pending",
+    "created_at": "2025-12-21T14:34:02.902866",
+    "sent_at": null,
+    "metadata": {
+      "product_name": "Curso Automatizacion Total"
+    }
+  },
+  {
+    "id": "manel_test_memory_001_interest_cold_2_1766324042",
+    "creator_id": "manel",
+    "follower_id": "test_memory_001",
+    "sequence_type": "interest_cold",
+    "step": 2,
+    "scheduled_at": "2025-12-28T14:34:02.902715",
+    "message_template": "Última vez que te escribo sobre esto: {product_name} ha ayudado a +200 personas. Si en algún momento te interesa, aquí estaré. ¡Un abrazo!",
+    "status": "pending",
+    "created_at": "2025-12-21T14:34:02.902954",
+    "sent_at": null,
+    "metadata": {
+      "product_name": "Curso Automatizacion Total"
+    }
+  },
+  {
+    "id": "manel_test_quality_1_interest_cold_0_1766324043",
+    "creator_id": "manel",
+    "follower_id": "test_quality_1",
+    "sequence_type": "interest_cold",
+    "step": 0,
+    "scheduled_at": "2025-12-22T14:34:03.334898",
+    "message_template": "Ey! Vi que te interesaba {product_name}. ¿Te quedó alguna duda? Estoy aquí para ayudarte 💪",
+    "status": "pending",
+    "created_at": "2025-12-21T14:34:03.334936",
+    "sent_at": null,
+    "metadata": {
+      "product_name": "Curso Automatizacion Total"
+    }
+  },
+  {
+    "id": "manel_test_quality_1_interest_cold_1_1766324043",
+    "creator_id": "manel",
+    "follower_id": "test_quality_1",
+    "sequence_type": "interest_cold",
+    "step": 1,
+    "scheduled_at": "2025-12-24T14:34:03.334898",
+    "message_template": "¿Qué tal? Solo quería recordarte que {product_name} sigue disponible. Si tienes preguntas, escríbeme sin compromiso.",
+    "status": "pending",
+    "created_at": "2025-12-21T14:34:03.335108",
+    "sent_at": null,
+    "metadata": {
+      "product_name": "Curso Automatizacion Total"
+    }
+  },
+  {
+    "id": "manel_test_quality_1_interest_cold_2_1766324043",
+    "creator_id": "manel",
+    "follower_id": "test_quality_1",
+    "sequence_type": "interest_cold",
+    "step": 2,
+    "scheduled_at": "2025-12-28T14:34:03.334898",
+    "message_template": "Última vez que te escribo sobre esto: {product_name} ha ayudado a +200 personas. Si en algún momento te interesa, aquí estaré. ¡Un abrazo!",
+    "status": "pending",
+    "created_at": "2025-12-21T14:34:03.335268",
+    "sent_at": null,
+    "metadata": {
+      "product_name": "Curso Automatizacion Total"
+    }
+  },
+  {
+    "id": "manel_test_length_001_interest_cold_0_1766324043",
+    "creator_id": "manel",
+    "follower_id": "test_length_001",
+    "sequence_type": "interest_cold",
+    "step": 0,
+    "scheduled_at": "2025-12-22T14:34:03.579337",
+    "message_template": "Ey! Vi que te interesaba {product_name}. ¿Te quedó alguna duda? Estoy aquí para ayudarte 💪",
+    "status": "pending",
+    "created_at": "2025-12-21T14:34:03.579372",
+    "sent_at": null,
+    "metadata": {
+      "product_name": "Curso Automatizacion Total"
+    }
+  },
+  {
+    "id": "manel_test_length_001_interest_cold_1_1766324043",
+    "creator_id": "manel",
+    "follower_id": "test_length_001",
+    "sequence_type": "interest_cold",
+    "step": 1,
+    "scheduled_at": "2025-12-24T14:34:03.579337",
+    "message_template": "¿Qué tal? Solo quería recordarte que {product_name} sigue disponible. Si tienes preguntas, escríbeme sin compromiso.",
+    "status": "pending",
+    "created_at": "2025-12-21T14:34:03.579553",
+    "sent_at": null,
+    "metadata": {
+      "product_name": "Curso Automatizacion Total"
+    }
+  },
+  {
+    "id": "manel_test_length_001_interest_cold_2_1766324043",
+    "creator_id": "manel",
+    "follower_id": "test_length_001",
+    "sequence_type": "interest_cold",
+    "step": 2,
+    "scheduled_at": "2025-12-28T14:34:03.579337",
+    "message_template": "Última vez que te escribo sobre esto: {product_name} ha ayudado a +200 personas. Si en algún momento te interesa, aquí estaré. ¡Un abrazo!",
+    "status": "pending",
+    "created_at": "2025-12-21T14:34:03.579713",
+    "sent_at": null,
+    "metadata": {
+      "product_name": "Curso Automatizacion Total"
+    }
+  }
+]

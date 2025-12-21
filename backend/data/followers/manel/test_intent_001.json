@@ -1,0 +1,68 @@
+{
+  "follower_id": "test_intent_001",
+  "creator_id": "manel",
+  "username": "",
+  "name": "",
+  "first_contact": "2025-12-21T14:34:03.592128",
+  "last_contact": "2025-12-21T13:34:03.889759+00:00",
+  "total_messages": 4,
+  "interests": [],
+  "products_discussed": [
+    "curso-automatizacion"
+  ],
+  "objections_raised": [],
+  "purchase_intent_score": 0.0,
+  "is_lead": false,
+  "is_customer": false,
+  "preferred_language": "es",
+  "last_messages": [
+    {
+      "role": "user",
+      "content": "Hola",
+      "timestamp": "2025-12-21T13:34:03.694565+00:00"
+    },
+    {
+      "role": "assistant",
+      "content": "Ey! Que tal? Soy Manel. En que puedo ayudarte?",
+      "timestamp": "2025-12-21T13:34:03.694565+00:00"
+    },
+    {
+      "role": "user",
+      "content": "Buenos dias",
+      "timestamp": "2025-12-21T13:34:03.766897+00:00"
+    },
+    {
+      "role": "assistant",
+      "content": "Ey! Que tal? Soy Manel. En que puedo ayudarte?",
+      "timestamp": "2025-12-21T13:34:03.766897+00:00"
+    },
+    {
+      "role": "user",
+      "content": "Que tal",
+      "timestamp": "2025-12-21T13:34:03.828326+00:00"
+    },
+    {
+      "role": "assistant",
+      "content": "Ey! Que tal? Soy Manel. En que puedo ayudarte?",
+      "timestamp": "2025-12-21T13:34:03.828326+00:00"
+    },
+    {
+      "role": "user",
+      "content": "Hey",
+      "timestamp": "2025-12-21T13:34:03.889759+00:00"
+    },
+    {
+      "role": "assistant",
+      "content": "Ey! Que tal? Soy Manel. En que puedo ayudarte?",
+      "timestamp": "2025-12-21T13:34:03.889759+00:00"
+    }
+  ],
+  "links_sent_count": 0,
+  "last_link_message_num": 0,
+  "objections_handled": [],
+  "arguments_used": [],
+  "greeting_variant_index": 4,
+  "last_greeting_style": "",
+  "last_emojis_used": [],
+  "messages_since_name_used": 4
+}

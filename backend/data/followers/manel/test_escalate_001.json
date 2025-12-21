@@ -1,0 +1,36 @@
+{
+  "follower_id": "test_escalate_001",
+  "creator_id": "manel",
+  "username": "",
+  "name": "",
+  "first_contact": "2025-12-21T14:34:03.163983",
+  "last_contact": "2025-12-21T13:34:03.164395+00:00",
+  "total_messages": 1,
+  "interests": [],
+  "products_discussed": [],
+  "objections_raised": [],
+  "purchase_intent_score": 0.0,
+  "is_lead": false,
+  "is_customer": false,
+  "preferred_language": "es",
+  "last_messages": [
+    {
+      "role": "user",
+      "content": "Es urgente, necesito hablar contigo",
+      "timestamp": "2025-12-21T13:34:03.164395+00:00"
+    },
+    {
+      "role": "assistant",
+      "content": "Claro, he tomado nota y Manel te contactará pronto para ayudarte mejor. Si es urgente, puedes escribir a manel@clonnect.com.",
+      "timestamp": "2025-12-21T13:34:03.164395+00:00"
+    }
+  ],
+  "links_sent_count": 1,
+  "last_link_message_num": 1,
+  "objections_handled": [],
+  "arguments_used": [],
+  "greeting_variant_index": 0,
+  "last_greeting_style": "claro",
+  "last_emojis_used": [],
+  "messages_since_name_used": 1
+}

@@ -1,0 +1,38 @@
+{
+  "follower_id": "test_strong_001",
+  "creator_id": "manel",
+  "username": "",
+  "name": "",
+  "first_contact": "2025-12-21T14:34:00.769718",
+  "last_contact": "2025-12-21T13:34:00.770240+00:00",
+  "total_messages": 1,
+  "interests": [],
+  "products_discussed": [
+    "curso-automatizacion"
+  ],
+  "objections_raised": [],
+  "purchase_intent_score": 0.85,
+  "is_lead": true,
+  "is_customer": false,
+  "preferred_language": "es",
+  "last_messages": [
+    {
+      "role": "user",
+      "content": "Quiero comprar el curso de automatizacion",
+      "timestamp": "2025-12-21T13:34:00.770231+00:00"
+    },
+    {
+      "role": "assistant",
+      "content": "¡Perfecto! 🚀 Aquí tienes: https://clonnect.com/curso-automatizacion",
+      "timestamp": "2025-12-21T13:34:00.770237+00:00"
+    }
+  ],
+  "links_sent_count": 0,
+  "last_link_message_num": 0,
+  "objections_handled": [],
+  "arguments_used": [],
+  "greeting_variant_index": 0,
+  "last_greeting_style": "",
+  "last_emojis_used": [],
+  "messages_since_name_used": 0
+}
