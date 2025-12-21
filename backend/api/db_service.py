@@ -58,7 +58,7 @@ def update_creator(name: str, data: dict):
     finally:
         session.close()
 
-def toggle_bot(name: str):
+def toggle_bot(name: str, active: bool = None):
     session = get_session()
     if not session:
         return None
@@ -66,7 +66,7 @@ def toggle_bot(name: str):
         from api.models import Creator
         creator = session.query(Creator).filter_by(name=name).first()
         if creator:
-            creator.bot_active = not creator.bot_active
+            creator.bot_active = active if active is not None else not creator.bot_active
             session.commit()
             return creator.bot_active
         return None

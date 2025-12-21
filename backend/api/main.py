@@ -1523,7 +1523,7 @@ async def toggle_clone(creator_id: str, active: bool, reason: str = ""):
     try:
         # PostgreSQL first
         if USE_DB:
-            result = db_service.toggle_bot(creator_id)
+            result = db_service.toggle_bot(creator_id, active)
             if result is not None:
                 return {"status": "ok", "active": result}
         success = config_manager.set_active(creator_id, active, reason)
