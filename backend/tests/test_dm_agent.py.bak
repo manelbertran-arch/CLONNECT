@@ -1,0 +1,240 @@
+"""
+Tests para el DM Agent
+"""
+
+import pytest
+import tempfile
+import shutil
+from core.dm_agent import DMResponderAgent, DMResponse
+from core.intent_classifier import Intent
+from core.memory import MemoryStore, FollowerMemory
+from core.products import ProductManager, Product
+from core.creator_config import CreatorConfigManager, CreatorConfig
+
+
+class MockLLMClient:
+    """Mock LLM Client para tests"""
+
+    async def generate(self, prompt: str, **kwargs) -> str:
+        return "Esta es una respuesta de prueba del clon."
+
+    async def chat(self, messages, **kwargs) -> str:
+        return "Esta es una respuesta de prueba del clon."
+
+
+class TestDMResponderAgent:
+    """Tests para DMResponderAgent"""
+
+    def setup_method(self):
+        """Setup con directorios temporales"""
+        self.temp_dir = tempfile.mkdtemp()
+        self.creator_id = "test-creator"
+
+        # Crear managers con storage temporal
+        self.memory_store = MemoryStore(storage_path=f"{self.temp_dir}/followers")
+        self.product_manager = ProductManager(storage_path=f"{self.temp_dir}/products")
+        self.config_manager = CreatorConfigManager(storage_path=f"{self.temp_dir}/creators")
+
+        # Crear config de creador
+        config = CreatorConfig(
+            id=self.creator_id,
+            name="Test Creator",
+            instagram_handle="test_creator"
+        )
+        self.config_manager.create_config(config)
+
+        # Crear producto
+        product = Product(
+            id="test-product",
+            name="Producto de Prueba",
+            description="Un producto para testing",
+            price=99.0,
+            payment_link="https://example.com/pay"
+        )
+        self.product_manager.add_product(self.creator_id, product)
+
+        # Crear agent
+        self.agent = DMResponderAgent(
+            creator_id=self.creator_id,
+            llm_client=MockLLMClient(),
+            memory_store=self.memory_store,
+            product_manager=self.product_manager,
+            config_manager=self.config_manager
+        )
+
+    def teardown_method(self):
+        """Cleanup"""
+        shutil.rmtree(self.temp_dir, ignore_errors=True)
+
+    @pytest.mark.asyncio
+    async def test_process_dm_greeting(self):
+        """Test procesar DM con saludo"""
+        result = await self.agent.process_dm(
+            sender_id="follower-1",
+            message_text="Hola! Como estas?",
+            message_id="msg-1"
+        )
+
+        assert isinstance(result, DMResponse)
+        assert result.response_text != ""
+        assert result.intent == Intent.GREETING
+        assert result.escalate_to_human is False
+
+    @pytest.mark.asyncio
+    async def test_process_dm_interest(self):
+        """Test procesar DM con interes"""
+        result = await self.agent.process_dm(
+            sender_id="follower-2",
+            message_text="Me interesa tu producto, cuanto cuesta?",
+            message_id="msg-2"
+        )
+
+        assert isinstance(result, DMResponse)
+        assert result.response_text != ""
+        # Deberia detectar interes
+
+    @pytest.mark.asyncio
+    async def test_process_dm_objection(self):
+        """Test procesar DM con objecion"""
+        result = await self.agent.process_dm(
+            sender_id="follower-3",
+            message_text="Es muy caro para mi",
+            message_id="msg-3"
+        )
+
+        assert isinstance(result, DMResponse)
+        assert result.response_text != ""
+        assert result.intent == Intent.OBJECTION
+
+    @pytest.mark.asyncio
+    async def test_follower_memory_persistence(self):
+        """Test que la memoria del seguidor persiste"""
+        sender_id = "follower-persist"
+
+        # Primera interaccion
+        await self.agent.process_dm(
+            sender_id=sender_id,
+            message_text="Hola!",
+            message_id="msg-1"
+        )
+
+        # Segunda interaccion
+        await self.agent.process_dm(
+            sender_id=sender_id,
+            message_text="Me interesa tu curso",
+            message_id="msg-2"
+        )
+
+        # Verificar memoria
+        follower = await self.memory_store.get(self.creator_id, sender_id)
+        assert follower is not None
+        assert follower.total_messages == 2
+        assert len(follower.last_messages) == 4  # 2 user + 2 assistant
+
+    @pytest.mark.asyncio
+    async def test_get_all_conversations(self):
+        """Test obtener todas las conversaciones"""
+        # Crear algunas conversaciones
+        for i in range(3):
+            await self.agent.process_dm(
+                sender_id=f"follower-{i}",
+                message_text="Hola!",
+                message_id=f"msg-{i}"
+            )
+
+        conversations = await self.agent.get_all_conversations()
+        assert len(conversations) == 3
+
+    @pytest.mark.asyncio
+    async def test_get_leads(self):
+        """Test obtener leads"""
+        # Crear un lead (interes fuerte)
+        await self.agent.process_dm(
+            sender_id="lead-follower",
+            message_text="Quiero comprar tu producto, como pago?",
+            message_id="msg-lead"
+        )
+
+        leads = await self.agent.get_leads()
+        # Puede o no ser lead dependiendo de la clasificacion
+        assert isinstance(leads, list)
+
+    @pytest.mark.asyncio
+    async def test_get_metrics(self):
+        """Test obtener metricas"""
+        # Crear algunas interacciones
+        await self.agent.process_dm("f1", "Hola!", "m1")
+        await self.agent.process_dm("f2", "Me interesa", "m2")
+
+        metrics = await self.agent.get_metrics()
+        assert "total_followers" in metrics
+        assert "total_messages" in metrics
+        assert "leads" in metrics
+        assert metrics["total_followers"] >= 2
+
+    @pytest.mark.asyncio
+    async def test_get_follower_detail(self):
+        """Test obtener detalle de seguidor"""
+        sender_id = "detail-follower"
+        await self.agent.process_dm(sender_id, "Hola!", "msg-1")
+
+        detail = await self.agent.get_follower_detail(sender_id)
+        assert detail is not None
+        assert "profile" in detail
+        assert "funnel_stage" in detail
+
+    @pytest.mark.asyncio
+    async def test_fallback_response(self):
+        """Test respuesta fallback cuando LLM falla"""
+        # Usar agent sin LLM
+        agent_no_llm = DMResponderAgent(
+            creator_id=self.creator_id,
+            llm_client=None,
+            memory_store=self.memory_store,
+            product_manager=self.product_manager,
+            config_manager=self.config_manager
+        )
+
+        result = await agent_no_llm.process_dm(
+            sender_id="fallback-test",
+            message_text="Hola!",
+            message_id="msg-fallback"
+        )
+
+        # Debe devolver respuesta fallback
+        assert result.response_text != ""
+
+
+class TestDMResponseDataclass:
+    """Tests para DMResponse dataclass"""
+
+    def test_dm_response_creation(self):
+        """Test crear DMResponse"""
+        response = DMResponse(
+            response_text="Test response",
+            intent=Intent.GREETING,
+            action_taken="greet_and_discover"
+        )
+
+        assert response.response_text == "Test response"
+        assert response.intent == Intent.GREETING
+        assert response.escalate_to_human is False
+        assert response.confidence == 0.0
+
+    def test_dm_response_with_all_fields(self):
+        """Test DMResponse con todos los campos"""
+        response = DMResponse(
+            response_text="Test",
+            intent=Intent.INTEREST_STRONG,
+            action_taken="close_sale",
+            product_mentioned="product-1",
+            follow_up_needed=True,
+            escalate_to_human=False,
+            confidence=0.95,
+            metadata={"test": "value"}
+        )
+
+        assert response.product_mentioned == "product-1"
+        assert response.follow_up_needed is True
+        assert response.confidence == 0.95
+        assert response.metadata["test"] == "value"

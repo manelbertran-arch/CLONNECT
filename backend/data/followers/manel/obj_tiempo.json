@@ -1,0 +1,35 @@
+{
+  "follower_id": "obj_tiempo",
+  "creator_id": "manel",
+  "username": "",
+  "name": "",
+  "first_contact": "2025-12-12T22:06:19.978629",
+  "last_contact": "2025-12-12T22:06:20.999973",
+  "total_messages": 2,
+  "interests": [],
+  "products_discussed": [
+    "curso-automatizacion"
+  ],
+  "objections_raised": [],
+  "purchase_intent_score": 0.09999999999999999,
+  "is_lead": false,
+  "is_customer": false,
+  "last_messages": [
+    {
+      "role": "user",
+      "content": "Me interesa el curso"
+    },
+    {
+      "role": "assistant",
+      "content": "Ey! Me alegra que te interese el curso. ¿Qué es lo que necesitas automatizar en tu negocio para ahorrar tiempo y aumentar la productividad? Mi Curso de Automatización Total puede ser justo lo que buscas, te dejo el enlace por si quieres echar un vistazo: https://clonnect.com/curso-automatizacion 🚀"
+    },
+    {
+      "role": "user",
+      "content": "No tengo tiempo"
+    },
+    {
+      "role": "assistant",
+      "content": "Ey! Entiendo que el tiempo es un lujo, pero mi Curso de Automatización Total es flexible y puedes avanzar a tu propio ritmo. Puedes empezar con solo 10-15 minutos al día y aún así ver resultados significativos. ¿Quieres ver cómo otros han podido automatizar su negocio con éxito? 🚀"
+    }
+  ]
+}

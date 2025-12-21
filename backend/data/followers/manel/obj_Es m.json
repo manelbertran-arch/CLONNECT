@@ -1,0 +1,26 @@
+{
+  "follower_id": "obj_Es m",
+  "creator_id": "manel",
+  "username": "",
+  "name": "",
+  "first_contact": "2025-12-12T23:29:36.862405",
+  "last_contact": "2025-12-12T23:29:37.164633",
+  "total_messages": 1,
+  "interests": [],
+  "products_discussed": [],
+  "objections_raised": [],
+  "purchase_intent_score": 0.0,
+  "is_lead": false,
+  "is_customer": false,
+  "preferred_language": "es",
+  "last_messages": [
+    {
+      "role": "user",
+      "content": "Es muy caro"
+    },
+    {
+      "role": "assistant",
+      "content": "Ey! Te entiendo, el precio puede parecer alto al principio. Piensa que con lo que aprendes en mi curso de Automatización Total, recuperas la inversión en la primera semana automatizando tareas, y además tienes garantía de 30 días, si no te convence te devuelvo el dinero 🙏."
+    }
+  ]
+}

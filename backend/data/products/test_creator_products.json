@@ -1,0 +1,292 @@
+[
+  {
+    "id": "prod_test",
+    "name": "Test Course",
+    "description": "Amazing test course",
+    "price": 97.0,
+    "currency": "EUR",
+    "payment_link": "https://example.com/buy",
+    "category": "",
+    "features": [],
+    "objection_handlers": {
+      "precio": "Entiendo que el precio es una consideración importante. {product_name} incluye {features_count} módulos/características que te ayudarán a {main_benefit}. Muchos de mis alumnos han recuperado la inversión en menos de {roi_time}. ¿Te gustaría que te cuente más sobre lo que incluye?",
+      "tiempo": "Sé que el tiempo es valioso. Por eso {product_name} está diseñado para que puedas avanzar a tu ritmo. Tienes acceso de por vida y cada lección dura máximo 15-20 minutos. ¿Cuánto tiempo podrías dedicarle a la semana?",
+      "despues": "¡Claro! Sin presión. Te dejo el link por si quieres guardarlo: {payment_link}. Si tienes dudas, aquí estoy 😊",
+      "pensarlo": "Por supuesto, tómate tu tiempo. ¿Hay algo específico que te gustaría saber antes de decidir? Estoy aquí para resolver cualquier duda 💪",
+      "funciona": "Te entiendo, todos queremos resultados. Te cuento que {testimonial}. Además, tienes garantía de {guarantee_days} días. Si no te convence, te devuelvo el dinero sin preguntas.",
+      "no_se": "Es normal tener dudas. ¿Qué es lo que más te preocupa? Así puedo ayudarte mejor 😊",
+      "complicado": "Te entiendo. {product_name} está diseñado para principiantes, con explicaciones paso a paso. Además, tienes acceso a soporte si te atascas en algo. ¿Qué parte te preocupa más?",
+      "ya_tengo": "¡Genial que ya tengas experiencia! {product_name} va más allá de lo básico y te enseña {advanced_feature}. ¿Qué nivel dirías que tienes actualmente?"
+    },
+    "keywords": [
+      "test",
+      "course",
+      "learn"
+    ],
+    "testimonials": [],
+    "faq": [],
+    "is_active": true,
+    "is_featured": false,
+    "stock": -1,
+    "created_at": "2025-12-13T09:10:36.442186",
+    "updated_at": "2025-12-13T09:10:36.442189"
+  },
+  {
+    "id": "prod_lab_test",
+    "name": "Lab Test Product",
+    "description": "Product for testing",
+    "price": 49.99,
+    "currency": "EUR",
+    "payment_link": "https://buy.example.com/test",
+    "category": "test",
+    "features": [],
+    "objection_handlers": {
+      "price": "Es una inversion que se paga sola",
+      "timing": "Puedes empezar cuando quieras"
+    },
+    "keywords": [
+      "test",
+      "lab",
+      "validation"
+    ],
+    "testimonials": [],
+    "faq": [],
+    "is_active": true,
+    "is_featured": false,
+    "stock": -1,
+    "created_at": "2025-12-13T09:10:36.468395",
+    "updated_at": "2025-12-13T09:10:36.468400"
+  },
+  {
+    "id": "prod_test_1",
+    "name": "Test Course",
+    "description": "Amazing test course",
+    "price": 97.0,
+    "currency": "EUR",
+    "payment_link": "https://example.com/buy",
+    "category": "",
+    "features": [],
+    "objection_handlers": {
+      "precio": "Entiendo que el precio es una consideración importante. {product_name} incluye {features_count} módulos/características que te ayudarán a {main_benefit}. Muchos de mis alumnos han recuperado la inversión en menos de {roi_time}. ¿Te gustaría que te cuente más sobre lo que incluye?",
+      "tiempo": "Sé que el tiempo es valioso. Por eso {product_name} está diseñado para que puedas avanzar a tu ritmo. Tienes acceso de por vida y cada lección dura máximo 15-20 minutos. ¿Cuánto tiempo podrías dedicarle a la semana?",
+      "despues": "¡Claro! Sin presión. Te dejo el link por si quieres guardarlo: {payment_link}. Si tienes dudas, aquí estoy 😊",
+      "pensarlo": "Por supuesto, tómate tu tiempo. ¿Hay algo específico que te gustaría saber antes de decidir? Estoy aquí para resolver cualquier duda 💪",
+      "funciona": "Te entiendo, todos queremos resultados. Te cuento que {testimonial}. Además, tienes garantía de {guarantee_days} días. Si no te convence, te devuelvo el dinero sin preguntas.",
+      "no_se": "Es normal tener dudas. ¿Qué es lo que más te preocupa? Así puedo ayudarte mejor 😊",
+      "complicado": "Te entiendo. {product_name} está diseñado para principiantes, con explicaciones paso a paso. Además, tienes acceso a soporte si te atascas en algo. ¿Qué parte te preocupa más?",
+      "ya_tengo": "¡Genial que ya tengas experiencia! {product_name} va más allá de lo básico y te enseña {advanced_feature}. ¿Qué nivel dirías que tienes actualmente?"
+    },
+    "keywords": [
+      "test",
+      "course",
+      "learn"
+    ],
+    "testimonials": [],
+    "faq": [],
+    "is_active": true,
+    "is_featured": false,
+    "stock": -1,
+    "created_at": "2025-12-13T09:21:32.841264",
+    "updated_at": "2025-12-13T09:21:32.841271"
+  },
+  {
+    "id": "prod_lab_test_1",
+    "name": "Lab Test Product",
+    "description": "Product for testing",
+    "price": 49.99,
+    "currency": "EUR",
+    "payment_link": "https://buy.example.com/test",
+    "category": "test",
+    "features": [],
+    "objection_handlers": {
+      "price": "Es una inversion que se paga sola",
+      "timing": "Puedes empezar cuando quieras"
+    },
+    "keywords": [
+      "test",
+      "lab",
+      "validation"
+    ],
+    "testimonials": [],
+    "faq": [],
+    "is_active": true,
+    "is_featured": false,
+    "stock": -1,
+    "created_at": "2025-12-13T09:21:32.885830",
+    "updated_at": "2025-12-13T09:21:32.885836"
+  },
+  {
+    "id": "prod_test_2",
+    "name": "Test Course",
+    "description": "Amazing test course",
+    "price": 97.0,
+    "currency": "EUR",
+    "payment_link": "https://example.com/buy",
+    "category": "",
+    "features": [],
+    "objection_handlers": {
+      "precio": "Entiendo que el precio es una consideración importante. {product_name} incluye {features_count} módulos/características que te ayudarán a {main_benefit}. Muchos de mis alumnos han recuperado la inversión en menos de {roi_time}. ¿Te gustaría que te cuente más sobre lo que incluye?",
+      "tiempo": "Sé que el tiempo es valioso. Por eso {product_name} está diseñado para que puedas avanzar a tu ritmo. Tienes acceso de por vida y cada lección dura máximo 15-20 minutos. ¿Cuánto tiempo podrías dedicarle a la semana?",
+      "despues": "¡Claro! Sin presión. Te dejo el link por si quieres guardarlo: {payment_link}. Si tienes dudas, aquí estoy 😊",
+      "pensarlo": "Por supuesto, tómate tu tiempo. ¿Hay algo específico que te gustaría saber antes de decidir? Estoy aquí para resolver cualquier duda 💪",
+      "funciona": "Te entiendo, todos queremos resultados. Te cuento que {testimonial}. Además, tienes garantía de {guarantee_days} días. Si no te convence, te devuelvo el dinero sin preguntas.",
+      "no_se": "Es normal tener dudas. ¿Qué es lo que más te preocupa? Así puedo ayudarte mejor 😊",
+      "complicado": "Te entiendo. {product_name} está diseñado para principiantes, con explicaciones paso a paso. Además, tienes acceso a soporte si te atascas en algo. ¿Qué parte te preocupa más?",
+      "ya_tengo": "¡Genial que ya tengas experiencia! {product_name} va más allá de lo básico y te enseña {advanced_feature}. ¿Qué nivel dirías que tienes actualmente?"
+    },
+    "keywords": [
+      "test",
+      "course",
+      "learn"
+    ],
+    "testimonials": [],
+    "faq": [],
+    "is_active": true,
+    "is_featured": false,
+    "stock": -1,
+    "created_at": "2025-12-13T09:31:34.055389",
+    "updated_at": "2025-12-13T09:31:34.055394"
+  },
+  {
+    "id": "prod_lab_test_2",
+    "name": "Lab Test Product",
+    "description": "Product for testing",
+    "price": 49.99,
+    "currency": "EUR",
+    "payment_link": "https://buy.example.com/test",
+    "category": "test",
+    "features": [],
+    "objection_handlers": {
+      "price": "Es una inversion que se paga sola",
+      "timing": "Puedes empezar cuando quieras"
+    },
+    "keywords": [
+      "test",
+      "lab",
+      "validation"
+    ],
+    "testimonials": [],
+    "faq": [],
+    "is_active": true,
+    "is_featured": false,
+    "stock": -1,
+    "created_at": "2025-12-13T09:31:34.425832",
+    "updated_at": "2025-12-13T09:31:34.425837"
+  },
+  {
+    "id": "prod_test_3",
+    "name": "Test Course",
+    "description": "Amazing test course",
+    "price": 97.0,
+    "currency": "EUR",
+    "payment_link": "https://example.com/buy",
+    "category": "",
+    "features": [],
+    "objection_handlers": {
+      "precio": "Entiendo que el precio es una consideración importante. {product_name} incluye {features_count} módulos/características que te ayudarán a {main_benefit}. Muchos de mis alumnos han recuperado la inversión en menos de {roi_time}. ¿Te gustaría que te cuente más sobre lo que incluye?",
+      "tiempo": "Sé que el tiempo es valioso. Por eso {product_name} está diseñado para que puedas avanzar a tu ritmo. Tienes acceso de por vida y cada lección dura máximo 15-20 minutos. ¿Cuánto tiempo podrías dedicarle a la semana?",
+      "despues": "¡Claro! Sin presión. Te dejo el link por si quieres guardarlo: {payment_link}. Si tienes dudas, aquí estoy 😊",
+      "pensarlo": "Por supuesto, tómate tu tiempo. ¿Hay algo específico que te gustaría saber antes de decidir? Estoy aquí para resolver cualquier duda 💪",
+      "funciona": "Te entiendo, todos queremos resultados. Te cuento que {testimonial}. Además, tienes garantía de {guarantee_days} días. Si no te convence, te devuelvo el dinero sin preguntas.",
+      "no_se": "Es normal tener dudas. ¿Qué es lo que más te preocupa? Así puedo ayudarte mejor 😊",
+      "complicado": "Te entiendo. {product_name} está diseñado para principiantes, con explicaciones paso a paso. Además, tienes acceso a soporte si te atascas en algo. ¿Qué parte te preocupa más?",
+      "ya_tengo": "¡Genial que ya tengas experiencia! {product_name} va más allá de lo básico y te enseña {advanced_feature}. ¿Qué nivel dirías que tienes actualmente?"
+    },
+    "keywords": [
+      "test",
+      "course",
+      "learn"
+    ],
+    "testimonials": [],
+    "faq": [],
+    "is_active": true,
+    "is_featured": false,
+    "stock": -1,
+    "created_at": "2025-12-13T09:35:21.740422",
+    "updated_at": "2025-12-13T09:35:21.740425"
+  },
+  {
+    "id": "prod_lab_test_3",
+    "name": "Lab Test Product",
+    "description": "Product for testing",
+    "price": 49.99,
+    "currency": "EUR",
+    "payment_link": "https://buy.example.com/test",
+    "category": "test",
+    "features": [],
+    "objection_handlers": {
+      "price": "Es una inversion que se paga sola",
+      "timing": "Puedes empezar cuando quieras"
+    },
+    "keywords": [
+      "test",
+      "lab",
+      "validation"
+    ],
+    "testimonials": [],
+    "faq": [],
+    "is_active": true,
+    "is_featured": false,
+    "stock": -1,
+    "created_at": "2025-12-13T09:35:22.150678",
+    "updated_at": "2025-12-13T09:35:22.150683"
+  },
+  {
+    "id": "prod_test_4",
+    "name": "Test Course",
+    "description": "Amazing test course",
+    "price": 97.0,
+    "currency": "EUR",
+    "payment_link": "https://example.com/buy",
+    "category": "",
+    "features": [],
+    "objection_handlers": {
+      "precio": "Entiendo que el precio es una consideración importante. {product_name} incluye {features_count} módulos/características que te ayudarán a {main_benefit}. Muchos de mis alumnos han recuperado la inversión en menos de {roi_time}. ¿Te gustaría que te cuente más sobre lo que incluye?",
+      "tiempo": "Sé que el tiempo es valioso. Por eso {product_name} está diseñado para que puedas avanzar a tu ritmo. Tienes acceso de por vida y cada lección dura máximo 15-20 minutos. ¿Cuánto tiempo podrías dedicarle a la semana?",
+      "despues": "¡Claro! Sin presión. Te dejo el link por si quieres guardarlo: {payment_link}. Si tienes dudas, aquí estoy 😊",
+      "pensarlo": "Por supuesto, tómate tu tiempo. ¿Hay algo específico que te gustaría saber antes de decidir? Estoy aquí para resolver cualquier duda 💪",
+      "funciona": "Te entiendo, todos queremos resultados. Te cuento que {testimonial}. Además, tienes garantía de {guarantee_days} días. Si no te convence, te devuelvo el dinero sin preguntas.",
+      "no_se": "Es normal tener dudas. ¿Qué es lo que más te preocupa? Así puedo ayudarte mejor 😊",
+      "complicado": "Te entiendo. {product_name} está diseñado para principiantes, con explicaciones paso a paso. Además, tienes acceso a soporte si te atascas en algo. ¿Qué parte te preocupa más?",
+      "ya_tengo": "¡Genial que ya tengas experiencia! {product_name} va más allá de lo básico y te enseña {advanced_feature}. ¿Qué nivel dirías que tienes actualmente?"
+    },
+    "keywords": [
+      "test",
+      "course",
+      "learn"
+    ],
+    "testimonials": [],
+    "faq": [],
+    "is_active": true,
+    "is_featured": false,
+    "stock": -1,
+    "created_at": "2025-12-13T09:54:59.112509",
+    "updated_at": "2025-12-13T09:54:59.112513"
+  },
+  {
+    "id": "prod_lab_test_4",
+    "name": "Lab Test Product",
+    "description": "Product for testing",
+    "price": 49.99,
+    "currency": "EUR",
+    "payment_link": "https://buy.example.com/test",
+    "category": "test",
+    "features": [],
+    "objection_handlers": {
+      "price": "Es una inversion que se paga sola",
+      "timing": "Puedes empezar cuando quieras"
+    },
+    "keywords": [
+      "test",
+      "lab",
+      "validation"
+    ],
+    "testimonials": [],
+    "faq": [],
+    "is_active": true,
+    "is_featured": false,
+    "stock": -1,
+    "created_at": "2025-12-13T09:54:59.562742",
+    "updated_at": "2025-12-13T09:54:59.562748"
+  }
+]

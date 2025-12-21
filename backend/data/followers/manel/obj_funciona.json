@@ -1,0 +1,35 @@
+{
+  "follower_id": "obj_funciona",
+  "creator_id": "manel",
+  "username": "",
+  "name": "",
+  "first_contact": "2025-12-12T22:06:23.048265",
+  "last_contact": "2025-12-12T22:06:23.867413",
+  "total_messages": 2,
+  "interests": [],
+  "products_discussed": [
+    "curso-automatizacion"
+  ],
+  "objections_raised": [],
+  "purchase_intent_score": 0.15,
+  "is_lead": false,
+  "is_customer": false,
+  "last_messages": [
+    {
+      "role": "user",
+      "content": "Me interesa el curso"
+    },
+    {
+      "role": "assistant",
+      "content": "Ey! Me alegra que te interese. ¿Qué necesitas automatizar en tu negocio para ahorrar tiempo y aumentar la productividad? Te puedo contar un poco más sobre mi Curso de Automatización Total, que puede ser justo lo que buscas 🚀."
+    },
+    {
+      "role": "user",
+      "content": "¿Realmente funciona?"
+    },
+    {
+      "role": "assistant",
+      "content": "Claro que sí, el curso ha ayudado a muchos emprendedores a automatizar sus negocios y ahorrar hasta 20 horas semanales. Te ofrezco una garantía de 30 días, si no te convence, te devuelvo el dinero. Mi Curso de Automatización Total cuesta 297€ y puedes acceder a más info en https://clonnect.com/curso-automatizacion 🚀."
+    }
+  ]
+}

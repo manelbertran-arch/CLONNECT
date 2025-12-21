@@ -1,0 +1,61 @@
+services:
+  # API Web Service
+  - type: web
+    name: clonnect-creators-api
+    env: python
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn api.main:app --host 0.0.0.0 --port $PORT
+    healthCheckPath: /health/live
+    autoDeploy: true
+    envVars:
+      - key: LLM_PROVIDER
+        value: groq
+      - key: GROQ_API_KEY
+        sync: false
+      - key: CLONNECT_ADMIN_KEY
+        sync: false
+      - key: DATA_PATH
+        value: ./data
+      - key: LOG_LEVEL
+        value: INFO
+
+  # Dashboard (Streamlit)
+  - type: web
+    name: clonnect-dashboard
+    env: python
+    buildCommand: pip install -r requirements.txt
+    startCommand: streamlit run dashboard/app.py --server.port $PORT --server.address 0.0.0.0
+    autoDeploy: true
+    envVars:
+      - key: API_BASE_URL
+        fromService:
+          name: clonnect-creators-api
+          type: web
+          property: host
+
+  # Admin Panel (Streamlit)
+  - type: web
+    name: clonnect-admin
+    env: python
+    buildCommand: pip install -r requirements.txt
+    startCommand: streamlit run dashboard/admin.py --server.port $PORT --server.address 0.0.0.0
+    autoDeploy: true
+    envVars:
+      - key: API_BASE_URL
+        fromService:
+          name: clonnect-creators-api
+          type: web
+          property: host
+
+  # Telegram Bot Worker (optional)
+  - type: worker
+    name: clonnect-telegram-bot
+    env: python
+    buildCommand: pip install -r requirements.txt
+    startCommand: PYTHONPATH=. python core/telegram_adapter.py --mode polling
+    autoDeploy: false
+    envVars:
+      - key: TELEGRAM_BOT_TOKEN
+        sync: false
+      - key: GROQ_API_KEY
+        sync: false

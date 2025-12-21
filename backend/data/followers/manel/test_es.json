@@ -1,0 +1,28 @@
+{
+  "follower_id": "test_es",
+  "creator_id": "manel",
+  "username": "",
+  "name": "",
+  "first_contact": "2025-12-12T22:49:34.480535",
+  "last_contact": "2025-12-12T22:49:35.043351",
+  "total_messages": 1,
+  "interests": [],
+  "products_discussed": [
+    "curso-automatizacion"
+  ],
+  "objections_raised": [],
+  "purchase_intent_score": 0.0,
+  "is_lead": false,
+  "is_customer": false,
+  "preferred_language": "es",
+  "last_messages": [
+    {
+      "role": "user",
+      "content": "Hola! Me interesa el curso"
+    },
+    {
+      "role": "assistant",
+      "content": "Ey! Me alegra que te interese el curso. ¿En qué puedo ayudarte, tienes alguna duda sobre el Curso Automatización Total o quieres saber cómo puede ayudarte a automatizar tu negocio? 🤔"
+    }
+  ]
+}

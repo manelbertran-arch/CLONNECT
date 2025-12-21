@@ -1,0 +1,26 @@
+{
+  "follower_id": "test_en",
+  "creator_id": "manel",
+  "username": "",
+  "name": "",
+  "first_contact": "2025-12-12T22:49:35.043900",
+  "last_contact": "2025-12-12T22:49:35.781867",
+  "total_messages": 1,
+  "interests": [],
+  "products_discussed": [],
+  "objections_raised": [],
+  "purchase_intent_score": 0.0,
+  "is_lead": false,
+  "is_customer": false,
+  "preferred_language": "en",
+  "last_messages": [
+    {
+      "role": "user",
+      "content": "Hello! I'm interested in your course"
+    },
+    {
+      "role": "assistant",
+      "content": "Hey! I'm glad you're interested in my Total Automation course 🚀. You can find more information about it at https://clonnect.com/curso-automatizacion, it costs 297€ and it will help you save a ton of time in your business. Do you want to know more about what it includes?"
+    }
+  ]
+}

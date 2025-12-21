@@ -1,0 +1,36 @@
+{
+  "follower_id": "ig_sender_123",
+  "creator_id": "manel",
+  "username": "",
+  "name": "",
+  "first_contact": "2025-12-12T23:40:22.170479",
+  "last_contact": "2025-12-12T23:45:36.823379",
+  "total_messages": 2,
+  "interests": [],
+  "products_discussed": [
+    "curso-automatizacion"
+  ],
+  "objections_raised": [],
+  "purchase_intent_score": 0.0,
+  "is_lead": false,
+  "is_customer": false,
+  "preferred_language": "es",
+  "last_messages": [
+    {
+      "role": "user",
+      "content": "Hola, me interesa tu curso"
+    },
+    {
+      "role": "assistant",
+      "content": "Ey! Me alegra que te interese mi curso 🙌. ¿En qué puedo ayudarte exactamente? Estoy aquí para responderte a cualquier duda que tengas sobre cómo automatizar tu negocio con el Curso Automatizacion Total."
+    },
+    {
+      "role": "user",
+      "content": "Hola, me interesa tu curso"
+    },
+    {
+      "role": "assistant",
+      "content": "Ey! Que tal? Me alegra que te interese mi curso, estoy aquí para ayudarte en lo que necesites, ¿en qué puedo ayudarte exactamente sobre el Curso Automatizacion Total? 🙌"
+    }
+  ]
+}

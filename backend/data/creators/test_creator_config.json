@@ -1,0 +1,67 @@
+{
+  "id": "test_creator",
+  "name": "Test Creator",
+  "instagram_handle": "@testcreator",
+  "instagram_access_token": "",
+  "instagram_page_id": "",
+  "instagram_user_id": "",
+  "personality": {
+    "tone": "friendly",
+    "emoji_style": "moderate"
+  },
+  "vocabulary": [],
+  "emoji_style": "moderate",
+  "greeting_examples": [
+    "¡Hola! 👋",
+    "¡Hey! ¿Qué tal?",
+    "¡Buenas! 😊"
+  ],
+  "closing_examples": [
+    "¡Un abrazo!",
+    "¡Cualquier cosa me dices!",
+    "¡Aquí estoy para lo que necesites!"
+  ],
+  "example_responses": [],
+  "topics_to_avoid": [
+    "política",
+    "religión",
+    "competidores directos"
+  ],
+  "never_say": [
+    "no sé",
+    "imposible",
+    "nunca"
+  ],
+  "always_mention": [],
+  "sales_style": "soft",
+  "mention_price_after_messages": 3,
+  "max_messages_before_human": 15,
+  "auto_send_payment_link": true,
+  "escalation_keywords": [
+    "hablar contigo",
+    "persona real",
+    "urgente",
+    "problema grave",
+    "reembolso",
+    "devolver dinero",
+    "queja formal"
+  ],
+  "escalation_email": "",
+  "escalation_phone": "",
+  "active_hours": {
+    "enabled": false,
+    "start": "09:00",
+    "end": "21:00",
+    "timezone": "Europe/Madrid",
+    "weekend_enabled": true
+  },
+  "goals": {
+    "response_time_seconds": 60,
+    "daily_conversations": 50,
+    "conversion_rate": 0.05
+  },
+  "is_active": true,
+  "pause_reason": "",
+  "created_at": "2025-12-13T09:54:59.112054",
+  "updated_at": "2025-12-13T09:54:59.112062"
+}

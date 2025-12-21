@@ -1,0 +1,28 @@
+{
+  "follower_id": "test_pt",
+  "creator_id": "manel",
+  "username": "",
+  "name": "",
+  "first_contact": "2025-12-12T22:49:35.783504",
+  "last_contact": "2025-12-12T22:49:36.360690",
+  "total_messages": 1,
+  "interests": [],
+  "products_discussed": [
+    "curso-automatizacion"
+  ],
+  "objections_raised": [],
+  "purchase_intent_score": 0.0,
+  "is_lead": false,
+  "is_customer": false,
+  "preferred_language": "pt",
+  "last_messages": [
+    {
+      "role": "user",
+      "content": "Olá! Estou interessado no curso"
+    },
+    {
+      "role": "assistant",
+      "content": "Ey! Que tal? Estou super contente que estejas interessado no meu curso de Automatização Total, que pode te ajudar a ganhar tempo e aumentar a produtividade, custa 297€ e inclui 20+ horas de conteúdo, plantillas prontas para usar e uma comunidade privada, podes saber mais aqui: https://clonnect.com/curso-automatizacion 😊"
+    }
+  ]
+}

@@ -1,0 +1,155 @@
+[
+  {
+    "log_id": "log_a0c9f153f40d",
+    "timestamp": "2025-12-13T09:10:36.475218+00:00",
+    "creator_id": "test_creator",
+    "follower_id": "test_follower_123",
+    "action": "consent_granted",
+    "actor": "user",
+    "details": {
+      "consent_type": "data_processing",
+      "granted": true
+    },
+    "ip_address": ""
+  },
+  {
+    "log_id": "log_3e53373c4ce2",
+    "timestamp": "2025-12-13T09:21:32.898248+00:00",
+    "creator_id": "test_creator",
+    "follower_id": "test_follower_123",
+    "action": "consent_granted",
+    "actor": "user",
+    "details": {
+      "consent_type": "data_processing",
+      "granted": true
+    },
+    "ip_address": ""
+  },
+  {
+    "log_id": "log_d0303546ceee",
+    "timestamp": "2025-12-13T09:21:32.898926+00:00",
+    "creator_id": "test_creator",
+    "follower_id": "test_follower_123",
+    "action": "test_access",
+    "actor": "test_script",
+    "details": {},
+    "ip_address": ""
+  },
+  {
+    "log_id": "log_48b581252bb0",
+    "timestamp": "2025-12-13T09:21:32.900485+00:00",
+    "creator_id": "test_creator",
+    "follower_id": "test_follower_123",
+    "action": "data_export",
+    "actor": "system",
+    "details": {
+      "export_id": "exp_b96f5c43e6b2"
+    },
+    "ip_address": ""
+  },
+  {
+    "log_id": "log_6c68fe3816eb",
+    "timestamp": "2025-12-13T09:31:34.438803+00:00",
+    "creator_id": "test_creator",
+    "follower_id": "test_follower_123",
+    "action": "consent_granted",
+    "actor": "user",
+    "details": {
+      "consent_type": "data_processing",
+      "granted": true
+    },
+    "ip_address": ""
+  },
+  {
+    "log_id": "log_8c22ae350d48",
+    "timestamp": "2025-12-13T09:31:34.439372+00:00",
+    "creator_id": "test_creator",
+    "follower_id": "test_follower_123",
+    "action": "test_access",
+    "actor": "test_script",
+    "details": {},
+    "ip_address": ""
+  },
+  {
+    "log_id": "log_7b841e56c01c",
+    "timestamp": "2025-12-13T09:31:34.440612+00:00",
+    "creator_id": "test_creator",
+    "follower_id": "test_follower_123",
+    "action": "data_export",
+    "actor": "system",
+    "details": {
+      "export_id": "exp_26628f2dc1a9"
+    },
+    "ip_address": ""
+  },
+  {
+    "log_id": "log_32f76529bb96",
+    "timestamp": "2025-12-13T09:35:22.316459+00:00",
+    "creator_id": "test_creator",
+    "follower_id": "test_follower_123",
+    "action": "consent_granted",
+    "actor": "user",
+    "details": {
+      "consent_type": "data_processing",
+      "granted": true
+    },
+    "ip_address": ""
+  },
+  {
+    "log_id": "log_8a589ae6c964",
+    "timestamp": "2025-12-13T09:35:22.317515+00:00",
+    "creator_id": "test_creator",
+    "follower_id": "test_follower_123",
+    "action": "test_access",
+    "actor": "test_script",
+    "details": {},
+    "ip_address": ""
+  },
+  {
+    "log_id": "log_ccde2b485c80",
+    "timestamp": "2025-12-13T09:35:22.319858+00:00",
+    "creator_id": "test_creator",
+    "follower_id": "test_follower_123",
+    "action": "data_export",
+    "actor": "system",
+    "details": {
+      "export_id": "exp_ce549783d938"
+    },
+    "ip_address": ""
+  },
+  {
+    "log_id": "log_afdf07ab8ec1",
+    "timestamp": "2025-12-13T09:54:59.728534+00:00",
+    "creator_id": "test_creator",
+    "follower_id": "test_follower_123",
+    "action": "consent_granted",
+    "actor": "user",
+    "details": {
+      "consent_type": "data_processing",
+      "granted": true
+    },
+    "ip_address": ""
+  },
+  {
+    "log_id": "log_350d148038df",
+    "timestamp": "2025-12-13T09:54:59.729543+00:00",
+    "creator_id": "test_creator",
+    "follower_id": "test_follower_123",
+    "action": "test_access",
+    "actor": "test_script",
+    "details": {},
+    "ip_address": ""
+  },
+  {
+    "log_id": "log_63bd8277e0c9",
+    "timestamp": "2025-12-13T09:54:59.732106+00:00",
+    "creator_id": "test_creator",
+    "follower_id": "test_follower_123",
+    "action": "data_export",
+    "actor": "system",
+    "details": {
+      "export_id": "exp_218c0503bb44"
+    },
+    "ip_address": ""
+  }
+]

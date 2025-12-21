@@ -1,0 +1,27 @@
+{
+  "follower_id": "test_follower_123",
+  "creator_id": "test_creator",
+  "username": "",
+  "name": "Test User",
+  "first_contact": "2025-12-12T22:45:31.602011+00:00",
+  "last_contact": "2025-12-12T22:45:31.602016+00:00",
+  "total_messages": 5,
+  "interests": [],
+  "products_discussed": [],
+  "objections_raised": [],
+  "purchase_intent_score": 0.7,
+  "engagement_score": 0.0,
+  "is_lead": false,
+  "is_customer": true,
+  "needs_followup": false,
+  "preferred_language": "es",
+  "conversation_summary": "",
+  "last_messages": [],
+  "products_purchased": [
+    "prod_test",
+    "prod_stripe"
+  ],
+  "has_booking": true,
+  "next_booking": "2025-01-15T10:00:00Z",
+  "booking_count": 1
+}

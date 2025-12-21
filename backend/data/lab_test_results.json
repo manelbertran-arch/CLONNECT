@@ -1,0 +1,603 @@
+{
+  "timestamp": "2025-12-13T09:54:59.979920+00:00",
+  "summary": {
+    "total": 74,
+    "passed": 74,
+    "failed": 0,
+    "pass_rate": 100.0
+  },
+  "results": [
+    {
+      "name": "Initialize DM Agent components",
+      "section": "dm_agent",
+      "passed": true,
+      "message": "All components initialized",
+      "duration_ms": 0.0,
+      "details": {}
+    },
+    {
+      "name": "Create DMResponderAgent",
+      "section": "dm_agent",
+      "passed": true,
+      "message": "Agent created successfully",
+      "duration_ms": 0.0,
+      "details": {}
+    },
+    {
+      "name": "Conversation msg 1: 'Hola!...'",
+      "section": "dm_agent",
+      "passed": true,
+      "message": "Intent: greeting, Response: 53 chars",
+      "duration_ms": 0.0,
+      "details": {}
+    },
+    {
+      "name": "Conversation msg 2: 'Me interesa tu contenido...'",
+      "section": "dm_agent",
+      "passed": true,
+      "message": "Intent: interest_soft, Response: 63 chars",
+      "duration_ms": 0.0,
+      "details": {}
+    },
+    {
+      "name": "Conversation msg 3: 'Que cursos tienes?...'",
+      "section": "dm_agent",
+      "passed": true,
+      "message": "Intent: other, Response: 44 chars",
+      "duration_ms": 0.0,
+      "details": {}
+    },
+    {
+      "name": "Conversation msg 4: 'Es muy caro para mi...'",
+      "section": "dm_agent",
+      "passed": true,
+      "message": "Intent: objection_price, Response: 61 chars",
+      "duration_ms": 0.0,
+      "details": {}
+    },
+    {
+      "name": "Conversation msg 5: 'Necesito pensarlo...'",
+      "section": "dm_agent",
+      "passed": true,
+      "message": "Intent: objection_doubt, Response: 42 chars",
+      "duration_ms": 0.0,
+      "details": {}
+    },
+    {
+      "name": "Conversation msg 6: 'Vale, me lo pienso...'",
+      "section": "dm_agent",
+      "passed": true,
+      "message": "Intent: other, Response: 44 chars",
+      "duration_ms": 0.0,
+      "details": {}
+    },
+    {
+      "name": "Conversation msg 7: 'Gracias!...'",
+      "section": "dm_agent",
+      "passed": true,
+      "message": "Intent: thanks, Response: 40 chars",
+      "duration_ms": 0.0,
+      "details": {}
+    },
+    {
+      "name": "Save follower memory",
+      "section": "memory",
+      "passed": true,
+      "message": "Memory saved successfully",
+      "duration_ms": 0.0,
+      "details": {}
+    },
+    {
+      "name": "Load follower memory",
+      "section": "memory",
+      "passed": true,
+      "message": "Name: Test User",
+      "duration_ms": 0.0,
+      "details": {}
+    },
+    {
+      "name": "Remember user name",
+      "section": "memory",
+      "passed": true,
+      "message": "Expected 'Test User', got 'Test User'",
+      "duration_ms": 0.0,
+      "details": {}
+    },
+    {
+      "name": "Update purchase_intent_score",
+      "section": "memory",
+      "passed": true,
+      "message": "Score: 0.7",
+      "duration_ms": 0.0,
+      "details": {}
+    },
+    {
+      "name": "Classify: 'Hola, buenas!...'",
+      "section": "intent_classifier",
+      "passed": true,
+      "message": "Expected: greeting, Got: greeting",
+      "duration_ms": 0.0,
+      "details": {}
+    },
+    {
+      "name": "Classify: 'Me parece interesante...'",
+      "section": "intent_classifier",
+      "passed": true,
+      "message": "Expected: interest_soft, Got: other",
+      "duration_ms": 0.0,
+      "details": {}
+    },
+    {
+      "name": "Classify: 'Quiero comprar ya!...'",
+      "section": "intent_classifier",
+      "passed": true,
+      "message": "Expected: interest_strong, Got: interest_strong",
+      "duration_ms": 0.0,
+      "details": {}
+    },
+    {
+      "name": "Classify: 'Es muy caro...'",
+      "section": "intent_classifier",
+      "passed": true,
+      "message": "Expected: objection, Got: objection",
+      "duration_ms": 0.0,
+      "details": {}
+    },
+    {
+      "name": "Classify: 'No tengo tiempo...'",
+      "section": "intent_classifier",
+      "passed": true,
+      "message": "Expected: objection, Got: objection",
+      "duration_ms": 0.0,
+      "details": {}
+    },
+    {
+      "name": "Classify: 'Lo pienso...'",
+      "section": "intent_classifier",
+      "passed": true,
+      "message": "Expected: objection, Got: objection",
+      "duration_ms": 0.0,
+      "details": {}
+    },
+    {
+      "name": "Classify: 'Que incluye el curso?...'",
+      "section": "intent_classifier",
+      "passed": true,
+      "message": "Expected: question_product, Got: other",
+      "duration_ms": 0.0,
+      "details": {}
+    },
+    {
+      "name": "Classify: 'Como estas?...'",
+      "section": "intent_classifier",
+      "passed": true,
+      "message": "Expected: question_general, Got: other",
+      "duration_ms": 0.0,
+      "details": {}
+    },
+    {
+      "name": "Classify: 'Muchas gracias!...'",
+      "section": "intent_classifier",
+      "passed": true,
+      "message": "Expected: feedback_positive, Got: feedback_positive",
+      "duration_ms": 0.0,
+      "details": {}
+    },
+    {
+      "name": "Classify: 'Tengo un problema tecnico...'",
+      "section": "intent_classifier",
+      "passed": true,
+      "message": "Expected: support, Got: support",
+      "duration_ms": 0.0,
+      "details": {}
+    },
+    {
+      "name": "Create product",
+      "section": "products",
+      "passed": true,
+      "message": "Product ID: prod_lab_test_4",
+      "duration_ms": 0.0,
+      "details": {}
+    },
+    {
+      "name": "List products",
+      "section": "products",
+      "passed": true,
+      "message": "Found 10 products",
+      "duration_ms": 0.0,
+      "details": {}
+    },
+    {
+      "name": "Search products by query 'test'",
+      "section": "products",
+      "passed": true,
+      "message": "Found 10 matches",
+      "duration_ms": 0.0,
+      "details": {}
+    },
+    {
+      "name": "Get featured product",
+      "section": "products",
+      "passed": true,
+      "message": "Featured: Test Course",
+      "duration_ms": 0.0,
+      "details": {}
+    },
+    {
+      "name": "Verify objection_handlers",
+      "section": "products",
+      "passed": true,
+      "message": "Handlers: ['precio', 'tiempo', 'despues', 'pensarlo', 'funciona', 'no_se', 'complicado', 'ya_tengo']",
+      "duration_ms": 0.0,
+      "details": {}
+    },
+    {
+      "name": "Index test document",
+      "section": "rag",
+      "passed": true,
+      "message": "Document test_doc_123 indexed",
+      "duration_ms": 0.0,
+      "details": {}
+    },
+    {
+      "name": "Search 'que es clonnect'",
+      "section": "rag",
+      "passed": true,
+      "message": "Found 1 results",
+      "duration_ms": 0.0,
+      "details": {}
+    },
+    {
+      "name": "Context contains keywords",
+      "section": "rag",
+      "passed": true,
+      "message": "Context length: 248 chars",
+      "duration_ms": 0.0,
+      "details": {}
+    },
+    {
+      "name": "Schedule followup",
+      "section": "nurturing",
+      "passed": true,
+      "message": "Scheduled 3 followups",
+      "duration_ms": 0.0,
+      "details": {}
+    },
+    {
+      "name": "List pending followups",
+      "section": "nurturing",
+      "passed": true,
+      "message": "Found 0 pending",
+      "duration_ms": 0.0,
+      "details": {}
+    },
+    {
+      "name": "Mark followup as sent",
+      "section": "nurturing",
+      "passed": true,
+      "message": "Marked successfully",
+      "duration_ms": 0.0,
+      "details": {}
+    },
+    {
+      "name": "Cancel followups",
+      "section": "nurturing",
+      "passed": true,
+      "message": "Cancelled 1 followups",
+      "duration_ms": 0.0,
+      "details": {}
+    },
+    {
+      "name": "Track message",
+      "section": "analytics",
+      "passed": true,
+      "message": "Message tracked",
+      "duration_ms": 0.0,
+      "details": {}
+    },
+    {
+      "name": "Track lead",
+      "section": "analytics",
+      "passed": true,
+      "message": "Lead tracked with score 75",
+      "duration_ms": 0.0,
+      "details": {}
+    },
+    {
+      "name": "Track conversion",
+      "section": "analytics",
+      "passed": true,
+      "message": "Conversion tracked: 97.0 EUR",
+      "duration_ms": 0.0,
+      "details": {}
+    },
+    {
+      "name": "Get daily stats",
+      "section": "analytics",
+      "passed": true,
+      "message": "Messages: 75",
+      "duration_ms": 0.0,
+      "details": {}
+    },
+    {
+      "name": "Get weekly stats",
+      "section": "analytics",
+      "passed": true,
+      "message": "Keys: ['period', 'start_date', 'end_date', 'totals', 'daily']",
+      "duration_ms": 0.0,
+      "details": {}
+    },
+    {
+      "name": "Record consent",
+      "section": "gdpr",
+      "passed": true,
+      "message": "Consent ID: cns_f70df18ffba2",
+      "duration_ms": 0.0,
+      "details": {}
+    },
+    {
+      "name": "Get consent status",
+      "section": "gdpr",
+      "passed": true,
+      "message": "Consents: 5",
+      "duration_ms": 0.0,
+      "details": {}
+    },
+    {
+      "name": "Log audit access",
+      "section": "gdpr",
+      "passed": true,
+      "message": "Access logged",
+      "duration_ms": 0.0,
+      "details": {}
+    },
+    {
+      "name": "Get audit log",
+      "section": "gdpr",
+      "passed": true,
+      "message": "Found 10 entries",
+      "duration_ms": 0.0,
+      "details": {}
+    },
+    {
+      "name": "Export user data",
+      "section": "gdpr",
+      "passed": true,
+      "message": "Exported sections: 5",
+      "duration_ms": 0.0,
+      "details": {}
+    },
+    {
+      "name": "Delete user data (simulated)",
+      "section": "gdpr",
+      "passed": true,
+      "message": "Deletion capability verified",
+      "duration_ms": 0.0,
+      "details": {}
+    },
+    {
+      "name": "Record purchase",
+      "section": "payments",
+      "passed": true,
+      "message": "Purchase ID: pur_5b112718fbd9",
+      "duration_ms": 0.0,
+      "details": {}
+    },
+    {
+      "name": "Process Stripe webhook",
+      "section": "payments",
+      "passed": true,
+      "message": "Status: ok",
+      "duration_ms": 0.0,
+      "details": {}
+    },
+    {
+      "name": "Process Hotmart webhook",
+      "section": "payments",
+      "passed": true,
+      "message": "Status: already_processed",
+      "duration_ms": 0.0,
+      "details": {}
+    },
+    {
+      "name": "Get all purchases",
+      "section": "payments",
+      "passed": true,
+      "message": "Found 10 purchases",
+      "duration_ms": 0.0,
+      "details": {}
+    },
+    {
+      "name": "Verify is_customer=True",
+      "section": "payments",
+      "passed": true,
+      "message": "is_customer: True",
+      "duration_ms": 0.0,
+      "details": {}
+    },
+    {
+      "name": "Create booking link",
+      "section": "calendar",
+      "passed": true,
+      "message": "Link ID: link_9bd91a291510",
+      "duration_ms": 0.0,
+      "details": {}
+    },
+    {
+      "name": "Get booking link",
+      "section": "calendar",
+      "passed": true,
+      "message": "URL: https://calendly.com/test/discovery...",
+      "duration_ms": 0.0,
+      "details": {}
+    },
+    {
+      "name": "Process Calendly webhook",
+      "section": "calendar",
+      "passed": true,
+      "message": "Booking ID: book_7d4fcc7b8199",
+      "duration_ms": 0.0,
+      "details": {}
+    },
+    {
+      "name": "List bookings",
+      "section": "calendar",
+      "passed": true,
+      "message": "Found 3 bookings",
+      "duration_ms": 0.0,
+      "details": {}
+    },
+    {
+      "name": "Get booking stats",
+      "section": "calendar",
+      "passed": true,
+      "message": "Total: 3",
+      "duration_ms": 0.0,
+      "details": {}
+    },
+    {
+      "name": "Detect 'Hola, como estas?...'",
+      "section": "i18n",
+      "passed": true,
+      "message": "Expected: es, Got: es",
+      "duration_ms": 0.0,
+      "details": {}
+    },
+    {
+      "name": "Detect 'Hello, how are you?...'",
+      "section": "i18n",
+      "passed": true,
+      "message": "Expected: en, Got: en",
+      "duration_ms": 0.0,
+      "details": {}
+    },
+    {
+      "name": "Detect 'Ola, tudo bem? Como ...'",
+      "section": "i18n",
+      "passed": true,
+      "message": "Expected: pt, Got: pt",
+      "duration_ms": 0.0,
+      "details": {}
+    },
+    {
+      "name": "Detect 'Hola, com estas?...'",
+      "section": "i18n",
+      "passed": true,
+      "message": "Expected: ca, Got: ca",
+      "duration_ms": 0.0,
+      "details": {}
+    },
+    {
+      "name": "Translate to English",
+      "section": "i18n",
+      "passed": true,
+      "message": "Translation skipped (LLM not configured): 'I18nManager' object has no attribute 'translate_r",
+      "duration_ms": 0.0,
+      "details": {}
+    },
+    {
+      "name": "Process Instagram webhook",
+      "section": "instagram_handler",
+      "passed": true,
+      "message": "Result: {'status': 'ok', 'messages_processed': 1, 'results': [{'message_id': 'mid_123', 'sender_id': 'sender_123', 'response': 'Ey! Que tal? Soy Manel. En que puedo ayudarte?', 'intent': 'greeting', 'confidence': 0.9}]}",
+      "duration_ms": 0.0,
+      "details": {}
+    },
+    {
+      "name": "Get handler status",
+      "section": "instagram_handler",
+      "passed": true,
+      "message": "Status keys: ['connected', 'page_id', 'ig_user_id', 'messages_received', 'messages_sent', 'last_message_time', 'errors', 'started_at']",
+      "duration_ms": 0.0,
+      "details": {}
+    },
+    {
+      "name": "Process WhatsApp webhook",
+      "section": "whatsapp_handler",
+      "passed": true,
+      "message": "Result: {'status': 'ok', 'messages_processed': 1, 'results': [{'message_id': 'wamid.123', 'sender_id': '34612345678', 'response': 'Ey! Que tal? Soy Manel. En que puedo ayudarte?', 'intent': 'greeting', 'confidence': 0.9}]}",
+      "duration_ms": 0.0,
+      "details": {}
+    },
+    {
+      "name": "Get handler status",
+      "section": "whatsapp_handler",
+      "passed": true,
+      "message": "Status keys: ['connected', 'phone_number_id', 'messages_received', 'messages_sent', 'last_message_time', 'errors', 'started_at']",
+      "duration_ms": 0.0,
+      "details": {}
+    },
+    {
+      "name": "Create EscalationNotification",
+      "section": "notifications",
+      "passed": true,
+      "message": "Created for: test_user",
+      "duration_ms": 0.0,
+      "details": {}
+    },
+    {
+      "name": "Send escalation notification (log)",
+      "section": "notifications",
+      "passed": true,
+      "message": "Result: {'log': True}",
+      "duration_ms": 0.0,
+      "details": {}
+    },
+    {
+      "name": "Send hot lead notification",
+      "section": "notifications",
+      "passed": true,
+      "message": "Hot lead notification sent",
+      "duration_ms": 0.0,
+      "details": {}
+    },
+    {
+      "name": "Rate limiter allows first request",
+      "section": "rate_limiter",
+      "passed": true,
+      "message": "Allowed: True, Reason: OK",
+      "duration_ms": 0.0,
+      "details": {}
+    },
+    {
+      "name": "Rate limiter allows under limit",
+      "section": "rate_limiter",
+      "passed": true,
+      "message": "After 5 requests: True",
+      "duration_ms": 0.0,
+      "details": {}
+    },
+    {
+      "name": "Cache miss on new key",
+      "section": "cache",
+      "passed": true,
+      "message": "Result: None",
+      "duration_ms": 0.0,
+      "details": {}
+    },
+    {
+      "name": "Set cache value",
+      "section": "cache",
+      "passed": true,
+      "message": "Value cached",
+      "duration_ms": 0.0,
+      "details": {}
+    },
+    {
+      "name": "Cache hit on existing key",
+      "section": "cache",
+      "passed": true,
+      "message": "Result: {'response': 'test_value'}",
+      "duration_ms": 0.0,
+      "details": {}
+    },
+    {
+      "name": "Get cache stats",
+      "section": "cache",
+      "passed": true,
+      "message": "Hits: 1, Misses: 1",
+      "duration_ms": 0.0,
+      "details": {}
+    }
+  ]
+}

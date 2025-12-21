@@ -1,0 +1,41 @@
+[
+  {
+    "id": "link_a4cddac97630",
+    "creator_id": "test_creator",
+    "meeting_type": "discovery",
+    "title": "Discovery Call",
+    "description": "30 min intro call",
+    "duration_minutes": 30,
+    "platform": "calendly",
+    "url": "https://calendly.com/test/discovery",
+    "is_active": true,
+    "created_at": "2025-12-13T09:31:34.455762+00:00",
+    "metadata": {}
+  },
+  {
+    "id": "link_6b667948c5cc",
+    "creator_id": "test_creator",
+    "meeting_type": "discovery",
+    "title": "Discovery Call",
+    "description": "30 min intro call",
+    "duration_minutes": 30,
+    "platform": "calendly",
+    "url": "https://calendly.com/test/discovery",
+    "is_active": true,
+    "created_at": "2025-12-13T09:35:22.339904+00:00",
+    "metadata": {}
+  },
+  {
+    "id": "link_9bd91a291510",
+    "creator_id": "test_creator",
+    "meeting_type": "discovery",
+    "title": "Discovery Call",
+    "description": "30 min intro call",
+    "duration_minutes": 30,
+    "platform": "calendly",
+    "url": "https://calendly.com/test/discovery",
+    "is_active": true,
+    "created_at": "2025-12-13T09:54:59.754293+00:00",
+    "metadata": {}
+  }
+]

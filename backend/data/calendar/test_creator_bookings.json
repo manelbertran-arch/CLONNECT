@@ -1,0 +1,125 @@
+[
+  {
+    "booking_id": "book_9d674cc9d96d",
+    "creator_id": "test_creator",
+    "follower_id": "test_follower_123",
+    "meeting_type": "discovery",
+    "platform": "calendly",
+    "status": "scheduled",
+    "scheduled_at": "2025-01-15T10:00:00Z",
+    "duration_minutes": 30,
+    "guest_name": "Test Invitee",
+    "guest_email": "invitee@example.com",
+    "guest_phone": "",
+    "meeting_url": "https://zoom.us/j/123",
+    "external_id": "xyz",
+    "notes": "",
+    "created_at": "2025-12-13T09:31:34.456263+00:00",
+    "updated_at": "2025-12-13T09:31:34.456263+00:00",
+    "cancelled_at": "",
+    "cancel_reason": "",
+    "metadata": {
+      "calendly_event": {
+        "invitee": {
+          "email": "invitee@example.com",
+          "name": "Test Invitee",
+          "uri": "https://api.calendly.com/scheduled_events/abc/invitees/xyz"
+        },
+        "event": {
+          "start_time": "2025-01-15T10:00:00Z",
+          "end_time": "2025-01-15T10:30:00Z",
+          "name": "Discovery Call",
+          "location": {
+            "join_url": "https://zoom.us/j/123"
+          }
+        },
+        "tracking": {
+          "utm_source": "test_creator",
+          "utm_campaign": "test_follower_123"
+        }
+      }
+    }
+  },
+  {
+    "booking_id": "book_e5d7bc390498",
+    "creator_id": "test_creator",
+    "follower_id": "test_follower_123",
+    "meeting_type": "discovery",
+    "platform": "calendly",
+    "status": "scheduled",
+    "scheduled_at": "2025-01-15T10:00:00Z",
+    "duration_minutes": 30,
+    "guest_name": "Test Invitee",
+    "guest_email": "invitee@example.com",
+    "guest_phone": "",
+    "meeting_url": "https://zoom.us/j/123",
+    "external_id": "xyz",
+    "notes": "",
+    "created_at": "2025-12-13T09:35:22.340701+00:00",
+    "updated_at": "2025-12-13T09:35:22.340701+00:00",
+    "cancelled_at": "",
+    "cancel_reason": "",
+    "metadata": {
+      "calendly_event": {
+        "invitee": {
+          "email": "invitee@example.com",
+          "name": "Test Invitee",
+          "uri": "https://api.calendly.com/scheduled_events/abc/invitees/xyz"
+        },
+        "event": {
+          "start_time": "2025-01-15T10:00:00Z",
+          "end_time": "2025-01-15T10:30:00Z",
+          "name": "Discovery Call",
+          "location": {
+            "join_url": "https://zoom.us/j/123"
+          }
+        },
+        "tracking": {
+          "utm_source": "test_creator",
+          "utm_campaign": "test_follower_123"
+        }
+      }
+    }
+  },
+  {
+    "booking_id": "book_7d4fcc7b8199",
+    "creator_id": "test_creator",
+    "follower_id": "test_follower_123",
+    "meeting_type": "discovery",
+    "platform": "calendly",
+    "status": "scheduled",
+    "scheduled_at": "2025-01-15T10:00:00Z",
+    "duration_minutes": 30,
+    "guest_name": "Test Invitee",
+    "guest_email": "invitee@example.com",
+    "guest_phone": "",
+    "meeting_url": "https://zoom.us/j/123",
+    "external_id": "xyz",
+    "notes": "",
+    "created_at": "2025-12-13T09:54:59.755091+00:00",
+    "updated_at": "2025-12-13T09:54:59.755091+00:00",
+    "cancelled_at": "",
+    "cancel_reason": "",
+    "metadata": {
+      "calendly_event": {
+        "invitee": {
+          "email": "invitee@example.com",
+          "name": "Test Invitee",
+          "uri": "https://api.calendly.com/scheduled_events/abc/invitees/xyz"
+        },
+        "event": {
+          "start_time": "2025-01-15T10:00:00Z",
+          "end_time": "2025-01-15T10:30:00Z",
+          "name": "Discovery Call",
+          "location": {
+            "join_url": "https://zoom.us/j/123"
+          }
+        },
+        "tracking": {
+          "utm_source": "test_creator",
+          "utm_campaign": "test_follower_123"
+        }
+      }
+    }
+  }
+]

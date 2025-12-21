@@ -1,0 +1,26 @@
+{
+  "follower_id": "obj_¿Fun",
+  "creator_id": "manel",
+  "username": "",
+  "name": "",
+  "first_contact": "2025-12-12T23:29:38.018896",
+  "last_contact": "2025-12-12T23:29:38.411297",
+  "total_messages": 1,
+  "interests": [],
+  "products_discussed": [],
+  "objections_raised": [],
+  "purchase_intent_score": 0.05,
+  "is_lead": false,
+  "is_customer": false,
+  "preferred_language": "es",
+  "last_messages": [
+    {
+      "role": "user",
+      "content": "¿Funciona?"
+    },
+    {
+      "role": "assistant",
+      "content": "Ey! Claro que funciona, tengo casos de éxito de emprendedores que han ahorrado más de 20 horas a la semana con mi curso de Automatización Total 🚀. Incluso tengo una garantía de 30 días, si no te convence, te devuelvo el dinero, así que no hay riesgo."
+    }
+  ]
+}

@@ -1,0 +1,35 @@
+{
+  "follower_id": "obj_precio",
+  "creator_id": "manel",
+  "username": "",
+  "name": "",
+  "first_contact": "2025-12-12T22:06:18.931089",
+  "last_contact": "2025-12-12T22:06:19.977250",
+  "total_messages": 2,
+  "interests": [],
+  "products_discussed": [
+    "curso-automatizacion"
+  ],
+  "objections_raised": [],
+  "purchase_intent_score": 0.09999999999999999,
+  "is_lead": false,
+  "is_customer": false,
+  "last_messages": [
+    {
+      "role": "user",
+      "content": "Me interesa el curso"
+    },
+    {
+      "role": "assistant",
+      "content": "Ey! Me alegra que te interese. ¿Qué es lo que necesitas automatizar en tu negocio para ahorrar tiempo y aumentar la productividad? Mi curso de Automatización Total puede ser justo lo que buscas, tiene 20+ horas de contenido y plantillas listas para usar, puedes echar un vistazo aquí: https://clonnect.com/curso-automatizacion 🚀"
+    },
+    {
+      "role": "user",
+      "content": "Es muy caro para mí"
+    },
+    {
+      "role": "assistant",
+      "content": "Te entiendo! Piensa que con lo que aprendes en mi curso de Automatización Total, recuperas la inversión en la primera semana automatizando tareas 🚀. Además, tienes garantía de 30 días, si no te convence te devuelvo el dinero, así que no tienes nada que perder."
+    }
+  ]
+}

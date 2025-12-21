@@ -1,0 +1,28 @@
+{
+  "follower_id": "lab_en",
+  "creator_id": "manel",
+  "username": "",
+  "name": "",
+  "first_contact": "2025-12-12T23:29:36.483069",
+  "last_contact": "2025-12-12T23:29:36.857975",
+  "total_messages": 1,
+  "interests": [],
+  "products_discussed": [
+    "curso-automatizacion"
+  ],
+  "objections_raised": [],
+  "purchase_intent_score": 0.15,
+  "is_lead": false,
+  "is_customer": false,
+  "preferred_language": "en",
+  "last_messages": [
+    {
+      "role": "user",
+      "content": "Hello! I want info"
+    },
+    {
+      "role": "assistant",
+      "content": "Hey! What's on your mind, what do you need help with? I've got a solution that might interest you, my Automation Total Course can save you a ton of time and effort, check it out: https://clonnect.com/curso-automatizacion 🚀"
+    }
+  ]
+}

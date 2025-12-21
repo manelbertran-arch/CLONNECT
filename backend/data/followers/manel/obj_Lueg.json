@@ -1,0 +1,26 @@
+{
+  "follower_id": "obj_Lueg",
+  "creator_id": "manel",
+  "username": "",
+  "name": "",
+  "first_contact": "2025-12-12T23:29:37.570496",
+  "last_contact": "2025-12-12T23:29:38.012652",
+  "total_messages": 1,
+  "interests": [],
+  "products_discussed": [],
+  "objections_raised": [],
+  "purchase_intent_score": 0.0,
+  "is_lead": false,
+  "is_customer": false,
+  "preferred_language": "es",
+  "last_messages": [
+    {
+      "role": "user",
+      "content": "Luego lo miro"
+    },
+    {
+      "role": "assistant",
+      "content": "Ey! No te demores, es el mejor momento para empezar a automatizar tu negocio. Si esperas, seguirás perdiendo tiempo y dinero, y mi curso de Automatización Total puede ayudarte a cambiar eso ya mismo 🚀. ¿Qué te parece si te cuento un poco más sobre cómo puede beneficiarte?"
+    }
+  ]
+}

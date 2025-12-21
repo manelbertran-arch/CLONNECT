@@ -1,0 +1,35 @@
+{
+  "follower_id": "obj_luego",
+  "creator_id": "manel",
+  "username": "",
+  "name": "",
+  "first_contact": "2025-12-12T22:06:22.029496",
+  "last_contact": "2025-12-12T22:06:23.046124",
+  "total_messages": 2,
+  "interests": [],
+  "products_discussed": [
+    "curso-automatizacion"
+  ],
+  "objections_raised": [],
+  "purchase_intent_score": 0.15,
+  "is_lead": false,
+  "is_customer": false,
+  "last_messages": [
+    {
+      "role": "user",
+      "content": "Me interesa el curso"
+    },
+    {
+      "role": "assistant",
+      "content": "Ey! Me alegra que te interese 🤙. ¿Qué es lo que necesitas automatizar en tu negocio para liberar más tiempo? Mi Curso de Automatización Total podría ser justo lo que necesitas, tiene 20+ horas de contenido y plantillas listas para usar, ¡te lo explico más en https://clonnect.com/curso-automatizacion!"
+    },
+    {
+      "role": "user",
+      "content": "Luego lo miro"
+    },
+    {
+      "role": "assistant",
+      "content": "Ey! No hay prisa, tómate tu tiempo para mirarlo 👍. Si tienes alguna duda o quieres saber más, estoy aquí para ayudarte, y recuerda que el enlace es https://clonnect.com/curso-automatizacion, cuando quieras echarle un vistazo."
+    }
+  ]
+}

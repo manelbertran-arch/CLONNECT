@@ -1,0 +1,97 @@
+[
+  {
+    "id": "curso-automatizacion",
+    "name": "Curso Automatizacion Total",
+    "description": "Aprende a automatizar tu negocio con IA y ahorra 20 horas semanales",
+    "price": 297,
+    "currency": "EUR",
+    "payment_link": "https://clonnect.com/curso-automatizacion",
+    "category": "curso",
+    "features": [
+      "20+ horas de contenido",
+      "Plantillas listas para usar",
+      "Comunidad privada",
+      "Actualizaciones de por vida",
+      "Soporte directo conmigo"
+    ],
+    "objection_handlers": {
+      "precio": "Piensa que con lo que aprendes, recuperas la inversion en la primera semana automatizando tareas. Ademas tienes garantia de 30 dias.",
+      "tiempo": "Precisamente este curso te va a dar tiempo. Son solo 15 minutos al dia y en 2 semanas ya tienes resultados.",
+      "pensarlo": "Me cuentas un poco que haces? Asi te digo si te puede ayudar o no. Sin compromiso.",
+      "luego": "Entiendo! Pero te digo por experiencia: el 'luego' nunca llega. El mejor momento para automatizar es ahora, antes de que sigas perdiendo tiempo.",
+      "funciona": "Tengo +200 alumnos que ya estan ahorrando horas cada semana. Te paso algunos testimonios si quieres verlos.",
+      "no_para_mi": "Precisamente esta pensado para gente sin conocimientos tecnicos. El 80% de mis alumnos empezaron desde cero y ahora automatizan como pros.",
+      "complicado": "Para nada! Todo esta explicado paso a paso, con videos cortos. Y si te atascas, tienes soporte directo conmigo en la comunidad.",
+      "ya_tengo": "Genial que ya tengas base! Este curso va mas alla: no es solo automatizar, es crear sistemas que trabajan solos mientras tu descansas."
+    },
+    "keywords": ["automatizacion", "productividad", "ahorro tiempo", "IA", "curso", "automatizar"],
+    "testimonials": [
+      "Gracias a Manel ahorro 15 horas a la semana. El curso se paga solo - @carlos_emprendedor"
+    ],
+    "faq": [
+      {"question": "Necesito conocimientos previos?", "answer": "No, empezamos desde cero. Solo necesitas ganas de aprender."},
+      {"question": "Cuanto tiempo tengo acceso?", "answer": "Acceso de por vida, incluyendo todas las actualizaciones futuras."}
+    ],
+    "is_active": true,
+    "is_featured": true,
+    "stock": -1
+  },
+  {
+    "id": "mentoria-1a1",
+    "name": "Mentoria 1 a 1",
+    "description": "3 meses de mentoria personalizada para escalar tu negocio",
+    "price": 1500,
+    "currency": "EUR",
+    "payment_link": "https://clonnect.com/mentoria",
+    "category": "mentoria",
+    "features": [
+      "12 sesiones de 1 hora",
+      "Acceso directo por WhatsApp",
+      "Revision de tu negocio",
+      "Plan de accion personalizado",
+      "Acceso a todos mis cursos"
+    ],
+    "objection_handlers": {
+      "precio": "Es una inversion seria, si. Pero mis mentorizados multiplican x3 sus ingresos en 3 meses. Quieres ver casos reales?",
+      "tiempo": "Las sesiones son flexibles, las adaptamos a tu horario. Y el objetivo es precisamente que ganes tiempo.",
+      "pensarlo": "Normal, es una decision importante. Que dudas tienes? Te las resuelvo sin compromiso.",
+      "luego": "Lo entiendo. Pero cada mes que pasa sin un plan claro es dinero que dejas en la mesa. Cuando quieras empezar, aqui estoy.",
+      "funciona": "Mis mentorizados tienen resultados reales: Laura triplico ingresos en 3 meses, Carlos paso de 2k a 8k mensuales. Quieres que te cuente mas casos?",
+      "no_para_mi": "La mentoria se adapta 100% a ti. No importa si estas empezando o si ya facturas. Analizamos TU situacion y creamos TU plan.",
+      "complicado": "Para eso estoy yo! Mi trabajo es simplificarte todo. Tu solo tienes que aparecer a las sesiones, yo me encargo del resto.",
+      "ya_tengo": "Perfecto, eso significa que ya tienes base. La mentoria te va a llevar al siguiente nivel: escalar sin trabajar mas horas."
+    },
+    "keywords": ["mentoria", "1a1", "personalizado", "escalar", "negocio", "coaching"],
+    "testimonials": [
+      "La mentoria con Manel cambio mi negocio. En 3 meses triplique mis ingresos - @laura_digital"
+    ],
+    "faq": [
+      {"question": "Como son las sesiones?", "answer": "Por videollamada, 1 hora cada semana. Las grabamos para que las puedas revisar."},
+      {"question": "Puedo pagar a plazos?", "answer": "Si, puedes pagar en 3 cuotas de 500 EUR."}
+    ],
+    "is_active": true,
+    "is_featured": false,
+    "stock": 5
+  },
+  {
+    "id": "ebook-gratis",
+    "name": "Ebook: 10 Automatizaciones que Necesitas Ya",
+    "description": "Guia gratuita con las 10 automatizaciones mas potentes para emprendedores",
+    "price": 0,
+    "currency": "EUR",
+    "payment_link": "https://clonnect.com/ebook-gratis",
+    "category": "lead-magnet",
+    "features": [
+      "100% gratis",
+      "Aplicable en 10 minutos",
+      "Con tutoriales paso a paso"
+    ],
+    "objection_handlers": {},
+    "keywords": ["gratis", "ebook", "guia", "empezar", "automatizaciones", "free"],
+    "testimonials": [],
+    "faq": [],
+    "is_active": true,
+    "is_featured": false,
+    "stock": -1
+  }
+]

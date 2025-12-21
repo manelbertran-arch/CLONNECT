@@ -1,0 +1,122 @@
+[
+  {
+    "id": "test_creator_test_follower_123_interest_cold_0_1765617692",
+    "creator_id": "test_creator",
+    "follower_id": "test_follower_123",
+    "sequence_type": "interest_cold",
+    "step": 0,
+    "scheduled_at": "2025-12-14T09:21:32.891304",
+    "message_template": "Ey! Vi que te interesaba {product_name}. ¿Te quedó alguna duda? Estoy aquí para ayudarte 💪",
+    "status": "sent",
+    "created_at": "2025-12-13T09:21:32.891324",
+    "sent_at": "2025-12-13T09:21:32.891830",
+    "metadata": {
+      "product_name": "Test Course"
+    }
+  },
+  {
+    "id": "test_creator_test_follower_123_objection_price_0_1765617692",
+    "creator_id": "test_creator",
+    "follower_id": "test_follower_123",
+    "sequence_type": "objection_price",
+    "step": 0,
+    "scheduled_at": "2025-12-15T09:21:32.892177",
+    "message_template": "Hola! Estuve pensando en lo que me dijiste sobre el precio. ¿Sabías que {product_name} tiene garantía de 30 días? Si no ves resultados, te devuelvo el dinero. Sin preguntas.",
+    "status": "cancelled",
+    "created_at": "2025-12-13T09:21:32.892191",
+    "sent_at": null,
+    "metadata": {
+      "product_name": "Test Course"
+    }
+  },
+  {
+    "id": "test_creator_test_follower_123_interest_cold_0_1765618294",
+    "creator_id": "test_creator",
+    "follower_id": "test_follower_123",
+    "sequence_type": "interest_cold",
+    "step": 0,
+    "scheduled_at": "2025-12-14T09:31:34.430416",
+    "message_template": "Ey! Vi que te interesaba {product_name}. ¿Te quedó alguna duda? Estoy aquí para ayudarte 💪",
+    "status": "sent",
+    "created_at": "2025-12-13T09:31:34.430432",
+    "sent_at": "2025-12-13T09:31:34.430854",
+    "metadata": {
+      "product_name": "Test Course"
+    }
+  },
+  {
+    "id": "test_creator_test_follower_123_objection_price_0_1765618294",
+    "creator_id": "test_creator",
+    "follower_id": "test_follower_123",
+    "sequence_type": "objection_price",
+    "step": 0,
+    "scheduled_at": "2025-12-15T09:31:34.431247",
+    "message_template": "Hola! Estuve pensando en lo que me dijiste sobre el precio. ¿Sabías que {product_name} tiene garantía de 30 días? Si no ves resultados, te devuelvo el dinero. Sin preguntas.",
+    "status": "cancelled",
+    "created_at": "2025-12-13T09:31:34.431256",
+    "sent_at": null,
+    "metadata": {
+      "product_name": "Test Course"
+    }
+  },
+  {
+    "id": "test_creator_test_follower_123_interest_cold_0_1765618522",
+    "creator_id": "test_creator",
+    "follower_id": "test_follower_123",
+    "sequence_type": "interest_cold",
+    "step": 0,
+    "scheduled_at": "2025-12-14T09:35:22.304093",
+    "message_template": "Ey! Vi que te interesaba {product_name}. ¿Te quedó alguna duda? Estoy aquí para ayudarte 💪",
+    "status": "sent",
+    "created_at": "2025-12-13T09:35:22.304119",
+    "sent_at": "2025-12-13T09:35:22.304883",
+    "metadata": {
+      "product_name": "Test Course"
+    }
+  },
+  {
+    "id": "test_creator_test_follower_123_objection_price_0_1765618522",
+    "creator_id": "test_creator",
+    "follower_id": "test_follower_123",
+    "sequence_type": "objection_price",
+    "step": 0,
+    "scheduled_at": "2025-12-15T09:35:22.305406",
+    "message_template": "Hola! Estuve pensando en lo que me dijiste sobre el precio. ¿Sabías que {product_name} tiene garantía de 30 días? Si no ves resultados, te devuelvo el dinero. Sin preguntas.",
+    "status": "cancelled",
+    "created_at": "2025-12-13T09:35:22.305427",
+    "sent_at": null,
+    "metadata": {
+      "product_name": "Test Course"
+    }
+  },
+  {
+    "id": "test_creator_test_follower_123_interest_cold_0_1765619699",
+    "creator_id": "test_creator",
+    "follower_id": "test_follower_123",
+    "sequence_type": "interest_cold",
+    "step": 0,
+    "scheduled_at": "2025-12-14T09:54:59.713918",
+    "message_template": "Ey! Vi que te interesaba {product_name}. ¿Te quedó alguna duda? Estoy aquí para ayudarte 💪",
+    "status": "sent",
+    "created_at": "2025-12-13T09:54:59.713943",
+    "sent_at": "2025-12-13T09:54:59.714825",
+    "metadata": {
+      "product_name": "Test Course"
+    }
+  },
+  {
+    "id": "test_creator_test_follower_123_objection_price_0_1765619699",
+    "creator_id": "test_creator",
+    "follower_id": "test_follower_123",
+    "sequence_type": "objection_price",
+    "step": 0,
+    "scheduled_at": "2025-12-15T09:54:59.715478",
+    "message_template": "Hola! Estuve pensando en lo que me dijiste sobre el precio. ¿Sabías que {product_name} tiene garantía de 30 días? Si no ves resultados, te devuelvo el dinero. Sin preguntas.",
+    "status": "cancelled",
+    "created_at": "2025-12-13T09:54:59.715498",
+    "sent_at": null,
+    "metadata": {
+      "product_name": "Test Course"
+    }
+  }
+]

@@ -1,0 +1,59 @@
+{
+  "follower_id": "test_user_123",
+  "creator_id": "manel",
+  "username": "",
+  "name": "",
+  "first_contact": "2025-12-12T22:29:21.227143",
+  "last_contact": "2025-12-12T22:29:23.360617",
+  "total_messages": 5,
+  "interests": [],
+  "products_discussed": [
+    "curso-automatizacion"
+  ],
+  "objections_raised": [],
+  "purchase_intent_score": 0.3,
+  "is_lead": true,
+  "is_customer": false,
+  "last_messages": [
+    {
+      "role": "user",
+      "content": "Hola! Me encanta tu contenido"
+    },
+    {
+      "role": "assistant",
+      "content": "Ey! Me alegra que te guste mi contenido 😊. ¿En qué puedo ayudarte hoy? ¿Tienes algún problema o inquietud con tu negocio que te gustaría resolver?"
+    },
+    {
+      "role": "user",
+      "content": "Tienes algún curso de automatización?"
+    },
+    {
+      "role": "assistant",
+      "content": "Ey! Tengo justo lo que buscas, mi Curso Automatizacion Total, que te enseña a automatizar tu negocio con IA y ahorra 20 horas semanales 🚀. Cuesta 297€ y viene con 20+ horas de contenido, plantillas listas para usar y una comunidad privada, puedes ver más en https://clonnect.com/curso-automatizacion. ¿Quieres saber más sobre lo que incluye?"
+    },
+    {
+      "role": "user",
+      "content": "Cuánto cuesta?"
+    },
+    {
+      "role": "assistant",
+      "content": "Ey! Te lo acabo de decir 😊, mi Curso Automatizacion Total cuesta 297€. Incluye acceso de por vida, comunidad privada y todas las actualizaciones, y puedes ver más detalles en https://clonnect.com/curso-automatizacion. ¿Quieres saber más sobre lo que incluye?"
+    },
+    {
+      "role": "user",
+      "content": "Es un poco caro para mí"
+    },
+    {
+      "role": "assistant",
+      "content": "Ey! Te entiendo, el precio puede parecer alto al principio, pero piensa que con lo que aprendes en mi Curso Automatizacion Total, recuperas la inversión en la primera semana automatizando tareas 💸. Además, tienes garantía de 30 días, si no te convence te devuelvo el dinero, así que no hay riesgo."
+    },
+    {
+      "role": "user",
+      "content": "Quiero comprarlo!"
+    },
+    {
+      "role": "assistant",
+      "content": "Ey! Genial que estés decidido a comprar mi Curso Automatizacion Total 😊. Puedes acceder a él directamente en https://clonnect.com/curso-automatizacion, donde encontrarás 20+ horas de contenido, plantillas listas para usar y una comunidad privada para apoyarte en tu camino hacia la automatización. ¡Estoy emocionado de que estés a punto de ahorrar 20 horas semanales! 💸"
+    }
+  ]
+}

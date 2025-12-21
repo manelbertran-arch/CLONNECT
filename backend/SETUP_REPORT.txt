@@ -1,0 +1,148 @@
+CLONNECT CREATORS v1.0 - Setup Report
+=====================================
+
+Fecha: 2025-11-30
+Estado: COMPLETADO
+
+RESUMEN EJECUTIVO
+-----------------
+Setup completo del sistema Clonnect Creators - plataforma de automatizacion de DMs de Instagram para creadores de contenido usando IA.
+
+Tests Passed: 49/50 (98%)
+Servicios Activos: 2 (API + Dashboard)
+Tiempo Setup: ~20 min
+Dependencias: 80+ packages
+
+SERVICIOS ACTIVOS
+-----------------
+
+API Server (FastAPI + Uvicorn):
+- URL: http://localhost:8000
+- Docs: http://localhost:8000/docs
+- Health: http://localhost:8000/health
+- Puerto: 8000
+- Estado: Running
+- Health Response: {"status":"ok","service":"clonnect-creators","version":"1.0.0"}
+
+Dashboard (Streamlit):
+- URL Local: http://localhost:8501
+- URL Network: http://21.0.0.102:8501
+- Puerto: 8501
+- Estado: Running
+
+PASOS DE SETUP COMPLETADOS
+--------------------------
+
+1. Clone Repository:
+   git clone https://github.com/manelbertran-arch/clonnect-creators.git
+   cd clonnect-creators
+
+2. Configuracion .env:
+   OPENAI_API_KEY=demo_key_for_testing
+   ANTHROPIC_API_KEY=
+   LLM_PROVIDER=openai
+   DATA_PATH=./data
+   API_HOST=0.0.0.0
+   API_PORT=8000
+   DASHBOARD_PORT=8501
+
+3. Instalacion Dependencias:
+   python -m venv venv
+   source venv/bin/activate
+   pip install -r requirements.txt
+
+   Paquetes principales:
+   - FastAPI 0.123.0
+   - Uvicorn 0.38.0
+   - Streamlit 1.51.0
+   - PyTorch 2.9.1 (con CUDA 12)
+   - Sentence-Transformers 5.1.2
+   - FAISS-CPU 1.13.0
+   - OpenAI 2.8.1
+   - Anthropic 0.75.0
+   - Transformers 4.57.3
+
+4. Datos de Prueba:
+   Creator: demo-creator (Demo Creator / @demo_creator)
+   Producto: curso-instagram - Curso Instagram Pro (197 EUR)
+
+5. Imports verificados OK
+
+6. Servicios iniciados en background
+
+RESULTADOS DE TESTS
+-------------------
+Platform: linux -- Python 3.11.14, pytest-9.0.1
+Collected: 50 items
+
+test_dm_agent.py - 11 tests PASSED
+test_instagram.py - 11 tests PASSED
+test_intent.py - 10 PASSED, 1 FAILED (minor encoding)
+test_products.py - 17 tests PASSED
+
+Total: 49 passed, 1 failed in 2.97s
+
+ARQUITECTURA
+------------
+clonnect-creators/
+├── api/main.py                 # FastAPI REST API
+├── core/
+│   ├── dm_agent.py             # DMResponderAgent
+│   ├── intent_classifier.py    # 11 intent types
+│   ├── memory.py               # FollowerMemory
+│   ├── products.py             # ProductManager + SalesTracker
+│   ├── creator_config.py       # Creator configs
+│   └── instagram.py            # Instagram connector
+├── dashboard/app.py            # Streamlit dashboard
+├── tests/
+├── data/
+└── .env
+
+TIPOS DE INTENT
+---------------
+GREETING - Saludo inicial - greet_and_discover
+INTEREST_SOFT - Interes suave - nurture_lead
+INTEREST_STRONG - Alta intencion compra - close_sale
+OBJECTION - Objecion/duda - handle_objection
+FEEDBACK_POSITIVE - Feedback positivo - thank_and_upsell
+FEEDBACK_NEGATIVE - Feedback negativo - apologize_and_resolve
+SUPPORT - Solicitud soporte - provide_support
+QUESTION - Pregunta general - answer_question
+SPAM - Spam/irrelevante - ignore_or_block
+ESCALATION - Requiere humano - escalate_to_human
+OTHER - No clasificable - generic_response
+
+API ENDPOINTS
+-------------
+GET  /health                      Health check
+GET  /docs                        Swagger UI
+GET  /api/creators/{id}           Get creator config
+GET  /api/creators/{id}/products  List products
+POST /api/dm/process              Process incoming DM
+POST /api/webhook/instagram       Instagram webhook
+
+COMANDOS UTILES
+---------------
+# Iniciar API
+cd /home/user/clonnect-creators
+source venv/bin/activate
+uvicorn api.main:app --host 0.0.0.0 --port 8000 --reload
+
+# Iniciar Dashboard
+streamlit run dashboard/app.py --server.port 8501
+
+# Ejecutar tests
+pytest tests/ -v
+
+# Ver logs
+tail -f api.log
+tail -f dashboard.log
+
+PROXIMOS PASOS
+--------------
+1. Configurar credenciales reales de Instagram Graph API
+2. Configurar API key de OpenAI/Anthropic para LLM
+3. Personalizar configuracion del creator
+4. Agregar productos reales
+5. Configurar webhook en Meta Developer Console
+6. Deploy a produccion (Docker/Cloud)

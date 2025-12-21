@@ -1,0 +1,62 @@
+[
+  {
+    "consent_id": "cns_75d309cb2c70",
+    "follower_id": "test_follower_123",
+    "creator_id": "test_creator",
+    "consent_type": "data_processing",
+    "granted": true,
+    "timestamp": "2025-12-13T09:10:36.474904+00:00",
+    "ip_address": "",
+    "user_agent": "",
+    "source": "test",
+    "version": "1.0"
+  },
+  {
+    "consent_id": "cns_3deed611bd37",
+    "follower_id": "test_follower_123",
+    "creator_id": "test_creator",
+    "consent_type": "data_processing",
+    "granted": true,
+    "timestamp": "2025-12-13T09:21:32.897713+00:00",
+    "ip_address": "",
+    "user_agent": "",
+    "source": "test",
+    "version": "1.0"
+  },
+  {
+    "consent_id": "cns_778fdfbe9f10",
+    "follower_id": "test_follower_123",
+    "creator_id": "test_creator",
+    "consent_type": "data_processing",
+    "granted": true,
+    "timestamp": "2025-12-13T09:31:34.438265+00:00",
+    "ip_address": "",
+    "user_agent": "",
+    "source": "test",
+    "version": "1.0"
+  },
+  {
+    "consent_id": "cns_da32ba6f3134",
+    "follower_id": "test_follower_123",
+    "creator_id": "test_creator",
+    "consent_type": "data_processing",
+    "granted": true,
+    "timestamp": "2025-12-13T09:35:22.315635+00:00",
+    "ip_address": "",
+    "user_agent": "",
+    "source": "test",
+    "version": "1.0"
+  },
+  {
+    "consent_id": "cns_f70df18ffba2",
+    "follower_id": "test_follower_123",
+    "creator_id": "test_creator",
+    "consent_type": "data_processing",
+    "granted": true,
+    "timestamp": "2025-12-13T09:54:59.727701+00:00",
+    "ip_address": "",
+    "user_agent": "",
+    "source": "test",
+    "version": "1.0"
+  }
+]

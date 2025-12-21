@@ -1,0 +1,26 @@
+{
+  "follower_id": "obj_No t",
+  "creator_id": "manel",
+  "username": "",
+  "name": "",
+  "first_contact": "2025-12-12T23:29:37.168493",
+  "last_contact": "2025-12-12T23:29:37.565909",
+  "total_messages": 1,
+  "interests": [],
+  "products_discussed": [],
+  "objections_raised": [],
+  "purchase_intent_score": 0.0,
+  "is_lead": false,
+  "is_customer": false,
+  "preferred_language": "es",
+  "last_messages": [
+    {
+      "role": "user",
+      "content": "No tengo tiempo"
+    },
+    {
+      "role": "assistant",
+      "content": "Ey! Entiendo que el tiempo es un problema, pero mi curso de Automatización Total está diseñado para que puedas aprender a tu propio ritmo. Puedes acceder a los contenidos en cualquier momento y desde cualquier lugar, ¡así que no te preocupes por tener que dedicar un bloque de tiempo fijo! 😊"
+    }
+  ]
+}

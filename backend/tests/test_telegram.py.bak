@@ -1,0 +1,655 @@
+#!/usr/bin/env python3
+"""
+Tests for Telegram adapter and DM system.
+
+Tests:
+- Format conversion: Telegram → DMAgent format
+- Response generation
+- All 11 intents classification
+- Mocked bot (no real token needed)
+
+Run with: pytest tests/test_telegram.py -v
+"""
+import pytest
+import asyncio
+from unittest.mock import Mock, AsyncMock, patch, MagicMock
+from datetime import datetime, timezone
+from dataclasses import dataclass, field, asdict
+from typing import Dict, Any, Optional, List
+
+# Import modules to test
+import sys
+import os
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+# Import core modules (these don't require telegram)
+from core.dm_agent import (
+    DMResponderAgent
+    DMResponse
+    FollowerMemory
+    FollowerMemory
+)
+from core.intent_classifier import (
+    Intent
+    IntentClassifier
+    get_intent_classifier
+    INTENT_KEYWORDS
+)
+from core.products import (
+    Product
+    ProductCatalog
+    get_product_catalog
+    create_demo_products
+)
+from core.creator_config import (
+    CreatorConfig
+    CreatorConfigManager
+    get_creator_config
+    create_demo_creator
+)
+
+# Try to import telegram adapter, but don't fail if telegram library has issues
+TELEGRAM_AVAILABLE = False
+try:
+    from core.telegram_adapter import (
+        TelegramAdapter
+        TelegramMessage
+        TelegramBotStatus
+        get_telegram_adapter
+    )
+    TELEGRAM_AVAILABLE = True
+except ImportError:
+    # Create mock classes for testing without telegram library
+    @dataclass
+    class TelegramMessage:
+        """Mock TelegramMessage for testing"""
+        telegram_user_id: int
+        chat_id: int
+        message_id: int
+        text: str
+        username: str = ""
+        first_name: str = ""
+        last_name: str = ""
+        timestamp: str = field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
+        platform: str = "telegram"
+
+        def to_dict(self) -> Dict[str, Any]:
+            return asdict(self)
+
+        @property
+        def follower_id(self) -> str:
+            return f"tg_{self.telegram_user_id}"
+
+        @property
+        def display_name(self) -> str:
+            if self.username:
+                return f"@{self.username}"
+            if self.first_name:
+                name = self.first_name
+                if self.last_name:
+                    name += f" {self.last_name}"
+                return name
+            return f"User {self.telegram_user_id}"
+
+    @dataclass
+    class TelegramBotStatus:
+        """Mock TelegramBotStatus for testing"""
+        connected: bool = False
+        bot_username: str = ""
+        bot_id: int = 0
+        mode: str = "unknown"
+        messages_received: int = 0
+        messages_sent: int = 0
+        last_message_time: Optional[str] = None
+        errors: int = 0
+        started_at: Optional[str] = None
+
+        def to_dict(self) -> Dict[str, Any]:
+            return asdict(self)
+
+    class TelegramAdapter:
+        """Mock TelegramAdapter for testing"""
+        def __init__(self, token=None, creator_id="demo-creator", webhook_url=None):
+            self.token = token
+            self.creator_id = creator_id
+            self.status = TelegramBotStatus()
+            self.recent_messages: List[Dict[str, Any]] = []
+            self.recent_responses: List[Dict[str, Any]] = []
+            self.dm_agent = None
+            self.bot = None
+
+        def _init_agent(self):
+
+        async def process_message(self, telegram_msg: TelegramMessage) -> DMResponse:
+            if not self.dm_agent:
+                self._init_agent()
+            return self.dm_agent.process(
+                message=telegram_msg.text
+                follower_id=telegram_msg.follower_id
+                platform="telegram"
+                username=telegram_msg.display_name
+            )
+
+        def _record_received(self, msg: TelegramMessage):
+            self.status.messages_received += 1
+            self.recent_messages.append(msg.to_dict())
+            if len(self.recent_messages) > 10:
+                self.recent_messages = self.recent_messages[-10:]
+
+        def get_status(self) -> Dict[str, Any]:
+            return self.status.to_dict()
+
+        def get_recent_messages(self, limit: int = 10) -> List[Dict[str, Any]]:
+            return self.recent_messages[-limit:]
+
+    def get_telegram_adapter(creator_id="demo-creator", token=None):
+        return TelegramAdapter(token=token, creator_id=creator_id)
+
+
+class TestTelegramMessage:
+    """Tests for TelegramMessage dataclass"""
+
+    def test_telegram_message_creation(self):
+        """Test creating a TelegramMessage"""
+        msg = TelegramMessage(
+            telegram_user_id=12345
+            chat_id=12345
+            message_id=1
+            text="Hola, quiero info del curso"
+            username="test_user"
+            first_name="Test"
+            last_name="User"
+        )
+        assert msg.telegram_user_id == 12345
+        assert msg.text == "Hola, quiero info del curso"
+        assert msg.platform == "telegram"
+
+    def test_follower_id_generation(self):
+        """Test follower_id generation from telegram_user_id"""
+        msg = TelegramMessage(
+            telegram_user_id=12345
+            chat_id=12345
+            message_id=1
+            text="Hello"
+        )
+        assert msg.follower_id == "tg_12345"
+
+    def test_display_name_with_username(self):
+        """Test display_name with username"""
+        msg = TelegramMessage(
+            telegram_user_id=12345
+            chat_id=12345
+            message_id=1
+            text="Hello"
+            username="test_user"
+        )
+        assert msg.display_name == "@test_user"
+
+    def test_display_name_with_names(self):
+        """Test display_name with first/last name"""
+        msg = TelegramMessage(
+            telegram_user_id=12345
+            chat_id=12345
+            message_id=1
+            text="Hello"
+            first_name="Test"
+            last_name="User"
+        )
+        assert msg.display_name == "Test User"
+
+    def test_display_name_fallback(self):
+        """Test display_name fallback to user ID"""
+        msg = TelegramMessage(
+            telegram_user_id=12345
+            chat_id=12345
+            message_id=1
+            text="Hello"
+        )
+        assert msg.display_name == "User 12345"
+
+    def test_to_dict(self):
+        """Test conversion to dictionary"""
+        msg = TelegramMessage(
+            telegram_user_id=12345
+            chat_id=12345
+            message_id=1
+            text="Hello"
+            username="test"
+        )
+        d = msg.to_dict()
+        assert d["telegram_user_id"] == 12345
+        assert d["text"] == "Hello"
+        assert d["platform"] == "telegram"
+
+
+class TestIntentClassifier:
+    """Tests for intent classification with all 11 intents"""
+
+    @pytest.fixture
+    def classifier(self):
+        """Create classifier without LLM"""
+        return IntentClassifier(use_llm=False)
+
+    def test_greeting_intent(self, classifier):
+        """Test GREETING intent classification"""
+        messages = ["hola", "buenas tardes", "hey", "hello", "que tal"]
+        for msg in messages:
+            intent, confidence = classifier.classify(msg)
+            assert intent == Intent.GREETING, f"Failed for: {msg}"
+            assert confidence > 0
+
+    def test_interest_soft_intent(self, classifier):
+        """Test INTEREST_SOFT intent classification"""
+        messages = ["me interesa", "cuéntame más", "quiero más información", "info por favor"]
+        for msg in messages:
+            intent, confidence = classifier.classify(msg)
+            assert intent == Intent.INTEREST_SOFT, f"Failed for: {msg}"
+
+    def test_interest_strong_intent(self, classifier):
+        """Test INTEREST_STRONG intent classification"""
+        messages = ["quiero comprar", "cómo pago", "me apunto", "lo quiero"]
+        for msg in messages:
+            intent, confidence = classifier.classify(msg)
+            assert intent == Intent.INTEREST_STRONG, f"Failed for: {msg}"
+
+    def test_objection_intent(self, classifier):
+        """Test OBJECTION intent classification"""
+        messages = ["es muy caro", "no tengo dinero", "no tengo tiempo", "lo voy a pensar"]
+        for msg in messages:
+            intent, confidence = classifier.classify(msg)
+            assert intent == Intent.OBJECTION, f"Failed for: {msg}"
+
+    def test_question_product_intent(self, classifier):
+        """Test QUESTION_PRODUCT intent classification"""
+        messages = ["qué incluye", "cuánto dura", "tiene certificado", "es online"]
+        for msg in messages:
+            intent, confidence = classifier.classify(msg)
+            assert intent == Intent.QUESTION_PRODUCT, f"Failed for: {msg}"
+
+    def test_question_general_intent(self, classifier):
+        """Test QUESTION_GENERAL intent classification"""
+        messages = ["quién eres", "qué haces", "a qué te dedicas", "cómo empezaste"]
+        for msg in messages:
+            intent, confidence = classifier.classify(msg)
+            assert intent == Intent.QUESTION_GENERAL, f"Failed for: {msg}"
+
+    def test_complaint_intent(self, classifier):
+        """Test COMPLAINT intent classification"""
+        messages = ["no funciona", "tengo un problema", "mal servicio", "estafa"]
+        for msg in messages:
+            intent, confidence = classifier.classify(msg)
+            assert intent == Intent.COMPLAINT, f"Failed for: {msg}"
+
+    def test_thanks_intent(self, classifier):
+        """Test THANKS intent classification"""
+        messages = ["gracias", "muchas gracias", "genial", "perfecto"]
+        for msg in messages:
+            intent, confidence = classifier.classify(msg)
+            assert intent == Intent.THANKS, f"Failed for: {msg}"
+
+    def test_goodbye_intent(self, classifier):
+        """Test GOODBYE intent classification"""
+        messages = ["adiós", "hasta luego", "bye", "chao"]
+        for msg in messages:
+            intent, confidence = classifier.classify(msg)
+            assert intent == Intent.GOODBYE, f"Failed for: {msg}"
+
+    def test_spam_intent(self, classifier):
+        """Test SPAM intent classification"""
+        messages = ["gana dinero fácil", "inversión garantizada", "click aquí", "sígueme"]
+        for msg in messages:
+            intent, confidence = classifier.classify(msg)
+            assert intent == Intent.SPAM, f"Failed for: {msg}"
+
+    def test_unknown_intent(self, classifier):
+        """Test UNKNOWN intent for gibberish"""
+        intent, confidence = classifier.classify("asdfghjkl qwerty")
+        assert intent == Intent.UNKNOWN
+
+    def test_empty_message(self, classifier):
+        """Test empty message handling"""
+        intent, confidence = classifier.classify("")
+        assert intent == Intent.UNKNOWN
+        assert confidence == 0.0
+
+    def test_all_intents_exist(self):
+        """Test that all 11 intents are defined"""
+        assert len(Intent) == 11
+        expected = [
+            "GREETING", "INTEREST_SOFT", "INTEREST_STRONG", "OBJECTION"
+            "QUESTION_PRODUCT", "QUESTION_GENERAL", "COMPLAINT", "THANKS"
+            "GOODBYE", "SPAM", "UNKNOWN"
+        ]
+        for intent_name in expected:
+            assert hasattr(Intent, intent_name)
+
+
+class TestDMResponderAgent:
+    """Tests for DMResponderAgent"""
+
+    @pytest.fixture
+    def agent(self):
+        """Create agent for testing"""
+        # Create demo data
+        create_demo_creator("test-creator")
+        create_demo_products("test-creator")
+
+    def test_agent_creation(self, agent):
+        """Test agent initialization"""
+        assert agent is not None
+        assert agent.creator_id == "test-creator"
+        assert agent.intent_classifier is not None
+        assert agent.product_catalog is not None
+
+    def test_process_greeting(self, agent):
+        """Test processing a greeting message"""
+        response = agent.process(
+            message="Hola!"
+            follower_id="test_follower_1"
+            platform="telegram"
+        )
+        assert response.intent == "GREETING"
+        assert response.response is not None
+        assert len(response.response) > 0
+
+    def test_process_interest(self, agent):
+        """Test processing an interest message"""
+        response = agent.process(
+            message="Me interesa el curso de Instagram"
+            follower_id="test_follower_2"
+            platform="telegram"
+        )
+        assert response.intent in ["INTEREST_SOFT", "INTEREST_STRONG", "QUESTION_PRODUCT"]
+        assert response.response is not None
+
+    def test_process_with_products(self, agent):
+        """Test that products are mentioned for interest messages"""
+        response = agent.process(
+            message="Quiero comprar el curso"
+            follower_id="test_follower_3"
+            platform="telegram"
+        )
+        # Should mention products
+        assert response.response is not None
+
+    def test_follower_memory_persistence(self, agent):
+        """Test that follower memory persists across messages"""
+        follower_id = "test_memory_follower"
+
+        # First message
+        response1 = agent.process(
+            message="Hola"
+            follower_id=follower_id
+            platform="telegram"
+        )
+
+        # Second message
+        response2 = agent.process(
+            message="Me interesa el curso"
+            follower_id=follower_id
+            platform="telegram"
+        )
+
+        # Check memory
+        profile = agent.follower_memory.get_profile(follower_id)
+        assert profile.conversation_count >= 2
+        assert len(profile.conversation_history) >= 2
+
+    def test_escalation_detection(self, agent):
+        """Test escalation keyword detection"""
+        response = agent.process(
+            message="Tengo un problema urgente con mi compra"
+            follower_id="test_escalate"
+            platform="telegram"
+        )
+        # Message contains "urgente" which should trigger escalation
+        assert response.escalate == True
+
+    def test_response_structure(self, agent):
+        """Test that response has correct structure"""
+        response = agent.process(
+            message="Hola"
+            follower_id="test_structure"
+            platform="telegram"
+        )
+        assert hasattr(response, "response")
+        assert hasattr(response, "intent")
+        assert hasattr(response, "confidence")
+        assert hasattr(response, "products_mentioned")
+        assert hasattr(response, "escalate")
+
+        assert isinstance(response.response, str)
+        assert isinstance(response.intent, str)
+        assert isinstance(response.confidence, float)
+        assert isinstance(response.products_mentioned, list)
+        assert isinstance(response.escalate, bool)
+
+
+class TestTelegramAdapter:
+    """Tests for TelegramAdapter"""
+
+    @pytest.fixture
+    def adapter(self):
+        """Create adapter without real token"""
+        # Create demo data first
+        create_demo_creator()
+        create_demo_products()
+        # Create adapter without token (will work in test mode)
+        adapter = TelegramAdapter(token=None, creator_id="demo-creator")
+        return adapter
+
+    def test_adapter_creation(self, adapter):
+        """Test adapter initialization"""
+        assert adapter is not None
+        assert adapter.creator_id == "demo-creator"
+        assert adapter.status is not None
+
+    def test_status_tracking(self, adapter):
+        """Test status is tracked correctly"""
+        status = adapter.get_status()
+        assert "connected" in status
+        assert "messages_received" in status
+        assert "messages_sent" in status
+
+    def test_message_recording(self, adapter):
+        """Test message recording"""
+        msg = TelegramMessage(
+            telegram_user_id=12345
+            chat_id=12345
+            message_id=1
+            text="Test message"
+        )
+        adapter._record_received(msg)
+        assert adapter.status.messages_received == 1
+        assert len(adapter.recent_messages) == 1
+
+    @pytest.mark.asyncio
+    async def test_process_message(self, adapter):
+        """Test message processing through adapter"""
+        msg = TelegramMessage(
+            telegram_user_id=12345
+            chat_id=12345
+            message_id=1
+            text="Hola!"
+            username="test_user"
+        )
+        response = await adapter.process_message(msg)
+        assert response is not None
+        assert response.intent == "GREETING"
+        assert response.response is not None
+
+    @pytest.mark.asyncio
+    async def test_process_all_intents(self, adapter):
+        """Test processing messages for all 11 intents"""
+        test_cases = [
+            ("Hola!", "GREETING")
+            ("Me interesa saber más", "INTEREST_SOFT")
+            ("Quiero comprar ahora", "INTEREST_STRONG")
+            ("Es muy caro", "OBJECTION")
+            ("Qué incluye el curso", "QUESTION_PRODUCT")
+            ("Quién eres tú", "QUESTION_GENERAL")
+            ("Tengo un problema, no funciona", "COMPLAINT")
+            ("Muchas gracias", "THANKS")
+            ("Adiós, hasta luego", "GOODBYE")
+            ("Gana dinero fácil, sígueme", "SPAM")
+        ]
+
+        for text, expected_intent in test_cases:
+            msg = TelegramMessage(
+                telegram_user_id=12345
+                chat_id=12345
+                message_id=1
+                text=text
+            )
+            response = await adapter.process_message(msg)
+            assert response.intent == expected_intent, f"Failed for '{text}': expected {expected_intent}, got {response.intent}"
+
+    def test_get_recent_messages(self, adapter):
+        """Test getting recent messages"""
+        # Add some messages
+        for i in range(15):
+            msg = TelegramMessage(
+                telegram_user_id=i
+                chat_id=i
+                message_id=i
+                text=f"Message {i}"
+            )
+            adapter._record_received(msg)
+
+        # Should only keep last 10
+        recent = adapter.get_recent_messages(10)
+        assert len(recent) == 10
+
+
+class TestProductCatalog:
+    """Tests for product catalog"""
+
+    @pytest.fixture
+    def catalog(self):
+        """Create test catalog"""
+        return create_demo_products("test-products")
+
+    def test_catalog_creation(self, catalog):
+        """Test catalog initialization"""
+        assert catalog is not None
+        products = catalog.get_all_products()
+        assert len(products) >= 2
+
+    def test_product_search(self, catalog):
+        """Test product search"""
+        results = catalog.search_products("curso instagram")
+        assert len(results) > 0
+        assert results[0].product_id == "curso-instagram"
+
+    def test_objection_handlers(self, catalog):
+        """Test objection handlers"""
+        product = catalog.get_product("curso-instagram")
+        assert product is not None
+        response = product.get_objection_response("caro")
+        assert response is not None
+        assert len(response) > 0
+
+
+class TestCreatorConfig:
+    """Tests for creator configuration"""
+
+    @pytest.fixture
+    def config(self):
+        """Create test config"""
+        return create_demo_creator("test-config-creator")
+
+    def test_config_creation(self, config):
+        """Test config initialization"""
+        assert config is not None
+        assert config.creator_id == "test-config-creator"
+        assert config.name == "Manel"
+
+    def test_system_prompt_generation(self, config):
+        """Test system prompt generation"""
+        prompt = config.get_system_prompt()
+        assert config.name in prompt
+        assert config.personality in prompt
+
+    def test_escalation_detection(self, config):
+        """Test escalation keyword detection"""
+        assert config.should_escalate("Esto es urgente")
+        assert config.should_escalate("Tengo un problema grave")
+        assert not config.should_escalate("Hola, qué tal")
+
+
+class TestFormatConversion:
+    """Tests for format conversion between Telegram and DMAgent"""
+
+    def test_telegram_to_dm_format(self):
+        """Test conversion from Telegram message to DM format"""
+        telegram_msg = TelegramMessage(
+            telegram_user_id=123456
+            chat_id=123456
+            message_id=1
+            text="Hola, quiero info del curso"
+            username="test_user"
+        )
+
+        # Expected format for DMResponderAgent
+        dm_input = {
+            "creator_id": "demo-creator"
+            "follower_id": telegram_msg.follower_id
+            "message": telegram_msg.text
+            "platform": "telegram"
+        }
+
+        assert dm_input["follower_id"] == "tg_123456"
+        assert dm_input["message"] == "Hola, quiero info del curso"
+        assert dm_input["platform"] == "telegram"
+
+    def test_dm_response_format(self):
+        """Test DMResponse format"""
+        response = DMResponse(
+            response="¡Hola! Claro, el curso..."
+            intent="INTEREST_SOFT"
+            confidence=0.87
+            products_mentioned=["curso-instagram"]
+            escalate=False
+        )
+
+        d = response.to_dict()
+        assert d["response"] == "¡Hola! Claro, el curso..."
+        assert d["intent"] == "INTEREST_SOFT"
+        assert d["confidence"] == 0.87
+        assert "curso-instagram" in d["products_mentioned"]
+        assert d["escalate"] == False
+
+
+class TestFollowerMemory:
+    """Tests for follower profile"""
+
+    def test_profile_creation(self):
+        """Test profile creation"""
+        profile = FollowerMemory(follower_id="test_123")
+        assert profile.follower_id == "test_123"
+        assert profile.conversation_count == 0
+
+    def test_add_message(self):
+        """Test adding messages to profile"""
+        profile = FollowerMemory(follower_id="test_123")
+        profile.add_message("user", "Hello")
+        profile.add_message("assistant", "Hi there!")
+
+        assert len(profile.conversation_history) == 2
+        assert profile.conversation_count == 2
+
+    def test_intent_score_update(self):
+        """Test purchase intent score updates"""
+        profile = FollowerMemory(follower_id="test_123")
+
+        profile.update_intent_score(Intent.INTEREST_STRONG)
+        assert profile.purchase_intent_score > 0
+
+        initial_score = profile.purchase_intent_score
+        profile.update_intent_score(Intent.INTEREST_SOFT)
+        assert profile.purchase_intent_score > initial_score
+
+
+# Run tests with: pytest tests/test_telegram.py -v
+if __name__ == "__main__":
+    pytest.main([__file__, "-v"])
