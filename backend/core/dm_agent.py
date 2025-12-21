@@ -39,6 +39,19 @@ from core.metrics import (
     DM_PROCESSING_TIME
 )
 
+
+# PostgreSQL integration
+USE_POSTGRES = bool(os.getenv("DATABASE_URL"))
+db_service = None
+if USE_POSTGRES:
+    try:
+        from api.services import db_service
+    except ImportError:
+        try:
+            from api import db_service
+        except ImportError:
+            USE_POSTGRES = False
+
 logger = logging.getLogger(__name__)
 
 
