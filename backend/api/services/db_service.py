@@ -175,6 +175,15 @@ def create_lead(creator_name: str, data: dict):
             session.add(creator)
             session.commit()
 
+        # Build context with optional fields (email, phone, notes stored in JSON)
+        context = {}
+        if data.get("email"):
+            context["email"] = data.get("email")
+        if data.get("phone"):
+            context["phone"] = data.get("phone")
+        if data.get("notes"):
+            context["notes"] = data.get("notes")
+
         lead = Lead(
             creator_id=creator.id,
             platform=data.get("platform", "manual"),
@@ -184,9 +193,7 @@ def create_lead(creator_name: str, data: dict):
             status=data.get("status", "new"),
             score=data.get("score", 0),
             purchase_intent=data.get("purchase_intent", 0.0),
-            email=data.get("email"),
-            phone=data.get("phone"),
-            context={"notes": data.get("notes")} if data.get("notes") else {},
+            context=context,
         )
         session.add(lead)
         session.commit()
@@ -570,6 +577,7 @@ def get_lead_by_id(creator_name: str, lead_id: str):
             lead = session.query(Lead).filter_by(creator_id=creator.id, platform_user_id=lead_id).first()
 
         if lead:
+            ctx = lead.context or {}
             return {
                 "id": str(lead.id),
                 "platform_user_id": lead.platform_user_id,
@@ -579,9 +587,9 @@ def get_lead_by_id(creator_name: str, lead_id: str):
                 "status": lead.status,
                 "score": lead.score,
                 "purchase_intent": lead.purchase_intent,
-                "email": lead.email,
-                "phone": lead.phone,
-                "context": lead.context or {}
+                "email": ctx.get("email"),
+                "phone": ctx.get("phone"),
+                "context": ctx
             }
         return None
     finally:
