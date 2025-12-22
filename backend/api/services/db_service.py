@@ -152,17 +152,72 @@ def get_dashboard_metrics(creator_name: str):
     if not session:
         return None
     try:
-        from api.models import Creator, Lead, Message
+        from api.models import Creator, Lead, Message, Product
         creator = session.query(Creator).filter_by(name=creator_name).first()
         if not creator:
             return None
-        leads = session.query(Lead).filter_by(creator_id=creator.id).all()
+
+        # Get leads
+        leads = session.query(Lead).filter_by(creator_id=creator.id).order_by(Lead.updated_at.desc()).all()
         total_leads = len(leads)
-        hot_leads = len([l for l in leads if l.purchase_intent and l.purchase_intent >= 0.7])
-        warm_leads = len([l for l in leads if l.purchase_intent and 0.4 <= l.purchase_intent < 0.7])
+
+        # Categorize leads by intent (hot >= 0.5, warm 0.25-0.5, cold < 0.25)
+        hot_leads = len([l for l in leads if l.purchase_intent and l.purchase_intent >= 0.5])
+        warm_leads = len([l for l in leads if l.purchase_intent and 0.25 <= l.purchase_intent < 0.5])
+        cold_leads = len([l for l in leads if not l.purchase_intent or l.purchase_intent < 0.25])
         customers = len([l for l in leads if l.context and l.context.get("is_customer")])
+
+        # Get messages count
         lead_ids = [l.id for l in leads]
         total_messages = session.query(Message).filter(Message.lead_id.in_(lead_ids)).count() if lead_ids else 0
+
+        # Get products count
+        products_count = session.query(Product).filter_by(creator_id=creator.id).count()
+
+        # Calculate conversion rate
+        conversion_rate = (customers / total_leads) if total_leads > 0 else 0.0
+        lead_rate = (total_leads / total_leads) if total_leads > 0 else 0.0  # All contacts become leads
+
+        # Build leads array for frontend
+        leads_data = []
+        for lead in leads[:50]:  # Limit to 50 most recent
+            leads_data.append({
+                "id": str(lead.id),
+                "follower_id": lead.platform_user_id or str(lead.id),
+                "username": lead.username,
+                "name": lead.full_name,
+                "platform": lead.platform or "instagram",
+                "purchase_intent": lead.purchase_intent or 0.0,
+                "purchase_intent_score": lead.purchase_intent or 0.0,
+                "is_lead": True,
+                "is_customer": lead.context.get("is_customer", False) if lead.context else False,
+                "last_contact": lead.updated_at.isoformat() if lead.updated_at else None,
+                "total_messages": session.query(Message).filter_by(lead_id=lead.id).count(),
+            })
+
+        # Build recent conversations (same as leads but with different structure)
+        recent_conversations = []
+        for lead in leads[:20]:  # Last 20 conversations
+            msg_count = session.query(Message).filter_by(lead_id=lead.id).count()
+            recent_conversations.append({
+                "follower_id": lead.platform_user_id or str(lead.id),
+                "username": lead.username,
+                "name": lead.full_name,
+                "platform": lead.platform or "instagram",
+                "total_messages": msg_count,
+                "purchase_intent": lead.purchase_intent or 0.0,
+                "last_contact": lead.updated_at.isoformat() if lead.updated_at else None,
+            })
+
+        # Build config
+        config = {
+            "name": creator.name,
+            "clone_name": creator.clone_name or creator.name,
+            "clone_tone": creator.clone_tone or "friendly",
+            "clone_style": creator.clone_style or "",
+            "bot_active": creator.bot_active,
+        }
+
         return {
             "status": "ok",
             "metrics": {
@@ -172,17 +227,35 @@ def get_dashboard_metrics(creator_name: str):
                 "hot_leads": hot_leads,
                 "high_intent_followers": hot_leads,
                 "warm_leads": warm_leads,
+                "cold_leads": cold_leads,
                 "total_leads": total_leads,
                 "leads": total_leads,
                 "customers": customers,
-                "conversion_rate": 0.0,
+                "conversion_rate": conversion_rate,
+                "lead_rate": lead_rate,
             },
+            "recent_conversations": recent_conversations,
+            "leads": leads_data,
+            "config": config,
+            "products_count": products_count,
             "bot_active": creator.bot_active,
             "clone_active": creator.bot_active,
             "creator_name": creator.clone_name or creator.name,
         }
     finally:
         session.close()
+
+
+def get_creator_stats(creator_name: str):
+    """Get creator statistics for metrics endpoint"""
+    metrics = get_dashboard_metrics(creator_name)
+    if metrics:
+        return {
+            "total_messages": metrics["metrics"]["total_messages"],
+            "total_leads": metrics["metrics"]["total_leads"],
+            "hot_leads": metrics["metrics"]["hot_leads"],
+        }
+    return None
 
 # ============================================
 # CRUD COMPLETO - Phase 11
