@@ -1289,6 +1289,13 @@ async def process_dm(payload: ProcessDMRequest):
 async def get_conversations(creator_id: str, limit: int = 50):
     """Listar conversaciones del creador"""
     try:
+        # Use PostgreSQL for accurate message counts
+        if USE_DB:
+            conversations = db_service.get_conversations_with_counts(creator_id, limit, include_archived=False)
+            if conversations is not None:
+                return {"status": "ok", "conversations": conversations, "count": len(conversations)}
+
+        # Fallback to JSON-based agent
         agent = get_dm_agent(creator_id)
         conversations = await agent.get_all_conversations(limit)
         # Filter out archived and spam conversations
