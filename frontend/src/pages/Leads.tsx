@@ -156,14 +156,23 @@ export default function Leads() {
       const platform = convo.platform || detectPlatform(convo.follower_id);
       const displayName = getDisplayName(convo);
       const intent = getPurchaseIntent(convo);
+      const leadId = convo.id || convo.follower_id;
+
+      // Status priority:
+      // 1. Local override (from optimistic update during drag & drop)
+      // 2. Backend lead_status (persisted pipeline status)
+      // 3. Derived from purchase_intent (legacy fallback)
+      const status = localStatusOverrides[leadId]
+        || (convo.lead_status as LeadStatus)
+        || getLeadStatus(convo);
 
       return {
-        id: convo.id || convo.follower_id, // Prefer UUID id for reliable DB lookups
+        id: leadId, // Prefer UUID id for reliable DB lookups
         name: convo.name || "",
         username: displayName,
         score: Math.round(intent * 100),
         value: estimateValue(convo),
-        status: localStatusOverrides[convo.follower_id] || getLeadStatus(convo),
+        status,
         avatar: getInitials(convo.name, convo.username, convo.follower_id),
         platform,
         email: convo.email || "",

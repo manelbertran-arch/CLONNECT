@@ -34,6 +34,8 @@ export interface Conversation {
   // Backend uses purchase_intent (0.0 to 1.0)
   purchase_intent?: number;
   purchase_intent_score?: number; // Alias for compatibility
+  // Pipeline status: new, active, hot, customer (persisted in Lead.status)
+  lead_status?: "new" | "active" | "hot" | "customer";
   is_lead?: boolean;
   is_customer?: boolean;
   tags?: string[];
