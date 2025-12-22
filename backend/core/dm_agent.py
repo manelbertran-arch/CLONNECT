@@ -1200,8 +1200,9 @@ USA ESTA RESPUESTA PARA LA OBJECION (adaptala a tu tono):
                 follower.last_messages = follower.last_messages[-20:]
 
             await self.memory_store.save(follower)
-            # Save to PostgreSQL (only user message for dashboard stats)
+            # Save BOTH messages to PostgreSQL
             await self._save_message_to_db(follower.follower_id, 'user', message_text, str(intent))
+            await self._save_message_to_db(follower.follower_id, 'assistant', response_text, None)
 
             return DMResponse(
                 response_text=response_text,
@@ -1503,8 +1504,16 @@ USA ESTA RESPUESTA PARA LA OBJECION (adaptala a tu tono):
             follower.is_lead = True
 
         await self.memory_store.save(follower)
-        # Save to PostgreSQL (only user message for dashboard stats)
+        # Save BOTH messages to PostgreSQL for dashboard stats
         await self._save_message_to_db(follower.follower_id, 'user', message, str(intent))
+        await self._save_message_to_db(follower.follower_id, 'assistant', response, None)
+        # Sync lead data to PostgreSQL
+        if USE_POSTGRES and db_service:
+            try:
+                from api.services.data_sync import sync_json_to_postgres
+                sync_json_to_postgres(self.creator_id, follower.follower_id)
+            except Exception as e:
+                logger.debug(f"Lead sync skipped: {e}")
 
     async def _schedule_nurturing_if_needed(
         self,
