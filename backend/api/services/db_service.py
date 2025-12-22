@@ -516,18 +516,14 @@ def update_lead(creator_name: str, lead_id: str, data: dict):
             lead = session.query(Lead).filter_by(creator_id=creator.id, platform_user_id=lead_id).first()
 
         if lead:
-            from sqlalchemy.orm.attributes import flag_modified
-
             # Handle special fields that go into context JSON
+            # IMPORTANT: Create a NEW dict to ensure SQLAlchemy detects the change
             context_fields = ['email', 'phone', 'notes']
-            if not lead.context:
-                lead.context = {}
+            new_context = dict(lead.context) if lead.context else {}
 
-            context_modified = False
             for key, value in data.items():
                 if key in context_fields:
-                    lead.context[key] = value
-                    context_modified = True
+                    new_context[key] = value
                 elif hasattr(lead, key):
                     setattr(lead, key, value)
 
@@ -537,13 +533,12 @@ def update_lead(creator_name: str, lead_id: str, data: dict):
                 if not lead.username:
                     lead.username = data['name']
 
-            # Flag context as modified so SQLAlchemy detects the JSON change
-            if context_modified:
-                flag_modified(lead, 'context')
+            # Assign the new context dict (this guarantees SQLAlchemy detects change)
+            lead.context = new_context
+            logger.info(f"update_lead: updating lead {lead_id} with context={new_context}")
 
             session.commit()
-            logger.info(f"update_lead: updated lead {lead_id}")
-            ctx = lead.context or {}
+            logger.info(f"update_lead: committed lead {lead_id}")
             return {
                 "id": str(lead.id),
                 "platform_user_id": lead.platform_user_id,
@@ -553,9 +548,9 @@ def update_lead(creator_name: str, lead_id: str, data: dict):
                 "status": lead.status,
                 "score": lead.score,
                 "purchase_intent": lead.purchase_intent,
-                "email": ctx.get("email"),
-                "phone": ctx.get("phone"),
-                "notes": ctx.get("notes"),
+                "email": new_context.get("email"),
+                "phone": new_context.get("phone"),
+                "notes": new_context.get("notes"),
             }
         logger.warning(f"update_lead: lead '{lead_id}' not found")
         return None
