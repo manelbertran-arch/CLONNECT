@@ -1,5 +1,5 @@
 import { useState, useMemo, useEffect } from "react";
-import { Search, Send, MoreHorizontal, Bot, User, Loader2, AlertCircle, Instagram, MessageCircle, Archive, Trash2, AlertTriangle } from "lucide-react";
+import { Search, Send, MoreHorizontal, Bot, User, Loader2, AlertCircle, Instagram, MessageCircle, Archive, Trash2, AlertTriangle, RotateCcw } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import {
@@ -20,7 +20,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { cn } from "@/lib/utils";
-import { useConversations, useFollowerDetail, useSendMessage, useArchiveConversation, useMarkConversationSpam, useDeleteConversation } from "@/hooks/useApi";
+import { useConversations, useFollowerDetail, useSendMessage, useArchiveConversation, useMarkConversationSpam, useDeleteConversation, useArchivedConversations, useRestoreConversation } from "@/hooks/useApi";
 import { useToast } from "@/hooks/use-toast";
 import type { Conversation, Message } from "@/types/api";
 import { getPurchaseIntent, detectPlatform, getFriendlyName, extractNameFromMessages, getMessages } from "@/types/api";
@@ -101,15 +101,18 @@ function getSmartDisplayName(
 
 export default function Inbox() {
   const { data, isLoading, error } = useConversations();
+  const { data: archivedData, isLoading: archivedLoading } = useArchivedConversations();
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [message, setMessage] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+  const [activeTab, setActiveTab] = useState<"all" | "archived">("all");
   const { toast } = useToast();
   const sendMessageMutation = useSendMessage();
   const archiveMutation = useArchiveConversation();
   const spamMutation = useMarkConversationSpam();
   const deleteMutation = useDeleteConversation();
+  const restoreMutation = useRestoreConversation();
 
   // Fetch messages for the selected conversation (auto-refreshes every 5s)
   const { data: followerData, isLoading: messagesLoading } = useFollowerDetail(selectedId);
@@ -146,6 +149,18 @@ export default function Inbox() {
       setIsDeleteDialogOpen(false);
     } catch {
       toast({ title: "Failed to delete", variant: "destructive" });
+    }
+  };
+
+  const handleRestore = async (conversationId: string) => {
+    try {
+      await restoreMutation.mutateAsync(conversationId);
+      toast({ title: "Conversation restored" });
+      if (selectedId === conversationId) {
+        setSelectedId(null);
+      }
+    } catch {
+      toast({ title: "Failed to restore", variant: "destructive" });
     }
   };
 
@@ -198,9 +213,10 @@ export default function Inbox() {
   };
 
   const conversations = useMemo(() => {
-    if (!data?.conversations) return [];
+    const sourceData = activeTab === "archived" ? archivedData : data?.conversations;
+    if (!sourceData) return [];
 
-    let filtered = data.conversations;
+    let filtered = Array.isArray(sourceData) ? sourceData : [];
 
     if (searchQuery) {
       const query = searchQuery.toLowerCase();
@@ -215,7 +231,9 @@ export default function Inbox() {
     return filtered.sort((a, b) =>
       new Date(b.last_contact || 0).getTime() - new Date(a.last_contact || 0).getTime()
     );
-  }, [data?.conversations, searchQuery]);
+  }, [data?.conversations, archivedData, searchQuery, activeTab]);
+
+  const archivedCount = archivedData?.length || 0;
 
   // Auto-select first conversation if none selected
   useEffect(() => {
@@ -263,6 +281,33 @@ export default function Inbox() {
     <div className="h-[calc(100vh-8rem)] flex gap-6">
       {/* Conversation List */}
       <div className="w-80 flex flex-col">
+        {/* Tabs */}
+        <div className="flex gap-2 mb-4">
+          <button
+            onClick={() => setActiveTab("all")}
+            className={cn(
+              "flex-1 py-2 px-3 rounded-lg text-sm font-medium transition-all",
+              activeTab === "all"
+                ? "bg-primary text-primary-foreground"
+                : "bg-secondary text-muted-foreground hover:text-foreground"
+            )}
+          >
+            All
+          </button>
+          <button
+            onClick={() => setActiveTab("archived")}
+            className={cn(
+              "flex-1 py-2 px-3 rounded-lg text-sm font-medium transition-all flex items-center justify-center gap-2",
+              activeTab === "archived"
+                ? "bg-primary text-primary-foreground"
+                : "bg-secondary text-muted-foreground hover:text-foreground"
+            )}
+          >
+            <Archive className="w-4 h-4" />
+            Archived {archivedCount > 0 && `(${archivedCount})`}
+          </button>
+        </div>
+
         <div className="mb-4">
           <div className="relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
@@ -276,33 +321,43 @@ export default function Inbox() {
         </div>
 
         <div className="flex-1 overflow-auto space-y-1">
-          {conversations.length === 0 ? (
+          {(activeTab === "archived" ? archivedLoading : isLoading) ? (
+            <div className="flex items-center justify-center py-8">
+              <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
+            </div>
+          ) : conversations.length === 0 ? (
             <div className="text-center py-8 text-muted-foreground">
-              <p>No conversations yet</p>
-              <p className="text-sm">Messages will appear here</p>
+              <p>{activeTab === "archived" ? "No archived conversations" : "No conversations yet"}</p>
+              <p className="text-sm">{activeTab === "archived" ? "Archived and spam items will appear here" : "Messages will appear here"}</p>
             </div>
           ) : (
             conversations.map((convo) => {
-              const status = getStatus(convo);
+              const status = activeTab === "archived" ? (convo.status || "archived") : getStatus(convo);
               const platform = convo.platform || detectPlatform(convo.follower_id);
               const listDisplayName = convo.name || convo.username || getFriendlyName(convo.follower_id);
               const initials = getInitials(convo.name, convo.username, convo.follower_id);
               const lastMessage = convo.last_messages?.[convo.last_messages.length - 1];
+              const isArchived = activeTab === "archived";
 
               return (
-                <button
+                <div
                   key={convo.follower_id}
-                  onClick={() => setSelectedId(convo.follower_id)}
                   className={cn(
                     "w-full p-3 rounded-xl text-left transition-all hover:bg-secondary",
                     selectedId === convo.follower_id && "bg-secondary"
                   )}
                 >
                   <div className="flex items-start gap-3">
-                    <div className="w-10 h-10 rounded-full bg-gradient-to-br from-primary/60 to-accent/60 flex items-center justify-center text-xs font-semibold shrink-0">
+                    <button
+                      onClick={() => setSelectedId(convo.follower_id)}
+                      className="w-10 h-10 rounded-full bg-gradient-to-br from-primary/60 to-accent/60 flex items-center justify-center text-xs font-semibold shrink-0"
+                    >
                       {initials}
-                    </div>
-                    <div className="flex-1 min-w-0">
+                    </button>
+                    <button
+                      onClick={() => setSelectedId(convo.follower_id)}
+                      className="flex-1 min-w-0 text-left"
+                    >
                       <div className="flex items-center justify-between">
                         <span className="font-medium text-sm truncate">{listDisplayName}</span>
                         <span className="text-xs text-muted-foreground">{formatTimeAgo(convo.last_contact)}</span>
@@ -311,7 +366,12 @@ export default function Inbox() {
                         {lastMessage?.content || `${convo.total_messages || 0} messages`}
                       </p>
                       <div className="mt-2 flex items-center gap-2">
-                        <span className={cn("status-badge text-[10px] border", statusColors[status])}>
+                        <span className={cn(
+                          "status-badge text-[10px] border",
+                          isArchived
+                            ? status === "spam" ? "bg-destructive/10 text-destructive border-destructive/20" : "bg-muted/10 text-muted-foreground border-muted/20"
+                            : statusColors[status]
+                        )}>
                           {status}
                         </span>
                         <span className="text-[10px] text-muted-foreground flex items-center gap-1">
@@ -319,9 +379,27 @@ export default function Inbox() {
                           {platform}
                         </span>
                       </div>
-                    </div>
+                    </button>
+                    {isArchived && (
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="shrink-0 h-8 w-8"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleRestore(convo.follower_id);
+                        }}
+                        disabled={restoreMutation.isPending}
+                      >
+                        {restoreMutation.isPending ? (
+                          <Loader2 className="w-4 h-4 animate-spin" />
+                        ) : (
+                          <RotateCcw className="w-4 h-4" />
+                        )}
+                      </Button>
+                    )}
                   </div>
-                </button>
+                </div>
               );
             })
           )}
