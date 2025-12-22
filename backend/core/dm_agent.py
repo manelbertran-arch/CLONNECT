@@ -1795,11 +1795,16 @@ USA ESTA RESPUESTA PARA LA OBJECION (adaptala a tu tono):
                 try:
                     with open(file_path, 'r', encoding='utf-8') as f:
                         data = json.load(f)
+                        # Count actual user messages in last_messages (more accurate than stored counter)
+                        last_messages = data.get("last_messages", [])
+                        user_msg_count = len([m for m in last_messages if m.get("role") == "user"])
+                        # Use the higher of stored counter or actual count
+                        total_msgs = max(data.get("total_messages", 0), user_msg_count)
                         conversations.append({
                             "follower_id": data.get("follower_id", ""),
                             "username": data.get("username", ""),
                             "name": data.get("name", ""),
-                            "total_messages": data.get("total_messages", 0),
+                            "total_messages": total_msgs,
                             "last_contact": data.get("last_contact", ""),
                             "first_contact": data.get("first_contact", ""),
                             "is_lead": data.get("is_lead", False),
