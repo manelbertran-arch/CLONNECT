@@ -140,7 +140,46 @@ async def send_message(creator_id: str, data: dict = Body(...)):
 
 @router.put("/follower/{creator_id}/{follower_id}/status")
 async def update_follower_status(creator_id: str, follower_id: str, data: dict = Body(...)):
-    return {"status": "ok", "message": "Status updated"}
+    new_status = data.get("status", "cold")
+
+    # Map status to purchase_intent score
+    status_to_intent = {
+        "cold": 0.1,
+        "warm": 0.35,
+        "hot": 0.7,
+        "customer": 1.0
+    }
+    new_intent = status_to_intent.get(new_status, 0.1)
+
+    if USE_DB:
+        try:
+            from api.models import Creator, Lead
+            from api.services.db_service import get_session
+            session = get_session()
+            if session:
+                try:
+                    creator = session.query(Creator).filter_by(name=creator_id).first()
+                    if creator:
+                        lead = session.query(Lead).filter_by(creator_id=creator.id, platform_user_id=follower_id).first()
+                        if lead:
+                            lead.purchase_intent = new_intent
+                            if new_status == "customer":
+                                if not lead.context:
+                                    lead.context = {}
+                                lead.context["is_customer"] = True
+                            session.commit()
+                            return {
+                                "status": "ok",
+                                "follower_id": follower_id,
+                                "new_status": new_status,
+                                "purchase_intent": new_intent
+                            }
+                finally:
+                    session.close()
+        except Exception as e:
+            logger.warning(f"Update follower status failed: {e}")
+
+    return {"status": "ok", "follower_id": follower_id, "new_status": new_status, "purchase_intent": new_intent}
 
 @router.get("/conversations/{creator_id}")
 async def get_conversations(creator_id: str, limit: int = 50):
