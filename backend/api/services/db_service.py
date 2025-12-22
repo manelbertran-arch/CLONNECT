@@ -93,18 +93,25 @@ def get_leads(creator_name: str, include_archived: bool = False):
         if not include_archived:
             query = query.filter(not_(Lead.status.in_(["archived", "spam"])))
         leads = query.order_by(Lead.last_contact_at.desc()).all()
-        return [{
-            "id": str(lead.id),
-            "follower_id": str(lead.id),
-            "platform_user_id": lead.platform_user_id,
-            "platform": lead.platform,
-            "username": lead.username,
-            "full_name": lead.full_name,
-            "status": lead.status,
-            "score": lead.score,
-            "purchase_intent": lead.purchase_intent,
-            "last_contact_at": lead.last_contact_at.isoformat() if lead.last_contact_at else None,
-        } for lead in leads]
+        result = []
+        for lead in leads:
+            ctx = lead.context or {}
+            result.append({
+                "id": str(lead.id),
+                "follower_id": str(lead.id),
+                "platform_user_id": lead.platform_user_id,
+                "platform": lead.platform,
+                "username": lead.username,
+                "full_name": lead.full_name,
+                "status": lead.status,
+                "score": lead.score,
+                "purchase_intent": lead.purchase_intent,
+                "last_contact_at": lead.last_contact_at.isoformat() if lead.last_contact_at else None,
+                "email": ctx.get("email"),
+                "phone": ctx.get("phone"),
+                "notes": ctx.get("notes"),
+            })
+        return result
     finally:
         session.close()
 
@@ -504,9 +511,31 @@ def update_lead(creator_name: str, lead_id: str, data: dict):
             lead = session.query(Lead).filter_by(creator_id=creator.id, platform_user_id=lead_id).first()
 
         if lead:
+            from sqlalchemy.orm.attributes import flag_modified
+
+            # Handle special fields that go into context JSON
+            context_fields = ['email', 'phone', 'notes']
+            if not lead.context:
+                lead.context = {}
+
+            context_modified = False
             for key, value in data.items():
-                if hasattr(lead, key):
+                if key in context_fields:
+                    lead.context[key] = value
+                    context_modified = True
+                elif hasattr(lead, key):
                     setattr(lead, key, value)
+
+            # Also update name fields if provided
+            if 'name' in data:
+                lead.full_name = data['name']
+                if not lead.username:
+                    lead.username = data['name']
+
+            # Flag context as modified so SQLAlchemy detects the JSON change
+            if context_modified:
+                flag_modified(lead, 'context')
+
             session.commit()
             logger.info(f"update_lead: updated lead {lead_id}")
             return True
@@ -589,6 +618,7 @@ def get_lead_by_id(creator_name: str, lead_id: str):
                 "purchase_intent": lead.purchase_intent,
                 "email": ctx.get("email"),
                 "phone": ctx.get("phone"),
+                "notes": ctx.get("notes"),
                 "context": ctx
             }
         return None
