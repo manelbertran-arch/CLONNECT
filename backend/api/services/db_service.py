@@ -242,6 +242,23 @@ def get_dashboard_metrics(creator_name: str):
         all_messages_total = session.query(Message).count()
         logger.info(f"[METRICS] user_messages={total_messages}, all_messages_for_leads={all_messages}, all_messages_in_table={all_messages_total}")
 
+        # If PostgreSQL has 0 messages, count from JSON files as fallback
+        if total_messages == 0:
+            json_total = 0
+            for lead in leads:
+                if lead.platform_user_id:
+                    try:
+                        from api.services.data_sync import _load_json
+                        json_data = _load_json(creator_name, lead.platform_user_id)
+                        if json_data:
+                            last_messages = json_data.get("last_messages", [])
+                            json_total += len([m for m in last_messages if m.get("role") == "user"])
+                    except:
+                        pass
+            if json_total > 0:
+                logger.info(f"[METRICS] Fallback to JSON: total_messages={json_total}")
+                total_messages = json_total
+
         # Get products count
         products_count = session.query(Product).filter_by(creator_id=creator.id).count()
 
@@ -254,8 +271,21 @@ def get_dashboard_metrics(creator_name: str):
         for lead in leads[:50]:  # Limit to 50 most recent
             user_count = session.query(Message).filter_by(lead_id=lead.id, role='user').count()
             all_count = session.query(Message).filter_by(lead_id=lead.id).count()
-            if all_count > 0:  # Only log leads with messages
-                logger.info(f"[METRICS] Lead {lead.platform_user_id}: user_msgs={user_count}, all_msgs={all_count}")
+
+            # Fallback to JSON if PostgreSQL has 0
+            final_count = user_count
+            if user_count == 0 and lead.platform_user_id:
+                try:
+                    from api.services.data_sync import _load_json
+                    json_data = _load_json(creator_name, lead.platform_user_id)
+                    if json_data:
+                        last_messages = json_data.get("last_messages", [])
+                        final_count = len([m for m in last_messages if m.get("role") == "user"])
+                except:
+                    pass
+
+            if all_count > 0 or final_count > 0:  # Log leads with messages
+                logger.info(f"[METRICS] Lead {lead.platform_user_id}: pg_user={user_count}, pg_all={all_count}, final={final_count}")
             leads_data.append({
                 "id": str(lead.id),
                 "follower_id": lead.platform_user_id or str(lead.id),
@@ -267,19 +297,32 @@ def get_dashboard_metrics(creator_name: str):
                 "is_lead": True,
                 "is_customer": lead.context.get("is_customer", False) if lead.context else False,
                 "last_contact": lead.last_contact_at.isoformat() if lead.last_contact_at else None,
-                "total_messages": user_count,
+                "total_messages": final_count,
             })
 
         # Build recent conversations (same as leads but with different structure)
         recent_conversations = []
         for lead in leads[:20]:  # Last 20 conversations
             msg_count = session.query(Message).filter_by(lead_id=lead.id, role='user').count()
+
+            # Fallback to JSON if PostgreSQL has 0
+            final_msg_count = msg_count
+            if msg_count == 0 and lead.platform_user_id:
+                try:
+                    from api.services.data_sync import _load_json
+                    json_data = _load_json(creator_name, lead.platform_user_id)
+                    if json_data:
+                        last_messages = json_data.get("last_messages", [])
+                        final_msg_count = len([m for m in last_messages if m.get("role") == "user"])
+                except:
+                    pass
+
             recent_conversations.append({
                 "follower_id": lead.platform_user_id or str(lead.id),
                 "username": lead.username,
                 "name": lead.full_name,
                 "platform": lead.platform or "instagram",
-                "total_messages": msg_count,
+                "total_messages": final_msg_count,
                 "purchase_intent": lead.purchase_intent or 0.0,
                 "last_contact": lead.last_contact_at.isoformat() if lead.last_contact_at else None,
             })
