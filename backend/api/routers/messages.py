@@ -132,10 +132,23 @@ async def send_message(creator_id: str, data: dict = Body(...)):
             sent = await send_telegram_message(chat_id, message_text)
         elif follower_id.startswith("ig_"):
             platform = "instagram"
-            # Instagram sending would go here
-            sent = False
+            # Send via Instagram handler
+            from core.instagram_handler import get_instagram_handler
+            handler = get_instagram_handler()
+            if handler.connector:
+                recipient_id = follower_id.replace("ig_", "")
+                sent = await handler.send_response(recipient_id, message_text)
+                if sent:
+                    logger.info(f"Message sent to Instagram {recipient_id}")
         else:
+            # Legacy Instagram ID without prefix
             platform = "instagram"
+            from core.instagram_handler import get_instagram_handler
+            handler = get_instagram_handler()
+            if handler.connector:
+                sent = await handler.send_response(follower_id, message_text)
+                if sent:
+                    logger.info(f"Message sent to Instagram {follower_id}")
     except Exception as e:
         logger.warning(f"Failed to send message via platform: {e}")
 
