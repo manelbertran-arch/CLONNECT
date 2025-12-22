@@ -229,9 +229,9 @@ def get_dashboard_metrics(creator_name: str):
         cold_leads = len([l for l in leads if not l.purchase_intent or l.purchase_intent < 0.25])
         customers = len([l for l in leads if l.context and l.context.get("is_customer")])
 
-        # Get messages count
+        # Get messages count (only user messages, not bot responses)
         lead_ids = [l.id for l in leads]
-        total_messages = session.query(Message).filter(Message.lead_id.in_(lead_ids)).count() if lead_ids else 0
+        total_messages = session.query(Message).filter(Message.lead_id.in_(lead_ids), Message.role == 'user').count() if lead_ids else 0
 
         # Get products count
         products_count = session.query(Product).filter_by(creator_id=creator.id).count()
@@ -254,13 +254,13 @@ def get_dashboard_metrics(creator_name: str):
                 "is_lead": True,
                 "is_customer": lead.context.get("is_customer", False) if lead.context else False,
                 "last_contact": lead.last_contact_at.isoformat() if lead.last_contact_at else None,
-                "total_messages": session.query(Message).filter_by(lead_id=lead.id).count(),
+                "total_messages": session.query(Message).filter_by(lead_id=lead.id, role='user').count(),
             })
 
         # Build recent conversations (same as leads but with different structure)
         recent_conversations = []
         for lead in leads[:20]:  # Last 20 conversations
-            msg_count = session.query(Message).filter_by(lead_id=lead.id).count()
+            msg_count = session.query(Message).filter_by(lead_id=lead.id, role='user').count()
             recent_conversations.append({
                 "follower_id": lead.platform_user_id or str(lead.id),
                 "username": lead.username,
@@ -588,7 +588,7 @@ async def get_messages(creator_id: str, follower_id: str = None, limit: int = 50
 
 
 async def get_message_count(creator_id: str) -> int:
-    """Get total message count for a creator"""
+    """Get total message count for a creator (only user messages, not bot responses)"""
     if not USE_POSTGRES:
         return 0
     session = get_session()
@@ -599,7 +599,7 @@ async def get_message_count(creator_id: str) -> int:
         creator = session.query(Creator).filter_by(name=creator_id).first()
         if not creator:
             return 0
-        count = session.query(Message).join(Lead).filter(Lead.creator_id == creator.id).count()
+        count = session.query(Message).join(Lead).filter(Lead.creator_id == creator.id, Message.role == 'user').count()
         return count
     except Exception as e:
         logger.error(f"get_message_count error: {e}")
