@@ -163,25 +163,48 @@ def get_conversations_with_counts(creator_name: str, limit: int = 50, include_ar
 def create_lead(creator_name: str, data: dict):
     session = get_session()
     if not session:
+        logger.warning("create_lead: no database session available")
         return None
     try:
         from api.models import Creator, Lead
         creator = session.query(Creator).filter_by(name=creator_name).first()
         if not creator:
-            return None
+            logger.warning(f"create_lead: creator '{creator_name}' not found, creating it")
+            # Auto-create creator if not exists
+            creator = Creator(name=creator_name)
+            session.add(creator)
+            session.commit()
+
         lead = Lead(
             creator_id=creator.id,
             platform=data.get("platform", "manual"),
-            platform_user_id=data.get("platform_user_id", str(uuid.uuid4())),
+            platform_user_id=data.get("platform_user_id") or str(uuid.uuid4()),
             username=data.get("username"),
             full_name=data.get("full_name") or data.get("name"),
             status=data.get("status", "new"),
             score=data.get("score", 0),
             purchase_intent=data.get("purchase_intent", 0.0),
+            email=data.get("email"),
+            phone=data.get("phone"),
+            context={"notes": data.get("notes")} if data.get("notes") else {},
         )
         session.add(lead)
         session.commit()
-        return {"id": str(lead.id), "status": "created"}
+        logger.info(f"create_lead: created lead {lead.id} for creator {creator_name}")
+        return {
+            "id": str(lead.id),
+            "platform_user_id": lead.platform_user_id,
+            "username": lead.username,
+            "full_name": lead.full_name,
+            "platform": lead.platform,
+            "status": lead.status,
+            "score": lead.score,
+            "purchase_intent": lead.purchase_intent,
+        }
+    except Exception as e:
+        logger.error(f"create_lead error: {e}")
+        session.rollback()
+        return None
     finally:
         session.close()
 
@@ -460,16 +483,30 @@ def update_lead(creator_name: str, lead_id: str, data: dict):
         import uuid
         creator = session.query(Creator).filter_by(name=creator_name).first()
         if not creator:
+            logger.warning(f"update_lead: creator '{creator_name}' not found")
             return False
-        lead = session.query(Lead).filter_by(creator_id=creator.id, id=uuid.UUID(lead_id)).first()
+
+        # Try to find lead by UUID first, then by platform_user_id
+        lead = None
+        try:
+            lead = session.query(Lead).filter_by(creator_id=creator.id, id=uuid.UUID(lead_id)).first()
+        except (ValueError, AttributeError):
+            pass  # Not a valid UUID, try platform_user_id
+
+        if not lead:
+            lead = session.query(Lead).filter_by(creator_id=creator.id, platform_user_id=lead_id).first()
+
         if lead:
             for key, value in data.items():
                 if hasattr(lead, key):
                     setattr(lead, key, value)
             session.commit()
+            logger.info(f"update_lead: updated lead {lead_id}")
             return True
+        logger.warning(f"update_lead: lead '{lead_id}' not found")
         return False
     except Exception as e:
+        logger.error(f"update_lead error: {e}")
         session.rollback()
         return False
     finally:
@@ -484,14 +521,28 @@ def delete_lead(creator_name: str, lead_id: str):
         import uuid
         creator = session.query(Creator).filter_by(name=creator_name).first()
         if not creator:
+            logger.warning(f"delete_lead: creator '{creator_name}' not found")
             return False
-        lead = session.query(Lead).filter_by(creator_id=creator.id, id=uuid.UUID(lead_id)).first()
+
+        # Try to find lead by UUID first, then by platform_user_id
+        lead = None
+        try:
+            lead = session.query(Lead).filter_by(creator_id=creator.id, id=uuid.UUID(lead_id)).first()
+        except (ValueError, AttributeError):
+            pass  # Not a valid UUID, try platform_user_id
+
+        if not lead:
+            lead = session.query(Lead).filter_by(creator_id=creator.id, platform_user_id=lead_id).first()
+
         if lead:
             session.delete(lead)
             session.commit()
+            logger.info(f"delete_lead: deleted lead {lead_id}")
             return True
+        logger.warning(f"delete_lead: lead '{lead_id}' not found")
         return False
     except Exception as e:
+        logger.error(f"delete_lead error: {e}")
         session.rollback()
         return False
     finally:
@@ -507,9 +558,31 @@ def get_lead_by_id(creator_name: str, lead_id: str):
         creator = session.query(Creator).filter_by(name=creator_name).first()
         if not creator:
             return None
-        lead = session.query(Lead).filter_by(creator_id=creator.id, id=uuid.UUID(lead_id)).first()
+
+        # Try to find lead by UUID first, then by platform_user_id
+        lead = None
+        try:
+            lead = session.query(Lead).filter_by(creator_id=creator.id, id=uuid.UUID(lead_id)).first()
+        except (ValueError, AttributeError):
+            pass  # Not a valid UUID, try platform_user_id
+
+        if not lead:
+            lead = session.query(Lead).filter_by(creator_id=creator.id, platform_user_id=lead_id).first()
+
         if lead:
-            return {"id": str(lead.id), "platform_user_id": lead.platform_user_id, "platform": lead.platform, "username": lead.username, "full_name": lead.full_name, "status": lead.status, "score": lead.score, "purchase_intent": lead.purchase_intent, "context": lead.context or {}}
+            return {
+                "id": str(lead.id),
+                "platform_user_id": lead.platform_user_id,
+                "platform": lead.platform,
+                "username": lead.username,
+                "full_name": lead.full_name,
+                "status": lead.status,
+                "score": lead.score,
+                "purchase_intent": lead.purchase_intent,
+                "email": lead.email,
+                "phone": lead.phone,
+                "context": lead.context or {}
+            }
         return None
     finally:
         session.close()
