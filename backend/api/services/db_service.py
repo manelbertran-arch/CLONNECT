@@ -214,14 +214,18 @@ def get_dashboard_metrics(creator_name: str):
         from api.models import Creator, Lead, Message, Product
         from sqlalchemy import not_
         creator = session.query(Creator).filter_by(name=creator_name).first()
+        logger.info(f"[METRICS] creator_name={creator_name}, found={creator is not None}")
         if not creator:
             return None
+
+        logger.info(f"[METRICS] creator.id={creator.id}")
 
         # Get leads (excluding archived and spam)
         leads = session.query(Lead).filter_by(creator_id=creator.id).filter(
             not_(Lead.status.in_(["archived", "spam"]))
         ).order_by(Lead.last_contact_at.desc()).all()
         total_leads = len(leads)
+        logger.info(f"[METRICS] total_leads={total_leads}")
 
         # Categorize leads by intent (hot >= 0.5, warm 0.25-0.5, cold < 0.25)
         hot_leads = len([l for l in leads if l.purchase_intent and l.purchase_intent >= 0.5])
@@ -232,6 +236,11 @@ def get_dashboard_metrics(creator_name: str):
         # Get messages count (only user messages, not bot responses)
         lead_ids = [l.id for l in leads]
         total_messages = session.query(Message).filter(Message.lead_id.in_(lead_ids), Message.role == 'user').count() if lead_ids else 0
+        # Debug: also count all messages (regardless of role)
+        all_messages = session.query(Message).filter(Message.lead_id.in_(lead_ids)).count() if lead_ids else 0
+        # Debug: count all messages in table
+        all_messages_total = session.query(Message).count()
+        logger.info(f"[METRICS] user_messages={total_messages}, all_messages_for_leads={all_messages}, all_messages_in_table={all_messages_total}")
 
         # Get products count
         products_count = session.query(Product).filter_by(creator_id=creator.id).count()
@@ -243,6 +252,10 @@ def get_dashboard_metrics(creator_name: str):
         # Build leads array for frontend
         leads_data = []
         for lead in leads[:50]:  # Limit to 50 most recent
+            user_count = session.query(Message).filter_by(lead_id=lead.id, role='user').count()
+            all_count = session.query(Message).filter_by(lead_id=lead.id).count()
+            if all_count > 0:  # Only log leads with messages
+                logger.info(f"[METRICS] Lead {lead.platform_user_id}: user_msgs={user_count}, all_msgs={all_count}")
             leads_data.append({
                 "id": str(lead.id),
                 "follower_id": lead.platform_user_id or str(lead.id),
@@ -254,7 +267,7 @@ def get_dashboard_metrics(creator_name: str):
                 "is_lead": True,
                 "is_customer": lead.context.get("is_customer", False) if lead.context else False,
                 "last_contact": lead.last_contact_at.isoformat() if lead.last_contact_at else None,
-                "total_messages": session.query(Message).filter_by(lead_id=lead.id, role='user').count(),
+                "total_messages": user_count,
             })
 
         # Build recent conversations (same as leads but with different structure)
