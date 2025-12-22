@@ -108,6 +108,58 @@ def get_leads(creator_name: str, include_archived: bool = False):
     finally:
         session.close()
 
+
+def get_conversations_with_counts(creator_name: str, limit: int = 50, include_archived: bool = False):
+    """Get conversations with accurate message counts from PostgreSQL"""
+    session = get_session()
+    if not session:
+        return None
+    try:
+        from api.models import Creator, Lead, Message
+        from sqlalchemy import func, not_
+
+        creator = session.query(Creator).filter_by(name=creator_name).first()
+        if not creator:
+            return None
+
+        # Query leads with message count using subquery
+        msg_count_subq = session.query(
+            Message.lead_id,
+            func.count(Message.id).label('msg_count')
+        ).group_by(Message.lead_id).subquery()
+
+        query = session.query(Lead, func.coalesce(msg_count_subq.c.msg_count, 0).label('total_messages'))\
+            .outerjoin(msg_count_subq, Lead.id == msg_count_subq.c.lead_id)\
+            .filter(Lead.creator_id == creator.id)
+
+        if not include_archived:
+            query = query.filter(not_(Lead.status.in_(["archived", "spam"])))
+
+        results = query.order_by(Lead.last_contact_at.desc()).limit(limit).all()
+
+        conversations = []
+        for lead, msg_count in results:
+            conversations.append({
+                "id": str(lead.id),
+                "follower_id": lead.platform_user_id,
+                "platform_user_id": lead.platform_user_id,
+                "platform": lead.platform,
+                "username": lead.username or lead.platform_user_id,
+                "name": lead.full_name or lead.username or "",
+                "status": lead.status,
+                "purchase_intent_score": lead.purchase_intent or 0.0,
+                "is_lead": lead.status not in ["archived", "spam"],
+                "last_contact": lead.last_contact_at.isoformat() if lead.last_contact_at else None,
+                "total_messages": msg_count,
+                "archived": lead.status == "archived",
+                "spam": lead.status == "spam",
+            })
+
+        return conversations
+    finally:
+        session.close()
+
+
 def create_lead(creator_name: str, data: dict):
     session = get_session()
     if not session:
