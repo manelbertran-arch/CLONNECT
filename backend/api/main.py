@@ -1289,18 +1289,42 @@ async def process_dm(payload: ProcessDMRequest):
 async def get_conversations(creator_id: str, limit: int = 50):
     """Listar conversaciones del creador"""
     try:
-        # Use PostgreSQL for accurate message counts
-        if USE_DB:
-            conversations = db_service.get_conversations_with_counts(creator_id, limit, include_archived=False)
-            if conversations is not None:
-                return {"status": "ok", "conversations": conversations, "count": len(conversations)}
-
-        # Fallback to JSON-based agent
+        # Use JSON-based agent for accurate message counts (messages are stored in JSON)
         agent = get_dm_agent(creator_id)
         conversations = await agent.get_all_conversations(limit)
+
+        # Get archived/spam status from PostgreSQL if available
+        archived_ids = set()
+        spam_ids = set()
+        if USE_DB:
+            try:
+                from api.services.db_service import get_session
+                from api.models import Creator, Lead
+                session = get_session()
+                if session:
+                    try:
+                        creator = session.query(Creator).filter_by(name=creator_id).first()
+                        if creator:
+                            archived_leads = session.query(Lead).filter_by(creator_id=creator.id, status="archived").all()
+                            spam_leads = session.query(Lead).filter_by(creator_id=creator.id, status="spam").all()
+                            archived_ids = {l.platform_user_id for l in archived_leads}
+                            spam_ids = {l.platform_user_id for l in spam_leads}
+                    finally:
+                        session.close()
+            except Exception as e:
+                logger.warning(f"Could not get archived status: {e}")
+
         # Filter out archived and spam conversations
-        conversations = [c for c in conversations if not c.get("archived") and not c.get("spam")]
-        return {"status": "ok", "conversations": conversations, "count": len(conversations)}
+        filtered = []
+        for c in conversations:
+            fid = c.get("follower_id", "")
+            if fid in archived_ids or fid in spam_ids:
+                continue
+            if c.get("archived") or c.get("spam"):
+                continue
+            filtered.append(c)
+
+        return {"status": "ok", "conversations": filtered, "count": len(filtered)}
 
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
