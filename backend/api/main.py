@@ -1493,23 +1493,6 @@ async def debug_messages(creator_id: str):
         return {"status": "error", "message": str(e), "debug": debug_info}
 
 
-@app.get("/dm/leads/{creator_id}")
-async def get_leads(creator_id: str):
-    """Obtener leads del creador"""
-    try:
-        # PostgreSQL first
-        if USE_DB:
-            leads = db_service.get_leads(creator_id)
-            if leads is not None:
-                return {"status": "ok", "leads": leads, "count": len(leads)}
-        agent = get_dm_agent(creator_id)
-        leads = await agent.get_leads()
-        return {"status": "ok", "leads": leads, "count": len(leads)}
-
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
-
-
 @app.get("/dm/metrics/{creator_id}")
 async def get_dm_metrics(creator_id: str):
     """Obtener metricas del agent"""
@@ -2918,76 +2901,6 @@ async def sync_messages_from_json_endpoint(creator_id: str):
             return {"status": "error", "message": str(e)}
     return {"status": "error", "message": "Database not configured"}
 
-
-# ============ MANUAL LEADS CRUD ============
-
-@app.post("/dm/leads/{creator_id}/manual")
-async def create_manual_lead(creator_id: str, request: Request):
-    try:
-        data = await request.json()
-        import time
-        lead_id = f"manual_{int(time.time())}"
-        creator_dir = f"data/followers/{creator_id}"
-        os.makedirs(creator_dir, exist_ok=True)
-        file_path = os.path.join(creator_dir, f"{lead_id}.json")
-        now = datetime.now().isoformat()
-        new_lead = {
-            "follower_id": lead_id,
-            "creator_id": creator_id,
-            "username": data.get("name", "Manual Lead"),
-            "name": data.get("name", "Manual Lead"),
-            "first_contact": now,
-            "last_contact": now,
-            "total_messages": 0,
-            "interests": [],
-            "products_discussed": [],
-            "objections_raised": [],
-            "purchase_intent_score": 0,
-            "is_lead": True,
-            "is_customer": False,
-            "preferred_language": "es",
-            "email": data.get("email", ""),
-            "phone": data.get("phone", ""),
-            "notes": data.get("notes", ""),
-            "platform": data.get("platform", "manual")
-        }
-        with open(file_path, "w", encoding="utf-8") as f:
-            json.dump(new_lead, f, indent=2, ensure_ascii=False)
-        return {"status": "ok", "lead": new_lead}
-    except Exception as e:
-        return {"status": "error", "message": str(e)}
-
-@app.put("/dm/leads/{creator_id}/{lead_id}")
-async def update_lead(creator_id: str, lead_id: str, request: Request):
-    try:
-        data = await request.json()
-        file_path = f"data/followers/{creator_id}/{lead_id}.json"
-        if not os.path.exists(file_path):
-            return {"status": "error", "message": "Lead not found"}
-        with open(file_path, "r", encoding="utf-8") as f:
-            lead = json.load(f)
-        if "name" in data:
-            lead["name"] = data["name"]
-            lead["username"] = data["name"]
-        if "email" in data: lead["email"] = data["email"]
-        if "phone" in data: lead["phone"] = data["phone"]
-        if "notes" in data: lead["notes"] = data["notes"]
-        with open(file_path, "w", encoding="utf-8") as f:
-            json.dump(lead, f, indent=2, ensure_ascii=False)
-        return {"status": "ok", "lead": lead}
-    except Exception as e:
-        return {"status": "error", "message": str(e)}
-
-@app.delete("/dm/leads/{creator_id}/{lead_id}")
-async def delete_lead(creator_id: str, lead_id: str):
-    try:
-        file_path = f"data/followers/{creator_id}/{lead_id}.json"
-        if not os.path.exists(file_path):
-            return {"status": "error", "message": "Lead not found"}
-        os.remove(file_path)
-        return {"status": "ok", "deleted": lead_id}
-    except Exception as e:
-        return {"status": "error", "message": str(e)}
 
 if __name__ == "__main__":
     import uvicorn
