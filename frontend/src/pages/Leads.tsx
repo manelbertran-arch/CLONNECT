@@ -52,6 +52,9 @@ interface LeadDisplay {
   status: LeadStatus;
   avatar: string;
   platform: string;
+  email: string;
+  phone: string;
+  notes: string;
 }
 
 const columns: { status: LeadStatus; title: string; color: string }[] = [
@@ -163,6 +166,9 @@ export default function Leads() {
         status: localStatusOverrides[convo.follower_id] || getLeadStatus(convo),
         avatar: getInitials(convo.name, convo.username, convo.follower_id),
         platform,
+        email: convo.email || "",
+        phone: convo.phone || "",
+        notes: convo.notes || "",
       };
     });
   }, [data?.conversations, localStatusOverrides]);
@@ -271,9 +277,9 @@ export default function Leads() {
     setFormData({
       name: lead.name || lead.username,
       platform: lead.platform,
-      email: "",
-      phone: "",
-      notes: "",
+      email: lead.email || "",
+      phone: lead.phone || "",
+      notes: lead.notes || "",
     });
     setIsEditModalOpen(true);
   };

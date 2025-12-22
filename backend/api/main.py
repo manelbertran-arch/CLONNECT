@@ -1355,6 +1355,9 @@ async def get_conversations(creator_id: str, limit: int = 50):
                                 except:
                                     pass
 
+                            # Extract email/phone/notes from context JSON
+                            ctx = lead.context or {}
+
                             conversations.append({
                                 "follower_id": lead.platform_user_id,
                                 "id": str(lead.id),
@@ -1366,6 +1369,9 @@ async def get_conversations(creator_id: str, limit: int = 50):
                                 "is_lead": True,
                                 "last_contact": lead.last_contact_at.isoformat() if lead.last_contact_at else None,
                                 "last_messages": last_messages,
+                                "email": ctx.get("email") or "",
+                                "phone": ctx.get("phone") or "",
+                                "notes": ctx.get("notes") or "",
                             })
 
                         return {"status": "ok", "conversations": conversations, "count": len(conversations)}
