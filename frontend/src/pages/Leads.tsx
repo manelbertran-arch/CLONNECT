@@ -47,7 +47,8 @@ interface LeadDisplay {
   id: string;
   name: string;
   username: string;
-  score: number;
+  score: number;         // Pipeline score (25/50/75/100) - main display
+  intentScore: number;   // AI intent score (0-100) - secondary display
   value: number;
   status: LeadStatus;
   avatar: string;
@@ -166,11 +167,22 @@ export default function Leads() {
         || (convo.lead_status as LeadStatus)
         || getLeadStatus(convo);
 
+      // Pipeline score: use backend value or derive from status
+      // new=25, active=50, hot=75, customer=100
+      const pipelineScore = convo.pipeline_score
+        ?? { new: 25, active: 50, hot: 75, customer: 100 }[status]
+        ?? 25;
+
+      // AI Intent score: 0-100 from purchase_intent
+      const intentScore = convo.purchase_intent_score
+        ?? Math.round(intent * 100);
+
       return {
         id: leadId, // Prefer UUID id for reliable DB lookups
         name: convo.name || "",
         username: displayName,
-        score: Math.round(intent * 100),
+        score: pipelineScore,      // Stage-based score (main display)
+        intentScore: intentScore,  // AI intent score (secondary)
         value: estimateValue(convo),
         status,
         avatar: getInitials(convo.name, convo.username, convo.follower_id),
@@ -465,9 +477,16 @@ export default function Leads() {
                         </DropdownMenu>
                       </div>
                       <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-1.5">
-                          <TrendingUp className="w-3 h-3 text-primary" />
-                          <span className="text-xs font-medium">{lead.score}%</span>
+                        <div className="flex items-center gap-2">
+                          {/* Pipeline Score (main) */}
+                          <div className="flex items-center gap-1">
+                            <TrendingUp className="w-3 h-3 text-primary" />
+                            <span className="text-xs font-semibold">{lead.score}%</span>
+                          </div>
+                          {/* AI Intent (secondary) */}
+                          <span className="text-[10px] text-muted-foreground">
+                            Intent: {lead.intentScore}%
+                          </span>
                         </div>
                         {lead.value > 0 && (
                           <span className="text-xs font-semibold text-accent">€{lead.value}</span>
@@ -593,10 +612,14 @@ export default function Leads() {
                   </p>
                 </div>
               </div>
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-3 gap-4">
                 <div className="p-3 rounded-lg bg-muted/50">
-                  <p className="text-xs text-muted-foreground">Lead Score</p>
+                  <p className="text-xs text-muted-foreground">Pipeline Score</p>
                   <p className="text-lg font-semibold">{selectedLead.score}%</p>
+                </div>
+                <div className="p-3 rounded-lg bg-muted/50">
+                  <p className="text-xs text-muted-foreground">AI Intent</p>
+                  <p className="text-lg font-semibold">{selectedLead.intentScore}%</p>
                 </div>
                 <div className="p-3 rounded-lg bg-muted/50">
                   <p className="text-xs text-muted-foreground">Est. Value</p>

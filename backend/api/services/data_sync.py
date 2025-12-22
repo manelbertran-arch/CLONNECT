@@ -143,6 +143,12 @@ def sync_json_to_postgres(creator_name: str, follower_id: str) -> Optional[str]:
                             lead.username = json_data.get("username") or lead.username
                             lead.full_name = json_data.get("name") or lead.full_name
                             lead.last_contact_at = json_dt
+                            # Sync status from JSON (only upgrade, never downgrade)
+                            json_status = json_data.get("status", "new")
+                            status_order = {"new": 0, "active": 1, "hot": 2, "customer": 3}
+                            if status_order.get(json_status, 0) > status_order.get(lead.status, 0):
+                                lead.status = json_status
+                                logger.info(f"Synced status {lead.status} → {json_status} for {follower_id}")
                             session.commit()
                     except:
                         pass
@@ -156,13 +162,23 @@ def sync_json_to_postgres(creator_name: str, follower_id: str) -> Optional[str]:
                 elif follower_id.startswith("wa_"):
                     platform = "whatsapp"
 
+                # Use status from JSON if available, otherwise derive from is_customer/is_lead
+                json_status = json_data.get("status")
+                if not json_status:
+                    if json_data.get("is_customer", False):
+                        json_status = "customer"
+                    elif json_data.get("is_lead", True):
+                        json_status = "new"
+                    else:
+                        json_status = "new"
+
                 lead = Lead(
                     creator_id=creator.id,
                     platform=platform,
                     platform_user_id=follower_id,
                     username=json_data.get("username", ""),
                     full_name=json_data.get("name", ""),
-                    status="new" if json_data.get("is_lead", True) else "cold",
+                    status=json_status,
                     purchase_intent=json_data.get("purchase_intent_score", 0.0),
                     context={"is_customer": json_data.get("is_customer", False)}
                 )

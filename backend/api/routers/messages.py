@@ -7,6 +7,20 @@ logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/dm", tags=["messages"])
 
 USE_DB = bool(os.getenv("DATABASE_URL"))
+
+
+def get_pipeline_score(status: str) -> int:
+    """
+    Convert pipeline status to a fixed score.
+    Stage-based score: deterministic, independent of AI intent.
+    - new → 25
+    - active → 50
+    - hot → 75
+    - customer → 100
+    """
+    return {"new": 25, "active": 50, "hot": 75, "customer": 100}.get(status, 25)
+
+
 if USE_DB:
     try:
         from api.services import db_service
@@ -312,6 +326,8 @@ async def get_conversations(creator_id: str, limit: int = 50):
                         pass
                     # Extract email/phone/notes from context (stored as JSON in PostgreSQL)
                     ctx = l.get("context") or {}
+                    lead_status = l.get("status", "new")
+                    intent = l.get("purchase_intent", 0)
                     conversations.append({
                         "follower_id": follower_id,
                         "id": l.get("id"),  # UUID for reliable updates
@@ -319,8 +335,12 @@ async def get_conversations(creator_id: str, limit: int = 50):
                         "name": l.get("full_name"),
                         "platform": l.get("platform", "instagram"),
                         "total_messages": msg_count,
-                        "purchase_intent": l.get("purchase_intent", 0),
-                        "lead_status": l.get("status", "new"),  # Pipeline status: new, active, hot, customer
+                        # AI Intent Score (0-1 and 0-100)
+                        "purchase_intent": intent,
+                        "purchase_intent_score": round(intent * 100),
+                        # Pipeline Status & Score
+                        "lead_status": lead_status,
+                        "pipeline_score": get_pipeline_score(lead_status),
                         "last_messages": last_messages,
                         "last_contact": l.get("last_contact_at"),
                         "email": ctx.get("email") or l.get("email") or "",
@@ -345,14 +365,20 @@ async def get_conversations(creator_id: str, limit: int = 50):
                     if json_data:
                         msgs = json_data.get("last_messages", [])
                         user_msgs = len([m for m in msgs if m.get("role") == "user"])
+                        lead_status = json_data.get("status", "new")
+                        intent = json_data.get("purchase_intent_score", 0)
                         conversations.append({
                             "follower_id": follower_id,
                             "username": json_data.get("username"),
                             "name": json_data.get("name"),
                             "platform": "instagram" if follower_id.startswith("ig_") else "telegram" if follower_id.startswith("tg_") else "instagram",
                             "total_messages": user_msgs,
-                            "purchase_intent": json_data.get("purchase_intent_score", 0),
-                            "lead_status": json_data.get("status", "new"),  # Pipeline status
+                            # AI Intent Score (0-1 and 0-100)
+                            "purchase_intent": intent,
+                            "purchase_intent_score": round(intent * 100) if intent <= 1 else intent,
+                            # Pipeline Status & Score
+                            "lead_status": lead_status,
+                            "pipeline_score": get_pipeline_score(lead_status),
                             "last_messages": msgs[-5:],
                             "last_contact": json_data.get("last_contact"),
                             "email": json_data.get("email") or "",
