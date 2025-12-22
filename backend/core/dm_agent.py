@@ -1186,9 +1186,8 @@ USA ESTA RESPUESTA PARA LA OBJECION (adaptala a tu tono):
                 follower.last_messages = follower.last_messages[-20:]
 
             await self.memory_store.save(follower)
-            # Save to PostgreSQL
+            # Save to PostgreSQL (only user message for dashboard stats)
             await self._save_message_to_db(follower.follower_id, 'user', message_text, str(intent))
-            await self._save_message_to_db(follower.follower_id, 'assistant', response_text, str(intent))
 
             return DMResponse(
                 response_text=response_text,
@@ -1490,9 +1489,8 @@ USA ESTA RESPUESTA PARA LA OBJECION (adaptala a tu tono):
             follower.is_lead = True
 
         await self.memory_store.save(follower)
-        # Save to PostgreSQL
+        # Save to PostgreSQL (only user message for dashboard stats)
         await self._save_message_to_db(follower.follower_id, 'user', message, str(intent))
-        await self._save_message_to_db(follower.follower_id, 'assistant', response, str(intent))
 
     async def _schedule_nurturing_if_needed(
         self,
