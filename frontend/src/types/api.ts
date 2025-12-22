@@ -31,11 +31,14 @@ export interface Conversation {
   platform?: string;
   last_contact?: string;
   total_messages: number;
-  // Backend uses purchase_intent (0.0 to 1.0)
-  purchase_intent?: number;
-  purchase_intent_score?: number; // Alias for compatibility
-  // Pipeline status: new, active, hot, customer (persisted in Lead.status)
+  // AI Intent Score (computed from conversation analysis)
+  purchase_intent?: number;       // 0.0 to 1.0
+  purchase_intent_score?: number; // 0 to 100 (derived)
+  // Pipeline Status (persisted in Lead.status)
   lead_status?: "new" | "active" | "hot" | "customer";
+  // Pipeline Score (stage-based, deterministic)
+  // new=25, active=50, hot=75, customer=100
+  pipeline_score?: number;
   is_lead?: boolean;
   is_customer?: boolean;
   tags?: string[];

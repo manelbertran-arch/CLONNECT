@@ -398,6 +398,8 @@ class FollowerMemory:
     purchase_intent_score: float = 0.0
     is_lead: bool = False
     is_customer: bool = False
+    # Pipeline status: new, active, hot, customer
+    status: str = "new"
     preferred_language: str = "es"  # Idioma preferido del seguidor
     last_messages: List[Dict] = field(default_factory=list)
     # Campos para control de links y objeciones
@@ -464,6 +466,7 @@ class MemoryStore:
                 "purchase_intent_score": memory.purchase_intent_score,
                 "is_lead": memory.is_lead,
                 "is_customer": memory.is_customer,
+                "status": memory.status,  # Pipeline status: new, active, hot, customer
                 "preferred_language": memory.preferred_language,
                 "last_messages": memory.last_messages[-20:],  # Keep last 20
                 # Campos para control de links y objeciones
@@ -1507,6 +1510,54 @@ USA ESTA RESPUESTA PARA LA OBJECION (adaptala a tu tono):
         # Marcar como lead (score > 25% = sale de New Leads)
         if follower.purchase_intent_score > 0.25 or intent == Intent.INTEREST_STRONG:
             follower.is_lead = True
+
+        # ============================================================
+        # AUTO-TRANSITION: Update pipeline status based on rules
+        # ============================================================
+        # NEVER downgrade status: customer > hot > active > new
+        # Each transition only moves UP, never down
+
+        # Constants for thresholds
+        HOT_INTENT_THRESHOLD = 0.60  # 60% intent = hot
+
+        # Intents that indicate buying intent (→ hot)
+        hot_intents = {Intent.INTEREST_STRONG}
+
+        # Intents that indicate active engagement (→ active)
+        active_intents = {
+            Intent.INTEREST_SOFT,
+            Intent.QUESTION_PRODUCT,
+            Intent.OBJECTION_PRICE,  # Asking about price = engaged
+            Intent.OBJECTION_TIME,
+            Intent.OBJECTION_DOUBT,
+            Intent.OBJECTION_LATER,
+            Intent.OBJECTION_WORKS,
+        }
+
+        old_status = follower.status
+        current_status = follower.status or "new"
+
+        # Rule: Customer status is permanent (set via payment webhooks)
+        if current_status == "customer" or follower.is_customer:
+            follower.status = "customer"
+        # Rule: NEW → HOT (direct purchase intent or high AI score)
+        elif current_status in ["new", "active", ""] and (
+            intent in hot_intents or
+            is_direct_purchase_intent(message) or
+            follower.purchase_intent_score >= HOT_INTENT_THRESHOLD
+        ):
+            follower.status = "hot"
+            logger.info(f"Pipeline transition: {old_status} → hot (intent={intent.value}, score={follower.purchase_intent_score:.0%})")
+        # Rule: NEW → ACTIVE (engagement without clear buy intent)
+        elif current_status in ["new", ""] and (
+            intent in active_intents or
+            follower.total_messages >= 2  # At least one back-and-forth
+        ):
+            follower.status = "active"
+            logger.info(f"Pipeline transition: {old_status} → active (intent={intent.value}, messages={follower.total_messages})")
+        # Keep current status if no transition rule applies
+        elif not follower.status:
+            follower.status = "new"
 
         await self.memory_store.save(follower)
         # Save BOTH messages to PostgreSQL for dashboard stats
