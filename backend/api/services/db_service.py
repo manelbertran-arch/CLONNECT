@@ -322,7 +322,7 @@ def get_lead_by_id(creator_name: str, lead_id: str):
 # MESSAGE STORAGE FUNCTIONS (Added for dashboard sync)
 # ============================================================
 
-async def save_message(creator_id: str, follower_id: str, message_text: str, 
+def save_message(creator_id: str, follower_id: str, message_text: str, 
                        direction: str = "inbound", platform: str = "instagram",
                        message_id: str = None) -> dict:
     """Save a message to the database"""
@@ -380,7 +380,7 @@ async def get_message_count(creator_id: str) -> int:
     return 0
 
 
-async def get_lead_by_platform_id(creator_id: str, platform_id: str) -> dict:
+def get_lead_by_platform_id(creator_id: str, platform_id: str) -> dict:
     """Get a lead by their platform-specific ID (e.g., ig_123, tg_456)"""
     if USE_POSTGRES and pg_pool:
         async with pg_pool.acquire() as conn:
@@ -394,7 +394,7 @@ async def get_lead_by_platform_id(creator_id: str, platform_id: str) -> dict:
     return None
 
 
-async def create_lead_if_not_exists(creator_id: str, platform_id: str, platform: str = "instagram",
+def create_lead_if_not_exists(creator_id: str, platform_id: str, platform: str = "instagram",
                                      username: str = "", name: str = "") -> dict:
     """Create a lead if it doesn't exist, return existing or new lead"""
     import uuid

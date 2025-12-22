@@ -507,16 +507,16 @@ class MemoryStore:
 class DMResponderAgent:
     """Agent principal que procesa DMs y genera respuestas personalizadas"""
 
-    def _save_message_to_db(self, follower_id: str, role: str, content: str, intent: str = None):
+    async def _save_message_to_db(self, follower_id: str, role: str, content: str, intent: str = None):
         """Save message to PostgreSQL if available"""
         if not USE_POSTGRES or not db_service:
             return
         try:
-            lead = db_service.get_lead_by_platform_id(self.creator_id, follower_id)
+            lead = await db_service.get_lead_by_platform_id(self.creator_id, follower_id)
             if not lead:
-                lead = db_service.create_lead(self.creator_id, {"platform_user_id": follower_id, "platform": "telegram" if follower_id.startswith("tg_") else "instagram", "username": follower_id})
+                lead = await db_service.create_lead(self.creator_id, {"platform_user_id": follower_id, "platform": "telegram" if follower_id.startswith("tg_") else "instagram", "username": follower_id})
             if lead and "id" in lead:
-                db_service.save_message(lead["id"], role, content, intent)
+                await db_service.save_message(lead["id"], role, content, intent)
         except Exception as e:
             logger.error(f"PostgreSQL save failed: {e}")
 
@@ -1076,8 +1076,8 @@ USA ESTA RESPUESTA PARA LA OBJECION (adaptala a tu tono):
             # Guardar inmediatamente en memoria
             await self.memory_store.save(follower)
             # Save to PostgreSQL
-            self._save_message_to_db(follower.follower_id, 'user', message, str(intent))
-            self._save_message_to_db(follower.follower_id, 'assistant', response, str(intent))
+            await self._save_message_to_db(follower.follower_id, 'user', message, str(intent))
+            await self._save_message_to_db(follower.follower_id, 'assistant', response, str(intent))
 
         # Verificar consentimiento GDPR (si esta habilitado)
         if REQUIRE_CONSENT:
@@ -1190,8 +1190,8 @@ USA ESTA RESPUESTA PARA LA OBJECION (adaptala a tu tono):
 
             await self.memory_store.save(follower)
             # Save to PostgreSQL
-            self._save_message_to_db(follower.follower_id, 'user', message, str(intent))
-            self._save_message_to_db(follower.follower_id, 'assistant', response, str(intent))
+            await self._save_message_to_db(follower.follower_id, 'user', message, str(intent))
+            await self._save_message_to_db(follower.follower_id, 'assistant', response, str(intent))
 
             return DMResponse(
                 response_text=response_text,
@@ -1494,8 +1494,8 @@ USA ESTA RESPUESTA PARA LA OBJECION (adaptala a tu tono):
 
         await self.memory_store.save(follower)
         # Save to PostgreSQL
-        self._save_message_to_db(follower.follower_id, 'user', message, str(intent))
-        self._save_message_to_db(follower.follower_id, 'assistant', response, str(intent))
+        await self._save_message_to_db(follower.follower_id, 'user', message, str(intent))
+        await self._save_message_to_db(follower.follower_id, 'assistant', response, str(intent))
 
 
         # === SAVE TO POSTGRESQL FOR DASHBOARD ===
@@ -1901,8 +1901,8 @@ USA ESTA RESPUESTA PARA LA OBJECION (adaptala a tu tono):
             # Save to memory store
             await self.memory_store.save(follower)
             # Save to PostgreSQL
-            self._save_message_to_db(follower.follower_id, 'user', message, str(intent))
-            self._save_message_to_db(follower.follower_id, 'assistant', response, str(intent))
+            await self._save_message_to_db(follower.follower_id, 'user', message, str(intent))
+            await self._save_message_to_db(follower.follower_id, 'assistant', response, str(intent))
 
             logger.info(f"Saved manual message for {follower_id}")
             return True
@@ -1952,8 +1952,8 @@ USA ESTA RESPUESTA PARA LA OBJECION (adaptala a tu tono):
             # Save to memory store (no message added to history)
             await self.memory_store.save(follower)
             # Save to PostgreSQL
-            self._save_message_to_db(follower.follower_id, 'user', message, str(intent))
-            self._save_message_to_db(follower.follower_id, 'assistant', response, str(intent))
+            await self._save_message_to_db(follower.follower_id, 'user', message, str(intent))
+            await self._save_message_to_db(follower.follower_id, 'assistant', response, str(intent))
 
             logger.info(f"Updated status for {follower_id}: {status} (intent: {old_score:.0%} → {purchase_intent:.0%})")
             return True
