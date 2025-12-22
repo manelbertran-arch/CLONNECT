@@ -66,7 +66,7 @@ async def get_follower_detail(creator_id: str, follower_id: str):
                                 "is_lead": True,
                                 "is_customer": lead.context.get("is_customer", False) if lead.context else False,
                                 "last_messages": last_messages,
-                                "last_contact": lead.updated_at.isoformat() if lead.updated_at else None,
+                                "last_contact": lead.last_contact_at.isoformat() if lead.last_contact_at else None,
                             }
                 finally:
                     session.close()
