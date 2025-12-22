@@ -636,6 +636,51 @@ def mark_conversation_spam(creator_name: str, conversation_id: str) -> bool:
         session.close()
 
 
+def reset_conversation_status(creator_name: str, conversation_id: str = None) -> int:
+    """Reset status of conversation(s) from archived/spam back to 'new'
+    If conversation_id is None, resets ALL conversations for the creator.
+    Returns number of conversations reset.
+    """
+    session = get_session()
+    if not session:
+        return 0
+    try:
+        from api.models import Creator, Lead
+        creator = session.query(Creator).filter_by(name=creator_name).first()
+        if not creator:
+            return 0
+
+        if conversation_id:
+            # Reset specific conversation
+            lead = session.query(Lead).filter_by(creator_id=creator.id, platform_user_id=conversation_id).first()
+            if not lead:
+                try:
+                    import uuid
+                    lead = session.query(Lead).filter_by(creator_id=creator.id, id=uuid.UUID(conversation_id)).first()
+                except:
+                    pass
+            if lead and lead.status in ["archived", "spam"]:
+                lead.status = "new"
+                session.commit()
+                logger.info(f"Reset conversation {conversation_id} to 'new'")
+                return 1
+            return 0
+        else:
+            # Reset ALL archived/spam conversations
+            count = session.query(Lead).filter_by(creator_id=creator.id).filter(
+                Lead.status.in_(["archived", "spam"])
+            ).update({"status": "new"}, synchronize_session=False)
+            session.commit()
+            logger.info(f"Reset {count} conversations to 'new' for {creator_name}")
+            return count
+    except Exception as e:
+        logger.error(f"reset_conversation_status error: {e}")
+        session.rollback()
+        return 0
+    finally:
+        session.close()
+
+
 def delete_conversation(creator_name: str, conversation_id: str) -> bool:
     """Delete a conversation and all its messages permanently"""
     session = get_session()
