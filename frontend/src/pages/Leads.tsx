@@ -158,7 +158,7 @@ export default function Leads() {
       const intent = getPurchaseIntent(convo);
 
       return {
-        id: convo.follower_id,
+        id: convo.id || convo.follower_id, // Prefer UUID id for reliable DB lookups
         name: convo.name || "",
         username: displayName,
         score: Math.round(intent * 100),
