@@ -1300,7 +1300,10 @@ async def get_conversations(creator_id: str, limit: int = 50):
             if session:
                 try:
                     creator = session.query(Creator).filter_by(name=creator_id).first()
+                    logger.info(f"[CONV] creator_id={creator_id}, found={creator is not None}")
                     if creator:
+                        logger.info(f"[CONV] creator.id={creator.id}")
+
                         # Count user messages per lead
                         msg_count_subq = session.query(
                             Message.lead_id,
@@ -1318,15 +1321,21 @@ async def get_conversations(creator_id: str, limit: int = 50):
                             not_(Lead.status.in_(["archived", "spam"]))
                         ).order_by(Lead.last_contact_at.desc()).limit(limit).all()
 
+                        logger.info(f"[CONV] Found {len(results)} leads")
+
                         conversations = []
                         for lead, msg_count in results:
+                            # Also count directly for debugging
+                            direct_count = session.query(Message).filter_by(lead_id=lead.id, role='user').count()
+                            logger.info(f"[CONV] Lead {lead.platform_user_id}: subq_count={msg_count}, direct_count={direct_count}")
+
                             conversations.append({
                                 "follower_id": lead.platform_user_id,
                                 "id": str(lead.id),
                                 "username": lead.username or lead.platform_user_id,
                                 "name": lead.full_name or lead.username or "",
                                 "platform": lead.platform or "instagram",
-                                "total_messages": msg_count,
+                                "total_messages": direct_count,  # Use direct count for now
                                 "purchase_intent_score": lead.purchase_intent or 0.0,
                                 "is_lead": True,
                                 "last_contact": lead.last_contact_at.isoformat() if lead.last_contact_at else None,
@@ -1345,6 +1354,98 @@ async def get_conversations(creator_id: str, limit: int = 50):
     except Exception as e:
         logger.error(f"get_conversations error: {e}")
         raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/dm/debug/{creator_id}")
+async def debug_messages(creator_id: str):
+    """Debug endpoint to diagnose message count issue"""
+    debug_info = {
+        "creator_id": creator_id,
+        "use_db": USE_DB,
+        "creator_found": False,
+        "total_leads": 0,
+        "total_messages_all": 0,
+        "total_messages_user": 0,
+        "leads_with_messages": [],
+        "sample_messages": [],
+    }
+
+    if not USE_DB:
+        return {"status": "error", "message": "Database not available", "debug": debug_info}
+
+    try:
+        from api.services.db_service import get_session
+        from api.models import Creator, Lead, Message
+        from sqlalchemy import func
+
+        session = get_session()
+        if not session:
+            return {"status": "error", "message": "No session", "debug": debug_info}
+
+        try:
+            # Check if creator exists
+            creator = session.query(Creator).filter_by(name=creator_id).first()
+            if not creator:
+                debug_info["error"] = f"Creator '{creator_id}' not found"
+                # List all creators
+                all_creators = session.query(Creator).all()
+                debug_info["available_creators"] = [c.name for c in all_creators]
+                return {"status": "error", "message": "Creator not found", "debug": debug_info}
+
+            debug_info["creator_found"] = True
+            debug_info["creator_uuid"] = str(creator.id)
+
+            # Count leads for this creator
+            leads = session.query(Lead).filter_by(creator_id=creator.id).all()
+            debug_info["total_leads"] = len(leads)
+
+            # Get lead UUIDs
+            lead_ids = [lead.id for lead in leads]
+            debug_info["lead_uuids"] = [str(lid) for lid in lead_ids[:5]]  # First 5
+
+            # Count ALL messages for these leads
+            if lead_ids:
+                all_msg_count = session.query(Message).filter(Message.lead_id.in_(lead_ids)).count()
+                debug_info["total_messages_all"] = all_msg_count
+
+                # Count only user messages
+                user_msg_count = session.query(Message).filter(
+                    Message.lead_id.in_(lead_ids),
+                    Message.role == 'user'
+                ).count()
+                debug_info["total_messages_user"] = user_msg_count
+
+                # Get message counts per lead
+                for lead in leads[:5]:  # First 5 leads
+                    lead_all = session.query(Message).filter_by(lead_id=lead.id).count()
+                    lead_user = session.query(Message).filter_by(lead_id=lead.id, role='user').count()
+                    debug_info["leads_with_messages"].append({
+                        "lead_id": str(lead.id),
+                        "platform_user_id": lead.platform_user_id,
+                        "username": lead.username,
+                        "all_messages": lead_all,
+                        "user_messages": lead_user,
+                    })
+
+                # Get sample messages
+                sample_msgs = session.query(Message).filter(Message.lead_id.in_(lead_ids)).limit(5).all()
+                for msg in sample_msgs:
+                    debug_info["sample_messages"].append({
+                        "id": str(msg.id),
+                        "lead_id": str(msg.lead_id),
+                        "role": msg.role,
+                        "content_preview": msg.content[:50] if msg.content else "",
+                    })
+
+            return {"status": "ok", "debug": debug_info}
+
+        finally:
+            session.close()
+
+    except Exception as e:
+        debug_info["exception"] = str(e)
+        logger.error(f"debug_messages error: {e}")
+        return {"status": "error", "message": str(e), "debug": debug_info}
 
 
 @app.get("/dm/leads/{creator_id}")
