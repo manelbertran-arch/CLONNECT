@@ -2717,6 +2717,21 @@ async def reset_conversations(creator_id: str):
     return {"status": "error", "message": "Database not configured"}
 
 
+@app.post("/dm/conversations/{creator_id}/sync-messages")
+async def sync_messages_from_json_endpoint(creator_id: str):
+    """Sync all messages from JSON files to PostgreSQL (one-time migration)"""
+    USE_DB = bool(os.getenv("DATABASE_URL"))
+    if USE_DB:
+        try:
+            from api.services.data_sync import sync_messages_from_json
+            stats = sync_messages_from_json(creator_id)
+            return {"status": "ok", **stats}
+        except Exception as e:
+            logger.warning(f"Message sync failed: {e}")
+            return {"status": "error", "message": str(e)}
+    return {"status": "error", "message": "Database not configured"}
+
+
 # ============ MANUAL LEADS CRUD ============
 
 @app.post("/dm/leads/{creator_id}/manual")
