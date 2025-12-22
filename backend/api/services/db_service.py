@@ -581,6 +581,12 @@ def archive_conversation(creator_name: str, conversation_id: str) -> bool:
         if lead:
             lead.status = "archived"
             session.commit()
+            # Sync to JSON
+            try:
+                from api.services.data_sync import sync_archive_to_json
+                sync_archive_to_json(creator_name, lead.platform_user_id or conversation_id)
+            except Exception as sync_err:
+                logger.warning(f"JSON sync failed: {sync_err}")
             logger.info(f"Archived conversation {conversation_id} for {creator_name}")
             return True
         return False
@@ -613,6 +619,12 @@ def mark_conversation_spam(creator_name: str, conversation_id: str) -> bool:
         if lead:
             lead.status = "spam"
             session.commit()
+            # Sync to JSON
+            try:
+                from api.services.data_sync import sync_spam_to_json
+                sync_spam_to_json(creator_name, lead.platform_user_id or conversation_id)
+            except Exception as sync_err:
+                logger.warning(f"JSON sync failed: {sync_err}")
             logger.info(f"Marked conversation {conversation_id} as spam for {creator_name}")
             return True
         return False
@@ -636,6 +648,7 @@ def delete_conversation(creator_name: str, conversation_id: str) -> bool:
             return False
         # Find lead by platform_user_id or id
         lead = session.query(Lead).filter_by(creator_id=creator.id, platform_user_id=conversation_id).first()
+        platform_user_id = None
         if not lead:
             try:
                 import uuid
@@ -643,11 +656,18 @@ def delete_conversation(creator_name: str, conversation_id: str) -> bool:
             except:
                 pass
         if lead:
+            platform_user_id = lead.platform_user_id
             # Delete all messages first (foreign key constraint)
             session.query(Message).filter_by(lead_id=lead.id).delete()
             # Delete the lead
             session.delete(lead)
             session.commit()
+            # Sync: delete JSON file too
+            try:
+                from api.services.data_sync import sync_delete_json
+                sync_delete_json(creator_name, platform_user_id or conversation_id)
+            except Exception as sync_err:
+                logger.warning(f"JSON sync failed: {sync_err}")
             logger.info(f"Deleted conversation {conversation_id} for {creator_name}")
             return True
         return False
