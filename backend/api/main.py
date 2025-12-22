@@ -2548,7 +2548,18 @@ async def startup_event():
 # ============ CONVERSATION ACTIONS ============
 
 @app.post("/dm/conversations/{creator_id}/{conversation_id}/archive")
-async def archive_conversation(creator_id: str, conversation_id: str):
+async def archive_conversation_endpoint(creator_id: str, conversation_id: str):
+    # Try PostgreSQL first
+    USE_DB = bool(os.getenv("DATABASE_URL"))
+    if USE_DB:
+        try:
+            from api.services import db_service
+            success = db_service.archive_conversation(creator_id, conversation_id)
+            if success:
+                return {"status": "ok", "archived": True}
+        except Exception as e:
+            logger.warning(f"PostgreSQL archive failed: {e}")
+    # Fallback to JSON files
     try:
         file_path = f"data/followers/{creator_id}/{conversation_id}.json"
         if not os.path.exists(file_path):
@@ -2564,7 +2575,18 @@ async def archive_conversation(creator_id: str, conversation_id: str):
         return {"status": "error", "message": str(e)}
 
 @app.post("/dm/conversations/{creator_id}/{conversation_id}/spam")
-async def mark_conversation_spam(creator_id: str, conversation_id: str):
+async def mark_conversation_spam_endpoint(creator_id: str, conversation_id: str):
+    # Try PostgreSQL first
+    USE_DB = bool(os.getenv("DATABASE_URL"))
+    if USE_DB:
+        try:
+            from api.services import db_service
+            success = db_service.mark_conversation_spam(creator_id, conversation_id)
+            if success:
+                return {"status": "ok", "spam": True}
+        except Exception as e:
+            logger.warning(f"PostgreSQL spam failed: {e}")
+    # Fallback to JSON files
     try:
         file_path = f"data/followers/{creator_id}/{conversation_id}.json"
         if not os.path.exists(file_path):
@@ -2585,7 +2607,18 @@ async def mark_conversation_spam(creator_id: str, conversation_id: str):
         return {"status": "error", "message": str(e)}
 
 @app.delete("/dm/conversations/{creator_id}/{conversation_id}")
-async def delete_conversation(creator_id: str, conversation_id: str):
+async def delete_conversation_endpoint(creator_id: str, conversation_id: str):
+    # Try PostgreSQL first
+    USE_DB = bool(os.getenv("DATABASE_URL"))
+    if USE_DB:
+        try:
+            from api.services import db_service
+            success = db_service.delete_conversation(creator_id, conversation_id)
+            if success:
+                return {"status": "ok", "deleted": conversation_id}
+        except Exception as e:
+            logger.warning(f"PostgreSQL delete failed: {e}")
+    # Fallback to JSON files
     try:
         file_path = f"data/followers/{creator_id}/{conversation_id}.json"
         if not os.path.exists(file_path):
