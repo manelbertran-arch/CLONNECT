@@ -678,8 +678,8 @@ async def get_lead_by_platform_id(creator_id: str, platform_id: str) -> dict:
         session.close()
 
 
-async def create_lead(creator_id: str, data: dict) -> dict:
-    """Create a new lead for dm_agent integration"""
+async def create_lead_async(creator_id: str, data: dict) -> dict:
+    """Create a new lead for dm_agent integration (async version)"""
     if not USE_POSTGRES:
         return None
     session = get_session()

@@ -35,7 +35,7 @@ class Lead(Base):
     status = Column(String(50), default="new")
     score = Column(Integer, default=0)
     purchase_intent = Column(Float, default=0.0)
-    context = Column(JSON, default={})
+    context = Column(JSON, default=dict)
     first_contact_at = Column(DateTime(timezone=True), server_default=func.now())
     last_contact_at = Column(DateTime(timezone=True), server_default=func.now())
 
