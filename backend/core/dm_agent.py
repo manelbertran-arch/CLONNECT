@@ -1075,9 +1075,6 @@ USA ESTA RESPUESTA PARA LA OBJECION (adaptala a tu tono):
             logger.info(f"Name extracted from message: '{extracted_name}' (was: '{old_name}')")
             # Guardar inmediatamente en memoria
             await self.memory_store.save(follower)
-            # Save to PostgreSQL
-            await self._save_message_to_db(follower.follower_id, 'user', message, str(intent))
-            await self._save_message_to_db(follower.follower_id, 'assistant', response, str(intent))
 
         # Verificar consentimiento GDPR (si esta habilitado)
         if REQUIRE_CONSENT:
@@ -1190,8 +1187,8 @@ USA ESTA RESPUESTA PARA LA OBJECION (adaptala a tu tono):
 
             await self.memory_store.save(follower)
             # Save to PostgreSQL
-            await self._save_message_to_db(follower.follower_id, 'user', message, str(intent))
-            await self._save_message_to_db(follower.follower_id, 'assistant', response, str(intent))
+            await self._save_message_to_db(follower.follower_id, 'user', message_text, str(intent))
+            await self._save_message_to_db(follower.follower_id, 'assistant', response_text, str(intent))
 
             return DMResponse(
                 response_text=response_text,
@@ -1497,17 +1494,6 @@ USA ESTA RESPUESTA PARA LA OBJECION (adaptala a tu tono):
         await self._save_message_to_db(follower.follower_id, 'user', message, str(intent))
         await self._save_message_to_db(follower.follower_id, 'assistant', response, str(intent))
 
-
-        # === SAVE TO POSTGRESQL FOR DASHBOARD ===
-        try:
-            from api.services.message_db import save_message_sync, get_or_create_lead_sync
-            platform = "telegram" if follower.follower_id.startswith("tg_") else "instagram" if follower.follower_id.startswith("ig_") else "whatsapp"
-            lead = get_or_create_lead_sync(self.creator_id, follower.follower_id, platform, follower.username or "", follower.name or "")
-            if lead:
-                save_message_sync(lead.get("id"), "user", message, intent.value if intent else None)
-                save_message_sync(lead.get("id"), "assistant", response, None)
-        except Exception as db_err:
-            logger.warning(f"Failed to save to PostgreSQL: {db_err}")
     async def _schedule_nurturing_if_needed(
         self,
         follower_id: str,
@@ -1900,9 +1886,8 @@ USA ESTA RESPUESTA PARA LA OBJECION (adaptala a tu tono):
 
             # Save to memory store
             await self.memory_store.save(follower)
-            # Save to PostgreSQL
-            await self._save_message_to_db(follower.follower_id, 'user', message, str(intent))
-            await self._save_message_to_db(follower.follower_id, 'assistant', response, str(intent))
+            # Save to PostgreSQL (manual message from assistant)
+            await self._save_message_to_db(follower.follower_id, 'assistant', message_text, None)
 
             logger.info(f"Saved manual message for {follower_id}")
             return True
@@ -1951,9 +1936,6 @@ USA ESTA RESPUESTA PARA LA OBJECION (adaptala a tu tono):
 
             # Save to memory store (no message added to history)
             await self.memory_store.save(follower)
-            # Save to PostgreSQL
-            await self._save_message_to_db(follower.follower_id, 'user', message, str(intent))
-            await self._save_message_to_db(follower.follower_id, 'assistant', response, str(intent))
 
             logger.info(f"Updated status for {follower_id}: {status} (intent: {old_score:.0%} → {purchase_intent:.0%})")
             return True
