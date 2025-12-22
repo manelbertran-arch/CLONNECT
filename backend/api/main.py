@@ -1437,6 +1437,24 @@ async def debug_messages(creator_id: str):
                         "content_preview": msg.content[:50] if msg.content else "",
                     })
 
+                # Check for orphan messages (messages not associated with any of this creator's leads)
+                all_msgs_in_db = session.query(Message).count()
+                msgs_for_creator = session.query(Message).filter(Message.lead_id.in_(lead_ids)).count() if lead_ids else 0
+                orphan_msgs = all_msgs_in_db - msgs_for_creator
+                debug_info["orphan_messages"] = orphan_msgs
+                debug_info["all_messages_in_db"] = all_msgs_in_db
+                debug_info["messages_for_this_creator"] = msgs_for_creator
+
+                # Get sample orphan messages if any
+                if orphan_msgs > 0 and lead_ids:
+                    orphan_sample = session.query(Message).filter(~Message.lead_id.in_(lead_ids)).limit(5).all()
+                    debug_info["orphan_sample"] = [{
+                        "id": str(msg.id),
+                        "lead_id": str(msg.lead_id),
+                        "role": msg.role,
+                        "content_preview": msg.content[:50] if msg.content else "",
+                    } for msg in orphan_sample]
+
             return {"status": "ok", "debug": debug_info}
 
         finally:
