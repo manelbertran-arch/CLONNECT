@@ -518,6 +518,27 @@ export async function deleteConversation(
   });
 }
 
+/**
+ * Get archived/spam conversations
+ */
+export async function getArchivedConversations(
+  creatorId: string = CREATOR_ID
+): Promise<{ status: string; conversations: Conversation[] }> {
+  return apiFetch(`/dm/conversations/${creatorId}/archived`);
+}
+
+/**
+ * Restore an archived/spam conversation
+ */
+export async function restoreConversation(
+  creatorId: string = CREATOR_ID,
+  conversationId: string
+): Promise<{ status: string; restored?: boolean }> {
+  return apiFetch(`/dm/conversations/${creatorId}/${conversationId}/restore`, {
+    method: "POST",
+  });
+}
+
 // =============================================================================
 // HOOKS (React Query)
 // =============================================================================
@@ -525,6 +546,7 @@ export async function deleteConversation(
 export const apiKeys = {
   dashboard: (creatorId: string) => ["dashboard", creatorId] as const,
   conversations: (creatorId: string) => ["conversations", creatorId] as const,
+  archivedConversations: (creatorId: string) => ["archivedConversations", creatorId] as const,
   follower: (creatorId: string, followerId: string) => ["follower", creatorId, followerId] as const,
   leads: (creatorId: string) => ["leads", creatorId] as const,
   metrics: (creatorId: string) => ["metrics", creatorId] as const,

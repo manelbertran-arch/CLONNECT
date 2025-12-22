@@ -6,6 +6,8 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   getDashboardOverview,
   getConversations,
+  getArchivedConversations,
+  restoreConversation,
   getLeads,
   getMetrics,
   getCreatorConfig,
@@ -581,6 +583,33 @@ export function useDeleteConversation(creatorId: string = CREATOR_ID) {
     mutationFn: (conversationId: string) => deleteConversation(creatorId, conversationId),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: apiKeys.conversations(creatorId) });
+      queryClient.invalidateQueries({ queryKey: apiKeys.dashboard(creatorId) });
+    },
+  });
+}
+
+/**
+ * Hook to fetch archived/spam conversations
+ */
+export function useArchivedConversations(creatorId: string = CREATOR_ID) {
+  return useQuery({
+    queryKey: apiKeys.archivedConversations(creatorId),
+    queryFn: () => getArchivedConversations(creatorId),
+    select: (data) => data.conversations || [],
+    refetchInterval: 30000,
+  });
+}
+
+/**
+ * Hook to restore an archived/spam conversation
+ */
+export function useRestoreConversation(creatorId: string = CREATOR_ID) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (conversationId: string) => restoreConversation(creatorId, conversationId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: apiKeys.conversations(creatorId) });
+      queryClient.invalidateQueries({ queryKey: apiKeys.archivedConversations(creatorId) });
       queryClient.invalidateQueries({ queryKey: apiKeys.dashboard(creatorId) });
     },
   });

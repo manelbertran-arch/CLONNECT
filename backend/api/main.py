@@ -2628,7 +2628,71 @@ async def delete_conversation_endpoint(creator_id: str, conversation_id: str):
     except Exception as e:
         return {"status": "error", "message": str(e)}
 
-# ============ RESET CONVERSATIONS ============
+# ============ ARCHIVED/SPAM MANAGEMENT ============
+
+@app.get("/dm/conversations/{creator_id}/archived")
+async def get_archived_conversations(creator_id: str):
+    """Get all archived and spam conversations"""
+    USE_DB = bool(os.getenv("DATABASE_URL"))
+    if USE_DB:
+        try:
+            from api.services import db_service
+            from api.services.db_service import get_session
+            from api.models import Creator, Lead, Message
+
+            session = get_session()
+            if not session:
+                return {"status": "error", "conversations": []}
+
+            try:
+                creator = session.query(Creator).filter_by(name=creator_id).first()
+                if not creator:
+                    return {"status": "ok", "conversations": []}
+
+                leads = session.query(Lead).filter_by(creator_id=creator.id).filter(
+                    Lead.status.in_(["archived", "spam"])
+                ).order_by(Lead.last_contact_at.desc()).all()
+
+                conversations = []
+                for lead in leads:
+                    msg_count = session.query(Message).filter_by(lead_id=lead.id).count()
+                    conversations.append({
+                        "id": str(lead.id),
+                        "follower_id": lead.platform_user_id or str(lead.id),
+                        "username": lead.username,
+                        "name": lead.full_name,
+                        "platform": lead.platform or "instagram",
+                        "status": lead.status,
+                        "total_messages": msg_count,
+                        "purchase_intent": lead.purchase_intent or 0.0,
+                        "last_contact": lead.last_contact_at.isoformat() if lead.last_contact_at else None,
+                    })
+
+                return {"status": "ok", "conversations": conversations}
+            finally:
+                session.close()
+        except Exception as e:
+            logger.warning(f"Get archived failed: {e}")
+            return {"status": "error", "message": str(e), "conversations": []}
+    return {"status": "ok", "conversations": []}
+
+
+@app.post("/dm/conversations/{creator_id}/{conversation_id}/restore")
+async def restore_conversation(creator_id: str, conversation_id: str):
+    """Restore an archived/spam conversation back to 'new' status"""
+    USE_DB = bool(os.getenv("DATABASE_URL"))
+    if USE_DB:
+        try:
+            from api.services import db_service
+            count = db_service.reset_conversation_status(creator_id, conversation_id)
+            if count > 0:
+                return {"status": "ok", "restored": True}
+            return {"status": "error", "message": "Conversation not found or not archived/spam"}
+        except Exception as e:
+            logger.warning(f"Restore failed: {e}")
+            return {"status": "error", "message": str(e)}
+    return {"status": "error", "message": "Database not configured"}
+
 
 @app.post("/dm/conversations/{creator_id}/reset")
 async def reset_conversations(creator_id: str):
