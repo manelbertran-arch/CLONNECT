@@ -1344,6 +1344,17 @@ async def get_conversations(creator_id: str, limit: int = 50):
 
                             logger.info(f"[CONV] Lead {lead.platform_user_id}: subq={msg_count}, direct={direct_count}, final={final_count}")
 
+                            # Get last_messages from JSON for preview
+                            last_messages = []
+                            if lead.platform_user_id:
+                                try:
+                                    from api.services.data_sync import _load_json
+                                    json_data = _load_json(creator_id, lead.platform_user_id)
+                                    if json_data:
+                                        last_messages = json_data.get("last_messages", [])[-5:]  # Last 5 for preview
+                                except:
+                                    pass
+
                             conversations.append({
                                 "follower_id": lead.platform_user_id,
                                 "id": str(lead.id),
@@ -1354,6 +1365,7 @@ async def get_conversations(creator_id: str, limit: int = 50):
                                 "purchase_intent_score": lead.purchase_intent or 0.0,
                                 "is_lead": True,
                                 "last_contact": lead.last_contact_at.isoformat() if lead.last_contact_at else None,
+                                "last_messages": last_messages,
                             })
 
                         return {"status": "ok", "conversations": conversations, "count": len(conversations)}
