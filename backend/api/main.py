@@ -2628,6 +2628,23 @@ async def delete_conversation_endpoint(creator_id: str, conversation_id: str):
     except Exception as e:
         return {"status": "error", "message": str(e)}
 
+# ============ RESET CONVERSATIONS ============
+
+@app.post("/dm/conversations/{creator_id}/reset")
+async def reset_conversations(creator_id: str):
+    """Reset all archived/spam conversations back to 'new' status"""
+    USE_DB = bool(os.getenv("DATABASE_URL"))
+    if USE_DB:
+        try:
+            from api.services import db_service
+            count = db_service.reset_conversation_status(creator_id)
+            return {"status": "ok", "reset_count": count}
+        except Exception as e:
+            logger.warning(f"Reset failed: {e}")
+            return {"status": "error", "message": str(e)}
+    return {"status": "error", "message": "Database not configured"}
+
+
 # ============ MANUAL LEADS CRUD ============
 
 @app.post("/dm/leads/{creator_id}/manual")
