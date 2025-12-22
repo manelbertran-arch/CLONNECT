@@ -3,43 +3,56 @@ from fastapi import APIRouter, HTTPException, Body
 import logging
 import os
 import json
-import uuid
+import time
 from datetime import datetime
+from pathlib import Path
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/dm/leads", tags=["leads"])
 
+# Get absolute path for storage
+BASE_DIR = Path(__file__).resolve().parent.parent.parent
+STORAGE_PATH = BASE_DIR / "data" / "followers"
+
 USE_DB = bool(os.getenv("DATABASE_URL"))
+db_service = None
 if USE_DB:
     try:
         from api.services import db_service
+        logger.info("leads.py: Using PostgreSQL (db_service loaded)")
     except ImportError:
-        from api import db_service
+        try:
+            from api import db_service
+            logger.info("leads.py: Using PostgreSQL (db_service from api)")
+        except ImportError:
+            logger.warning("leads.py: db_service import failed, JSON only")
+            USE_DB = False
+
+def adapt_leads_response(x): return x
+def adapt_lead_response(x): return x
 
 try:
     from api.utils.response_adapter import adapt_leads_response, adapt_lead_response
 except ImportError:
-    def adapt_leads_response(x): return x
-    def adapt_lead_response(x): return x
+    pass
 
-STORAGE_PATH = "data/followers"
-
-def _get_json_path(creator_id: str, lead_id: str) -> str:
-    return os.path.join(STORAGE_PATH, creator_id, f"{lead_id}.json")
+def _get_json_path(creator_id: str, lead_id: str) -> Path:
+    return STORAGE_PATH / creator_id / f"{lead_id}.json"
 
 def _load_lead_json(creator_id: str, lead_id: str) -> dict:
     path = _get_json_path(creator_id, lead_id)
-    if os.path.exists(path):
+    if path.exists():
         with open(path, "r", encoding="utf-8") as f:
             return json.load(f)
     return None
 
 def _save_lead_json(creator_id: str, lead_id: str, data: dict):
-    creator_dir = os.path.join(STORAGE_PATH, creator_id)
-    os.makedirs(creator_dir, exist_ok=True)
+    creator_dir = STORAGE_PATH / creator_id
+    creator_dir.mkdir(parents=True, exist_ok=True)
     path = _get_json_path(creator_id, lead_id)
     with open(path, "w", encoding="utf-8") as f:
         json.dump(data, f, indent=2, ensure_ascii=False)
+    logger.info(f"Saved lead to {path}")
 
 @router.get("/{creator_id}")
 async def get_leads(creator_id: str):
@@ -82,7 +95,6 @@ async def create_lead(creator_id: str, data: dict = Body(...)):
 
     # Fallback to JSON
     try:
-        import time
         lead_id = data.get("platform_user_id") or f"manual_{int(time.time())}"
         now = datetime.now().isoformat()
         new_lead = {
@@ -123,7 +135,6 @@ async def create_manual_lead(creator_id: str, data: dict = Body(...)):
 
     # Fallback to JSON
     try:
-        import time
         lead_id = data.get("platform_user_id") or f"manual_{int(time.time())}"
         now = datetime.now().isoformat()
         new_lead = {
