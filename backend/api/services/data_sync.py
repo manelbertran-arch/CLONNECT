@@ -334,3 +334,129 @@ def full_sync_creator(creator_name: str) -> Dict[str, int]:
 
     logger.info(f"Full sync for {creator_name}: {stats}")
     return stats
+
+
+def sync_messages_from_json(creator_name: str) -> Dict[str, int]:
+    """
+    Sync all messages from JSON files to PostgreSQL for a creator.
+    This is a one-time migration function.
+    Returns stats about the sync.
+    """
+    stats = {"messages_synced": 0, "leads_processed": 0, "errors": 0}
+
+    if not USE_POSTGRES:
+        return stats
+
+    creator_dir = os.path.join(STORAGE_PATH, creator_name)
+    if not os.path.exists(creator_dir):
+        return stats
+
+    try:
+        from api.services.db_service import get_session
+        from api.models import Creator, Lead, Message
+        import uuid
+
+        session = get_session()
+        if not session:
+            return stats
+
+        try:
+            creator = session.query(Creator).filter_by(name=creator_name).first()
+            if not creator:
+                logger.warning(f"Creator not found: {creator_name}")
+                return stats
+
+            for filename in os.listdir(creator_dir):
+                if filename.endswith('.json'):
+                    follower_id = filename[:-5]
+                    try:
+                        json_data = _load_json(creator_name, follower_id)
+                        if not json_data:
+                            continue
+
+                        # Get or create lead
+                        lead = session.query(Lead).filter_by(
+                            creator_id=creator.id,
+                            platform_user_id=follower_id
+                        ).first()
+
+                        if not lead:
+                            # Create lead first
+                            platform = "instagram"
+                            if follower_id.startswith("tg_"):
+                                platform = "telegram"
+                            elif follower_id.startswith("wa_"):
+                                platform = "whatsapp"
+
+                            lead = Lead(
+                                creator_id=creator.id,
+                                platform=platform,
+                                platform_user_id=follower_id,
+                                username=json_data.get("username", ""),
+                                full_name=json_data.get("name", ""),
+                                status="new",
+                                purchase_intent=json_data.get("purchase_intent_score", 0.0)
+                            )
+                            session.add(lead)
+                            session.commit()
+
+                        # Check existing messages count for this lead
+                        existing_count = session.query(Message).filter_by(lead_id=lead.id).count()
+
+                        # Sync messages from JSON
+                        last_messages = json_data.get("last_messages", [])
+                        messages_added = 0
+
+                        for msg in last_messages:
+                            role = msg.get("role", "user")
+                            content = msg.get("content", "")
+                            timestamp_str = msg.get("timestamp")
+
+                            if not content:
+                                continue
+
+                            # Parse timestamp
+                            created_at = None
+                            if timestamp_str:
+                                try:
+                                    created_at = datetime.fromisoformat(timestamp_str.replace('Z', '+00:00'))
+                                except:
+                                    created_at = datetime.now(timezone.utc)
+                            else:
+                                created_at = datetime.now(timezone.utc)
+
+                            # Check if message already exists (by content and timestamp)
+                            existing = session.query(Message).filter_by(
+                                lead_id=lead.id,
+                                role=role,
+                                content=content
+                            ).first()
+
+                            if not existing:
+                                message = Message(
+                                    lead_id=lead.id,
+                                    role=role,
+                                    content=content,
+                                    created_at=created_at
+                                )
+                                session.add(message)
+                                messages_added += 1
+
+                        session.commit()
+                        stats["messages_synced"] += messages_added
+                        stats["leads_processed"] += 1
+                        logger.info(f"Synced {messages_added} messages for {follower_id}")
+
+                    except Exception as e:
+                        logger.error(f"Error syncing messages for {follower_id}: {e}")
+                        stats["errors"] += 1
+                        session.rollback()
+
+        finally:
+            session.close()
+
+    except Exception as e:
+        logger.error(f"sync_messages_from_json error: {e}")
+
+    logger.info(f"Message sync for {creator_name}: {stats}")
+    return stats
