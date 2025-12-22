@@ -2662,7 +2662,8 @@ async def get_archived_conversations(creator_id: str):
 
                 conversations = []
                 for lead in leads:
-                    msg_count = session.query(Message).filter_by(lead_id=lead.id).count()
+                    # Only count user messages, not bot responses
+                    msg_count = session.query(Message).filter_by(lead_id=lead.id, role='user').count()
                     conversations.append({
                         "id": str(lead.id),
                         "follower_id": lead.platform_user_id or str(lead.id),
