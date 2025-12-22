@@ -602,6 +602,24 @@ export default function Leads() {
                 <p className="text-xs text-muted-foreground">ID</p>
                 <p className="text-sm font-mono">{selectedLead.id}</p>
               </div>
+              {selectedLead.email && (
+                <div className="p-3 rounded-lg bg-muted/50">
+                  <p className="text-xs text-muted-foreground">Email</p>
+                  <p className="text-sm">{selectedLead.email}</p>
+                </div>
+              )}
+              {selectedLead.phone && (
+                <div className="p-3 rounded-lg bg-muted/50">
+                  <p className="text-xs text-muted-foreground">Phone</p>
+                  <p className="text-sm">{selectedLead.phone}</p>
+                </div>
+              )}
+              {selectedLead.notes && (
+                <div className="p-3 rounded-lg bg-muted/50">
+                  <p className="text-xs text-muted-foreground">Notes</p>
+                  <p className="text-sm">{selectedLead.notes}</p>
+                </div>
+              )}
             </div>
           )}
           <DialogFooter>
