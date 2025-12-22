@@ -38,6 +38,10 @@ export interface Conversation {
   tags?: string[];
   last_messages?: Message[];
   products_discussed?: string[];
+  // Contact info stored in Lead.context JSON
+  email?: string;
+  phone?: string;
+  notes?: string;
 }
 
 export interface Lead {
