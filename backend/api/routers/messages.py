@@ -26,6 +26,7 @@ async def get_metrics(creator_id: str):
 
 @router.get("/follower/{creator_id}/{follower_id}")
 async def get_follower_detail(creator_id: str, follower_id: str):
+    # Try PostgreSQL first
     if USE_DB:
         try:
             from api.models import Creator, Lead, Message
@@ -44,7 +45,7 @@ async def get_follower_detail(creator_id: str, follower_id: str):
                             except:
                                 pass
                         if lead:
-                            # Get messages
+                            # Get messages from PostgreSQL
                             messages = session.query(Message).filter_by(lead_id=lead.id).order_by(Message.created_at.asc()).all()
                             last_messages = [
                                 {
@@ -54,13 +55,24 @@ async def get_follower_detail(creator_id: str, follower_id: str):
                                 }
                                 for m in messages[-50:]  # Last 50 messages
                             ]
+
+                            # If PostgreSQL has no messages, try JSON fallback
+                            if not last_messages:
+                                try:
+                                    from api.services.data_sync import _load_json
+                                    json_data = _load_json(creator_id, follower_id)
+                                    if json_data:
+                                        last_messages = json_data.get("last_messages", [])[-50:]
+                                except:
+                                    pass
+
                             return {
                                 "status": "ok",
                                 "follower_id": lead.platform_user_id or str(lead.id),
                                 "username": lead.username,
                                 "name": lead.full_name,
                                 "platform": lead.platform or "instagram",
-                                "total_messages": len(messages),
+                                "total_messages": len(messages) if messages else len([m for m in last_messages if m.get("role") == "user"]),
                                 "purchase_intent": lead.purchase_intent or 0,
                                 "purchase_intent_score": lead.purchase_intent or 0,
                                 "is_lead": True,
@@ -71,7 +83,32 @@ async def get_follower_detail(creator_id: str, follower_id: str):
                 finally:
                     session.close()
         except Exception as e:
-            logger.warning(f"Get follower detail failed: {e}")
+            logger.warning(f"Get follower detail (PostgreSQL) failed: {e}")
+
+    # Fallback to JSON files
+    try:
+        from api.services.data_sync import _load_json
+        json_data = _load_json(creator_id, follower_id)
+        if json_data:
+            last_messages = json_data.get("last_messages", [])
+            user_msgs = len([m for m in last_messages if m.get("role") == "user"])
+            return {
+                "status": "ok",
+                "follower_id": json_data.get("follower_id", follower_id),
+                "username": json_data.get("username"),
+                "name": json_data.get("name"),
+                "platform": "instagram" if follower_id.startswith("ig_") else "telegram" if follower_id.startswith("tg_") else "whatsapp" if follower_id.startswith("wa_") else "instagram",
+                "total_messages": user_msgs,
+                "purchase_intent": json_data.get("purchase_intent_score", 0),
+                "purchase_intent_score": json_data.get("purchase_intent_score", 0),
+                "is_lead": json_data.get("is_lead", False),
+                "is_customer": json_data.get("is_customer", False),
+                "last_messages": last_messages[-50:],
+                "last_contact": json_data.get("last_contact"),
+            }
+    except Exception as e:
+        logger.warning(f"Get follower detail (JSON) failed: {e}")
+
     return {"status": "ok", "follower_id": follower_id, "username": None, "name": None, "platform": "instagram", "total_messages": 0, "purchase_intent": 0, "is_lead": False, "last_messages": []}
 
 @router.post("/send/{creator_id}")
@@ -183,12 +220,65 @@ async def update_follower_status(creator_id: str, follower_id: str, data: dict =
 
 @router.get("/conversations/{creator_id}")
 async def get_conversations(creator_id: str, limit: int = 50):
+    # Try PostgreSQL first
     if USE_DB:
         try:
             leads = db_service.get_leads(creator_id)
             if leads:
-                conversations = [{"follower_id": l.get("platform_user_id", l.get("id")), "username": l.get("username"), "name": l.get("full_name"), "platform": l.get("platform", "instagram"), "total_messages": 0, "purchase_intent": l.get("purchase_intent", 0)} for l in leads[:limit]]
+                conversations = []
+                for l in leads[:limit]:
+                    follower_id = l.get("platform_user_id", l.get("id"))
+                    # Get message count from JSON as fallback
+                    msg_count = 0
+                    last_messages = []
+                    try:
+                        from api.services.data_sync import _load_json
+                        json_data = _load_json(creator_id, follower_id)
+                        if json_data:
+                            msgs = json_data.get("last_messages", [])
+                            msg_count = len([m for m in msgs if m.get("role") == "user"])
+                            last_messages = msgs[-5:]
+                    except:
+                        pass
+                    conversations.append({
+                        "follower_id": follower_id,
+                        "username": l.get("username"),
+                        "name": l.get("full_name"),
+                        "platform": l.get("platform", "instagram"),
+                        "total_messages": msg_count,
+                        "purchase_intent": l.get("purchase_intent", 0),
+                        "last_messages": last_messages,
+                    })
                 return {"status": "ok", "conversations": conversations, "count": len(conversations)}
         except Exception as e:
-            logger.warning(f"Get conversations failed: {e}")
+            logger.warning(f"Get conversations (PostgreSQL) failed: {e}")
+
+    # Fallback to JSON files
+    try:
+        from api.services.data_sync import _load_json, STORAGE_PATH
+        import os
+        creator_dir = os.path.join(STORAGE_PATH, creator_id)
+        conversations = []
+        if os.path.exists(creator_dir):
+            for filename in sorted(os.listdir(creator_dir), key=lambda x: os.path.getmtime(os.path.join(creator_dir, x)), reverse=True)[:limit]:
+                if filename.endswith('.json'):
+                    follower_id = filename[:-5]
+                    json_data = _load_json(creator_id, follower_id)
+                    if json_data:
+                        msgs = json_data.get("last_messages", [])
+                        user_msgs = len([m for m in msgs if m.get("role") == "user"])
+                        conversations.append({
+                            "follower_id": follower_id,
+                            "username": json_data.get("username"),
+                            "name": json_data.get("name"),
+                            "platform": "instagram" if follower_id.startswith("ig_") else "telegram" if follower_id.startswith("tg_") else "instagram",
+                            "total_messages": user_msgs,
+                            "purchase_intent": json_data.get("purchase_intent_score", 0),
+                            "last_messages": msgs[-5:],
+                            "last_contact": json_data.get("last_contact"),
+                        })
+        return {"status": "ok", "conversations": conversations, "count": len(conversations)}
+    except Exception as e:
+        logger.warning(f"Get conversations (JSON) failed: {e}")
+
     return {"status": "ok", "conversations": [], "count": 0}
