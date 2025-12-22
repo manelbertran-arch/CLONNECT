@@ -1325,9 +1325,24 @@ async def get_conversations(creator_id: str, limit: int = 50):
 
                         conversations = []
                         for lead, msg_count in results:
-                            # Also count directly for debugging
+                            # Count from PostgreSQL
                             direct_count = session.query(Message).filter_by(lead_id=lead.id, role='user').count()
-                            logger.info(f"[CONV] Lead {lead.platform_user_id}: subq_count={msg_count}, direct_count={direct_count}")
+
+                            # If PostgreSQL has 0, try to get count from JSON
+                            final_count = direct_count
+                            if direct_count == 0 and lead.platform_user_id:
+                                try:
+                                    from api.services.data_sync import _load_json
+                                    json_data = _load_json(creator_id, lead.platform_user_id)
+                                    if json_data:
+                                        last_messages = json_data.get("last_messages", [])
+                                        final_count = len([m for m in last_messages if m.get("role") == "user"])
+                                        if final_count > 0:
+                                            logger.info(f"[CONV] Lead {lead.platform_user_id}: PG=0, JSON={final_count}")
+                                except Exception as json_err:
+                                    logger.debug(f"JSON fallback failed for {lead.platform_user_id}: {json_err}")
+
+                            logger.info(f"[CONV] Lead {lead.platform_user_id}: subq={msg_count}, direct={direct_count}, final={final_count}")
 
                             conversations.append({
                                 "follower_id": lead.platform_user_id,
@@ -1335,7 +1350,7 @@ async def get_conversations(creator_id: str, limit: int = 50):
                                 "username": lead.username or lead.platform_user_id,
                                 "name": lead.full_name or lead.username or "",
                                 "platform": lead.platform or "instagram",
-                                "total_messages": direct_count,  # Use direct count for now
+                                "total_messages": final_count,
                                 "purchase_intent_score": lead.purchase_intent or 0.0,
                                 "is_lead": True,
                                 "last_contact": lead.last_contact_at.isoformat() if lead.last_contact_at else None,
