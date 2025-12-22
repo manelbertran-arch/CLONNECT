@@ -1289,44 +1289,61 @@ async def process_dm(payload: ProcessDMRequest):
 async def get_conversations(creator_id: str, limit: int = 50):
     """Listar conversaciones del creador"""
     try:
-        # Use JSON-based agent for accurate message counts (messages are stored in JSON)
+        # Use PostgreSQL for conversations with message counts
+        # Messages ARE being saved to PostgreSQL (confirmed in logs)
+        if USE_DB:
+            from api.services.db_service import get_session
+            from api.models import Creator, Lead, Message
+            from sqlalchemy import func, not_
+
+            session = get_session()
+            if session:
+                try:
+                    creator = session.query(Creator).filter_by(name=creator_id).first()
+                    if creator:
+                        # Count user messages per lead
+                        msg_count_subq = session.query(
+                            Message.lead_id,
+                            func.count(Message.id).label('msg_count')
+                        ).filter(Message.role == 'user').group_by(Message.lead_id).subquery()
+
+                        # Get leads with message counts, excluding archived/spam
+                        results = session.query(
+                            Lead,
+                            func.coalesce(msg_count_subq.c.msg_count, 0).label('total_messages')
+                        ).outerjoin(
+                            msg_count_subq, Lead.id == msg_count_subq.c.lead_id
+                        ).filter(
+                            Lead.creator_id == creator.id,
+                            not_(Lead.status.in_(["archived", "spam"]))
+                        ).order_by(Lead.last_contact_at.desc()).limit(limit).all()
+
+                        conversations = []
+                        for lead, msg_count in results:
+                            conversations.append({
+                                "follower_id": lead.platform_user_id,
+                                "id": str(lead.id),
+                                "username": lead.username or lead.platform_user_id,
+                                "name": lead.full_name or lead.username or "",
+                                "platform": lead.platform or "instagram",
+                                "total_messages": msg_count,
+                                "purchase_intent_score": lead.purchase_intent or 0.0,
+                                "is_lead": True,
+                                "last_contact": lead.last_contact_at.isoformat() if lead.last_contact_at else None,
+                            })
+
+                        return {"status": "ok", "conversations": conversations, "count": len(conversations)}
+                finally:
+                    session.close()
+
+        # Fallback to JSON if PostgreSQL not available
         agent = get_dm_agent(creator_id)
         conversations = await agent.get_all_conversations(limit)
-
-        # Get archived/spam status from PostgreSQL if available
-        archived_ids = set()
-        spam_ids = set()
-        if USE_DB:
-            try:
-                from api.services.db_service import get_session
-                from api.models import Creator, Lead
-                session = get_session()
-                if session:
-                    try:
-                        creator = session.query(Creator).filter_by(name=creator_id).first()
-                        if creator:
-                            archived_leads = session.query(Lead).filter_by(creator_id=creator.id, status="archived").all()
-                            spam_leads = session.query(Lead).filter_by(creator_id=creator.id, status="spam").all()
-                            archived_ids = {l.platform_user_id for l in archived_leads}
-                            spam_ids = {l.platform_user_id for l in spam_leads}
-                    finally:
-                        session.close()
-            except Exception as e:
-                logger.warning(f"Could not get archived status: {e}")
-
-        # Filter out archived and spam conversations
-        filtered = []
-        for c in conversations:
-            fid = c.get("follower_id", "")
-            if fid in archived_ids or fid in spam_ids:
-                continue
-            if c.get("archived") or c.get("spam"):
-                continue
-            filtered.append(c)
-
+        filtered = [c for c in conversations if not c.get("archived") and not c.get("spam")]
         return {"status": "ok", "conversations": filtered, "count": len(filtered)}
 
     except Exception as e:
+        logger.error(f"get_conversations error: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 
