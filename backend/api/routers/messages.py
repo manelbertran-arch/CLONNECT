@@ -192,6 +192,17 @@ async def send_message(creator_id: str, data: dict = Body(...)):
 async def update_follower_status(creator_id: str, follower_id: str, data: dict = Body(...)):
     new_status = data.get("status", "cold")
 
+    # Map API status to Lead.status column values
+    # Frontend uses: cold, warm, hot, customer
+    # Lead.status uses: new, active, hot, customer (matching Kanban columns)
+    api_to_db_status = {
+        "cold": "new",
+        "warm": "active",
+        "hot": "hot",
+        "customer": "customer"
+    }
+    db_status = api_to_db_status.get(new_status, "new")
+
     # Map status to purchase_intent score
     status_to_intent = {
         "cold": 0.1,
@@ -205,29 +216,75 @@ async def update_follower_status(creator_id: str, follower_id: str, data: dict =
         try:
             from api.models import Creator, Lead
             from api.services.db_service import get_session
+            import uuid
             session = get_session()
             if session:
                 try:
                     creator = session.query(Creator).filter_by(name=creator_id).first()
                     if creator:
-                        lead = session.query(Lead).filter_by(creator_id=creator.id, platform_user_id=follower_id).first()
+                        # Try to find lead by UUID first, then by platform_user_id
+                        lead = None
+                        try:
+                            lead = session.query(Lead).filter_by(creator_id=creator.id, id=uuid.UUID(follower_id)).first()
+                        except (ValueError, AttributeError):
+                            pass  # Not a valid UUID, try platform_user_id
+
+                        if not lead:
+                            lead = session.query(Lead).filter_by(creator_id=creator.id, platform_user_id=follower_id).first()
+
                         if lead:
+                            # Update both status column AND purchase_intent
+                            lead.status = db_status
                             lead.purchase_intent = new_intent
                             if new_status == "customer":
                                 if not lead.context:
                                     lead.context = {}
                                 lead.context["is_customer"] = True
                             session.commit()
+                            logger.info(f"Updated lead {follower_id} status to {db_status} (intent: {new_intent})")
                             return {
                                 "status": "ok",
                                 "follower_id": follower_id,
                                 "new_status": new_status,
+                                "db_status": db_status,
                                 "purchase_intent": new_intent
                             }
+                        else:
+                            logger.warning(f"Lead not found for status update: {follower_id}")
                 finally:
                     session.close()
         except Exception as e:
             logger.warning(f"Update follower status failed: {e}")
+
+    # JSON fallback - update the JSON file directly
+    try:
+        from api.services.data_sync import _load_json, STORAGE_PATH
+        import os
+        import json
+
+        json_data = _load_json(creator_id, follower_id)
+        if json_data:
+            # Update status and purchase_intent in JSON
+            json_data["status"] = db_status
+            json_data["purchase_intent_score"] = new_intent
+            if new_status == "customer":
+                json_data["is_customer"] = True
+
+            # Save back to JSON file
+            json_path = os.path.join(STORAGE_PATH, creator_id, f"{follower_id}.json")
+            with open(json_path, "w", encoding="utf-8") as f:
+                json.dump(json_data, f, indent=2, ensure_ascii=False)
+
+            logger.info(f"Updated lead {follower_id} status to {db_status} via JSON fallback")
+            return {
+                "status": "ok",
+                "follower_id": follower_id,
+                "new_status": new_status,
+                "db_status": db_status,
+                "purchase_intent": new_intent
+            }
+    except Exception as e:
+        logger.warning(f"JSON fallback for status update failed: {e}")
 
     return {"status": "ok", "follower_id": follower_id, "new_status": new_status, "purchase_intent": new_intent}
 
@@ -263,6 +320,7 @@ async def get_conversations(creator_id: str, limit: int = 50):
                         "platform": l.get("platform", "instagram"),
                         "total_messages": msg_count,
                         "purchase_intent": l.get("purchase_intent", 0),
+                        "lead_status": l.get("status", "new"),  # Pipeline status: new, active, hot, customer
                         "last_messages": last_messages,
                         "last_contact": l.get("last_contact_at"),
                         "email": ctx.get("email") or l.get("email") or "",
@@ -294,6 +352,7 @@ async def get_conversations(creator_id: str, limit: int = 50):
                             "platform": "instagram" if follower_id.startswith("ig_") else "telegram" if follower_id.startswith("tg_") else "instagram",
                             "total_messages": user_msgs,
                             "purchase_intent": json_data.get("purchase_intent_score", 0),
+                            "lead_status": json_data.get("status", "new"),  # Pipeline status
                             "last_messages": msgs[-5:],
                             "last_contact": json_data.get("last_contact"),
                             "email": json_data.get("email") or "",
