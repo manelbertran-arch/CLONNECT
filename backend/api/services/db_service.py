@@ -516,14 +516,20 @@ def update_lead(creator_name: str, lead_id: str, data: dict):
             lead = session.query(Lead).filter_by(creator_id=creator.id, platform_user_id=lead_id).first()
 
         if lead:
+            from sqlalchemy.orm.attributes import flag_modified
+
             # Handle special fields that go into context JSON
             # IMPORTANT: Create a NEW dict to ensure SQLAlchemy detects the change
             context_fields = ['email', 'phone', 'notes']
-            new_context = dict(lead.context) if lead.context else {}
+            old_context = lead.context
+            new_context = dict(old_context) if old_context else {}
+
+            logger.info(f"update_lead: lead {lead_id} found. old_context={old_context}, type={type(old_context)}")
 
             for key, value in data.items():
                 if key in context_fields:
                     new_context[key] = value
+                    logger.info(f"update_lead: setting context[{key}] = {value}")
                 elif hasattr(lead, key):
                     setattr(lead, key, value)
 
@@ -533,9 +539,10 @@ def update_lead(creator_name: str, lead_id: str, data: dict):
                 if not lead.username:
                     lead.username = data['name']
 
-            # Assign the new context dict (this guarantees SQLAlchemy detects change)
+            # Assign the new context dict AND flag as modified (belt and suspenders)
             lead.context = new_context
-            logger.info(f"update_lead: updating lead {lead_id} with context={new_context}")
+            flag_modified(lead, 'context')
+            logger.info(f"update_lead: assigned new context={new_context}, flagged as modified")
 
             session.commit()
             logger.info(f"update_lead: committed lead {lead_id}")
