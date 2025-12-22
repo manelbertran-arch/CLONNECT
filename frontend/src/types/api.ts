@@ -25,6 +25,7 @@ export interface Message {
 
 export interface Conversation {
   follower_id: string;
+  id?: string; // UUID primary key from Lead.id - use this for updates
   username?: string;
   name?: string;
   platform?: string;
