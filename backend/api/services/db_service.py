@@ -87,16 +87,18 @@ def get_leads(creator_name: str):
         creator = session.query(Creator).filter_by(name=creator_name).first()
         if not creator:
             return []
-        leads = session.query(Lead).filter_by(creator_id=creator.id).all()
+        leads = session.query(Lead).filter_by(creator_id=creator.id).order_by(Lead.last_contact_at.desc()).all()
         return [{
             "id": str(lead.id),
             "follower_id": str(lead.id),
+            "platform_user_id": lead.platform_user_id,
             "platform": lead.platform,
             "username": lead.username,
             "full_name": lead.full_name,
             "status": lead.status,
             "score": lead.score,
             "purchase_intent": lead.purchase_intent,
+            "last_contact_at": lead.last_contact_at.isoformat() if lead.last_contact_at else None,
         } for lead in leads]
     finally:
         session.close()
@@ -158,7 +160,7 @@ def get_dashboard_metrics(creator_name: str):
             return None
 
         # Get leads
-        leads = session.query(Lead).filter_by(creator_id=creator.id).order_by(Lead.updated_at.desc()).all()
+        leads = session.query(Lead).filter_by(creator_id=creator.id).order_by(Lead.last_contact_at.desc()).all()
         total_leads = len(leads)
 
         # Categorize leads by intent (hot >= 0.5, warm 0.25-0.5, cold < 0.25)
@@ -191,7 +193,7 @@ def get_dashboard_metrics(creator_name: str):
                 "purchase_intent_score": lead.purchase_intent or 0.0,
                 "is_lead": True,
                 "is_customer": lead.context.get("is_customer", False) if lead.context else False,
-                "last_contact": lead.updated_at.isoformat() if lead.updated_at else None,
+                "last_contact": lead.last_contact_at.isoformat() if lead.last_contact_at else None,
                 "total_messages": session.query(Message).filter_by(lead_id=lead.id).count(),
             })
 
@@ -206,7 +208,7 @@ def get_dashboard_metrics(creator_name: str):
                 "platform": lead.platform or "instagram",
                 "total_messages": msg_count,
                 "purchase_intent": lead.purchase_intent or 0.0,
-                "last_contact": lead.updated_at.isoformat() if lead.updated_at else None,
+                "last_contact": lead.last_contact_at.isoformat() if lead.last_contact_at else None,
             })
 
         # Build config
