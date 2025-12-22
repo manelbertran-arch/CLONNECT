@@ -191,12 +191,14 @@ def create_lead(creator_name: str, data: dict):
         if data.get("notes"):
             context["notes"] = data.get("notes")
 
+        # Use "name" field for both username and full_name if specific fields not provided
+        name_value = data.get("name", "")
         lead = Lead(
             creator_id=creator.id,
             platform=data.get("platform", "manual"),
             platform_user_id=data.get("platform_user_id") or str(uuid.uuid4()),
-            username=data.get("username"),
-            full_name=data.get("full_name") or data.get("name"),
+            username=data.get("username") or name_value,
+            full_name=data.get("full_name") or name_value,
             status=data.get("status", "new"),
             score=data.get("score", 0),
             purchase_intent=data.get("purchase_intent", 0.0),
@@ -214,6 +216,9 @@ def create_lead(creator_name: str, data: dict):
             "status": lead.status,
             "score": lead.score,
             "purchase_intent": lead.purchase_intent,
+            "email": context.get("email"),
+            "phone": context.get("phone"),
+            "notes": context.get("notes"),
         }
     except Exception as e:
         logger.error(f"create_lead error: {e}")
@@ -538,9 +543,22 @@ def update_lead(creator_name: str, lead_id: str, data: dict):
 
             session.commit()
             logger.info(f"update_lead: updated lead {lead_id}")
-            return True
+            ctx = lead.context or {}
+            return {
+                "id": str(lead.id),
+                "platform_user_id": lead.platform_user_id,
+                "username": lead.username,
+                "full_name": lead.full_name,
+                "platform": lead.platform,
+                "status": lead.status,
+                "score": lead.score,
+                "purchase_intent": lead.purchase_intent,
+                "email": ctx.get("email"),
+                "phone": ctx.get("phone"),
+                "notes": ctx.get("notes"),
+            }
         logger.warning(f"update_lead: lead '{lead_id}' not found")
-        return False
+        return None
     except Exception as e:
         logger.error(f"update_lead error: {e}")
         session.rollback()

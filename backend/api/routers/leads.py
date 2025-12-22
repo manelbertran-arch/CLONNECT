@@ -167,9 +167,9 @@ async def update_lead(creator_id: str, lead_id: str, data: dict = Body(...)):
     # Try PostgreSQL first
     if USE_DB:
         try:
-            success = db_service.update_lead(creator_id, lead_id, data)
-            if success:
-                return {"status": "ok", "message": "Lead updated"}
+            result = db_service.update_lead(creator_id, lead_id, data)
+            if result and isinstance(result, dict):
+                return {"status": "ok", "message": "Lead updated", "lead": adapt_lead_response(result)}
         except Exception as e:
             logger.warning(f"DB update lead failed: {e}")
 
