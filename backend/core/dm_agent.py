@@ -510,15 +510,20 @@ class DMResponderAgent:
     async def _save_message_to_db(self, follower_id: str, role: str, content: str, intent: str = None):
         """Save message to PostgreSQL if available"""
         if not USE_POSTGRES or not db_service:
+            logger.debug(f"PostgreSQL disabled: USE_POSTGRES={USE_POSTGRES}, db_service={db_service}")
             return
         try:
             lead = await db_service.get_lead_by_platform_id(self.creator_id, follower_id)
             if not lead:
+                logger.info(f"Creating new lead for {follower_id}")
                 lead = await db_service.create_lead(self.creator_id, {"platform_user_id": follower_id, "platform": "telegram" if follower_id.startswith("tg_") else "instagram", "username": follower_id})
             if lead and "id" in lead:
-                await db_service.save_message(lead["id"], role, content, intent)
+                result = await db_service.save_message(lead["id"], role, content, intent)
+                logger.info(f"Message saved to PostgreSQL: lead={lead['id']}, role={role}, result={result}")
+            else:
+                logger.warning(f"Could not get/create lead for {follower_id}: lead={lead}")
         except Exception as e:
-            logger.error(f"PostgreSQL save failed: {e}")
+            logger.error(f"PostgreSQL save failed for {follower_id}: {e}", exc_info=True)
 
     def __init__(self, creator_id: str = "manel"):
         self.creator_id = creator_id

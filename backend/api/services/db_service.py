@@ -544,9 +544,12 @@ async def save_message(lead_id: str, role: str, content: str, intent: str = None
     try:
         from api.models import Message
         from datetime import timezone
+        import uuid as uuid_module
+        # Convert lead_id string to UUID
+        lead_uuid = uuid_module.UUID(lead_id) if isinstance(lead_id, str) else lead_id
         # Create new message
         message = Message(
-            lead_id=lead_id,
+            lead_id=lead_uuid,
             role=role,  # 'user' or 'assistant'
             content=content,
             intent=intent,
@@ -554,6 +557,7 @@ async def save_message(lead_id: str, role: str, content: str, intent: str = None
         )
         session.add(message)
         session.commit()
+        logger.info(f"Saved message for lead {lead_id}: role={role}")
         return {"id": str(message.id), "status": "saved"}
     except Exception as e:
         logger.error(f"save_message error: {e}")
