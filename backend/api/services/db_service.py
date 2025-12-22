@@ -78,16 +78,21 @@ def toggle_bot(name: str, active: bool = None):
     finally:
         session.close()
 
-def get_leads(creator_name: str):
+def get_leads(creator_name: str, include_archived: bool = False):
     session = get_session()
     if not session:
         return []
     try:
         from api.models import Creator, Lead
+        from sqlalchemy import and_, not_
         creator = session.query(Creator).filter_by(name=creator_name).first()
         if not creator:
             return []
-        leads = session.query(Lead).filter_by(creator_id=creator.id).order_by(Lead.last_contact_at.desc()).all()
+        # Filter out archived and spam leads by default
+        query = session.query(Lead).filter_by(creator_id=creator.id)
+        if not include_archived:
+            query = query.filter(not_(Lead.status.in_(["archived", "spam"])))
+        leads = query.order_by(Lead.last_contact_at.desc()).all()
         return [{
             "id": str(lead.id),
             "follower_id": str(lead.id),
@@ -155,12 +160,15 @@ def get_dashboard_metrics(creator_name: str):
         return None
     try:
         from api.models import Creator, Lead, Message, Product
+        from sqlalchemy import not_
         creator = session.query(Creator).filter_by(name=creator_name).first()
         if not creator:
             return None
 
-        # Get leads
-        leads = session.query(Lead).filter_by(creator_id=creator.id).order_by(Lead.last_contact_at.desc()).all()
+        # Get leads (excluding archived and spam)
+        leads = session.query(Lead).filter_by(creator_id=creator.id).filter(
+            not_(Lead.status.in_(["archived", "spam"]))
+        ).order_by(Lead.last_contact_at.desc()).all()
         total_leads = len(leads)
 
         # Categorize leads by intent (hot >= 0.5, warm 0.25-0.5, cold < 0.25)
@@ -544,5 +552,108 @@ async def get_message_count(creator_id: str) -> int:
     except Exception as e:
         logger.error(f"get_message_count error: {e}")
         return 0
+    finally:
+        session.close()
+
+
+# ============================================================
+# CONVERSATION ACTIONS (Archive, Spam, Delete)
+# ============================================================
+
+def archive_conversation(creator_name: str, conversation_id: str) -> bool:
+    """Archive a conversation by setting lead.status = 'archived'"""
+    session = get_session()
+    if not session:
+        return False
+    try:
+        from api.models import Creator, Lead
+        creator = session.query(Creator).filter_by(name=creator_name).first()
+        if not creator:
+            return False
+        # Find lead by platform_user_id or id
+        lead = session.query(Lead).filter_by(creator_id=creator.id, platform_user_id=conversation_id).first()
+        if not lead:
+            try:
+                import uuid
+                lead = session.query(Lead).filter_by(creator_id=creator.id, id=uuid.UUID(conversation_id)).first()
+            except:
+                pass
+        if lead:
+            lead.status = "archived"
+            session.commit()
+            logger.info(f"Archived conversation {conversation_id} for {creator_name}")
+            return True
+        return False
+    except Exception as e:
+        logger.error(f"archive_conversation error: {e}")
+        session.rollback()
+        return False
+    finally:
+        session.close()
+
+
+def mark_conversation_spam(creator_name: str, conversation_id: str) -> bool:
+    """Mark a conversation as spam by setting lead.status = 'spam'"""
+    session = get_session()
+    if not session:
+        return False
+    try:
+        from api.models import Creator, Lead
+        creator = session.query(Creator).filter_by(name=creator_name).first()
+        if not creator:
+            return False
+        # Find lead by platform_user_id or id
+        lead = session.query(Lead).filter_by(creator_id=creator.id, platform_user_id=conversation_id).first()
+        if not lead:
+            try:
+                import uuid
+                lead = session.query(Lead).filter_by(creator_id=creator.id, id=uuid.UUID(conversation_id)).first()
+            except:
+                pass
+        if lead:
+            lead.status = "spam"
+            session.commit()
+            logger.info(f"Marked conversation {conversation_id} as spam for {creator_name}")
+            return True
+        return False
+    except Exception as e:
+        logger.error(f"mark_conversation_spam error: {e}")
+        session.rollback()
+        return False
+    finally:
+        session.close()
+
+
+def delete_conversation(creator_name: str, conversation_id: str) -> bool:
+    """Delete a conversation and all its messages permanently"""
+    session = get_session()
+    if not session:
+        return False
+    try:
+        from api.models import Creator, Lead, Message
+        creator = session.query(Creator).filter_by(name=creator_name).first()
+        if not creator:
+            return False
+        # Find lead by platform_user_id or id
+        lead = session.query(Lead).filter_by(creator_id=creator.id, platform_user_id=conversation_id).first()
+        if not lead:
+            try:
+                import uuid
+                lead = session.query(Lead).filter_by(creator_id=creator.id, id=uuid.UUID(conversation_id)).first()
+            except:
+                pass
+        if lead:
+            # Delete all messages first (foreign key constraint)
+            session.query(Message).filter_by(lead_id=lead.id).delete()
+            # Delete the lead
+            session.delete(lead)
+            session.commit()
+            logger.info(f"Deleted conversation {conversation_id} for {creator_name}")
+            return True
+        return False
+    except Exception as e:
+        logger.error(f"delete_conversation error: {e}")
+        session.rollback()
+        return False
     finally:
         session.close()
