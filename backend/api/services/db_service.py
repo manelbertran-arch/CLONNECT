@@ -122,11 +122,11 @@ def get_conversations_with_counts(creator_name: str, limit: int = 50, include_ar
         if not creator:
             return None
 
-        # Query leads with message count using subquery
+        # Query leads with message count using subquery (only count user messages, not bot responses)
         msg_count_subq = session.query(
             Message.lead_id,
             func.count(Message.id).label('msg_count')
-        ).group_by(Message.lead_id).subquery()
+        ).filter(Message.role == 'user').group_by(Message.lead_id).subquery()
 
         query = session.query(Lead, func.coalesce(msg_count_subq.c.msg_count, 0).label('total_messages'))\
             .outerjoin(msg_count_subq, Lead.id == msg_count_subq.c.lead_id)\
