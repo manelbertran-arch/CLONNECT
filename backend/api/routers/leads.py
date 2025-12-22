@@ -2,6 +2,9 @@
 from fastapi import APIRouter, HTTPException, Body
 import logging
 import os
+import json
+import uuid
+from datetime import datetime
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/dm/leads", tags=["leads"])
@@ -18,6 +21,25 @@ try:
 except ImportError:
     def adapt_leads_response(x): return x
     def adapt_lead_response(x): return x
+
+STORAGE_PATH = "data/followers"
+
+def _get_json_path(creator_id: str, lead_id: str) -> str:
+    return os.path.join(STORAGE_PATH, creator_id, f"{lead_id}.json")
+
+def _load_lead_json(creator_id: str, lead_id: str) -> dict:
+    path = _get_json_path(creator_id, lead_id)
+    if os.path.exists(path):
+        with open(path, "r", encoding="utf-8") as f:
+            return json.load(f)
+    return None
+
+def _save_lead_json(creator_id: str, lead_id: str, data: dict):
+    creator_dir = os.path.join(STORAGE_PATH, creator_id)
+    os.makedirs(creator_dir, exist_ok=True)
+    path = _get_json_path(creator_id, lead_id)
+    with open(path, "w", encoding="utf-8") as f:
+        json.dump(data, f, indent=2, ensure_ascii=False)
 
 @router.get("/{creator_id}")
 async def get_leads(creator_id: str):
@@ -40,10 +62,16 @@ async def get_lead(creator_id: str, lead_id: str):
                 return {"status": "ok", "lead": adapt_lead_response(lead)}
         except Exception as e:
             logger.warning(f"DB get lead failed: {e}")
+
+    # Fallback to JSON
+    lead_data = _load_lead_json(creator_id, lead_id)
+    if lead_data:
+        return {"status": "ok", "lead": lead_data}
     raise HTTPException(status_code=404, detail="Lead not found")
 
 @router.post("/{creator_id}")
 async def create_lead(creator_id: str, data: dict = Body(...)):
+    # Try PostgreSQL first
     if USE_DB:
         try:
             result = db_service.create_lead(creator_id, data)
@@ -51,10 +79,40 @@ async def create_lead(creator_id: str, data: dict = Body(...)):
                 return {"status": "ok", "lead": adapt_lead_response(result)}
         except Exception as e:
             logger.warning(f"DB create lead failed: {e}")
-    raise HTTPException(status_code=500, detail="Failed to create lead")
+
+    # Fallback to JSON
+    try:
+        import time
+        lead_id = data.get("platform_user_id") or f"manual_{int(time.time())}"
+        now = datetime.now().isoformat()
+        new_lead = {
+            "follower_id": lead_id,
+            "creator_id": creator_id,
+            "username": data.get("name", "Manual Lead"),
+            "name": data.get("name", "Manual Lead"),
+            "full_name": data.get("name", "Manual Lead"),
+            "first_contact": now,
+            "last_contact": now,
+            "total_messages": 0,
+            "purchase_intent_score": 0,
+            "is_lead": True,
+            "is_customer": False,
+            "email": data.get("email", ""),
+            "phone": data.get("phone", ""),
+            "notes": data.get("notes", ""),
+            "platform": data.get("platform", "manual"),
+            "status": data.get("status", "new"),
+        }
+        _save_lead_json(creator_id, lead_id, new_lead)
+        logger.info(f"Created lead {lead_id} via JSON fallback")
+        return {"status": "ok", "lead": new_lead}
+    except Exception as e:
+        logger.error(f"JSON create lead failed: {e}")
+        raise HTTPException(status_code=500, detail="Failed to create lead")
 
 @router.post("/{creator_id}/manual")
 async def create_manual_lead(creator_id: str, data: dict = Body(...)):
+    # Try PostgreSQL first
     if USE_DB:
         try:
             result = db_service.create_lead(creator_id, data)
@@ -62,10 +120,40 @@ async def create_manual_lead(creator_id: str, data: dict = Body(...)):
                 return {"status": "ok", "lead": adapt_lead_response(result)}
         except Exception as e:
             logger.warning(f"DB create lead failed: {e}")
-    raise HTTPException(status_code=500, detail="Failed to create lead")
+
+    # Fallback to JSON
+    try:
+        import time
+        lead_id = data.get("platform_user_id") or f"manual_{int(time.time())}"
+        now = datetime.now().isoformat()
+        new_lead = {
+            "follower_id": lead_id,
+            "creator_id": creator_id,
+            "username": data.get("name", "Manual Lead"),
+            "name": data.get("name", "Manual Lead"),
+            "full_name": data.get("name", "Manual Lead"),
+            "first_contact": now,
+            "last_contact": now,
+            "total_messages": 0,
+            "purchase_intent_score": 0,
+            "is_lead": True,
+            "is_customer": False,
+            "email": data.get("email", ""),
+            "phone": data.get("phone", ""),
+            "notes": data.get("notes", ""),
+            "platform": data.get("platform", "manual"),
+            "status": data.get("status", "new"),
+        }
+        _save_lead_json(creator_id, lead_id, new_lead)
+        logger.info(f"Created manual lead {lead_id} via JSON fallback")
+        return {"status": "ok", "lead": new_lead}
+    except Exception as e:
+        logger.error(f"JSON create lead failed: {e}")
+        raise HTTPException(status_code=500, detail="Failed to create lead")
 
 @router.put("/{creator_id}/{lead_id}")
 async def update_lead(creator_id: str, lead_id: str, data: dict = Body(...)):
+    # Try PostgreSQL first
     if USE_DB:
         try:
             success = db_service.update_lead(creator_id, lead_id, data)
@@ -73,10 +161,31 @@ async def update_lead(creator_id: str, lead_id: str, data: dict = Body(...)):
                 return {"status": "ok", "message": "Lead updated"}
         except Exception as e:
             logger.warning(f"DB update lead failed: {e}")
+
+    # Fallback to JSON
+    lead_data = _load_lead_json(creator_id, lead_id)
+    if lead_data:
+        if "name" in data:
+            lead_data["name"] = data["name"]
+            lead_data["username"] = data["name"]
+            lead_data["full_name"] = data["name"]
+        if "email" in data:
+            lead_data["email"] = data["email"]
+        if "phone" in data:
+            lead_data["phone"] = data["phone"]
+        if "notes" in data:
+            lead_data["notes"] = data["notes"]
+        if "status" in data:
+            lead_data["status"] = data["status"]
+        _save_lead_json(creator_id, lead_id, lead_data)
+        logger.info(f"Updated lead {lead_id} via JSON fallback")
+        return {"status": "ok", "message": "Lead updated", "lead": lead_data}
+
     raise HTTPException(status_code=404, detail="Lead not found")
 
 @router.delete("/{creator_id}/{lead_id}")
 async def delete_lead(creator_id: str, lead_id: str):
+    # Try PostgreSQL first
     if USE_DB:
         try:
             success = db_service.delete_lead(creator_id, lead_id)
@@ -84,4 +193,12 @@ async def delete_lead(creator_id: str, lead_id: str):
                 return {"status": "ok", "message": "Lead deleted"}
         except Exception as e:
             logger.warning(f"DB delete lead failed: {e}")
+
+    # Fallback to JSON
+    path = _get_json_path(creator_id, lead_id)
+    if os.path.exists(path):
+        os.remove(path)
+        logger.info(f"Deleted lead {lead_id} via JSON fallback")
+        return {"status": "ok", "message": "Lead deleted", "deleted": lead_id}
+
     raise HTTPException(status_code=404, detail="Lead not found")
