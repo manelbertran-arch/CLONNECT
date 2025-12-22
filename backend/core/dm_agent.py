@@ -516,7 +516,7 @@ class DMResponderAgent:
             lead = await db_service.get_lead_by_platform_id(self.creator_id, follower_id)
             if not lead:
                 logger.info(f"Creating new lead for {follower_id}")
-                lead = await db_service.create_lead(self.creator_id, {"platform_user_id": follower_id, "platform": "telegram" if follower_id.startswith("tg_") else "instagram", "username": follower_id})
+                lead = await db_service.create_lead_async(self.creator_id, {"platform_user_id": follower_id, "platform": "telegram" if follower_id.startswith("tg_") else "instagram", "username": follower_id})
             if lead and "id" in lead:
                 result = await db_service.save_message(lead["id"], role, content, intent)
                 logger.info(f"Message saved to PostgreSQL: lead={lead['id']}, role={role}, result={result}")
