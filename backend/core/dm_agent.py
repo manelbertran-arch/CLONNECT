@@ -1031,8 +1031,22 @@ USA ESTA RESPUESTA PARA LA OBJECION (adaptala a tu tono):
 
         logger.info(f"Processing DM from {sender_id}: {message_text}")
 
-        # Verificar si el bot esta activo
-        if not self.config_manager.is_bot_active(self.creator_id):
+        # Verificar si el bot esta activo (PostgreSQL primero, luego JSON config)
+        bot_is_active = True  # Default to active
+        if USE_POSTGRES and db_service:
+            try:
+                creator = db_service.get_creator_by_name(self.creator_id)
+                if creator:
+                    bot_is_active = creator.get("bot_active", True)
+                    logger.debug(f"Bot status from PostgreSQL: {bot_is_active}")
+            except Exception as e:
+                logger.warning(f"Failed to get bot status from PostgreSQL: {e}")
+                # Fallback to config manager
+                bot_is_active = self.config_manager.is_bot_active(self.creator_id)
+        else:
+            bot_is_active = self.config_manager.is_bot_active(self.creator_id)
+
+        if not bot_is_active:
             logger.info(f"Bot paused for creator {self.creator_id}")
             return DMResponse(
                 response_text="",  # No enviar respuesta cuando esta pausado
