@@ -253,14 +253,21 @@ async def get_conversations(creator_id: str, limit: int = 50):
                             last_messages = msgs[-5:]
                     except:
                         pass
+                    # Extract email/phone/notes from context (stored as JSON in PostgreSQL)
+                    ctx = l.get("context") or {}
                     conversations.append({
                         "follower_id": follower_id,
+                        "id": l.get("id"),  # UUID for reliable updates
                         "username": l.get("username"),
                         "name": l.get("full_name"),
                         "platform": l.get("platform", "instagram"),
                         "total_messages": msg_count,
                         "purchase_intent": l.get("purchase_intent", 0),
                         "last_messages": last_messages,
+                        "last_contact": l.get("last_contact_at"),
+                        "email": ctx.get("email") or l.get("email") or "",
+                        "phone": ctx.get("phone") or l.get("phone") or "",
+                        "notes": ctx.get("notes") or l.get("notes") or "",
                     })
                 return {"status": "ok", "conversations": conversations, "count": len(conversations)}
         except Exception as e:
@@ -289,6 +296,9 @@ async def get_conversations(creator_id: str, limit: int = 50):
                             "purchase_intent": json_data.get("purchase_intent_score", 0),
                             "last_messages": msgs[-5:],
                             "last_contact": json_data.get("last_contact"),
+                            "email": json_data.get("email") or "",
+                            "phone": json_data.get("phone") or "",
+                            "notes": json_data.get("notes") or "",
                         })
         return {"status": "ok", "conversations": conversations, "count": len(conversations)}
     except Exception as e:

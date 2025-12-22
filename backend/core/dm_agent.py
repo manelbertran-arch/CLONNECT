@@ -1804,6 +1804,7 @@ USA ESTA RESPUESTA PARA LA OBJECION (adaptala a tu tono):
                             "follower_id": data.get("follower_id", ""),
                             "username": data.get("username", ""),
                             "name": data.get("name", ""),
+                            "platform": data.get("platform", "instagram"),
                             "total_messages": total_msgs,
                             "last_contact": data.get("last_contact", ""),
                             "first_contact": data.get("first_contact", ""),
@@ -1812,7 +1813,12 @@ USA ESTA RESPUESTA PARA LA OBJECION (adaptala a tu tono):
                             "purchase_intent": data.get("purchase_intent_score", 0),
                             "interests": data.get("interests", []),
                             "products_discussed": data.get("products_discussed", []),
-                            "preferred_language": data.get("preferred_language", "es")
+                            "preferred_language": data.get("preferred_language", "es"),
+                            # Contact fields from JSON storage
+                            "email": data.get("email", ""),
+                            "phone": data.get("phone", ""),
+                            "notes": data.get("notes", ""),
+                            "last_messages": last_messages[-5:] if last_messages else [],
                         })
                 except Exception as e:
                     logger.error(f"Error reading conversation file {file}: {e}")
