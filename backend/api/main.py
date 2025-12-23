@@ -2725,6 +2725,27 @@ async def startup_event():
     """Inicializacion al arrancar"""
     logger.info("Clonnect Creators API starting...")
     logger.info(f"LLM Provider: {os.getenv('LLM_PROVIDER', 'openai')}")
+
+    # Log database configuration
+    db_url = os.getenv("DATABASE_URL")
+    json_fallback = os.getenv("ENABLE_JSON_FALLBACK", "false").lower() == "true"
+    if db_url:
+        logger.info("Database: PostgreSQL configured")
+        if json_fallback:
+            logger.warning("JSON Fallback: ENABLED - DB errors will fall back to JSON files")
+        else:
+            logger.info("JSON Fallback: DISABLED - DB errors will raise exceptions")
+    else:
+        logger.warning("Database: No DATABASE_URL - using JSON files only")
+
+    # Start nurturing scheduler
+    try:
+        from api.routers.nurturing import start_scheduler
+        start_scheduler()
+        logger.info("Nurturing scheduler started")
+    except Exception as e:
+        logger.error(f"Failed to start nurturing scheduler: {e}")
+
     logger.info("Ready to receive requests!")
 
 

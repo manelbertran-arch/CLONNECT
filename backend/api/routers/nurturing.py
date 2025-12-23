@@ -5,6 +5,7 @@ from pydantic import BaseModel
 import logging
 import os
 import json
+import asyncio
 from datetime import datetime
 
 from core.nurturing import (
@@ -12,6 +13,13 @@ from core.nurturing import (
     NURTURING_SEQUENCES,
     SequenceType,
 )
+
+# Scheduler state
+_scheduler_running = False
+_scheduler_task = None
+_scheduler_last_run: Optional[str] = None
+_scheduler_run_count = 0
+_scheduler_interval = int(os.getenv("NURTURING_SCHEDULER_INTERVAL", "300"))  # 5 minutes default
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/nurturing", tags=["nurturing"])
@@ -489,4 +497,131 @@ async def run_nurturing_followups(
             "sent": stats.get("sent", 0),
             "cancelled": stats.get("cancelled", 0)
         }
+    }
+
+
+# ============================================================================
+# Automatic Scheduler
+# ============================================================================
+
+async def _run_scheduler_cycle():
+    """Run a single scheduler cycle - process all due followups across all creators"""
+    global _scheduler_last_run, _scheduler_run_count
+
+    manager = get_nurturing_manager()
+
+    # Get ALL pending followups that are due (no creator_id = all creators)
+    followups = manager.get_pending_followups()
+
+    if not followups:
+        logger.info(f"[NURTURING SCHEDULER] No due followups found")
+        _scheduler_last_run = datetime.now().isoformat()
+        _scheduler_run_count += 1
+        return {"pending": 0, "processed": 0, "sent": 0, "simulated": 0, "errors": 0}
+
+    logger.info(f"[NURTURING SCHEDULER] Found {len(followups)} due followups")
+
+    processed = 0
+    sent_real = 0
+    sent_simulated = 0
+    error_count = 0
+
+    for fu in followups:
+        try:
+            message = manager.get_followup_message(fu)
+            result = _try_send_message(fu.creator_id, fu.follower_id, message)
+
+            if result["sent"]:
+                manager.mark_as_sent(fu)
+                processed += 1
+                if result["simulated"]:
+                    sent_simulated += 1
+                else:
+                    sent_real += 1
+            else:
+                error_count += 1
+                logger.error(f"[NURTURING SCHEDULER] Failed to send {fu.id}: {result.get('error')}")
+        except Exception as e:
+            error_count += 1
+            logger.error(f"[NURTURING SCHEDULER] Exception processing {fu.id}: {e}")
+
+    _scheduler_last_run = datetime.now().isoformat()
+    _scheduler_run_count += 1
+
+    logger.info(f"[NURTURING SCHEDULER] Completed: {processed} processed, {sent_real} sent, {sent_simulated} simulated, {error_count} errors")
+
+    return {
+        "pending": len(followups),
+        "processed": processed,
+        "sent": sent_real,
+        "simulated": sent_simulated,
+        "errors": error_count
+    }
+
+
+async def _scheduler_loop():
+    """Background task that runs the scheduler periodically"""
+    global _scheduler_running
+
+    logger.info(f"[NURTURING SCHEDULER] Starting with interval={_scheduler_interval}s")
+    _scheduler_running = True
+
+    while _scheduler_running:
+        try:
+            await _run_scheduler_cycle()
+        except Exception as e:
+            logger.error(f"[NURTURING SCHEDULER] Error in cycle: {e}")
+
+        # Wait for next cycle
+        await asyncio.sleep(_scheduler_interval)
+
+    logger.info("[NURTURING SCHEDULER] Stopped")
+
+
+def start_scheduler():
+    """Start the nurturing scheduler background task"""
+    global _scheduler_task, _scheduler_running
+
+    if _scheduler_task is not None and not _scheduler_task.done():
+        logger.warning("[NURTURING SCHEDULER] Already running")
+        return False
+
+    _scheduler_running = True
+    _scheduler_task = asyncio.create_task(_scheduler_loop())
+    logger.info("[NURTURING SCHEDULER] Started")
+    return True
+
+
+def stop_scheduler():
+    """Stop the nurturing scheduler"""
+    global _scheduler_running, _scheduler_task
+
+    _scheduler_running = False
+    if _scheduler_task:
+        _scheduler_task.cancel()
+        _scheduler_task = None
+    logger.info("[NURTURING SCHEDULER] Stop requested")
+
+
+@router.get("/scheduler/status")
+async def get_scheduler_status():
+    """Get nurturing scheduler status"""
+    return {
+        "status": "ok",
+        "scheduler": {
+            "running": _scheduler_running and _scheduler_task is not None and not _scheduler_task.done(),
+            "interval_seconds": _scheduler_interval,
+            "last_run": _scheduler_last_run,
+            "total_runs": _scheduler_run_count
+        }
+    }
+
+
+@router.post("/scheduler/run-now")
+async def run_scheduler_now():
+    """Manually trigger a scheduler run (for testing)"""
+    result = await _run_scheduler_cycle()
+    return {
+        "status": "ok",
+        "result": result
     }
