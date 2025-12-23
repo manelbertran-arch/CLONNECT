@@ -106,10 +106,12 @@ app.include_router(messages.router)
 app.include_router(payments.router)
 app.include_router(calendar.router)
 app.include_router(nurturing.router)
-from api.routers import knowledge
+from api.routers import knowledge, analytics, onboarding
 app.include_router(knowledge.router)
+app.include_router(analytics.router)
+app.include_router(onboarding.router)
 
-logging.info("Routers loaded: health, dashboard, config, leads, products")
+logging.info("Routers loaded: health, dashboard, config, leads, products, analytics")
 # AUTHENTICATION
 # ---------------------------------------------------------
 # Endpoints publicos (no requieren autenticacion)
@@ -1036,6 +1038,37 @@ async def instagram_status():
         "recent_messages": handler.get_recent_messages(5),
         "recent_responses": handler.get_recent_responses(5)
     }
+
+
+@app.post("/webhook/instagram/comments")
+async def instagram_comments_webhook(request: Request):
+    """
+    Webhook for Instagram comments.
+    When someone comments on a post with interest keywords, auto-sends a DM.
+    Enable with AUTO_DM_ON_COMMENTS=true environment variable.
+    """
+    try:
+        payload = await request.json()
+        handler = get_instagram_handler()
+
+        results = []
+        for entry in payload.get("entry", []):
+            for change in entry.get("changes", []):
+                if change.get("field") == "comments":
+                    comment_data = change.get("value", {})
+                    result = await handler.handle_comment(comment_data)
+                    if result:
+                        results.append(result)
+
+        return {
+            "status": "ok",
+            "comments_processed": len(results),
+            "results": results
+        }
+
+    except Exception as e:
+        logger.error(f"Error processing Instagram comments webhook: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 # ---------------------------------------------------------

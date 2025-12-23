@@ -304,10 +304,46 @@ class NotificationService:
             return False
 
     async def _send_email(self, notification: EscalationNotification) -> bool:
-        """Enviar vía email (placeholder - requiere SMTP config)"""
-        # TODO: Implementar con smtplib o SendGrid
-        logger.info(f"Email notification (not implemented): {notification.follower_username}")
-        return False
+        """Enviar vía email usando Resend API"""
+        resend_api_key = os.getenv("RESEND_API_KEY", "")
+        creator_email = os.getenv("CREATOR_EMAIL", "")
+
+        if not resend_api_key or not creator_email:
+            logger.debug("Email not configured (RESEND_API_KEY or CREATOR_EMAIL missing)")
+            return False
+
+        try:
+            import aiohttp
+
+            url = "https://api.resend.com/emails"
+            headers = {
+                "Authorization": f"Bearer {resend_api_key}",
+                "Content-Type": "application/json"
+            }
+
+            payload = {
+                "from": "Clonnect <notifications@clonnect.com>",
+                "to": creator_email,
+                "subject": f"🔥 Lead caliente: @{notification.follower_username}",
+                "html": notification.to_email_html()
+            }
+
+            async with aiohttp.ClientSession() as session:
+                async with session.post(url, json=payload, headers=headers, timeout=aiohttp.ClientTimeout(total=10)) as response:
+                    success = response.status in [200, 201]
+                    if success:
+                        logger.info(f"Email notification sent to {creator_email}")
+                    else:
+                        error_text = await response.text()
+                        logger.error(f"Resend API error: {response.status} - {error_text}")
+                    return success
+
+        except ImportError:
+            logger.warning("aiohttp not installed, email disabled")
+            return False
+        except Exception as e:
+            logger.error(f"Email error: {e}")
+            return False
 
     def _log_notification(self, notification: EscalationNotification) -> bool:
         """Guardar en log y archivo"""
@@ -355,6 +391,117 @@ class NotificationService:
             notification_type="hot_lead"
         )
         return await self.notify_escalation(notification)
+
+    async def send_weekly_summary(
+        self,
+        creator_id: str,
+        creator_email: str,
+        stats: Dict[str, Any]
+    ) -> bool:
+        """
+        Send weekly summary email to creator.
+
+        Args:
+            creator_id: Creator ID
+            creator_email: Creator's email address
+            stats: Dict with weekly statistics
+
+        Returns:
+            True if sent successfully
+        """
+        resend_api_key = os.getenv("RESEND_API_KEY", "")
+
+        if not resend_api_key or not creator_email:
+            logger.debug("Weekly summary not sent: missing RESEND_API_KEY or email")
+            return False
+
+        try:
+            import aiohttp
+
+            # Build email content
+            total_messages = stats.get('total_messages', 0)
+            new_leads = stats.get('new_leads', 0)
+            hot_leads = stats.get('hot_leads', 0)
+            sales = stats.get('sales', 0)
+            revenue = stats.get('revenue', 0)
+
+            html_content = f"""
+            <html>
+            <body style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; background: #f5f5f5; padding: 20px;">
+                <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 30px; text-align: center; border-radius: 10px 10px 0 0;">
+                    <h1 style="margin: 0;">📊 Tu Semana en Clonnect</h1>
+                </div>
+
+                <div style="background: white; padding: 30px; border-radius: 0 0 10px 10px;">
+                    <h2 style="color: #333;">¡Hola! Aquí está tu resumen semanal:</h2>
+
+                    <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 15px; margin: 20px 0;">
+                        <div style="background: #e8f4fd; padding: 20px; border-radius: 8px; text-align: center;">
+                            <div style="font-size: 32px; font-weight: bold; color: #3498db;">📨 {total_messages}</div>
+                            <div style="color: #666;">Mensajes recibidos</div>
+                        </div>
+                        <div style="background: #e8fdf4; padding: 20px; border-radius: 8px; text-align: center;">
+                            <div style="font-size: 32px; font-weight: bold; color: #2ecc71;">👥 {new_leads}</div>
+                            <div style="color: #666;">Nuevos leads</div>
+                        </div>
+                        <div style="background: #fde8e8; padding: 20px; border-radius: 8px; text-align: center;">
+                            <div style="font-size: 32px; font-weight: bold; color: #e74c3c;">🔥 {hot_leads}</div>
+                            <div style="color: #666;">Leads calientes</div>
+                        </div>
+                        <div style="background: #fdf8e8; padding: 20px; border-radius: 8px; text-align: center;">
+                            <div style="font-size: 32px; font-weight: bold; color: #f39c12;">💰 {revenue}€</div>
+                            <div style="color: #666;">{sales} ventas</div>
+                        </div>
+                    </div>
+
+                    <p style="color: #666; text-align: center; margin-top: 30px;">
+                        ¡Sigue así! 🚀
+                    </p>
+
+                    <div style="text-align: center; margin-top: 20px;">
+                        <a href="https://clonnect.vercel.app/dashboard"
+                           style="background: #667eea; color: white; padding: 12px 30px; text-decoration: none; border-radius: 5px; display: inline-block;">
+                            Ver Dashboard
+                        </a>
+                    </div>
+                </div>
+
+                <p style="color: #999; font-size: 12px; text-align: center; margin-top: 20px;">
+                    Clonnect - Tu clon de IA para responder DMs
+                </p>
+            </body>
+            </html>
+            """
+
+            url = "https://api.resend.com/emails"
+            headers = {
+                "Authorization": f"Bearer {resend_api_key}",
+                "Content-Type": "application/json"
+            }
+
+            payload = {
+                "from": "Clonnect <weekly@clonnect.com>",
+                "to": creator_email,
+                "subject": f"📊 Tu semana en Clonnect - {new_leads} nuevos leads",
+                "html": html_content
+            }
+
+            async with aiohttp.ClientSession() as session:
+                async with session.post(url, json=payload, headers=headers, timeout=aiohttp.ClientTimeout(total=10)) as response:
+                    success = response.status in [200, 201]
+                    if success:
+                        logger.info(f"Weekly summary sent to {creator_email}")
+                    else:
+                        error_text = await response.text()
+                        logger.error(f"Weekly summary failed: {response.status} - {error_text}")
+                    return success
+
+        except ImportError:
+            logger.warning("aiohttp not installed, weekly summary disabled")
+            return False
+        except Exception as e:
+            logger.error(f"Weekly summary error: {e}")
+            return False
 
 
 # Instancia global
