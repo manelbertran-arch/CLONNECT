@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { useDashboard, useToggleBot } from "@/hooks/useApi";
 import { useToast } from "@/hooks/use-toast";
 import { getPurchaseIntent } from "@/types/api";
+import { OnboardingChecklist } from "@/components/OnboardingChecklist";
 
 export default function Dashboard() {
   const { data, isLoading, error } = useDashboard();
@@ -188,6 +189,9 @@ export default function Dashboard() {
           {isActive ? "Bot Online" : "Bot Paused"}
         </Button>
       </div>
+
+      {/* Onboarding Checklist - shows only if incomplete */}
+      <OnboardingChecklist />
 
       {/* Main Stats Card */}
       <div className="metric-card glow relative overflow-hidden">

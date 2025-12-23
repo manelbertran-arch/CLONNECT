@@ -30,6 +30,8 @@ from core.notifications import get_notification_service, EscalationNotification
 from core.cache import get_response_cache
 from core.alerts import get_alert_manager
 from core.creator_config import CreatorConfigManager
+from core.sales_tracker import get_sales_tracker
+from core.guardrails import get_response_guardrail
 from core.metrics import (
     record_message_processed,
     record_llm_error,
@@ -367,6 +369,27 @@ def is_direct_purchase_intent(message: str) -> bool:
             return True
 
     return False
+
+
+def get_transparency_disclosure(creator_name: str, language: str = "es") -> str:
+    """
+    Get AI transparency disclosure message for first interaction.
+
+    Args:
+        creator_name: Name of the creator
+        language: User's preferred language
+
+    Returns:
+        Disclosure message string
+    """
+    disclosures = {
+        "es": f"👋 Soy el asistente de IA de {creator_name}. Estoy aquí para ayudarte.",
+        "en": f"👋 I'm {creator_name}'s AI assistant. I'm here to help you.",
+        "ca": f"👋 Sóc l'assistent d'IA de {creator_name}. Estic aquí per ajudar-te.",
+        "pt": f"👋 Sou o assistente de IA de {creator_name}. Estou aqui para ajudá-lo.",
+        "fr": f"👋 Je suis l'assistant IA de {creator_name}. Je suis là pour vous aider.",
+    }
+    return disclosures.get(language, disclosures["es"])
 
 
 @dataclass
@@ -1212,6 +1235,19 @@ USA ESTA RESPUESTA PARA LA OBJECION (adaptala a tu tono):
             await self._save_message_to_db(follower.follower_id, 'user', message_text, str(intent))
             await self._save_message_to_db(follower.follower_id, 'assistant', response_text, None)
 
+            # Track product link click
+            try:
+                sales_tracker = get_sales_tracker()
+                sales_tracker.record_click(
+                    creator_id=self.creator_id,
+                    product_id=product.get('id', ''),
+                    follower_id=follower.follower_id,
+                    product_name=product_name,
+                    link_url=product_url
+                )
+            except Exception as e:
+                logger.warning(f"Failed to track click: {e}")
+
             return DMResponse(
                 response_text=response_text,
                 intent=intent,
@@ -1285,6 +1321,23 @@ USA ESTA RESPUESTA PARA LA OBJECION (adaptala a tu tono):
                 response_text = await self.llm.chat(messages, max_tokens=200, temperature=0.7)
                 response_text = response_text.strip()
 
+                # Validate response with guardrails
+                try:
+                    guardrail = get_response_guardrail()
+                    guardrail_context = {
+                        "products": self.products,
+                        "allowed_urls": [p.get("payment_link", "") for p in self.products if p.get("payment_link")],
+                        "creator_config": self.config,
+                        "language": user_language
+                    }
+                    response_text = guardrail.get_safe_response(
+                        query=message_text,
+                        response=response_text,
+                        context=guardrail_context
+                    )
+                except Exception as ge:
+                    logger.warning(f"Guardrail check failed: {ge}")
+
                 # Si el idioma no es espanol y la respuesta parece en espanol, traducir
                 if user_language != DEFAULT_LANGUAGE:
                     # Verificar si necesitamos traducir (el LLM a veces ignora la instruccion)
@@ -1337,6 +1390,15 @@ USA ESTA RESPUESTA PARA LA OBJECION (adaptala a tu tono):
             product=product,
             is_customer=follower.is_customer
         )
+
+        # Add AI transparency disclosure for first message if enabled
+        transparency_enabled = os.getenv("TRANSPARENCY_ENABLED", "false").lower() == "true"
+        is_first_message = follower.total_messages <= 1
+        if transparency_enabled and is_first_message:
+            creator_name = self.config.get("name", self.creator_id)
+            disclosure = get_transparency_disclosure(creator_name, user_language)
+            response_text = f"{disclosure}\n\n{response_text}"
+            logger.info(f"Added transparency disclosure for first message")
 
         logger.info(f"Response: {response_text[:100]}...")
 
@@ -1801,30 +1863,65 @@ USA ESTA RESPUESTA PARA LA OBJECION (adaptala a tu tono):
             response += f" Si es urgente, puedes escribir a {email}."
         return response
 
-    def _get_fallback_response(self, intent: Intent) -> str:
-        """Respuesta de fallback"""
+    def _get_fallback_response(self, intent: Intent, language: str = "es") -> str:
+        """
+        Respuesta de fallback cuando LLM falla.
+        Uses varied responses to seem more natural.
+        """
         name = self.creator_config.get('name', 'yo')
 
-        fallbacks = {
-            Intent.GREETING: f"Ey! Que tal? Soy {name}. En que puedo ayudarte?",
-            Intent.INTEREST_STRONG: "Genial que te interese! Te paso toda la info ahora mismo.",
-            Intent.INTEREST_SOFT: "Me alegra que te interese! Cuentame, que necesitas exactamente?",
-            Intent.OBJECTION_PRICE: "Entiendo que es una inversion. Que es lo que mas te preocupa?",
-            Intent.OBJECTION_TIME: "Lo entiendo, el tiempo es oro. Precisamente esto te ayuda a ganar tiempo.",
-            Intent.OBJECTION_DOUBT: "Normal tener dudas. Que te gustaria saber?",
-            Intent.OBJECTION_LATER: "Claro, sin prisa. Aunque te digo que el mejor momento es ahora, luego cuesta mas arrancar.",
-            Intent.OBJECTION_WORKS: "Totalmente valido preguntar! Tengo casos de alumnos que han conseguido resultados increibles.",
-            Intent.OBJECTION_NOT_FOR_ME: "Entiendo la duda. Precisamente esta disenado para todos los niveles, desde cero.",
-            Intent.OBJECTION_COMPLICATED: "Para nada! Esta pensado para que sea facil y ademas tienes soporte si te atascas.",
-            Intent.OBJECTION_ALREADY_HAVE: "Genial que ya tengas base! Esto es diferente porque va mas alla y te da resultados mas rapido.",
-            Intent.QUESTION_PRODUCT: "Buena pregunta! Te cuento...",
-            Intent.QUESTION_GENERAL: f"Soy {name}, ayudo a emprendedores a automatizar y escalar su negocio.",
-            Intent.LEAD_MAGNET: "Tengo algo gratis perfecto para empezar!",
-            Intent.THANKS: "A ti! Si necesitas algo mas, aqui estoy.",
-            Intent.GOODBYE: "Hasta pronto! Un abrazo.",
-            Intent.SUPPORT: "Vaya, lamento eso. Cuentame que pasa y lo solucionamos.",
+        # Spanish fallbacks with variations
+        fallbacks_es = {
+            Intent.GREETING: [
+                f"Ey! Que tal? Soy {name}. En que puedo ayudarte?",
+                f"Hola! Soy {name}, encantado de saludarte. Que necesitas?",
+            ],
+            Intent.INTEREST_STRONG: [
+                "Genial que te interese! Te paso toda la info ahora mismo.",
+                "Me encanta tu interes! Dejame contarte todo.",
+            ],
+            Intent.INTEREST_SOFT: [
+                "Me alegra que te interese! Cuentame, que necesitas exactamente?",
+                "Que bien! Que te gustaria saber mas?",
+            ],
+            Intent.OBJECTION_PRICE: [
+                "Entiendo que es una inversion. Que es lo que mas te preocupa?",
+                "Comprendo. Es normal pensarselo. Que te gustaria saber sobre el valor?",
+            ],
+            Intent.OBJECTION_TIME: [
+                "Lo entiendo, el tiempo es oro. Precisamente esto te ayuda a ganar tiempo.",
+                "Claro, el tiempo es importante. Por eso esta disenado para ser rapido.",
+            ],
+            Intent.OBJECTION_DOUBT: [
+                "Normal tener dudas. Que te gustaria saber?",
+                "Entiendo tus dudas. Cuentame, que te preocupa?",
+            ],
+            Intent.OBJECTION_LATER: [
+                "Claro, sin prisa. Aunque te digo que el mejor momento es ahora.",
+                "Entiendo! Cuando estes listo, aqui estoy.",
+            ],
+            Intent.OTHER: [
+                "Gracias por tu mensaje! Dame un momento para responder.",
+                "Recibido! En un momento te cuento mas.",
+                "Gracias por escribir! En que puedo ayudarte?",
+            ],
         }
-        return fallbacks.get(intent, "Gracias por escribir! En que puedo ayudarte?")
+
+        # English fallbacks
+        fallbacks_en = {
+            Intent.GREETING: [
+                f"Hey! I'm {name}. How can I help you?",
+                f"Hi there! {name} here. What can I do for you?",
+            ],
+            Intent.OTHER: [
+                "Thanks for your message! I'll get back to you shortly.",
+                "Got it! Give me a moment to respond.",
+            ],
+        }
+
+        fallbacks = fallbacks_es if language == "es" else fallbacks_en
+        options = fallbacks.get(intent, fallbacks.get(Intent.OTHER, ["Gracias por escribir!"]))
+        return random.choice(options)
 
     async def get_all_conversations(self, limit: int = 50) -> List[Dict[str, Any]]:
         """Obtener todas las conversaciones del creador"""

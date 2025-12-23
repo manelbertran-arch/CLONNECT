@@ -28,6 +28,11 @@ class SequenceType(Enum):
     ABANDONED = "abandoned"                   # Quiso comprar pero no completó
     RE_ENGAGEMENT = "re_engagement"          # Sin actividad en X días
     POST_PURCHASE = "post_purchase"          # Después de comprar
+    # Scarcity/Urgency sequences
+    DISCOUNT_URGENCY = "discount_urgency"    # Descuento con fecha límite
+    SPOTS_LIMITED = "spots_limited"          # Plazas limitadas
+    OFFER_EXPIRING = "offer_expiring"        # Oferta por tiempo limitado
+    FLASH_SALE = "flash_sale"                # Venta flash
 
 
 @dataclass
@@ -85,7 +90,42 @@ NURTURING_SEQUENCES = {
         (72, "¿Qué tal va todo con {product_name}? ¿Necesitas ayuda con algo?"),
         (168, "¡Una semana ya! ¿Cómo te está yendo? Me encantaría saber tu progreso."),
     ],
+    # Scarcity/Urgency sequences
+    SequenceType.DISCOUNT_URGENCY.value: [
+        (0, "🔥 ¡Oferta especial solo para ti! {product_name} con {discount}% de descuento. Solo hasta {expires_at}. {product_link}"),
+        (24, "⏰ ¡Último día! El descuento del {discount}% en {product_name} termina hoy. No te lo pierdas 👉 {product_link}"),
+    ],
+    SequenceType.SPOTS_LIMITED.value: [
+        (0, "🎯 Solo quedan {spots_left} plazas para {product_name}. ¿Te reservo una? 👀"),
+        (24, "⚠️ Ya solo quedan {spots_left} plazas... Si lo estás pensando, es ahora o nunca. {product_link}"),
+    ],
+    SequenceType.OFFER_EXPIRING.value: [
+        (0, "Hey! La oferta de {product_name} termina en {expires_in}. No quiero que te la pierdas 🙌 {product_link}"),
+        (12, "⏳ Quedan solo {expires_in} para aprovechar el precio especial de {product_name}. {product_link}"),
+    ],
+    SequenceType.FLASH_SALE.value: [
+        (0, "⚡ FLASH SALE: {product_name} a mitad de precio solo las próximas {expires_in}. {product_link}"),
+    ],
 }
+
+
+def render_template(template: str, variables: Dict[str, Any]) -> str:
+    """
+    Render a nurturing template with variables.
+
+    Args:
+        template: Template string with {variable} placeholders
+        variables: Dict with variable values
+
+    Returns:
+        Rendered message string
+    """
+    try:
+        return template.format(**variables)
+    except KeyError as e:
+        logger.warning(f"Missing variable in template: {e}")
+        # Return template with missing vars as-is
+        return template
 
 
 class NurturingManager:

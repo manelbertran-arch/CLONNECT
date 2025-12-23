@@ -11,6 +11,9 @@ import Nurturing from "./pages/Nurturing";
 import Revenue from "./pages/Revenue";
 import Calendar from "./pages/Calendar";
 import Settings from "./pages/Settings";
+import Docs from "./pages/Docs";
+import Terms from "./pages/Terms";
+import Privacy from "./pages/Privacy";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -31,6 +34,9 @@ const App = () => (
             <Route path="/revenue" element={<Revenue />} />
             <Route path="/calendar" element={<Calendar />} />
             <Route path="/settings" element={<Settings />} />
+            <Route path="/docs" element={<Docs />} />
+            <Route path="/terms" element={<Terms />} />
+            <Route path="/privacy" element={<Privacy />} />
           </Route>
           <Route path="*" element={<NotFound />} />
         </Routes>
