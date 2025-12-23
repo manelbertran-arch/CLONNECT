@@ -79,8 +79,8 @@ export function OnboardingChecklist() {
               key={key}
               className={`flex items-center gap-3 p-3 rounded-lg transition-colors ${
                 completed
-                  ? "bg-green-900/20 border border-green-500/20"
-                  : "bg-gray-800/50 hover:bg-gray-800"
+                  ? "bg-cyan-900/20 border border-cyan-500/20"
+                  : "bg-gray-800/50 hover:bg-gray-800 border border-gray-700"
               }`}
             >
               <span className="text-xl">
@@ -90,7 +90,7 @@ export function OnboardingChecklist() {
                 to={stepInfo.link}
                 className={`flex-1 ${
                   completed
-                    ? "text-green-400 line-through"
+                    ? "text-cyan-400 line-through"
                     : "text-white hover:text-cyan-400"
                 }`}
               >
