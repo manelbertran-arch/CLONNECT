@@ -11,7 +11,8 @@ import {
   useNurturingStats,
   useToggleNurturingSequence,
   useUpdateNurturingSequence,
-  useCancelNurturing
+  useCancelNurturing,
+  useRunNurturing
 } from "@/hooks/useApi";
 import { getNurturingEnrolled } from "@/services/api";
 import { cn } from "@/lib/utils";
@@ -60,11 +61,12 @@ interface EnrolledUser {
 }
 
 export default function Nurturing() {
-  const { data: sequencesData, isLoading: sequencesLoading, error: sequencesError } = useNurturingSequences();
-  const { data: statsData, isLoading: statsLoading } = useNurturingStats();
+  const { data: sequencesData, isLoading: sequencesLoading, error: sequencesError, refetch: refetchSequences } = useNurturingSequences();
+  const { data: statsData, isLoading: statsLoading, refetch: refetchStats } = useNurturingStats();
   const toggleSequence = useToggleNurturingSequence();
   const updateSequence = useUpdateNurturingSequence();
   const cancelNurturing = useCancelNurturing();
+  const runNurturing = useRunNurturing();
   const { toast } = useToast();
 
   const [expandedSequence, setExpandedSequence] = useState<string | null>(null);
@@ -72,6 +74,7 @@ export default function Nurturing() {
   const [loadingEnrolled, setLoadingEnrolled] = useState<string | null>(null);
   const [editingSequence, setEditingSequence] = useState<string | null>(null);
   const [editSteps, setEditSteps] = useState<Array<{ delay_hours: number; message: string }>>([]);
+  const [runResult, setRunResult] = useState<any>(null);
 
   // Loading state
   if (sequencesLoading || statsLoading) {
@@ -188,13 +191,127 @@ export default function Nurturing() {
     }
   };
 
+  const handleRunNurturing = async (dryRun: boolean) => {
+    try {
+      setRunResult(null);
+      const result = await runNurturing.mutateAsync({
+        dryRun,
+        forceDue: true, // For testing, treat all pending as due
+        limit: 50
+      });
+      setRunResult(result);
+
+      if (dryRun) {
+        toast({
+          title: "Dry Run Complete",
+          description: `Would process ${result.would_process || 0} followups`,
+        });
+      } else {
+        toast({
+          title: "Run Complete",
+          description: `Processed ${result.processed || 0}, Sent ${result.sent || 0}, Simulated ${result.simulated || 0}`,
+        });
+        // Refresh data after real run
+        refetchSequences();
+        refetchStats();
+      }
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to run nurturing",
+        variant: "destructive",
+      });
+    }
+  };
+
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div>
-        <h1 className="text-2xl font-bold tracking-tight">Nurturing Sequences</h1>
-        <p className="text-muted-foreground">Automated follow-up sequences for lead nurturing</p>
+      <div className="flex items-start justify-between">
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight">Nurturing Sequences</h1>
+          <p className="text-muted-foreground">Automated follow-up sequences for lead nurturing</p>
+        </div>
+        <div className="flex gap-2">
+          <Button
+            variant="outline"
+            onClick={() => handleRunNurturing(true)}
+            disabled={runNurturing.isPending}
+          >
+            {runNurturing.isPending ? (
+              <Loader2 className="w-4 h-4 animate-spin mr-2" />
+            ) : (
+              <Play className="w-4 h-4 mr-2" />
+            )}
+            Dry Run
+          </Button>
+          <Button
+            className="bg-gradient-to-r from-primary to-accent"
+            onClick={() => handleRunNurturing(false)}
+            disabled={runNurturing.isPending}
+          >
+            {runNurturing.isPending ? (
+              <Loader2 className="w-4 h-4 animate-spin mr-2" />
+            ) : (
+              <Play className="w-4 h-4 mr-2" />
+            )}
+            Run Now
+          </Button>
+        </div>
       </div>
+
+      {/* Run Result */}
+      {runResult && (
+        <div className="metric-card border-primary/50">
+          <div className="flex items-center justify-between mb-3">
+            <h3 className="font-semibold">
+              {runResult.dry_run ? "Dry Run Result" : "Run Result"}
+            </h3>
+            <Button variant="ghost" size="sm" onClick={() => setRunResult(null)}>
+              <X className="w-4 h-4" />
+            </Button>
+          </div>
+          {runResult.dry_run ? (
+            <div>
+              <p className="text-sm text-muted-foreground mb-2">
+                Would process {runResult.would_process || 0} followups
+              </p>
+              {runResult.items?.length > 0 && (
+                <div className="space-y-2 max-h-48 overflow-y-auto">
+                  {runResult.items.map((item: any) => (
+                    <div key={item.followup_id} className="text-xs p-2 rounded bg-secondary/50">
+                      <div className="flex justify-between">
+                        <span className="font-medium">{item.follower_id}</span>
+                        <span className="text-muted-foreground">{item.channel_guess}</span>
+                      </div>
+                      <p className="text-muted-foreground mt-1">{item.message_preview}</p>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          ) : (
+            <div className="grid grid-cols-4 gap-4 text-center">
+              <div>
+                <p className="text-2xl font-bold">{runResult.processed || 0}</p>
+                <p className="text-xs text-muted-foreground">Processed</p>
+              </div>
+              <div>
+                <p className="text-2xl font-bold text-success">{runResult.sent || 0}</p>
+                <p className="text-xs text-muted-foreground">Sent (Real)</p>
+              </div>
+              <div>
+                <p className="text-2xl font-bold text-accent">{runResult.simulated || 0}</p>
+                <p className="text-xs text-muted-foreground">Simulated</p>
+              </div>
+              <div>
+                <p className="text-2xl font-bold text-destructive">{runResult.errors?.length || 0}</p>
+                <p className="text-xs text-muted-foreground">Errors</p>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Stats Cards */}
       <div className="grid grid-cols-3 gap-4">
