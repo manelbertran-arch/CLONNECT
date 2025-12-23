@@ -51,27 +51,27 @@ export function OnboardingChecklist() {
   }
 
   return (
-    <div className="bg-gradient-to-r from-purple-900/40 to-indigo-900/40 border border-purple-500/30 rounded-xl p-6 mb-6">
+    <div className="metric-card">
       <div className="flex items-center justify-between mb-4">
-        <h3 className="text-lg font-semibold text-white flex items-center gap-2">
-          <span className="text-2xl">🚀</span>
+        <h3 className="font-semibold flex items-center gap-2">
+          <span className="text-xl">🚀</span>
           Configura tu clon en {data.total} pasos
         </h3>
-        <span className="text-sm text-purple-300">
+        <span className="text-sm text-muted-foreground">
           {data.percentage}% completado
         </span>
       </div>
 
       {/* Progress bar */}
-      <div className="w-full bg-gray-700 rounded-full h-2 mb-6">
+      <div className="w-full bg-secondary rounded-full h-2 mb-6">
         <div
-          className="bg-gradient-to-r from-purple-500 to-cyan-400 h-2 rounded-full transition-all duration-500"
+          className="bg-primary h-2 rounded-full transition-all duration-500"
           style={{ width: `${data.percentage}%` }}
         />
       </div>
 
       {/* Steps */}
-      <div className="space-y-3">
+      <div className="space-y-2">
         {Object.entries(data.core_steps).map(([key, completed]) => {
           const stepInfo = stepLabels[key] || { label: key, link: "/settings" };
           return (
@@ -79,19 +79,19 @@ export function OnboardingChecklist() {
               key={key}
               className={`flex items-center gap-3 p-3 rounded-lg transition-colors ${
                 completed
-                  ? "bg-cyan-900/20 border border-cyan-500/20"
-                  : "bg-gray-800/50 hover:bg-gray-800 border border-gray-700"
+                  ? "bg-secondary/50"
+                  : "bg-secondary/50 hover:bg-secondary"
               }`}
             >
-              <span className="text-xl">
+              <span className="text-lg">
                 {completed ? "✅" : "⬜"}
               </span>
               <Link
                 to={stepInfo.link}
-                className={`flex-1 ${
+                className={`flex-1 text-sm ${
                   completed
-                    ? "text-cyan-400 line-through"
-                    : "text-white hover:text-cyan-400"
+                    ? "text-muted-foreground line-through"
+                    : "text-foreground hover:text-primary"
                 }`}
               >
                 {stepInfo.label}
@@ -99,7 +99,7 @@ export function OnboardingChecklist() {
               {!completed && (
                 <Link
                   to={stepInfo.link}
-                  className="text-xs bg-purple-600 hover:bg-purple-500 px-3 py-1 rounded-full text-white transition-colors"
+                  className="text-xs bg-primary hover:bg-primary/80 px-3 py-1 rounded-full text-primary-foreground transition-colors"
                 >
                   Configurar
                 </Link>
@@ -111,21 +111,21 @@ export function OnboardingChecklist() {
 
       {/* Next step CTA */}
       {data.next_step?.key && (
-        <div className="mt-6 p-4 bg-gradient-to-r from-cyan-600/20 to-purple-600/20 rounded-lg border border-cyan-500/30">
-          <p className="text-sm text-gray-300 mb-2">Siguiente paso:</p>
+        <div className="mt-4 p-3 bg-secondary/50 rounded-lg">
+          <p className="text-xs text-muted-foreground mb-1">Siguiente paso:</p>
           <Link
             to={data.next_step.link}
             className="flex items-center justify-between group"
           >
-            <span className="text-lg font-medium text-white group-hover:text-cyan-400 transition-colors">
+            <span className="font-medium text-foreground group-hover:text-primary transition-colors">
               {data.next_step.label}
             </span>
-            <span className="text-cyan-400 group-hover:translate-x-1 transition-transform">
+            <span className="text-primary group-hover:translate-x-1 transition-transform">
               →
             </span>
           </Link>
           {data.next_step.description && (
-            <p className="text-sm text-gray-400 mt-1">{data.next_step.description}</p>
+            <p className="text-xs text-muted-foreground mt-1">{data.next_step.description}</p>
           )}
         </div>
       )}
