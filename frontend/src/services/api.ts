@@ -344,6 +344,28 @@ export async function getBookingLinks(
   return apiFetch(`/calendar/${creatorId}/links`);
 }
 
+/**
+ * Create a booking link
+ */
+export interface CreateBookingLinkData {
+  meeting_type: string;
+  title: string;
+  url: string;
+  platform: string;
+  duration_minutes: number;
+  description?: string;
+}
+
+export async function createBookingLink(
+  creatorId: string = CREATOR_ID,
+  data: CreateBookingLinkData
+): Promise<{ status: string; link: any }> {
+  return apiFetch(`/calendar/${creatorId}/links`, {
+    method: "POST",
+    body: JSON.stringify(data),
+  });
+}
+
 // =============================================================================
 // NURTURING
 // =============================================================================
@@ -633,6 +655,7 @@ export default {
   getBookings,
   getCalendarStats,
   getBookingLinks,
+  createBookingLink,
   getNurturingSequences,
   getNurturingFollowups,
   getNurturingStats,

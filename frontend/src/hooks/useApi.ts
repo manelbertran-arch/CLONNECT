@@ -33,6 +33,7 @@ import {
   getBookings,
   getCalendarStats,
   getBookingLinks,
+  createBookingLink,
   getNurturingSequences,
   getNurturingStats,
   getNurturingFollowups,
@@ -44,7 +45,7 @@ import {
   addContent,
   apiKeys,
 } from "@/services/api";
-import type { RunNurturingParams } from "@/services/api";
+import type { RunNurturingParams, CreateBookingLinkData } from "@/services/api";
 import type { CreateLeadData, UpdateLeadData } from "@/services/api";
 import type { Product } from "@/types/api";
 
@@ -278,6 +279,20 @@ export function useBookingLinks(creatorId: string = CREATOR_ID) {
     queryKey: apiKeys.bookingLinks(creatorId),
     queryFn: () => getBookingLinks(creatorId),
     staleTime: 300000,
+  });
+}
+
+/**
+ * Hook to create a booking link
+ */
+export function useCreateBookingLink(creatorId: string = CREATOR_ID) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (data: CreateBookingLinkData) => createBookingLink(creatorId, data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: apiKeys.bookingLinks(creatorId) });
+      queryClient.invalidateQueries({ queryKey: apiKeys.calendarStats(creatorId) });
+    },
   });
 }
 
