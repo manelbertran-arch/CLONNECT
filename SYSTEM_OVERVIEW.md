@@ -1,0 +1,398 @@
+# CLONNECT – System Overview (from repo scan)
+
+> Generated from actual codebase analysis on 2023-12-23
+
+## 1. High-level Architecture
+
+### Backend Stack
+- **Framework**: FastAPI (Python 3.11)
+- **Main entrypoint**: `backend/api/main.py` (~98K lines, massive file)
+- **Storage**: Dual-mode (PostgreSQL + JSON file fallback)
+  - PostgreSQL: When `DATABASE_URL` env is set
+  - JSON files: Under `backend/data/` directories
+- **LLM Integration**: Groq/LLM for response generation
+
+### Frontend Stack
+- **Framework**: React + TypeScript + Vite
+- **Styling**: Tailwind CSS + shadcn/ui components
+- **State Management**: TanStack Query (React Query)
+- **API Layer**: Custom hooks in `frontend/src/hooks/useApi.ts`
+
+### Key Directories
+```
+backend/
+├── api/
+│   ├── main.py          # Main FastAPI app (massive 98K file)
+│   ├── routers/         # API route handlers
+│   │   ├── messages.py  # DM/conversation endpoints
+│   │   ├── leads.py     # Lead CRUD operations
+│   │   ├── nurturing.py # Nurturing sequences API
+│   │   └── ...
+│   ├── models.py        # SQLAlchemy ORM models
+│   └── services/        # Business logic services
+├── core/
+│   ├── dm_agent.py      # DM processing agent (~84K lines)
+│   ├── nurturing.py     # NurturingManager class
+│   ├── memory.py        # Follower memory store
+│   └── intent_classifier.py
+├── data/                # JSON file storage
+│   ├── followers/       # Per-creator follower data
+│   └── nurturing/       # Nurturing config/followups
+└── tests/               # Pytest test suite
+
+frontend/
+└── src/
+    ├── pages/           # Route pages
+    │   ├── Leads.tsx    # Kanban pipeline
+    │   ├── Nurturing.tsx
+    │   ├── Dashboard.tsx
+    │   └── Inbox.tsx
+    ├── services/api.ts  # API client functions
+    └── hooks/useApi.ts  # React Query hooks
+```
+
+---
+
+## 2. Backend – APIs and Core Modules
+
+### 2.1 Leads & Conversations
+
+**Endpoints (from `messages.py` and `leads.py`):**
+
+| Method | Endpoint | Description | Status |
+|--------|----------|-------------|--------|
+| GET | `/dm/conversations/{creator_id}` | Get all leads with status, score, email/phone/notes | ✅ Implemented |
+| GET | `/dm/follower/{creator_id}/{follower_id}` | Get single follower detail + messages | ✅ Implemented |
+| PUT | `/dm/follower/{creator_id}/{follower_id}/status` | Update lead pipeline status | ✅ Implemented |
+| POST | `/dm/send/{creator_id}` | Send manual message | ✅ Implemented |
+| GET | `/dm/leads/{creator_id}` | Get leads list | ✅ Implemented |
+| POST | `/dm/leads/{creator_id}/manual` | Create manual lead | ✅ Implemented |
+| PUT | `/dm/leads/{creator_id}/{lead_id}` | Update lead (name, email, phone, notes) | ✅ Implemented |
+| DELETE | `/dm/leads/{creator_id}/{lead_id}` | Delete lead | ✅ Implemented |
+
+**Data Model (from `models.py`):**
+```python
+class Lead(Base):
+    id = Column(UUID)
+    creator_id = Column(UUID, ForeignKey("creators.id"))
+    platform = Column(String)        # instagram, telegram, whatsapp, manual
+    platform_user_id = Column(String)
+    username = Column(String)
+    full_name = Column(String)
+    status = Column(String)          # new, active, hot, customer
+    score = Column(Integer)
+    purchase_intent = Column(Float)  # 0.0 - 1.0
+    context = Column(JSON)           # stores email, phone, notes
+```
+
+**Pipeline Score Logic (from `messages.py:12-21`):**
+```python
+def get_pipeline_score(status: str) -> int:
+    return {"new": 25, "active": 50, "hot": 75, "customer": 100}.get(status, 25)
+```
+
+**Key Implementation Details:**
+- `GET /dm/conversations/{creator_id}` returns:
+  - `lead_status`: Pipeline stage (new/active/hot/customer)
+  - `pipeline_score`: Deterministic score (25/50/75/100)
+  - `purchase_intent`: AI-derived 0-1 score
+  - `email`, `phone`, `notes`: From `context` JSON field
+- Status updates persist to both PostgreSQL and JSON fallback
+- Email/phone/notes stored in Lead.context JSON column
+
+### 2.2 DM Agent & Memory
+
+**Core Module: `core/dm_agent.py`**
+
+The DM Agent is the heart of automated DM responses:
+
+**Intent Classification (lines 62-82):**
+```python
+class Intent(Enum):
+    GREETING = "greeting"
+    INTEREST_SOFT = "interest_soft"
+    INTEREST_STRONG = "interest_strong"
+    OBJECTION_PRICE = "objection_price"
+    OBJECTION_TIME = "objection_time"
+    OBJECTION_DOUBT = "objection_doubt"
+    OBJECTION_LATER = "objection_later"
+    QUESTION_PRODUCT = "question_product"
+    QUESTION_GENERAL = "question_general"
+    ESCALATION = "escalation"
+    ...
+```
+
+**Processing Flow (`process_dm` method, lines 1030+):**
+1. Check if bot is active (PostgreSQL → JSON fallback)
+2. Rate limiting check
+3. Get/create follower memory
+4. Extract user name from message if provided
+5. Detect language (ES/EN/PT)
+6. Classify intent
+7. Handle escalation if needed
+8. Find relevant product
+9. Handle direct purchase intent (fast path)
+10. Generate LLM response
+11. Update memory and save to database
+
+**Memory Store (`core/memory.py`):**
+- Stores follower state per creator
+- Tracks: last_messages, purchase_intent_score, total_messages, products_discussed
+- JSON persistence under `data/followers/{creator_id}/{follower_id}.json`
+
+### 2.3 Nurturing Engine
+
+**Core Module: `core/nurturing.py`**
+
+**SequenceType Enum (8 types):**
+- `interest_cold`, `objection_price`, `objection_time`, `objection_doubt`
+- `objection_later`, `abandoned`, `re_engagement`, `post_purchase`
+
+**NurturingManager Class:**
+- Storage: `data/nurturing/{creator_id}_followups.json`
+- Methods:
+  - `schedule_followup()`: Create scheduled follow-up sequence
+  - `get_pending_followups()`: Get due follow-ups
+  - `mark_as_sent()`: Mark follow-up as sent
+  - `cancel_followups()`: Cancel pending for follower
+  - `get_stats()`: Get stats (pending, sent, cancelled, by_sequence)
+
+**FollowUp Dataclass:**
+```python
+@dataclass
+class FollowUp:
+    id: str
+    creator_id: str
+    follower_id: str
+    sequence_type: str
+    step: int
+    scheduled_at: str
+    message_template: str
+    status: str  # pending, sent, cancelled
+```
+
+**Intent → Sequence Mapping (lines 343-350):**
+```python
+INTENT_TO_SEQUENCE = {
+    "interest_soft": "interest_cold",
+    "objection_price": "objection_price",
+    "objection_time": "objection_time",
+    "objection_doubt": "objection_doubt",
+    "objection_later": "objection_later",
+    "interest_strong": "abandoned",  # If no completion
+}
+```
+
+**API Endpoints (from `routers/nurturing.py`):**
+
+| Method | Endpoint | Description | Status |
+|--------|----------|-------------|--------|
+| GET | `/nurturing/{creator_id}/sequences` | Get all sequences with stats | ✅ Real data |
+| POST | `/nurturing/{creator_id}/sequences/{type}/toggle` | Toggle sequence on/off | ✅ Persists |
+| PUT | `/nurturing/{creator_id}/sequences/{type}` | Update sequence steps | ✅ Persists |
+| GET | `/nurturing/{creator_id}/stats` | Get nurturing stats | ✅ Real data |
+| GET | `/nurturing/{creator_id}/sequences/{type}/enrolled` | Get enrolled followers | ✅ Real data |
+| DELETE | `/nurturing/{creator_id}/cancel/{follower_id}` | Cancel nurturing for follower | ✅ Works |
+
+**Sequence Configuration Storage:**
+- `data/nurturing/{creator_id}_sequences.json`: is_active, custom steps
+- `data/nurturing/{creator_id}_followups.json`: scheduled follow-ups
+
+---
+
+## 3. Frontend – Dashboard Features
+
+### 3.1 Leads & Kanban (`pages/Leads.tsx`)
+
+**API Integration:**
+- Uses `useConversations()` hook → `GET /dm/conversations/{creator_id}`
+- Uses `useUpdateLeadStatus()` hook → `PUT /dm/follower/{creator_id}/{follower_id}/status`
+- Uses `useCreateManualLead()`, `useUpdateLead()`, `useDeleteLead()` hooks
+
+**Kanban Columns:**
+```typescript
+const columns = [
+  { status: "new", title: "New Leads", color: "bg-muted-foreground" },
+  { status: "active", title: "Active", color: "bg-accent" },
+  { status: "hot", title: "Hot 🔥", color: "bg-destructive" },
+  { status: "customer", title: "Customers ✅", color: "bg-success" },
+];
+```
+
+**Status Mapping (Frontend → Backend):**
+```typescript
+const statusToBackend = {
+  new: "cold",
+  active: "warm",
+  hot: "hot",
+  customer: "customer",
+};
+```
+
+**Features Implemented:**
+- ✅ Drag & drop between columns with optimistic updates
+- ✅ Pipeline score display (25/50/75/100 based on stage)
+- ✅ AI intent score display (0-100)
+- ✅ Add manual lead modal (name, platform, email, phone, notes)
+- ✅ View lead details modal
+- ✅ Edit lead modal (name, email, phone, notes)
+- ✅ Delete lead with confirmation
+- ✅ Platform icons (Instagram, Telegram, WhatsApp)
+
+**How Drag & Drop Works:**
+1. User drags card to new column
+2. `handleDrop()` applies optimistic local update
+3. Calls `updateStatusMutation.mutateAsync()`
+4. Backend updates Lead.status + Lead.purchase_intent
+5. On error, reverts local state
+
+### 3.2 Nurturing Page (`pages/Nurturing.tsx`)
+
+**API Integration:**
+- `useNurturingSequences()` → `GET /nurturing/{creator_id}/sequences`
+- `useNurturingStats()` → `GET /nurturing/{creator_id}/stats`
+- `useToggleNurturingSequence()` → `POST .../toggle`
+- `useUpdateNurturingSequence()` → `PUT .../sequences/{type}`
+- `useCancelNurturing()` → `DELETE .../cancel/{follower_id}`
+
+**Stats Cards (computed from real data):**
+```typescript
+const activeSequences = sequences.filter(s => s.is_active !== false).length;
+const totalEnrolled = sequences.reduce((sum, s) => sum + (s.enrolled_count || 0), 0);
+const totalSent = sequences.reduce((sum, s) => sum + (s.sent_count || 0), 0);
+```
+
+**Features Implemented:**
+- ✅ Display all 8 sequence types with unique icons
+- ✅ Toggle sequences on/off (persists to backend)
+- ✅ Edit sequence steps (delay_hours, message) with modal
+- ✅ Show enrolled users per sequence (expandable accordion)
+- ✅ Cancel nurturing for specific follower
+- ✅ Step delay chips showing hours
+- ✅ Pending/sent counts per sequence
+
+---
+
+## 4. Tests and Reliability
+
+### Test Coverage Summary
+
+**Feature-Specific Tests (ALL PASSING - 18/18):**
+
+| Test File | Tests | Status |
+|-----------|-------|--------|
+| `test_leads_conversations.py` | 1 | ✅ Pass |
+| `test_leads_crud.py` | 3 (1 skipped) | ✅ Pass |
+| `test_kanban_status.py` | 2 | ✅ Pass |
+| `test_pipeline_scoring.py` | 6 | ✅ Pass |
+| `test_nurturing.py` | 7 | ✅ Pass |
+
+**What These Tests Validate:**
+
+1. **test_leads_conversations.py:**
+   - Full lead flow: create → read → update → conversations endpoint includes lead
+
+2. **test_leads_crud.py:**
+   - Create lead with full data (name, email, phone, notes)
+   - Update lead preserves all fields
+   - Lead appears in GET /leads
+
+3. **test_kanban_status.py:**
+   - Status updates work with UUID id
+   - Status updates work with platform_user_id
+
+4. **test_pipeline_scoring.py:**
+   - Pipeline scores: new=25, active=50, hot=75, customer=100
+   - Scores update after status change
+   - purchase_intent_score included in response
+
+5. **test_nurturing.py:**
+   - All 8 default sequences returned with correct structure
+   - Toggle persists is_active state
+   - Step updates persist (delay_hours, message)
+   - Stats include active_sequences count
+   - Enrolled followers endpoint works
+   - Cancel nurturing works
+
+**Other Tests (76 passed, 36 failed):**
+- Failures mostly due to missing `pytest-asyncio` configuration
+- `test_full_flow.py` tests require LLM (Groq) which isn't available in test env
+- `test_intent.py` basic tests pass (pattern matching)
+- `test_instagram.py` webhook verification tests pass
+
+### Not Covered by Tests
+
+1. **DM Agent LLM processing** - Requires real LLM API
+2. **Instagram/Telegram/WhatsApp message sending** - Requires platform APIs
+3. **Memory store persistence** - Basic tests only
+4. **Frontend components** - No Jest/Vitest tests found
+
+---
+
+## 5. Gaps / Mock Areas / Unclear Parts
+
+### ✅ Clearly Implemented and Wired (Production-Ready)
+
+| Feature | Backend | Frontend | Tests |
+|---------|---------|----------|-------|
+| Lead CRUD (create, read, update, delete) | ✅ | ✅ | ✅ |
+| Kanban drag & drop status persistence | ✅ | ✅ | ✅ |
+| Pipeline scoring (25/50/75/100) | ✅ | ✅ | ✅ |
+| Email/phone/notes in leads | ✅ | ✅ | ✅ |
+| Nurturing sequences CRUD | ✅ | ✅ | ✅ |
+| Nurturing toggle/stats | ✅ | ✅ | ✅ |
+| Nurturing enrolled users | ✅ | ✅ | ✅ |
+
+### ⚠️ Partially Implemented
+
+| Feature | Notes |
+|---------|-------|
+| **DM Agent responses** | Intent classification works, but LLM calls require Groq API key. Without LLM, no responses generated. |
+| **Nurturing auto-scheduling** | `should_schedule_nurturing()` and `schedule_followup()` exist but NOT called from `process_dm`. Integration exists but may not trigger automatically. |
+| **Message sending (Instagram/Telegram/WhatsApp)** | Code exists in `core/instagram_handler.py`, `core/telegram_sender.py`, but requires platform tokens. `POST /dm/send` attempts delivery. |
+| **PostgreSQL mode** | All routers support `USE_DB` flag, but fallback to JSON is always available. Dual-mode works but may cause inconsistency. |
+
+### ❌ Mock / Placeholder / Not Wired
+
+| Area | Notes |
+|------|-------|
+| **Scheduled follow-up execution** | `NurturingManager.get_pending_followups()` returns due items, but there's NO background worker/scheduler that polls and sends them. Follow-ups are scheduled but never sent automatically. |
+| **Analytics dashboard metrics** | Some metrics in dashboard may be computed from limited data. |
+| **Revenue/Payments** | `routers/payments.py` exists but appears minimal. |
+
+### ⚠️ From Code, This is Unclear
+
+1. **How are nurturing follow-ups actually sent?**
+   - Follow-ups are scheduled via `schedule_followup()`
+   - `get_pending_followups()` returns due items
+   - BUT: No cron job, background task, or Celery worker found that calls this and sends messages
+   - **Conclusion**: Follow-ups are stored but likely never delivered without manual intervention
+
+2. **When does nurturing get triggered?**
+   - `should_schedule_nurturing(intent)` maps intents to sequences
+   - `_handle_nurturing()` in dm_agent.py (line 1592) schedules follow-ups
+   - BUT: This method is defined but unclear if it's called in the main flow
+   - Looking at `process_dm`, I don't see `_handle_nurturing` being called
+
+3. **PostgreSQL vs JSON consistency**
+   - Both storage modes update, but if PostgreSQL fails, JSON fallback is used
+   - Could lead to data divergence
+
+---
+
+## Summary
+
+**What Works End-to-End:**
+1. ✅ Lead Pipeline (Kanban) with drag & drop → status persists to backend
+2. ✅ Lead CRUD with email/phone/notes → full persistence
+3. ✅ Nurturing sequences UI → toggle, edit steps, view enrolled all work
+4. ✅ Intent classification (pattern-based, no LLM needed)
+
+**What Needs Work:**
+1. ⚠️ Nurturing follow-up delivery (no scheduler/worker)
+2. ⚠️ DM Agent requires LLM API keys to generate responses
+3. ⚠️ Platform integrations require API tokens
+
+**Test Coverage:**
+- Core CRM features: ✅ Well tested (18 tests passing)
+- LLM/Platform integration: ❌ Not testable without credentials
