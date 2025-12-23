@@ -428,6 +428,55 @@ export async function cancelNurturing(
   });
 }
 
+/**
+ * Run nurturing followups (execute pending messages)
+ */
+export interface RunNurturingParams {
+  dueOnly?: boolean;
+  dryRun?: boolean;
+  limit?: number;
+  forceDue?: boolean;
+}
+
+export interface RunNurturingResponse {
+  status: string;
+  creator_id: string;
+  dry_run: boolean;
+  // dry_run=true response
+  would_process?: number;
+  items?: Array<{
+    followup_id: string;
+    follower_id: string;
+    sequence_type: string;
+    step: number;
+    scheduled_at: string;
+    message_preview: string;
+    channel_guess: string;
+  }>;
+  // dry_run=false response
+  processed?: number;
+  sent?: number;
+  simulated?: number;
+  errors?: string[];
+  by_sequence?: Record<string, { processed: number; sent: number; simulated: number; errors: number }>;
+  stats_after?: { pending: number; sent: number; cancelled: number };
+}
+
+export async function runNurturing(
+  creatorId: string = CREATOR_ID,
+  params: RunNurturingParams = {}
+): Promise<RunNurturingResponse> {
+  const queryParams = new URLSearchParams();
+  if (params.dueOnly !== undefined) queryParams.append("due_only", String(params.dueOnly));
+  if (params.dryRun !== undefined) queryParams.append("dry_run", String(params.dryRun));
+  if (params.limit !== undefined) queryParams.append("limit", String(params.limit));
+  if (params.forceDue !== undefined) queryParams.append("force_due", String(params.forceDue));
+
+  return apiFetch(`/nurturing/${creatorId}/run?${queryParams}`, {
+    method: "POST",
+  });
+}
+
 // =============================================================================
 // CONTENT / RAG
 // =============================================================================
@@ -591,6 +640,7 @@ export default {
   updateNurturingSequence,
   getNurturingEnrolled,
   cancelNurturing,
+  runNurturing,
   addContent,
   apiKeys,
   CREATOR_ID,

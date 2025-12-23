@@ -40,9 +40,11 @@ import {
   updateNurturingSequence,
   getNurturingEnrolled,
   cancelNurturing,
+  runNurturing,
   addContent,
   apiKeys,
 } from "@/services/api";
+import type { RunNurturingParams } from "@/services/api";
 import type { CreateLeadData, UpdateLeadData } from "@/services/api";
 import type { Product } from "@/types/api";
 
@@ -366,6 +368,21 @@ export function useCancelNurturing(creatorId: string = CREATOR_ID) {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: apiKeys.nurturingSequences(creatorId) });
       queryClient.invalidateQueries({ queryKey: apiKeys.nurturingStats(creatorId) });
+    },
+  });
+}
+
+/**
+ * Hook to run nurturing followups
+ */
+export function useRunNurturing(creatorId: string = CREATOR_ID) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (params: RunNurturingParams) => runNurturing(creatorId, params),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: apiKeys.nurturingSequences(creatorId) });
+      queryClient.invalidateQueries({ queryKey: apiKeys.nurturingStats(creatorId) });
+      queryClient.invalidateQueries({ queryKey: apiKeys.nurturingFollowups(creatorId) });
     },
   });
 }
