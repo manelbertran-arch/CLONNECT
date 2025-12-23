@@ -15,6 +15,8 @@ BASE_DIR = Path(__file__).resolve().parent.parent.parent
 STORAGE_PATH = BASE_DIR / "data" / "followers"
 
 USE_DB = bool(os.getenv("DATABASE_URL"))
+# If False, raise exception on DB failure. If True, silently fall back to JSON.
+ENABLE_JSON_FALLBACK = os.getenv("ENABLE_JSON_FALLBACK", "false").lower() == "true"
 db_service = None
 if USE_DB:
     try:
@@ -63,7 +65,10 @@ async def get_leads(creator_id: str):
                 adapted = adapt_leads_response(leads)
                 return {"status": "ok", "leads": adapted, "count": len(adapted)}
         except Exception as e:
-            logger.warning(f"DB get leads failed for {creator_id}: {e}")
+            logger.error(f"DB get leads failed for {creator_id}: {e}")
+            if not ENABLE_JSON_FALLBACK:
+                raise HTTPException(status_code=500, detail=f"Database error: {e}")
+            logger.warning(f"[FALLBACK] Returning empty leads for {creator_id}")
     return {"status": "ok", "leads": [], "count": 0}
 
 @router.get("/{creator_id}/{lead_id}")
@@ -74,12 +79,16 @@ async def get_lead(creator_id: str, lead_id: str):
             if lead:
                 return {"status": "ok", "lead": adapt_lead_response(lead)}
         except Exception as e:
-            logger.warning(f"DB get lead failed: {e}")
+            logger.error(f"DB get lead failed: {e}")
+            if not ENABLE_JSON_FALLBACK:
+                raise HTTPException(status_code=500, detail=f"Database error: {e}")
+            logger.warning(f"[FALLBACK] Trying JSON for lead {lead_id}")
 
-    # Fallback to JSON
-    lead_data = _load_lead_json(creator_id, lead_id)
-    if lead_data:
-        return {"status": "ok", "lead": lead_data}
+    # Fallback to JSON (only if ENABLE_JSON_FALLBACK or not using DB)
+    if ENABLE_JSON_FALLBACK or not USE_DB:
+        lead_data = _load_lead_json(creator_id, lead_id)
+        if lead_data:
+            return {"status": "ok", "lead": lead_data}
     raise HTTPException(status_code=404, detail="Lead not found")
 
 @router.post("/{creator_id}")
