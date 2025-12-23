@@ -799,6 +799,54 @@ async def get_message_count(creator_id: str) -> int:
         session.close()
 
 
+def get_messages_by_lead_id(lead_id: str, limit: int = 50) -> list:
+    """Get messages for a specific lead by UUID (sync version for /dm/conversations)"""
+    if not USE_POSTGRES:
+        return []
+    session = get_session()
+    if not session:
+        return []
+    try:
+        from api.models import Message
+        import uuid as uuid_module
+        lead_uuid = uuid_module.UUID(lead_id) if isinstance(lead_id, str) else lead_id
+        messages = session.query(Message).filter(
+            Message.lead_id == lead_uuid
+        ).order_by(Message.created_at.desc()).limit(limit).all()
+        return [
+            {"role": m.role, "content": m.content, "timestamp": str(m.created_at)}
+            for m in reversed(messages)  # Return in chronological order
+        ]
+    except Exception as e:
+        logger.error(f"get_messages_by_lead_id error: {e}")
+        return []
+    finally:
+        session.close()
+
+
+def count_user_messages_by_lead_id(lead_id: str) -> int:
+    """Count user messages for a specific lead by UUID (sync version)"""
+    if not USE_POSTGRES:
+        return 0
+    session = get_session()
+    if not session:
+        return 0
+    try:
+        from api.models import Message
+        import uuid as uuid_module
+        lead_uuid = uuid_module.UUID(lead_id) if isinstance(lead_id, str) else lead_id
+        count = session.query(Message).filter(
+            Message.lead_id == lead_uuid,
+            Message.role == 'user'
+        ).count()
+        return count
+    except Exception as e:
+        logger.error(f"count_user_messages_by_lead_id error: {e}")
+        return 0
+    finally:
+        session.close()
+
+
 # ============================================================
 # CONVERSATION ACTIONS (Archive, Spam, Delete)
 # ============================================================
