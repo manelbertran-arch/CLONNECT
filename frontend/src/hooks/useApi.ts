@@ -30,6 +30,7 @@ import {
   deleteKnowledge,
   getRevenueStats,
   getPurchases,
+  recordPurchase,
   getBookings,
   getCalendarStats,
   getBookingLinks,
@@ -45,7 +46,7 @@ import {
   addContent,
   apiKeys,
 } from "@/services/api";
-import type { RunNurturingParams, CreateBookingLinkData } from "@/services/api";
+import type { RunNurturingParams, CreateBookingLinkData, RecordPurchaseData } from "@/services/api";
 import type { CreateLeadData, UpdateLeadData } from "@/services/api";
 import type { Product } from "@/types/api";
 
@@ -241,6 +242,21 @@ export function usePurchases(creatorId: string = CREATOR_ID) {
     queryFn: () => getPurchases(creatorId),
     staleTime: 30000,
     refetchInterval: 30000,
+  });
+}
+
+/**
+ * Hook to record a purchase
+ */
+export function useRecordPurchase(creatorId: string = CREATOR_ID) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (data: RecordPurchaseData) => recordPurchase(creatorId, data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: apiKeys.purchases(creatorId) });
+      queryClient.invalidateQueries({ queryKey: apiKeys.revenue(creatorId, 30) });
+      queryClient.invalidateQueries({ queryKey: apiKeys.dashboard(creatorId) });
+    },
   });
 }
 

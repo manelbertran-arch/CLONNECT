@@ -311,6 +311,29 @@ export async function getPurchases(
   return apiFetch(`/payments/${creatorId}/purchases?${params}`);
 }
 
+/**
+ * Record a new purchase
+ */
+export interface RecordPurchaseData {
+  product_name: string;
+  amount: number;
+  currency: string;
+  platform: string;
+  status?: string;
+  bot_attributed?: boolean;
+  follower_id?: string;
+}
+
+export async function recordPurchase(
+  creatorId: string = CREATOR_ID,
+  data: RecordPurchaseData
+): Promise<{ status: string; message: string }> {
+  return apiFetch(`/payments/${creatorId}/purchases`, {
+    method: "POST",
+    body: JSON.stringify(data),
+  });
+}
+
 // =============================================================================
 // CALENDAR / BOOKINGS
 // =============================================================================

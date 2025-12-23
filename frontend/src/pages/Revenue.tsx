@@ -1,7 +1,10 @@
-import { TrendingUp, CreditCard, Bot, Loader2, AlertCircle, ArrowUpRight, ArrowDownRight } from "lucide-react";
-import { useRevenue, usePurchases } from "@/hooks/useApi";
+import { useState } from "react";
+import { TrendingUp, CreditCard, Bot, Loader2, AlertCircle, ArrowUpRight, Plus, X } from "lucide-react";
+import { useRevenue, usePurchases, useRecordPurchase } from "@/hooks/useApi";
 import { Progress } from "@/components/ui/progress";
+import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { useToast } from "@/hooks/use-toast";
 
 function formatCurrency(amount: number, currency: string = "EUR"): string {
   return new Intl.NumberFormat("es-ES", {
@@ -22,6 +25,32 @@ function formatDate(dateString: string): string {
 export default function Revenue() {
   const { data: revenueData, isLoading: revenueLoading, error: revenueError } = useRevenue();
   const { data: purchasesData, isLoading: purchasesLoading } = usePurchases();
+  const recordPurchase = useRecordPurchase();
+  const { toast } = useToast();
+
+  const [showRecordForm, setShowRecordForm] = useState(false);
+  const [newPurchase, setNewPurchase] = useState({
+    product_name: "",
+    amount: 97,
+    currency: "EUR",
+    platform: "stripe",
+    bot_attributed: true,
+  });
+
+  const handleRecordPurchase = async () => {
+    if (!newPurchase.product_name) {
+      toast({ title: "Error", description: "Product name is required", variant: "destructive" });
+      return;
+    }
+    try {
+      await recordPurchase.mutateAsync(newPurchase);
+      toast({ title: "Success", description: "Purchase recorded successfully" });
+      setShowRecordForm(false);
+      setNewPurchase({ product_name: "", amount: 97, currency: "EUR", platform: "stripe", bot_attributed: true });
+    } catch (error: any) {
+      toast({ title: "Error", description: error.message || "Failed to record purchase", variant: "destructive" });
+    }
+  };
 
   // Loading state
   if (revenueLoading) {
@@ -169,8 +198,73 @@ export default function Revenue() {
             <Loader2 className="w-6 h-6 animate-spin text-primary" />
           </div>
         ) : purchases.length === 0 ? (
-          <div className="text-center py-8 text-muted-foreground">
-            No transactions yet
+          <div className="text-center py-8">
+            <CreditCard className="w-12 h-12 mx-auto mb-3 opacity-50 text-muted-foreground" />
+            <p className="text-muted-foreground">No transactions yet</p>
+            <p className="text-sm text-muted-foreground mt-2 mb-4">Record your first sale to track revenue</p>
+
+            {showRecordForm ? (
+              <div className="max-w-md mx-auto p-4 rounded-lg border bg-secondary/30 text-left">
+                <div className="flex items-center justify-between mb-3">
+                  <h4 className="font-medium">Record Purchase</h4>
+                  <Button variant="ghost" size="sm" onClick={() => setShowRecordForm(false)}>
+                    <X className="w-4 h-4" />
+                  </Button>
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <input
+                    type="text"
+                    placeholder="Product name"
+                    value={newPurchase.product_name}
+                    onChange={(e) => setNewPurchase(prev => ({ ...prev, product_name: e.target.value }))}
+                    className="px-3 py-2 rounded border bg-background text-sm col-span-2"
+                  />
+                  <input
+                    type="number"
+                    placeholder="Amount"
+                    value={newPurchase.amount}
+                    onChange={(e) => setNewPurchase(prev => ({ ...prev, amount: parseFloat(e.target.value) || 0 }))}
+                    className="px-3 py-2 rounded border bg-background text-sm"
+                  />
+                  <select
+                    value={newPurchase.currency}
+                    onChange={(e) => setNewPurchase(prev => ({ ...prev, currency: e.target.value }))}
+                    className="px-3 py-2 rounded border bg-background text-sm"
+                  >
+                    <option value="EUR">EUR</option>
+                    <option value="USD">USD</option>
+                  </select>
+                  <select
+                    value={newPurchase.platform}
+                    onChange={(e) => setNewPurchase(prev => ({ ...prev, platform: e.target.value }))}
+                    className="px-3 py-2 rounded border bg-background text-sm"
+                  >
+                    <option value="stripe">Stripe</option>
+                    <option value="hotmart">Hotmart</option>
+                    <option value="manual">Manual</option>
+                  </select>
+                  <label className="flex items-center gap-2 text-sm">
+                    <input
+                      type="checkbox"
+                      checked={newPurchase.bot_attributed}
+                      onChange={(e) => setNewPurchase(prev => ({ ...prev, bot_attributed: e.target.checked }))}
+                      className="rounded"
+                    />
+                    Bot attributed
+                  </label>
+                </div>
+                <div className="flex justify-end mt-3">
+                  <Button onClick={handleRecordPurchase} disabled={recordPurchase.isPending}>
+                    {recordPurchase.isPending ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
+                    Record Purchase
+                  </Button>
+                </div>
+              </div>
+            ) : (
+              <Button variant="outline" onClick={() => setShowRecordForm(true)}>
+                <Plus className="w-4 h-4 mr-2" /> Record Purchase
+              </Button>
+            )}
           </div>
         ) : (
           <div className="overflow-x-auto">
