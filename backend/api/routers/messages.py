@@ -312,18 +312,14 @@ async def get_conversations(creator_id: str, limit: int = 50):
                 conversations = []
                 for l in leads[:limit]:
                     follower_id = l.get("platform_user_id", l.get("id"))
-                    # Get message count from JSON as fallback
+                    lead_uuid = l.get("id")
+                    # Get message count and last messages from PostgreSQL
                     msg_count = 0
                     last_messages = []
-                    try:
-                        from api.services.data_sync import _load_json
-                        json_data = _load_json(creator_id, follower_id)
-                        if json_data:
-                            msgs = json_data.get("last_messages", [])
-                            msg_count = len([m for m in msgs if m.get("role") == "user"])
-                            last_messages = msgs[-5:]
-                    except:
-                        pass
+                    if lead_uuid:
+                        msg_count = db_service.count_user_messages_by_lead_id(lead_uuid)
+                        db_msgs = db_service.get_messages_by_lead_id(lead_uuid, limit=10)
+                        last_messages = db_msgs[-5:] if db_msgs else []
                     # Extract email/phone/notes from context (stored as JSON in PostgreSQL)
                     ctx = l.get("context") or {}
                     lead_status = l.get("status", "new")
