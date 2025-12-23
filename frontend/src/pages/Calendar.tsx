@@ -1,6 +1,8 @@
-import { Calendar as CalendarIcon, Clock, Video, Users, CheckCircle2, XCircle, Loader2, AlertCircle, ExternalLink } from "lucide-react";
+import { useState } from "react";
+import { Calendar as CalendarIcon, Clock, Video, Users, CheckCircle2, XCircle, Loader2, AlertCircle, ExternalLink, Plus, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { useCalendarStats, useBookings, useBookingLinks } from "@/hooks/useApi";
+import { useCalendarStats, useBookings, useBookingLinks, useCreateBookingLink } from "@/hooks/useApi";
+import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 
 function formatDate(dateString: string): string {
@@ -35,7 +37,19 @@ const statusIcons: Record<string, React.ReactNode> = {
 export default function Calendar() {
   const { data: statsData, isLoading: statsLoading, error: statsError } = useCalendarStats();
   const { data: bookingsData, isLoading: bookingsLoading } = useBookings(undefined, true);
-  const { data: linksData, isLoading: linksLoading } = useBookingLinks();
+  const { data: linksData, isLoading: linksLoading, refetch: refetchLinks } = useBookingLinks();
+  const createBookingLink = useCreateBookingLink();
+  const { toast } = useToast();
+
+  const [showCreateForm, setShowCreateForm] = useState(false);
+  const [newLink, setNewLink] = useState({
+    meeting_type: "discovery",
+    title: "Discovery Call",
+    url: "",
+    platform: "calendly",
+    duration_minutes: 30,
+    description: "",
+  });
 
   const today = new Date();
   const formattedDate = today.toLocaleDateString("es-ES", {
@@ -44,6 +58,22 @@ export default function Calendar() {
     month: "long",
     day: "numeric",
   });
+
+  const handleCreateLink = async () => {
+    if (!newLink.url) {
+      toast({ title: "Error", description: "URL is required", variant: "destructive" });
+      return;
+    }
+    try {
+      await createBookingLink.mutateAsync(newLink);
+      toast({ title: "Success", description: "Booking link created" });
+      setShowCreateForm(false);
+      setNewLink({ meeting_type: "discovery", title: "Discovery Call", url: "", platform: "calendly", duration_minutes: 30, description: "" });
+      refetchLinks();
+    } catch (error: any) {
+      toast({ title: "Error", description: error.message || "Failed to create link", variant: "destructive" });
+    }
+  };
 
   // Loading state
   if (statsLoading) {
@@ -204,7 +234,70 @@ export default function Calendar() {
 
       {/* Booking Links */}
       <div className="metric-card">
-        <h3 className="font-semibold mb-4">Your Booking Links</h3>
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="font-semibold">Your Booking Links</h3>
+          <Button size="sm" variant="outline" onClick={() => setShowCreateForm(true)}>
+            <Plus className="w-4 h-4 mr-1" /> Add Link
+          </Button>
+        </div>
+
+        {/* Create Form */}
+        {showCreateForm && (
+          <div className="mb-4 p-4 rounded-lg border bg-secondary/30">
+            <div className="flex items-center justify-between mb-3">
+              <h4 className="font-medium">Add Booking Link</h4>
+              <Button variant="ghost" size="sm" onClick={() => setShowCreateForm(false)}>
+                <X className="w-4 h-4" />
+              </Button>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <input
+                type="text"
+                placeholder="Title (e.g. Discovery Call)"
+                value={newLink.title}
+                onChange={(e) => setNewLink(prev => ({ ...prev, title: e.target.value }))}
+                className="px-3 py-2 rounded border bg-background text-sm"
+              />
+              <input
+                type="text"
+                placeholder="Meeting Type (e.g. discovery)"
+                value={newLink.meeting_type}
+                onChange={(e) => setNewLink(prev => ({ ...prev, meeting_type: e.target.value }))}
+                className="px-3 py-2 rounded border bg-background text-sm"
+              />
+              <input
+                type="url"
+                placeholder="Calendly/Cal.com URL"
+                value={newLink.url}
+                onChange={(e) => setNewLink(prev => ({ ...prev, url: e.target.value }))}
+                className="px-3 py-2 rounded border bg-background text-sm col-span-2"
+              />
+              <select
+                value={newLink.platform}
+                onChange={(e) => setNewLink(prev => ({ ...prev, platform: e.target.value }))}
+                className="px-3 py-2 rounded border bg-background text-sm"
+              >
+                <option value="calendly">Calendly</option>
+                <option value="cal.com">Cal.com</option>
+                <option value="other">Other</option>
+              </select>
+              <input
+                type="number"
+                placeholder="Duration (minutes)"
+                value={newLink.duration_minutes}
+                onChange={(e) => setNewLink(prev => ({ ...prev, duration_minutes: parseInt(e.target.value) || 30 }))}
+                className="px-3 py-2 rounded border bg-background text-sm"
+              />
+            </div>
+            <div className="flex justify-end mt-3">
+              <Button onClick={handleCreateLink} disabled={createBookingLink.isPending}>
+                {createBookingLink.isPending ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
+                Create Link
+              </Button>
+            </div>
+          </div>
+        )}
+
         {linksLoading ? (
           <div className="flex justify-center py-8">
             <Loader2 className="w-6 h-6 animate-spin text-primary" />
@@ -213,7 +306,10 @@ export default function Calendar() {
           <div className="text-center py-8 text-muted-foreground">
             <Video className="w-12 h-12 mx-auto mb-3 opacity-50" />
             <p>No booking links configured</p>
-            <p className="text-sm mt-2">Connect Calendly or Cal.com in Settings</p>
+            <p className="text-sm mt-2 mb-4">Add your Calendly or Cal.com links</p>
+            <Button variant="outline" onClick={() => setShowCreateForm(true)}>
+              <Plus className="w-4 h-4 mr-2" /> Create Booking Link
+            </Button>
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
