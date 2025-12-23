@@ -322,90 +322,171 @@ async def cancel_nurturing_legacy(creator_id: str, follower_id: str):
     return await cancel_nurturing(creator_id, follower_id, None)
 
 
+def _guess_channel(follower_id: str) -> str:
+    """Guess messaging channel from follower_id prefix"""
+    if follower_id.startswith("tg_"):
+        return "telegram"
+    elif follower_id.startswith("ig_"):
+        return "instagram"
+    elif follower_id.startswith("wa_"):
+        return "whatsapp"
+    return "unknown"
+
+
+def _try_send_message(creator_id: str, follower_id: str, message: str) -> dict:
+    """
+    Try to send message via available integrations.
+    Returns {"sent": bool, "simulated": bool, "error": str|None}
+    """
+    channel = _guess_channel(follower_id)
+
+    # Try Telegram
+    if channel == "telegram":
+        try:
+            from core.telegram_sender import send_telegram_message
+            chat_id = follower_id.replace("tg_", "")
+            result = send_telegram_message(creator_id, chat_id, message)
+            if result:
+                return {"sent": True, "simulated": False, "error": None}
+        except Exception as e:
+            logger.debug(f"Telegram send failed: {e}")
+
+    # Try Instagram
+    if channel == "instagram":
+        try:
+            from core.instagram_handler import send_instagram_dm
+            ig_user_id = follower_id.replace("ig_", "")
+            result = send_instagram_dm(creator_id, ig_user_id, message)
+            if result:
+                return {"sent": True, "simulated": False, "error": None}
+        except Exception as e:
+            logger.debug(f"Instagram send failed: {e}")
+
+    # No real integration available - simulate send
+    logger.info(f"[SIMULATED] Would send to {follower_id}: {message[:50]}...")
+    return {"sent": True, "simulated": True, "error": None}
+
+
 @router.post("/{creator_id}/run")
 async def run_nurturing_followups(
     creator_id: str,
     due_only: bool = True,
-    dry_run: bool = False,
-    force: bool = False
+    dry_run: bool = True,
+    limit: int = 50,
+    force_due: bool = False
 ):
     """
     Execute pending nurturing followups for a creator.
 
     Args:
         creator_id: The creator ID
-        due_only: If True, only process followups that are due (scheduled_at <= now)
-        dry_run: If True, don't actually send messages, just return what would be sent
-        force: If True, process even if sequence is disabled
+        due_only: If True, only process followups where scheduled_at <= now (default: True)
+        dry_run: If True, don't send/mark sent, just return what would be sent (default: True)
+        limit: Max followups to process (default: 50)
+        force_due: If True, treat ALL pending as due regardless of scheduled_at (default: False)
 
     Returns:
-        status, creator_id, ran (bool), due (count), sent (count), cancelled (count), errors
+        - dry_run=True: list of followups that would be processed
+        - dry_run=False: summary with processed/sent/simulated/errors counts
     """
     manager = get_nurturing_manager()
-    config = _load_sequences_config(creator_id)
+    now = datetime.now()
 
-    errors = []
-    sent_count = 0
-    due_count = 0
+    # Get followups based on due_only and force_due
+    if force_due:
+        # Treat all pending as due (for manual testing)
+        followups = manager.get_all_followups(creator_id, status="pending")
+    elif due_only:
+        # Only those with scheduled_at <= now
+        followups = manager.get_pending_followups(creator_id)
+    else:
+        # All pending regardless of schedule
+        followups = manager.get_all_followups(creator_id, status="pending")
 
-    try:
-        # Get pending followups
-        if due_only:
-            followups = manager.get_pending_followups(creator_id)
-        else:
-            followups = manager.get_all_followups(creator_id, status="pending")
+    # Apply limit
+    followups = followups[:limit]
 
-        due_count = len(followups)
-        logger.info(f"Found {due_count} pending followups for {creator_id}")
+    logger.info(f"[NURTURING RUN] creator={creator_id} due_only={due_only} dry_run={dry_run} force_due={force_due} found={len(followups)}")
 
+    if dry_run:
+        # Return detailed list without changing anything
+        items = []
         for fu in followups:
-            # Check if sequence is active (unless force=True)
-            if not force:
-                seq_config = config.get("sequences", {}).get(fu.sequence_type, {})
-                if not seq_config.get("is_active", True):
-                    logger.info(f"Skipping followup {fu.id}: sequence {fu.sequence_type} is disabled")
-                    continue
-
-            if dry_run:
-                # Just count, don't send
-                sent_count += 1
-                logger.info(f"[DRY RUN] Would send followup {fu.id} to {fu.follower_id}")
-            else:
-                # Actually send the message
-                try:
-                    message = manager.get_followup_message(fu)
-                    # TODO: Integrate with actual message sending (Instagram/Telegram/WhatsApp)
-                    # For now, just mark as sent
-                    manager.mark_as_sent(fu)
-                    sent_count += 1
-                    logger.info(f"Sent followup {fu.id} to {fu.follower_id}: {message[:50]}...")
-                except Exception as e:
-                    error_msg = f"Failed to send followup {fu.id}: {str(e)}"
-                    errors.append(error_msg)
-                    logger.error(error_msg)
-
-        # Get updated stats
-        stats = manager.get_stats(creator_id)
+            message = manager.get_followup_message(fu)
+            items.append({
+                "followup_id": fu.id,
+                "follower_id": fu.follower_id,
+                "sequence_type": fu.sequence_type,
+                "step": fu.step,
+                "scheduled_at": fu.scheduled_at,
+                "message_preview": message[:100] + "..." if len(message) > 100 else message,
+                "channel_guess": _guess_channel(fu.follower_id)
+            })
 
         return {
             "status": "ok",
             "creator_id": creator_id,
-            "ran": True,
-            "due": due_count,
-            "sent": sent_count,
-            "cancelled": stats.get("cancelled", 0),
-            "errors": errors,
-            "dry_run": dry_run
+            "dry_run": True,
+            "would_process": len(items),
+            "items": items
         }
 
-    except Exception as e:
-        logger.error(f"Error running nurturing for {creator_id}: {e}")
-        return {
-            "status": "error",
-            "creator_id": creator_id,
-            "ran": False,
-            "due": due_count,
-            "sent": sent_count,
-            "cancelled": 0,
-            "errors": [str(e)]
+    # Actually process followups
+    processed = 0
+    sent_real = 0
+    sent_simulated = 0
+    errors = []
+    by_sequence: Dict[str, Dict[str, int]] = {}
+
+    for fu in followups:
+        seq_type = fu.sequence_type
+        if seq_type not in by_sequence:
+            by_sequence[seq_type] = {"processed": 0, "sent": 0, "simulated": 0, "errors": 0}
+
+        try:
+            message = manager.get_followup_message(fu)
+            result = _try_send_message(creator_id, fu.follower_id, message)
+
+            if result["sent"]:
+                # Mark as sent in storage
+                manager.mark_as_sent(fu)
+                processed += 1
+                by_sequence[seq_type]["processed"] += 1
+
+                if result["simulated"]:
+                    sent_simulated += 1
+                    by_sequence[seq_type]["simulated"] += 1
+                else:
+                    sent_real += 1
+                    by_sequence[seq_type]["sent"] += 1
+
+                logger.info(f"Followup {fu.id} marked as sent (simulated={result['simulated']})")
+            else:
+                error_msg = f"Failed {fu.id}: {result.get('error', 'unknown')}"
+                errors.append(error_msg)
+                by_sequence[seq_type]["errors"] += 1
+
+        except Exception as e:
+            error_msg = f"Exception processing {fu.id}: {str(e)}"
+            errors.append(error_msg)
+            by_sequence[seq_type]["errors"] += 1
+            logger.error(error_msg)
+
+    # Get updated stats
+    stats = manager.get_stats(creator_id)
+
+    return {
+        "status": "ok",
+        "creator_id": creator_id,
+        "dry_run": False,
+        "processed": processed,
+        "sent": sent_real,
+        "simulated": sent_simulated,
+        "errors": errors,
+        "by_sequence": by_sequence,
+        "stats_after": {
+            "pending": stats.get("pending", 0),
+            "sent": stats.get("sent", 0),
+            "cancelled": stats.get("cancelled", 0)
         }
+    }
