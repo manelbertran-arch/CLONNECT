@@ -66,7 +66,6 @@ const connectionConfigs: ConnectionConfig[] = [
     icon: "💳",
     description: "Track payments automatically",
     oauth: true,
-    comingSoon: true,  // Needs Stripe Connect setup
   },
   {
     key: "paypal",
