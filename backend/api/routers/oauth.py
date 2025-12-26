@@ -58,25 +58,41 @@ async def instagram_oauth_start(creator_id: str):
     # Store state for CSRF protection
     state = f"{creator_id}:{secrets.token_urlsafe(16)}"
 
+    # Instagram Business scopes - some require App Review
+    # For testing: add yourself as Tester in App Roles
     params = {
         "client_id": META_APP_ID,
         "redirect_uri": META_REDIRECT_URI,
-        "scope": "instagram_basic,instagram_manage_messages,pages_messaging,pages_show_list",
+        "scope": "public_profile,pages_show_list,pages_read_engagement,instagram_business_basic,instagram_business_manage_messages",
         "response_type": "code",
         "state": state,
     }
 
-    auth_url = f"https://www.facebook.com/v18.0/dialog/oauth?{urlencode(params)}"
+    auth_url = f"https://www.facebook.com/v21.0/dialog/oauth?{urlencode(params)}"
     return {"auth_url": auth_url, "state": state}
 
 
 @router.get("/instagram/callback")
-async def instagram_oauth_callback(code: str = Query(...), state: str = Query("")):
+async def instagram_oauth_callback(
+    code: str = Query(None),
+    state: str = Query(""),
+    error_code: str = Query(None),
+    error_message: str = Query(None)
+):
     """Handle Instagram OAuth callback"""
     import httpx
 
+    # Handle OAuth errors (like invalid scopes)
+    if error_code or error_message:
+        logger.error(f"Instagram OAuth error: {error_code} - {error_message}")
+        return RedirectResponse(f"{FRONTEND_URL}/settings?tab=connections&error=instagram_scope_error")
+
+    if not code:
+        logger.error("Instagram OAuth: No code received")
+        return RedirectResponse(f"{FRONTEND_URL}/settings?tab=connections&error=instagram_no_code")
+
     if not META_APP_ID or not META_APP_SECRET:
-        raise HTTPException(status_code=500, detail="Meta credentials not configured")
+        return RedirectResponse(f"{FRONTEND_URL}/settings?tab=connections&error=instagram_not_configured")
 
     # Extract creator_id from state
     creator_id = state.split(":")[0] if ":" in state else "manel"
@@ -85,7 +101,7 @@ async def instagram_oauth_callback(code: str = Query(...), state: str = Query(""
         async with httpx.AsyncClient() as client:
             # Exchange code for access token
             token_response = await client.get(
-                "https://graph.facebook.com/v18.0/oauth/access_token",
+                "https://graph.facebook.com/v21.0/oauth/access_token",
                 params={
                     "client_id": META_APP_ID,
                     "client_secret": META_APP_SECRET,
