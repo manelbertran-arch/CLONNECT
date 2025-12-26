@@ -11,15 +11,80 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Switch } from "@/components/ui/switch";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
-import { useCreatorConfig, useProducts, useUpdateConfig, useAddProduct, useUpdateProduct, useDeleteProduct, useAddContent, useKnowledge, useDeleteKnowledge } from "@/hooks/useApi";
+import { useCreatorConfig, useProducts, useUpdateConfig, useAddProduct, useUpdateProduct, useDeleteProduct, useAddContent, useKnowledge, useDeleteKnowledge, useConnections, useUpdateConnection, useDisconnectPlatform } from "@/hooks/useApi";
 import { useToast } from "@/hooks/use-toast";
 import type { Product } from "@/types/api";
 
-const connections = [
-  { name: "Instagram", connected: true, username: "@manel_creator", icon: "📸" },
-  { name: "Stripe", connected: true, username: "manel@example.com", icon: "💳" },
-  { name: "Hotmart", connected: false, username: null, icon: "🎓" },
-  { name: "Calendly", connected: true, username: "manel@example.com", icon: "📅" },
+interface ConnectionConfig {
+  key: string;
+  name: string;
+  icon: string;
+  description: string;
+  fields: Array<{
+    name: string;
+    label: string;
+    placeholder: string;
+    type: "token" | "page_id" | "phone_id";
+  }>;
+}
+
+const connectionConfigs: ConnectionConfig[] = [
+  {
+    key: "instagram",
+    name: "Instagram",
+    icon: "📸",
+    description: "Connect your Instagram account to receive and send DMs",
+    fields: [
+      { name: "token", label: "Access Token", placeholder: "EAAxxxxxxx...", type: "token" },
+      { name: "page_id", label: "Page ID", placeholder: "17841400...", type: "page_id" },
+    ],
+  },
+  {
+    key: "telegram",
+    name: "Telegram",
+    icon: "✈️",
+    description: "Connect your Telegram bot to handle messages",
+    fields: [
+      { name: "token", label: "Bot Token", placeholder: "123456:ABC-DEF...", type: "token" },
+    ],
+  },
+  {
+    key: "whatsapp",
+    name: "WhatsApp",
+    icon: "💬",
+    description: "Connect WhatsApp Business API",
+    fields: [
+      { name: "token", label: "Access Token", placeholder: "EAAxxxxxxx...", type: "token" },
+      { name: "phone_id", label: "Phone Number ID", placeholder: "1234567890...", type: "phone_id" },
+    ],
+  },
+  {
+    key: "stripe",
+    name: "Stripe",
+    icon: "💳",
+    description: "Connect Stripe to track payments",
+    fields: [
+      { name: "token", label: "Secret Key", placeholder: "sk_live_xxx...", type: "token" },
+    ],
+  },
+  {
+    key: "hotmart",
+    name: "Hotmart",
+    icon: "🎓",
+    description: "Connect Hotmart for course sales",
+    fields: [
+      { name: "token", label: "API Token", placeholder: "Your Hotmart token...", type: "token" },
+    ],
+  },
+  {
+    key: "calendly",
+    name: "Calendly",
+    icon: "📅",
+    description: "Connect Calendly for booking links",
+    fields: [
+      { name: "token", label: "Personal Access Token", placeholder: "Your Calendly token...", type: "token" },
+    ],
+  },
 ];
 
 interface ProductFormData {
@@ -58,10 +123,17 @@ export default function Settings() {
   const addContentMutation = useAddContent();
   const { data: knowledgeData, isLoading: knowledgeLoading } = useKnowledge();
   const deleteKnowledgeMutation = useDeleteKnowledge();
+  const { data: connectionsData, isLoading: connectionsLoading } = useConnections();
+  const updateConnectionMutation = useUpdateConnection();
+  const disconnectMutation = useDisconnectPlatform();
   const { toast } = useToast();
 
   // Extract config from response
   const config = configData?.config;
+
+  // Connection form state
+  const [editingConnection, setEditingConnection] = useState<string | null>(null);
+  const [connectionForm, setConnectionForm] = useState<Record<string, string>>({});
 
   // Local form state
   const [botName, setBotName] = useState("");
@@ -376,32 +448,134 @@ export default function Settings() {
         {/* Connections Tab */}
         <TabsContent value="connections" className="animate-fade-in">
           <div className="space-y-4">
-            {connections.map((connection) => (
-              <div
-                key={connection.name}
-                className="metric-card flex items-center justify-between"
-              >
-                <div className="flex items-center gap-4">
-                  <span className="text-2xl">{connection.icon}</span>
-                  <div>
-                    <p className="font-semibold">{connection.name}</p>
-                    <p className="text-sm text-muted-foreground">
-                      {connection.connected ? connection.username : "Not connected"}
-                    </p>
-                  </div>
-                </div>
-                <Button
-                  variant={connection.connected ? "outline" : "default"}
-                  className={cn(
-                    connection.connected
-                      ? "border-success/50 text-success hover:bg-success/10"
-                      : "bg-gradient-to-r from-primary to-accent hover:opacity-90"
-                  )}
-                >
-                  {connection.connected ? "Connected" : "Connect"}
-                </Button>
+            {connectionsLoading ? (
+              <div className="flex justify-center py-8">
+                <Loader2 className="w-6 h-6 animate-spin text-primary" />
               </div>
-            ))}
+            ) : (
+              connectionConfigs.map((conn) => {
+                const status = connectionsData?.[conn.key as keyof typeof connectionsData];
+                const isConnected = status?.connected || false;
+                const isEditing = editingConnection === conn.key;
+
+                return (
+                  <div key={conn.key} className="metric-card">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-4">
+                        <span className="text-2xl">{conn.icon}</span>
+                        <div>
+                          <p className="font-semibold">{conn.name}</p>
+                          <p className="text-sm text-muted-foreground">
+                            {isConnected
+                              ? status?.username || `Token: ${status?.masked_token || "****"}`
+                              : conn.description}
+                          </p>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        {isConnected && !isEditing && (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => {
+                              disconnectMutation.mutate(conn.key, {
+                                onSuccess: () => {
+                                  toast({ title: `${conn.name} disconnected` });
+                                },
+                              });
+                            }}
+                            disabled={disconnectMutation.isPending}
+                            className="text-destructive hover:bg-destructive/10"
+                          >
+                            Disconnect
+                          </Button>
+                        )}
+                        <Button
+                          variant={isConnected ? "outline" : "default"}
+                          size="sm"
+                          onClick={() => {
+                            if (isEditing) {
+                              setEditingConnection(null);
+                              setConnectionForm({});
+                            } else {
+                              setEditingConnection(conn.key);
+                              setConnectionForm({});
+                            }
+                          }}
+                          className={cn(
+                            isConnected && !isEditing
+                              ? "border-success/50 text-success hover:bg-success/10"
+                              : ""
+                          )}
+                        >
+                          {isEditing ? "Cancel" : isConnected ? "Connected ✓" : "Connect"}
+                        </Button>
+                      </div>
+                    </div>
+
+                    {/* Connection Form */}
+                    {isEditing && (
+                      <div className="mt-4 pt-4 border-t border-border space-y-4">
+                        {conn.fields.map((field) => (
+                          <div key={field.name} className="space-y-2">
+                            <Label htmlFor={`${conn.key}-${field.name}`}>{field.label}</Label>
+                            <Input
+                              id={`${conn.key}-${field.name}`}
+                              type="password"
+                              placeholder={field.placeholder}
+                              value={connectionForm[field.type] || ""}
+                              onChange={(e) =>
+                                setConnectionForm((prev) => ({
+                                  ...prev,
+                                  [field.type]: e.target.value,
+                                }))
+                              }
+                            />
+                          </div>
+                        ))}
+                        <Button
+                          className="w-full"
+                          onClick={async () => {
+                            try {
+                              await updateConnectionMutation.mutateAsync({
+                                platform: conn.key,
+                                data: connectionForm,
+                              });
+                              toast({
+                                title: `${conn.name} connected`,
+                                description: "Connection saved successfully.",
+                              });
+                              setEditingConnection(null);
+                              setConnectionForm({});
+                              // Redirect to home after connecting
+                              await queryClient.invalidateQueries({ queryKey: ["onboarding"] });
+                              navigate("/");
+                            } catch (error) {
+                              toast({
+                                title: "Connection failed",
+                                description: error instanceof Error ? error.message : "Failed to connect",
+                                variant: "destructive",
+                              });
+                            }
+                          }}
+                          disabled={
+                            updateConnectionMutation.isPending ||
+                            !conn.fields.some((f) => connectionForm[f.type])
+                          }
+                        >
+                          {updateConnectionMutation.isPending ? (
+                            <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                          ) : (
+                            <Save className="w-4 h-4 mr-2" />
+                          )}
+                          Save Connection
+                        </Button>
+                      </div>
+                    )}
+                  </div>
+                );
+              })
+            )}
           </div>
         </TabsContent>
 

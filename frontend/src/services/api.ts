@@ -655,7 +655,59 @@ export const apiKeys = {
   nurturingStats: (creatorId: string) => ["nurturingStats", creatorId] as const,
   nurturingFollowups: (creatorId: string) => ["nurturingFollowups", creatorId] as const,
   knowledge: (creatorId: string) => ["knowledge", creatorId] as const,
+  connections: (creatorId: string) => ["connections", creatorId] as const,
 };
+
+// =============================================================================
+// CONNECTIONS
+// =============================================================================
+
+export interface ConnectionStatus {
+  connected: boolean;
+  username?: string;
+  masked_token?: string;
+}
+
+export interface AllConnections {
+  instagram: ConnectionStatus;
+  telegram: ConnectionStatus;
+  whatsapp: ConnectionStatus;
+  stripe: ConnectionStatus;
+  hotmart: ConnectionStatus;
+  calendly: ConnectionStatus;
+}
+
+export interface UpdateConnectionData {
+  token?: string;
+  page_id?: string;
+  phone_id?: string;
+}
+
+export async function getConnections(
+  creatorId: string = CREATOR_ID
+): Promise<AllConnections> {
+  return apiFetch(`/connections/${creatorId}`);
+}
+
+export async function updateConnection(
+  creatorId: string = CREATOR_ID,
+  platform: string,
+  data: UpdateConnectionData
+): Promise<{ status: string; platform: string }> {
+  return apiFetch(`/connections/${creatorId}/${platform}`, {
+    method: "POST",
+    body: JSON.stringify(data),
+  });
+}
+
+export async function disconnectPlatform(
+  creatorId: string = CREATOR_ID,
+  platform: string
+): Promise<{ status: string; platform: string }> {
+  return apiFetch(`/connections/${creatorId}/${platform}`, {
+    method: "DELETE",
+  });
+}
 
 // Default export for convenience
 export default {
