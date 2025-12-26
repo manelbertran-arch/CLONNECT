@@ -140,7 +140,7 @@ async def instagram_oauth_callback(code: str = Query(...), state: str = Query(""
 
 @router.get("/stripe/start")
 async def stripe_oauth_start(creator_id: str):
-    """Start Stripe Connect OAuth flow"""
+    """Start Stripe Connect OAuth flow - using Express for simpler onboarding"""
     # Read env vars dynamically to pick up changes without restart
     stripe_client_id = os.getenv("STRIPE_CLIENT_ID", "").strip()
     stripe_redirect_uri = os.getenv("STRIPE_REDIRECT_URI", f"{API_URL}/oauth/stripe/callback")
@@ -160,8 +160,9 @@ async def stripe_oauth_start(creator_id: str):
         "state": state,
     }
 
-    auth_url = f"https://connect.stripe.com/oauth/authorize?{urlencode(params)}"
-    logger.info(f"Stripe OAuth URL generated with redirect: {stripe_redirect_uri}")
+    # Use Express OAuth - simpler flow like ManyChat uses
+    auth_url = f"https://connect.stripe.com/express/oauth/authorize?{urlencode(params)}"
+    logger.info(f"Stripe Express OAuth URL generated with redirect: {stripe_redirect_uri}")
     return {"auth_url": auth_url, "state": state}
 
 
