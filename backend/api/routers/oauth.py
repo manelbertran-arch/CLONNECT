@@ -14,13 +14,15 @@ router = APIRouter(prefix="/oauth", tags=["oauth"])
 
 # Frontend URL for redirects after OAuth
 FRONTEND_URL = os.getenv("FRONTEND_URL", "https://clonnect.vercel.app")
+# Backend API URL for OAuth callbacks
+API_URL = os.getenv("API_URL", "https://api-clonnect.up.railway.app")
 
 # =============================================================================
 # INSTAGRAM / META
 # =============================================================================
 META_APP_ID = os.getenv("META_APP_ID", "")
 META_APP_SECRET = os.getenv("META_APP_SECRET", "")
-META_REDIRECT_URI = os.getenv("META_REDIRECT_URI", f"{FRONTEND_URL}/auth/callback/instagram")
+META_REDIRECT_URI = os.getenv("META_REDIRECT_URI", f"{API_URL}/oauth/instagram/callback")
 
 @router.get("/instagram/start")
 async def instagram_oauth_start(creator_id: str):
@@ -110,7 +112,7 @@ async def instagram_oauth_callback(code: str = Query(...), state: str = Query(""
 # =============================================================================
 STRIPE_CLIENT_ID = os.getenv("STRIPE_CLIENT_ID", "")
 STRIPE_SECRET_KEY = os.getenv("STRIPE_SECRET_KEY", "")
-STRIPE_REDIRECT_URI = os.getenv("STRIPE_REDIRECT_URI", f"{FRONTEND_URL}/auth/callback/stripe")
+STRIPE_REDIRECT_URI = os.getenv("STRIPE_REDIRECT_URI", f"{API_URL}/oauth/stripe/callback")
 
 @router.get("/stripe/start")
 async def stripe_oauth_start(creator_id: str):
@@ -177,7 +179,7 @@ async def stripe_oauth_callback(code: str = Query(...), state: str = Query("")):
 # =============================================================================
 PAYPAL_CLIENT_ID = os.getenv("PAYPAL_CLIENT_ID", "")
 PAYPAL_CLIENT_SECRET = os.getenv("PAYPAL_CLIENT_SECRET", "")
-PAYPAL_REDIRECT_URI = os.getenv("PAYPAL_REDIRECT_URI", f"{FRONTEND_URL}/auth/callback/paypal")
+PAYPAL_REDIRECT_URI = os.getenv("PAYPAL_REDIRECT_URI", f"{API_URL}/oauth/paypal/callback")
 PAYPAL_MODE = os.getenv("PAYPAL_MODE", "sandbox")  # sandbox or live
 
 @router.get("/paypal/start")
@@ -264,7 +266,7 @@ async def paypal_oauth_callback(code: str = Query(...), state: str = Query("")):
 # =============================================================================
 CALENDLY_CLIENT_ID = os.getenv("CALENDLY_CLIENT_ID", "")
 CALENDLY_CLIENT_SECRET = os.getenv("CALENDLY_CLIENT_SECRET", "")
-CALENDLY_REDIRECT_URI = os.getenv("CALENDLY_REDIRECT_URI", f"{FRONTEND_URL}/auth/callback/calendly")
+CALENDLY_REDIRECT_URI = os.getenv("CALENDLY_REDIRECT_URI", f"{API_URL}/oauth/calendly/callback")
 
 @router.get("/calendly/start")
 async def calendly_oauth_start(creator_id: str):
