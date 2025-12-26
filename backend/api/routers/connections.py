@@ -23,6 +23,7 @@ class AllConnections(BaseModel):
     telegram: ConnectionStatus
     whatsapp: ConnectionStatus
     stripe: ConnectionStatus
+    paypal: ConnectionStatus
     hotmart: ConnectionStatus
     calendly: ConnectionStatus
 
@@ -50,6 +51,7 @@ async def get_connections(creator_id: str) -> AllConnections:
         telegram=ConnectionStatus(connected=False),
         whatsapp=ConnectionStatus(connected=False),
         stripe=ConnectionStatus(connected=False),
+        paypal=ConnectionStatus(connected=False),
         hotmart=ConnectionStatus(connected=False),
         calendly=ConnectionStatus(connected=False)
     )
@@ -84,8 +86,13 @@ async def get_connections(creator_id: str) -> AllConnections:
                     ),
                     stripe=ConnectionStatus(
                         connected=bool(creator.stripe_api_key and len(creator.stripe_api_key) > 10),
-                        username="API Key configured" if creator.stripe_api_key else None,
+                        username="Stripe Connected" if creator.stripe_api_key else None,
                         masked_token=mask_token(creator.stripe_api_key)
+                    ),
+                    paypal=ConnectionStatus(
+                        connected=bool(getattr(creator, 'paypal_token', None) and len(getattr(creator, 'paypal_token', '') or '') > 10),
+                        username=getattr(creator, 'paypal_email', None) if getattr(creator, 'paypal_token', None) else None,
+                        masked_token=mask_token(getattr(creator, 'paypal_token', None))
                     ),
                     hotmart=ConnectionStatus(
                         connected=bool(creator.hotmart_token and len(creator.hotmart_token) > 10),

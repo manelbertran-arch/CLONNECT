@@ -12,6 +12,7 @@ import { Switch } from "@/components/ui/switch";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
 import { useCreatorConfig, useProducts, useUpdateConfig, useAddProduct, useUpdateProduct, useDeleteProduct, useAddContent, useKnowledge, useDeleteKnowledge, useConnections, useUpdateConnection, useDisconnectPlatform } from "@/hooks/useApi";
+import { startOAuth } from "@/services/api";
 import { useToast } from "@/hooks/use-toast";
 import type { Product } from "@/types/api";
 
@@ -20,7 +21,9 @@ interface ConnectionConfig {
   name: string;
   icon: string;
   description: string;
-  fields: Array<{
+  oauth: boolean;  // true = OAuth flow, false = manual token
+  oauthHelp?: string;  // Help text for manual entry
+  fields?: Array<{
     name: string;
     label: string;
     placeholder: string;
@@ -34,16 +37,15 @@ const connectionConfigs: ConnectionConfig[] = [
     name: "Instagram",
     icon: "📸",
     description: "Connect your Instagram account to receive and send DMs",
-    fields: [
-      { name: "token", label: "Access Token", placeholder: "EAAxxxxxxx...", type: "token" },
-      { name: "page_id", label: "Page ID", placeholder: "17841400...", type: "page_id" },
-    ],
+    oauth: true,
   },
   {
     key: "telegram",
     name: "Telegram",
     icon: "✈️",
     description: "Connect your Telegram bot to handle messages",
+    oauth: false,
+    oauthHelp: "1. Open @BotFather in Telegram\n2. Send /newbot\n3. Copy the token",
     fields: [
       { name: "token", label: "Bot Token", placeholder: "123456:ABC-DEF...", type: "token" },
     ],
@@ -53,37 +55,28 @@ const connectionConfigs: ConnectionConfig[] = [
     name: "WhatsApp",
     icon: "💬",
     description: "Connect WhatsApp Business API",
-    fields: [
-      { name: "token", label: "Access Token", placeholder: "EAAxxxxxxx...", type: "token" },
-      { name: "phone_id", label: "Phone Number ID", placeholder: "1234567890...", type: "phone_id" },
-    ],
+    oauth: true,
   },
   {
     key: "stripe",
     name: "Stripe",
     icon: "💳",
     description: "Connect Stripe to track payments",
-    fields: [
-      { name: "token", label: "Secret Key", placeholder: "sk_live_xxx...", type: "token" },
-    ],
+    oauth: true,
   },
   {
-    key: "hotmart",
-    name: "Hotmart",
-    icon: "🎓",
-    description: "Connect Hotmart for course sales",
-    fields: [
-      { name: "token", label: "API Token", placeholder: "Your Hotmart token...", type: "token" },
-    ],
+    key: "paypal",
+    name: "PayPal",
+    icon: "🅿️",
+    description: "Connect PayPal to track payments",
+    oauth: true,
   },
   {
     key: "calendly",
     name: "Calendly",
     icon: "📅",
     description: "Connect Calendly for booking links",
-    fields: [
-      { name: "token", label: "Personal Access Token", placeholder: "Your Calendly token...", type: "token" },
-    ],
+    oauth: true,
   },
 ];
 
@@ -458,6 +451,20 @@ export default function Settings() {
                 const isConnected = status?.connected || false;
                 const isEditing = editingConnection === conn.key;
 
+                const handleOAuthConnect = async () => {
+                  try {
+                    const response = await startOAuth(conn.key);
+                    // Redirect to OAuth provider
+                    window.location.href = response.auth_url;
+                  } catch (error) {
+                    toast({
+                      title: "Connection failed",
+                      description: error instanceof Error ? error.message : "OAuth not configured",
+                      variant: "destructive",
+                    });
+                  }
+                };
+
                 return (
                   <div key={conn.key} className="metric-card">
                     <div className="flex items-center justify-between">
@@ -467,13 +474,13 @@ export default function Settings() {
                           <p className="font-semibold">{conn.name}</p>
                           <p className="text-sm text-muted-foreground">
                             {isConnected
-                              ? status?.username || `Token: ${status?.masked_token || "****"}`
+                              ? status?.username || `Connected ${status?.masked_token ? `(${status.masked_token})` : "✓"}`
                               : conn.description}
                           </p>
                         </div>
                       </div>
                       <div className="flex items-center gap-2">
-                        {isConnected && !isEditing && (
+                        {isConnected && (
                           <Button
                             variant="outline"
                             size="sm"
@@ -490,32 +497,45 @@ export default function Settings() {
                             Disconnect
                           </Button>
                         )}
-                        <Button
-                          variant={isConnected ? "outline" : "default"}
-                          size="sm"
-                          onClick={() => {
-                            if (isEditing) {
-                              setEditingConnection(null);
-                              setConnectionForm({});
-                            } else {
-                              setEditingConnection(conn.key);
-                              setConnectionForm({});
-                            }
-                          }}
-                          className={cn(
-                            isConnected && !isEditing
-                              ? "border-success/50 text-success hover:bg-success/10"
-                              : ""
-                          )}
-                        >
-                          {isEditing ? "Cancel" : isConnected ? "Connected ✓" : "Connect"}
-                        </Button>
+                        {!isConnected && conn.oauth && (
+                          <Button
+                            size="sm"
+                            onClick={handleOAuthConnect}
+                          >
+                            Connect
+                          </Button>
+                        )}
+                        {!isConnected && !conn.oauth && (
+                          <Button
+                            variant={isEditing ? "outline" : "default"}
+                            size="sm"
+                            onClick={() => {
+                              if (isEditing) {
+                                setEditingConnection(null);
+                                setConnectionForm({});
+                              } else {
+                                setEditingConnection(conn.key);
+                                setConnectionForm({});
+                              }
+                            }}
+                          >
+                            {isEditing ? "Cancel" : "Connect"}
+                          </Button>
+                        )}
+                        {isConnected && (
+                          <span className="text-sm text-success font-medium">Connected ✓</span>
+                        )}
                       </div>
                     </div>
 
-                    {/* Connection Form */}
-                    {isEditing && (
+                    {/* Manual Connection Form (for non-OAuth platforms like Telegram) */}
+                    {isEditing && !conn.oauth && conn.fields && (
                       <div className="mt-4 pt-4 border-t border-border space-y-4">
+                        {conn.oauthHelp && (
+                          <div className="text-sm text-muted-foreground bg-muted/50 p-3 rounded-lg whitespace-pre-line">
+                            {conn.oauthHelp}
+                          </div>
+                        )}
                         {conn.fields.map((field) => (
                           <div key={field.name} className="space-y-2">
                             <Label htmlFor={`${conn.key}-${field.name}`}>{field.label}</Label>
@@ -547,7 +567,6 @@ export default function Settings() {
                               });
                               setEditingConnection(null);
                               setConnectionForm({});
-                              // Redirect to home after connecting
                               await queryClient.invalidateQueries({ queryKey: ["onboarding"] });
                               navigate("/");
                             } catch (error) {
@@ -560,7 +579,7 @@ export default function Settings() {
                           }}
                           disabled={
                             updateConnectionMutation.isPending ||
-                            !conn.fields.some((f) => connectionForm[f.type])
+                            !conn.fields?.some((f) => connectionForm[f.type])
                           }
                         >
                           {updateConnectionMutation.isPending ? (

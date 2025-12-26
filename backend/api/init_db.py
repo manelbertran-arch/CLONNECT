@@ -13,6 +13,8 @@ def run_migrations(engine):
         ("creators", "whatsapp_token", "TEXT"),
         ("creators", "whatsapp_phone_id", "VARCHAR(255)"),
         ("creators", "stripe_api_key", "TEXT"),
+        ("creators", "paypal_token", "TEXT"),
+        ("creators", "paypal_email", "VARCHAR(255)"),
         ("creators", "hotmart_token", "TEXT"),
         ("creators", "calendly_token", "TEXT"),
     ]

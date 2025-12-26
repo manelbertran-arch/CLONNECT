@@ -106,14 +106,15 @@ app.include_router(messages.router)
 app.include_router(payments.router)
 app.include_router(calendar.router)
 app.include_router(nurturing.router)
-from api.routers import knowledge, analytics, onboarding, admin, connections
+from api.routers import knowledge, analytics, onboarding, admin, connections, oauth
 app.include_router(knowledge.router)
 app.include_router(analytics.router)
 app.include_router(onboarding.router)
 app.include_router(admin.router)
 app.include_router(connections.router)
+app.include_router(oauth.router)
 
-logging.info("Routers loaded: health, dashboard, config, leads, products, analytics, connections")
+logging.info("Routers loaded: health, dashboard, config, leads, products, analytics, connections, oauth")
 # AUTHENTICATION
 # ---------------------------------------------------------
 # Endpoints publicos (no requieren autenticacion)
@@ -128,6 +129,11 @@ PUBLIC_ENDPOINTS = {
     "/redoc",
     "/privacy",
     "/terms",
+    # OAuth callbacks (need to be public for redirects)
+    "/oauth/instagram/callback",
+    "/oauth/stripe/callback",
+    "/oauth/paypal/callback",
+    "/oauth/calendly/callback",
 }
 
 # Endpoints de webhook (usan su propia autenticacion via firma)
