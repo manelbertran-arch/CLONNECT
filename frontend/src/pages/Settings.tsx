@@ -22,6 +22,7 @@ interface ConnectionConfig {
   icon: string;
   description: string;
   oauth: boolean;  // true = OAuth flow, false = manual token
+  comingSoon?: boolean;  // true = show "Coming Soon" badge
   oauthHelp?: string;  // Help text for manual entry
   fields?: Array<{
     name: string;
@@ -36,16 +37,17 @@ const connectionConfigs: ConnectionConfig[] = [
     key: "instagram",
     name: "Instagram",
     icon: "📸",
-    description: "Connect your Instagram account to receive and send DMs",
+    description: "Automate your Instagram DMs",
     oauth: true,
+    comingSoon: true,  // Requires Meta App approval
   },
   {
     key: "telegram",
     name: "Telegram",
     icon: "✈️",
-    description: "Connect your Telegram bot to handle messages",
+    description: "Create bot in 1 min via @BotFather",
     oauth: false,
-    oauthHelp: "1. Open @BotFather in Telegram\n2. Send /newbot\n3. Copy the token",
+    oauthHelp: "🤖 Setup rápido (1 minuto):\n\n1. Abre Telegram y busca @BotFather\n2. Envía /newbot y sigue instrucciones\n3. Copia el token y pégalo aquí",
     fields: [
       { name: "token", label: "Bot Token", placeholder: "123456:ABC-DEF...", type: "token" },
     ],
@@ -54,29 +56,33 @@ const connectionConfigs: ConnectionConfig[] = [
     key: "whatsapp",
     name: "WhatsApp",
     icon: "💬",
-    description: "Connect WhatsApp Business API",
+    description: "WhatsApp Business API",
     oauth: true,
+    comingSoon: true,  // Requires Meta Business verification
   },
   {
     key: "stripe",
     name: "Stripe",
     icon: "💳",
-    description: "Connect Stripe to track payments",
+    description: "Track payments automatically",
     oauth: true,
+    comingSoon: true,  // Needs Stripe Connect setup
   },
   {
     key: "paypal",
     name: "PayPal",
     icon: "🅿️",
-    description: "Connect PayPal to track payments",
+    description: "Track PayPal payments",
     oauth: true,
+    comingSoon: true,  // Needs PayPal App setup
   },
   {
     key: "calendly",
     name: "Calendly",
     icon: "📅",
-    description: "Connect Calendly for booking links",
+    description: "Sync your booking calendar",
     oauth: true,
+    comingSoon: true,  // Needs Calendly App setup
   },
 ];
 
@@ -481,23 +487,31 @@ export default function Settings() {
                       </div>
                       <div className="flex items-center gap-2">
                         {isConnected && (
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => {
-                              disconnectMutation.mutate(conn.key, {
-                                onSuccess: () => {
-                                  toast({ title: `${conn.name} disconnected` });
-                                },
-                              });
-                            }}
-                            disabled={disconnectMutation.isPending}
-                            className="text-destructive hover:bg-destructive/10"
-                          >
-                            Disconnect
-                          </Button>
+                          <>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => {
+                                disconnectMutation.mutate(conn.key, {
+                                  onSuccess: () => {
+                                    toast({ title: `${conn.name} disconnected` });
+                                  },
+                                });
+                              }}
+                              disabled={disconnectMutation.isPending}
+                              className="text-destructive hover:bg-destructive/10"
+                            >
+                              Disconnect
+                            </Button>
+                            <span className="text-sm text-success font-medium">Connected ✓</span>
+                          </>
                         )}
-                        {!isConnected && conn.oauth && (
+                        {!isConnected && conn.comingSoon && (
+                          <span className="text-xs bg-muted text-muted-foreground px-3 py-1.5 rounded-full">
+                            Coming Soon
+                          </span>
+                        )}
+                        {!isConnected && !conn.comingSoon && conn.oauth && (
                           <Button
                             size="sm"
                             onClick={handleOAuthConnect}
@@ -521,9 +535,6 @@ export default function Settings() {
                           >
                             {isEditing ? "Cancel" : "Connect"}
                           </Button>
-                        )}
-                        {isConnected && (
-                          <span className="text-sm text-success font-medium">Connected ✓</span>
                         )}
                       </div>
                     </div>
