@@ -17,6 +17,33 @@ FRONTEND_URL = os.getenv("FRONTEND_URL", "https://clonnect.vercel.app")
 # Backend API URL for OAuth callbacks
 API_URL = os.getenv("API_URL", "https://api-clonnect.up.railway.app")
 
+
+@router.get("/debug")
+async def oauth_debug():
+    """Debug endpoint to verify OAuth configuration (remove in production)"""
+    stripe_id = os.getenv("STRIPE_CLIENT_ID", "")
+    stripe_secret = os.getenv("STRIPE_SECRET_KEY", "")
+    return {
+        "api_url": API_URL,
+        "frontend_url": FRONTEND_URL,
+        "stripe": {
+            "client_id_set": bool(stripe_id),
+            "client_id_length": len(stripe_id),
+            "client_id_prefix": stripe_id[:10] if len(stripe_id) > 10 else "NOT_SET",
+            "secret_set": bool(stripe_secret),
+        },
+        "meta": {
+            "app_id_set": bool(os.getenv("META_APP_ID", "")),
+        },
+        "paypal": {
+            "client_id_set": bool(os.getenv("PAYPAL_CLIENT_ID", "")),
+        },
+        "calendly": {
+            "client_id_set": bool(os.getenv("CALENDLY_CLIENT_ID", "")),
+        }
+    }
+
+
 # =============================================================================
 # INSTAGRAM / META
 # =============================================================================
@@ -110,27 +137,31 @@ async def instagram_oauth_callback(code: str = Query(...), state: str = Query(""
 # =============================================================================
 # STRIPE CONNECT
 # =============================================================================
-STRIPE_CLIENT_ID = os.getenv("STRIPE_CLIENT_ID", "")
-STRIPE_SECRET_KEY = os.getenv("STRIPE_SECRET_KEY", "")
-STRIPE_REDIRECT_URI = os.getenv("STRIPE_REDIRECT_URI", f"{API_URL}/oauth/stripe/callback")
 
 @router.get("/stripe/start")
 async def stripe_oauth_start(creator_id: str):
     """Start Stripe Connect OAuth flow"""
-    if not STRIPE_CLIENT_ID:
+    # Read env vars dynamically to pick up changes without restart
+    stripe_client_id = os.getenv("STRIPE_CLIENT_ID", "").strip()
+    stripe_redirect_uri = os.getenv("STRIPE_REDIRECT_URI", f"{API_URL}/oauth/stripe/callback")
+
+    logger.info(f"Stripe OAuth start - client_id exists: {bool(stripe_client_id)}, length: {len(stripe_client_id)}")
+
+    if not stripe_client_id:
         raise HTTPException(status_code=500, detail="STRIPE_CLIENT_ID not configured")
 
     state = f"{creator_id}:{secrets.token_urlsafe(16)}"
 
     params = {
-        "client_id": STRIPE_CLIENT_ID,
+        "client_id": stripe_client_id,
         "response_type": "code",
         "scope": "read_write",
-        "redirect_uri": STRIPE_REDIRECT_URI,
+        "redirect_uri": stripe_redirect_uri,
         "state": state,
     }
 
     auth_url = f"https://connect.stripe.com/oauth/authorize?{urlencode(params)}"
+    logger.info(f"Stripe OAuth URL generated with redirect: {stripe_redirect_uri}")
     return {"auth_url": auth_url, "state": state}
 
 
@@ -139,7 +170,8 @@ async def stripe_oauth_callback(code: str = Query(...), state: str = Query("")):
     """Handle Stripe OAuth callback"""
     import httpx
 
-    if not STRIPE_SECRET_KEY:
+    stripe_secret_key = os.getenv("STRIPE_SECRET_KEY", "").strip()
+    if not stripe_secret_key:
         raise HTTPException(status_code=500, detail="Stripe credentials not configured")
 
     creator_id = state.split(":")[0] if ":" in state else "manel"
@@ -150,7 +182,7 @@ async def stripe_oauth_callback(code: str = Query(...), state: str = Query("")):
             token_response = await client.post(
                 "https://connect.stripe.com/oauth/token",
                 data={
-                    "client_secret": STRIPE_SECRET_KEY,
+                    "client_secret": stripe_secret_key,
                     "code": code,
                     "grant_type": "authorization_code",
                 }
