@@ -673,6 +673,7 @@ export interface AllConnections {
   telegram: ConnectionStatus;
   whatsapp: ConnectionStatus;
   stripe: ConnectionStatus;
+  paypal: ConnectionStatus;
   hotmart: ConnectionStatus;
   calendly: ConnectionStatus;
 }
@@ -707,6 +708,22 @@ export async function disconnectPlatform(
   return apiFetch(`/connections/${creatorId}/${platform}`, {
     method: "DELETE",
   });
+}
+
+// =============================================================================
+// OAUTH
+// =============================================================================
+
+export interface OAuthStartResponse {
+  auth_url: string;
+  state: string;
+}
+
+export async function startOAuth(
+  platform: string,
+  creatorId: string = CREATOR_ID
+): Promise<OAuthStartResponse> {
+  return apiFetch(`/oauth/${platform}/start?creator_id=${creatorId}`);
 }
 
 // Default export for convenience

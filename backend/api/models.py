@@ -28,6 +28,8 @@ class Creator(Base):
     whatsapp_phone_id = Column(String(255))
     # Payment connections
     stripe_api_key = Column(Text)
+    paypal_token = Column(Text)
+    paypal_email = Column(String(255))
     hotmart_token = Column(Text)
     # Calendar connections
     calendly_token = Column(Text)
