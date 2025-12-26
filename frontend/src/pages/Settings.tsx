@@ -39,7 +39,6 @@ const connectionConfigs: ConnectionConfig[] = [
     icon: "📸",
     description: "Automate your Instagram DMs",
     oauth: true,
-    comingSoon: true,  // Requires Meta App approval
   },
   {
     key: "telegram",
@@ -58,7 +57,6 @@ const connectionConfigs: ConnectionConfig[] = [
     icon: "💬",
     description: "WhatsApp Business API",
     oauth: true,
-    comingSoon: true,  // Requires Meta Business verification
   },
   {
     key: "stripe",
@@ -73,7 +71,6 @@ const connectionConfigs: ConnectionConfig[] = [
     icon: "🅿️",
     description: "Track PayPal payments",
     oauth: true,
-    comingSoon: true,  // Needs PayPal App setup
   },
   {
     key: "calendly",
@@ -81,7 +78,6 @@ const connectionConfigs: ConnectionConfig[] = [
     icon: "📅",
     description: "Sync your booking calendar",
     oauth: true,
-    comingSoon: true,  // Needs Calendly App setup
   },
 ];
 
