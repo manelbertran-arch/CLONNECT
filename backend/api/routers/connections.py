@@ -44,6 +44,16 @@ def mask_token(token: Optional[str]) -> Optional[str]:
 @router.get("/{creator_id}")
 async def get_connections(creator_id: str) -> AllConnections:
     """Get all connection statuses for a creator"""
+    # Default empty connections
+    empty_connections = AllConnections(
+        instagram=ConnectionStatus(connected=False),
+        telegram=ConnectionStatus(connected=False),
+        whatsapp=ConnectionStatus(connected=False),
+        stripe=ConnectionStatus(connected=False),
+        hotmart=ConnectionStatus(connected=False),
+        calendly=ConnectionStatus(connected=False)
+    )
+
     try:
         from api.database import DATABASE_URL, SessionLocal
         if DATABASE_URL and SessionLocal:
@@ -53,7 +63,8 @@ async def get_connections(creator_id: str) -> AllConnections:
                 creator = session.query(Creator).filter_by(name=creator_id).first()
 
                 if not creator:
-                    raise HTTPException(status_code=404, detail="Creator not found")
+                    # Return empty connections instead of 404
+                    return empty_connections
 
                 return AllConnections(
                     instagram=ConnectionStatus(
@@ -95,15 +106,8 @@ async def get_connections(creator_id: str) -> AllConnections:
         logger.error(f"Error getting connections: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
-    # Default empty connections
-    return AllConnections(
-        instagram=ConnectionStatus(connected=False),
-        telegram=ConnectionStatus(connected=False),
-        whatsapp=ConnectionStatus(connected=False),
-        stripe=ConnectionStatus(connected=False),
-        hotmart=ConnectionStatus(connected=False),
-        calendly=ConnectionStatus(connected=False)
-    )
+    # Fallback: return empty connections
+    return empty_connections
 
 
 @router.post("/{creator_id}/instagram")
