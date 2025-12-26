@@ -69,7 +69,7 @@ def _get_default_sequences() -> List[Dict[str, Any]]:
             "id": meta["id"],
             "type": seq_type,
             "name": meta["name"],
-            "is_active": True,  # Default to active
+            "is_active": False,  # Default to inactive - user must enable
             "steps": [{"delay_hours": delay, "message": msg} for delay, msg in steps],
             "enrolled_count": 0,
             "sent_count": 0,

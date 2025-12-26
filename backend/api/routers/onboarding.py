@@ -11,22 +11,50 @@ router = APIRouter(prefix="/onboarding", tags=["onboarding"])
 
 
 async def check_instagram_connected(creator_id: str) -> bool:
-    """Check if Instagram is connected"""
-    token = os.getenv("INSTAGRAM_ACCESS_TOKEN", "")
-    return bool(token and len(token) > 10)
+    """Check if Instagram is connected for this creator"""
+    try:
+        # Check database first
+        from api.database import DATABASE_URL, SessionLocal
+        if DATABASE_URL and SessionLocal:
+            session = SessionLocal()
+            try:
+                from api.models import Creator
+                creator = session.query(Creator).filter_by(name=creator_id).first()
+                if creator and creator.instagram_token:
+                    return len(creator.instagram_token) > 10
+            finally:
+                session.close()
+    except Exception as e:
+        logger.warning(f"DB check failed for instagram: {e}")
+    return False
 
 
 async def check_telegram_connected(creator_id: str) -> bool:
-    """Check if Telegram bot is configured"""
-    token = os.getenv("TELEGRAM_BOT_TOKEN", "")
-    return bool(token and len(token) > 10)
+    """Check if Telegram bot is configured for this creator"""
+    try:
+        # Check database first
+        from api.database import DATABASE_URL, SessionLocal
+        if DATABASE_URL and SessionLocal:
+            session = SessionLocal()
+            try:
+                from api.models import Creator
+                creator = session.query(Creator).filter_by(name=creator_id).first()
+                if creator and creator.telegram_bot_token:
+                    return len(creator.telegram_bot_token) > 10
+            finally:
+                session.close()
+    except Exception as e:
+        logger.warning(f"DB check failed for telegram: {e}")
+    return False
 
 
 async def check_whatsapp_connected(creator_id: str) -> bool:
-    """Check if WhatsApp is configured"""
+    """Check if WhatsApp is configured - uses env vars as it's account-level"""
+    # WhatsApp is typically configured at account level via env vars
+    # since it requires Meta Business verification
     token = os.getenv("WHATSAPP_ACCESS_TOKEN", "")
     phone_id = os.getenv("WHATSAPP_PHONE_ID", "")
-    return bool(token and phone_id)
+    return bool(token and phone_id and len(token) > 10)
 
 
 async def check_has_products(creator_id: str) -> bool:
