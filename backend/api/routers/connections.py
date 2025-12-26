@@ -145,6 +145,10 @@ async def update_calendly(creator_id: str, data: UpdateConnectionRequest):
 @router.delete("/{creator_id}/{platform}")
 async def disconnect_platform(creator_id: str, platform: str):
     """Disconnect a platform by clearing its token"""
+    valid_platforms = ["instagram", "telegram", "whatsapp", "stripe", "hotmart", "calendly"]
+    if platform not in valid_platforms:
+        raise HTTPException(status_code=400, detail=f"Unknown platform: {platform}")
+
     try:
         from api.database import DATABASE_URL, SessionLocal
         if DATABASE_URL and SessionLocal:
@@ -171,14 +175,15 @@ async def disconnect_platform(creator_id: str, platform: str):
                     creator.hotmart_token = None
                 elif platform == "calendly":
                     creator.calendly_token = None
-                else:
-                    raise HTTPException(status_code=400, detail=f"Unknown platform: {platform}")
 
                 session.commit()
                 logger.info(f"Disconnected {platform} for {creator_id}")
                 return {"status": "disconnected", "platform": platform}
             finally:
                 session.close()
+        else:
+            # No database - just return success (nothing to disconnect)
+            return {"status": "disconnected", "platform": platform}
     except HTTPException:
         raise
     except Exception as e:
@@ -228,6 +233,10 @@ async def _update_connection(creator_id: str, platform: str, data: UpdateConnect
                 return {"status": "connected", "platform": platform}
             finally:
                 session.close()
+        else:
+            # No database - return success but warn
+            logger.warning(f"No database configured - connection for {platform} not persisted")
+            return {"status": "connected", "platform": platform, "warning": "No database - not persisted"}
     except HTTPException:
         raise
     except Exception as e:
