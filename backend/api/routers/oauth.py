@@ -58,12 +58,12 @@ async def instagram_oauth_start(creator_id: str):
     # Store state for CSRF protection
     state = f"{creator_id}:{secrets.token_urlsafe(16)}"
 
-    # Instagram Business scopes - some require App Review
-    # For testing: add yourself as Tester in App Roles
+    # Basic scopes - work without App Review
+    # For messaging: need App Review for instagram_manage_messages
     params = {
         "client_id": META_APP_ID,
         "redirect_uri": META_REDIRECT_URI,
-        "scope": "public_profile,pages_show_list,pages_read_engagement,instagram_business_basic,instagram_business_manage_messages",
+        "scope": "public_profile,pages_show_list",
         "response_type": "code",
         "state": state,
     }
