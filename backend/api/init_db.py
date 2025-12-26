@@ -2,26 +2,59 @@ import os
 import sys
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, text
 from sqlalchemy.orm import Session
+
+def run_migrations(engine):
+    """Run migrations to add new columns to existing tables"""
+    migrations = [
+        # Connection columns for creators table
+        ("creators", "instagram_page_id", "VARCHAR(255)"),
+        ("creators", "whatsapp_token", "TEXT"),
+        ("creators", "whatsapp_phone_id", "VARCHAR(255)"),
+        ("creators", "stripe_api_key", "TEXT"),
+        ("creators", "hotmart_token", "TEXT"),
+        ("creators", "calendly_token", "TEXT"),
+    ]
+
+    with engine.connect() as conn:
+        for table, column, col_type in migrations:
+            try:
+                # Check if column exists
+                result = conn.execute(text(f"""
+                    SELECT column_name FROM information_schema.columns
+                    WHERE table_name = '{table}' AND column_name = '{column}'
+                """))
+                if result.fetchone() is None:
+                    # Column doesn't exist, add it
+                    conn.execute(text(f"ALTER TABLE {table} ADD COLUMN {column} {col_type}"))
+                    conn.commit()
+                    print(f"Added column {column} to {table}")
+            except Exception as e:
+                print(f"Migration error for {table}.{column}: {e}")
 
 def init_database():
     DATABASE_URL = os.getenv("DATABASE_URL", "")
     if not DATABASE_URL:
         print("No DATABASE_URL - skipping DB init")
         return False
-    
+
     try:
         from api.database import Base
         from api.models import Creator, Lead, Message, Product, NurturingSequence, KnowledgeBase
     except:
         from database import Base
         from models import Creator, Lead, Message, Product, NurturingSequence, KnowledgeBase
-    
+
     engine = create_engine(DATABASE_URL)
     print("Creating tables...")
     Base.metadata.create_all(bind=engine)
     print("Tables created!")
+
+    # Run migrations for new columns
+    print("Running migrations...")
+    run_migrations(engine)
+    print("Migrations complete!")
     
     with Session(engine) as session:
         existing = session.query(Creator).filter_by(name="manel").first()
