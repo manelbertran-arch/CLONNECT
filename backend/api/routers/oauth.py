@@ -21,16 +21,14 @@ API_URL = os.getenv("API_URL", "https://api-clonnect.up.railway.app")
 @router.get("/debug")
 async def oauth_debug():
     """Debug endpoint to verify OAuth configuration (remove in production)"""
-    stripe_id = os.getenv("STRIPE_CLIENT_ID", "")
     stripe_secret = os.getenv("STRIPE_SECRET_KEY", "")
     return {
         "api_url": API_URL,
         "frontend_url": FRONTEND_URL,
         "stripe": {
-            "client_id_set": bool(stripe_id),
-            "client_id_length": len(stripe_id),
-            "client_id_prefix": stripe_id[:10] if len(stripe_id) > 10 else "NOT_SET",
-            "secret_set": bool(stripe_secret),
+            "method": "Account Links API (no OAuth needed)",
+            "secret_key_set": bool(stripe_secret),
+            "secret_key_prefix": stripe_secret[:7] + "..." if len(stripe_secret) > 10 else "NOT_SET",
         },
         "meta": {
             "app_id_set": bool(os.getenv("META_APP_ID", "")),
@@ -135,75 +133,140 @@ async def instagram_oauth_callback(code: str = Query(...), state: str = Query(""
 
 
 # =============================================================================
-# STRIPE CONNECT
+# STRIPE CONNECT (using Account Links API - modern approach)
 # =============================================================================
 
 @router.get("/stripe/start")
 async def stripe_oauth_start(creator_id: str):
-    """Start Stripe Connect OAuth flow - using Express for simpler onboarding"""
-    # Read env vars dynamically to pick up changes without restart
-    stripe_client_id = os.getenv("STRIPE_CLIENT_ID", "").strip()
-    stripe_redirect_uri = os.getenv("STRIPE_REDIRECT_URI", f"{API_URL}/oauth/stripe/callback")
-
-    logger.info(f"Stripe OAuth start - client_id exists: {bool(stripe_client_id)}, length: {len(stripe_client_id)}")
-
-    if not stripe_client_id:
-        raise HTTPException(status_code=500, detail="STRIPE_CLIENT_ID not configured")
-
-    state = f"{creator_id}:{secrets.token_urlsafe(16)}"
-
-    params = {
-        "client_id": stripe_client_id,
-        "response_type": "code",
-        "scope": "read_write",
-        "redirect_uri": stripe_redirect_uri,
-        "state": state,
-    }
-
-    # Use Express OAuth - simpler flow like ManyChat uses
-    auth_url = f"https://connect.stripe.com/express/oauth/authorize?{urlencode(params)}"
-    logger.info(f"Stripe Express OAuth URL generated with redirect: {stripe_redirect_uri}")
-    return {"auth_url": auth_url, "state": state}
-
-
-@router.get("/stripe/callback")
-async def stripe_oauth_callback(code: str = Query(...), state: str = Query("")):
-    """Handle Stripe OAuth callback"""
+    """Start Stripe Connect onboarding using Account Links API"""
     import httpx
 
     stripe_secret_key = os.getenv("STRIPE_SECRET_KEY", "").strip()
-    if not stripe_secret_key:
-        raise HTTPException(status_code=500, detail="Stripe credentials not configured")
 
-    creator_id = state.split(":")[0] if ":" in state else "manel"
+    if not stripe_secret_key:
+        raise HTTPException(status_code=500, detail="STRIPE_SECRET_KEY not configured")
+
+    logger.info(f"Starting Stripe Connect for creator: {creator_id}")
 
     try:
         async with httpx.AsyncClient() as client:
-            # Exchange code for access token
-            token_response = await client.post(
-                "https://connect.stripe.com/oauth/token",
+            # Step 1: Create a Stripe Express connected account
+            account_response = await client.post(
+                "https://api.stripe.com/v1/accounts",
+                headers={"Authorization": f"Bearer {stripe_secret_key}"},
                 data={
-                    "client_secret": stripe_secret_key,
-                    "code": code,
-                    "grant_type": "authorization_code",
+                    "type": "express",
+                    "metadata[creator_id]": creator_id,
                 }
             )
-            token_data = token_response.json()
+            account_data = account_response.json()
 
-            if "error" in token_data:
-                logger.error(f"Stripe token error: {token_data}")
+            if "error" in account_data:
+                logger.error(f"Stripe account creation error: {account_data}")
+                raise HTTPException(status_code=400, detail=account_data["error"]["message"])
+
+            account_id = account_data["id"]
+            logger.info(f"Created Stripe account: {account_id}")
+
+            # Step 2: Create an Account Link for onboarding
+            link_response = await client.post(
+                "https://api.stripe.com/v1/account_links",
+                headers={"Authorization": f"Bearer {stripe_secret_key}"},
+                data={
+                    "account": account_id,
+                    "refresh_url": f"{API_URL}/oauth/stripe/refresh?creator_id={creator_id}&account_id={account_id}",
+                    "return_url": f"{API_URL}/oauth/stripe/callback?creator_id={creator_id}&account_id={account_id}",
+                    "type": "account_onboarding",
+                }
+            )
+            link_data = link_response.json()
+
+            if "error" in link_data:
+                logger.error(f"Stripe account link error: {link_data}")
+                raise HTTPException(status_code=400, detail=link_data["error"]["message"])
+
+            auth_url = link_data["url"]
+            logger.info(f"Created Stripe onboarding link for account: {account_id}")
+
+            return {"auth_url": auth_url, "account_id": account_id}
+
+    except httpx.RequestError as e:
+        logger.error(f"Stripe API request error: {e}")
+        raise HTTPException(status_code=500, detail="Failed to connect to Stripe")
+
+
+@router.get("/stripe/callback")
+async def stripe_oauth_callback(creator_id: str = Query("manel"), account_id: str = Query(...)):
+    """Handle Stripe Connect onboarding completion"""
+    import httpx
+
+    stripe_secret_key = os.getenv("STRIPE_SECRET_KEY", "").strip()
+
+    if not stripe_secret_key:
+        return RedirectResponse(f"{FRONTEND_URL}/settings?tab=connections&error=stripe_not_configured")
+
+    try:
+        async with httpx.AsyncClient() as client:
+            # Verify the account status
+            account_response = await client.get(
+                f"https://api.stripe.com/v1/accounts/{account_id}",
+                headers={"Authorization": f"Bearer {stripe_secret_key}"}
+            )
+            account_data = account_response.json()
+
+            if "error" in account_data:
+                logger.error(f"Stripe account fetch error: {account_data}")
                 return RedirectResponse(f"{FRONTEND_URL}/settings?tab=connections&error=stripe_auth_failed")
 
-            access_token = token_data.get("access_token")
-            stripe_user_id = token_data.get("stripe_user_id")
+            # Check if onboarding is complete
+            charges_enabled = account_data.get("charges_enabled", False)
+            payouts_enabled = account_data.get("payouts_enabled", False)
 
-            # Save to database
-            await _save_connection(creator_id, "stripe", access_token, stripe_user_id)
+            logger.info(f"Stripe account {account_id} - charges: {charges_enabled}, payouts: {payouts_enabled}")
+
+            # Save to database (store account_id as the token)
+            await _save_connection(creator_id, "stripe", account_id, account_data.get("email"))
 
             return RedirectResponse(f"{FRONTEND_URL}/settings?tab=connections&success=stripe")
 
     except Exception as e:
-        logger.error(f"Stripe OAuth error: {e}")
+        logger.error(f"Stripe callback error: {e}")
+        return RedirectResponse(f"{FRONTEND_URL}/settings?tab=connections&error=stripe_failed")
+
+
+@router.get("/stripe/refresh")
+async def stripe_oauth_refresh(creator_id: str = Query("manel"), account_id: str = Query(...)):
+    """Handle Stripe Connect refresh (when link expires)"""
+    import httpx
+
+    stripe_secret_key = os.getenv("STRIPE_SECRET_KEY", "").strip()
+
+    if not stripe_secret_key:
+        return RedirectResponse(f"{FRONTEND_URL}/settings?tab=connections&error=stripe_not_configured")
+
+    try:
+        async with httpx.AsyncClient() as client:
+            # Create a new Account Link
+            link_response = await client.post(
+                "https://api.stripe.com/v1/account_links",
+                headers={"Authorization": f"Bearer {stripe_secret_key}"},
+                data={
+                    "account": account_id,
+                    "refresh_url": f"{API_URL}/oauth/stripe/refresh?creator_id={creator_id}&account_id={account_id}",
+                    "return_url": f"{API_URL}/oauth/stripe/callback?creator_id={creator_id}&account_id={account_id}",
+                    "type": "account_onboarding",
+                }
+            )
+            link_data = link_response.json()
+
+            if "error" in link_data:
+                logger.error(f"Stripe refresh link error: {link_data}")
+                return RedirectResponse(f"{FRONTEND_URL}/settings?tab=connections&error=stripe_refresh_failed")
+
+            return RedirectResponse(link_data["url"])
+
+    except Exception as e:
+        logger.error(f"Stripe refresh error: {e}")
         return RedirectResponse(f"{FRONTEND_URL}/settings?tab=connections&error=stripe_failed")
 
 
