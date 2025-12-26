@@ -29,13 +29,13 @@ async function fetchOnboardingStatus(): Promise<OnboardingStatus> {
 }
 
 const stepLabels: Record<string, { label: string; link: string }> = {
-  connect_channel: { label: "Conectar un canal", link: "/settings" },
-  connect_instagram: { label: "Conectar Instagram", link: "/settings" },
-  connect_telegram: { label: "Conectar Telegram", link: "/settings" },
-  connect_whatsapp: { label: "Conectar WhatsApp", link: "/settings" },
-  add_product: { label: "Añadir un producto", link: "/settings" },
-  configure_personality: { label: "Configurar personalidad", link: "/settings" },
-  activate_bot: { label: "Activar el bot", link: "/settings" },
+  connect_channel: { label: "Conectar un canal", link: "/settings?tab=connections" },
+  connect_instagram: { label: "Conectar Instagram", link: "/settings?tab=connections" },
+  connect_telegram: { label: "Conectar Telegram", link: "/settings?tab=connections" },
+  connect_whatsapp: { label: "Conectar WhatsApp", link: "/settings?tab=connections" },
+  add_product: { label: "Añadir un producto", link: "/settings?tab=products" },
+  configure_personality: { label: "Configurar personalidad", link: "/settings?tab=personality" },
+  activate_bot: { label: "Activar el bot", link: "/settings?tab=bot" },
 };
 
 export function OnboardingChecklist() {
