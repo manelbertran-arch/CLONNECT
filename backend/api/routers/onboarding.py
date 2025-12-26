@@ -136,22 +136,22 @@ def _get_next_step(steps: dict) -> dict:
         "connect_channel": {
             "label": "Conectar un canal de mensajes",
             "description": "Conecta Instagram, Telegram o WhatsApp",
-            "link": "/settings/connections"
+            "link": "/settings?tab=connections"
         },
         "add_product": {
             "label": "Añadir un producto",
             "description": "Añade al menos un producto para vender",
-            "link": "/settings/products"
+            "link": "/settings?tab=products"
         },
         "configure_personality": {
             "label": "Configurar personalidad",
             "description": "Define cómo habla tu clon de IA",
-            "link": "/settings/personality"
+            "link": "/settings?tab=personality"
         },
         "activate_bot": {
             "label": "Activar el bot",
             "description": "Activa las respuestas automáticas",
-            "link": "/settings"
+            "link": "/settings?tab=bot"
         }
     }
 

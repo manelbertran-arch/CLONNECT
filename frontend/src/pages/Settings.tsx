@@ -1,4 +1,6 @@
 import { useState, useEffect } from "react";
+import { useSearchParams, useNavigate } from "react-router-dom";
+import { useQueryClient } from "@tanstack/react-query";
 import { Bot, Link2, Package, User, Save, RefreshCw, Loader2, AlertCircle, Plus, Pencil, Trash2, BookOpen } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -39,6 +41,14 @@ const emptyProduct: ProductFormData = {
 };
 
 export default function Settings() {
+  const [searchParams] = useSearchParams();
+  const navigate = useNavigate();
+  const queryClient = useQueryClient();
+
+  // Get tab from URL params, default to "personality"
+  const tabFromUrl = searchParams.get("tab") || "personality";
+  const [activeTab, setActiveTab] = useState(tabFromUrl);
+
   const { data: configData, isLoading: configLoading, error: configError } = useCreatorConfig();
   const { data: productsData, isLoading: productsLoading } = useProducts();
   const updateConfig = useUpdateConfig();
@@ -106,6 +116,9 @@ export default function Settings() {
         title: "Settings saved",
         description: "Your bot personality has been updated.",
       });
+      // Invalidate onboarding to refresh status and redirect to home
+      await queryClient.invalidateQueries({ queryKey: ["onboarding"] });
+      navigate("/");
     } catch (error) {
       toast({
         title: "Error saving settings",
@@ -168,6 +181,9 @@ export default function Settings() {
         toast({ title: "Product added", description: `${productForm.name} has been created.` });
       }
       setProductModalOpen(false);
+      // Invalidate onboarding to refresh status and redirect to home
+      await queryClient.invalidateQueries({ queryKey: ["onboarding"] });
+      navigate("/");
     } catch (error) {
       toast({
         title: "Error",
@@ -259,7 +275,7 @@ export default function Settings() {
       </div>
 
       {/* Tabs */}
-      <Tabs defaultValue="personality" className="space-y-6">
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
         <TabsList className="bg-secondary p-1 rounded-xl">
           <TabsTrigger value="personality" className="rounded-lg data-[state=active]:bg-card">
             <User className="w-4 h-4 mr-2" />
