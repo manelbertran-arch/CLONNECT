@@ -59,7 +59,7 @@ async def check_bot_active(creator_id: str) -> bool:
         config_manager = CreatorConfigManager()
         return config_manager.is_bot_active(creator_id)
     except Exception:
-        return True  # Default to active
+        return False  # Default to inactive (paused)
 
 
 @router.get("/{creator_id}/status")

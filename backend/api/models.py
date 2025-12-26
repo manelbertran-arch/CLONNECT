@@ -14,7 +14,7 @@ class Creator(Base):
     email = Column(String(255), unique=True)
     name = Column(String(255), nullable=False)
     api_key = Column(String(64), unique=True)
-    bot_active = Column(Boolean, default=True)
+    bot_active = Column(Boolean, default=False)  # Start paused by default
     clone_tone = Column(String(50), default="friendly")
     clone_style = Column(Text)
     clone_name = Column(String(255))

@@ -28,7 +28,7 @@ class CreatorConfig:
     clone_name: str = ""  # Bot name shown in UI
     clone_tone: str = "friendly"  # friendly, professional, casual
     clone_vocabulary: str = ""  # Custom vocabulary/rules
-    clone_active: bool = True  # Whether bot is active
+    clone_active: bool = False  # Whether bot is active (starts paused)
 
     # Personalidad
     personality: Dict[str, Any] = field(default_factory=lambda: {
@@ -96,7 +96,7 @@ class CreatorConfig:
     })
 
     # Estado
-    is_active: bool = True
+    is_active: bool = False  # Start paused by default
     pause_reason: str = ""
     created_at: str = field(default_factory=lambda: datetime.now().isoformat())
     updated_at: str = field(default_factory=lambda: datetime.now().isoformat())
