@@ -20,8 +20,17 @@ class Creator(Base):
     clone_name = Column(String(255))
     clone_vocabulary = Column(Text)
     welcome_message = Column(Text)
+    # Channel connections
     telegram_bot_token = Column(String(255))
     instagram_token = Column(Text)
+    instagram_page_id = Column(String(255))
+    whatsapp_token = Column(Text)
+    whatsapp_phone_id = Column(String(255))
+    # Payment connections
+    stripe_api_key = Column(Text)
+    hotmart_token = Column(Text)
+    # Calendar connections
+    calendly_token = Column(Text)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
 class Lead(Base):

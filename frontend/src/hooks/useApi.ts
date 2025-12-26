@@ -44,8 +44,12 @@ import {
   cancelNurturing,
   runNurturing,
   addContent,
+  getConnections,
+  updateConnection,
+  disconnectPlatform,
   apiKeys,
 } from "@/services/api";
+import type { UpdateConnectionData } from "@/services/api";
 import type { RunNurturingParams, CreateBookingLinkData, RecordPurchaseData } from "@/services/api";
 import type { CreateLeadData, UpdateLeadData } from "@/services/api";
 import type { Product } from "@/types/api";
@@ -659,6 +663,50 @@ export function useRestoreConversation(creatorId: string = CREATOR_ID) {
       queryClient.invalidateQueries({ queryKey: apiKeys.conversations(creatorId) });
       queryClient.invalidateQueries({ queryKey: apiKeys.archivedConversations(creatorId) });
       queryClient.invalidateQueries({ queryKey: apiKeys.dashboard(creatorId) });
+    },
+  });
+}
+
+// =============================================================================
+// CONNECTIONS HOOKS
+// =============================================================================
+
+/**
+ * Hook to fetch all connections status
+ */
+export function useConnections(creatorId: string = CREATOR_ID) {
+  return useQuery({
+    queryKey: apiKeys.connections(creatorId),
+    queryFn: () => getConnections(creatorId),
+    staleTime: 60000, // 1 minute
+  });
+}
+
+/**
+ * Hook to update a connection
+ */
+export function useUpdateConnection(creatorId: string = CREATOR_ID) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ platform, data }: { platform: string; data: UpdateConnectionData }) =>
+      updateConnection(creatorId, platform, data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: apiKeys.connections(creatorId) });
+      queryClient.invalidateQueries({ queryKey: ["onboarding"] });
+    },
+  });
+}
+
+/**
+ * Hook to disconnect a platform
+ */
+export function useDisconnectPlatform(creatorId: string = CREATOR_ID) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (platform: string) => disconnectPlatform(creatorId, platform),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: apiKeys.connections(creatorId) });
+      queryClient.invalidateQueries({ queryKey: ["onboarding"] });
     },
   });
 }
