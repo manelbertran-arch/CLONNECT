@@ -1,5 +1,5 @@
 import { useState, useMemo, useEffect } from "react";
-import { Search, Send, MoreHorizontal, Bot, User, Loader2, AlertCircle, Instagram, MessageCircle, Archive, Trash2, AlertTriangle, RotateCcw } from "lucide-react";
+import { Search, Send, MoreHorizontal, Bot, User, Loader2, AlertCircle, Instagram, MessageCircle, Archive, Trash2, AlertTriangle, RotateCcw, ArrowLeft } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import {
@@ -235,9 +235,11 @@ export default function Inbox() {
 
   const archivedCount = archivedData?.length || 0;
 
-  // Auto-select first conversation if none selected
+  // Auto-select first conversation if none selected (desktop only)
   useEffect(() => {
-    if (!selectedId && conversations.length > 0) {
+    // Only auto-select on desktop (md breakpoint = 768px)
+    const isDesktop = window.innerWidth >= 768;
+    if (isDesktop && !selectedId && conversations.length > 0) {
       setSelectedId(conversations[0].follower_id);
     }
   }, [conversations, selectedId]);
@@ -277,10 +279,16 @@ export default function Inbox() {
     );
   }
 
+  // On mobile, when a conversation is selected, show chat view instead of list
+  const showMobileChat = selectedId !== null;
+
   return (
-    <div className="h-[calc(100vh-8rem)] flex gap-6">
-      {/* Conversation List */}
-      <div className="w-80 flex flex-col">
+    <div className="h-[calc(100vh-6rem)] md:h-[calc(100vh-8rem)] flex gap-0 md:gap-6">
+      {/* Conversation List - hidden on mobile when chat is open */}
+      <div className={cn(
+        "w-full md:w-80 flex flex-col",
+        showMobileChat ? "hidden md:flex" : "flex"
+      )}>
         {/* Tabs */}
         <div className="flex gap-2 mb-4">
           <button
@@ -406,13 +414,25 @@ export default function Inbox() {
         </div>
       </div>
 
-      {/* Chat View */}
-      <div className="flex-1 flex flex-col bg-card rounded-2xl border border-border/50 overflow-hidden">
+      {/* Chat View - hidden on mobile when no chat selected */}
+      <div className={cn(
+        "flex-1 flex flex-col bg-card rounded-2xl border border-border/50 overflow-hidden",
+        showMobileChat ? "flex" : "hidden md:flex"
+      )}>
         {selectedConversation ? (
           <>
             {/* Chat Header */}
             <div className="p-4 border-b border-border/50 flex items-center justify-between">
               <div className="flex items-center gap-3">
+                {/* Mobile back button */}
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="md:hidden shrink-0"
+                  onClick={() => setSelectedId(null)}
+                >
+                  <ArrowLeft className="w-5 h-5" />
+                </Button>
                 <div className="w-10 h-10 rounded-full bg-gradient-to-br from-primary/60 to-accent/60 flex items-center justify-center text-sm font-semibold">
                   {getInitials(displayName, undefined, selectedConversation.follower_id)}
                 </div>
@@ -475,7 +495,7 @@ export default function Inbox() {
                     )}
                     <div
                       className={cn(
-                        "max-w-[70%] p-3 rounded-2xl text-sm",
+                        "max-w-[85%] md:max-w-[70%] p-3 rounded-2xl text-sm",
                         msg.role === "assistant"
                           ? "bg-secondary rounded-tl-md"
                           : "bg-gradient-to-br from-primary to-accent text-white rounded-tr-md"

@@ -109,14 +109,14 @@ export default function Calendar() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight">Calendar</h1>
-          <p className="text-muted-foreground">{formattedDate}</p>
+          <h1 className="text-xl sm:text-2xl font-bold tracking-tight">Calendar</h1>
+          <p className="text-muted-foreground text-sm sm:text-base">{formattedDate}</p>
         </div>
         {links.length > 0 && (
           <Button
-            className="bg-gradient-to-r from-primary to-accent hover:opacity-90 transition-opacity"
+            className="bg-gradient-to-r from-primary to-accent hover:opacity-90 transition-opacity w-full sm:w-auto"
             onClick={() => window.open(links[0].url, "_blank")}
           >
             <CalendarIcon className="w-4 h-4 mr-2" />
@@ -185,10 +185,10 @@ export default function Calendar() {
             {bookings.slice(0, 5).map((booking) => (
               <div
                 key={booking.id}
-                className="flex items-center justify-between p-4 rounded-lg border bg-card hover:bg-accent/5 transition-colors"
+                className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-4 rounded-lg border bg-card hover:bg-accent/5 transition-colors"
               >
                 <div className="flex items-center gap-4">
-                  <div className="w-12 h-12 rounded-lg bg-primary/10 flex flex-col items-center justify-center">
+                  <div className="w-12 h-12 rounded-lg bg-primary/10 flex flex-col items-center justify-center shrink-0">
                     <span className="text-xs text-muted-foreground">
                       {formatDate(booking.scheduled_at).split(" ")[0]}
                     </span>
@@ -196,8 +196,8 @@ export default function Calendar() {
                       {new Date(booking.scheduled_at).getDate()}
                     </span>
                   </div>
-                  <div>
-                    <p className="font-medium">
+                  <div className="min-w-0">
+                    <p className="font-medium truncate">
                       {booking.follower_name || booking.title || booking.meeting_type}
                     </p>
                     <p className="text-sm text-muted-foreground">
@@ -205,7 +205,7 @@ export default function Calendar() {
                     </p>
                   </div>
                 </div>
-                <div className="flex items-center gap-3">
+                <div className="flex items-center gap-3 ml-16 sm:ml-0">
                   <span
                     className={cn(
                       "text-xs px-2 py-1 rounded-full flex items-center gap-1",
@@ -250,7 +250,7 @@ export default function Calendar() {
                 <X className="w-4 h-4" />
               </Button>
             </div>
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <input
                 type="text"
                 placeholder="Title (e.g. Discovery Call)"
@@ -270,7 +270,7 @@ export default function Calendar() {
                 placeholder="Calendly/Cal.com URL"
                 value={newLink.url}
                 onChange={(e) => setNewLink(prev => ({ ...prev, url: e.target.value }))}
-                className="px-3 py-2 rounded border bg-background text-sm col-span-2"
+                className="px-3 py-2 rounded border bg-background text-sm sm:col-span-2"
               />
               <select
                 value={newLink.platform}

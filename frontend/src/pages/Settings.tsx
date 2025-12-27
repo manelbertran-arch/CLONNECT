@@ -336,34 +336,40 @@ export default function Settings() {
     <div className="space-y-6 max-w-4xl">
       {/* Header */}
       <div>
-        <h1 className="text-2xl font-bold tracking-tight">Settings</h1>
-        <p className="text-muted-foreground">Configure your bot personality and integrations</p>
+        <h1 className="text-xl sm:text-2xl font-bold tracking-tight">Settings</h1>
+        <p className="text-muted-foreground text-sm sm:text-base">Configure your bot personality and integrations</p>
       </div>
 
       {/* Tabs */}
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-        <TabsList className="bg-secondary p-1 rounded-xl">
-          <TabsTrigger value="personality" className="rounded-lg data-[state=active]:bg-card">
-            <User className="w-4 h-4 mr-2" />
-            Personality
-          </TabsTrigger>
-          <TabsTrigger value="connections" className="rounded-lg data-[state=active]:bg-card">
-            <Link2 className="w-4 h-4 mr-2" />
-            Connections
-          </TabsTrigger>
-          <TabsTrigger value="bot" className="rounded-lg data-[state=active]:bg-card">
-            <Bot className="w-4 h-4 mr-2" />
-            Bot Config
-          </TabsTrigger>
-          <TabsTrigger value="products" className="rounded-lg data-[state=active]:bg-card">
-            <Package className="w-4 h-4 mr-2" />
-            Products
-          </TabsTrigger>
-          <TabsTrigger value="knowledge" className="rounded-lg data-[state=active]:bg-card">
-            <BookOpen className="w-4 h-4 mr-2" />
-            Knowledge
-          </TabsTrigger>
-        </TabsList>
+        <div className="overflow-x-auto -mx-4 px-4 sm:mx-0 sm:px-0">
+          <TabsList className="bg-secondary p-1 rounded-xl w-max sm:w-auto">
+            <TabsTrigger value="personality" className="rounded-lg data-[state=active]:bg-card text-xs sm:text-sm">
+              <User className="w-4 h-4 mr-1 sm:mr-2" />
+              <span className="hidden sm:inline">Personality</span>
+              <span className="sm:hidden">Bot</span>
+            </TabsTrigger>
+            <TabsTrigger value="connections" className="rounded-lg data-[state=active]:bg-card text-xs sm:text-sm">
+              <Link2 className="w-4 h-4 mr-1 sm:mr-2" />
+              <span className="hidden sm:inline">Connections</span>
+              <span className="sm:hidden">Links</span>
+            </TabsTrigger>
+            <TabsTrigger value="bot" className="rounded-lg data-[state=active]:bg-card text-xs sm:text-sm">
+              <Bot className="w-4 h-4 mr-1 sm:mr-2" />
+              Config
+            </TabsTrigger>
+            <TabsTrigger value="products" className="rounded-lg data-[state=active]:bg-card text-xs sm:text-sm">
+              <Package className="w-4 h-4 mr-1 sm:mr-2" />
+              <span className="hidden sm:inline">Products</span>
+              <span className="sm:hidden">Prod</span>
+            </TabsTrigger>
+            <TabsTrigger value="knowledge" className="rounded-lg data-[state=active]:bg-card text-xs sm:text-sm">
+              <BookOpen className="w-4 h-4 mr-1 sm:mr-2" />
+              <span className="hidden sm:inline">Knowledge</span>
+              <span className="sm:hidden">KB</span>
+            </TabsTrigger>
+          </TabsList>
+        </div>
 
         {/* Personality Tab */}
         <TabsContent value="personality" className="space-y-6 animate-fade-in">
@@ -468,7 +474,7 @@ export default function Settings() {
 
                 return (
                   <div key={conn.key} className="metric-card">
-                    <div className="flex items-center justify-between">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                       <div className="flex items-center gap-4">
                         <span className="text-2xl">{conn.icon}</span>
                         <div>
@@ -480,7 +486,7 @@ export default function Settings() {
                           </p>
                         </div>
                       </div>
-                      <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-2 ml-10 sm:ml-0">
                         {isConnected && (
                           <>
                             <Button
@@ -667,9 +673,9 @@ export default function Settings() {
         {/* Products Tab */}
         <TabsContent value="products" className="animate-fade-in">
           <div className="space-y-4">
-            <div className="flex justify-between items-center">
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
               <h3 className="font-semibold">Your Products</h3>
-              <Button onClick={openAddProduct}>
+              <Button onClick={openAddProduct} className="w-full sm:w-auto">
                 <Plus className="w-4 h-4 mr-2" />
                 Add Product
               </Button>
@@ -689,26 +695,26 @@ export default function Settings() {
               products.map((product) => (
                 <div
                   key={product.id}
-                  className="metric-card flex items-center justify-between"
+                  className="metric-card flex flex-col sm:flex-row sm:items-center justify-between gap-3"
                 >
                   <div className="flex items-center gap-4">
                     <div className={cn(
-                      "w-12 h-12 rounded-xl flex items-center justify-center text-xl font-bold",
+                      "w-12 h-12 rounded-xl flex items-center justify-center text-xl font-bold shrink-0",
                       (product.is_active ?? product.active)
                         ? "bg-gradient-to-br from-primary/20 to-accent/20 text-primary"
                         : "bg-secondary text-muted-foreground"
                     )}>
                       {product.currency === "EUR" ? "€" : "$"}
                     </div>
-                    <div>
-                      <p className="font-semibold">{product.name}</p>
-                      <p className="text-sm text-muted-foreground">
+                    <div className="min-w-0">
+                      <p className="font-semibold truncate">{product.name}</p>
+                      <p className="text-sm text-muted-foreground truncate">
                         {product.currency === "EUR" ? "€" : "$"}{product.price}
                         {product.description && ` - ${product.description.slice(0, 30)}...`}
                       </p>
                     </div>
                   </div>
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-2 ml-16 sm:ml-0">
                     <span className={cn(
                       "text-xs px-2 py-1 rounded-full",
                       (product.is_active ?? product.active) ? "bg-success/10 text-success" : "bg-yellow-500/10 text-yellow-600"
