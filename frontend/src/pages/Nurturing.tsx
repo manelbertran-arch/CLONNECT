@@ -227,16 +227,17 @@ export default function Nurturing() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex items-start justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight">Nurturing Sequences</h1>
-          <p className="text-muted-foreground">Automated follow-up sequences for lead nurturing</p>
+          <h1 className="text-xl sm:text-2xl font-bold tracking-tight">Nurturing Sequences</h1>
+          <p className="text-muted-foreground text-sm sm:text-base">Automated follow-up sequences for lead nurturing</p>
         </div>
         <div className="flex gap-2">
           <Button
             variant="outline"
             onClick={() => handleRunNurturing(true)}
             disabled={runNurturing.isPending}
+            className="flex-1 sm:flex-none"
           >
             {runNurturing.isPending ? (
               <Loader2 className="w-4 h-4 animate-spin mr-2" />
@@ -246,7 +247,7 @@ export default function Nurturing() {
             Dry Run
           </Button>
           <Button
-            className="bg-gradient-to-r from-primary to-accent"
+            className="bg-gradient-to-r from-primary to-accent flex-1 sm:flex-none"
             onClick={() => handleRunNurturing(false)}
             disabled={runNurturing.isPending}
           >
@@ -291,7 +292,7 @@ export default function Nurturing() {
               )}
             </div>
           ) : (
-            <div className="grid grid-cols-4 gap-4 text-center">
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 text-center">
               <div>
                 <p className="text-2xl font-bold">{runResult.processed || 0}</p>
                 <p className="text-xs text-muted-foreground">Processed</p>
@@ -314,7 +315,7 @@ export default function Nurturing() {
       )}
 
       {/* Stats Cards */}
-      <div className="grid grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         <div className="metric-card">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
@@ -357,17 +358,17 @@ export default function Nurturing() {
           {sequences.map((seq) => (
             <div key={seq.id} className="metric-card">
               {/* Main row */}
-              <div className="flex items-start gap-4">
+              <div className="flex flex-col sm:flex-row sm:items-start gap-4">
                 {/* Unique icon */}
                 <div className={cn(
-                  "w-12 h-12 rounded-xl flex items-center justify-center",
+                  "w-12 h-12 rounded-xl flex items-center justify-center shrink-0",
                   sequenceColors[seq.type] || "bg-secondary text-muted-foreground"
                 )}>
                   {sequenceIcons[seq.type] || <Mail className="w-5 h-5" />}
                 </div>
 
-                <div className="flex-1">
-                  <div className="flex items-center gap-3">
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-3 flex-wrap">
                     <h3 className="font-semibold">{seq.name}</h3>
                     <Switch
                       checked={seq.is_active !== false}
@@ -400,7 +401,7 @@ export default function Nurturing() {
                   </div>
                 </div>
 
-                <div className="text-right flex items-center gap-4">
+                <div className="flex items-center justify-between sm:justify-end gap-4 mt-2 sm:mt-0">
                   <div className="flex items-center gap-4 text-sm">
                     <div className="text-center">
                       <p className="font-semibold">{seq.enrolled_count || 0}</p>

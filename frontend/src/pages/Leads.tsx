@@ -381,24 +381,25 @@ export default function Leads() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight">Lead Pipeline</h1>
-          <p className="text-muted-foreground">
-            {leads.length} total leads • Drag and drop to update status
+          <h1 className="text-xl sm:text-2xl font-bold tracking-tight">Lead Pipeline</h1>
+          <p className="text-muted-foreground text-sm sm:text-base">
+            {leads.length} total leads • Drag to update status
           </p>
         </div>
         <Button
           onClick={handleOpenAddModal}
-          className="bg-gradient-to-r from-primary to-accent hover:opacity-90 transition-opacity"
+          className="bg-gradient-to-r from-primary to-accent hover:opacity-90 transition-opacity w-full sm:w-auto"
         >
           <Plus className="w-4 h-4 mr-2" />
           Add Lead
         </Button>
       </div>
 
-      {/* Kanban Board */}
-      <div className="grid grid-cols-4 gap-4 h-[calc(100vh-16rem)]">
+      {/* Kanban Board - horizontally scrollable on mobile */}
+      <div className="overflow-x-auto pb-4 -mx-4 px-4 md:mx-0 md:px-0">
+        <div className="flex md:grid md:grid-cols-4 gap-4 h-[calc(100vh-14rem)] md:h-[calc(100vh-16rem)] min-w-max md:min-w-0">
         {columns.map((column) => {
           const columnLeads = getLeadsByStatus(column.status);
           const columnValue = columnLeads.reduce((sum, lead) => sum + lead.value, 0);
@@ -406,7 +407,7 @@ export default function Leads() {
           return (
             <div
               key={column.status}
-              className="flex flex-col bg-card/50 rounded-2xl border border-border/50 overflow-hidden"
+              className="flex flex-col bg-card/50 rounded-2xl border border-border/50 overflow-hidden w-72 md:w-auto shrink-0 md:shrink"
               onDragOver={handleDragOver}
               onDrop={() => handleDrop(column.status)}
             >
@@ -499,6 +500,7 @@ export default function Leads() {
             </div>
           );
         })}
+        </div>
       </div>
 
       {/* Footer */}

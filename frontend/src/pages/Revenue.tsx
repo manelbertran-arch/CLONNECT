@@ -85,12 +85,12 @@ export default function Revenue() {
     <div className="space-y-6">
       {/* Header */}
       <div>
-        <h1 className="text-2xl font-bold tracking-tight">Revenue Analytics</h1>
-        <p className="text-muted-foreground">Track your earnings across all platforms</p>
+        <h1 className="text-xl sm:text-2xl font-bold tracking-tight">Revenue Analytics</h1>
+        <p className="text-muted-foreground text-sm sm:text-base">Track your earnings across all platforms</p>
       </div>
 
       {/* Main Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         {/* Total Revenue */}
         <div className="metric-card glow">
           <div className="flex items-center gap-3 mb-3">
@@ -211,13 +211,13 @@ export default function Revenue() {
                     <X className="w-4 h-4" />
                   </Button>
                 </div>
-                <div className="grid grid-cols-2 gap-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <input
                     type="text"
                     placeholder="Product name"
                     value={newPurchase.product_name}
                     onChange={(e) => setNewPurchase(prev => ({ ...prev, product_name: e.target.value }))}
-                    className="px-3 py-2 rounded border bg-background text-sm col-span-2"
+                    className="px-3 py-2 rounded border bg-background text-sm sm:col-span-2"
                   />
                   <input
                     type="number"
