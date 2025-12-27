@@ -166,12 +166,12 @@ export default function Dashboard() {
   return (
     <div className="space-y-8">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">
+          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">
             {greeting}, <span className="gradient-text">{creatorName}</span>
           </h1>
-          <p className="text-muted-foreground mt-1">Here's what's happening with your business today.</p>
+          <p className="text-muted-foreground mt-1 text-sm sm:text-base">Here's what's happening with your business today.</p>
         </div>
         <Button
           variant={isActive ? "default" : "outline"}
