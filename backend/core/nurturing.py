@@ -17,6 +17,20 @@ from enum import Enum
 
 logger = logging.getLogger(__name__)
 
+# Lazy import for Reflexion to avoid circular imports
+_reflexion_improver = None
+
+def _get_reflexion():
+    """Lazy load Reflexion improver"""
+    global _reflexion_improver
+    if _reflexion_improver is None:
+        try:
+            from core.reasoning import get_reflexion_improver
+            _reflexion_improver = get_reflexion_improver()
+        except Exception as e:
+            logger.warning(f"Could not load Reflexion: {e}")
+    return _reflexion_improver
+
 
 class SequenceType(Enum):
     """Tipos de secuencias de nurturing"""
@@ -326,6 +340,64 @@ class NurturingManager:
         message = message.replace("{product_name}", product_name)
 
         return message
+
+    async def get_personalized_followup_message(
+        self,
+        followup: FollowUp,
+        follower_context: Dict[str, Any] = None
+    ) -> str:
+        """
+        Generate personalized followup message using Reflexion.
+
+        Uses AI to personalize the generic template based on follower context.
+
+        Args:
+            followup: The followup to generate message for
+            follower_context: Context about the follower (name, interests, etc.)
+
+        Returns:
+            Personalized message string
+        """
+        # First, get the basic rendered message
+        base_message = self.get_followup_message(followup)
+
+        # If no context or Reflexion not available, return base message
+        if not follower_context:
+            return base_message
+
+        reflexion = _get_reflexion()
+        if not reflexion:
+            return base_message
+
+        try:
+            # Prepare context for Reflexion
+            context = {
+                "follower_name": follower_context.get("name", ""),
+                "interests": follower_context.get("interests", []),
+                "products_discussed": follower_context.get("products_discussed", []),
+                "language": follower_context.get("preferred_language", "es"),
+                "sequence_type": followup.sequence_type,
+                "step": followup.step
+            }
+
+            # Use Reflexion to personalize
+            result = await reflexion.improve_response(
+                response=base_message,
+                target_quality="personalizado, empático y natural - no suene robótico",
+                context=context,
+                min_quality=0.6
+            )
+
+            logger.info(
+                f"Reflexion personalized message: quality={result.quality_score:.2f}, "
+                f"iterations={result.iterations}"
+            )
+
+            return result.final_answer
+
+        except Exception as e:
+            logger.warning(f"Reflexion personalization failed: {e}")
+            return base_message
 
     def cleanup_old_followups(self, creator_id: str, days: int = 30) -> int:
         """Eliminar followups antiguos (enviados o cancelados)"""

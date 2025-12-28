@@ -25,6 +25,8 @@ from datetime import datetime, timezone
 from enum import Enum
 import uuid
 
+from core.sales_tracker import get_sales_tracker
+
 logger = logging.getLogger("clonnect-payments")
 
 
@@ -535,6 +537,23 @@ class PaymentManager:
 
         # Track analytics
         await self._track_purchase_analytics(creator_id, follower_id, product_id, amount, platform)
+
+        # Track sale in SalesTracker for conversion analytics
+        try:
+            sales_tracker = get_sales_tracker()
+            sales_tracker.record_sale(
+                creator_id=creator_id,
+                product_id=product_id,
+                follower_id=follower_id or "",
+                amount=amount,
+                currency=currency,
+                product_name=product_name,
+                external_id=external_id,
+                platform=platform
+            )
+            logger.info(f"Sale tracked in SalesTracker: {product_id}")
+        except Exception as st_error:
+            logger.warning(f"Failed to track sale in SalesTracker: {st_error}")
 
         logger.info(f"Purchase recorded: {purchase.purchase_id} - {amount} {currency}")
         return purchase
