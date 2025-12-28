@@ -49,11 +49,25 @@ async def check_telegram_connected(creator_id: str) -> bool:
 
 
 async def check_whatsapp_connected(creator_id: str) -> bool:
-    """Check if WhatsApp is configured - uses env vars as it's account-level"""
-    # WhatsApp is typically configured at account level via env vars
-    # since it requires Meta Business verification
+    """Check if WhatsApp is configured - checks DB first, then env vars"""
+    # First check if creator has WhatsApp configured in DB
+    try:
+        from api.database import DATABASE_URL, SessionLocal
+        if DATABASE_URL and SessionLocal:
+            session = SessionLocal()
+            try:
+                from api.models import Creator
+                creator = session.query(Creator).filter_by(name=creator_id).first()
+                if creator and creator.whatsapp_token and creator.whatsapp_phone_id:
+                    return True
+            finally:
+                session.close()
+    except Exception as e:
+        logger.warning(f"DB check failed for whatsapp: {e}")
+
+    # Fallback to env vars (account-level config)
     token = os.getenv("WHATSAPP_ACCESS_TOKEN", "")
-    phone_id = os.getenv("WHATSAPP_PHONE_ID", "")
+    phone_id = os.getenv("WHATSAPP_PHONE_NUMBER_ID", "")  # Consistent with core/whatsapp.py
     return bool(token and phone_id and len(token) > 10)
 
 
