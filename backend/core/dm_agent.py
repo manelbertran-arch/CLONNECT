@@ -32,6 +32,7 @@ from core.alerts import get_alert_manager
 from core.creator_config import CreatorConfigManager
 from core.sales_tracker import get_sales_tracker
 from core.guardrails import get_response_guardrail
+from core.reasoning import get_self_consistency_validator
 from core.metrics import (
     record_message_processed,
     record_llm_error,
@@ -1337,6 +1338,51 @@ USA ESTA RESPUESTA PARA LA OBJECION (adaptala a tu tono):
                     )
                 except Exception as ge:
                     logger.warning(f"Guardrail check failed: {ge}")
+
+                # === SELF-CONSISTENCY CHECK ===
+                # Validate response confidence before sending
+                # If confidence < 0.6 -> use safe fallback response
+                try:
+                    consistency_validator = get_self_consistency_validator(self.llm)
+                    consistency_result = await consistency_validator.validate_response(
+                        query=message_text,
+                        response=response_text,
+                        system_prompt=system_prompt,
+                        max_tokens=200
+                    )
+
+                    # Log confidence for monitoring
+                    logger.info(
+                        f"Self-consistency: confidence={consistency_result.confidence:.2f}, "
+                        f"consistent={consistency_result.is_consistent}"
+                    )
+
+                    if not consistency_result.is_consistent:
+                        # Low confidence -> safe fallback
+                        creator_name = self.creator_config.get('name', 'el creador')
+                        if user_language == "es":
+                            response_text = f"Déjame confirmarlo con {creator_name} y te respondo enseguida."
+                        elif user_language == "en":
+                            response_text = f"Let me confirm this with {creator_name} and I'll get back to you shortly."
+                        elif user_language == "pt":
+                            response_text = f"Deixe-me confirmar isso com {creator_name} e já te respondo."
+                        else:
+                            response_text = f"Déjame confirmarlo con {creator_name} y te respondo enseguida."
+
+                        logger.info(f"Low confidence ({consistency_result.confidence:.2f}) - using safe fallback")
+
+                        # Record for analytics (optional: track escalations due to low confidence)
+                        try:
+                            record_escalation(self.creator_id, reason="low_confidence")
+                        except Exception:
+                            pass
+                    else:
+                        # Use validated response (may be refined by consistency check)
+                        response_text = consistency_result.response
+
+                except Exception as sc_error:
+                    logger.warning(f"Self-consistency check failed: {sc_error}")
+                    # Continue with original response on error
 
                 # Si el idioma no es espanol y la respuesta parece en espanol, traducir
                 if user_language != DEFAULT_LANGUAGE:
