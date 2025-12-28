@@ -36,11 +36,12 @@ def test_get_sequences_returns_all_default_sequences():
     print(f"\n=== GET SEQUENCES ===")
     print(f"Total sequences: {len(sequences)}")
 
-    # Should have all 8 default sequences
+    # Should have all 12 default sequences (8 original + 4 scarcity/urgency)
     expected_types = [
         "interest_cold", "objection_price", "objection_time",
         "objection_doubt", "objection_later", "abandoned",
-        "re_engagement", "post_purchase"
+        "re_engagement", "post_purchase",
+        "discount_urgency", "spots_limited", "offer_expiring", "flash_sale"
     ]
 
     actual_types = [s["type"] for s in sequences]
@@ -163,14 +164,14 @@ def test_get_stats():
     print(f"Stats: total={data['total']}, pending={data['pending']}, sent={data['sent']}")
     print(f"Active sequences: {data['active_sequences']}")
 
-    # Active sequences should be 8 by default (all active)
-    assert data["active_sequences"] == 8, f"Expected 8 active, got {data['active_sequences']}"
+    # Active sequences should be 0 by default (all inactive - user must enable)
+    assert data["active_sequences"] == 0, f"Expected 0 active, got {data['active_sequences']}"
 
-    # Toggle one off and check again
+    # Toggle one on and check again
     client.post(f"/nurturing/{CREATOR_ID}/sequences/interest_cold/toggle")
     resp = client.get(f"/nurturing/{CREATOR_ID}/stats")
-    assert resp.json()["active_sequences"] == 7
-    print("After toggling one off: active_sequences=7")
+    assert resp.json()["active_sequences"] == 1
+    print("After toggling one on: active_sequences=1")
 
 
 def test_get_enrolled_followers():
@@ -224,11 +225,17 @@ def test_full_integration_flow():
     sequences = resp.json()["sequences"]
     print(f"\n1. Retrieved {len(sequences)} sequences")
 
-    # 2. Toggle a sequence off
+    # 2. Toggle a sequence ON (default is inactive/False)
+    resp = client.post(f"/nurturing/{CREATOR_ID}/sequences/post_purchase/toggle")
+    assert resp.status_code == 200
+    assert resp.json()["is_active"] == True
+    print("2. Toggled post_purchase ON")
+
+    # 2b. Toggle it OFF again
     resp = client.post(f"/nurturing/{CREATOR_ID}/sequences/post_purchase/toggle")
     assert resp.status_code == 200
     assert resp.json()["is_active"] == False
-    print("2. Toggled post_purchase OFF")
+    print("2b. Toggled post_purchase OFF")
 
     # 3. Update sequence steps
     resp = client.put(
