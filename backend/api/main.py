@@ -13,7 +13,7 @@ from datetime import datetime, timezone
 from typing import Optional, List, Dict, Any
 from fastapi import FastAPI, HTTPException, Request, Depends, Header, Body
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import Response, HTMLResponse
+from fastapi.responses import Response, HTMLResponse, PlainTextResponse
 from pydantic import BaseModel
 
 logging.basicConfig(level=logging.INFO)
