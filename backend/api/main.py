@@ -144,6 +144,7 @@ WEBHOOK_ENDPOINTS = {
     "/webhook/calendly",
     "/webhook/calcom",
     "/instagram/webhook",  # Legacy
+    "/webhook/whatsapp",
 }
 
 
@@ -1078,6 +1079,63 @@ async def instagram_comments_webhook(request: Request):
         logger.error(f"Error processing Instagram comments webhook: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
+
+
+# ---------------------------------------------------------
+# WHATSAPP WEBHOOK
+# ---------------------------------------------------------
+
+@app.get("/webhook/whatsapp")
+async def whatsapp_webhook_verify(request: Request):
+    """
+    Verificacion de webhook de Meta para WhatsApp (GET).
+    Meta envia GET para verificar el endpoint antes de activar webhooks.
+    """
+    mode = request.query_params.get("hub.mode", "")
+    token = request.query_params.get("hub.verify_token", "")
+    challenge = request.query_params.get("hub.challenge", "")
+    
+    verify_token = os.getenv("WHATSAPP_VERIFY_TOKEN", "clonnect_whatsapp_verify_2024")
+    
+    if mode == "subscribe" and token == verify_token:
+        logger.info("WhatsApp webhook verified successfully")
+        return PlainTextResponse(content=challenge)
+    
+    logger.warning(f"WhatsApp webhook verification failed: mode={mode}")
+    return PlainTextResponse(content="Verification failed", status_code=403)
+
+
+@app.post("/webhook/whatsapp")
+async def whatsapp_webhook_receive(request: Request):
+    """
+    Recibir mensajes de WhatsApp via webhook de Meta.
+    """
+    logger.warning("========== WHATSAPP WEBHOOK HIT ==========")
+    
+    try:
+        payload = await request.json()
+        signature = request.headers.get("X-Hub-Signature-256", "")
+        
+        handler = get_whatsapp_handler()
+        result = await handler.handle_webhook(payload, signature)
+        
+        logger.info(f"WhatsApp webhook processed: {result.get('messages_processed', 0)} messages")
+        return result
+    
+    except Exception as e:
+        logger.error(f"Error processing WhatsApp webhook: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/whatsapp/status")
+async def whatsapp_status():
+    """Estado del handler de WhatsApp"""
+    handler = get_whatsapp_handler()
+    return {
+        "status": handler.get_status(),
+        "recent_messages": handler.get_recent_messages(5),
+        "recent_responses": handler.get_recent_responses(5)
+    }
 
 # ---------------------------------------------------------
 # TELEGRAM WEBHOOK
