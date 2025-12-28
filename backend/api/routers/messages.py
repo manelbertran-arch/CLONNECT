@@ -144,6 +144,15 @@ async def send_message(creator_id: str, data: dict = Body(...)):
             from core.telegram_sender import send_telegram_message
             chat_id = follower_id.replace("tg_", "")
             sent = await send_telegram_message(chat_id, message_text)
+        elif follower_id.startswith("wa_"):
+            platform = "whatsapp"
+            # Send via WhatsApp handler
+            from core.whatsapp import WhatsAppHandler
+            handler = WhatsAppHandler()
+            recipient_id = follower_id.replace("wa_", "")
+            sent = await handler.send_response(recipient_id, message_text)
+            if sent:
+                logger.info(f"Message sent to WhatsApp {recipient_id}")
         elif follower_id.startswith("ig_"):
             platform = "instagram"
             # Send via Instagram handler

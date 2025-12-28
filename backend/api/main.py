@@ -131,6 +131,7 @@ PUBLIC_ENDPOINTS = {
     "/terms",
     # OAuth callbacks (need to be public for redirects)
     "/oauth/instagram/callback",
+    "/oauth/whatsapp/callback",
     "/oauth/stripe/callback",
     "/oauth/paypal/callback",
     "/oauth/calendly/callback",
@@ -139,6 +140,7 @@ PUBLIC_ENDPOINTS = {
 # Endpoints de webhook (usan su propia autenticacion via firma)
 WEBHOOK_ENDPOINTS = {
     "/webhook/instagram",
+    "/webhook/whatsapp",
     "/webhook/stripe",
     "/webhook/hotmart",
     "/webhook/calendly",
@@ -1228,6 +1230,94 @@ async def telegram_status():
         "bot_token_configured": bool(TELEGRAM_BOT_TOKEN),
         "webhook_url": "/webhook/telegram"
     }
+
+
+# ---------------------------------------------------------
+# WHATSAPP WEBHOOK
+# ---------------------------------------------------------
+# WhatsApp handler singleton
+_whatsapp_handler = None
+
+
+def get_whatsapp_handler():
+    """Get or create WhatsApp handler singleton"""
+    global _whatsapp_handler
+    if _whatsapp_handler is None:
+        try:
+            from core.whatsapp import WhatsAppHandler
+            _whatsapp_handler = WhatsAppHandler()
+        except Exception as e:
+            logger.error(f"Error initializing WhatsApp handler: {e}")
+            raise HTTPException(status_code=500, detail="WhatsApp handler not available")
+    return _whatsapp_handler
+
+
+@app.get("/webhook/whatsapp")
+async def whatsapp_webhook_verify(request: Request):
+    """
+    WhatsApp webhook verification (GET).
+    Meta sends GET request to verify the endpoint before activating webhooks.
+    """
+    params = dict(request.query_params)
+    mode = params.get("hub.mode", "")
+    token = params.get("hub.verify_token", "")
+    challenge = params.get("hub.challenge", "")
+
+    handler = get_whatsapp_handler()
+    result = handler.connector.verify_webhook(mode, token, challenge)
+
+    if result:
+        logger.info("WhatsApp webhook verified successfully")
+        return Response(content=result, media_type="text/plain")
+
+    logger.warning("WhatsApp webhook verification failed")
+    raise HTTPException(status_code=403, detail="Verification failed")
+
+
+@app.post("/webhook/whatsapp")
+async def whatsapp_webhook_receive(request: Request):
+    """
+    Receive WhatsApp webhook events (POST).
+    Processes incoming DMs with DMResponderAgent and sends automatic responses.
+    """
+    logger.warning("=" * 60)
+    logger.warning("========== WHATSAPP WEBHOOK HIT ==========")
+    logger.warning("=" * 60)
+
+    try:
+        payload = await request.json()
+        signature = request.headers.get("X-Hub-Signature-256", "")
+
+        handler = get_whatsapp_handler()
+        result = await handler.handle_webhook(payload, signature)
+
+        logger.info(f"WhatsApp webhook processed: {result.get('messages_processed', 0)} messages")
+        return result
+
+    except Exception as e:
+        logger.error(f"Error processing WhatsApp webhook: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/whatsapp/status")
+async def whatsapp_status():
+    """Get WhatsApp handler status"""
+    try:
+        handler = get_whatsapp_handler()
+        return {
+            "status": "ok",
+            "handler": handler.get_status(),
+            "recent_messages": handler.get_recent_messages(5),
+            "recent_responses": handler.get_recent_responses(5)
+        }
+    except Exception as e:
+        return {
+            "status": "error",
+            "phone_number_id_configured": bool(os.getenv("WHATSAPP_PHONE_NUMBER_ID", "")),
+            "access_token_configured": bool(os.getenv("WHATSAPP_ACCESS_TOKEN", "")),
+            "webhook_url": "/webhook/whatsapp",
+            "error": str(e)
+        }
 
 
 # ---------------------------------------------------------

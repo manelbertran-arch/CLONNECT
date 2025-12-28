@@ -148,6 +148,135 @@ async def instagram_oauth_callback(
 
 
 # =============================================================================
+# WHATSAPP BUSINESS
+# =============================================================================
+WHATSAPP_REDIRECT_URI = os.getenv("WHATSAPP_REDIRECT_URI", f"{API_URL}/oauth/whatsapp/callback")
+
+@router.get("/whatsapp/start")
+async def whatsapp_oauth_start(creator_id: str):
+    """
+    Start WhatsApp Business OAuth flow.
+
+    WhatsApp Business uses Facebook Login with specific scopes for
+    WhatsApp Business Management API access.
+    """
+    if not META_APP_ID:
+        raise HTTPException(status_code=500, detail="META_APP_ID not configured")
+
+    # Store state for CSRF protection
+    state = f"{creator_id}:{secrets.token_urlsafe(16)}"
+
+    # WhatsApp Business scopes - requires approved Meta Business app
+    # Reference: https://developers.facebook.com/docs/whatsapp/embedded-signup/
+    params = {
+        "client_id": META_APP_ID,
+        "redirect_uri": WHATSAPP_REDIRECT_URI,
+        "scope": "whatsapp_business_management,whatsapp_business_messaging,business_management",
+        "response_type": "code",
+        "state": state,
+        "config_id": os.getenv("WHATSAPP_CONFIG_ID", ""),  # Embedded Signup config
+    }
+
+    # Remove empty config_id if not set
+    if not params["config_id"]:
+        del params["config_id"]
+
+    auth_url = f"https://www.facebook.com/v21.0/dialog/oauth?{urlencode(params)}"
+    return {"auth_url": auth_url, "state": state}
+
+
+@router.get("/whatsapp/callback")
+async def whatsapp_oauth_callback(
+    code: str = Query(None),
+    state: str = Query(""),
+    error_code: str = Query(None),
+    error_message: str = Query(None)
+):
+    """Handle WhatsApp Business OAuth callback"""
+    import httpx
+
+    # Handle OAuth errors
+    if error_code or error_message:
+        logger.error(f"WhatsApp OAuth error: {error_code} - {error_message}")
+        return RedirectResponse(f"{FRONTEND_URL}/settings?tab=connections&error=whatsapp_scope_error")
+
+    if not code:
+        logger.error("WhatsApp OAuth: No code received")
+        return RedirectResponse(f"{FRONTEND_URL}/settings?tab=connections&error=whatsapp_no_code")
+
+    if not META_APP_ID or not META_APP_SECRET:
+        return RedirectResponse(f"{FRONTEND_URL}/settings?tab=connections&error=whatsapp_not_configured")
+
+    # Extract creator_id from state
+    creator_id = state.split(":")[0] if ":" in state else "manel"
+
+    try:
+        async with httpx.AsyncClient() as client:
+            # Exchange code for access token
+            token_response = await client.get(
+                "https://graph.facebook.com/v21.0/oauth/access_token",
+                params={
+                    "client_id": META_APP_ID,
+                    "client_secret": META_APP_SECRET,
+                    "redirect_uri": WHATSAPP_REDIRECT_URI,
+                    "code": code,
+                }
+            )
+            token_data = token_response.json()
+
+            if "error" in token_data:
+                logger.error(f"WhatsApp token error: {token_data}")
+                return RedirectResponse(f"{FRONTEND_URL}/settings?tab=connections&error=whatsapp_auth_failed")
+
+            access_token = token_data.get("access_token")
+
+            # Get WhatsApp Business Account and Phone Number ID
+            # First, get the user's business accounts
+            waba_response = await client.get(
+                "https://graph.facebook.com/v21.0/me/businesses",
+                params={"access_token": access_token}
+            )
+            waba_data = waba_response.json()
+
+            phone_number_id = None
+            waba_id = None
+
+            # Find WhatsApp Business Account
+            if waba_data.get("data"):
+                business_id = waba_data["data"][0]["id"]
+
+                # Get WhatsApp Business Accounts owned by this business
+                owned_wabas = await client.get(
+                    f"https://graph.facebook.com/v21.0/{business_id}/owned_whatsapp_business_accounts",
+                    params={"access_token": access_token}
+                )
+                owned_data = owned_wabas.json()
+
+                if owned_data.get("data"):
+                    waba_id = owned_data["data"][0]["id"]
+
+                    # Get phone numbers for this WABA
+                    phones_response = await client.get(
+                        f"https://graph.facebook.com/v21.0/{waba_id}/phone_numbers",
+                        params={"access_token": access_token}
+                    )
+                    phones_data = phones_response.json()
+
+                    if phones_data.get("data"):
+                        phone_number_id = phones_data["data"][0]["id"]
+                        logger.info(f"Found WhatsApp phone number ID: {phone_number_id}")
+
+            # Save to database
+            await _save_connection(creator_id, "whatsapp", access_token, phone_number_id)
+
+            return RedirectResponse(f"{FRONTEND_URL}/settings?tab=connections&success=whatsapp")
+
+    except Exception as e:
+        logger.error(f"WhatsApp OAuth error: {e}")
+        return RedirectResponse(f"{FRONTEND_URL}/settings?tab=connections&error=whatsapp_failed")
+
+
+# =============================================================================
 # STRIPE CONNECT (using Account Links API - modern approach)
 # =============================================================================
 
@@ -469,6 +598,9 @@ async def _save_connection(creator_id: str, platform: str, token: str, extra_id:
                 if platform == "instagram":
                     creator.instagram_token = token
                     creator.instagram_page_id = extra_id
+                elif platform == "whatsapp":
+                    creator.whatsapp_token = token
+                    creator.whatsapp_phone_id = extra_id
                 elif platform == "stripe":
                     creator.stripe_api_key = token
                 elif platform == "paypal":

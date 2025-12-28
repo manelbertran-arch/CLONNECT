@@ -179,9 +179,9 @@ async def get_nurturing_stats(creator_id: str):
     active_count = 0
     for seq in _get_default_sequences():
         seq_type = seq["type"]
-        is_active = True  # Default
+        is_active = False  # Default matches _get_default_sequences()
         if seq_type in config.get("sequences", {}):
-            is_active = config["sequences"][seq_type].get("is_active", True)
+            is_active = config["sequences"][seq_type].get("is_active", False)
         if is_active:
             active_count += 1
 
@@ -213,7 +213,8 @@ async def toggle_nurturing_sequence(
         config["sequences"][sequence_type] = {}
 
     # Toggle or set explicitly
-    current_active = config["sequences"][sequence_type].get("is_active", True)
+    # Default to False to match _get_default_sequences() which sets is_active=False
+    current_active = config["sequences"][sequence_type].get("is_active", False)
     if data and data.enabled is not None:
         new_active = data.enabled
     else:

@@ -48,3 +48,13 @@ Thumbs.db
 # Data (ephemeral)
 data/followers/
 *.json.bak
+
+# Test data
+backend/data/followers/*_test*/
+
+# Test generated data
+backend/data/followers/manel/test_*.json
+backend/data/analytics/manel_events.json
+backend/data/escalations/manel_escalations.jsonl
+backend/data/nurturing/manel_followups.json
+backend/data/sales/

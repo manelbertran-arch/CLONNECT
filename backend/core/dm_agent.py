@@ -32,6 +32,7 @@ from core.alerts import get_alert_manager
 from core.creator_config import CreatorConfigManager
 from core.sales_tracker import get_sales_tracker
 from core.guardrails import get_response_guardrail
+from core.reasoning import get_self_consistency_validator, get_chain_of_thought_reasoner
 from core.metrics import (
     record_message_processed,
     record_llm_error,
@@ -1314,12 +1315,34 @@ USA ESTA RESPUESTA PARA LA OBJECION (adaptala a tu tono):
         # Generar respuesta con LLM solo si no hay cache
         if not cached_response:
             try:
-                messages = [
-                    {"role": "system", "content": system_prompt},
-                    {"role": "user", "content": user_prompt}
-                ]
-                response_text = await self.llm.chat(messages, max_tokens=200, temperature=0.7)
-                response_text = response_text.strip()
+                # === CHAIN OF THOUGHT FOR COMPLEX QUERIES ===
+                # Use CoT reasoning for complex/health-related queries
+                cot_used = False
+                try:
+                    cot_reasoner = get_chain_of_thought_reasoner(self.llm)
+                    if cot_reasoner.is_complex_query(message_text):
+                        logger.info("Using Chain of Thought for complex query")
+                        cot_context = {
+                            "creator_name": self.creator_config.get("name", "el creador"),
+                            "products": self.products
+                        }
+                        cot_result = await cot_reasoner.generate(message_text, cot_context)
+
+                        if cot_result.is_complex and cot_result.answer:
+                            response_text = cot_result.answer
+                            cot_used = True
+                            logger.info(f"CoT response: type={cot_result.query_type}, steps={len(cot_result.reasoning_steps)}")
+                except Exception as cot_error:
+                    logger.warning(f"Chain of Thought failed: {cot_error}")
+
+                # Standard LLM response if CoT not used
+                if not cot_used:
+                    messages = [
+                        {"role": "system", "content": system_prompt},
+                        {"role": "user", "content": user_prompt}
+                    ]
+                    response_text = await self.llm.chat(messages, max_tokens=200, temperature=0.7)
+                    response_text = response_text.strip()
 
                 # Validate response with guardrails
                 try:
@@ -1337,6 +1360,51 @@ USA ESTA RESPUESTA PARA LA OBJECION (adaptala a tu tono):
                     )
                 except Exception as ge:
                     logger.warning(f"Guardrail check failed: {ge}")
+
+                # === SELF-CONSISTENCY CHECK ===
+                # Validate response confidence before sending
+                # If confidence < 0.6 -> use safe fallback response
+                try:
+                    consistency_validator = get_self_consistency_validator(self.llm)
+                    consistency_result = await consistency_validator.validate_response(
+                        query=message_text,
+                        response=response_text,
+                        system_prompt=system_prompt,
+                        max_tokens=200
+                    )
+
+                    # Log confidence for monitoring
+                    logger.info(
+                        f"Self-consistency: confidence={consistency_result.confidence:.2f}, "
+                        f"consistent={consistency_result.is_consistent}"
+                    )
+
+                    if not consistency_result.is_consistent:
+                        # Low confidence -> safe fallback
+                        creator_name = self.creator_config.get('name', 'el creador')
+                        if user_language == "es":
+                            response_text = f"Déjame confirmarlo con {creator_name} y te respondo enseguida."
+                        elif user_language == "en":
+                            response_text = f"Let me confirm this with {creator_name} and I'll get back to you shortly."
+                        elif user_language == "pt":
+                            response_text = f"Deixe-me confirmar isso com {creator_name} e já te respondo."
+                        else:
+                            response_text = f"Déjame confirmarlo con {creator_name} y te respondo enseguida."
+
+                        logger.info(f"Low confidence ({consistency_result.confidence:.2f}) - using safe fallback")
+
+                        # Record for analytics (optional: track escalations due to low confidence)
+                        try:
+                            record_escalation(self.creator_id, reason="low_confidence")
+                        except Exception:
+                            pass
+                    else:
+                        # Use validated response (may be refined by consistency check)
+                        response_text = consistency_result.response
+
+                except Exception as sc_error:
+                    logger.warning(f"Self-consistency check failed: {sc_error}")
+                    # Continue with original response on error
 
                 # Si el idioma no es espanol y la respuesta parece en espanol, traducir
                 if user_language != DEFAULT_LANGUAGE:
