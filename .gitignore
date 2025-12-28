@@ -48,3 +48,6 @@ Thumbs.db
 # Data (ephemeral)
 data/followers/
 *.json.bak
+
+# Test data
+backend/data/followers/*_test*/
