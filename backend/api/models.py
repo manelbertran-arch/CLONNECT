@@ -10,6 +10,7 @@ except:
 
 class Creator(Base):
     __tablename__ = "creators"
+    __table_args__ = {'extend_existing': True}
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     email = Column(String(255), unique=True)
     name = Column(String(255), nullable=False)
@@ -102,7 +103,7 @@ class BookingLink(Base):
     platform = Column(String(50), default="manual")  # calendly, calcom, tidycal, acuity, google, whatsapp, custom
     url = Column(Text)  # Booking URL
     is_active = Column(Boolean, default=True)
-    metadata = Column(JSON, default=dict)  # Additional platform-specific data
+    extra_data = Column(JSON, default=dict)  # Additional platform-specific data (renamed from metadata - reserved in SQLAlchemy)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
 class CalendarBooking(Base):
@@ -124,6 +125,6 @@ class CalendarBooking(Base):
     notes = Column(Text)
     cancel_reason = Column(Text)
     cancelled_at = Column(DateTime(timezone=True))
-    metadata = Column(JSON, default=dict)
+    extra_data = Column(JSON, default=dict)  # Renamed from metadata - reserved in SQLAlchemy
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())

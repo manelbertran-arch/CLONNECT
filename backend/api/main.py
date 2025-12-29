@@ -2557,7 +2557,7 @@ async def get_all_booking_links(creator_id: str):
                         "platform": link.platform,
                         "url": link.url or "",
                         "is_active": link.is_active,
-                        "metadata": link.metadata or {},
+                        "metadata": link.extra_data or {},
                         "created_at": link.created_at.isoformat() if link.created_at else ""
                     })
 
@@ -2609,7 +2609,7 @@ async def create_booking_link(
         description = data.get("description", "")
         url = data.get("url", "")
         platform = data.get("platform", "manual")
-        metadata = data.get("metadata", {})
+        extra_data = data.get("metadata", {})
 
         # Use database instead of file storage
         if SessionLocal:
@@ -2625,7 +2625,7 @@ async def create_booking_link(
                     platform=platform,
                     url=url,
                     is_active=True,
-                    metadata=metadata
+                    extra_data=extra_data
                 )
                 db.add(db_link)
                 db.commit()
@@ -2645,7 +2645,7 @@ async def create_booking_link(
                         "platform": db_link.platform,
                         "url": db_link.url or "",
                         "is_active": db_link.is_active,
-                        "metadata": db_link.metadata or {},
+                        "metadata": db_link.extra_data or {},
                         "created_at": db_link.created_at.isoformat() if db_link.created_at else ""
                     }
                 }
