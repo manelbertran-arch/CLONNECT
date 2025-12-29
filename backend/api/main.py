@@ -2518,19 +2518,14 @@ async def get_all_booking_links(creator_id: str):
 @app.post("/calendar/{creator_id}/links")
 async def create_booking_link(
     creator_id: str,
-    meeting_type: str,
-    duration: int,
-    title: str,
-    description: str = "",
-    url: str = "",
-    platform: str = "manual"
+    data: dict = Body(...)
 ):
     """
     Create a new booking link.
 
-    Args:
+    Body JSON:
         meeting_type: discovery, consultation, coaching, followup, custom
-        duration: Duration in minutes
+        duration_minutes: Duration in minutes
         title: Link title
         description: Optional description
         url: Booking URL (from Calendly/Cal.com or custom)
@@ -2538,10 +2533,19 @@ async def create_booking_link(
     """
     try:
         calendar_manager = get_calendar_manager()
+
+        # Extract data from body
+        meeting_type = data.get("meeting_type", "custom")
+        duration_minutes = data.get("duration_minutes", data.get("duration", 30))
+        title = data.get("title", "")
+        description = data.get("description", "")
+        url = data.get("url", "")
+        platform = data.get("platform", "manual")
+
         link = calendar_manager.create_booking_link(
             creator_id=creator_id,
             meeting_type=meeting_type,
-            duration_minutes=duration,
+            duration_minutes=duration_minutes,
             title=title,
             description=description,
             url=url,
