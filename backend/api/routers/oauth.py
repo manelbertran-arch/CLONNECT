@@ -508,19 +508,54 @@ CALENDLY_CLIENT_ID = os.getenv("CALENDLY_CLIENT_ID", "")
 CALENDLY_CLIENT_SECRET = os.getenv("CALENDLY_CLIENT_SECRET", "")
 CALENDLY_REDIRECT_URI = os.getenv("CALENDLY_REDIRECT_URI", f"{API_URL}/oauth/calendly/callback")
 
+# In-memory store for PKCE code_verifier (in production, use Redis or DB)
+_calendly_pkce_store: dict = {}
+
+
+def _generate_pkce_pair() -> tuple[str, str]:
+    """
+    Generate PKCE code_verifier and code_challenge pair.
+
+    Returns:
+        (code_verifier, code_challenge)
+    """
+    import hashlib
+    import base64
+
+    # Generate code_verifier: 43-128 characters, base64url
+    code_verifier = secrets.token_urlsafe(64)[:128]
+
+    # Generate code_challenge: SHA256(code_verifier), base64url encoded
+    code_challenge = base64.urlsafe_b64encode(
+        hashlib.sha256(code_verifier.encode()).digest()
+    ).decode().rstrip("=")
+
+    return code_verifier, code_challenge
+
+
 @router.get("/calendly/start")
 async def calendly_oauth_start(creator_id: str):
-    """Start Calendly OAuth flow"""
+    """Start Calendly OAuth flow with PKCE"""
     if not CALENDLY_CLIENT_ID:
         raise HTTPException(status_code=500, detail="CALENDLY_CLIENT_ID not configured")
 
-    state = f"{creator_id}:{secrets.token_urlsafe(16)}"
+    # Generate PKCE pair
+    code_verifier, code_challenge = _generate_pkce_pair()
+
+    # Generate state with unique identifier
+    state_id = secrets.token_urlsafe(16)
+    state = f"{creator_id}:{state_id}"
+
+    # Store code_verifier for later retrieval (keyed by state_id)
+    _calendly_pkce_store[state_id] = code_verifier
 
     params = {
         "client_id": CALENDLY_CLIENT_ID,
         "response_type": "code",
         "redirect_uri": CALENDLY_REDIRECT_URI,
         "state": state,
+        "code_challenge": code_challenge,
+        "code_challenge_method": "S256",
     }
 
     auth_url = f"https://auth.calendly.com/oauth/authorize?{urlencode(params)}"
@@ -529,17 +564,27 @@ async def calendly_oauth_start(creator_id: str):
 
 @router.get("/calendly/callback")
 async def calendly_oauth_callback(code: str = Query(...), state: str = Query("")):
-    """Handle Calendly OAuth callback"""
+    """Handle Calendly OAuth callback with PKCE"""
     import httpx
 
     if not CALENDLY_CLIENT_ID or not CALENDLY_CLIENT_SECRET:
         raise HTTPException(status_code=500, detail="Calendly credentials not configured")
 
-    creator_id = state.split(":")[0] if ":" in state else "manel"
+    # Extract creator_id and state_id from state
+    parts = state.split(":")
+    creator_id = parts[0] if parts else "manel"
+    state_id = parts[1] if len(parts) > 1 else ""
+
+    # Retrieve code_verifier from store
+    code_verifier = _calendly_pkce_store.pop(state_id, None)
+
+    if not code_verifier:
+        logger.error(f"Calendly OAuth: code_verifier not found for state {state_id}")
+        return RedirectResponse(f"{FRONTEND_URL}/settings?tab=connections&error=calendly_invalid_state")
 
     try:
         async with httpx.AsyncClient() as client:
-            # Exchange code for access token
+            # Exchange code for access token (with PKCE code_verifier)
             token_response = await client.post(
                 "https://auth.calendly.com/oauth/token",
                 data={
@@ -548,6 +593,7 @@ async def calendly_oauth_callback(code: str = Query(...), state: str = Query("")
                     "code": code,
                     "grant_type": "authorization_code",
                     "redirect_uri": CALENDLY_REDIRECT_URI,
+                    "code_verifier": code_verifier,
                 }
             )
             token_data = token_response.json()
