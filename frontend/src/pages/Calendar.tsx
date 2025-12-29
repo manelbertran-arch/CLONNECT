@@ -59,11 +59,24 @@ export default function Calendar() {
     day: "numeric",
   });
 
+  // Platform requires URL vs custom instructions
+  const platformRequiresUrl = !["whatsapp", "custom"].includes(newLink.platform);
+
   const handleCreateLink = async () => {
-    if (!newLink.url) {
+    // Validate based on platform
+    if (platformRequiresUrl && !newLink.url) {
       toast({ title: "Error", description: "URL is required", variant: "destructive" });
       return;
     }
+    if (newLink.platform === "whatsapp" && !newLink.url) {
+      toast({ title: "Error", description: "WhatsApp number is required", variant: "destructive" });
+      return;
+    }
+    if (newLink.platform === "custom" && !newLink.description) {
+      toast({ title: "Error", description: "Instructions are required", variant: "destructive" });
+      return;
+    }
+
     try {
       await createBookingLink.mutateAsync(newLink);
       toast({ title: "Success", description: "Booking link created" });
@@ -265,21 +278,18 @@ export default function Calendar() {
                 onChange={(e) => setNewLink(prev => ({ ...prev, meeting_type: e.target.value }))}
                 className="px-3 py-2 rounded border bg-background text-sm"
               />
-              <input
-                type="url"
-                placeholder="Calendly/Cal.com URL"
-                value={newLink.url}
-                onChange={(e) => setNewLink(prev => ({ ...prev, url: e.target.value }))}
-                className="px-3 py-2 rounded border bg-background text-sm sm:col-span-2"
-              />
               <select
                 value={newLink.platform}
-                onChange={(e) => setNewLink(prev => ({ ...prev, platform: e.target.value }))}
+                onChange={(e) => setNewLink(prev => ({ ...prev, platform: e.target.value, url: "", description: "" }))}
                 className="px-3 py-2 rounded border bg-background text-sm"
               >
                 <option value="calendly">Calendly</option>
                 <option value="cal.com">Cal.com</option>
-                <option value="other">Other</option>
+                <option value="tidycal">TidyCal</option>
+                <option value="acuity">Acuity Scheduling</option>
+                <option value="google">Google Calendar</option>
+                <option value="whatsapp">WhatsApp</option>
+                <option value="custom">Custom Instructions</option>
               </select>
               <input
                 type="number"
@@ -288,6 +298,31 @@ export default function Calendar() {
                 onChange={(e) => setNewLink(prev => ({ ...prev, duration_minutes: parseInt(e.target.value) || 30 }))}
                 className="px-3 py-2 rounded border bg-background text-sm"
               />
+              {/* Conditional field based on platform */}
+              {newLink.platform === "whatsapp" ? (
+                <input
+                  type="tel"
+                  placeholder="WhatsApp number (+34 600 123 456)"
+                  value={newLink.url}
+                  onChange={(e) => setNewLink(prev => ({ ...prev, url: e.target.value }))}
+                  className="px-3 py-2 rounded border bg-background text-sm sm:col-span-2"
+                />
+              ) : newLink.platform === "custom" ? (
+                <textarea
+                  placeholder="Custom instructions (e.g. 'Send me a DM to schedule')"
+                  value={newLink.description}
+                  onChange={(e) => setNewLink(prev => ({ ...prev, description: e.target.value }))}
+                  className="px-3 py-2 rounded border bg-background text-sm sm:col-span-2 min-h-[80px]"
+                />
+              ) : (
+                <input
+                  type="url"
+                  placeholder={`${newLink.platform === "calendly" ? "Calendly" : newLink.platform === "cal.com" ? "Cal.com" : "Booking"} URL`}
+                  value={newLink.url}
+                  onChange={(e) => setNewLink(prev => ({ ...prev, url: e.target.value }))}
+                  className="px-3 py-2 rounded border bg-background text-sm sm:col-span-2"
+                />
+              )}
             </div>
             <div className="flex justify-end mt-3">
               <Button onClick={handleCreateLink} disabled={createBookingLink.isPending}>
@@ -306,7 +341,7 @@ export default function Calendar() {
           <div className="text-center py-8 text-muted-foreground">
             <Video className="w-12 h-12 mx-auto mb-3 opacity-50" />
             <p>No booking links configured</p>
-            <p className="text-sm mt-2 mb-4">Add your Calendly or Cal.com links</p>
+            <p className="text-sm mt-2 mb-4">Add your Calendly, Cal.com, TidyCal or WhatsApp booking links</p>
             <Button variant="outline" onClick={() => setShowCreateForm(true)}>
               <Plus className="w-4 h-4 mr-2" /> Create Booking Link
             </Button>
