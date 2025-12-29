@@ -43,6 +43,11 @@ def init_database():
         print("No DATABASE_URL - skipping DB init")
         return False
 
+    # Fix Railway's postgres:// to postgresql:// for SQLAlchemy 1.4+
+    if DATABASE_URL.startswith("postgres://"):
+        DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql://", 1)
+        print("Fixed DATABASE_URL scheme: postgres:// -> postgresql://")
+
     try:
         from api.database import Base
         from api.models import Creator, Lead, Message, Product, NurturingSequence, KnowledgeBase, BookingLink, CalendarBooking
@@ -50,6 +55,7 @@ def init_database():
         from database import Base
         from models import Creator, Lead, Message, Product, NurturingSequence, KnowledgeBase, BookingLink, CalendarBooking
 
+    print(f"Creating engine with DATABASE_URL configured: {bool(DATABASE_URL)}")
     engine = create_engine(DATABASE_URL)
     print("Creating tables...")
     Base.metadata.create_all(bind=engine)
