@@ -143,6 +143,7 @@ WEBHOOK_ENDPOINTS = {
     "/webhook/whatsapp",
     "/webhook/stripe",
     "/webhook/hotmart",
+    "/webhook/paypal",
     "/webhook/calendly",
     "/webhook/calcom",
     "/instagram/webhook",  # Legacy
@@ -2185,6 +2186,51 @@ async def hotmart_webhook(request: Request):
 
     except Exception as e:
         logger.error(f"Hotmart webhook error: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/webhook/paypal")
+async def paypal_webhook(request: Request):
+    """
+    PayPal webhook endpoint.
+
+    Processes:
+    - PAYMENT.SALE.COMPLETED
+    - PAYMENT.CAPTURE.COMPLETED
+    - CHECKOUT.ORDER.APPROVED
+    - PAYMENT.SALE.REFUNDED
+
+    Include custom_id in PayPal checkout with JSON:
+    - creator_id
+    - follower_id
+    - product_id
+    - product_name
+    """
+    try:
+        raw_payload = await request.body()
+        payload = await request.json()
+
+        # Get PayPal verification headers
+        headers = {
+            "paypal-transmission-id": request.headers.get("paypal-transmission-id", ""),
+            "paypal-transmission-time": request.headers.get("paypal-transmission-time", ""),
+            "paypal-transmission-sig": request.headers.get("paypal-transmission-sig", ""),
+            "paypal-cert-url": request.headers.get("paypal-cert-url", ""),
+            "paypal-auth-algo": request.headers.get("paypal-auth-algo", ""),
+        }
+
+        payment_manager = get_payment_manager()
+        result = await payment_manager.process_paypal_webhook(
+            payload=payload,
+            headers=headers,
+            raw_payload=raw_payload
+        )
+
+        logger.info(f"PayPal webhook processed: {result}")
+        return result
+
+    except Exception as e:
+        logger.error(f"PayPal webhook error: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 
