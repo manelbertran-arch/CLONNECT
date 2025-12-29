@@ -24,21 +24,24 @@ interface ConnectionConfig {
   oauth: boolean;  // true = OAuth flow, false = manual token
   comingSoon?: boolean;  // true = show "Coming Soon" badge
   oauthHelp?: string;  // Help text for manual entry
+  section: "messaging" | "payments" | "scheduling";  // Section grouping
   fields?: Array<{
     name: string;
     label: string;
     placeholder: string;
-    type: "token" | "page_id" | "phone_id";
+    type: "token" | "page_id" | "phone_id" | "link" | "meeting_id";
   }>;
 }
 
 const connectionConfigs: ConnectionConfig[] = [
+  // Social & Messaging
   {
     key: "instagram",
     name: "Instagram",
     icon: "📸",
     description: "Automate your Instagram DMs",
     oauth: true,
+    section: "messaging",
   },
   {
     key: "telegram",
@@ -46,6 +49,7 @@ const connectionConfigs: ConnectionConfig[] = [
     icon: "✈️",
     description: "Create bot in 1 min via @BotFather",
     oauth: false,
+    section: "messaging",
     oauthHelp: "🤖 Setup rápido (1 minuto):\n\n1. Abre Telegram y busca @BotFather\n2. Envía /newbot y sigue instrucciones\n3. Copia el token y pégalo aquí",
     fields: [
       { name: "token", label: "Bot Token", placeholder: "123456:ABC-DEF...", type: "token" },
@@ -57,13 +61,16 @@ const connectionConfigs: ConnectionConfig[] = [
     icon: "💬",
     description: "WhatsApp Business API",
     oauth: true,
+    section: "messaging",
   },
+  // Payments
   {
     key: "stripe",
     name: "Stripe",
     icon: "💳",
     description: "Track payments automatically",
     oauth: true,
+    section: "payments",
   },
   {
     key: "paypal",
@@ -71,15 +78,61 @@ const connectionConfigs: ConnectionConfig[] = [
     icon: "🅿️",
     description: "Track PayPal payments",
     oauth: true,
+    section: "payments",
   },
+  // Scheduling
   {
     key: "calendly",
     name: "Calendly",
     icon: "📅",
     description: "Sync your booking calendar",
     oauth: true,
+    section: "scheduling",
+  },
+  {
+    key: "calcom",
+    name: "Cal.com",
+    icon: "🗓️",
+    description: "Open-source scheduling platform",
+    oauth: false,
+    section: "scheduling",
+    oauthHelp: "Get your API key from Cal.com Settings → Developer → API Keys",
+    fields: [
+      { name: "api_key", label: "API Key", placeholder: "cal_live_...", type: "token" },
+    ],
+  },
+  {
+    key: "zoom",
+    name: "Zoom",
+    icon: "📹",
+    description: "Video meetings integration",
+    oauth: false,
+    section: "scheduling",
+    oauthHelp: "Add your Personal Meeting ID or a Zoom link for video calls",
+    fields: [
+      { name: "meeting_link", label: "Personal Meeting Link or ID", placeholder: "https://zoom.us/j/1234567890 or 123-456-7890", type: "link" },
+    ],
+  },
+  {
+    key: "google_meet",
+    name: "Google Meet",
+    icon: "🎥",
+    description: "Google video conferencing",
+    oauth: false,
+    section: "scheduling",
+    oauthHelp: "Add your Google Meet link for video calls",
+    fields: [
+      { name: "meeting_link", label: "Google Meet Link", placeholder: "https://meet.google.com/abc-defg-hij", type: "link" },
+    ],
   },
 ];
+
+// Section labels
+const sectionLabels = {
+  messaging: { title: "Social & Messaging", icon: "💬", description: "Connect your communication channels" },
+  payments: { title: "Payments", icon: "💰", description: "Track and manage payments" },
+  scheduling: { title: "Scheduling", icon: "📅", description: "Calendar and video call integrations" },
+};
 
 interface ProductFormData {
   name: string;
@@ -484,390 +537,407 @@ export default function Settings() {
 
         {/* Connections Tab */}
         <TabsContent value="connections" className="animate-fade-in">
-          <div className="space-y-4">
-            {connectionsLoading ? (
-              <div className="flex justify-center py-8">
-                <Loader2 className="w-6 h-6 animate-spin text-primary" />
-              </div>
-            ) : (
-              connectionConfigs.map((conn) => {
-                const status = connectionsData?.[conn.key as keyof typeof connectionsData];
-                const isConnected = status?.connected || false;
-                const isEditing = editingConnection === conn.key;
-
-                const handleOAuthConnect = async () => {
-                  try {
-                    const response = await startOAuth(conn.key);
-                    // Redirect to OAuth provider
-                    window.location.href = response.auth_url;
-                  } catch (error) {
-                    toast({
-                      title: "Connection failed",
-                      description: error instanceof Error ? error.message : "OAuth not configured",
-                      variant: "destructive",
-                    });
-                  }
-                };
+          {connectionsLoading ? (
+            <div className="flex justify-center py-8">
+              <Loader2 className="w-6 h-6 animate-spin text-primary" />
+            </div>
+          ) : (
+            <div className="space-y-8">
+              {/* Render each section */}
+              {(["messaging", "payments", "scheduling"] as const).map((sectionKey) => {
+                const section = sectionLabels[sectionKey];
+                const sectionConnections = connectionConfigs.filter(c => c.section === sectionKey);
 
                 return (
-                  <div key={conn.key} className="metric-card">
-                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                      <div className="flex items-center gap-4">
-                        <span className="text-2xl">{conn.icon}</span>
-                        <div>
-                          <p className="font-semibold">{conn.name}</p>
-                          <p className="text-sm text-muted-foreground">
-                            {isConnected
-                              ? status?.username || `Connected ${status?.masked_token ? `(${status.masked_token})` : "✓"}`
-                              : conn.description}
-                          </p>
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-2 ml-10 sm:ml-0">
-                        {isConnected && (
-                          <>
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => {
-                                disconnectMutation.mutate(conn.key, {
-                                  onSuccess: () => {
-                                    toast({ title: `${conn.name} disconnected` });
-                                  },
-                                });
-                              }}
-                              disabled={disconnectMutation.isPending}
-                              className="text-destructive hover:bg-destructive/10"
-                            >
-                              Disconnect
-                            </Button>
-                            <span className="text-sm text-success font-medium">Connected ✓</span>
-                          </>
-                        )}
-                        {!isConnected && conn.comingSoon && (
-                          <span className="text-xs bg-muted text-muted-foreground px-3 py-1.5 rounded-full">
-                            Coming Soon
-                          </span>
-                        )}
-                        {!isConnected && !conn.comingSoon && conn.oauth && (
-                          <Button
-                            size="sm"
-                            onClick={handleOAuthConnect}
-                          >
-                            Connect
-                          </Button>
-                        )}
-                        {!isConnected && !conn.oauth && (
-                          <Button
-                            variant={isEditing ? "outline" : "default"}
-                            size="sm"
-                            onClick={() => {
-                              if (isEditing) {
-                                setEditingConnection(null);
-                                setConnectionForm({});
-                              } else {
-                                setEditingConnection(conn.key);
-                                setConnectionForm({});
-                              }
-                            }}
-                          >
-                            {isEditing ? "Cancel" : "Connect"}
-                          </Button>
-                        )}
+                  <div key={sectionKey} className="space-y-4">
+                    {/* Section Header */}
+                    <div className="flex items-center gap-3">
+                      <span className="text-2xl">{section.icon}</span>
+                      <div>
+                        <h3 className="font-semibold text-lg">{section.title}</h3>
+                        <p className="text-sm text-muted-foreground">{section.description}</p>
                       </div>
                     </div>
 
-                    {/* Manual Connection Form (for non-OAuth platforms like Telegram) */}
-                    {isEditing && !conn.oauth && conn.fields && (
-                      <div className="mt-4 pt-4 border-t border-border space-y-4">
-                        {conn.oauthHelp && (
-                          <div className="text-sm text-muted-foreground bg-muted/50 p-3 rounded-lg whitespace-pre-line">
-                            {conn.oauthHelp}
-                          </div>
-                        )}
-                        {conn.fields.map((field) => (
-                          <div key={field.name} className="space-y-2">
-                            <Label htmlFor={`${conn.key}-${field.name}`}>{field.label}</Label>
-                            <Input
-                              id={`${conn.key}-${field.name}`}
-                              type="password"
-                              placeholder={field.placeholder}
-                              value={connectionForm[field.type] || ""}
-                              onChange={(e) =>
-                                setConnectionForm((prev) => ({
-                                  ...prev,
-                                  [field.type]: e.target.value,
-                                }))
-                              }
-                            />
-                          </div>
-                        ))}
-                        <Button
-                          className="w-full"
-                          onClick={async () => {
-                            try {
-                              await updateConnectionMutation.mutateAsync({
-                                platform: conn.key,
-                                data: connectionForm,
-                              });
-                              toast({
-                                title: `${conn.name} connected`,
-                                description: "Connection saved successfully.",
-                              });
-                              setEditingConnection(null);
-                              setConnectionForm({});
-                              await queryClient.invalidateQueries({ queryKey: ["onboarding"] });
-                              navigate("/");
-                            } catch (error) {
-                              toast({
-                                title: "Connection failed",
-                                description: error instanceof Error ? error.message : "Failed to connect",
-                                variant: "destructive",
-                              });
-                            }
-                          }}
-                          disabled={
-                            updateConnectionMutation.isPending ||
-                            !conn.fields?.some((f) => connectionForm[f.type])
+                    {/* Section Connections */}
+                    <div className="space-y-3 pl-2">
+                      {sectionConnections.map((conn) => {
+                        const status = connectionsData?.[conn.key as keyof typeof connectionsData];
+                        const isConnected = status?.connected || false;
+                        const isEditing = editingConnection === conn.key;
+
+                        const handleOAuthConnect = async () => {
+                          try {
+                            const response = await startOAuth(conn.key);
+                            window.location.href = response.auth_url;
+                          } catch (error) {
+                            toast({
+                              title: "Connection failed",
+                              description: error instanceof Error ? error.message : "OAuth not configured",
+                              variant: "destructive",
+                            });
                           }
-                        >
-                          {updateConnectionMutation.isPending ? (
-                            <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                          ) : (
-                            <Save className="w-4 h-4 mr-2" />
-                          )}
-                          Save Connection
-                        </Button>
-                      </div>
-                    )}
+                        };
+
+                        return (
+                          <div key={conn.key} className="metric-card">
+                            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                              <div className="flex items-center gap-4">
+                                <span className="text-2xl">{conn.icon}</span>
+                                <div>
+                                  <p className="font-semibold">{conn.name}</p>
+                                  <p className="text-sm text-muted-foreground">
+                                    {isConnected
+                                      ? status?.username || `Connected ${status?.masked_token ? `(${status.masked_token})` : "✓"}`
+                                      : conn.description}
+                                  </p>
+                                </div>
+                              </div>
+                              <div className="flex items-center gap-2 ml-10 sm:ml-0">
+                                {isConnected && (
+                                  <>
+                                    <Button
+                                      variant="outline"
+                                      size="sm"
+                                      onClick={() => {
+                                        disconnectMutation.mutate(conn.key, {
+                                          onSuccess: () => {
+                                            toast({ title: `${conn.name} disconnected` });
+                                          },
+                                        });
+                                      }}
+                                      disabled={disconnectMutation.isPending}
+                                      className="text-destructive hover:bg-destructive/10"
+                                    >
+                                      Disconnect
+                                    </Button>
+                                    <span className="text-sm text-success font-medium">Connected ✓</span>
+                                  </>
+                                )}
+                                {!isConnected && conn.comingSoon && (
+                                  <span className="text-xs bg-muted text-muted-foreground px-3 py-1.5 rounded-full">
+                                    Coming Soon
+                                  </span>
+                                )}
+                                {!isConnected && !conn.comingSoon && conn.oauth && (
+                                  <Button size="sm" onClick={handleOAuthConnect}>
+                                    Connect
+                                  </Button>
+                                )}
+                                {!isConnected && !conn.oauth && (
+                                  <Button
+                                    variant={isEditing ? "outline" : "default"}
+                                    size="sm"
+                                    onClick={() => {
+                                      if (isEditing) {
+                                        setEditingConnection(null);
+                                        setConnectionForm({});
+                                      } else {
+                                        setEditingConnection(conn.key);
+                                        setConnectionForm({});
+                                      }
+                                    }}
+                                  >
+                                    {isEditing ? "Cancel" : "Connect"}
+                                  </Button>
+                                )}
+                              </div>
+                            </div>
+
+                            {/* Manual Connection Form */}
+                            {isEditing && !conn.oauth && conn.fields && (
+                              <div className="mt-4 pt-4 border-t border-border space-y-4">
+                                {conn.oauthHelp && (
+                                  <div className="text-sm text-muted-foreground bg-muted/50 p-3 rounded-lg whitespace-pre-line">
+                                    {conn.oauthHelp}
+                                  </div>
+                                )}
+                                {conn.fields.map((field) => (
+                                  <div key={field.name} className="space-y-2">
+                                    <Label htmlFor={`${conn.key}-${field.name}`}>{field.label}</Label>
+                                    <Input
+                                      id={`${conn.key}-${field.name}`}
+                                      type={field.type === "token" ? "password" : "text"}
+                                      placeholder={field.placeholder}
+                                      value={connectionForm[field.type] || connectionForm[field.name] || ""}
+                                      onChange={(e) =>
+                                        setConnectionForm((prev) => ({
+                                          ...prev,
+                                          [field.name]: e.target.value,
+                                          [field.type]: e.target.value,
+                                        }))
+                                      }
+                                    />
+                                  </div>
+                                ))}
+                                <Button
+                                  className="w-full"
+                                  onClick={async () => {
+                                    try {
+                                      await updateConnectionMutation.mutateAsync({
+                                        platform: conn.key,
+                                        data: connectionForm,
+                                      });
+                                      toast({
+                                        title: `${conn.name} connected`,
+                                        description: "Connection saved successfully.",
+                                      });
+                                      setEditingConnection(null);
+                                      setConnectionForm({});
+                                      await queryClient.invalidateQueries({ queryKey: ["onboarding"] });
+                                      navigate("/");
+                                    } catch (error) {
+                                      toast({
+                                        title: "Connection failed",
+                                        description: error instanceof Error ? error.message : "Failed to connect",
+                                        variant: "destructive",
+                                      });
+                                    }
+                                  }}
+                                  disabled={
+                                    updateConnectionMutation.isPending ||
+                                    !conn.fields?.some((f) => connectionForm[f.type] || connectionForm[f.name])
+                                  }
+                                >
+                                  {updateConnectionMutation.isPending ? (
+                                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                                  ) : (
+                                    <Save className="w-4 h-4 mr-2" />
+                                  )}
+                                  Save Connection
+                                </Button>
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
+
+                      {/* Show Other Payment Methods in Payments section */}
+                      {sectionKey === "payments" && (
+                        <div className="metric-card mt-4">
+                          <div className="flex items-center gap-3 mb-4">
+                            <span className="text-2xl">💵</span>
+                            <div>
+                              <h4 className="font-semibold">Alternative Payment Methods</h4>
+                              <p className="text-sm text-muted-foreground">Manual payment options for your clients</p>
+                            </div>
+                          </div>
+
+                          <div className="space-y-3">
+                            {/* Bizum */}
+                            <div className="p-3 rounded-lg border bg-card">
+                              <div className="flex items-center justify-between">
+                                <div className="flex items-center gap-2">
+                                  <span>🇪🇸</span>
+                                  <span className="font-medium text-sm">Bizum</span>
+                                </div>
+                                <Switch
+                                  checked={otherPaymentMethods.bizum.enabled}
+                                  onCheckedChange={(checked) =>
+                                    setOtherPaymentMethods(prev => ({
+                                      ...prev,
+                                      bizum: { ...prev.bizum, enabled: checked }
+                                    }))
+                                  }
+                                />
+                              </div>
+                              {otherPaymentMethods.bizum.enabled && (
+                                <div className="space-y-2 mt-3 pt-3 border-t">
+                                  <Input
+                                    placeholder="Phone (600 123 456)"
+                                    value={otherPaymentMethods.bizum.phone}
+                                    onChange={(e) =>
+                                      setOtherPaymentMethods(prev => ({
+                                        ...prev,
+                                        bizum: { ...prev.bizum, phone: e.target.value }
+                                      }))
+                                    }
+                                    className="h-9"
+                                  />
+                                  <Input
+                                    placeholder="Holder name (optional)"
+                                    value={otherPaymentMethods.bizum.holder_name}
+                                    onChange={(e) =>
+                                      setOtherPaymentMethods(prev => ({
+                                        ...prev,
+                                        bizum: { ...prev.bizum, holder_name: e.target.value }
+                                      }))
+                                    }
+                                    className="h-9"
+                                  />
+                                </div>
+                              )}
+                            </div>
+
+                            {/* Bank Transfer */}
+                            <div className="p-3 rounded-lg border bg-card">
+                              <div className="flex items-center justify-between">
+                                <div className="flex items-center gap-2">
+                                  <span>🏦</span>
+                                  <span className="font-medium text-sm">Bank Transfer</span>
+                                </div>
+                                <Switch
+                                  checked={otherPaymentMethods.bank_transfer.enabled}
+                                  onCheckedChange={(checked) =>
+                                    setOtherPaymentMethods(prev => ({
+                                      ...prev,
+                                      bank_transfer: { ...prev.bank_transfer, enabled: checked }
+                                    }))
+                                  }
+                                />
+                              </div>
+                              {otherPaymentMethods.bank_transfer.enabled && (
+                                <div className="space-y-2 mt-3 pt-3 border-t">
+                                  <Input
+                                    placeholder="IBAN"
+                                    value={otherPaymentMethods.bank_transfer.iban}
+                                    onChange={(e) =>
+                                      setOtherPaymentMethods(prev => ({
+                                        ...prev,
+                                        bank_transfer: { ...prev.bank_transfer, iban: e.target.value }
+                                      }))
+                                    }
+                                    className="h-9"
+                                  />
+                                  <Input
+                                    placeholder="Holder name"
+                                    value={otherPaymentMethods.bank_transfer.holder_name}
+                                    onChange={(e) =>
+                                      setOtherPaymentMethods(prev => ({
+                                        ...prev,
+                                        bank_transfer: { ...prev.bank_transfer, holder_name: e.target.value }
+                                      }))
+                                    }
+                                    className="h-9"
+                                  />
+                                </div>
+                              )}
+                            </div>
+
+                            {/* Mercado Pago */}
+                            <div className="p-3 rounded-lg border bg-card">
+                              <div className="flex items-center justify-between">
+                                <div className="flex items-center gap-2">
+                                  <span>🟡</span>
+                                  <span className="font-medium text-sm">Mercado Pago</span>
+                                </div>
+                                <Switch
+                                  checked={otherPaymentMethods.mercado_pago.enabled}
+                                  onCheckedChange={(checked) =>
+                                    setOtherPaymentMethods(prev => ({
+                                      ...prev,
+                                      mercado_pago: { ...prev.mercado_pago, enabled: checked }
+                                    }))
+                                  }
+                                />
+                              </div>
+                              {otherPaymentMethods.mercado_pago.enabled && (
+                                <div className="mt-3 pt-3 border-t">
+                                  <Input
+                                    placeholder="Payment link or @username"
+                                    value={otherPaymentMethods.mercado_pago.link}
+                                    onChange={(e) =>
+                                      setOtherPaymentMethods(prev => ({
+                                        ...prev,
+                                        mercado_pago: { ...prev.mercado_pago, link: e.target.value }
+                                      }))
+                                    }
+                                    className="h-9"
+                                  />
+                                </div>
+                              )}
+                            </div>
+
+                            {/* Revolut / Wise */}
+                            <div className="p-3 rounded-lg border bg-card">
+                              <div className="flex items-center justify-between">
+                                <div className="flex items-center gap-2">
+                                  <span>💸</span>
+                                  <span className="font-medium text-sm">Revolut / Wise</span>
+                                </div>
+                                <Switch
+                                  checked={otherPaymentMethods.revolut.enabled}
+                                  onCheckedChange={(checked) =>
+                                    setOtherPaymentMethods(prev => ({
+                                      ...prev,
+                                      revolut: { ...prev.revolut, enabled: checked }
+                                    }))
+                                  }
+                                />
+                              </div>
+                              {otherPaymentMethods.revolut.enabled && (
+                                <div className="mt-3 pt-3 border-t">
+                                  <Input
+                                    placeholder="Payment link or @username"
+                                    value={otherPaymentMethods.revolut.link}
+                                    onChange={(e) =>
+                                      setOtherPaymentMethods(prev => ({
+                                        ...prev,
+                                        revolut: { ...prev.revolut, link: e.target.value }
+                                      }))
+                                    }
+                                    className="h-9"
+                                  />
+                                </div>
+                              )}
+                            </div>
+
+                            {/* Other */}
+                            <div className="p-3 rounded-lg border bg-card">
+                              <div className="flex items-center justify-between">
+                                <div className="flex items-center gap-2">
+                                  <span>📝</span>
+                                  <span className="font-medium text-sm">Other Method</span>
+                                </div>
+                                <Switch
+                                  checked={otherPaymentMethods.other.enabled}
+                                  onCheckedChange={(checked) =>
+                                    setOtherPaymentMethods(prev => ({
+                                      ...prev,
+                                      other: { ...prev.other, enabled: checked }
+                                    }))
+                                  }
+                                />
+                              </div>
+                              {otherPaymentMethods.other.enabled && (
+                                <div className="mt-3 pt-3 border-t">
+                                  <Textarea
+                                    placeholder="Custom instructions..."
+                                    value={otherPaymentMethods.other.instructions}
+                                    onChange={(e) =>
+                                      setOtherPaymentMethods(prev => ({
+                                        ...prev,
+                                        other: { ...prev.other, instructions: e.target.value }
+                                      }))
+                                    }
+                                    className="min-h-[60px]"
+                                  />
+                                </div>
+                              )}
+                            </div>
+                          </div>
+
+                          <Button
+                            className="w-full mt-4"
+                            onClick={handleSavePaymentMethods}
+                            disabled={updateConfig.isPending}
+                            size="sm"
+                          >
+                            {updateConfig.isPending ? (
+                              <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                            ) : (
+                              <Save className="w-4 h-4 mr-2" />
+                            )}
+                            Save Payment Methods
+                          </Button>
+                        </div>
+                      )}
+                    </div>
                   </div>
                 );
-              })
-            )}
-          </div>
-
-          {/* Other Payment Methods Card */}
-          <div className="metric-card mt-6">
-            <div className="flex items-center gap-3 mb-4">
-              <span className="text-2xl">💰</span>
-              <div>
-                <h3 className="font-semibold">Other Payment Methods</h3>
-                <p className="text-sm text-muted-foreground">Configure alternative payment options for your clients</p>
-              </div>
+              })}
             </div>
-
-            <div className="space-y-4">
-              {/* Bizum */}
-              <div className="p-4 rounded-lg border bg-card">
-                <div className="flex items-center justify-between mb-3">
-                  <div className="flex items-center gap-2">
-                    <span>🇪🇸</span>
-                    <span className="font-medium">Bizum</span>
-                  </div>
-                  <Switch
-                    checked={otherPaymentMethods.bizum.enabled}
-                    onCheckedChange={(checked) =>
-                      setOtherPaymentMethods(prev => ({
-                        ...prev,
-                        bizum: { ...prev.bizum, enabled: checked }
-                      }))
-                    }
-                  />
-                </div>
-                {otherPaymentMethods.bizum.enabled && (
-                  <div className="space-y-3 mt-3 pt-3 border-t">
-                    <Input
-                      placeholder="Phone number (600 123 456)"
-                      value={otherPaymentMethods.bizum.phone}
-                      onChange={(e) =>
-                        setOtherPaymentMethods(prev => ({
-                          ...prev,
-                          bizum: { ...prev.bizum, phone: e.target.value }
-                        }))
-                      }
-                    />
-                    <Input
-                      placeholder="Account holder name (optional)"
-                      value={otherPaymentMethods.bizum.holder_name}
-                      onChange={(e) =>
-                        setOtherPaymentMethods(prev => ({
-                          ...prev,
-                          bizum: { ...prev.bizum, holder_name: e.target.value }
-                        }))
-                      }
-                    />
-                  </div>
-                )}
-              </div>
-
-              {/* Bank Transfer */}
-              <div className="p-4 rounded-lg border bg-card">
-                <div className="flex items-center justify-between mb-3">
-                  <div className="flex items-center gap-2">
-                    <span>🏦</span>
-                    <span className="font-medium">Bank Transfer</span>
-                  </div>
-                  <Switch
-                    checked={otherPaymentMethods.bank_transfer.enabled}
-                    onCheckedChange={(checked) =>
-                      setOtherPaymentMethods(prev => ({
-                        ...prev,
-                        bank_transfer: { ...prev.bank_transfer, enabled: checked }
-                      }))
-                    }
-                  />
-                </div>
-                {otherPaymentMethods.bank_transfer.enabled && (
-                  <div className="space-y-3 mt-3 pt-3 border-t">
-                    <Input
-                      placeholder="IBAN (ES12 1234 5678 9012 3456 7890)"
-                      value={otherPaymentMethods.bank_transfer.iban}
-                      onChange={(e) =>
-                        setOtherPaymentMethods(prev => ({
-                          ...prev,
-                          bank_transfer: { ...prev.bank_transfer, iban: e.target.value }
-                        }))
-                      }
-                    />
-                    <Input
-                      placeholder="Account holder name"
-                      value={otherPaymentMethods.bank_transfer.holder_name}
-                      onChange={(e) =>
-                        setOtherPaymentMethods(prev => ({
-                          ...prev,
-                          bank_transfer: { ...prev.bank_transfer, holder_name: e.target.value }
-                        }))
-                      }
-                    />
-                    <Input
-                      placeholder="Suggested concept (optional)"
-                      value={otherPaymentMethods.bank_transfer.concept}
-                      onChange={(e) =>
-                        setOtherPaymentMethods(prev => ({
-                          ...prev,
-                          bank_transfer: { ...prev.bank_transfer, concept: e.target.value }
-                        }))
-                      }
-                    />
-                  </div>
-                )}
-              </div>
-
-              {/* Mercado Pago */}
-              <div className="p-4 rounded-lg border bg-card">
-                <div className="flex items-center justify-between mb-3">
-                  <div className="flex items-center gap-2">
-                    <span>🟡</span>
-                    <span className="font-medium">Mercado Pago</span>
-                    <span className="text-xs text-muted-foreground">(LATAM)</span>
-                  </div>
-                  <Switch
-                    checked={otherPaymentMethods.mercado_pago.enabled}
-                    onCheckedChange={(checked) =>
-                      setOtherPaymentMethods(prev => ({
-                        ...prev,
-                        mercado_pago: { ...prev.mercado_pago, enabled: checked }
-                      }))
-                    }
-                  />
-                </div>
-                {otherPaymentMethods.mercado_pago.enabled && (
-                  <div className="mt-3 pt-3 border-t">
-                    <Input
-                      placeholder="Payment link or @username"
-                      value={otherPaymentMethods.mercado_pago.link}
-                      onChange={(e) =>
-                        setOtherPaymentMethods(prev => ({
-                          ...prev,
-                          mercado_pago: { ...prev.mercado_pago, link: e.target.value }
-                        }))
-                      }
-                    />
-                  </div>
-                )}
-              </div>
-
-              {/* Revolut / Wise */}
-              <div className="p-4 rounded-lg border bg-card">
-                <div className="flex items-center justify-between mb-3">
-                  <div className="flex items-center gap-2">
-                    <span>💸</span>
-                    <span className="font-medium">Revolut / Wise</span>
-                  </div>
-                  <Switch
-                    checked={otherPaymentMethods.revolut.enabled}
-                    onCheckedChange={(checked) =>
-                      setOtherPaymentMethods(prev => ({
-                        ...prev,
-                        revolut: { ...prev.revolut, enabled: checked }
-                      }))
-                    }
-                  />
-                </div>
-                {otherPaymentMethods.revolut.enabled && (
-                  <div className="mt-3 pt-3 border-t">
-                    <Input
-                      placeholder="Payment link or @username"
-                      value={otherPaymentMethods.revolut.link}
-                      onChange={(e) =>
-                        setOtherPaymentMethods(prev => ({
-                          ...prev,
-                          revolut: { ...prev.revolut, link: e.target.value }
-                        }))
-                      }
-                    />
-                  </div>
-                )}
-              </div>
-
-              {/* Other */}
-              <div className="p-4 rounded-lg border bg-card">
-                <div className="flex items-center justify-between mb-3">
-                  <div className="flex items-center gap-2">
-                    <span>📝</span>
-                    <span className="font-medium">Other Method</span>
-                  </div>
-                  <Switch
-                    checked={otherPaymentMethods.other.enabled}
-                    onCheckedChange={(checked) =>
-                      setOtherPaymentMethods(prev => ({
-                        ...prev,
-                        other: { ...prev.other, enabled: checked }
-                      }))
-                    }
-                  />
-                </div>
-                {otherPaymentMethods.other.enabled && (
-                  <div className="mt-3 pt-3 border-t">
-                    <Textarea
-                      placeholder="Custom instructions (e.g. 'Crypto: send USDT to 0x...', 'Venmo: @username')"
-                      value={otherPaymentMethods.other.instructions}
-                      onChange={(e) =>
-                        setOtherPaymentMethods(prev => ({
-                          ...prev,
-                          other: { ...prev.other, instructions: e.target.value }
-                        }))
-                      }
-                      className="min-h-[80px]"
-                    />
-                  </div>
-                )}
-              </div>
-            </div>
-
-            <Button
-              className="w-full mt-4"
-              onClick={handleSavePaymentMethods}
-              disabled={updateConfig.isPending}
-            >
-              {updateConfig.isPending ? (
-                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-              ) : (
-                <Save className="w-4 h-4 mr-2" />
-              )}
-              Save Payment Methods
-            </Button>
-          </div>
+          )}
         </TabsContent>
 
         {/* Bot Config Tab */}
