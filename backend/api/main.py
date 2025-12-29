@@ -2736,6 +2736,12 @@ async def create_booking_link(
     logger.info(f"POST - SessionLocal={SessionLocal is not None}, BookingLinkModel={BookingLinkModel is not None}")
     try:
         # Extract data from body
+        print("=== BOOKING LINK CREATE START ===")
+        print(f"creator_id: {creator_id}")
+        print(f"data received: {data}")
+        print(f"SessionLocal available: {SessionLocal is not None}")
+        print(f"SessionLocal type: {type(SessionLocal)}")
+
         meeting_type = data.get("meeting_type", "custom")
         duration_minutes = data.get("duration_minutes", data.get("duration", 30))
         title = data.get("title", "")
@@ -2744,19 +2750,26 @@ async def create_booking_link(
         platform = data.get("platform", "manual")
         extra_data = data.get("metadata", {})
 
+        print(f"Parsed values: meeting_type={meeting_type}, title={title}, duration={duration_minutes}, platform={platform}")
+
         # Use database instead of file storage - Direct SQL INSERT (proven to work)
         if SessionLocal:
+            print("=== ENTERING PostgreSQL BRANCH ===")
             logger.info(f"POST - Using PostgreSQL with direct SQL INSERT")
             from sqlalchemy import text
             import uuid as uuid_lib
 
+            print("Creating DB session...")
             db = SessionLocal()
+            print(f"DB session created: {db}")
             try:
                 # Generate UUID for the new link
                 link_id = str(uuid_lib.uuid4())
+                print(f"Generated link_id: {link_id}")
 
                 # Direct SQL INSERT - same approach as debug endpoint that works
-                db.execute(text("""
+                print("Executing INSERT...")
+                result = db.execute(text("""
                     INSERT INTO booking_links
                     (id, creator_id, meeting_type, title, description, duration_minutes, platform, url, is_active)
                     VALUES (:id, :creator_id, :meeting_type, :title, :description, :duration, :platform, :url, :is_active)
@@ -2771,14 +2784,22 @@ async def create_booking_link(
                     "url": url,
                     "is_active": True
                 })
+                print(f"INSERT executed, result: {result}")
+                print(f"Rows affected: {result.rowcount}")
+
+                print("Calling db.commit()...")
                 db.commit()
+                print("db.commit() completed!")
 
                 logger.info(f"SUCCESS: Direct SQL INSERT worked for booking link: {link_id} for {creator_id}")
 
                 # Verify the insert worked
+                print("Verifying insert...")
                 verify = db.execute(text("SELECT COUNT(*) FROM booking_links WHERE id = :id"), {"id": link_id})
                 verify_count = verify.scalar()
+                print(f"Verify count for {link_id}: {verify_count}")
                 logger.info(f"Verify count for {link_id}: {verify_count}")
+                print("=== BOOKING LINK CREATE SUCCESS ===")
 
                 return {
                     "status": "ok",
@@ -2798,9 +2819,12 @@ async def create_booking_link(
                     }
                 }
             finally:
+                print("Closing DB session...")
                 db.close()
+                print("DB session closed")
         else:
             # Fallback to file-based storage
+            print("=== USING FILE FALLBACK (SessionLocal is None) ===")
             logger.warning(f"POST /calendar/{creator_id}/links - USING FILE FALLBACK (SessionLocal={SessionLocal}, BookingLinkModel={BookingLinkModel})")
             calendar_manager = get_calendar_manager()
             link = calendar_manager.create_booking_link(
@@ -2812,6 +2836,7 @@ async def create_booking_link(
                 url=url,
                 platform=platform
             )
+            print(f"File fallback created link: {link.to_dict()}")
             return {
                 "status": "ok",
                 "storage": "file",
@@ -2819,6 +2844,11 @@ async def create_booking_link(
             }
 
     except Exception as e:
+        print(f"=== BOOKING LINK CREATE ERROR ===")
+        print(f"Exception type: {type(e)}")
+        print(f"Exception message: {e}")
+        import traceback
+        print(f"Traceback: {traceback.format_exc()}")
         logger.error(f"Error creating booking link: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
