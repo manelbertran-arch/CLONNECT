@@ -20,8 +20,9 @@ logging.basicConfig(level=logging.INFO)
 
 # PostgreSQL Init
 try:
-    from api.database import DATABASE_URL
+    from api.database import DATABASE_URL, get_db, SessionLocal
     from api.init_db import init_database
+    from api.models import BookingLink as BookingLinkModel, CalendarBooking as CalendarBookingModel
     if DATABASE_URL:
         init_database()
         print("PostgreSQL connected")
@@ -2410,26 +2411,61 @@ async def get_bookings(
 @app.get("/calendar/{creator_id}/link/{meeting_type}")
 async def get_booking_link(creator_id: str, meeting_type: str):
     """
-    Get booking link for a specific meeting type.
+    Get booking link for a specific meeting type - uses PostgreSQL for persistence.
 
     Meeting types: discovery, consultation, coaching, followup, custom
     """
     try:
-        calendar_manager = get_calendar_manager()
-        url = calendar_manager.get_booking_link(creator_id, meeting_type)
+        # Use database instead of file storage
+        if SessionLocal:
+            db = SessionLocal()
+            try:
+                # First try to find exact meeting type
+                db_link = db.query(BookingLinkModel).filter(
+                    BookingLinkModel.creator_id == creator_id,
+                    BookingLinkModel.meeting_type == meeting_type,
+                    BookingLinkModel.is_active == True
+                ).first()
 
-        if not url:
-            raise HTTPException(
-                status_code=404,
-                detail=f"No booking link found for type: {meeting_type}"
-            )
+                # If not found, try default
+                if not db_link:
+                    db_link = db.query(BookingLinkModel).filter(
+                        BookingLinkModel.creator_id == creator_id,
+                        BookingLinkModel.meeting_type == "default",
+                        BookingLinkModel.is_active == True
+                    ).first()
 
-        return {
-            "status": "ok",
-            "creator_id": creator_id,
-            "meeting_type": meeting_type,
-            "url": url
-        }
+                if not db_link:
+                    raise HTTPException(
+                        status_code=404,
+                        detail=f"No booking link found for type: {meeting_type}"
+                    )
+
+                return {
+                    "status": "ok",
+                    "creator_id": creator_id,
+                    "meeting_type": meeting_type,
+                    "url": db_link.url
+                }
+            finally:
+                db.close()
+        else:
+            # Fallback to file-based storage
+            calendar_manager = get_calendar_manager()
+            url = calendar_manager.get_booking_link(creator_id, meeting_type)
+
+            if not url:
+                raise HTTPException(
+                    status_code=404,
+                    detail=f"No booking link found for type: {meeting_type}"
+                )
+
+            return {
+                "status": "ok",
+                "creator_id": creator_id,
+                "meeting_type": meeting_type,
+                "url": url
+            }
 
     except HTTPException:
         raise
@@ -2440,17 +2476,51 @@ async def get_booking_link(creator_id: str, meeting_type: str):
 
 @app.get("/calendar/{creator_id}/links")
 async def get_all_booking_links(creator_id: str):
-    """Get all booking links for a creator"""
+    """Get all booking links for a creator - uses PostgreSQL for persistence"""
     try:
-        calendar_manager = get_calendar_manager()
-        links = calendar_manager.get_all_booking_links(creator_id)
+        # Use database instead of file storage
+        if SessionLocal:
+            db = SessionLocal()
+            try:
+                db_links = db.query(BookingLinkModel).filter(
+                    BookingLinkModel.creator_id == creator_id,
+                    BookingLinkModel.is_active == True
+                ).all()
 
-        return {
-            "status": "ok",
-            "creator_id": creator_id,
-            "links": links,
-            "count": len(links)
-        }
+                links = []
+                for link in db_links:
+                    links.append({
+                        "id": str(link.id),
+                        "creator_id": link.creator_id,
+                        "meeting_type": link.meeting_type,
+                        "title": link.title,
+                        "description": link.description or "",
+                        "duration_minutes": link.duration_minutes,
+                        "platform": link.platform,
+                        "url": link.url or "",
+                        "is_active": link.is_active,
+                        "metadata": link.metadata or {},
+                        "created_at": link.created_at.isoformat() if link.created_at else ""
+                    })
+
+                return {
+                    "status": "ok",
+                    "creator_id": creator_id,
+                    "links": links,
+                    "count": len(links)
+                }
+            finally:
+                db.close()
+        else:
+            # Fallback to file-based storage
+            calendar_manager = get_calendar_manager()
+            links = calendar_manager.get_all_booking_links(creator_id)
+            return {
+                "status": "ok",
+                "creator_id": creator_id,
+                "links": links,
+                "count": len(links)
+            }
 
     except Exception as e:
         logger.error(f"Error getting booking links: {e}")
@@ -2463,7 +2533,7 @@ async def create_booking_link(
     data: dict = Body(...)
 ):
     """
-    Create a new booking link.
+    Create a new booking link - uses PostgreSQL for persistence.
 
     Body JSON:
         meeting_type: discovery, consultation, coaching, followup, custom
@@ -2471,11 +2541,9 @@ async def create_booking_link(
         title: Link title
         description: Optional description
         url: Booking URL (from Calendly/Cal.com or custom)
-        platform: calendly, calcom, or manual
+        platform: calendly, calcom, tidycal, acuity, google, whatsapp, custom, or manual
     """
     try:
-        calendar_manager = get_calendar_manager()
-
         # Extract data from body
         meeting_type = data.get("meeting_type", "custom")
         duration_minutes = data.get("duration_minutes", data.get("duration", 30))
@@ -2483,21 +2551,64 @@ async def create_booking_link(
         description = data.get("description", "")
         url = data.get("url", "")
         platform = data.get("platform", "manual")
+        metadata = data.get("metadata", {})
 
-        link = calendar_manager.create_booking_link(
-            creator_id=creator_id,
-            meeting_type=meeting_type,
-            duration_minutes=duration_minutes,
-            title=title,
-            description=description,
-            url=url,
-            platform=platform
-        )
+        # Use database instead of file storage
+        if SessionLocal:
+            db = SessionLocal()
+            try:
+                # Create new booking link in database
+                db_link = BookingLinkModel(
+                    creator_id=creator_id,
+                    meeting_type=meeting_type,
+                    title=title,
+                    description=description,
+                    duration_minutes=duration_minutes,
+                    platform=platform,
+                    url=url,
+                    is_active=True,
+                    metadata=metadata
+                )
+                db.add(db_link)
+                db.commit()
+                db.refresh(db_link)
 
-        return {
-            "status": "ok",
-            "link": link.to_dict()
-        }
+                logger.info(f"Created booking link in PostgreSQL: {db_link.id} for {creator_id}")
+
+                return {
+                    "status": "ok",
+                    "link": {
+                        "id": str(db_link.id),
+                        "creator_id": db_link.creator_id,
+                        "meeting_type": db_link.meeting_type,
+                        "title": db_link.title,
+                        "description": db_link.description or "",
+                        "duration_minutes": db_link.duration_minutes,
+                        "platform": db_link.platform,
+                        "url": db_link.url or "",
+                        "is_active": db_link.is_active,
+                        "metadata": db_link.metadata or {},
+                        "created_at": db_link.created_at.isoformat() if db_link.created_at else ""
+                    }
+                }
+            finally:
+                db.close()
+        else:
+            # Fallback to file-based storage
+            calendar_manager = get_calendar_manager()
+            link = calendar_manager.create_booking_link(
+                creator_id=creator_id,
+                meeting_type=meeting_type,
+                duration_minutes=duration_minutes,
+                title=title,
+                description=description,
+                url=url,
+                platform=platform
+            )
+            return {
+                "status": "ok",
+                "link": link.to_dict()
+            }
 
     except Exception as e:
         logger.error(f"Error creating booking link: {e}")

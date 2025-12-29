@@ -89,3 +89,41 @@ class KnowledgeBase(Base):
     question = Column(Text, nullable=False)
     answer = Column(Text, nullable=False)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+class BookingLink(Base):
+    """Booking links for calendar integration - stored in PostgreSQL for persistence"""
+    __tablename__ = "booking_links"
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    creator_id = Column(String(255), nullable=False, index=True)  # String to support "manel" etc.
+    meeting_type = Column(String(50), nullable=False)  # discovery, consultation, coaching, custom
+    title = Column(String(255), nullable=False)
+    description = Column(Text)
+    duration_minutes = Column(Integer, default=30)
+    platform = Column(String(50), default="manual")  # calendly, calcom, tidycal, acuity, google, whatsapp, custom
+    url = Column(Text)  # Booking URL
+    is_active = Column(Boolean, default=True)
+    metadata = Column(JSON, default=dict)  # Additional platform-specific data
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+class CalendarBooking(Base):
+    """Calendar bookings - stored in PostgreSQL for persistence"""
+    __tablename__ = "calendar_bookings"
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    creator_id = Column(String(255), nullable=False, index=True)
+    follower_id = Column(String(255), nullable=False)
+    meeting_type = Column(String(50), nullable=False)
+    platform = Column(String(50), nullable=False)  # calendly, calcom, manual
+    status = Column(String(50), default="scheduled")  # scheduled, completed, cancelled, no_show, rescheduled
+    scheduled_at = Column(DateTime(timezone=True), nullable=False)
+    duration_minutes = Column(Integer, default=30)
+    guest_name = Column(String(255))
+    guest_email = Column(String(255))
+    guest_phone = Column(String(50))
+    meeting_url = Column(Text)
+    external_id = Column(String(255))  # Calendly/Cal.com booking ID
+    notes = Column(Text)
+    cancel_reason = Column(Text)
+    cancelled_at = Column(DateTime(timezone=True))
+    metadata = Column(JSON, default=dict)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
