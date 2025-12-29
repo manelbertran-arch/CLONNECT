@@ -2651,35 +2651,42 @@ async def get_booking_link(creator_id: str, meeting_type: str):
 
 @app.get("/calendar/{creator_id}/links")
 async def get_all_booking_links(creator_id: str):
-    """Get all booking links for a creator - uses PostgreSQL for persistence"""
-    logger.info(f"GET /calendar/{creator_id}/links - SessionLocal={SessionLocal is not None}, BookingLinkModel={BookingLinkModel is not None}")
+    """Get all booking links for a creator - uses PostgreSQL with direct SQL"""
+    logger.info(f"GET /calendar/{creator_id}/links - SessionLocal={SessionLocal is not None}")
     try:
-        # Use database instead of file storage
-        if SessionLocal and BookingLinkModel:
-            logger.info(f"GET - Using PostgreSQL for booking links")
+        # Use database with direct SQL (proven to work)
+        if SessionLocal:
+            logger.info(f"GET - Using PostgreSQL with direct SQL")
+            from sqlalchemy import text
+
             db = SessionLocal()
             try:
-                db_links = db.query(BookingLinkModel).filter(
-                    BookingLinkModel.creator_id == creator_id,
-                    BookingLinkModel.is_active == True
-                ).all()
+                # Direct SQL SELECT - same approach as debug endpoint
+                result = db.execute(text("""
+                    SELECT id, creator_id, meeting_type, title, description,
+                           duration_minutes, platform, url, is_active, created_at
+                    FROM booking_links
+                    WHERE creator_id = :creator_id AND is_active = true
+                    ORDER BY created_at DESC
+                """), {"creator_id": creator_id})
 
-                logger.info(f"GET - Found {len(db_links)} links in PostgreSQL for {creator_id}")
+                rows = result.fetchall()
+                logger.info(f"GET - Found {len(rows)} links in PostgreSQL for {creator_id}")
 
                 links = []
-                for link in db_links:
+                for row in rows:
                     links.append({
-                        "id": str(link.id),
-                        "creator_id": link.creator_id,
-                        "meeting_type": link.meeting_type,
-                        "title": link.title,
-                        "description": link.description or "",
-                        "duration_minutes": link.duration_minutes,
-                        "platform": link.platform,
-                        "url": link.url or "",
-                        "is_active": link.is_active,
-                        "metadata": link.extra_data or {},
-                        "created_at": link.created_at.isoformat() if link.created_at else ""
+                        "id": str(row[0]),
+                        "creator_id": row[1],
+                        "meeting_type": row[2],
+                        "title": row[3],
+                        "description": row[4] or "",
+                        "duration_minutes": row[5],
+                        "platform": row[6],
+                        "url": row[7] or "",
+                        "is_active": row[8],
+                        "metadata": {},
+                        "created_at": row[9].isoformat() if row[9] else ""
                     })
 
                 return {
@@ -2737,44 +2744,57 @@ async def create_booking_link(
         platform = data.get("platform", "manual")
         extra_data = data.get("metadata", {})
 
-        # Use database instead of file storage
-        if SessionLocal and BookingLinkModel:
-            logger.info(f"POST - Using PostgreSQL for booking link")
+        # Use database instead of file storage - Direct SQL INSERT (proven to work)
+        if SessionLocal:
+            logger.info(f"POST - Using PostgreSQL with direct SQL INSERT")
+            from sqlalchemy import text
+            import uuid as uuid_lib
+
             db = SessionLocal()
             try:
-                # Create new booking link in database
-                db_link = BookingLinkModel(
-                    creator_id=creator_id,
-                    meeting_type=meeting_type,
-                    title=title,
-                    description=description,
-                    duration_minutes=duration_minutes,
-                    platform=platform,
-                    url=url,
-                    is_active=True,
-                    extra_data=extra_data
-                )
-                db.add(db_link)
-                db.commit()
-                db.refresh(db_link)
+                # Generate UUID for the new link
+                link_id = str(uuid_lib.uuid4())
 
-                logger.info(f"SUCCESS: Created booking link in PostgreSQL: {db_link.id} for {creator_id}")
+                # Direct SQL INSERT - same approach as debug endpoint that works
+                db.execute(text("""
+                    INSERT INTO booking_links
+                    (id, creator_id, meeting_type, title, description, duration_minutes, platform, url, is_active)
+                    VALUES (:id, :creator_id, :meeting_type, :title, :description, :duration, :platform, :url, :is_active)
+                """), {
+                    "id": link_id,
+                    "creator_id": creator_id,
+                    "meeting_type": meeting_type,
+                    "title": title,
+                    "description": description,
+                    "duration": duration_minutes,
+                    "platform": platform,
+                    "url": url,
+                    "is_active": True
+                })
+                db.commit()
+
+                logger.info(f"SUCCESS: Direct SQL INSERT worked for booking link: {link_id} for {creator_id}")
+
+                # Verify the insert worked
+                verify = db.execute(text("SELECT COUNT(*) FROM booking_links WHERE id = :id"), {"id": link_id})
+                verify_count = verify.scalar()
+                logger.info(f"Verify count for {link_id}: {verify_count}")
 
                 return {
                     "status": "ok",
                     "storage": "postgresql",
                     "link": {
-                        "id": str(db_link.id),
-                        "creator_id": db_link.creator_id,
-                        "meeting_type": db_link.meeting_type,
-                        "title": db_link.title,
-                        "description": db_link.description or "",
-                        "duration_minutes": db_link.duration_minutes,
-                        "platform": db_link.platform,
-                        "url": db_link.url or "",
-                        "is_active": db_link.is_active,
-                        "metadata": db_link.extra_data or {},
-                        "created_at": db_link.created_at.isoformat() if db_link.created_at else ""
+                        "id": link_id,
+                        "creator_id": creator_id,
+                        "meeting_type": meeting_type,
+                        "title": title,
+                        "description": description or "",
+                        "duration_minutes": duration_minutes,
+                        "platform": platform,
+                        "url": url or "",
+                        "is_active": True,
+                        "metadata": extra_data or {},
+                        "created_at": ""
                     }
                 }
             finally:
