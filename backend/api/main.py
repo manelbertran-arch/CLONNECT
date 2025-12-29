@@ -541,6 +541,65 @@ async def debug_database():
     return result
 
 
+@app.post("/debug/insert-booking-link")
+async def debug_insert_booking_link():
+    """
+    Direct test insert to booking_links - bypasses all conditions.
+    This is for debugging only.
+    """
+    result = {
+        "success": False,
+        "error": None,
+        "link_id": None,
+        "SessionLocal": SessionLocal is not None,
+        "BookingLinkModel": BookingLinkModel is not None
+    }
+
+    # Try direct SQL insert first
+    if SessionLocal:
+        try:
+            from sqlalchemy import text
+            import uuid
+
+            db = SessionLocal()
+            try:
+                test_id = str(uuid.uuid4())
+
+                # Direct SQL INSERT
+                db.execute(text("""
+                    INSERT INTO booking_links (id, creator_id, meeting_type, title, duration_minutes, platform, is_active)
+                    VALUES (:id, :creator_id, :meeting_type, :title, :duration, :platform, :is_active)
+                """), {
+                    "id": test_id,
+                    "creator_id": "test_debug",
+                    "meeting_type": "debug_test",
+                    "title": "Debug Test Link",
+                    "duration": 30,
+                    "platform": "manual",
+                    "is_active": True
+                })
+                db.commit()
+
+                result["success"] = True
+                result["link_id"] = test_id
+                result["message"] = "Direct SQL INSERT worked!"
+
+                # Verify it was inserted
+                verify = db.execute(text("SELECT COUNT(*) FROM booking_links WHERE creator_id = 'test_debug'"))
+                result["verify_count"] = verify.scalar()
+
+            finally:
+                db.close()
+        except Exception as e:
+            result["error"] = str(e)
+            import traceback
+            result["traceback"] = traceback.format_exc()
+    else:
+        result["error"] = "SessionLocal is None - database not configured"
+
+    return result
+
+
 @app.get("/health/live")
 def health_live():
     """
