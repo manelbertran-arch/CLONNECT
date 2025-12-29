@@ -18,18 +18,25 @@ from pydantic import BaseModel
 
 logging.basicConfig(level=logging.INFO)
 
-# PostgreSQL Init
+# PostgreSQL Init - define defaults first
+SessionLocal = None
+BookingLinkModel = None
+CalendarBookingModel = None
+DATABASE_URL = None
+
 try:
     from api.database import DATABASE_URL, get_db, SessionLocal
     from api.init_db import init_database
     from api.models import BookingLink as BookingLinkModel, CalendarBooking as CalendarBookingModel
     if DATABASE_URL:
         init_database()
-        print("PostgreSQL connected")
+        print(f"PostgreSQL connected - SessionLocal={SessionLocal is not None}")
     else:
         print("No DATABASE_URL - using JSON fallback")
 except Exception as e:
     print(f"PostgreSQL init failed: {e}")
+    import traceback
+    traceback.print_exc()
 
 # Database service
 try:
@@ -2477,15 +2484,19 @@ async def get_booking_link(creator_id: str, meeting_type: str):
 @app.get("/calendar/{creator_id}/links")
 async def get_all_booking_links(creator_id: str):
     """Get all booking links for a creator - uses PostgreSQL for persistence"""
+    logger.info(f"GET /calendar/{creator_id}/links - SessionLocal={SessionLocal is not None}, BookingLinkModel={BookingLinkModel is not None}")
     try:
         # Use database instead of file storage
-        if SessionLocal:
+        if SessionLocal and BookingLinkModel:
+            logger.info(f"GET - Using PostgreSQL for booking links")
             db = SessionLocal()
             try:
                 db_links = db.query(BookingLinkModel).filter(
                     BookingLinkModel.creator_id == creator_id,
                     BookingLinkModel.is_active == True
                 ).all()
+
+                logger.info(f"GET - Found {len(db_links)} links in PostgreSQL for {creator_id}")
 
                 links = []
                 for link in db_links:
@@ -2505,6 +2516,7 @@ async def get_all_booking_links(creator_id: str):
 
                 return {
                     "status": "ok",
+                    "storage": "postgresql",
                     "creator_id": creator_id,
                     "links": links,
                     "count": len(links)
@@ -2513,13 +2525,15 @@ async def get_all_booking_links(creator_id: str):
                 db.close()
         else:
             # Fallback to file-based storage
+            logger.warning(f"GET /calendar/{creator_id}/links - USING FILE FALLBACK (SessionLocal={SessionLocal}, BookingLinkModel={BookingLinkModel})")
             calendar_manager = get_calendar_manager()
             links = calendar_manager.get_all_booking_links(creator_id)
             return {
                 "status": "ok",
                 "creator_id": creator_id,
                 "links": links,
-                "count": len(links)
+                "count": len(links),
+                "storage": "file"  # Indicator for debugging
             }
 
     except Exception as e:
@@ -2543,6 +2557,8 @@ async def create_booking_link(
         url: Booking URL (from Calendly/Cal.com or custom)
         platform: calendly, calcom, tidycal, acuity, google, whatsapp, custom, or manual
     """
+    logger.info(f"POST /calendar/{creator_id}/links - data={data}")
+    logger.info(f"POST - SessionLocal={SessionLocal is not None}, BookingLinkModel={BookingLinkModel is not None}")
     try:
         # Extract data from body
         meeting_type = data.get("meeting_type", "custom")
@@ -2554,7 +2570,8 @@ async def create_booking_link(
         extra_data = data.get("metadata", {})
 
         # Use database instead of file storage
-        if SessionLocal:
+        if SessionLocal and BookingLinkModel:
+            logger.info(f"POST - Using PostgreSQL for booking link")
             db = SessionLocal()
             try:
                 # Create new booking link in database
@@ -2573,10 +2590,11 @@ async def create_booking_link(
                 db.commit()
                 db.refresh(db_link)
 
-                logger.info(f"Created booking link in PostgreSQL: {db_link.id} for {creator_id}")
+                logger.info(f"SUCCESS: Created booking link in PostgreSQL: {db_link.id} for {creator_id}")
 
                 return {
                     "status": "ok",
+                    "storage": "postgresql",
                     "link": {
                         "id": str(db_link.id),
                         "creator_id": db_link.creator_id,
@@ -2595,6 +2613,7 @@ async def create_booking_link(
                 db.close()
         else:
             # Fallback to file-based storage
+            logger.warning(f"POST /calendar/{creator_id}/links - USING FILE FALLBACK (SessionLocal={SessionLocal}, BookingLinkModel={BookingLinkModel})")
             calendar_manager = get_calendar_manager()
             link = calendar_manager.create_booking_link(
                 creator_id=creator_id,
@@ -2607,6 +2626,7 @@ async def create_booking_link(
             )
             return {
                 "status": "ok",
+                "storage": "file",
                 "link": link.to_dict()
             }
 
