@@ -22,3 +22,4 @@ class CreatorUpdate(BaseModel):
     clone_vocabulary: Optional[str] = None
     welcome_message: Optional[str] = None
     personality: Optional[Dict[str, Any]] = None
+    other_payment_methods: Optional[Dict[str, Any]] = None
