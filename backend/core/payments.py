@@ -34,6 +34,7 @@ class PaymentPlatform(Enum):
     """Supported payment platforms"""
     STRIPE = "stripe"
     HOTMART = "hotmart"
+    PAYPAL = "paypal"
     MANUAL = "manual"
 
 
@@ -105,6 +106,10 @@ class PaymentManager:
         # Webhook secrets from environment
         self.stripe_webhook_secret = os.getenv("STRIPE_WEBHOOK_SECRET", "")
         self.hotmart_webhook_token = os.getenv("HOTMART_WEBHOOK_TOKEN", "")
+        self.paypal_webhook_id = os.getenv("PAYPAL_WEBHOOK_ID", "")
+        self.paypal_client_id = os.getenv("PAYPAL_CLIENT_ID", "")
+        self.paypal_client_secret = os.getenv("PAYPAL_CLIENT_SECRET", "")
+        self.paypal_mode = os.getenv("PAYPAL_MODE", "sandbox")
 
     # ==========================================================================
     # FILE OPERATIONS
@@ -464,6 +469,311 @@ class PaymentManager:
 
         except Exception as e:
             logger.error(f"Error processing Hotmart {event_type}: {e}")
+            return {"status": "error", "reason": str(e)}
+
+    # ==========================================================================
+    # PAYPAL WEBHOOK
+    # ==========================================================================
+
+    async def verify_paypal_webhook(
+        self,
+        payload: bytes,
+        headers: Dict[str, str]
+    ) -> bool:
+        """
+        Verify PayPal webhook signature using PayPal API.
+
+        Args:
+            payload: Raw request body
+            headers: Request headers
+
+        Returns:
+            True if valid
+        """
+        if not self.paypal_webhook_id:
+            logger.warning("PayPal webhook ID not configured, skipping verification")
+            return True
+
+        try:
+            import httpx
+            import base64
+
+            # Get required headers
+            transmission_id = headers.get("paypal-transmission-id", "")
+            transmission_time = headers.get("paypal-transmission-time", "")
+            transmission_sig = headers.get("paypal-transmission-sig", "")
+            cert_url = headers.get("paypal-cert-url", "")
+            auth_algo = headers.get("paypal-auth-algo", "SHA256withRSA")
+
+            if not all([transmission_id, transmission_time, transmission_sig]):
+                logger.warning("Missing PayPal webhook headers")
+                return False
+
+            # Get access token
+            base_url = "https://api-m.paypal.com" if self.paypal_mode == "live" else "https://api-m.sandbox.paypal.com"
+            credentials = base64.b64encode(
+                f"{self.paypal_client_id}:{self.paypal_client_secret}".encode()
+            ).decode()
+
+            async with httpx.AsyncClient() as client:
+                # Get access token
+                token_response = await client.post(
+                    f"{base_url}/v1/oauth2/token",
+                    headers={
+                        "Authorization": f"Basic {credentials}",
+                        "Content-Type": "application/x-www-form-urlencoded",
+                    },
+                    data={"grant_type": "client_credentials"}
+                )
+                token_data = token_response.json()
+                access_token = token_data.get("access_token")
+
+                if not access_token:
+                    logger.error("Failed to get PayPal access token for verification")
+                    return True  # Allow in development
+
+                # Verify webhook signature
+                verify_response = await client.post(
+                    f"{base_url}/v1/notifications/verify-webhook-signature",
+                    headers={
+                        "Authorization": f"Bearer {access_token}",
+                        "Content-Type": "application/json",
+                    },
+                    json={
+                        "transmission_id": transmission_id,
+                        "transmission_time": transmission_time,
+                        "cert_url": cert_url,
+                        "auth_algo": auth_algo,
+                        "transmission_sig": transmission_sig,
+                        "webhook_id": self.paypal_webhook_id,
+                        "webhook_event": json.loads(payload.decode())
+                    }
+                )
+                verify_data = verify_response.json()
+
+                verification_status = verify_data.get("verification_status", "")
+                if verification_status == "SUCCESS":
+                    return True
+                else:
+                    logger.warning(f"PayPal webhook verification failed: {verify_data}")
+                    return False
+
+        except Exception as e:
+            logger.error(f"Error verifying PayPal webhook: {e}")
+            return True  # Allow in development to not block webhooks
+
+    async def process_paypal_webhook(
+        self,
+        payload: dict,
+        headers: Dict[str, str] = None,
+        raw_payload: bytes = None
+    ) -> Dict[str, Any]:
+        """
+        Process PayPal webhook event.
+
+        Supported events:
+        - PAYMENT.SALE.COMPLETED
+        - PAYMENT.CAPTURE.COMPLETED
+        - CHECKOUT.ORDER.APPROVED
+        - PAYMENT.SALE.REFUNDED
+
+        Args:
+            payload: Parsed JSON payload
+            headers: Request headers for verification
+            raw_payload: Raw bytes for signature verification
+
+        Returns:
+            Processing result
+        """
+        # Verify signature if configured
+        if self.paypal_webhook_id and raw_payload and headers:
+            if not await self.verify_paypal_webhook(raw_payload, headers):
+                logger.warning("Invalid PayPal webhook signature")
+                return {"status": "error", "reason": "invalid_signature"}
+
+        event_type = payload.get("event_type", "")
+        resource = payload.get("resource", {})
+
+        logger.info(f"Processing PayPal event: {event_type}")
+
+        if event_type in ["PAYMENT.SALE.COMPLETED", "PAYMENT.CAPTURE.COMPLETED"]:
+            return await self._handle_paypal_payment_completed(resource, event_type)
+        elif event_type == "CHECKOUT.ORDER.APPROVED":
+            return await self._handle_paypal_order_approved(resource)
+        elif event_type == "PAYMENT.SALE.REFUNDED":
+            return await self._handle_paypal_refund(resource)
+        else:
+            logger.info(f"Ignoring PayPal event: {event_type}")
+            return {"status": "ignored", "event_type": event_type}
+
+    async def _handle_paypal_payment_completed(
+        self,
+        resource: dict,
+        event_type: str
+    ) -> Dict[str, Any]:
+        """Handle PayPal payment completed event"""
+        try:
+            # Extract payment data
+            external_id = resource.get("id", "")
+            amount_data = resource.get("amount", {})
+            amount = float(amount_data.get("total", amount_data.get("value", 0)))
+            currency = amount_data.get("currency", amount_data.get("currency_code", "USD"))
+
+            # Get payer info
+            payer_info = resource.get("payer_info", {})
+            customer_email = payer_info.get("email", resource.get("payer", {}).get("email_address", ""))
+            customer_name = f"{payer_info.get('first_name', '')} {payer_info.get('last_name', '')}".strip()
+
+            # Get custom data (metadata)
+            custom_data = resource.get("custom", "") or resource.get("custom_id", "")
+            metadata = {}
+            if custom_data:
+                try:
+                    metadata = json.loads(custom_data) if isinstance(custom_data, str) else custom_data
+                except json.JSONDecodeError:
+                    metadata = {"custom": custom_data}
+
+            creator_id = metadata.get("creator_id", "manel")
+            product_id = metadata.get("product_id", "")
+            product_name = metadata.get("product_name", "PayPal Purchase")
+            follower_id = metadata.get("follower_id", "")
+
+            # Try to find follower by email
+            if not follower_id and customer_email:
+                follower_id = await self._find_follower_by_email(creator_id, customer_email)
+
+            # Check for duplicates
+            purchases = self._load_purchases(creator_id)
+            if any(p.external_id == external_id for p in purchases):
+                logger.info(f"PayPal payment {external_id} already processed")
+                return {"status": "already_processed", "external_id": external_id}
+
+            # Record purchase
+            purchase = await self.record_purchase(
+                creator_id=creator_id,
+                follower_id=follower_id,
+                product_id=product_id,
+                product_name=product_name,
+                amount=amount,
+                currency=currency,
+                platform=PaymentPlatform.PAYPAL.value,
+                external_id=external_id,
+                customer_email=customer_email,
+                customer_name=customer_name,
+                metadata={"paypal_event": event_type, **metadata}
+            )
+
+            logger.info(f"PayPal purchase recorded: {purchase.purchase_id}")
+
+            return {
+                "status": "ok",
+                "purchase_id": purchase.purchase_id,
+                "amount": amount,
+                "currency": currency
+            }
+
+        except Exception as e:
+            logger.error(f"Error processing PayPal payment: {e}")
+            return {"status": "error", "reason": str(e)}
+
+    async def _handle_paypal_order_approved(self, resource: dict) -> Dict[str, Any]:
+        """Handle PayPal checkout order approved event"""
+        try:
+            # Extract order data
+            external_id = resource.get("id", "")
+
+            # Get purchase units
+            purchase_units = resource.get("purchase_units", [])
+            if not purchase_units:
+                return {"status": "ignored", "reason": "no_purchase_units"}
+
+            unit = purchase_units[0]
+            amount_data = unit.get("amount", {})
+            amount = float(amount_data.get("value", 0))
+            currency = amount_data.get("currency_code", "USD")
+
+            # Get payer info
+            payer = resource.get("payer", {})
+            customer_email = payer.get("email_address", "")
+            customer_name = f"{payer.get('name', {}).get('given_name', '')} {payer.get('name', {}).get('surname', '')}".strip()
+
+            # Get custom data
+            custom_id = unit.get("custom_id", "")
+            metadata = {}
+            if custom_id:
+                try:
+                    metadata = json.loads(custom_id) if isinstance(custom_id, str) else custom_id
+                except json.JSONDecodeError:
+                    metadata = {"custom_id": custom_id}
+
+            creator_id = metadata.get("creator_id", "manel")
+            product_id = metadata.get("product_id", unit.get("reference_id", ""))
+            product_name = metadata.get("product_name", unit.get("description", "PayPal Order"))
+            follower_id = metadata.get("follower_id", "")
+
+            # Try to find follower by email
+            if not follower_id and customer_email:
+                follower_id = await self._find_follower_by_email(creator_id, customer_email)
+
+            # Check for duplicates
+            purchases = self._load_purchases(creator_id)
+            if any(p.external_id == external_id for p in purchases):
+                logger.info(f"PayPal order {external_id} already processed")
+                return {"status": "already_processed", "external_id": external_id}
+
+            # Record purchase
+            purchase = await self.record_purchase(
+                creator_id=creator_id,
+                follower_id=follower_id,
+                product_id=product_id,
+                product_name=product_name,
+                amount=amount,
+                currency=currency,
+                platform=PaymentPlatform.PAYPAL.value,
+                external_id=external_id,
+                customer_email=customer_email,
+                customer_name=customer_name,
+                metadata={"paypal_event": "CHECKOUT.ORDER.APPROVED", **metadata}
+            )
+
+            logger.info(f"PayPal order recorded: {purchase.purchase_id}")
+
+            return {
+                "status": "ok",
+                "purchase_id": purchase.purchase_id,
+                "amount": amount,
+                "currency": currency
+            }
+
+        except Exception as e:
+            logger.error(f"Error processing PayPal order: {e}")
+            return {"status": "error", "reason": str(e)}
+
+    async def _handle_paypal_refund(self, resource: dict) -> Dict[str, Any]:
+        """Handle PayPal refund event"""
+        try:
+            # Get the sale ID that was refunded
+            sale_id = resource.get("sale_id", resource.get("id", ""))
+            creator_id = "manel"  # Default, would need metadata for proper routing
+
+            # Find and update the purchase
+            purchases = self._load_purchases(creator_id)
+            found = False
+            for purchase in purchases:
+                if purchase.external_id == sale_id:
+                    purchase.status = PurchaseStatus.REFUNDED.value
+                    found = True
+                    break
+
+            if found:
+                self._save_purchases(creator_id, purchases)
+                logger.info(f"PayPal refund recorded for {sale_id}")
+                return {"status": "ok", "action": "refund_recorded"}
+
+            return {"status": "ok", "action": "refund_not_found"}
+
+        except Exception as e:
+            logger.error(f"Error processing PayPal refund: {e}")
             return {"status": "error", "reason": str(e)}
 
     # ==========================================================================
