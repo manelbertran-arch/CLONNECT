@@ -2665,134 +2665,84 @@ async def create_booking_link(
 ):
     """
     Create a new booking link - uses PostgreSQL for persistence.
-
-    Body JSON:
-        meeting_type: discovery, consultation, coaching, followup, custom
-        duration_minutes: Duration in minutes
-        title: Link title
-        description: Optional description
-        url: Booking URL (from Calendly/Cal.com or custom)
-        platform: calendly, calcom, tidycal, acuity, google, whatsapp, custom, or manual
+    REWRITTEN to match debug endpoint exactly.
     """
-    logger.info(f"POST /calendar/{creator_id}/links - data={data}")
-    logger.info(f"POST - SessionLocal={SessionLocal is not None}, BookingLinkModel={BookingLinkModel is not None}")
-    try:
-        # Extract data from body
-        print("=== BOOKING LINK CREATE START ===")
-        print(f"creator_id: {creator_id}")
-        print(f"data received: {data}")
-        print(f"SessionLocal available: {SessionLocal is not None}")
-        print(f"SessionLocal type: {type(SessionLocal)}")
+    from sqlalchemy import text
+    import uuid
 
-        meeting_type = data.get("meeting_type", "custom")
-        duration_minutes = data.get("duration_minutes", data.get("duration", 30))
-        title = data.get("title", "")
-        description = data.get("description", "")
-        url = data.get("url", "")
-        platform = data.get("platform", "manual")
-        extra_data = data.get("metadata", {})
+    print("=== BOOKING LINK CREATE ===")
+    print(f"creator_id: {creator_id}")
+    print(f"data: {data}")
+    print(f"SessionLocal: {SessionLocal}")
 
-        print(f"Parsed values: meeting_type={meeting_type}, title={title}, duration={duration_minutes}, platform={platform}")
+    # Extract data from body
+    meeting_type = data.get("meeting_type", "custom")
+    duration_minutes = data.get("duration_minutes", data.get("duration", 30))
+    title = data.get("title", "")
+    platform = data.get("platform", "manual")
 
-        # Use database instead of file storage - Direct SQL INSERT (proven to work)
-        if SessionLocal:
-            print("=== ENTERING PostgreSQL BRANCH ===")
-            logger.info(f"POST - Using PostgreSQL with direct SQL INSERT")
-            from sqlalchemy import text
-            import uuid as uuid_lib
+    result = {
+        "success": False,
+        "error": None,
+        "link_id": None
+    }
 
-            print("Creating DB session...")
-            db = SessionLocal()
-            print(f"DB session created: {db}")
-            try:
-                # Generate UUID for the new link
-                link_id = str(uuid_lib.uuid4())
-                print(f"Generated link_id: {link_id}")
+    if SessionLocal:
+        db = SessionLocal()
+        try:
+            link_id = str(uuid.uuid4())
+            print(f"Inserting link_id: {link_id}")
 
-                # Direct SQL INSERT - same approach as debug endpoint that works
-                print("Executing INSERT...")
-                result = db.execute(text("""
-                    INSERT INTO booking_links
-                    (id, creator_id, meeting_type, title, description, duration_minutes, platform, url, is_active)
-                    VALUES (:id, :creator_id, :meeting_type, :title, :description, :duration, :platform, :url, :is_active)
-                """), {
+            # EXACT same SQL as debug endpoint
+            db.execute(text("""
+                INSERT INTO booking_links (id, creator_id, meeting_type, title, duration_minutes, platform, is_active)
+                VALUES (:id, :creator_id, :meeting_type, :title, :duration, :platform, :is_active)
+            """), {
+                "id": link_id,
+                "creator_id": creator_id,
+                "meeting_type": meeting_type,
+                "title": title,
+                "duration": duration_minutes,
+                "platform": platform,
+                "is_active": True
+            })
+            db.commit()
+            print(f"INSERT + COMMIT done for {link_id}")
+
+            # Verify
+            verify = db.execute(text("SELECT COUNT(*) FROM booking_links WHERE id = :id"), {"id": link_id})
+            verify_count = verify.scalar()
+            print(f"verify_count: {verify_count}")
+
+            result["success"] = True
+            result["link_id"] = link_id
+            result["verify_count"] = verify_count
+
+            return {
+                "status": "ok",
+                "storage": "postgresql",
+                "link": {
                     "id": link_id,
                     "creator_id": creator_id,
                     "meeting_type": meeting_type,
                     "title": title,
-                    "description": description,
-                    "duration": duration_minutes,
+                    "duration_minutes": duration_minutes,
                     "platform": platform,
-                    "url": url,
                     "is_active": True
-                })
-                print(f"INSERT executed, result: {result}")
-                print(f"Rows affected: {result.rowcount}")
-
-                print("Calling db.commit()...")
-                db.commit()
-                print("db.commit() completed!")
-
-                logger.info(f"SUCCESS: Direct SQL INSERT worked for booking link: {link_id} for {creator_id}")
-
-                # Verify the insert worked
-                print("Verifying insert...")
-                verify = db.execute(text("SELECT COUNT(*) FROM booking_links WHERE id = :id"), {"id": link_id})
-                verify_count = verify.scalar()
-                print(f"Verify count for {link_id}: {verify_count}")
-                logger.info(f"Verify count for {link_id}: {verify_count}")
-                print("=== BOOKING LINK CREATE SUCCESS ===")
-
-                return {
-                    "status": "ok",
-                    "storage": "postgresql",
-                    "link": {
-                        "id": link_id,
-                        "creator_id": creator_id,
-                        "meeting_type": meeting_type,
-                        "title": title,
-                        "description": description or "",
-                        "duration_minutes": duration_minutes,
-                        "platform": platform,
-                        "url": url or "",
-                        "is_active": True,
-                        "metadata": extra_data or {},
-                        "created_at": ""
-                    }
-                }
-            finally:
-                print("Closing DB session...")
-                db.close()
-                print("DB session closed")
-        else:
-            # Fallback to file-based storage
-            print("=== USING FILE FALLBACK (SessionLocal is None) ===")
-            logger.warning(f"POST /calendar/{creator_id}/links - USING FILE FALLBACK (SessionLocal={SessionLocal}, BookingLinkModel={BookingLinkModel})")
-            calendar_manager = get_calendar_manager()
-            link = calendar_manager.create_booking_link(
-                creator_id=creator_id,
-                meeting_type=meeting_type,
-                duration_minutes=duration_minutes,
-                title=title,
-                description=description,
-                url=url,
-                platform=platform
-            )
-            print(f"File fallback created link: {link.to_dict()}")
-            return {
-                "status": "ok",
-                "storage": "file",
-                "link": link.to_dict()
+                },
+                "debug": result
             }
-
-    except Exception as e:
-        print(f"=== BOOKING LINK CREATE ERROR ===")
-        print(f"Exception type: {type(e)}")
-        print(f"Exception message: {e}")
-        import traceback
-        print(f"Traceback: {traceback.format_exc()}")
-        logger.error(f"Error creating booking link: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        except Exception as e:
+            import traceback
+            print(f"ERROR: {e}")
+            print(traceback.format_exc())
+            result["error"] = str(e)
+            return {"status": "error", "error": str(e), "debug": result}
+        finally:
+            db.close()
+    else:
+        print("SessionLocal is None!")
+        return {"status": "error", "error": "Database not configured"}
 
 
 @app.get("/calendar/{creator_id}/stats")
