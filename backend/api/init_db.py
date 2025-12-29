@@ -17,6 +17,8 @@ def run_migrations(engine):
         ("creators", "paypal_email", "VARCHAR(255)"),
         ("creators", "hotmart_token", "TEXT"),
         ("creators", "calendly_token", "TEXT"),
+        # Alternative payment methods
+        ("creators", "other_payment_methods", "JSON"),
     ]
 
     with engine.connect() as conn:
@@ -43,10 +45,10 @@ def init_database():
 
     try:
         from api.database import Base
-        from api.models import Creator, Lead, Message, Product, NurturingSequence, KnowledgeBase
+        from api.models import Creator, Lead, Message, Product, NurturingSequence, KnowledgeBase, BookingLink, CalendarBooking
     except:
         from database import Base
-        from models import Creator, Lead, Message, Product, NurturingSequence, KnowledgeBase
+        from models import Creator, Lead, Message, Product, NurturingSequence, KnowledgeBase, BookingLink, CalendarBooking
 
     engine = create_engine(DATABASE_URL)
     print("Creating tables...")
