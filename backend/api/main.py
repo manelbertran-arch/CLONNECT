@@ -489,6 +489,57 @@ async def health():
     }
 
 
+@app.get("/debug/database")
+async def debug_database():
+    """
+    Debug endpoint to check database connectivity and booking_links table.
+    """
+    result = {
+        "DATABASE_URL_configured": DATABASE_URL is not None and DATABASE_URL != "",
+        "SessionLocal_available": SessionLocal is not None,
+        "BookingLinkModel_available": BookingLinkModel is not None,
+        "tables": [],
+        "booking_links_count": 0,
+        "booking_links_sample": [],
+        "error": None
+    }
+
+    if SessionLocal and BookingLinkModel:
+        try:
+            from sqlalchemy import text
+            db = SessionLocal()
+            try:
+                # Check tables
+                tables_result = db.execute(text(
+                    "SELECT table_name FROM information_schema.tables WHERE table_schema = 'public'"
+                ))
+                result["tables"] = [row[0] for row in tables_result.fetchall()]
+
+                # Check booking_links
+                if "booking_links" in result["tables"]:
+                    count_result = db.execute(text("SELECT COUNT(*) FROM booking_links"))
+                    result["booking_links_count"] = count_result.scalar()
+
+                    # Get sample data
+                    sample_result = db.execute(text(
+                        "SELECT id, creator_id, meeting_type, title, platform FROM booking_links LIMIT 5"
+                    ))
+                    result["booking_links_sample"] = [
+                        {"id": str(row[0]), "creator_id": row[1], "meeting_type": row[2], "title": row[3], "platform": row[4]}
+                        for row in sample_result.fetchall()
+                    ]
+            finally:
+                db.close()
+        except Exception as e:
+            result["error"] = str(e)
+            import traceback
+            result["traceback"] = traceback.format_exc()
+    else:
+        result["error"] = "Database not configured - SessionLocal or BookingLinkModel is None"
+
+    return result
+
+
 @app.get("/health/live")
 def health_live():
     """
