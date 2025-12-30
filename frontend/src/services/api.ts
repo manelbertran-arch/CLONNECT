@@ -389,6 +389,15 @@ export async function createBookingLink(
   });
 }
 
+export async function deleteBookingLink(
+  creatorId: string = CREATOR_ID,
+  linkId: string
+): Promise<{ status: string }> {
+  return apiFetch(`/calendar/${creatorId}/links/${linkId}`, {
+    method: "DELETE",
+  });
+}
+
 // =============================================================================
 // NURTURING
 // =============================================================================
@@ -748,6 +757,7 @@ export default {
   getCalendarStats,
   getBookingLinks,
   createBookingLink,
+  deleteBookingLink,
   getNurturingSequences,
   getNurturingFollowups,
   getNurturingStats,

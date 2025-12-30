@@ -1,7 +1,7 @@
 import { useState } from "react";
-import { Calendar as CalendarIcon, Clock, Video, Users, CheckCircle2, XCircle, Loader2, AlertCircle, ExternalLink, Plus, X } from "lucide-react";
+import { Calendar as CalendarIcon, Clock, Video, Users, CheckCircle2, XCircle, Loader2, AlertCircle, ExternalLink, Plus, X, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { useCalendarStats, useBookings, useBookingLinks, useCreateBookingLink } from "@/hooks/useApi";
+import { useCalendarStats, useBookings, useBookingLinks, useCreateBookingLink, useDeleteBookingLink } from "@/hooks/useApi";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 
@@ -39,6 +39,7 @@ export default function Calendar() {
   const { data: bookingsData, isLoading: bookingsLoading } = useBookings(undefined, true);
   const { data: linksData, isLoading: linksLoading, refetch: refetchLinks } = useBookingLinks();
   const createBookingLink = useCreateBookingLink();
+  const deleteBookingLinkMutation = useDeleteBookingLink();
   const { toast } = useToast();
 
   const [showCreateForm, setShowCreateForm] = useState(false);
@@ -77,6 +78,12 @@ export default function Calendar() {
       return;
     }
 
+    // Check limit of 5 booking links
+    if (links.length >= 5) {
+      toast({ title: "Error", description: "Maximum 5 booking links allowed. Delete one first.", variant: "destructive" });
+      return;
+    }
+
     try {
       await createBookingLink.mutateAsync(newLink);
       toast({ title: "Success", description: "Booking link created" });
@@ -85,6 +92,17 @@ export default function Calendar() {
       refetchLinks();
     } catch (error: any) {
       toast({ title: "Error", description: error.message || "Failed to create link", variant: "destructive" });
+    }
+  };
+
+  const handleDeleteLink = async (linkId: string, title: string) => {
+    if (!confirm(`Delete "${title}"?`)) return;
+    try {
+      await deleteBookingLinkMutation.mutateAsync(linkId);
+      toast({ title: "Deleted", description: `"${title}" removed` });
+      refetchLinks();
+    } catch (error: any) {
+      toast({ title: "Error", description: error.message || "Failed to delete", variant: "destructive" });
     }
   };
 
@@ -350,7 +368,7 @@ export default function Calendar() {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {links.map((link) => (
               <div
-                key={link.meeting_type}
+                key={link.id}
                 className="p-4 rounded-lg border bg-card hover:bg-accent/5 transition-colors"
               >
                 <div className="flex items-start justify-between">
@@ -365,13 +383,24 @@ export default function Calendar() {
                       </p>
                     )}
                   </div>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={() => window.open(link.url, "_blank")}
-                  >
-                    <ExternalLink className="w-4 h-4" />
-                  </Button>
+                  <div className="flex gap-1">
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => window.open(link.url, "_blank")}
+                    >
+                      <ExternalLink className="w-4 h-4" />
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                      onClick={() => handleDeleteLink(link.id, link.title)}
+                      disabled={deleteBookingLinkMutation.isPending}
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </Button>
+                  </div>
                 </div>
               </div>
             ))}
