@@ -1,7 +1,93 @@
 import { useState, useEffect } from "react";
 import { useSearchParams, useNavigate } from "react-router-dom";
 import { useQueryClient } from "@tanstack/react-query";
-import { Bot, Link2, Package, User, Save, RefreshCw, Loader2, AlertCircle, Plus, Pencil, Trash2, BookOpen } from "lucide-react";
+import { Bot, Link2, Package, User, Save, RefreshCw, Loader2, AlertCircle, Plus, Pencil, Trash2, BookOpen, Check } from "lucide-react";
+
+// Platform SVG Logos
+const PlatformLogo = ({ platform, size = 20 }: { platform: string; size?: number }) => {
+  switch (platform) {
+    case "instagram":
+      return (
+        <svg width={size} height={size} viewBox="0 0 24 24" fill="none">
+          <defs>
+            <linearGradient id="ig-grad" x1="0%" y1="100%" x2="100%" y2="0%">
+              <stop offset="0%" stopColor="#FFDC80"/>
+              <stop offset="25%" stopColor="#F77737"/>
+              <stop offset="50%" stopColor="#E1306C"/>
+              <stop offset="75%" stopColor="#C13584"/>
+              <stop offset="100%" stopColor="#833AB4"/>
+            </linearGradient>
+          </defs>
+          <rect width="24" height="24" rx="6" fill="url(#ig-grad)"/>
+          <circle cx="12" cy="12" r="4" stroke="white" strokeWidth="2" fill="none"/>
+          <circle cx="17.5" cy="6.5" r="1.5" fill="white"/>
+        </svg>
+      );
+    case "telegram":
+      return (
+        <svg width={size} height={size} viewBox="0 0 24 24" fill="none">
+          <circle cx="12" cy="12" r="12" fill="#0088CC"/>
+          <path d="M5 12l2.5 2 2-4 7-3-1.5 9-4-2-2 3-1-4z" fill="white"/>
+        </svg>
+      );
+    case "whatsapp":
+      return (
+        <svg width={size} height={size} viewBox="0 0 24 24" fill="none">
+          <circle cx="12" cy="12" r="12" fill="#25D366"/>
+          <path d="M17 14.5c-.3-.15-1.7-.85-2-1-.3-.1-.5-.15-.7.15-.2.3-.8 1-.95 1.2-.2.2-.35.2-.65.05-.3-.15-1.3-.5-2.4-1.5-.9-.8-1.5-1.8-1.7-2.1-.15-.3 0-.45.15-.6.1-.1.3-.3.4-.45.15-.15.2-.25.3-.45.1-.2 0-.35-.05-.5-.05-.15-.7-1.7-.95-2.3-.25-.6-.5-.5-.7-.5h-.6c-.2 0-.5.05-.75.35-.25.3-1 1-1 2.4s1 2.8 1.15 3c.15.2 2 3 4.8 4.2.7.3 1.2.5 1.65.6.7.2 1.3.15 1.8.1.55-.1 1.7-.7 1.95-1.4.25-.7.25-1.25.15-1.4-.05-.1-.25-.2-.55-.35z" fill="white"/>
+        </svg>
+      );
+    case "stripe":
+      return (
+        <svg width={size} height={size} viewBox="0 0 24 24" fill="none">
+          <rect width="24" height="24" rx="4" fill="#635BFF"/>
+          <path d="M11 8c-1.5 0-2.5.5-2.5 1.5 0 2 4 1.5 4 3 0 .7-.7 1.5-2.5 1.5-1.5 0-2.5-.5-3-1v2c.5.5 1.5 1 3 1 2 0 3.5-1 3.5-2.5 0-2.5-4-2-4-3.5 0-.5.5-1 1.5-1 1 0 2 .3 2.5.7V8.5c-.5-.3-1.5-.5-2.5-.5z" fill="white"/>
+        </svg>
+      );
+    case "paypal":
+      return (
+        <svg width={size} height={size} viewBox="0 0 24 24" fill="none">
+          <rect width="24" height="24" rx="4" fill="#003087"/>
+          <path d="M9 6h4c2 0 3 1 3 2.5S15 11 13 11h-2l-.5 3H8l1-8zm2 3h1.5c.5 0 1-.3 1-.8 0-.4-.3-.7-.8-.7H11l-.2 1.5h.2z" fill="white"/>
+          <path d="M7 9h4c2 0 3 1 3 2.5S13 14 11 14H9l-.5 3H6l1-8z" fill="#009CDE"/>
+        </svg>
+      );
+    case "calendly":
+      return (
+        <svg width={size} height={size} viewBox="0 0 24 24" fill="none">
+          <circle cx="12" cy="12" r="12" fill="#006BFF"/>
+          <path d="M12 6v6l4 2" stroke="white" strokeWidth="2" strokeLinecap="round"/>
+        </svg>
+      );
+    case "zoom":
+      return (
+        <svg width={size} height={size} viewBox="0 0 24 24" fill="none">
+          <rect width="24" height="24" rx="4" fill="#2D8CFF"/>
+          <rect x="4" y="8" width="10" height="8" rx="1" fill="white"/>
+          <path d="M14 10l5-2v8l-5-2v-4z" fill="white"/>
+        </svg>
+      );
+    case "google":
+      return (
+        <svg width={size} height={size} viewBox="0 0 24 24" fill="none">
+          <rect width="24" height="24" rx="4" fill="#fff"/>
+          <path d="M12 4L4 8v8l8 4 8-4V8l-8-4z" fill="#00897B"/>
+          <path d="M12 4l8 4v8" fill="#00AC47"/>
+          <path d="M12 4L4 8v8" fill="#4285F4"/>
+          <path d="M12 20l8-4" fill="#FFBA00"/>
+          <path d="M12 20L4 16" fill="#EA4335"/>
+          <circle cx="12" cy="12" r="3" fill="white"/>
+        </svg>
+      );
+    default:
+      return (
+        <svg width={size} height={size} viewBox="0 0 24 24" fill="none">
+          <rect width="24" height="24" rx="4" fill="#6366F1"/>
+          <circle cx="12" cy="12" r="4" stroke="white" strokeWidth="2"/>
+        </svg>
+      );
+  }
+};
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -541,446 +627,329 @@ export default function Settings() {
           </Button>
         </TabsContent>
 
-        {/* Connections Tab */}
+        {/* Connections Tab - Notion/Linear style */}
         <TabsContent value="connections" className="animate-fade-in">
           {connectionsLoading ? (
             <div className="flex justify-center py-8">
               <Loader2 className="w-6 h-6 animate-spin text-primary" />
             </div>
           ) : (
-            <div className="space-y-8">
-              {/* Render each section */}
-              {(["messaging", "payments", "scheduling"] as const).map((sectionKey) => {
-                const section = sectionLabels[sectionKey];
-                const sectionConnections = connectionConfigs.filter(c => c.section === sectionKey);
+            <div className="metric-card p-0 overflow-hidden">
+              {/* MESSAGING Section */}
+              <div className="px-4 pt-4 pb-2">
+                <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Messaging</h4>
+              </div>
+              <div className="border-b border-border/50">
+                {connectionConfigs.filter(c => c.section === "messaging").map((conn) => {
+                  const status = connectionsData?.[conn.key as keyof typeof connectionsData];
+                  const isConnected = status?.connected || false;
+                  const isEditing = editingConnection === conn.key;
 
-                return (
-                  <div key={sectionKey} className="space-y-4">
-                    {/* Section Header */}
-                    <div className="flex items-center gap-3">
-                      <span className="text-2xl">{section.icon}</span>
-                      <div>
-                        <h3 className="font-semibold text-lg">{section.title}</h3>
-                        <p className="text-sm text-muted-foreground">{section.description}</p>
-                      </div>
-                    </div>
-
-                    {/* Section Connections */}
-                    <div className="space-y-3 pl-2">
-                      {sectionConnections.map((conn) => {
-                        const status = connectionsData?.[conn.key as keyof typeof connectionsData];
-                        const isConnected = status?.connected || false;
-                        const isEditing = editingConnection === conn.key;
-
-                        const handleOAuthConnect = async () => {
-                          try {
-                            const response = await startOAuth(conn.key);
-                            window.location.href = response.auth_url;
-                          } catch (error) {
-                            toast({
-                              title: "Connection failed",
-                              description: error instanceof Error ? error.message : "OAuth not configured",
-                              variant: "destructive",
-                            });
+                  return (
+                    <div key={conn.key}>
+                      <div
+                        className="flex items-center justify-between px-4 py-3 hover:bg-muted/50 transition-colors cursor-pointer group"
+                        onClick={() => {
+                          if (!isConnected && conn.oauth) {
+                            startOAuth(conn.key).then(r => window.location.href = r.auth_url).catch(() => {});
+                          } else if (!isConnected && !conn.oauth) {
+                            setEditingConnection(isEditing ? null : conn.key);
                           }
-                        };
-
-                        return (
-                          <div key={conn.key} className="metric-card">
-                            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                              <div className="flex items-center gap-4">
-                                <span className="text-2xl">{conn.icon}</span>
-                                <div>
-                                  <p className="font-semibold">{conn.name}</p>
-                                  <p className="text-sm text-muted-foreground">
-                                    {isConnected
-                                      ? status?.username || `Connected ${status?.masked_token ? `(${status.masked_token})` : "✓"}`
-                                      : conn.description}
-                                  </p>
-                                </div>
-                              </div>
-                              <div className="flex items-center gap-2 ml-10 sm:ml-0">
-                                {isConnected && (
-                                  <>
-                                    <Button
-                                      variant="outline"
-                                      size="sm"
-                                      onClick={() => {
-                                        disconnectMutation.mutate(conn.key, {
-                                          onSuccess: () => {
-                                            toast({ title: `${conn.name} disconnected` });
-                                          },
-                                        });
-                                      }}
-                                      disabled={disconnectMutation.isPending}
-                                      className="text-destructive hover:bg-destructive/10"
-                                    >
-                                      Disconnect
-                                    </Button>
-                                    <span className="text-sm text-success font-medium">Connected ✓</span>
-                                  </>
-                                )}
-                                {!isConnected && conn.comingSoon && (
-                                  <span className="text-xs bg-muted text-muted-foreground px-3 py-1.5 rounded-full">
-                                    Coming Soon
-                                  </span>
-                                )}
-                                {!isConnected && !conn.comingSoon && conn.oauth && (
-                                  <Button size="sm" onClick={handleOAuthConnect}>
-                                    Connect
-                                  </Button>
-                                )}
-                                {!isConnected && !conn.oauth && (
-                                  <Button
-                                    variant={isEditing ? "outline" : "default"}
-                                    size="sm"
-                                    onClick={() => {
-                                      if (isEditing) {
-                                        setEditingConnection(null);
-                                        setConnectionForm({});
-                                      } else {
-                                        setEditingConnection(conn.key);
-                                        setConnectionForm({});
-                                      }
-                                    }}
-                                  >
-                                    {isEditing ? "Cancel" : "Connect"}
-                                  </Button>
-                                )}
-                              </div>
+                        }}
+                      >
+                        <div className="flex items-center gap-3">
+                          <PlatformLogo platform={conn.key} size={20} />
+                          <span className="font-medium text-sm">{conn.name}</span>
+                          <span className="text-xs text-muted-foreground">
+                            {isConnected ? (status?.username || status?.masked_token || "Connected") : "Not connected"}
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          {isConnected ? (
+                            <div className="flex items-center gap-2">
+                              <span className="text-xs text-success flex items-center gap-1">
+                                <Check className="w-3 h-3" /> Connected
+                              </span>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="opacity-0 group-hover:opacity-100 text-destructive text-xs h-6 px-2"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  disconnectMutation.mutate(conn.key);
+                                }}
+                              >
+                                Disconnect
+                              </Button>
                             </div>
-
-                            {/* Manual Connection Form */}
-                            {isEditing && !conn.oauth && conn.fields && (
-                              <div className="mt-4 pt-4 border-t border-border space-y-4">
-                                {conn.oauthHelp && (
-                                  <div className="text-sm text-muted-foreground bg-muted/50 p-3 rounded-lg whitespace-pre-line">
-                                    {conn.oauthHelp}
-                                  </div>
-                                )}
-                                {conn.fields.map((field) => (
-                                  <div key={field.name} className="space-y-2">
-                                    <Label htmlFor={`${conn.key}-${field.name}`}>{field.label}</Label>
-                                    <Input
-                                      id={`${conn.key}-${field.name}`}
-                                      type={field.type === "token" ? "password" : "text"}
-                                      placeholder={field.placeholder}
-                                      value={connectionForm[field.type] || connectionForm[field.name] || ""}
-                                      onChange={(e) =>
-                                        setConnectionForm((prev) => ({
-                                          ...prev,
-                                          [field.name]: e.target.value,
-                                          [field.type]: e.target.value,
-                                        }))
-                                      }
-                                    />
-                                  </div>
-                                ))}
-                                <Button
-                                  className="w-full"
-                                  onClick={async () => {
-                                    try {
-                                      await updateConnectionMutation.mutateAsync({
-                                        platform: conn.key,
-                                        data: connectionForm,
-                                      });
-                                      toast({
-                                        title: `${conn.name} connected`,
-                                        description: "Connection saved successfully.",
-                                      });
-                                      setEditingConnection(null);
-                                      setConnectionForm({});
-                                      await queryClient.invalidateQueries({ queryKey: ["onboarding"] });
-                                      navigate("/");
-                                    } catch (error) {
-                                      toast({
-                                        title: "Connection failed",
-                                        description: error instanceof Error ? error.message : "Failed to connect",
-                                        variant: "destructive",
-                                      });
-                                    }
-                                  }}
-                                  disabled={
-                                    updateConnectionMutation.isPending ||
-                                    !conn.fields?.some((f) => connectionForm[f.type] || connectionForm[f.name])
-                                  }
-                                >
-                                  {updateConnectionMutation.isPending ? (
-                                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                                  ) : (
-                                    <Save className="w-4 h-4 mr-2" />
-                                  )}
-                                  Save Connection
-                                </Button>
-                              </div>
-                            )}
-                          </div>
-                        );
-                      })}
-
-                      {/* Payment Methods in Payments section */}
-                      {sectionKey === "payments" && (
-                        <div className="space-y-3">
-                          <h4 className="font-semibold text-sm text-muted-foreground mt-2">Payment Methods</h4>
-
-                          {/* Bizum */}
-                          <div className="metric-card">
-                            <div className="flex items-center justify-between gap-3">
-                              <div className="flex items-center gap-4 flex-1 min-w-0">
-                                <span className="text-2xl">📱</span>
-                                <div className="flex-1 min-w-0">
-                                  <p className="font-semibold">Bizum</p>
-                                  {otherPaymentMethods.bizum.enabled && otherPaymentMethods.bizum.phone ? (
-                                    <p className="text-sm text-muted-foreground truncate">
-                                      {otherPaymentMethods.bizum.phone}
-                                      {otherPaymentMethods.bizum.holder_name && ` · ${otherPaymentMethods.bizum.holder_name}`}
-                                    </p>
-                                  ) : (
-                                    <p className="text-sm text-muted-foreground">Accept payments via Bizum</p>
-                                  )}
-                                </div>
-                              </div>
-                              <div className="flex items-center gap-2">
-                                {otherPaymentMethods.bizum.enabled && (
-                                  <Button
-                                    variant="ghost"
-                                    size="sm"
-                                    onClick={() => setEditingPaymentMethod(editingPaymentMethod === "bizum" ? null : "bizum")}
-                                  >
-                                    {editingPaymentMethod === "bizum" ? "Done" : "Edit"}
-                                  </Button>
-                                )}
-                                <Switch
-                                  checked={otherPaymentMethods.bizum.enabled}
-                                  onCheckedChange={(checked) => handleTogglePaymentMethod("bizum", checked)}
-                                />
-                              </div>
-                            </div>
-                            {editingPaymentMethod === "bizum" && otherPaymentMethods.bizum.enabled && (
-                              <div className="mt-4 pt-4 border-t border-border space-y-3">
-                                <div className="flex gap-2">
-                                  <Input
-                                    placeholder="Phone number"
-                                    value={otherPaymentMethods.bizum.phone}
-                                    onChange={(e) =>
-                                      setOtherPaymentMethods(prev => ({
-                                        ...prev,
-                                        bizum: { ...prev.bizum, phone: e.target.value }
-                                      }))
-                                    }
-                                  />
-                                  <Input
-                                    placeholder="Account holder name"
-                                    value={otherPaymentMethods.bizum.holder_name}
-                                    onChange={(e) =>
-                                      setOtherPaymentMethods(prev => ({
-                                        ...prev,
-                                        bizum: { ...prev.bizum, holder_name: e.target.value }
-                                      }))
-                                    }
-                                  />
-                                </div>
-                                <Button
-                                  size="sm"
-                                  onClick={() => handleSavePaymentMethods(true)}
-                                  disabled={updateConfig.isPending}
-                                >
-                                  {updateConfig.isPending && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
-                                  Save
-                                </Button>
-                              </div>
-                            )}
-                          </div>
-
-                          {/* Bank Transfer */}
-                          <div className="metric-card">
-                            <div className="flex items-center justify-between gap-3">
-                              <div className="flex items-center gap-4 flex-1 min-w-0">
-                                <span className="text-2xl">🏦</span>
-                                <div className="flex-1 min-w-0">
-                                  <p className="font-semibold">Bank Transfer</p>
-                                  {otherPaymentMethods.bank_transfer.enabled && otherPaymentMethods.bank_transfer.iban ? (
-                                    <p className="text-sm text-muted-foreground truncate">
-                                      {maskIban(otherPaymentMethods.bank_transfer.iban)}
-                                      {otherPaymentMethods.bank_transfer.holder_name && ` · ${otherPaymentMethods.bank_transfer.holder_name}`}
-                                    </p>
-                                  ) : (
-                                    <p className="text-sm text-muted-foreground">Accept direct bank transfers</p>
-                                  )}
-                                </div>
-                              </div>
-                              <div className="flex items-center gap-2">
-                                {otherPaymentMethods.bank_transfer.enabled && (
-                                  <Button
-                                    variant="ghost"
-                                    size="sm"
-                                    onClick={() => setEditingPaymentMethod(editingPaymentMethod === "bank_transfer" ? null : "bank_transfer")}
-                                  >
-                                    {editingPaymentMethod === "bank_transfer" ? "Done" : "Edit"}
-                                  </Button>
-                                )}
-                                <Switch
-                                  checked={otherPaymentMethods.bank_transfer.enabled}
-                                  onCheckedChange={(checked) => handleTogglePaymentMethod("bank_transfer", checked)}
-                                />
-                              </div>
-                            </div>
-                            {editingPaymentMethod === "bank_transfer" && otherPaymentMethods.bank_transfer.enabled && (
-                              <div className="mt-4 pt-4 border-t border-border space-y-3">
-                                <div className="flex gap-2">
-                                  <Input
-                                    placeholder="IBAN"
-                                    value={otherPaymentMethods.bank_transfer.iban}
-                                    onChange={(e) =>
-                                      setOtherPaymentMethods(prev => ({
-                                        ...prev,
-                                        bank_transfer: { ...prev.bank_transfer, iban: e.target.value }
-                                      }))
-                                    }
-                                    className="flex-1"
-                                  />
-                                  <Input
-                                    placeholder="Account holder"
-                                    value={otherPaymentMethods.bank_transfer.holder_name}
-                                    onChange={(e) =>
-                                      setOtherPaymentMethods(prev => ({
-                                        ...prev,
-                                        bank_transfer: { ...prev.bank_transfer, holder_name: e.target.value }
-                                      }))
-                                    }
-                                    className="w-40"
-                                  />
-                                </div>
-                                <Button
-                                  size="sm"
-                                  onClick={() => handleSavePaymentMethods(true)}
-                                  disabled={updateConfig.isPending}
-                                >
-                                  {updateConfig.isPending && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
-                                  Save
-                                </Button>
-                              </div>
-                            )}
-                          </div>
-
-                          {/* Revolut / Wise */}
-                          <div className="metric-card">
-                            <div className="flex items-center justify-between gap-3">
-                              <div className="flex items-center gap-4 flex-1 min-w-0">
-                                <span className="text-2xl">💸</span>
-                                <div className="flex-1 min-w-0">
-                                  <p className="font-semibold">Revolut / Wise</p>
-                                  {otherPaymentMethods.revolut.enabled && otherPaymentMethods.revolut.link ? (
-                                    <p className="text-sm text-muted-foreground truncate">
-                                      {otherPaymentMethods.revolut.link}
-                                    </p>
-                                  ) : (
-                                    <p className="text-sm text-muted-foreground">Accept payments via Revolut or Wise</p>
-                                  )}
-                                </div>
-                              </div>
-                              <div className="flex items-center gap-2">
-                                {otherPaymentMethods.revolut.enabled && (
-                                  <Button
-                                    variant="ghost"
-                                    size="sm"
-                                    onClick={() => setEditingPaymentMethod(editingPaymentMethod === "revolut" ? null : "revolut")}
-                                  >
-                                    {editingPaymentMethod === "revolut" ? "Done" : "Edit"}
-                                  </Button>
-                                )}
-                                <Switch
-                                  checked={otherPaymentMethods.revolut.enabled}
-                                  onCheckedChange={(checked) => handleTogglePaymentMethod("revolut", checked)}
-                                />
-                              </div>
-                            </div>
-                            {editingPaymentMethod === "revolut" && otherPaymentMethods.revolut.enabled && (
-                              <div className="mt-4 pt-4 border-t border-border space-y-3">
-                                <Input
-                                  placeholder="Link or @username"
-                                  value={otherPaymentMethods.revolut.link}
-                                  onChange={(e) =>
-                                    setOtherPaymentMethods(prev => ({
-                                      ...prev,
-                                      revolut: { ...prev.revolut, link: e.target.value }
-                                    }))
-                                  }
-                                />
-                                <Button
-                                  size="sm"
-                                  onClick={() => handleSavePaymentMethods(true)}
-                                  disabled={updateConfig.isPending}
-                                >
-                                  {updateConfig.isPending && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
-                                  Save
-                                </Button>
-                              </div>
-                            )}
-                          </div>
-
-                          {/* Other */}
-                          <div className="metric-card">
-                            <div className="flex items-center justify-between gap-3">
-                              <div className="flex items-center gap-4 flex-1 min-w-0">
-                                <span className="text-2xl">📝</span>
-                                <div className="flex-1 min-w-0">
-                                  <p className="font-semibold">Other</p>
-                                  {otherPaymentMethods.other.enabled && otherPaymentMethods.other.instructions ? (
-                                    <p className="text-sm text-muted-foreground truncate">
-                                      {otherPaymentMethods.other.instructions.slice(0, 50)}...
-                                    </p>
-                                  ) : (
-                                    <p className="text-sm text-muted-foreground">Custom payment instructions</p>
-                                  )}
-                                </div>
-                              </div>
-                              <div className="flex items-center gap-2">
-                                {otherPaymentMethods.other.enabled && (
-                                  <Button
-                                    variant="ghost"
-                                    size="sm"
-                                    onClick={() => setEditingPaymentMethod(editingPaymentMethod === "other" ? null : "other")}
-                                  >
-                                    {editingPaymentMethod === "other" ? "Done" : "Edit"}
-                                  </Button>
-                                )}
-                                <Switch
-                                  checked={otherPaymentMethods.other.enabled}
-                                  onCheckedChange={(checked) => handleTogglePaymentMethod("other", checked)}
-                                />
-                              </div>
-                            </div>
-                            {editingPaymentMethod === "other" && otherPaymentMethods.other.enabled && (
-                              <div className="mt-4 pt-4 border-t border-border space-y-3">
-                                <Textarea
-                                  placeholder="Custom payment instructions (e.g., Crypto wallet: 0x...)"
-                                  value={otherPaymentMethods.other.instructions}
-                                  onChange={(e) =>
-                                    setOtherPaymentMethods(prev => ({
-                                      ...prev,
-                                      other: { ...prev.other, instructions: e.target.value }
-                                    }))
-                                  }
-                                  className="min-h-[80px]"
-                                />
-                                <Button
-                                  size="sm"
-                                  onClick={() => handleSavePaymentMethods(true)}
-                                  disabled={updateConfig.isPending}
-                                >
-                                  {updateConfig.isPending && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
-                                  Save
-                                </Button>
-                              </div>
-                            )}
+                          ) : (
+                            <span className="text-xs text-primary">→ Connect</span>
+                          )}
+                        </div>
+                      </div>
+                      {/* Telegram form inline */}
+                      {isEditing && !conn.oauth && conn.fields && (
+                        <div className="px-4 pb-3 pt-1 bg-muted/30">
+                          {conn.oauthHelp && (
+                            <p className="text-xs text-muted-foreground mb-2 whitespace-pre-line">{conn.oauthHelp}</p>
+                          )}
+                          <div className="flex gap-2">
+                            <Input
+                              placeholder={conn.fields[0]?.placeholder}
+                              type="password"
+                              value={connectionForm.token || ""}
+                              onChange={(e) => setConnectionForm({ token: e.target.value })}
+                              className="h-8 text-sm flex-1"
+                            />
+                            <Button
+                              size="sm"
+                              className="h-8"
+                              onClick={async () => {
+                                await updateConnectionMutation.mutateAsync({ platform: conn.key, data: connectionForm });
+                                toast({ title: `${conn.name} connected` });
+                                setEditingConnection(null);
+                                setConnectionForm({});
+                              }}
+                              disabled={!connectionForm.token}
+                            >
+                              Save
+                            </Button>
                           </div>
                         </div>
                       )}
                     </div>
+                  );
+                })}
+              </div>
+
+              {/* PAYMENTS Section */}
+              <div className="px-4 pt-4 pb-2">
+                <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Payments</h4>
+              </div>
+              <div className="border-b border-border/50">
+                {/* Stripe & PayPal */}
+                {connectionConfigs.filter(c => c.section === "payments").map((conn) => {
+                  const status = connectionsData?.[conn.key as keyof typeof connectionsData];
+                  const isConnected = status?.connected || false;
+
+                  return (
+                    <div
+                      key={conn.key}
+                      className="flex items-center justify-between px-4 py-3 hover:bg-muted/50 transition-colors cursor-pointer group"
+                      onClick={() => {
+                        if (!isConnected && conn.oauth) {
+                          startOAuth(conn.key).then(r => window.location.href = r.auth_url).catch(() => {});
+                        }
+                      }}
+                    >
+                      <div className="flex items-center gap-3">
+                        <PlatformLogo platform={conn.key} size={20} />
+                        <span className="font-medium text-sm">{conn.name}</span>
+                        <span className="text-xs text-muted-foreground">
+                          {isConnected ? "Connected" : "Not connected"}
+                        </span>
+                      </div>
+                      {isConnected ? (
+                        <div className="flex items-center gap-2">
+                          <span className="text-xs text-success flex items-center gap-1">
+                            <Check className="w-3 h-3" /> Connected
+                          </span>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="opacity-0 group-hover:opacity-100 text-destructive text-xs h-6 px-2"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              disconnectMutation.mutate(conn.key);
+                            }}
+                          >
+                            Disconnect
+                          </Button>
+                        </div>
+                      ) : (
+                        <span className="text-xs text-primary">→ Connect</span>
+                      )}
+                    </div>
+                  );
+                })}
+
+                {/* Bizum */}
+                <div>
+                  <div
+                    className="flex items-center justify-between px-4 py-3 hover:bg-muted/50 transition-colors cursor-pointer"
+                    onClick={() => !otherPaymentMethods.bizum.enabled && handleTogglePaymentMethod("bizum", true)}
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className="w-5 h-5 rounded bg-orange-500 flex items-center justify-center text-white text-xs font-bold">B</div>
+                      <span className="font-medium text-sm">Bizum</span>
+                      <span className="text-xs text-muted-foreground">
+                        {otherPaymentMethods.bizum.enabled && otherPaymentMethods.bizum.phone
+                          ? `${otherPaymentMethods.bizum.phone}${otherPaymentMethods.bizum.holder_name ? ` · ${otherPaymentMethods.bizum.holder_name}` : ""}`
+                          : "Not configured"}
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      {otherPaymentMethods.bizum.enabled && (
+                        <Button variant="ghost" size="sm" className="text-xs h-6 px-2" onClick={(e) => { e.stopPropagation(); setEditingPaymentMethod(editingPaymentMethod === "bizum" ? null : "bizum"); }}>
+                          Edit
+                        </Button>
+                      )}
+                      <Switch checked={otherPaymentMethods.bizum.enabled} onCheckedChange={(c) => handleTogglePaymentMethod("bizum", c)} onClick={(e) => e.stopPropagation()} />
+                    </div>
                   </div>
-                );
-              })}
+                  {editingPaymentMethod === "bizum" && (
+                    <div className="px-4 pb-3 pt-1 bg-muted/30 flex gap-2">
+                      <Input placeholder="Phone" value={otherPaymentMethods.bizum.phone} onChange={(e) => setOtherPaymentMethods(p => ({ ...p, bizum: { ...p.bizum, phone: e.target.value } }))} className="h-8 text-sm" />
+                      <Input placeholder="Name" value={otherPaymentMethods.bizum.holder_name} onChange={(e) => setOtherPaymentMethods(p => ({ ...p, bizum: { ...p.bizum, holder_name: e.target.value } }))} className="h-8 text-sm" />
+                      <Button size="sm" className="h-8" onClick={() => handleSavePaymentMethods(true)}>Save</Button>
+                    </div>
+                  )}
+                </div>
+
+                {/* Bank Transfer */}
+                <div>
+                  <div
+                    className="flex items-center justify-between px-4 py-3 hover:bg-muted/50 transition-colors cursor-pointer"
+                    onClick={() => !otherPaymentMethods.bank_transfer.enabled && handleTogglePaymentMethod("bank_transfer", true)}
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className="w-5 h-5 rounded bg-blue-600 flex items-center justify-center text-white text-xs font-bold">🏦</div>
+                      <span className="font-medium text-sm">Bank Transfer</span>
+                      <span className="text-xs text-muted-foreground">
+                        {otherPaymentMethods.bank_transfer.enabled && otherPaymentMethods.bank_transfer.iban
+                          ? `${maskIban(otherPaymentMethods.bank_transfer.iban)}${otherPaymentMethods.bank_transfer.holder_name ? ` · ${otherPaymentMethods.bank_transfer.holder_name}` : ""}`
+                          : "Not configured"}
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      {otherPaymentMethods.bank_transfer.enabled && (
+                        <Button variant="ghost" size="sm" className="text-xs h-6 px-2" onClick={(e) => { e.stopPropagation(); setEditingPaymentMethod(editingPaymentMethod === "bank_transfer" ? null : "bank_transfer"); }}>
+                          Edit
+                        </Button>
+                      )}
+                      <Switch checked={otherPaymentMethods.bank_transfer.enabled} onCheckedChange={(c) => handleTogglePaymentMethod("bank_transfer", c)} onClick={(e) => e.stopPropagation()} />
+                    </div>
+                  </div>
+                  {editingPaymentMethod === "bank_transfer" && (
+                    <div className="px-4 pb-3 pt-1 bg-muted/30 flex gap-2">
+                      <Input placeholder="IBAN" value={otherPaymentMethods.bank_transfer.iban} onChange={(e) => setOtherPaymentMethods(p => ({ ...p, bank_transfer: { ...p.bank_transfer, iban: e.target.value } }))} className="h-8 text-sm flex-1" />
+                      <Input placeholder="Holder" value={otherPaymentMethods.bank_transfer.holder_name} onChange={(e) => setOtherPaymentMethods(p => ({ ...p, bank_transfer: { ...p.bank_transfer, holder_name: e.target.value } }))} className="h-8 text-sm w-32" />
+                      <Button size="sm" className="h-8" onClick={() => handleSavePaymentMethods(true)}>Save</Button>
+                    </div>
+                  )}
+                </div>
+
+                {/* Revolut */}
+                <div>
+                  <div
+                    className="flex items-center justify-between px-4 py-3 hover:bg-muted/50 transition-colors cursor-pointer"
+                    onClick={() => !otherPaymentMethods.revolut.enabled && handleTogglePaymentMethod("revolut", true)}
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className="w-5 h-5 rounded bg-black flex items-center justify-center text-white text-xs font-bold">R</div>
+                      <span className="font-medium text-sm">Revolut / Wise</span>
+                      <span className="text-xs text-muted-foreground">
+                        {otherPaymentMethods.revolut.enabled && otherPaymentMethods.revolut.link ? otherPaymentMethods.revolut.link : "Not configured"}
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      {otherPaymentMethods.revolut.enabled && (
+                        <Button variant="ghost" size="sm" className="text-xs h-6 px-2" onClick={(e) => { e.stopPropagation(); setEditingPaymentMethod(editingPaymentMethod === "revolut" ? null : "revolut"); }}>
+                          Edit
+                        </Button>
+                      )}
+                      <Switch checked={otherPaymentMethods.revolut.enabled} onCheckedChange={(c) => handleTogglePaymentMethod("revolut", c)} onClick={(e) => e.stopPropagation()} />
+                    </div>
+                  </div>
+                  {editingPaymentMethod === "revolut" && (
+                    <div className="px-4 pb-3 pt-1 bg-muted/30 flex gap-2">
+                      <Input placeholder="@username or link" value={otherPaymentMethods.revolut.link} onChange={(e) => setOtherPaymentMethods(p => ({ ...p, revolut: { ...p.revolut, link: e.target.value } }))} className="h-8 text-sm flex-1" />
+                      <Button size="sm" className="h-8" onClick={() => handleSavePaymentMethods(true)}>Save</Button>
+                    </div>
+                  )}
+                </div>
+
+                {/* Other */}
+                <div>
+                  <div
+                    className="flex items-center justify-between px-4 py-3 hover:bg-muted/50 transition-colors cursor-pointer"
+                    onClick={() => !otherPaymentMethods.other.enabled && handleTogglePaymentMethod("other", true)}
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className="w-5 h-5 rounded bg-gray-500 flex items-center justify-center text-white text-xs">📝</div>
+                      <span className="font-medium text-sm">Other</span>
+                      <span className="text-xs text-muted-foreground truncate max-w-[200px]">
+                        {otherPaymentMethods.other.enabled && otherPaymentMethods.other.instructions ? otherPaymentMethods.other.instructions.slice(0, 30) + "..." : "Custom instructions"}
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      {otherPaymentMethods.other.enabled && (
+                        <Button variant="ghost" size="sm" className="text-xs h-6 px-2" onClick={(e) => { e.stopPropagation(); setEditingPaymentMethod(editingPaymentMethod === "other" ? null : "other"); }}>
+                          Edit
+                        </Button>
+                      )}
+                      <Switch checked={otherPaymentMethods.other.enabled} onCheckedChange={(c) => handleTogglePaymentMethod("other", c)} onClick={(e) => e.stopPropagation()} />
+                    </div>
+                  </div>
+                  {editingPaymentMethod === "other" && (
+                    <div className="px-4 pb-3 pt-1 bg-muted/30 space-y-2">
+                      <Textarea placeholder="Custom payment instructions..." value={otherPaymentMethods.other.instructions} onChange={(e) => setOtherPaymentMethods(p => ({ ...p, other: { ...p.other, instructions: e.target.value } }))} className="text-sm min-h-[60px]" />
+                      <Button size="sm" className="h-8" onClick={() => handleSavePaymentMethods(true)}>Save</Button>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* SCHEDULING Section */}
+              <div className="px-4 pt-4 pb-2">
+                <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Scheduling</h4>
+              </div>
+              <div>
+                {connectionConfigs.filter(c => c.section === "scheduling").map((conn) => {
+                  const status = connectionsData?.[conn.key as keyof typeof connectionsData];
+                  const isConnected = status?.connected || false;
+
+                  return (
+                    <div
+                      key={conn.key}
+                      className="flex items-center justify-between px-4 py-3 hover:bg-muted/50 transition-colors cursor-pointer group"
+                      onClick={() => {
+                        if (!isConnected && conn.oauth) {
+                          startOAuth(conn.key).then(r => window.location.href = r.auth_url).catch(() => {});
+                        }
+                      }}
+                    >
+                      <div className="flex items-center gap-3">
+                        <PlatformLogo platform={conn.key} size={20} />
+                        <span className="font-medium text-sm">{conn.name}</span>
+                        <span className="text-xs text-muted-foreground">
+                          {isConnected ? "Connected" : "Not connected"}
+                        </span>
+                      </div>
+                      {isConnected ? (
+                        <div className="flex items-center gap-2">
+                          <span className="text-xs text-success flex items-center gap-1">
+                            <Check className="w-3 h-3" /> Connected
+                          </span>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="opacity-0 group-hover:opacity-100 text-destructive text-xs h-6 px-2"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              disconnectMutation.mutate(conn.key);
+                            }}
+                          >
+                            Disconnect
+                          </Button>
+                        </div>
+                      ) : (
+                        <span className="text-xs text-primary">→ Connect</span>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
             </div>
           )}
         </TabsContent>

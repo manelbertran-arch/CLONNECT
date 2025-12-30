@@ -72,12 +72,43 @@ const PRICES = [
   { value: -1, label: "Custom" },
 ];
 
-// Platform icons
-const platformIcons: Record<string, string> = {
-  calendly: "📅",
-  zoom: "📹",
-  "google-meet": "🎥",
-  manual: "🔗",
+// Platform logos - official brand colors and SVG paths
+const PlatformLogo = ({ platform, size = 24 }: { platform: string; size?: number }) => {
+  switch (platform) {
+    case "calendly":
+      return (
+        <svg width={size} height={size} viewBox="0 0 24 24" fill="none">
+          <circle cx="12" cy="12" r="10" fill="#006BFF"/>
+          <path d="M12 6v6l4 2" stroke="white" strokeWidth="2" strokeLinecap="round"/>
+        </svg>
+      );
+    case "zoom":
+      return (
+        <svg width={size} height={size} viewBox="0 0 24 24" fill="none">
+          <rect width="24" height="24" rx="4" fill="#2D8CFF"/>
+          <path d="M4 8h10v8H4V8z" fill="white"/>
+          <path d="M14 10l6-3v10l-6-3v-4z" fill="white"/>
+        </svg>
+      );
+    case "google-meet":
+      return (
+        <svg width={size} height={size} viewBox="0 0 24 24" fill="none">
+          <path d="M12 4L4 8v8l8 4 8-4V8l-8-4z" fill="#00897B"/>
+          <path d="M12 4l8 4v8" fill="#00AC47"/>
+          <path d="M12 4L4 8v8" fill="#4285F4"/>
+          <path d="M12 20l8-4" fill="#FFBA00"/>
+          <path d="M12 20L4 16" fill="#EA4335"/>
+          <circle cx="12" cy="12" r="3" fill="white"/>
+        </svg>
+      );
+    default:
+      return (
+        <svg width={size} height={size} viewBox="0 0 24 24" fill="none">
+          <rect width="24" height="24" rx="4" fill="#6366F1"/>
+          <path d="M10 8l4 4-4 4" stroke="white" strokeWidth="2" strokeLinecap="round"/>
+        </svg>
+      );
+  }
 };
 
 export default function Bookings() {
@@ -625,8 +656,8 @@ export default function Bookings() {
                 className="flex items-center justify-between gap-3 p-3 rounded-lg border bg-card hover:bg-accent/5 transition-colors"
               >
                 <div className="flex items-center gap-3 flex-1 min-w-0">
-                  <div className="w-12 h-12 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
-                    <span className="text-2xl">{platformIcons[link.platform] || "🔗"}</span>
+                  <div className="w-10 h-10 rounded-lg flex items-center justify-center shrink-0">
+                    <PlatformLogo platform={link.platform} size={32} />
                   </div>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2">
