@@ -90,40 +90,20 @@ const connectionConfigs: ConnectionConfig[] = [
     section: "scheduling",
   },
   {
-    key: "calcom",
-    name: "Cal.com",
-    icon: "🗓️",
-    description: "Open-source scheduling platform",
-    oauth: false,
-    section: "scheduling",
-    oauthHelp: "Get your API key from Cal.com Settings → Developer → API Keys",
-    fields: [
-      { name: "api_key", label: "API Key", placeholder: "cal_live_...", type: "token" },
-    ],
-  },
-  {
     key: "zoom",
     name: "Zoom",
     icon: "📹",
-    description: "Video meetings integration",
-    oauth: false,
+    description: "Create video meetings automatically",
+    oauth: true,
     section: "scheduling",
-    oauthHelp: "Add your Personal Meeting ID or a Zoom link for video calls",
-    fields: [
-      { name: "meeting_link", label: "Personal Meeting Link or ID", placeholder: "https://zoom.us/j/1234567890 or 123-456-7890", type: "link" },
-    ],
   },
   {
-    key: "google_meet",
+    key: "google",
     name: "Google Meet",
     icon: "🎥",
-    description: "Google video conferencing",
-    oauth: false,
+    description: "Create Meet links via Calendar API",
+    oauth: true,
     section: "scheduling",
-    oauthHelp: "Add your Google Meet link for video calls",
-    fields: [
-      { name: "meeting_link", label: "Google Meet Link", placeholder: "https://meet.google.com/abc-defg-hij", type: "link" },
-    ],
   },
 ];
 

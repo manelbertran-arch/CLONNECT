@@ -37,8 +37,8 @@ const statusIcons: Record<string, React.ReactNode> = {
 // Platform options for booking links
 const PLATFORMS = [
   { value: "calendly", label: "Calendly", placeholder: "https://calendly.com/tu-usuario/30min" },
-  { value: "cal.com", label: "Cal.com", placeholder: "https://cal.com/tu-usuario/30min" },
-  { value: "zoom", label: "Zoom Scheduler", placeholder: "https://zoom.us/schedule/..." },
+  { value: "zoom", label: "Zoom", placeholder: "https://zoom.us/j/..." },
+  { value: "google-meet", label: "Google Meet", placeholder: "https://meet.google.com/..." },
   { value: "hubspot", label: "HubSpot Meetings", placeholder: "https://meetings.hubspot.com/..." },
   { value: "acuity", label: "Acuity Scheduling", placeholder: "https://acuityscheduling.com/..." },
   { value: "tidycal", label: "TidyCal", placeholder: "https://tidycal.com/tu-usuario/..." },
@@ -243,7 +243,7 @@ export default function Calendar() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-xl sm:text-2xl font-bold tracking-tight">Calendar</h1>
+          <h1 className="text-xl sm:text-2xl font-bold tracking-tight">Bookings</h1>
           <p className="text-muted-foreground text-sm sm:text-base">{formattedDate}</p>
         </div>
         {links.length > 0 && (
