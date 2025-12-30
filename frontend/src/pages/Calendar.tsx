@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Calendar as CalendarIcon, Clock, Video, Users, CheckCircle2, XCircle, Loader2, AlertCircle, ExternalLink, Plus, X, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { useCalendarStats, useBookings, useBookingLinks, useCreateBookingLink, useDeleteBookingLink } from "@/hooks/useApi";
+import { useCalendarStats, useBookings, useBookingLinks, useCreateBookingLink, useDeleteBookingLink, useCalendlySyncStatus } from "@/hooks/useApi";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 
@@ -74,9 +74,13 @@ export default function Calendar() {
   const { data: statsData, isLoading: statsLoading, error: statsError } = useCalendarStats();
   const { data: bookingsData, isLoading: bookingsLoading } = useBookings(undefined, true);
   const { data: linksData, isLoading: linksLoading, refetch: refetchLinks } = useBookingLinks();
+  const { data: syncStatus } = useCalendlySyncStatus();
   const createBookingLink = useCreateBookingLink();
   const deleteBookingLinkMutation = useDeleteBookingLink();
   const { toast } = useToast();
+
+  // Check if Calendly is connected
+  const calendlyConnected = syncStatus?.calendly_connected ?? false;
 
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [selectedMeetingType, setSelectedMeetingType] = useState("discovery");
@@ -139,8 +143,9 @@ export default function Calendar() {
   });
 
   const handleCreateLink = async () => {
-    // Validate URL
-    if (!newLink.url) {
+    // Validate URL - not required if Calendly is connected and platform is Calendly
+    const isCalendlyAutoCreate = newLink.platform === "calendly" && calendlyConnected;
+    if (!newLink.url && !isCalendlyAutoCreate) {
       toast({ title: "Error", description: "Booking URL is required", variant: "destructive" });
       return;
     }
@@ -158,8 +163,11 @@ export default function Calendar() {
     }
 
     try {
-      await createBookingLink.mutateAsync(newLink);
-      toast({ title: "Success", description: "Booking link created" });
+      const result = await createBookingLink.mutateAsync(newLink);
+      const message = result.calendly_auto_created
+        ? "Link created automatically in Calendly!"
+        : "Booking link created";
+      toast({ title: "Success", description: message });
       setShowCreateForm(false);
       // Reset form
       setSelectedMeetingType("discovery");
@@ -440,22 +448,51 @@ export default function Calendar() {
                 </div>
               </div>
 
-              {/* URL Field */}
-              <div className="space-y-1 sm:col-span-2">
-                <label className="text-xs text-muted-foreground">Booking URL</label>
-                <input
-                  type="url"
-                  placeholder={PLATFORMS.find(p => p.value === newLink.platform)?.placeholder || "https://..."}
-                  value={newLink.url}
-                  onChange={(e) => setNewLink(prev => ({ ...prev, url: e.target.value }))}
-                  className="w-full px-3 py-2 rounded border bg-background text-sm"
-                />
-              </div>
+              {/* URL Field - conditional based on Calendly connection */}
+              {newLink.platform === "calendly" && calendlyConnected ? (
+                <div className="space-y-1 sm:col-span-2">
+                  <div className="flex items-center gap-2 px-3 py-3 rounded border bg-success/10 border-success/30 text-sm">
+                    <CheckCircle2 className="w-4 h-4 text-success flex-shrink-0" />
+                    <span className="text-success">
+                      Calendly connected - link will be created automatically
+                    </span>
+                  </div>
+                </div>
+              ) : newLink.platform === "calendly" && !calendlyConnected ? (
+                <div className="space-y-1 sm:col-span-2">
+                  <div className="flex flex-col gap-2 px-3 py-3 rounded border bg-yellow-500/10 border-yellow-500/30 text-sm">
+                    <div className="flex items-center gap-2">
+                      <AlertCircle className="w-4 h-4 text-yellow-600 flex-shrink-0" />
+                      <span className="text-yellow-600">
+                        Connect Calendly in Settings for auto-creation
+                      </span>
+                    </div>
+                    <input
+                      type="url"
+                      placeholder="Or paste your Calendly link manually"
+                      value={newLink.url}
+                      onChange={(e) => setNewLink(prev => ({ ...prev, url: e.target.value }))}
+                      className="w-full px-3 py-2 rounded border bg-background text-sm"
+                    />
+                  </div>
+                </div>
+              ) : (
+                <div className="space-y-1 sm:col-span-2">
+                  <label className="text-xs text-muted-foreground">Booking URL</label>
+                  <input
+                    type="url"
+                    placeholder={PLATFORMS.find(p => p.value === newLink.platform)?.placeholder || "https://..."}
+                    value={newLink.url}
+                    onChange={(e) => setNewLink(prev => ({ ...prev, url: e.target.value }))}
+                    className="w-full px-3 py-2 rounded border bg-background text-sm"
+                  />
+                </div>
+              )}
             </div>
             <div className="flex justify-end mt-4">
               <Button onClick={handleCreateLink} disabled={createBookingLink.isPending}>
                 {createBookingLink.isPending ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
-                Create Link
+                {newLink.platform === "calendly" && calendlyConnected ? "Create in Calendly" : "Create Link"}
               </Button>
             </div>
           </div>

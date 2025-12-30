@@ -111,9 +111,84 @@ async def get_booking_links(creator_id: str, db: Session = Depends(get_db)):
 
 MAX_BOOKING_LINKS = 5
 
+async def create_calendly_event_type(access_token: str, name: str, duration: int) -> dict:
+    """
+    Create an event type in Calendly and return the scheduling URL.
+    Uses the one_off_event_types endpoint for simple event creation.
+    """
+    async with httpx.AsyncClient() as client:
+        # First, get user URI
+        user_response = await client.get(
+            "https://api.calendly.com/users/me",
+            headers={"Authorization": f"Bearer {access_token}"}
+        )
+        if user_response.status_code != 200:
+            raise Exception("Failed to get Calendly user info")
+
+        user_data = user_response.json()
+        user_uri = user_data.get("resource", {}).get("uri")
+        scheduling_url_base = user_data.get("resource", {}).get("scheduling_url", "")
+
+        if not user_uri:
+            raise Exception("Could not get Calendly user URI")
+
+        # Try to create a one-off event type
+        # Calculate date range (next 90 days)
+        from datetime import date, timedelta
+        start_date = date.today().isoformat()
+        end_date = (date.today() + timedelta(days=90)).isoformat()
+
+        event_response = await client.post(
+            "https://api.calendly.com/one_off_event_types",
+            headers={
+                "Authorization": f"Bearer {access_token}",
+                "Content-Type": "application/json"
+            },
+            json={
+                "name": name,
+                "host": user_uri,
+                "duration": duration,
+                "date_setting": {
+                    "type": "date_range",
+                    "start_date": start_date,
+                    "end_date": end_date
+                },
+                "location": {
+                    "kind": "ask_invitee"
+                }
+            }
+        )
+
+        if event_response.status_code in [200, 201]:
+            event_data = event_response.json()
+            resource = event_data.get("resource", {})
+            scheduling_url = resource.get("scheduling_url", "")
+            return {
+                "success": True,
+                "scheduling_url": scheduling_url,
+                "event_uri": resource.get("uri", "")
+            }
+        else:
+            # Log the error but don't fail - fall back to manual URL
+            logger.warning(f"Calendly event creation failed: {event_response.status_code} - {event_response.text}")
+
+            # Generate a reasonable default URL based on user's scheduling URL
+            slug = name.lower().replace(" ", "-").replace("'", "")[:20]
+            fallback_url = f"{scheduling_url_base}/{slug}" if scheduling_url_base else ""
+
+            return {
+                "success": False,
+                "scheduling_url": fallback_url,
+                "error": f"Could not auto-create event type. Status: {event_response.status_code}"
+            }
+
+
 @router.post("/{creator_id}/links")
 async def create_booking_link(creator_id: str, data: dict = Body(...), db: Session = Depends(get_db)):
-    """Create a new booking link in PostgreSQL - uses creator_id from URL"""
+    """
+    Create a new booking link in PostgreSQL.
+    If platform is 'calendly' and user has Calendly connected, auto-creates in Calendly.
+    """
     try:
         # Check limit of booking links per creator
         existing_count = db.query(BookingLink).filter(
@@ -125,29 +200,75 @@ async def create_booking_link(creator_id: str, data: dict = Body(...), db: Sessi
                 detail=f"Maximum {MAX_BOOKING_LINKS} booking links allowed per creator"
             )
 
-        # Create new BookingLink with creator_id from URL path
+        platform = data.get("platform", "manual")
+        url = data.get("url")
+        calendly_auto_created = False
+        calendly_error = None
+
+        # If platform is Calendly and no URL provided, try to auto-create
+        if platform == "calendly" and not url:
+            try:
+                # Import token helper
+                try:
+                    from api.routers.oauth import get_valid_calendly_token
+                except:
+                    from routers.oauth import get_valid_calendly_token
+
+                # Get valid token
+                access_token = await get_valid_calendly_token(creator_id)
+
+                # Create event type in Calendly
+                result = await create_calendly_event_type(
+                    access_token=access_token,
+                    name=data.get("title", "Meeting"),
+                    duration=data.get("duration_minutes", 30)
+                )
+
+                if result["success"]:
+                    url = result["scheduling_url"]
+                    calendly_auto_created = True
+                    logger.info(f"Auto-created Calendly event for {creator_id}: {url}")
+                else:
+                    calendly_error = result.get("error")
+                    url = result.get("scheduling_url", "")  # Use fallback URL
+                    logger.warning(f"Calendly auto-create partial: {calendly_error}")
+
+            except Exception as e:
+                calendly_error = str(e)
+                logger.warning(f"Calendly auto-create failed for {creator_id}: {e}")
+                # Continue without URL - user can add manually later
+
+        # Require URL for non-calendly platforms or if calendly auto-create failed
+        if not url and platform != "calendly":
+            raise HTTPException(status_code=400, detail="URL is required")
+
+        # Create new BookingLink with the URL (auto-generated or provided)
         new_link = BookingLink(
             id=uuid.uuid4(),
-            creator_id=creator_id,  # Use creator_id from URL, not from data
+            creator_id=creator_id,
             meeting_type=data.get("meeting_type", "custom"),
             title=data.get("title", "Booking"),
             description=data.get("description"),
             duration_minutes=data.get("duration_minutes", 30),
-            platform=data.get("platform", "manual"),
-            url=data.get("url"),
+            platform=platform,
+            url=url,  # Use the auto-generated or provided URL
             is_active=data.get("is_active", True),
-            extra_data=data.get("extra_data", {})
+            extra_data={
+                **(data.get("extra_data", {})),
+                "calendly_auto_created": calendly_auto_created
+            }
         )
 
         db.add(new_link)
         db.commit()
         db.refresh(new_link)
 
-        logger.info(f"POST /calendar/{creator_id}/links - Created link {new_link.id} with creator_id={creator_id}")
+        logger.info(f"POST /calendar/{creator_id}/links - Created link {new_link.id} (auto_created={calendly_auto_created})")
 
-        return {
+        response = {
             "status": "ok",
-            "message": "Link created",
+            "message": "Link created" + (" in Calendly" if calendly_auto_created else ""),
+            "calendly_auto_created": calendly_auto_created,
             "link": {
                 "id": str(new_link.id),
                 "creator_id": new_link.creator_id,
@@ -161,6 +282,14 @@ async def create_booking_link(creator_id: str, data: dict = Body(...), db: Sessi
                 "created_at": new_link.created_at.isoformat() if new_link.created_at else None,
             }
         }
+
+        if calendly_error:
+            response["calendly_warning"] = calendly_error
+
+        return response
+
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error(f"Error creating booking link: {e}")
         db.rollback()

@@ -34,6 +34,7 @@ import {
   getBookings,
   getCalendarStats,
   getBookingLinks,
+  getCalendlySyncStatus,
   createBookingLink,
   deleteBookingLink,
   getNurturingSequences,
@@ -300,6 +301,17 @@ export function useBookingLinks(creatorId: string = CREATOR_ID) {
     queryKey: apiKeys.bookingLinks(creatorId),
     queryFn: () => getBookingLinks(creatorId),
     staleTime: 300000,
+  });
+}
+
+/**
+ * Hook to fetch Calendly sync status (check if connected)
+ */
+export function useCalendlySyncStatus(creatorId: string = CREATOR_ID) {
+  return useQuery({
+    queryKey: ["calendly-sync-status", creatorId],
+    queryFn: () => getCalendlySyncStatus(creatorId),
+    staleTime: 60000,
   });
 }
 
