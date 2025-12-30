@@ -110,8 +110,9 @@ class BookingLink(Base):
     title = Column(String(255), nullable=False)
     description = Column(Text)
     duration_minutes = Column(Integer, default=30)
-    platform = Column(String(50), default="manual")  # calendly, calcom, tidycal, acuity, google, whatsapp, custom
+    platform = Column(String(50), default="manual")  # calendly, zoom, google-meet, etc.
     url = Column(Text)  # Booking URL
+    price = Column(Integer, default=0)  # Price in euros (0 = free)
     is_active = Column(Boolean, default=True)
     extra_data = Column(JSON, default=dict)  # Additional platform-specific data (renamed from metadata - reserved in SQLAlchemy)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
