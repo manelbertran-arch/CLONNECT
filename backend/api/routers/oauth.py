@@ -800,25 +800,30 @@ async def google_oauth_callback(code: str = Query(...), state: str = Query("")):
 
     try:
         async with httpx.AsyncClient() as client:
-            # Build the request data
-            token_data_request = {
+            # Build the request data - use urlencode explicitly for proper form encoding
+            token_params = {
+                "code": code,
                 "client_id": GOOGLE_CLIENT_ID,
                 "client_secret": GOOGLE_CLIENT_SECRET,
-                "code": code,
-                "grant_type": "authorization_code",
                 "redirect_uri": GOOGLE_REDIRECT_URI,
+                "grant_type": "authorization_code",
             }
+
+            # Encode as form data explicitly
+            encoded_data = urlencode(token_params)
+            logger.info(f"Google token request body length: {len(encoded_data)}")
 
             # Exchange code for access token
             token_response = await client.post(
                 "https://oauth2.googleapis.com/token",
+                content=encoded_data,
                 headers={
                     "Content-Type": "application/x-www-form-urlencoded",
                 },
-                data=token_data_request
             )
 
             logger.info(f"Google token response status: {token_response.status_code}")
+            logger.info(f"Google token response body: {token_response.text[:500]}")
             token_data = token_response.json()
 
             if "error" in token_data:
