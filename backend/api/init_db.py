@@ -66,17 +66,26 @@ def init_database():
     run_migrations(engine)
     print("Migrations complete!")
 
-    # Fix booking_links with wrong creator_id
+    # Clean up booking_links
     with engine.connect() as conn:
         try:
+            # Fix wrong creator_id
             result = conn.execute(text(
                 "UPDATE booking_links SET creator_id = 'manel' WHERE creator_id = 'test_debug'"
             ))
             conn.commit()
             if result.rowcount > 0:
                 print(f"Fixed {result.rowcount} booking_links: creator_id test_debug -> manel")
+
+            # Delete debug test entries
+            result = conn.execute(text(
+                "DELETE FROM booking_links WHERE meeting_type = 'debug_test'"
+            ))
+            conn.commit()
+            if result.rowcount > 0:
+                print(f"Deleted {result.rowcount} debug_test booking_links")
         except Exception as e:
-            print(f"Note: Could not update booking_links: {e}")
+            print(f"Note: Could not clean up booking_links: {e}")
     
     with Session(engine) as session:
         existing = session.query(Creator).filter_by(name="manel").first()
