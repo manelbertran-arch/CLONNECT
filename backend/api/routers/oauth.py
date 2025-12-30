@@ -566,6 +566,7 @@ async def calendly_oauth_start(creator_id: str):
 async def calendly_oauth_callback(code: str = Query(...), state: str = Query("")):
     """Handle Calendly OAuth callback with PKCE"""
     import httpx
+    from datetime import datetime, timezone, timedelta
 
     if not CALENDLY_CLIENT_ID or not CALENDLY_CLIENT_SECRET:
         raise HTTPException(status_code=500, detail="Calendly credentials not configured")
@@ -603,6 +604,11 @@ async def calendly_oauth_callback(code: str = Query(...), state: str = Query("")
                 return RedirectResponse(f"{FRONTEND_URL}/settings?tab=connections&error=calendly_auth_failed")
 
             access_token = token_data.get("access_token")
+            refresh_token = token_data.get("refresh_token")
+            expires_in = token_data.get("expires_in", 7200)  # Default 2 hours
+
+            # Calculate expiration time
+            expires_at = datetime.now(timezone.utc) + timedelta(seconds=expires_in)
 
             # Get user info
             user_response = await client.get(
@@ -612,9 +618,12 @@ async def calendly_oauth_callback(code: str = Query(...), state: str = Query("")
             user_data = user_response.json()
             calendly_uri = user_data.get("resource", {}).get("uri", "")
 
-            # Save to database
-            await _save_connection(creator_id, "calendly", access_token, calendly_uri)
+            # Save to database with refresh token and expiration
+            await _save_calendly_connection(
+                creator_id, access_token, refresh_token, expires_at, calendly_uri
+            )
 
+            logger.info(f"Calendly connected for {creator_id}, expires at {expires_at}")
             return RedirectResponse(f"{FRONTEND_URL}/settings?tab=connections&success=calendly")
 
     except Exception as e:
@@ -661,4 +670,148 @@ async def _save_connection(creator_id: str, platform: str, token: str, extra_id:
                 session.close()
     except Exception as e:
         logger.error(f"Error saving {platform} connection: {e}")
+        raise
+
+
+async def _save_calendly_connection(
+    creator_id: str,
+    access_token: str,
+    refresh_token: str,
+    expires_at,
+    calendly_uri: str = None
+):
+    """Save Calendly OAuth connection with refresh token to database"""
+    try:
+        from api.database import DATABASE_URL, SessionLocal
+        if DATABASE_URL and SessionLocal:
+            session = SessionLocal()
+            try:
+                from api.models import Creator
+                creator = session.query(Creator).filter_by(name=creator_id).first()
+
+                if not creator:
+                    logger.warning(f"Creator {creator_id} not found, creating...")
+                    creator = Creator(name=creator_id, email=f"{creator_id}@clonnect.com")
+                    session.add(creator)
+
+                creator.calendly_token = access_token
+                creator.calendly_refresh_token = refresh_token
+                creator.calendly_token_expires_at = expires_at
+
+                session.commit()
+                logger.info(f"Saved Calendly connection for {creator_id} with refresh token")
+            finally:
+                session.close()
+    except Exception as e:
+        logger.error(f"Error saving Calendly connection: {e}")
+        raise
+
+
+async def refresh_calendly_token(creator_id: str) -> str:
+    """
+    Refresh Calendly access token using the refresh token.
+    Returns the new access token or raises an exception.
+    """
+    import httpx
+    from datetime import datetime, timezone, timedelta
+
+    try:
+        from api.database import DATABASE_URL, SessionLocal
+        if not DATABASE_URL or not SessionLocal:
+            raise Exception("Database not configured")
+
+        session = SessionLocal()
+        try:
+            from api.models import Creator
+            creator = session.query(Creator).filter_by(name=creator_id).first()
+
+            if not creator:
+                raise Exception(f"Creator {creator_id} not found")
+
+            if not creator.calendly_refresh_token:
+                raise Exception("No refresh token available - user must reconnect")
+
+            # Call Calendly token endpoint
+            async with httpx.AsyncClient() as client:
+                token_response = await client.post(
+                    "https://auth.calendly.com/oauth/token",
+                    data={
+                        "client_id": CALENDLY_CLIENT_ID,
+                        "client_secret": CALENDLY_CLIENT_SECRET,
+                        "refresh_token": creator.calendly_refresh_token,
+                        "grant_type": "refresh_token",
+                    }
+                )
+                token_data = token_response.json()
+
+                if "error" in token_data:
+                    logger.error(f"Calendly refresh error: {token_data}")
+                    # Clear tokens so user knows to reconnect
+                    creator.calendly_token = None
+                    creator.calendly_refresh_token = None
+                    creator.calendly_token_expires_at = None
+                    session.commit()
+                    raise Exception("Refresh token expired - user must reconnect")
+
+                new_access_token = token_data.get("access_token")
+                new_refresh_token = token_data.get("refresh_token", creator.calendly_refresh_token)
+                expires_in = token_data.get("expires_in", 7200)
+                expires_at = datetime.now(timezone.utc) + timedelta(seconds=expires_in)
+
+                # Update tokens in database
+                creator.calendly_token = new_access_token
+                creator.calendly_refresh_token = new_refresh_token
+                creator.calendly_token_expires_at = expires_at
+                session.commit()
+
+                logger.info(f"Refreshed Calendly token for {creator_id}, new expiry: {expires_at}")
+                return new_access_token
+
+        finally:
+            session.close()
+
+    except Exception as e:
+        logger.error(f"Error refreshing Calendly token: {e}")
+        raise
+
+
+async def get_valid_calendly_token(creator_id: str) -> str:
+    """
+    Get a valid Calendly access token, refreshing if necessary.
+    This should be called before any Calendly API request.
+    """
+    from datetime import datetime, timezone, timedelta
+
+    try:
+        from api.database import DATABASE_URL, SessionLocal
+        if not DATABASE_URL or not SessionLocal:
+            raise Exception("Database not configured")
+
+        session = SessionLocal()
+        try:
+            from api.models import Creator
+            creator = session.query(Creator).filter_by(name=creator_id).first()
+
+            if not creator:
+                raise Exception(f"Creator {creator_id} not found")
+
+            if not creator.calendly_token:
+                raise Exception("Calendly not connected")
+
+            # Check if token is expired or about to expire (within 10 minutes)
+            if creator.calendly_token_expires_at:
+                buffer = timedelta(minutes=10)
+                if datetime.now(timezone.utc) + buffer >= creator.calendly_token_expires_at:
+                    logger.info(f"Calendly token for {creator_id} expired or expiring soon, refreshing...")
+                    session.close()  # Close before async call
+                    return await refresh_calendly_token(creator_id)
+
+            return creator.calendly_token
+
+        finally:
+            if session:
+                session.close()
+
+    except Exception as e:
+        logger.error(f"Error getting valid Calendly token: {e}")
         raise

@@ -17,6 +17,8 @@ def run_migrations(engine):
         ("creators", "paypal_email", "VARCHAR(255)"),
         ("creators", "hotmart_token", "TEXT"),
         ("creators", "calendly_token", "TEXT"),
+        ("creators", "calendly_refresh_token", "TEXT"),
+        ("creators", "calendly_token_expires_at", "TIMESTAMPTZ"),
         # Alternative payment methods
         ("creators", "other_payment_methods", "JSON"),
     ]

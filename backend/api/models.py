@@ -34,6 +34,8 @@ class Creator(Base):
     hotmart_token = Column(Text)
     # Calendar connections
     calendly_token = Column(Text)
+    calendly_refresh_token = Column(Text)
+    calendly_token_expires_at = Column(DateTime(timezone=True))
     # Alternative payment methods (JSON: bizum, bank_transfer, mercado_pago, revolut, other)
     other_payment_methods = Column(JSON, default=dict)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
