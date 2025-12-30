@@ -65,6 +65,18 @@ def init_database():
     print("Running migrations...")
     run_migrations(engine)
     print("Migrations complete!")
+
+    # Fix booking_links with wrong creator_id
+    with engine.connect() as conn:
+        try:
+            result = conn.execute(text(
+                "UPDATE booking_links SET creator_id = 'manel' WHERE creator_id = 'test_debug'"
+            ))
+            conn.commit()
+            if result.rowcount > 0:
+                print(f"Fixed {result.rowcount} booking_links: creator_id test_debug -> manel")
+        except Exception as e:
+            print(f"Note: Could not update booking_links: {e}")
     
     with Session(engine) as session:
         existing = session.query(Creator).filter_by(name="manel").first()
