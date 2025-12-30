@@ -1399,6 +1399,33 @@ async def telegram_status():
     }
 
 
+@app.get("/telegram/test-connection")
+async def telegram_test_connection():
+    """Test if we can connect to Telegram API"""
+    import httpx
+    bot_token = os.getenv("TELEGRAM_BOT_TOKEN")
+
+    if not bot_token:
+        return {"status": "error", "error": "TELEGRAM_BOT_TOKEN not configured"}
+
+    try:
+        async with httpx.AsyncClient(timeout=30.0) as client:
+            response = await client.get(
+                f"https://api.telegram.org/bot{bot_token}/getMe"
+            )
+            return {
+                "status": "ok",
+                "telegram_response": response.json(),
+                "connection": "successful"
+            }
+    except httpx.ConnectTimeout:
+        return {"status": "error", "error": "ConnectTimeout - cannot reach api.telegram.org"}
+    except httpx.ConnectError as e:
+        return {"status": "error", "error": f"ConnectError: {str(e)}"}
+    except Exception as e:
+        return {"status": "error", "error": str(e), "type": type(e).__name__}
+
+
 # Legacy endpoint for Telegram (some setups use /telegram/webhook instead of /webhook/telegram)
 @app.post("/telegram/webhook")
 async def telegram_webhook_legacy(request: Request):
