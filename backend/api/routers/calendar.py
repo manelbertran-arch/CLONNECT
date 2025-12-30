@@ -1,15 +1,17 @@
 """Calendar and bookings endpoints"""
 from fastapi import APIRouter, Body, Depends, HTTPException
 from sqlalchemy.orm import Session
+from datetime import datetime, timezone
 import logging
 import uuid
+import httpx
 
 try:
     from api.database import get_db
-    from api.models import BookingLink, CalendarBooking
+    from api.models import BookingLink, CalendarBooking, Creator
 except:
     from database import get_db
-    from models import BookingLink, CalendarBooking
+    from models import BookingLink, CalendarBooking, Creator
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/calendar", tags=["calendar"])
@@ -107,10 +109,22 @@ async def get_booking_links(creator_id: str, db: Session = Depends(get_db)):
         logger.error(f"Error getting booking links: {e}")
         return {"status": "ok", "creator_id": creator_id, "links": [], "count": 0}
 
+MAX_BOOKING_LINKS = 5
+
 @router.post("/{creator_id}/links")
 async def create_booking_link(creator_id: str, data: dict = Body(...), db: Session = Depends(get_db)):
     """Create a new booking link in PostgreSQL - uses creator_id from URL"""
     try:
+        # Check limit of booking links per creator
+        existing_count = db.query(BookingLink).filter(
+            BookingLink.creator_id == creator_id
+        ).count()
+        if existing_count >= MAX_BOOKING_LINKS:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Maximum {MAX_BOOKING_LINKS} booking links allowed per creator"
+            )
+
         # Create new BookingLink with creator_id from URL path
         new_link = BookingLink(
             id=uuid.uuid4(),
@@ -203,3 +217,169 @@ async def delete_booking_link(creator_id: str, link_id: str, db: Session = Depen
         logger.error(f"Error deleting booking link: {e}")
         db.rollback()
         raise HTTPException(status_code=500, detail=f"Failed to delete link: {str(e)}")
+
+
+# =============================================================================
+# CALENDLY SYNC
+# =============================================================================
+
+@router.post("/{creator_id}/sync/calendly")
+async def sync_calendly_events(creator_id: str, db: Session = Depends(get_db)):
+    """
+    Sync scheduled events from Calendly API.
+    Requires Calendly OAuth token saved in creator.calendly_token.
+    """
+    try:
+        # Get creator's Calendly token
+        creator = db.query(Creator).filter(Creator.name == creator_id).first()
+        if not creator:
+            raise HTTPException(status_code=404, detail="Creator not found")
+
+        if not creator.calendly_token:
+            raise HTTPException(
+                status_code=400,
+                detail="Calendly not connected. Go to Settings to connect."
+            )
+
+        access_token = creator.calendly_token
+        synced = 0
+        errors = []
+
+        async with httpx.AsyncClient() as client:
+            # First, get user URI
+            user_response = await client.get(
+                "https://api.calendly.com/users/me",
+                headers={"Authorization": f"Bearer {access_token}"}
+            )
+
+            if user_response.status_code == 401:
+                raise HTTPException(
+                    status_code=401,
+                    detail="Calendly token expired. Reconnect in Settings."
+                )
+
+            user_data = user_response.json()
+            user_uri = user_data.get("resource", {}).get("uri")
+
+            if not user_uri:
+                raise HTTPException(status_code=400, detail="Could not get Calendly user")
+
+            # Get scheduled events (upcoming)
+            now = datetime.now(timezone.utc).isoformat()
+            events_response = await client.get(
+                "https://api.calendly.com/scheduled_events",
+                headers={"Authorization": f"Bearer {access_token}"},
+                params={
+                    "user": user_uri,
+                    "min_start_time": now,
+                    "status": "active",
+                    "count": 50
+                }
+            )
+
+            if events_response.status_code != 200:
+                logger.error(f"Calendly events error: {events_response.text}")
+                raise HTTPException(status_code=400, detail="Failed to fetch Calendly events")
+
+            events_data = events_response.json()
+            events = events_data.get("collection", [])
+
+            for event in events:
+                try:
+                    event_uri = event.get("uri", "")
+                    external_id = event_uri.split("/")[-1] if event_uri else None
+
+                    # Check if already synced
+                    existing = db.query(CalendarBooking).filter(
+                        CalendarBooking.external_id == external_id,
+                        CalendarBooking.creator_id == creator_id
+                    ).first()
+
+                    if existing:
+                        continue  # Skip already synced
+
+                    # Get invitee info
+                    invitees_response = await client.get(
+                        f"{event_uri}/invitees",
+                        headers={"Authorization": f"Bearer {access_token}"}
+                    )
+                    invitee_data = {}
+                    if invitees_response.status_code == 200:
+                        invitees = invitees_response.json().get("collection", [])
+                        if invitees:
+                            invitee_data = invitees[0]
+
+                    # Parse event data
+                    start_time = event.get("start_time")
+                    end_time = event.get("end_time")
+                    duration = 30  # default
+                    if start_time and end_time:
+                        start_dt = datetime.fromisoformat(start_time.replace("Z", "+00:00"))
+                        end_dt = datetime.fromisoformat(end_time.replace("Z", "+00:00"))
+                        duration = int((end_dt - start_dt).total_seconds() / 60)
+
+                    # Create booking
+                    booking = CalendarBooking(
+                        id=uuid.uuid4(),
+                        creator_id=creator_id,
+                        follower_id=invitee_data.get("email", "unknown"),
+                        meeting_type=event.get("event_type_name", event.get("name", "Meeting")),
+                        platform="calendly",
+                        status="scheduled",
+                        scheduled_at=datetime.fromisoformat(start_time.replace("Z", "+00:00")) if start_time else None,
+                        duration_minutes=duration,
+                        guest_name=invitee_data.get("name", ""),
+                        guest_email=invitee_data.get("email", ""),
+                        meeting_url=event.get("location", {}).get("join_url", ""),
+                        external_id=external_id,
+                        extra_data={"calendly_event": event}
+                    )
+                    db.add(booking)
+                    synced += 1
+
+                except Exception as e:
+                    errors.append(str(e))
+                    logger.error(f"Error syncing event: {e}")
+
+            db.commit()
+
+        return {
+            "status": "ok",
+            "synced": synced,
+            "total_events": len(events),
+            "errors": errors if errors else None
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error syncing Calendly: {e}")
+        db.rollback()
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/{creator_id}/sync/status")
+async def get_sync_status(creator_id: str, db: Session = Depends(get_db)):
+    """Check if Calendly is connected and return sync status"""
+    try:
+        creator = db.query(Creator).filter(Creator.name == creator_id).first()
+
+        calendly_connected = bool(creator and creator.calendly_token)
+
+        # Count existing bookings
+        bookings_count = db.query(CalendarBooking).filter(
+            CalendarBooking.creator_id == creator_id
+        ).count()
+
+        return {
+            "status": "ok",
+            "calendly_connected": calendly_connected,
+            "bookings_synced": bookings_count
+        }
+    except Exception as e:
+        logger.error(f"Error getting sync status: {e}")
+        return {
+            "status": "ok",
+            "calendly_connected": False,
+            "bookings_synced": 0
+        }

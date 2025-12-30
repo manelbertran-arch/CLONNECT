@@ -66,18 +66,18 @@ def init_database():
     run_migrations(engine)
     print("Migrations complete!")
 
-    # Clean up booking_links
+    # Clean up booking_links - delete ALL for manel to remove duplicates
     with engine.connect() as conn:
         try:
-            # Fix wrong creator_id
+            # Delete ALL booking_links for manel (duplicates cleanup)
             result = conn.execute(text(
-                "UPDATE booking_links SET creator_id = 'manel' WHERE creator_id = 'test_debug'"
+                "DELETE FROM booking_links WHERE creator_id = 'manel'"
             ))
             conn.commit()
             if result.rowcount > 0:
-                print(f"Fixed {result.rowcount} booking_links: creator_id test_debug -> manel")
+                print(f"Cleaned up {result.rowcount} booking_links for manel")
 
-            # Delete debug test entries
+            # Also delete debug test entries
             result = conn.execute(text(
                 "DELETE FROM booking_links WHERE meeting_type = 'debug_test'"
             ))
