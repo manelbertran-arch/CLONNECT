@@ -154,8 +154,9 @@ WEBHOOK_ENDPOINTS = {
     "/webhook/paypal",
     "/webhook/calendly",
     "/webhook/calcom",
+    "/webhook/telegram",
     "/instagram/webhook",  # Legacy
-    "/webhook/whatsapp",
+    "/telegram/webhook",   # Legacy
 }
 
 
@@ -1349,6 +1350,13 @@ async def telegram_status():
         "bot_token_configured": bool(TELEGRAM_BOT_TOKEN),
         "webhook_url": "/webhook/telegram"
     }
+
+
+# Legacy endpoint for Telegram (some setups use /telegram/webhook instead of /webhook/telegram)
+@app.post("/telegram/webhook")
+async def telegram_webhook_legacy(request: Request):
+    """Legacy endpoint - redirects to /webhook/telegram"""
+    return await telegram_webhook(request)
 
 
 # ---------------------------------------------------------
