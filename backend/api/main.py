@@ -1314,57 +1314,17 @@ async def telegram_webhook(request: Request):
             intent = response.intent.value if response.intent else "unknown"
 
             logger.info(f"Telegram DM from {sender_name} ({sender_id}): '{text[:50]}' -> intent={intent}")
-            logger.info(f"Bot reply generated: {bot_reply[:100] if bot_reply else 'None'}...")
 
-            # Enviar respuesta a Telegram
-            if bot_reply:
-                # Get token from env or use fallback
-                bot_token = TELEGRAM_BOT_TOKEN
-                if not bot_token:
-                    logger.error("TELEGRAM_BOT_TOKEN not configured!")
-                    return {
-                        "status": "error",
-                        "detail": "Bot token not configured",
-                        "response_generated": True,
-                        "response_sent": False
-                    }
-
-                logger.info(f"Sending to Telegram API: chat_id={chat_id}")
-
-                # Try using python-telegram-bot library (more robust)
-                telegram_sent = False
-                try:
-                    from telegram import Bot
-                    tg_bot = Bot(token=bot_token)
-                    await tg_bot.send_message(
-                        chat_id=chat_id,
-                        text=bot_reply,
-                        parse_mode="HTML"
-                    )
-                    telegram_sent = True
-                    logger.info(f"Telegram response sent successfully via python-telegram-bot to chat {chat_id}")
-                except ImportError:
-                    logger.warning("python-telegram-bot not available, falling back to httpx")
-                except Exception as tg_err:
-                    logger.warning(f"python-telegram-bot failed ({type(tg_err).__name__}: {tg_err}), falling back to httpx")
-
-                # Fallback to httpx if python-telegram-bot failed
-                if not telegram_sent:
-                    try:
-                        telegram_api = f"https://api.telegram.org/bot{bot_token}/sendMessage"
-                        async with httpx.AsyncClient(timeout=30.0) as client:
-                            tg_response = await client.post(telegram_api, json={
-                                "chat_id": chat_id,
-                                "text": bot_reply,
-                                "parse_mode": "HTML"
-                            })
-
-                            if tg_response.status_code == 200:
-                                logger.info(f"Telegram response sent successfully via httpx to chat {chat_id}")
-                            else:
-                                logger.error(f"Telegram API error: {tg_response.status_code} - {tg_response.text}")
-                    except Exception as httpx_err:
-                        logger.error(f"Both methods failed to send Telegram message: {type(httpx_err).__name__}: {httpx_err}")
+            # Enviar respuesta a Telegram (método original que funcionaba)
+            if bot_reply and TELEGRAM_BOT_TOKEN:
+                telegram_api = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendMessage"
+                async with httpx.AsyncClient() as client:
+                    await client.post(telegram_api, json={
+                        "chat_id": chat_id,
+                        "text": bot_reply,
+                        "parse_mode": "HTML"
+                    })
+                logger.info(f"Telegram response sent to chat {chat_id}")
 
             return {
                 "status": "ok",
