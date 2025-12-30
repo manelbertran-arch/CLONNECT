@@ -1314,17 +1314,35 @@ async def telegram_webhook(request: Request):
             intent = response.intent.value if response.intent else "unknown"
 
             logger.info(f"Telegram DM from {sender_name} ({sender_id}): '{text[:50]}' -> intent={intent}")
+            logger.info(f"Bot reply generated: {bot_reply[:100] if bot_reply else 'None'}...")
 
             # Enviar respuesta a Telegram
-            if bot_reply and TELEGRAM_BOT_TOKEN:
-                telegram_api = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendMessage"
-                async with httpx.AsyncClient() as client:
-                    await client.post(telegram_api, json={
+            if bot_reply:
+                # Get token from env or use fallback
+                bot_token = TELEGRAM_BOT_TOKEN
+                if not bot_token:
+                    logger.error("TELEGRAM_BOT_TOKEN not configured!")
+                    return {
+                        "status": "error",
+                        "detail": "Bot token not configured",
+                        "response_generated": True,
+                        "response_sent": False
+                    }
+
+                telegram_api = f"https://api.telegram.org/bot{bot_token}/sendMessage"
+                logger.info(f"Sending to Telegram API: chat_id={chat_id}")
+
+                async with httpx.AsyncClient(timeout=30.0) as client:
+                    tg_response = await client.post(telegram_api, json={
                         "chat_id": chat_id,
                         "text": bot_reply,
                         "parse_mode": "HTML"
                     })
-                logger.info(f"Telegram response sent to chat {chat_id}")
+
+                    if tg_response.status_code == 200:
+                        logger.info(f"Telegram response sent successfully to chat {chat_id}")
+                    else:
+                        logger.error(f"Telegram API error: {tg_response.status_code} - {tg_response.text}")
 
             return {
                 "status": "ok",
@@ -1334,21 +1352,28 @@ async def telegram_webhook(request: Request):
             }
 
         except Exception as e:
-            logger.error(f"Error processing Telegram message: {e}")
+            logger.error(f"Error processing Telegram message: {type(e).__name__}: {e}")
+            import traceback
+            logger.error(f"Traceback: {traceback.format_exc()}")
             return {"status": "error", "detail": str(e)}
 
     except Exception as e:
-        logger.error(f"Error in Telegram webhook: {e}")
+        logger.error(f"Error in Telegram webhook: {type(e).__name__}: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 
 @app.get("/telegram/status")
 async def telegram_status():
     """Obtener estado de la integración de Telegram"""
+    token_configured = bool(TELEGRAM_BOT_TOKEN)
+    token_preview = f"{TELEGRAM_BOT_TOKEN[:10]}...{TELEGRAM_BOT_TOKEN[-5:]}" if token_configured and len(TELEGRAM_BOT_TOKEN) > 15 else "NOT SET"
+
     return {
-        "status": "ok",
-        "bot_token_configured": bool(TELEGRAM_BOT_TOKEN),
-        "webhook_url": "/webhook/telegram"
+        "status": "ok" if token_configured else "warning",
+        "bot_token_configured": token_configured,
+        "bot_token_preview": token_preview,
+        "webhook_url": "/webhook/telegram",
+        "legacy_webhook_url": "/telegram/webhook"
     }
 
 
