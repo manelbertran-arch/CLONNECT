@@ -98,6 +98,7 @@ async def get_booking_links(creator_id: str, db: Session = Depends(get_db)):
                     "duration_minutes": link.duration_minutes,
                     "platform": link.platform,
                     "url": link.url,
+                    "price": getattr(link, 'price', 0) or 0,
                     "is_active": link.is_active,
                     "created_at": link.created_at.isoformat() if link.created_at else None,
                 }
@@ -252,6 +253,7 @@ async def create_booking_link(creator_id: str, data: dict = Body(...), db: Sessi
             duration_minutes=data.get("duration_minutes", 30),
             platform=platform,
             url=url,  # Use the auto-generated or provided URL
+            price=data.get("price", 0),
             is_active=data.get("is_active", True),
             extra_data={
                 **(data.get("extra_data", {})),
@@ -278,6 +280,7 @@ async def create_booking_link(creator_id: str, data: dict = Body(...), db: Sessi
                 "duration_minutes": new_link.duration_minutes,
                 "platform": new_link.platform,
                 "url": new_link.url,
+                "price": getattr(new_link, 'price', 0) or 0,
                 "is_active": new_link.is_active,
                 "created_at": new_link.created_at.isoformat() if new_link.created_at else None,
             }
