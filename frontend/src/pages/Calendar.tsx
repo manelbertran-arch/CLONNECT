@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Calendar as CalendarIcon, Clock, Video, Users, CheckCircle2, XCircle, Loader2, AlertCircle, ExternalLink, Plus, X, Trash2 } from "lucide-react";
+import { Calendar as CalendarIcon, Clock, Video, Users, CheckCircle2, XCircle, Loader2, AlertCircle, ExternalLink, Plus, X, Trash2, Copy, Link } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useCalendarStats, useBookings, useBookingLinks, useCreateBookingLink, useDeleteBookingLink, useCalendlySyncStatus } from "@/hooks/useApi";
 import { useToast } from "@/hooks/use-toast";
@@ -192,6 +192,21 @@ export default function Calendar() {
     }
   };
 
+  const handleCopyLink = async (url: string) => {
+    try {
+      await navigator.clipboard.writeText(url);
+      toast({ title: "Copied!", description: "Link copied to clipboard" });
+    } catch {
+      toast({ title: "Error", description: "Failed to copy", variant: "destructive" });
+    }
+  };
+
+  const handleCancelBooking = async (bookingId: string, title: string) => {
+    if (!confirm(`Cancel "${title}"? This cannot be undone.`)) return;
+    // TODO: Implement Calendly cancellation API
+    toast({ title: "Info", description: "Cancellation feature coming soon" });
+  };
+
   // Loading state
   if (statsLoading) {
     return (
@@ -322,7 +337,7 @@ export default function Calendar() {
                     </p>
                   </div>
                 </div>
-                <div className="flex items-center gap-3 ml-16 sm:ml-0">
+                <div className="flex items-center gap-2 ml-16 sm:ml-0">
                   <span
                     className={cn(
                       "text-xs px-2 py-1 rounded-full flex items-center gap-1",
@@ -342,6 +357,16 @@ export default function Calendar() {
                       Join
                     </Button>
                   )}
+                  {booking.status === "scheduled" && (
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                      onClick={() => handleCancelBooking(booking.id, booking.title || booking.meeting_type)}
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </Button>
+                  )}
                 </div>
               </div>
             ))}
@@ -350,12 +375,12 @@ export default function Calendar() {
       </div>
 
       {/* Booking Links */}
-      <div className="metric-card">
-        <div className="flex items-center justify-between mb-4">
-          <h3 className="font-semibold">Your Booking Links</h3>
-          <Button size="sm" variant="outline" onClick={() => setShowCreateForm(true)}>
-            <Plus className="w-4 h-4 mr-1" /> Add Link
-          </Button>
+      <div className="metric-card border-2 border-primary/20 bg-gradient-to-br from-primary/5 to-accent/5">
+        <div className="flex items-center gap-3 mb-4">
+          <div className="w-10 h-10 rounded-lg bg-primary/20 flex items-center justify-center">
+            <Link className="w-5 h-5 text-primary" />
+          </div>
+          <h3 className="font-semibold text-lg">Your Booking Links</h3>
         </div>
 
         {/* Create Form */}
@@ -502,57 +527,93 @@ export default function Calendar() {
           <div className="flex justify-center py-8">
             <Loader2 className="w-6 h-6 animate-spin text-primary" />
           </div>
-        ) : links.length === 0 ? (
-          <div className="text-center py-8 text-muted-foreground">
-            <Video className="w-12 h-12 mx-auto mb-3 opacity-50" />
-            <p>No booking links configured</p>
-            <p className="text-sm mt-2 mb-4">Add your Calendly, Cal.com, TidyCal or WhatsApp booking links</p>
-            <Button variant="outline" onClick={() => setShowCreateForm(true)}>
-              <Plus className="w-4 h-4 mr-2" /> Create Booking Link
+        ) : links.length === 0 && !showCreateForm ? (
+          <div className="text-center py-12">
+            <div className="w-20 h-20 rounded-full bg-primary/10 flex items-center justify-center mx-auto mb-4">
+              <CalendarIcon className="w-10 h-10 text-primary" />
+            </div>
+            <h4 className="text-xl font-semibold mb-2">Create your first Booking Link</h4>
+            <p className="text-muted-foreground max-w-md mx-auto mb-6">
+              Connect with Calendly, Cal.com, or TidyCal so your followers can schedule calls with you directly
+            </p>
+            <Button
+              size="lg"
+              className="bg-gradient-to-r from-primary to-accent hover:opacity-90"
+              onClick={() => setShowCreateForm(true)}
+            >
+              <CalendarIcon className="w-5 h-5 mr-2" />
+              Create Booking Link
             </Button>
           </div>
-        ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {links.map((link) => (
-              <div
-                key={link.id}
-                className="p-4 rounded-lg border bg-card hover:bg-accent/5 transition-colors"
-              >
-                <div className="flex items-start justify-between">
-                  <div>
-                    <p className="font-medium">{link.title}</p>
-                    <p className="text-sm text-muted-foreground mt-1">
-                      {link.duration_minutes} min - {link.platform}
-                    </p>
-                    {link.description && (
-                      <p className="text-sm text-muted-foreground mt-2">
-                        {link.description}
-                      </p>
-                    )}
-                  </div>
-                  <div className="flex gap-1">
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      onClick={() => window.open(link.url, "_blank")}
-                    >
-                      <ExternalLink className="w-4 h-4" />
-                    </Button>
-                    <Button
-                      size="sm"
-                      variant="ghost"
-                      className="text-destructive hover:text-destructive hover:bg-destructive/10"
-                      onClick={() => handleDeleteLink(link.id, link.title)}
-                      disabled={deleteBookingLinkMutation.isPending}
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </Button>
+        ) : links.length > 0 ? (
+          <>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+              {links.map((link) => (
+                <div
+                  key={link.id}
+                  className="p-4 rounded-xl border-2 border-border/50 bg-card hover:border-primary/30 transition-all"
+                >
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 mb-1">
+                        <span className="text-xs px-2 py-0.5 rounded-full bg-primary/10 text-primary font-medium">
+                          {link.platform}
+                        </span>
+                        <span className="text-xs text-muted-foreground">
+                          {link.duration_minutes} min
+                        </span>
+                      </div>
+                      <p className="font-semibold text-lg truncate">{link.title}</p>
+                      {link.url && (
+                        <p className="text-xs text-muted-foreground mt-1 truncate">
+                          {link.url.replace(/^https?:\/\//, '').slice(0, 40)}...
+                        </p>
+                      )}
+                    </div>
+                    <div className="flex gap-1 flex-shrink-0">
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => handleCopyLink(link.url)}
+                        title="Copy link"
+                      >
+                        <Copy className="w-4 h-4" />
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => window.open(link.url, "_blank")}
+                        title="Open link"
+                      >
+                        <ExternalLink className="w-4 h-4" />
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                        onClick={() => handleDeleteLink(link.id, link.title)}
+                        disabled={deleteBookingLinkMutation.isPending}
+                        title="Delete"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </Button>
+                    </div>
                   </div>
                 </div>
-              </div>
-            ))}
-          </div>
-        )}
+              ))}
+            </div>
+            {links.length < 5 && !showCreateForm && (
+              <Button
+                variant="outline"
+                className="w-full border-dashed"
+                onClick={() => setShowCreateForm(true)}
+              >
+                <Plus className="w-4 h-4 mr-2" />
+                Add Another Link ({5 - links.length} remaining)
+              </Button>
+            )}
+          </>
+        ) : null}
       </div>
 
       {/* Stats Breakdown */}
