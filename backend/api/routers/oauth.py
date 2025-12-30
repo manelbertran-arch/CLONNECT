@@ -731,9 +731,28 @@ async def zoom_oauth_callback(code: str = Query(...), state: str = Query("")):
 # =============================================================================
 # GOOGLE (for Google Meet via Calendar API)
 # =============================================================================
-GOOGLE_CLIENT_ID = os.getenv("GOOGLE_CLIENT_ID", "")
-GOOGLE_CLIENT_SECRET = os.getenv("GOOGLE_CLIENT_SECRET", "")
-GOOGLE_REDIRECT_URI = os.getenv("GOOGLE_REDIRECT_URI", f"{API_URL}/oauth/google/callback")
+GOOGLE_CLIENT_ID = os.getenv("GOOGLE_CLIENT_ID", "").strip()
+GOOGLE_CLIENT_SECRET = os.getenv("GOOGLE_CLIENT_SECRET", "").strip()
+GOOGLE_REDIRECT_URI = os.getenv("GOOGLE_REDIRECT_URI", f"{API_URL}/oauth/google/callback").strip()
+
+
+@router.get("/debug/google-config")
+async def debug_google_config():
+    """Debug endpoint to verify Google OAuth configuration"""
+    client_id = GOOGLE_CLIENT_ID
+    client_secret = GOOGLE_CLIENT_SECRET
+    redirect_uri = GOOGLE_REDIRECT_URI
+
+    return {
+        "client_id_set": bool(client_id),
+        "client_id_preview": client_id[:20] + "..." if len(client_id) > 20 else client_id if client_id else "NOT SET",
+        "client_id_length": len(client_id),
+        "client_secret_set": bool(client_secret),
+        "client_secret_length": len(client_secret),
+        "client_secret_preview": client_secret[:5] + "..." if len(client_secret) > 5 else "TOO SHORT",
+        "redirect_uri": redirect_uri,
+        "redirect_uri_matches_api": redirect_uri == f"{API_URL}/oauth/google/callback",
+    }
 
 
 @router.get("/google/start")
@@ -771,26 +790,35 @@ async def google_oauth_callback(code: str = Query(...), state: str = Query("")):
     from datetime import datetime, timezone, timedelta
 
     if not GOOGLE_CLIENT_ID or not GOOGLE_CLIENT_SECRET:
+        logger.error(f"Google OAuth not configured: client_id={bool(GOOGLE_CLIENT_ID)}, secret={bool(GOOGLE_CLIENT_SECRET)}")
         return RedirectResponse(f"{FRONTEND_URL}/settings?tab=connections&error=google_not_configured")
 
     creator_id = state.split(":")[0] if ":" in state else "manel"
 
+    # Log what we're sending (without exposing full secret)
+    logger.info(f"Google OAuth callback - client_id_len={len(GOOGLE_CLIENT_ID)}, secret_len={len(GOOGLE_CLIENT_SECRET)}, redirect={GOOGLE_REDIRECT_URI}")
+
     try:
         async with httpx.AsyncClient() as client:
+            # Build the request data
+            token_data_request = {
+                "client_id": GOOGLE_CLIENT_ID,
+                "client_secret": GOOGLE_CLIENT_SECRET,
+                "code": code,
+                "grant_type": "authorization_code",
+                "redirect_uri": GOOGLE_REDIRECT_URI,
+            }
+
             # Exchange code for access token
             token_response = await client.post(
                 "https://oauth2.googleapis.com/token",
                 headers={
                     "Content-Type": "application/x-www-form-urlencoded",
                 },
-                data={
-                    "client_id": GOOGLE_CLIENT_ID,
-                    "client_secret": GOOGLE_CLIENT_SECRET,
-                    "code": code,
-                    "grant_type": "authorization_code",
-                    "redirect_uri": GOOGLE_REDIRECT_URI,
-                }
+                data=token_data_request
             )
+
+            logger.info(f"Google token response status: {token_response.status_code}")
             token_data = token_response.json()
 
             if "error" in token_data:
