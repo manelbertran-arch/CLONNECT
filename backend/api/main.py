@@ -1390,18 +1390,31 @@ async def telegram_status():
     """Obtener estado de la integración de Telegram"""
     token_configured = bool(TELEGRAM_BOT_TOKEN)
     token_preview = f"{TELEGRAM_BOT_TOKEN[:10]}...{TELEGRAM_BOT_TOKEN[-5:]}" if token_configured and len(TELEGRAM_BOT_TOKEN) > 15 else "NOT SET"
-    proxy_configured = bool(TELEGRAM_PROXY_URL and TELEGRAM_PROXY_SECRET)
 
-    return {
+    # Proxy configuration check
+    proxy_url_set = bool(TELEGRAM_PROXY_URL)
+    proxy_secret_set = bool(TELEGRAM_PROXY_SECRET)
+    proxy_configured = proxy_url_set and proxy_secret_set
+
+    # Build status response
+    status_response = {
         "status": "ok" if token_configured else "warning",
         "bot_token_configured": token_configured,
         "bot_token_preview": token_preview,
+        "proxy_url_configured": proxy_url_set,
+        "proxy_secret_configured": proxy_secret_set,
         "proxy_configured": proxy_configured,
-        "proxy_url": TELEGRAM_PROXY_URL[:30] + "..." if TELEGRAM_PROXY_URL and len(TELEGRAM_PROXY_URL) > 30 else TELEGRAM_PROXY_URL or "NOT SET",
+        "proxy_url": TELEGRAM_PROXY_URL or "NOT SET",
         "send_mode": "proxy" if proxy_configured else "direct",
         "webhook_url": "/webhook/telegram",
         "legacy_webhook_url": "/telegram/webhook"
     }
+
+    # Add warning if URL is set but secret is missing
+    if proxy_url_set and not proxy_secret_set:
+        status_response["warning"] = "TELEGRAM_PROXY_URL is set but TELEGRAM_PROXY_SECRET is missing! Add it in Railway."
+
+    return status_response
 
 
 @app.get("/telegram/test-connection")
