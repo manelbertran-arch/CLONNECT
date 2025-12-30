@@ -368,12 +368,30 @@ export async function getBookingLinks(
 }
 
 /**
+ * Get Calendly sync status
+ */
+export interface CalendlySyncStatus {
+  status: string;
+  calendly_connected: boolean;
+  has_refresh_token: boolean;
+  token_expires_at: string | null;
+  bookings_synced: number;
+  auto_refresh_enabled: boolean;
+}
+
+export async function getCalendlySyncStatus(
+  creatorId: string = CREATOR_ID
+): Promise<CalendlySyncStatus> {
+  return apiFetch(`/calendar/${creatorId}/sync/status`);
+}
+
+/**
  * Create a booking link
  */
 export interface CreateBookingLinkData {
   meeting_type: string;
   title: string;
-  url: string;
+  url?: string;  // Optional - auto-generated for Calendly
   platform: string;
   duration_minutes: number;
   description?: string;
@@ -756,6 +774,7 @@ export default {
   getBookings,
   getCalendarStats,
   getBookingLinks,
+  getCalendlySyncStatus,
   createBookingLink,
   deleteBookingLink,
   getNurturingSequences,
