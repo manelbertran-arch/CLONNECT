@@ -780,6 +780,9 @@ async def google_oauth_callback(code: str = Query(...), state: str = Query("")):
             # Exchange code for access token
             token_response = await client.post(
                 "https://oauth2.googleapis.com/token",
+                headers={
+                    "Content-Type": "application/x-www-form-urlencoded",
+                },
                 data={
                     "client_id": GOOGLE_CLIENT_ID,
                     "client_secret": GOOGLE_CLIENT_SECRET,
@@ -1220,6 +1223,9 @@ async def refresh_google_token(creator_id: str) -> str:
             async with httpx.AsyncClient() as client:
                 token_response = await client.post(
                     "https://oauth2.googleapis.com/token",
+                    headers={
+                        "Content-Type": "application/x-www-form-urlencoded",
+                    },
                     data={
                         "client_id": GOOGLE_CLIENT_ID,
                         "client_secret": GOOGLE_CLIENT_SECRET,
