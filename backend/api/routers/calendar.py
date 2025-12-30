@@ -227,21 +227,32 @@ async def delete_booking_link(creator_id: str, link_id: str, db: Session = Depen
 async def sync_calendly_events(creator_id: str, db: Session = Depends(get_db)):
     """
     Sync scheduled events from Calendly API.
-    Requires Calendly OAuth token saved in creator.calendly_token.
+    Automatically refreshes token if expired.
     """
     try:
-        # Get creator's Calendly token
-        creator = db.query(Creator).filter(Creator.name == creator_id).first()
-        if not creator:
-            raise HTTPException(status_code=404, detail="Creator not found")
+        # Import the token helper from oauth module
+        try:
+            from api.routers.oauth import get_valid_calendly_token
+        except:
+            from routers.oauth import get_valid_calendly_token
 
-        if not creator.calendly_token:
-            raise HTTPException(
-                status_code=400,
-                detail="Calendly not connected. Go to Settings to connect."
-            )
+        # Get valid token (auto-refreshes if needed)
+        try:
+            access_token = await get_valid_calendly_token(creator_id)
+        except Exception as e:
+            error_msg = str(e)
+            if "not connected" in error_msg.lower():
+                raise HTTPException(
+                    status_code=400,
+                    detail="Calendly not connected. Go to Settings to connect."
+                )
+            elif "reconnect" in error_msg.lower():
+                raise HTTPException(
+                    status_code=401,
+                    detail="Calendly session expired. Please reconnect in Settings."
+                )
+            raise HTTPException(status_code=400, detail=error_msg)
 
-        access_token = creator.calendly_token
         synced = 0
         errors = []
 
@@ -253,9 +264,10 @@ async def sync_calendly_events(creator_id: str, db: Session = Depends(get_db)):
             )
 
             if user_response.status_code == 401:
+                # Token invalid even after refresh - user must reconnect
                 raise HTTPException(
                     status_code=401,
-                    detail="Calendly token expired. Reconnect in Settings."
+                    detail="Calendly session expired. Please reconnect in Settings."
                 )
 
             user_data = user_response.json()
@@ -365,6 +377,11 @@ async def get_sync_status(creator_id: str, db: Session = Depends(get_db)):
         creator = db.query(Creator).filter(Creator.name == creator_id).first()
 
         calendly_connected = bool(creator and creator.calendly_token)
+        has_refresh_token = bool(creator and creator.calendly_refresh_token)
+        token_expires_at = None
+
+        if creator and creator.calendly_token_expires_at:
+            token_expires_at = creator.calendly_token_expires_at.isoformat()
 
         # Count existing bookings
         bookings_count = db.query(CalendarBooking).filter(
@@ -374,12 +391,18 @@ async def get_sync_status(creator_id: str, db: Session = Depends(get_db)):
         return {
             "status": "ok",
             "calendly_connected": calendly_connected,
-            "bookings_synced": bookings_count
+            "has_refresh_token": has_refresh_token,
+            "token_expires_at": token_expires_at,
+            "bookings_synced": bookings_count,
+            "auto_refresh_enabled": has_refresh_token
         }
     except Exception as e:
         logger.error(f"Error getting sync status: {e}")
         return {
             "status": "ok",
             "calendly_connected": False,
-            "bookings_synced": 0
+            "has_refresh_token": False,
+            "token_expires_at": None,
+            "bookings_synced": 0,
+            "auto_refresh_enabled": False
         }
