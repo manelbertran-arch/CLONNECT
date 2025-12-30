@@ -188,8 +188,7 @@ export default function Settings() {
   // Other payment methods state
   const [otherPaymentMethods, setOtherPaymentMethods] = useState({
     bizum: { enabled: false, phone: "", holder_name: "" },
-    bank_transfer: { enabled: false, iban: "", holder_name: "", concept: "" },
-    mercado_pago: { enabled: false, link: "" },
+    bank_transfer: { enabled: false, iban: "", holder_name: "" },
     revolut: { enabled: false, link: "" },
     other: { enabled: false, instructions: "" },
   });
@@ -692,24 +691,23 @@ export default function Settings() {
                         );
                       })}
 
-                      {/* Show Other Payment Methods in Payments section */}
+                      {/* Payment Methods in Payments section */}
                       {sectionKey === "payments" && (
                         <div className="metric-card mt-4">
-                          <div className="flex items-center gap-3 mb-4">
-                            <span className="text-2xl">💵</span>
-                            <div>
-                              <h4 className="font-semibold">Alternative Payment Methods</h4>
-                              <p className="text-sm text-muted-foreground">Manual payment options for your clients</p>
-                            </div>
-                          </div>
+                          <h4 className="font-semibold mb-4">Payment Methods</h4>
 
-                          <div className="space-y-3">
+                          <div className="divide-y divide-border/50">
                             {/* Bizum */}
-                            <div className="p-3 rounded-lg border bg-card">
+                            <div className="py-3 first:pt-0">
                               <div className="flex items-center justify-between">
-                                <div className="flex items-center gap-2">
-                                  <span>🇪🇸</span>
+                                <div className="flex-1 min-w-0">
                                   <span className="font-medium text-sm">Bizum</span>
+                                  {otherPaymentMethods.bizum.enabled && otherPaymentMethods.bizum.phone && (
+                                    <p className="text-xs text-muted-foreground truncate">
+                                      {otherPaymentMethods.bizum.phone}
+                                      {otherPaymentMethods.bizum.holder_name && ` · ${otherPaymentMethods.bizum.holder_name}`}
+                                    </p>
+                                  )}
                                 </div>
                                 <Switch
                                   checked={otherPaymentMethods.bizum.enabled}
@@ -722,9 +720,9 @@ export default function Settings() {
                                 />
                               </div>
                               {otherPaymentMethods.bizum.enabled && (
-                                <div className="space-y-2 mt-3 pt-3 border-t">
+                                <div className="flex gap-2 mt-2">
                                   <Input
-                                    placeholder="Phone (600 123 456)"
+                                    placeholder="Phone"
                                     value={otherPaymentMethods.bizum.phone}
                                     onChange={(e) =>
                                       setOtherPaymentMethods(prev => ({
@@ -732,10 +730,10 @@ export default function Settings() {
                                         bizum: { ...prev.bizum, phone: e.target.value }
                                       }))
                                     }
-                                    className="h-9"
+                                    className="h-8 text-sm"
                                   />
                                   <Input
-                                    placeholder="Holder name (optional)"
+                                    placeholder="Name"
                                     value={otherPaymentMethods.bizum.holder_name}
                                     onChange={(e) =>
                                       setOtherPaymentMethods(prev => ({
@@ -743,18 +741,22 @@ export default function Settings() {
                                         bizum: { ...prev.bizum, holder_name: e.target.value }
                                       }))
                                     }
-                                    className="h-9"
+                                    className="h-8 text-sm"
                                   />
                                 </div>
                               )}
                             </div>
 
                             {/* Bank Transfer */}
-                            <div className="p-3 rounded-lg border bg-card">
+                            <div className="py-3">
                               <div className="flex items-center justify-between">
-                                <div className="flex items-center gap-2">
-                                  <span>🏦</span>
+                                <div className="flex-1 min-w-0">
                                   <span className="font-medium text-sm">Bank Transfer</span>
+                                  {otherPaymentMethods.bank_transfer.enabled && otherPaymentMethods.bank_transfer.iban && (
+                                    <p className="text-xs text-muted-foreground truncate">
+                                      {otherPaymentMethods.bank_transfer.iban}
+                                    </p>
+                                  )}
                                 </div>
                                 <Switch
                                   checked={otherPaymentMethods.bank_transfer.enabled}
@@ -767,7 +769,7 @@ export default function Settings() {
                                 />
                               </div>
                               {otherPaymentMethods.bank_transfer.enabled && (
-                                <div className="space-y-2 mt-3 pt-3 border-t">
+                                <div className="flex gap-2 mt-2">
                                   <Input
                                     placeholder="IBAN"
                                     value={otherPaymentMethods.bank_transfer.iban}
@@ -777,10 +779,10 @@ export default function Settings() {
                                         bank_transfer: { ...prev.bank_transfer, iban: e.target.value }
                                       }))
                                     }
-                                    className="h-9"
+                                    className="h-8 text-sm flex-1"
                                   />
                                   <Input
-                                    placeholder="Holder name"
+                                    placeholder="Holder"
                                     value={otherPaymentMethods.bank_transfer.holder_name}
                                     onChange={(e) =>
                                       setOtherPaymentMethods(prev => ({
@@ -788,52 +790,22 @@ export default function Settings() {
                                         bank_transfer: { ...prev.bank_transfer, holder_name: e.target.value }
                                       }))
                                     }
-                                    className="h-9"
-                                  />
-                                </div>
-                              )}
-                            </div>
-
-                            {/* Mercado Pago */}
-                            <div className="p-3 rounded-lg border bg-card">
-                              <div className="flex items-center justify-between">
-                                <div className="flex items-center gap-2">
-                                  <span>🟡</span>
-                                  <span className="font-medium text-sm">Mercado Pago</span>
-                                </div>
-                                <Switch
-                                  checked={otherPaymentMethods.mercado_pago.enabled}
-                                  onCheckedChange={(checked) =>
-                                    setOtherPaymentMethods(prev => ({
-                                      ...prev,
-                                      mercado_pago: { ...prev.mercado_pago, enabled: checked }
-                                    }))
-                                  }
-                                />
-                              </div>
-                              {otherPaymentMethods.mercado_pago.enabled && (
-                                <div className="mt-3 pt-3 border-t">
-                                  <Input
-                                    placeholder="Payment link or @username"
-                                    value={otherPaymentMethods.mercado_pago.link}
-                                    onChange={(e) =>
-                                      setOtherPaymentMethods(prev => ({
-                                        ...prev,
-                                        mercado_pago: { ...prev.mercado_pago, link: e.target.value }
-                                      }))
-                                    }
-                                    className="h-9"
+                                    className="h-8 text-sm w-32"
                                   />
                                 </div>
                               )}
                             </div>
 
                             {/* Revolut / Wise */}
-                            <div className="p-3 rounded-lg border bg-card">
+                            <div className="py-3">
                               <div className="flex items-center justify-between">
-                                <div className="flex items-center gap-2">
-                                  <span>💸</span>
+                                <div className="flex-1 min-w-0">
                                   <span className="font-medium text-sm">Revolut / Wise</span>
+                                  {otherPaymentMethods.revolut.enabled && otherPaymentMethods.revolut.link && (
+                                    <p className="text-xs text-muted-foreground truncate">
+                                      {otherPaymentMethods.revolut.link}
+                                    </p>
+                                  )}
                                 </div>
                                 <Switch
                                   checked={otherPaymentMethods.revolut.enabled}
@@ -846,28 +818,30 @@ export default function Settings() {
                                 />
                               </div>
                               {otherPaymentMethods.revolut.enabled && (
-                                <div className="mt-3 pt-3 border-t">
-                                  <Input
-                                    placeholder="Payment link or @username"
-                                    value={otherPaymentMethods.revolut.link}
-                                    onChange={(e) =>
-                                      setOtherPaymentMethods(prev => ({
-                                        ...prev,
-                                        revolut: { ...prev.revolut, link: e.target.value }
-                                      }))
-                                    }
-                                    className="h-9"
-                                  />
-                                </div>
+                                <Input
+                                  placeholder="Link or @username"
+                                  value={otherPaymentMethods.revolut.link}
+                                  onChange={(e) =>
+                                    setOtherPaymentMethods(prev => ({
+                                      ...prev,
+                                      revolut: { ...prev.revolut, link: e.target.value }
+                                    }))
+                                  }
+                                  className="h-8 text-sm mt-2"
+                                />
                               )}
                             </div>
 
                             {/* Other */}
-                            <div className="p-3 rounded-lg border bg-card">
+                            <div className="py-3 last:pb-0">
                               <div className="flex items-center justify-between">
-                                <div className="flex items-center gap-2">
-                                  <span>📝</span>
-                                  <span className="font-medium text-sm">Other Method</span>
+                                <div className="flex-1 min-w-0">
+                                  <span className="font-medium text-sm">Other</span>
+                                  {otherPaymentMethods.other.enabled && otherPaymentMethods.other.instructions && (
+                                    <p className="text-xs text-muted-foreground truncate">
+                                      {otherPaymentMethods.other.instructions.slice(0, 40)}...
+                                    </p>
+                                  )}
                                 </div>
                                 <Switch
                                   checked={otherPaymentMethods.other.enabled}
@@ -880,19 +854,17 @@ export default function Settings() {
                                 />
                               </div>
                               {otherPaymentMethods.other.enabled && (
-                                <div className="mt-3 pt-3 border-t">
-                                  <Textarea
-                                    placeholder="Custom instructions..."
-                                    value={otherPaymentMethods.other.instructions}
-                                    onChange={(e) =>
-                                      setOtherPaymentMethods(prev => ({
-                                        ...prev,
-                                        other: { ...prev.other, instructions: e.target.value }
-                                      }))
-                                    }
-                                    className="min-h-[60px]"
-                                  />
-                                </div>
+                                <Textarea
+                                  placeholder="Custom instructions..."
+                                  value={otherPaymentMethods.other.instructions}
+                                  onChange={(e) =>
+                                    setOtherPaymentMethods(prev => ({
+                                      ...prev,
+                                      other: { ...prev.other, instructions: e.target.value }
+                                    }))
+                                  }
+                                  className="min-h-[50px] text-sm mt-2"
+                                />
                               )}
                             </div>
                           </div>
@@ -908,7 +880,7 @@ export default function Settings() {
                             ) : (
                               <Save className="w-4 h-4 mr-2" />
                             )}
-                            Save Payment Methods
+                            Save
                           </Button>
                         </div>
                       )}
