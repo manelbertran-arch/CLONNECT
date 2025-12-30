@@ -72,6 +72,14 @@ const PRICES = [
   { value: -1, label: "Custom" },
 ];
 
+// Platform icons
+const platformIcons: Record<string, string> = {
+  calendly: "📅",
+  zoom: "📹",
+  "google-meet": "🎥",
+  manual: "🔗",
+};
+
 export default function Bookings() {
   const navigate = useNavigate();
   const { data: statsData, isLoading: statsLoading, error: statsError } = useCalendarStats();
@@ -347,53 +355,47 @@ export default function Bookings() {
         </div>
       </div>
 
-      {/* Upcoming Bookings */}
+      {/* Upcoming Bookings - Only show scheduled calls */}
       <div className="metric-card">
         <h3 className="font-semibold mb-4">Upcoming Calls</h3>
         {bookingsLoading ? (
           <div className="flex justify-center py-8">
             <Loader2 className="w-6 h-6 animate-spin text-primary" />
           </div>
-        ) : bookings.length === 0 ? (
+        ) : bookings.filter(b => b.status === "scheduled").length === 0 ? (
           <div className="text-center py-8 text-muted-foreground">
             <CalendarIcon className="w-12 h-12 mx-auto mb-3 opacity-50" />
             <p>No upcoming calls scheduled</p>
           </div>
         ) : (
-          <div className="space-y-3">
-            {bookings.slice(0, 5).map((booking) => (
+          <div className="space-y-2">
+            {bookings.filter(b => b.status === "scheduled").slice(0, 5).map((booking) => (
               <div
                 key={booking.id}
-                className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-4 rounded-lg border bg-card hover:bg-accent/5 transition-colors"
+                className="flex items-center justify-between gap-3 p-3 rounded-lg border bg-card hover:bg-accent/5 transition-colors"
               >
-                <div className="flex items-center gap-4">
+                <div className="flex items-center gap-3 flex-1 min-w-0">
                   <div className="w-12 h-12 rounded-lg bg-primary/10 flex flex-col items-center justify-center shrink-0">
-                    <span className="text-xs text-muted-foreground">
+                    <span className="text-[10px] text-muted-foreground uppercase">
                       {formatDate(booking.scheduled_at).split(" ")[0]}
                     </span>
-                    <span className="text-lg font-bold">
+                    <span className="text-lg font-bold leading-none">
                       {new Date(booking.scheduled_at).getDate()}
                     </span>
                   </div>
-                  <div className="min-w-0">
-                    <p className="font-medium truncate">
-                      {booking.follower_name || booking.title || booking.meeting_type}
-                    </p>
-                    <p className="text-sm text-muted-foreground">
-                      {formatTime(booking.scheduled_at)} - {booking.duration_minutes} min
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2">
+                      <span className="font-medium truncate">
+                        {booking.follower_name || booking.title || booking.meeting_type}
+                      </span>
+                      <span className="text-xs text-muted-foreground">{booking.duration_minutes} min</span>
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      {formatTime(booking.scheduled_at)}
                     </p>
                   </div>
                 </div>
-                <div className="flex items-center gap-2 ml-16 sm:ml-0">
-                  <span
-                    className={cn(
-                      "text-xs px-2 py-1 rounded-full flex items-center gap-1",
-                      statusColors[booking.status]
-                    )}
-                  >
-                    {statusIcons[booking.status]}
-                    {booking.status}
-                  </span>
+                <div className="flex items-center gap-1 flex-shrink-0">
                   {booking.meeting_url && (
                     <Button
                       size="sm"
@@ -404,21 +406,19 @@ export default function Bookings() {
                       Join
                     </Button>
                   )}
-                  {booking.status === "scheduled" && (
-                    <Button
-                      size="sm"
-                      variant="ghost"
-                      className="text-destructive hover:text-destructive hover:bg-destructive/10"
-                      onClick={() => handleCancelBooking(booking.id, booking.title || booking.meeting_type)}
-                      disabled={cancelBookingMutation.isPending}
-                    >
-                      {cancelBookingMutation.isPending ? (
-                        <Loader2 className="w-4 h-4 animate-spin" />
-                      ) : (
-                        <Trash2 className="w-4 h-4" />
-                      )}
-                    </Button>
-                  )}
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                    onClick={() => handleCancelBooking(booking.id, booking.title || booking.meeting_type)}
+                    disabled={cancelBookingMutation.isPending}
+                  >
+                    {cancelBookingMutation.isPending ? (
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                    ) : (
+                      <Trash2 className="w-4 h-4" />
+                    )}
+                  </Button>
                 </div>
               </div>
             ))}
@@ -429,7 +429,7 @@ export default function Bookings() {
       {/* Services */}
       <div className="metric-card">
         <div className="flex items-center justify-between mb-4">
-          <h3 className="font-semibold text-lg">Your Services</h3>
+          <h3 className="font-semibold">Your Services</h3>
           {links.length > 0 && links.length < 5 && !showCreateForm && (
             <Button size="sm" onClick={() => setShowCreateForm(true)}>
               <Plus className="w-4 h-4 mr-1" />
@@ -622,9 +622,12 @@ export default function Bookings() {
             {links.map((link) => (
               <div
                 key={link.id}
-                className="flex items-center justify-between p-3 rounded-lg border bg-card hover:bg-accent/5 transition-colors"
+                className="flex items-center justify-between gap-3 p-3 rounded-lg border bg-card hover:bg-accent/5 transition-colors"
               >
                 <div className="flex items-center gap-3 flex-1 min-w-0">
+                  <div className="w-12 h-12 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
+                    <span className="text-2xl">{platformIcons[link.platform] || "🔗"}</span>
+                  </div>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2">
                       <span className="font-medium truncate">{link.title}</span>
