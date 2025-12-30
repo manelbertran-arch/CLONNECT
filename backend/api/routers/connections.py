@@ -26,6 +26,8 @@ class AllConnections(BaseModel):
     paypal: ConnectionStatus
     hotmart: ConnectionStatus
     calendly: ConnectionStatus
+    zoom: ConnectionStatus
+    google: ConnectionStatus
 
 
 class UpdateConnectionRequest(BaseModel):
@@ -53,7 +55,9 @@ async def get_connections(creator_id: str) -> AllConnections:
         stripe=ConnectionStatus(connected=False),
         paypal=ConnectionStatus(connected=False),
         hotmart=ConnectionStatus(connected=False),
-        calendly=ConnectionStatus(connected=False)
+        calendly=ConnectionStatus(connected=False),
+        zoom=ConnectionStatus(connected=False),
+        google=ConnectionStatus(connected=False)
     )
 
     try:
@@ -103,6 +107,16 @@ async def get_connections(creator_id: str) -> AllConnections:
                         connected=bool(creator.calendly_token and len(creator.calendly_token) > 10),
                         username="Connected" if creator.calendly_token else None,
                         masked_token=mask_token(creator.calendly_token)
+                    ),
+                    zoom=ConnectionStatus(
+                        connected=bool(getattr(creator, 'zoom_access_token', None) and len(getattr(creator, 'zoom_access_token', '') or '') > 10),
+                        username="Connected" if getattr(creator, 'zoom_access_token', None) else None,
+                        masked_token=mask_token(getattr(creator, 'zoom_access_token', None))
+                    ),
+                    google=ConnectionStatus(
+                        connected=bool(getattr(creator, 'google_access_token', None) and len(getattr(creator, 'google_access_token', '') or '') > 10),
+                        username="Connected" if getattr(creator, 'google_access_token', None) else None,
+                        masked_token=mask_token(getattr(creator, 'google_access_token', None))
                     )
                 )
             finally:
@@ -156,7 +170,7 @@ async def update_calendly(creator_id: str, data: UpdateConnectionRequest):
 @router.delete("/{creator_id}/{platform}")
 async def disconnect_platform(creator_id: str, platform: str):
     """Disconnect a platform by clearing its token"""
-    valid_platforms = ["instagram", "telegram", "whatsapp", "stripe", "hotmart", "calendly"]
+    valid_platforms = ["instagram", "telegram", "whatsapp", "stripe", "hotmart", "calendly", "zoom", "google"]
     if platform not in valid_platforms:
         raise HTTPException(status_code=400, detail=f"Unknown platform: {platform}")
 
@@ -186,6 +200,16 @@ async def disconnect_platform(creator_id: str, platform: str):
                     creator.hotmart_token = None
                 elif platform == "calendly":
                     creator.calendly_token = None
+                    creator.calendly_refresh_token = None
+                    creator.calendly_token_expires_at = None
+                elif platform == "zoom":
+                    creator.zoom_access_token = None
+                    creator.zoom_refresh_token = None
+                    creator.zoom_token_expires_at = None
+                elif platform == "google":
+                    creator.google_access_token = None
+                    creator.google_refresh_token = None
+                    creator.google_token_expires_at = None
 
                 session.commit()
                 logger.info(f"Disconnected {platform} for {creator_id}")

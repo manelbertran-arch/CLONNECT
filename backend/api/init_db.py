@@ -19,6 +19,14 @@ def run_migrations(engine):
         ("creators", "calendly_token", "TEXT"),
         ("creators", "calendly_refresh_token", "TEXT"),
         ("creators", "calendly_token_expires_at", "TIMESTAMPTZ"),
+        # Zoom connections
+        ("creators", "zoom_access_token", "TEXT"),
+        ("creators", "zoom_refresh_token", "TEXT"),
+        ("creators", "zoom_token_expires_at", "TIMESTAMPTZ"),
+        # Google connections
+        ("creators", "google_access_token", "TEXT"),
+        ("creators", "google_refresh_token", "TEXT"),
+        ("creators", "google_token_expires_at", "TIMESTAMPTZ"),
         # Alternative payment methods
         ("creators", "other_payment_methods", "JSON"),
     ]

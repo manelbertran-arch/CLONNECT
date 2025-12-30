@@ -17,7 +17,7 @@ const navItems = [
   { path: "/leads", label: "Leads", icon: Users },
   { path: "/nurturing", label: "Nurturing", icon: Sparkles },
   { path: "/revenue", label: "Revenue", icon: TrendingUp },
-  { path: "/calendar", label: "Calendar", icon: Calendar },
+  { path: "/bookings", label: "Bookings", icon: Calendar },
   { path: "/settings", label: "Settings", icon: Settings },
 ];
 

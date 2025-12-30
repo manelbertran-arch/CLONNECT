@@ -38,6 +38,12 @@ async def oauth_debug():
         },
         "calendly": {
             "client_id_set": bool(os.getenv("CALENDLY_CLIENT_ID", "")),
+        },
+        "zoom": {
+            "client_id_set": bool(os.getenv("ZOOM_CLIENT_ID", "")),
+        },
+        "google": {
+            "client_id_set": bool(os.getenv("GOOGLE_CLIENT_ID", "")),
         }
     }
 
@@ -632,6 +638,191 @@ async def calendly_oauth_callback(code: str = Query(...), state: str = Query("")
 
 
 # =============================================================================
+# ZOOM
+# =============================================================================
+ZOOM_CLIENT_ID = os.getenv("ZOOM_CLIENT_ID", "")
+ZOOM_CLIENT_SECRET = os.getenv("ZOOM_CLIENT_SECRET", "")
+ZOOM_REDIRECT_URI = os.getenv("ZOOM_REDIRECT_URI", f"{API_URL}/oauth/zoom/callback")
+
+
+@router.get("/zoom/start")
+async def zoom_oauth_start(creator_id: str):
+    """Start Zoom OAuth flow"""
+    if not ZOOM_CLIENT_ID:
+        raise HTTPException(status_code=500, detail="ZOOM_CLIENT_ID not configured")
+
+    state = f"{creator_id}:{secrets.token_urlsafe(16)}"
+
+    params = {
+        "client_id": ZOOM_CLIENT_ID,
+        "response_type": "code",
+        "redirect_uri": ZOOM_REDIRECT_URI,
+        "state": state,
+    }
+
+    auth_url = f"https://zoom.us/oauth/authorize?{urlencode(params)}"
+    return {"auth_url": auth_url, "state": state}
+
+
+@router.get("/zoom/callback")
+async def zoom_oauth_callback(code: str = Query(...), state: str = Query("")):
+    """Handle Zoom OAuth callback"""
+    import httpx
+    import base64
+    from datetime import datetime, timezone, timedelta
+
+    if not ZOOM_CLIENT_ID or not ZOOM_CLIENT_SECRET:
+        return RedirectResponse(f"{FRONTEND_URL}/settings?tab=connections&error=zoom_not_configured")
+
+    creator_id = state.split(":")[0] if ":" in state else "manel"
+
+    try:
+        # Create Basic Auth header
+        credentials = base64.b64encode(f"{ZOOM_CLIENT_ID}:{ZOOM_CLIENT_SECRET}".encode()).decode()
+
+        async with httpx.AsyncClient() as client:
+            # Exchange code for access token
+            token_response = await client.post(
+                "https://zoom.us/oauth/token",
+                headers={
+                    "Authorization": f"Basic {credentials}",
+                    "Content-Type": "application/x-www-form-urlencoded",
+                },
+                data={
+                    "grant_type": "authorization_code",
+                    "code": code,
+                    "redirect_uri": ZOOM_REDIRECT_URI,
+                }
+            )
+            token_data = token_response.json()
+
+            if "error" in token_data:
+                logger.error(f"Zoom token error: {token_data}")
+                return RedirectResponse(f"{FRONTEND_URL}/settings?tab=connections&error=zoom_auth_failed")
+
+            access_token = token_data.get("access_token")
+            refresh_token = token_data.get("refresh_token")
+            expires_in = token_data.get("expires_in", 3600)  # Default 1 hour
+
+            # Calculate expiration time
+            expires_at = datetime.now(timezone.utc) + timedelta(seconds=expires_in)
+
+            # Get user info
+            user_response = await client.get(
+                "https://api.zoom.us/v2/users/me",
+                headers={"Authorization": f"Bearer {access_token}"}
+            )
+            user_data = user_response.json()
+            zoom_email = user_data.get("email", "")
+
+            # Save to database
+            await _save_zoom_connection(
+                creator_id, access_token, refresh_token, expires_at, zoom_email
+            )
+
+            logger.info(f"Zoom connected for {creator_id}, expires at {expires_at}")
+            return RedirectResponse(f"{FRONTEND_URL}/settings?tab=connections&success=zoom")
+
+    except Exception as e:
+        logger.error(f"Zoom OAuth error: {e}")
+        return RedirectResponse(f"{FRONTEND_URL}/settings?tab=connections&error=zoom_failed")
+
+
+# =============================================================================
+# GOOGLE (for Google Meet via Calendar API)
+# =============================================================================
+GOOGLE_CLIENT_ID = os.getenv("GOOGLE_CLIENT_ID", "")
+GOOGLE_CLIENT_SECRET = os.getenv("GOOGLE_CLIENT_SECRET", "")
+GOOGLE_REDIRECT_URI = os.getenv("GOOGLE_REDIRECT_URI", f"{API_URL}/oauth/google/callback")
+
+
+@router.get("/google/start")
+async def google_oauth_start(creator_id: str):
+    """Start Google OAuth flow for Calendar/Meet access"""
+    if not GOOGLE_CLIENT_ID:
+        raise HTTPException(status_code=500, detail="GOOGLE_CLIENT_ID not configured")
+
+    state = f"{creator_id}:{secrets.token_urlsafe(16)}"
+
+    # Scopes needed for Google Meet links via Calendar API
+    scopes = [
+        "https://www.googleapis.com/auth/calendar.events",
+        "https://www.googleapis.com/auth/userinfo.email",
+    ]
+
+    params = {
+        "client_id": GOOGLE_CLIENT_ID,
+        "response_type": "code",
+        "redirect_uri": GOOGLE_REDIRECT_URI,
+        "scope": " ".join(scopes),
+        "state": state,
+        "access_type": "offline",  # Get refresh token
+        "prompt": "consent",  # Force consent to always get refresh token
+    }
+
+    auth_url = f"https://accounts.google.com/o/oauth2/v2/auth?{urlencode(params)}"
+    return {"auth_url": auth_url, "state": state}
+
+
+@router.get("/google/callback")
+async def google_oauth_callback(code: str = Query(...), state: str = Query("")):
+    """Handle Google OAuth callback"""
+    import httpx
+    from datetime import datetime, timezone, timedelta
+
+    if not GOOGLE_CLIENT_ID or not GOOGLE_CLIENT_SECRET:
+        return RedirectResponse(f"{FRONTEND_URL}/settings?tab=connections&error=google_not_configured")
+
+    creator_id = state.split(":")[0] if ":" in state else "manel"
+
+    try:
+        async with httpx.AsyncClient() as client:
+            # Exchange code for access token
+            token_response = await client.post(
+                "https://oauth2.googleapis.com/token",
+                data={
+                    "client_id": GOOGLE_CLIENT_ID,
+                    "client_secret": GOOGLE_CLIENT_SECRET,
+                    "code": code,
+                    "grant_type": "authorization_code",
+                    "redirect_uri": GOOGLE_REDIRECT_URI,
+                }
+            )
+            token_data = token_response.json()
+
+            if "error" in token_data:
+                logger.error(f"Google token error: {token_data}")
+                return RedirectResponse(f"{FRONTEND_URL}/settings?tab=connections&error=google_auth_failed")
+
+            access_token = token_data.get("access_token")
+            refresh_token = token_data.get("refresh_token")
+            expires_in = token_data.get("expires_in", 3600)  # Default 1 hour
+
+            # Calculate expiration time
+            expires_at = datetime.now(timezone.utc) + timedelta(seconds=expires_in)
+
+            # Get user info
+            user_response = await client.get(
+                "https://www.googleapis.com/oauth2/v2/userinfo",
+                headers={"Authorization": f"Bearer {access_token}"}
+            )
+            user_data = user_response.json()
+            google_email = user_data.get("email", "")
+
+            # Save to database
+            await _save_google_connection(
+                creator_id, access_token, refresh_token, expires_at, google_email
+            )
+
+            logger.info(f"Google connected for {creator_id}, expires at {expires_at}")
+            return RedirectResponse(f"{FRONTEND_URL}/settings?tab=connections&success=google")
+
+    except Exception as e:
+        logger.error(f"Google OAuth error: {e}")
+        return RedirectResponse(f"{FRONTEND_URL}/settings?tab=connections&error=google_failed")
+
+
+# =============================================================================
 # HELPER FUNCTIONS
 # =============================================================================
 
@@ -814,4 +1005,297 @@ async def get_valid_calendly_token(creator_id: str) -> str:
 
     except Exception as e:
         logger.error(f"Error getting valid Calendly token: {e}")
+        raise
+
+
+async def _save_zoom_connection(
+    creator_id: str,
+    access_token: str,
+    refresh_token: str,
+    expires_at,
+    zoom_email: str = None
+):
+    """Save Zoom OAuth connection with refresh token to database"""
+    try:
+        from api.database import DATABASE_URL, SessionLocal
+        if DATABASE_URL and SessionLocal:
+            session = SessionLocal()
+            try:
+                from api.models import Creator
+                creator = session.query(Creator).filter_by(name=creator_id).first()
+
+                if not creator:
+                    logger.warning(f"Creator {creator_id} not found, creating...")
+                    creator = Creator(name=creator_id, email=f"{creator_id}@clonnect.com")
+                    session.add(creator)
+
+                creator.zoom_access_token = access_token
+                creator.zoom_refresh_token = refresh_token
+                creator.zoom_token_expires_at = expires_at
+
+                session.commit()
+                logger.info(f"Saved Zoom connection for {creator_id} ({zoom_email})")
+            finally:
+                session.close()
+    except Exception as e:
+        logger.error(f"Error saving Zoom connection: {e}")
+        raise
+
+
+async def _save_google_connection(
+    creator_id: str,
+    access_token: str,
+    refresh_token: str,
+    expires_at,
+    google_email: str = None
+):
+    """Save Google OAuth connection with refresh token to database"""
+    try:
+        from api.database import DATABASE_URL, SessionLocal
+        if DATABASE_URL and SessionLocal:
+            session = SessionLocal()
+            try:
+                from api.models import Creator
+                creator = session.query(Creator).filter_by(name=creator_id).first()
+
+                if not creator:
+                    logger.warning(f"Creator {creator_id} not found, creating...")
+                    creator = Creator(name=creator_id, email=f"{creator_id}@clonnect.com")
+                    session.add(creator)
+
+                creator.google_access_token = access_token
+                creator.google_refresh_token = refresh_token
+                creator.google_token_expires_at = expires_at
+
+                session.commit()
+                logger.info(f"Saved Google connection for {creator_id} ({google_email})")
+            finally:
+                session.close()
+    except Exception as e:
+        logger.error(f"Error saving Google connection: {e}")
+        raise
+
+
+async def refresh_zoom_token(creator_id: str) -> str:
+    """
+    Refresh Zoom access token using the refresh token.
+    Returns the new access token or raises an exception.
+    """
+    import httpx
+    import base64
+    from datetime import datetime, timezone, timedelta
+
+    try:
+        from api.database import DATABASE_URL, SessionLocal
+        if not DATABASE_URL or not SessionLocal:
+            raise Exception("Database not configured")
+
+        session = SessionLocal()
+        try:
+            from api.models import Creator
+            creator = session.query(Creator).filter_by(name=creator_id).first()
+
+            if not creator:
+                raise Exception(f"Creator {creator_id} not found")
+
+            if not creator.zoom_refresh_token:
+                raise Exception("No Zoom refresh token available - user must reconnect")
+
+            # Create Basic Auth header
+            credentials = base64.b64encode(f"{ZOOM_CLIENT_ID}:{ZOOM_CLIENT_SECRET}".encode()).decode()
+
+            # Call Zoom token endpoint
+            async with httpx.AsyncClient() as client:
+                token_response = await client.post(
+                    "https://zoom.us/oauth/token",
+                    headers={
+                        "Authorization": f"Basic {credentials}",
+                        "Content-Type": "application/x-www-form-urlencoded",
+                    },
+                    data={
+                        "grant_type": "refresh_token",
+                        "refresh_token": creator.zoom_refresh_token,
+                    }
+                )
+                token_data = token_response.json()
+
+                if "error" in token_data:
+                    logger.error(f"Zoom refresh error: {token_data}")
+                    # Clear tokens so user knows to reconnect
+                    creator.zoom_access_token = None
+                    creator.zoom_refresh_token = None
+                    creator.zoom_token_expires_at = None
+                    session.commit()
+                    raise Exception("Zoom refresh token expired - user must reconnect")
+
+                new_access_token = token_data.get("access_token")
+                new_refresh_token = token_data.get("refresh_token", creator.zoom_refresh_token)
+                expires_in = token_data.get("expires_in", 3600)
+                expires_at = datetime.now(timezone.utc) + timedelta(seconds=expires_in)
+
+                # Update tokens in database
+                creator.zoom_access_token = new_access_token
+                creator.zoom_refresh_token = new_refresh_token
+                creator.zoom_token_expires_at = expires_at
+                session.commit()
+
+                logger.info(f"Refreshed Zoom token for {creator_id}, new expiry: {expires_at}")
+                return new_access_token
+
+        finally:
+            session.close()
+
+    except Exception as e:
+        logger.error(f"Error refreshing Zoom token: {e}")
+        raise
+
+
+async def get_valid_zoom_token(creator_id: str) -> str:
+    """
+    Get a valid Zoom access token, refreshing if necessary.
+    This should be called before any Zoom API request.
+    """
+    from datetime import datetime, timezone, timedelta
+
+    try:
+        from api.database import DATABASE_URL, SessionLocal
+        if not DATABASE_URL or not SessionLocal:
+            raise Exception("Database not configured")
+
+        session = SessionLocal()
+        try:
+            from api.models import Creator
+            creator = session.query(Creator).filter_by(name=creator_id).first()
+
+            if not creator:
+                raise Exception(f"Creator {creator_id} not found")
+
+            if not creator.zoom_access_token:
+                raise Exception("Zoom not connected")
+
+            # Check if token is expired or about to expire (within 10 minutes)
+            if creator.zoom_token_expires_at:
+                buffer = timedelta(minutes=10)
+                if datetime.now(timezone.utc) + buffer >= creator.zoom_token_expires_at:
+                    logger.info(f"Zoom token for {creator_id} expired or expiring soon, refreshing...")
+                    session.close()  # Close before async call
+                    return await refresh_zoom_token(creator_id)
+
+            return creator.zoom_access_token
+
+        finally:
+            if session:
+                session.close()
+
+    except Exception as e:
+        logger.error(f"Error getting valid Zoom token: {e}")
+        raise
+
+
+async def refresh_google_token(creator_id: str) -> str:
+    """
+    Refresh Google access token using the refresh token.
+    Returns the new access token or raises an exception.
+    """
+    import httpx
+    from datetime import datetime, timezone, timedelta
+
+    try:
+        from api.database import DATABASE_URL, SessionLocal
+        if not DATABASE_URL or not SessionLocal:
+            raise Exception("Database not configured")
+
+        session = SessionLocal()
+        try:
+            from api.models import Creator
+            creator = session.query(Creator).filter_by(name=creator_id).first()
+
+            if not creator:
+                raise Exception(f"Creator {creator_id} not found")
+
+            if not creator.google_refresh_token:
+                raise Exception("No Google refresh token available - user must reconnect")
+
+            # Call Google token endpoint
+            async with httpx.AsyncClient() as client:
+                token_response = await client.post(
+                    "https://oauth2.googleapis.com/token",
+                    data={
+                        "client_id": GOOGLE_CLIENT_ID,
+                        "client_secret": GOOGLE_CLIENT_SECRET,
+                        "refresh_token": creator.google_refresh_token,
+                        "grant_type": "refresh_token",
+                    }
+                )
+                token_data = token_response.json()
+
+                if "error" in token_data:
+                    logger.error(f"Google refresh error: {token_data}")
+                    # Clear tokens so user knows to reconnect
+                    creator.google_access_token = None
+                    creator.google_refresh_token = None
+                    creator.google_token_expires_at = None
+                    session.commit()
+                    raise Exception("Google refresh token expired - user must reconnect")
+
+                new_access_token = token_data.get("access_token")
+                # Google doesn't always return a new refresh token
+                expires_in = token_data.get("expires_in", 3600)
+                expires_at = datetime.now(timezone.utc) + timedelta(seconds=expires_in)
+
+                # Update tokens in database
+                creator.google_access_token = new_access_token
+                creator.google_token_expires_at = expires_at
+                session.commit()
+
+                logger.info(f"Refreshed Google token for {creator_id}, new expiry: {expires_at}")
+                return new_access_token
+
+        finally:
+            session.close()
+
+    except Exception as e:
+        logger.error(f"Error refreshing Google token: {e}")
+        raise
+
+
+async def get_valid_google_token(creator_id: str) -> str:
+    """
+    Get a valid Google access token, refreshing if necessary.
+    This should be called before any Google API request.
+    """
+    from datetime import datetime, timezone, timedelta
+
+    try:
+        from api.database import DATABASE_URL, SessionLocal
+        if not DATABASE_URL or not SessionLocal:
+            raise Exception("Database not configured")
+
+        session = SessionLocal()
+        try:
+            from api.models import Creator
+            creator = session.query(Creator).filter_by(name=creator_id).first()
+
+            if not creator:
+                raise Exception(f"Creator {creator_id} not found")
+
+            if not creator.google_access_token:
+                raise Exception("Google not connected")
+
+            # Check if token is expired or about to expire (within 10 minutes)
+            if creator.google_token_expires_at:
+                buffer = timedelta(minutes=10)
+                if datetime.now(timezone.utc) + buffer >= creator.google_token_expires_at:
+                    logger.info(f"Google token for {creator_id} expired or expiring soon, refreshing...")
+                    session.close()  # Close before async call
+                    return await refresh_google_token(creator_id)
+
+            return creator.google_access_token
+
+        finally:
+            if session:
+                session.close()
+
+    except Exception as e:
+        logger.error(f"Error getting valid Google token: {e}")
         raise
