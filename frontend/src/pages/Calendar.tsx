@@ -34,6 +34,42 @@ const statusIcons: Record<string, React.ReactNode> = {
   no_show: <AlertCircle className="w-4 h-4" />,
 };
 
+// Platform options for booking links
+const PLATFORMS = [
+  { value: "calendly", label: "Calendly", placeholder: "https://calendly.com/tu-usuario/30min" },
+  { value: "cal.com", label: "Cal.com", placeholder: "https://cal.com/tu-usuario/30min" },
+  { value: "zoom", label: "Zoom Scheduler", placeholder: "https://zoom.us/schedule/..." },
+  { value: "hubspot", label: "HubSpot Meetings", placeholder: "https://meetings.hubspot.com/..." },
+  { value: "acuity", label: "Acuity Scheduling", placeholder: "https://acuityscheduling.com/..." },
+  { value: "tidycal", label: "TidyCal", placeholder: "https://tidycal.com/tu-usuario/..." },
+  { value: "savvycal", label: "SavvyCal", placeholder: "https://savvycal.com/tu-usuario/..." },
+  { value: "manual", label: "Manual (link personalizado)", placeholder: "https://..." },
+];
+
+// Meeting type options with auto-generated slugs
+const MEETING_TYPES = [
+  { value: "discovery", label: "Discovery Call", slug: "discovery" },
+  { value: "coaching", label: "Coaching Session", slug: "coaching" },
+  { value: "sales", label: "Sales Call", slug: "sales" },
+  { value: "consultation", label: "Consultation", slug: "consultation" },
+  { value: "demo", label: "Demo", slug: "demo" },
+  { value: "followup", label: "Follow-up", slug: "followup" },
+  { value: "qa", label: "Q&A Session", slug: "qa-session" },
+  { value: "strategy", label: "Strategy Call", slug: "strategy" },
+  { value: "onboarding", label: "Onboarding", slug: "onboarding" },
+  { value: "other", label: "Other (custom)", slug: "" },
+];
+
+// Duration options
+const DURATIONS = [
+  { value: 15, label: "15 min" },
+  { value: 30, label: "30 min" },
+  { value: 45, label: "45 min" },
+  { value: 60, label: "60 min" },
+  { value: 90, label: "90 min" },
+  { value: -1, label: "Other" },
+];
+
 export default function Calendar() {
   const { data: statsData, isLoading: statsLoading, error: statsError } = useCalendarStats();
   const { data: bookingsData, isLoading: bookingsLoading } = useBookings(undefined, true);
@@ -43,6 +79,10 @@ export default function Calendar() {
   const { toast } = useToast();
 
   const [showCreateForm, setShowCreateForm] = useState(false);
+  const [selectedMeetingType, setSelectedMeetingType] = useState("discovery");
+  const [customMeetingType, setCustomMeetingType] = useState("");
+  const [selectedDuration, setSelectedDuration] = useState(30);
+  const [customDuration, setCustomDuration] = useState(30);
   const [newLink, setNewLink] = useState({
     meeting_type: "discovery",
     title: "Discovery Call",
@@ -52,6 +92,44 @@ export default function Calendar() {
     description: "",
   });
 
+  // Handle meeting type change
+  const handleMeetingTypeChange = (value: string) => {
+    setSelectedMeetingType(value);
+    const meetingType = MEETING_TYPES.find(m => m.value === value);
+    if (meetingType && value !== "other") {
+      setNewLink(prev => ({
+        ...prev,
+        meeting_type: meetingType.slug,
+        title: meetingType.label
+      }));
+    }
+  };
+
+  // Handle custom meeting type
+  const handleCustomMeetingType = (value: string) => {
+    setCustomMeetingType(value);
+    const slug = value.toLowerCase().replace(/\s+/g, "-").replace(/[^a-z0-9-]/g, "");
+    setNewLink(prev => ({
+      ...prev,
+      meeting_type: slug,
+      title: value
+    }));
+  };
+
+  // Handle duration change
+  const handleDurationChange = (value: number) => {
+    setSelectedDuration(value);
+    if (value !== -1) {
+      setNewLink(prev => ({ ...prev, duration_minutes: value }));
+    }
+  };
+
+  // Handle custom duration
+  const handleCustomDuration = (value: number) => {
+    setCustomDuration(value);
+    setNewLink(prev => ({ ...prev, duration_minutes: value }));
+  };
+
   const today = new Date();
   const formattedDate = today.toLocaleDateString("es-ES", {
     weekday: "long",
@@ -60,21 +138,16 @@ export default function Calendar() {
     day: "numeric",
   });
 
-  // Platform requires URL vs custom instructions
-  const platformRequiresUrl = !["whatsapp", "custom"].includes(newLink.platform);
-
   const handleCreateLink = async () => {
-    // Validate based on platform
-    if (platformRequiresUrl && !newLink.url) {
-      toast({ title: "Error", description: "URL is required", variant: "destructive" });
+    // Validate URL
+    if (!newLink.url) {
+      toast({ title: "Error", description: "Booking URL is required", variant: "destructive" });
       return;
     }
-    if (newLink.platform === "whatsapp" && !newLink.url) {
-      toast({ title: "Error", description: "WhatsApp number is required", variant: "destructive" });
-      return;
-    }
-    if (newLink.platform === "custom" && !newLink.description) {
-      toast({ title: "Error", description: "Instructions are required", variant: "destructive" });
+
+    // Validate meeting type for custom
+    if (selectedMeetingType === "other" && !customMeetingType.trim()) {
+      toast({ title: "Error", description: "Please enter a custom meeting type name", variant: "destructive" });
       return;
     }
 
@@ -88,6 +161,11 @@ export default function Calendar() {
       await createBookingLink.mutateAsync(newLink);
       toast({ title: "Success", description: "Booking link created" });
       setShowCreateForm(false);
+      // Reset form
+      setSelectedMeetingType("discovery");
+      setCustomMeetingType("");
+      setSelectedDuration(30);
+      setCustomDuration(30);
       setNewLink({ meeting_type: "discovery", title: "Discovery Call", url: "", platform: "calendly", duration_minutes: 30, description: "" });
       refetchLinks();
     } catch (error: any) {
@@ -282,67 +360,99 @@ export default function Calendar() {
               </Button>
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <input
-                type="text"
-                placeholder="Title (e.g. Discovery Call)"
-                value={newLink.title}
-                onChange={(e) => setNewLink(prev => ({ ...prev, title: e.target.value }))}
-                className="px-3 py-2 rounded border bg-background text-sm"
-              />
-              <input
-                type="text"
-                placeholder="Meeting Type (e.g. discovery)"
-                value={newLink.meeting_type}
-                onChange={(e) => setNewLink(prev => ({ ...prev, meeting_type: e.target.value }))}
-                className="px-3 py-2 rounded border bg-background text-sm"
-              />
-              <select
-                value={newLink.platform}
-                onChange={(e) => setNewLink(prev => ({ ...prev, platform: e.target.value, url: "", description: "" }))}
-                className="px-3 py-2 rounded border bg-background text-sm"
-              >
-                <option value="calendly">Calendly</option>
-                <option value="cal.com">Cal.com</option>
-                <option value="tidycal">TidyCal</option>
-                <option value="acuity">Acuity Scheduling</option>
-                <option value="google">Google Calendar</option>
-                <option value="whatsapp">WhatsApp</option>
-                <option value="custom">Custom Instructions</option>
-              </select>
-              <input
-                type="number"
-                placeholder="Duration (minutes)"
-                value={newLink.duration_minutes}
-                onChange={(e) => setNewLink(prev => ({ ...prev, duration_minutes: parseInt(e.target.value) || 30 }))}
-                className="px-3 py-2 rounded border bg-background text-sm"
-              />
-              {/* Conditional field based on platform */}
-              {newLink.platform === "whatsapp" ? (
-                <input
-                  type="tel"
-                  placeholder="WhatsApp number (+34 600 123 456)"
-                  value={newLink.url}
-                  onChange={(e) => setNewLink(prev => ({ ...prev, url: e.target.value }))}
-                  className="px-3 py-2 rounded border bg-background text-sm sm:col-span-2"
-                />
-              ) : newLink.platform === "custom" ? (
-                <textarea
-                  placeholder="Custom instructions (e.g. 'Send me a DM to schedule')"
-                  value={newLink.description}
-                  onChange={(e) => setNewLink(prev => ({ ...prev, description: e.target.value }))}
-                  className="px-3 py-2 rounded border bg-background text-sm sm:col-span-2 min-h-[80px]"
-                />
+              {/* Meeting Type Dropdown */}
+              <div className="space-y-1">
+                <label className="text-xs text-muted-foreground">Meeting Type</label>
+                <select
+                  value={selectedMeetingType}
+                  onChange={(e) => handleMeetingTypeChange(e.target.value)}
+                  className="w-full px-3 py-2 rounded border bg-background text-sm"
+                >
+                  {MEETING_TYPES.map(type => (
+                    <option key={type.value} value={type.value}>{type.label}</option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Custom Meeting Type (if "Other" selected) */}
+              {selectedMeetingType === "other" ? (
+                <div className="space-y-1">
+                  <label className="text-xs text-muted-foreground">Custom Name</label>
+                  <input
+                    type="text"
+                    placeholder="e.g. VIP Consultation"
+                    value={customMeetingType}
+                    onChange={(e) => handleCustomMeetingType(e.target.value)}
+                    className="w-full px-3 py-2 rounded border bg-background text-sm"
+                  />
+                </div>
               ) : (
+                <div className="space-y-1">
+                  <label className="text-xs text-muted-foreground">Slug (auto-generated)</label>
+                  <input
+                    type="text"
+                    value={newLink.meeting_type}
+                    onChange={(e) => setNewLink(prev => ({ ...prev, meeting_type: e.target.value }))}
+                    className="w-full px-3 py-2 rounded border bg-background text-sm"
+                    placeholder="discovery"
+                  />
+                </div>
+              )}
+
+              {/* Platform Dropdown */}
+              <div className="space-y-1">
+                <label className="text-xs text-muted-foreground">Platform</label>
+                <select
+                  value={newLink.platform}
+                  onChange={(e) => setNewLink(prev => ({ ...prev, platform: e.target.value, url: "" }))}
+                  className="w-full px-3 py-2 rounded border bg-background text-sm"
+                >
+                  {PLATFORMS.map(platform => (
+                    <option key={platform.value} value={platform.value}>{platform.label}</option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Duration Dropdown */}
+              <div className="space-y-1">
+                <label className="text-xs text-muted-foreground">Duration</label>
+                <div className="flex gap-2">
+                  <select
+                    value={selectedDuration}
+                    onChange={(e) => handleDurationChange(parseInt(e.target.value))}
+                    className="flex-1 px-3 py-2 rounded border bg-background text-sm"
+                  >
+                    {DURATIONS.map(dur => (
+                      <option key={dur.value} value={dur.value}>{dur.label}</option>
+                    ))}
+                  </select>
+                  {selectedDuration === -1 && (
+                    <input
+                      type="number"
+                      min="5"
+                      max="480"
+                      value={customDuration}
+                      onChange={(e) => handleCustomDuration(parseInt(e.target.value) || 30)}
+                      className="w-20 px-3 py-2 rounded border bg-background text-sm"
+                      placeholder="min"
+                    />
+                  )}
+                </div>
+              </div>
+
+              {/* URL Field */}
+              <div className="space-y-1 sm:col-span-2">
+                <label className="text-xs text-muted-foreground">Booking URL</label>
                 <input
                   type="url"
-                  placeholder={`${newLink.platform === "calendly" ? "Calendly" : newLink.platform === "cal.com" ? "Cal.com" : "Booking"} URL`}
+                  placeholder={PLATFORMS.find(p => p.value === newLink.platform)?.placeholder || "https://..."}
                   value={newLink.url}
                   onChange={(e) => setNewLink(prev => ({ ...prev, url: e.target.value }))}
-                  className="px-3 py-2 rounded border bg-background text-sm sm:col-span-2"
+                  className="w-full px-3 py-2 rounded border bg-background text-sm"
                 />
-              )}
+              </div>
             </div>
-            <div className="flex justify-end mt-3">
+            <div className="flex justify-end mt-4">
               <Button onClick={handleCreateLink} disabled={createBookingLink.isPending}>
                 {createBookingLink.isPending ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
                 Create Link
