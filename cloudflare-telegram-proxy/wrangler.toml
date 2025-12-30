@@ -1,0 +1,6 @@
+name = "clonnect-telegram-proxy"
+main = "worker.js"
+compatibility_date = "2024-01-01"
+
+# The PROXY_SECRET should be set via `npx wrangler secret put PROXY_SECRET`
+# Do NOT put the actual secret here - use wrangler secret for production

@@ -1263,6 +1263,50 @@ async def whatsapp_status():
 # TELEGRAM WEBHOOK
 # ---------------------------------------------------------
 TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN", "")
+TELEGRAM_PROXY_URL = os.getenv("TELEGRAM_PROXY_URL", "")  # Cloudflare Worker URL
+TELEGRAM_PROXY_SECRET = os.getenv("TELEGRAM_PROXY_SECRET", "")
+
+
+async def send_telegram_via_proxy(chat_id: int, text: str, bot_token: str) -> dict:
+    """Send Telegram message via Cloudflare Worker proxy"""
+    async with httpx.AsyncClient(timeout=30.0) as client:
+        response = await client.post(
+            TELEGRAM_PROXY_URL,
+            json={
+                "bot_token": bot_token,
+                "method": "sendMessage",
+                "params": {
+                    "chat_id": chat_id,
+                    "text": text,
+                    "parse_mode": "HTML"
+                }
+            },
+            headers={"X-Telegram-Proxy-Secret": TELEGRAM_PROXY_SECRET}
+        )
+        return response.json()
+
+
+async def send_telegram_direct(chat_id: int, text: str, bot_token: str) -> dict:
+    """Send Telegram message directly (for environments without blocking)"""
+    telegram_api = f"https://api.telegram.org/bot{bot_token}/sendMessage"
+    async with httpx.AsyncClient() as client:
+        response = await client.post(telegram_api, json={
+            "chat_id": chat_id,
+            "text": text,
+            "parse_mode": "HTML"
+        })
+        return response.json()
+
+
+async def send_telegram_message(chat_id: int, text: str, bot_token: str) -> dict:
+    """Send Telegram message - uses proxy if configured, otherwise direct"""
+    if TELEGRAM_PROXY_URL and TELEGRAM_PROXY_SECRET:
+        logger.info(f"Sending Telegram message via proxy to chat {chat_id}")
+        return await send_telegram_via_proxy(chat_id, text, bot_token)
+    else:
+        logger.info(f"Sending Telegram message directly to chat {chat_id}")
+        return await send_telegram_direct(chat_id, text, bot_token)
+
 
 @app.post("/webhook/telegram")
 async def telegram_webhook(request: Request):
@@ -1315,16 +1359,13 @@ async def telegram_webhook(request: Request):
 
             logger.info(f"Telegram DM from {sender_name} ({sender_id}): '{text[:50]}' -> intent={intent}")
 
-            # Enviar respuesta a Telegram (método original que funcionaba)
+            # Enviar respuesta a Telegram (via proxy si está configurado)
             if bot_reply and TELEGRAM_BOT_TOKEN:
-                telegram_api = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendMessage"
-                async with httpx.AsyncClient() as client:
-                    await client.post(telegram_api, json={
-                        "chat_id": chat_id,
-                        "text": bot_reply,
-                        "parse_mode": "HTML"
-                    })
-                logger.info(f"Telegram response sent to chat {chat_id}")
+                result = await send_telegram_message(chat_id, bot_reply, TELEGRAM_BOT_TOKEN)
+                if result.get("ok"):
+                    logger.info(f"Telegram response sent to chat {chat_id}")
+                else:
+                    logger.error(f"Telegram send failed: {result}")
 
             return {
                 "status": "ok",
@@ -1349,11 +1390,15 @@ async def telegram_status():
     """Obtener estado de la integración de Telegram"""
     token_configured = bool(TELEGRAM_BOT_TOKEN)
     token_preview = f"{TELEGRAM_BOT_TOKEN[:10]}...{TELEGRAM_BOT_TOKEN[-5:]}" if token_configured and len(TELEGRAM_BOT_TOKEN) > 15 else "NOT SET"
+    proxy_configured = bool(TELEGRAM_PROXY_URL and TELEGRAM_PROXY_SECRET)
 
     return {
         "status": "ok" if token_configured else "warning",
         "bot_token_configured": token_configured,
         "bot_token_preview": token_preview,
+        "proxy_configured": proxy_configured,
+        "proxy_url": TELEGRAM_PROXY_URL[:30] + "..." if TELEGRAM_PROXY_URL and len(TELEGRAM_PROXY_URL) > 30 else TELEGRAM_PROXY_URL or "NOT SET",
+        "send_mode": "proxy" if proxy_configured else "direct",
         "webhook_url": "/webhook/telegram",
         "legacy_webhook_url": "/telegram/webhook"
     }
