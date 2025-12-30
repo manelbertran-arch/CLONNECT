@@ -1386,6 +1386,49 @@ async def telegram_test_connection():
         return {"status": "error", "error": str(e), "type": type(e).__name__}
 
 
+@app.get("/telegram/network-test")
+async def telegram_network_test():
+    """Test network connectivity to various endpoints"""
+    import httpx
+    import socket
+
+    results = {}
+
+    # Test 1: DNS resolution
+    try:
+        ip = socket.gethostbyname("api.telegram.org")
+        results["dns_resolution"] = {"status": "ok", "ip": ip}
+    except Exception as e:
+        results["dns_resolution"] = {"status": "error", "error": str(e)}
+
+    # Test 2: Try different Telegram endpoints
+    endpoints = [
+        "https://api.telegram.org",
+        "https://core.telegram.org",
+        "https://telegram.org",
+    ]
+
+    for endpoint in endpoints:
+        try:
+            async with httpx.AsyncClient(timeout=10.0) as client:
+                response = await client.get(endpoint, follow_redirects=True)
+                results[endpoint] = {"status": "ok", "code": response.status_code}
+        except httpx.ConnectTimeout:
+            results[endpoint] = {"status": "timeout"}
+        except Exception as e:
+            results[endpoint] = {"status": "error", "error": str(e)}
+
+    # Test 3: Compare with working endpoint (groq)
+    try:
+        async with httpx.AsyncClient(timeout=10.0) as client:
+            response = await client.get("https://api.groq.com")
+            results["api.groq.com"] = {"status": "ok", "code": response.status_code}
+    except Exception as e:
+        results["api.groq.com"] = {"status": "error", "error": str(e)}
+
+    return results
+
+
 # Legacy endpoint for Telegram (some setups use /telegram/webhook instead of /webhook/telegram)
 @app.post("/telegram/webhook")
 async def telegram_webhook_legacy(request: Request):
