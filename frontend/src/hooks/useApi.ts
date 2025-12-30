@@ -37,6 +37,7 @@ import {
   getCalendlySyncStatus,
   createBookingLink,
   deleteBookingLink,
+  cancelBooking,
   getNurturingSequences,
   getNurturingStats,
   getNurturingFollowups,
@@ -338,6 +339,20 @@ export function useDeleteBookingLink(creatorId: string = CREATOR_ID) {
     mutationFn: (linkId: string) => deleteBookingLink(creatorId, linkId),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: apiKeys.bookingLinks(creatorId) });
+    },
+  });
+}
+
+/**
+ * Hook to cancel a booking (scheduled call)
+ */
+export function useCancelBooking(creatorId: string = CREATOR_ID) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (bookingId: string) => cancelBooking(creatorId, bookingId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: apiKeys.bookings(creatorId, true) });
+      queryClient.invalidateQueries({ queryKey: apiKeys.calendarStats(creatorId) });
     },
   });
 }

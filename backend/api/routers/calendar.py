@@ -112,6 +112,138 @@ async def get_booking_links(creator_id: str, db: Session = Depends(get_db)):
 
 MAX_BOOKING_LINKS = 5
 
+
+async def create_zoom_meeting(access_token: str, name: str, duration: int) -> dict:
+    """
+    Create a Zoom meeting and return the join URL.
+    Uses Zoom's meeting creation API.
+    """
+    async with httpx.AsyncClient() as client:
+        # Create a scheduled meeting (type 2) that can be reused
+        meeting_response = await client.post(
+            "https://api.zoom.us/v2/users/me/meetings",
+            headers={
+                "Authorization": f"Bearer {access_token}",
+                "Content-Type": "application/json"
+            },
+            json={
+                "topic": name,
+                "type": 2,  # Scheduled meeting
+                "duration": duration,
+                "settings": {
+                    "join_before_host": True,
+                    "waiting_room": False,
+                    "use_pmi": False,  # Don't use personal meeting ID
+                }
+            }
+        )
+
+        if meeting_response.status_code in [200, 201]:
+            meeting_data = meeting_response.json()
+            return {
+                "success": True,
+                "join_url": meeting_data.get("join_url", ""),
+                "meeting_id": meeting_data.get("id", ""),
+                "start_url": meeting_data.get("start_url", "")
+            }
+        else:
+            logger.warning(f"Zoom meeting creation failed: {meeting_response.status_code} - {meeting_response.text}")
+            return {
+                "success": False,
+                "join_url": "",
+                "error": f"Could not create Zoom meeting. Status: {meeting_response.status_code}"
+            }
+
+
+async def create_google_calendar_event(access_token: str, name: str, duration: int) -> dict:
+    """
+    Create a Google Calendar event with automatic Google Meet link.
+    Returns the Meet join URL.
+    """
+    from datetime import datetime, timedelta, timezone
+    import uuid
+
+    async with httpx.AsyncClient() as client:
+        # Create a calendar event for tomorrow (as a template)
+        # The user can then use the Meet link for their bookings
+        tomorrow = datetime.now(timezone.utc) + timedelta(days=1)
+        start_time = tomorrow.replace(hour=10, minute=0, second=0, microsecond=0)
+        end_time = start_time + timedelta(minutes=duration)
+
+        event_data = {
+            "summary": name,
+            "description": f"Booking: {name} ({duration} min)",
+            "start": {
+                "dateTime": start_time.isoformat(),
+                "timeZone": "UTC"
+            },
+            "end": {
+                "dateTime": end_time.isoformat(),
+                "timeZone": "UTC"
+            },
+            "conferenceData": {
+                "createRequest": {
+                    "requestId": str(uuid.uuid4()),
+                    "conferenceSolutionKey": {
+                        "type": "hangoutsMeet"
+                    }
+                }
+            }
+        }
+
+        event_response = await client.post(
+            "https://www.googleapis.com/calendar/v3/calendars/primary/events",
+            headers={
+                "Authorization": f"Bearer {access_token}",
+                "Content-Type": "application/json"
+            },
+            params={
+                "conferenceDataVersion": 1  # Required for Meet link creation
+            },
+            json=event_data
+        )
+
+        if event_response.status_code in [200, 201]:
+            response_data = event_response.json()
+            conference_data = response_data.get("conferenceData", {})
+            entry_points = conference_data.get("entryPoints", [])
+
+            # Find the video entry point (Google Meet link)
+            meet_link = ""
+            for entry in entry_points:
+                if entry.get("entryPointType") == "video":
+                    meet_link = entry.get("uri", "")
+                    break
+
+            if meet_link:
+                # Delete the template event (we just wanted the Meet link)
+                event_id = response_data.get("id")
+                if event_id:
+                    await client.delete(
+                        f"https://www.googleapis.com/calendar/v3/calendars/primary/events/{event_id}",
+                        headers={"Authorization": f"Bearer {access_token}"}
+                    )
+
+                return {
+                    "success": True,
+                    "meet_link": meet_link,
+                    "event_id": event_id
+                }
+            else:
+                return {
+                    "success": False,
+                    "meet_link": "",
+                    "error": "Event created but no Meet link generated"
+                }
+        else:
+            logger.warning(f"Google Calendar event creation failed: {event_response.status_code} - {event_response.text}")
+            return {
+                "success": False,
+                "meet_link": "",
+                "error": f"Could not create Google Calendar event. Status: {event_response.status_code}"
+            }
+
+
 async def create_calendly_event_type(access_token: str, name: str, duration: int) -> dict:
     """
     Create an event type in Calendly and return the scheduling URL.
@@ -188,7 +320,7 @@ async def create_calendly_event_type(access_token: str, name: str, duration: int
 async def create_booking_link(creator_id: str, data: dict = Body(...), db: Session = Depends(get_db)):
     """
     Create a new booking link in PostgreSQL.
-    If platform is 'calendly' and user has Calendly connected, auto-creates in Calendly.
+    Auto-creates links in connected platforms (Calendly, Zoom, Google Meet).
     """
     try:
         # Check limit of booking links per creator
@@ -203,44 +335,79 @@ async def create_booking_link(creator_id: str, data: dict = Body(...), db: Sessi
 
         platform = data.get("platform", "manual")
         url = data.get("url")
-        calendly_auto_created = False
-        calendly_error = None
+        auto_created = False
+        auto_create_error = None
+
+        # Import token helpers
+        try:
+            from api.routers.oauth import get_valid_calendly_token, get_valid_zoom_token, get_valid_google_token
+        except:
+            from routers.oauth import get_valid_calendly_token, get_valid_zoom_token, get_valid_google_token
 
         # If platform is Calendly and no URL provided, try to auto-create
         if platform == "calendly" and not url:
             try:
-                # Import token helper
-                try:
-                    from api.routers.oauth import get_valid_calendly_token
-                except:
-                    from routers.oauth import get_valid_calendly_token
-
-                # Get valid token
                 access_token = await get_valid_calendly_token(creator_id)
-
-                # Create event type in Calendly
                 result = await create_calendly_event_type(
                     access_token=access_token,
                     name=data.get("title", "Meeting"),
                     duration=data.get("duration_minutes", 30)
                 )
-
                 if result["success"]:
                     url = result["scheduling_url"]
-                    calendly_auto_created = True
+                    auto_created = True
                     logger.info(f"Auto-created Calendly event for {creator_id}: {url}")
                 else:
-                    calendly_error = result.get("error")
-                    url = result.get("scheduling_url", "")  # Use fallback URL
-                    logger.warning(f"Calendly auto-create partial: {calendly_error}")
-
+                    auto_create_error = result.get("error")
+                    url = result.get("scheduling_url", "")
+                    logger.warning(f"Calendly auto-create partial: {auto_create_error}")
             except Exception as e:
-                calendly_error = str(e)
+                auto_create_error = str(e)
                 logger.warning(f"Calendly auto-create failed for {creator_id}: {e}")
-                # Continue without URL - user can add manually later
 
-        # Require URL for non-calendly platforms or if calendly auto-create failed
-        if not url and platform != "calendly":
+        # If platform is Zoom and no URL provided, try to auto-create
+        elif platform == "zoom" and not url:
+            try:
+                access_token = await get_valid_zoom_token(creator_id)
+                result = await create_zoom_meeting(
+                    access_token=access_token,
+                    name=data.get("title", "Meeting"),
+                    duration=data.get("duration_minutes", 30)
+                )
+                if result["success"]:
+                    url = result["join_url"]
+                    auto_created = True
+                    logger.info(f"Auto-created Zoom meeting for {creator_id}: {url}")
+                else:
+                    auto_create_error = result.get("error")
+                    logger.warning(f"Zoom auto-create failed: {auto_create_error}")
+            except Exception as e:
+                auto_create_error = str(e)
+                logger.warning(f"Zoom auto-create failed for {creator_id}: {e}")
+
+        # If platform is Google Meet and no URL provided, try to auto-create
+        elif platform == "google-meet" and not url:
+            try:
+                access_token = await get_valid_google_token(creator_id)
+                result = await create_google_calendar_event(
+                    access_token=access_token,
+                    name=data.get("title", "Meeting"),
+                    duration=data.get("duration_minutes", 30)
+                )
+                if result["success"]:
+                    url = result["meet_link"]
+                    auto_created = True
+                    logger.info(f"Auto-created Google Meet for {creator_id}: {url}")
+                else:
+                    auto_create_error = result.get("error")
+                    logger.warning(f"Google Meet auto-create failed: {auto_create_error}")
+            except Exception as e:
+                auto_create_error = str(e)
+                logger.warning(f"Google Meet auto-create failed for {creator_id}: {e}")
+
+        # Require URL if auto-create failed and platform supports it
+        auto_create_platforms = ["calendly", "zoom", "google-meet"]
+        if not url and platform not in auto_create_platforms:
             raise HTTPException(status_code=400, detail="URL is required")
 
         # Create new BookingLink with the URL (auto-generated or provided)
@@ -252,12 +419,12 @@ async def create_booking_link(creator_id: str, data: dict = Body(...), db: Sessi
             description=data.get("description"),
             duration_minutes=data.get("duration_minutes", 30),
             platform=platform,
-            url=url,  # Use the auto-generated or provided URL
+            url=url or "",  # Use empty string if no URL
             price=data.get("price", 0),
             is_active=data.get("is_active", True),
             extra_data={
                 **(data.get("extra_data", {})),
-                "calendly_auto_created": calendly_auto_created
+                "auto_created": auto_created
             }
         )
 
@@ -265,12 +432,16 @@ async def create_booking_link(creator_id: str, data: dict = Body(...), db: Sessi
         db.commit()
         db.refresh(new_link)
 
-        logger.info(f"POST /calendar/{creator_id}/links - Created link {new_link.id} (auto_created={calendly_auto_created})")
+        logger.info(f"POST /calendar/{creator_id}/links - Created link {new_link.id} (auto_created={auto_created})")
+
+        platform_names = {"calendly": "Calendly", "zoom": "Zoom", "google-meet": "Google Meet"}
+        platform_name = platform_names.get(platform, platform)
 
         response = {
             "status": "ok",
-            "message": "Link created" + (" in Calendly" if calendly_auto_created else ""),
-            "calendly_auto_created": calendly_auto_created,
+            "message": f"Service created" + (f" with {platform_name} link" if auto_created else ""),
+            "auto_created": auto_created,
+            "calendly_auto_created": auto_created and platform == "calendly",  # For backwards compatibility
             "link": {
                 "id": str(new_link.id),
                 "creator_id": new_link.creator_id,
@@ -286,8 +457,8 @@ async def create_booking_link(creator_id: str, data: dict = Body(...), db: Sessi
             }
         }
 
-        if calendly_error:
-            response["calendly_warning"] = calendly_error
+        if auto_create_error:
+            response["warning"] = auto_create_error
 
         return response
 
@@ -349,6 +520,59 @@ async def delete_booking_link(creator_id: str, link_id: str, db: Session = Depen
         logger.error(f"Error deleting booking link: {e}")
         db.rollback()
         raise HTTPException(status_code=500, detail=f"Failed to delete link: {str(e)}")
+
+
+@router.delete("/{creator_id}/bookings/{booking_id}")
+async def cancel_booking(creator_id: str, booking_id: str, db: Session = Depends(get_db)):
+    """Cancel/delete a scheduled booking"""
+    try:
+        booking = db.query(CalendarBooking).filter(
+            CalendarBooking.id == booking_id,
+            CalendarBooking.creator_id == creator_id
+        ).first()
+
+        if not booking:
+            raise HTTPException(status_code=404, detail="Booking not found")
+
+        # If it's a Calendly booking, try to cancel in Calendly too
+        if booking.platform == "calendly" and booking.external_id:
+            try:
+                from api.routers.oauth import get_valid_calendly_token
+            except:
+                from routers.oauth import get_valid_calendly_token
+
+            try:
+                access_token = await get_valid_calendly_token(creator_id)
+                async with httpx.AsyncClient() as client:
+                    # Cancel the event in Calendly
+                    cancel_response = await client.post(
+                        f"https://api.calendly.com/scheduled_events/{booking.external_id}/cancellation",
+                        headers={
+                            "Authorization": f"Bearer {access_token}",
+                            "Content-Type": "application/json"
+                        },
+                        json={"reason": "Cancelled by creator"}
+                    )
+                    if cancel_response.status_code in [200, 201, 204]:
+                        logger.info(f"Cancelled Calendly event {booking.external_id}")
+                    else:
+                        logger.warning(f"Failed to cancel Calendly event: {cancel_response.status_code}")
+            except Exception as e:
+                logger.warning(f"Could not cancel in Calendly: {e}")
+                # Continue with local deletion anyway
+
+        # Update status to cancelled instead of deleting (for history)
+        booking.status = "cancelled"
+        db.commit()
+        logger.info(f"DELETE /calendar/{creator_id}/bookings/{booking_id} - Cancelled")
+
+        return {"status": "ok", "message": "Booking cancelled"}
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error cancelling booking: {e}")
+        db.rollback()
+        raise HTTPException(status_code=500, detail=f"Failed to cancel booking: {str(e)}")
 
 
 # =============================================================================

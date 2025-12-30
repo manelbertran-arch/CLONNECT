@@ -416,6 +416,15 @@ export async function deleteBookingLink(
   });
 }
 
+export async function cancelBooking(
+  creatorId: string = CREATOR_ID,
+  bookingId: string
+): Promise<{ status: string; message: string }> {
+  return apiFetch(`/calendar/${creatorId}/bookings/${bookingId}`, {
+    method: "DELETE",
+  });
+}
+
 // =============================================================================
 // NURTURING
 // =============================================================================

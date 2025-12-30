@@ -1,7 +1,7 @@
 import { useState } from "react";
-import { Calendar as CalendarIcon, Clock, Video, Users, CheckCircle2, XCircle, Loader2, AlertCircle, ExternalLink, Plus, X, Trash2, Copy, Link, Settings } from "lucide-react";
+import { Calendar as CalendarIcon, Clock, Video, Users, CheckCircle2, XCircle, Loader2, AlertCircle, ExternalLink, Plus, X, Trash2, Settings } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { useCalendarStats, useBookings, useBookingLinks, useCreateBookingLink, useDeleteBookingLink, useCalendlySyncStatus, useConnections } from "@/hooks/useApi";
+import { useCalendarStats, useBookings, useBookingLinks, useCreateBookingLink, useDeleteBookingLink, useCancelBooking, useCalendlySyncStatus, useConnections } from "@/hooks/useApi";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import { useNavigate } from "react-router-dom";
@@ -81,6 +81,7 @@ export default function Bookings() {
   const { data: connectionsData } = useConnections();
   const createBookingLink = useCreateBookingLink();
   const deleteBookingLinkMutation = useDeleteBookingLink();
+  const cancelBookingMutation = useCancelBooking();
   const { toast } = useToast();
 
   // Check connected platforms
@@ -175,9 +176,13 @@ export default function Bookings() {
   });
 
   const handleCreateLink = async () => {
-    // Validate URL - not required if Calendly is connected and platform is Calendly
-    const isCalendlyAutoCreate = newLink.platform === "calendly" && calendlyConnected;
-    if (!newLink.url && !isCalendlyAutoCreate) {
+    // Validate URL - not required if platform is connected (will auto-create)
+    const isAutoCreate =
+      (newLink.platform === "calendly" && calendlyConnected) ||
+      (newLink.platform === "zoom" && zoomConnected) ||
+      (newLink.platform === "google-meet" && googleConnected);
+
+    if (!newLink.url && !isAutoCreate) {
       toast({ title: "Error", description: "Booking URL is required", variant: "destructive" });
       return;
     }
@@ -196,8 +201,8 @@ export default function Bookings() {
 
     try {
       const result = await createBookingLink.mutateAsync(newLink);
-      const message = result.calendly_auto_created
-        ? "Service created automatically in Calendly!"
+      const message = result.auto_created
+        ? `Service created with ${newLink.platform === "calendly" ? "Calendly" : newLink.platform === "zoom" ? "Zoom" : "Google Meet"} link!`
         : "Service created";
       toast({ title: "Success", description: message });
       setShowCreateForm(false);
@@ -234,18 +239,14 @@ export default function Bookings() {
     }
   };
 
-  const handleCopyLink = async (url: string) => {
-    try {
-      await navigator.clipboard.writeText(url);
-      toast({ title: "Copied!", description: "Link copied to clipboard" });
-    } catch {
-      toast({ title: "Error", description: "Failed to copy", variant: "destructive" });
-    }
-  };
-
   const handleCancelBooking = async (bookingId: string, title: string) => {
     if (!confirm(`Cancel "${title}"? This cannot be undone.`)) return;
-    toast({ title: "Info", description: "Cancellation feature coming soon" });
+    try {
+      await cancelBookingMutation.mutateAsync(bookingId);
+      toast({ title: "Cancelled", description: `"${title}" has been cancelled` });
+    } catch (error: any) {
+      toast({ title: "Error", description: error.message || "Failed to cancel booking", variant: "destructive" });
+    }
   };
 
   // Loading state
@@ -292,7 +293,7 @@ export default function Bookings() {
           <h1 className="text-xl sm:text-2xl font-bold tracking-tight">Bookings</h1>
           <p className="text-muted-foreground text-sm sm:text-base">{formattedDate}</p>
         </div>
-        {links.length > 0 && (
+        {links.length > 0 && links[0].url && (
           <Button
             className="bg-gradient-to-r from-primary to-accent hover:opacity-90 transition-opacity w-full sm:w-auto"
             onClick={() => window.open(links[0].url, "_blank")}
@@ -409,8 +410,13 @@ export default function Bookings() {
                       variant="ghost"
                       className="text-destructive hover:text-destructive hover:bg-destructive/10"
                       onClick={() => handleCancelBooking(booking.id, booking.title || booking.meeting_type)}
+                      disabled={cancelBookingMutation.isPending}
                     >
-                      <Trash2 className="w-4 h-4" />
+                      {cancelBookingMutation.isPending ? (
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                      ) : (
+                        <Trash2 className="w-4 h-4" />
+                      )}
                     </Button>
                   )}
                 </div>
@@ -556,10 +562,16 @@ export default function Bookings() {
                 )}
 
                 {/* URL info based on platform */}
-                {newLink.platform === "calendly" && calendlyConnected ? (
+                {(newLink.platform === "calendly" && calendlyConnected) ||
+                 (newLink.platform === "zoom" && zoomConnected) ||
+                 (newLink.platform === "google-meet" && googleConnected) ? (
                   <div className="mt-3 flex items-center gap-2 px-3 py-2 rounded bg-success/10 text-sm text-success">
                     <CheckCircle2 className="w-4 h-4 flex-shrink-0" />
-                    <span>Calendly connected - link will be created automatically</span>
+                    <span>
+                      {newLink.platform === "calendly" && "Calendly connected - link will be created automatically"}
+                      {newLink.platform === "zoom" && "Zoom connected - meeting will be created automatically"}
+                      {newLink.platform === "google-meet" && "Google Meet connected - link will be created automatically"}
+                    </span>
                   </div>
                 ) : (
                   <div className="mt-3">
@@ -628,22 +640,16 @@ export default function Bookings() {
                   </div>
                 </div>
                 <div className="flex gap-1 flex-shrink-0">
-                  <Button
-                    size="sm"
-                    variant="ghost"
-                    onClick={() => handleCopyLink(link.url)}
-                    title="Copy link"
-                  >
-                    <Copy className="w-4 h-4" />
-                  </Button>
-                  <Button
-                    size="sm"
-                    variant="ghost"
-                    onClick={() => window.open(link.url, "_blank")}
-                    title="Open link"
-                  >
-                    <ExternalLink className="w-4 h-4" />
-                  </Button>
+                  {link.url && (
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      onClick={() => window.open(link.url, "_blank")}
+                      title="Open link"
+                    >
+                      <ExternalLink className="w-4 h-4" />
+                    </Button>
+                  )}
                   <Button
                     size="sm"
                     variant="ghost"
