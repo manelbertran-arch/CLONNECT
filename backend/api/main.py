@@ -1269,6 +1269,10 @@ TELEGRAM_PROXY_SECRET = os.getenv("TELEGRAM_PROXY_SECRET", "")
 
 async def send_telegram_via_proxy(chat_id: int, text: str, bot_token: str) -> dict:
     """Send Telegram message via Cloudflare Worker proxy"""
+    headers = {}
+    if TELEGRAM_PROXY_SECRET:
+        headers["X-Telegram-Proxy-Secret"] = TELEGRAM_PROXY_SECRET
+
     async with httpx.AsyncClient(timeout=30.0) as client:
         response = await client.post(
             TELEGRAM_PROXY_URL,
@@ -1281,7 +1285,7 @@ async def send_telegram_via_proxy(chat_id: int, text: str, bot_token: str) -> di
                     "parse_mode": "HTML"
                 }
             },
-            headers={"X-Telegram-Proxy-Secret": TELEGRAM_PROXY_SECRET}
+            headers=headers
         )
         return response.json()
 
@@ -1300,8 +1304,10 @@ async def send_telegram_direct(chat_id: int, text: str, bot_token: str) -> dict:
 
 async def send_telegram_message(chat_id: int, text: str, bot_token: str) -> dict:
     """Send Telegram message - uses proxy if configured, otherwise direct"""
-    if TELEGRAM_PROXY_URL and TELEGRAM_PROXY_SECRET:
+    if TELEGRAM_PROXY_URL:
         logger.info(f"Sending Telegram message via proxy to chat {chat_id}")
+        if not TELEGRAM_PROXY_SECRET:
+            logger.warning("TELEGRAM_PROXY_SECRET not set - proxy may reject request if it requires auth")
         return await send_telegram_via_proxy(chat_id, text, bot_token)
     else:
         logger.info(f"Sending Telegram message directly to chat {chat_id}")
@@ -1391,10 +1397,10 @@ async def telegram_status():
     token_configured = bool(TELEGRAM_BOT_TOKEN)
     token_preview = f"{TELEGRAM_BOT_TOKEN[:10]}...{TELEGRAM_BOT_TOKEN[-5:]}" if token_configured and len(TELEGRAM_BOT_TOKEN) > 15 else "NOT SET"
 
-    # Proxy configuration check
+    # Proxy configuration check - proxy is used if URL is set (secret is optional but recommended)
     proxy_url_set = bool(TELEGRAM_PROXY_URL)
     proxy_secret_set = bool(TELEGRAM_PROXY_SECRET)
-    proxy_configured = proxy_url_set and proxy_secret_set
+    proxy_will_be_used = proxy_url_set  # Proxy is used if URL is configured
 
     # Build status response
     status_response = {
@@ -1403,16 +1409,16 @@ async def telegram_status():
         "bot_token_preview": token_preview,
         "proxy_url_configured": proxy_url_set,
         "proxy_secret_configured": proxy_secret_set,
-        "proxy_configured": proxy_configured,
+        "proxy_configured": proxy_url_set,  # Now only requires URL
         "proxy_url": TELEGRAM_PROXY_URL or "NOT SET",
-        "send_mode": "proxy" if proxy_configured else "direct",
+        "send_mode": "proxy" if proxy_will_be_used else "direct",
         "webhook_url": "/webhook/telegram",
         "legacy_webhook_url": "/telegram/webhook"
     }
 
-    # Add warning if URL is set but secret is missing
+    # Add info about secret status
     if proxy_url_set and not proxy_secret_set:
-        status_response["warning"] = "TELEGRAM_PROXY_URL is set but TELEGRAM_PROXY_SECRET is missing! Add it in Railway."
+        status_response["proxy_note"] = "Proxy URL configured. Secret not set - will work if Worker allows unauthenticated requests."
 
     return status_response
 
