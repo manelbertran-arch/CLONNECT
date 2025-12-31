@@ -2865,6 +2865,54 @@ async def get_all_booking_links(creator_id: str):
         raise HTTPException(status_code=500, detail=str(e))
 
 
+@app.get("/booking-links/{creator_name}")
+async def get_booking_links_public(creator_name: str):
+    """Get all booking links/services for a creator (public endpoint)"""
+    try:
+        if not SessionLocal:
+            raise HTTPException(status_code=500, detail="Database not configured")
+
+        from sqlalchemy import text
+        db = SessionLocal()
+        try:
+            result = db.execute(text("""
+                SELECT id, title, description, duration_minutes, platform, url,
+                       COALESCE(price, 0) as price, meeting_type
+                FROM booking_links
+                WHERE creator_id = :creator_id AND is_active = true
+                ORDER BY created_at DESC
+            """), {"creator_id": creator_name})
+
+            rows = result.fetchall()
+            logger.info(f"GET /booking-links/{creator_name} - Found {len(rows)} links")
+
+            return {
+                "status": "ok",
+                "creator": creator_name,
+                "booking_links": [
+                    {
+                        "id": str(row[0]),
+                        "name": row[1],
+                        "description": row[2] or "",
+                        "duration": row[3],
+                        "platform": row[4],
+                        "url": row[5] or "",
+                        "price": float(row[6]) if row[6] else 0,
+                        "meeting_type": row[7]
+                    }
+                    for row in rows
+                ],
+                "count": len(rows)
+            }
+        finally:
+            db.close()
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error getting booking links: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 @app.post("/calendar/{creator_id}/links")
 async def create_booking_link(
     creator_id: str,
