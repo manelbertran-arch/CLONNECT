@@ -78,6 +78,7 @@ class Intent(Enum):
     QUESTION_PRODUCT = "question_product"
     QUESTION_GENERAL = "question_general"
     LEAD_MAGNET = "lead_magnet"
+    BOOKING = "booking"  # Quiere agendar una llamada/reunión
     THANKS = "thanks"
     GOODBYE = "goodbye"
     SUPPORT = "support"
@@ -611,6 +612,84 @@ class DMResponderAgent:
             "escalation_keywords": ["urgente", "reembolso", "hablar con humano"]
         }
 
+    def _load_booking_links(self) -> list:
+        """Load booking links from database"""
+        try:
+            from api.services.db_service import SessionLocal
+            try:
+                from api.models import BookingLink
+            except:
+                from models import BookingLink
+
+            with SessionLocal() as db:
+                links = db.query(BookingLink).filter(
+                    BookingLink.creator_id == self.creator_id,
+                    BookingLink.is_active == True
+                ).all()
+
+                return [
+                    {
+                        "id": str(link.id),
+                        "title": link.title,
+                        "description": link.description,
+                        "duration_minutes": link.duration_minutes,
+                        "platform": link.platform,
+                        "url": link.url,
+                        "price": getattr(link, 'price', 0) or 0,
+                        "meeting_type": link.meeting_type
+                    }
+                    for link in links
+                ]
+        except Exception as e:
+            logger.error(f"Error loading booking links: {e}")
+            return []
+
+    def _format_booking_response(self, links: list, language: str = "es") -> str:
+        """Format booking links as a friendly message"""
+        if not links:
+            creator_name = self.creator_config.get('name', 'el creador')
+            if language == "es":
+                return f"Actualmente no tengo servicios de llamada configurados. Contacta directamente con {creator_name} para agendar."
+            else:
+                return f"I don't have any call services set up right now. Contact {creator_name} directly to schedule."
+
+        # Format each link
+        formatted_links = []
+        for link in links:
+            duration = link.get('duration_minutes', 30)
+            price = link.get('price', 0)
+            title = link.get('title', 'Llamada')
+            url = link.get('url', '')
+
+            # Emoji based on meeting type
+            meeting_type = link.get('meeting_type', 'call')
+            emoji = "📞"
+            if meeting_type == "discovery":
+                emoji = "🔍"
+            elif meeting_type == "coaching":
+                emoji = "🎯"
+            elif meeting_type == "consultation":
+                emoji = "💼"
+            elif meeting_type == "mentoring":
+                emoji = "🧠"
+
+            # Price text
+            if price == 0:
+                price_text = "GRATIS" if language == "es" else "FREE"
+            else:
+                price_text = f"{price}€"
+
+            formatted_links.append(f"{emoji} {title} - {duration} min - {price_text}\n   {url}")
+
+        if language == "es":
+            intro = "¡Genial! Estos son mis servicios disponibles:\n\n"
+            outro = "\n\n¿Cuál te interesa? Haz clic en el link para reservar tu horario."
+        else:
+            intro = "Great! Here are my available services:\n\n"
+            outro = "\n\nWhich one interests you? Click the link to book your slot."
+
+        return intro + "\n".join(formatted_links) + outro
+
     def _classify_intent(self, message: str) -> tuple:
         """Clasificar intención del mensaje por keywords"""
         msg = message.lower()
@@ -688,6 +767,17 @@ class DMResponderAgent:
         # Lead magnet
         if any(w in msg for w in ['gratis', 'free', 'sin pagar', 'regalo', 'gratuito']):
             return Intent.LEAD_MAGNET, 0.90
+
+        # Booking / Agendar llamada
+        if any(w in msg for w in [
+            'agendar', 'reservar', 'llamada', 'reunion', 'reunión', 'cita',
+            'agenda', 'book', 'booking', 'appointment', 'schedule', 'call',
+            'videollamada', 'zoom', 'meet', 'calendly', 'hablar contigo',
+            'cuando podemos hablar', 'podemos hablar', 'disponibilidad',
+            'sesion', 'sesión', 'consulta', 'consultoria', 'consultoría',
+            'coaching', 'mentoria', 'mentoría', 'discovery'
+        ]):
+            return Intent.BOOKING, 0.90
 
         # Agradecimiento
         if any(w in msg for w in ['gracias', 'genial', 'perfecto', 'guay', 'thanks']):
@@ -1182,6 +1272,22 @@ USA ESTA RESPUESTA PARA LA OBJECION (adaptala a tu tono):
                 intent=intent,
                 action_taken="escalate",
                 escalate_to_human=True,
+                confidence=confidence
+            )
+
+        # Verificar si quiere agendar una llamada
+        if intent == Intent.BOOKING:
+            booking_links = self._load_booking_links()
+            user_language = follower.preferred_language or "es"
+            response_text = self._format_booking_response(booking_links, user_language)
+            await self._update_memory(follower, message_text, response_text, intent)
+
+            logger.info(f"Booking intent detected - found {len(booking_links)} links")
+
+            return DMResponse(
+                response_text=response_text,
+                intent=intent,
+                action_taken="show_booking_links",
                 confidence=confidence
             )
 
