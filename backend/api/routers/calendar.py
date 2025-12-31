@@ -522,6 +522,30 @@ async def delete_booking_link(creator_id: str, link_id: str, db: Session = Depen
         raise HTTPException(status_code=500, detail=f"Failed to delete link: {str(e)}")
 
 
+@router.delete("/{creator_id}/bookings/reset")
+async def reset_bookings(creator_id: str, db: Session = Depends(get_db)):
+    """Delete all bookings for a creator (for testing/reset purposes)"""
+    try:
+        # Delete all bookings for this creator
+        deleted_count = db.query(CalendarBooking).filter(
+            CalendarBooking.creator_id == creator_id
+        ).delete()
+
+        db.commit()
+
+        logger.info(f"DELETE /calendar/{creator_id}/bookings/reset - Deleted {deleted_count} bookings")
+
+        return {
+            "status": "ok",
+            "message": f"Deleted {deleted_count} bookings for {creator_id}",
+            "deleted_count": deleted_count
+        }
+    except Exception as e:
+        logger.error(f"Error resetting bookings: {e}")
+        db.rollback()
+        raise HTTPException(status_code=500, detail=f"Failed to reset bookings: {str(e)}")
+
+
 @router.delete("/{creator_id}/bookings/{booking_id}")
 async def cancel_booking(creator_id: str, booking_id: str, db: Session = Depends(get_db)):
     """Cancel/delete a scheduled booking"""
