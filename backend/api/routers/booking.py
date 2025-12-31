@@ -363,7 +363,8 @@ async def reserve_slot(creator_id: str, data: dict = Body(...), db: Session = De
                 logger.info(f"Google Meet event result: {result}")
                 if result.get("meet_link"):
                     meeting_url = result.get("meet_link", "")
-                    logger.info(f"Created Google Meet link for booking: {meeting_url}")
+                    google_event_id = result.get("event_id", "")
+                    logger.info(f"Created Google Meet link for booking: {meeting_url}, event_id: {google_event_id}")
             else:
                 logger.info(f"Skipping Google Calendar - no refresh token for creator {creator_id}")
         except Exception as e:
@@ -374,6 +375,11 @@ async def reserve_slot(creator_id: str, data: dict = Body(...), db: Session = De
         # Generate IDs upfront
         slot_id = uuid.uuid4()
         calendar_booking_id = uuid.uuid4()
+
+        # Build extra_data with google_event_id if available
+        extra_data = {"source": "internal_booking", "service_id": str(service_uuid)}
+        if 'google_event_id' in dir() and google_event_id:
+            extra_data["google_event_id"] = google_event_id
 
         # FIRST: Create and save CalendarBooking (must exist before BookingSlot references it)
         calendar_booking = CalendarBooking(
@@ -390,7 +396,7 @@ async def reserve_slot(creator_id: str, data: dict = Body(...), db: Session = De
             guest_phone=phone,
             meeting_url=meeting_url,
             external_id=str(slot_id),  # Link to BookingSlot
-            extra_data={"source": "internal_booking", "service_id": str(service_uuid)}
+            extra_data=extra_data
         )
         db.add(calendar_booking)
         db.flush()  # Ensure CalendarBooking is inserted before BookingSlot

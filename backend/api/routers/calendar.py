@@ -67,6 +67,9 @@ async def get_bookings(creator_id: str, upcoming: bool = True, db: Session = Dep
 async def get_calendar_stats(creator_id: str, days: int = 30, db: Session = Depends(get_db)):
     """Get calendar statistics for a creator"""
     try:
+        from datetime import datetime, timezone
+        now = datetime.now(timezone.utc)
+
         bookings = db.query(CalendarBooking).filter(
             CalendarBooking.creator_id == creator_id
         ).all()
@@ -74,7 +77,8 @@ async def get_calendar_stats(creator_id: str, days: int = 30, db: Session = Depe
         completed = sum(1 for b in bookings if b.status == "completed")
         cancelled = sum(1 for b in bookings if b.status == "cancelled")
         no_show = sum(1 for b in bookings if b.status == "no_show")
-        upcoming = sum(1 for b in bookings if b.status == "scheduled")
+        # Only count FUTURE scheduled bookings as upcoming
+        upcoming = sum(1 for b in bookings if b.status == "scheduled" and b.scheduled_at and b.scheduled_at > now)
         total = len(bookings)
 
         return {
@@ -319,6 +323,8 @@ async def reset_bookings(creator_id: str, db: Session = Depends(get_db)):
 async def cancel_booking(creator_id: str, booking_id: str, db: Session = Depends(get_db)):
     """Cancel/delete a scheduled booking"""
     try:
+        from datetime import datetime, timezone
+
         booking = db.query(CalendarBooking).filter(
             CalendarBooking.id == booking_id,
             CalendarBooking.creator_id == creator_id
@@ -327,12 +333,24 @@ async def cancel_booking(creator_id: str, booking_id: str, db: Session = Depends
         if not booking:
             raise HTTPException(status_code=404, detail="Booking not found")
 
+        # Delete from Google Calendar if we have an event ID
+        google_deleted = False
+        if booking.extra_data and booking.extra_data.get("google_event_id"):
+            try:
+                from api.routers.oauth import delete_google_calendar_event
+                google_event_id = booking.extra_data["google_event_id"]
+                logger.info(f"Deleting Google Calendar event {google_event_id}")
+                google_deleted = await delete_google_calendar_event(creator_id, google_event_id)
+            except Exception as e:
+                logger.error(f"Failed to delete Google Calendar event: {e}")
+
         # Update status to cancelled instead of deleting (for history)
         booking.status = "cancelled"
+        booking.cancelled_at = datetime.now(timezone.utc)
         db.commit()
-        logger.info(f"DELETE /calendar/{creator_id}/bookings/{booking_id} - Cancelled")
+        logger.info(f"DELETE /calendar/{creator_id}/bookings/{booking_id} - Cancelled (Google deleted: {google_deleted})")
 
-        return {"status": "ok", "message": "Booking cancelled"}
+        return {"status": "ok", "message": "Booking cancelled", "google_calendar_deleted": google_deleted}
     except HTTPException:
         raise
     except Exception as e:
