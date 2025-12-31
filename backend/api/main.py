@@ -1323,15 +1323,505 @@ async def send_telegram_message(chat_id: int, text: str, bot_token: str, reply_m
         return await send_telegram_direct(chat_id, text, bot_token, reply_markup)
 
 
+async def answer_callback_query(callback_query_id: str, text: str = None) -> dict:
+    """Answer a callback query to stop the loading animation"""
+    telegram_api = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/answerCallbackQuery"
+    payload = {"callback_query_id": callback_query_id}
+    if text:
+        payload["text"] = text
+
+    if TELEGRAM_PROXY_URL:
+        headers = {}
+        if TELEGRAM_PROXY_SECRET:
+            headers["X-Telegram-Proxy-Secret"] = TELEGRAM_PROXY_SECRET
+        async with httpx.AsyncClient(timeout=30.0) as client:
+            response = await client.post(
+                TELEGRAM_PROXY_URL,
+                json={"bot_token": TELEGRAM_BOT_TOKEN, "method": "answerCallbackQuery", "params": payload},
+                headers=headers
+            )
+            return response.json()
+    else:
+        async with httpx.AsyncClient() as client:
+            response = await client.post(telegram_api, json=payload)
+            return response.json()
+
+
+async def edit_telegram_message(chat_id: int, message_id: int, text: str, reply_markup: dict = None) -> dict:
+    """Edit an existing Telegram message"""
+    telegram_api = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/editMessageText"
+    payload = {
+        "chat_id": chat_id,
+        "message_id": message_id,
+        "text": text,
+        "parse_mode": "HTML"
+    }
+    if reply_markup:
+        payload["reply_markup"] = reply_markup
+
+    if TELEGRAM_PROXY_URL:
+        headers = {}
+        if TELEGRAM_PROXY_SECRET:
+            headers["X-Telegram-Proxy-Secret"] = TELEGRAM_PROXY_SECRET
+        async with httpx.AsyncClient(timeout=30.0) as client:
+            response = await client.post(
+                TELEGRAM_PROXY_URL,
+                json={"bot_token": TELEGRAM_BOT_TOKEN, "method": "editMessageText", "params": payload},
+                headers=headers
+            )
+            return response.json()
+    else:
+        async with httpx.AsyncClient() as client:
+            response = await client.post(telegram_api, json=payload)
+            return response.json()
+
+
+async def handle_telegram_booking_callback(callback_query: dict) -> dict:
+    """
+    Handle Telegram inline button callbacks for the booking flow.
+    Callback data formats:
+    - book_svc:{service_id} - User selected a service → show dates
+    - book_date:{service_id}:{date} - User selected a date → show time slots
+    - book_time:{service_id}:{date}:{time} - User selected a time → confirm booking
+    """
+    from datetime import datetime, timedelta, timezone
+    from api.database import get_db_session
+    from api.models import BookingLink, CalendarBooking, CreatorAvailability, BookingSlot, Creator, Follower
+
+    callback_id = callback_query.get("id")
+    data = callback_query.get("data", "")
+    chat_id = callback_query.get("message", {}).get("chat", {}).get("id")
+    message_id = callback_query.get("message", {}).get("message_id")
+    user = callback_query.get("from", {})
+    user_id = str(user.get("id", "unknown"))
+    user_name = f"{user.get('first_name', '')} {user.get('last_name', '')}".strip() or user.get('username', 'Usuario')
+
+    creator_id = os.getenv("DEFAULT_CREATOR_ID", "manel")
+    logger.info(f"Telegram callback: {data} from {user_name} (chat {chat_id})")
+
+    try:
+        # Answer callback immediately to stop loading animation
+        await answer_callback_query(callback_id)
+
+        # Parse callback data
+        parts = data.split(":")
+
+        if parts[0] == "book_svc" and len(parts) >= 2:
+            # User selected a service → show available dates
+            service_id = parts[1]
+            return await show_date_picker(chat_id, message_id, service_id, creator_id)
+
+        elif parts[0] == "book_date" and len(parts) >= 3:
+            # User selected a date → show available time slots
+            service_id = parts[1]
+            date_str = parts[2]
+            return await show_time_picker(chat_id, message_id, service_id, date_str, creator_id)
+
+        elif parts[0] == "book_time" and len(parts) >= 4:
+            # User selected a time → confirm booking
+            service_id = parts[1]
+            date_str = parts[2]
+            time_str = parts[3]
+            return await confirm_telegram_booking(chat_id, message_id, service_id, date_str, time_str, user_id, user_name, creator_id)
+
+        elif parts[0] == "book_back":
+            # User wants to go back to service selection
+            return await show_service_picker(chat_id, message_id, creator_id)
+
+        else:
+            logger.warning(f"Unknown callback data: {data}")
+            return {"status": "ok", "message": "Unknown callback"}
+
+    except Exception as e:
+        logger.error(f"Error handling booking callback: {e}")
+        import traceback
+        logger.error(traceback.format_exc())
+        await send_telegram_message(chat_id, f"❌ Error al procesar tu solicitud. Por favor, intenta de nuevo.", TELEGRAM_BOT_TOKEN)
+        return {"status": "error", "detail": str(e)}
+
+
+async def show_service_picker(chat_id: int, message_id: int, creator_id: str) -> dict:
+    """Show available services as inline buttons"""
+    from api.database import get_db_session
+    from api.models import BookingLink
+
+    with get_db_session() as db:
+        links = db.query(BookingLink).filter(
+            BookingLink.creator_id == creator_id,
+            BookingLink.is_active == True
+        ).all()
+
+        if not links:
+            await edit_telegram_message(chat_id, message_id, "No hay servicios disponibles actualmente.")
+            return {"status": "ok"}
+
+        keyboard = []
+        for link in links:
+            price_text = "GRATIS" if (link.price or 0) == 0 else f"{link.price}€"
+            btn_text = f"📅 {link.title} ({link.duration_minutes} min) - {price_text}"
+            keyboard.append([{"text": btn_text, "callback_data": f"book_svc:{link.id}"}])
+
+        await edit_telegram_message(
+            chat_id, message_id,
+            "📅 ¡Reserva tu llamada conmigo!\n\nElige el servicio que te interese:",
+            {"inline_keyboard": keyboard}
+        )
+        return {"status": "ok"}
+
+
+async def show_date_picker(chat_id: int, message_id: int, service_id: str, creator_id: str) -> dict:
+    """Show available dates as inline buttons (next 7 days with availability)"""
+    from datetime import datetime, timedelta, timezone
+    from api.database import get_db_session
+    from api.models import BookingLink, CreatorAvailability
+
+    with get_db_session() as db:
+        # Get service info
+        service = db.query(BookingLink).filter(BookingLink.id == service_id).first()
+        if not service:
+            await edit_telegram_message(chat_id, message_id, "❌ Servicio no encontrado.")
+            return {"status": "error"}
+
+        # Get creator availability
+        availability = db.query(CreatorAvailability).filter(
+            CreatorAvailability.creator_id == creator_id,
+            CreatorAvailability.is_active == True
+        ).all()
+
+        # Build set of active days (0=Monday, 6=Sunday)
+        active_days = {av.day_of_week for av in availability}
+
+        # Generate next 7 available dates
+        today = datetime.now(timezone.utc).date()
+        available_dates = []
+        check_date = today
+
+        for _ in range(14):  # Check next 14 days to find 5-7 available
+            weekday = check_date.weekday()  # 0=Monday
+            if weekday in active_days or not availability:  # If no availability set, all days available
+                available_dates.append(check_date)
+                if len(available_dates) >= 5:
+                    break
+            check_date += timedelta(days=1)
+
+        if not available_dates:
+            await edit_telegram_message(chat_id, message_id, "❌ No hay fechas disponibles en los próximos días.")
+            return {"status": "ok"}
+
+        # Build keyboard with dates
+        keyboard = []
+        day_names_es = ["Lun", "Mar", "Mié", "Jue", "Vie", "Sáb", "Dom"]
+
+        # Add dates in rows of 3
+        row = []
+        for d in available_dates:
+            day_name = day_names_es[d.weekday()]
+            btn_text = f"{day_name} {d.day}/{d.month}"
+            callback = f"book_date:{service_id}:{d.strftime('%Y-%m-%d')}"
+            row.append({"text": btn_text, "callback_data": callback})
+            if len(row) == 3:
+                keyboard.append(row)
+                row = []
+        if row:
+            keyboard.append(row)
+
+        # Add back button
+        keyboard.append([{"text": "⬅️ Volver", "callback_data": "book_back"}])
+
+        price_text = "GRATIS" if (service.price or 0) == 0 else f"{service.price}€"
+        text = f"📅 <b>{service.title}</b>\n⏱ {service.duration_minutes} min • {price_text}\n\n📆 Elige un día:"
+
+        await edit_telegram_message(chat_id, message_id, text, {"inline_keyboard": keyboard})
+        return {"status": "ok"}
+
+
+async def show_time_picker(chat_id: int, message_id: int, service_id: str, date_str: str, creator_id: str) -> dict:
+    """Show available time slots as inline buttons"""
+    from datetime import datetime, timedelta, timezone
+    from api.database import get_db_session
+    from api.models import BookingLink, CreatorAvailability, BookingSlot, CalendarBooking
+    import uuid as uuid_module
+
+    with get_db_session() as db:
+        # Get service info
+        try:
+            service_uuid = uuid_module.UUID(service_id)
+        except ValueError:
+            await edit_telegram_message(chat_id, message_id, "❌ Servicio inválido.")
+            return {"status": "error"}
+
+        service = db.query(BookingLink).filter(BookingLink.id == service_uuid).first()
+        if not service:
+            await edit_telegram_message(chat_id, message_id, "❌ Servicio no encontrado.")
+            return {"status": "error"}
+
+        # Parse date
+        try:
+            target_date = datetime.strptime(date_str, "%Y-%m-%d").date()
+        except ValueError:
+            await edit_telegram_message(chat_id, message_id, "❌ Fecha inválida.")
+            return {"status": "error"}
+
+        # Get availability for this day
+        weekday = target_date.weekday()
+        availability = db.query(CreatorAvailability).filter(
+            CreatorAvailability.creator_id == creator_id,
+            CreatorAvailability.day_of_week == weekday,
+            CreatorAvailability.is_active == True
+        ).first()
+
+        # Default hours if no availability set
+        if availability:
+            start_hour = availability.start_time.hour
+            start_minute = availability.start_time.minute
+            end_hour = availability.end_time.hour
+            end_minute = availability.end_time.minute
+        else:
+            start_hour, start_minute = 9, 0
+            end_hour, end_minute = 18, 0
+
+        duration = service.duration_minutes or 30
+
+        # Get already booked slots
+        booked_times = set()
+        booked_slots = db.query(BookingSlot).filter(
+            BookingSlot.creator_id == creator_id,
+            BookingSlot.date == target_date,
+            BookingSlot.status == "booked"
+        ).all()
+        for slot in booked_slots:
+            booked_times.add(slot.start_time.strftime("%H:%M"))
+
+        # Also check CalendarBooking
+        external_bookings = db.query(CalendarBooking).filter(
+            CalendarBooking.creator_id == creator_id,
+            CalendarBooking.status == "scheduled"
+        ).all()
+        for booking in external_bookings:
+            if booking.scheduled_at and booking.scheduled_at.date() == target_date:
+                booked_times.add(booking.scheduled_at.strftime("%H:%M"))
+
+        # Generate available slots
+        slots = []
+        current = datetime.combine(target_date, datetime.min.time().replace(hour=start_hour, minute=start_minute))
+        end = datetime.combine(target_date, datetime.min.time().replace(hour=end_hour, minute=end_minute))
+        now = datetime.now(timezone.utc)
+
+        while current + timedelta(minutes=duration) <= end:
+            time_str = current.strftime("%H:%M")
+            slot_datetime = current.replace(tzinfo=timezone.utc)
+
+            # Skip past slots (for today)
+            if target_date == now.date() and slot_datetime <= now:
+                current += timedelta(minutes=30)
+                continue
+
+            if time_str not in booked_times:
+                slots.append(time_str)
+
+            current += timedelta(minutes=30)
+
+        if not slots:
+            # No slots available - show message with back button
+            keyboard = [[{"text": "⬅️ Elegir otro día", "callback_data": f"book_svc:{service_id}"}]]
+            day_names_es = ["Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado", "Domingo"]
+            day_name = day_names_es[target_date.weekday()]
+            text = f"📅 <b>{service.title}</b>\n📆 {day_name} {target_date.day}/{target_date.month}\n\n❌ No hay horarios disponibles para este día."
+            await edit_telegram_message(chat_id, message_id, text, {"inline_keyboard": keyboard})
+            return {"status": "ok"}
+
+        # Build keyboard with time slots (4 per row)
+        keyboard = []
+        row = []
+        for time_str in slots[:12]:  # Max 12 slots
+            callback = f"book_time:{service_id}:{date_str}:{time_str}"
+            row.append({"text": time_str, "callback_data": callback})
+            if len(row) == 4:
+                keyboard.append(row)
+                row = []
+        if row:
+            keyboard.append(row)
+
+        # Add back button
+        keyboard.append([{"text": "⬅️ Elegir otro día", "callback_data": f"book_svc:{service_id}"}])
+
+        day_names_es = ["Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado", "Domingo"]
+        day_name = day_names_es[target_date.weekday()]
+        text = f"📅 <b>{service.title}</b>\n📆 {day_name} {target_date.day}/{target_date.month}\n\n⏰ Elige una hora:"
+
+        await edit_telegram_message(chat_id, message_id, text, {"inline_keyboard": keyboard})
+        return {"status": "ok"}
+
+
+async def confirm_telegram_booking(chat_id: int, message_id: int, service_id: str, date_str: str, time_str: str, user_id: str, user_name: str, creator_id: str) -> dict:
+    """Confirm the booking and create Google Meet link"""
+    from datetime import datetime, timedelta, timezone
+    from api.database import get_db_session
+    from api.models import BookingLink, CalendarBooking, BookingSlot, Creator, Follower
+    import uuid as uuid_module
+
+    with get_db_session() as db:
+        # Get service
+        try:
+            service_uuid = uuid_module.UUID(service_id)
+        except ValueError:
+            await edit_telegram_message(chat_id, message_id, "❌ Servicio inválido.")
+            return {"status": "error"}
+
+        service = db.query(BookingLink).filter(BookingLink.id == service_uuid).first()
+        if not service:
+            await edit_telegram_message(chat_id, message_id, "❌ Servicio no encontrado.")
+            return {"status": "error"}
+
+        # Parse date and time
+        try:
+            target_date = datetime.strptime(date_str, "%Y-%m-%d").date()
+            start_time = datetime.strptime(time_str, "%H:%M").time()
+        except ValueError:
+            await edit_telegram_message(chat_id, message_id, "❌ Fecha u hora inválida.")
+            return {"status": "error"}
+
+        duration_minutes = service.duration_minutes or 30
+        scheduled_datetime = datetime.combine(target_date, start_time).replace(tzinfo=timezone.utc)
+        end_datetime = scheduled_datetime + timedelta(minutes=duration_minutes)
+        end_time = end_datetime.time()
+
+        # Check if slot is still available
+        existing_slot = db.query(BookingSlot).filter(
+            BookingSlot.creator_id == creator_id,
+            BookingSlot.date == target_date,
+            BookingSlot.start_time == start_time,
+            BookingSlot.status == "booked"
+        ).first()
+
+        if existing_slot:
+            keyboard = [[{"text": "⬅️ Elegir otro horario", "callback_data": f"book_date:{service_id}:{date_str}"}]]
+            await edit_telegram_message(chat_id, message_id, "❌ Este horario ya no está disponible. Por favor, elige otro.", {"inline_keyboard": keyboard})
+            return {"status": "ok"}
+
+        # Get follower info (email if we have it)
+        follower = db.query(Follower).filter(Follower.platform_id == f"tg_{user_id}").first()
+        guest_email = follower.email if follower and follower.email else ""
+        guest_name = user_name
+
+        # Generate Google Meet URL if Google is connected
+        meeting_url = ""
+        google_event_id = ""
+        try:
+            creator = db.query(Creator).filter(Creator.name == creator_id).first()
+            if creator and creator.google_refresh_token:
+                logger.info(f"Creating Google Calendar event for Telegram booking...")
+                try:
+                    from api.routers.oauth import create_google_meet_event
+                except:
+                    from routers.oauth import create_google_meet_event
+
+                result = await create_google_meet_event(
+                    creator_id=creator_id,
+                    title=service.title or "Meeting",
+                    start_time=scheduled_datetime,
+                    end_time=end_datetime,
+                    guest_email=guest_email,
+                    guest_name=guest_name,
+                    description=f"Telegram Booking: {service.title}"
+                )
+                if result.get("meet_link"):
+                    meeting_url = result.get("meet_link", "")
+                    google_event_id = result.get("event_id", "")
+                    logger.info(f"Created Google Meet link: {meeting_url}")
+        except Exception as e:
+            logger.error(f"Could not create Google Meet event: {e}")
+
+        # Create booking
+        slot_id = uuid_module.uuid4()
+        calendar_booking_id = uuid_module.uuid4()
+
+        extra_data = {
+            "source": "telegram_booking",
+            "service_id": str(service_uuid),
+            "telegram_user_id": user_id
+        }
+        if google_event_id:
+            extra_data["google_event_id"] = google_event_id
+
+        # Create CalendarBooking
+        calendar_booking = CalendarBooking(
+            id=calendar_booking_id,
+            creator_id=creator_id,
+            follower_id=f"tg_{user_id}",
+            meeting_type=service.title or service.meeting_type,
+            platform="clonnect",
+            status="scheduled",
+            scheduled_at=scheduled_datetime,
+            duration_minutes=duration_minutes,
+            guest_name=guest_name,
+            guest_email=guest_email,
+            meeting_url=meeting_url,
+            external_id=str(slot_id),
+            extra_data=extra_data
+        )
+        db.add(calendar_booking)
+        db.flush()
+
+        # Create BookingSlot
+        slot = BookingSlot(
+            id=slot_id,
+            creator_id=creator_id,
+            service_id=service_uuid,
+            date=target_date,
+            start_time=start_time,
+            end_time=end_time,
+            status="booked",
+            booked_by_name=guest_name,
+            booked_by_email=guest_email,
+            meeting_url=meeting_url,
+            calendar_booking_id=calendar_booking_id
+        )
+        db.add(slot)
+        db.commit()
+
+        logger.info(f"Telegram booking confirmed: {service.title} on {date_str} at {time_str} for {guest_name}")
+
+        # Format confirmation message
+        day_names_es = ["Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado", "Domingo"]
+        month_names_es = ["", "Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"]
+        day_name = day_names_es[target_date.weekday()]
+        month_name = month_names_es[target_date.month]
+        end_time_str = end_datetime.strftime("%H:%M")
+
+        text = f"✅ <b>¡Reserva confirmada!</b>\n\n"
+        text += f"📅 {day_name} {target_date.day} de {month_name}\n"
+        text += f"⏰ {time_str} - {end_time_str}\n"
+        text += f"📋 {service.title}\n\n"
+
+        keyboard = []
+        if meeting_url:
+            text += f"🔗 <a href='{meeting_url}'>Enlace a la videollamada</a>\n\n"
+            keyboard.append([{"text": "🎥 Abrir Meet", "url": meeting_url}])
+
+        text += "¡Nos vemos pronto! 👋"
+
+        reply_markup = {"inline_keyboard": keyboard} if keyboard else None
+        await edit_telegram_message(chat_id, message_id, text, reply_markup)
+
+        return {"status": "ok", "booking_id": str(calendar_booking_id)}
+
+
 @app.post("/webhook/telegram")
 async def telegram_webhook(request: Request):
     """
     Recibir updates de Telegram.
     Procesa mensajes entrantes con DMResponderAgent y envia respuestas automaticas.
+    Tambien maneja callback_query para el flujo de reservas in-Telegram.
     """
     try:
         payload = await request.json()
         logger.info(f"Telegram webhook received: {payload}")
+
+        # Handle callback_query (button clicks for booking flow)
+        callback_query = payload.get("callback_query")
+        if callback_query:
+            return await handle_telegram_booking_callback(callback_query)
 
         # Extraer mensaje del update
         message = payload.get("message", {})
@@ -1382,10 +1872,13 @@ async def telegram_webhook(request: Request):
                     # Convert to Telegram API format: {"inline_keyboard": [[{button}], ...]}
                     inline_keyboard = []
                     for button in keyboard_data:
-                        inline_keyboard.append([{
-                            "text": button.get("text", ""),
-                            "url": button.get("url", "")
-                        }])
+                        btn = {"text": button.get("text", "")}
+                        # Support both callback_data and url buttons
+                        if "callback_data" in button:
+                            btn["callback_data"] = button["callback_data"]
+                        elif "url" in button:
+                            btn["url"] = button["url"]
+                        inline_keyboard.append([btn])
                     reply_markup = {"inline_keyboard": inline_keyboard}
                     logger.info(f"Sending {len(keyboard_data)} inline buttons for booking")
 

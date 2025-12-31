@@ -33,3 +33,17 @@ def get_db():
         yield db
     finally:
         db.close()
+
+
+from contextlib import contextmanager
+
+@contextmanager
+def get_db_session():
+    """Context manager for database session - for use outside FastAPI endpoints"""
+    if SessionLocal is None:
+        raise Exception("Database not configured")
+    db = SessionLocal()
+    try:
+        yield db
+    finally:
+        db.close()
