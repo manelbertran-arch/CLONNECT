@@ -130,14 +130,17 @@ async def get_available_slots(
         except ValueError:
             raise HTTPException(status_code=400, detail="Invalid date format. Use YYYY-MM-DD")
 
+        # Get today's date in UTC for consistency
+        today = datetime.now(timezone.utc).date()
+        logger.info(f"Slots request: date_str={date_str}, target_date={target_date}, server_today={today}")
+
         # Don't allow past dates
-        today = date.today()
         if target_date < today:
             return {
                 "status": "ok",
                 "date": date_str,
                 "slots": [],
-                "message": "Cannot book past dates"
+                "message": f"Cannot book past dates (requested: {target_date}, server today: {today})"
             }
 
         # Get service info
@@ -204,19 +207,19 @@ async def get_available_slots(
 
         # If it's today, start from current time (rounded up to next slot)
         if target_date == today:
-            now = datetime.now()
-            # Add 30 min buffer
-            min_start = now + timedelta(minutes=30)
-            if current_time < min_start:
+            now = datetime.now(timezone.utc)
+            # Add 30 min buffer - use replace to get naive datetime for comparison
+            min_start_naive = (now + timedelta(minutes=30)).replace(tzinfo=None)
+            if current_time < min_start_naive:
                 # Round up to next slot
-                minutes = min_start.minute
+                minutes = min_start_naive.minute
                 if minutes % 15 != 0:
                     minutes = ((minutes // 15) + 1) * 15
                     if minutes >= 60:
-                        min_start = min_start.replace(hour=min_start.hour + 1, minute=0)
+                        min_start_naive = min_start_naive.replace(hour=min_start_naive.hour + 1, minute=0)
                     else:
-                        min_start = min_start.replace(minute=minutes)
-                current_time = min_start
+                        min_start_naive = min_start_naive.replace(minute=minutes)
+                current_time = min_start_naive
 
         slot_duration = timedelta(minutes=duration_minutes)
 
@@ -479,8 +482,8 @@ async def get_available_dates(
     Used for calendar display on booking page.
     """
     try:
-        # Default to current month if not specified
-        today = date.today()
+        # Default to current month if not specified - use UTC for consistency
+        today = datetime.now(timezone.utc).date()
         if not month:
             month = today.month
         if not year:
