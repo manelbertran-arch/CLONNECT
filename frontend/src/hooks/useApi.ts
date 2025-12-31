@@ -38,6 +38,8 @@ import {
   createBookingLink,
   deleteBookingLink,
   cancelBooking,
+  clearBookingHistory,
+  deleteHistoryItem,
   getNurturingSequences,
   getNurturingStats,
   getNurturingFollowups,
@@ -350,6 +352,34 @@ export function useCancelBooking(creatorId: string = CREATOR_ID) {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (bookingId: string) => cancelBooking(creatorId, bookingId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: apiKeys.bookings(creatorId, true) });
+      queryClient.invalidateQueries({ queryKey: apiKeys.calendarStats(creatorId) });
+    },
+  });
+}
+
+/**
+ * Hook to clear all booking history (completed/cancelled)
+ */
+export function useClearBookingHistory(creatorId: string = CREATOR_ID) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: () => clearBookingHistory(creatorId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: apiKeys.bookings(creatorId, true) });
+      queryClient.invalidateQueries({ queryKey: apiKeys.calendarStats(creatorId) });
+    },
+  });
+}
+
+/**
+ * Hook to delete a single history item
+ */
+export function useDeleteHistoryItem(creatorId: string = CREATOR_ID) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (bookingId: string) => deleteHistoryItem(creatorId, bookingId),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: apiKeys.bookings(creatorId, true) });
       queryClient.invalidateQueries({ queryKey: apiKeys.calendarStats(creatorId) });

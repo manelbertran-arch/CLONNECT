@@ -425,6 +425,23 @@ export async function cancelBooking(
   });
 }
 
+export async function clearBookingHistory(
+  creatorId: string = CREATOR_ID
+): Promise<{ status: string; message: string; deleted_count: number }> {
+  return apiFetch(`/calendar/${creatorId}/history`, {
+    method: "DELETE",
+  });
+}
+
+export async function deleteHistoryItem(
+  creatorId: string = CREATOR_ID,
+  bookingId: string
+): Promise<{ status: string; message: string }> {
+  return apiFetch(`/calendar/${creatorId}/history/${bookingId}`, {
+    method: "DELETE",
+  });
+}
+
 // =============================================================================
 // NURTURING
 // =============================================================================

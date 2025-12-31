@@ -76,10 +76,10 @@ async def get_calendar_stats(creator_id: str, days: int = 30, db: Session = Depe
 
         completed = sum(1 for b in bookings if b.status == "completed")
         cancelled = sum(1 for b in bookings if b.status == "cancelled")
-        no_show = sum(1 for b in bookings if b.status == "no_show")
         # Only count FUTURE scheduled bookings as upcoming
         upcoming = sum(1 for b in bookings if b.status == "scheduled" and b.scheduled_at and b.scheduled_at > now)
-        total = len(bookings)
+        # Total excludes cancelled (only count real bookings)
+        total = completed + upcoming
 
         return {
             "status": "ok",
@@ -87,15 +87,11 @@ async def get_calendar_stats(creator_id: str, days: int = 30, db: Session = Depe
             "total_bookings": total,
             "completed": completed,
             "cancelled": cancelled,
-            "no_show": no_show,
-            "show_rate": (completed / total * 100) if total > 0 else 0.0,
             "upcoming": upcoming,
-            "by_type": {},
-            "by_platform": {}
         }
     except Exception as e:
         logger.error(f"Error getting stats: {e}")
-        return {"status": "ok", "creator_id": creator_id, "total_bookings": 0, "completed": 0, "cancelled": 0, "no_show": 0, "show_rate": 0.0, "upcoming": 0, "by_type": {}, "by_platform": {}}
+        return {"status": "ok", "creator_id": creator_id, "total_bookings": 0, "completed": 0, "cancelled": 0, "upcoming": 0}
 
 @router.get("/{creator_id}/links")
 async def get_booking_links(creator_id: str, db: Session = Depends(get_db)):
@@ -357,6 +353,51 @@ async def cancel_booking(creator_id: str, booking_id: str, db: Session = Depends
         logger.error(f"Error cancelling booking: {e}")
         db.rollback()
         raise HTTPException(status_code=500, detail=f"Failed to cancel booking: {str(e)}")
+
+
+@router.delete("/{creator_id}/history")
+async def clear_history(creator_id: str, db: Session = Depends(get_db)):
+    """Clear booking history (delete completed and cancelled bookings)"""
+    try:
+        deleted_count = db.query(CalendarBooking).filter(
+            CalendarBooking.creator_id == creator_id,
+            CalendarBooking.status.in_(["completed", "cancelled"])
+        ).delete(synchronize_session=False)
+
+        db.commit()
+        logger.info(f"Cleared {deleted_count} history items for {creator_id}")
+
+        return {"status": "ok", "message": f"Cleared {deleted_count} history items", "deleted_count": deleted_count}
+    except Exception as e:
+        logger.error(f"Error clearing history: {e}")
+        db.rollback()
+        raise HTTPException(status_code=500, detail=f"Failed to clear history: {str(e)}")
+
+
+@router.delete("/{creator_id}/history/{booking_id}")
+async def delete_history_item(creator_id: str, booking_id: str, db: Session = Depends(get_db)):
+    """Delete a single history item (completed or cancelled booking)"""
+    try:
+        booking = db.query(CalendarBooking).filter(
+            CalendarBooking.id == booking_id,
+            CalendarBooking.creator_id == creator_id,
+            CalendarBooking.status.in_(["completed", "cancelled"])
+        ).first()
+
+        if not booking:
+            raise HTTPException(status_code=404, detail="History item not found")
+
+        db.delete(booking)
+        db.commit()
+        logger.info(f"Deleted history item {booking_id} for {creator_id}")
+
+        return {"status": "ok", "message": "History item deleted"}
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error deleting history item: {e}")
+        db.rollback()
+        raise HTTPException(status_code=500, detail=f"Failed to delete history item: {str(e)}")
 
 
 # =============================================================================
