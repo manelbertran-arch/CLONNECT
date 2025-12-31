@@ -406,38 +406,57 @@ export default function Bookings() {
               .map((booking) => (
               <div
                 key={booking.id}
-                className="flex items-center justify-between gap-3 p-3 rounded-lg border bg-card hover:bg-accent/5 transition-colors"
+                className="flex items-center justify-between gap-3 p-4 rounded-lg border bg-card hover:bg-accent/5 transition-colors"
               >
                 <div className="flex items-center gap-3 flex-1 min-w-0">
-                  <div className="w-12 h-12 rounded-lg bg-primary/10 flex flex-col items-center justify-center shrink-0">
+                  {/* Date box */}
+                  <div className="w-14 h-14 rounded-lg bg-primary/10 flex flex-col items-center justify-center shrink-0">
                     <span className="text-[10px] text-muted-foreground uppercase">
                       {formatDate(booking.scheduled_at).split(" ")[0]}
                     </span>
-                    <span className="text-lg font-bold leading-none">
+                    <span className="text-xl font-bold leading-none">
                       {new Date(booking.scheduled_at).getDate()}
                     </span>
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2">
-                      <span className="font-medium truncate">
-                        {booking.follower_name || booking.title || booking.meeting_type}
-                      </span>
-                      <span className="text-xs text-muted-foreground">{booking.duration_minutes} min</span>
-                    </div>
-                    <p className="text-xs text-muted-foreground">
+                    <span className="text-[10px] text-muted-foreground">
                       {formatTime(booking.scheduled_at)}
+                    </span>
+                  </div>
+                  {/* Info */}
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 mb-1">
+                      <span className="font-semibold truncate">
+                        {booking.guest_name || booking.follower_name || "Guest"}
+                      </span>
+                      <span className="text-xs px-1.5 py-0.5 rounded bg-secondary text-muted-foreground">
+                        {booking.duration_minutes} min
+                      </span>
+                    </div>
+                    <p className="text-sm text-muted-foreground truncate">
+                      {booking.title || booking.meeting_type}
                     </p>
+                    <div className="flex items-center gap-2 mt-1">
+                      {booking.guest_email && (
+                        <span className="text-xs text-muted-foreground truncate">
+                          {booking.guest_email}
+                        </span>
+                      )}
+                      {booking.platform && (
+                        <span className="text-xs px-1.5 py-0.5 rounded bg-primary/10 text-primary capitalize">
+                          {booking.platform}
+                        </span>
+                      )}
+                    </div>
                   </div>
                 </div>
-                <div className="flex items-center gap-1 flex-shrink-0">
+                <div className="flex items-center gap-2 flex-shrink-0">
                   {booking.meeting_url && (
                     <Button
                       size="sm"
-                      variant="outline"
+                      className="bg-primary hover:bg-primary/90"
                       onClick={() => window.open(booking.meeting_url, "_blank")}
                     >
                       <Video className="w-4 h-4 mr-1" />
-                      Join
+                      Join Call
                     </Button>
                   )}
                   <Button
@@ -656,14 +675,17 @@ export default function Bookings() {
             {links.map((link) => (
               <div
                 key={link.id}
-                className="flex items-center justify-between gap-3 p-3 rounded-lg border bg-card hover:bg-accent/5 transition-colors"
+                className={cn(
+                  "flex items-center justify-between gap-3 p-3 rounded-lg border bg-card hover:bg-accent/5 transition-colors",
+                  !link.url && "border-yellow-500/30 bg-yellow-500/5"
+                )}
               >
                 <div className="flex items-center gap-3 flex-1 min-w-0">
                   <div className="w-10 h-10 rounded-lg flex items-center justify-center shrink-0">
                     <PlatformLogo platform={link.platform} size={32} />
                   </div>
                   <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-2 flex-wrap">
                       <span className="font-medium truncate">{link.title}</span>
                       <span className="text-xs text-muted-foreground">{link.duration_minutes} min</span>
                       <span className={cn(
@@ -672,8 +694,16 @@ export default function Bookings() {
                       )}>
                         {formatPrice((link as any).price || 0)}
                       </span>
+                      {!link.url && (
+                        <span className="text-xs px-1.5 py-0.5 rounded bg-yellow-500/20 text-yellow-600">
+                          No link
+                        </span>
+                      )}
                     </div>
-                    <p className="text-xs text-muted-foreground">via {link.platform}</p>
+                    <p className="text-xs text-muted-foreground">
+                      via {link.platform}
+                      {!link.url && " • Link will be sent on booking"}
+                    </p>
                   </div>
                 </div>
                 <div className="flex gap-1 flex-shrink-0">

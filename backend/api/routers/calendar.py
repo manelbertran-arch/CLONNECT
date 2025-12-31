@@ -17,26 +17,156 @@ logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/calendar", tags=["calendar"])
 
 @router.get("/{creator_id}/bookings")
-async def get_bookings(creator_id: str, upcoming: bool = True, db: Session = Depends(get_db)):
-    """Get all bookings for a creator"""
+async def get_bookings(creator_id: str, upcoming: bool = True, sync: bool = True, db: Session = Depends(get_db)):
+    """Get all bookings for a creator. Auto-syncs with Calendly if connected."""
     try:
+        synced_count = 0
+
+        # Auto-sync with Calendly if connected and sync=True
+        if sync:
+            try:
+                creator = db.query(Creator).filter(Creator.name == creator_id).first()
+                if creator and creator.calendly_token:
+                    # Import sync function and call it
+                    try:
+                        from api.routers.oauth import get_valid_calendly_token
+                    except:
+                        from routers.oauth import get_valid_calendly_token
+
+                    try:
+                        access_token = await get_valid_calendly_token(creator_id)
+                        # Inline sync to avoid circular imports
+                        async with httpx.AsyncClient() as client:
+                            user_response = await client.get(
+                                "https://api.calendly.com/users/me",
+                                headers={"Authorization": f"Bearer {access_token}"}
+                            )
+                            if user_response.status_code == 200:
+                                user_uri = user_response.json().get("resource", {}).get("uri")
+                                if user_uri:
+                                    from datetime import timedelta
+                                    now = datetime.now(timezone.utc)
+                                    min_time = (now - timedelta(days=30)).isoformat()
+                                    max_time = (now + timedelta(days=60)).isoformat()
+
+                                    events_response = await client.get(
+                                        "https://api.calendly.com/scheduled_events",
+                                        headers={"Authorization": f"Bearer {access_token}"},
+                                        params={
+                                            "user": user_uri,
+                                            "min_start_time": min_time,
+                                            "max_start_time": max_time,
+                                            "count": 100
+                                        }
+                                    )
+                                    if events_response.status_code == 200:
+                                        events = events_response.json().get("collection", [])
+                                        for event in events:
+                                            event_uri = event.get("uri", "")
+                                            external_id = event_uri.split("/")[-1] if event_uri else None
+                                            if not external_id:
+                                                continue
+
+                                            existing = db.query(CalendarBooking).filter(
+                                                CalendarBooking.external_id == external_id,
+                                                CalendarBooking.creator_id == creator_id
+                                            ).first()
+
+                                            if existing:
+                                                # Update status if needed
+                                                calendly_status = event.get("status", "active")
+                                                new_status = "scheduled" if calendly_status == "active" else "cancelled"
+                                                if existing.status != new_status and existing.status != "completed":
+                                                    existing.status = new_status
+                                                continue
+
+                                            # Get invitee info
+                                            invitees_response = await client.get(
+                                                f"{event_uri}/invitees",
+                                                headers={"Authorization": f"Bearer {access_token}"}
+                                            )
+                                            invitee_data = {}
+                                            if invitees_response.status_code == 200:
+                                                invitees = invitees_response.json().get("collection", [])
+                                                if invitees:
+                                                    invitee_data = invitees[0]
+
+                                            start_time = event.get("start_time")
+                                            end_time = event.get("end_time")
+                                            duration = 30
+                                            if start_time and end_time:
+                                                start_dt = datetime.fromisoformat(start_time.replace("Z", "+00:00"))
+                                                end_dt = datetime.fromisoformat(end_time.replace("Z", "+00:00"))
+                                                duration = int((end_dt - start_dt).total_seconds() / 60)
+
+                                            location = event.get("location", {})
+                                            meeting_url = ""
+                                            if isinstance(location, dict):
+                                                meeting_url = location.get("join_url", "") or location.get("location", "")
+
+                                            calendly_status = event.get("status", "active")
+                                            booking_status = "scheduled" if calendly_status == "active" else "cancelled"
+
+                                            booking = CalendarBooking(
+                                                id=uuid.uuid4(),
+                                                creator_id=creator_id,
+                                                follower_id=invitee_data.get("email", "unknown"),
+                                                meeting_type=event.get("name", "Meeting"),
+                                                platform="calendly",
+                                                status=booking_status,
+                                                scheduled_at=datetime.fromisoformat(start_time.replace("Z", "+00:00")) if start_time else None,
+                                                duration_minutes=duration,
+                                                guest_name=invitee_data.get("name", ""),
+                                                guest_email=invitee_data.get("email", ""),
+                                                meeting_url=meeting_url,
+                                                external_id=external_id,
+                                                extra_data={"calendly_event": event}
+                                            )
+                                            db.add(booking)
+                                            synced_count += 1
+
+                                        db.commit()
+                                        logger.info(f"Auto-synced {synced_count} Calendly events for {creator_id}")
+                    except Exception as e:
+                        logger.debug(f"Calendly auto-sync skipped: {e}")
+            except Exception as e:
+                logger.debug(f"Calendly auto-sync error: {e}")
+
+        # Also update status of past bookings
+        now = datetime.now(timezone.utc)
+        past_scheduled = db.query(CalendarBooking).filter(
+            CalendarBooking.creator_id == creator_id,
+            CalendarBooking.status == "scheduled",
+            CalendarBooking.scheduled_at < now
+        ).all()
+        for booking in past_scheduled:
+            booking.status = "completed"
+        if past_scheduled:
+            db.commit()
+            logger.info(f"Marked {len(past_scheduled)} past bookings as completed for {creator_id}")
+
+        # Get all bookings
         bookings = db.query(CalendarBooking).filter(
             CalendarBooking.creator_id == creator_id
-        ).all()
+        ).order_by(CalendarBooking.scheduled_at.desc()).all()
 
         return {
             "status": "ok",
             "creator_id": creator_id,
+            "synced": synced_count,
             "bookings": [
                 {
                     "id": str(b.id),
                     "meeting_type": b.meeting_type,
+                    "title": b.meeting_type,  # Alias for frontend
                     "platform": b.platform,
                     "status": b.status,
                     "scheduled_at": b.scheduled_at.isoformat() if b.scheduled_at else None,
                     "duration_minutes": b.duration_minutes,
                     "guest_name": b.guest_name,
                     "guest_email": b.guest_email,
+                    "meeting_url": b.meeting_url or "",
+                    "follower_name": b.guest_name,  # Alias for frontend
                 }
                 for b in bookings
             ],
@@ -44,7 +174,7 @@ async def get_bookings(creator_id: str, upcoming: bool = True, db: Session = Dep
         }
     except Exception as e:
         logger.error(f"Error getting bookings: {e}")
-        return {"status": "ok", "creator_id": creator_id, "bookings": [], "count": 0}
+        return {"status": "ok", "creator_id": creator_id, "bookings": [], "count": 0, "synced": 0}
 
 @router.get("/{creator_id}/stats")
 async def get_calendar_stats(creator_id: str, days: int = 30, db: Session = Depends(get_db)):
