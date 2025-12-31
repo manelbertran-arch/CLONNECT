@@ -246,9 +246,14 @@ async def create_google_calendar_event(access_token: str, name: str, duration: i
 
 async def create_calendly_event_type(access_token: str, name: str, duration: int) -> dict:
     """
-    Create an event type in Calendly and return the scheduling URL.
-    Uses the one_off_event_types endpoint for simple event creation.
-    Falls back to user's base scheduling URL if creation fails.
+    Get a REUSABLE Calendly scheduling URL.
+
+    IMPORTANT: We do NOT use one_off_event_types because those are single-use links!
+    Instead, we:
+    1. Look for an existing event type that matches the duration
+    2. If not found, use the user's base scheduling URL
+
+    This ensures the booking link can be used by multiple people.
     """
     async with httpx.AsyncClient() as client:
         # First, get user info including scheduling URL
@@ -270,60 +275,7 @@ async def create_calendly_event_type(access_token: str, name: str, duration: int
         if not user_uri:
             raise Exception("Could not get Calendly user URI")
 
-        # Try to create a one-off event type (may fail if not on paid plan)
-        from datetime import date, timedelta
-        start_date = date.today().isoformat()
-        end_date = (date.today() + timedelta(days=90)).isoformat()
-
-        try:
-            event_response = await client.post(
-                "https://api.calendly.com/one_off_event_types",
-                headers={
-                    "Authorization": f"Bearer {access_token}",
-                    "Content-Type": "application/json"
-                },
-                json={
-                    "name": name,
-                    "host": user_uri,
-                    "duration": duration,
-                    "date_setting": {
-                        "type": "date_range",
-                        "start_date": start_date,
-                        "end_date": end_date
-                    },
-                    "location": {
-                        "kind": "ask_invitee"
-                    }
-                }
-            )
-
-            if event_response.status_code in [200, 201]:
-                event_data = event_response.json()
-                event_resource = event_data.get("resource", {})
-                scheduling_url = event_resource.get("scheduling_url", "")
-                logger.info(f"Created Calendly event type: {scheduling_url}")
-                return {
-                    "success": True,
-                    "scheduling_url": scheduling_url,
-                    "event_uri": event_resource.get("uri", "")
-                }
-            else:
-                logger.warning(f"Calendly one_off_event_types failed: {event_response.status_code} - {event_response.text[:200]}")
-        except Exception as e:
-            logger.warning(f"Calendly event creation exception: {e}")
-
-        # Fallback: Use user's base scheduling URL
-        # This will show all available event types for the user
-        if scheduling_url_base:
-            logger.info(f"Using Calendly base scheduling URL: {scheduling_url_base}")
-            return {
-                "success": True,  # Mark as success since we have a valid URL
-                "scheduling_url": scheduling_url_base,
-                "event_uri": "",
-                "note": "Using base scheduling URL (shows all event types)"
-            }
-
-        # Last resort: Try to get event types and use the first one's URL
+        # Strategy 1: Find an existing event type that matches the duration
         try:
             events_response = await client.get(
                 f"https://api.calendly.com/event_types?user={user_uri}&active=true",
@@ -332,23 +284,61 @@ async def create_calendly_event_type(access_token: str, name: str, duration: int
             if events_response.status_code == 200:
                 events_data = events_response.json()
                 event_types = events_data.get("collection", [])
-                if event_types:
-                    first_event_url = event_types[0].get("scheduling_url", "")
-                    if first_event_url:
-                        logger.info(f"Using first event type URL: {first_event_url}")
+
+                logger.info(f"Found {len(event_types)} Calendly event types")
+
+                # Try to find one with matching duration
+                best_match = None
+                for event_type in event_types:
+                    event_duration = event_type.get("duration", 0)
+                    event_url = event_type.get("scheduling_url", "")
+                    event_name = event_type.get("name", "")
+
+                    logger.info(f"  - Event type: {event_name}, duration={event_duration}min, url={event_url}")
+
+                    if event_duration == duration and event_url:
+                        # Perfect match!
+                        logger.info(f"Found matching event type: {event_name} ({duration}min)")
                         return {
                             "success": True,
-                            "scheduling_url": first_event_url,
-                            "event_uri": event_types[0].get("uri", ""),
-                            "note": "Using existing event type"
+                            "scheduling_url": event_url,
+                            "event_uri": event_type.get("uri", ""),
+                            "note": f"Using existing event type: {event_name}"
                         }
+
+                    # Keep track of any valid event type as fallback
+                    if event_url and not best_match:
+                        best_match = event_type
+
+                # No exact duration match, use any available event type
+                if best_match:
+                    best_url = best_match.get("scheduling_url", "")
+                    best_name = best_match.get("name", "")
+                    logger.info(f"No exact duration match, using: {best_name}")
+                    return {
+                        "success": True,
+                        "scheduling_url": best_url,
+                        "event_uri": best_match.get("uri", ""),
+                        "note": f"Using existing event type: {best_name} (different duration)"
+                    }
+
         except Exception as e:
             logger.warning(f"Failed to get event types: {e}")
+
+        # Strategy 2: Use user's base scheduling URL (shows all event types)
+        if scheduling_url_base:
+            logger.info(f"Using Calendly base scheduling URL: {scheduling_url_base}")
+            return {
+                "success": True,
+                "scheduling_url": scheduling_url_base,
+                "event_uri": "",
+                "note": "Using base scheduling URL (user can choose event type)"
+            }
 
         return {
             "success": False,
             "scheduling_url": "",
-            "error": "Could not create or find a Calendly scheduling URL"
+            "error": "No Calendly event types found. Please create one in Calendly first."
         }
 
 
@@ -841,3 +831,90 @@ async def get_sync_status(creator_id: str, db: Session = Depends(get_db)):
             "bookings_synced": 0,
             "auto_refresh_enabled": False
         }
+
+
+@router.post("/{creator_id}/links/fix-calendly-urls")
+async def fix_calendly_booking_urls(creator_id: str, db: Session = Depends(get_db)):
+    """
+    Fix existing Calendly booking links that have one-off URLs.
+    Replaces them with reusable event type URLs.
+    """
+    try:
+        # Import the token helper
+        try:
+            from api.routers.oauth import get_valid_calendly_token
+        except:
+            from routers.oauth import get_valid_calendly_token
+
+        # Get all Calendly booking links for this creator
+        calendly_links = db.query(BookingLink).filter(
+            BookingLink.creator_id == creator_id,
+            BookingLink.platform == "calendly"
+        ).all()
+
+        if not calendly_links:
+            return {
+                "status": "ok",
+                "message": "No Calendly booking links found",
+                "fixed": 0
+            }
+
+        # Get valid token
+        try:
+            access_token = await get_valid_calendly_token(creator_id)
+        except Exception as e:
+            raise HTTPException(status_code=400, detail=f"Calendly not connected: {e}")
+
+        fixed_count = 0
+        results = []
+
+        for link in calendly_links:
+            old_url = link.url
+            duration = link.duration_minutes or 30
+
+            # Check if URL is a one-off link (contains random hash)
+            is_one_off = old_url and "/d/" in old_url
+
+            if is_one_off or not old_url:
+                # Get new reusable URL
+                result = await create_calendly_event_type(
+                    access_token=access_token,
+                    name=link.title or "Meeting",
+                    duration=duration
+                )
+
+                if result["success"] and result.get("scheduling_url"):
+                    new_url = result["scheduling_url"]
+                    link.url = new_url
+                    fixed_count += 1
+                    results.append({
+                        "link_id": str(link.id),
+                        "title": link.title,
+                        "old_url": old_url,
+                        "new_url": new_url,
+                        "note": result.get("note", "")
+                    })
+                    logger.info(f"Fixed booking link {link.id}: {old_url} -> {new_url}")
+                else:
+                    results.append({
+                        "link_id": str(link.id),
+                        "title": link.title,
+                        "error": result.get("error", "Could not get new URL")
+                    })
+
+        db.commit()
+
+        return {
+            "status": "ok",
+            "message": f"Fixed {fixed_count} Calendly booking links",
+            "fixed": fixed_count,
+            "total": len(calendly_links),
+            "results": results
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error fixing Calendly URLs: {e}")
+        db.rollback()
+        raise HTTPException(status_code=500, detail=str(e))
