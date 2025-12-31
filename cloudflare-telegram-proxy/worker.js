@@ -29,9 +29,9 @@ export default {
       });
     }
 
-    // Verify secret (for security)
+    // Verify secret (for security) - only if PROXY_SECRET is configured
     const authHeader = request.headers.get('X-Telegram-Proxy-Secret');
-    if (!env.PROXY_SECRET || authHeader !== env.PROXY_SECRET) {
+    if (env.PROXY_SECRET && authHeader !== env.PROXY_SECRET) {
       return new Response(JSON.stringify({ error: 'Unauthorized' }), {
         status: 401,
         headers: { 'Content-Type': 'application/json' }
