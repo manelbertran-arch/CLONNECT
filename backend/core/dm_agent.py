@@ -1350,7 +1350,7 @@ USA ESTA RESPUESTA PARA LA OBJECION (adaptala a tu tono):
                     guardrail_context = {
                         "products": self.products,
                         "allowed_urls": [p.get("payment_link", "") for p in self.products if p.get("payment_link")],
-                        "creator_config": self.config,
+                        "creator_config": self.creator_config,
                         "language": user_language
                     }
                     response_text = guardrail.get_safe_response(
@@ -1364,47 +1364,54 @@ USA ESTA RESPUESTA PARA LA OBJECION (adaptala a tu tono):
                 # === SELF-CONSISTENCY CHECK ===
                 # Validate response confidence before sending
                 # If confidence < 0.6 -> use safe fallback response
-                try:
-                    consistency_validator = get_self_consistency_validator(self.llm)
-                    consistency_result = await consistency_validator.validate_response(
-                        query=message_text,
-                        response=response_text,
-                        system_prompt=system_prompt,
-                        max_tokens=200
-                    )
+                # SKIP for simple intents (greeting, thanks, goodbye) with high intent confidence
+                simple_intents = {Intent.GREETING, Intent.THANKS, Intent.GOODBYE}
+                skip_consistency = intent in simple_intents and confidence >= 0.8
 
-                    # Log confidence for monitoring
-                    logger.info(
-                        f"Self-consistency: confidence={consistency_result.confidence:.2f}, "
-                        f"consistent={consistency_result.is_consistent}"
-                    )
+                if skip_consistency:
+                    logger.info(f"Skipping self-consistency for simple intent {intent.value} (confidence={confidence:.2f})")
+                else:
+                    try:
+                        consistency_validator = get_self_consistency_validator(self.llm)
+                        consistency_result = await consistency_validator.validate_response(
+                            query=message_text,
+                            response=response_text,
+                            system_prompt=system_prompt,
+                            max_tokens=200
+                        )
 
-                    if not consistency_result.is_consistent:
-                        # Low confidence -> safe fallback
-                        creator_name = self.creator_config.get('name', 'el creador')
-                        if user_language == "es":
-                            response_text = f"Déjame confirmarlo con {creator_name} y te respondo enseguida."
-                        elif user_language == "en":
-                            response_text = f"Let me confirm this with {creator_name} and I'll get back to you shortly."
-                        elif user_language == "pt":
-                            response_text = f"Deixe-me confirmar isso com {creator_name} e já te respondo."
+                        # Log confidence for monitoring
+                        logger.info(
+                            f"Self-consistency: confidence={consistency_result.confidence:.2f}, "
+                            f"consistent={consistency_result.is_consistent}"
+                        )
+
+                        if not consistency_result.is_consistent:
+                            # Low confidence -> safe fallback
+                            creator_name = self.creator_config.get('name', 'el creador')
+                            if user_language == "es":
+                                response_text = f"Déjame confirmarlo con {creator_name} y te respondo enseguida."
+                            elif user_language == "en":
+                                response_text = f"Let me confirm this with {creator_name} and I'll get back to you shortly."
+                            elif user_language == "pt":
+                                response_text = f"Deixe-me confirmar isso com {creator_name} e já te respondo."
+                            else:
+                                response_text = f"Déjame confirmarlo con {creator_name} y te respondo enseguida."
+
+                            logger.info(f"Low confidence ({consistency_result.confidence:.2f}) - using safe fallback")
+
+                            # Record for analytics (optional: track escalations due to low confidence)
+                            try:
+                                record_escalation(self.creator_id, reason="low_confidence")
+                            except Exception:
+                                pass
                         else:
-                            response_text = f"Déjame confirmarlo con {creator_name} y te respondo enseguida."
+                            # Use validated response (may be refined by consistency check)
+                            response_text = consistency_result.response
 
-                        logger.info(f"Low confidence ({consistency_result.confidence:.2f}) - using safe fallback")
-
-                        # Record for analytics (optional: track escalations due to low confidence)
-                        try:
-                            record_escalation(self.creator_id, reason="low_confidence")
-                        except Exception:
-                            pass
-                    else:
-                        # Use validated response (may be refined by consistency check)
-                        response_text = consistency_result.response
-
-                except Exception as sc_error:
-                    logger.warning(f"Self-consistency check failed: {sc_error}")
-                    # Continue with original response on error
+                    except Exception as sc_error:
+                        logger.warning(f"Self-consistency check failed: {sc_error}")
+                        # Continue with original response on error
 
                 # Si el idioma no es espanol y la respuesta parece en espanol, traducir
                 if user_language != DEFAULT_LANGUAGE:
