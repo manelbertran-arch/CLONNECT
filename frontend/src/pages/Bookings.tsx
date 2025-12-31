@@ -250,10 +250,10 @@ export default function Bookings() {
   };
 
   const handleCancelBooking = async (bookingId: string, title: string) => {
-    if (!confirm(`Cancel "${title}"? This cannot be undone.`)) return;
+    if (!confirm(`Cancel "${title}"?\n\nThis will:\n• Remove it from your calendar\n• Delete the Google Calendar event\n• Notify the client via email\n\nThis action cannot be undone.`)) return;
     try {
       await cancelBookingMutation.mutateAsync(bookingId);
-      toast({ title: "Cancelled", description: `"${title}" has been cancelled` });
+      toast({ title: "Booking Cancelled", description: "The client has been notified" });
     } catch (error: any) {
       toast({ title: "Error", description: error.message || "Failed to cancel booking", variant: "destructive" });
     }
@@ -444,33 +444,34 @@ export default function Bookings() {
                       onClick={() => window.open(booking.meeting_url, "_blank")}
                     >
                       <Video className="w-4 h-4 mr-1" />
-                      Join Call
+                      Join
                     </Button>
                   )}
-                  {/* Contact client button */}
+                  {/* Reschedule button */}
                   {booking.guest_email && (
                     <Button
                       size="sm"
                       variant="outline"
-                      onClick={() => window.open(`mailto:${booking.guest_email}?subject=Regarding your booking: ${booking.title || booking.meeting_type}`, "_blank")}
-                      title="Contact client"
+                      onClick={() => window.open(`mailto:${booking.guest_email}?subject=Reschedule: ${booking.title || booking.meeting_type}&body=Hi ${booking.guest_name || ''},\n\nI need to reschedule our upcoming call. Would any of these times work for you?\n\n- [Option 1]\n- [Option 2]\n- [Option 3]\n\nLet me know what works best.\n\nBest regards`, "_blank")}
+                      title="Propose new time"
                     >
-                      <Mail className="w-4 h-4" />
+                      <Clock className="w-4 h-4 mr-1" />
+                      Reschedule
                     </Button>
                   )}
+                  {/* Cancel button */}
                   <Button
                     size="sm"
-                    variant="ghost"
-                    className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                    variant="destructive"
                     onClick={() => handleCancelBooking(booking.id, booking.title || booking.meeting_type)}
                     disabled={cancelBookingMutation.isPending}
-                    title="Cancel booking"
                   >
                     {cancelBookingMutation.isPending ? (
-                      <Loader2 className="w-4 h-4 animate-spin" />
+                      <Loader2 className="w-4 h-4 animate-spin mr-1" />
                     ) : (
-                      <Trash2 className="w-4 h-4" />
+                      <XCircle className="w-4 h-4 mr-1" />
                     )}
+                    Cancel
                   </Button>
                 </div>
               </div>

@@ -68,18 +68,37 @@ async def get_calendar_stats(creator_id: str, days: int = 30, db: Session = Depe
     """Get calendar statistics for a creator"""
     try:
         from datetime import datetime, timezone
+
         now = datetime.now(timezone.utc)
 
         bookings = db.query(CalendarBooking).filter(
             CalendarBooking.creator_id == creator_id
         ).all()
 
-        completed = sum(1 for b in bookings if b.status == "completed")
-        cancelled = sum(1 for b in bookings if b.status == "cancelled")
-        # Only count FUTURE scheduled bookings as upcoming
-        upcoming = sum(1 for b in bookings if b.status == "scheduled" and b.scheduled_at and b.scheduled_at > now)
-        # Total excludes cancelled (only count real bookings)
+        logger.info(f"Stats for {creator_id}: Found {len(bookings)} total bookings in DB")
+
+        completed = 0
+        cancelled = 0
+        upcoming = 0
+
+        for b in bookings:
+            if b.status == "completed":
+                completed += 1
+            elif b.status == "cancelled":
+                cancelled += 1
+            elif b.status == "scheduled":
+                # Handle timezone-aware comparison
+                if b.scheduled_at:
+                    scheduled_time = b.scheduled_at
+                    if scheduled_time.tzinfo is None:
+                        scheduled_time = scheduled_time.replace(tzinfo=timezone.utc)
+                    if scheduled_time > now:
+                        upcoming += 1
+
+        # Total = completed + upcoming (excludes cancelled)
         total = completed + upcoming
+
+        logger.info(f"Stats for {creator_id}: completed={completed}, cancelled={cancelled}, upcoming={upcoming}, total={total}")
 
         return {
             "status": "ok",
@@ -378,8 +397,14 @@ async def clear_history(creator_id: str, db: Session = Depends(get_db)):
 async def delete_history_item(creator_id: str, booking_id: str, db: Session = Depends(get_db)):
     """Delete a single history item (completed or cancelled booking)"""
     try:
+        import uuid as uuid_module
+        try:
+            booking_uuid = uuid_module.UUID(booking_id)
+        except ValueError:
+            raise HTTPException(status_code=400, detail="Invalid booking ID format")
+
         booking = db.query(CalendarBooking).filter(
-            CalendarBooking.id == booking_id,
+            CalendarBooking.id == booking_uuid,
             CalendarBooking.creator_id == creator_id,
             CalendarBooking.status.in_(["completed", "cancelled"])
         ).first()
