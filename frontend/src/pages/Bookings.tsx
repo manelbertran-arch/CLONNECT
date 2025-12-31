@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Calendar as CalendarIcon, Clock, Video, Users, CheckCircle2, XCircle, Loader2, AlertCircle, Plus, X, Trash2, Settings } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { useCalendarStats, useBookings, useBookingLinks, useCreateBookingLink, useDeleteBookingLink, useCancelBooking, useCalendlySyncStatus, useConnections } from "@/hooks/useApi";
+import { useCalendarStats, useBookings, useBookingLinks, useCreateBookingLink, useDeleteBookingLink, useCancelBooking, useConnections } from "@/hooks/useApi";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import { useNavigate } from "react-router-dom";
@@ -75,21 +75,6 @@ const PRICES = [
 // Platform logos - official brand colors and SVG paths
 const PlatformLogo = ({ platform, size = 24 }: { platform: string; size?: number }) => {
   switch (platform) {
-    case "calendly":
-      return (
-        <svg width={size} height={size} viewBox="0 0 24 24" fill="none">
-          <circle cx="12" cy="12" r="10" fill="#006BFF"/>
-          <path d="M12 6v6l4 2" stroke="white" strokeWidth="2" strokeLinecap="round"/>
-        </svg>
-      );
-    case "zoom":
-      return (
-        <svg width={size} height={size} viewBox="0 0 24 24" fill="none">
-          <rect width="24" height="24" rx="4" fill="#2D8CFF"/>
-          <path d="M4 8h10v8H4V8z" fill="white"/>
-          <path d="M14 10l6-3v10l-6-3v-4z" fill="white"/>
-        </svg>
-      );
     case "google-meet":
       return (
         <svg width={size} height={size} viewBox="0 0 24 24" fill="none">
@@ -99,6 +84,13 @@ const PlatformLogo = ({ platform, size = 24 }: { platform: string; size?: number
           <path d="M12 20l8-4" fill="#FFBA00"/>
           <path d="M12 20L4 16" fill="#EA4335"/>
           <circle cx="12" cy="12" r="3" fill="white"/>
+        </svg>
+      );
+    case "clonnect":
+      return (
+        <svg width={size} height={size} viewBox="0 0 24 24" fill="none">
+          <rect width="24" height="24" rx="4" fill="#6366F1"/>
+          <circle cx="12" cy="12" r="4" stroke="white" strokeWidth="2"/>
         </svg>
       );
     default:
@@ -116,26 +108,24 @@ export default function Bookings() {
   const { data: statsData, isLoading: statsLoading, error: statsError } = useCalendarStats();
   const { data: bookingsData, isLoading: bookingsLoading } = useBookings(undefined, true);
   const { data: linksData, isLoading: linksLoading, refetch: refetchLinks } = useBookingLinks();
-  const { data: syncStatus } = useCalendlySyncStatus();
   const { data: connectionsData } = useConnections();
   const createBookingLink = useCreateBookingLink();
   const deleteBookingLinkMutation = useDeleteBookingLink();
   const cancelBookingMutation = useCancelBooking();
   const { toast } = useToast();
 
-  // Check connected platforms
-  const calendlyConnected = syncStatus?.calendly_connected ?? false;
-  const zoomConnected = connectionsData?.zoom?.connected ?? false;
+  // Check connected platforms - only Google Meet is supported
   const googleConnected = connectionsData?.google?.connected ?? false;
 
   // Build available platforms based on connections
+  // Always include Clonnect (internal), optionally Google Meet
   const connectedPlatforms = [
-    ...(calendlyConnected ? [{ value: "calendly", label: "Calendly" }] : []),
-    ...(zoomConnected ? [{ value: "zoom", label: "Zoom" }] : []),
+    { value: "clonnect", label: "Clonnect" },
     ...(googleConnected ? [{ value: "google-meet", label: "Google Meet" }] : []),
   ];
 
-  const hasConnectedPlatforms = connectedPlatforms.length > 0;
+  // Always have at least Clonnect platform available
+  const hasConnectedPlatforms = true;
 
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [selectedServiceType, setSelectedServiceType] = useState("discovery");
@@ -148,7 +138,7 @@ export default function Bookings() {
     meeting_type: "discovery",
     title: "Discovery Call",
     url: "",
-    platform: connectedPlatforms[0]?.value || "calendly",
+    platform: "clonnect",
     duration_minutes: 30,
     description: "",
     price: 0,
@@ -215,11 +205,8 @@ export default function Bookings() {
   });
 
   const handleCreateLink = async () => {
-    // Validate URL - not required if platform is connected (will auto-create)
-    const isAutoCreate =
-      (newLink.platform === "calendly" && calendlyConnected) ||
-      (newLink.platform === "zoom" && zoomConnected) ||
-      (newLink.platform === "google-meet" && googleConnected);
+    // Clonnect and google-meet don't require URLs (auto-created on booking)
+    const isAutoCreate = newLink.platform === "clonnect" || (newLink.platform === "google-meet" && googleConnected);
 
     if (!newLink.url && !isAutoCreate) {
       toast({ title: "Error", description: "Booking URL is required", variant: "destructive" });
@@ -239,11 +226,9 @@ export default function Bookings() {
     }
 
     try {
-      const result = await createBookingLink.mutateAsync(newLink);
-      const message = result.auto_created
-        ? `Service created with ${newLink.platform === "calendly" ? "Calendly" : newLink.platform === "zoom" ? "Zoom" : "Google Meet"} link!`
-        : "Service created";
-      toast({ title: "Success", description: message });
+      await createBookingLink.mutateAsync(newLink);
+      const platformName = newLink.platform === "google-meet" ? "Google Meet" : "Clonnect";
+      toast({ title: "Success", description: `Service created (${platformName})` });
       setShowCreateForm(false);
       // Reset form
       setSelectedServiceType("discovery");
@@ -256,7 +241,7 @@ export default function Bookings() {
         meeting_type: "discovery",
         title: "Discovery Call",
         url: "",
-        platform: connectedPlatforms[0]?.value || "calendly",
+        platform: "clonnect",
         duration_minutes: 30,
         description: "",
         price: 0,
@@ -615,28 +600,22 @@ export default function Bookings() {
                 )}
 
                 {/* URL info based on platform */}
-                {(newLink.platform === "calendly" && calendlyConnected) ||
-                 (newLink.platform === "zoom" && zoomConnected) ||
-                 (newLink.platform === "google-meet" && googleConnected) ? (
+                {newLink.platform === "clonnect" ? (
                   <div className="mt-3 flex items-center gap-2 px-3 py-2 rounded bg-success/10 text-sm text-success">
                     <CheckCircle2 className="w-4 h-4 flex-shrink-0" />
-                    <span>
-                      {newLink.platform === "calendly" && "Calendly connected - link will be created automatically"}
-                      {newLink.platform === "zoom" && "Zoom connected - meeting will be created automatically"}
-                      {newLink.platform === "google-meet" && "Google Meet connected - link will be created automatically"}
-                    </span>
+                    <span>Internal Clonnect booking system - customers book via your booking page</span>
                   </div>
-                ) : (
-                  <div className="mt-3">
-                    <input
-                      type="url"
-                      placeholder="Paste your booking URL..."
-                      value={newLink.url}
-                      onChange={(e) => setNewLink(prev => ({ ...prev, url: e.target.value }))}
-                      className="w-full px-3 py-2 rounded border bg-background text-sm"
-                    />
+                ) : newLink.platform === "google-meet" && googleConnected ? (
+                  <div className="mt-3 flex items-center gap-2 px-3 py-2 rounded bg-success/10 text-sm text-success">
+                    <CheckCircle2 className="w-4 h-4 flex-shrink-0" />
+                    <span>Google Meet connected - video link will be created automatically when booked</span>
                   </div>
-                )}
+                ) : newLink.platform === "google-meet" && !googleConnected ? (
+                  <div className="mt-3 flex items-center gap-2 px-3 py-2 rounded bg-yellow-500/10 text-sm text-yellow-600">
+                    <AlertCircle className="w-4 h-4 flex-shrink-0" />
+                    <span>Connect Google in Settings to auto-generate Meet links</span>
+                  </div>
+                ) : null}
 
                 <div className="flex justify-end mt-4">
                   <Button onClick={handleCreateLink} disabled={createBookingLink.isPending}>
@@ -692,8 +671,8 @@ export default function Bookings() {
                         {formatPrice((link as any).price || 0)}
                       </span>
                     </div>
-                    <p className="text-xs text-muted-foreground">
-                      {link.platform === "zoom" ? "Zoom" : link.platform === "google-meet" ? "Google Meet" : link.platform === "calendly" ? "Calendly" : link.platform}
+                    <p className="text-xs text-muted-foreground capitalize">
+                      {link.platform === "google-meet" ? "Google Meet" : link.platform === "clonnect" ? "Clonnect" : link.platform}
                     </p>
                   </div>
                 </div>

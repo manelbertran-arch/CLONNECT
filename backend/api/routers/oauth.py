@@ -36,12 +36,6 @@ async def oauth_debug():
         "paypal": {
             "client_id_set": bool(os.getenv("PAYPAL_CLIENT_ID", "")),
         },
-        "calendly": {
-            "client_id_set": bool(os.getenv("CALENDLY_CLIENT_ID", "")),
-        },
-        "zoom": {
-            "client_id_set": bool(os.getenv("ZOOM_CLIENT_ID", "")),
-        },
         "google": {
             "client_id_set": bool(os.getenv("GOOGLE_CLIENT_ID", "")),
         }
@@ -508,227 +502,6 @@ async def paypal_oauth_callback(code: str = Query(...), state: str = Query("")):
 
 
 # =============================================================================
-# CALENDLY
-# =============================================================================
-CALENDLY_CLIENT_ID = os.getenv("CALENDLY_CLIENT_ID", "")
-CALENDLY_CLIENT_SECRET = os.getenv("CALENDLY_CLIENT_SECRET", "")
-CALENDLY_REDIRECT_URI = os.getenv("CALENDLY_REDIRECT_URI", f"{API_URL}/oauth/calendly/callback")
-
-# In-memory store for PKCE code_verifier (in production, use Redis or DB)
-_calendly_pkce_store: dict = {}
-
-
-def _generate_pkce_pair() -> tuple[str, str]:
-    """
-    Generate PKCE code_verifier and code_challenge pair.
-
-    Returns:
-        (code_verifier, code_challenge)
-    """
-    import hashlib
-    import base64
-
-    # Generate code_verifier: 43-128 characters, base64url
-    code_verifier = secrets.token_urlsafe(64)[:128]
-
-    # Generate code_challenge: SHA256(code_verifier), base64url encoded
-    code_challenge = base64.urlsafe_b64encode(
-        hashlib.sha256(code_verifier.encode()).digest()
-    ).decode().rstrip("=")
-
-    return code_verifier, code_challenge
-
-
-@router.get("/calendly/start")
-async def calendly_oauth_start(creator_id: str):
-    """Start Calendly OAuth flow with PKCE"""
-    if not CALENDLY_CLIENT_ID:
-        raise HTTPException(status_code=500, detail="CALENDLY_CLIENT_ID not configured")
-
-    # Generate PKCE pair
-    code_verifier, code_challenge = _generate_pkce_pair()
-
-    # Generate state with unique identifier
-    state_id = secrets.token_urlsafe(16)
-    state = f"{creator_id}:{state_id}"
-
-    # Store code_verifier for later retrieval (keyed by state_id)
-    _calendly_pkce_store[state_id] = code_verifier
-
-    params = {
-        "client_id": CALENDLY_CLIENT_ID,
-        "response_type": "code",
-        "redirect_uri": CALENDLY_REDIRECT_URI,
-        "state": state,
-        "code_challenge": code_challenge,
-        "code_challenge_method": "S256",
-    }
-
-    auth_url = f"https://auth.calendly.com/oauth/authorize?{urlencode(params)}"
-    return {"auth_url": auth_url, "state": state}
-
-
-@router.get("/calendly/callback")
-async def calendly_oauth_callback(code: str = Query(...), state: str = Query("")):
-    """Handle Calendly OAuth callback with PKCE"""
-    import httpx
-    from datetime import datetime, timezone, timedelta
-
-    if not CALENDLY_CLIENT_ID or not CALENDLY_CLIENT_SECRET:
-        raise HTTPException(status_code=500, detail="Calendly credentials not configured")
-
-    # Extract creator_id and state_id from state
-    parts = state.split(":")
-    creator_id = parts[0] if parts else "manel"
-    state_id = parts[1] if len(parts) > 1 else ""
-
-    # Retrieve code_verifier from store
-    code_verifier = _calendly_pkce_store.pop(state_id, None)
-
-    if not code_verifier:
-        logger.error(f"Calendly OAuth: code_verifier not found for state {state_id}")
-        return RedirectResponse(f"{FRONTEND_URL}/settings?tab=connections&error=calendly_invalid_state")
-
-    try:
-        async with httpx.AsyncClient() as client:
-            # Exchange code for access token (with PKCE code_verifier)
-            token_response = await client.post(
-                "https://auth.calendly.com/oauth/token",
-                data={
-                    "client_id": CALENDLY_CLIENT_ID,
-                    "client_secret": CALENDLY_CLIENT_SECRET,
-                    "code": code,
-                    "grant_type": "authorization_code",
-                    "redirect_uri": CALENDLY_REDIRECT_URI,
-                    "code_verifier": code_verifier,
-                }
-            )
-            token_data = token_response.json()
-
-            if "error" in token_data:
-                logger.error(f"Calendly token error: {token_data}")
-                return RedirectResponse(f"{FRONTEND_URL}/settings?tab=connections&error=calendly_auth_failed")
-
-            access_token = token_data.get("access_token")
-            refresh_token = token_data.get("refresh_token")
-            expires_in = token_data.get("expires_in", 7200)  # Default 2 hours
-
-            # Calculate expiration time
-            expires_at = datetime.now(timezone.utc) + timedelta(seconds=expires_in)
-
-            # Get user info
-            user_response = await client.get(
-                "https://api.calendly.com/users/me",
-                headers={"Authorization": f"Bearer {access_token}"}
-            )
-            user_data = user_response.json()
-            calendly_uri = user_data.get("resource", {}).get("uri", "")
-
-            # Save to database with refresh token and expiration
-            await _save_calendly_connection(
-                creator_id, access_token, refresh_token, expires_at, calendly_uri
-            )
-
-            logger.info(f"Calendly connected for {creator_id}, expires at {expires_at}")
-            return RedirectResponse(f"{FRONTEND_URL}/settings?tab=connections&success=calendly")
-
-    except Exception as e:
-        logger.error(f"Calendly OAuth error: {e}")
-        return RedirectResponse(f"{FRONTEND_URL}/settings?tab=connections&error=calendly_failed")
-
-
-# =============================================================================
-# ZOOM
-# =============================================================================
-ZOOM_CLIENT_ID = os.getenv("ZOOM_CLIENT_ID", "")
-ZOOM_CLIENT_SECRET = os.getenv("ZOOM_CLIENT_SECRET", "")
-ZOOM_REDIRECT_URI = os.getenv("ZOOM_REDIRECT_URI", f"{API_URL}/oauth/zoom/callback")
-
-
-@router.get("/zoom/start")
-async def zoom_oauth_start(creator_id: str):
-    """Start Zoom OAuth flow"""
-    if not ZOOM_CLIENT_ID:
-        raise HTTPException(status_code=500, detail="ZOOM_CLIENT_ID not configured")
-
-    state = f"{creator_id}:{secrets.token_urlsafe(16)}"
-
-    params = {
-        "client_id": ZOOM_CLIENT_ID,
-        "response_type": "code",
-        "redirect_uri": ZOOM_REDIRECT_URI,
-        "state": state,
-    }
-
-    auth_url = f"https://zoom.us/oauth/authorize?{urlencode(params)}"
-    return {"auth_url": auth_url, "state": state}
-
-
-@router.get("/zoom/callback")
-async def zoom_oauth_callback(code: str = Query(...), state: str = Query("")):
-    """Handle Zoom OAuth callback"""
-    import httpx
-    import base64
-    from datetime import datetime, timezone, timedelta
-
-    if not ZOOM_CLIENT_ID or not ZOOM_CLIENT_SECRET:
-        return RedirectResponse(f"{FRONTEND_URL}/settings?tab=connections&error=zoom_not_configured")
-
-    creator_id = state.split(":")[0] if ":" in state else "manel"
-
-    try:
-        # Create Basic Auth header
-        credentials = base64.b64encode(f"{ZOOM_CLIENT_ID}:{ZOOM_CLIENT_SECRET}".encode()).decode()
-
-        async with httpx.AsyncClient() as client:
-            # Exchange code for access token
-            token_response = await client.post(
-                "https://zoom.us/oauth/token",
-                headers={
-                    "Authorization": f"Basic {credentials}",
-                    "Content-Type": "application/x-www-form-urlencoded",
-                },
-                data={
-                    "grant_type": "authorization_code",
-                    "code": code,
-                    "redirect_uri": ZOOM_REDIRECT_URI,
-                }
-            )
-            token_data = token_response.json()
-
-            if "error" in token_data:
-                logger.error(f"Zoom token error: {token_data}")
-                return RedirectResponse(f"{FRONTEND_URL}/settings?tab=connections&error=zoom_auth_failed")
-
-            access_token = token_data.get("access_token")
-            refresh_token = token_data.get("refresh_token")
-            expires_in = token_data.get("expires_in", 3600)  # Default 1 hour
-
-            # Calculate expiration time
-            expires_at = datetime.now(timezone.utc) + timedelta(seconds=expires_in)
-
-            # Get user info
-            user_response = await client.get(
-                "https://api.zoom.us/v2/users/me",
-                headers={"Authorization": f"Bearer {access_token}"}
-            )
-            user_data = user_response.json()
-            zoom_email = user_data.get("email", "")
-
-            # Save to database
-            await _save_zoom_connection(
-                creator_id, access_token, refresh_token, expires_at, zoom_email
-            )
-
-            logger.info(f"Zoom connected for {creator_id}, expires at {expires_at}")
-            return RedirectResponse(f"{FRONTEND_URL}/settings?tab=connections&success=zoom")
-
-    except Exception as e:
-        logger.error(f"Zoom OAuth error: {e}")
-        return RedirectResponse(f"{FRONTEND_URL}/settings?tab=connections&error=zoom_failed")
-
-
-# =============================================================================
 # GOOGLE (for Google Meet via Calendar API)
 # =============================================================================
 GOOGLE_CLIENT_ID = os.getenv("GOOGLE_CLIENT_ID", "").strip()
@@ -888,8 +661,6 @@ async def _save_connection(creator_id: str, platform: str, token: str, extra_id:
                 elif platform == "paypal":
                     creator.paypal_token = token
                     creator.paypal_email = extra_id
-                elif platform == "calendly":
-                    creator.calendly_token = token
 
                 session.commit()
                 logger.info(f"Saved {platform} connection for {creator_id}")
@@ -898,258 +669,6 @@ async def _save_connection(creator_id: str, platform: str, token: str, extra_id:
     except Exception as e:
         logger.error(f"Error saving {platform} connection: {e}")
         raise
-
-
-async def _save_calendly_connection(
-    creator_id: str,
-    access_token: str,
-    refresh_token: str,
-    expires_at,
-    calendly_uri: str = None
-):
-    """Save Calendly OAuth connection with refresh token to database"""
-    try:
-        from api.database import DATABASE_URL, SessionLocal
-        if DATABASE_URL and SessionLocal:
-            session = SessionLocal()
-            try:
-                from api.models import Creator
-                creator = session.query(Creator).filter_by(name=creator_id).first()
-
-                if not creator:
-                    logger.warning(f"Creator {creator_id} not found, creating...")
-                    creator = Creator(name=creator_id, email=f"{creator_id}@clonnect.com")
-                    session.add(creator)
-
-                creator.calendly_token = access_token
-                creator.calendly_refresh_token = refresh_token
-                creator.calendly_token_expires_at = expires_at
-
-                session.commit()
-                logger.info(f"Saved Calendly connection for {creator_id} with refresh token")
-            finally:
-                session.close()
-    except Exception as e:
-        logger.error(f"Error saving Calendly connection: {e}")
-        raise
-
-
-async def refresh_calendly_token(creator_id: str) -> str:
-    """
-    Refresh Calendly access token using the refresh token.
-    Returns the new access token or raises an exception.
-    """
-    import httpx
-    from datetime import datetime, timezone, timedelta
-
-    try:
-        from api.database import DATABASE_URL, SessionLocal
-        if not DATABASE_URL or not SessionLocal:
-            raise Exception("Database not configured")
-
-        session = SessionLocal()
-        try:
-            from api.models import Creator
-            creator = session.query(Creator).filter_by(name=creator_id).first()
-
-            if not creator:
-                raise Exception(f"Creator {creator_id} not found")
-
-            if not creator.calendly_refresh_token:
-                raise Exception("No refresh token available - user must reconnect")
-
-            # Call Calendly token endpoint
-            async with httpx.AsyncClient() as client:
-                token_response = await client.post(
-                    "https://auth.calendly.com/oauth/token",
-                    data={
-                        "client_id": CALENDLY_CLIENT_ID,
-                        "client_secret": CALENDLY_CLIENT_SECRET,
-                        "refresh_token": creator.calendly_refresh_token,
-                        "grant_type": "refresh_token",
-                    }
-                )
-                token_data = token_response.json()
-
-                if "error" in token_data:
-                    logger.error(f"Calendly refresh error: {token_data}")
-                    # Clear tokens so user knows to reconnect
-                    creator.calendly_token = None
-                    creator.calendly_refresh_token = None
-                    creator.calendly_token_expires_at = None
-                    session.commit()
-                    raise Exception("Refresh token expired - user must reconnect")
-
-                new_access_token = token_data.get("access_token")
-                new_refresh_token = token_data.get("refresh_token", creator.calendly_refresh_token)
-                expires_in = token_data.get("expires_in", 7200)
-                expires_at = datetime.now(timezone.utc) + timedelta(seconds=expires_in)
-
-                # Update tokens in database
-                creator.calendly_token = new_access_token
-                creator.calendly_refresh_token = new_refresh_token
-                creator.calendly_token_expires_at = expires_at
-                session.commit()
-
-                logger.info(f"Refreshed Calendly token for {creator_id}, new expiry: {expires_at}")
-                return new_access_token
-
-        finally:
-            session.close()
-
-    except Exception as e:
-        logger.error(f"Error refreshing Calendly token: {e}")
-        raise
-
-
-async def get_valid_calendly_token(creator_id: str) -> str:
-    """
-    Get a valid Calendly access token, refreshing if necessary.
-    This should be called before any Calendly API request.
-    """
-    from datetime import datetime, timezone, timedelta
-
-    try:
-        from api.database import DATABASE_URL, SessionLocal
-        if not DATABASE_URL or not SessionLocal:
-            raise Exception("Database not configured")
-
-        session = SessionLocal()
-        try:
-            from api.models import Creator
-            creator = session.query(Creator).filter_by(name=creator_id).first()
-
-            if not creator:
-                raise Exception(f"Creator {creator_id} not found")
-
-            if not creator.calendly_token:
-                raise Exception("Calendly not connected")
-
-            # Check if token is expired or about to expire (within 10 minutes)
-            if creator.calendly_token_expires_at:
-                buffer = timedelta(minutes=10)
-                if datetime.now(timezone.utc) + buffer >= creator.calendly_token_expires_at:
-                    logger.info(f"Calendly token for {creator_id} expired or expiring soon, refreshing...")
-                    session.close()  # Close before async call
-                    return await refresh_calendly_token(creator_id)
-
-            return creator.calendly_token
-
-        finally:
-            if session:
-                session.close()
-
-    except Exception as e:
-        logger.error(f"Error getting valid Calendly token: {e}")
-        raise
-
-
-@router.get("/calendly/user-info")
-async def get_calendly_user_info(creator_id: str = Query("manel")):
-    """Get Calendly user info including scheduling URL"""
-    import httpx
-    try:
-        access_token = await get_valid_calendly_token(creator_id)
-
-        async with httpx.AsyncClient() as client:
-            response = await client.get(
-                "https://api.calendly.com/users/me",
-                headers={"Authorization": f"Bearer {access_token}"}
-            )
-
-            if response.status_code != 200:
-                raise HTTPException(status_code=response.status_code, detail="Failed to get Calendly user info")
-
-            data = response.json()
-            resource = data.get("resource", {})
-
-            return {
-                "status": "ok",
-                "creator_id": creator_id,
-                "calendly_connected": True,
-                "user_uri": resource.get("uri"),
-                "scheduling_url": resource.get("scheduling_url"),
-                "name": resource.get("name"),
-                "email": resource.get("email"),
-                "timezone": resource.get("timezone")
-            }
-    except Exception as e:
-        logger.error(f"Error getting Calendly user info: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
-
-
-@router.post("/calendly/update-booking-urls/{creator_id}")
-async def update_calendly_booking_urls(creator_id: str):
-    """Update all Calendly booking links with proper URLs"""
-    import httpx
-    try:
-        access_token = await get_valid_calendly_token(creator_id)
-
-        # Get user's scheduling URL
-        async with httpx.AsyncClient() as client:
-            user_response = await client.get(
-                "https://api.calendly.com/users/me",
-                headers={"Authorization": f"Bearer {access_token}"}
-            )
-
-            if user_response.status_code != 200:
-                raise HTTPException(status_code=500, detail="Failed to get Calendly user info")
-
-            user_data = user_response.json()
-            resource = user_data.get("resource", {})
-            user_uri = resource.get("uri")
-            scheduling_url = resource.get("scheduling_url", "")
-
-            if not scheduling_url:
-                raise HTTPException(status_code=400, detail="No scheduling URL found in Calendly")
-
-            # Get event types for more specific URLs
-            event_types_response = await client.get(
-                f"https://api.calendly.com/event_types?user={user_uri}&active=true",
-                headers={"Authorization": f"Bearer {access_token}"}
-            )
-
-            event_types = {}
-            if event_types_response.status_code == 200:
-                for et in event_types_response.json().get("collection", []):
-                    # Map by duration for matching
-                    duration = et.get("duration", 0)
-                    event_types[duration] = et.get("scheduling_url", "")
-
-        # Update booking links in database
-        from api.database import SessionLocal
-        from api.models import BookingLink
-
-        updated_count = 0
-        with SessionLocal() as db:
-            links = db.query(BookingLink).filter(
-                BookingLink.creator_id == creator_id,
-                BookingLink.platform == "calendly"
-            ).all()
-
-            for link in links:
-                if not link.url or link.url == "":
-                    # Try to match by duration first
-                    new_url = event_types.get(link.duration_minutes, scheduling_url)
-                    link.url = new_url
-                    updated_count += 1
-                    logger.info(f"Updated booking link {link.id} with URL: {new_url}")
-
-            db.commit()
-
-        return {
-            "status": "ok",
-            "creator_id": creator_id,
-            "updated_count": updated_count,
-            "scheduling_url": scheduling_url,
-            "event_types_found": len(event_types)
-        }
-
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error(f"Error updating Calendly booking URLs: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
 
 
 @router.get("/status/{creator_id}")
@@ -1215,18 +734,6 @@ async def get_oauth_status(creator_id: str):
                     "message": message
                 }
 
-            calendly_status = get_token_status(
-                creator.calendly_token,
-                creator.calendly_refresh_token,
-                creator.calendly_token_expires_at
-            )
-
-            zoom_status = get_token_status(
-                creator.zoom_access_token,
-                creator.zoom_refresh_token,
-                creator.zoom_token_expires_at
-            )
-
             google_status = get_token_status(
                 creator.google_access_token,
                 creator.google_refresh_token,
@@ -1237,21 +744,11 @@ async def get_oauth_status(creator_id: str):
                 "status": "ok",
                 "creator_id": creator_id,
                 "platforms": {
-                    "calendly": calendly_status,
-                    "zoom": zoom_status,
                     "google": google_status
                 },
                 "summary": {
-                    "total_connected": sum([
-                        calendly_status["connected"],
-                        zoom_status["connected"],
-                        google_status["connected"]
-                    ]),
-                    "needs_attention": any([
-                        calendly_status.get("status") in ["expired", "expiring_soon"],
-                        zoom_status.get("status") in ["expired", "expiring_soon"],
-                        google_status.get("status") in ["expired", "expiring_soon"]
-                    ])
+                    "total_connected": 1 if google_status["connected"] else 0,
+                    "needs_attention": google_status.get("status") in ["expired", "expiring_soon"]
                 }
             }
 
@@ -1259,59 +756,6 @@ async def get_oauth_status(creator_id: str):
         raise
     except Exception as e:
         logger.error(f"Error getting OAuth status: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
-
-
-@router.post("/refresh/calendly/{creator_id}")
-async def force_refresh_calendly(creator_id: str):
-    """Force refresh Calendly token"""
-    from datetime import datetime, timezone
-
-    try:
-        new_token = await refresh_calendly_token(creator_id)
-
-        # Get updated status
-        from api.database import SessionLocal
-        from api.models import Creator
-
-        with SessionLocal() as db:
-            creator = db.query(Creator).filter_by(name=creator_id).first()
-            expires_at = creator.calendly_token_expires_at if creator else None
-
-        return {
-            "status": "ok",
-            "message": "Calendly token refreshed successfully",
-            "token_preview": f"{new_token[:20]}..." if new_token else None,
-            "expires_at": expires_at.isoformat() if expires_at else None
-        }
-    except Exception as e:
-        logger.error(f"Error refreshing Calendly token: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
-
-
-@router.post("/refresh/zoom/{creator_id}")
-async def force_refresh_zoom(creator_id: str):
-    """Force refresh Zoom token"""
-    from datetime import datetime, timezone
-
-    try:
-        new_token = await refresh_zoom_token(creator_id)
-
-        from api.database import SessionLocal
-        from api.models import Creator
-
-        with SessionLocal() as db:
-            creator = db.query(Creator).filter_by(name=creator_id).first()
-            expires_at = creator.zoom_token_expires_at if creator else None
-
-        return {
-            "status": "ok",
-            "message": "Zoom token refreshed successfully",
-            "token_preview": f"{new_token[:20]}..." if new_token else None,
-            "expires_at": expires_at.isoformat() if expires_at else None
-        }
-    except Exception as e:
-        logger.error(f"Error refreshing Zoom token: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 
@@ -1339,40 +783,6 @@ async def force_refresh_google(creator_id: str):
     except Exception as e:
         logger.error(f"Error refreshing Google token: {e}")
         raise HTTPException(status_code=500, detail=str(e))
-
-
-async def _save_zoom_connection(
-    creator_id: str,
-    access_token: str,
-    refresh_token: str,
-    expires_at,
-    zoom_email: str = None
-):
-    """Save Zoom OAuth connection with refresh token to database"""
-    try:
-        from api.database import DATABASE_URL, SessionLocal
-        if DATABASE_URL and SessionLocal:
-            session = SessionLocal()
-            try:
-                from api.models import Creator
-                creator = session.query(Creator).filter_by(name=creator_id).first()
-
-                if not creator:
-                    logger.warning(f"Creator {creator_id} not found, creating...")
-                    creator = Creator(name=creator_id, email=f"{creator_id}@clonnect.com")
-                    session.add(creator)
-
-                creator.zoom_access_token = access_token
-                creator.zoom_refresh_token = refresh_token
-                creator.zoom_token_expires_at = expires_at
-
-                session.commit()
-                logger.info(f"Saved Zoom connection for {creator_id} ({zoom_email})")
-            finally:
-                session.close()
-    except Exception as e:
-        logger.error(f"Error saving Zoom connection: {e}")
-        raise
 
 
 async def _save_google_connection(
@@ -1406,122 +816,6 @@ async def _save_google_connection(
                 session.close()
     except Exception as e:
         logger.error(f"Error saving Google connection: {e}")
-        raise
-
-
-async def refresh_zoom_token(creator_id: str) -> str:
-    """
-    Refresh Zoom access token using the refresh token.
-    Returns the new access token or raises an exception.
-    """
-    import httpx
-    import base64
-    from datetime import datetime, timezone, timedelta
-
-    try:
-        from api.database import DATABASE_URL, SessionLocal
-        if not DATABASE_URL or not SessionLocal:
-            raise Exception("Database not configured")
-
-        session = SessionLocal()
-        try:
-            from api.models import Creator
-            creator = session.query(Creator).filter_by(name=creator_id).first()
-
-            if not creator:
-                raise Exception(f"Creator {creator_id} not found")
-
-            if not creator.zoom_refresh_token:
-                raise Exception("No Zoom refresh token available - user must reconnect")
-
-            # Create Basic Auth header
-            credentials = base64.b64encode(f"{ZOOM_CLIENT_ID}:{ZOOM_CLIENT_SECRET}".encode()).decode()
-
-            # Call Zoom token endpoint
-            async with httpx.AsyncClient() as client:
-                token_response = await client.post(
-                    "https://zoom.us/oauth/token",
-                    headers={
-                        "Authorization": f"Basic {credentials}",
-                        "Content-Type": "application/x-www-form-urlencoded",
-                    },
-                    data={
-                        "grant_type": "refresh_token",
-                        "refresh_token": creator.zoom_refresh_token,
-                    }
-                )
-                token_data = token_response.json()
-
-                if "error" in token_data:
-                    logger.error(f"Zoom refresh error: {token_data}")
-                    # Clear tokens so user knows to reconnect
-                    creator.zoom_access_token = None
-                    creator.zoom_refresh_token = None
-                    creator.zoom_token_expires_at = None
-                    session.commit()
-                    raise Exception("Zoom refresh token expired - user must reconnect")
-
-                new_access_token = token_data.get("access_token")
-                new_refresh_token = token_data.get("refresh_token", creator.zoom_refresh_token)
-                expires_in = token_data.get("expires_in", 3600)
-                expires_at = datetime.now(timezone.utc) + timedelta(seconds=expires_in)
-
-                # Update tokens in database
-                creator.zoom_access_token = new_access_token
-                creator.zoom_refresh_token = new_refresh_token
-                creator.zoom_token_expires_at = expires_at
-                session.commit()
-
-                logger.info(f"Refreshed Zoom token for {creator_id}, new expiry: {expires_at}")
-                return new_access_token
-
-        finally:
-            session.close()
-
-    except Exception as e:
-        logger.error(f"Error refreshing Zoom token: {e}")
-        raise
-
-
-async def get_valid_zoom_token(creator_id: str) -> str:
-    """
-    Get a valid Zoom access token, refreshing if necessary.
-    This should be called before any Zoom API request.
-    """
-    from datetime import datetime, timezone, timedelta
-
-    try:
-        from api.database import DATABASE_URL, SessionLocal
-        if not DATABASE_URL or not SessionLocal:
-            raise Exception("Database not configured")
-
-        session = SessionLocal()
-        try:
-            from api.models import Creator
-            creator = session.query(Creator).filter_by(name=creator_id).first()
-
-            if not creator:
-                raise Exception(f"Creator {creator_id} not found")
-
-            if not creator.zoom_access_token:
-                raise Exception("Zoom not connected")
-
-            # Check if token is expired or about to expire (within 10 minutes)
-            if creator.zoom_token_expires_at:
-                buffer = timedelta(minutes=10)
-                if datetime.now(timezone.utc) + buffer >= creator.zoom_token_expires_at:
-                    logger.info(f"Zoom token for {creator_id} expired or expiring soon, refreshing...")
-                    session.close()  # Close before async call
-                    return await refresh_zoom_token(creator_id)
-
-            return creator.zoom_access_token
-
-        finally:
-            if session:
-                session.close()
-
-    except Exception as e:
-        logger.error(f"Error getting valid Zoom token: {e}")
         raise
 
 
@@ -1634,4 +928,95 @@ async def get_valid_google_token(creator_id: str) -> str:
 
     except Exception as e:
         logger.error(f"Error getting valid Google token: {e}")
+        raise
+
+
+async def create_google_meet_event(
+    creator_id: str,
+    title: str,
+    start_time,
+    end_time,
+    guest_email: str = None,
+    guest_name: str = None,
+    description: str = None
+) -> dict:
+    """
+    Create a Google Calendar event with Google Meet link.
+
+    Args:
+        creator_id: The creator's ID
+        title: Event title
+        start_time: Event start datetime (timezone-aware)
+        end_time: Event end datetime (timezone-aware)
+        guest_email: Optional guest email to invite
+        guest_name: Optional guest name
+        description: Optional event description
+
+    Returns:
+        dict with event_id, meet_link, and calendar_link
+    """
+    import httpx
+
+    try:
+        access_token = await get_valid_google_token(creator_id)
+
+        # Build event data
+        event = {
+            "summary": title,
+            "description": description or f"Booking with {guest_name or 'guest'}",
+            "start": {
+                "dateTime": start_time.isoformat(),
+                "timeZone": "UTC"
+            },
+            "end": {
+                "dateTime": end_time.isoformat(),
+                "timeZone": "UTC"
+            },
+            "conferenceData": {
+                "createRequest": {
+                    "requestId": f"clonnect-{creator_id}-{start_time.timestamp()}",
+                    "conferenceSolutionKey": {"type": "hangoutsMeet"}
+                }
+            }
+        }
+
+        # Add attendee if email provided
+        if guest_email:
+            event["attendees"] = [{"email": guest_email, "displayName": guest_name or ""}]
+
+        async with httpx.AsyncClient() as client:
+            response = await client.post(
+                "https://www.googleapis.com/calendar/v3/calendars/primary/events",
+                params={"conferenceDataVersion": 1, "sendUpdates": "all" if guest_email else "none"},
+                headers={
+                    "Authorization": f"Bearer {access_token}",
+                    "Content-Type": "application/json"
+                },
+                json=event
+            )
+
+            if response.status_code != 200:
+                logger.error(f"Google Calendar API error: {response.status_code} - {response.text}")
+                raise Exception(f"Failed to create calendar event: {response.text}")
+
+            event_data = response.json()
+
+            # Extract Meet link
+            meet_link = None
+            if "conferenceData" in event_data:
+                entry_points = event_data["conferenceData"].get("entryPoints", [])
+                for ep in entry_points:
+                    if ep.get("entryPointType") == "video":
+                        meet_link = ep.get("uri")
+                        break
+
+            return {
+                "event_id": event_data.get("id"),
+                "meet_link": meet_link,
+                "calendar_link": event_data.get("htmlLink"),
+                "status": "confirmed"
+            }
+
+    except Exception as e:
+        logger.error(f"Error creating Google Meet event: {e}")
         raise
