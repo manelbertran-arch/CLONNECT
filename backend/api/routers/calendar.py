@@ -314,10 +314,26 @@ async def delete_booking_link(creator_id: str, link_id: str, db: Session = Depen
 async def reset_bookings(creator_id: str, db: Session = Depends(get_db)):
     """Delete all bookings for a creator (for testing/reset purposes)"""
     try:
-        # Delete all bookings for this creator
-        deleted_count = db.query(CalendarBooking).filter(
+        # First, get all booking IDs that will be deleted
+        bookings_to_delete = db.query(CalendarBooking).filter(
             CalendarBooking.creator_id == creator_id
-        ).delete()
+        ).all()
+
+        booking_ids = [b.id for b in bookings_to_delete]
+
+        if booking_ids:
+            # FIRST: Delete booking_slots that reference these calendar_bookings (FK constraint)
+            deleted_slots = db.query(BookingSlot).filter(
+                BookingSlot.calendar_booking_id.in_(booking_ids)
+            ).delete(synchronize_session=False)
+            logger.info(f"Deleted {deleted_slots} booking_slots during reset")
+
+            # THEN: Delete the calendar_bookings
+            deleted_count = db.query(CalendarBooking).filter(
+                CalendarBooking.id.in_(booking_ids)
+            ).delete(synchronize_session=False)
+        else:
+            deleted_count = 0
 
         db.commit()
 
@@ -378,10 +394,27 @@ async def cancel_booking(creator_id: str, booking_id: str, db: Session = Depends
 async def clear_history(creator_id: str, db: Session = Depends(get_db)):
     """Clear booking history (delete completed and cancelled bookings)"""
     try:
-        deleted_count = db.query(CalendarBooking).filter(
+        # First, get all booking IDs that will be deleted
+        bookings_to_delete = db.query(CalendarBooking).filter(
             CalendarBooking.creator_id == creator_id,
             CalendarBooking.status.in_(["completed", "cancelled"])
-        ).delete(synchronize_session=False)
+        ).all()
+
+        booking_ids = [b.id for b in bookings_to_delete]
+
+        if booking_ids:
+            # FIRST: Delete booking_slots that reference these calendar_bookings (FK constraint)
+            deleted_slots = db.query(BookingSlot).filter(
+                BookingSlot.calendar_booking_id.in_(booking_ids)
+            ).delete(synchronize_session=False)
+            logger.info(f"Deleted {deleted_slots} booking_slots for history clear")
+
+            # THEN: Delete the calendar_bookings
+            deleted_count = db.query(CalendarBooking).filter(
+                CalendarBooking.id.in_(booking_ids)
+            ).delete(synchronize_session=False)
+        else:
+            deleted_count = 0
 
         db.commit()
         logger.info(f"Cleared {deleted_count} history items for {creator_id}")
@@ -412,6 +445,14 @@ async def delete_history_item(creator_id: str, booking_id: str, db: Session = De
         if not booking:
             raise HTTPException(status_code=404, detail="History item not found")
 
+        # FIRST: Delete booking_slots that reference this calendar_booking (FK constraint)
+        deleted_slots = db.query(BookingSlot).filter(
+            BookingSlot.calendar_booking_id == booking_uuid
+        ).delete(synchronize_session=False)
+        if deleted_slots:
+            logger.info(f"Deleted {deleted_slots} booking_slots for history item {booking_id}")
+
+        # THEN: Delete the calendar_booking
         db.delete(booking)
         db.commit()
         logger.info(f"Deleted history item {booking_id} for {creator_id}")
