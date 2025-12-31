@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Calendar as CalendarIcon, Clock, Video, Users, CheckCircle2, XCircle, Loader2, AlertCircle, Plus, X, Trash2, Settings, Mail, History } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { useCalendarStats, useBookings, useBookingLinks, useCreateBookingLink, useDeleteBookingLink, useCancelBooking, useConnections } from "@/hooks/useApi";
+import { useCalendarStats, useBookings, useBookingLinks, useCreateBookingLink, useDeleteBookingLink, useCancelBooking, useClearBookingHistory, useDeleteHistoryItem, useConnections } from "@/hooks/useApi";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import { useNavigate } from "react-router-dom";
@@ -112,6 +112,8 @@ export default function Bookings() {
   const createBookingLink = useCreateBookingLink();
   const deleteBookingLinkMutation = useDeleteBookingLink();
   const cancelBookingMutation = useCancelBooking();
+  const clearHistoryMutation = useClearBookingHistory();
+  const deleteHistoryItemMutation = useDeleteHistoryItem();
   const { toast } = useToast();
 
   // Check if Google Calendar is connected (for auto Meet link generation)
@@ -257,6 +259,25 @@ export default function Bookings() {
     }
   };
 
+  const handleClearHistory = async () => {
+    if (!confirm("Clear all booking history? This cannot be undone.")) return;
+    try {
+      const result = await clearHistoryMutation.mutateAsync();
+      toast({ title: "Cleared", description: `Removed ${result.deleted_count} history items` });
+    } catch (error: any) {
+      toast({ title: "Error", description: error.message || "Failed to clear history", variant: "destructive" });
+    }
+  };
+
+  const handleDeleteHistoryItem = async (bookingId: string) => {
+    try {
+      await deleteHistoryItemMutation.mutateAsync(bookingId);
+      toast({ title: "Deleted", description: "History item removed" });
+    } catch (error: any) {
+      toast({ title: "Error", description: error.message || "Failed to delete", variant: "destructive" });
+    }
+  };
+
   // Loading state
   if (statsLoading) {
     return (
@@ -281,8 +302,6 @@ export default function Bookings() {
     total_bookings: 0,
     completed: 0,
     cancelled: 0,
-    no_show: 0,
-    show_rate: 0,
     upcoming: 0,
   };
   const bookings = bookingsData?.bookings || [];
@@ -346,12 +365,12 @@ export default function Bookings() {
 
         <div className="metric-card">
           <div className="flex items-center gap-3 mb-2">
-            <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
-              <Users className="w-5 h-5 text-primary" />
+            <div className="w-10 h-10 rounded-lg bg-destructive/10 flex items-center justify-center">
+              <XCircle className="w-5 h-5 text-destructive" />
             </div>
           </div>
-          <p className="text-3xl font-bold">{stats.show_rate.toFixed(0)}%</p>
-          <p className="text-sm text-muted-foreground">Show Rate</p>
+          <p className="text-3xl font-bold text-destructive">{stats.cancelled}</p>
+          <p className="text-sm text-muted-foreground">Cancelled</p>
         </div>
       </div>
 
@@ -462,10 +481,28 @@ export default function Bookings() {
 
       {/* Recent History - Completed and Cancelled bookings */}
       <div className="metric-card">
-        <h3 className="font-semibold mb-4 flex items-center gap-2">
-          <History className="w-5 h-5" />
-          Recent History
-        </h3>
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="font-semibold flex items-center gap-2">
+            <History className="w-5 h-5" />
+            Recent History
+          </h3>
+          {bookings.filter(b => b.status === "cancelled" || b.status === "completed").length > 0 && (
+            <Button
+              size="sm"
+              variant="ghost"
+              className="text-muted-foreground hover:text-destructive"
+              onClick={handleClearHistory}
+              disabled={clearHistoryMutation.isPending}
+            >
+              {clearHistoryMutation.isPending ? (
+                <Loader2 className="w-4 h-4 animate-spin mr-1" />
+              ) : (
+                <Trash2 className="w-4 h-4 mr-1" />
+              )}
+              Clear All
+            </Button>
+          )}
+        </div>
         {bookingsLoading ? (
           <div className="flex justify-center py-4">
             <Loader2 className="w-6 h-6 animate-spin text-primary" />
@@ -521,18 +558,31 @@ export default function Bookings() {
                     </p>
                   </div>
                 </div>
-                {/* Contact button for cancelled - maybe they want to reschedule */}
-                {booking.status === "cancelled" && booking.guest_email && (
+                <div className="flex items-center gap-1">
+                  {/* Contact button for cancelled - maybe they want to reschedule */}
+                  {booking.status === "cancelled" && booking.guest_email && (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => window.open(`mailto:${booking.guest_email}?subject=Reschedule your booking?&body=Hi ${booking.guest_name || ''},\n\nI noticed you cancelled your booking. Would you like to reschedule for another time?\n\nBest regards`, "_blank")}
+                      title="Offer to reschedule"
+                    >
+                      <Mail className="w-4 h-4 mr-1" />
+                      Reschedule?
+                    </Button>
+                  )}
+                  {/* Delete individual history item */}
                   <Button
                     size="sm"
-                    variant="outline"
-                    onClick={() => window.open(`mailto:${booking.guest_email}?subject=Reschedule your booking?&body=Hi ${booking.guest_name || ''},\n\nI noticed you cancelled your booking. Would you like to reschedule for another time?\n\nBest regards`, "_blank")}
-                    title="Offer to reschedule"
+                    variant="ghost"
+                    className="text-muted-foreground hover:text-destructive h-8 w-8 p-0"
+                    onClick={() => handleDeleteHistoryItem(booking.id)}
+                    disabled={deleteHistoryItemMutation.isPending}
+                    title="Remove from history"
                   >
-                    <Mail className="w-4 h-4 mr-1" />
-                    Reschedule?
+                    <X className="w-4 h-4" />
                   </Button>
-                )}
+                </div>
               </div>
             ))}
           </div>
