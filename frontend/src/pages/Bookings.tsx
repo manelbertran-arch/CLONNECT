@@ -386,21 +386,24 @@ export default function Bookings() {
         </div>
       </div>
 
-      {/* Upcoming Bookings - Only show scheduled calls */}
+      {/* Upcoming Bookings - Only show scheduled calls in the future */}
       <div className="metric-card">
         <h3 className="font-semibold mb-4">Upcoming Calls</h3>
         {bookingsLoading ? (
           <div className="flex justify-center py-8">
             <Loader2 className="w-6 h-6 animate-spin text-primary" />
           </div>
-        ) : bookings.filter(b => b.status === "scheduled").length === 0 ? (
+        ) : bookings.filter(b => b.status === "scheduled" && new Date(b.scheduled_at) > new Date()).length === 0 ? (
           <div className="text-center py-8 text-muted-foreground">
             <CalendarIcon className="w-12 h-12 mx-auto mb-3 opacity-50" />
             <p>No upcoming calls scheduled</p>
           </div>
         ) : (
-          <div className="space-y-2">
-            {bookings.filter(b => b.status === "scheduled").slice(0, 5).map((booking) => (
+          <div className="space-y-2 max-h-[400px] overflow-y-auto pr-2">
+            {bookings
+              .filter(b => b.status === "scheduled" && new Date(b.scheduled_at) > new Date())
+              .sort((a, b) => new Date(a.scheduled_at).getTime() - new Date(b.scheduled_at).getTime())
+              .map((booking) => (
               <div
                 key={booking.id}
                 className="flex items-center justify-between gap-3 p-3 rounded-lg border bg-card hover:bg-accent/5 transition-colors"

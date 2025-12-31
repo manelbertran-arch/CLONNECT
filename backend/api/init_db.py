@@ -78,18 +78,10 @@ def init_database():
     run_migrations(engine)
     print("Migrations complete!")
 
-    # Clean up booking_links - delete ALL for manel to remove duplicates
+    # NOTE: Removed automatic cleanup of booking_links - was causing services to be deleted
+    # Only clean up debug test entries if needed
     with engine.connect() as conn:
         try:
-            # Delete ALL booking_links for manel (duplicates cleanup)
-            result = conn.execute(text(
-                "DELETE FROM booking_links WHERE creator_id = 'manel'"
-            ))
-            conn.commit()
-            if result.rowcount > 0:
-                print(f"Cleaned up {result.rowcount} booking_links for manel")
-
-            # Also delete debug test entries
             result = conn.execute(text(
                 "DELETE FROM booking_links WHERE meeting_type = 'debug_test'"
             ))
@@ -97,7 +89,7 @@ def init_database():
             if result.rowcount > 0:
                 print(f"Deleted {result.rowcount} debug_test booking_links")
         except Exception as e:
-            print(f"Note: Could not clean up booking_links: {e}")
+            print(f"Note: Could not clean up debug booking_links: {e}")
     
     with Session(engine) as session:
         existing = session.query(Creator).filter_by(name="manel").first()
