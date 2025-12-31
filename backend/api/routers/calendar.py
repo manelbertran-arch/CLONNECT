@@ -389,17 +389,36 @@ async def create_booking_link(creator_id: str, data: dict = Body(...), db: Sessi
                     name=data.get("title", "Meeting"),
                     duration=data.get("duration_minutes", 30)
                 )
-                if result["success"]:
+                if result["success"] and result.get("scheduling_url"):
                     url = result["scheduling_url"]
                     auto_created = True
                     logger.info(f"Auto-created Calendly event for {creator_id}: {url}")
                 else:
-                    auto_create_error = result.get("error")
+                    auto_create_error = result.get("error", "No URL returned")
                     url = result.get("scheduling_url", "")
+                    if url:
+                        auto_created = True
                     logger.warning(f"Calendly auto-create partial: {auto_create_error}")
             except Exception as e:
                 auto_create_error = str(e)
                 logger.warning(f"Calendly auto-create failed for {creator_id}: {e}")
+
+                # Fallback: try to get user's base scheduling URL directly
+                try:
+                    access_token = await get_valid_calendly_token(creator_id)
+                    async with httpx.AsyncClient() as client:
+                        user_response = await client.get(
+                            "https://api.calendly.com/users/me",
+                            headers={"Authorization": f"Bearer {access_token}"}
+                        )
+                        if user_response.status_code == 200:
+                            user_data = user_response.json()
+                            url = user_data.get("resource", {}).get("scheduling_url", "")
+                            if url:
+                                auto_created = True
+                                logger.info(f"Got Calendly scheduling URL directly: {url}")
+                except Exception as e2:
+                    logger.error(f"Fallback to get Calendly URL also failed: {e2}")
 
         # If platform is Zoom and no URL provided, try to auto-create
         elif platform == "zoom" and not url:
