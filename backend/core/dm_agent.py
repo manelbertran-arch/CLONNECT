@@ -645,19 +645,39 @@ class DMResponderAgent:
             logger.error(f"Error loading booking links: {e}")
             return []
 
-    def _format_booking_response(self, links: list, language: str = "es") -> str:
-        """Format booking links as a friendly message with internal Clonnect URLs"""
+    def _get_service_emoji(self, meeting_type: str) -> str:
+        """Get emoji for service type"""
+        emoji_map = {
+            "discovery": "🔍",
+            "coaching": "🎯",
+            "consultation": "💼",
+            "consultoria": "💼",
+            "mentoring": "🧠",
+            "mentoria": "🧠",
+            "strategy": "📊",
+        }
+        if "qa" in meeting_type.lower() or "q&a" in meeting_type.lower():
+            return "❓"
+        return emoji_map.get(meeting_type, "📞")
+
+    def _format_booking_response(self, links: list, language: str = "es", platform: str = "instagram") -> dict:
+        """
+        Format booking links as a friendly message with internal Clonnect URLs.
+        Returns dict with 'text' and optionally 'telegram_keyboard' for inline buttons.
+        """
         if not links:
             creator_name = self.creator_config.get('name', 'el creador')
             if language == "es":
-                return f"Actualmente no tengo servicios de llamada configurados. Contacta directamente con {creator_name} para agendar."
+                text = f"Actualmente no tengo servicios de llamada configurados. Contacta directamente con {creator_name} para agendar."
             else:
-                return f"I don't have any call services set up right now. Contact {creator_name} directly to schedule."
+                text = f"I don't have any call services set up right now. Contact {creator_name} directly to schedule."
+            return {"text": text}
 
         # Frontend URL for internal booking system
         frontend_url = os.getenv("FRONTEND_URL", "https://clonnect.vercel.app")
 
-        # Format each link with internal Clonnect booking URL
+        # Build keyboard for Telegram (list of button rows)
+        telegram_keyboard = []
         formatted_links = []
 
         for link in links:
@@ -665,22 +685,9 @@ class DMResponderAgent:
             duration = link.get('duration_minutes', 30)
             price = link.get('price', 0)
             title = link.get('title', 'Llamada')
-
-            # Emoji based on meeting type
             meeting_type = link.get('meeting_type', 'call')
-            emoji = "📞"
-            if meeting_type == "discovery":
-                emoji = "🔍"
-            elif meeting_type == "coaching":
-                emoji = "🎯"
-            elif meeting_type == "consultation" or meeting_type == "consultoria":
-                emoji = "💼"
-            elif meeting_type == "mentoring" or meeting_type == "mentoria":
-                emoji = "🧠"
-            elif "qa" in meeting_type.lower() or "q&a" in meeting_type.lower():
-                emoji = "❓"
-            elif "strategy" in meeting_type.lower():
-                emoji = "📊"
+
+            emoji = self._get_service_emoji(meeting_type)
 
             # Price text
             if price == 0:
@@ -690,17 +697,39 @@ class DMResponderAgent:
 
             # Generate internal Clonnect booking URL
             booking_url = f"{frontend_url}/book/{self.creator_id}/{service_id}"
-            formatted_links.append(f"{emoji} {title} - {duration} min - {price_text}\n   👉 {booking_url}")
 
-        # Build response
-        if language == "es":
-            intro = "¡Genial! Estos son mis servicios disponibles:\n\n"
-            outro = "\n\nHaz clic en el servicio que te interese para elegir tu horario."
+            # For Telegram: create button
+            button_text = f"{emoji} {title} ({duration} min) - {price_text}"
+            telegram_keyboard.append({
+                "text": button_text,
+                "url": booking_url
+            })
+
+            # For Instagram/other: text with URL
+            formatted_links.append(f"{emoji} {title} - {duration} min - {price_text}\n   ➜ {booking_url}")
+
+        # Build response based on platform
+        if platform == "telegram":
+            # Telegram gets short intro + inline buttons
+            if language == "es":
+                text = "¡Genial! Elige el servicio que te interese:"
+            else:
+                text = "Great! Choose the service you're interested in:"
+
+            return {
+                "text": text,
+                "telegram_keyboard": telegram_keyboard
+            }
         else:
-            intro = "Great! Here are my available services:\n\n"
-            outro = "\n\nClick on the service you're interested in to choose your time slot."
+            # Instagram/other gets full text with URLs
+            if language == "es":
+                intro = "¡Genial! Estos son mis servicios disponibles:\n\n"
+                outro = "\n\nHaz clic en el que te interese para elegir tu horario."
+            else:
+                intro = "Great! Here are my available services:\n\n"
+                outro = "\n\nClick on the one you're interested in to choose your time slot."
 
-        return intro + "\n\n".join(formatted_links) + outro
+            return {"text": intro + "\n\n".join(formatted_links) + outro}
 
     def _classify_intent(self, message: str) -> tuple:
         """Clasificar intención del mensaje por keywords"""
@@ -1291,16 +1320,29 @@ USA ESTA RESPUESTA PARA LA OBJECION (adaptala a tu tono):
         if intent == Intent.BOOKING:
             booking_links = self._load_booking_links()
             user_language = follower.preferred_language or "es"
-            response_text = self._format_booking_response(booking_links, user_language)
+
+            # Detect platform from sender_id
+            platform = "telegram" if sender_id.startswith("tg_") else "instagram"
+
+            # Get formatted response (returns dict with 'text' and optionally 'telegram_keyboard')
+            booking_response = self._format_booking_response(booking_links, user_language, platform)
+            response_text = booking_response.get("text", "")
+
             await self._update_memory(follower, message_text, response_text, intent)
 
-            logger.info(f"Booking intent detected - found {len(booking_links)} links")
+            logger.info(f"Booking intent detected - found {len(booking_links)} links (platform: {platform})")
+
+            # Include telegram keyboard in metadata if present
+            metadata = {}
+            if "telegram_keyboard" in booking_response:
+                metadata["telegram_keyboard"] = booking_response["telegram_keyboard"]
 
             return DMResponse(
                 response_text=response_text,
                 intent=intent,
                 action_taken="show_booking_links",
-                confidence=confidence
+                confidence=confidence,
+                metadata=metadata
             )
 
         # Buscar producto relevante
