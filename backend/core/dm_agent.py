@@ -664,6 +664,7 @@ class DMResponderAgent:
         """
         Format booking links as a friendly message with internal Clonnect URLs.
         Returns dict with 'text' and optionally 'telegram_keyboard' for inline buttons.
+        For Telegram, uses callback_data for in-chat booking flow instead of URLs.
         """
         if not links:
             creator_name = self.creator_config.get('name', 'el creador')
@@ -695,14 +696,14 @@ class DMResponderAgent:
             else:
                 price_text = f"{price}€"
 
-            # Generate internal Clonnect booking URL
+            # Generate internal Clonnect booking URL (for fallback/Instagram)
             booking_url = f"{frontend_url}/book/{self.creator_id}/{service_id}"
 
-            # For Telegram: create button
+            # For Telegram: create button with callback_data for in-chat booking
             button_text = f"{emoji} {title} ({duration} min) - {price_text}"
             telegram_keyboard.append({
                 "text": button_text,
-                "url": booking_url
+                "callback_data": f"book_svc:{service_id}"  # In-Telegram booking flow
             })
 
             # For Instagram/other: text with URL
@@ -712,9 +713,9 @@ class DMResponderAgent:
         if platform == "telegram":
             # Telegram gets short intro + inline buttons
             if language == "es":
-                text = "¡Genial! Elige el servicio que te interese:"
+                text = "📅 ¡Reserva tu llamada conmigo!\n\nElige el servicio que te interese:"
             else:
-                text = "Great! Choose the service you're interested in:"
+                text = "📅 Book a call with me!\n\nChoose the service you're interested in:"
 
             return {
                 "text": text,
