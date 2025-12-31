@@ -21,6 +21,19 @@ function formatTime(dateString: string): string {
   });
 }
 
+function formatDateTimeFull(dateString: string, durationMinutes: number): string {
+  const date = new Date(dateString);
+  const endDate = new Date(date.getTime() + durationMinutes * 60000);
+
+  const weekday = date.toLocaleDateString("es-ES", { weekday: "short" }).toUpperCase();
+  const day = date.getDate();
+  const month = date.toLocaleDateString("es-ES", { month: "short" }).toUpperCase();
+  const startTime = date.toLocaleTimeString("es-ES", { hour: "2-digit", minute: "2-digit" });
+  const endTime = endDate.toLocaleTimeString("es-ES", { hour: "2-digit", minute: "2-digit" });
+
+  return `${weekday}, ${day} ${month} • ${startTime} - ${endTime}`;
+}
+
 const statusColors: Record<string, string> = {
   scheduled: "bg-primary/10 text-primary",
   completed: "bg-success/10 text-success",
@@ -387,56 +400,45 @@ export default function Bookings() {
             <p>No upcoming calls scheduled</p>
           </div>
         ) : (
-          <div className="space-y-2 max-h-[400px] overflow-y-auto pr-2">
+          <div className="space-y-3 max-h-[500px] overflow-y-auto pr-2">
             {bookings
               .filter(b => b.status === "scheduled" && new Date(b.scheduled_at) > new Date())
               .sort((a, b) => new Date(a.scheduled_at).getTime() - new Date(b.scheduled_at).getTime())
               .map((booking) => (
               <div
                 key={booking.id}
-                className="flex items-center justify-between gap-3 p-4 rounded-lg border bg-card hover:bg-accent/5 transition-colors"
+                className="p-4 rounded-lg border bg-card hover:bg-accent/5 transition-colors"
               >
-                <div className="flex items-center gap-3 flex-1 min-w-0">
-                  {/* Date box */}
-                  <div className="w-14 h-14 rounded-lg bg-primary/10 flex flex-col items-center justify-center shrink-0">
-                    <span className="text-[10px] text-muted-foreground uppercase">
-                      {formatDate(booking.scheduled_at).split(" ")[0]}
-                    </span>
-                    <span className="text-xl font-bold leading-none">
-                      {new Date(booking.scheduled_at).getDate()}
-                    </span>
-                    <span className="text-[10px] text-muted-foreground">
-                      {formatTime(booking.scheduled_at)}
-                    </span>
-                  </div>
-                  {/* Info */}
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 mb-1">
-                      <span className="font-semibold truncate">
-                        {booking.guest_name || booking.follower_name || "Guest"}
-                      </span>
-                      <span className="text-xs px-1.5 py-0.5 rounded bg-secondary text-muted-foreground">
-                        {booking.duration_minutes} min
-                      </span>
-                    </div>
-                    <p className="text-sm text-muted-foreground truncate">
-                      {booking.title || booking.meeting_type}
-                    </p>
-                    <div className="flex items-center gap-2 mt-1">
-                      {booking.guest_email && (
-                        <span className="text-xs text-muted-foreground truncate">
-                          {booking.guest_email}
-                        </span>
-                      )}
-                      {booking.platform && (
-                        <span className="text-xs px-1.5 py-0.5 rounded bg-primary/10 text-primary capitalize">
-                          {booking.platform}
-                        </span>
-                      )}
-                    </div>
-                  </div>
+                {/* Date & Time - Top */}
+                <div className="flex items-center gap-2 mb-3 text-sm text-primary font-medium">
+                  <CalendarIcon className="w-4 h-4" />
+                  {formatDateTimeFull(booking.scheduled_at, booking.duration_minutes)}
                 </div>
-                <div className="flex items-center gap-2 flex-shrink-0">
+
+                {/* Service Name */}
+                <h4 className="font-semibold text-base mb-2">
+                  {booking.title || booking.meeting_type}
+                  <span className="text-muted-foreground font-normal ml-2">
+                    ({booking.duration_minutes} min)
+                  </span>
+                </h4>
+
+                {/* Client Info */}
+                <div className="space-y-1 mb-4">
+                  <div className="flex items-center gap-2 text-sm">
+                    <Users className="w-4 h-4 text-muted-foreground" />
+                    <span>{booking.guest_name || booking.follower_name || "Guest"}</span>
+                  </div>
+                  {booking.guest_email && (
+                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                      <Mail className="w-4 h-4" />
+                      <span>{booking.guest_email}</span>
+                    </div>
+                  )}
+                </div>
+
+                {/* Action Buttons */}
+                <div className="flex items-center gap-2 flex-wrap">
                   {booking.meeting_url && (
                     <Button
                       size="sm"
@@ -444,25 +446,23 @@ export default function Bookings() {
                       onClick={() => window.open(booking.meeting_url, "_blank")}
                     >
                       <Video className="w-4 h-4 mr-1" />
-                      Join
+                      Join Meet
                     </Button>
                   )}
-                  {/* Reschedule button */}
                   {booking.guest_email && (
                     <Button
                       size="sm"
                       variant="outline"
                       onClick={() => window.open(`mailto:${booking.guest_email}?subject=Reschedule: ${booking.title || booking.meeting_type}&body=Hi ${booking.guest_name || ''},\n\nI need to reschedule our upcoming call. Would any of these times work for you?\n\n- [Option 1]\n- [Option 2]\n- [Option 3]\n\nLet me know what works best.\n\nBest regards`, "_blank")}
-                      title="Propose new time"
                     >
-                      <Clock className="w-4 h-4 mr-1" />
-                      Reschedule
+                      <Mail className="w-4 h-4 mr-1" />
+                      Contact
                     </Button>
                   )}
-                  {/* Cancel button */}
                   <Button
                     size="sm"
-                    variant="destructive"
+                    variant="ghost"
+                    className="text-destructive hover:text-destructive hover:bg-destructive/10"
                     onClick={() => handleCancelBooking(booking.id, booking.title || booking.meeting_type)}
                     disabled={cancelBookingMutation.isPending}
                   >
