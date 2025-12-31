@@ -1044,6 +1044,114 @@ async def get_valid_calendly_token(creator_id: str) -> str:
         raise
 
 
+@router.get("/calendly/user-info")
+async def get_calendly_user_info(creator_id: str = Query("manel")):
+    """Get Calendly user info including scheduling URL"""
+    import httpx
+    try:
+        access_token = await get_valid_calendly_token(creator_id)
+
+        async with httpx.AsyncClient() as client:
+            response = await client.get(
+                "https://api.calendly.com/users/me",
+                headers={"Authorization": f"Bearer {access_token}"}
+            )
+
+            if response.status_code != 200:
+                raise HTTPException(status_code=response.status_code, detail="Failed to get Calendly user info")
+
+            data = response.json()
+            resource = data.get("resource", {})
+
+            return {
+                "status": "ok",
+                "creator_id": creator_id,
+                "calendly_connected": True,
+                "user_uri": resource.get("uri"),
+                "scheduling_url": resource.get("scheduling_url"),
+                "name": resource.get("name"),
+                "email": resource.get("email"),
+                "timezone": resource.get("timezone")
+            }
+    except Exception as e:
+        logger.error(f"Error getting Calendly user info: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/calendly/update-booking-urls/{creator_id}")
+async def update_calendly_booking_urls(creator_id: str):
+    """Update all Calendly booking links with proper URLs"""
+    import httpx
+    try:
+        access_token = await get_valid_calendly_token(creator_id)
+
+        # Get user's scheduling URL
+        async with httpx.AsyncClient() as client:
+            user_response = await client.get(
+                "https://api.calendly.com/users/me",
+                headers={"Authorization": f"Bearer {access_token}"}
+            )
+
+            if user_response.status_code != 200:
+                raise HTTPException(status_code=500, detail="Failed to get Calendly user info")
+
+            user_data = user_response.json()
+            resource = user_data.get("resource", {})
+            user_uri = resource.get("uri")
+            scheduling_url = resource.get("scheduling_url", "")
+
+            if not scheduling_url:
+                raise HTTPException(status_code=400, detail="No scheduling URL found in Calendly")
+
+            # Get event types for more specific URLs
+            event_types_response = await client.get(
+                f"https://api.calendly.com/event_types?user={user_uri}&active=true",
+                headers={"Authorization": f"Bearer {access_token}"}
+            )
+
+            event_types = {}
+            if event_types_response.status_code == 200:
+                for et in event_types_response.json().get("collection", []):
+                    # Map by duration for matching
+                    duration = et.get("duration", 0)
+                    event_types[duration] = et.get("scheduling_url", "")
+
+        # Update booking links in database
+        from api.database import SessionLocal
+        from api.models import BookingLink
+
+        updated_count = 0
+        with SessionLocal() as db:
+            links = db.query(BookingLink).filter(
+                BookingLink.creator_id == creator_id,
+                BookingLink.platform == "calendly"
+            ).all()
+
+            for link in links:
+                if not link.url or link.url == "":
+                    # Try to match by duration first
+                    new_url = event_types.get(link.duration_minutes, scheduling_url)
+                    link.url = new_url
+                    updated_count += 1
+                    logger.info(f"Updated booking link {link.id} with URL: {new_url}")
+
+            db.commit()
+
+        return {
+            "status": "ok",
+            "creator_id": creator_id,
+            "updated_count": updated_count,
+            "scheduling_url": scheduling_url,
+            "event_types_found": len(event_types)
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error updating Calendly booking URLs: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 async def _save_zoom_connection(
     creator_id: str,
     access_token: str,
