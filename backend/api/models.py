@@ -1,4 +1,4 @@
-from sqlalchemy import Column, String, Integer, Float, Boolean, DateTime, Text, JSON, ForeignKey
+from sqlalchemy import Column, String, Integer, Float, Boolean, DateTime, Text, JSON, ForeignKey, Date, Time
 from sqlalchemy.dialects.postgresql import UUID, ARRAY
 from sqlalchemy.sql import func
 import uuid
@@ -137,5 +137,39 @@ class CalendarBooking(Base):
     cancel_reason = Column(Text)
     cancelled_at = Column(DateTime(timezone=True))
     extra_data = Column(JSON, default=dict)  # Renamed from metadata - reserved in SQLAlchemy
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+
+
+class CreatorAvailability(Base):
+    """Creator's weekly availability schedule"""
+    __tablename__ = "creator_availability"
+    __table_args__ = {'extend_existing': True}
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    creator_id = Column(String(255), nullable=False, index=True)
+    day_of_week = Column(Integer, nullable=False)  # 0=Monday, 1=Tuesday, ..., 6=Sunday
+    start_time = Column(Time, nullable=False)  # e.g. 09:00
+    end_time = Column(Time, nullable=False)  # e.g. 17:00
+    is_active = Column(Boolean, default=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+
+
+class BookingSlot(Base):
+    """Individual booking slots for a specific date"""
+    __tablename__ = "booking_slots"
+    __table_args__ = {'extend_existing': True}
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    creator_id = Column(String(255), nullable=False, index=True)
+    service_id = Column(UUID(as_uuid=True), ForeignKey("booking_links.id"), nullable=False)
+    date = Column(Date, nullable=False)
+    start_time = Column(Time, nullable=False)
+    end_time = Column(Time, nullable=False)
+    status = Column(String(20), default="available")  # available, booked, cancelled
+    booked_by_name = Column(String(255))
+    booked_by_email = Column(String(255))
+    booked_by_phone = Column(String(50))
+    meeting_url = Column(Text)  # Generated when booking is confirmed
+    calendar_booking_id = Column(UUID(as_uuid=True), ForeignKey("calendar_bookings.id"))  # Link to CalendarBooking
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())

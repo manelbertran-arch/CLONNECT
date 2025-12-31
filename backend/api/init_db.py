@@ -62,10 +62,10 @@ def init_database():
 
     try:
         from api.database import Base
-        from api.models import Creator, Lead, Message, Product, NurturingSequence, KnowledgeBase, BookingLink, CalendarBooking
+        from api.models import Creator, Lead, Message, Product, NurturingSequence, KnowledgeBase, BookingLink, CalendarBooking, CreatorAvailability, BookingSlot
     except:
         from database import Base
-        from models import Creator, Lead, Message, Product, NurturingSequence, KnowledgeBase, BookingLink, CalendarBooking
+        from models import Creator, Lead, Message, Product, NurturingSequence, KnowledgeBase, BookingLink, CalendarBooking, CreatorAvailability, BookingSlot
 
     print(f"Creating engine with DATABASE_URL configured: {bool(DATABASE_URL)}")
     engine = create_engine(DATABASE_URL)
