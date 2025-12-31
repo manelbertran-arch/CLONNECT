@@ -351,25 +351,13 @@ async def reserve_slot(creator_id: str, data: dict = Body(...), db: Session = De
         except Exception as e:
             logger.warning(f"Could not get Zoom URL: {e}")
 
-        # Create booking slot
-        slot = BookingSlot(
-            id=uuid.uuid4(),
-            creator_id=creator_id,
-            service_id=service_uuid,
-            date=target_date,
-            start_time=start_time,
-            end_time=end_time,
-            status="booked",
-            booked_by_name=name,
-            booked_by_email=email,
-            booked_by_phone=phone,
-            meeting_url=meeting_url
-        )
-        db.add(slot)
+        # Generate IDs upfront
+        slot_id = uuid.uuid4()
+        calendar_booking_id = uuid.uuid4()
 
-        # Also create CalendarBooking for dashboard
+        # FIRST: Create and save CalendarBooking (must exist before BookingSlot references it)
         calendar_booking = CalendarBooking(
-            id=uuid.uuid4(),
+            id=calendar_booking_id,
             creator_id=creator_id,
             follower_id=email,
             meeting_type=service.title or service.meeting_type,
@@ -381,13 +369,28 @@ async def reserve_slot(creator_id: str, data: dict = Body(...), db: Session = De
             guest_email=email,
             guest_phone=phone,
             meeting_url=meeting_url,
-            external_id=str(slot.id),  # Link to BookingSlot
+            external_id=str(slot_id),  # Link to BookingSlot
             extra_data={"source": "internal_booking", "service_id": str(service_uuid)}
         )
         db.add(calendar_booking)
+        db.flush()  # Ensure CalendarBooking is inserted before BookingSlot
 
-        # Link slot to calendar booking
-        slot.calendar_booking_id = calendar_booking.id
+        # THEN: Create BookingSlot with reference to CalendarBooking
+        slot = BookingSlot(
+            id=slot_id,
+            creator_id=creator_id,
+            service_id=service_uuid,
+            date=target_date,
+            start_time=start_time,
+            end_time=end_time,
+            status="booked",
+            booked_by_name=name,
+            booked_by_email=email,
+            booked_by_phone=phone,
+            meeting_url=meeting_url,
+            calendar_booking_id=calendar_booking_id
+        )
+        db.add(slot)
 
         db.commit()
 
