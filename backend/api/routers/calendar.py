@@ -8,10 +8,10 @@ import httpx
 
 try:
     from api.database import get_db
-    from api.models import BookingLink, CalendarBooking, Creator
+    from api.models import BookingLink, CalendarBooking, Creator, BookingSlot
 except:
     from database import get_db
-    from models import BookingLink, CalendarBooking, Creator
+    from models import BookingLink, CalendarBooking, Creator, BookingSlot
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/calendar", tags=["calendar"])
@@ -683,21 +683,38 @@ async def update_booking_link(creator_id: str, link_id: str, data: dict = Body(.
 
 @router.delete("/{creator_id}/links/{link_id}")
 async def delete_booking_link(creator_id: str, link_id: str, db: Session = Depends(get_db)):
-    """Delete a booking link"""
+    """Delete a booking link and all associated booking slots"""
     try:
+        # Convert to UUID
+        try:
+            link_uuid = uuid.UUID(link_id)
+        except ValueError:
+            raise HTTPException(status_code=400, detail="Invalid link_id format")
+
         link = db.query(BookingLink).filter(
-            BookingLink.id == link_id,
+            BookingLink.id == link_uuid,
             BookingLink.creator_id == creator_id
         ).first()
 
         if not link:
             raise HTTPException(status_code=404, detail="Link not found")
 
+        # FIRST: Delete all booking_slots that reference this service
+        deleted_slots = db.query(BookingSlot).filter(
+            BookingSlot.service_id == link_uuid
+        ).delete()
+
+        # THEN: Delete the booking link
         db.delete(link)
         db.commit()
-        logger.info(f"DELETE /calendar/{creator_id}/links/{link_id} - Deleted")
 
-        return {"status": "ok", "message": "Link deleted"}
+        logger.info(f"DELETE /calendar/{creator_id}/links/{link_id} - Deleted (with {deleted_slots} slots)")
+
+        return {
+            "status": "ok",
+            "message": "Link deleted",
+            "deleted_slots": deleted_slots
+        }
     except HTTPException:
         raise
     except Exception as e:
