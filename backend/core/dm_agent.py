@@ -720,7 +720,18 @@ class DMResponderAgent:
         if any(w in msg for w in ['interesa', 'cuentame', 'cuéntame', 'info', 'información', 'saber mas', 'saber más', 'como funciona', 'cómo funciona']):
             return Intent.INTEREST_SOFT, 0.85
 
-        # Saludos (solo si NO hay interés)
+        # Booking / Agendar llamada - ANTES de saludos para que "hola, quiero agendar" sea BOOKING
+        if any(w in msg for w in [
+            'agendar', 'reservar', 'llamada', 'reunion', 'reunión', 'cita',
+            'agenda', 'book', 'booking', 'appointment', 'schedule',
+            'videollamada', 'zoom', 'meet', 'calendly', 'hablar contigo',
+            'cuando podemos hablar', 'podemos hablar', 'disponibilidad',
+            'sesion', 'sesión', 'consulta', 'consultoria', 'consultoría',
+            'coaching', 'mentoria', 'mentoría', 'discovery'
+        ]):
+            return Intent.BOOKING, 0.90
+
+        # Saludos (solo si NO hay interés ni booking)
         if any(w in msg for w in ['hola', 'hey', 'ey', 'buenas', 'buenos dias', 'que tal', 'hi']):
             return Intent.GREETING, 0.90
 
@@ -767,17 +778,6 @@ class DMResponderAgent:
         # Lead magnet
         if any(w in msg for w in ['gratis', 'free', 'sin pagar', 'regalo', 'gratuito']):
             return Intent.LEAD_MAGNET, 0.90
-
-        # Booking / Agendar llamada
-        if any(w in msg for w in [
-            'agendar', 'reservar', 'llamada', 'reunion', 'reunión', 'cita',
-            'agenda', 'book', 'booking', 'appointment', 'schedule', 'call',
-            'videollamada', 'zoom', 'meet', 'calendly', 'hablar contigo',
-            'cuando podemos hablar', 'podemos hablar', 'disponibilidad',
-            'sesion', 'sesión', 'consulta', 'consultoria', 'consultoría',
-            'coaching', 'mentoria', 'mentoría', 'discovery'
-        ]):
-            return Intent.BOOKING, 0.90
 
         # Agradecimiento
         if any(w in msg for w in ['gracias', 'genial', 'perfecto', 'guay', 'thanks']):
