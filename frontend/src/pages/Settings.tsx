@@ -52,21 +52,6 @@ const PlatformLogo = ({ platform, size = 20 }: { platform: string; size?: number
           <path d="M7 9h4c2 0 3 1 3 2.5S13 14 11 14H9l-.5 3H6l1-8z" fill="#009CDE"/>
         </svg>
       );
-    case "calendly":
-      return (
-        <svg width={size} height={size} viewBox="0 0 24 24" fill="none">
-          <circle cx="12" cy="12" r="12" fill="#006BFF"/>
-          <path d="M12 6v6l4 2" stroke="white" strokeWidth="2" strokeLinecap="round"/>
-        </svg>
-      );
-    case "zoom":
-      return (
-        <svg width={size} height={size} viewBox="0 0 24 24" fill="none">
-          <rect width="24" height="24" rx="4" fill="#2D8CFF"/>
-          <rect x="4" y="8" width="10" height="8" rx="1" fill="white"/>
-          <path d="M14 10l5-2v8l-5-2v-4z" fill="white"/>
-        </svg>
-      );
     case "google":
       return (
         <svg width={size} height={size} viewBox="0 0 24 24" fill="none">
@@ -168,26 +153,10 @@ const connectionConfigs: ConnectionConfig[] = [
   },
   // Scheduling
   {
-    key: "calendly",
-    name: "Calendly",
-    icon: "📅",
-    description: "Sync your booking calendar",
-    oauth: true,
-    section: "scheduling",
-  },
-  {
-    key: "zoom",
-    name: "Zoom",
-    icon: "📹",
-    description: "Create video meetings automatically",
-    oauth: true,
-    section: "scheduling",
-  },
-  {
     key: "google",
-    name: "Google Meet",
+    name: "Google Calendar + Meet",
     icon: "🎥",
-    description: "Create Meet links via Calendar API",
+    description: "Auto-create Google Meet links for bookings",
     oauth: true,
     section: "scheduling",
   },

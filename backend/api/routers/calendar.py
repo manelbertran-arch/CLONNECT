@@ -17,122 +17,10 @@ logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/calendar", tags=["calendar"])
 
 @router.get("/{creator_id}/bookings")
-async def get_bookings(creator_id: str, upcoming: bool = True, sync: bool = True, db: Session = Depends(get_db)):
-    """Get all bookings for a creator. Auto-syncs with Calendly if connected."""
+async def get_bookings(creator_id: str, upcoming: bool = True, db: Session = Depends(get_db)):
+    """Get all bookings for a creator."""
     try:
-        synced_count = 0
-
-        # Auto-sync with Calendly if connected and sync=True
-        if sync:
-            try:
-                creator = db.query(Creator).filter(Creator.name == creator_id).first()
-                if creator and creator.calendly_token:
-                    # Import sync function and call it
-                    try:
-                        from api.routers.oauth import get_valid_calendly_token
-                    except:
-                        from routers.oauth import get_valid_calendly_token
-
-                    try:
-                        access_token = await get_valid_calendly_token(creator_id)
-                        # Inline sync to avoid circular imports
-                        async with httpx.AsyncClient() as client:
-                            user_response = await client.get(
-                                "https://api.calendly.com/users/me",
-                                headers={"Authorization": f"Bearer {access_token}"}
-                            )
-                            if user_response.status_code == 200:
-                                user_uri = user_response.json().get("resource", {}).get("uri")
-                                if user_uri:
-                                    from datetime import timedelta
-                                    now = datetime.now(timezone.utc)
-                                    min_time = (now - timedelta(days=30)).isoformat()
-                                    max_time = (now + timedelta(days=60)).isoformat()
-
-                                    events_response = await client.get(
-                                        "https://api.calendly.com/scheduled_events",
-                                        headers={"Authorization": f"Bearer {access_token}"},
-                                        params={
-                                            "user": user_uri,
-                                            "min_start_time": min_time,
-                                            "max_start_time": max_time,
-                                            "count": 100
-                                        }
-                                    )
-                                    if events_response.status_code == 200:
-                                        events = events_response.json().get("collection", [])
-                                        for event in events:
-                                            event_uri = event.get("uri", "")
-                                            external_id = event_uri.split("/")[-1] if event_uri else None
-                                            if not external_id:
-                                                continue
-
-                                            existing = db.query(CalendarBooking).filter(
-                                                CalendarBooking.external_id == external_id,
-                                                CalendarBooking.creator_id == creator_id
-                                            ).first()
-
-                                            if existing:
-                                                # Update status if needed
-                                                calendly_status = event.get("status", "active")
-                                                new_status = "scheduled" if calendly_status == "active" else "cancelled"
-                                                if existing.status != new_status and existing.status != "completed":
-                                                    existing.status = new_status
-                                                continue
-
-                                            # Get invitee info
-                                            invitees_response = await client.get(
-                                                f"{event_uri}/invitees",
-                                                headers={"Authorization": f"Bearer {access_token}"}
-                                            )
-                                            invitee_data = {}
-                                            if invitees_response.status_code == 200:
-                                                invitees = invitees_response.json().get("collection", [])
-                                                if invitees:
-                                                    invitee_data = invitees[0]
-
-                                            start_time = event.get("start_time")
-                                            end_time = event.get("end_time")
-                                            duration = 30
-                                            if start_time and end_time:
-                                                start_dt = datetime.fromisoformat(start_time.replace("Z", "+00:00"))
-                                                end_dt = datetime.fromisoformat(end_time.replace("Z", "+00:00"))
-                                                duration = int((end_dt - start_dt).total_seconds() / 60)
-
-                                            location = event.get("location", {})
-                                            meeting_url = ""
-                                            if isinstance(location, dict):
-                                                meeting_url = location.get("join_url", "") or location.get("location", "")
-
-                                            calendly_status = event.get("status", "active")
-                                            booking_status = "scheduled" if calendly_status == "active" else "cancelled"
-
-                                            booking = CalendarBooking(
-                                                id=uuid.uuid4(),
-                                                creator_id=creator_id,
-                                                follower_id=invitee_data.get("email", "unknown"),
-                                                meeting_type=event.get("name", "Meeting"),
-                                                platform="calendly",
-                                                status=booking_status,
-                                                scheduled_at=datetime.fromisoformat(start_time.replace("Z", "+00:00")) if start_time else None,
-                                                duration_minutes=duration,
-                                                guest_name=invitee_data.get("name", ""),
-                                                guest_email=invitee_data.get("email", ""),
-                                                meeting_url=meeting_url,
-                                                external_id=external_id,
-                                                extra_data={"calendly_event": event}
-                                            )
-                                            db.add(booking)
-                                            synced_count += 1
-
-                                        db.commit()
-                                        logger.info(f"Auto-synced {synced_count} Calendly events for {creator_id}")
-                    except Exception as e:
-                        logger.debug(f"Calendly auto-sync skipped: {e}")
-            except Exception as e:
-                logger.debug(f"Calendly auto-sync error: {e}")
-
-        # Also update status of past bookings
+        # Update status of past bookings
         now = datetime.now(timezone.utc)
         past_scheduled = db.query(CalendarBooking).filter(
             CalendarBooking.creator_id == creator_id,
@@ -153,7 +41,6 @@ async def get_bookings(creator_id: str, upcoming: bool = True, sync: bool = True
         return {
             "status": "ok",
             "creator_id": creator_id,
-            "synced": synced_count,
             "bookings": [
                 {
                     "id": str(b.id),
@@ -174,7 +61,7 @@ async def get_bookings(creator_id: str, upcoming: bool = True, sync: bool = True
         }
     except Exception as e:
         logger.error(f"Error getting bookings: {e}")
-        return {"status": "ok", "creator_id": creator_id, "bookings": [], "count": 0, "synced": 0}
+        return {"status": "ok", "creator_id": creator_id, "bookings": [], "count": 0}
 
 @router.get("/{creator_id}/stats")
 async def get_calendar_stats(creator_id: str, days: int = 30, db: Session = Depends(get_db)):
@@ -243,249 +130,11 @@ async def get_booking_links(creator_id: str, db: Session = Depends(get_db)):
 MAX_BOOKING_LINKS = 5
 
 
-async def get_zoom_personal_meeting_url(access_token: str) -> dict:
-    """
-    Get the user's Personal Meeting URL from Zoom.
-    This is a REUSABLE link that can be used for multiple meetings.
-    """
-    async with httpx.AsyncClient() as client:
-        # Get user info including personal meeting URL
-        user_response = await client.get(
-            "https://api.zoom.us/v2/users/me",
-            headers={"Authorization": f"Bearer {access_token}"}
-        )
-
-        if user_response.status_code == 200:
-            user_data = user_response.json()
-            personal_meeting_url = user_data.get("personal_meeting_url", "")
-            pmi = user_data.get("pmi", "")
-
-            logger.info(f"Zoom user info: pmi={pmi}, personal_meeting_url={personal_meeting_url}")
-
-            if personal_meeting_url:
-                return {
-                    "success": True,
-                    "join_url": personal_meeting_url,
-                    "pmi": pmi,
-                    "note": "Using Personal Meeting URL (reusable)"
-                }
-
-            # Fallback: construct PMI URL if we have the PMI
-            if pmi:
-                constructed_url = f"https://zoom.us/j/{pmi}"
-                return {
-                    "success": True,
-                    "join_url": constructed_url,
-                    "pmi": pmi,
-                    "note": "Using constructed PMI URL"
-                }
-
-            return {
-                "success": False,
-                "join_url": "",
-                "error": "No Personal Meeting URL found. Enable PMI in Zoom settings."
-            }
-        else:
-            logger.warning(f"Zoom user info failed: {user_response.status_code} - {user_response.text}")
-            return {
-                "success": False,
-                "join_url": "",
-                "error": f"Could not get Zoom user info. Status: {user_response.status_code}"
-            }
-
-
-async def create_google_calendar_event(access_token: str, name: str, duration: int) -> dict:
-    """
-    Create a Google Calendar event with automatic Google Meet link.
-    Returns the Meet join URL.
-    """
-    from datetime import datetime, timedelta, timezone
-    import uuid
-
-    async with httpx.AsyncClient() as client:
-        # Create a calendar event for tomorrow (as a template)
-        # The user can then use the Meet link for their bookings
-        tomorrow = datetime.now(timezone.utc) + timedelta(days=1)
-        start_time = tomorrow.replace(hour=10, minute=0, second=0, microsecond=0)
-        end_time = start_time + timedelta(minutes=duration)
-
-        event_data = {
-            "summary": name,
-            "description": f"Booking: {name} ({duration} min)",
-            "start": {
-                "dateTime": start_time.isoformat(),
-                "timeZone": "UTC"
-            },
-            "end": {
-                "dateTime": end_time.isoformat(),
-                "timeZone": "UTC"
-            },
-            "conferenceData": {
-                "createRequest": {
-                    "requestId": str(uuid.uuid4()),
-                    "conferenceSolutionKey": {
-                        "type": "hangoutsMeet"
-                    }
-                }
-            }
-        }
-
-        event_response = await client.post(
-            "https://www.googleapis.com/calendar/v3/calendars/primary/events",
-            headers={
-                "Authorization": f"Bearer {access_token}",
-                "Content-Type": "application/json"
-            },
-            params={
-                "conferenceDataVersion": 1  # Required for Meet link creation
-            },
-            json=event_data
-        )
-
-        if event_response.status_code in [200, 201]:
-            response_data = event_response.json()
-            conference_data = response_data.get("conferenceData", {})
-            entry_points = conference_data.get("entryPoints", [])
-
-            # Find the video entry point (Google Meet link)
-            meet_link = ""
-            for entry in entry_points:
-                if entry.get("entryPointType") == "video":
-                    meet_link = entry.get("uri", "")
-                    break
-
-            if meet_link:
-                # Delete the template event (we just wanted the Meet link)
-                event_id = response_data.get("id")
-                if event_id:
-                    await client.delete(
-                        f"https://www.googleapis.com/calendar/v3/calendars/primary/events/{event_id}",
-                        headers={"Authorization": f"Bearer {access_token}"}
-                    )
-
-                return {
-                    "success": True,
-                    "meet_link": meet_link,
-                    "event_id": event_id
-                }
-            else:
-                return {
-                    "success": False,
-                    "meet_link": "",
-                    "error": "Event created but no Meet link generated"
-                }
-        else:
-            logger.warning(f"Google Calendar event creation failed: {event_response.status_code} - {event_response.text}")
-            return {
-                "success": False,
-                "meet_link": "",
-                "error": f"Could not create Google Calendar event. Status: {event_response.status_code}"
-            }
-
-
-async def create_calendly_event_type(access_token: str, name: str, duration: int) -> dict:
-    """
-    Get a REUSABLE Calendly scheduling URL.
-
-    IMPORTANT: We do NOT use one_off_event_types because those are single-use links!
-    Instead, we:
-    1. Look for an existing event type that matches the duration
-    2. If not found, use the user's base scheduling URL
-
-    This ensures the booking link can be used by multiple people.
-    """
-    async with httpx.AsyncClient() as client:
-        # First, get user info including scheduling URL
-        user_response = await client.get(
-            "https://api.calendly.com/users/me",
-            headers={"Authorization": f"Bearer {access_token}"}
-        )
-        if user_response.status_code != 200:
-            logger.error(f"Failed to get Calendly user info: {user_response.status_code}")
-            raise Exception("Failed to get Calendly user info")
-
-        user_data = user_response.json()
-        resource = user_data.get("resource", {})
-        user_uri = resource.get("uri")
-        scheduling_url_base = resource.get("scheduling_url", "")
-
-        logger.info(f"Calendly user info: uri={user_uri}, scheduling_url={scheduling_url_base}")
-
-        if not user_uri:
-            raise Exception("Could not get Calendly user URI")
-
-        # Strategy 1: Find an existing event type that matches the duration
-        try:
-            events_response = await client.get(
-                f"https://api.calendly.com/event_types?user={user_uri}&active=true",
-                headers={"Authorization": f"Bearer {access_token}"}
-            )
-            if events_response.status_code == 200:
-                events_data = events_response.json()
-                event_types = events_data.get("collection", [])
-
-                logger.info(f"Found {len(event_types)} Calendly event types")
-
-                # Try to find one with matching duration
-                best_match = None
-                for event_type in event_types:
-                    event_duration = event_type.get("duration", 0)
-                    event_url = event_type.get("scheduling_url", "")
-                    event_name = event_type.get("name", "")
-
-                    logger.info(f"  - Event type: {event_name}, duration={event_duration}min, url={event_url}")
-
-                    if event_duration == duration and event_url:
-                        # Perfect match!
-                        logger.info(f"Found matching event type: {event_name} ({duration}min)")
-                        return {
-                            "success": True,
-                            "scheduling_url": event_url,
-                            "event_uri": event_type.get("uri", ""),
-                            "note": f"Using existing event type: {event_name}"
-                        }
-
-                    # Keep track of any valid event type as fallback
-                    if event_url and not best_match:
-                        best_match = event_type
-
-                # No exact duration match, use any available event type
-                if best_match:
-                    best_url = best_match.get("scheduling_url", "")
-                    best_name = best_match.get("name", "")
-                    logger.info(f"No exact duration match, using: {best_name}")
-                    return {
-                        "success": True,
-                        "scheduling_url": best_url,
-                        "event_uri": best_match.get("uri", ""),
-                        "note": f"Using existing event type: {best_name} (different duration)"
-                    }
-
-        except Exception as e:
-            logger.warning(f"Failed to get event types: {e}")
-
-        # Strategy 2: Use user's base scheduling URL (shows all event types)
-        if scheduling_url_base:
-            logger.info(f"Using Calendly base scheduling URL: {scheduling_url_base}")
-            return {
-                "success": True,
-                "scheduling_url": scheduling_url_base,
-                "event_uri": "",
-                "note": "Using base scheduling URL (user can choose event type)"
-            }
-
-        return {
-            "success": False,
-            "scheduling_url": "",
-            "error": "No Calendly event types found. Please create one in Calendly first."
-        }
-
-
 @router.post("/{creator_id}/links")
 async def create_booking_link(creator_id: str, data: dict = Body(...), db: Session = Depends(get_db)):
     """
     Create a new booking link in PostgreSQL.
-    Auto-creates links in connected platforms (Calendly, Zoom, Google Meet).
+    Supports Google Meet (auto-creates links) and manual platforms.
     """
     try:
         # Check limit of booking links per creator
@@ -498,103 +147,27 @@ async def create_booking_link(creator_id: str, data: dict = Body(...), db: Sessi
                 detail=f"Maximum {MAX_BOOKING_LINKS} booking links allowed per creator"
             )
 
-        platform = data.get("platform", "manual")
-        url = data.get("url")
-        auto_created = False
+        platform = data.get("platform", "clonnect")  # Default to internal Clonnect system
+        url = data.get("url", "")
         auto_create_error = None
 
-        # Import token helpers
-        try:
-            from api.routers.oauth import get_valid_calendly_token, get_valid_zoom_token, get_valid_google_token
-        except:
-            from routers.oauth import get_valid_calendly_token, get_valid_zoom_token, get_valid_google_token
-
-        # If platform is Calendly and no URL provided, try to auto-create
-        if platform == "calendly" and not url:
+        # For google-meet platform, we don't pre-create links
+        # Meet links are generated when a booking is confirmed
+        if platform == "google-meet":
+            # Verify Google is connected
             try:
-                access_token = await get_valid_calendly_token(creator_id)
-                result = await create_calendly_event_type(
-                    access_token=access_token,
-                    name=data.get("title", "Meeting"),
-                    duration=data.get("duration_minutes", 30)
-                )
-                if result["success"] and result.get("scheduling_url"):
-                    url = result["scheduling_url"]
-                    auto_created = True
-                    logger.info(f"Auto-created Calendly event for {creator_id}: {url}")
-                else:
-                    auto_create_error = result.get("error", "No URL returned")
-                    url = result.get("scheduling_url", "")
-                    if url:
-                        auto_created = True
-                    logger.warning(f"Calendly auto-create partial: {auto_create_error}")
-            except Exception as e:
-                auto_create_error = str(e)
-                logger.warning(f"Calendly auto-create failed for {creator_id}: {e}")
+                from api.routers.oauth import get_valid_google_token
+            except:
+                from routers.oauth import get_valid_google_token
 
-                # Fallback: try to get user's base scheduling URL directly
-                try:
-                    access_token = await get_valid_calendly_token(creator_id)
-                    async with httpx.AsyncClient() as client:
-                        user_response = await client.get(
-                            "https://api.calendly.com/users/me",
-                            headers={"Authorization": f"Bearer {access_token}"}
-                        )
-                        if user_response.status_code == 200:
-                            user_data = user_response.json()
-                            url = user_data.get("resource", {}).get("scheduling_url", "")
-                            if url:
-                                auto_created = True
-                                logger.info(f"Got Calendly scheduling URL directly: {url}")
-                except Exception as e2:
-                    logger.error(f"Fallback to get Calendly URL also failed: {e2}")
-
-        # If platform is Zoom and no URL provided, get Personal Meeting URL
-        elif platform == "zoom" and not url:
             try:
-                access_token = await get_valid_zoom_token(creator_id)
-                result = await get_zoom_personal_meeting_url(access_token)
-                if result["success"]:
-                    url = result["join_url"]
-                    auto_created = True
-                    logger.info(f"Got Zoom Personal Meeting URL for {creator_id}: {url}")
-                else:
-                    auto_create_error = result.get("error")
-                    logger.warning(f"Zoom URL failed: {auto_create_error}")
+                await get_valid_google_token(creator_id)
+                logger.info(f"Google connected for {creator_id} - Meet links will be generated on booking")
             except Exception as e:
-                auto_create_error = str(e)
-                logger.warning(f"Zoom URL failed for {creator_id}: {e}")
+                auto_create_error = f"Google not connected: {e}"
+                logger.warning(f"Google Meet service created but Google not connected: {e}")
 
-        # If platform is Google Meet and no URL provided
-        # Google Meet doesn't have a "personal meeting URL" - links are created per-event
-        # For now, we'll note that links will be generated when booking is confirmed
-        elif platform == "google-meet" and not url:
-            try:
-                access_token = await get_valid_google_token(creator_id)
-                result = await create_google_calendar_event(
-                    access_token=access_token,
-                    name=data.get("title", "Meeting"),
-                    duration=data.get("duration_minutes", 30)
-                )
-                if result["success"]:
-                    url = result["meet_link"]
-                    auto_created = True
-                    logger.info(f"Created Google Meet link for {creator_id}: {url}")
-                else:
-                    # Google Meet doesn't have persistent links - this is expected
-                    # We'll mark it as "link on confirmation"
-                    auto_create_error = result.get("error")
-                    logger.info(f"Google Meet: {auto_create_error} - will generate on booking")
-            except Exception as e:
-                auto_create_error = str(e)
-                logger.warning(f"Google Meet failed for {creator_id}: {e}")
-
-        # Require URL if auto-create failed and platform supports it
-        auto_create_platforms = ["calendly", "zoom", "google-meet"]
-        if not url and platform not in auto_create_platforms:
-            raise HTTPException(status_code=400, detail="URL is required")
-
-        # Create new BookingLink with the URL (auto-generated or provided)
+        # Create new BookingLink
         new_link = BookingLink(
             id=uuid.uuid4(),
             creator_id=creator_id,
@@ -603,29 +176,24 @@ async def create_booking_link(creator_id: str, data: dict = Body(...), db: Sessi
             description=data.get("description"),
             duration_minutes=data.get("duration_minutes", 30),
             platform=platform,
-            url=url or "",  # Use empty string if no URL
+            url=url,  # May be empty for google-meet (generated on booking)
             price=data.get("price", 0),
             is_active=data.get("is_active", True),
-            extra_data={
-                **(data.get("extra_data", {})),
-                "auto_created": auto_created
-            }
+            extra_data=data.get("extra_data", {})
         )
 
         db.add(new_link)
         db.commit()
         db.refresh(new_link)
 
-        logger.info(f"POST /calendar/{creator_id}/links - Created link {new_link.id} (auto_created={auto_created})")
+        logger.info(f"POST /calendar/{creator_id}/links - Created link {new_link.id}")
 
-        platform_names = {"calendly": "Calendly", "zoom": "Zoom", "google-meet": "Google Meet"}
+        platform_names = {"google-meet": "Google Meet", "clonnect": "Clonnect"}
         platform_name = platform_names.get(platform, platform)
 
         response = {
             "status": "ok",
-            "message": f"Service created" + (f" with {platform_name} link" if auto_created else ""),
-            "auto_created": auto_created,
-            "calendly_auto_created": auto_created and platform == "calendly",  # For backwards compatibility
+            "message": f"Service created ({platform_name})",
             "link": {
                 "id": str(new_link.id),
                 "creator_id": new_link.creator_id,
@@ -759,33 +327,6 @@ async def cancel_booking(creator_id: str, booking_id: str, db: Session = Depends
         if not booking:
             raise HTTPException(status_code=404, detail="Booking not found")
 
-        # If it's a Calendly booking, try to cancel in Calendly too
-        if booking.platform == "calendly" and booking.external_id:
-            try:
-                from api.routers.oauth import get_valid_calendly_token
-            except:
-                from routers.oauth import get_valid_calendly_token
-
-            try:
-                access_token = await get_valid_calendly_token(creator_id)
-                async with httpx.AsyncClient() as client:
-                    # Cancel the event in Calendly
-                    cancel_response = await client.post(
-                        f"https://api.calendly.com/scheduled_events/{booking.external_id}/cancellation",
-                        headers={
-                            "Authorization": f"Bearer {access_token}",
-                            "Content-Type": "application/json"
-                        },
-                        json={"reason": "Cancelled by creator"}
-                    )
-                    if cancel_response.status_code in [200, 201, 204]:
-                        logger.info(f"Cancelled Calendly event {booking.external_id}")
-                    else:
-                        logger.warning(f"Failed to cancel Calendly event: {cancel_response.status_code}")
-            except Exception as e:
-                logger.warning(f"Could not cancel in Calendly: {e}")
-                # Continue with local deletion anyway
-
         # Update status to cancelled instead of deleting (for history)
         booking.status = "cancelled"
         db.commit()
@@ -801,194 +342,21 @@ async def cancel_booking(creator_id: str, booking_id: str, db: Session = Depends
 
 
 # =============================================================================
-# CALENDLY SYNC
+# GOOGLE CALENDAR SYNC STATUS
 # =============================================================================
-
-@router.post("/{creator_id}/sync/calendly")
-async def sync_calendly_events(creator_id: str, db: Session = Depends(get_db)):
-    """
-    Sync scheduled events from Calendly API.
-    Automatically refreshes token if expired.
-    """
-    try:
-        # Import the token helper from oauth module
-        try:
-            from api.routers.oauth import get_valid_calendly_token
-        except:
-            from routers.oauth import get_valid_calendly_token
-
-        # Get valid token (auto-refreshes if needed)
-        try:
-            access_token = await get_valid_calendly_token(creator_id)
-        except Exception as e:
-            error_msg = str(e)
-            if "not connected" in error_msg.lower():
-                raise HTTPException(
-                    status_code=400,
-                    detail="Calendly not connected. Go to Settings to connect."
-                )
-            elif "reconnect" in error_msg.lower():
-                raise HTTPException(
-                    status_code=401,
-                    detail="Calendly session expired. Please reconnect in Settings."
-                )
-            raise HTTPException(status_code=400, detail=error_msg)
-
-        synced = 0
-        errors = []
-
-        async with httpx.AsyncClient() as client:
-            # First, get user URI
-            user_response = await client.get(
-                "https://api.calendly.com/users/me",
-                headers={"Authorization": f"Bearer {access_token}"}
-            )
-
-            if user_response.status_code == 401:
-                # Token invalid even after refresh - user must reconnect
-                raise HTTPException(
-                    status_code=401,
-                    detail="Calendly session expired. Please reconnect in Settings."
-                )
-
-            user_data = user_response.json()
-            user_uri = user_data.get("resource", {}).get("uri")
-
-            if not user_uri:
-                raise HTTPException(status_code=400, detail="Could not get Calendly user")
-
-            # Get scheduled events (past 30 days + future 60 days)
-            from datetime import timedelta
-            now = datetime.now(timezone.utc)
-            min_time = (now - timedelta(days=30)).isoformat()
-            max_time = (now + timedelta(days=60)).isoformat()
-
-            logger.info(f"Syncing Calendly events from {min_time} to {max_time}")
-
-            events_response = await client.get(
-                "https://api.calendly.com/scheduled_events",
-                headers={"Authorization": f"Bearer {access_token}"},
-                params={
-                    "user": user_uri,
-                    "min_start_time": min_time,
-                    "max_start_time": max_time,
-                    "count": 100
-                }
-            )
-
-            if events_response.status_code != 200:
-                logger.error(f"Calendly events error: {events_response.text}")
-                raise HTTPException(status_code=400, detail="Failed to fetch Calendly events")
-
-            events_data = events_response.json()
-            events = events_data.get("collection", [])
-
-            for event in events:
-                try:
-                    event_uri = event.get("uri", "")
-                    external_id = event_uri.split("/")[-1] if event_uri else None
-                    calendly_status = event.get("status", "active")
-
-                    # Map Calendly status to our status
-                    status_map = {
-                        "active": "scheduled",
-                        "canceled": "cancelled",
-                        "cancelled": "cancelled"
-                    }
-                    booking_status = status_map.get(calendly_status, "scheduled")
-
-                    # Check if already synced
-                    existing = db.query(CalendarBooking).filter(
-                        CalendarBooking.external_id == external_id,
-                        CalendarBooking.creator_id == creator_id
-                    ).first()
-
-                    if existing:
-                        # Update status if changed
-                        if existing.status != booking_status:
-                            existing.status = booking_status
-                            logger.info(f"Updated booking {external_id} status to {booking_status}")
-                        continue
-
-                    # Get invitee info
-                    invitees_response = await client.get(
-                        f"{event_uri}/invitees",
-                        headers={"Authorization": f"Bearer {access_token}"}
-                    )
-                    invitee_data = {}
-                    if invitees_response.status_code == 200:
-                        invitees = invitees_response.json().get("collection", [])
-                        if invitees:
-                            invitee_data = invitees[0]
-
-                    # Parse event data
-                    start_time = event.get("start_time")
-                    end_time = event.get("end_time")
-                    duration = 30  # default
-                    if start_time and end_time:
-                        start_dt = datetime.fromisoformat(start_time.replace("Z", "+00:00"))
-                        end_dt = datetime.fromisoformat(end_time.replace("Z", "+00:00"))
-                        duration = int((end_dt - start_dt).total_seconds() / 60)
-
-                    # Get meeting URL from location
-                    location = event.get("location", {})
-                    meeting_url = ""
-                    if isinstance(location, dict):
-                        meeting_url = location.get("join_url", "") or location.get("location", "")
-
-                    # Create booking
-                    booking = CalendarBooking(
-                        id=uuid.uuid4(),
-                        creator_id=creator_id,
-                        follower_id=invitee_data.get("email", "unknown"),
-                        meeting_type=event.get("name", "Meeting"),
-                        platform="calendly",
-                        status=booking_status,
-                        scheduled_at=datetime.fromisoformat(start_time.replace("Z", "+00:00")) if start_time else None,
-                        duration_minutes=duration,
-                        guest_name=invitee_data.get("name", ""),
-                        guest_email=invitee_data.get("email", ""),
-                        meeting_url=meeting_url,
-                        external_id=external_id,
-                        extra_data={"calendly_event": event}
-                    )
-                    db.add(booking)
-                    synced += 1
-                    logger.info(f"Synced new booking: {external_id} - {booking.guest_name} ({booking_status})")
-
-                except Exception as e:
-                    errors.append(str(e))
-                    logger.error(f"Error syncing event: {e}")
-
-            db.commit()
-
-        return {
-            "status": "ok",
-            "synced": synced,
-            "total_events": len(events),
-            "errors": errors if errors else None
-        }
-
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error(f"Error syncing Calendly: {e}")
-        db.rollback()
-        raise HTTPException(status_code=500, detail=str(e))
-
 
 @router.get("/{creator_id}/sync/status")
 async def get_sync_status(creator_id: str, db: Session = Depends(get_db)):
-    """Check if Calendly is connected and return sync status"""
+    """Check if Google Calendar is connected and return sync status"""
     try:
         creator = db.query(Creator).filter(Creator.name == creator_id).first()
 
-        calendly_connected = bool(creator and creator.calendly_token)
-        has_refresh_token = bool(creator and creator.calendly_refresh_token)
+        google_connected = bool(creator and creator.google_access_token)
+        has_refresh_token = bool(creator and creator.google_refresh_token)
         token_expires_at = None
 
-        if creator and creator.calendly_token_expires_at:
-            token_expires_at = creator.calendly_token_expires_at.isoformat()
+        if creator and creator.google_token_expires_at:
+            token_expires_at = creator.google_token_expires_at.isoformat()
 
         # Count existing bookings
         bookings_count = db.query(CalendarBooking).filter(
@@ -997,7 +365,7 @@ async def get_sync_status(creator_id: str, db: Session = Depends(get_db)):
 
         return {
             "status": "ok",
-            "calendly_connected": calendly_connected,
+            "google_connected": google_connected,
             "has_refresh_token": has_refresh_token,
             "token_expires_at": token_expires_at,
             "bookings_synced": bookings_count,
@@ -1007,99 +375,12 @@ async def get_sync_status(creator_id: str, db: Session = Depends(get_db)):
         logger.error(f"Error getting sync status: {e}")
         return {
             "status": "ok",
-            "calendly_connected": False,
+            "google_connected": False,
             "has_refresh_token": False,
             "token_expires_at": None,
             "bookings_synced": 0,
             "auto_refresh_enabled": False
         }
-
-
-@router.post("/{creator_id}/links/fix-calendly-urls")
-async def fix_calendly_booking_urls(creator_id: str, db: Session = Depends(get_db)):
-    """
-    Fix existing Calendly booking links that have one-off URLs.
-    Replaces them with reusable event type URLs.
-    """
-    try:
-        # Import the token helper
-        try:
-            from api.routers.oauth import get_valid_calendly_token
-        except:
-            from routers.oauth import get_valid_calendly_token
-
-        # Get all Calendly booking links for this creator
-        calendly_links = db.query(BookingLink).filter(
-            BookingLink.creator_id == creator_id,
-            BookingLink.platform == "calendly"
-        ).all()
-
-        if not calendly_links:
-            return {
-                "status": "ok",
-                "message": "No Calendly booking links found",
-                "fixed": 0
-            }
-
-        # Get valid token
-        try:
-            access_token = await get_valid_calendly_token(creator_id)
-        except Exception as e:
-            raise HTTPException(status_code=400, detail=f"Calendly not connected: {e}")
-
-        fixed_count = 0
-        results = []
-
-        for link in calendly_links:
-            old_url = link.url
-            duration = link.duration_minutes or 30
-
-            # Check if URL is a one-off link (contains random hash)
-            is_one_off = old_url and "/d/" in old_url
-
-            if is_one_off or not old_url:
-                # Get new reusable URL
-                result = await create_calendly_event_type(
-                    access_token=access_token,
-                    name=link.title or "Meeting",
-                    duration=duration
-                )
-
-                if result["success"] and result.get("scheduling_url"):
-                    new_url = result["scheduling_url"]
-                    link.url = new_url
-                    fixed_count += 1
-                    results.append({
-                        "link_id": str(link.id),
-                        "title": link.title,
-                        "old_url": old_url,
-                        "new_url": new_url,
-                        "note": result.get("note", "")
-                    })
-                    logger.info(f"Fixed booking link {link.id}: {old_url} -> {new_url}")
-                else:
-                    results.append({
-                        "link_id": str(link.id),
-                        "title": link.title,
-                        "error": result.get("error", "Could not get new URL")
-                    })
-
-        db.commit()
-
-        return {
-            "status": "ok",
-            "message": f"Fixed {fixed_count} Calendly booking links",
-            "fixed": fixed_count,
-            "total": len(calendly_links),
-            "results": results
-        }
-
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error(f"Error fixing Calendly URLs: {e}")
-        db.rollback()
-        raise HTTPException(status_code=500, detail=str(e))
 
 
 @router.post("/{creator_id}/update-status")
@@ -1137,78 +418,3 @@ async def update_booking_status(creator_id: str, db: Session = Depends(get_db)):
         raise HTTPException(status_code=500, detail=str(e))
 
 
-@router.post("/{creator_id}/links/fix-zoom-urls")
-async def fix_zoom_booking_urls(creator_id: str, db: Session = Depends(get_db)):
-    """
-    Fix existing Zoom booking links that have empty URLs.
-    Gets the user's Personal Meeting URL from Zoom.
-    """
-    try:
-        # Import the token helper
-        try:
-            from api.routers.oauth import get_valid_zoom_token
-        except:
-            from routers.oauth import get_valid_zoom_token
-
-        # Get all Zoom booking links for this creator
-        zoom_links = db.query(BookingLink).filter(
-            BookingLink.creator_id == creator_id,
-            BookingLink.platform == "zoom"
-        ).all()
-
-        if not zoom_links:
-            return {
-                "status": "ok",
-                "message": "No Zoom booking links found",
-                "fixed": 0
-            }
-
-        # Get valid token
-        try:
-            access_token = await get_valid_zoom_token(creator_id)
-        except Exception as e:
-            raise HTTPException(status_code=400, detail=f"Zoom not connected: {e}")
-
-        # Get Personal Meeting URL once
-        result = await get_zoom_personal_meeting_url(access_token)
-
-        if not result["success"]:
-            raise HTTPException(status_code=400, detail=result.get("error", "Could not get Zoom URL"))
-
-        personal_url = result["join_url"]
-        fixed_count = 0
-        results = []
-
-        for link in zoom_links:
-            old_url = link.url
-
-            # Fix if URL is empty or invalid
-            if not old_url or old_url == "":
-                link.url = personal_url
-                fixed_count += 1
-                results.append({
-                    "link_id": str(link.id),
-                    "title": link.title,
-                    "old_url": old_url,
-                    "new_url": personal_url,
-                    "note": result.get("note", "")
-                })
-                logger.info(f"Fixed Zoom booking link {link.id}: {old_url} -> {personal_url}")
-
-        db.commit()
-
-        return {
-            "status": "ok",
-            "message": f"Fixed {fixed_count} Zoom booking links",
-            "fixed": fixed_count,
-            "total": len(zoom_links),
-            "personal_meeting_url": personal_url,
-            "results": results
-        }
-
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error(f"Error fixing Zoom URLs: {e}")
-        db.rollback()
-        raise HTTPException(status_code=500, detail=str(e))

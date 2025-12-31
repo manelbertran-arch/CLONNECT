@@ -329,27 +329,35 @@ async def reserve_slot(creator_id: str, data: dict = Body(...), db: Session = De
         if external_conflict:
             raise HTTPException(status_code=409, detail="This slot is no longer available")
 
-        # Generate meeting URL (Zoom if connected, otherwise empty)
+        # Generate Google Meet URL if Google is connected
         meeting_url = ""
         try:
             creator = db.query(Creator).filter(Creator.name == creator_id).first()
-            if creator and creator.zoom_access_token:
+            if creator and creator.google_access_token:
                 try:
-                    from api.routers.oauth import get_valid_zoom_token
+                    from api.routers.oauth import create_google_meet_event
                 except:
-                    from routers.oauth import get_valid_zoom_token
+                    from routers.oauth import create_google_meet_event
 
-                try:
-                    from api.routers.calendar import get_zoom_personal_meeting_url
-                except:
-                    from routers.calendar import get_zoom_personal_meeting_url
+                # Calculate end time for the event
+                from datetime import timedelta
+                scheduled_datetime = datetime.combine(target_date, start_time).replace(tzinfo=timezone.utc)
+                end_datetime = scheduled_datetime + timedelta(minutes=duration_minutes)
 
-                access_token = await get_valid_zoom_token(creator_id)
-                result = await get_zoom_personal_meeting_url(access_token)
-                if result.get("success"):
-                    meeting_url = result.get("join_url", "")
+                result = await create_google_meet_event(
+                    creator_id=creator_id,
+                    title=service.title or "Meeting",
+                    start_time=scheduled_datetime,
+                    end_time=end_datetime,
+                    guest_email=email,
+                    guest_name=name,
+                    description=f"Booking: {service.title}"
+                )
+                if result.get("meet_link"):
+                    meeting_url = result.get("meet_link", "")
+                    logger.info(f"Created Google Meet link for booking: {meeting_url}")
         except Exception as e:
-            logger.warning(f"Could not get Zoom URL: {e}")
+            logger.warning(f"Could not create Google Meet event: {e}")
 
         # Generate IDs upfront
         slot_id = uuid.uuid4()
