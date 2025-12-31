@@ -1152,6 +1152,116 @@ async def update_calendly_booking_urls(creator_id: str):
         raise HTTPException(status_code=500, detail=str(e))
 
 
+@router.get("/status/{creator_id}")
+async def get_oauth_status(creator_id: str):
+    """
+    Get OAuth connection status for all platforms.
+    Shows token expiry, refresh capability, and connection health.
+    """
+    from datetime import datetime, timezone
+
+    try:
+        from api.database import SessionLocal
+        from api.models import Creator
+
+        with SessionLocal() as db:
+            creator = db.query(Creator).filter_by(name=creator_id).first()
+
+            if not creator:
+                raise HTTPException(status_code=404, detail=f"Creator {creator_id} not found")
+
+            now = datetime.now(timezone.utc)
+
+            def get_token_status(token, refresh_token, expires_at):
+                if not token:
+                    return {
+                        "connected": False,
+                        "status": "not_connected",
+                        "message": "Not connected"
+                    }
+
+                if not expires_at:
+                    return {
+                        "connected": True,
+                        "status": "unknown_expiry",
+                        "has_refresh_token": bool(refresh_token),
+                        "message": "Connected (expiry unknown)"
+                    }
+
+                time_left = expires_at - now
+                seconds_left = time_left.total_seconds()
+
+                if seconds_left <= 0:
+                    status = "expired"
+                    message = "Token expired"
+                elif seconds_left < 300:  # 5 minutes
+                    status = "expiring_soon"
+                    message = f"Expires in {int(seconds_left)}s"
+                elif seconds_left < 3600:  # 1 hour
+                    status = "valid"
+                    message = f"Expires in {int(seconds_left/60)}min"
+                else:
+                    hours = seconds_left / 3600
+                    status = "valid"
+                    message = f"Expires in {hours:.1f}h"
+
+                return {
+                    "connected": True,
+                    "status": status,
+                    "has_refresh_token": bool(refresh_token),
+                    "can_auto_refresh": bool(refresh_token),
+                    "expires_at": expires_at.isoformat() if expires_at else None,
+                    "seconds_until_expiry": int(seconds_left),
+                    "message": message
+                }
+
+            calendly_status = get_token_status(
+                creator.calendly_token,
+                creator.calendly_refresh_token,
+                creator.calendly_token_expires_at
+            )
+
+            zoom_status = get_token_status(
+                creator.zoom_access_token,
+                creator.zoom_refresh_token,
+                creator.zoom_token_expires_at
+            )
+
+            google_status = get_token_status(
+                creator.google_access_token,
+                creator.google_refresh_token,
+                creator.google_token_expires_at
+            )
+
+            return {
+                "status": "ok",
+                "creator_id": creator_id,
+                "platforms": {
+                    "calendly": calendly_status,
+                    "zoom": zoom_status,
+                    "google": google_status
+                },
+                "summary": {
+                    "total_connected": sum([
+                        calendly_status["connected"],
+                        zoom_status["connected"],
+                        google_status["connected"]
+                    ]),
+                    "needs_attention": any([
+                        calendly_status.get("status") in ["expired", "expiring_soon"],
+                        zoom_status.get("status") in ["expired", "expiring_soon"],
+                        google_status.get("status") in ["expired", "expiring_soon"]
+                    ])
+                }
+            }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error getting OAuth status: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 async def _save_zoom_connection(
     creator_id: str,
     access_token: str,
