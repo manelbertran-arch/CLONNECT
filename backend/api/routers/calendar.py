@@ -248,72 +248,108 @@ async def create_calendly_event_type(access_token: str, name: str, duration: int
     """
     Create an event type in Calendly and return the scheduling URL.
     Uses the one_off_event_types endpoint for simple event creation.
+    Falls back to user's base scheduling URL if creation fails.
     """
     async with httpx.AsyncClient() as client:
-        # First, get user URI
+        # First, get user info including scheduling URL
         user_response = await client.get(
             "https://api.calendly.com/users/me",
             headers={"Authorization": f"Bearer {access_token}"}
         )
         if user_response.status_code != 200:
+            logger.error(f"Failed to get Calendly user info: {user_response.status_code}")
             raise Exception("Failed to get Calendly user info")
 
         user_data = user_response.json()
-        user_uri = user_data.get("resource", {}).get("uri")
-        scheduling_url_base = user_data.get("resource", {}).get("scheduling_url", "")
+        resource = user_data.get("resource", {})
+        user_uri = resource.get("uri")
+        scheduling_url_base = resource.get("scheduling_url", "")
+
+        logger.info(f"Calendly user info: uri={user_uri}, scheduling_url={scheduling_url_base}")
 
         if not user_uri:
             raise Exception("Could not get Calendly user URI")
 
-        # Try to create a one-off event type
-        # Calculate date range (next 90 days)
+        # Try to create a one-off event type (may fail if not on paid plan)
         from datetime import date, timedelta
         start_date = date.today().isoformat()
         end_date = (date.today() + timedelta(days=90)).isoformat()
 
-        event_response = await client.post(
-            "https://api.calendly.com/one_off_event_types",
-            headers={
-                "Authorization": f"Bearer {access_token}",
-                "Content-Type": "application/json"
-            },
-            json={
-                "name": name,
-                "host": user_uri,
-                "duration": duration,
-                "date_setting": {
-                    "type": "date_range",
-                    "start_date": start_date,
-                    "end_date": end_date
+        try:
+            event_response = await client.post(
+                "https://api.calendly.com/one_off_event_types",
+                headers={
+                    "Authorization": f"Bearer {access_token}",
+                    "Content-Type": "application/json"
                 },
-                "location": {
-                    "kind": "ask_invitee"
+                json={
+                    "name": name,
+                    "host": user_uri,
+                    "duration": duration,
+                    "date_setting": {
+                        "type": "date_range",
+                        "start_date": start_date,
+                        "end_date": end_date
+                    },
+                    "location": {
+                        "kind": "ask_invitee"
+                    }
                 }
-            }
-        )
+            )
 
-        if event_response.status_code in [200, 201]:
-            event_data = event_response.json()
-            resource = event_data.get("resource", {})
-            scheduling_url = resource.get("scheduling_url", "")
+            if event_response.status_code in [200, 201]:
+                event_data = event_response.json()
+                event_resource = event_data.get("resource", {})
+                scheduling_url = event_resource.get("scheduling_url", "")
+                logger.info(f"Created Calendly event type: {scheduling_url}")
+                return {
+                    "success": True,
+                    "scheduling_url": scheduling_url,
+                    "event_uri": event_resource.get("uri", "")
+                }
+            else:
+                logger.warning(f"Calendly one_off_event_types failed: {event_response.status_code} - {event_response.text[:200]}")
+        except Exception as e:
+            logger.warning(f"Calendly event creation exception: {e}")
+
+        # Fallback: Use user's base scheduling URL
+        # This will show all available event types for the user
+        if scheduling_url_base:
+            logger.info(f"Using Calendly base scheduling URL: {scheduling_url_base}")
             return {
-                "success": True,
-                "scheduling_url": scheduling_url,
-                "event_uri": resource.get("uri", "")
+                "success": True,  # Mark as success since we have a valid URL
+                "scheduling_url": scheduling_url_base,
+                "event_uri": "",
+                "note": "Using base scheduling URL (shows all event types)"
             }
-        else:
-            # Log the error but don't fail - fall back to manual URL
-            logger.warning(f"Calendly event creation failed: {event_response.status_code} - {event_response.text}")
 
-            # Generate a reasonable default URL based on user's scheduling URL
-            slug = name.lower().replace(" ", "-").replace("'", "")[:20]
-            fallback_url = f"{scheduling_url_base}/{slug}" if scheduling_url_base else ""
+        # Last resort: Try to get event types and use the first one's URL
+        try:
+            events_response = await client.get(
+                f"https://api.calendly.com/event_types?user={user_uri}&active=true",
+                headers={"Authorization": f"Bearer {access_token}"}
+            )
+            if events_response.status_code == 200:
+                events_data = events_response.json()
+                event_types = events_data.get("collection", [])
+                if event_types:
+                    first_event_url = event_types[0].get("scheduling_url", "")
+                    if first_event_url:
+                        logger.info(f"Using first event type URL: {first_event_url}")
+                        return {
+                            "success": True,
+                            "scheduling_url": first_event_url,
+                            "event_uri": event_types[0].get("uri", ""),
+                            "note": "Using existing event type"
+                        }
+        except Exception as e:
+            logger.warning(f"Failed to get event types: {e}")
 
-            return {
-                "success": False,
-                "scheduling_url": fallback_url,
-                "error": f"Could not auto-create event type. Status: {event_response.status_code}"
-            }
+        return {
+            "success": False,
+            "scheduling_url": "",
+            "error": "Could not create or find a Calendly scheduling URL"
+        }
 
 
 @router.post("/{creator_id}/links")
