@@ -339,8 +339,7 @@ async def reserve_slot(creator_id: str, data: dict = Body(...), db: Session = De
                 except:
                     from routers.oauth import create_google_meet_event
 
-                # Calculate end time for the event
-                from datetime import timedelta
+                # Calculate end time for the event (timedelta already imported at top of file)
                 scheduled_datetime = datetime.combine(target_date, start_time).replace(tzinfo=timezone.utc)
                 end_datetime = scheduled_datetime + timedelta(minutes=duration_minutes)
 
