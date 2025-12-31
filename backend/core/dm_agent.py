@@ -654,13 +654,16 @@ class DMResponderAgent:
             else:
                 return f"I don't have any call services set up right now. Contact {creator_name} directly to schedule."
 
-        # Format each link
+        # Format each link - only include services with URLs
         formatted_links = []
+        services_without_url = []
+
         for link in links:
             duration = link.get('duration_minutes', 30)
             price = link.get('price', 0)
             title = link.get('title', 'Llamada')
             url = link.get('url', '')
+            platform = link.get('platform', 'manual')
 
             # Emoji based on meeting type
             meeting_type = link.get('meeting_type', 'call')
@@ -669,10 +672,14 @@ class DMResponderAgent:
                 emoji = "🔍"
             elif meeting_type == "coaching":
                 emoji = "🎯"
-            elif meeting_type == "consultation":
+            elif meeting_type == "consultation" or meeting_type == "consultoria":
                 emoji = "💼"
-            elif meeting_type == "mentoring":
+            elif meeting_type == "mentoring" or meeting_type == "mentoria":
                 emoji = "🧠"
+            elif "qa" in meeting_type.lower() or "q&a" in meeting_type.lower():
+                emoji = "❓"
+            elif "strategy" in meeting_type.lower():
+                emoji = "📊"
 
             # Price text
             if price == 0:
@@ -680,16 +687,40 @@ class DMResponderAgent:
             else:
                 price_text = f"{price}€"
 
-            formatted_links.append(f"{emoji} {title} - {duration} min - {price_text}\n   {url}")
+            # Check if URL exists
+            if url and url.strip():
+                formatted_links.append(f"{emoji} {title} - {duration} min - {price_text}\n   👉 {url}")
+            else:
+                # Services without URL - show different message
+                if language == "es":
+                    no_url_msg = "(Reserva y te envío el link)"
+                else:
+                    no_url_msg = "(Book and I'll send you the link)"
+                services_without_url.append(f"{emoji} {title} - {duration} min - {price_text} {no_url_msg}")
 
+        # Build response
         if language == "es":
             intro = "¡Genial! Estos son mis servicios disponibles:\n\n"
-            outro = "\n\n¿Cuál te interesa? Haz clic en el link para reservar tu horario."
+            outro = "\n\n¿Cuál te interesa?"
+            if formatted_links:
+                outro = "\n\n¿Cuál te interesa? Haz clic en el link para reservar tu horario."
         else:
             intro = "Great! Here are my available services:\n\n"
-            outro = "\n\nWhich one interests you? Click the link to book your slot."
+            outro = "\n\nWhich one interests you?"
+            if formatted_links:
+                outro = "\n\nWhich one interests you? Click the link to book your slot."
 
-        return intro + "\n".join(formatted_links) + outro
+        # Combine services with URLs first, then services without URLs
+        all_services = formatted_links + services_without_url
+
+        if not all_services:
+            creator_name = self.creator_config.get('name', 'el creador')
+            if language == "es":
+                return f"Actualmente no tengo servicios de llamada configurados. Contacta directamente con {creator_name} para agendar."
+            else:
+                return f"I don't have any call services set up right now. Contact {creator_name} directly to schedule."
+
+        return intro + "\n".join(all_services) + outro
 
     def _classify_intent(self, message: str) -> tuple:
         """Clasificar intención del mensaje por keywords"""
