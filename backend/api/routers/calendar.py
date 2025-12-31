@@ -701,16 +701,22 @@ async def sync_calendly_events(creator_id: str, db: Session = Depends(get_db)):
             if not user_uri:
                 raise HTTPException(status_code=400, detail="Could not get Calendly user")
 
-            # Get scheduled events (upcoming)
-            now = datetime.now(timezone.utc).isoformat()
+            # Get scheduled events (past 30 days + future 60 days)
+            from datetime import timedelta
+            now = datetime.now(timezone.utc)
+            min_time = (now - timedelta(days=30)).isoformat()
+            max_time = (now + timedelta(days=60)).isoformat()
+
+            logger.info(f"Syncing Calendly events from {min_time} to {max_time}")
+
             events_response = await client.get(
                 "https://api.calendly.com/scheduled_events",
                 headers={"Authorization": f"Bearer {access_token}"},
                 params={
                     "user": user_uri,
-                    "min_start_time": now,
-                    "status": "active",
-                    "count": 50
+                    "min_start_time": min_time,
+                    "max_start_time": max_time,
+                    "count": 100
                 }
             )
 
@@ -725,6 +731,15 @@ async def sync_calendly_events(creator_id: str, db: Session = Depends(get_db)):
                 try:
                     event_uri = event.get("uri", "")
                     external_id = event_uri.split("/")[-1] if event_uri else None
+                    calendly_status = event.get("status", "active")
+
+                    # Map Calendly status to our status
+                    status_map = {
+                        "active": "scheduled",
+                        "canceled": "cancelled",
+                        "cancelled": "cancelled"
+                    }
+                    booking_status = status_map.get(calendly_status, "scheduled")
 
                     # Check if already synced
                     existing = db.query(CalendarBooking).filter(
@@ -733,7 +748,11 @@ async def sync_calendly_events(creator_id: str, db: Session = Depends(get_db)):
                     ).first()
 
                     if existing:
-                        continue  # Skip already synced
+                        # Update status if changed
+                        if existing.status != booking_status:
+                            existing.status = booking_status
+                            logger.info(f"Updated booking {external_id} status to {booking_status}")
+                        continue
 
                     # Get invitee info
                     invitees_response = await client.get(
@@ -755,24 +774,31 @@ async def sync_calendly_events(creator_id: str, db: Session = Depends(get_db)):
                         end_dt = datetime.fromisoformat(end_time.replace("Z", "+00:00"))
                         duration = int((end_dt - start_dt).total_seconds() / 60)
 
+                    # Get meeting URL from location
+                    location = event.get("location", {})
+                    meeting_url = ""
+                    if isinstance(location, dict):
+                        meeting_url = location.get("join_url", "") or location.get("location", "")
+
                     # Create booking
                     booking = CalendarBooking(
                         id=uuid.uuid4(),
                         creator_id=creator_id,
                         follower_id=invitee_data.get("email", "unknown"),
-                        meeting_type=event.get("event_type_name", event.get("name", "Meeting")),
+                        meeting_type=event.get("name", "Meeting"),
                         platform="calendly",
-                        status="scheduled",
+                        status=booking_status,
                         scheduled_at=datetime.fromisoformat(start_time.replace("Z", "+00:00")) if start_time else None,
                         duration_minutes=duration,
                         guest_name=invitee_data.get("name", ""),
                         guest_email=invitee_data.get("email", ""),
-                        meeting_url=event.get("location", {}).get("join_url", ""),
+                        meeting_url=meeting_url,
                         external_id=external_id,
                         extra_data={"calendly_event": event}
                     )
                     db.add(booking)
                     synced += 1
+                    logger.info(f"Synced new booking: {external_id} - {booking.guest_name} ({booking_status})")
 
                 except Exception as e:
                     errors.append(str(e))
