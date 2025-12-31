@@ -1262,6 +1262,85 @@ async def get_oauth_status(creator_id: str):
         raise HTTPException(status_code=500, detail=str(e))
 
 
+@router.post("/refresh/calendly/{creator_id}")
+async def force_refresh_calendly(creator_id: str):
+    """Force refresh Calendly token"""
+    from datetime import datetime, timezone
+
+    try:
+        new_token = await refresh_calendly_token(creator_id)
+
+        # Get updated status
+        from api.database import SessionLocal
+        from api.models import Creator
+
+        with SessionLocal() as db:
+            creator = db.query(Creator).filter_by(name=creator_id).first()
+            expires_at = creator.calendly_token_expires_at if creator else None
+
+        return {
+            "status": "ok",
+            "message": "Calendly token refreshed successfully",
+            "token_preview": f"{new_token[:20]}..." if new_token else None,
+            "expires_at": expires_at.isoformat() if expires_at else None
+        }
+    except Exception as e:
+        logger.error(f"Error refreshing Calendly token: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/refresh/zoom/{creator_id}")
+async def force_refresh_zoom(creator_id: str):
+    """Force refresh Zoom token"""
+    from datetime import datetime, timezone
+
+    try:
+        new_token = await refresh_zoom_token(creator_id)
+
+        from api.database import SessionLocal
+        from api.models import Creator
+
+        with SessionLocal() as db:
+            creator = db.query(Creator).filter_by(name=creator_id).first()
+            expires_at = creator.zoom_token_expires_at if creator else None
+
+        return {
+            "status": "ok",
+            "message": "Zoom token refreshed successfully",
+            "token_preview": f"{new_token[:20]}..." if new_token else None,
+            "expires_at": expires_at.isoformat() if expires_at else None
+        }
+    except Exception as e:
+        logger.error(f"Error refreshing Zoom token: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/refresh/google/{creator_id}")
+async def force_refresh_google(creator_id: str):
+    """Force refresh Google token"""
+    from datetime import datetime, timezone
+
+    try:
+        new_token = await refresh_google_token(creator_id)
+
+        from api.database import SessionLocal
+        from api.models import Creator
+
+        with SessionLocal() as db:
+            creator = db.query(Creator).filter_by(name=creator_id).first()
+            expires_at = creator.google_token_expires_at if creator else None
+
+        return {
+            "status": "ok",
+            "message": "Google token refreshed successfully",
+            "token_preview": f"{new_token[:20]}..." if new_token else None,
+            "expires_at": expires_at.isoformat() if expires_at else None
+        }
+    except Exception as e:
+        logger.error(f"Error refreshing Google token: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 async def _save_zoom_connection(
     creator_id: str,
     access_token: str,
