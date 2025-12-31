@@ -113,45 +113,54 @@ async def get_booking_links(creator_id: str, db: Session = Depends(get_db)):
 MAX_BOOKING_LINKS = 5
 
 
-async def create_zoom_meeting(access_token: str, name: str, duration: int) -> dict:
+async def get_zoom_personal_meeting_url(access_token: str) -> dict:
     """
-    Create a Zoom meeting and return the join URL.
-    Uses Zoom's meeting creation API.
+    Get the user's Personal Meeting URL from Zoom.
+    This is a REUSABLE link that can be used for multiple meetings.
     """
     async with httpx.AsyncClient() as client:
-        # Create a scheduled meeting (type 2) that can be reused
-        meeting_response = await client.post(
-            "https://api.zoom.us/v2/users/me/meetings",
-            headers={
-                "Authorization": f"Bearer {access_token}",
-                "Content-Type": "application/json"
-            },
-            json={
-                "topic": name,
-                "type": 2,  # Scheduled meeting
-                "duration": duration,
-                "settings": {
-                    "join_before_host": True,
-                    "waiting_room": False,
-                    "use_pmi": False,  # Don't use personal meeting ID
-                }
-            }
+        # Get user info including personal meeting URL
+        user_response = await client.get(
+            "https://api.zoom.us/v2/users/me",
+            headers={"Authorization": f"Bearer {access_token}"}
         )
 
-        if meeting_response.status_code in [200, 201]:
-            meeting_data = meeting_response.json()
-            return {
-                "success": True,
-                "join_url": meeting_data.get("join_url", ""),
-                "meeting_id": meeting_data.get("id", ""),
-                "start_url": meeting_data.get("start_url", "")
-            }
-        else:
-            logger.warning(f"Zoom meeting creation failed: {meeting_response.status_code} - {meeting_response.text}")
+        if user_response.status_code == 200:
+            user_data = user_response.json()
+            personal_meeting_url = user_data.get("personal_meeting_url", "")
+            pmi = user_data.get("pmi", "")
+
+            logger.info(f"Zoom user info: pmi={pmi}, personal_meeting_url={personal_meeting_url}")
+
+            if personal_meeting_url:
+                return {
+                    "success": True,
+                    "join_url": personal_meeting_url,
+                    "pmi": pmi,
+                    "note": "Using Personal Meeting URL (reusable)"
+                }
+
+            # Fallback: construct PMI URL if we have the PMI
+            if pmi:
+                constructed_url = f"https://zoom.us/j/{pmi}"
+                return {
+                    "success": True,
+                    "join_url": constructed_url,
+                    "pmi": pmi,
+                    "note": "Using constructed PMI URL"
+                }
+
             return {
                 "success": False,
                 "join_url": "",
-                "error": f"Could not create Zoom meeting. Status: {meeting_response.status_code}"
+                "error": "No Personal Meeting URL found. Enable PMI in Zoom settings."
+            }
+        else:
+            logger.warning(f"Zoom user info failed: {user_response.status_code} - {user_response.text}")
+            return {
+                "success": False,
+                "join_url": "",
+                "error": f"Could not get Zoom user info. Status: {user_response.status_code}"
             }
 
 
@@ -410,27 +419,25 @@ async def create_booking_link(creator_id: str, data: dict = Body(...), db: Sessi
                 except Exception as e2:
                     logger.error(f"Fallback to get Calendly URL also failed: {e2}")
 
-        # If platform is Zoom and no URL provided, try to auto-create
+        # If platform is Zoom and no URL provided, get Personal Meeting URL
         elif platform == "zoom" and not url:
             try:
                 access_token = await get_valid_zoom_token(creator_id)
-                result = await create_zoom_meeting(
-                    access_token=access_token,
-                    name=data.get("title", "Meeting"),
-                    duration=data.get("duration_minutes", 30)
-                )
+                result = await get_zoom_personal_meeting_url(access_token)
                 if result["success"]:
                     url = result["join_url"]
                     auto_created = True
-                    logger.info(f"Auto-created Zoom meeting for {creator_id}: {url}")
+                    logger.info(f"Got Zoom Personal Meeting URL for {creator_id}: {url}")
                 else:
                     auto_create_error = result.get("error")
-                    logger.warning(f"Zoom auto-create failed: {auto_create_error}")
+                    logger.warning(f"Zoom URL failed: {auto_create_error}")
             except Exception as e:
                 auto_create_error = str(e)
-                logger.warning(f"Zoom auto-create failed for {creator_id}: {e}")
+                logger.warning(f"Zoom URL failed for {creator_id}: {e}")
 
-        # If platform is Google Meet and no URL provided, try to auto-create
+        # If platform is Google Meet and no URL provided
+        # Google Meet doesn't have a "personal meeting URL" - links are created per-event
+        # For now, we'll note that links will be generated when booking is confirmed
         elif platform == "google-meet" and not url:
             try:
                 access_token = await get_valid_google_token(creator_id)
@@ -442,13 +449,15 @@ async def create_booking_link(creator_id: str, data: dict = Body(...), db: Sessi
                 if result["success"]:
                     url = result["meet_link"]
                     auto_created = True
-                    logger.info(f"Auto-created Google Meet for {creator_id}: {url}")
+                    logger.info(f"Created Google Meet link for {creator_id}: {url}")
                 else:
+                    # Google Meet doesn't have persistent links - this is expected
+                    # We'll mark it as "link on confirmation"
                     auto_create_error = result.get("error")
-                    logger.warning(f"Google Meet auto-create failed: {auto_create_error}")
+                    logger.info(f"Google Meet: {auto_create_error} - will generate on booking")
             except Exception as e:
                 auto_create_error = str(e)
-                logger.warning(f"Google Meet auto-create failed for {creator_id}: {e}")
+                logger.warning(f"Google Meet failed for {creator_id}: {e}")
 
         # Require URL if auto-create failed and platform supports it
         auto_create_platforms = ["calendly", "zoom", "google-meet"]
@@ -977,5 +986,82 @@ async def update_booking_status(creator_id: str, db: Session = Depends(get_db)):
         }
     except Exception as e:
         logger.error(f"Error updating booking status: {e}")
+        db.rollback()
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/{creator_id}/links/fix-zoom-urls")
+async def fix_zoom_booking_urls(creator_id: str, db: Session = Depends(get_db)):
+    """
+    Fix existing Zoom booking links that have empty URLs.
+    Gets the user's Personal Meeting URL from Zoom.
+    """
+    try:
+        # Import the token helper
+        try:
+            from api.routers.oauth import get_valid_zoom_token
+        except:
+            from routers.oauth import get_valid_zoom_token
+
+        # Get all Zoom booking links for this creator
+        zoom_links = db.query(BookingLink).filter(
+            BookingLink.creator_id == creator_id,
+            BookingLink.platform == "zoom"
+        ).all()
+
+        if not zoom_links:
+            return {
+                "status": "ok",
+                "message": "No Zoom booking links found",
+                "fixed": 0
+            }
+
+        # Get valid token
+        try:
+            access_token = await get_valid_zoom_token(creator_id)
+        except Exception as e:
+            raise HTTPException(status_code=400, detail=f"Zoom not connected: {e}")
+
+        # Get Personal Meeting URL once
+        result = await get_zoom_personal_meeting_url(access_token)
+
+        if not result["success"]:
+            raise HTTPException(status_code=400, detail=result.get("error", "Could not get Zoom URL"))
+
+        personal_url = result["join_url"]
+        fixed_count = 0
+        results = []
+
+        for link in zoom_links:
+            old_url = link.url
+
+            # Fix if URL is empty or invalid
+            if not old_url or old_url == "":
+                link.url = personal_url
+                fixed_count += 1
+                results.append({
+                    "link_id": str(link.id),
+                    "title": link.title,
+                    "old_url": old_url,
+                    "new_url": personal_url,
+                    "note": result.get("note", "")
+                })
+                logger.info(f"Fixed Zoom booking link {link.id}: {old_url} -> {personal_url}")
+
+        db.commit()
+
+        return {
+            "status": "ok",
+            "message": f"Fixed {fixed_count} Zoom booking links",
+            "fixed": fixed_count,
+            "total": len(zoom_links),
+            "personal_meeting_url": personal_url,
+            "results": results
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error fixing Zoom URLs: {e}")
         db.rollback()
         raise HTTPException(status_code=500, detail=str(e))
