@@ -30,7 +30,7 @@ ContextTypes = None
 filters = None
 
 try:
-    from telegram import Update as _Update, Bot as _Bot
+    from telegram import Update as _Update, Bot as _Bot, InlineKeyboardButton, InlineKeyboardMarkup
     from telegram.ext import (
         Application as _Application,
         CommandHandler as _CommandHandler,
@@ -48,6 +48,8 @@ try:
     TELEGRAM_AVAILABLE = True
 except (ImportError, Exception) as e:
     logger.warning(f"python-telegram-bot not available: {e}. Install with: pip install python-telegram-bot>=20.0")
+    InlineKeyboardButton = None
+    InlineKeyboardMarkup = None
 
 # Import DM Agent components from clonnect-creators
 from core.dm_agent import DMResponderAgent, DMResponse
@@ -257,6 +259,27 @@ class TelegramAdapter:
         await update.message.reply_text(status_message, parse_mode="Markdown")
         self._record_sent()
 
+    def _build_inline_keyboard(self, keyboard_data: list) -> Optional[InlineKeyboardMarkup]:
+        """Build InlineKeyboardMarkup from keyboard data"""
+        if not keyboard_data or not InlineKeyboardMarkup:
+            return None
+
+        try:
+            # Each item in keyboard_data is a button: {"text": "...", "url": "..."}
+            # We put each button on its own row for better visibility
+            keyboard = []
+            for button_data in keyboard_data:
+                button = InlineKeyboardButton(
+                    text=button_data.get("text", ""),
+                    url=button_data.get("url", "")
+                )
+                keyboard.append([button])  # Each button in its own row
+
+            return InlineKeyboardMarkup(keyboard)
+        except Exception as e:
+            logger.error(f"Error building inline keyboard: {e}")
+            return None
+
     async def _handle_message(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         """Handle incoming text messages"""
         try:
@@ -271,8 +294,20 @@ class TelegramAdapter:
             # Process with DM agent
             response = await self.process_message(telegram_msg)
 
-            # Send response
-            await update.message.reply_text(response.response_text)
+            # Check for inline keyboard in metadata (for booking responses)
+            reply_markup = None
+            if response.metadata and "telegram_keyboard" in response.metadata:
+                reply_markup = self._build_inline_keyboard(response.metadata["telegram_keyboard"])
+
+            # Send response with optional inline keyboard
+            if reply_markup:
+                await update.message.reply_text(
+                    response.response_text,
+                    reply_markup=reply_markup
+                )
+            else:
+                await update.message.reply_text(response.response_text)
+
             self._record_sent()
 
             # Record response
@@ -389,10 +424,16 @@ class TelegramAdapter:
             # Process message
             response = await self.process_message(telegram_msg)
 
-            # Send response via bot
+            # Check for inline keyboard in metadata (for booking responses)
+            reply_markup = None
+            if response.metadata and "telegram_keyboard" in response.metadata:
+                reply_markup = self._build_inline_keyboard(response.metadata["telegram_keyboard"])
+
+            # Send response via bot with optional inline keyboard
             await self.bot.send_message(
                 chat_id=telegram_msg.chat_id,
-                text=response.response_text
+                text=response.response_text,
+                reply_markup=reply_markup
             )
             self._record_sent()
             self._record_response(telegram_msg, response)
