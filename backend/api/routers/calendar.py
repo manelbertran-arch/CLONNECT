@@ -944,3 +944,38 @@ async def fix_calendly_booking_urls(creator_id: str, db: Session = Depends(get_d
         logger.error(f"Error fixing Calendly URLs: {e}")
         db.rollback()
         raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/{creator_id}/update-status")
+async def update_booking_status(creator_id: str, db: Session = Depends(get_db)):
+    """
+    Update status of past bookings:
+    - scheduled -> completed (if scheduled_at < now)
+    """
+    try:
+        now = datetime.now(timezone.utc)
+
+        # Find all scheduled bookings that are in the past
+        past_scheduled = db.query(CalendarBooking).filter(
+            CalendarBooking.creator_id == creator_id,
+            CalendarBooking.status == "scheduled",
+            CalendarBooking.scheduled_at < now
+        ).all()
+
+        updated_count = 0
+        for booking in past_scheduled:
+            booking.status = "completed"
+            updated_count += 1
+            logger.info(f"Marked booking {booking.id} as completed (was scheduled for {booking.scheduled_at})")
+
+        db.commit()
+
+        return {
+            "status": "ok",
+            "message": f"Updated {updated_count} bookings to completed",
+            "updated": updated_count
+        }
+    except Exception as e:
+        logger.error(f"Error updating booking status: {e}")
+        db.rollback()
+        raise HTTPException(status_code=500, detail=str(e))
