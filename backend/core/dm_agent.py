@@ -615,11 +615,12 @@ class DMResponderAgent:
     def _load_booking_links(self) -> list:
         """Load booking links from database"""
         try:
-            from api.services.db_service import SessionLocal
-            try:
-                from api.models import BookingLink
-            except:
-                from models import BookingLink
+            from api.database import SessionLocal
+            from api.models import BookingLink
+
+            if not SessionLocal:
+                logger.warning("SessionLocal not available, cannot load booking links")
+                return []
 
             with SessionLocal() as db:
                 links = db.query(BookingLink).filter(
