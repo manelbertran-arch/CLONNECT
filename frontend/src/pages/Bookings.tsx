@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Calendar as CalendarIcon, Clock, Video, Users, CheckCircle2, XCircle, Loader2, AlertCircle, Plus, X, Trash2, Settings } from "lucide-react";
+import { Calendar as CalendarIcon, Clock, Video, Users, CheckCircle2, XCircle, Loader2, AlertCircle, Plus, X, Trash2, Settings, Mail, History } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useCalendarStats, useBookings, useBookingLinks, useCreateBookingLink, useDeleteBookingLink, useCancelBooking, useConnections } from "@/hooks/useApi";
 import { useToast } from "@/hooks/use-toast";
@@ -428,12 +428,24 @@ export default function Bookings() {
                       Join Call
                     </Button>
                   )}
+                  {/* Contact client button */}
+                  {booking.guest_email && (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => window.open(`mailto:${booking.guest_email}?subject=Regarding your booking: ${booking.title || booking.meeting_type}`, "_blank")}
+                      title="Contact client"
+                    >
+                      <Mail className="w-4 h-4" />
+                    </Button>
+                  )}
                   <Button
                     size="sm"
                     variant="ghost"
                     className="text-destructive hover:text-destructive hover:bg-destructive/10"
                     onClick={() => handleCancelBooking(booking.id, booking.title || booking.meeting_type)}
                     disabled={cancelBookingMutation.isPending}
+                    title="Cancel booking"
                   >
                     {cancelBookingMutation.isPending ? (
                       <Loader2 className="w-4 h-4 animate-spin" />
@@ -442,6 +454,85 @@ export default function Bookings() {
                     )}
                   </Button>
                 </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* Recent History - Completed and Cancelled bookings */}
+      <div className="metric-card">
+        <h3 className="font-semibold mb-4 flex items-center gap-2">
+          <History className="w-5 h-5" />
+          Recent History
+        </h3>
+        {bookingsLoading ? (
+          <div className="flex justify-center py-4">
+            <Loader2 className="w-6 h-6 animate-spin text-primary" />
+          </div>
+        ) : bookings.filter(b => b.status === "cancelled" || b.status === "completed").length === 0 ? (
+          <div className="text-center py-6 text-muted-foreground">
+            <p className="text-sm">No booking history yet</p>
+          </div>
+        ) : (
+          <div className="space-y-2 max-h-[300px] overflow-y-auto pr-2">
+            {bookings
+              .filter(b => b.status === "cancelled" || b.status === "completed")
+              .sort((a, b) => new Date(b.scheduled_at).getTime() - new Date(a.scheduled_at).getTime())
+              .slice(0, 10) // Show last 10
+              .map((booking) => (
+              <div
+                key={booking.id}
+                className={cn(
+                  "flex items-center justify-between gap-3 p-3 rounded-lg border",
+                  booking.status === "cancelled" ? "bg-destructive/5 border-destructive/20" : "bg-success/5 border-success/20"
+                )}
+              >
+                <div className="flex items-center gap-3 flex-1 min-w-0">
+                  {/* Status icon */}
+                  <div className={cn(
+                    "w-10 h-10 rounded-lg flex items-center justify-center shrink-0",
+                    booking.status === "cancelled" ? "bg-destructive/10" : "bg-success/10"
+                  )}>
+                    {booking.status === "cancelled" ? (
+                      <XCircle className="w-5 h-5 text-destructive" />
+                    ) : (
+                      <CheckCircle2 className="w-5 h-5 text-success" />
+                    )}
+                  </div>
+                  {/* Info */}
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 mb-0.5">
+                      <span className={cn(
+                        "font-medium truncate",
+                        booking.status === "cancelled" && "line-through text-muted-foreground"
+                      )}>
+                        {booking.guest_name || "Guest"}
+                      </span>
+                      <span className={cn(
+                        "text-xs px-1.5 py-0.5 rounded font-medium",
+                        booking.status === "cancelled" ? "bg-destructive/10 text-destructive" : "bg-success/10 text-success"
+                      )}>
+                        {booking.status === "cancelled" ? "Cancelled" : "Completed"}
+                      </span>
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      {booking.title || booking.meeting_type} • {formatDate(booking.scheduled_at)} {formatTime(booking.scheduled_at)}
+                    </p>
+                  </div>
+                </div>
+                {/* Contact button for cancelled - maybe they want to reschedule */}
+                {booking.status === "cancelled" && booking.guest_email && (
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => window.open(`mailto:${booking.guest_email}?subject=Reschedule your booking?&body=Hi ${booking.guest_name || ''},\n\nI noticed you cancelled your booking. Would you like to reschedule for another time?\n\nBest regards`, "_blank")}
+                    title="Offer to reschedule"
+                  >
+                    <Mail className="w-4 h-4 mr-1" />
+                    Reschedule?
+                  </Button>
+                )}
               </div>
             ))}
           </div>
