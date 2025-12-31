@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Calendar as CalendarIcon, Clock, Video, Users, CheckCircle2, XCircle, Loader2, AlertCircle, ExternalLink, Plus, X, Trash2, Settings } from "lucide-react";
+import { Calendar as CalendarIcon, Clock, Video, Users, CheckCircle2, XCircle, Loader2, AlertCircle, Plus, X, Trash2, Settings } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useCalendarStats, useBookings, useBookingLinks, useCreateBookingLink, useDeleteBookingLink, useCancelBooking, useCalendlySyncStatus, useConnections } from "@/hooks/useApi";
 import { useToast } from "@/hooks/use-toast";
@@ -675,10 +675,7 @@ export default function Bookings() {
             {links.map((link) => (
               <div
                 key={link.id}
-                className={cn(
-                  "flex items-center justify-between gap-3 p-3 rounded-lg border bg-card hover:bg-accent/5 transition-colors",
-                  !link.url && "border-yellow-500/30 bg-yellow-500/5"
-                )}
+                className="flex items-center justify-between gap-3 p-3 rounded-lg border bg-card hover:bg-accent/5 transition-colors"
               >
                 <div className="flex items-center gap-3 flex-1 min-w-0">
                   <div className="w-10 h-10 rounded-lg flex items-center justify-center shrink-0">
@@ -694,29 +691,13 @@ export default function Bookings() {
                       )}>
                         {formatPrice((link as any).price || 0)}
                       </span>
-                      {!link.url && (
-                        <span className="text-xs px-1.5 py-0.5 rounded bg-yellow-500/20 text-yellow-600">
-                          No link
-                        </span>
-                      )}
                     </div>
                     <p className="text-xs text-muted-foreground">
-                      via {link.platform}
-                      {!link.url && " • Link will be sent on booking"}
+                      {link.platform === "zoom" ? "Zoom" : link.platform === "google-meet" ? "Google Meet" : link.platform === "calendly" ? "Calendly" : link.platform}
                     </p>
                   </div>
                 </div>
                 <div className="flex gap-1 flex-shrink-0">
-                  {link.url && (
-                    <Button
-                      size="sm"
-                      variant="ghost"
-                      onClick={() => window.open(link.url, "_blank")}
-                      title="Open link"
-                    >
-                      <ExternalLink className="w-4 h-4" />
-                    </Button>
-                  )}
                   <Button
                     size="sm"
                     variant="ghost"
