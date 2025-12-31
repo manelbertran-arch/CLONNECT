@@ -1020,3 +1020,43 @@ async def create_google_meet_event(
     except Exception as e:
         logger.error(f"Error creating Google Meet event: {e}")
         raise
+
+
+async def delete_google_calendar_event(creator_id: str, event_id: str) -> bool:
+    """
+    Delete a Google Calendar event.
+
+    Args:
+        creator_id: The creator's ID
+        event_id: The Google Calendar event ID to delete
+
+    Returns:
+        True if deleted successfully, False otherwise
+    """
+    import httpx
+
+    try:
+        access_token = await get_valid_google_token(creator_id)
+
+        async with httpx.AsyncClient() as client:
+            response = await client.delete(
+                f"https://www.googleapis.com/calendar/v3/calendars/primary/events/{event_id}",
+                params={"sendUpdates": "all"},  # Notify attendees
+                headers={
+                    "Authorization": f"Bearer {access_token}",
+                }
+            )
+
+            if response.status_code == 204 or response.status_code == 200:
+                logger.info(f"Deleted Google Calendar event {event_id} for {creator_id}")
+                return True
+            elif response.status_code == 404:
+                logger.warning(f"Google Calendar event {event_id} not found - may have been deleted already")
+                return True  # Consider it a success if already deleted
+            else:
+                logger.error(f"Failed to delete Google Calendar event: {response.status_code} - {response.text}")
+                return False
+
+    except Exception as e:
+        logger.error(f"Error deleting Google Calendar event: {e}")
+        return False
