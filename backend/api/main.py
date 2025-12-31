@@ -1268,11 +1268,19 @@ TELEGRAM_PROXY_URL = os.getenv("TELEGRAM_PROXY_URL", "")  # Cloudflare Worker UR
 TELEGRAM_PROXY_SECRET = os.getenv("TELEGRAM_PROXY_SECRET", "")
 
 
-async def send_telegram_via_proxy(chat_id: int, text: str, bot_token: str) -> dict:
+async def send_telegram_via_proxy(chat_id: int, text: str, bot_token: str, reply_markup: dict = None) -> dict:
     """Send Telegram message via Cloudflare Worker proxy"""
     headers = {}
     if TELEGRAM_PROXY_SECRET:
         headers["X-Telegram-Proxy-Secret"] = TELEGRAM_PROXY_SECRET
+
+    params = {
+        "chat_id": chat_id,
+        "text": text,
+        "parse_mode": "HTML"
+    }
+    if reply_markup:
+        params["reply_markup"] = reply_markup
 
     async with httpx.AsyncClient(timeout=30.0) as client:
         response = await client.post(
@@ -1280,39 +1288,39 @@ async def send_telegram_via_proxy(chat_id: int, text: str, bot_token: str) -> di
             json={
                 "bot_token": bot_token,
                 "method": "sendMessage",
-                "params": {
-                    "chat_id": chat_id,
-                    "text": text,
-                    "parse_mode": "HTML"
-                }
+                "params": params
             },
             headers=headers
         )
         return response.json()
 
 
-async def send_telegram_direct(chat_id: int, text: str, bot_token: str) -> dict:
+async def send_telegram_direct(chat_id: int, text: str, bot_token: str, reply_markup: dict = None) -> dict:
     """Send Telegram message directly (for environments without blocking)"""
     telegram_api = f"https://api.telegram.org/bot{bot_token}/sendMessage"
+    payload = {
+        "chat_id": chat_id,
+        "text": text,
+        "parse_mode": "HTML"
+    }
+    if reply_markup:
+        payload["reply_markup"] = reply_markup
+
     async with httpx.AsyncClient() as client:
-        response = await client.post(telegram_api, json={
-            "chat_id": chat_id,
-            "text": text,
-            "parse_mode": "HTML"
-        })
+        response = await client.post(telegram_api, json=payload)
         return response.json()
 
 
-async def send_telegram_message(chat_id: int, text: str, bot_token: str) -> dict:
+async def send_telegram_message(chat_id: int, text: str, bot_token: str, reply_markup: dict = None) -> dict:
     """Send Telegram message - uses proxy if configured, otherwise direct"""
     if TELEGRAM_PROXY_URL:
         logger.info(f"Sending Telegram message via proxy to chat {chat_id}")
         if not TELEGRAM_PROXY_SECRET:
             logger.warning("TELEGRAM_PROXY_SECRET not set - proxy may reject request if it requires auth")
-        return await send_telegram_via_proxy(chat_id, text, bot_token)
+        return await send_telegram_via_proxy(chat_id, text, bot_token, reply_markup)
     else:
         logger.info(f"Sending Telegram message directly to chat {chat_id}")
-        return await send_telegram_direct(chat_id, text, bot_token)
+        return await send_telegram_direct(chat_id, text, bot_token, reply_markup)
 
 
 @app.post("/webhook/telegram")
@@ -1366,9 +1374,24 @@ async def telegram_webhook(request: Request):
 
             logger.info(f"Telegram DM from {sender_name} ({sender_id}): '{text[:50]}' -> intent={intent}")
 
+            # Build inline keyboard if present in metadata
+            reply_markup = None
+            if response.metadata and "telegram_keyboard" in response.metadata:
+                keyboard_data = response.metadata["telegram_keyboard"]
+                if keyboard_data:
+                    # Convert to Telegram API format: {"inline_keyboard": [[{button}], ...]}
+                    inline_keyboard = []
+                    for button in keyboard_data:
+                        inline_keyboard.append([{
+                            "text": button.get("text", ""),
+                            "url": button.get("url", "")
+                        }])
+                    reply_markup = {"inline_keyboard": inline_keyboard}
+                    logger.info(f"Sending {len(keyboard_data)} inline buttons for booking")
+
             # Enviar respuesta a Telegram (via proxy si está configurado)
             if bot_reply and TELEGRAM_BOT_TOKEN:
-                result = await send_telegram_message(chat_id, bot_reply, TELEGRAM_BOT_TOKEN)
+                result = await send_telegram_message(chat_id, bot_reply, TELEGRAM_BOT_TOKEN, reply_markup)
                 if result.get("ok"):
                     logger.info(f"Telegram response sent to chat {chat_id}")
                 else:

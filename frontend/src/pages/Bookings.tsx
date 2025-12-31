@@ -114,18 +114,8 @@ export default function Bookings() {
   const cancelBookingMutation = useCancelBooking();
   const { toast } = useToast();
 
-  // Check connected platforms - only Google Meet is supported
+  // Check if Google Calendar is connected (for auto Meet link generation)
   const googleConnected = connectionsData?.google?.connected ?? false;
-
-  // Build available platforms based on connections
-  // Always include Clonnect (internal), optionally Google Meet
-  const connectedPlatforms = [
-    { value: "clonnect", label: "Clonnect" },
-    ...(googleConnected ? [{ value: "google-meet", label: "Google Meet" }] : []),
-  ];
-
-  // Always have at least Clonnect platform available
-  const hasConnectedPlatforms = true;
 
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [selectedServiceType, setSelectedServiceType] = useState("discovery");
@@ -138,11 +128,14 @@ export default function Bookings() {
     meeting_type: "discovery",
     title: "Discovery Call",
     url: "",
-    platform: "clonnect",
+    platform: "clonnect",  // Always use internal Clonnect system
     duration_minutes: 30,
     description: "",
     price: 0,
   });
+
+  // Platform is always "clonnect" - no user choice needed
+  const hasConnectedPlatforms = true;
 
   // Handle service type change
   const handleServiceTypeChange = (value: string) => {
@@ -205,14 +198,6 @@ export default function Bookings() {
   });
 
   const handleCreateLink = async () => {
-    // Clonnect and google-meet don't require URLs (auto-created on booking)
-    const isAutoCreate = newLink.platform === "clonnect" || (newLink.platform === "google-meet" && googleConnected);
-
-    if (!newLink.url && !isAutoCreate) {
-      toast({ title: "Error", description: "Booking URL is required", variant: "destructive" });
-      return;
-    }
-
     // Validate service type for custom
     if (selectedServiceType === "other" && !customServiceType.trim()) {
       toast({ title: "Error", description: "Please enter a custom service name", variant: "destructive" });
@@ -227,8 +212,7 @@ export default function Bookings() {
 
     try {
       await createBookingLink.mutateAsync(newLink);
-      const platformName = newLink.platform === "google-meet" ? "Google Meet" : "Clonnect";
-      toast({ title: "Success", description: `Service created (${platformName})` });
+      toast({ title: "Success", description: "Service created" });
       setShowCreateForm(false);
       // Reset form
       setSelectedServiceType("discovery");
@@ -503,7 +487,7 @@ export default function Bookings() {
               </div>
             ) : (
               <>
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
                   {/* Service Type */}
                   <div className="space-y-1">
                     <label className="text-xs text-muted-foreground">Service Type</label>
@@ -570,20 +554,6 @@ export default function Bookings() {
                       )}
                     </div>
                   </div>
-
-                  {/* Platform */}
-                  <div className="space-y-1">
-                    <label className="text-xs text-muted-foreground">Platform</label>
-                    <select
-                      value={newLink.platform}
-                      onChange={(e) => setNewLink(prev => ({ ...prev, platform: e.target.value, url: "" }))}
-                      className="w-full px-3 py-2 rounded border bg-background text-sm"
-                    >
-                      {connectedPlatforms.map(platform => (
-                        <option key={platform.value} value={platform.value}>{platform.label}</option>
-                      ))}
-                    </select>
-                  </div>
                 </div>
 
                 {/* Custom service name if "other" selected */}
@@ -599,23 +569,20 @@ export default function Bookings() {
                   </div>
                 )}
 
-                {/* URL info based on platform */}
-                {newLink.platform === "clonnect" ? (
-                  <div className="mt-3 flex items-center gap-2 px-3 py-2 rounded bg-success/10 text-sm text-success">
-                    <CheckCircle2 className="w-4 h-4 flex-shrink-0" />
-                    <span>Internal Clonnect booking system - customers book via your booking page</span>
+                {/* Booking system info */}
+                <div className="mt-3 flex items-center gap-2 px-3 py-2 rounded bg-primary/10 text-sm text-primary">
+                  <CheckCircle2 className="w-4 h-4 flex-shrink-0" />
+                  <span>
+                    Customers book via your Clonnect page
+                    {googleConnected && " • Google Meet link auto-generated"}
+                  </span>
+                </div>
+                {!googleConnected && (
+                  <div className="mt-2 flex items-center gap-2 px-3 py-2 rounded bg-secondary text-sm text-muted-foreground">
+                    <Video className="w-4 h-4 flex-shrink-0" />
+                    <span>Connect Google Calendar in Settings to auto-generate Meet links</span>
                   </div>
-                ) : newLink.platform === "google-meet" && googleConnected ? (
-                  <div className="mt-3 flex items-center gap-2 px-3 py-2 rounded bg-success/10 text-sm text-success">
-                    <CheckCircle2 className="w-4 h-4 flex-shrink-0" />
-                    <span>Google Meet connected - video link will be created automatically when booked</span>
-                  </div>
-                ) : newLink.platform === "google-meet" && !googleConnected ? (
-                  <div className="mt-3 flex items-center gap-2 px-3 py-2 rounded bg-yellow-500/10 text-sm text-yellow-600">
-                    <AlertCircle className="w-4 h-4 flex-shrink-0" />
-                    <span>Connect Google in Settings to auto-generate Meet links</span>
-                  </div>
-                ) : null}
+                )}
 
                 <div className="flex justify-end mt-4">
                   <Button onClick={handleCreateLink} disabled={createBookingLink.isPending}>
