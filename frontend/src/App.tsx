@@ -15,6 +15,7 @@ import Docs from "./pages/Docs";
 import Terms from "./pages/Terms";
 import Privacy from "./pages/Privacy";
 import NotFound from "./pages/NotFound";
+import BookService from "./pages/BookService";
 
 const queryClient = new QueryClient();
 
@@ -38,6 +39,8 @@ const App = () => (
             <Route path="/terms" element={<Terms />} />
             <Route path="/privacy" element={<Privacy />} />
           </Route>
+          {/* Public booking page - no authentication required */}
+          <Route path="/book/:creatorId/:serviceId" element={<BookService />} />
           <Route path="*" element={<NotFound />} />
         </Routes>
       </BrowserRouter>
