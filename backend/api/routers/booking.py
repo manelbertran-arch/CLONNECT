@@ -333,7 +333,14 @@ async def reserve_slot(creator_id: str, data: dict = Body(...), db: Session = De
         meeting_url = ""
         try:
             creator = db.query(Creator).filter(Creator.name == creator_id).first()
-            if creator and creator.google_access_token:
+            logger.info(f"Creator {creator_id} found: {bool(creator)}")
+            if creator:
+                logger.info(f"Creator has google_refresh_token: {bool(creator.google_refresh_token)}")
+                logger.info(f"Creator has google_access_token: {bool(creator.google_access_token)}")
+
+            # Check for refresh_token - access_token will be refreshed if needed
+            if creator and creator.google_refresh_token:
+                logger.info(f"Creating Google Calendar event for booking...")
                 try:
                     from api.routers.oauth import create_google_meet_event
                 except:
@@ -343,6 +350,7 @@ async def reserve_slot(creator_id: str, data: dict = Body(...), db: Session = De
                 scheduled_datetime = datetime.combine(target_date, start_time).replace(tzinfo=timezone.utc)
                 end_datetime = scheduled_datetime + timedelta(minutes=duration_minutes)
 
+                logger.info(f"Calling create_google_meet_event: {service.title}, {scheduled_datetime} - {end_datetime}")
                 result = await create_google_meet_event(
                     creator_id=creator_id,
                     title=service.title or "Meeting",
@@ -352,11 +360,16 @@ async def reserve_slot(creator_id: str, data: dict = Body(...), db: Session = De
                     guest_name=name,
                     description=f"Booking: {service.title}"
                 )
+                logger.info(f"Google Meet event result: {result}")
                 if result.get("meet_link"):
                     meeting_url = result.get("meet_link", "")
                     logger.info(f"Created Google Meet link for booking: {meeting_url}")
+            else:
+                logger.info(f"Skipping Google Calendar - no refresh token for creator {creator_id}")
         except Exception as e:
-            logger.warning(f"Could not create Google Meet event: {e}")
+            logger.error(f"Could not create Google Meet event: {type(e).__name__}: {e}")
+            import traceback
+            logger.error(f"Traceback: {traceback.format_exc()}")
 
         # Generate IDs upfront
         slot_id = uuid.uuid4()
