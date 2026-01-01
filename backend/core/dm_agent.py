@@ -664,7 +664,7 @@ class DMResponderAgent:
         """
         Format booking links as a friendly message with internal Clonnect URLs.
         Returns dict with 'text' and optionally 'telegram_keyboard' for inline buttons.
-        For Telegram, uses callback_data for in-chat booking flow instead of URLs.
+        For Telegram, uses URL buttons that open the booking page directly.
         """
         if not links:
             creator_name = self.creator_config.get('name', 'el creador')
@@ -690,20 +690,24 @@ class DMResponderAgent:
 
             emoji = self._get_service_emoji(meeting_type)
 
-            # Price text
+            # Price text (shorter format)
             if price == 0:
-                price_text = "GRATIS" if language == "es" else "FREE"
+                price_text = "Gratis" if language == "es" else "Free"
             else:
                 price_text = f"{price}€"
 
-            # Generate internal Clonnect booking URL (for fallback/Instagram)
+            # Generate internal Clonnect booking URL
             booking_url = f"{frontend_url}/book/{self.creator_id}/{service_id}"
 
-            # For Telegram: create button with callback_data for in-chat booking
-            button_text = f"{emoji} {title} ({duration} min) - {price_text}"
+            # Shorten title if too long (Telegram buttons have limited width)
+            short_title = title[:15] + "..." if len(title) > 18 else title
+
+            # For Telegram: create URL button with shortened text
+            # Format: "🎯 Coaching (60m) Gratis" - much shorter to avoid truncation
+            button_text = f"{emoji} {short_title} ({duration}m) {price_text}"
             telegram_keyboard.append({
                 "text": button_text,
-                "callback_data": f"book_svc:{service_id}"  # In-Telegram booking flow
+                "url": booking_url  # Direct URL to booking page
             })
 
             # For Instagram/other: text with URL
@@ -713,9 +717,9 @@ class DMResponderAgent:
         if platform == "telegram":
             # Telegram gets short intro + inline buttons
             if language == "es":
-                text = "📅 ¡Reserva tu llamada conmigo!\n\nElige el servicio que te interese:"
+                text = "📅 ¡Reserva tu llamada conmigo!\n\nElige el servicio:"
             else:
-                text = "📅 Book a call with me!\n\nChoose the service you're interested in:"
+                text = "📅 Book a call with me!\n\nChoose a service:"
 
             return {
                 "text": text,
