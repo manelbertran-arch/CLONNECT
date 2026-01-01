@@ -2245,53 +2245,56 @@ async def generate_ai_knowledge(request: dict = Body(...)):
 
         async with httpx.AsyncClient(timeout=60.0) as client:
             if content_type == "faqs":
-                system_prompt = """Genera FAQs para un negocio. Sigue estas reglas ESTRICTAMENTE:
+                system_prompt = """Genera FAQs PERFECTAS para un negocio.
 
-REGLAS:
-1. Lee el texto COMPLETO antes de generar
-2. Extrae TODOS los datos: productos, precios, características, garantías, pagos, horarios
-3. Cada respuesta debe ser COMPLETA y ESPECÍFICA (mínimo 20 caracteres)
-4. NO repitas información entre FAQs
-5. NO inventes datos que no estén en el texto
-6. Si hay múltiples productos, lista TODOS con sus precios en una sola respuesta
-7. Si algo incluye varias características, lista TODAS
+REGLAS ESTRICTAS:
 
-ERRORES A EVITAR:
-- NO respondas con una sola palabra o dato parcial
-- NO dupliques productos en la misma respuesta
-- NO confundas datos de diferentes categorías
-- NO uses "tarjeta" como respuesta a "¿qué incluye?" (tarjeta es método de pago, no contenido)
-- NO confundas garantía con duración del curso
+1. PRECIOS: Si hay múltiples productos, lista TODOS con nombre y precio exacto
+   MAL: "El precio es 297€"
+   BIEN: "El Curso Trading Pro cuesta 297€. La Mentoría 1:1 cuesta 500€/mes."
 
-FORMATO JSON (solo esto, sin explicaciones):
-{"faqs":[{"question":"pregunta","answer":"respuesta completa con todos los datos"}]}
+2. CONTENIDO: Si un producto incluye varias cosas, lista TODO
+   MAL: "Incluye videos y comunidad"
+   BIEN: "Incluye 20 horas de vídeo, comunidad privada en Telegram, sesiones Q&A semanales, plantillas y acceso de por vida."
 
-EJEMPLO CORRECTO:
-Texto: "Curso A: 100€ (videos, comunidad). Mentoría: 200€/mes. Garantía 30 días. Pago Stripe."
-Respuesta:
+3. NO MEZCLAR PRODUCTOS: Cada producto debe tener su propia descripción
+   MAL: "Incluye videos... Mentoría 500€/mes..." (mezclado)
+   BIEN: Separar en FAQs diferentes
+
+4. REDACCIÓN LIMPIA: Sin redundancias ni errores
+   MAL: "Atendemos de atención: Lunes..."
+   BIEN: "Atendemos de lunes a viernes de 9:00 a 18:00."
+
+5. RESPUESTAS COMPLETAS: Mínimo 15 palabras, máximo 60
+
+FORMATO (solo JSON, sin explicaciones):
+{"faqs":[{"question":"?","answer":"respuesta completa"}]}
+
+EJEMPLO:
+Texto: "Curso A: 100€ (videos, comunidad). Mentoría: 200€/mes. Garantía 30 días."
 {"faqs":[
-{"question":"¿Cuánto cuesta?","answer":"Curso A cuesta 100€. La Mentoría cuesta 200€/mes."},
+{"question":"¿Cuánto cuestan tus productos?","answer":"El Curso A cuesta 100€. La Mentoría cuesta 200€/mes."},
 {"question":"¿Qué incluye el Curso A?","answer":"Incluye videos y acceso a comunidad."},
-{"question":"¿Tienen garantía?","answer":"Sí, 30 días de garantía de devolución."},
-{"question":"¿Cómo puedo pagar?","answer":"Puedes pagar con Stripe."}
+{"question":"¿Qué es la Mentoría?","answer":"Es acompañamiento personalizado por 200€/mes."},
+{"question":"¿Tienen garantía?","answer":"Sí, 30 días de garantía de devolución."}
 ]}"""
             else:
                 system_prompt = """Extrae informacion clave sobre el negocio/creador.
 Devuelve SOLO un JSON valido:
 {"bio": "descripcion breve", "specialties": ["especialidad1"], "experience": "experiencia", "target_audience": "publico"}"""
 
-            user_message = f"""Genera 6-8 FAQs para este negocio.
+            user_message = f"""Genera 6-8 FAQs para este negocio:
 
-TEXTO:
 {prompt}
 
-IMPORTANTE:
-- Si hay varios productos con precios, menciona TODOS al preguntar por precios
-- Si algo incluye varias cosas (videos, comunidad, plantillas, etc.), lista TODO
-- Las respuestas deben ser completas, no parciales
-- NO generes respuestas absurdas como "Incluye: tarjeta"
+CHECKLIST antes de responder:
+- ¿Mencioné TODOS los productos con sus precios exactos?
+- ¿Cada respuesta es completa y específica?
+- ¿No hay frases redundantes como "Atendemos de atención"?
+- ¿No mezclé información de diferentes productos en la misma respuesta?
+- ¿Listó TODO lo que incluye cada producto?
 
-Genera el JSON:"""
+JSON:"""
 
             logger.info("Calling Grok API with perfected prompt...")
             response = await client.post(
@@ -2344,13 +2347,20 @@ Genera el JSON:"""
                         if not isinstance(faqs_list, list):
                             faqs_list = [faqs_list]
 
-                        # POST-GENERATION VALIDATION
+                        # POST-GENERATION VALIDATION & CLEANUP
                         validated_faqs = []
                         seen_answers = set()
 
                         for faq in faqs_list:
                             answer = faq.get("answer", "").strip()
                             question = faq.get("question", "").strip()
+
+                            # Fix common redundancies
+                            answer = answer.replace("Atendemos de atención:", "Atendemos")
+                            answer = answer.replace("Atendemos de atención", "Atendemos")
+                            answer = answer.replace("El precio es Curso", "El Curso")
+                            answer = answer.replace("El precio es el Curso", "El Curso")
+                            answer = re.sub(r'\s+', ' ', answer)  # Fix double spaces
 
                             # Skip empty or very short answers
                             if len(answer) < 15:
