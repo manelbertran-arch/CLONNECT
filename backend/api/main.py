@@ -2245,47 +2245,55 @@ async def generate_ai_knowledge(request: dict = Body(...)):
 
         async with httpx.AsyncClient(timeout=60.0) as client:
             if content_type == "faqs":
-                system_prompt = """Eres un asistente que genera FAQs EXACTAS para negocios.
+                system_prompt = """Genera FAQs para un negocio. Sigue estas reglas ESTRICTAMENTE:
 
-TU ÚNICA TAREA: Extraer información del texto y convertirla en preguntas y respuestas.
+REGLAS:
+1. Lee el texto COMPLETO antes de generar
+2. Extrae TODOS los datos: productos, precios, características, garantías, pagos, horarios
+3. Cada respuesta debe ser COMPLETA y ESPECÍFICA (mínimo 20 caracteres)
+4. NO repitas información entre FAQs
+5. NO inventes datos que no estén en el texto
+6. Si hay múltiples productos, lista TODOS con sus precios en una sola respuesta
+7. Si algo incluye varias características, lista TODAS
 
-REGLAS OBLIGATORIAS:
-1. COPIA los datos exactos del texto (precios, duraciones, características)
-2. NO inventes información que no esté en el texto
-3. NO uses frases genéricas como "contacta", "consulta", "escríbenos", "más detalles", "depende"
-4. NO confundas datos diferentes (garantía ≠ duración del curso)
-5. INCLUYE todos los datos relevantes en cada respuesta
-6. Si hay múltiples productos, menciónalos con sus precios específicos
+ERRORES A EVITAR:
+- NO respondas con una sola palabra o dato parcial
+- NO dupliques productos en la misma respuesta
+- NO confundas datos de diferentes categorías
+- NO uses "tarjeta" como respuesta a "¿qué incluye?" (tarjeta es método de pago, no contenido)
+- NO confundas garantía con duración del curso
 
-EJEMPLO DE ENTRADA:
-"Vendo un curso de cocina por 150€. Incluye 10 videos y recetario PDF. Garantía 15 días. Pago con Stripe o PayPal."
+FORMATO JSON (solo esto, sin explicaciones):
+{"faqs":[{"question":"pregunta","answer":"respuesta completa con todos los datos"}]}
 
-EJEMPLO DE SALIDA CORRECTA:
+EJEMPLO CORRECTO:
+Texto: "Curso A: 100€ (videos, comunidad). Mentoría: 200€/mes. Garantía 30 días. Pago Stripe."
+Respuesta:
 {"faqs":[
-  {"question":"¿Cuánto cuesta el curso?","answer":"El curso de cocina cuesta 150€."},
-  {"question":"¿Qué incluye el curso?","answer":"Incluye 10 videos y un recetario en PDF."},
-  {"question":"¿Tienen garantía?","answer":"Sí, 15 días de garantía de devolución."},
-  {"question":"¿Cómo puedo pagar?","answer":"Puedes pagar con Stripe o PayPal."}
-]}
-
-FORMATO: Solo JSON válido, sin explicaciones, sin markdown."""
+{"question":"¿Cuánto cuesta?","answer":"Curso A cuesta 100€. La Mentoría cuesta 200€/mes."},
+{"question":"¿Qué incluye el Curso A?","answer":"Incluye videos y acceso a comunidad."},
+{"question":"¿Tienen garantía?","answer":"Sí, 30 días de garantía de devolución."},
+{"question":"¿Cómo puedo pagar?","answer":"Puedes pagar con Stripe."}
+]}"""
             else:
                 system_prompt = """Extrae informacion clave sobre el negocio/creador.
 Devuelve SOLO un JSON valido:
 {"bio": "descripcion breve", "specialties": ["especialidad1"], "experience": "experiencia", "target_audience": "publico"}"""
 
-            user_message = f"""TEXTO DEL NEGOCIO:
+            user_message = f"""Genera 6-8 FAQs para este negocio.
+
+TEXTO:
 {prompt}
 
-INSTRUCCIONES:
-1. Lee TODO el texto cuidadosamente
-2. Identifica: productos, precios, características, garantías, métodos de pago, horarios
-3. Genera 6-8 FAQs con respuestas EXACTAS usando los datos del texto
-4. Cada respuesta debe ser completa y específica
+IMPORTANTE:
+- Si hay varios productos con precios, menciona TODOS al preguntar por precios
+- Si algo incluye varias cosas (videos, comunidad, plantillas, etc.), lista TODO
+- Las respuestas deben ser completas, no parciales
+- NO generes respuestas absurdas como "Incluye: tarjeta"
 
 Genera el JSON:"""
 
-            logger.info("Calling Grok API with ultra-precise prompt...")
+            logger.info("Calling Grok API with perfected prompt...")
             response = await client.post(
                 "https://api.x.ai/v1/chat/completions",
                 headers={
@@ -2299,7 +2307,7 @@ Genera el JSON:"""
                         {"role": "user", "content": user_message}
                     ],
                     "max_tokens": 2000,
-                    "temperature": 0.1
+                    "temperature": 0.05
                 }
             )
 
@@ -2313,7 +2321,7 @@ Genera el JSON:"""
                     raise Exception("Invalid Grok response")
 
                 content = data["choices"][0]["message"]["content"]
-                logger.info(f"Grok raw response: {content[:300]}...")
+                logger.info(f"Grok raw response: {content[:500]}...")
 
                 # Clean up response - remove markdown code blocks
                 content = re.sub(r'```json\s*', '', content)
@@ -2336,16 +2344,36 @@ Genera el JSON:"""
                         if not isinstance(faqs_list, list):
                             faqs_list = [faqs_list]
 
-                        # Validate and log any generic responses
-                        generic_phrases = ["contacta", "consulta", "escríbenos", "más detalles", "depende de"]
-                        for faq in faqs_list:
-                            answer_lower = faq.get("answer", "").lower()
-                            for phrase in generic_phrases:
-                                if phrase in answer_lower:
-                                    logger.warning(f"Generic phrase detected in FAQ: '{phrase}' in '{faq['answer'][:50]}...'")
+                        # POST-GENERATION VALIDATION
+                        validated_faqs = []
+                        seen_answers = set()
 
-                        logger.info(f"Successfully parsed {len(faqs_list)} FAQs from Grok")
-                        return {"faqs": faqs_list, "source": "grok"}
+                        for faq in faqs_list:
+                            answer = faq.get("answer", "").strip()
+                            question = faq.get("question", "").strip()
+
+                            # Skip empty or very short answers
+                            if len(answer) < 15:
+                                logger.warning(f"Skipping short answer: '{answer}'")
+                                continue
+
+                            # Skip absurd answers
+                            absurd_answers = ["tarjeta", "incluye: tarjeta", "tarjeta.", "stripe", "paypal"]
+                            if answer.lower().strip().rstrip('.') in absurd_answers:
+                                logger.warning(f"Skipping absurd answer: '{answer}'")
+                                continue
+
+                            # Skip duplicates
+                            answer_normalized = answer.lower()[:50]
+                            if answer_normalized in seen_answers:
+                                logger.warning(f"Skipping duplicate answer: '{answer[:50]}...'")
+                                continue
+                            seen_answers.add(answer_normalized)
+
+                            validated_faqs.append({"question": question, "answer": answer})
+
+                        logger.info(f"Validated {len(validated_faqs)} FAQs from Grok (filtered from {len(faqs_list)})")
+                        return {"faqs": validated_faqs, "source": "grok"}
                     else:
                         return {"about": parsed, "source": "grok"}
 
@@ -2391,6 +2419,8 @@ def generate_fallback_faqs(content: str) -> list:
     ]
 
     products = []
+    seen_prices = set()  # Track prices to avoid duplicates
+
     for pattern in product_price_patterns:
         matches = re.findall(pattern, content)
         for match in matches:
@@ -2398,6 +2428,13 @@ def generate_fallback_faqs(content: str) -> list:
                 name = match[0].strip()
                 price = match[1]
                 period = match[2] if len(match) > 2 and match[2] else None
+
+                # Skip if we've already seen this price (avoid duplicates)
+                price_key = f"{price}-{period or ''}"
+                if price_key in seen_prices:
+                    continue
+                seen_prices.add(price_key)
+
                 if period:
                     products.append(f"{name}: {price}€/{period}")
                 else:
@@ -2422,10 +2459,29 @@ def generate_fallback_faqs(content: str) -> list:
                 "answer": f"Tenemos varias opciones: {'. '.join(products)}."
             })
 
-    # Extract what's included - look for parentheses content or after "incluye"
-    include_match = re.search(r'\(([^)]+)\)', content)
-    if include_match:
-        included_text = include_match.group(1)
+    # Extract what's included - look for parentheses after price OR after "incluye"
+    # IMPORTANT: Skip small parentheses with payment words like "(tarjeta)"
+    included_text = None
+
+    # First, try to find parentheses that come after a price (e.g., "297€ (20h vídeo, comunidad...)")
+    price_paren_match = re.search(r'\d+[€$]\s*\(([^)]{15,})\)', content)  # Min 15 chars to avoid "(tarjeta)"
+    if price_paren_match:
+        included_text = price_paren_match.group(1)
+    else:
+        # Try any parentheses with substantial content (not payment-related)
+        all_parens = re.findall(r'\(([^)]+)\)', content)
+        for paren_content in all_parens:
+            paren_lower = paren_content.lower()
+            # Skip payment-related parentheses
+            if any(word in paren_lower for word in ["tarjeta", "card", "visa", "mastercard"]):
+                continue
+            # Skip very short content
+            if len(paren_content) < 15:
+                continue
+            included_text = paren_content
+            break
+
+    if included_text:
         faqs.append({
             "question": "¿Qué incluye?",
             "answer": f"Incluye: {included_text}."
