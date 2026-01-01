@@ -83,7 +83,7 @@ import { Switch } from "@/components/ui/switch";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
 import { useCreatorConfig, useProducts, useUpdateConfig, useAddProduct, useUpdateProduct, useDeleteProduct, useKnowledge, useAddFAQ, useDeleteFAQ, useGenerateKnowledge, useConnections, useUpdateConnection, useDisconnectPlatform } from "@/hooks/useApi";
-import { startOAuth } from "@/services/api";
+import { startOAuth, API_URL } from "@/services/api";
 import { useToast } from "@/hooks/use-toast";
 import type { Product } from "@/types/api";
 
@@ -574,7 +574,7 @@ export default function Settings() {
     setIsGeneratingKnowledge(true);
     try {
       // Use new endpoint that generates both FAQs and About
-      const response = await fetch("/api/ai/generate-knowledge-full", {
+      const response = await fetch(`${API_URL}/api/ai/generate-knowledge-full`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ content: aiKnowledgePrompt }),
