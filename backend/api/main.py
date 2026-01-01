@@ -2242,26 +2242,39 @@ async def generate_ai_knowledge(request: dict = Body(...)):
     try:
         async with httpx.AsyncClient(timeout=30.0) as client:
             if content_type == "faqs":
-                system_prompt = """Eres un experto en crear FAQs para negocios y creadores.
+                system_prompt = """Eres un experto en crear FAQs para negocios. Tu trabajo es extraer información ESPECÍFICA y usarla en las respuestas.
 
-Analiza la descripcion del negocio/creador y genera 5-8 preguntas frecuentes con respuestas utiles.
+REGLAS CRÍTICAS:
+1. Genera 6-8 FAQs basadas EXACTAMENTE en la información proporcionada
+2. Las respuestas DEBEN incluir datos concretos: precios exactos, duraciones, características específicas
+3. PROHIBIDO usar frases genéricas como:
+   - "Contacta para más detalles"
+   - "Consulta nuestra web"
+   - "Depende de tus necesidades"
+   - "El precio es X€" (usa el precio REAL)
+4. Si el texto dice "297€", la respuesta debe decir "297€"
+5. Si dice "garantía de 30 días", responde "30 días de garantía"
+6. Si dice "incluye comunidad Telegram", menciona "comunidad Telegram"
 
-Las preguntas deben cubrir:
-- Precios y formas de pago
-- Que incluye el producto/servicio
-- Garantias o devoluciones
-- Disponibilidad y tiempos
-- Como contactar o contratar
+TEMAS A CUBRIR:
+- Precio exacto y formas de pago
+- Qué incluye específicamente
+- Garantía/devolución (términos exactos)
+- Duración o acceso
+- Cómo empezar
 
-IMPORTANTE: Devuelve SOLO un JSON array valido, sin explicaciones ni markdown:
-[
-  {"question": "¿Cuanto cuesta?", "answer": "El precio es X€..."},
-  {"question": "¿Que incluye?", "answer": "Incluye..."}
-]"""
+FORMATO: Solo JSON array válido, sin markdown:
+[{"question": "¿Pregunta?", "answer": "Respuesta con DATOS ESPECÍFICOS del texto."}]"""
             else:
                 system_prompt = """Extrae informacion clave sobre el negocio/creador.
 Devuelve SOLO un JSON valido:
 {"bio": "descripcion breve", "specialties": ["especialidad1"], "experience": "experiencia", "target_audience": "publico"}"""
+
+            user_message = f"""Genera FAQs ESPECÍFICAS para este negocio. USA TODOS los datos concretos mencionados (precios, duraciones, características):
+
+{prompt}
+
+RECUERDA: Las respuestas deben incluir los precios exactos, características específicas y datos concretos del texto. NUNCA respuestas genéricas."""
 
             logger.info("Calling Grok API...")
             response = await client.post(
@@ -2274,10 +2287,10 @@ Devuelve SOLO un JSON valido:
                     "model": "grok-beta",
                     "messages": [
                         {"role": "system", "content": system_prompt},
-                        {"role": "user", "content": f"Genera FAQs para este negocio/creador:\n\n{prompt}"}
+                        {"role": "user", "content": user_message}
                     ],
-                    "max_tokens": 1000,
-                    "temperature": 0.7
+                    "max_tokens": 1500,
+                    "temperature": 0.3
                 }
             )
 
@@ -2335,60 +2348,109 @@ Devuelve SOLO un JSON valido:
 
 
 def generate_fallback_faqs(content: str) -> list:
-    """Generate FAQs locally when API is not available"""
+    """Generate FAQs locally when API is not available - extracts SPECIFIC data"""
+    import re
     faqs = []
     content_lower = content.lower()
 
-    # Detect prices
-    import re
-    prices = re.findall(r'(\d+)\s*[€$]|[€$]\s*(\d+)', content)
+    # Extract ALL prices mentioned (e.g., "297€", "500€/mes", "$99")
+    price_matches = re.findall(r'(\d+(?:\.\d+)?)\s*[€$](?:/\w+)?|[€$]\s*(\d+(?:\.\d+)?)', content)
+    prices = [p[0] or p[1] for p in price_matches if p[0] or p[1]]
+
+    # Extract durations (e.g., "8 semanas", "30 días", "3 meses")
+    duration_match = re.search(r'(\d+)\s*(semanas?|días?|meses?|horas?)', content_lower)
+    duration = f"{duration_match.group(1)} {duration_match.group(2)}" if duration_match else None
+
+    # Extract guarantee period
+    guarantee_match = re.search(r'garantía\s*(?:de\s*)?(\d+)\s*(días?|semanas?|meses?)', content_lower)
+    guarantee = f"{guarantee_match.group(1)} {guarantee_match.group(2)}" if guarantee_match else None
+
+    # Extract specific features (look for lists or "incluye")
+    features = []
+    if "incluye" in content_lower or "acceso" in content_lower:
+        # Look for things like "comunidad", "sesiones", "plantillas", etc.
+        feature_keywords = ["comunidad", "telegram", "sesiones", "plantillas", "videos", "vídeos",
+                          "acceso", "soporte", "grupo", "discord", "whatsapp", "material", "ebook"]
+        for kw in feature_keywords:
+            if kw in content_lower:
+                features.append(kw)
+
+    # Build SPECIFIC FAQs
     if prices:
-        price = prices[0][0] or prices[0][1]
-        faqs.append({
-            "question": "¿Cuánto cuesta?",
-            "answer": f"El precio es {price}€. Contacta para más detalles sobre opciones de pago."
-        })
+        if len(prices) == 1:
+            faqs.append({
+                "question": "¿Cuánto cuesta?",
+                "answer": f"El precio es {prices[0]}€."
+            })
+        else:
+            price_list = ", ".join([f"{p}€" for p in prices])
+            faqs.append({
+                "question": "¿Cuánto cuesta?",
+                "answer": f"Hay varias opciones: {price_list}."
+            })
 
-    # Common questions based on keywords
+    # Course/program specific
     if any(word in content_lower for word in ["curso", "formacion", "programa", "training"]):
-        faqs.append({
-            "question": "¿Qué incluye el curso?",
-            "answer": "El curso incluye todo el material mencionado. Contacta para más detalles sobre el contenido."
-        })
-        faqs.append({
-            "question": "¿Cuánto dura el curso?",
-            "answer": "La duración depende de tu ritmo. Tienes acceso al contenido para avanzar a tu velocidad."
-        })
+        if features:
+            feature_str = ", ".join(features[:4])
+            faqs.append({
+                "question": "¿Qué incluye?",
+                "answer": f"Incluye: {feature_str}."
+            })
+        if duration:
+            faqs.append({
+                "question": "¿Cuánto dura?",
+                "answer": f"El programa tiene una duración de {duration}."
+            })
 
-    if any(word in content_lower for word in ["garantia", "devolucion", "reembolso"]):
+    # Coaching/mentoring specific
+    if any(word in content_lower for word in ["coaching", "mentoria", "1:1", "mentoría"]):
+        session_match = re.search(r'(\d+)\s*sesion', content_lower)
+        if session_match:
+            faqs.append({
+                "question": "¿Cuántas sesiones incluye?",
+                "answer": f"Incluye {session_match.group(1)} sesiones."
+            })
+
+    # Guarantee
+    if guarantee:
         faqs.append({
             "question": "¿Hay garantía de devolución?",
-            "answer": "Sí, ofrecemos garantía de satisfacción. Contacta para conocer los términos."
+            "answer": f"Sí, tienes garantía de {guarantee}. Si no estás satisfecho, te devolvemos el dinero."
         })
-    else:
+    elif "garantía" in content_lower or "devolución" in content_lower:
         faqs.append({
             "question": "¿Ofrecen garantía?",
-            "answer": "Contacta para conocer nuestra política de garantía y devoluciones."
+            "answer": "Sí, ofrecemos garantía de satisfacción."
         })
 
-    if any(word in content_lower for word in ["coaching", "mentoria", "consultoria", "asesoria"]):
+    # Access type
+    if "vida" in content_lower or "siempre" in content_lower or "ilimitado" in content_lower:
         faqs.append({
-            "question": "¿Cómo funcionan las sesiones?",
-            "answer": "Las sesiones son personalizadas según tus necesidades. Agenda una llamada para más info."
+            "question": "¿Por cuánto tiempo tengo acceso?",
+            "answer": "Tienes acceso de por vida al contenido."
         })
 
-    # Always add payment and contact
-    faqs.append({
-        "question": "¿Cuáles son los métodos de pago?",
-        "answer": "Aceptamos tarjeta, PayPal, Bizum y transferencia bancaria."
-    })
+    # Payment methods
+    payment_methods = []
+    if "tarjeta" in content_lower: payment_methods.append("tarjeta")
+    if "paypal" in content_lower: payment_methods.append("PayPal")
+    if "bizum" in content_lower: payment_methods.append("Bizum")
+    if "transferencia" in content_lower: payment_methods.append("transferencia bancaria")
 
+    if payment_methods:
+        faqs.append({
+            "question": "¿Cuáles son los métodos de pago?",
+            "answer": f"Puedes pagar con {', '.join(payment_methods)}."
+        })
+
+    # How to start
     faqs.append({
         "question": "¿Cómo puedo empezar?",
-        "answer": "Escríbeme un mensaje y te explico cómo comenzar. ¡Estoy aquí para ayudarte!"
+        "answer": "Escríbeme y te cuento los siguientes pasos para comenzar."
     })
 
-    return faqs[:6]  # Return max 6 FAQs
+    return faqs[:7]  # Return max 7 FAQs
 
 
 def extract_faqs_from_text(text: str) -> list:
