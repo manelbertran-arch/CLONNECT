@@ -265,13 +265,6 @@ export default function Settings() {
     },
   ];
 
-  // Bot config toggles
-  const [autoReply, setAutoReply] = useState(true);
-  const [leadScoring, setLeadScoring] = useState(true);
-  const [autoQualify, setAutoQualify] = useState(true);
-  const [afterHoursMode, setAfterHoursMode] = useState(false);
-  const [humanTakeoverAlerts, setHumanTakeoverAlerts] = useState(true);
-
   // Product modal state
   const [productModalOpen, setProductModalOpen] = useState(false);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
@@ -427,26 +420,6 @@ export default function Settings() {
     }
   };
 
-  const handleToggleBotConfig = async (key: string, value: boolean) => {
-    switch (key) {
-      case "autoReply":
-        setAutoReply(value);
-        break;
-      case "leadScoring":
-        setLeadScoring(value);
-        break;
-      case "autoQualify":
-        setAutoQualify(value);
-        break;
-      case "afterHoursMode":
-        setAfterHoursMode(value);
-        break;
-      case "humanTakeoverAlerts":
-        setHumanTakeoverAlerts(value);
-        break;
-    }
-  };
-
   // Product handlers
   const openAddProduct = () => {
     setEditingProduct(null);
@@ -586,10 +559,6 @@ export default function Settings() {
               <Link2 className="w-4 h-4 mr-1 sm:mr-2" />
               <span className="hidden sm:inline">Connections</span>
               <span className="sm:hidden">Links</span>
-            </TabsTrigger>
-            <TabsTrigger value="bot" className="rounded-lg data-[state=active]:bg-card text-xs sm:text-sm">
-              <Bot className="w-4 h-4 mr-1 sm:mr-2" />
-              Config
             </TabsTrigger>
             <TabsTrigger value="knowledge" className="rounded-lg data-[state=active]:bg-card text-xs sm:text-sm">
               <BookOpen className="w-4 h-4 mr-1 sm:mr-2" />
@@ -1122,66 +1091,6 @@ export default function Settings() {
               </div>
             </div>
           )}
-        </TabsContent>
-
-        {/* Bot Config Tab */}
-        <TabsContent value="bot" className="space-y-6 animate-fade-in">
-          <div className="metric-card space-y-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="font-semibold">Auto-Reply</p>
-                <p className="text-sm text-muted-foreground">Automatically respond to new messages</p>
-              </div>
-              <Switch
-                checked={autoReply}
-                onCheckedChange={(v) => handleToggleBotConfig("autoReply", v)}
-              />
-            </div>
-
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="font-semibold">Lead Scoring</p>
-                <p className="text-sm text-muted-foreground">Automatically score leads based on engagement</p>
-              </div>
-              <Switch
-                checked={leadScoring}
-                onCheckedChange={(v) => handleToggleBotConfig("leadScoring", v)}
-              />
-            </div>
-
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="font-semibold">Auto-Qualify</p>
-                <p className="text-sm text-muted-foreground">Move high-intent leads to Hot automatically</p>
-              </div>
-              <Switch
-                checked={autoQualify}
-                onCheckedChange={(v) => handleToggleBotConfig("autoQualify", v)}
-              />
-            </div>
-
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="font-semibold">After-Hours Mode</p>
-                <p className="text-sm text-muted-foreground">Send different responses outside business hours</p>
-              </div>
-              <Switch
-                checked={afterHoursMode}
-                onCheckedChange={(v) => handleToggleBotConfig("afterHoursMode", v)}
-              />
-            </div>
-
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="font-semibold">Human Takeover Alerts</p>
-                <p className="text-sm text-muted-foreground">Get notified when bot can't handle a query</p>
-              </div>
-              <Switch
-                checked={humanTakeoverAlerts}
-                onCheckedChange={(v) => handleToggleBotConfig("humanTakeoverAlerts", v)}
-              />
-            </div>
-          </div>
         </TabsContent>
 
         {/* Knowledge Base Tab */}
