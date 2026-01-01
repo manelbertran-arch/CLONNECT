@@ -47,6 +47,41 @@ def get_creator_by_name(name: str):
     finally:
         session.close()
 
+
+def get_or_create_creator(name: str):
+    """Get creator by name, or create if doesn't exist"""
+    session = get_session()
+    if not session:
+        return None
+    try:
+        from api.models import Creator
+        creator = session.query(Creator).filter_by(name=name).first()
+        if not creator:
+            logger.info(f"Creator '{name}' not found, auto-creating...")
+            creator = Creator(name=name, bot_active=True, clone_tone="friendly")
+            session.add(creator)
+            session.commit()
+            logger.info(f"Created creator '{name}' with id {creator.id}")
+        return {
+            "id": str(creator.id),
+            "name": creator.name,
+            "email": creator.email,
+            "bot_active": creator.bot_active if creator.bot_active is not None else True,
+            "clone_tone": creator.clone_tone or "friendly",
+            "clone_style": creator.clone_style or "",
+            "clone_name": creator.clone_name or creator.name,
+            "clone_vocabulary": creator.clone_vocabulary or "",
+            "welcome_message": creator.welcome_message or "",
+            "other_payment_methods": creator.other_payment_methods or {},
+            "knowledge_about": creator.knowledge_about or {},
+        }
+    except Exception as e:
+        logger.error(f"get_or_create_creator error: {e}")
+        session.rollback()
+        return None
+    finally:
+        session.close()
+
 def update_creator(name: str, data: dict):
     session = get_session()
     if not session:
@@ -1053,7 +1088,11 @@ def add_knowledge_item(creator_name: str, question: str, answer: str) -> dict:
         from api.models import Creator, KnowledgeBase
         creator = session.query(Creator).filter_by(name=creator_name).first()
         if not creator:
-            return None
+            # Auto-create creator if doesn't exist
+            logger.info(f"Creator '{creator_name}' not found, auto-creating for knowledge item")
+            creator = Creator(name=creator_name, bot_active=True, clone_tone="friendly")
+            session.add(creator)
+            session.commit()
         item = KnowledgeBase(
             creator_id=creator.id,
             question=question,
@@ -1130,12 +1169,16 @@ def update_knowledge_about(creator_name: str, data: dict) -> bool:
         from api.models import Creator
         from sqlalchemy.orm.attributes import flag_modified
         creator = session.query(Creator).filter_by(name=creator_name).first()
-        if creator:
-            creator.knowledge_about = data
-            flag_modified(creator, 'knowledge_about')
+        if not creator:
+            # Auto-create creator if doesn't exist
+            logger.info(f"Creator '{creator_name}' not found, auto-creating for knowledge about")
+            creator = Creator(name=creator_name, bot_active=True, clone_tone="friendly")
+            session.add(creator)
             session.commit()
-            return True
-        return False
+        creator.knowledge_about = data
+        flag_modified(creator, 'knowledge_about')
+        session.commit()
+        return True
     except Exception as e:
         logger.error(f"update_knowledge_about error: {e}")
         session.rollback()

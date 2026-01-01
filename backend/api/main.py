@@ -2122,12 +2122,13 @@ async def create_creator_config(config_data: dict):
 @app.get("/creator/config/{creator_id}")
 async def get_creator_config(creator_id: str):
     """Obtener configuracion de creador"""
-    config = config_manager.get_config(creator_id)
-    # PostgreSQL first
+    # PostgreSQL first - auto-create if doesn't exist
     if USE_DB:
-        config = db_service.get_creator_by_name(creator_id)
+        config = db_service.get_or_create_creator(creator_id)
         if config:
             return {"status": "ok", "config": config}
+    # Fallback to JSON config manager
+    config = config_manager.get_config(creator_id)
     if not config:
         raise HTTPException(status_code=404, detail="Creator not found")
     return {"status": "ok", "config": config.to_dict()}
