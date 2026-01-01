@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { useSearchParams, useNavigate } from "react-router-dom";
 import { useQueryClient } from "@tanstack/react-query";
-import { Bot, Link2, Package, Save, RefreshCw, Loader2, AlertCircle, Plus, Trash2, BookOpen, Check, Sparkles, Wand2, HelpCircle } from "lucide-react";
+import { Bot, Link2, Package, Save, RefreshCw, Loader2, AlertCircle, Plus, Trash2, BookOpen, Check, Sparkles, Wand2, HelpCircle, User, ChevronDown } from "lucide-react";
 
 // Platform SVG Logos
 const PlatformLogo = ({ platform, size = 20 }: { platform: string; size?: number }) => {
@@ -269,6 +269,15 @@ export default function Settings() {
   const [faqModalOpen, setFaqModalOpen] = useState(false);
   const [aiKnowledgePrompt, setAiKnowledgePrompt] = useState("");
   const [isGeneratingKnowledge, setIsGeneratingKnowledge] = useState(false);
+
+  // About section state
+  const [aboutOpen, setAboutOpen] = useState(false);
+  const [aboutData, setAboutData] = useState({
+    bio: "",
+    specialties: "",
+    experience: "",
+    audience: ""
+  });
 
   // FAQ Templates
   const faqTemplates = [
@@ -564,25 +573,46 @@ export default function Settings() {
 
     setIsGeneratingKnowledge(true);
     try {
-      const result = await generateKnowledgeMutation.mutateAsync({
-        prompt: aiKnowledgePrompt,
-        type: "faqs",
+      // Use new endpoint that generates both FAQs and About
+      const response = await fetch("/api/ai/generate-knowledge-full", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ content: aiKnowledgePrompt }),
       });
 
+      if (!response.ok) throw new Error("Error generating knowledge");
+
+      const result = await response.json();
+
+      // Add generated FAQs
       if (result.faqs && result.faqs.length > 0) {
-        // Add generated FAQs
         for (const faq of result.faqs) {
           await addFAQMutation.mutateAsync({
             question: faq.question,
             answer: faq.answer,
           });
         }
-        toast({
-          title: "FAQs generadas",
-          description: `Se han creado ${result.faqs.length} preguntas frecuentes.`,
-        });
-        setAiKnowledgePrompt("");
       }
+
+      // Update About data if returned
+      if (result.about) {
+        setAboutData(prev => ({
+          bio: result.about.bio || prev.bio,
+          specialties: result.about.specialties || prev.specialties,
+          experience: result.about.experience || prev.experience,
+          audience: result.about.audience || prev.audience,
+        }));
+        setAboutOpen(true); // Open to show the user
+      }
+
+      const faqCount = result.faqs?.length || 0;
+      const aboutFilled = result.about?.bio ? " + perfil completado" : "";
+      toast({
+        title: "Knowledge generado",
+        description: `${faqCount} FAQs creadas${aboutFilled}.`,
+      });
+      setAiKnowledgePrompt("");
+
     } catch (error) {
       toast({
         title: "Error",
@@ -1119,34 +1149,102 @@ export default function Settings() {
           )}
         </TabsContent>
 
-        {/* Knowledge Base Tab - Unified */}
+        {/* Knowledge Base Tab - Complete Redesign */}
         <TabsContent value="knowledge" className="animate-fade-in space-y-6">
+
+          {/* 1. SOBRE TI - Collapsible */}
+          <div className="metric-card overflow-hidden p-0">
+            <button
+              onClick={() => setAboutOpen(!aboutOpen)}
+              className="w-full p-4 flex justify-between items-center hover:bg-secondary/50 transition-colors"
+            >
+              <div className="flex items-center gap-2">
+                <User className="w-5 h-5 text-primary" />
+                <span className="font-semibold">Sobre ti</span>
+                {aboutData.bio && (
+                  <span className="text-xs bg-success/20 text-success px-2 py-0.5 rounded-full">Completado</span>
+                )}
+              </div>
+              <ChevronDown className={cn("w-5 h-5 transition-transform", aboutOpen && "rotate-180")} />
+            </button>
+
+            {aboutOpen && (
+              <div className="p-6 pt-2 space-y-4 border-t border-border">
+                <p className="text-sm text-muted-foreground">Esta información ayuda al bot a presentarte correctamente</p>
+
+                <div>
+                  <Label className="text-sm text-muted-foreground mb-2 block">Bio / Descripción</Label>
+                  <Textarea
+                    value={aboutData.bio}
+                    onChange={(e) => setAboutData({...aboutData, bio: e.target.value})}
+                    placeholder="Soy trader profesional desde 2018..."
+                    className="bg-secondary border-0 min-h-[80px] resize-none"
+                  />
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <Label className="text-sm text-muted-foreground mb-2 block">Especialidades</Label>
+                    <Input
+                      value={aboutData.specialties}
+                      onChange={(e) => setAboutData({...aboutData, specialties: e.target.value})}
+                      placeholder="Trading, criptomonedas, análisis técnico"
+                      className="bg-secondary border-0"
+                    />
+                  </div>
+                  <div>
+                    <Label className="text-sm text-muted-foreground mb-2 block">Experiencia</Label>
+                    <Input
+                      value={aboutData.experience}
+                      onChange={(e) => setAboutData({...aboutData, experience: e.target.value})}
+                      placeholder="6 años"
+                      className="bg-secondary border-0"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <Label className="text-sm text-muted-foreground mb-2 block">Público objetivo</Label>
+                  <Input
+                    value={aboutData.audience}
+                    onChange={(e) => setAboutData({...aboutData, audience: e.target.value})}
+                    placeholder="Personas que quieren aprender a invertir"
+                    className="bg-secondary border-0"
+                  />
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* 2. FAQS */}
           <div className="metric-card space-y-6">
-            {/* Header */}
             <div>
               <div className="flex items-center gap-2 mb-2">
                 <HelpCircle className="w-5 h-5 text-primary" />
                 <h3 className="text-lg font-semibold">Preguntas Frecuentes</h3>
               </div>
-              <p className="text-sm text-muted-foreground">
-                Enseña a tu bot a responder las preguntas más comunes de tus clientes
-              </p>
+              <p className="text-sm text-muted-foreground">El bot usará estas respuestas automáticamente</p>
             </div>
 
-            {/* AI Generator - Principal */}
+            {/* AI Generator */}
             <div className="rounded-xl p-5 border border-primary/30 bg-gradient-to-br from-primary/10 via-accent/5 to-primary/10">
               <div className="flex items-center gap-2 mb-3">
                 <Sparkles className="w-4 h-4 text-primary" />
-                <span className="font-medium">Genera FAQs automáticamente</span>
+                <span className="font-medium">Genera todo automáticamente</span>
               </div>
+              <p className="text-xs text-muted-foreground mb-3">Describe tu negocio y generaremos FAQs + tu perfil "Sobre ti"</p>
 
               <Textarea
                 value={aiKnowledgePrompt}
                 onChange={(e) => setAiKnowledgePrompt(e.target.value)}
-                className="bg-background/80 border-0 min-h-[100px] resize-none mb-3"
-                placeholder="Describe tu negocio, productos, precios, garantías... y la IA generará las FAQs por ti.
+                className="bg-background/80 border-0 min-h-[120px] resize-none mb-3 text-sm"
+                placeholder="Soy Manel, trader profesional desde 2018. Enseño trading de criptomonedas.
 
-Ejemplo: Soy coach de fitness. Vendo un programa de 8 semanas por 297€. Incluye acceso a app, comunidad y sesiones semanales. Garantía de 30 días."
+Mis productos:
+- Curso Trading Pro: 297€ (20h vídeo, comunidad Telegram, Q&A semanales, plantillas, acceso de por vida)
+- Mentoría 1:1: 500€/mes
+
+Garantía: 30 días. Pagos: Stripe, PayPal, Bizum. Horario: L-V 9:00-18:00"
               />
 
               <Button
@@ -1157,12 +1255,12 @@ Ejemplo: Soy coach de fitness. Vendo un programa de 8 semanas por 297€. Incluy
                 {isGeneratingKnowledge ? (
                   <>
                     <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
-                    Generando FAQs...
+                    Generando...
                   </>
                 ) : (
                   <>
                     <Wand2 className="w-4 h-4 mr-2" />
-                    Generar FAQs con IA
+                    Generar FAQs + Perfil
                   </>
                 )}
               </Button>
@@ -1171,39 +1269,36 @@ Ejemplo: Soy coach de fitness. Vendo un programa de 8 semanas por 297€. Incluy
             {/* Separator */}
             <div className="flex items-center gap-4">
               <div className="flex-1 h-px bg-border"></div>
-              <span className="text-muted-foreground text-sm">o añade manualmente</span>
+              <span className="text-muted-foreground text-xs">o añade manualmente</span>
               <div className="flex-1 h-px bg-border"></div>
             </div>
 
             {/* Quick Templates */}
-            <div>
-              <p className="text-sm text-muted-foreground mb-3">Plantillas rápidas:</p>
-              <div className="flex flex-wrap gap-2">
-                {faqTemplates.map((template, idx) => (
-                  <button
-                    key={idx}
-                    onClick={() => handleSelectTemplate(template)}
-                    className="px-3 py-1.5 text-xs rounded-full bg-secondary hover:bg-secondary/80 border border-border transition-colors"
-                  >
-                    {template.question}
-                  </button>
-                ))}
-              </div>
+            <div className="flex flex-wrap gap-2">
+              {faqTemplates.map((template, idx) => (
+                <button
+                  key={idx}
+                  onClick={() => handleSelectTemplate(template)}
+                  className="px-3 py-1.5 text-xs rounded-full bg-secondary hover:bg-secondary/80 border border-border transition-colors"
+                >
+                  {template.question}
+                </button>
+              ))}
             </div>
 
-            {/* Manual Form - Inline */}
+            {/* Manual Form */}
             {faqModalOpen && (
               <div className="rounded-lg p-4 bg-secondary/50 border border-border space-y-3">
                 <Input
                   value={faqQuestion}
                   onChange={(e) => setFaqQuestion(e.target.value)}
-                  placeholder="Pregunta: ¿Cuánto cuesta el curso?"
+                  placeholder="Pregunta"
                   className="bg-background border-border"
                 />
                 <Textarea
                   value={faqAnswer}
                   onChange={(e) => setFaqAnswer(e.target.value)}
-                  placeholder="Respuesta: El curso cuesta 297€ e incluye acceso de por vida..."
+                  placeholder="Respuesta completa y específica..."
                   className="bg-background border-border min-h-[80px] resize-none"
                 />
                 <div className="flex gap-2">
@@ -1213,16 +1308,12 @@ Ejemplo: Soy coach de fitness. Vendo un programa de 8 semanas por 297€. Incluy
                     size="sm"
                   >
                     {addFAQMutation.isPending && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
-                    Añadir FAQ
+                    Añadir
                   </Button>
                   <Button
                     variant="outline"
                     size="sm"
-                    onClick={() => {
-                      setFaqModalOpen(false);
-                      setFaqQuestion("");
-                      setFaqAnswer("");
-                    }}
+                    onClick={() => { setFaqModalOpen(false); setFaqQuestion(""); setFaqAnswer(""); }}
                   >
                     Cancelar
                   </Button>
@@ -1230,7 +1321,6 @@ Ejemplo: Soy coach de fitness. Vendo un programa de 8 semanas por 297€. Incluy
               </div>
             )}
 
-            {/* Add Manual Button */}
             {!faqModalOpen && (
               <button
                 onClick={() => setFaqModalOpen(true)}
@@ -1241,7 +1331,7 @@ Ejemplo: Soy coach de fitness. Vendo un programa de 8 semanas por 297€. Incluy
               </button>
             )}
 
-            {/* Saved FAQs List */}
+            {/* FAQs List */}
             {knowledgeLoading ? (
               <div className="flex justify-center py-8">
                 <Loader2 className="w-6 h-6 animate-spin text-primary" />
@@ -1252,10 +1342,7 @@ Ejemplo: Soy coach de fitness. Vendo un programa de 8 semanas por 297€. Incluy
                   FAQs guardadas ({(knowledgeData?.faqs || []).length}):
                 </p>
                 {(knowledgeData?.faqs || []).map((faq) => (
-                  <div
-                    key={faq.id}
-                    className="rounded-lg p-4 bg-secondary/30 border border-border/50"
-                  >
+                  <div key={faq.id} className="rounded-lg p-4 bg-secondary/30 border border-border/50">
                     <div className="flex justify-between items-start gap-3">
                       <div className="flex-1 min-w-0">
                         <p className="font-medium text-primary">{faq.question}</p>
@@ -1284,6 +1371,38 @@ Ejemplo: Soy coach de fitness. Vendo un programa de 8 semanas por 297€. Incluy
               </div>
             ) : null}
           </div>
+
+          {/* 3. PRODUCTOS AUTO-SYNC */}
+          <div className="metric-card">
+            <div className="flex items-center gap-2 mb-4">
+              <Package className="w-5 h-5 text-success" />
+              <h3 className="font-semibold">Tus productos</h3>
+              <span className="text-xs bg-secondary px-2 py-0.5 rounded-full text-muted-foreground flex items-center gap-1">
+                <RefreshCw className="w-3 h-3" /> Auto-sync
+              </span>
+            </div>
+
+            {products.length > 0 ? (
+              <div className="space-y-2">
+                {products.map((product) => (
+                  <div key={product.id} className="flex justify-between items-center p-3 bg-secondary/30 rounded-lg">
+                    <div>
+                      <span className="font-medium">{product.name}</span>
+                      {product.description && (
+                        <p className="text-xs text-muted-foreground">{product.description.slice(0, 50)}...</p>
+                      )}
+                    </div>
+                    <span className="text-success font-medium">{product.price}€</span>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="text-muted-foreground text-sm">No hay productos. Añádelos en la página Products.</p>
+            )}
+
+            <p className="text-xs text-muted-foreground mt-3">El bot usará esta información automáticamente</p>
+          </div>
+
         </TabsContent>
       </Tabs>
 

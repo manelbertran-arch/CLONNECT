@@ -2217,6 +2217,173 @@ async def generate_ai_rules(request: dict = Body(...)):
         return {"rules": rules, "source": "fallback"}
 
 
+@app.post("/api/ai/generate-knowledge-full")
+async def generate_knowledge_full(request: dict = Body(...)):
+    """Generate FAQs + extract 'About' info from content"""
+    content = request.get("content", "") or request.get("prompt", "")
+
+    if not content:
+        raise HTTPException(status_code=400, detail="Content required")
+
+    logger.info(f"Generating full knowledge for: {content[:100]}...")
+
+    xai_api_key = os.getenv("XAI_API_KEY")
+
+    if not xai_api_key:
+        logger.warning("XAI_API_KEY not configured, using fallback")
+        fallback_faqs = generate_fallback_faqs(content)
+        fallback_about = generate_fallback_about(content)
+        return {"faqs": fallback_faqs, "about": fallback_about, "source": "fallback"}
+
+    try:
+        import re
+        import json
+
+        async with httpx.AsyncClient(timeout=60.0) as client:
+            system_prompt = """Extrae información estructurada de la descripción de un negocio.
+
+GENERA DOS COSAS:
+
+1. ABOUT (perfil del creador):
+   - bio: Descripción corta de quién es (1-2 frases)
+   - specialties: Sus especialidades separadas por coma
+   - experience: Años o nivel de experiencia
+   - audience: A quién ayuda/vende
+
+2. FAQS (6-8 preguntas frecuentes):
+   - Precios de TODOS los productos con nombres
+   - Qué incluye cada producto (lista completa)
+   - Garantía (días exactos)
+   - Métodos de pago
+   - Horario de atención
+   - Cómo empezar
+
+REGLAS PARA FAQS:
+- Respuestas ESPECÍFICAS con datos exactos del texto
+- Si hay múltiples productos, mencionar TODOS con precios
+- NO mezclar info de diferentes productos
+- NO frases genéricas como "contacta para más info"
+
+FORMATO JSON (solo esto, sin explicaciones):
+{
+  "about": {
+    "bio": "...",
+    "specialties": "...",
+    "experience": "...",
+    "audience": "..."
+  },
+  "faqs": [
+    {"question": "?", "answer": "respuesta específica"}
+  ]
+}"""
+
+            user_message = f"""Extrae la información de este negocio:
+
+{content}
+
+Genera el JSON con about + faqs:"""
+
+            logger.info("Calling Grok API for full knowledge generation...")
+            response = await client.post(
+                "https://api.x.ai/v1/chat/completions",
+                headers={
+                    "Authorization": f"Bearer {xai_api_key}",
+                    "Content-Type": "application/json"
+                },
+                json={
+                    "model": "grok-beta",
+                    "messages": [
+                        {"role": "system", "content": system_prompt},
+                        {"role": "user", "content": user_message}
+                    ],
+                    "max_tokens": 2500,
+                    "temperature": 0.05
+                }
+            )
+
+            if response.status_code == 200:
+                data = response.json()
+                result = data["choices"][0]["message"]["content"]
+                logger.info(f"Grok full knowledge response: {result[:500]}...")
+
+                # Clean up
+                result = re.sub(r'```json\s*', '', result)
+                result = re.sub(r'```\s*', '', result)
+                result = result.strip()
+
+                json_match = re.search(r'\{[\s\S]*\}', result)
+                if json_match:
+                    result = json_match.group()
+
+                parsed = json.loads(result)
+
+                # Validate FAQs
+                validated_faqs = []
+                for faq in parsed.get("faqs", []):
+                    answer = faq.get("answer", "")
+                    if len(answer) >= 20:
+                        validated_faqs.append(faq)
+
+                logger.info(f"Generated {len(validated_faqs)} FAQs + about info")
+                return {
+                    "about": parsed.get("about", {}),
+                    "faqs": validated_faqs,
+                    "source": "grok"
+                }
+            else:
+                logger.warning(f"Grok API error: {response.status_code}")
+
+    except Exception as e:
+        logger.error(f"Error generating full knowledge: {e}")
+        import traceback
+        logger.error(traceback.format_exc())
+
+    # Fallback
+    fallback_faqs = generate_fallback_faqs(content)
+    fallback_about = generate_fallback_about(content)
+    return {"faqs": fallback_faqs, "about": fallback_about, "source": "fallback"}
+
+
+def generate_fallback_about(content: str) -> dict:
+    """Extract about info from content when API is unavailable"""
+    import re
+    content_lower = content.lower()
+
+    about = {
+        "bio": "",
+        "specialties": "",
+        "experience": "",
+        "audience": ""
+    }
+
+    # Extract bio - first sentence or "Soy..." pattern
+    soy_match = re.search(r'[Ss]oy\s+([^.]+)', content)
+    if soy_match:
+        about["bio"] = f"Soy {soy_match.group(1).strip()}."
+
+    # Extract experience - "desde 2018" or "X años"
+    exp_match = re.search(r'desde\s+(\d{4})', content_lower)
+    if exp_match:
+        year = int(exp_match.group(1))
+        years = 2024 - year
+        about["experience"] = f"{years} años"
+    else:
+        years_match = re.search(r'(\d+)\s*años', content_lower)
+        if years_match:
+            about["experience"] = f"{years_match.group(1)} años"
+
+    # Extract specialties
+    specialties = []
+    keywords = ["trading", "criptomonedas", "crypto", "fitness", "coaching", "marketing", "diseño", "programación"]
+    for kw in keywords:
+        if kw in content_lower:
+            specialties.append(kw.capitalize())
+    if specialties:
+        about["specialties"] = ", ".join(specialties[:3])
+
+    return about
+
+
 @app.post("/api/ai/generate-knowledge")
 async def generate_ai_knowledge(request: dict = Body(...)):
     """Generate knowledge base content using AI (Grok)"""
