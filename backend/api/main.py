@@ -2378,95 +2378,99 @@ Genera el JSON:"""
 
 
 def generate_fallback_faqs(content: str) -> list:
-    """Generate FAQs locally when API is not available - extracts SPECIFIC data"""
+    """Generate FAQs locally when API is not available - extracts EXACT SPECIFIC data"""
     import re
     faqs = []
     content_lower = content.lower()
 
-    # Extract ALL prices mentioned (e.g., "297€", "500€/mes", "$99")
-    price_matches = re.findall(r'(\d+(?:\.\d+)?)\s*[€$](?:/\w+)?|[€$]\s*(\d+(?:\.\d+)?)', content)
-    prices = [p[0] or p[1] for p in price_matches if p[0] or p[1]]
+    # Extract product names with prices (e.g., "Curso Trading Pro: 297€" or "Mentoría 1:1: 500€/mes")
+    product_price_patterns = [
+        r'[-•]\s*([^:]+?):\s*(\d+)[€$](?:/(\w+))?',  # "- Curso X: 297€" or "- Mentoría: 500€/mes"
+        r'([Cc]urso[^:]+?):\s*(\d+)[€$]',  # "Curso Trading Pro: 297€"
+        r'([Mm]entoría[^:]+?):\s*(\d+)[€$](?:/(\w+))?',  # "Mentoría 1:1: 500€/mes"
+    ]
 
-    # Extract durations (e.g., "8 semanas", "30 días", "3 meses")
-    duration_match = re.search(r'(\d+)\s*(semanas?|días?|meses?|horas?)', content_lower)
-    duration = f"{duration_match.group(1)} {duration_match.group(2)}" if duration_match else None
+    products = []
+    for pattern in product_price_patterns:
+        matches = re.findall(pattern, content)
+        for match in matches:
+            if len(match) >= 2:
+                name = match[0].strip()
+                price = match[1]
+                period = match[2] if len(match) > 2 and match[2] else None
+                if period:
+                    products.append(f"{name}: {price}€/{period}")
+                else:
+                    products.append(f"{name}: {price}€")
 
-    # Extract guarantee period
-    guarantee_match = re.search(r'garantía\s*(?:de\s*)?(\d+)\s*(días?|semanas?|meses?)', content_lower)
-    guarantee = f"{guarantee_match.group(1)} {guarantee_match.group(2)}" if guarantee_match else None
+    # If no structured products found, try simple price extraction
+    if not products:
+        simple_prices = re.findall(r'(\d+)\s*[€$]', content)
+        if simple_prices:
+            products = [f"{p}€" for p in simple_prices]
 
-    # Extract specific features (look for lists or "incluye")
-    features = []
-    if "incluye" in content_lower or "acceso" in content_lower:
-        # Look for things like "comunidad", "sesiones", "plantillas", etc.
-        feature_keywords = ["comunidad", "telegram", "sesiones", "plantillas", "videos", "vídeos",
-                          "acceso", "soporte", "grupo", "discord", "whatsapp", "material", "ebook"]
-        for kw in feature_keywords:
-            if kw in content_lower:
-                features.append(kw)
-
-    # Build SPECIFIC FAQs
-    if prices:
-        if len(prices) == 1:
+    # Build price FAQ
+    if products:
+        if len(products) == 1:
             faqs.append({
                 "question": "¿Cuánto cuesta?",
-                "answer": f"El precio es {prices[0]}€."
+                "answer": f"El precio es {products[0]}."
             })
         else:
-            price_list = ", ".join([f"{p}€" for p in prices])
             faqs.append({
                 "question": "¿Cuánto cuesta?",
-                "answer": f"Hay varias opciones: {price_list}."
+                "answer": f"Tenemos varias opciones: {'. '.join(products)}."
             })
 
-    # Course/program specific
-    if any(word in content_lower for word in ["curso", "formacion", "programa", "training"]):
-        if features:
-            feature_str = ", ".join(features[:4])
+    # Extract what's included - look for parentheses content or after "incluye"
+    include_match = re.search(r'\(([^)]+)\)', content)
+    if include_match:
+        included_text = include_match.group(1)
+        faqs.append({
+            "question": "¿Qué incluye?",
+            "answer": f"Incluye: {included_text}."
+        })
+    else:
+        # Try "incluye:" pattern
+        incluye_match = re.search(r'[Ii]ncluye[:\s]+([^.]+)', content)
+        if incluye_match:
             faqs.append({
                 "question": "¿Qué incluye?",
-                "answer": f"Incluye: {feature_str}."
-            })
-        if duration:
-            faqs.append({
-                "question": "¿Cuánto dura?",
-                "answer": f"El programa tiene una duración de {duration}."
+                "answer": f"Incluye: {incluye_match.group(1).strip()}."
             })
 
-    # Coaching/mentoring specific
-    if any(word in content_lower for word in ["coaching", "mentoria", "1:1", "mentoría"]):
-        session_match = re.search(r'(\d+)\s*sesion', content_lower)
-        if session_match:
-            faqs.append({
-                "question": "¿Cuántas sesiones incluye?",
-                "answer": f"Incluye {session_match.group(1)} sesiones."
-            })
+    # Extract guarantee - multiple patterns
+    guarantee_patterns = [
+        r'[Gg]arantía[:\s]+(\d+)\s*(días?|semanas?|meses?)',
+        r'(\d+)\s*(días?|semanas?|meses?)\s*(?:de\s*)?(?:garantía|devolución)',
+        r'[Gg]arantía\s*(?:de\s*)?(\d+)\s*(días?|semanas?|meses?)',
+    ]
 
-    # Guarantee
+    guarantee = None
+    for pattern in guarantee_patterns:
+        match = re.search(pattern, content)
+        if match:
+            guarantee = f"{match.group(1)} {match.group(2)}"
+            break
+
     if guarantee:
         faqs.append({
-            "question": "¿Hay garantía de devolución?",
-            "answer": f"Sí, tienes garantía de {guarantee}. Si no estás satisfecho, te devolvemos el dinero."
-        })
-    elif "garantía" in content_lower or "devolución" in content_lower:
-        faqs.append({
-            "question": "¿Ofrecen garantía?",
-            "answer": "Sí, ofrecemos garantía de satisfacción."
+            "question": "¿Tienen garantía de devolución?",
+            "answer": f"Sí, {guarantee} de garantía. Si no estás satisfecho, te devolvemos el dinero."
         })
 
-    # Access type
-    if "vida" in content_lower or "siempre" in content_lower or "ilimitado" in content_lower:
-        faqs.append({
-            "question": "¿Por cuánto tiempo tengo acceso?",
-            "answer": "Tienes acceso de por vida al contenido."
-        })
-
-    # Payment methods
+    # Extract payment methods - be specific
     payment_methods = []
-    if "tarjeta" in content_lower: payment_methods.append("tarjeta")
-    if "paypal" in content_lower: payment_methods.append("PayPal")
-    if "bizum" in content_lower: payment_methods.append("Bizum")
-    if "transferencia" in content_lower: payment_methods.append("transferencia bancaria")
+    if "stripe" in content_lower:
+        payment_methods.append("Stripe (tarjeta)")
+    elif "tarjeta" in content_lower:
+        payment_methods.append("tarjeta")
+    if "paypal" in content_lower:
+        payment_methods.append("PayPal")
+    if "bizum" in content_lower:
+        payment_methods.append("Bizum")
+    if "transferencia" in content_lower:
+        payment_methods.append("transferencia bancaria")
 
     if payment_methods:
         faqs.append({
@@ -2474,13 +2478,42 @@ def generate_fallback_faqs(content: str) -> list:
             "answer": f"Puedes pagar con {', '.join(payment_methods)}."
         })
 
-    # How to start
-    faqs.append({
-        "question": "¿Cómo puedo empezar?",
-        "answer": "Escríbeme y te cuento los siguientes pasos para comenzar."
-    })
+    # Extract schedule/hours
+    horario_match = re.search(r'[Hh]orario[:\s]+([^\n.]+)', content)
+    if horario_match:
+        faqs.append({
+            "question": "¿Cuál es el horario de atención?",
+            "answer": f"Atendemos {horario_match.group(1).strip()}."
+        })
 
-    return faqs[:7]  # Return max 7 FAQs
+    # Access duration
+    if "de por vida" in content_lower or "acceso de por vida" in content_lower:
+        faqs.append({
+            "question": "¿Por cuánto tiempo tengo acceso?",
+            "answer": "Tienes acceso de por vida al contenido."
+        })
+    elif "vida" in content_lower:
+        faqs.append({
+            "question": "¿Por cuánto tiempo tengo acceso?",
+            "answer": "El acceso es de por vida."
+        })
+
+    # Extract hours of content
+    hours_match = re.search(r'(\d+)\s*h(?:oras?)?\s*(?:de\s*)?(?:vídeo|video|contenido)', content_lower)
+    if hours_match:
+        faqs.append({
+            "question": "¿Cuánto contenido incluye?",
+            "answer": f"Incluye {hours_match.group(1)} horas de vídeo."
+        })
+
+    # How to start - only if we have some FAQs
+    if faqs:
+        faqs.append({
+            "question": "¿Cómo puedo empezar?",
+            "answer": "Escríbeme y te cuento los pasos para comenzar."
+        })
+
+    return faqs[:8]  # Return max 8 FAQs
 
 
 def extract_faqs_from_text(text: str) -> list:
