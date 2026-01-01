@@ -224,29 +224,27 @@ export default function Dashboard() {
       </div>
 
       {/* Revenue Card - Bot Generated */}
-      {(totalRevenue > 0 || botAttributedRevenue > 0) && (
-        <div className="metric-card glow-green relative overflow-hidden border-success/20">
-          <div className="absolute inset-0 bg-gradient-to-br from-success/10 to-success/5"></div>
-          <div className="relative flex items-center justify-between">
-            <div className="flex items-center gap-4">
-              <div className="w-14 h-14 rounded-xl bg-success/20 flex items-center justify-center">
-                <Bot className="w-7 h-7 text-success" />
-              </div>
-              <div>
-                <p className="text-muted-foreground text-sm font-medium">Bot Generated Revenue</p>
-                <p className="text-3xl font-bold text-success">€{botAttributedRevenue.toLocaleString()}</p>
-              </div>
+      <div className="metric-card glow-green relative overflow-hidden border-success/20">
+        <div className="absolute inset-0 bg-gradient-to-br from-success/10 to-success/5"></div>
+        <div className="relative flex items-center justify-between">
+          <div className="flex items-center gap-4">
+            <div className="w-14 h-14 rounded-xl bg-success/20 flex items-center justify-center">
+              <Bot className="w-7 h-7 text-success" />
             </div>
-            <div className="text-right">
-              <p className="text-muted-foreground text-sm">Total Revenue (30d)</p>
-              <p className="text-xl font-semibold">€{totalRevenue.toLocaleString()}</p>
-              {totalRevenue > 0 && (
-                <p className="text-xs text-success mt-1">{botAttributedPercent.toFixed(0)}% from bot</p>
-              )}
+            <div>
+              <p className="text-muted-foreground text-sm font-medium">Bot Generated Revenue</p>
+              <p className="text-3xl font-bold text-success">€{botAttributedRevenue.toLocaleString()}</p>
             </div>
           </div>
+          <div className="text-right">
+            <p className="text-muted-foreground text-sm">Total Revenue (30d)</p>
+            <p className="text-xl font-semibold">€{totalRevenue.toLocaleString()}</p>
+            {totalRevenue > 0 && (
+              <p className="text-xs text-success mt-1">{botAttributedPercent.toFixed(0)}% from bot</p>
+            )}
+          </div>
         </div>
-      )}
+      </div>
 
       {/* Metrics Grid */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
