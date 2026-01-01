@@ -344,7 +344,6 @@ export default function Settings() {
       setBotName(config.clone_name || "");
       setTone(config.clone_tone || "friendly");
       setVocabulary(config.clone_vocabulary || "");
-      setAutoReply(config.clone_active ?? true);
     }
   }, [config]);
 
