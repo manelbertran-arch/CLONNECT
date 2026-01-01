@@ -52,9 +52,11 @@ def get_or_create_creator(name: str):
     """Get creator by name, or create if doesn't exist"""
     session = get_session()
     if not session:
+        logger.error(f"get_or_create_creator: no session available")
         return None
     try:
         from api.models import Creator
+        logger.info(f"get_or_create_creator: looking for creator '{name}'")
         creator = session.query(Creator).filter_by(name=name).first()
         if not creator:
             logger.info(f"Creator '{name}' not found, auto-creating...")
@@ -62,7 +64,9 @@ def get_or_create_creator(name: str):
             session.add(creator)
             session.commit()
             logger.info(f"Created creator '{name}' with id {creator.id}")
-        return {
+
+        # Build response dict, handling potentially missing columns gracefully
+        result = {
             "id": str(creator.id),
             "name": creator.name,
             "email": creator.email,
@@ -72,11 +76,24 @@ def get_or_create_creator(name: str):
             "clone_name": creator.clone_name or creator.name,
             "clone_vocabulary": creator.clone_vocabulary or "",
             "welcome_message": creator.welcome_message or "",
-            "other_payment_methods": creator.other_payment_methods or {},
-            "knowledge_about": creator.knowledge_about or {},
         }
+
+        # These columns might not exist in older DB schemas
+        try:
+            result["other_payment_methods"] = creator.other_payment_methods or {}
+        except:
+            result["other_payment_methods"] = {}
+        try:
+            result["knowledge_about"] = getattr(creator, 'knowledge_about', None) or {}
+        except:
+            result["knowledge_about"] = {}
+
+        logger.info(f"get_or_create_creator: returning config for '{name}'")
+        return result
     except Exception as e:
         logger.error(f"get_or_create_creator error: {e}")
+        import traceback
+        logger.error(traceback.format_exc())
         session.rollback()
         return None
     finally:

@@ -2124,14 +2124,37 @@ async def get_creator_config(creator_id: str):
     """Obtener configuracion de creador"""
     # PostgreSQL first - auto-create if doesn't exist
     if USE_DB:
-        config = db_service.get_or_create_creator(creator_id)
-        if config:
-            return {"status": "ok", "config": config}
+        try:
+            config = db_service.get_or_create_creator(creator_id)
+            if config:
+                return {"status": "ok", "config": config}
+            logger.warning(f"get_or_create_creator returned None for {creator_id}")
+        except Exception as e:
+            logger.error(f"Error getting creator config from DB: {e}")
+
     # Fallback to JSON config manager
     config = config_manager.get_config(creator_id)
-    if not config:
-        raise HTTPException(status_code=404, detail="Creator not found")
-    return {"status": "ok", "config": config.to_dict()}
+    if config:
+        return {"status": "ok", "config": config.to_dict()}
+
+    # Ultimate fallback - return default config instead of 404
+    logger.warning(f"Returning default config for creator '{creator_id}'")
+    return {
+        "status": "ok",
+        "config": {
+            "id": creator_id,
+            "name": creator_id,
+            "email": None,
+            "bot_active": True,
+            "clone_tone": "friendly",
+            "clone_style": "",
+            "clone_name": creator_id,
+            "clone_vocabulary": "",
+            "welcome_message": "",
+            "other_payment_methods": {},
+            "knowledge_about": {},
+        }
+    }
 
 
 # ---------------------------------------------------------
