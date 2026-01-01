@@ -997,6 +997,42 @@ class DMResponderAgent:
         else:  # friendly
             formality_rule = "Tutea al usuario, se cercano pero profesional"
 
+        # Load knowledge base (FAQs and About)
+        knowledge_section = ""
+        if USE_POSTGRES and db_service:
+            try:
+                knowledge = db_service.get_full_knowledge(self.creator_id)
+                faqs = knowledge.get("faqs", [])
+                about = knowledge.get("about", {})
+
+                # Build About section
+                if about and any(about.values()):
+                    about_text = "\nSOBRE MI/MI NEGOCIO:\n"
+                    if about.get("bio"):
+                        about_text += f"- Bio: {about['bio']}\n"
+                    if about.get("specialties"):
+                        specs = about["specialties"]
+                        if isinstance(specs, list):
+                            about_text += f"- Especialidades: {', '.join(specs)}\n"
+                        else:
+                            about_text += f"- Especialidades: {specs}\n"
+                    if about.get("experience"):
+                        about_text += f"- Experiencia: {about['experience']}\n"
+                    if about.get("target_audience"):
+                        about_text += f"- Publico objetivo: {about['target_audience']}\n"
+                    knowledge_section += about_text
+
+                # Build FAQs section
+                if faqs:
+                    faqs_text = "\nPREGUNTAS FRECUENTES (usa esta info para responder):\n"
+                    for faq in faqs[:10]:  # Limit to 10 FAQs
+                        faqs_text += f"P: {faq.get('question', '')}\n"
+                        faqs_text += f"R: {faq.get('answer', '')}\n\n"
+                    knowledge_section += faqs_text
+
+            except Exception as e:
+                logger.warning(f"Failed to load knowledge base: {e}")
+
         return f"""Eres {name}. {tone_instruction}
 
 SOBRE MI:
@@ -1007,7 +1043,7 @@ SOBRE MI:
 
 MIS PRODUCTOS:
 {products_text}
-{examples_text}
+{knowledge_section}{examples_text}
 REGLAS BASICAS:
 1. Responde como {name}, en primera persona
 2. NUNCA digas que eres un bot o IA
