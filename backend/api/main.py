@@ -2133,6 +2133,66 @@ async def get_creator_config(creator_id: str):
     return {"status": "ok", "config": config.to_dict()}
 
 
+# ---------------------------------------------------------
+# AI PERSONALITY GENERATION
+# ---------------------------------------------------------
+@app.post("/api/ai/generate-rules")
+async def generate_ai_rules(request: dict = Body(...)):
+    """Generate bot personality rules using AI (Grok)"""
+    prompt = request.get("prompt", "")
+
+    if not prompt:
+        raise HTTPException(status_code=400, detail="Prompt required")
+
+    xai_api_key = os.getenv("XAI_API_KEY")
+
+    if not xai_api_key:
+        # Fallback: generate basic rules locally
+        rules = f"- {prompt}"
+        return {"rules": rules, "source": "fallback"}
+
+    try:
+        async with httpx.AsyncClient(timeout=30.0) as client:
+            response = await client.post(
+                "https://api.x.ai/v1/chat/completions",
+                headers={
+                    "Authorization": f"Bearer {xai_api_key}",
+                    "Content-Type": "application/json"
+                },
+                json={
+                    "model": "grok-beta",
+                    "messages": [
+                        {
+                            "role": "system",
+                            "content": "Genera 5-7 reglas claras y concisas para un chatbot de ventas. Cada regla empieza con '- '. Solo devuelve las reglas, sin explicaciones adicionales. Las reglas deben ser en español."
+                        },
+                        {
+                            "role": "user",
+                            "content": f"El usuario quiere un bot con esta personalidad: {prompt}"
+                        }
+                    ],
+                    "max_tokens": 300,
+                    "temperature": 0.7
+                }
+            )
+
+            if response.status_code == 200:
+                data = response.json()
+                rules = data["choices"][0]["message"]["content"]
+                return {"rules": rules, "source": "grok"}
+            else:
+                logger.warning(f"Grok API error: {response.status_code}")
+                # Fallback
+                rules = f"- {prompt}"
+                return {"rules": rules, "source": "fallback"}
+
+    except Exception as e:
+        logger.error(f"Error calling Grok API: {e}")
+        # Fallback
+        rules = f"- {prompt}"
+        return {"rules": rules, "source": "fallback"}
+
+
 @app.put("/creator/config/{creator_id}")
 async def update_creator_config(creator_id: str, updates: dict = Body(...)):
     """Actualizar configuracion de creador"""
