@@ -1642,6 +1642,22 @@ USA ESTA RESPUESTA PARA LA OBJECION (adaptala a tu tono):
 
         logger.info(f"Response: {response_text[:100]}...")
 
+        # Track product link click if response contains a link and product was mentioned
+        if product and ('http' in response_text.lower() or '.com' in response_text.lower() or 'hotmart' in response_text.lower()):
+            try:
+                sales_tracker = get_sales_tracker()
+                product_url = product.get('payment_link', product.get('url', ''))
+                sales_tracker.record_click(
+                    creator_id=self.creator_id,
+                    product_id=product.get('id', ''),
+                    follower_id=sender_id,
+                    product_name=product.get('name', ''),
+                    link_url=product_url
+                )
+                logger.info(f"Click tracked for product {product.get('name')} -> follower {sender_id}")
+            except Exception as e:
+                logger.warning(f"Failed to track click: {e}")
+
         # Track analytics
         await self._track_analytics(
             sender_id=sender_id,
