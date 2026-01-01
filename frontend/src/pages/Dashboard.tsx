@@ -1,14 +1,15 @@
-import { TrendingUp, Flame, MessageCircle, Users, AlertCircle, Loader2, Power, PowerOff, UserCheck } from "lucide-react";
+import { TrendingUp, Flame, MessageCircle, Users, AlertCircle, Loader2, Power, PowerOff, UserCheck, DollarSign, Bot } from "lucide-react";
 import { Area, AreaChart, ResponsiveContainer, XAxis, YAxis, Tooltip } from "recharts";
 import { Progress } from "@/components/ui/progress";
 import { Button } from "@/components/ui/button";
-import { useDashboard, useToggleBot } from "@/hooks/useApi";
+import { useDashboard, useToggleBot, useRevenue } from "@/hooks/useApi";
 import { useToast } from "@/hooks/use-toast";
 import { getPurchaseIntent } from "@/types/api";
 import { OnboardingChecklist } from "@/components/OnboardingChecklist";
 
 export default function Dashboard() {
   const { data, isLoading, error } = useDashboard();
+  const { data: revenueData } = useRevenue();
   const toggleBot = useToggleBot();
   const { toast } = useToast();
 
@@ -76,6 +77,11 @@ export default function Dashboard() {
   const config = data?.config;
   const creatorName = data?.creator_name || config?.name || config?.clone_name || "Creator";
   const isActive = data?.clone_active ?? false;
+
+  // Revenue stats
+  const totalRevenue = revenueData?.total_revenue || 0;
+  const botAttributedRevenue = revenueData?.bot_attributed_revenue || 0;
+  const botAttributedPercent = totalRevenue > 0 ? (botAttributedRevenue / totalRevenue) * 100 : 0;
 
   // Calculate progress based on leads goal
   const leadsGoal = 50;
@@ -216,6 +222,31 @@ export default function Dashboard() {
           </div>
         </div>
       </div>
+
+      {/* Revenue Card - Bot Generated */}
+      {(totalRevenue > 0 || botAttributedRevenue > 0) && (
+        <div className="metric-card glow-green relative overflow-hidden border-success/20">
+          <div className="absolute inset-0 bg-gradient-to-br from-success/10 to-success/5"></div>
+          <div className="relative flex items-center justify-between">
+            <div className="flex items-center gap-4">
+              <div className="w-14 h-14 rounded-xl bg-success/20 flex items-center justify-center">
+                <Bot className="w-7 h-7 text-success" />
+              </div>
+              <div>
+                <p className="text-muted-foreground text-sm font-medium">Bot Generated Revenue</p>
+                <p className="text-3xl font-bold text-success">€{botAttributedRevenue.toLocaleString()}</p>
+              </div>
+            </div>
+            <div className="text-right">
+              <p className="text-muted-foreground text-sm">Total Revenue (30d)</p>
+              <p className="text-xl font-semibold">€{totalRevenue.toLocaleString()}</p>
+              {totalRevenue > 0 && (
+                <p className="text-xs text-success mt-1">{botAttributedPercent.toFixed(0)}% from bot</p>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Metrics Grid */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
