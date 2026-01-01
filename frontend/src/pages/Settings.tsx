@@ -509,11 +509,6 @@ export default function Settings() {
               <Bot className="w-4 h-4 mr-1 sm:mr-2" />
               Config
             </TabsTrigger>
-            <TabsTrigger value="products" className="rounded-lg data-[state=active]:bg-card text-xs sm:text-sm">
-              <Package className="w-4 h-4 mr-1 sm:mr-2" />
-              <span className="hidden sm:inline">Products</span>
-              <span className="sm:hidden">Prod</span>
-            </TabsTrigger>
             <TabsTrigger value="knowledge" className="rounded-lg data-[state=active]:bg-card text-xs sm:text-sm">
               <BookOpen className="w-4 h-4 mr-1 sm:mr-2" />
               <span className="hidden sm:inline">Knowledge</span>
@@ -1007,70 +1002,6 @@ export default function Settings() {
                 onCheckedChange={(v) => handleToggleBotConfig("humanTakeoverAlerts", v)}
               />
             </div>
-          </div>
-        </TabsContent>
-
-        {/* Products Tab */}
-        <TabsContent value="products" className="animate-fade-in">
-          <div className="space-y-4">
-            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
-              <h3 className="font-semibold">Your Products</h3>
-              <Button onClick={openAddProduct} className="w-full sm:w-auto">
-                <Plus className="w-4 h-4 mr-2" />
-                Add Product
-              </Button>
-            </div>
-
-            {productsLoading ? (
-              <div className="flex items-center justify-center py-8">
-                <Loader2 className="w-6 h-6 animate-spin text-primary" />
-              </div>
-            ) : products.length === 0 ? (
-              <div className="metric-card text-center py-8 text-muted-foreground">
-                <Package className="w-12 h-12 mx-auto mb-3 opacity-50" />
-                <p>No products configured</p>
-                <p className="text-sm mt-2">Add your first product to get started</p>
-              </div>
-            ) : (
-              products.map((product) => (
-                <div
-                  key={product.id}
-                  className="metric-card flex flex-col sm:flex-row sm:items-center justify-between gap-3"
-                >
-                  <div className="flex items-center gap-4">
-                    <div className={cn(
-                      "w-12 h-12 rounded-xl flex items-center justify-center text-xl font-bold shrink-0",
-                      (product.is_active ?? product.active)
-                        ? "bg-gradient-to-br from-primary/20 to-accent/20 text-primary"
-                        : "bg-secondary text-muted-foreground"
-                    )}>
-                      {product.currency === "EUR" ? "€" : "$"}
-                    </div>
-                    <div className="min-w-0">
-                      <p className="font-semibold truncate">{product.name}</p>
-                      <p className="text-sm text-muted-foreground truncate">
-                        {product.currency === "EUR" ? "€" : "$"}{product.price}
-                        {product.description && ` - ${product.description.slice(0, 30)}...`}
-                      </p>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-2 ml-16 sm:ml-0">
-                    <span className={cn(
-                      "text-xs px-2 py-1 rounded-full",
-                      (product.is_active ?? product.active) ? "bg-success/10 text-success" : "bg-yellow-500/10 text-yellow-600"
-                    )}>
-                      {(product.is_active ?? product.active) ? "Active" : "Draft"}
-                    </span>
-                    <Button variant="ghost" size="icon" onClick={() => openEditProduct(product)}>
-                      <Pencil className="w-4 h-4" />
-                    </Button>
-                    <Button variant="ghost" size="icon" onClick={() => confirmDelete(product)}>
-                      <Trash2 className="w-4 h-4 text-destructive" />
-                    </Button>
-                  </div>
-                </div>
-              ))
-            )}
           </div>
         </TabsContent>
 
