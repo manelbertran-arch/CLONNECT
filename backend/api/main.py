@@ -2193,6 +2193,91 @@ async def generate_ai_rules(request: dict = Body(...)):
         return {"rules": rules, "source": "fallback"}
 
 
+@app.post("/api/ai/generate-knowledge")
+async def generate_ai_knowledge(request: dict = Body(...)):
+    """Generate knowledge base content using AI (Grok)"""
+    prompt = request.get("prompt", "")
+    content_type = request.get("type", "faqs")  # "faqs" or "about"
+
+    if not prompt:
+        raise HTTPException(status_code=400, detail="Prompt required")
+
+    xai_api_key = os.getenv("XAI_API_KEY")
+
+    if not xai_api_key:
+        # Fallback: generate basic content locally
+        if content_type == "faqs":
+            return {
+                "faqs": [
+                    {"question": "Pregunta de ejemplo", "answer": prompt}
+                ],
+                "source": "fallback"
+            }
+        else:
+            return {
+                "about": {"bio": prompt},
+                "source": "fallback"
+            }
+
+    try:
+        async with httpx.AsyncClient(timeout=30.0) as client:
+            if content_type == "faqs":
+                system_prompt = """Genera 3-5 preguntas frecuentes (FAQs) basadas en la informacion proporcionada.
+Devuelve SOLO un JSON array valido con este formato exacto:
+[{"question": "pregunta aqui", "answer": "respuesta aqui"}]
+No incluyas explicaciones, solo el JSON. Las preguntas deben ser utiles para clientes potenciales."""
+            else:
+                system_prompt = """Extrae informacion clave sobre el negocio/creador y devuelve SOLO un JSON valido con este formato exacto:
+{"bio": "descripcion breve", "specialties": ["especialidad1", "especialidad2"], "experience": "anos de experiencia", "target_audience": "publico objetivo"}
+No incluyas explicaciones, solo el JSON."""
+
+            response = await client.post(
+                "https://api.x.ai/v1/chat/completions",
+                headers={
+                    "Authorization": f"Bearer {xai_api_key}",
+                    "Content-Type": "application/json"
+                },
+                json={
+                    "model": "grok-beta",
+                    "messages": [
+                        {"role": "system", "content": system_prompt},
+                        {"role": "user", "content": f"Informacion del creador/negocio: {prompt}"}
+                    ],
+                    "max_tokens": 500,
+                    "temperature": 0.5
+                }
+            )
+
+            if response.status_code == 200:
+                data = response.json()
+                content = data["choices"][0]["message"]["content"]
+                # Try to parse as JSON
+                import json
+                try:
+                    parsed = json.loads(content)
+                    if content_type == "faqs":
+                        return {"faqs": parsed, "source": "grok"}
+                    else:
+                        return {"about": parsed, "source": "grok"}
+                except json.JSONDecodeError:
+                    logger.warning(f"Failed to parse Grok response as JSON: {content}")
+                    if content_type == "faqs":
+                        return {"faqs": [{"question": "FAQ generado", "answer": content}], "source": "grok-text"}
+                    else:
+                        return {"about": {"bio": content}, "source": "grok-text"}
+            else:
+                logger.warning(f"Grok API error: {response.status_code}")
+
+    except Exception as e:
+        logger.error(f"Error calling Grok API for knowledge: {e}")
+
+    # Fallback
+    if content_type == "faqs":
+        return {"faqs": [{"question": "Pregunta de ejemplo", "answer": prompt}], "source": "fallback"}
+    else:
+        return {"about": {"bio": prompt}, "source": "fallback"}
+
+
 @app.put("/creator/config/{creator_id}")
 async def update_creator_config(creator_id: str, updates: dict = Body(...)):
     """Actualizar configuracion de creador"""

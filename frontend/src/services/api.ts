@@ -604,17 +604,110 @@ export interface KnowledgeItem {
   created_at?: string;
 }
 
+export interface FAQItem {
+  id: string;
+  question: string;
+  answer: string;
+  created_at?: string;
+}
+
+export interface AboutInfo {
+  bio?: string;
+  specialties?: string[];
+  experience?: string;
+  target_audience?: string;
+  [key: string]: unknown;
+}
+
+export interface FullKnowledge {
+  status: string;
+  faqs: FAQItem[];
+  about: AboutInfo;
+  items: KnowledgeItem[];  // Legacy compatibility
+  count: number;
+}
+
 /**
- * Get knowledge base items
+ * Get full knowledge base (FAQs + About)
  */
 export async function getKnowledge(
   creatorId: string = CREATOR_ID
-): Promise<{ status: string; items: KnowledgeItem[]; count: number }> {
+): Promise<FullKnowledge> {
   return apiFetch(`/creator/config/${creatorId}/knowledge`);
 }
 
 /**
- * Delete a knowledge base item
+ * Get FAQs only
+ */
+export async function getFAQs(
+  creatorId: string = CREATOR_ID
+): Promise<{ status: string; items: FAQItem[]; count: number }> {
+  return apiFetch(`/creator/config/${creatorId}/knowledge/faqs`);
+}
+
+/**
+ * Add a FAQ
+ */
+export async function addFAQ(
+  creatorId: string = CREATOR_ID,
+  question: string,
+  answer: string
+): Promise<{ status: string; item: FAQItem }> {
+  return apiFetch(`/creator/config/${creatorId}/knowledge/faqs`, {
+    method: "POST",
+    body: JSON.stringify({ question, answer }),
+  });
+}
+
+/**
+ * Delete a FAQ
+ */
+export async function deleteFAQ(
+  creatorId: string = CREATOR_ID,
+  itemId: string
+): Promise<{ status: string }> {
+  return apiFetch(`/creator/config/${creatorId}/knowledge/faqs/${itemId}`, {
+    method: "DELETE",
+  });
+}
+
+/**
+ * Get About Me/Business info
+ */
+export async function getAbout(
+  creatorId: string = CREATOR_ID
+): Promise<{ status: string; about: AboutInfo }> {
+  return apiFetch(`/creator/config/${creatorId}/knowledge/about`);
+}
+
+/**
+ * Update About Me/Business info
+ */
+export async function updateAbout(
+  creatorId: string = CREATOR_ID,
+  data: AboutInfo
+): Promise<{ status: string }> {
+  return apiFetch(`/creator/config/${creatorId}/knowledge/about`, {
+    method: "PUT",
+    body: JSON.stringify(data),
+  });
+}
+
+/**
+ * Generate knowledge using AI
+ */
+export async function generateKnowledge(
+  prompt: string,
+  type: "faqs" | "about" = "faqs"
+): Promise<{ faqs?: FAQItem[]; about?: AboutInfo; source: string }> {
+  return apiFetch(`/api/ai/generate-knowledge`, {
+    method: "POST",
+    body: JSON.stringify({ prompt, type }),
+  });
+}
+
+/**
+ * Delete a knowledge base item (legacy)
  */
 export async function deleteKnowledge(
   creatorId: string = CREATOR_ID,
@@ -812,6 +905,14 @@ export default {
   cancelNurturing,
   runNurturing,
   addContent,
+  getKnowledge,
+  getFAQs,
+  addFAQ,
+  deleteFAQ,
+  getAbout,
+  updateAbout,
+  generateKnowledge,
+  deleteKnowledge,
   apiKeys,
   CREATOR_ID,
   API_URL,

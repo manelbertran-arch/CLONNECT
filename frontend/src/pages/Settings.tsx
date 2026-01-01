@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { useSearchParams, useNavigate } from "react-router-dom";
 import { useQueryClient } from "@tanstack/react-query";
-import { Bot, Link2, Package, User, Save, RefreshCw, Loader2, AlertCircle, Plus, Pencil, Trash2, BookOpen, Check, Sparkles, Wand2 } from "lucide-react";
+import { Bot, Link2, Package, User, Save, RefreshCw, Loader2, AlertCircle, Plus, Pencil, Trash2, BookOpen, Check, Sparkles, Wand2, MessageSquare, HelpCircle, ChevronDown, ChevronUp } from "lucide-react";
 
 // Platform SVG Logos
 const PlatformLogo = ({ platform, size = 20 }: { platform: string; size?: number }) => {
@@ -82,7 +82,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Switch } from "@/components/ui/switch";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
-import { useCreatorConfig, useProducts, useUpdateConfig, useAddProduct, useUpdateProduct, useDeleteProduct, useAddContent, useKnowledge, useDeleteKnowledge, useConnections, useUpdateConnection, useDisconnectPlatform } from "@/hooks/useApi";
+import { useCreatorConfig, useProducts, useUpdateConfig, useAddProduct, useUpdateProduct, useDeleteProduct, useAddContent, useKnowledge, useDeleteKnowledge, useAddFAQ, useDeleteFAQ, useUpdateAbout, useGenerateKnowledge, useConnections, useUpdateConnection, useDisconnectPlatform } from "@/hooks/useApi";
 import { startOAuth } from "@/services/api";
 import { useToast } from "@/hooks/use-toast";
 import type { Product } from "@/types/api";
@@ -205,6 +205,10 @@ export default function Settings() {
   const addContentMutation = useAddContent();
   const { data: knowledgeData, isLoading: knowledgeLoading } = useKnowledge();
   const deleteKnowledgeMutation = useDeleteKnowledge();
+  const addFAQMutation = useAddFAQ();
+  const deleteFAQMutation = useDeleteFAQ();
+  const updateAboutMutation = useUpdateAbout();
+  const generateKnowledgeMutation = useGenerateKnowledge();
   const { data: connectionsData, isLoading: connectionsLoading } = useConnections();
   const updateConnectionMutation = useUpdateConnection();
   const disconnectMutation = useDisconnectPlatform();
@@ -264,6 +268,26 @@ export default function Settings() {
 
   // Knowledge base state
   const [faqContent, setFaqContent] = useState("");
+  const [faqQuestion, setFaqQuestion] = useState("");
+  const [faqAnswer, setFaqAnswer] = useState("");
+  const [faqModalOpen, setFaqModalOpen] = useState(false);
+  const [aboutBio, setAboutBio] = useState("");
+  const [aboutSpecialties, setAboutSpecialties] = useState("");
+  const [aboutExperience, setAboutExperience] = useState("");
+  const [aboutTarget, setAboutTarget] = useState("");
+  const [showAboutSection, setShowAboutSection] = useState(false);
+  const [aiKnowledgePrompt, setAiKnowledgePrompt] = useState("");
+  const [isGeneratingKnowledge, setIsGeneratingKnowledge] = useState(false);
+
+  // FAQ Templates
+  const faqTemplates = [
+    { question: "¿Cuáles son tus precios?", answer: "" },
+    { question: "¿Cómo puedo contratarte?", answer: "" },
+    { question: "¿Cuál es tu disponibilidad?", answer: "" },
+    { question: "¿Ofreces garantía?", answer: "" },
+    { question: "¿Haces envíos internacionales?", answer: "" },
+    { question: "¿Cuáles son tus métodos de pago?", answer: "" },
+  ];
 
   // Other payment methods state
   const [otherPaymentMethods, setOtherPaymentMethods] = useState({
@@ -340,6 +364,17 @@ export default function Settings() {
       setSelectedPreset(matchingPreset?.id || null);
     }
   }, [config]);
+
+  // Load About data from knowledge response
+  useEffect(() => {
+    if (knowledgeData?.about) {
+      const about = knowledgeData.about;
+      setAboutBio(about.bio || "");
+      setAboutSpecialties(Array.isArray(about.specialties) ? about.specialties.join(", ") : (about.specialties || ""));
+      setAboutExperience(about.experience || "");
+      setAboutTarget(about.target_audience || "");
+    }
+  }, [knowledgeData]);
 
   const generatePreview = () => {
     const previews = {
@@ -517,6 +552,112 @@ export default function Settings() {
         description: error instanceof Error ? error.message : "Failed to delete",
         variant: "destructive",
       });
+    }
+  };
+
+  // New FAQ handlers
+  const handleAddFAQ = async () => {
+    if (!faqQuestion.trim() || !faqAnswer.trim()) {
+      toast({
+        title: "Campos incompletos",
+        description: "Por favor completa la pregunta y la respuesta.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    try {
+      await addFAQMutation.mutateAsync({ question: faqQuestion, answer: faqAnswer });
+      toast({ title: "FAQ añadida", description: "La pregunta ha sido guardada." });
+      setFaqQuestion("");
+      setFaqAnswer("");
+      setFaqModalOpen(false);
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: error instanceof Error ? error.message : "Failed to add FAQ",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleDeleteFAQ = async (itemId: string) => {
+    try {
+      await deleteFAQMutation.mutateAsync(itemId);
+      toast({ title: "FAQ eliminada", description: "La pregunta ha sido eliminada." });
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: error instanceof Error ? error.message : "Failed to delete FAQ",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleSelectTemplate = (template: { question: string; answer: string }) => {
+    setFaqQuestion(template.question);
+    setFaqAnswer("");
+    setFaqModalOpen(true);
+  };
+
+  const handleSaveAbout = async () => {
+    try {
+      const aboutData = {
+        bio: aboutBio,
+        specialties: aboutSpecialties.split(",").map(s => s.trim()).filter(Boolean),
+        experience: aboutExperience,
+        target_audience: aboutTarget,
+      };
+      await updateAboutMutation.mutateAsync(aboutData);
+      toast({ title: "Guardado", description: "Tu información ha sido actualizada." });
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: error instanceof Error ? error.message : "Failed to save",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleGenerateKnowledge = async () => {
+    if (!aiKnowledgePrompt.trim()) {
+      toast({
+        title: "Escribe una descripción",
+        description: "Describe tu negocio o pega tu bio para generar FAQs.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setIsGeneratingKnowledge(true);
+    try {
+      const result = await generateKnowledgeMutation.mutateAsync({
+        prompt: aiKnowledgePrompt,
+        type: "faqs",
+      });
+
+      if (result.faqs && result.faqs.length > 0) {
+        // Add generated FAQs
+        for (const faq of result.faqs) {
+          await addFAQMutation.mutateAsync({
+            question: faq.question,
+            answer: faq.answer,
+          });
+        }
+        toast({
+          title: "FAQs generadas",
+          description: `Se han creado ${result.faqs.length} preguntas frecuentes.`,
+        });
+        setAiKnowledgePrompt("");
+      }
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: error instanceof Error ? error.message : "Failed to generate",
+        variant: "destructive",
+      });
+    } finally {
+      setIsGeneratingKnowledge(false);
     }
   };
 
@@ -1045,89 +1186,212 @@ export default function Settings() {
           )}
         </TabsContent>
 
-        {/* Knowledge Base Tab */}
+        {/* Knowledge Base Tab - Redesigned */}
         <TabsContent value="knowledge" className="animate-fade-in space-y-6">
-          <div className="metric-card space-y-4">
-            <div>
-              <h3 className="font-semibold mb-2">Add to Knowledge Base</h3>
-              <p className="text-sm text-muted-foreground">
-                Add FAQs, product info, or any content your bot should know about.
-              </p>
-            </div>
-
-            <Textarea
-              value={faqContent}
-              onChange={(e) => setFaqContent(e.target.value)}
-              className="bg-secondary border-0 min-h-[150px]"
-              placeholder="Example: Q: What are your business hours? A: We're available Monday to Friday, 9am to 6pm EST..."
-            />
-
-            <Button
-              onClick={handleAddContent}
-              disabled={!faqContent.trim() || addContentMutation.isPending}
-              className="bg-gradient-to-r from-primary to-accent hover:opacity-90"
-            >
-              {addContentMutation.isPending ? (
-                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-              ) : (
-                <Plus className="w-4 h-4 mr-2" />
-              )}
-              Add to Knowledge Base
-            </Button>
-          </div>
-
-          {/* Saved FAQs */}
+          {/* Section 1: FAQs */}
           <div className="metric-card space-y-4">
             <div className="flex items-center justify-between">
-              <h3 className="font-semibold">Saved Knowledge ({knowledgeItems.length})</h3>
+              <div className="flex items-center gap-2">
+                <HelpCircle className="w-5 h-5 text-primary" />
+                <h3 className="text-lg font-semibold">Preguntas Frecuentes</h3>
+              </div>
+              <Button
+                size="sm"
+                onClick={() => {
+                  setFaqQuestion("");
+                  setFaqAnswer("");
+                  setFaqModalOpen(true);
+                }}
+                className="bg-gradient-to-r from-primary to-accent hover:opacity-90"
+              >
+                <Plus className="w-4 h-4 mr-1" />
+                Agregar FAQ
+              </Button>
             </div>
 
+            <p className="text-sm text-muted-foreground">
+              Las FAQs ayudan a tu bot a responder preguntas comunes de forma precisa.
+            </p>
+
+            {/* FAQ Templates */}
+            <div className="p-4 rounded-lg bg-secondary/30 border border-border/50">
+              <p className="text-sm font-medium mb-3">Sugerencias de preguntas:</p>
+              <div className="flex flex-wrap gap-2">
+                {faqTemplates.map((template, idx) => (
+                  <button
+                    key={idx}
+                    onClick={() => handleSelectTemplate(template)}
+                    className="px-3 py-1.5 text-xs rounded-full bg-primary/10 text-primary hover:bg-primary/20 transition-colors"
+                  >
+                    {template.question}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Saved FAQs */}
             {knowledgeLoading ? (
               <div className="flex justify-center py-4">
                 <Loader2 className="w-6 h-6 animate-spin text-primary" />
               </div>
-            ) : knowledgeItems.length === 0 ? (
+            ) : (knowledgeData?.faqs || []).length === 0 ? (
               <p className="text-sm text-muted-foreground py-4 text-center">
-                No FAQs added yet. Add your first one above!
+                No hay FAQs todavia. Agrega tu primera pregunta arriba.
               </p>
             ) : (
               <div className="space-y-3">
-                {knowledgeItems.map((item) => (
+                {(knowledgeData?.faqs || []).map((faq) => (
                   <div
-                    key={item.id}
-                    className="p-3 rounded-lg bg-secondary/50 flex items-start justify-between gap-3"
+                    key={faq.id}
+                    className="p-4 rounded-lg bg-secondary/50 border border-border/30"
                   >
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm whitespace-pre-wrap break-words">
-                        {item.content.length > 200 ? `${item.content.slice(0, 200)}...` : item.content}
-                      </p>
-                      <p className="text-xs text-muted-foreground mt-1">
-                        {item.doc_type} • {item.created_at ? new Date(item.created_at).toLocaleDateString() : ""}
-                      </p>
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="flex-1 min-w-0">
+                        <p className="font-medium text-sm flex items-center gap-2">
+                          <MessageSquare className="w-4 h-4 text-primary shrink-0" />
+                          {faq.question}
+                        </p>
+                        <p className="text-sm text-muted-foreground mt-2 pl-6">
+                          {faq.answer.length > 150 ? `${faq.answer.slice(0, 150)}...` : faq.answer}
+                        </p>
+                      </div>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => handleDeleteFAQ(faq.id)}
+                        disabled={deleteFAQMutation.isPending}
+                        className="shrink-0 text-muted-foreground hover:text-destructive"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </Button>
                     </div>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => handleDeleteKnowledge(item.id)}
-                      disabled={deleteKnowledgeMutation.isPending}
-                      className="shrink-0 text-muted-foreground hover:text-destructive"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </Button>
                   </div>
                 ))}
               </div>
             )}
           </div>
 
-          <div className="metric-card bg-secondary/30">
-            <h3 className="font-semibold mb-2">Tips for Good FAQs</h3>
-            <ul className="text-sm text-muted-foreground space-y-2">
-              <li>• Use Q&A format: "Q: question A: answer"</li>
-              <li>• Include product details, pricing, and features</li>
-              <li>• Add common objections and how to handle them</li>
-              <li>• Include your business hours and contact info</li>
-            </ul>
+          {/* Section 2: About Me/Business - Collapsible */}
+          <div className="metric-card">
+            <button
+              onClick={() => setShowAboutSection(!showAboutSection)}
+              className="w-full flex items-center justify-between"
+            >
+              <div className="flex items-center gap-2">
+                <User className="w-5 h-5 text-primary" />
+                <h3 className="text-lg font-semibold">Sobre Mi / Mi Negocio</h3>
+              </div>
+              {showAboutSection ? (
+                <ChevronUp className="w-5 h-5 text-muted-foreground" />
+              ) : (
+                <ChevronDown className="w-5 h-5 text-muted-foreground" />
+              )}
+            </button>
+
+            {showAboutSection && (
+              <div className="mt-4 space-y-4">
+                <p className="text-sm text-muted-foreground">
+                  Esta informacion ayuda al bot a presentarte correctamente.
+                </p>
+
+                <div className="space-y-3">
+                  <div>
+                    <Label htmlFor="aboutBio" className="text-sm font-medium">Bio / Descripcion</Label>
+                    <Textarea
+                      id="aboutBio"
+                      value={aboutBio}
+                      onChange={(e) => setAboutBio(e.target.value)}
+                      className="bg-secondary border-0 min-h-[80px] mt-1"
+                      placeholder="Soy coach de fitness con 10 anos de experiencia..."
+                    />
+                  </div>
+
+                  <div>
+                    <Label htmlFor="aboutSpecialties" className="text-sm font-medium">Especialidades</Label>
+                    <Input
+                      id="aboutSpecialties"
+                      value={aboutSpecialties}
+                      onChange={(e) => setAboutSpecialties(e.target.value)}
+                      className="bg-secondary border-0 mt-1"
+                      placeholder="Entrenamiento personal, nutricion, mindset (separados por coma)"
+                    />
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <Label htmlFor="aboutExperience" className="text-sm font-medium">Experiencia</Label>
+                      <Input
+                        id="aboutExperience"
+                        value={aboutExperience}
+                        onChange={(e) => setAboutExperience(e.target.value)}
+                        className="bg-secondary border-0 mt-1"
+                        placeholder="5 anos"
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="aboutTarget" className="text-sm font-medium">Publico objetivo</Label>
+                      <Input
+                        id="aboutTarget"
+                        value={aboutTarget}
+                        onChange={(e) => setAboutTarget(e.target.value)}
+                        className="bg-secondary border-0 mt-1"
+                        placeholder="Emprendedores, profesionales"
+                      />
+                    </div>
+                  </div>
+
+                  <Button
+                    onClick={handleSaveAbout}
+                    disabled={updateAboutMutation.isPending}
+                    className="w-full mt-2"
+                  >
+                    {updateAboutMutation.isPending ? (
+                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    ) : (
+                      <Save className="w-4 h-4 mr-2" />
+                    )}
+                    Guardar informacion
+                  </Button>
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Section 3: AI Generator */}
+          <div className="rounded-xl p-6 border border-primary/30 bg-gradient-to-br from-primary/10 via-accent/5 to-primary/10">
+            <div className="flex items-center gap-2 mb-4">
+              <Sparkles className="w-5 h-5 text-primary" />
+              <h3 className="text-lg font-semibold">Generar FAQs con IA</h3>
+            </div>
+
+            <p className="text-sm text-muted-foreground mb-4">
+              Pega tu bio de Instagram, descripcion de tu web, o describe tu negocio y la IA generara preguntas frecuentes automaticamente.
+            </p>
+
+            <Textarea
+              value={aiKnowledgePrompt}
+              onChange={(e) => setAiKnowledgePrompt(e.target.value)}
+              className="bg-background/80 border-0 min-h-[100px] resize-none mb-3"
+              placeholder="Ejemplo: Soy coach de fitness especializado en perdida de peso. Ofrezco programas de 8 semanas con seguimiento personalizado. Mis precios van de 200 a 500 euros dependiendo del programa..."
+            />
+
+            <Button
+              onClick={handleGenerateKnowledge}
+              disabled={isGeneratingKnowledge || !aiKnowledgePrompt.trim()}
+              className="bg-gradient-to-r from-primary to-accent hover:opacity-90"
+            >
+              {isGeneratingKnowledge ? (
+                <>
+                  <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
+                  Generando FAQs...
+                </>
+              ) : (
+                <>
+                  <Wand2 className="w-4 h-4 mr-2" />
+                  Generar FAQs
+                </>
+              )}
+            </Button>
           </div>
         </TabsContent>
       </Tabs>
@@ -1247,6 +1511,56 @@ export default function Settings() {
             >
               {deleteProductMutation.isPending && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
               Delete
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* FAQ Modal */}
+      <Dialog open={faqModalOpen} onOpenChange={setFaqModalOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Agregar Pregunta Frecuente</DialogTitle>
+            <DialogDescription>
+              Agrega una pregunta y su respuesta para que tu bot pueda responder mejor.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="faqQuestion">Pregunta</Label>
+              <Input
+                id="faqQuestion"
+                value={faqQuestion}
+                onChange={(e) => setFaqQuestion(e.target.value)}
+                placeholder="Ej: ¿Cuales son tus precios?"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="faqAnswer">Respuesta</Label>
+              <Textarea
+                id="faqAnswer"
+                value={faqAnswer}
+                onChange={(e) => setFaqAnswer(e.target.value)}
+                className="min-h-[120px]"
+                placeholder="Escribe la respuesta que quieres que de tu bot..."
+              />
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setFaqModalOpen(false)}>
+              Cancelar
+            </Button>
+            <Button
+              onClick={handleAddFAQ}
+              disabled={!faqQuestion.trim() || !faqAnswer.trim() || addFAQMutation.isPending}
+            >
+              {addFAQMutation.isPending && (
+                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+              )}
+              Guardar FAQ
             </Button>
           </DialogFooter>
         </DialogContent>

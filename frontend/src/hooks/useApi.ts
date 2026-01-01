@@ -27,6 +27,12 @@ import {
   markConversationSpam,
   deleteConversation,
   getKnowledge,
+  getFAQs,
+  addFAQ,
+  deleteFAQ,
+  getAbout,
+  updateAbout,
+  generateKnowledge,
   deleteKnowledge,
   getRevenueStats,
   getPurchases,
@@ -578,6 +584,56 @@ export function useDeleteKnowledge(creatorId: string = CREATOR_ID) {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: apiKeys.knowledge(creatorId) });
     },
+  });
+}
+
+/**
+ * Hook to add a FAQ
+ */
+export function useAddFAQ(creatorId: string = CREATOR_ID) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ question, answer }: { question: string; answer: string }) =>
+      addFAQ(creatorId, question, answer),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: apiKeys.knowledge(creatorId) });
+    },
+  });
+}
+
+/**
+ * Hook to delete a FAQ
+ */
+export function useDeleteFAQ(creatorId: string = CREATOR_ID) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (itemId: string) => deleteFAQ(creatorId, itemId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: apiKeys.knowledge(creatorId) });
+    },
+  });
+}
+
+/**
+ * Hook to update About Me/Business info
+ */
+export function useUpdateAbout(creatorId: string = CREATOR_ID) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (data: Record<string, unknown>) => updateAbout(creatorId, data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: apiKeys.knowledge(creatorId) });
+    },
+  });
+}
+
+/**
+ * Hook to generate knowledge with AI
+ */
+export function useGenerateKnowledge() {
+  return useMutation({
+    mutationFn: ({ prompt, type }: { prompt: string; type: "faqs" | "about" }) =>
+      generateKnowledge(prompt, type),
   });
 }
 
