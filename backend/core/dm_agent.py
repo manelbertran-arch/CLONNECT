@@ -567,18 +567,45 @@ class DMResponderAgent:
         logger.info(f"Loaded {len(self.products)} products")
 
     def _load_creator_config(self) -> dict:
-        """Cargar configuración del creador desde JSON"""
+        """Cargar configuración del creador desde PostgreSQL (primero) o JSON (fallback)"""
+        # Try PostgreSQL first (where Settings page saves)
+        if USE_POSTGRES and db_service:
+            try:
+                creator = db_service.get_creator_by_name(self.creator_id)
+                if creator:
+                    logger.info(f"Loaded creator config from DB: {creator.get('name')}, tone={creator.get('clone_tone')}")
+                    # Map DB fields to config format expected by _build_system_prompt
+                    return {
+                        "name": creator.get("name", "Asistente"),
+                        "clone_name": creator.get("clone_name") or creator.get("name", "Asistente"),
+                        "clone_tone": creator.get("clone_tone", "friendly"),
+                        "clone_vocabulary": creator.get("clone_vocabulary", ""),
+                        "welcome_message": creator.get("welcome_message", ""),
+                        "bot_active": creator.get("bot_active", True),
+                        "clone_active": creator.get("bot_active", True),
+                        # Keep these for compatibility
+                        "personality": "amable y profesional",
+                        "language": "Español",
+                        "greeting_style": "Hola! Que tal?",
+                        "emoji_usage": "moderado",
+                        "response_length": "conciso, maximo 2-3 frases",
+                        "escalation_keywords": ["urgente", "reembolso", "hablar con humano"]
+                    }
+            except Exception as e:
+                logger.warning(f"Failed to load config from PostgreSQL: {e}")
+
+        # Fallback to JSON file
         config_path = Path(f"data/creators/{self.creator_id}_config.json")
         if config_path.exists():
             try:
                 with open(config_path, 'r', encoding='utf-8') as f:
                     config = json.load(f)
-                    logger.info(f"Loaded creator config: {config.get('name')}")
+                    logger.info(f"Loaded creator config from JSON: {config.get('name')}")
                     return config
             except Exception as e:
-                logger.error(f"Error loading creator config: {e}")
+                logger.error(f"Error loading creator config from JSON: {e}")
 
-        logger.warning(f"Creator config not found: {config_path}")
+        logger.warning(f"Creator config not found in DB or JSON")
         return self._default_config()
 
     def _load_products(self) -> list:
@@ -895,7 +922,7 @@ class DMResponderAgent:
 
     def _build_system_prompt(self) -> str:
         """Construir system prompt con configuración y productos"""
-        # Reload config to get latest settings
+        # Reload config to get latest settings (from DB)
         self.creator_config = self._load_creator_config()
         config = self.creator_config
         # Use clone_name (from Settings) with fallback to name
@@ -903,6 +930,8 @@ class DMResponderAgent:
 
         # Get clone_tone from Settings (professional, casual, friendly)
         clone_tone = config.get('clone_tone', 'friendly')
+        clone_vocabulary = config.get('clone_vocabulary', '')
+        logger.info(f"Building system prompt: name={name}, tone={clone_tone}, vocabulary_length={len(clone_vocabulary)}")
 
         # Build tone instruction based on clone_tone
         if clone_tone == "professional":
@@ -915,11 +944,10 @@ class DMResponderAgent:
             tone_instruction = "Responde de manera amigable y cercana, equilibrando profesionalismo con calidez."
             emoji_instruction = "- Uso de emojis: moderado (1-2 por mensaje, VARIADOS)"
 
-        # Get custom vocabulary/instructions from Settings
-        clone_vocabulary = config.get('clone_vocabulary', '').strip()
+        # Get custom vocabulary/instructions from Settings (already loaded above)
         vocabulary_section = ""
         if clone_vocabulary:
-            vocabulary_section = f"\n\nINSTRUCCIONES PERSONALIZADAS:\n{clone_vocabulary}\n"
+            vocabulary_section = f"\n\nINSTRUCCIONES PERSONALIZADAS:\n{clone_vocabulary.strip()}\n"
 
         # Construir lista de productos
         products_text = ""
@@ -1451,13 +1479,17 @@ USA ESTA RESPUESTA PARA LA OBJECION (adaptala a tu tono):
 
         # Check cache para respuestas frecuentes (solo intents cacheables)
         response_cache = get_response_cache()
-        # Include clone_tone in cache key so tone changes invalidate cache
+        # Include clone_tone and clone_vocabulary hash in cache key so config changes invalidate cache
         clone_tone = self.creator_config.get('clone_tone', 'friendly')
+        clone_vocabulary = self.creator_config.get('clone_vocabulary', '')
+        # Use hash of vocabulary to avoid long cache keys
+        vocab_hash = hash(clone_vocabulary) if clone_vocabulary else 0
         cache_key_params = {
             "creator_id": self.creator_id,
             "intent": intent.value,
             "language": user_language,
-            "tone": clone_tone
+            "tone": clone_tone,
+            "vocab": vocab_hash
         }
 
         # Solo cachear intents que lo permiten
