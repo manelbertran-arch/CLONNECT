@@ -600,15 +600,17 @@ export default function Settings() {
           ) : (
             <div className="space-y-6">
               {/* Social & Messaging Section */}
-              <div className="space-y-3">
-                <div className="flex items-center gap-3">
-                  <span className="text-2xl">💬</span>
+              <div className="metric-card">
+                <div className="flex items-center gap-3 mb-4">
+                  <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
+                    <span className="text-xl">💬</span>
+                  </div>
                   <div>
-                    <h3 className="font-semibold text-lg">Social & Messaging</h3>
+                    <h3 className="font-semibold">Social & Messaging</h3>
                     <p className="text-sm text-muted-foreground">Connect your communication channels</p>
                   </div>
                 </div>
-                <div className="metric-card space-y-1 p-2">
+                <div className="space-y-2">
                   {connectionConfigs.filter(c => c.section === "messaging").map((conn) => {
                     const status = connectionsData?.[conn.key as keyof typeof connectionsData];
                     const isConnected = status?.connected || false;
@@ -616,9 +618,11 @@ export default function Settings() {
 
                     return (
                       <div key={conn.key}>
-                        <div className="flex items-center justify-between p-3 rounded-lg hover:bg-muted/50 transition-colors">
-                          <div className="flex items-center gap-3">
-                            <PlatformLogo platform={conn.key} size={24} />
+                        <div className="flex items-center justify-between p-4 rounded-lg border bg-card hover:border-primary/30 transition-colors">
+                          <div className="flex items-center gap-4">
+                            <div className="w-10 h-10 rounded-lg bg-secondary flex items-center justify-center">
+                              <PlatformLogo platform={conn.key} size={24} />
+                            </div>
                             <div>
                               <p className="font-medium">{conn.name}</p>
                               <p className="text-sm text-muted-foreground">
@@ -663,7 +667,7 @@ export default function Settings() {
                         </div>
                         {/* Telegram form */}
                         {isEditing && !conn.oauth && conn.fields && (
-                          <div className="mx-3 mb-3 p-3 rounded-lg bg-muted/30 space-y-3">
+                          <div className="mt-2 p-4 rounded-lg bg-secondary/50 space-y-3">
                             {conn.oauthHelp && (
                               <p className="text-sm text-muted-foreground whitespace-pre-line">{conn.oauthHelp}</p>
                             )}
@@ -696,16 +700,19 @@ export default function Settings() {
               </div>
 
               {/* Payments Section */}
-              <div className="space-y-3">
-                <div className="flex items-center gap-3">
-                  <span className="text-2xl">💰</span>
+              <div className="metric-card">
+                <div className="flex items-center gap-3 mb-4">
+                  <div className="w-10 h-10 rounded-lg bg-success/10 flex items-center justify-center">
+                    <span className="text-xl">💰</span>
+                  </div>
                   <div>
-                    <h3 className="font-semibold text-lg">Payments</h3>
+                    <h3 className="font-semibold">Payments</h3>
                     <p className="text-sm text-muted-foreground">Track and manage payments</p>
                   </div>
                 </div>
-                <div className="metric-card space-y-1 p-2">
-                  {/* OAuth payments (Stripe, PayPal) */}
+
+                {/* OAuth payments (Stripe, PayPal) */}
+                <div className="space-y-2 mb-4">
                   {connectionConfigs.filter(c => c.section === "payments").map((conn) => {
                     const status = connectionsData?.[conn.key as keyof typeof connectionsData];
                     const isConnected = status?.connected || false;
@@ -713,10 +720,12 @@ export default function Settings() {
                     return (
                       <div
                         key={conn.key}
-                        className="flex items-center justify-between p-3 rounded-lg hover:bg-muted/50 transition-colors"
+                        className="flex items-center justify-between p-4 rounded-lg border bg-card hover:border-primary/30 transition-colors"
                       >
-                        <div className="flex items-center gap-3">
-                          <PlatformLogo platform={conn.key} size={24} />
+                        <div className="flex items-center gap-4">
+                          <div className="w-10 h-10 rounded-lg bg-secondary flex items-center justify-center">
+                            <PlatformLogo platform={conn.key} size={24} />
+                          </div>
                           <div>
                             <p className="font-medium">{conn.name}</p>
                             <p className="text-sm text-muted-foreground">
@@ -751,19 +760,21 @@ export default function Settings() {
                       </div>
                     );
                   })}
+                </div>
 
-                  {/* Separator */}
-                  <div className="border-t border-border/50 my-2 mx-3" />
+                {/* Manual payment methods sub-card */}
+                <div className="p-4 rounded-lg bg-secondary/30 border border-border/50">
+                  <p className="text-sm font-medium mb-1">Alternative payment methods</p>
+                  <p className="text-xs text-muted-foreground mb-4">Bot will mention these when customers ask about payment</p>
 
-                  {/* Manual payment methods */}
-                  {/* Bizum */}
-                  <div>
-                    <div className="flex items-center justify-between p-3 rounded-lg hover:bg-muted/50 transition-colors">
+                  <div className="space-y-2">
+                    {/* Bizum */}
+                    <div className="flex items-center justify-between p-3 rounded-lg bg-card hover:bg-accent/5 transition-colors">
                       <div className="flex items-center gap-3">
-                        <div className="w-6 h-6 rounded bg-orange-500 flex items-center justify-center text-white text-xs font-bold">B</div>
+                        <div className="w-8 h-8 rounded-lg bg-orange-500/20 flex items-center justify-center text-orange-500 text-xs font-bold">B</div>
                         <div>
-                          <p className="font-medium">Bizum</p>
-                          <p className="text-sm text-muted-foreground">
+                          <p className="font-medium text-sm">Bizum</p>
+                          <p className="text-xs text-muted-foreground">
                             {otherPaymentMethods.bizum.enabled && otherPaymentMethods.bizum.phone
                               ? `${otherPaymentMethods.bizum.phone}${otherPaymentMethods.bizum.holder_name ? ` · ${otherPaymentMethods.bizum.holder_name}` : ""}`
                               : "Mobile payments"}
@@ -780,22 +791,20 @@ export default function Settings() {
                       </div>
                     </div>
                     {editingPaymentMethod === "bizum" && (
-                      <div className="mx-3 mb-3 p-3 rounded-lg bg-muted/30 flex gap-2">
+                      <div className="p-3 rounded-lg bg-secondary/50 flex gap-2">
                         <Input placeholder="Phone" value={otherPaymentMethods.bizum.phone} onChange={(e) => setOtherPaymentMethods(p => ({ ...p, bizum: { ...p.bizum, phone: e.target.value } }))} />
                         <Input placeholder="Name" value={otherPaymentMethods.bizum.holder_name} onChange={(e) => setOtherPaymentMethods(p => ({ ...p, bizum: { ...p.bizum, holder_name: e.target.value } }))} />
-                        <Button onClick={() => handleSavePaymentMethods(true)}>Save</Button>
+                        <Button size="sm" onClick={() => handleSavePaymentMethods(true)}>Save</Button>
                       </div>
                     )}
-                  </div>
 
-                  {/* Bank Transfer */}
-                  <div>
-                    <div className="flex items-center justify-between p-3 rounded-lg hover:bg-muted/50 transition-colors">
+                    {/* Bank Transfer */}
+                    <div className="flex items-center justify-between p-3 rounded-lg bg-card hover:bg-accent/5 transition-colors">
                       <div className="flex items-center gap-3">
-                        <div className="w-6 h-6 rounded bg-blue-600 flex items-center justify-center text-white text-sm">🏦</div>
+                        <div className="w-8 h-8 rounded-lg bg-blue-500/20 flex items-center justify-center text-blue-500 text-sm">🏦</div>
                         <div>
-                          <p className="font-medium">Bank Transfer</p>
-                          <p className="text-sm text-muted-foreground">
+                          <p className="font-medium text-sm">Bank Transfer</p>
+                          <p className="text-xs text-muted-foreground">
                             {otherPaymentMethods.bank_transfer.enabled && otherPaymentMethods.bank_transfer.iban
                               ? `${maskIban(otherPaymentMethods.bank_transfer.iban)}${otherPaymentMethods.bank_transfer.holder_name ? ` · ${otherPaymentMethods.bank_transfer.holder_name}` : ""}`
                               : "Direct bank transfers"}
@@ -812,22 +821,20 @@ export default function Settings() {
                       </div>
                     </div>
                     {editingPaymentMethod === "bank_transfer" && (
-                      <div className="mx-3 mb-3 p-3 rounded-lg bg-muted/30 flex gap-2">
+                      <div className="p-3 rounded-lg bg-secondary/50 flex gap-2">
                         <Input placeholder="IBAN" value={otherPaymentMethods.bank_transfer.iban} onChange={(e) => setOtherPaymentMethods(p => ({ ...p, bank_transfer: { ...p.bank_transfer, iban: e.target.value } }))} className="flex-1" />
                         <Input placeholder="Holder" value={otherPaymentMethods.bank_transfer.holder_name} onChange={(e) => setOtherPaymentMethods(p => ({ ...p, bank_transfer: { ...p.bank_transfer, holder_name: e.target.value } }))} className="w-32" />
-                        <Button onClick={() => handleSavePaymentMethods(true)}>Save</Button>
+                        <Button size="sm" onClick={() => handleSavePaymentMethods(true)}>Save</Button>
                       </div>
                     )}
-                  </div>
 
-                  {/* Revolut */}
-                  <div>
-                    <div className="flex items-center justify-between p-3 rounded-lg hover:bg-muted/50 transition-colors">
+                    {/* Revolut */}
+                    <div className="flex items-center justify-between p-3 rounded-lg bg-card hover:bg-accent/5 transition-colors">
                       <div className="flex items-center gap-3">
-                        <div className="w-6 h-6 rounded bg-black flex items-center justify-center text-white text-xs font-bold">R</div>
+                        <div className="w-8 h-8 rounded-lg bg-purple-500/20 flex items-center justify-center text-purple-500 text-xs font-bold">R</div>
                         <div>
-                          <p className="font-medium">Revolut / Wise</p>
-                          <p className="text-sm text-muted-foreground">
+                          <p className="font-medium text-sm">Revolut / Wise</p>
+                          <p className="text-xs text-muted-foreground">
                             {otherPaymentMethods.revolut.enabled && otherPaymentMethods.revolut.link
                               ? otherPaymentMethods.revolut.link
                               : "Digital wallets"}
@@ -844,21 +851,19 @@ export default function Settings() {
                       </div>
                     </div>
                     {editingPaymentMethod === "revolut" && (
-                      <div className="mx-3 mb-3 p-3 rounded-lg bg-muted/30 flex gap-2">
+                      <div className="p-3 rounded-lg bg-secondary/50 flex gap-2">
                         <Input placeholder="@username or link" value={otherPaymentMethods.revolut.link} onChange={(e) => setOtherPaymentMethods(p => ({ ...p, revolut: { ...p.revolut, link: e.target.value } }))} className="flex-1" />
-                        <Button onClick={() => handleSavePaymentMethods(true)}>Save</Button>
+                        <Button size="sm" onClick={() => handleSavePaymentMethods(true)}>Save</Button>
                       </div>
                     )}
-                  </div>
 
-                  {/* Other */}
-                  <div>
-                    <div className="flex items-center justify-between p-3 rounded-lg hover:bg-muted/50 transition-colors">
+                    {/* Other */}
+                    <div className="flex items-center justify-between p-3 rounded-lg bg-card hover:bg-accent/5 transition-colors">
                       <div className="flex items-center gap-3">
-                        <div className="w-6 h-6 rounded bg-gray-500 flex items-center justify-center text-white text-sm">📝</div>
+                        <div className="w-8 h-8 rounded-lg bg-gray-500/20 flex items-center justify-center text-gray-500 text-sm">📝</div>
                         <div>
-                          <p className="font-medium">Other</p>
-                          <p className="text-sm text-muted-foreground truncate max-w-[200px]">
+                          <p className="font-medium text-sm">Other</p>
+                          <p className="text-xs text-muted-foreground truncate max-w-[200px]">
                             {otherPaymentMethods.other.enabled && otherPaymentMethods.other.instructions
                               ? otherPaymentMethods.other.instructions.slice(0, 30) + "..."
                               : "Custom instructions"}
@@ -875,9 +880,9 @@ export default function Settings() {
                       </div>
                     </div>
                     {editingPaymentMethod === "other" && (
-                      <div className="mx-3 mb-3 p-3 rounded-lg bg-muted/30 space-y-2">
+                      <div className="p-3 rounded-lg bg-secondary/50 space-y-2">
                         <Textarea placeholder="Custom payment instructions..." value={otherPaymentMethods.other.instructions} onChange={(e) => setOtherPaymentMethods(p => ({ ...p, other: { ...p.other, instructions: e.target.value } }))} className="min-h-[80px]" />
-                        <Button onClick={() => handleSavePaymentMethods(true)}>Save</Button>
+                        <Button size="sm" onClick={() => handleSavePaymentMethods(true)}>Save</Button>
                       </div>
                     )}
                   </div>
@@ -885,15 +890,17 @@ export default function Settings() {
               </div>
 
               {/* Scheduling Section */}
-              <div className="space-y-3">
-                <div className="flex items-center gap-3">
-                  <span className="text-2xl">📅</span>
+              <div className="metric-card">
+                <div className="flex items-center gap-3 mb-4">
+                  <div className="w-10 h-10 rounded-lg bg-accent/10 flex items-center justify-center">
+                    <span className="text-xl">📅</span>
+                  </div>
                   <div>
-                    <h3 className="font-semibold text-lg">Scheduling</h3>
+                    <h3 className="font-semibold">Scheduling</h3>
                     <p className="text-sm text-muted-foreground">Calendar and video call integrations</p>
                   </div>
                 </div>
-                <div className="metric-card space-y-1 p-2">
+                <div className="space-y-2">
                   {connectionConfigs.filter(c => c.section === "scheduling").map((conn) => {
                     const status = connectionsData?.[conn.key as keyof typeof connectionsData];
                     const isConnected = status?.connected || false;
@@ -901,10 +908,12 @@ export default function Settings() {
                     return (
                       <div
                         key={conn.key}
-                        className="flex items-center justify-between p-3 rounded-lg hover:bg-muted/50 transition-colors"
+                        className="flex items-center justify-between p-4 rounded-lg border bg-card hover:border-primary/30 transition-colors"
                       >
-                        <div className="flex items-center gap-3">
-                          <PlatformLogo platform={conn.key} size={24} />
+                        <div className="flex items-center gap-4">
+                          <div className="w-10 h-10 rounded-lg bg-secondary flex items-center justify-center">
+                            <PlatformLogo platform={conn.key} size={24} />
+                          </div>
                           <div>
                             <p className="font-medium">{conn.name}</p>
                             <p className="text-sm text-muted-foreground">
