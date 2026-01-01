@@ -25,7 +25,7 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
-import { useProducts, useAddProduct, useUpdateProduct, useDeleteProduct } from "@/hooks/useApi";
+import { useProducts, useAddProduct, useUpdateProduct, useDeleteProduct, usePurchases } from "@/hooks/useApi";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import type { Product } from "@/types/api";
@@ -65,6 +65,7 @@ function formatPrice(price: number, currency: string = "EUR") {
 export default function Products() {
   const { toast } = useToast();
   const { data: productsData, isLoading, refetch } = useProducts();
+  const { data: purchasesData, isLoading: purchasesLoading } = usePurchases();
   const addProductMutation = useAddProduct();
   const updateProductMutation = useUpdateProduct();
   const deleteProductMutation = useDeleteProduct();
@@ -83,6 +84,8 @@ export default function Products() {
   });
 
   const products = productsData?.products || [];
+  const purchases = purchasesData?.purchases || [];
+  const recentSales = purchases.slice(0, 5); // Show last 5 sales
 
   // Calculate stats
   const totalRevenue = products.reduce((sum, p) => sum + (p.revenue || 0), 0);
@@ -357,6 +360,56 @@ export default function Products() {
           </div>
         )}
       </div>
+
+      {/* Recent Sales */}
+      {recentSales.length > 0 && (
+        <div className="metric-card">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="font-semibold">Recent Sales</h3>
+          </div>
+
+          {purchasesLoading ? (
+            <div className="flex justify-center py-4">
+              <Loader2 className="w-5 h-5 animate-spin text-primary" />
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {recentSales.map((sale) => (
+                <div
+                  key={sale.id}
+                  className="flex items-center justify-between p-3 rounded-lg bg-secondary/30"
+                >
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-full bg-success/10 flex items-center justify-center">
+                      <DollarSign className="w-5 h-5 text-success" />
+                    </div>
+                    <div>
+                      <p className="font-medium text-sm">{sale.product_name}</p>
+                      <p className="text-xs text-muted-foreground">
+                        {new Date(sale.created_at).toLocaleDateString("es-ES", {
+                          day: "numeric",
+                          month: "short",
+                          hour: "2-digit",
+                          minute: "2-digit",
+                        })}
+                        {" "}via {sale.platform}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="text-right">
+                    <p className="font-semibold text-success">
+                      {formatPrice(sale.amount, sale.currency)}
+                    </p>
+                    {sale.bot_attributed && (
+                      <span className="text-xs text-muted-foreground">via bot</span>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Add/Edit Modal */}
       <Dialog open={showAddModal} onOpenChange={setShowAddModal}>

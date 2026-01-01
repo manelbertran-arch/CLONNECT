@@ -5,7 +5,7 @@ import {
   MessageSquare,
   Users,
   Sparkles,
-  TrendingUp,
+  ShoppingBag,
   Calendar,
   Settings,
   Zap,
@@ -21,7 +21,7 @@ const navItems = [
   { path: "/inbox", label: "Inbox", icon: MessageSquare },
   { path: "/leads", label: "Leads", icon: Users },
   { path: "/nurturing", label: "Nurturing", icon: Sparkles },
-  { path: "/revenue", label: "Revenue", icon: TrendingUp },
+  { path: "/products", label: "Products", icon: ShoppingBag },
   { path: "/bookings", label: "Bookings", icon: Calendar },
   { path: "/settings", label: "Settings", icon: Settings },
 ];
