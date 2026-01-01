@@ -2240,41 +2240,44 @@ async def generate_knowledge_full(request: dict = Body(...)):
         import json
 
         async with httpx.AsyncClient(timeout=60.0) as client:
-            system_prompt = """Extrae información estructurada de la descripción de un negocio.
+            system_prompt = """Genera FAQs PERFECTAS. Eres un experto en redacción comercial.
 
-GENERA DOS COSAS:
+## REGLAS CRÍTICAS:
 
-1. ABOUT (perfil del creador):
-   - bio: Descripción corta de quién es (1-2 frases)
-   - specialties: Sus especialidades separadas por coma
-   - experience: Años o nivel de experiencia
-   - audience: A quién ayuda/vende
+1. PRECIOS: Menciona TODOS los productos con nombre y precio exacto
+   MAL: "Los precios varían según el producto"
+   BIEN: "Curso Trading Pro: 297€. Mentoría 1:1: 500€/mes."
 
-2. FAQS (6-8 preguntas frecuentes):
-   - Precios de TODOS los productos con nombres
-   - Qué incluye cada producto (lista completa)
-   - Garantía (días exactos)
-   - Métodos de pago
-   - Horario de atención
-   - Cómo empezar
+2. NO MEZCLAR PRODUCTOS: Cada producto tiene su propia descripción
+   MAL: "Incluye 20h de vídeo... La mentoría cuesta 500€"
+   BIEN: "El Curso Trading Pro incluye 20h de vídeo, comunidad y plantillas."
 
-REGLAS PARA FAQS:
-- Respuestas ESPECÍFICAS con datos exactos del texto
-- Si hay múltiples productos, mencionar TODOS con precios
-- NO mezclar info de diferentes productos
-- NO frases genéricas como "contacta para más info"
+3. REDACCIÓN LIMPIA - EVITA ESTOS ERRORES:
+   MAL: "Atendemos de atención:"
+   BIEN: "Atendemos de lunes a viernes de 9:00 a 18:00"
+   MAL: "El precio es Curso Trading"
+   BIEN: "El Curso Trading Pro cuesta 297€"
 
-FORMATO JSON (solo esto, sin explicaciones):
+4. RESPUESTAS COMPLETAS: 20-60 palabras cada una, datos específicos
+
+5. GARANTÍA: Siempre el número exacto de días
+   MAL: "Hay garantía de satisfacción"
+   BIEN: "Garantía de 30 días con devolución completa"
+
+## GENERA:
+
+1. ABOUT (perfil):
+   - bio: 1-2 frases sobre quién es
+   - specialties: lista separada por comas
+   - experience: años concretos
+   - audience: público objetivo
+
+2. FAQS (6-8): precios, qué incluye, garantía, pagos, horario, cómo empezar
+
+## FORMATO JSON (solo esto):
 {
-  "about": {
-    "bio": "...",
-    "specialties": "...",
-    "experience": "...",
-    "audience": "..."
-  },
-  "faqs": [
-    {"question": "?", "answer": "respuesta específica"}
-  ]
+  "about": {"bio": "...", "specialties": "...", "experience": "...", "audience": "..."},
+  "faqs": [{"question": "?", "answer": "respuesta específica con datos"}]
 }"""
 
             user_message = f"""Extrae la información de este negocio:
@@ -2317,12 +2320,29 @@ Genera el JSON con about + faqs:"""
 
                 parsed = json.loads(result)
 
-                # Validate FAQs
+                # Validate and clean FAQs
                 validated_faqs = []
                 for faq in parsed.get("faqs", []):
                     answer = faq.get("answer", "")
-                    if len(answer) >= 20:
-                        validated_faqs.append(faq)
+                    question = faq.get("question", "")
+
+                    # Skip too short answers
+                    if len(answer) < 20:
+                        continue
+
+                    # Post-process: fix common redundancies
+                    answer = answer.replace("Atendemos de atención:", "Atendemos")
+                    answer = answer.replace("Atendemos de Atención:", "Atendemos")
+                    answer = answer.replace("El precio es Curso", "El Curso")
+                    answer = answer.replace("El precio es curso", "El curso")
+                    answer = re.sub(r'\s+', ' ', answer).strip()  # Fix double spaces
+
+                    # Skip generic answers
+                    generic_phrases = ["contacta para más", "contáctanos para", "escríbenos para"]
+                    if any(phrase in answer.lower() for phrase in generic_phrases):
+                        continue
+
+                    validated_faqs.append({"question": question, "answer": answer})
 
                 logger.info(f"Generated {len(validated_faqs)} FAQs + about info")
                 return {
