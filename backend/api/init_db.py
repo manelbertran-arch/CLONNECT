@@ -29,6 +29,8 @@ def run_migrations(engine):
         ("creators", "google_token_expires_at", "TIMESTAMPTZ"),
         # Alternative payment methods
         ("creators", "other_payment_methods", "JSON"),
+        # Knowledge base - About Me/Business info
+        ("creators", "knowledge_about", "JSON"),
         # Price for booking links
         ("booking_links", "price", "INTEGER DEFAULT 0"),
     ]
