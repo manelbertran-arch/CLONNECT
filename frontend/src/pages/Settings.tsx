@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { useSearchParams, useNavigate } from "react-router-dom";
 import { useQueryClient } from "@tanstack/react-query";
-import { Bot, Link2, Package, User, Save, RefreshCw, Loader2, AlertCircle, Plus, Pencil, Trash2, BookOpen, Check } from "lucide-react";
+import { Bot, Link2, Package, User, Save, RefreshCw, Loader2, AlertCircle, Plus, Pencil, Trash2, BookOpen, Check, Sparkles } from "lucide-react";
 
 // Platform SVG Logos
 const PlatformLogo = ({ platform, size = 20 }: { platform: string; size?: number }) => {
@@ -222,6 +222,48 @@ export default function Settings() {
   const [tone, setTone] = useState("friendly");
   const [vocabulary, setVocabulary] = useState("");
   const [previewMessage, setPreviewMessage] = useState("");
+  const [selectedPreset, setSelectedPreset] = useState("custom");
+  const [aiPrompt, setAiPrompt] = useState("");
+  const [isGeneratingAI, setIsGeneratingAI] = useState(false);
+
+  // Personality presets
+  const personalityPresets = [
+    {
+      id: "amigo",
+      emoji: "😊",
+      label: "Amigo",
+      tone: "friendly",
+      vocabulary: "Usa un tono cercano y cálido. Tutea siempre. Usa emojis ocasionalmente. Sé empático y comprensivo. Responde como un amigo de confianza que quiere ayudar."
+    },
+    {
+      id: "mentor",
+      emoji: "🎓",
+      label: "Mentor",
+      tone: "professional",
+      vocabulary: "Actúa como un mentor experto. Ofrece consejos valiosos basados en experiencia. Guía al usuario paso a paso. Sé inspirador pero realista. Comparte conocimiento de manera estructurada."
+    },
+    {
+      id: "vendedor",
+      emoji: "🎯",
+      label: "Vendedor",
+      tone: "friendly",
+      vocabulary: "Enfócate en los beneficios y resultados. Crea urgencia de manera natural. Maneja objeciones con empatía. Destaca testimonios y casos de éxito. Guía hacia la conversión sin ser agresivo."
+    },
+    {
+      id: "profesional",
+      emoji: "💼",
+      label: "Profesional",
+      tone: "professional",
+      vocabulary: "Mantén un tono formal pero accesible. Sé preciso y conciso. Evita jerga informal. Demuestra expertise y credibilidad. Responde de manera estructurada y clara."
+    },
+    {
+      id: "custom",
+      emoji: "✨",
+      label: "Custom",
+      tone: "friendly",
+      vocabulary: ""
+    },
+  ];
 
   // Bot config toggles
   const [autoReply, setAutoReply] = useState(true);
@@ -322,6 +364,47 @@ export default function Settings() {
     setPreviewMessage(previews[tone as keyof typeof previews] || previews.friendly);
   };
 
+  const handlePresetSelect = (presetId: string) => {
+    setSelectedPreset(presetId);
+    const preset = personalityPresets.find(p => p.id === presetId);
+    if (preset && presetId !== "custom") {
+      setTone(preset.tone);
+      setVocabulary(preset.vocabulary);
+    }
+  };
+
+  const handleGenerateAIPersonality = async () => {
+    if (!aiPrompt.trim()) {
+      toast({
+        title: "Escribe una descripción",
+        description: "Describe cómo quieres que sea tu asistente.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setIsGeneratingAI(true);
+    try {
+      // Generate a personality based on the AI prompt
+      const generatedVocabulary = `${vocabulary ? vocabulary + "\n\n" : ""}Instrucciones personalizadas: ${aiPrompt}`;
+      setVocabulary(generatedVocabulary);
+      setSelectedPreset("custom");
+      setAiPrompt("");
+      toast({
+        title: "Personalidad actualizada",
+        description: "Se han añadido las instrucciones a tu configuración.",
+      });
+    } catch (error) {
+      toast({
+        title: "Error generando personalidad",
+        description: "Intenta de nuevo más tarde.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsGeneratingAI(false);
+    }
+  };
+
   const handleSavePersonality = async () => {
     try {
       await updateConfig.mutateAsync({
@@ -330,16 +413,15 @@ export default function Settings() {
         clone_vocabulary: vocabulary,
       });
       toast({
-        title: "Settings saved",
-        description: "Your bot personality has been updated.",
+        title: "Guardado",
+        description: "La personalidad del bot ha sido actualizada.",
       });
-      // Invalidate onboarding to refresh status and redirect to home
-      await queryClient.invalidateQueries({ queryKey: ["onboarding"] });
-      navigate("/");
+      // Invalidate queries to refresh data
+      await queryClient.invalidateQueries({ queryKey: ["creatorConfig"] });
     } catch (error) {
       toast({
-        title: "Error saving settings",
-        description: error instanceof Error ? error.message : "Failed to save settings",
+        title: "Error al guardar",
+        description: error instanceof Error ? error.message : "No se pudo guardar la configuración",
         variant: "destructive",
       });
     }
@@ -519,49 +601,137 @@ export default function Settings() {
 
         {/* Personality Tab */}
         <TabsContent value="personality" className="space-y-6 animate-fade-in">
+          {/* Personality Presets */}
+          <div className="metric-card">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
+                <span className="text-xl">🎭</span>
+              </div>
+              <div>
+                <h3 className="font-semibold">Elige un estilo de personalidad</h3>
+                <p className="text-sm text-muted-foreground">Selecciona un preset o personaliza tu asistente</p>
+              </div>
+            </div>
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-2">
+              {personalityPresets.map((preset) => (
+                <button
+                  key={preset.id}
+                  onClick={() => handlePresetSelect(preset.id)}
+                  className={cn(
+                    "flex flex-col items-center gap-2 p-4 rounded-xl border-2 transition-all hover:scale-105",
+                    selectedPreset === preset.id
+                      ? "border-primary bg-primary/10 shadow-lg shadow-primary/20"
+                      : "border-border/50 bg-secondary/30 hover:border-primary/30"
+                  )}
+                >
+                  <span className="text-2xl">{preset.emoji}</span>
+                  <span className="text-sm font-medium">{preset.label}</span>
+                  {selectedPreset === preset.id && (
+                    <Check className="w-4 h-4 text-primary" />
+                  )}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* AI Personalization */}
+          <div className="metric-card">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-10 h-10 rounded-lg bg-accent/10 flex items-center justify-center">
+                <span className="text-xl">🤖</span>
+              </div>
+              <div>
+                <h3 className="font-semibold">Personalizar con IA</h3>
+                <p className="text-sm text-muted-foreground">Describe cómo quieres que sea tu asistente</p>
+              </div>
+            </div>
+            <div className="flex gap-2">
+              <Input
+                value={aiPrompt}
+                onChange={(e) => setAiPrompt(e.target.value)}
+                className="bg-secondary border-0 flex-1"
+                placeholder="Ej: Quiero que sea divertido, use memes y hable como un amigo cercano..."
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" && !e.shiftKey) {
+                    e.preventDefault();
+                    handleGenerateAIPersonality();
+                  }
+                }}
+              />
+              <Button
+                onClick={handleGenerateAIPersonality}
+                disabled={isGeneratingAI || !aiPrompt.trim()}
+                className="bg-gradient-to-r from-accent to-primary hover:opacity-90"
+              >
+                {isGeneratingAI ? (
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                ) : (
+                  <Sparkles className="w-4 h-4" />
+                )}
+              </Button>
+            </div>
+          </div>
+
+          {/* Bot Configuration */}
           <div className="metric-card space-y-6">
+            <div className="flex items-center gap-3 mb-2">
+              <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
+                <Bot className="w-5 h-5 text-primary" />
+              </div>
+              <div>
+                <h3 className="font-semibold">Configuración del Bot</h3>
+                <p className="text-sm text-muted-foreground">Ajusta los detalles de tu asistente</p>
+              </div>
+            </div>
+
             <div className="space-y-2">
-              <Label htmlFor="botName">Bot Name</Label>
+              <Label htmlFor="botName">Nombre del Bot</Label>
               <Input
                 id="botName"
                 value={botName}
                 onChange={(e) => setBotName(e.target.value)}
                 className="bg-secondary border-0"
-                placeholder="Enter bot name..."
+                placeholder="Ej: Asistente de María..."
               />
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="tone">Communication Tone</Label>
-              <Select value={tone} onValueChange={setTone}>
+              <Label htmlFor="tone">Tono de comunicación</Label>
+              <Select value={tone} onValueChange={(value) => {
+                setTone(value);
+                setSelectedPreset("custom");
+              }}>
                 <SelectTrigger className="bg-secondary border-0">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="friendly">Friendly & Warm</SelectItem>
-                  <SelectItem value="professional">Professional</SelectItem>
-                  <SelectItem value="casual">Casual & Fun</SelectItem>
+                  <SelectItem value="friendly">😊 Amigable y cálido</SelectItem>
+                  <SelectItem value="professional">💼 Profesional</SelectItem>
+                  <SelectItem value="casual">😎 Casual y divertido</SelectItem>
                 </SelectContent>
               </Select>
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="vocabulary">Custom Vocabulary & Rules</Label>
+              <Label htmlFor="vocabulary">Instrucciones personalizadas</Label>
               <Textarea
                 id="vocabulary"
                 value={vocabulary}
-                onChange={(e) => setVocabulary(e.target.value)}
+                onChange={(e) => {
+                  setVocabulary(e.target.value);
+                  setSelectedPreset("custom");
+                }}
                 className="bg-secondary border-0 min-h-[120px]"
-                placeholder="Add custom instructions for your bot..."
+                placeholder="Añade instrucciones específicas para tu bot... Ej: 'Siempre menciona que tengo 5 años de experiencia', 'Ofrece una llamada gratuita de 15 minutos'..."
               />
             </div>
 
             <div className="pt-4 border-t border-border/50">
               <div className="flex items-center justify-between mb-4">
-                <Label>Preview Bot Response</Label>
+                <Label>Vista previa de respuesta</Label>
                 <Button variant="outline" size="sm" onClick={generatePreview}>
                   <RefreshCw className="w-4 h-4 mr-2" />
-                  Generate Preview
+                  Generar Preview
                 </Button>
               </div>
               {previewMessage && (
@@ -578,7 +748,7 @@ export default function Settings() {
           </div>
 
           <Button
-            className="bg-gradient-to-r from-primary to-accent hover:opacity-90 transition-opacity"
+            className="w-full bg-gradient-to-r from-primary to-accent hover:opacity-90 transition-opacity"
             onClick={handleSavePersonality}
             disabled={updateConfig.isPending}
           >
@@ -587,7 +757,7 @@ export default function Settings() {
             ) : (
               <Save className="w-4 h-4 mr-2" />
             )}
-            Save Changes
+            Guardar Cambios
           </Button>
         </TabsContent>
 
