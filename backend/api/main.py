@@ -2240,43 +2240,52 @@ async def generate_ai_knowledge(request: dict = Body(...)):
             return {"about": {"bio": prompt}, "source": "fallback"}
 
     try:
-        async with httpx.AsyncClient(timeout=30.0) as client:
+        import re
+        import json
+
+        async with httpx.AsyncClient(timeout=60.0) as client:
             if content_type == "faqs":
-                system_prompt = """Eres un experto en crear FAQs para negocios. Tu trabajo es extraer información ESPECÍFICA y usarla en las respuestas.
+                system_prompt = """Eres un asistente que genera FAQs EXACTAS para negocios.
 
-REGLAS CRÍTICAS:
-1. Genera 6-8 FAQs basadas EXACTAMENTE en la información proporcionada
-2. Las respuestas DEBEN incluir datos concretos: precios exactos, duraciones, características específicas
-3. PROHIBIDO usar frases genéricas como:
-   - "Contacta para más detalles"
-   - "Consulta nuestra web"
-   - "Depende de tus necesidades"
-   - "El precio es X€" (usa el precio REAL)
-4. Si el texto dice "297€", la respuesta debe decir "297€"
-5. Si dice "garantía de 30 días", responde "30 días de garantía"
-6. Si dice "incluye comunidad Telegram", menciona "comunidad Telegram"
+TU ÚNICA TAREA: Extraer información del texto y convertirla en preguntas y respuestas.
 
-TEMAS A CUBRIR:
-- Precio exacto y formas de pago
-- Qué incluye específicamente
-- Garantía/devolución (términos exactos)
-- Duración o acceso
-- Cómo empezar
+REGLAS OBLIGATORIAS:
+1. COPIA los datos exactos del texto (precios, duraciones, características)
+2. NO inventes información que no esté en el texto
+3. NO uses frases genéricas como "contacta", "consulta", "escríbenos", "más detalles", "depende"
+4. NO confundas datos diferentes (garantía ≠ duración del curso)
+5. INCLUYE todos los datos relevantes en cada respuesta
+6. Si hay múltiples productos, menciónalos con sus precios específicos
 
-FORMATO: Solo JSON array válido, sin markdown:
-[{"question": "¿Pregunta?", "answer": "Respuesta con DATOS ESPECÍFICOS del texto."}]"""
+EJEMPLO DE ENTRADA:
+"Vendo un curso de cocina por 150€. Incluye 10 videos y recetario PDF. Garantía 15 días. Pago con Stripe o PayPal."
+
+EJEMPLO DE SALIDA CORRECTA:
+{"faqs":[
+  {"question":"¿Cuánto cuesta el curso?","answer":"El curso de cocina cuesta 150€."},
+  {"question":"¿Qué incluye el curso?","answer":"Incluye 10 videos y un recetario en PDF."},
+  {"question":"¿Tienen garantía?","answer":"Sí, 15 días de garantía de devolución."},
+  {"question":"¿Cómo puedo pagar?","answer":"Puedes pagar con Stripe o PayPal."}
+]}
+
+FORMATO: Solo JSON válido, sin explicaciones, sin markdown."""
             else:
                 system_prompt = """Extrae informacion clave sobre el negocio/creador.
 Devuelve SOLO un JSON valido:
 {"bio": "descripcion breve", "specialties": ["especialidad1"], "experience": "experiencia", "target_audience": "publico"}"""
 
-            user_message = f"""Genera FAQs ESPECÍFICAS para este negocio. USA TODOS los datos concretos mencionados (precios, duraciones, características):
-
+            user_message = f"""TEXTO DEL NEGOCIO:
 {prompt}
 
-RECUERDA: Las respuestas deben incluir los precios exactos, características específicas y datos concretos del texto. NUNCA respuestas genéricas."""
+INSTRUCCIONES:
+1. Lee TODO el texto cuidadosamente
+2. Identifica: productos, precios, características, garantías, métodos de pago, horarios
+3. Genera 6-8 FAQs con respuestas EXACTAS usando los datos del texto
+4. Cada respuesta debe ser completa y específica
 
-            logger.info("Calling Grok API...")
+Genera el JSON:"""
+
+            logger.info("Calling Grok API with ultra-precise prompt...")
             response = await client.post(
                 "https://api.x.ai/v1/chat/completions",
                 headers={
@@ -2289,8 +2298,8 @@ RECUERDA: Las respuestas deben incluir los precios exactos, características esp
                         {"role": "system", "content": system_prompt},
                         {"role": "user", "content": user_message}
                     ],
-                    "max_tokens": 1500,
-                    "temperature": 0.3
+                    "max_tokens": 2000,
+                    "temperature": 0.1
                 }
             )
 
@@ -2298,27 +2307,48 @@ RECUERDA: Las respuestas deben incluir los precios exactos, características esp
 
             if response.status_code == 200:
                 data = response.json()
+
+                if "choices" not in data or len(data["choices"]) == 0:
+                    logger.error(f"Grok response missing choices: {data}")
+                    raise Exception("Invalid Grok response")
+
                 content = data["choices"][0]["message"]["content"]
-                logger.info(f"Grok raw response: {content[:200]}...")
+                logger.info(f"Grok raw response: {content[:300]}...")
 
                 # Clean up response - remove markdown code blocks
-                import re
                 content = re.sub(r'```json\s*', '', content)
                 content = re.sub(r'```\s*', '', content)
                 content = content.strip()
 
+                # Try to extract JSON if there's extra text
+                json_match = re.search(r'\{[\s\S]*\}', content)
+                if json_match:
+                    content = json_match.group()
+
                 # Try to parse as JSON
-                import json
                 try:
                     parsed = json.loads(content)
-                    logger.info(f"Parsed {len(parsed) if isinstance(parsed, list) else 1} FAQs from Grok")
+
                     if content_type == "faqs":
-                        # Ensure it's a list
-                        if isinstance(parsed, dict) and "faqs" in parsed:
-                            parsed = parsed["faqs"]
-                        return {"faqs": parsed, "source": "grok"}
+                        # Handle both {"faqs": [...]} and [...] formats
+                        faqs_list = parsed.get("faqs", parsed) if isinstance(parsed, dict) else parsed
+
+                        if not isinstance(faqs_list, list):
+                            faqs_list = [faqs_list]
+
+                        # Validate and log any generic responses
+                        generic_phrases = ["contacta", "consulta", "escríbenos", "más detalles", "depende de"]
+                        for faq in faqs_list:
+                            answer_lower = faq.get("answer", "").lower()
+                            for phrase in generic_phrases:
+                                if phrase in answer_lower:
+                                    logger.warning(f"Generic phrase detected in FAQ: '{phrase}' in '{faq['answer'][:50]}...'")
+
+                        logger.info(f"Successfully parsed {len(faqs_list)} FAQs from Grok")
+                        return {"faqs": faqs_list, "source": "grok"}
                     else:
                         return {"about": parsed, "source": "grok"}
+
                 except json.JSONDecodeError as e:
                     logger.warning(f"Failed to parse Grok response as JSON: {e}")
                     logger.warning(f"Content was: {content}")
