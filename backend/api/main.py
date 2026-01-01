@@ -2226,35 +2226,44 @@ async def generate_ai_knowledge(request: dict = Body(...)):
     if not prompt:
         raise HTTPException(status_code=400, detail="Prompt required")
 
+    logger.info(f"Generating {content_type} for content: {prompt[:100]}...")
+
     xai_api_key = os.getenv("XAI_API_KEY")
 
     if not xai_api_key:
-        # Fallback: generate basic content locally
+        logger.warning("XAI_API_KEY not configured, using smart fallback")
+        # Smart fallback: generate FAQs based on keywords in the content
         if content_type == "faqs":
-            return {
-                "faqs": [
-                    {"question": "Pregunta de ejemplo", "answer": prompt}
-                ],
-                "source": "fallback"
-            }
+            fallback_faqs = generate_fallback_faqs(prompt)
+            return {"faqs": fallback_faqs, "source": "fallback"}
         else:
-            return {
-                "about": {"bio": prompt},
-                "source": "fallback"
-            }
+            return {"about": {"bio": prompt}, "source": "fallback"}
 
     try:
         async with httpx.AsyncClient(timeout=30.0) as client:
             if content_type == "faqs":
-                system_prompt = """Genera 3-5 preguntas frecuentes (FAQs) basadas en la informacion proporcionada.
-Devuelve SOLO un JSON array valido con este formato exacto:
-[{"question": "pregunta aqui", "answer": "respuesta aqui"}]
-No incluyas explicaciones, solo el JSON. Las preguntas deben ser utiles para clientes potenciales."""
-            else:
-                system_prompt = """Extrae informacion clave sobre el negocio/creador y devuelve SOLO un JSON valido con este formato exacto:
-{"bio": "descripcion breve", "specialties": ["especialidad1", "especialidad2"], "experience": "anos de experiencia", "target_audience": "publico objetivo"}
-No incluyas explicaciones, solo el JSON."""
+                system_prompt = """Eres un experto en crear FAQs para negocios y creadores.
 
+Analiza la descripcion del negocio/creador y genera 5-8 preguntas frecuentes con respuestas utiles.
+
+Las preguntas deben cubrir:
+- Precios y formas de pago
+- Que incluye el producto/servicio
+- Garantias o devoluciones
+- Disponibilidad y tiempos
+- Como contactar o contratar
+
+IMPORTANTE: Devuelve SOLO un JSON array valido, sin explicaciones ni markdown:
+[
+  {"question": "¿Cuanto cuesta?", "answer": "El precio es X€..."},
+  {"question": "¿Que incluye?", "answer": "Incluye..."}
+]"""
+            else:
+                system_prompt = """Extrae informacion clave sobre el negocio/creador.
+Devuelve SOLO un JSON valido:
+{"bio": "descripcion breve", "specialties": ["especialidad1"], "experience": "experiencia", "target_audience": "publico"}"""
+
+            logger.info("Calling Grok API...")
             response = await client.post(
                 "https://api.x.ai/v1/chat/completions",
                 headers={
@@ -2265,41 +2274,139 @@ No incluyas explicaciones, solo el JSON."""
                     "model": "grok-beta",
                     "messages": [
                         {"role": "system", "content": system_prompt},
-                        {"role": "user", "content": f"Informacion del creador/negocio: {prompt}"}
+                        {"role": "user", "content": f"Genera FAQs para este negocio/creador:\n\n{prompt}"}
                     ],
-                    "max_tokens": 500,
-                    "temperature": 0.5
+                    "max_tokens": 1000,
+                    "temperature": 0.7
                 }
             )
+
+            logger.info(f"Grok API response status: {response.status_code}")
 
             if response.status_code == 200:
                 data = response.json()
                 content = data["choices"][0]["message"]["content"]
+                logger.info(f"Grok raw response: {content[:200]}...")
+
+                # Clean up response - remove markdown code blocks
+                import re
+                content = re.sub(r'```json\s*', '', content)
+                content = re.sub(r'```\s*', '', content)
+                content = content.strip()
+
                 # Try to parse as JSON
                 import json
                 try:
                     parsed = json.loads(content)
+                    logger.info(f"Parsed {len(parsed) if isinstance(parsed, list) else 1} FAQs from Grok")
                     if content_type == "faqs":
+                        # Ensure it's a list
+                        if isinstance(parsed, dict) and "faqs" in parsed:
+                            parsed = parsed["faqs"]
                         return {"faqs": parsed, "source": "grok"}
                     else:
                         return {"about": parsed, "source": "grok"}
-                except json.JSONDecodeError:
-                    logger.warning(f"Failed to parse Grok response as JSON: {content}")
+                except json.JSONDecodeError as e:
+                    logger.warning(f"Failed to parse Grok response as JSON: {e}")
+                    logger.warning(f"Content was: {content}")
+                    # Try to extract FAQs from text
                     if content_type == "faqs":
+                        extracted = extract_faqs_from_text(content)
+                        if extracted:
+                            return {"faqs": extracted, "source": "grok-extracted"}
                         return {"faqs": [{"question": "FAQ generado", "answer": content}], "source": "grok-text"}
                     else:
                         return {"about": {"bio": content}, "source": "grok-text"}
             else:
-                logger.warning(f"Grok API error: {response.status_code}")
+                logger.warning(f"Grok API error: {response.status_code} - {response.text}")
 
     except Exception as e:
         logger.error(f"Error calling Grok API for knowledge: {e}")
+        import traceback
+        logger.error(traceback.format_exc())
 
-    # Fallback
+    # Smart fallback
+    logger.info("Using smart fallback for FAQ generation")
     if content_type == "faqs":
-        return {"faqs": [{"question": "Pregunta de ejemplo", "answer": prompt}], "source": "fallback"}
+        fallback_faqs = generate_fallback_faqs(prompt)
+        return {"faqs": fallback_faqs, "source": "fallback"}
     else:
         return {"about": {"bio": prompt}, "source": "fallback"}
+
+
+def generate_fallback_faqs(content: str) -> list:
+    """Generate FAQs locally when API is not available"""
+    faqs = []
+    content_lower = content.lower()
+
+    # Detect prices
+    import re
+    prices = re.findall(r'(\d+)\s*[€$]|[€$]\s*(\d+)', content)
+    if prices:
+        price = prices[0][0] or prices[0][1]
+        faqs.append({
+            "question": "¿Cuánto cuesta?",
+            "answer": f"El precio es {price}€. Contacta para más detalles sobre opciones de pago."
+        })
+
+    # Common questions based on keywords
+    if any(word in content_lower for word in ["curso", "formacion", "programa", "training"]):
+        faqs.append({
+            "question": "¿Qué incluye el curso?",
+            "answer": "El curso incluye todo el material mencionado. Contacta para más detalles sobre el contenido."
+        })
+        faqs.append({
+            "question": "¿Cuánto dura el curso?",
+            "answer": "La duración depende de tu ritmo. Tienes acceso al contenido para avanzar a tu velocidad."
+        })
+
+    if any(word in content_lower for word in ["garantia", "devolucion", "reembolso"]):
+        faqs.append({
+            "question": "¿Hay garantía de devolución?",
+            "answer": "Sí, ofrecemos garantía de satisfacción. Contacta para conocer los términos."
+        })
+    else:
+        faqs.append({
+            "question": "¿Ofrecen garantía?",
+            "answer": "Contacta para conocer nuestra política de garantía y devoluciones."
+        })
+
+    if any(word in content_lower for word in ["coaching", "mentoria", "consultoria", "asesoria"]):
+        faqs.append({
+            "question": "¿Cómo funcionan las sesiones?",
+            "answer": "Las sesiones son personalizadas según tus necesidades. Agenda una llamada para más info."
+        })
+
+    # Always add payment and contact
+    faqs.append({
+        "question": "¿Cuáles son los métodos de pago?",
+        "answer": "Aceptamos tarjeta, PayPal, Bizum y transferencia bancaria."
+    })
+
+    faqs.append({
+        "question": "¿Cómo puedo empezar?",
+        "answer": "Escríbeme un mensaje y te explico cómo comenzar. ¡Estoy aquí para ayudarte!"
+    })
+
+    return faqs[:6]  # Return max 6 FAQs
+
+
+def extract_faqs_from_text(text: str) -> list:
+    """Try to extract Q&A pairs from unstructured text"""
+    faqs = []
+    import re
+
+    # Try to find Q: A: patterns
+    qa_pattern = r'[¿?]([^?¿]+)\?[:\s]*([^¿?]+?)(?=[¿?]|$)'
+    matches = re.findall(qa_pattern, text, re.DOTALL)
+
+    for q, a in matches:
+        q = q.strip()
+        a = a.strip()
+        if len(q) > 5 and len(a) > 5:
+            faqs.append({"question": f"¿{q}?", "answer": a})
+
+    return faqs if faqs else None
 
 
 @app.put("/creator/config/{creator_id}")
