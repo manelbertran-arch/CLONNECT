@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { useSearchParams, useNavigate } from "react-router-dom";
 import { useQueryClient } from "@tanstack/react-query";
-import { Bot, Link2, Package, User, Save, RefreshCw, Loader2, AlertCircle, Plus, Pencil, Trash2, BookOpen, Check, Sparkles } from "lucide-react";
+import { Bot, Link2, Package, User, Save, RefreshCw, Loader2, AlertCircle, Plus, Pencil, Trash2, BookOpen, Check, Sparkles, Wand2 } from "lucide-react";
 
 // Platform SVG Logos
 const PlatformLogo = ({ platform, size = 20 }: { platform: string; size?: number }) => {
@@ -222,46 +222,36 @@ export default function Settings() {
   const [tone, setTone] = useState("friendly");
   const [vocabulary, setVocabulary] = useState("");
   const [previewMessage, setPreviewMessage] = useState("");
-  const [selectedPreset, setSelectedPreset] = useState("custom");
+  const [selectedPreset, setSelectedPreset] = useState<string | null>("amigo");
   const [aiPrompt, setAiPrompt] = useState("");
   const [isGeneratingAI, setIsGeneratingAI] = useState(false);
+  const [rules, setRules] = useState("");
 
-  // Personality presets
+  // Personality presets (4 opciones, sin Custom separado)
   const personalityPresets = [
     {
       id: "amigo",
       emoji: "😊",
       label: "Amigo",
-      tone: "friendly",
-      vocabulary: "Usa un tono cercano y cálido. Tutea siempre. Usa emojis ocasionalmente. Sé empático y comprensivo. Responde como un amigo de confianza que quiere ayudar."
+      rules: "- Tutea siempre al usuario\n- Usa emojis (1-2 por mensaje)\n- Sé cercano y conversacional\n- Responde como un amigo de confianza\n- Muestra empatía y comprensión"
     },
     {
       id: "mentor",
       emoji: "🎓",
       label: "Mentor",
-      tone: "professional",
-      vocabulary: "Actúa como un mentor experto. Ofrece consejos valiosos basados en experiencia. Guía al usuario paso a paso. Sé inspirador pero realista. Comparte conocimiento de manera estructurada."
+      rules: "- Posiciónate como experto en tu campo\n- Da consejos prácticos y accionables\n- Ofrece valor antes de vender\n- Guía paso a paso al usuario\n- Comparte conocimiento estructurado"
     },
     {
       id: "vendedor",
       emoji: "🎯",
       label: "Vendedor",
-      tone: "friendly",
-      vocabulary: "Enfócate en los beneficios y resultados. Crea urgencia de manera natural. Maneja objeciones con empatía. Destaca testimonios y casos de éxito. Guía hacia la conversión sin ser agresivo."
+      rules: "- Ve al grano, sé directo\n- Destaca beneficios y resultados\n- Incluye llamadas a la acción claras\n- Crea urgencia de manera natural\n- Maneja objeciones con empatía"
     },
     {
       id: "profesional",
       emoji: "💼",
       label: "Profesional",
-      tone: "professional",
-      vocabulary: "Mantén un tono formal pero accesible. Sé preciso y conciso. Evita jerga informal. Demuestra expertise y credibilidad. Responde de manera estructurada y clara."
-    },
-    {
-      id: "custom",
-      emoji: "✨",
-      label: "Custom",
-      tone: "friendly",
-      vocabulary: ""
+      rules: "- Usa tono formal pero accesible\n- Trata de usted al usuario\n- Evita emojis excesivos (máximo 1)\n- Sé preciso y conciso\n- Demuestra expertise y credibilidad"
     },
   ];
 
@@ -344,6 +334,10 @@ export default function Settings() {
       setBotName(config.clone_name || "");
       setTone(config.clone_tone || "friendly");
       setVocabulary(config.clone_vocabulary || "");
+      setRules(config.clone_vocabulary || "");
+      // Try to match a preset
+      const matchingPreset = personalityPresets.find(p => p.rules === config.clone_vocabulary);
+      setSelectedPreset(matchingPreset?.id || null);
     }
   }, [config]);
 
@@ -359,9 +353,8 @@ export default function Settings() {
   const handlePresetSelect = (presetId: string) => {
     setSelectedPreset(presetId);
     const preset = personalityPresets.find(p => p.id === presetId);
-    if (preset && presetId !== "custom") {
-      setTone(preset.tone);
-      setVocabulary(preset.vocabulary);
+    if (preset) {
+      setRules(preset.rules);
     }
   };
 
@@ -377,20 +370,34 @@ export default function Settings() {
 
     setIsGeneratingAI(true);
     try {
-      // Generate a personality based on the AI prompt
-      const generatedVocabulary = `${vocabulary ? vocabulary + "\n\n" : ""}Instrucciones personalizadas: ${aiPrompt}`;
-      setVocabulary(generatedVocabulary);
-      setSelectedPreset("custom");
+      // Call AI endpoint to generate rules
+      const response = await fetch("/api/ai/generate-rules", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ prompt: aiPrompt }),
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        setRules(data.rules || "");
+        setSelectedPreset(null); // Ya no es un preset, es custom
+        setAiPrompt("");
+        toast({
+          title: "Instrucciones generadas",
+          description: "Puedes editarlas antes de guardar.",
+        });
+      } else {
+        throw new Error("Error al generar");
+      }
+    } catch (error) {
+      // Fallback: generar localmente si el endpoint no existe
+      const generatedRules = `- ${aiPrompt.split(',').map(s => s.trim()).filter(Boolean).join('\n- ')}`;
+      setRules(generatedRules);
+      setSelectedPreset(null);
       setAiPrompt("");
       toast({
-        title: "Personalidad actualizada",
-        description: "Se han añadido las instrucciones a tu configuración.",
-      });
-    } catch (error) {
-      toast({
-        title: "Error generando personalidad",
-        description: "Intenta de nuevo más tarde.",
-        variant: "destructive",
+        title: "Instrucciones añadidas",
+        description: "Puedes editarlas antes de guardar.",
       });
     } finally {
       setIsGeneratingAI(false);
@@ -401,8 +408,7 @@ export default function Settings() {
     try {
       await updateConfig.mutateAsync({
         clone_name: botName,
-        clone_tone: tone,
-        clone_vocabulary: vocabulary,
+        clone_vocabulary: rules, // Guardamos las rules como vocabulary
       });
       toast({
         title: "Guardado",
@@ -569,163 +575,110 @@ export default function Settings() {
 
         {/* Personality Tab */}
         <TabsContent value="personality" className="space-y-6 animate-fade-in">
-          {/* Personality Presets */}
+          {/* Bot Name */}
           <div className="metric-card">
-            <div className="flex items-center gap-3 mb-4">
-              <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
-                <span className="text-xl">🎭</span>
-              </div>
-              <div>
-                <h3 className="font-semibold">Elige un estilo de personalidad</h3>
-                <p className="text-sm text-muted-foreground">Selecciona un preset o personaliza tu asistente</p>
-              </div>
-            </div>
-            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-2">
+            <Label htmlFor="botName" className="text-base font-semibold mb-3 block">Nombre del bot</Label>
+            <Input
+              id="botName"
+              value={botName}
+              onChange={(e) => setBotName(e.target.value)}
+              className="bg-secondary border-0"
+              placeholder="Tu nombre o marca"
+            />
+          </div>
+
+          {/* Presets - 4 opciones */}
+          <div className="metric-card">
+            <h3 className="text-lg font-semibold mb-2">Estilo de comunicación</h3>
+            <p className="text-muted-foreground text-sm mb-4">Elige un estilo base o personaliza con IA</p>
+
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
               {personalityPresets.map((preset) => (
                 <button
                   key={preset.id}
                   onClick={() => handlePresetSelect(preset.id)}
                   className={cn(
-                    "flex flex-col items-center gap-2 p-4 rounded-xl border-2 transition-all hover:scale-105",
+                    "p-4 rounded-xl border-2 text-center transition-all hover:scale-105",
                     selectedPreset === preset.id
                       ? "border-primary bg-primary/10 shadow-lg shadow-primary/20"
                       : "border-border/50 bg-secondary/30 hover:border-primary/30"
                   )}
                 >
-                  <span className="text-2xl">{preset.emoji}</span>
+                  <span className="text-2xl block mb-2">{preset.emoji}</span>
                   <span className="text-sm font-medium">{preset.label}</span>
                   {selectedPreset === preset.id && (
-                    <Check className="w-4 h-4 text-primary" />
+                    <Check className="w-4 h-4 text-primary mx-auto mt-2" />
                   )}
                 </button>
               ))}
             </div>
           </div>
 
-          {/* AI Personalization */}
-          <div className="metric-card">
-            <div className="flex items-center gap-3 mb-4">
-              <div className="w-10 h-10 rounded-lg bg-accent/10 flex items-center justify-center">
-                <span className="text-xl">🤖</span>
-              </div>
-              <div>
-                <h3 className="font-semibold">Personalizar con IA</h3>
-                <p className="text-sm text-muted-foreground">Describe cómo quieres que sea tu asistente</p>
-              </div>
-            </div>
-            <div className="flex gap-2">
-              <Input
-                value={aiPrompt}
-                onChange={(e) => setAiPrompt(e.target.value)}
-                className="bg-secondary border-0 flex-1"
-                placeholder="Ej: Quiero que sea divertido, use memes y hable como un amigo cercano..."
-                onKeyDown={(e) => {
-                  if (e.key === "Enter" && !e.shiftKey) {
-                    e.preventDefault();
-                    handleGenerateAIPersonality();
-                  }
-                }}
-              />
-              <Button
-                onClick={handleGenerateAIPersonality}
-                disabled={isGeneratingAI || !aiPrompt.trim()}
-                className="bg-gradient-to-r from-accent to-primary hover:opacity-90"
-              >
-                {isGeneratingAI ? (
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                ) : (
-                  <Sparkles className="w-4 h-4" />
-                )}
-              </Button>
-            </div>
-          </div>
-
-          {/* Bot Configuration */}
-          <div className="metric-card space-y-6">
-            <div className="flex items-center gap-3 mb-2">
-              <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
-                <Bot className="w-5 h-5 text-primary" />
-              </div>
-              <div>
-                <h3 className="font-semibold">Configuración del Bot</h3>
-                <p className="text-sm text-muted-foreground">Ajusta los detalles de tu asistente</p>
-              </div>
+          {/* Personalizar con IA - gradient background */}
+          <div className="rounded-xl p-6 border border-primary/30 bg-gradient-to-br from-primary/10 via-accent/5 to-primary/10">
+            <div className="flex items-center gap-2 mb-4">
+              <Sparkles className="w-5 h-5 text-primary" />
+              <h3 className="text-lg font-semibold">Personalizar con IA</h3>
             </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="botName">Nombre del Bot</Label>
-              <Input
-                id="botName"
-                value={botName}
-                onChange={(e) => setBotName(e.target.value)}
-                className="bg-secondary border-0"
-                placeholder="Ej: Asistente de María..."
-              />
-            </div>
+            <p className="text-muted-foreground text-sm mb-4">
+              Describe cómo quieres que sea tu bot y generaremos las instrucciones
+            </p>
 
-            <div className="space-y-2">
-              <Label htmlFor="tone">Tono de comunicación</Label>
-              <Select value={tone} onValueChange={(value) => {
-                setTone(value);
-                setSelectedPreset("custom");
-              }}>
-                <SelectTrigger className="bg-secondary border-0">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="friendly">😊 Amigable y cálido</SelectItem>
-                  <SelectItem value="professional">💼 Profesional</SelectItem>
-                  <SelectItem value="casual">😎 Casual y divertido</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
+            <Textarea
+              value={aiPrompt}
+              onChange={(e) => setAiPrompt(e.target.value)}
+              placeholder="Ej: Quiero que sea cercano, use emojis, tutee al usuario, y mencione mi curso de trading cuando pregunten por inversiones..."
+              className="bg-background/80 border-0 min-h-[80px] resize-none mb-3"
+            />
 
-            <div className="space-y-2">
-              <Label htmlFor="vocabulary">Instrucciones personalizadas</Label>
-              <Textarea
-                id="vocabulary"
-                value={vocabulary}
-                onChange={(e) => {
-                  setVocabulary(e.target.value);
-                  setSelectedPreset("custom");
-                }}
-                className="bg-secondary border-0 min-h-[120px]"
-                placeholder="Añade instrucciones específicas para tu bot... Ej: 'Siempre menciona que tengo 5 años de experiencia', 'Ofrece una llamada gratuita de 15 minutos'..."
-              />
-            </div>
-
-            <div className="pt-4 border-t border-border/50">
-              <div className="flex items-center justify-between mb-4">
-                <Label>Vista previa de respuesta</Label>
-                <Button variant="outline" size="sm" onClick={generatePreview}>
-                  <RefreshCw className="w-4 h-4 mr-2" />
-                  Generar Preview
-                </Button>
-              </div>
-              {previewMessage && (
-                <div className="p-4 rounded-xl bg-gradient-to-br from-primary/10 to-accent/10 border border-primary/20">
-                  <div className="flex items-start gap-3">
-                    <div className="w-8 h-8 rounded-full bg-gradient-to-br from-primary to-accent flex items-center justify-center shrink-0">
-                      <Bot className="w-4 h-4 text-white" />
-                    </div>
-                    <p className="text-sm">{previewMessage}</p>
-                  </div>
-                </div>
+            <Button
+              onClick={handleGenerateAIPersonality}
+              disabled={isGeneratingAI || !aiPrompt.trim()}
+              className="bg-gradient-to-r from-primary to-accent hover:opacity-90"
+            >
+              {isGeneratingAI ? (
+                <>
+                  <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
+                  Generando...
+                </>
+              ) : (
+                <>
+                  <Wand2 className="w-4 h-4 mr-2" />
+                  Generar instrucciones
+                </>
               )}
-            </div>
+            </Button>
           </div>
 
+          {/* Rules - editable */}
+          <div className="metric-card">
+            <h3 className="text-lg font-semibold mb-2">Instrucciones del bot</h3>
+            <p className="text-muted-foreground text-sm mb-4">Puedes editar estas reglas manualmente</p>
+
+            <Textarea
+              value={rules}
+              onChange={(e) => {
+                setRules(e.target.value);
+                setSelectedPreset(null);
+              }}
+              className="bg-secondary border-0 min-h-[160px] font-mono text-sm resize-none"
+              placeholder="Las instrucciones aparecerán aquí..."
+            />
+          </div>
+
+          {/* Save */}
           <Button
-            className="w-full bg-gradient-to-r from-primary to-accent hover:opacity-90 transition-opacity"
             onClick={handleSavePersonality}
             disabled={updateConfig.isPending}
+            className="w-full bg-gradient-to-r from-primary to-accent hover:opacity-90 transition-opacity"
           >
             {updateConfig.isPending ? (
               <Loader2 className="w-4 h-4 mr-2 animate-spin" />
             ) : (
               <Save className="w-4 h-4 mr-2" />
             )}
-            Guardar Cambios
+            Guardar cambios
           </Button>
         </TabsContent>
 
