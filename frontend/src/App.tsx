@@ -8,7 +8,7 @@ import Dashboard from "./pages/Dashboard";
 import Inbox from "./pages/Inbox";
 import Leads from "./pages/Leads";
 import Nurturing from "./pages/Nurturing";
-import Revenue from "./pages/Revenue";
+import Products from "./pages/Products";
 import Bookings from "./pages/Bookings";
 import Settings from "./pages/Settings";
 import Docs from "./pages/Docs";
@@ -32,7 +32,7 @@ const App = () => (
             <Route path="/inbox" element={<Inbox />} />
             <Route path="/leads" element={<Leads />} />
             <Route path="/nurturing" element={<Nurturing />} />
-            <Route path="/revenue" element={<Revenue />} />
+            <Route path="/products" element={<Products />} />
             <Route path="/bookings" element={<Bookings />} />
             <Route path="/settings" element={<Settings />} />
             <Route path="/docs" element={<Docs />} />
