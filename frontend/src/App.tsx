@@ -8,6 +8,7 @@ import Dashboard from "./pages/Dashboard";
 import Inbox from "./pages/Inbox";
 import Leads from "./pages/Leads";
 import Nurturing from "./pages/Nurturing";
+import Products from "./pages/Products";
 import Revenue from "./pages/Revenue";
 import Calendar from "./pages/Calendar";
 import Settings from "./pages/Settings";
@@ -31,6 +32,7 @@ const App = () => (
             <Route path="/inbox" element={<Inbox />} />
             <Route path="/leads" element={<Leads />} />
             <Route path="/nurturing" element={<Nurturing />} />
+            <Route path="/products" element={<Products />} />
             <Route path="/revenue" element={<Revenue />} />
             <Route path="/calendar" element={<Calendar />} />
             <Route path="/settings" element={<Settings />} />

@@ -92,14 +92,24 @@ export interface CreatorConfig {
 
 export interface Product {
   id: string;
+  creator_id?: string;
   name: string;
-  description?: string;
   price: number;
   currency?: string;
-  payment_link?: string;  // Backend field name
-  url?: string;           // Frontend alias (deprecated)
-  is_active?: boolean;    // Backend field name
-  active?: boolean;       // Frontend alias (deprecated)
+  purchase_url?: string;
+  type?: "ebook" | "course" | "mentorship" | "membership" | "template" | "other";
+  tagline?: string;
+  image_url?: string;
+  description?: string;  // Legacy field
+  sales_count?: number;
+  revenue?: number;
+  is_active?: boolean;
+  bot_enabled?: boolean;
+  created_at?: string;
+  // Legacy aliases (deprecated)
+  payment_link?: string;
+  url?: string;
+  active?: boolean;
 }
 
 export interface DashboardOverview {

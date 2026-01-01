@@ -1,11 +1,12 @@
 import { NavLink, useLocation } from "react-router-dom";
-import { 
-  LayoutDashboard, 
-  MessageSquare, 
-  Users, 
-  Sparkles, 
-  TrendingUp, 
-  Calendar, 
+import {
+  LayoutDashboard,
+  MessageSquare,
+  Users,
+  Sparkles,
+  ShoppingBag,
+  TrendingUp,
+  Calendar,
   Settings,
   Zap
 } from "lucide-react";
@@ -16,6 +17,7 @@ const navItems = [
   { path: "/inbox", label: "Inbox", icon: MessageSquare },
   { path: "/leads", label: "Leads", icon: Users },
   { path: "/nurturing", label: "Nurturing", icon: Sparkles },
+  { path: "/products", label: "Products", icon: ShoppingBag },
   { path: "/revenue", label: "Revenue", icon: TrendingUp },
   { path: "/calendar", label: "Calendar", icon: Calendar },
   { path: "/settings", label: "Settings", icon: Settings },

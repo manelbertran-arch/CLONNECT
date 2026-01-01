@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { useSearchParams, useNavigate } from "react-router-dom";
 import { useQueryClient } from "@tanstack/react-query";
-import { Bot, Link2, Package, User, Save, RefreshCw, Loader2, AlertCircle, Plus, Pencil, Trash2, BookOpen } from "lucide-react";
+import { Bot, Link2, User, Save, RefreshCw, Loader2, AlertCircle, Plus, Trash2, BookOpen } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -11,10 +11,9 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Switch } from "@/components/ui/switch";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
-import { useCreatorConfig, useProducts, useUpdateConfig, useAddProduct, useUpdateProduct, useDeleteProduct, useAddContent, useKnowledge, useDeleteKnowledge, useConnections, useUpdateConnection, useDisconnectPlatform } from "@/hooks/useApi";
+import { useCreatorConfig, useUpdateConfig, useAddContent, useKnowledge, useDeleteKnowledge, useConnections, useUpdateConnection, useDisconnectPlatform } from "@/hooks/useApi";
 import { startOAuth } from "@/services/api";
 import { useToast } from "@/hooks/use-toast";
-import type { Product } from "@/types/api";
 
 interface ConnectionConfig {
   key: string;
@@ -134,24 +133,6 @@ const sectionLabels = {
   scheduling: { title: "Scheduling", icon: "📅", description: "Calendar and video call integrations" },
 };
 
-interface ProductFormData {
-  name: string;
-  description: string;
-  price: number;
-  currency: string;
-  payment_link: string;  // Backend expects payment_link, not url
-  is_active: boolean;    // Backend expects is_active, not active
-}
-
-const emptyProduct: ProductFormData = {
-  name: "",
-  description: "",
-  price: 0,
-  currency: "EUR",
-  payment_link: "",
-  is_active: true,
-};
-
 export default function Settings() {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
@@ -162,11 +143,7 @@ export default function Settings() {
   const [activeTab, setActiveTab] = useState(tabFromUrl);
 
   const { data: configData, isLoading: configLoading, error: configError } = useCreatorConfig();
-  const { data: productsData, isLoading: productsLoading } = useProducts();
   const updateConfig = useUpdateConfig();
-  const addProductMutation = useAddProduct();
-  const updateProductMutation = useUpdateProduct();
-  const deleteProductMutation = useDeleteProduct();
   const addContentMutation = useAddContent();
   const { data: knowledgeData, isLoading: knowledgeLoading } = useKnowledge();
   const deleteKnowledgeMutation = useDeleteKnowledge();
@@ -194,13 +171,6 @@ export default function Settings() {
   const [autoQualify, setAutoQualify] = useState(true);
   const [afterHoursMode, setAfterHoursMode] = useState(false);
   const [humanTakeoverAlerts, setHumanTakeoverAlerts] = useState(true);
-
-  // Product modal state
-  const [productModalOpen, setProductModalOpen] = useState(false);
-  const [editingProduct, setEditingProduct] = useState<Product | null>(null);
-  const [productForm, setProductForm] = useState<ProductFormData>(emptyProduct);
-  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
-  const [productToDelete, setProductToDelete] = useState<Product | null>(null);
 
   // Knowledge base state
   const [faqContent, setFaqContent] = useState("");
@@ -304,72 +274,6 @@ export default function Settings() {
     }
   };
 
-  // Product handlers
-  const openAddProduct = () => {
-    setEditingProduct(null);
-    setProductForm(emptyProduct);
-    setProductModalOpen(true);
-  };
-
-  const openEditProduct = (product: Product) => {
-    setEditingProduct(product);
-    setProductForm({
-      name: product.name,
-      description: product.description || "",
-      price: product.price,
-      currency: product.currency || "EUR",
-      payment_link: product.payment_link || product.url || "",
-      is_active: product.is_active ?? product.active ?? true,
-    });
-    setProductModalOpen(true);
-  };
-
-  const handleSaveProduct = async () => {
-    try {
-      if (editingProduct) {
-        await updateProductMutation.mutateAsync({
-          productId: editingProduct.id,
-          product: productForm,
-        });
-        toast({ title: "Product updated", description: `${productForm.name} has been updated.` });
-      } else {
-        await addProductMutation.mutateAsync(productForm as Omit<Product, "id">);
-        toast({ title: "Product added", description: `${productForm.name} has been created.` });
-      }
-      setProductModalOpen(false);
-      // Invalidate onboarding to refresh status and redirect to home
-      await queryClient.invalidateQueries({ queryKey: ["onboarding"] });
-      navigate("/");
-    } catch (error) {
-      toast({
-        title: "Error",
-        description: error instanceof Error ? error.message : "Failed to save product",
-        variant: "destructive",
-      });
-    }
-  };
-
-  const handleDeleteProduct = async () => {
-    if (!productToDelete) return;
-    try {
-      await deleteProductMutation.mutateAsync(productToDelete.id);
-      toast({ title: "Product deleted", description: `${productToDelete.name} has been removed.` });
-      setDeleteConfirmOpen(false);
-      setProductToDelete(null);
-    } catch (error) {
-      toast({
-        title: "Error",
-        description: error instanceof Error ? error.message : "Failed to delete product",
-        variant: "destructive",
-      });
-    }
-  };
-
-  const confirmDelete = (product: Product) => {
-    setProductToDelete(product);
-    setDeleteConfirmOpen(true);
-  };
-
   // Knowledge base handler
   const handleAddContent = async () => {
     if (!faqContent.trim()) return;
@@ -399,7 +303,6 @@ export default function Settings() {
     }
   };
 
-  const products = productsData?.products || [];
   const knowledgeItems = knowledgeData?.items || [];
 
   // Loading state
@@ -447,11 +350,6 @@ export default function Settings() {
             <TabsTrigger value="bot" className="rounded-lg data-[state=active]:bg-card text-xs sm:text-sm">
               <Bot className="w-4 h-4 mr-1 sm:mr-2" />
               Config
-            </TabsTrigger>
-            <TabsTrigger value="products" className="rounded-lg data-[state=active]:bg-card text-xs sm:text-sm">
-              <Package className="w-4 h-4 mr-1 sm:mr-2" />
-              <span className="hidden sm:inline">Products</span>
-              <span className="sm:hidden">Prod</span>
             </TabsTrigger>
             <TabsTrigger value="knowledge" className="rounded-lg data-[state=active]:bg-card text-xs sm:text-sm">
               <BookOpen className="w-4 h-4 mr-1 sm:mr-2" />
@@ -1000,70 +898,6 @@ export default function Settings() {
           </div>
         </TabsContent>
 
-        {/* Products Tab */}
-        <TabsContent value="products" className="animate-fade-in">
-          <div className="space-y-4">
-            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
-              <h3 className="font-semibold">Your Products</h3>
-              <Button onClick={openAddProduct} className="w-full sm:w-auto">
-                <Plus className="w-4 h-4 mr-2" />
-                Add Product
-              </Button>
-            </div>
-
-            {productsLoading ? (
-              <div className="flex items-center justify-center py-8">
-                <Loader2 className="w-6 h-6 animate-spin text-primary" />
-              </div>
-            ) : products.length === 0 ? (
-              <div className="metric-card text-center py-8 text-muted-foreground">
-                <Package className="w-12 h-12 mx-auto mb-3 opacity-50" />
-                <p>No products configured</p>
-                <p className="text-sm mt-2">Add your first product to get started</p>
-              </div>
-            ) : (
-              products.map((product) => (
-                <div
-                  key={product.id}
-                  className="metric-card flex flex-col sm:flex-row sm:items-center justify-between gap-3"
-                >
-                  <div className="flex items-center gap-4">
-                    <div className={cn(
-                      "w-12 h-12 rounded-xl flex items-center justify-center text-xl font-bold shrink-0",
-                      (product.is_active ?? product.active)
-                        ? "bg-gradient-to-br from-primary/20 to-accent/20 text-primary"
-                        : "bg-secondary text-muted-foreground"
-                    )}>
-                      {product.currency === "EUR" ? "€" : "$"}
-                    </div>
-                    <div className="min-w-0">
-                      <p className="font-semibold truncate">{product.name}</p>
-                      <p className="text-sm text-muted-foreground truncate">
-                        {product.currency === "EUR" ? "€" : "$"}{product.price}
-                        {product.description && ` - ${product.description.slice(0, 30)}...`}
-                      </p>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-2 ml-16 sm:ml-0">
-                    <span className={cn(
-                      "text-xs px-2 py-1 rounded-full",
-                      (product.is_active ?? product.active) ? "bg-success/10 text-success" : "bg-yellow-500/10 text-yellow-600"
-                    )}>
-                      {(product.is_active ?? product.active) ? "Active" : "Draft"}
-                    </span>
-                    <Button variant="ghost" size="icon" onClick={() => openEditProduct(product)}>
-                      <Pencil className="w-4 h-4" />
-                    </Button>
-                    <Button variant="ghost" size="icon" onClick={() => confirmDelete(product)}>
-                      <Trash2 className="w-4 h-4 text-destructive" />
-                    </Button>
-                  </div>
-                </div>
-              ))
-            )}
-          </div>
-        </TabsContent>
-
         {/* Knowledge Base Tab */}
         <TabsContent value="knowledge" className="animate-fade-in space-y-6">
           <div className="metric-card space-y-4">
@@ -1151,125 +985,6 @@ export default function Settings() {
         </TabsContent>
       </Tabs>
 
-      {/* Product Modal */}
-      <Dialog open={productModalOpen} onOpenChange={setProductModalOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>{editingProduct ? "Edit Product" : "Add New Product"}</DialogTitle>
-            <DialogDescription>
-              {editingProduct ? "Update product details" : "Create a new product for your bot to recommend"}
-            </DialogDescription>
-          </DialogHeader>
-
-          <div className="space-y-4 py-4">
-            <div className="space-y-2">
-              <Label htmlFor="productName">Product Name</Label>
-              <Input
-                id="productName"
-                value={productForm.name}
-                onChange={(e) => setProductForm({ ...productForm, name: e.target.value })}
-                placeholder="e.g., Premium Coaching Program"
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="productDescription">Description</Label>
-              <Textarea
-                id="productDescription"
-                value={productForm.description}
-                onChange={(e) => setProductForm({ ...productForm, description: e.target.value })}
-                placeholder="Brief description of the product..."
-              />
-            </div>
-
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="productPrice">Price</Label>
-                <Input
-                  id="productPrice"
-                  type="number"
-                  value={productForm.price}
-                  onChange={(e) => setProductForm({ ...productForm, price: Number(e.target.value) })}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="productCurrency">Currency</Label>
-                <Select
-                  value={productForm.currency}
-                  onValueChange={(v) => setProductForm({ ...productForm, currency: v })}
-                >
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="EUR">EUR (€)</SelectItem>
-                    <SelectItem value="USD">USD ($)</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="productUrl">Payment Link</Label>
-              <Input
-                id="productUrl"
-                value={productForm.payment_link}
-                onChange={(e) => setProductForm({ ...productForm, payment_link: e.target.value })}
-                placeholder="https://stripe.com/pay/..."
-              />
-            </div>
-
-            <div className="flex items-center justify-between">
-              <Label htmlFor="productActive">Active</Label>
-              <Switch
-                id="productActive"
-                checked={productForm.is_active}
-                onCheckedChange={(v) => setProductForm({ ...productForm, is_active: v })}
-              />
-            </div>
-          </div>
-
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setProductModalOpen(false)}>
-              Cancel
-            </Button>
-            <Button
-              onClick={handleSaveProduct}
-              disabled={!productForm.name || addProductMutation.isPending || updateProductMutation.isPending}
-            >
-              {(addProductMutation.isPending || updateProductMutation.isPending) && (
-                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-              )}
-              {editingProduct ? "Save Changes" : "Add Product"}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      {/* Delete Confirmation Dialog */}
-      <Dialog open={deleteConfirmOpen} onOpenChange={setDeleteConfirmOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Delete Product</DialogTitle>
-            <DialogDescription>
-              Are you sure you want to delete "{productToDelete?.name}"? This action cannot be undone.
-            </DialogDescription>
-          </DialogHeader>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setDeleteConfirmOpen(false)}>
-              Cancel
-            </Button>
-            <Button
-              variant="destructive"
-              onClick={handleDeleteProduct}
-              disabled={deleteProductMutation.isPending}
-            >
-              {deleteProductMutation.isPending && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
-              Delete
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
     </div>
   );
 }

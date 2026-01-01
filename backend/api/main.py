@@ -1440,64 +1440,328 @@ async def list_creators():
 
 
 # ---------------------------------------------------------
-# PRODUCTS
+# PRODUCTS - Direct SQL (proven to work like booking_links)
 # ---------------------------------------------------------
+
+@app.get("/products/{creator_id}")
+async def get_all_products(creator_id: str, active_only: bool = False):
+    """Get all products for a creator - uses direct SQL"""
+    from sqlalchemy import text
+    import uuid
+
+    print(f"=== GET PRODUCTS for {creator_id} ===")
+
+    if SessionLocal:
+        db = SessionLocal()
+        try:
+            query = """
+                SELECT id, creator_id, name, price, currency, purchase_url, type, tagline,
+                       image_url, description, sales_count, revenue, is_active, bot_enabled, created_at
+                FROM products
+                WHERE creator_id = :creator_id
+            """
+            if active_only:
+                query += " AND is_active = true"
+            query += " ORDER BY created_at DESC"
+
+            result = db.execute(text(query), {"creator_id": creator_id})
+            rows = result.fetchall()
+
+            products = []
+            for row in rows:
+                products.append({
+                    "id": str(row[0]),
+                    "creator_id": row[1],
+                    "name": row[2],
+                    "price": row[3] or 0,
+                    "currency": row[4] or "EUR",
+                    "purchase_url": row[5] or "",
+                    "type": row[6] or "other",
+                    "tagline": row[7] or "",
+                    "image_url": row[8] or "",
+                    "description": row[9] or "",
+                    "sales_count": row[10] or 0,
+                    "revenue": row[11] or 0,
+                    "is_active": row[12] if row[12] is not None else True,
+                    "bot_enabled": row[13] if row[13] is not None else True,
+                    "created_at": row[14].isoformat() if row[14] else ""
+                })
+
+            print(f"Found {len(products)} products for {creator_id}")
+            return {"status": "ok", "products": products, "count": len(products)}
+        except Exception as e:
+            print(f"Error getting products: {e}")
+            import traceback
+            print(traceback.format_exc())
+            raise HTTPException(status_code=500, detail=str(e))
+        finally:
+            db.close()
+    else:
+        return {"status": "error", "error": "Database not configured", "products": [], "count": 0}
+
+
+@app.get("/products/{creator_id}/for-bot")
+async def get_products_for_bot(creator_id: str):
+    """Get active products enabled for bot recommendations"""
+    from sqlalchemy import text
+
+    if SessionLocal:
+        db = SessionLocal()
+        try:
+            result = db.execute(text("""
+                SELECT id, name, price, currency, purchase_url, type, tagline, image_url
+                FROM products
+                WHERE creator_id = :creator_id AND is_active = true AND bot_enabled = true
+                ORDER BY created_at DESC
+            """), {"creator_id": creator_id})
+            rows = result.fetchall()
+
+            products = []
+            for row in rows:
+                products.append({
+                    "id": str(row[0]),
+                    "name": row[1],
+                    "price": row[2] or 0,
+                    "currency": row[3] or "EUR",
+                    "purchase_url": row[4] or "",
+                    "type": row[5] or "other",
+                    "tagline": row[6] or "",
+                    "image_url": row[7] or ""
+                })
+
+            return {"status": "ok", "products": products, "count": len(products)}
+        finally:
+            db.close()
+    else:
+        return {"status": "error", "error": "Database not configured", "products": [], "count": 0}
+
+
+@app.post("/products/{creator_id}")
+async def create_product_v2(creator_id: str, data: dict = Body(...)):
+    """Create a new product - uses direct SQL"""
+    from sqlalchemy import text
+    import uuid
+
+    print(f"=== CREATE PRODUCT for {creator_id} ===")
+    print(f"Data: {data}")
+
+    if SessionLocal:
+        db = SessionLocal()
+        try:
+            product_id = str(uuid.uuid4())
+
+            db.execute(text("""
+                INSERT INTO products (id, creator_id, name, price, currency, purchase_url, type, tagline, image_url, is_active, bot_enabled, sales_count, revenue)
+                VALUES (:id, :creator_id, :name, :price, :currency, :purchase_url, :type, :tagline, :image_url, :is_active, :bot_enabled, 0, 0)
+            """), {
+                "id": product_id,
+                "creator_id": creator_id,
+                "name": data.get("name", ""),
+                "price": float(data.get("price", 0)),
+                "currency": data.get("currency", "EUR"),
+                "purchase_url": data.get("purchase_url", ""),
+                "type": data.get("type", "other"),
+                "tagline": data.get("tagline", ""),
+                "image_url": data.get("image_url", ""),
+                "is_active": data.get("is_active", True),
+                "bot_enabled": data.get("bot_enabled", True)
+            })
+            db.commit()
+
+            print(f"Created product {product_id}")
+
+            return {
+                "status": "ok",
+                "product": {
+                    "id": product_id,
+                    "creator_id": creator_id,
+                    "name": data.get("name", ""),
+                    "price": float(data.get("price", 0)),
+                    "currency": data.get("currency", "EUR"),
+                    "purchase_url": data.get("purchase_url", ""),
+                    "type": data.get("type", "other"),
+                    "tagline": data.get("tagline", ""),
+                    "image_url": data.get("image_url", ""),
+                    "is_active": data.get("is_active", True),
+                    "bot_enabled": data.get("bot_enabled", True),
+                    "sales_count": 0,
+                    "revenue": 0
+                }
+            }
+        except Exception as e:
+            print(f"Error creating product: {e}")
+            import traceback
+            print(traceback.format_exc())
+            raise HTTPException(status_code=500, detail=str(e))
+        finally:
+            db.close()
+    else:
+        return {"status": "error", "error": "Database not configured"}
+
+
+@app.put("/products/{creator_id}/{product_id}")
+async def update_product_v2(creator_id: str, product_id: str, data: dict = Body(...)):
+    """Update a product - uses direct SQL"""
+    from sqlalchemy import text
+
+    print(f"=== UPDATE PRODUCT {product_id} for {creator_id} ===")
+    print(f"Data: {data}")
+
+    if SessionLocal:
+        db = SessionLocal()
+        try:
+            # Build SET clause dynamically
+            allowed_fields = ["name", "price", "currency", "purchase_url", "type", "tagline", "image_url", "is_active", "bot_enabled"]
+            set_parts = []
+            params = {"id": product_id, "creator_id": creator_id}
+
+            for field in allowed_fields:
+                if field in data:
+                    set_parts.append(f"{field} = :{field}")
+                    params[field] = data[field]
+
+            if not set_parts:
+                raise HTTPException(status_code=400, detail="No fields to update")
+
+            query = f"UPDATE products SET {', '.join(set_parts)} WHERE id = :id AND creator_id = :creator_id"
+            result = db.execute(text(query), params)
+            db.commit()
+
+            if result.rowcount == 0:
+                raise HTTPException(status_code=404, detail="Product not found")
+
+            print(f"Updated product {product_id}")
+            return {"status": "ok", "updated_fields": list(data.keys())}
+        except HTTPException:
+            raise
+        except Exception as e:
+            print(f"Error updating product: {e}")
+            import traceback
+            print(traceback.format_exc())
+            raise HTTPException(status_code=500, detail=str(e))
+        finally:
+            db.close()
+    else:
+        return {"status": "error", "error": "Database not configured"}
+
+
+@app.delete("/products/{creator_id}/{product_id}")
+async def delete_product_v2(creator_id: str, product_id: str):
+    """Delete a product - uses direct SQL"""
+    from sqlalchemy import text
+
+    print(f"=== DELETE PRODUCT {product_id} for {creator_id} ===")
+
+    if SessionLocal:
+        db = SessionLocal()
+        try:
+            result = db.execute(text("""
+                DELETE FROM products WHERE id = :id AND creator_id = :creator_id
+            """), {"id": product_id, "creator_id": creator_id})
+            db.commit()
+
+            if result.rowcount == 0:
+                raise HTTPException(status_code=404, detail="Product not found")
+
+            print(f"Deleted product {product_id}")
+            return {"status": "ok"}
+        except HTTPException:
+            raise
+        except Exception as e:
+            print(f"Error deleting product: {e}")
+            raise HTTPException(status_code=500, detail=str(e))
+        finally:
+            db.close()
+    else:
+        return {"status": "error", "error": "Database not configured"}
+
+
+@app.post("/products/{creator_id}/{product_id}/record-sale")
+async def record_product_sale(creator_id: str, product_id: str, data: dict = Body(...)):
+    """Record a sale for this product"""
+    from sqlalchemy import text
+
+    amount = float(data.get("amount", 0))
+
+    if SessionLocal:
+        db = SessionLocal()
+        try:
+            db.execute(text("""
+                UPDATE products
+                SET sales_count = sales_count + 1, revenue = revenue + :amount
+                WHERE id = :id AND creator_id = :creator_id
+            """), {"id": product_id, "creator_id": creator_id, "amount": amount})
+            db.commit()
+            return {"status": "ok"}
+        finally:
+            db.close()
+    else:
+        return {"status": "error", "error": "Database not configured"}
+
+
+# Legacy endpoints (kept for backwards compatibility)
 @app.post("/creator/{creator_id}/products")
 async def create_product(creator_id: str, product_data: dict = Body(...)):
-    """Crear producto"""
-    try:
-        # Auto-generate id if not provided
-        if 'id' not in product_data or not product_data['id']:
-            product_data['id'] = product_data['name'].lower().replace(' ', '-').replace('/', '-')
-        # Default description if not provided
-        if 'description' not in product_data:
-            product_data['description'] = ''
-        product = Product(**product_data)
-        product_id = product_manager.add_product(creator_id, product)
-        # Get the created product to return full data
-        created_product = product_manager.get_product_by_id(creator_id, product_id)
-        return {"status": "ok", "product": created_product.to_dict() if created_product else {"id": product_id, **product_data}}
-    except Exception as e:
-        raise HTTPException(status_code=400, detail=str(e))
+    """Crear producto (legacy)"""
+    return await create_product_v2(creator_id, product_data)
 
 
 @app.get("/creator/{creator_id}/products")
 async def get_products(creator_id: str, active_only: bool = True):
-    """Listar productos del creador"""
-    # PostgreSQL first
-    if USE_DB:
-        products = db_service.get_products(creator_id)
-        if products is not None:
-            return {"status": "ok", "products": products, "count": len(products)}
-    products = product_manager.get_products(creator_id, active_only)
-    return {"status": "ok", "products": [p.to_dict() for p in products], "count": len(products)}
+    """Listar productos del creador (legacy)"""
+    return await get_all_products(creator_id, active_only)
 
 
 @app.get("/creator/{creator_id}/products/{product_id}")
 async def get_product(creator_id: str, product_id: str):
-    """Obtener producto especifico"""
-    product = product_manager.get_product_by_id(creator_id, product_id)
-    if not product:
-        raise HTTPException(status_code=404, detail="Product not found")
-    return product.to_dict()
+    """Obtener producto especifico (legacy)"""
+    from sqlalchemy import text
+
+    if SessionLocal:
+        db = SessionLocal()
+        try:
+            result = db.execute(text("""
+                SELECT id, creator_id, name, price, currency, purchase_url, type, tagline,
+                       image_url, description, sales_count, revenue, is_active, bot_enabled, created_at
+                FROM products WHERE id = :id AND creator_id = :creator_id
+            """), {"id": product_id, "creator_id": creator_id})
+            row = result.fetchone()
+            if not row:
+                raise HTTPException(status_code=404, detail="Product not found")
+
+            return {
+                "id": str(row[0]),
+                "creator_id": row[1],
+                "name": row[2],
+                "price": row[3] or 0,
+                "currency": row[4] or "EUR",
+                "purchase_url": row[5] or "",
+                "type": row[6] or "other",
+                "tagline": row[7] or "",
+                "image_url": row[8] or "",
+                "description": row[9] or "",
+                "sales_count": row[10] or 0,
+                "revenue": row[11] or 0,
+                "is_active": row[12] if row[12] is not None else True,
+                "bot_enabled": row[13] if row[13] is not None else True,
+                "created_at": row[14].isoformat() if row[14] else ""
+            }
+        finally:
+            db.close()
+    else:
+        raise HTTPException(status_code=500, detail="Database not configured")
 
 
 @app.put("/creator/{creator_id}/products/{product_id}")
 async def update_product(creator_id: str, product_id: str, updates: dict = Body(...)):
-    """Actualizar producto"""
-    product = product_manager.update_product(creator_id, product_id, updates)
-    if not product:
-        raise HTTPException(status_code=404, detail="Product not found")
-    return product.to_dict()
+    """Actualizar producto (legacy)"""
+    return await update_product_v2(creator_id, product_id, updates)
 
 
 @app.delete("/creator/{creator_id}/products/{product_id}")
 async def delete_product(creator_id: str, product_id: str):
-    """Eliminar producto"""
-    success = product_manager.delete_product(creator_id, product_id)
-    if not success:
-        raise HTTPException(status_code=404, detail="Product not found")
-    return {"status": "ok"}
+    """Eliminar producto (legacy)"""
+    return await delete_product_v2(creator_id, product_id)
 
 
 # ---------------------------------------------------------

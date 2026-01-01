@@ -64,14 +64,36 @@ class Message(Base):
 
 class Product(Base):
     __tablename__ = "products"
-    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    creator_id = Column(UUID(as_uuid=True), ForeignKey("creators.id"))
+    __table_args__ = {'extend_existing': True}
+    id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    creator_id = Column(String(255), nullable=False, index=True)  # String to support "manel" etc.
+
+    # Basic fields (required)
     name = Column(String(255), nullable=False)
+    price = Column(Float, nullable=False, default=0)
+    currency = Column(String(10), default="EUR")
+    purchase_url = Column(String(500))  # External purchase link
+
+    # For bot (required for recommendations)
+    type = Column(String(50), default="other")  # ebook, course, mentorship, membership, template, other
+    tagline = Column(String(500))  # Short description for bot
+
+    # Visuals (optional)
+    image_url = Column(String(500))
+
+    # Legacy field (kept for migration)
     description = Column(Text)
-    price = Column(Float)
-    currency = Column(String(3), default="EUR")
+
+    # Stats (updated with sales)
+    sales_count = Column(Integer, default=0)
+    revenue = Column(Float, default=0)
+
+    # Control
     is_active = Column(Boolean, default=True)
+    bot_enabled = Column(Boolean, default=True)  # Bot can recommend this product
+
     created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
 
 class NurturingSequence(Base):
     __tablename__ = "nurturing_sequences"
