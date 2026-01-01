@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { useSearchParams, useNavigate } from "react-router-dom";
 import { useQueryClient } from "@tanstack/react-query";
-import { Bot, Link2, Package, User, Save, RefreshCw, Loader2, AlertCircle, Plus, Pencil, Trash2, BookOpen, Check, Sparkles, Wand2, MessageSquare, HelpCircle, ChevronDown, ChevronUp } from "lucide-react";
+import { Bot, Link2, Package, Save, RefreshCw, Loader2, AlertCircle, Plus, Trash2, BookOpen, Check, Sparkles, Wand2, HelpCircle } from "lucide-react";
 
 // Platform SVG Logos
 const PlatformLogo = ({ platform, size = 20 }: { platform: string; size?: number }) => {
@@ -82,7 +82,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Switch } from "@/components/ui/switch";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
-import { useCreatorConfig, useProducts, useUpdateConfig, useAddProduct, useUpdateProduct, useDeleteProduct, useAddContent, useKnowledge, useDeleteKnowledge, useAddFAQ, useDeleteFAQ, useUpdateAbout, useGenerateKnowledge, useConnections, useUpdateConnection, useDisconnectPlatform } from "@/hooks/useApi";
+import { useCreatorConfig, useProducts, useUpdateConfig, useAddProduct, useUpdateProduct, useDeleteProduct, useKnowledge, useAddFAQ, useDeleteFAQ, useGenerateKnowledge, useConnections, useUpdateConnection, useDisconnectPlatform } from "@/hooks/useApi";
 import { startOAuth } from "@/services/api";
 import { useToast } from "@/hooks/use-toast";
 import type { Product } from "@/types/api";
@@ -202,12 +202,9 @@ export default function Settings() {
   const addProductMutation = useAddProduct();
   const updateProductMutation = useUpdateProduct();
   const deleteProductMutation = useDeleteProduct();
-  const addContentMutation = useAddContent();
   const { data: knowledgeData, isLoading: knowledgeLoading } = useKnowledge();
-  const deleteKnowledgeMutation = useDeleteKnowledge();
   const addFAQMutation = useAddFAQ();
   const deleteFAQMutation = useDeleteFAQ();
-  const updateAboutMutation = useUpdateAbout();
   const generateKnowledgeMutation = useGenerateKnowledge();
   const { data: connectionsData, isLoading: connectionsLoading } = useConnections();
   const updateConnectionMutation = useUpdateConnection();
@@ -267,26 +264,20 @@ export default function Settings() {
   const [productToDelete, setProductToDelete] = useState<Product | null>(null);
 
   // Knowledge base state
-  const [faqContent, setFaqContent] = useState("");
   const [faqQuestion, setFaqQuestion] = useState("");
   const [faqAnswer, setFaqAnswer] = useState("");
   const [faqModalOpen, setFaqModalOpen] = useState(false);
-  const [aboutBio, setAboutBio] = useState("");
-  const [aboutSpecialties, setAboutSpecialties] = useState("");
-  const [aboutExperience, setAboutExperience] = useState("");
-  const [aboutTarget, setAboutTarget] = useState("");
-  const [showAboutSection, setShowAboutSection] = useState(false);
   const [aiKnowledgePrompt, setAiKnowledgePrompt] = useState("");
   const [isGeneratingKnowledge, setIsGeneratingKnowledge] = useState(false);
 
   // FAQ Templates
   const faqTemplates = [
-    { question: "¿Cuáles son tus precios?", answer: "" },
-    { question: "¿Cómo puedo contratarte?", answer: "" },
-    { question: "¿Cuál es tu disponibilidad?", answer: "" },
-    { question: "¿Ofreces garantía?", answer: "" },
-    { question: "¿Haces envíos internacionales?", answer: "" },
-    { question: "¿Cuáles son tus métodos de pago?", answer: "" },
+    { question: "¿Cuánto cuesta?", answer: "" },
+    { question: "¿Qué incluye?", answer: "" },
+    { question: "¿Hay garantía?", answer: "" },
+    { question: "¿Cómo pago?", answer: "" },
+    { question: "¿Cuál es el horario?", answer: "" },
+    { question: "¿Ofrecen soporte?", answer: "" },
   ];
 
   // Other payment methods state
@@ -365,16 +356,6 @@ export default function Settings() {
     }
   }, [config]);
 
-  // Load About data from knowledge response
-  useEffect(() => {
-    if (knowledgeData?.about) {
-      const about = knowledgeData.about;
-      setAboutBio(about.bio || "");
-      setAboutSpecialties(Array.isArray(about.specialties) ? about.specialties.join(", ") : (about.specialties || ""));
-      setAboutExperience(about.experience || "");
-      setAboutTarget(about.target_audience || "");
-    }
-  }, [knowledgeData]);
 
   const generatePreview = () => {
     const previews = {
@@ -526,36 +507,7 @@ export default function Settings() {
     setDeleteConfirmOpen(true);
   };
 
-  // Knowledge base handler
-  const handleAddContent = async () => {
-    if (!faqContent.trim()) return;
-    try {
-      await addContentMutation.mutateAsync({ text: faqContent, docType: "faq" });
-      toast({ title: "Content added", description: "FAQ has been added to knowledge base." });
-      setFaqContent("");
-    } catch (error) {
-      toast({
-        title: "Error",
-        description: error instanceof Error ? error.message : "Failed to add content",
-        variant: "destructive",
-      });
-    }
-  };
-
-  const handleDeleteKnowledge = async (itemId: string) => {
-    try {
-      await deleteKnowledgeMutation.mutateAsync(itemId);
-      toast({ title: "FAQ deleted", description: "Item removed from knowledge base." });
-    } catch (error) {
-      toast({
-        title: "Error",
-        description: error instanceof Error ? error.message : "Failed to delete",
-        variant: "destructive",
-      });
-    }
-  };
-
-  // New FAQ handlers
+  // FAQ handlers
   const handleAddFAQ = async () => {
     if (!faqQuestion.trim() || !faqAnswer.trim()) {
       toast({
@@ -598,25 +550,6 @@ export default function Settings() {
     setFaqQuestion(template.question);
     setFaqAnswer("");
     setFaqModalOpen(true);
-  };
-
-  const handleSaveAbout = async () => {
-    try {
-      const aboutData = {
-        bio: aboutBio,
-        specialties: aboutSpecialties.split(",").map(s => s.trim()).filter(Boolean),
-        experience: aboutExperience,
-        target_audience: aboutTarget,
-      };
-      await updateAboutMutation.mutateAsync(aboutData);
-      toast({ title: "Guardado", description: "Tu información ha sido actualizada." });
-    } catch (error) {
-      toast({
-        title: "Error",
-        description: error instanceof Error ? error.message : "Failed to save",
-        variant: "destructive",
-      });
-    }
   };
 
   const handleGenerateKnowledge = async () => {
@@ -697,7 +630,7 @@ export default function Settings() {
         <div className="overflow-x-auto -mx-4 px-4 sm:mx-0 sm:px-0">
           <TabsList className="bg-secondary p-1 rounded-xl w-max sm:w-auto">
             <TabsTrigger value="personality" className="rounded-lg data-[state=active]:bg-card text-xs sm:text-sm">
-              <User className="w-4 h-4 mr-1 sm:mr-2" />
+              <Bot className="w-4 h-4 mr-1 sm:mr-2" />
               <span className="hidden sm:inline">Personality</span>
               <span className="sm:hidden">Bot</span>
             </TabsTrigger>
@@ -1186,42 +1119,71 @@ export default function Settings() {
           )}
         </TabsContent>
 
-        {/* Knowledge Base Tab - Redesigned */}
+        {/* Knowledge Base Tab - Unified */}
         <TabsContent value="knowledge" className="animate-fade-in space-y-6">
-          {/* Section 1: FAQs */}
-          <div className="metric-card space-y-4">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
+          <div className="metric-card space-y-6">
+            {/* Header */}
+            <div>
+              <div className="flex items-center gap-2 mb-2">
                 <HelpCircle className="w-5 h-5 text-primary" />
                 <h3 className="text-lg font-semibold">Preguntas Frecuentes</h3>
               </div>
+              <p className="text-sm text-muted-foreground">
+                Enseña a tu bot a responder las preguntas más comunes de tus clientes
+              </p>
+            </div>
+
+            {/* AI Generator - Principal */}
+            <div className="rounded-xl p-5 border border-primary/30 bg-gradient-to-br from-primary/10 via-accent/5 to-primary/10">
+              <div className="flex items-center gap-2 mb-3">
+                <Sparkles className="w-4 h-4 text-primary" />
+                <span className="font-medium">Genera FAQs automáticamente</span>
+              </div>
+
+              <Textarea
+                value={aiKnowledgePrompt}
+                onChange={(e) => setAiKnowledgePrompt(e.target.value)}
+                className="bg-background/80 border-0 min-h-[100px] resize-none mb-3"
+                placeholder="Describe tu negocio, productos, precios, garantías... y la IA generará las FAQs por ti.
+
+Ejemplo: Soy coach de fitness. Vendo un programa de 8 semanas por 297€. Incluye acceso a app, comunidad y sesiones semanales. Garantía de 30 días."
+              />
+
               <Button
-                size="sm"
-                onClick={() => {
-                  setFaqQuestion("");
-                  setFaqAnswer("");
-                  setFaqModalOpen(true);
-                }}
+                onClick={handleGenerateKnowledge}
+                disabled={isGeneratingKnowledge || !aiKnowledgePrompt.trim()}
                 className="bg-gradient-to-r from-primary to-accent hover:opacity-90"
               >
-                <Plus className="w-4 h-4 mr-1" />
-                Agregar FAQ
+                {isGeneratingKnowledge ? (
+                  <>
+                    <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
+                    Generando FAQs...
+                  </>
+                ) : (
+                  <>
+                    <Wand2 className="w-4 h-4 mr-2" />
+                    Generar FAQs con IA
+                  </>
+                )}
               </Button>
             </div>
 
-            <p className="text-sm text-muted-foreground">
-              Las FAQs ayudan a tu bot a responder preguntas comunes de forma precisa.
-            </p>
+            {/* Separator */}
+            <div className="flex items-center gap-4">
+              <div className="flex-1 h-px bg-border"></div>
+              <span className="text-muted-foreground text-sm">o añade manualmente</span>
+              <div className="flex-1 h-px bg-border"></div>
+            </div>
 
-            {/* FAQ Templates */}
-            <div className="p-4 rounded-lg bg-secondary/30 border border-border/50">
-              <p className="text-sm font-medium mb-3">Sugerencias de preguntas:</p>
+            {/* Quick Templates */}
+            <div>
+              <p className="text-sm text-muted-foreground mb-3">Plantillas rápidas:</p>
               <div className="flex flex-wrap gap-2">
                 {faqTemplates.map((template, idx) => (
                   <button
                     key={idx}
                     onClick={() => handleSelectTemplate(template)}
-                    className="px-3 py-1.5 text-xs rounded-full bg-primary/10 text-primary hover:bg-primary/20 transition-colors"
+                    className="px-3 py-1.5 text-xs rounded-full bg-secondary hover:bg-secondary/80 border border-border transition-colors"
                   >
                     {template.question}
                   </button>
@@ -1229,30 +1191,76 @@ export default function Settings() {
               </div>
             </div>
 
-            {/* Saved FAQs */}
+            {/* Manual Form - Inline */}
+            {faqModalOpen && (
+              <div className="rounded-lg p-4 bg-secondary/50 border border-border space-y-3">
+                <Input
+                  value={faqQuestion}
+                  onChange={(e) => setFaqQuestion(e.target.value)}
+                  placeholder="Pregunta: ¿Cuánto cuesta el curso?"
+                  className="bg-background border-border"
+                />
+                <Textarea
+                  value={faqAnswer}
+                  onChange={(e) => setFaqAnswer(e.target.value)}
+                  placeholder="Respuesta: El curso cuesta 297€ e incluye acceso de por vida..."
+                  className="bg-background border-border min-h-[80px] resize-none"
+                />
+                <div className="flex gap-2">
+                  <Button
+                    onClick={handleAddFAQ}
+                    disabled={!faqQuestion.trim() || !faqAnswer.trim() || addFAQMutation.isPending}
+                    size="sm"
+                  >
+                    {addFAQMutation.isPending && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+                    Añadir FAQ
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      setFaqModalOpen(false);
+                      setFaqQuestion("");
+                      setFaqAnswer("");
+                    }}
+                  >
+                    Cancelar
+                  </Button>
+                </div>
+              </div>
+            )}
+
+            {/* Add Manual Button */}
+            {!faqModalOpen && (
+              <button
+                onClick={() => setFaqModalOpen(true)}
+                className="flex items-center gap-2 text-primary hover:text-primary/80 text-sm transition-colors"
+              >
+                <Plus className="w-4 h-4" />
+                Añadir FAQ manualmente
+              </button>
+            )}
+
+            {/* Saved FAQs List */}
             {knowledgeLoading ? (
-              <div className="flex justify-center py-4">
+              <div className="flex justify-center py-8">
                 <Loader2 className="w-6 h-6 animate-spin text-primary" />
               </div>
-            ) : (knowledgeData?.faqs || []).length === 0 ? (
-              <p className="text-sm text-muted-foreground py-4 text-center">
-                No hay FAQs todavia. Agrega tu primera pregunta arriba.
-              </p>
-            ) : (
+            ) : (knowledgeData?.faqs || []).length > 0 ? (
               <div className="space-y-3">
+                <p className="text-sm text-muted-foreground">
+                  FAQs guardadas ({(knowledgeData?.faqs || []).length}):
+                </p>
                 {(knowledgeData?.faqs || []).map((faq) => (
                   <div
                     key={faq.id}
-                    className="p-4 rounded-lg bg-secondary/50 border border-border/30"
+                    className="rounded-lg p-4 bg-secondary/30 border border-border/50"
                   >
-                    <div className="flex items-start justify-between gap-3">
+                    <div className="flex justify-between items-start gap-3">
                       <div className="flex-1 min-w-0">
-                        <p className="font-medium text-sm flex items-center gap-2">
-                          <MessageSquare className="w-4 h-4 text-primary shrink-0" />
-                          {faq.question}
-                        </p>
-                        <p className="text-sm text-muted-foreground mt-2 pl-6">
-                          {faq.answer.length > 150 ? `${faq.answer.slice(0, 150)}...` : faq.answer}
+                        <p className="font-medium text-primary">{faq.question}</p>
+                        <p className="text-sm text-muted-foreground mt-1">
+                          {faq.answer.length > 200 ? `${faq.answer.slice(0, 200)}...` : faq.answer}
                         </p>
                       </div>
                       <Button
@@ -1268,130 +1276,13 @@ export default function Settings() {
                   </div>
                 ))}
               </div>
-            )}
-          </div>
-
-          {/* Section 2: About Me/Business - Collapsible */}
-          <div className="metric-card">
-            <button
-              onClick={() => setShowAboutSection(!showAboutSection)}
-              className="w-full flex items-center justify-between"
-            >
-              <div className="flex items-center gap-2">
-                <User className="w-5 h-5 text-primary" />
-                <h3 className="text-lg font-semibold">Sobre Mi / Mi Negocio</h3>
+            ) : !faqModalOpen ? (
+              <div className="text-center py-8 text-muted-foreground">
+                <HelpCircle className="w-12 h-12 mx-auto mb-3 opacity-50" />
+                <p>No hay FAQs todavía</p>
+                <p className="text-sm">Genera con IA o añade manualmente</p>
               </div>
-              {showAboutSection ? (
-                <ChevronUp className="w-5 h-5 text-muted-foreground" />
-              ) : (
-                <ChevronDown className="w-5 h-5 text-muted-foreground" />
-              )}
-            </button>
-
-            {showAboutSection && (
-              <div className="mt-4 space-y-4">
-                <p className="text-sm text-muted-foreground">
-                  Esta informacion ayuda al bot a presentarte correctamente.
-                </p>
-
-                <div className="space-y-3">
-                  <div>
-                    <Label htmlFor="aboutBio" className="text-sm font-medium">Bio / Descripcion</Label>
-                    <Textarea
-                      id="aboutBio"
-                      value={aboutBio}
-                      onChange={(e) => setAboutBio(e.target.value)}
-                      className="bg-secondary border-0 min-h-[80px] mt-1"
-                      placeholder="Soy coach de fitness con 10 anos de experiencia..."
-                    />
-                  </div>
-
-                  <div>
-                    <Label htmlFor="aboutSpecialties" className="text-sm font-medium">Especialidades</Label>
-                    <Input
-                      id="aboutSpecialties"
-                      value={aboutSpecialties}
-                      onChange={(e) => setAboutSpecialties(e.target.value)}
-                      className="bg-secondary border-0 mt-1"
-                      placeholder="Entrenamiento personal, nutricion, mindset (separados por coma)"
-                    />
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-3">
-                    <div>
-                      <Label htmlFor="aboutExperience" className="text-sm font-medium">Experiencia</Label>
-                      <Input
-                        id="aboutExperience"
-                        value={aboutExperience}
-                        onChange={(e) => setAboutExperience(e.target.value)}
-                        className="bg-secondary border-0 mt-1"
-                        placeholder="5 anos"
-                      />
-                    </div>
-                    <div>
-                      <Label htmlFor="aboutTarget" className="text-sm font-medium">Publico objetivo</Label>
-                      <Input
-                        id="aboutTarget"
-                        value={aboutTarget}
-                        onChange={(e) => setAboutTarget(e.target.value)}
-                        className="bg-secondary border-0 mt-1"
-                        placeholder="Emprendedores, profesionales"
-                      />
-                    </div>
-                  </div>
-
-                  <Button
-                    onClick={handleSaveAbout}
-                    disabled={updateAboutMutation.isPending}
-                    className="w-full mt-2"
-                  >
-                    {updateAboutMutation.isPending ? (
-                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                    ) : (
-                      <Save className="w-4 h-4 mr-2" />
-                    )}
-                    Guardar informacion
-                  </Button>
-                </div>
-              </div>
-            )}
-          </div>
-
-          {/* Section 3: AI Generator */}
-          <div className="rounded-xl p-6 border border-primary/30 bg-gradient-to-br from-primary/10 via-accent/5 to-primary/10">
-            <div className="flex items-center gap-2 mb-4">
-              <Sparkles className="w-5 h-5 text-primary" />
-              <h3 className="text-lg font-semibold">Generar FAQs con IA</h3>
-            </div>
-
-            <p className="text-sm text-muted-foreground mb-4">
-              Pega tu bio de Instagram, descripcion de tu web, o describe tu negocio y la IA generara preguntas frecuentes automaticamente.
-            </p>
-
-            <Textarea
-              value={aiKnowledgePrompt}
-              onChange={(e) => setAiKnowledgePrompt(e.target.value)}
-              className="bg-background/80 border-0 min-h-[100px] resize-none mb-3"
-              placeholder="Ejemplo: Soy coach de fitness especializado en perdida de peso. Ofrezco programas de 8 semanas con seguimiento personalizado. Mis precios van de 200 a 500 euros dependiendo del programa..."
-            />
-
-            <Button
-              onClick={handleGenerateKnowledge}
-              disabled={isGeneratingKnowledge || !aiKnowledgePrompt.trim()}
-              className="bg-gradient-to-r from-primary to-accent hover:opacity-90"
-            >
-              {isGeneratingKnowledge ? (
-                <>
-                  <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
-                  Generando FAQs...
-                </>
-              ) : (
-                <>
-                  <Wand2 className="w-4 h-4 mr-2" />
-                  Generar FAQs
-                </>
-              )}
-            </Button>
+            ) : null}
           </div>
         </TabsContent>
       </Tabs>
@@ -1516,55 +1407,6 @@ export default function Settings() {
         </DialogContent>
       </Dialog>
 
-      {/* FAQ Modal */}
-      <Dialog open={faqModalOpen} onOpenChange={setFaqModalOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Agregar Pregunta Frecuente</DialogTitle>
-            <DialogDescription>
-              Agrega una pregunta y su respuesta para que tu bot pueda responder mejor.
-            </DialogDescription>
-          </DialogHeader>
-
-          <div className="space-y-4 py-4">
-            <div className="space-y-2">
-              <Label htmlFor="faqQuestion">Pregunta</Label>
-              <Input
-                id="faqQuestion"
-                value={faqQuestion}
-                onChange={(e) => setFaqQuestion(e.target.value)}
-                placeholder="Ej: ¿Cuales son tus precios?"
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="faqAnswer">Respuesta</Label>
-              <Textarea
-                id="faqAnswer"
-                value={faqAnswer}
-                onChange={(e) => setFaqAnswer(e.target.value)}
-                className="min-h-[120px]"
-                placeholder="Escribe la respuesta que quieres que de tu bot..."
-              />
-            </div>
-          </div>
-
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setFaqModalOpen(false)}>
-              Cancelar
-            </Button>
-            <Button
-              onClick={handleAddFAQ}
-              disabled={!faqQuestion.trim() || !faqAnswer.trim() || addFAQMutation.isPending}
-            >
-              {addFAQMutation.isPending && (
-                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-              )}
-              Guardar FAQ
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
     </div>
   );
 }
