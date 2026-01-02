@@ -1683,18 +1683,23 @@ USA ESTA RESPUESTA PARA LA OBJECION (adaptala a tu tono):
         is_cacheable = intent not in NON_CACHEABLE_INTENTS
         cached_response = None
 
-        if is_cacheable:
+        # TEMPORARY: Bypass cache to debug fallback issue
+        bypass_cache = True  # TODO: Remove after fixing fallback bug
+
+        if is_cacheable and not bypass_cache:
             # Normalizar mensaje para cache (sin puntuacion, minusculas)
             normalized_msg = message_text.lower().strip()
             cached_response = response_cache.get(normalized_msg, **cache_key_params)
 
             if cached_response:
-                logger.info(f"Cache HIT for intent {intent.value}")
+                logger.info(f"Cache HIT for intent {intent.value}: {cached_response[:50]}")
                 response_text = cached_response
                 record_cache_hit(self.creator_id)
             else:
                 logger.debug(f"Cache MISS for intent {intent.value}")
                 record_cache_miss(self.creator_id)
+        else:
+            logger.info(f"Cache BYPASSED for debugging")
 
         # Generar respuesta con LLM solo si no hay cache
         if not cached_response:
