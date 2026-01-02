@@ -150,7 +150,7 @@ export default function Products() {
 
     try {
       if (editingProduct) {
-        await updateProductMutation.mutateAsync({ productId: editingProduct.id, data: productData });
+        await updateProductMutation.mutateAsync({ productId: editingProduct.id, product: productData });
         toast({ title: "Updated", description: "Product updated successfully" });
       } else {
         await addProductMutation.mutateAsync(productData);
