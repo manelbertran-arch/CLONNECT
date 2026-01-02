@@ -1033,6 +1033,7 @@ IMPORTANTE: Las instrucciones anteriores son OBLIGATORIAS y tienen prioridad sob
                 knowledge = db_service.get_full_knowledge(self.creator_id)
                 faqs = knowledge.get("faqs", [])
                 about = knowledge.get("about", {})
+                logger.info(f"Loaded knowledge: {len(faqs)} FAQs, about has {sum(1 for v in about.values() if v)} fields")
 
                 # Build About section
                 if about and any(about.values()):
@@ -1626,9 +1627,17 @@ USA ESTA RESPUESTA PARA LA OBJECION (adaptala a tu tono):
                 # === SELF-CONSISTENCY CHECK ===
                 # Validate response confidence before sending
                 # If confidence < 0.6 -> use safe fallback response
-                # SKIP for simple intents (greeting, thanks, goodbye) with high intent confidence
-                simple_intents = {Intent.GREETING, Intent.THANKS, Intent.GOODBYE}
-                skip_consistency = intent in simple_intents and confidence >= 0.8
+                # SKIP for intents that can be answered from FAQs/Knowledge
+                faq_answerable_intents = {
+                    Intent.GREETING, Intent.THANKS, Intent.GOODBYE,
+                    Intent.QUESTION_PRODUCT,  # "¿cuánto cuesta?", "¿qué incluye?"
+                    Intent.QUESTION_GENERAL,  # "¿cómo puedo pagar?"
+                    Intent.INTEREST_STRONG,   # "quiero comprar el curso"
+                    Intent.INTEREST_SOFT,     # "me interesa..."
+                    Intent.BOOKING,           # "quiero agendar"
+                }
+                # Skip consistency for FAQ-answerable intents OR high confidence simple intents
+                skip_consistency = intent in faq_answerable_intents and confidence >= 0.7
 
                 if skip_consistency:
                     logger.info(f"Skipping self-consistency for simple intent {intent.value} (confidence={confidence:.2f})")
