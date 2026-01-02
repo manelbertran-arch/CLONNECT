@@ -101,18 +101,29 @@ NON_CACHEABLE_INTENTS = {
 }
 
 
-def truncate_response(response: str, max_sentences: int = 3) -> str:
-    """Trunca respuestas largas a máximo N frases"""
+def truncate_response(response: str, max_sentences: int = 2) -> str:
+    """Trunca respuestas largas a máximo N frases - AGRESIVO"""
     if not response:
         return response
 
-    # Split by sentence endings
     import re
-    sentences = re.split(r'(?<=[.!?])\s+', response.strip())
 
-    if len(sentences) > max_sentences:
+    # Clean up the response first
+    response = response.strip()
+
+    # Split by sentence endings (. ! ? followed by space or end)
+    # Also handle cases like "297€." or "30 días."
+    sentences = re.split(r'(?<=[.!?])\s+', response)
+    sentences = [s.strip() for s in sentences if s.strip()]
+
+    original_count = len(sentences)
+
+    if original_count > max_sentences:
         truncated = ' '.join(sentences[:max_sentences])
-        logger.debug(f"Truncated response from {len(sentences)} to {max_sentences} sentences")
+        # Ensure it ends with punctuation
+        if truncated and truncated[-1] not in '.!?':
+            truncated += '.'
+        logger.info(f"TRUNCATED response from {original_count} to {max_sentences} sentences")
         return truncated
 
     return response
@@ -126,9 +137,11 @@ def clean_response_placeholders(response: str, payment_links: list) -> str:
     # Get first available payment link
     real_link = ""
     for link in payment_links:
-        if link and link.startswith("http"):
+        if link and isinstance(link, str) and link.startswith("http"):
             real_link = link
             break
+
+    logger.info(f"Payment links available: {payment_links}, using: {real_link}")
 
     # Replace common placeholders
     placeholders = [
@@ -143,6 +156,15 @@ def clean_response_placeholders(response: str, payment_links: list) -> str:
             else:
                 # Remove placeholder if no link available
                 response = response.replace(placeholder, "")
+
+    # Clean up empty link patterns like "enlace: ." or "link: ."
+    import re
+    # Remove patterns like "siguiente enlace: ." or "aquí: ." when link was empty
+    response = re.sub(r'(enlace|link|aquí|here):\s*\.', '', response, flags=re.IGNORECASE)
+    # Remove double spaces
+    response = re.sub(r'\s+', ' ', response)
+    # Remove orphaned punctuation
+    response = re.sub(r'\s+([.!?])', r'\1', response)
 
     return response.strip()
 
@@ -1688,8 +1710,8 @@ USA ESTA RESPUESTA PARA LA OBJECION (adaptala a tu tono):
                     logger.warning(f"Guardrail check failed: {ge}")
 
                 # === POST-PROCESSING: BREVEDAD Y LINKS ===
-                # 1. Truncar a máximo 3 frases
-                response_text = truncate_response(response_text, max_sentences=3)
+                # 1. Truncar a máximo 2 frases (AGRESIVO - el LLM ignora instrucciones)
+                response_text = truncate_response(response_text, max_sentences=2)
 
                 # 2. Reemplazar placeholders de links con links reales
                 payment_links = [p.get('payment_link', p.get('url', '')) for p in self.products]
