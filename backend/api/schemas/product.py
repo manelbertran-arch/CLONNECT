@@ -8,14 +8,22 @@ class ProductCreate(BaseModel):
     description: Optional[str] = None
     price: float = Field(..., ge=0)
     currency: str = Field(default="EUR", max_length=3)
+    payment_link: Optional[str] = None
     is_active: bool = True
+
+    class Config:
+        extra = "ignore"  # Ignore unknown fields from frontend
 
 class ProductUpdate(BaseModel):
     name: Optional[str] = None
     description: Optional[str] = None
     price: Optional[float] = Field(default=None, ge=0)
     currency: Optional[str] = None
+    payment_link: Optional[str] = None
     is_active: Optional[bool] = None
+
+    class Config:
+        extra = "ignore"  # Ignore unknown fields from frontend
 
 class ProductResponse(BaseModel):
     id: str
@@ -23,6 +31,7 @@ class ProductResponse(BaseModel):
     description: Optional[str] = None
     price: float
     currency: str
+    payment_link: Optional[str] = None
     is_active: bool
     created_at: Optional[datetime] = None
 
