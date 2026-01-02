@@ -94,12 +94,17 @@ export interface Product {
   id: string;
   name: string;
   description?: string;
+  type?: string;          // Product type (ebook, course, etc)
   price: number;
   currency?: string;
   payment_link?: string;  // Backend field name
-  url?: string;           // Frontend alias (deprecated)
+  purchase_url?: string;  // Frontend alias
+  url?: string;           // Deprecated alias
   is_active?: boolean;    // Backend field name
-  active?: boolean;       // Frontend alias (deprecated)
+  bot_enabled?: boolean;  // Frontend alias
+  active?: boolean;       // Deprecated alias
+  revenue?: number;       // Stats
+  sales_count?: number;   // Stats
 }
 
 export interface DashboardOverview {
