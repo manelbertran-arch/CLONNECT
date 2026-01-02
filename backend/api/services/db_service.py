@@ -504,22 +504,37 @@ def create_product(creator_name: str, data: dict):
 def update_product(creator_name: str, product_id: str, data: dict):
     session = get_session()
     if not session:
+        logger.error("update_product: No session available")
         return False
     try:
         from api.models import Creator, Product
         import uuid
+        logger.info(f"update_product: creator={creator_name}, product_id={product_id}")
+        logger.info(f"update_product: data received = {data}")
+
         creator = session.query(Creator).filter_by(name=creator_name).first()
         if not creator:
+            logger.error(f"update_product: Creator '{creator_name}' not found")
             return False
+
         product = session.query(Product).filter_by(creator_id=creator.id, id=uuid.UUID(product_id)).first()
         if product:
+            logger.info(f"update_product: Found product '{product.name}', current payment_link='{product.payment_link}'")
             for key, value in data.items():
                 if hasattr(product, key):
+                    old_value = getattr(product, key, None)
                     setattr(product, key, value)
+                    logger.info(f"update_product: Set {key}: '{old_value}' -> '{value}'")
+                else:
+                    logger.warning(f"update_product: Product has no attribute '{key}'")
             session.commit()
+            logger.info(f"update_product: Committed. payment_link is now '{product.payment_link}'")
             return True
+        else:
+            logger.error(f"update_product: Product {product_id} not found for creator {creator.id}")
         return False
     except Exception as e:
+        logger.error(f"update_product: Exception: {e}", exc_info=True)
         session.rollback()
         return False
     finally:
