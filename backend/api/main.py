@@ -2168,7 +2168,7 @@ async def generate_ai_rules(request: dict = Body(...)):
     if not prompt:
         raise HTTPException(status_code=400, detail="Prompt required")
 
-    xai_api_key = os.getenv("XAI_API_KEY")
+    xai_api_key = (os.getenv("XAI_API_KEY") or "").strip()
 
     if not xai_api_key:
         # Fallback: generate basic rules locally
@@ -2227,7 +2227,7 @@ async def generate_knowledge_full(request: dict = Body(...)):
 
     logger.info(f"Generating full knowledge for: {content[:100]}...")
 
-    xai_api_key = os.getenv("XAI_API_KEY")
+    xai_api_key = (os.getenv("XAI_API_KEY") or "").strip()
 
     if not xai_api_key:
         logger.warning("XAI_API_KEY not configured, using fallback")
@@ -2415,7 +2415,7 @@ async def generate_ai_knowledge(request: dict = Body(...)):
 
     logger.info(f"Generating {content_type} for content: {prompt[:100]}...")
 
-    xai_api_key = os.getenv("XAI_API_KEY")
+    xai_api_key = (os.getenv("XAI_API_KEY") or "").strip()
 
     if not xai_api_key:
         logger.warning("XAI_API_KEY not configured, using smart fallback")

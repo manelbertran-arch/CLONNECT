@@ -86,7 +86,7 @@ class GroqClient(LLMClient):
     """Cliente Groq - Llama 3.1 70B gratis"""
 
     def __init__(self, api_key: str = None, model: str = None):
-        self.api_key = api_key or os.getenv("GROQ_API_KEY")
+        self.api_key = (api_key or os.getenv("GROQ_API_KEY") or "").strip()
         self.model = model or DEFAULT_GROQ_MODEL
         self._client = None
 
