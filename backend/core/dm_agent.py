@@ -1725,12 +1725,18 @@ USA ESTA RESPUESTA PARA LA OBJECION (adaptala a tu tono):
                         {"role": "system", "content": system_prompt},
                         {"role": "user", "content": user_prompt}
                     ]
+                    logger.info(f"=== DEBUG: Calling LLM ===")
+                    logger.info(f"Message: {message_text[:100]}")
+                    logger.info(f"Intent: {intent.value} ({confidence:.2f})")
+                    logger.info(f"Products loaded: {len(self.products)}")
+
                     response_text = await self.llm.chat(
                         messages,
                         max_tokens=150,  # Suficiente para respuestas completas
                         temperature=0.8  # Más natural, menos robótico
                     )
                     response_text = response_text.strip()
+                    logger.info(f"LLM Response: {response_text[:150] if response_text else 'EMPTY'}")
 
                 # Validate response with guardrails
                 try:
@@ -1833,8 +1839,13 @@ USA ESTA RESPUESTA PARA LA OBJECION (adaptala a tu tono):
                     logger.debug(f"Cached response for intent {intent.value}")
 
             except Exception as e:
-                logger.error(f"Error generating response: {e}")
+                import traceback
+                logger.error(f"=== ERROR generating response ===")
+                logger.error(f"Error type: {type(e).__name__}")
+                logger.error(f"Error message: {e}")
+                logger.error(f"Traceback: {traceback.format_exc()}")
                 response_text = self._get_fallback_response(intent)
+                logger.info(f"Using fallback response: {response_text[:100]}")
 
                 # Registrar error en metricas
                 provider = os.getenv("LLM_PROVIDER", "unknown")
