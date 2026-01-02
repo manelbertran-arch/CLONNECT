@@ -296,6 +296,7 @@ def get_products(creator_name: str):
             "description": p.description,
             "price": p.price,
             "currency": p.currency,
+            "payment_link": getattr(p, 'payment_link', '') or "",
             "is_active": p.is_active,
         } for p in products]
     finally:
