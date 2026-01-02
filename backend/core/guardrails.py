@@ -93,18 +93,35 @@ class ResponseGuardrail:
         issues = []
 
         if not products:
+            # No products = no price validation (allow all prices)
+            logger.debug("No products provided, skipping price check")
             return issues
 
-        # Extract known prices
+        # Extract known prices with robust conversion
         known_prices = set()
         for p in products:
             price = p.get("price")
-            if price:
-                # Add various formats
-                known_prices.add(str(int(price)))
-                known_prices.add(f"{price:.2f}".replace(".", ","))
-                known_prices.add(f"{price:.2f}")
-                known_prices.add(str(price))
+            if price is not None:
+                try:
+                    # Convert to float first for consistent handling
+                    float_price = float(price)
+                    # Add various formats
+                    known_prices.add(str(int(float_price)))  # "297"
+                    known_prices.add(f"{float_price:.0f}")   # "297"
+                    known_prices.add(f"{float_price:.2f}")   # "297.00"
+                    known_prices.add(f"{float_price:.2f}".replace(".", ","))  # "297,00"
+                    known_prices.add(str(price))  # Original value as-is
+                except (ValueError, TypeError) as e:
+                    logger.debug(f"Could not convert price '{price}' to float: {e}")
+                    # Still add the raw value
+                    known_prices.add(str(price))
+
+        logger.debug(f"Known prices from {len(products)} products: {known_prices}")
+
+        if not known_prices:
+            # No prices extracted = skip validation
+            logger.debug("No known prices extracted, skipping price check")
+            return issues
 
         # Find prices in response (€, $, EUR patterns)
         price_patterns = [
@@ -121,19 +138,25 @@ class ResponseGuardrail:
             matches = re.findall(pattern, response, re.IGNORECASE)
             found_prices.update(matches)
 
+        logger.debug(f"Found prices in response: {found_prices}")
+
         # Check if found prices are in known prices
-        for price in found_prices:
-            normalized = price.replace(",", ".")
-            # Remove trailing zeros for comparison
+        for price_str in found_prices:
+            normalized = price_str.replace(",", ".")
             try:
                 float_price = float(normalized)
                 str_variants = [
                     str(int(float_price)),
+                    f"{float_price:.0f}",
                     f"{float_price:.2f}",
-                    f"{float_price:.2f}".replace(".", ",")
+                    f"{float_price:.2f}".replace(".", ","),
+                    price_str  # Original as found
                 ]
                 if not any(v in known_prices for v in str_variants):
-                    issues.append(f"Unknown price mentioned: {price}")
+                    logger.warning(f"Price '{price_str}' not in known prices {known_prices}")
+                    issues.append(f"Unknown price mentioned: {price_str}")
+                else:
+                    logger.debug(f"Price '{price_str}' matches known products")
             except ValueError:
                 pass
 
