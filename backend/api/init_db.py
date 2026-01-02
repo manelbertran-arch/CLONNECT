@@ -33,6 +33,8 @@ def run_migrations(engine):
         ("creators", "knowledge_about", "JSON"),
         # Price for booking links
         ("booking_links", "price", "INTEGER DEFAULT 0"),
+        # Payment link for products (Stripe/PayPal)
+        ("products", "payment_link", "VARCHAR(500) DEFAULT ''"),
     ]
 
     with engine.connect() as conn:

@@ -678,7 +678,18 @@ class DMResponderAgent:
         return self._default_config()
 
     def _load_products(self) -> list:
-        """Cargar productos desde JSON"""
+        """Cargar productos desde PostgreSQL (primero) o JSON (fallback)"""
+        # Try PostgreSQL first
+        if USE_POSTGRES and db_service:
+            try:
+                products = db_service.get_products(self.creator_id)
+                if products:
+                    logger.info(f"Loaded {len(products)} products from PostgreSQL")
+                    return products
+            except Exception as e:
+                logger.warning(f"Error loading products from DB: {e}")
+
+        # Fallback to JSON
         products_path = Path(f"data/products/{self.creator_id}_products.json")
         if products_path.exists():
             try:
@@ -687,12 +698,12 @@ class DMResponderAgent:
                     # Handle both list and dict with 'products' key
                     if isinstance(products, dict):
                         products = products.get('products', [])
-                    logger.info(f"Loaded {len(products)} products")
+                    logger.info(f"Loaded {len(products)} products from JSON")
                     return products
             except Exception as e:
-                logger.error(f"Error loading products: {e}")
+                logger.error(f"Error loading products from JSON: {e}")
 
-        logger.warning(f"Products not found: {products_path}")
+        logger.warning(f"No products found for {self.creator_id}")
         return []
 
     def _default_config(self) -> dict:

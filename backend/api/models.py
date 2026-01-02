@@ -82,6 +82,7 @@ class Product(Base):
     description = Column(Text)
     price = Column(Float)
     currency = Column(String(3), default="EUR")
+    payment_link = Column(String(500), default="")  # Stripe/PayPal payment link
     is_active = Column(Boolean, default=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
