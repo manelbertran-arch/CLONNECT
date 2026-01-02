@@ -46,7 +46,18 @@ async function apiFetch<T>(
 
   if (!response.ok) {
     const errorData = await response.json().catch(() => ({}));
-    throw new Error(errorData.detail || `API Error: ${response.status}`);
+    // Handle validation errors (422) which have detail as array
+    let errorMessage = `API Error: ${response.status}`;
+    if (errorData.detail) {
+      if (Array.isArray(errorData.detail)) {
+        // Pydantic validation errors
+        errorMessage = errorData.detail.map((e: any) => `${e.loc?.join('.')}: ${e.msg}`).join(', ');
+      } else {
+        errorMessage = String(errorData.detail);
+      }
+    }
+    console.error(`API Error ${response.status}:`, errorData);
+    throw new Error(errorMessage);
   }
 
   return response.json();
