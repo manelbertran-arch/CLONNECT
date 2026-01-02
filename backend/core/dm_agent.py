@@ -933,6 +933,25 @@ class DMResponderAgent:
         clone_vocabulary = config.get('clone_vocabulary', '')
         logger.info(f"Building system prompt: name={name}, tone={clone_tone}, vocabulary_length={len(clone_vocabulary)}")
 
+        # IMPORTANT: If clone_vocabulary has instructions, they take PRIORITY
+        # Detect preset type from vocabulary to override clone_tone
+        vocab_lower = clone_vocabulary.lower() if clone_vocabulary else ""
+        detected_preset = None
+        if "trata de usted" in vocab_lower or "evita emojis" in vocab_lower:
+            clone_tone = "professional"
+            detected_preset = "profesional"
+        elif "ve al grano" in vocab_lower or "llamadas a la acción" in vocab_lower:
+            clone_tone = "casual"  # Vendedor is direct
+            detected_preset = "vendedor"
+        elif "posiciónate como experto" in vocab_lower or "da consejos prácticos" in vocab_lower:
+            detected_preset = "mentor"
+            # Mentor keeps friendly tone but with expert positioning
+        elif "tutea siempre" in vocab_lower or "amigo de confianza" in vocab_lower:
+            detected_preset = "amigo"
+
+        if detected_preset:
+            logger.info(f"Detected personality preset: {detected_preset}, tone override: {clone_tone}")
+
         # Build tone instruction based on clone_tone
         if clone_tone == "professional":
             tone_instruction = "Responde de manera formal y profesional, sin emojis, con lenguaje corporativo y serio."
@@ -944,10 +963,20 @@ class DMResponderAgent:
             tone_instruction = "Responde de manera amigable y cercana, equilibrando profesionalismo con calidez."
             emoji_instruction = "- Uso de emojis: moderado (1-2 por mensaje, VARIADOS)"
 
-        # Get custom vocabulary/instructions from Settings (already loaded above)
+        # Get custom vocabulary/instructions from Settings - BUILD PRIORITY SECTION
         vocabulary_section = ""
         if clone_vocabulary:
-            vocabulary_section = f"\n\nINSTRUCCIONES PERSONALIZADAS:\n{clone_vocabulary.strip()}\n"
+            vocabulary_section = f"""
+
+=== INSTRUCCIONES DE PERSONALIDAD (MÁXIMA PRIORIDAD) ===
+{clone_vocabulary.strip()}
+
+IMPORTANTE: Las instrucciones anteriores son OBLIGATORIAS y tienen prioridad sobre cualquier otra regla.
+- Si dice "trata de usted" → NUNCA tutees
+- Si dice "evita emojis" → NO uses emojis
+- Si dice "ve al grano" → NO hagas preámbulos largos
+=== FIN INSTRUCCIONES PRIORITARIAS ===
+"""
 
         # Construir lista de productos
         products_text = ""
@@ -1034,12 +1063,12 @@ class DMResponderAgent:
                 logger.warning(f"Failed to load knowledge base: {e}")
 
         return f"""Eres {name}. {tone_instruction}
-
+{vocabulary_section}
 SOBRE MI:
 - Nombre: {name}
 - Tono: {clone_tone}
 {emoji_instruction}
-- Longitud respuestas: conciso, maximo 2-3 frases{vocabulary_section}
+- Longitud respuestas: conciso, maximo 2-3 frases
 
 MIS PRODUCTOS:
 {products_text}
