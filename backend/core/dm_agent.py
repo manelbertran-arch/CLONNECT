@@ -101,6 +101,52 @@ NON_CACHEABLE_INTENTS = {
 }
 
 
+def truncate_response(response: str, max_sentences: int = 3) -> str:
+    """Trunca respuestas largas a máximo N frases"""
+    if not response:
+        return response
+
+    # Split by sentence endings
+    import re
+    sentences = re.split(r'(?<=[.!?])\s+', response.strip())
+
+    if len(sentences) > max_sentences:
+        truncated = ' '.join(sentences[:max_sentences])
+        logger.debug(f"Truncated response from {len(sentences)} to {max_sentences} sentences")
+        return truncated
+
+    return response
+
+
+def clean_response_placeholders(response: str, payment_links: list) -> str:
+    """Reemplaza placeholders de links con links reales"""
+    if not response:
+        return response
+
+    # Get first available payment link
+    real_link = ""
+    for link in payment_links:
+        if link and link.startswith("http"):
+            real_link = link
+            break
+
+    # Replace common placeholders
+    placeholders = [
+        "[LINK_REAL]", "[link de pago]", "[link]", "[LINK]",
+        "(link de pago)", "(link)", "[payment link]", "[pago]"
+    ]
+
+    for placeholder in placeholders:
+        if placeholder in response:
+            if real_link:
+                response = response.replace(placeholder, real_link)
+            else:
+                # Remove placeholder if no link available
+                response = response.replace(placeholder, "")
+
+    return response.strip()
+
+
 # === VARIEDAD EN SALUDOS ===
 GREETING_VARIANTS = {
     "es": [
@@ -1087,61 +1133,46 @@ IMPORTANTE: Las instrucciones anteriores son OBLIGATORIAS y tienen prioridad sob
             except Exception as e:
                 logger.warning(f"Failed to load knowledge base: {e}")
 
-        return f"""Eres {name}. {tone_instruction}
+        # Get first payment link for examples
+        first_payment_link = ""
+        for p in self.products:
+            link = p.get('payment_link', p.get('url', ''))
+            if link:
+                first_payment_link = link
+                break
+
+        return f"""⚠️ REGLA CRÍTICA - LEE PRIMERO ⚠️
+Tus respuestas deben ser de MÁXIMO 2 FRASES. No más. NUNCA.
+Si escribes más de 2 frases, ESTÁS FALLANDO.
+
+EJEMPLOS CORRECTOS (imita estos):
+- "297€. ¿Te cuento qué incluye?"
+- "Sí, aceptamos Bizum. ¿Te paso los datos?"
+- "30 días de garantía. ¿Alguna duda más?"
+- "¡Genial! Aquí tienes: {first_payment_link or 'el link de pago'}"
+
+EJEMPLOS INCORRECTOS (NUNCA hagas esto):
+❌ Párrafos largos explicando todo
+❌ Repetir precio + contenido + garantía
+❌ Más de 2 frases
+❌ Decir "[link de pago]" o "[LINK_REAL]"
+
+---
+Eres {name}. {tone_instruction}
 {vocabulary_section}
-=== REGLA #1: BREVEDAD (MUY IMPORTANTE) ===
-- Respuestas CORTAS: 1-2 frases MÁXIMO
-- Responde SOLO lo que preguntan, NO des info extra
-- NO repitas info del producto en cada respuesta
-- Sé CONVERSACIONAL, no un folleto de ventas
-- Termina con pregunta corta para continuar
-
-EJEMPLOS DE BUENAS RESPUESTAS:
-- "¿Cuánto cuesta?" → "297€. ¿Te cuento qué incluye?"
-- "¿Cómo pago?" → "Tarjeta, PayPal, Bizum o transferencia. ¿Cuál prefieres?"
-- "¿Hay garantía?" → "Sí, 30 días. Si no te convence, te devuelvo el dinero."
-- "Quiero comprar" → "¡Genial! Aquí tienes el link: [LINK_REAL]. ¿Alguna duda?"
-
-EJEMPLOS DE MALAS RESPUESTAS (NO HAGAS ESTO):
-- Respuestas de más de 3 frases
-- Repetir precio + garantía + contenido en cada mensaje
-- Decir "[link de pago]" en vez del link real
-- Sonar como anuncio o folleto
-
-SOBRE MI:
-- Nombre: {name}
-- Tono: {clone_tone}
-{emoji_instruction}
-
 MIS PRODUCTOS:
 {products_text}
-
-LINKS DE PAGO (usa estos, NUNCA "[link de pago]"):
+LINKS DE PAGO:
 {payment_links_text}
-{knowledge_section}{examples_text}
-REGLAS BASICAS:
-1. Responde como {name}, en primera persona
-2. NUNCA digas que eres un bot o IA
+{knowledge_section}
+REGLAS:
+1. Responde como {name}, primera persona
+2. NUNCA digas que eres bot/IA
 3. {formality_rule}
-4. Respuestas CORTAS: 1-2 frases
-5. Se autentico, no vendedor agresivo
+4. MÁXIMO 2 frases por respuesta
+{emoji_instruction}
 
-USO DEL NOMBRE DEL USUARIO:
-- USA SOLO el PRIMER NOMBRE (ej: "James", NUNCA "James Hawk")
-- MAXIMO 1 vez cada 5 mensajes - la MAYORIA sin nombre
-
-INICIO DE MENSAJES - VARIA SIEMPRE:
-- PROHIBIDO usar "Ey" mas de UNA vez
-- Opciones: "¡Hola!", "Mira,", "Claro,", o empezar DIRECTO
-
-{emoji_rules}
-
-LINKS:
-- Da link SOLO cuando usuario quiere comprar
-- Usa el link REAL de arriba, NUNCA "[link de pago]"
-
-IDIOMA:
-- Responde en el MISMO idioma que el usuario"""
+IDIOMA: Responde en el idioma del usuario"""
 
     def _build_user_prompt(
         self,
@@ -1636,7 +1667,7 @@ USA ESTA RESPUESTA PARA LA OBJECION (adaptala a tu tono):
                         {"role": "system", "content": system_prompt},
                         {"role": "user", "content": user_prompt}
                     ]
-                    response_text = await self.llm.chat(messages, max_tokens=200, temperature=0.7)
+                    response_text = await self.llm.chat(messages, max_tokens=150, temperature=0.7)
                     response_text = response_text.strip()
 
                 # Validate response with guardrails
@@ -1655,6 +1686,14 @@ USA ESTA RESPUESTA PARA LA OBJECION (adaptala a tu tono):
                     )
                 except Exception as ge:
                     logger.warning(f"Guardrail check failed: {ge}")
+
+                # === POST-PROCESSING: BREVEDAD Y LINKS ===
+                # 1. Truncar a máximo 3 frases
+                response_text = truncate_response(response_text, max_sentences=3)
+
+                # 2. Reemplazar placeholders de links con links reales
+                payment_links = [p.get('payment_link', p.get('url', '')) for p in self.products]
+                response_text = clean_response_placeholders(response_text, payment_links)
 
                 # === SELF-CONSISTENCY CHECK ===
                 # Validate response confidence before sending
