@@ -112,7 +112,7 @@ export default function Products() {
       name: product.name || "",
       description: product.description || "",
       type: product.type || "ebook",
-      price: String(product.price || ""),
+      price: product.price != null ? String(product.price) : "",
       currency: product.currency || "EUR",
       purchase_url: product.purchase_url || "",
       bot_enabled: product.bot_enabled !== false,
@@ -126,14 +126,17 @@ export default function Products() {
       toast({ title: "Error", description: "Product name is required", variant: "destructive" });
       return;
     }
-    if (!formData.price || parseFloat(formData.price) < 0) {
+
+    // Validate price - accept any valid number >= 0
+    const priceValue = parseFloat(formData.price);
+    if (formData.price.trim() === "" || isNaN(priceValue) || priceValue < 0) {
       toast({ title: "Error", description: "Valid price is required", variant: "destructive" });
       return;
     }
 
     const productData = {
       ...formData,
-      price: parseFloat(formData.price) || 0,
+      price: priceValue,
     };
 
     try {
