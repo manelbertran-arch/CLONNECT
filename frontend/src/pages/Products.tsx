@@ -154,7 +154,9 @@ export default function Products() {
       resetForm();
       refetch();
     } catch (error: any) {
-      toast({ title: "Error", description: error.message || "Failed to save product", variant: "destructive" });
+      console.error("Save product error:", error);
+      const message = error?.response?.data?.detail || error?.response?.data?.message || error?.message || "Failed to save product";
+      toast({ title: "Error", description: String(message), variant: "destructive" });
     }
   };
 
@@ -165,7 +167,9 @@ export default function Products() {
       toast({ title: "Deleted", description: "Product deleted" });
       refetch();
     } catch (error: any) {
-      toast({ title: "Error", description: error.message || "Failed to delete", variant: "destructive" });
+      console.error("Delete product error:", error);
+      const message = error?.response?.data?.detail || error?.response?.data?.message || error?.message || "Failed to delete";
+      toast({ title: "Error", description: String(message), variant: "destructive" });
     }
   };
 
