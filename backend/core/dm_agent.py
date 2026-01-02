@@ -1746,6 +1746,8 @@ USA ESTA RESPUESTA PARA LA OBJECION (adaptala a tu tono):
                 # Validate response with guardrails
                 try:
                     guardrail = get_response_guardrail()
+                    product_prices = [p.get("price") for p in self.products if p.get("price")]
+                    logger.debug(f"Guardrail context: {len(self.products)} products, prices: {product_prices}")
                     guardrail_context = {
                         "products": self.products,
                         "allowed_urls": [p.get("payment_link", "") for p in self.products if p.get("payment_link")],
