@@ -130,9 +130,11 @@ def truncate_response(response: str, max_sentences: int = 2) -> str:
 
 
 def clean_response_placeholders(response: str, payment_links: list) -> str:
-    """Reemplaza placeholders de links con links reales"""
+    """Reemplaza placeholders de links con links reales y añade link si falta"""
     if not response:
         return response
+
+    import re
 
     # Get first available payment link
     real_link = ""
@@ -157,8 +159,16 @@ def clean_response_placeholders(response: str, payment_links: list) -> str:
                 # Remove placeholder if no link available
                 response = response.replace(placeholder, "")
 
+    # If response mentions giving a link but no URL present, add it
+    link_phrases = ['aquí tienes', 'here you go', 'aquí está', 'here is', 'este enlace', 'this link']
+    has_link_phrase = any(phrase in response.lower() for phrase in link_phrases)
+    has_url = 'http' in response.lower()
+
+    if has_link_phrase and not has_url and real_link:
+        logger.info(f"Response mentions link but has no URL, appending: {real_link}")
+        response = f"{response} {real_link}"
+
     # Clean up empty link patterns like "enlace: ." or "link: ."
-    import re
     # Remove patterns like "siguiente enlace: ." or "aquí: ." when link was empty
     response = re.sub(r'(enlace|link|aquí|here):\s*\.', '', response, flags=re.IGNORECASE)
     # Remove double spaces
@@ -1578,6 +1588,8 @@ USA ESTA RESPUESTA PARA LA OBJECION (adaptala a tu tono):
             product_url = product.get('payment_link', product.get('url', ''))
             product_name = product.get('name', 'el producto')
 
+            logger.info(f"DIRECT PURCHASE: product={product_name}, payment_link={product_url}")
+
             # Subir purchase_intent a 85%+ inmediatamente
             follower.purchase_intent_score = max(follower.purchase_intent_score, 0.85)
             follower.is_lead = True
@@ -1587,11 +1599,19 @@ USA ESTA RESPUESTA PARA LA OBJECION (adaptala a tu tono):
             # Elegir emoji basado en idioma
             emoji = "🚀" if follower.preferred_language == "es" else "🎉"
 
-            # Respuesta CORTA - solo el link
-            if follower.preferred_language == "es":
-                response_text = f"¡Perfecto! {emoji} Aquí tienes: {product_url}"
+            # Respuesta CORTA - solo el link (si hay link)
+            if product_url:
+                if follower.preferred_language == "es":
+                    response_text = f"¡Perfecto! {emoji} Aquí tienes: {product_url}"
+                else:
+                    response_text = f"Perfect! {emoji} Here you go: {product_url}"
             else:
-                response_text = f"Perfect! {emoji} Here you go: {product_url}"
+                # No hay link configurado - pedir que contacte
+                logger.warning(f"No payment_link for product {product_name}")
+                if follower.preferred_language == "es":
+                    response_text = f"¡Genial que quieras {product_name}! {emoji} Escríbeme por aquí y te paso los detalles del pago."
+                else:
+                    response_text = f"Great that you want {product_name}! {emoji} Message me here and I'll send you the payment details."
 
             # Guardar en historial
             follower.last_messages.append({
@@ -1737,7 +1757,7 @@ USA ESTA RESPUESTA PARA LA OBJECION (adaptala a tu tono):
 
                     response_text = await self.llm.chat(
                         messages,
-                        max_tokens=150,  # Suficiente para respuestas completas
+                        max_tokens=80,  # CORTO - 1-2 frases máximo
                         temperature=0.8  # Más natural, menos robótico
                     )
                     response_text = response_text.strip()
