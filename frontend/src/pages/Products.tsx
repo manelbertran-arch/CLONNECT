@@ -111,14 +111,15 @@ export default function Products() {
   };
 
   const handleOpenEdit = (product: Product) => {
+    // Map backend field names to frontend form fields
     setFormData({
       name: product.name || "",
       description: product.description || "",
       type: product.type || "ebook",
       price: product.price != null ? String(product.price) : "",
       currency: product.currency || "EUR",
-      purchase_url: product.purchase_url || "",
-      bot_enabled: product.bot_enabled !== false,
+      purchase_url: product.purchase_url || product.payment_link || "",  // Backend uses payment_link
+      bot_enabled: product.bot_enabled ?? product.is_active ?? true,     // Backend uses is_active
     });
     setEditingProduct(product);
     setShowAddModal(true);
@@ -137,9 +138,14 @@ export default function Products() {
       return;
     }
 
+    // Map frontend fields to backend field names
     const productData = {
-      ...formData,
+      name: formData.name,
+      description: formData.description,
       price: priceValue,
+      currency: formData.currency,
+      payment_link: formData.purchase_url,  // Backend uses payment_link
+      is_active: formData.bot_enabled,       // Backend uses is_active
     };
 
     try {
