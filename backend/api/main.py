@@ -101,11 +101,7 @@ async def validation_exception_handler(request: Request, exc: RequestValidationE
     logger.error(f"URL: {request.url}")
     logger.error(f"Method: {request.method}")
     logger.error(f"Errors: {exc.errors()}")
-    try:
-        body = await request.body()
-        logger.error(f"Body: {body.decode('utf-8')[:500]}")
-    except:
-        pass
+    # Note: Don't try to read request.body() here - it may already be consumed
     return JSONResponse(
         status_code=422,
         content={"detail": exc.errors()}
