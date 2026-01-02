@@ -423,6 +423,33 @@ DIRECT_PURCHASE_KEYWORDS = [
     "quiero comprarlo",
     "lo voy a comprar",
     "voy a comprarlo",
+    # Affirmative responses (after bot asks "¿quieres el link?")
+    "sí",
+    "si",
+    "yes",
+    "ok",
+    "vale",
+    "claro",
+    "por supuesto",
+    "adelante",
+    "proceder",
+    "venga",
+    "dale",
+    "vamos",
+    "perfecto",
+    "porfa",
+    "por favor",
+    "ahora",
+    "ya",
+    # Explicit link requests
+    "por aqui",
+    "por aquí",
+    "aquí",
+    "aqui",
+    "mandalo",
+    "mándalo",
+    "envialo",
+    "envíalo",
 ]
 
 
@@ -1582,15 +1609,35 @@ USA ESTA RESPUESTA PARA LA OBJECION (adaptala a tu tono):
         # Buscar producto relevante
         product = self._get_relevant_product(message_text, intent)
         if product:
-            logger.info(f"Relevant product: {product.get('name')}")
+            logger.info(f"Relevant product: {product.get('name')}, payment_link={product.get('payment_link', 'NONE')}")
             if product.get('id') and product.get('id') not in follower.products_discussed:
                 follower.products_discussed.append(product.get('id'))
 
         # === FAST PATH: Compra directa ===
         # Cuando usuario QUIERE COMPRAR, solo dar el link - NO volver a vender
-        if is_direct_purchase_intent(message_text) and product:
-            product_url = product.get('payment_link', product.get('url', ''))
-            product_name = product.get('name', 'el producto')
+        if is_direct_purchase_intent(message_text):
+            logger.info(f"=== DIRECT PURCHASE INTENT DETECTED ===")
+            logger.info(f"Message: {message_text}")
+            logger.info(f"All products: {[(p.get('name'), p.get('payment_link', 'NONE')) for p in self.products]}")
+
+            # Try to find a product with a payment link
+            product_url = ""
+            product_name = "el producto"
+
+            # First try the relevant product
+            if product:
+                product_url = product.get('payment_link', product.get('url', ''))
+                product_name = product.get('name', 'el producto')
+
+            # If no link, try to find ANY product with a payment link
+            if not product_url:
+                for p in self.products:
+                    link = p.get('payment_link', p.get('url', ''))
+                    if link and link.startswith('http'):
+                        product_url = link
+                        product_name = p.get('name', 'el producto')
+                        logger.info(f"Found fallback payment link from product: {product_name}")
+                        break
 
             logger.info(f"DIRECT PURCHASE: product={product_name}, payment_link={product_url}")
 
@@ -1610,12 +1657,12 @@ USA ESTA RESPUESTA PARA LA OBJECION (adaptala a tu tono):
                 else:
                     response_text = f"Perfect! {emoji} Here you go: {product_url}"
             else:
-                # No hay link configurado - pedir que contacte
-                logger.warning(f"No payment_link for product {product_name}")
+                # No hay link configurado - escalate to human
+                logger.warning(f"NO PAYMENT LINK FOUND for any product!")
                 if follower.preferred_language == "es":
-                    response_text = f"¡Genial que quieras {product_name}! {emoji} Escríbeme por aquí y te paso los detalles del pago."
+                    response_text = f"¡Genial que quieras comprar! {emoji} Te paso con el equipo para completar el pago. Escríbenos y te atendemos enseguida."
                 else:
-                    response_text = f"Great that you want {product_name}! {emoji} Message me here and I'll send you the payment details."
+                    response_text = f"Great that you want to buy! {emoji} Let me connect you with the team to complete the payment."
 
             # Guardar en historial
             follower.last_messages.append({
