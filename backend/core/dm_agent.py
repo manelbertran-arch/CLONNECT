@@ -97,6 +97,7 @@ NON_CACHEABLE_INTENTS = {
     Intent.INTEREST_STRONG,  # Conversiones activas
     Intent.ESCALATION,
     Intent.SUPPORT,  # Soporte necesita respuestas personalizadas
+    Intent.OTHER,  # Fallback - siempre regenerar para evitar respuestas genéricas
 }
 
 
@@ -840,9 +841,24 @@ class DMResponderAgent:
         if any(w in msg for w in ['ya tengo', 'algo similar', 'parecido', 'otro curso', 'ya compre']):
             return Intent.OBJECTION_ALREADY_HAVE, 0.85
 
-        # Pregunta sobre producto
-        if any(w in msg for w in ['que incluye', 'contenido', 'modulos', 'cuanto cuesta', 'precio', 'beneficios']):
-            return Intent.QUESTION_PRODUCT, 0.85
+        # Pregunta sobre producto - EXPANDIDO con tildes y métodos de pago
+        product_question_kw = [
+            # Precio
+            'que incluye', 'qué incluye', 'contenido', 'modulos', 'módulos',
+            'cuanto cuesta', 'cuánto cuesta', 'precio', 'beneficios', 'vale',
+            'cuanto vale', 'cuánto vale', 'que cuesta', 'qué cuesta',
+            # Garantía
+            'garantia', 'garantía', 'devolucion', 'devolución', 'reembolso',
+            # Métodos de pago
+            'como pago', 'cómo pago', 'como puedo pagar', 'cómo puedo pagar',
+            'metodos de pago', 'métodos de pago', 'formas de pago',
+            'bizum', 'paypal', 'stripe', 'transferencia', 'tarjeta',
+            # Acceso
+            'acceso', 'duracion', 'duración', 'cuanto dura', 'cuánto dura',
+            'que tiene', 'qué tiene'
+        ]
+        if any(w in msg for w in product_question_kw):
+            return Intent.QUESTION_PRODUCT, 0.90
 
         # Pregunta general
         if any(w in msg for w in ['quien eres', 'que haces', 'a que te dedicas', 'sobre ti']):
