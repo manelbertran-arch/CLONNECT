@@ -90,6 +90,27 @@ app.add_middleware(
     allow_credentials=True,
 )
 
+# Add exception handler to log 422 validation errors
+from fastapi.exceptions import RequestValidationError
+from fastapi.responses import JSONResponse
+
+@app.exception_handler(RequestValidationError)
+async def validation_exception_handler(request: Request, exc: RequestValidationError):
+    logger = logging.getLogger("api.validation")
+    logger.error(f"=== VALIDATION ERROR 422 ===")
+    logger.error(f"URL: {request.url}")
+    logger.error(f"Method: {request.method}")
+    logger.error(f"Errors: {exc.errors()}")
+    try:
+        body = await request.body()
+        logger.error(f"Body: {body.decode('utf-8')[:500]}")
+    except:
+        pass
+    return JSONResponse(
+        status_code=422,
+        content={"detail": exc.errors()}
+    )
+
 # Metrics middleware
 if PROMETHEUS_AVAILABLE:
     app.add_middleware(MetricsMiddleware)
