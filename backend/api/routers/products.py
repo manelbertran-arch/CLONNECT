@@ -46,13 +46,17 @@ async def create_product(creator_id: str, data: dict = Body(...)):
 
 @router.put("/{creator_id}/products/{product_id}")
 async def update_product(creator_id: str, product_id: str, data: dict = Body(...)):
+    logger.info(f"=== ROUTER UPDATE PRODUCT ===")
+    logger.info(f"Creator: {creator_id}, Product ID: {product_id}")
+    logger.info(f"Data received: {data}")
     if USE_DB:
         try:
             success = db_service.update_product(creator_id, product_id, data)
+            logger.info(f"DB update result: {success}")
             if success:
                 return {"status": "ok", "message": "Product updated"}
         except Exception as e:
-            logger.warning(f"DB update product failed: {e}")
+            logger.error(f"DB update product failed: {e}", exc_info=True)
     raise HTTPException(status_code=404, detail="Product not found")
 
 @router.delete("/{creator_id}/products/{product_id}")
