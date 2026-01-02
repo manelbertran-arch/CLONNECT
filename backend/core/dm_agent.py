@@ -1727,7 +1727,7 @@ USA ESTA RESPUESTA PARA LA OBJECION (adaptala a tu tono):
                     ]
                     response_text = await self.llm.chat(
                         messages,
-                        max_tokens=100,  # Bajo para forzar brevedad
+                        max_tokens=150,  # Suficiente para respuestas completas
                         temperature=0.8  # Más natural, menos robótico
                     )
                     response_text = response_text.strip()
@@ -1760,17 +1760,13 @@ USA ESTA RESPUESTA PARA LA OBJECION (adaptala a tu tono):
                 # === SELF-CONSISTENCY CHECK ===
                 # Validate response confidence before sending
                 # If confidence < 0.6 -> use safe fallback response
-                # SKIP for intents that can be answered from FAQs/Knowledge
-                faq_answerable_intents = {
-                    Intent.GREETING, Intent.THANKS, Intent.GOODBYE,
-                    Intent.QUESTION_PRODUCT,  # "¿cuánto cuesta?", "¿qué incluye?"
-                    Intent.QUESTION_GENERAL,  # "¿cómo puedo pagar?"
-                    Intent.INTEREST_STRONG,   # "quiero comprar el curso"
-                    Intent.INTEREST_SOFT,     # "me interesa..."
-                    Intent.BOOKING,           # "quiero agendar"
+                # SKIP for most intents - only validate objections and escalations
+                intents_needing_validation = {
+                    Intent.ESCALATION,
+                    Intent.SUPPORT,
                 }
-                # Skip consistency for FAQ-answerable intents OR high confidence simple intents
-                skip_consistency = intent in faq_answerable_intents and confidence >= 0.7
+                # Skip consistency for most intents (trust the LLM with good prompt)
+                skip_consistency = intent not in intents_needing_validation
 
                 if skip_consistency:
                     logger.info(f"Skipping self-consistency for simple intent {intent.value} (confidence={confidence:.2f})")
