@@ -198,24 +198,21 @@ class ResponseGuardrail:
         return issues
 
     def _check_hallucinations(self, response: str, context: Dict[str, Any]) -> List[str]:
-        """Check for common hallucination patterns"""
+        """Check for common hallucination patterns - only critical ones"""
         issues = []
 
-        # Patterns that indicate potential hallucination
+        # Only flag patterns that are clearly problematic (promises we can't keep)
+        # REMOVED: guarantee periods, business hours - these can be in FAQs
         hallucination_patterns = [
-            (r'te?\s+llamo\s+en\s+\d+', "Promise to call back"),
-            (r'te?\s+env[íi]o?\s+(un\s+)?email', "Promise to send email"),
-            (r'nuestra?\s+direcci[oó]n\s+(f[íi]sica|postal)', "Physical address mentioned"),
-            (r'horario\s+de\s+atenci[oó]n.*\d{1,2}:\d{2}', "Specific business hours"),
-            (r'garant[íi]a\s+de\s+(\d+\s+(d[íi]as|meses|a[ñn]os))', "Specific guarantee period"),
+            (r'te?\s+llamo\s+en\s+\d+\s*(minutos?|horas?)', "Promise to call back"),
+            (r'te?\s+env[íi]o?\s+(un\s+)?email\s+ahora', "Promise to send email now"),
+            (r'nuestra?\s+direcci[oó]n\s+(f[íi]sica|postal)\s*:', "Physical address mentioned"),
         ]
 
         for pattern, description in hallucination_patterns:
             if re.search(pattern, response, re.IGNORECASE):
-                # Only flag if not in context
-                creator_config = context.get("creator_config", {})
-                if description not in str(creator_config):
-                    issues.append(f"Potential hallucination: {description}")
+                logger.warning(f"Hallucination check triggered: {description} in response: {response[:100]}")
+                issues.append(f"Potential hallucination: {description}")
 
         return issues
 

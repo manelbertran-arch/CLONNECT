@@ -946,7 +946,9 @@ class DMResponderAgent:
             'acceso', 'duracion', 'duración', 'cuanto dura', 'cuánto dura',
             'que tiene', 'qué tiene'
         ]
-        if any(w in msg for w in product_question_kw):
+        matched_kw = [w for w in product_question_kw if w in msg]
+        if matched_kw:
+            logger.info(f"=== QUESTION_PRODUCT detected === msg='{msg}' matched={matched_kw}")
             return Intent.QUESTION_PRODUCT, 0.90
 
         # Pregunta general
@@ -969,6 +971,8 @@ class DMResponderAgent:
         if any(w in msg for w in ['problema', 'no funciona', 'error', 'ayuda', 'falla']):
             return Intent.SUPPORT, 0.85
 
+        # No match - log for debugging
+        logger.info(f"=== INTENT OTHER (no match) === msg='{msg}'")
         return Intent.OTHER, 0.50
 
     def _get_relevant_product(self, message: str, intent: Intent) -> Optional[dict]:
