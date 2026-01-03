@@ -366,25 +366,33 @@ async def _send_telegram_via_proxy(chat_id: str, text: str) -> bool:
         logger.warning("[NURTURING] Telegram proxy or bot token not configured")
         return False
 
-    headers = {"Content-Type": "application/json"}
+    headers = {}
     if TELEGRAM_PROXY_SECRET:
         headers["X-Telegram-Proxy-Secret"] = TELEGRAM_PROXY_SECRET
 
+    # Use same payload structure as main.py (params nested)
     payload = {
-        "method": "sendMessage",
         "bot_token": TELEGRAM_BOT_TOKEN,
-        "chat_id": int(chat_id),
-        "text": text,
+        "method": "sendMessage",
+        "params": {
+            "chat_id": int(chat_id),
+            "text": text,
+            "parse_mode": "HTML"
+        }
     }
 
+    logger.info(f"[NURTURING] Sending to {chat_id}: '{text[:50]}...'")
+
     try:
-        async with httpx.AsyncClient(timeout=15.0) as client:
+        async with httpx.AsyncClient(timeout=30.0) as client:
             response = await client.post(TELEGRAM_PROXY_URL, json=payload, headers=headers)
-            if response.status_code == 200:
+            result = response.json()
+
+            if response.status_code == 200 and result.get("ok"):
                 logger.info(f"[NURTURING] ✓ Telegram message sent to {chat_id}")
                 return True
             else:
-                logger.error(f"[NURTURING] Telegram proxy error: {response.status_code} - {response.text}")
+                logger.error(f"[NURTURING] Telegram proxy error: {response.status_code} - {result}")
                 return False
     except Exception as e:
         logger.error(f"[NURTURING] Telegram send failed: {e}")
