@@ -1587,6 +1587,51 @@ USA ESTA RESPUESTA PARA LA OBJECION (adaptala a tu tono):
         else:
             return f"\n\nResponde en español (máximo 2-3 frases):"
 
+    def _handle_direct_payment_question(self, message: str, other_payment_methods: dict, language: str = "es") -> Optional[str]:
+        """Handle payment method questions directly without LLM.
+
+        Returns a response string if the message is a specific payment method question,
+        or None if the LLM should handle it.
+        """
+        if not other_payment_methods:
+            return None
+
+        msg_lower = message.lower()
+
+        # Bizum
+        if 'bizum' in msg_lower:
+            bizum = other_payment_methods.get('bizum', {})
+            if isinstance(bizum, dict) and bizum.get('enabled') and bizum.get('phone'):
+                holder = bizum.get('holder_name', '')
+                holder_text = f" a nombre de {holder}" if holder else ""
+                logger.info(f"Direct payment response: Bizum -> {bizum['phone']}")
+                return f"¡Sí! Envía el importe al {bizum['phone']}{holder_text}. Avísame cuando lo hagas 👍"
+
+        # Transferencia / IBAN
+        if 'transferencia' in msg_lower or 'iban' in msg_lower or 'cuenta' in msg_lower:
+            bank = other_payment_methods.get('bank_transfer', {})
+            if isinstance(bank, dict) and bank.get('enabled') and bank.get('iban'):
+                holder = bank.get('holder_name', '')
+                holder_text = f" (titular: {holder})" if holder else ""
+                logger.info(f"Direct payment response: Bank Transfer -> {bank['iban']}")
+                return f"¡Claro! Haz transferencia a IBAN {bank['iban']}{holder_text}. Avísame cuando lo hagas 👍"
+
+        # Revolut / Wise
+        if 'revolut' in msg_lower or 'wise' in msg_lower:
+            revolut = other_payment_methods.get('revolut', {})
+            if isinstance(revolut, dict) and revolut.get('enabled') and revolut.get('link'):
+                logger.info(f"Direct payment response: Revolut -> {revolut['link']}")
+                return f"¡Sí! Envía el pago a {revolut['link']} por Revolut. Avísame cuando lo hagas 👍"
+
+        # PayPal
+        if 'paypal' in msg_lower:
+            other = other_payment_methods.get('other', {})
+            if isinstance(other, dict) and other.get('enabled') and other.get('instructions'):
+                logger.info(f"Direct payment response: PayPal -> {other['instructions']}")
+                return f"¡Sí! Envía el pago a {other['instructions']} por PayPal. Avísame cuando lo hagas 👍"
+
+        return None  # Not a specific payment question, use LLM
+
     async def process_dm(
         self,
         sender_id: str,
@@ -1756,6 +1801,38 @@ USA ESTA RESPUESTA PARA LA OBJECION (adaptala a tu tono):
             logger.info(f"Relevant product: {product.get('name')}, payment_link={product.get('payment_link', 'NONE')}")
             if product.get('id') and product.get('id') not in follower.products_discussed:
                 follower.products_discussed.append(product.get('id'))
+
+        # === FAST PATH: Pregunta específica de método de pago ===
+        # Bypass LLM when user asks specifically about Bizum, Transferencia, Revolut, PayPal
+        # Reload config to get fresh payment methods from DB
+        self.creator_config = self._load_creator_config()
+        other_payment_methods = self.creator_config.get('other_payment_methods', {})
+        logger.info(f"Payment methods for direct handler: {list(other_payment_methods.keys()) if other_payment_methods else 'None'}")
+        direct_payment_response = self._handle_direct_payment_question(
+            message_text, other_payment_methods, follower.preferred_language
+        )
+        if direct_payment_response:
+            logger.info(f"=== DIRECT PAYMENT RESPONSE (NO LLM) ===")
+            logger.info(f"Message: {message_text}")
+            logger.info(f"Response: {direct_payment_response}")
+
+            # Update lead status - high purchase intent
+            follower.purchase_intent_score = max(follower.purchase_intent_score, 0.85)
+            follower.is_lead = True
+
+            await self._update_memory(follower, message_text, direct_payment_response, Intent.INTEREST_STRONG)
+
+            return DMResponse(
+                response_text=direct_payment_response,
+                intent=Intent.INTEREST_STRONG,
+                action_taken="direct_payment_method",
+                confidence=1.0,
+                metadata={
+                    "direct_payment": True,
+                    "method_type": "alternative",
+                    "purchase_intent_score": follower.purchase_intent_score
+                }
+            )
 
         # === FAST PATH: Compra directa ===
         # Cuando usuario QUIERE COMPRAR, solo dar el link - NO volver a vender
