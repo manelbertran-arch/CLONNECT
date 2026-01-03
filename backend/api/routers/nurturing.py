@@ -25,7 +25,7 @@ _scheduler_running = False
 _scheduler_task = None
 _scheduler_last_run: Optional[str] = None
 _scheduler_run_count = 0
-_scheduler_interval = int(os.getenv("NURTURING_SCHEDULER_INTERVAL", "300"))  # 5 minutes default
+_scheduler_interval = int(os.getenv("NURTURING_SCHEDULER_INTERVAL", "60"))  # 1 minute for testing (was 300)
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/nurturing", tags=["nurturing"])
