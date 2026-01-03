@@ -689,6 +689,8 @@ class DMResponderAgent:
                         "welcome_message": creator.get("welcome_message", ""),
                         "bot_active": creator.get("bot_active", True),
                         "clone_active": creator.get("bot_active", True),
+                        # Alternative payment methods from DB (bizum, bank_transfer, revolut, etc)
+                        "other_payment_methods": creator.get("other_payment_methods", {}),
                         # Keep these for compatibility
                         "personality": "amable y profesional",
                         "language": "Español",
