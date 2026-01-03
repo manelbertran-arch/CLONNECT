@@ -110,13 +110,18 @@ def _get_sequences_with_stats(creator_id: str) -> List[Dict[str, Any]]:
     stats = manager.get_stats(creator_id)
     by_sequence = stats.get("by_sequence", {})
 
+    # Ensure sequences config is a dict (fix for legacy list data)
+    sequences_config = config.get("sequences", {})
+    if not isinstance(sequences_config, dict):
+        sequences_config = {}
+
     sequences = []
     for seq in _get_default_sequences():
         seq_type = seq["type"]
 
         # Apply config overrides
-        if seq_type in config.get("sequences", {}):
-            seq_config = config["sequences"][seq_type]
+        if seq_type in sequences_config:
+            seq_config = sequences_config[seq_type]
             if "is_active" in seq_config:
                 seq["is_active"] = seq_config["is_active"]
             if "steps" in seq_config:
@@ -176,12 +181,17 @@ async def get_nurturing_stats(creator_id: str):
 
     # Count active sequences
     config = _load_sequences_config(creator_id)
+    # Ensure sequences config is a dict (fix for legacy list data)
+    sequences_config = config.get("sequences", {})
+    if not isinstance(sequences_config, dict):
+        sequences_config = {}
+
     active_count = 0
     for seq in _get_default_sequences():
         seq_type = seq["type"]
         is_active = False  # Default matches _get_default_sequences()
-        if seq_type in config.get("sequences", {}):
-            is_active = config["sequences"][seq_type].get("is_active", False)
+        if seq_type in sequences_config:
+            is_active = sequences_config[seq_type].get("is_active", False)
         if is_active:
             active_count += 1
 
@@ -206,7 +216,8 @@ async def toggle_nurturing_sequence(
     """Toggle a nurturing sequence on/off"""
     config = _load_sequences_config(creator_id)
 
-    if "sequences" not in config:
+    # Ensure sequences is a dict, not a list (fix for legacy data)
+    if "sequences" not in config or not isinstance(config.get("sequences"), dict):
         config["sequences"] = {}
 
     if sequence_type not in config["sequences"]:
@@ -241,7 +252,8 @@ async def update_nurturing_sequence(
     """Update nurturing sequence steps"""
     config = _load_sequences_config(creator_id)
 
-    if "sequences" not in config:
+    # Ensure sequences is a dict, not a list (fix for legacy data)
+    if "sequences" not in config or not isinstance(config.get("sequences"), dict):
         config["sequences"] = {}
 
     if sequence_type not in config["sequences"]:
