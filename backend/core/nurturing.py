@@ -20,7 +20,7 @@ logger = logging.getLogger(__name__)
 # =============================================================================
 # TESTING MODE - Set to True to force default delays (bypass custom config)
 # =============================================================================
-TESTING_MODE = True  # TODO: Set to False for production
+TESTING_MODE = False  # Production mode - use custom config delays
 # =============================================================================
 
 # Lazy import for Reflexion to avoid circular imports
@@ -99,8 +99,8 @@ NURTURING_SEQUENCES = {
         (168, "Hola! Hace una semana hablamos de {product_name}. ¿Sigues interesado? Si cambió algo, cuéntame."),
     ],
     SequenceType.ABANDONED.value: [
-        (0.017, "Ey! Vi que estabas a punto de apuntarte a {product_name}. ¿Te surgió algún problema? Te ayudo con lo que necesites."),  # ~1 minuto para testing
-        (0.033, "Hola! Solo quería asegurarme de que pudiste ver toda la info de {product_name}. Si te quedó alguna duda, escríbeme."),  # ~2 minutos para testing
+        (1, "Ey! Vi que estabas a punto de apuntarte a {product_name}. ¿Te surgió algún problema? Te ayudo con lo que necesites."),
+        (24, "Hola! Solo quería asegurarme de que pudiste ver toda la info de {product_name}. Si te quedó alguna duda, escríbeme."),
     ],
     SequenceType.RE_ENGAGEMENT.value: [
         (0, "¡Hola! Hace tiempo que no hablamos. ¿Cómo va todo? Si necesitas algo, aquí estoy."),
