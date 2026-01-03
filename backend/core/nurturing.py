@@ -195,6 +195,9 @@ class NurturingManager:
         """
         Programar una secuencia de followups.
 
+        Uses custom message templates from creator config if available,
+        otherwise falls back to default templates.
+
         Args:
             creator_id: ID del creador
             follower_id: ID del seguidor
@@ -208,7 +211,12 @@ class NurturingManager:
         # Cancelar followups existentes del mismo tipo
         self.cancel_followups(creator_id, follower_id, sequence_type)
 
-        sequence = NURTURING_SEQUENCES.get(sequence_type, [])
+        # Get steps from config (custom) or fall back to defaults
+        sequence = get_sequence_steps(creator_id, sequence_type)
+        if not sequence:
+            # Try default templates
+            sequence = NURTURING_SEQUENCES.get(sequence_type, [])
+
         if not sequence:
             logger.warning(f"Unknown sequence type: {sequence_type}")
             return []
@@ -237,6 +245,7 @@ class NurturingManager:
             logger.info(f"Scheduled followup {followup_id} for {scheduled_time}")
 
         self._save_followups(creator_id, followups)
+        logger.info(f"Scheduled {len(created)} {sequence_type} followups for {follower_id}")
         return created
 
     def get_pending_followups(self, creator_id: str = None) -> List[FollowUp]:
@@ -451,6 +460,72 @@ def get_nurturing_manager() -> NurturingManager:
     return _nurturing_manager
 
 
+def _load_creator_nurturing_config(creator_id: str) -> Dict[str, Any]:
+    """
+    Load the nurturing sequence config for a creator.
+
+    This reads from the config file saved by the dashboard.
+    """
+    config_path = f"data/nurturing/{creator_id}_sequences.json"
+    if os.path.exists(config_path):
+        try:
+            with open(config_path, 'r', encoding='utf-8') as f:
+                config = json.load(f)
+                # Ensure sequences is a dict
+                sequences = config.get("sequences", {})
+                if not isinstance(sequences, dict):
+                    sequences = {}
+                return {"sequences": sequences}
+        except Exception as e:
+            logger.error(f"Error loading nurturing config for {creator_id}: {e}")
+    return {"sequences": {}}
+
+
+def is_sequence_active(creator_id: str, sequence_type: str) -> bool:
+    """
+    Check if a nurturing sequence is active for a creator.
+
+    Args:
+        creator_id: Creator ID
+        sequence_type: Sequence type (e.g., 'abandoned', 'interest_cold')
+
+    Returns:
+        True if the sequence is active
+    """
+    config = _load_creator_nurturing_config(creator_id)
+    sequences = config.get("sequences", {})
+
+    if sequence_type in sequences:
+        return sequences[sequence_type].get("is_active", False)
+
+    # Default: sequences are inactive unless explicitly enabled
+    return False
+
+
+def get_sequence_steps(creator_id: str, sequence_type: str) -> List[tuple]:
+    """
+    Get the steps for a sequence, using custom config if available.
+
+    Args:
+        creator_id: Creator ID
+        sequence_type: Sequence type
+
+    Returns:
+        List of (delay_hours, message) tuples
+    """
+    config = _load_creator_nurturing_config(creator_id)
+    sequences = config.get("sequences", {})
+
+    # Check for custom steps in config
+    if sequence_type in sequences:
+        custom_steps = sequences[sequence_type].get("steps", [])
+        if custom_steps:
+            return [(s.get("delay_hours", 24), s.get("message", "")) for s in custom_steps]
+
+    # Fall back to default templates
+    return NURTURING_SEQUENCES.get(sequence_type, [])
+
+
 # Mapeo de intents a secuencias
 INTENT_TO_SEQUENCE = {
     "interest_soft": SequenceType.INTEREST_COLD.value,
@@ -462,13 +537,18 @@ INTENT_TO_SEQUENCE = {
 }
 
 
-def should_schedule_nurturing(intent: str, has_purchased: bool = False) -> Optional[str]:
+def should_schedule_nurturing(
+    intent: str,
+    has_purchased: bool = False,
+    creator_id: str = None
+) -> Optional[str]:
     """
     Determinar si se debe programar nurturing basado en el intent.
 
     Args:
         intent: Intent del mensaje
         has_purchased: Si el usuario ya compró
+        creator_id: ID del creador (para verificar si secuencia está activa)
 
     Returns:
         Tipo de secuencia a programar, o None
@@ -476,4 +556,15 @@ def should_schedule_nurturing(intent: str, has_purchased: bool = False) -> Optio
     if has_purchased:
         return None
 
-    return INTENT_TO_SEQUENCE.get(intent)
+    sequence_type = INTENT_TO_SEQUENCE.get(intent)
+
+    if not sequence_type:
+        return None
+
+    # Si tenemos creator_id, verificar si la secuencia está activa
+    if creator_id:
+        if not is_sequence_active(creator_id, sequence_type):
+            logger.debug(f"Sequence {sequence_type} not active for {creator_id}, skipping nurturing")
+            return None
+
+    return sequence_type

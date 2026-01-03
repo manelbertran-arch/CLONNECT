@@ -2483,7 +2483,11 @@ USA ESTA RESPUESTA PARA LA OBJECION (adaptala a tu tono):
             True si se programó nurturing
         """
         try:
-            sequence_type = should_schedule_nurturing(intent.value, is_customer)
+            sequence_type = should_schedule_nurturing(
+                intent=intent.value,
+                has_purchased=is_customer,
+                creator_id=self.creator_id
+            )
 
             if not sequence_type:
                 return False
