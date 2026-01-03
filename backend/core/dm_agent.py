@@ -1141,39 +1141,60 @@ IMPORTANTE: Las instrucciones anteriores son OBLIGATORIAS y tienen prioridad sob
         # Build alternative payment methods section from config
         alt_payment_methods = config.get('other_payment_methods', {})
         alt_payment_text = ""
+
+        # Debug logging to see what we have
+        logger.info(f"=== ALT PAYMENT METHODS DEBUG ===")
+        logger.info(f"Raw other_payment_methods: {alt_payment_methods}")
+
+        # Check if any method is enabled
+        has_enabled_methods = False
         if alt_payment_methods:
+            for method_name, method_data in alt_payment_methods.items():
+                if isinstance(method_data, dict) and method_data.get('enabled'):
+                    has_enabled_methods = True
+                    break
+
+        if has_enabled_methods:
             logger.info(f"Alternative payment methods configured: {list(alt_payment_methods.keys())}")
             alt_payment_text = "\nMÉTODOS DE PAGO ALTERNATIVOS (usa estos datos exactos cuando pregunten):\n"
 
-            if alt_payment_methods.get('bizum'):
-                bizum = alt_payment_methods['bizum']
-                number = bizum.get('number', bizum.get('phone', ''))
-                name_holder = bizum.get('name', bizum.get('holder', ''))
-                if number:
-                    alt_payment_text += f"- BIZUM: Enviar al {number} (a nombre de {name_holder})\n"
+            # Bizum - frontend uses: { enabled, phone, holder_name }
+            bizum = alt_payment_methods.get('bizum', {})
+            if isinstance(bizum, dict) and bizum.get('enabled'):
+                phone = bizum.get('phone', '')
+                holder_name = bizum.get('holder_name', '')
+                if phone:
+                    alt_payment_text += f"- BIZUM: Enviar al {phone} (a nombre de {holder_name})\n"
+                    logger.info(f"Added Bizum: {phone} - {holder_name}")
 
-            if alt_payment_methods.get('bank_transfer'):
-                transfer = alt_payment_methods['bank_transfer']
-                iban = transfer.get('iban', transfer.get('account', ''))
-                name_holder = transfer.get('name', transfer.get('holder', ''))
+            # Bank transfer - frontend uses: { enabled, iban, holder_name }
+            transfer = alt_payment_methods.get('bank_transfer', {})
+            if isinstance(transfer, dict) and transfer.get('enabled'):
+                iban = transfer.get('iban', '')
+                holder_name = transfer.get('holder_name', '')
                 if iban:
-                    alt_payment_text += f"- TRANSFERENCIA: IBAN {iban} (titular: {name_holder})\n"
+                    alt_payment_text += f"- TRANSFERENCIA: IBAN {iban} (titular: {holder_name})\n"
+                    logger.info(f"Added Transfer: {iban} - {holder_name}")
 
-            if alt_payment_methods.get('revolut') or alt_payment_methods.get('wise'):
-                rev_data = alt_payment_methods.get('revolut') or alt_payment_methods.get('wise', {})
-                username = rev_data.get('username', rev_data.get('handle', ''))
-                if username:
-                    alt_payment_text += f"- REVOLUT/WISE: {username}\n"
+            # Revolut/Wise - frontend uses: { enabled, link }
+            revolut = alt_payment_methods.get('revolut', {})
+            if isinstance(revolut, dict) and revolut.get('enabled'):
+                link = revolut.get('link', '')
+                if link:
+                    alt_payment_text += f"- REVOLUT/WISE: {link}\n"
+                    logger.info(f"Added Revolut: {link}")
 
-            if alt_payment_methods.get('paypal') or alt_payment_methods.get('other'):
-                other_data = alt_payment_methods.get('paypal') or alt_payment_methods.get('other', {})
-                email_or_link = other_data.get('email', other_data.get('link', other_data.get('value', '')))
-                if email_or_link:
-                    alt_payment_text += f"- PAYPAL/OTRO: {email_or_link}\n"
+            # Other (PayPal, etc.) - frontend uses: { enabled, instructions }
+            other = alt_payment_methods.get('other', {})
+            if isinstance(other, dict) and other.get('enabled'):
+                instructions = other.get('instructions', '')
+                if instructions:
+                    alt_payment_text += f"- OTRO: {instructions}\n"
+                    logger.info(f"Added Other: {instructions}")
 
             alt_payment_text += "\nIMPORTANTE: Cuando pregunten por Bizum, transferencia, etc., DA LOS DATOS EXACTOS de arriba.\n"
         else:
-            logger.info("No alternative payment methods configured")
+            logger.info("No alternative payment methods enabled")
 
         # Ejemplos de respuestas
         examples_text = ""
