@@ -82,7 +82,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Switch } from "@/components/ui/switch";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
-import { useCreatorConfig, useProducts, useUpdateConfig, useAddProduct, useUpdateProduct, useDeleteProduct, useKnowledge, useAddFAQ, useDeleteFAQ, useGenerateKnowledge, useConnections, useUpdateConnection, useDisconnectPlatform } from "@/hooks/useApi";
+import { useCreatorConfig, useProducts, useUpdateConfig, useAddProduct, useUpdateProduct, useDeleteProduct, useKnowledge, useAddFAQ, useDeleteFAQ, useGenerateKnowledge, useUpdateAbout, useConnections, useUpdateConnection, useDisconnectPlatform } from "@/hooks/useApi";
 import { startOAuth, API_URL } from "@/services/api";
 import { useToast } from "@/hooks/use-toast";
 import type { Product } from "@/types/api";
@@ -206,6 +206,7 @@ export default function Settings() {
   const addFAQMutation = useAddFAQ();
   const deleteFAQMutation = useDeleteFAQ();
   const generateKnowledgeMutation = useGenerateKnowledge();
+  const updateAboutMutation = useUpdateAbout();
   const { data: connectionsData, isLoading: connectionsLoading } = useConnections();
   const updateConnectionMutation = useUpdateConnection();
   const disconnectMutation = useDisconnectPlatform();
@@ -364,6 +365,53 @@ export default function Settings() {
       setSelectedPreset(matchingPreset?.id || null);
     }
   }, [config]);
+
+  // Sync About data from knowledgeData
+  const [originalAboutData, setOriginalAboutData] = useState({ bio: "", specialties: "", experience: "", audience: "" });
+  const [aboutHasChanges, setAboutHasChanges] = useState(false);
+
+  useEffect(() => {
+    if (knowledgeData?.about) {
+      const about = knowledgeData.about;
+      const newData = {
+        bio: about.bio || "",
+        specialties: about.specialties || "",
+        experience: about.experience || "",
+        audience: about.audience || ""
+      };
+      setAboutData(newData);
+      setOriginalAboutData(newData);
+      setAboutHasChanges(false);
+    }
+  }, [knowledgeData]);
+
+  // Track changes in aboutData
+  useEffect(() => {
+    const hasChanges =
+      aboutData.bio !== originalAboutData.bio ||
+      aboutData.specialties !== originalAboutData.specialties ||
+      aboutData.experience !== originalAboutData.experience ||
+      aboutData.audience !== originalAboutData.audience;
+    setAboutHasChanges(hasChanges);
+  }, [aboutData, originalAboutData]);
+
+  const handleSaveAbout = async () => {
+    try {
+      await updateAboutMutation.mutateAsync(aboutData);
+      setOriginalAboutData(aboutData);
+      setAboutHasChanges(false);
+      toast({
+        title: "Guardado",
+        description: "Tu información 'Sobre ti' se ha guardado correctamente.",
+      });
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "No se pudo guardar. Inténtalo de nuevo.",
+        variant: "destructive",
+      });
+    }
+  };
 
 
   const generatePreview = () => {
@@ -1211,6 +1259,34 @@ export default function Settings() {
                     placeholder="Personas que quieren aprender a invertir"
                     className="bg-secondary border-0"
                   />
+                </div>
+
+                {/* Save Button */}
+                <div className="flex items-center justify-end gap-3 pt-4 border-t border-border mt-4">
+                  {aboutHasChanges ? (
+                    <Button
+                      onClick={handleSaveAbout}
+                      disabled={updateAboutMutation.isPending}
+                      className="bg-primary hover:bg-primary/90"
+                    >
+                      {updateAboutMutation.isPending ? (
+                        <>
+                          <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                          Guardando...
+                        </>
+                      ) : (
+                        <>
+                          <Save className="w-4 h-4 mr-2" />
+                          Guardar cambios
+                        </>
+                      )}
+                    </Button>
+                  ) : (
+                    <span className="text-sm text-muted-foreground flex items-center gap-2">
+                      <Check className="w-4 h-4 text-success" />
+                      Sin cambios pendientes
+                    </span>
+                  )}
                 </div>
               </div>
             )}

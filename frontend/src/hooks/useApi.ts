@@ -637,6 +637,20 @@ export function useGenerateKnowledge() {
   });
 }
 
+/**
+ * Hook to update About section
+ */
+export function useUpdateAbout(creatorId: string = CREATOR_ID) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (data: { bio: string; specialties: string; experience: string; audience: string }) =>
+      updateAbout(creatorId, data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: apiKeys.knowledge(creatorId) });
+    },
+  });
+}
+
 // =============================================================================
 // LEAD MANAGEMENT HOOKS
 // =============================================================================
