@@ -293,9 +293,9 @@ export default function Products() {
                             "text-xs px-2 py-0.5 rounded-full font-medium",
                             product.is_active !== false
                               ? "bg-success/10 text-success"
-                              : "bg-secondary text-muted-foreground"
+                              : "bg-orange-500/10 text-orange-500"
                           )}>
-                            {product.is_active !== false ? "Active" : "Draft"}
+                            {product.is_active !== false ? "Activo" : "Pausado"}
                           </span>
                         </div>
                         <p className="text-sm text-muted-foreground">

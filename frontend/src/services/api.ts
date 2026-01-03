@@ -248,12 +248,12 @@ export async function updateCreatorConfig(
 // =============================================================================
 
 /**
- * Get products for a creator
+ * Get products for a creator (includes paused products)
  */
 export async function getProducts(
   creatorId: string = CREATOR_ID
 ): Promise<{ status: string; products: Product[]; count: number }> {
-  return apiFetch(`/creator/${creatorId}/products`);
+  return apiFetch(`/creator/${creatorId}/products?active_only=false`);
 }
 
 /**
