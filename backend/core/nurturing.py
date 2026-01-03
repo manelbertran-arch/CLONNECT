@@ -526,14 +526,27 @@ def get_sequence_steps(creator_id: str, sequence_type: str) -> List[tuple]:
     return NURTURING_SEQUENCES.get(sequence_type, [])
 
 
-# Mapeo de intents a secuencias
+# Mapeo de intents a secuencias de nurturing
+# Solo las 4 secuencias core: abandoned, interest_cold, re_engagement, post_purchase
 INTENT_TO_SEQUENCE = {
+    # Abandoned cart - leads que muestran interés en comprar
+    "question_product": SequenceType.ABANDONED.value,   # Pregunta sobre producto/precio
+    "interest_strong": SequenceType.ABANDONED.value,    # Quiere comprar
+    "want_to_buy": SequenceType.ABANDONED.value,        # Quiere comprar
+    "asking_price": SequenceType.ABANDONED.value,       # Pregunta precio
+
+    # Cold interest - leads con interés débil
     "interest_soft": SequenceType.INTEREST_COLD.value,
-    "objection_price": SequenceType.OBJECTION_PRICE.value,
-    "objection_time": SequenceType.OBJECTION_TIME.value,
-    "objection_doubt": SequenceType.OBJECTION_DOUBT.value,
-    "objection_later": SequenceType.OBJECTION_LATER.value,
-    "interest_strong": SequenceType.ABANDONED.value,  # Si no completa, es abandono
+    "interest_weak": SequenceType.INTEREST_COLD.value,
+    "question_general": SequenceType.INTEREST_COLD.value,
+    "greeting": SequenceType.INTEREST_COLD.value,
+    "other": SequenceType.INTEREST_COLD.value,
+
+    # Objections (mapped to cold interest for now - simpler flow)
+    "objection_price": SequenceType.INTEREST_COLD.value,
+    "objection_time": SequenceType.INTEREST_COLD.value,
+    "objection_doubt": SequenceType.INTEREST_COLD.value,
+    "objection_later": SequenceType.INTEREST_COLD.value,
 }
 
 
@@ -553,18 +566,25 @@ def should_schedule_nurturing(
     Returns:
         Tipo de secuencia a programar, o None
     """
+    logger.info(f"[NURTURING] Checking: intent={intent}, purchased={has_purchased}, creator={creator_id}")
+
     if has_purchased:
+        logger.info(f"[NURTURING] Skipping - user already purchased")
         return None
 
     sequence_type = INTENT_TO_SEQUENCE.get(intent)
+    logger.info(f"[NURTURING] Mapped intent '{intent}' → sequence '{sequence_type}'")
 
     if not sequence_type:
+        logger.info(f"[NURTURING] No sequence mapping for intent '{intent}'")
         return None
 
     # Si tenemos creator_id, verificar si la secuencia está activa
     if creator_id:
-        if not is_sequence_active(creator_id, sequence_type):
-            logger.debug(f"Sequence {sequence_type} not active for {creator_id}, skipping nurturing")
+        active = is_sequence_active(creator_id, sequence_type)
+        logger.info(f"[NURTURING] Sequence '{sequence_type}' active for {creator_id}? {active}")
+        if not active:
             return None
 
+    logger.info(f"[NURTURING] ✓ Will schedule '{sequence_type}' for {creator_id}")
     return sequence_type
