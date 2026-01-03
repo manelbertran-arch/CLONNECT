@@ -105,13 +105,32 @@ def update_creator(name: str, data: dict):
         return False
     try:
         from api.models import Creator
+        logger.info(f"=== UPDATE_CREATOR DEBUG ===")
+        logger.info(f"Creator: {name}, Data keys: {list(data.keys())}")
+        if 'other_payment_methods' in data:
+            logger.info(f"other_payment_methods value: {data['other_payment_methods']}")
+
         creator = session.query(Creator).filter_by(name=name).first()
         if creator:
             for key, value in data.items():
                 if hasattr(creator, key):
+                    old_value = getattr(creator, key, None)
                     setattr(creator, key, value)
+                    logger.info(f"Set {key}: {old_value} -> {value}")
+                else:
+                    logger.warning(f"Creator has no attribute '{key}' - skipping")
             session.commit()
+            logger.info(f"Committed changes for {name}")
+            # Verify the save
+            session.refresh(creator)
+            logger.info(f"After save, other_payment_methods = {creator.other_payment_methods}")
             return True
+        else:
+            logger.warning(f"Creator '{name}' not found")
+        return False
+    except Exception as e:
+        logger.error(f"Error updating creator: {e}")
+        session.rollback()
         return False
     finally:
         session.close()
