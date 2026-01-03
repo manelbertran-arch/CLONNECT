@@ -214,13 +214,19 @@ class NurturingManager:
 
         # Get steps from config (custom) or fall back to defaults
         sequence = get_sequence_steps(creator_id, sequence_type)
+        source = "custom config"
         if not sequence:
             # Try default templates
             sequence = NURTURING_SEQUENCES.get(sequence_type, [])
+            source = "default NURTURING_SEQUENCES"
 
         if not sequence:
             logger.warning(f"Unknown sequence type: {sequence_type}")
             return []
+
+        # Log the delays being used
+        delays = [f"step{i}={delay_hours}h" for i, (delay_hours, _) in enumerate(sequence)]
+        logger.info(f"[NURTURING] Using {source} for '{sequence_type}': {', '.join(delays)}")
 
         followups = self._load_followups(creator_id)
         created = []
@@ -228,6 +234,7 @@ class NurturingManager:
 
         for step, (delay_hours, message_template) in enumerate(sequence[start_step:], start=start_step):
             scheduled_time = now + timedelta(hours=delay_hours)
+            logger.info(f"[NURTURING] Scheduling step {step}: delay={delay_hours}h, now={now.isoformat()}, scheduled={scheduled_time.isoformat()}")
             followup_id = f"{creator_id}_{follower_id}_{sequence_type}_{step}_{int(now.timestamp())}"
 
             followup = FollowUp(
