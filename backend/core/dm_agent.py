@@ -1677,6 +1677,10 @@ USA ESTA RESPUESTA PARA LA OBJECION (adaptala a tu tono):
                 metadata={"status": "paused", "message": "Bot pausado por el creador"}
             )
 
+        # Reload products fresh from DB to respect is_active changes
+        self.products = self._load_products()
+        logger.info(f"Reloaded {len(self.products)} active products for this request")
+
         # Rate limiting para prevenir abuse y controlar costes
         rate_limiter = get_rate_limiter()
         rate_key = f"{self.creator_id}:{sender_id}"
