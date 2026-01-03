@@ -496,6 +496,7 @@ export async function toggleNurturingSequence(
 ): Promise<{ status: string; sequence_type: string; is_active: boolean }> {
   return apiFetch(`/nurturing/${creatorId}/sequences/${sequenceType}/toggle`, {
     method: "POST",
+    body: JSON.stringify({}),  // Send empty body to avoid FastAPI parsing issues
   });
 }
 

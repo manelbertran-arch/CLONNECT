@@ -3,7 +3,7 @@ import {
   Play, Loader2, AlertCircle, Clock,
   ShoppingCart, Snowflake, RefreshCw, Gift,
   ChevronDown, ChevronUp, X, Save, Trash2, Edit3,
-  Zap, Send, Users, Lightbulb
+  Zap, Send, Users, Lightbulb, RotateCcw
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
@@ -75,6 +75,27 @@ const CORE_SEQUENCES = [
     ]
   }
 ];
+
+// =============================================================================
+// DEFAULT MESSAGES - Auto-generated for each sequence type
+// =============================================================================
+const DEFAULT_MESSAGES: Record<string, Array<{ delay_hours: number; message: string }>> = {
+  abandoned: [
+    { delay_hours: 1, message: "Ey! Vi que estabas interesado en {producto}. ¿Te surgió alguna duda? Estoy aquí para ayudarte 😊" },
+    { delay_hours: 24, message: "Hola de nuevo! Solo quería asegurarme de que viste toda la info de {producto}. Si tienes preguntas, escríbeme 👋" }
+  ],
+  interest_cold: [
+    { delay_hours: 24, message: "Hey {nombre}! Vi que te interesó {producto}. ¿Quieres que te cuente más?" },
+    { delay_hours: 72, message: "¿Qué tal? Solo quería recordarte que {producto} sigue disponible. ¿Te echo una mano?" }
+  ],
+  re_engagement: [
+    { delay_hours: 168, message: "¡Hola! Hace tiempo que no hablamos. ¿Cómo va todo? Si necesitas algo, aquí estoy 👋" }
+  ],
+  post_purchase: [
+    { delay_hours: 24, message: "¡Gracias por confiar en mí! ¿Ya pudiste empezar con {producto}? Si necesitas ayuda, escríbeme 🙌" },
+    { delay_hours: 72, message: "¿Qué tal va todo con {producto}? ¿Necesitas ayuda con algo?" }
+  ]
+};
 
 interface EnrolledUser {
   follower_id: string;
@@ -185,11 +206,27 @@ export default function Nurturing() {
   const handleEditStart = (coreSeq: typeof CORE_SEQUENCES[0], backendSeq: any) => {
     setEditingSequence(coreSeq.backendType);
     setEditingSequenceName(coreSeq.name);
-    // Deep copy steps to avoid mutating original
-    setEditSteps(backendSeq?.steps?.map((s: any) => ({ ...s })) || [
-      { delay_hours: 1, message: '' },
-      { delay_hours: 24, message: '' }
-    ]);
+
+    // Use backend steps if they exist, otherwise use defaults
+    const defaultSteps = DEFAULT_MESSAGES[coreSeq.backendType] || [];
+    const existingSteps = backendSeq?.steps?.filter((s: any) => s.message?.trim()) || [];
+
+    if (existingSteps.length > 0) {
+      setEditSteps(existingSteps.map((s: any) => ({ ...s })));
+    } else {
+      // Use default messages
+      setEditSteps(defaultSteps.map(s => ({ ...s })));
+    }
+  };
+
+  const handleRestoreDefaults = () => {
+    if (!editingSequence) return;
+    const defaultSteps = DEFAULT_MESSAGES[editingSequence] || [];
+    setEditSteps(defaultSteps.map(s => ({ ...s })));
+    toast({
+      title: "Restaurado",
+      description: "Se han restaurado los mensajes por defecto",
+    });
   };
 
   const handleEditSave = async () => {
@@ -482,14 +519,23 @@ export default function Nurturing() {
 
             {/* Modal Body */}
             <div className="flex-1 overflow-y-auto p-4 space-y-4">
+              {/* Info banner */}
+              <div className="flex items-start gap-2 p-3 rounded-lg bg-blue-500/10 border border-blue-500/20">
+                <Lightbulb className="w-4 h-4 text-blue-500 mt-0.5 shrink-0" />
+                <p className="text-sm text-muted-foreground">
+                  Los mensajes se personalizan automáticamente con el nombre de tu producto.
+                  Puedes editarlos si quieres.
+                </p>
+              </div>
+
               {editSteps.map((step, idx) => (
                 <div key={idx} className="p-4 rounded-lg border bg-secondary/20">
                   <div className="flex items-center justify-between mb-3">
                     <span className="font-medium">
-                      Paso {idx + 1}: {formatDelay(step.delay_hours)} después
+                      Paso {idx + 1} ({formatDelay(step.delay_hours)} después)
                     </span>
                     <div className="flex items-center gap-2">
-                      <label className="text-sm text-muted-foreground">Delay (horas):</label>
+                      <label className="text-sm text-muted-foreground">Horas:</label>
                       <input
                         type="number"
                         min="1"
@@ -510,11 +556,11 @@ export default function Nurturing() {
                         i === idx ? { ...s, message: e.target.value } : s
                       ));
                     }}
-                    className="w-full h-28 px-3 py-2 rounded-lg border bg-background resize-none text-sm"
+                    className="w-full h-24 px-3 py-2 rounded-lg border bg-background resize-none text-sm"
                     placeholder="Escribe tu mensaje aquí..."
                   />
                   <p className="text-xs text-muted-foreground mt-2">
-                    Variables disponibles: <code className="bg-secondary px-1 rounded">{'{nombre}'}</code> <code className="bg-secondary px-1 rounded">{'{producto}'}</code> <code className="bg-secondary px-1 rounded">{'{precio}'}</code>
+                    Variables: <code className="bg-secondary px-1 rounded">{'{nombre}'}</code> <code className="bg-secondary px-1 rounded">{'{producto}'}</code> <code className="bg-secondary px-1 rounded">{'{precio}'}</code>
                   </p>
                 </div>
               ))}
@@ -530,18 +576,29 @@ export default function Nurturing() {
             </div>
 
             {/* Modal Footer */}
-            <div className="flex justify-end gap-2 p-4 border-t bg-secondary/20">
-              <Button variant="outline" onClick={() => setEditingSequence(null)}>
-                Cancelar
+            <div className="flex items-center justify-between p-4 border-t bg-secondary/20">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={handleRestoreDefaults}
+                className="text-muted-foreground"
+              >
+                <RotateCcw className="w-4 h-4 mr-1" />
+                Restaurar por defecto
               </Button>
-              <Button onClick={handleEditSave} disabled={updateSequence.isPending}>
-                {updateSequence.isPending ? (
-                  <Loader2 className="w-4 h-4 animate-spin mr-2" />
-                ) : (
-                  <Save className="w-4 h-4 mr-2" />
-                )}
-                Guardar cambios
-              </Button>
+              <div className="flex gap-2">
+                <Button variant="outline" onClick={() => setEditingSequence(null)}>
+                  Cancelar
+                </Button>
+                <Button onClick={handleEditSave} disabled={updateSequence.isPending}>
+                  {updateSequence.isPending ? (
+                    <Loader2 className="w-4 h-4 animate-spin mr-2" />
+                  ) : (
+                    <Save className="w-4 h-4 mr-2" />
+                  )}
+                  Guardar
+                </Button>
+              </div>
             </div>
           </div>
         </div>
