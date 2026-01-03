@@ -1194,7 +1194,11 @@ IMPORTANTE: Las instrucciones anteriores son OBLIGATORIAS y tienen prioridad sob
                     alt_payment_text += f"- OTRO: {instructions}\n"
                     logger.info(f"Added Other: {instructions}")
 
-            alt_payment_text += "\nIMPORTANTE: Cuando pregunten por Bizum, transferencia, etc., DA LOS DATOS EXACTOS de arriba.\n"
+            alt_payment_text += "\n⚠️ REGLA CRÍTICA PARA MÉTODOS DE PAGO:\n"
+            alt_payment_text += "- Si preguntan por BIZUM → responde SOLO con el número de Bizum, NO des link de Stripe\n"
+            alt_payment_text += "- Si preguntan por TRANSFERENCIA → responde SOLO con el IBAN, NO des link de Stripe\n"
+            alt_payment_text += "- Si preguntan por REVOLUT → responde SOLO con el usuario/link de Revolut, NO des link de Stripe\n"
+            alt_payment_text += "- SOLO usa el link de Stripe cuando pidan 'pagar con tarjeta' o 'link de pago'\n"
         else:
             logger.info("No alternative payment methods enabled")
 
