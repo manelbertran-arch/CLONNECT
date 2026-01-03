@@ -513,8 +513,8 @@ export default function Products() {
             {/* Bot option */}
             <div className="flex items-center justify-between p-3 bg-secondary rounded-lg">
               <div>
-                <p className="font-medium text-sm">Bot can recommend</p>
-                <p className="text-xs text-muted-foreground">Show this product when leads ask</p>
+                <p className="font-medium text-sm">Visible para el bot</p>
+                <p className="text-xs text-muted-foreground">Si está desactivado, el bot no mencionará este producto</p>
               </div>
               <Switch
                 checked={formData.bot_enabled}
