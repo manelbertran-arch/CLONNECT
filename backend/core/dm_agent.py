@@ -1227,6 +1227,12 @@ IMPORTANTE: Las instrucciones anteriores son OBLIGATORIAS y tienen prioridad sob
             alt_payment_text += "- Si preguntan por TRANSFERENCIA → responde SOLO con el IBAN, NO des link de Stripe\n"
             alt_payment_text += "- Si preguntan por REVOLUT → responde SOLO con el usuario/link de Revolut, NO des link de Stripe\n"
             alt_payment_text += "- SOLO usa el link de Stripe cuando pidan 'pagar con tarjeta' o 'link de pago'\n"
+            alt_payment_text += "\n📝 RESPUESTAS DE PAGO CORTAS:\n"
+            alt_payment_text += "- Cuando preguntan por un método de pago, responde en 1-2 frases CORTAS\n"
+            alt_payment_text += "- NO repitas info del producto (contenido, beneficios, duración)\n"
+            alt_payment_text += "- El usuario YA SABE qué quiere comprar\n"
+            alt_payment_text += "- Ejemplo BUENO: '¡Sí! Envía 297€ al 639066982 a nombre de manel. Avísame cuando lo hagas 👍'\n"
+            alt_payment_text += "- Ejemplo MALO: 'Puedes pagar con Bizum al 639066982. El curso incluye 20 horas de vídeo...'\n"
         else:
             logger.info("No alternative payment methods enabled")
 
