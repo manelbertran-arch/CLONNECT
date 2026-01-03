@@ -1,8 +1,9 @@
 import { useState } from "react";
 import {
-  Play, Users, CheckCircle2, Loader2, AlertCircle, Clock, Mail,
-  Snowflake, DollarSign, Timer, HelpCircle, CalendarClock, ShoppingCart,
-  RefreshCw, Gift, ChevronDown, ChevronUp, Edit2, X, Save, Trash2
+  Play, Loader2, AlertCircle, Clock,
+  ShoppingCart, Snowflake, RefreshCw, Gift,
+  ChevronDown, ChevronUp, X, Save, Trash2, Edit3,
+  Zap, Send, Users, Lightbulb
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
@@ -18,46 +19,76 @@ import { getNurturingEnrolled } from "@/services/api";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
 
-// Unique icons for each sequence type
-const sequenceIcons: Record<string, React.ReactNode> = {
-  interest_cold: <Snowflake className="w-5 h-5" />,
-  objection_price: <DollarSign className="w-5 h-5" />,
-  objection_time: <Timer className="w-5 h-5" />,
-  objection_doubt: <HelpCircle className="w-5 h-5" />,
-  objection_later: <CalendarClock className="w-5 h-5" />,
-  abandoned: <ShoppingCart className="w-5 h-5" />,
-  re_engagement: <RefreshCw className="w-5 h-5" />,
-  post_purchase: <Gift className="w-5 h-5" />,
-};
-
-// Colors for each sequence type
-const sequenceColors: Record<string, string> = {
-  interest_cold: "text-blue-400 bg-blue-400/10",
-  objection_price: "text-green-400 bg-green-400/10",
-  objection_time: "text-orange-400 bg-orange-400/10",
-  objection_doubt: "text-purple-400 bg-purple-400/10",
-  objection_later: "text-yellow-400 bg-yellow-400/10",
-  abandoned: "text-red-400 bg-red-400/10",
-  re_engagement: "text-cyan-400 bg-cyan-400/10",
-  post_purchase: "text-pink-400 bg-pink-400/10",
-};
-
-// Descriptions for sequence types
-const sequenceDescriptions: Record<string, string> = {
-  interest_cold: "Follow up with leads who showed interest but didn't convert",
-  objection_price: "Address price concerns with value propositions",
-  objection_time: "Help busy leads see how they can fit this in",
-  objection_doubt: "Resolve doubts and build confidence",
-  objection_later: "Re-engage leads who said they'd think about it",
-  abandoned: "Recover leads who almost purchased",
-  re_engagement: "Win back inactive leads",
-  post_purchase: "Nurture customers after purchase",
-};
+// =============================================================================
+// CORE SEQUENCES - Only these 4 are shown in the UI
+// =============================================================================
+const CORE_SEQUENCES = [
+  {
+    id: 'abandoned',
+    backendType: 'abandoned',
+    name: 'Carrito Abandonado',
+    icon: ShoppingCart,
+    colorClass: 'text-red-500 bg-red-500/10 border-red-500/20',
+    description: 'Recupera leads que vieron el precio pero no compraron',
+    howItWorks: 'Se activa automáticamente cuando un lead pide el precio o link de pago y no completa la compra en 1 hora.',
+    defaultTiming: [
+      { delay: '1h', label: 'Recordatorio amigable' },
+      { delay: '24h', label: 'Última oportunidad' }
+    ]
+  },
+  {
+    id: 'cold_interest',
+    backendType: 'interest_cold',
+    name: 'Interés Frío',
+    icon: Snowflake,
+    colorClass: 'text-blue-500 bg-blue-500/10 border-blue-500/20',
+    description: 'Followup a leads que mostraron interés pero no avanzaron',
+    howItWorks: 'Se activa cuando un lead hace preguntas sobre el producto pero no muestra intención de compra.',
+    defaultTiming: [
+      { delay: '24h', label: 'Seguimiento inicial' },
+      { delay: '72h', label: 'Oferta de ayuda' }
+    ]
+  },
+  {
+    id: 'reengagement',
+    backendType: 're_engagement',
+    name: 'Reactivación',
+    icon: RefreshCw,
+    colorClass: 'text-green-500 bg-green-500/10 border-green-500/20',
+    description: 'Reactiva leads que llevan tiempo sin interactuar',
+    howItWorks: 'Se activa automáticamente cuando un lead no responde en 7 días.',
+    defaultTiming: [
+      { delay: '7d', label: 'Te echamos de menos' }
+    ]
+  },
+  {
+    id: 'post_purchase',
+    backendType: 'post_purchase',
+    name: 'Post Compra',
+    icon: Gift,
+    colorClass: 'text-purple-500 bg-purple-500/10 border-purple-500/20',
+    description: 'Onboarding y seguimiento después de una compra',
+    howItWorks: 'Se activa automáticamente cuando se confirma un pago.',
+    defaultTiming: [
+      { delay: '24h', label: 'Bienvenida y acceso' },
+      { delay: '72h', label: 'Check-in y soporte' }
+    ]
+  }
+];
 
 interface EnrolledUser {
   follower_id: string;
   next_scheduled: string;
   pending_steps: Array<{ step: number; scheduled_at: string; message_preview: string }>;
+}
+
+// Format delay hours to human readable
+function formatDelay(hours: number): string {
+  if (hours < 24) return `${hours}h`;
+  const days = Math.floor(hours / 24);
+  const remainingHours = hours % 24;
+  if (remainingHours === 0) return `${days}d`;
+  return `${days}d ${remainingHours}h`;
 }
 
 export default function Nurturing() {
@@ -73,8 +104,8 @@ export default function Nurturing() {
   const [enrolledUsers, setEnrolledUsers] = useState<Record<string, EnrolledUser[]>>({});
   const [loadingEnrolled, setLoadingEnrolled] = useState<string | null>(null);
   const [editingSequence, setEditingSequence] = useState<string | null>(null);
+  const [editingSequenceName, setEditingSequenceName] = useState<string>('');
   const [editSteps, setEditSteps] = useState<Array<{ delay_hours: number; message: string }>>([]);
-  const [runResult, setRunResult] = useState<any>(null);
 
   // Loading state
   if (sequencesLoading || statsLoading) {
@@ -90,48 +121,60 @@ export default function Nurturing() {
     return (
       <div className="flex flex-col items-center justify-center h-[60vh] gap-4">
         <AlertCircle className="w-12 h-12 text-destructive" />
-        <p className="text-muted-foreground">Failed to load nurturing data</p>
+        <p className="text-muted-foreground">Error al cargar datos de nurturing</p>
         <p className="text-sm text-destructive">{sequencesError.message}</p>
       </div>
     );
   }
 
-  const sequences = sequencesData?.sequences || [];
+  const allSequences = sequencesData?.sequences || [];
   const stats = statsData || { total: 0, pending: 0, sent: 0, cancelled: 0 };
 
-  const activeSequences = sequences.filter(s => s.is_active !== false).length;
-  const totalEnrolled = sequences.reduce((sum, s) => sum + (s.enrolled_count || 0), 0);
-  const totalSent = sequences.reduce((sum, s) => sum + (s.sent_count || 0), 0);
+  // Map backend sequences to our core sequences
+  const getBackendSequence = (backendType: string) => {
+    return allSequences.find(s => s.type === backendType);
+  };
 
-  const handleToggle = async (sequenceType: string) => {
+  // Calculate stats from core sequences only
+  const coreSequenceStats = CORE_SEQUENCES.reduce((acc, core) => {
+    const backend = getBackendSequence(core.backendType);
+    if (backend) {
+      if (backend.is_active !== false) acc.active++;
+      acc.pending += backend.enrolled_count || 0;
+      acc.sent += backend.sent_count || 0;
+    }
+    return acc;
+  }, { active: 0, pending: 0, sent: 0 });
+
+  const handleToggle = async (backendType: string) => {
     try {
-      await toggleSequence.mutateAsync(sequenceType);
+      await toggleSequence.mutateAsync(backendType);
       toast({
-        title: "Sequence toggled",
-        description: "Sequence status updated successfully",
+        title: "Secuencia actualizada",
+        description: "El estado se ha cambiado correctamente",
       });
     } catch (error) {
       toast({
         title: "Error",
-        description: "Failed to toggle sequence",
+        description: "No se pudo cambiar el estado",
         variant: "destructive",
       });
     }
   };
 
-  const handleExpand = async (sequenceType: string) => {
-    if (expandedSequence === sequenceType) {
+  const handleExpand = async (backendType: string) => {
+    if (expandedSequence === backendType) {
       setExpandedSequence(null);
       return;
     }
 
-    setExpandedSequence(sequenceType);
+    setExpandedSequence(backendType);
 
-    if (!enrolledUsers[sequenceType]) {
-      setLoadingEnrolled(sequenceType);
+    if (!enrolledUsers[backendType]) {
+      setLoadingEnrolled(backendType);
       try {
-        const data = await getNurturingEnrolled(undefined, sequenceType);
-        setEnrolledUsers(prev => ({ ...prev, [sequenceType]: data.enrolled || [] }));
+        const data = await getNurturingEnrolled(undefined, backendType);
+        setEnrolledUsers(prev => ({ ...prev, [backendType]: data.enrolled || [] }));
       } catch (error) {
         console.error("Failed to load enrolled users", error);
       }
@@ -139,17 +182,18 @@ export default function Nurturing() {
     }
   };
 
-  const handleEditStart = (seq: any) => {
-    setEditingSequence(seq.type);
+  const handleEditStart = (coreSeq: typeof CORE_SEQUENCES[0], backendSeq: any) => {
+    setEditingSequence(coreSeq.backendType);
+    setEditingSequenceName(coreSeq.name);
     // Deep copy steps to avoid mutating original
-    setEditSteps(seq.steps?.map((s: any) => ({ ...s })) || []);
+    setEditSteps(backendSeq?.steps?.map((s: any) => ({ ...s })) || [
+      { delay_hours: 1, message: '' },
+      { delay_hours: 24, message: '' }
+    ]);
   };
 
   const handleEditSave = async () => {
     if (!editingSequence) return;
-
-    console.log("Saving sequence:", editingSequence);
-    console.log("Steps to save:", editSteps);
 
     try {
       await updateSequence.mutateAsync({
@@ -157,15 +201,15 @@ export default function Nurturing() {
         steps: editSteps,
       });
       toast({
-        title: "Sequence updated",
-        description: "Steps saved successfully",
+        title: "Mensajes guardados",
+        description: "Los cambios se han guardado correctamente",
       });
       setEditingSequence(null);
     } catch (error) {
       console.error("Save error:", error);
       toast({
         title: "Error",
-        description: "Failed to update sequence",
+        description: "No se pudieron guardar los cambios",
         variant: "destructive",
       });
     }
@@ -179,46 +223,36 @@ export default function Nurturing() {
         [sequenceType]: prev[sequenceType]?.filter(u => u.follower_id !== followerId) || []
       }));
       toast({
-        title: "Cancelled",
-        description: "Followup cancelled for this user",
+        title: "Cancelado",
+        description: "Se ha cancelado el followup para este usuario",
       });
     } catch (error) {
       toast({
         title: "Error",
-        description: "Failed to cancel followup",
+        description: "No se pudo cancelar el followup",
         variant: "destructive",
       });
     }
   };
 
-  const handleRunNurturing = async (dryRun: boolean) => {
+  const handleRunNurturing = async () => {
     try {
-      setRunResult(null);
       const result = await runNurturing.mutateAsync({
-        dryRun,
-        forceDue: true, // For testing, treat all pending as due
+        dryRun: false,
+        forceDue: true,
         limit: 50
       });
-      setRunResult(result);
 
-      if (dryRun) {
-        toast({
-          title: "Dry Run Complete",
-          description: `Would process ${result.would_process || 0} followups`,
-        });
-      } else {
-        toast({
-          title: "Run Complete",
-          description: `Processed ${result.processed || 0}, Sent ${result.sent || 0}, Simulated ${result.simulated || 0}`,
-        });
-        // Refresh data after real run
-        refetchSequences();
-        refetchStats();
-      }
+      toast({
+        title: "Ejecutado",
+        description: `Procesados: ${result.processed || 0}, Enviados: ${result.sent || 0}`,
+      });
+      refetchSequences();
+      refetchStats();
     } catch (error: any) {
       toast({
         title: "Error",
-        description: error.message || "Failed to run nurturing",
+        description: error.message || "No se pudo ejecutar",
         variant: "destructive",
       });
     }
@@ -227,197 +261,157 @@ export default function Nurturing() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
-        <div>
-          <h1 className="text-xl sm:text-2xl font-bold tracking-tight">Nurturing Sequences</h1>
-          <p className="text-muted-foreground text-sm sm:text-base">Automated follow-up sequences for lead nurturing</p>
-        </div>
-        <div className="flex gap-2">
-          <Button
-            variant="outline"
-            onClick={() => handleRunNurturing(true)}
-            disabled={runNurturing.isPending}
-            className="flex-1 sm:flex-none"
-          >
-            {runNurturing.isPending ? (
-              <Loader2 className="w-4 h-4 animate-spin mr-2" />
-            ) : (
-              <Play className="w-4 h-4 mr-2" />
-            )}
-            Dry Run
-          </Button>
-          <Button
-            className="bg-gradient-to-r from-primary to-accent flex-1 sm:flex-none"
-            onClick={() => handleRunNurturing(false)}
-            disabled={runNurturing.isPending}
-          >
-            {runNurturing.isPending ? (
-              <Loader2 className="w-4 h-4 animate-spin mr-2" />
-            ) : (
-              <Play className="w-4 h-4 mr-2" />
-            )}
-            Run Now
-          </Button>
-        </div>
-      </div>
-
-      {/* Run Result */}
-      {runResult && (
-        <div className="metric-card border-primary/50">
-          <div className="flex items-center justify-between mb-3">
-            <h3 className="font-semibold">
-              {runResult.dry_run ? "Dry Run Result" : "Run Result"}
-            </h3>
-            <Button variant="ghost" size="sm" onClick={() => setRunResult(null)}>
-              <X className="w-4 h-4" />
+      <div className="metric-card">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
+          <div>
+            <h1 className="text-xl sm:text-2xl font-bold tracking-tight">Nurturing Automático</h1>
+            <p className="text-muted-foreground text-sm">Followups inteligentes que se envían solos</p>
+          </div>
+          <div className="flex gap-2">
+            <Button
+              onClick={handleRunNurturing}
+              disabled={runNurturing.isPending}
+              className="bg-gradient-to-r from-primary to-accent"
+            >
+              {runNurturing.isPending ? (
+                <Loader2 className="w-4 h-4 animate-spin mr-2" />
+              ) : (
+                <Play className="w-4 h-4 mr-2" />
+              )}
+              Ejecutar pendientes
             </Button>
           </div>
-          {runResult.dry_run ? (
-            <div>
-              <p className="text-sm text-muted-foreground mb-2">
-                Would process {runResult.would_process || 0} followups
-              </p>
-              {runResult.items?.length > 0 && (
-                <div className="space-y-2 max-h-48 overflow-y-auto">
-                  {runResult.items.map((item: any) => (
-                    <div key={item.followup_id} className="text-xs p-2 rounded bg-secondary/50">
-                      <div className="flex justify-between">
-                        <span className="font-medium">{item.follower_id}</span>
-                        <span className="text-muted-foreground">{item.channel_guess}</span>
-                      </div>
-                      <p className="text-muted-foreground mt-1">{item.message_preview}</p>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-          ) : (
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 text-center">
-              <div>
-                <p className="text-2xl font-bold">{runResult.processed || 0}</p>
-                <p className="text-xs text-muted-foreground">Processed</p>
-              </div>
-              <div>
-                <p className="text-2xl font-bold text-success">{runResult.sent || 0}</p>
-                <p className="text-xs text-muted-foreground">Sent (Real)</p>
-              </div>
-              <div>
-                <p className="text-2xl font-bold text-accent">{runResult.simulated || 0}</p>
-                <p className="text-xs text-muted-foreground">Simulated</p>
-              </div>
-              <div>
-                <p className="text-2xl font-bold text-destructive">{runResult.errors?.length || 0}</p>
-                <p className="text-xs text-muted-foreground">Errors</p>
-              </div>
-            </div>
-          )}
         </div>
-      )}
 
-      {/* Stats Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <div className="metric-card">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
-              <Play className="w-5 h-5 text-primary" />
+        {/* Stats Row */}
+        <div className="grid grid-cols-3 gap-4">
+          <div className="text-center p-4 rounded-lg bg-secondary/50">
+            <div className="flex items-center justify-center gap-2 mb-1">
+              <Zap className="w-4 h-4 text-primary" />
+              <span className="text-2xl font-bold">{coreSequenceStats.active}</span>
             </div>
-            <div>
-              <p className="text-2xl font-bold">{activeSequences}</p>
-              <p className="text-sm text-muted-foreground">Active Sequences</p>
-            </div>
+            <p className="text-xs text-muted-foreground">Activas</p>
           </div>
-        </div>
-        <div className="metric-card">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-lg bg-accent/10 flex items-center justify-center">
-              <Users className="w-5 h-5 text-accent" />
+          <div className="text-center p-4 rounded-lg bg-secondary/50">
+            <div className="flex items-center justify-center gap-2 mb-1">
+              <Users className="w-4 h-4 text-accent" />
+              <span className="text-2xl font-bold">{coreSequenceStats.pending}</span>
             </div>
-            <div>
-              <p className="text-2xl font-bold">{totalEnrolled}</p>
-              <p className="text-sm text-muted-foreground">Pending Followups</p>
-            </div>
+            <p className="text-xs text-muted-foreground">Pendientes</p>
           </div>
-        </div>
-        <div className="metric-card">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-lg bg-success/10 flex items-center justify-center">
-              <CheckCircle2 className="w-5 h-5 text-success" />
+          <div className="text-center p-4 rounded-lg bg-secondary/50">
+            <div className="flex items-center justify-center gap-2 mb-1">
+              <Send className="w-4 h-4 text-success" />
+              <span className="text-2xl font-bold">{coreSequenceStats.sent}</span>
             </div>
-            <div>
-              <p className="text-2xl font-bold">{totalSent}</p>
-              <p className="text-sm text-muted-foreground">Messages Sent</p>
-            </div>
+            <p className="text-xs text-muted-foreground">Enviados</p>
           </div>
         </div>
       </div>
 
       {/* Sequences List */}
-      <div>
-        <h3 className="font-semibold mb-4">Available Sequences</h3>
-        <div className="space-y-4">
-          {sequences.map((seq) => (
-            <div key={seq.id} className="metric-card">
-              {/* Main row */}
-              <div className="flex flex-col sm:flex-row sm:items-start gap-4">
-                {/* Unique icon */}
-                <div className={cn(
-                  "w-12 h-12 rounded-xl flex items-center justify-center shrink-0",
-                  sequenceColors[seq.type] || "bg-secondary text-muted-foreground"
-                )}>
-                  {sequenceIcons[seq.type] || <Mail className="w-5 h-5" />}
+      <div className="space-y-4">
+        {CORE_SEQUENCES.map((coreSeq) => {
+          const backendSeq = getBackendSequence(coreSeq.backendType);
+          const isActive = backendSeq?.is_active !== false;
+          const Icon = coreSeq.icon;
+          const steps = backendSeq?.steps || [];
+
+          return (
+            <div
+              key={coreSeq.id}
+              className={cn(
+                "metric-card border transition-all",
+                isActive ? "border-border" : "border-border/50 opacity-75"
+              )}
+            >
+              {/* Header Row */}
+              <div className="flex items-start justify-between gap-4 mb-4">
+                <div className="flex items-center gap-3">
+                  <div className={cn(
+                    "w-10 h-10 rounded-lg flex items-center justify-center border",
+                    coreSeq.colorClass
+                  )}>
+                    <Icon className="w-5 h-5" />
+                  </div>
+                  <h3 className="font-semibold text-lg">{coreSeq.name}</h3>
                 </div>
+                <Switch
+                  checked={isActive}
+                  onCheckedChange={() => handleToggle(coreSeq.backendType)}
+                  disabled={toggleSequence.isPending}
+                />
+              </div>
 
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-3 flex-wrap">
-                    <h3 className="font-semibold">{seq.name}</h3>
-                    <Switch
-                      checked={seq.is_active !== false}
-                      onCheckedChange={() => handleToggle(seq.type)}
-                      disabled={toggleSequence.isPending}
-                    />
-                    <Button
-                      size="sm"
-                      variant="ghost"
-                      onClick={() => handleEditStart(seq)}
-                    >
-                      <Edit2 className="w-4 h-4" />
-                    </Button>
-                  </div>
-                  <p className="text-sm text-muted-foreground mt-1">
-                    {sequenceDescriptions[seq.type] || seq.type}
-                  </p>
+              {/* Description */}
+              <p className="text-muted-foreground text-sm mb-4">
+                {coreSeq.description}
+              </p>
 
-                  {/* Steps preview */}
-                  <div className="mt-3 flex flex-wrap gap-2">
-                    {seq.steps?.slice(0, 4).map((step: any, idx: number) => (
-                      <div
-                        key={idx}
-                        className="flex items-center gap-1 text-xs px-2 py-1 rounded bg-secondary"
-                      >
-                        <Clock className="w-3 h-3" />
-                        <span>{step.delay_hours}h</span>
-                      </div>
-                    ))}
+              {/* How it works */}
+              <div className="mb-4 p-3 rounded-lg bg-secondary/30">
+                <div className="flex items-start gap-2">
+                  <Lightbulb className="w-4 h-4 text-yellow-500 mt-0.5 shrink-0" />
+                  <div>
+                    <p className="text-xs font-medium text-muted-foreground mb-1">¿Cómo funciona?</p>
+                    <p className="text-sm">{coreSeq.howItWorks}</p>
                   </div>
                 </div>
+              </div>
 
-                <div className="flex items-center justify-between sm:justify-end gap-4 mt-2 sm:mt-0">
-                  <div className="flex items-center gap-4 text-sm">
-                    <div className="text-center">
-                      <p className="font-semibold">{seq.enrolled_count || 0}</p>
-                      <p className="text-xs text-muted-foreground">Pending</p>
+              {/* Timeline */}
+              <div className="mb-4">
+                <div className="flex items-center gap-2 mb-2">
+                  <Clock className="w-4 h-4 text-muted-foreground" />
+                  <span className="text-xs font-medium text-muted-foreground">Secuencia:</span>
+                </div>
+                <div className="pl-2 border-l-2 border-muted space-y-2">
+                  {(steps.length > 0 ? steps : coreSeq.defaultTiming.map((t, i) => ({
+                    delay_hours: t.delay.includes('d')
+                      ? parseInt(t.delay) * 24
+                      : parseInt(t.delay),
+                    message: t.label
+                  }))).map((step: any, idx: number) => (
+                    <div key={idx} className="flex items-center gap-2 text-sm">
+                      <div className="w-2 h-2 rounded-full bg-muted-foreground -ml-[5px]" />
+                      <span className="font-medium text-muted-foreground min-w-[60px]">
+                        {formatDelay(step.delay_hours)}
+                      </span>
+                      <span className="text-foreground">→</span>
+                      <span className="truncate">
+                        {step.message?.slice(0, 50) || coreSeq.defaultTiming[idx]?.label || `Paso ${idx + 1}`}
+                        {step.message?.length > 50 && '...'}
+                      </span>
                     </div>
-                    <div className="text-center">
-                      <p className="font-semibold text-success">{seq.sent_count || 0}</p>
-                      <p className="text-xs text-muted-foreground">Sent</p>
-                    </div>
-                  </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Stats Row */}
+              <div className="flex items-center justify-between pt-4 border-t">
+                <div className="flex items-center gap-4 text-sm">
+                  <span className="text-muted-foreground">
+                    <span className="font-semibold text-foreground">{backendSeq?.enrolled_count || 0}</span> Pendientes
+                  </span>
+                  <span className="text-muted-foreground">
+                    <span className="font-semibold text-success">{backendSeq?.sent_count || 0}</span> Enviados
+                  </span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => handleEditStart(coreSeq, backendSeq)}
+                  >
+                    <Edit3 className="w-4 h-4 mr-1" />
+                    Personalizar mensajes
+                  </Button>
                   <Button
                     size="sm"
                     variant="ghost"
-                    onClick={() => handleExpand(seq.type)}
+                    onClick={() => handleExpand(coreSeq.backendType)}
                   >
-                    {expandedSequence === seq.type ? (
+                    {expandedSequence === coreSeq.backendType ? (
                       <ChevronUp className="w-4 h-4" />
                     ) : (
                       <ChevronDown className="w-4 h-4" />
@@ -427,20 +421,20 @@ export default function Nurturing() {
               </div>
 
               {/* Expanded section - Enrolled users */}
-              {expandedSequence === seq.type && (
+              {expandedSequence === coreSeq.backendType && (
                 <div className="mt-4 pt-4 border-t">
-                  <h4 className="text-sm font-medium mb-3">Enrolled Users</h4>
-                  {loadingEnrolled === seq.type ? (
+                  <h4 className="text-sm font-medium mb-3">Usuarios en cola</h4>
+                  {loadingEnrolled === coreSeq.backendType ? (
                     <div className="flex justify-center py-4">
                       <Loader2 className="w-5 h-5 animate-spin" />
                     </div>
-                  ) : (enrolledUsers[seq.type]?.length || 0) === 0 ? (
+                  ) : (enrolledUsers[coreSeq.backendType]?.length || 0) === 0 ? (
                     <p className="text-sm text-muted-foreground text-center py-4">
-                      No users currently enrolled
+                      No hay usuarios en esta secuencia
                     </p>
                   ) : (
                     <div className="space-y-2">
-                      {enrolledUsers[seq.type]?.map((user) => (
+                      {enrolledUsers[coreSeq.backendType]?.map((user) => (
                         <div
                           key={user.follower_id}
                           className="flex items-center justify-between p-3 rounded-lg bg-secondary/50"
@@ -448,14 +442,14 @@ export default function Nurturing() {
                           <div>
                             <p className="font-medium text-sm">{user.follower_id}</p>
                             <p className="text-xs text-muted-foreground">
-                              Next: {new Date(user.next_scheduled).toLocaleString()}
+                              Próximo: {new Date(user.next_scheduled).toLocaleString('es-ES')}
                             </p>
                           </div>
                           <Button
                             size="sm"
                             variant="ghost"
                             className="text-destructive hover:text-destructive"
-                            onClick={() => handleCancelFollowup(user.follower_id, seq.type)}
+                            onClick={() => handleCancelFollowup(user.follower_id, coreSeq.backendType)}
                             disabled={cancelNurturing.isPending}
                           >
                             <Trash2 className="w-4 h-4" />
@@ -467,36 +461,47 @@ export default function Nurturing() {
                 </div>
               )}
             </div>
-          ))}
-        </div>
+          );
+        })}
       </div>
 
       {/* Edit Modal */}
       {editingSequence && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <div className="bg-background rounded-lg p-6 max-w-2xl w-full mx-4 max-h-[80vh] overflow-y-auto">
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-xl font-bold">Edit Sequence Steps</h2>
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-background rounded-xl border shadow-lg max-w-2xl w-full max-h-[85vh] overflow-hidden flex flex-col">
+            {/* Modal Header */}
+            <div className="flex items-center justify-between p-4 border-b">
+              <div className="flex items-center gap-2">
+                <Edit3 className="w-5 h-5 text-primary" />
+                <h2 className="text-lg font-semibold">Personalizar: {editingSequenceName}</h2>
+              </div>
               <Button variant="ghost" size="sm" onClick={() => setEditingSequence(null)}>
                 <X className="w-4 h-4" />
               </Button>
             </div>
 
-            <div className="space-y-4">
+            {/* Modal Body */}
+            <div className="flex-1 overflow-y-auto p-4 space-y-4">
               {editSteps.map((step, idx) => (
-                <div key={idx} className="p-4 rounded-lg border">
-                  <div className="flex items-center gap-4 mb-2">
-                    <label className="text-sm font-medium">Delay (hours):</label>
-                    <input
-                      type="number"
-                      value={step.delay_hours}
-                      onChange={(e) => {
-                        setEditSteps(prev => prev.map((s, i) =>
-                          i === idx ? { ...s, delay_hours: parseInt(e.target.value) || 0 } : s
-                        ));
-                      }}
-                      className="w-20 px-2 py-1 rounded border bg-background"
-                    />
+                <div key={idx} className="p-4 rounded-lg border bg-secondary/20">
+                  <div className="flex items-center justify-between mb-3">
+                    <span className="font-medium">
+                      Paso {idx + 1}: {formatDelay(step.delay_hours)} después
+                    </span>
+                    <div className="flex items-center gap-2">
+                      <label className="text-sm text-muted-foreground">Delay (horas):</label>
+                      <input
+                        type="number"
+                        min="1"
+                        value={step.delay_hours}
+                        onChange={(e) => {
+                          setEditSteps(prev => prev.map((s, i) =>
+                            i === idx ? { ...s, delay_hours: parseInt(e.target.value) || 1 } : s
+                          ));
+                        }}
+                        className="w-16 px-2 py-1 rounded border bg-background text-sm"
+                      />
+                    </div>
                   </div>
                   <textarea
                     value={step.message}
@@ -505,16 +510,29 @@ export default function Nurturing() {
                         i === idx ? { ...s, message: e.target.value } : s
                       ));
                     }}
-                    className="w-full h-24 px-3 py-2 rounded border bg-background resize-none"
-                    placeholder="Message template..."
+                    className="w-full h-28 px-3 py-2 rounded-lg border bg-background resize-none text-sm"
+                    placeholder="Escribe tu mensaje aquí..."
                   />
+                  <p className="text-xs text-muted-foreground mt-2">
+                    Variables disponibles: <code className="bg-secondary px-1 rounded">{'{nombre}'}</code> <code className="bg-secondary px-1 rounded">{'{producto}'}</code> <code className="bg-secondary px-1 rounded">{'{precio}'}</code>
+                  </p>
                 </div>
               ))}
+
+              {/* Tip */}
+              <div className="flex items-start gap-2 p-3 rounded-lg bg-primary/5 border border-primary/20">
+                <Lightbulb className="w-4 h-4 text-primary mt-0.5 shrink-0" />
+                <p className="text-sm text-muted-foreground">
+                  <strong className="text-foreground">Tip:</strong> Mantén los mensajes cortos y personales.
+                  Los followups que parecen humanos tienen mejor conversión.
+                </p>
+              </div>
             </div>
 
-            <div className="flex justify-end gap-2 mt-6">
+            {/* Modal Footer */}
+            <div className="flex justify-end gap-2 p-4 border-t bg-secondary/20">
               <Button variant="outline" onClick={() => setEditingSequence(null)}>
-                Cancel
+                Cancelar
               </Button>
               <Button onClick={handleEditSave} disabled={updateSequence.isPending}>
                 {updateSequence.isPending ? (
@@ -522,26 +540,12 @@ export default function Nurturing() {
                 ) : (
                   <Save className="w-4 h-4 mr-2" />
                 )}
-                Save Changes
+                Guardar cambios
               </Button>
             </div>
           </div>
         </div>
       )}
-
-      {/* Info Box */}
-      <div className="metric-card bg-secondary/30 border-dashed">
-        <h3 className="font-semibold mb-2 flex items-center gap-2">
-          <Mail className="w-4 h-4" />
-          How Nurturing Works
-        </h3>
-        <ul className="text-sm text-muted-foreground space-y-2">
-          <li>• Sequences are triggered automatically based on conversation intent</li>
-          <li>• Each step is sent at the configured delay after the trigger</li>
-          <li>• Sequences are cancelled if the user responds or converts</li>
-          <li>• Toggle sequences on/off to control which ones are active</li>
-        </ul>
-      </div>
     </div>
   );
 }
