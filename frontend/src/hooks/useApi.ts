@@ -615,19 +615,6 @@ export function useDeleteFAQ(creatorId: string = CREATOR_ID) {
 }
 
 /**
- * Hook to update About Me/Business info
- */
-export function useUpdateAbout(creatorId: string = CREATOR_ID) {
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: (data: Record<string, unknown>) => updateAbout(creatorId, data),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: apiKeys.knowledge(creatorId) });
-    },
-  });
-}
-
-/**
  * Hook to generate knowledge with AI
  */
 export function useGenerateKnowledge() {
