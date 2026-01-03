@@ -150,6 +150,41 @@ def _contains_alternative_payment(response: str) -> bool:
     return False
 
 
+def truncate_payment_response(response: str) -> str:
+    """If response contains alternative payment info, keep only first sentence + CTA.
+
+    This is an AGGRESSIVE truncation because LLMs ignore prompt instructions
+    and keep adding product info after payment details.
+    """
+    if not response or not _contains_alternative_payment(response):
+        return response
+
+    logger.info(f"Payment response detected, truncating aggressively")
+
+    # Split by sentence-ending punctuation
+    import re
+    # Match period, exclamation, or question mark followed by space or end
+    sentences = re.split(r'(?<=[.!?])\s+', response)
+
+    if not sentences:
+        return response
+
+    # Keep only the first sentence
+    first_sentence = sentences[0].strip()
+
+    # Ensure it ends with punctuation
+    if first_sentence and first_sentence[-1] not in '.!?':
+        first_sentence += '.'
+
+    # Add friendly CTA if not present
+    cta_indicators = ['avísame', 'avisame', 'confirma', 'cuando lo hagas', 'me avisas', 'házmelo saber']
+    if not any(cta in first_sentence.lower() for cta in cta_indicators):
+        first_sentence += " Avísame cuando lo hagas 👍"
+
+    logger.info(f"Truncated payment response: '{response[:50]}...' -> '{first_sentence}'")
+    return first_sentence
+
+
 def clean_response_placeholders(response: str, payment_links: list) -> str:
     """Reemplaza placeholders de links con links reales y añade link si falta"""
     if not response:
@@ -1945,6 +1980,9 @@ USA ESTA RESPUESTA PARA LA OBJECION (adaptala a tu tono):
                 # 2. Reemplazar placeholders de links con links reales
                 payment_links = [p.get('payment_link', p.get('url', '')) for p in self.products]
                 response_text = clean_response_placeholders(response_text, payment_links)
+
+                # 3. EXTRA AGRESIVO: Si es respuesta de pago alternativo, solo primera frase + CTA
+                response_text = truncate_payment_response(response_text)
 
                 # === SELF-CONSISTENCY CHECK ===
                 # Validate response confidence before sending
