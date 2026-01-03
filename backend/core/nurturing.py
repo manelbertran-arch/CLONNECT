@@ -181,6 +181,7 @@ class NurturingManager:
         try:
             with open(file_path, 'w', encoding='utf-8') as f:
                 json.dump([fu.to_dict() for fu in followups], f, indent=2, ensure_ascii=False)
+            logger.info(f"[NURTURING] Saved {len(followups)} followups to {file_path}")
         except Exception as e:
             logger.error(f"Error saving followups for {creator_id}: {e}")
 
@@ -266,21 +267,31 @@ class NurturingManager:
         else:
             # Buscar todos los archivos de followups
             creators = []
+            logger.info(f"[NURTURING] Looking for followup files in: {self.storage_path}")
             if os.path.exists(self.storage_path):
-                for file in os.listdir(self.storage_path):
+                files = os.listdir(self.storage_path)
+                logger.info(f"[NURTURING] Found files: {files}")
+                for file in files:
                     if file.endswith("_followups.json"):
                         creators.append(file.replace("_followups.json", ""))
+            else:
+                logger.warning(f"[NURTURING] Storage path does not exist: {self.storage_path}")
+
+        logger.info(f"[NURTURING] Checking creators: {creators}")
 
         for cid in creators:
             followups = self._load_followups(cid)
+            logger.info(f"[NURTURING] Creator {cid}: {len(followups)} total followups")
             for fu in followups:
                 if fu.status == "pending":
                     scheduled = datetime.fromisoformat(fu.scheduled_at)
+                    logger.info(f"[NURTURING] Followup {fu.id}: scheduled={scheduled}, now={now}, due={scheduled <= now}")
                     if scheduled <= now:
                         pending.append(fu)
 
         # Ordenar por fecha programada
         pending.sort(key=lambda x: x.scheduled_at)
+        logger.info(f"[NURTURING] Found {len(pending)} due followups")
         return pending
 
     def get_all_followups(self, creator_id: str, status: str = None) -> List[FollowUp]:
