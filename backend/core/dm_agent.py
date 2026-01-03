@@ -1352,6 +1352,20 @@ IMPORTANTE: Las instrucciones anteriores son OBLIGATORIAS y tienen prioridad sob
             except Exception as e:
                 logger.warning(f"Failed to load knowledge base: {e}")
 
+        # Warning when no active products - prevent LLM from using Knowledge info
+        no_products_warning = ""
+        if len(self.products) == 0:
+            no_products_warning = """
+
+⚠️ IMPORTANTE - NO HAY PRODUCTOS ACTIVOS:
+- NO menciones ningún producto, curso, o servicio de pago
+- NO des precios ni links de compra
+- Si preguntan qué vendes o por productos, responde: "Actualmente no tengo productos disponibles. ¿En qué más puedo ayudarte?"
+- Puedes seguir respondiendo preguntas generales sobre ti y tu experiencia
+- IGNORA cualquier información de productos que aparezca en las FAQs o Knowledge
+"""
+            logger.info("No active products - adding warning to prompt")
+
         # Get first payment link for examples
         first_payment_link = ""
         for p in self.products:
@@ -1365,7 +1379,7 @@ IMPORTANTE: Las instrucciones anteriores son OBLIGATORIAS y tienen prioridad sob
 
         # NEW PROMPT: Optimized for Llama/Grok - few-shot examples at END
         return f"""Eres {name}, un creador de contenido que responde mensajes de Instagram/WhatsApp.
-{vocabulary_section}
+{vocabulary_section}{no_products_warning}
 PERSONALIDAD:
 - {tone_instruction}
 - {formality_rule}
