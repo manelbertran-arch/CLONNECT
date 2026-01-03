@@ -780,13 +780,19 @@ class DMResponderAgent:
         return self._default_config()
 
     def _load_products(self) -> list:
-        """Cargar productos desde PostgreSQL (primero) o JSON (fallback)"""
+        """Cargar productos desde PostgreSQL (primero) o JSON (fallback)
+
+        Solo carga productos activos (is_active=True) para que el bot
+        no mencione productos pausados.
+        """
         # Try PostgreSQL first
         if USE_POSTGRES and db_service:
             try:
-                products = db_service.get_products(self.creator_id)
-                if products:
-                    logger.info(f"Loaded {len(products)} products from PostgreSQL")
+                all_products = db_service.get_products(self.creator_id)
+                if all_products:
+                    # Filter only active products
+                    products = [p for p in all_products if p.get('is_active', True)]
+                    logger.info(f"Loaded {len(products)} active products from PostgreSQL (filtered from {len(all_products)} total)")
                     return products
             except Exception as e:
                 logger.warning(f"Error loading products from DB: {e}")
@@ -796,11 +802,13 @@ class DMResponderAgent:
         if products_path.exists():
             try:
                 with open(products_path, 'r', encoding='utf-8') as f:
-                    products = json.load(f)
+                    all_products = json.load(f)
                     # Handle both list and dict with 'products' key
-                    if isinstance(products, dict):
-                        products = products.get('products', [])
-                    logger.info(f"Loaded {len(products)} products from JSON")
+                    if isinstance(all_products, dict):
+                        all_products = all_products.get('products', [])
+                    # Filter only active products
+                    products = [p for p in all_products if p.get('is_active', True)]
+                    logger.info(f"Loaded {len(products)} active products from JSON (filtered from {len(all_products)} total)")
                     return products
             except Exception as e:
                 logger.error(f"Error loading products from JSON: {e}")
