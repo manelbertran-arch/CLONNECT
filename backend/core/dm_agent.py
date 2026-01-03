@@ -130,11 +130,11 @@ def truncate_response(response: str, max_sentences: int = 2) -> str:
 
 
 def _contains_alternative_payment(response: str) -> bool:
-    """Check if response already contains alternative payment info (Bizum, IBAN, Revolut)"""
+    """Check if response already contains alternative payment info (Bizum, IBAN, Revolut, PayPal)"""
     response_lower = response.lower()
     # Check for specific indicators of alternative payment methods
     indicators = [
-        'bizum', 'transferencia', 'iban', 'revolut', 'wise',
+        'bizum', 'transferencia', 'iban', 'revolut', 'wise', 'paypal',
         '639', '6[0-9]{8}',  # Spanish mobile numbers
         'es[0-9]{2}',  # IBAN prefix
         '@'  # Revolut handle
@@ -1254,20 +1254,24 @@ IMPORTANTE: Las instrucciones anteriores son OBLIGATORIAS y tienen prioridad sob
             if isinstance(other, dict) and other.get('enabled'):
                 instructions = other.get('instructions', '')
                 if instructions:
-                    alt_payment_text += f"- OTRO: {instructions}\n"
-                    logger.info(f"Added Other: {instructions}")
+                    alt_payment_text += f"- PAYPAL: {instructions}\n"
+                    logger.info(f"Added PayPal/Other: {instructions}")
 
             alt_payment_text += "\n⚠️ REGLA CRÍTICA PARA MÉTODOS DE PAGO:\n"
             alt_payment_text += "- Si preguntan por BIZUM → responde SOLO con el número de Bizum, NO des link de Stripe\n"
-            alt_payment_text += "- Si preguntan por TRANSFERENCIA → responde SOLO con el IBAN, NO des link de Stripe\n"
+            alt_payment_text += "- Si preguntan por TRANSFERENCIA → responde SOLO con el IBAN completo, NO des link de Stripe\n"
             alt_payment_text += "- Si preguntan por REVOLUT → responde SOLO con el usuario/link de Revolut, NO des link de Stripe\n"
+            alt_payment_text += "- Si preguntan por PAYPAL → responde SOLO con el email de PayPal, NO des link de Stripe\n"
             alt_payment_text += "- SOLO usa el link de Stripe cuando pidan 'pagar con tarjeta' o 'link de pago'\n"
             alt_payment_text += "\n📝 RESPUESTAS DE PAGO CORTAS:\n"
             alt_payment_text += "- Cuando preguntan por un método de pago, responde en 1-2 frases CORTAS\n"
             alt_payment_text += "- NO repitas info del producto (contenido, beneficios, duración)\n"
             alt_payment_text += "- El usuario YA SABE qué quiere comprar\n"
-            alt_payment_text += "- Ejemplo BUENO: '¡Sí! Envía 297€ al 639066982 a nombre de manel. Avísame cuando lo hagas 👍'\n"
+            alt_payment_text += "- Ejemplo Bizum BUENO: '¡Sí! Envía 297€ al 639066982 a nombre de manel. Avísame cuando lo hagas 👍'\n"
+            alt_payment_text += "- Ejemplo Transferencia BUENO: '¡Claro! Haz transferencia a IBAN ES12 1234 5678 9012 3456 7890 (titular: manel). Avísame cuando lo hagas'\n"
+            alt_payment_text += "- Ejemplo PayPal BUENO: '¡Perfecto! Envía el pago a test@clonnect.com por PayPal. Avísame cuando lo hagas'\n"
             alt_payment_text += "- Ejemplo MALO: 'Puedes pagar con Bizum al 639066982. El curso incluye 20 horas de vídeo...'\n"
+            logger.info(f"=== FINAL ALT_PAYMENT_TEXT ===\n{alt_payment_text}")
         else:
             logger.info("No alternative payment methods enabled")
 
