@@ -30,6 +30,7 @@ import {
   getFAQs,
   addFAQ,
   deleteFAQ,
+  updateFAQ,
   getAbout,
   updateAbout,
   generateKnowledge,
@@ -608,6 +609,20 @@ export function useDeleteFAQ(creatorId: string = CREATOR_ID) {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (itemId: string) => deleteFAQ(creatorId, itemId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: apiKeys.knowledge(creatorId) });
+    },
+  });
+}
+
+/**
+ * Hook to update an existing FAQ
+ */
+export function useUpdateFAQ(creatorId: string = CREATOR_ID) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ itemId, question, answer }: { itemId: string; question: string; answer: string }) =>
+      updateFAQ(creatorId, itemId, { question, answer }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: apiKeys.knowledge(creatorId) });
     },

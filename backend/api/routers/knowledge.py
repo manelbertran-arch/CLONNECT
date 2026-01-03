@@ -59,6 +59,24 @@ async def add_faq(creator_id: str, data: dict = Body(...)):
             logger.warning(f"DB add FAQ failed for {creator_id}: {e}")
     raise HTTPException(status_code=500, detail="Failed to add FAQ")
 
+@router.put("/{creator_id}/knowledge/faqs/{item_id}")
+async def update_faq(creator_id: str, item_id: str, data: dict = Body(...)):
+    """Update an existing FAQ"""
+    question = data.get("question", "").strip()
+    answer = data.get("answer", "").strip()
+
+    if not question or not answer:
+        raise HTTPException(status_code=400, detail="Question and answer are required")
+
+    if USE_DB:
+        try:
+            item = db_service.update_knowledge_item(creator_id, item_id, question, answer)
+            if item:
+                return {"status": "ok", "item": item}
+        except Exception as e:
+            logger.warning(f"DB update FAQ failed for {creator_id}: {e}")
+    raise HTTPException(status_code=500, detail="Failed to update FAQ")
+
 @router.delete("/{creator_id}/knowledge/faqs/{item_id}")
 async def delete_faq(creator_id: str, item_id: str):
     """Delete a FAQ"""

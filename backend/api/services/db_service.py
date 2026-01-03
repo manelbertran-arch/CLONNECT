@@ -1194,6 +1194,40 @@ def delete_knowledge_item(creator_name: str, item_id: str) -> bool:
         session.close()
 
 
+def update_knowledge_item(creator_name: str, item_id: str, question: str, answer: str) -> dict:
+    """Update a FAQ item in knowledge_base table"""
+    session = get_session()
+    if not session:
+        return None
+    try:
+        from api.models import Creator, KnowledgeBase
+        import uuid as uuid_module
+        creator = session.query(Creator).filter_by(name=creator_name).first()
+        if not creator:
+            return None
+        item = session.query(KnowledgeBase).filter_by(
+            creator_id=creator.id,
+            id=uuid_module.UUID(item_id)
+        ).first()
+        if item:
+            item.question = question
+            item.answer = answer
+            session.commit()
+            return {
+                "id": str(item.id),
+                "question": item.question,
+                "answer": item.answer,
+                "created_at": item.created_at.isoformat() if item.created_at else None
+            }
+        return None
+    except Exception as e:
+        logger.error(f"update_knowledge_item error: {e}")
+        session.rollback()
+        return None
+    finally:
+        session.close()
+
+
 def get_knowledge_about(creator_name: str) -> dict:
     """Get About Me/Business info from creator.knowledge_about"""
     session = get_session()
