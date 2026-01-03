@@ -17,6 +17,12 @@ from enum import Enum
 
 logger = logging.getLogger(__name__)
 
+# =============================================================================
+# TESTING MODE - Set to True to force default delays (bypass custom config)
+# =============================================================================
+TESTING_MODE = True  # TODO: Set to False for production
+# =============================================================================
+
 # Lazy import for Reflexion to avoid circular imports
 _reflexion_improver = None
 
@@ -531,6 +537,12 @@ def get_sequence_steps(creator_id: str, sequence_type: str) -> List[tuple]:
     Returns:
         List of (delay_hours, message) tuples
     """
+    # In TESTING_MODE, always use default delays (bypass custom config)
+    if TESTING_MODE:
+        logger.info(f"[NURTURING] TESTING_MODE=True: Forcing default delays for '{sequence_type}'")
+        return NURTURING_SEQUENCES.get(sequence_type, [])
+
+    # Production: use custom config if available
     config = _load_creator_nurturing_config(creator_id)
     sequences = config.get("sequences", {})
 
