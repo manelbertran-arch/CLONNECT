@@ -1138,6 +1138,43 @@ IMPORTANTE: Las instrucciones anteriores son OBLIGATORIAS y tienen prioridad sob
         if not payment_links_text:
             payment_links_text = "- No hay links configurados todavía\n"
 
+        # Build alternative payment methods section from config
+        alt_payment_methods = config.get('other_payment_methods', {})
+        alt_payment_text = ""
+        if alt_payment_methods:
+            logger.info(f"Alternative payment methods configured: {list(alt_payment_methods.keys())}")
+            alt_payment_text = "\nMÉTODOS DE PAGO ALTERNATIVOS (usa estos datos exactos cuando pregunten):\n"
+
+            if alt_payment_methods.get('bizum'):
+                bizum = alt_payment_methods['bizum']
+                number = bizum.get('number', bizum.get('phone', ''))
+                name_holder = bizum.get('name', bizum.get('holder', ''))
+                if number:
+                    alt_payment_text += f"- BIZUM: Enviar al {number} (a nombre de {name_holder})\n"
+
+            if alt_payment_methods.get('bank_transfer'):
+                transfer = alt_payment_methods['bank_transfer']
+                iban = transfer.get('iban', transfer.get('account', ''))
+                name_holder = transfer.get('name', transfer.get('holder', ''))
+                if iban:
+                    alt_payment_text += f"- TRANSFERENCIA: IBAN {iban} (titular: {name_holder})\n"
+
+            if alt_payment_methods.get('revolut') or alt_payment_methods.get('wise'):
+                rev_data = alt_payment_methods.get('revolut') or alt_payment_methods.get('wise', {})
+                username = rev_data.get('username', rev_data.get('handle', ''))
+                if username:
+                    alt_payment_text += f"- REVOLUT/WISE: {username}\n"
+
+            if alt_payment_methods.get('paypal') or alt_payment_methods.get('other'):
+                other_data = alt_payment_methods.get('paypal') or alt_payment_methods.get('other', {})
+                email_or_link = other_data.get('email', other_data.get('link', other_data.get('value', '')))
+                if email_or_link:
+                    alt_payment_text += f"- PAYPAL/OTRO: {email_or_link}\n"
+
+            alt_payment_text += "\nIMPORTANTE: Cuando pregunten por Bizum, transferencia, etc., DA LOS DATOS EXACTOS de arriba.\n"
+        else:
+            logger.info("No alternative payment methods configured")
+
         # Ejemplos de respuestas
         examples_text = ""
         examples = config.get('example_responses', [])
@@ -1234,6 +1271,7 @@ MIS PRODUCTOS:
 
 LINKS DE PAGO:
 {payment_links_text}
+{alt_payment_text}
 
 ---
 
@@ -1252,6 +1290,12 @@ Tú: 297€ 🎯 ¿Quieres saber qué incluye?
 
 Usuario: ¿Cómo puedo pagar?
 Tú: Tarjeta, PayPal, Bizum o transferencia. ¿Cuál te va mejor?
+
+Usuario: ¿Puedo pagar con Bizum?
+Tú: ¡Sí! Envía el importe al [NÚMERO BIZUM] a nombre de [NOMBRE]. Avísame cuando lo hagas 👍
+
+Usuario: Quiero pagar por transferencia
+Tú: Perfecto, el IBAN es [IBAN] a nombre de [TITULAR]. Avísame cuando lo envíes 🙌
 
 Usuario: ¿Hay garantía?
 Tú: Sí, 30 días. Si no te convence, te devuelvo el dinero 👍
