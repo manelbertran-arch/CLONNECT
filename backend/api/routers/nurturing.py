@@ -6,6 +6,7 @@ import logging
 import os
 import json
 import asyncio
+import httpx
 from datetime import datetime
 
 from core.nurturing import (
@@ -13,6 +14,11 @@ from core.nurturing import (
     NURTURING_SEQUENCES,
     SequenceType,
 )
+
+# Telegram proxy config
+TELEGRAM_PROXY_URL = os.getenv("TELEGRAM_PROXY_URL", "")
+TELEGRAM_PROXY_SECRET = os.getenv("TELEGRAM_PROXY_SECRET", "")
+TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN", "")
 
 # Scheduler state
 _scheduler_running = False
@@ -354,37 +360,71 @@ def _guess_channel(follower_id: str) -> str:
     return "unknown"
 
 
-def _try_send_message(creator_id: str, follower_id: str, message: str) -> dict:
+async def _send_telegram_via_proxy(chat_id: str, text: str) -> bool:
+    """Send Telegram message via Cloudflare Worker proxy (async)"""
+    if not TELEGRAM_PROXY_URL or not TELEGRAM_BOT_TOKEN:
+        logger.warning("[NURTURING] Telegram proxy or bot token not configured")
+        return False
+
+    headers = {"Content-Type": "application/json"}
+    if TELEGRAM_PROXY_SECRET:
+        headers["X-Telegram-Proxy-Secret"] = TELEGRAM_PROXY_SECRET
+
+    payload = {
+        "method": "sendMessage",
+        "bot_token": TELEGRAM_BOT_TOKEN,
+        "chat_id": int(chat_id),
+        "text": text,
+    }
+
+    try:
+        async with httpx.AsyncClient(timeout=15.0) as client:
+            response = await client.post(TELEGRAM_PROXY_URL, json=payload, headers=headers)
+            if response.status_code == 200:
+                logger.info(f"[NURTURING] ✓ Telegram message sent to {chat_id}")
+                return True
+            else:
+                logger.error(f"[NURTURING] Telegram proxy error: {response.status_code} - {response.text}")
+                return False
+    except Exception as e:
+        logger.error(f"[NURTURING] Telegram send failed: {e}")
+        return False
+
+
+async def _try_send_message(creator_id: str, follower_id: str, message: str) -> dict:
     """
-    Try to send message via available integrations.
+    Try to send message via available integrations (async).
     Returns {"sent": bool, "simulated": bool, "error": str|None}
     """
     channel = _guess_channel(follower_id)
+    logger.info(f"[NURTURING] Sending to {follower_id} via {channel}")
 
     # Try Telegram
     if channel == "telegram":
         try:
-            from core.telegram_sender import send_telegram_message
             chat_id = follower_id.replace("tg_", "")
-            result = send_telegram_message(creator_id, chat_id, message)
+            result = await _send_telegram_via_proxy(chat_id, message)
             if result:
                 return {"sent": True, "simulated": False, "error": None}
+            else:
+                return {"sent": False, "simulated": False, "error": "Telegram proxy failed"}
         except Exception as e:
-            logger.debug(f"Telegram send failed: {e}")
+            logger.error(f"[NURTURING] Telegram send exception: {e}")
+            return {"sent": False, "simulated": False, "error": str(e)}
 
     # Try Instagram
     if channel == "instagram":
         try:
             from core.instagram_handler import send_instagram_dm
             ig_user_id = follower_id.replace("ig_", "")
-            result = send_instagram_dm(creator_id, ig_user_id, message)
+            result = await send_instagram_dm(creator_id, ig_user_id, message)
             if result:
                 return {"sent": True, "simulated": False, "error": None}
         except Exception as e:
-            logger.debug(f"Instagram send failed: {e}")
+            logger.debug(f"[NURTURING] Instagram send failed: {e}")
 
     # No real integration available - simulate send
-    logger.info(f"[SIMULATED] Would send to {follower_id}: {message[:50]}...")
+    logger.info(f"[NURTURING] [SIMULATED] Would send to {follower_id}: {message[:50]}...")
     return {"sent": True, "simulated": True, "error": None}
 
 
@@ -466,7 +506,7 @@ async def run_nurturing_followups(
 
         try:
             message = manager.get_followup_message(fu)
-            result = _try_send_message(creator_id, fu.follower_id, message)
+            result = await _try_send_message(creator_id, fu.follower_id, message)
 
             if result["sent"]:
                 # Mark as sent in storage
@@ -542,7 +582,7 @@ async def _run_scheduler_cycle():
     for fu in followups:
         try:
             message = manager.get_followup_message(fu)
-            result = _try_send_message(fu.creator_id, fu.follower_id, message)
+            result = await _try_send_message(fu.creator_id, fu.follower_id, message)
 
             if result["sent"]:
                 manager.mark_as_sent(fu)
