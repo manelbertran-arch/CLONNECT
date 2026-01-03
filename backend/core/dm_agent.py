@@ -129,6 +129,27 @@ def truncate_response(response: str, max_sentences: int = 2) -> str:
     return response
 
 
+def _contains_alternative_payment(response: str) -> bool:
+    """Check if response already contains alternative payment info (Bizum, IBAN, Revolut)"""
+    response_lower = response.lower()
+    # Check for specific indicators of alternative payment methods
+    indicators = [
+        'bizum', 'transferencia', 'iban', 'revolut', 'wise',
+        '639', '6[0-9]{8}',  # Spanish mobile numbers
+        'es[0-9]{2}',  # IBAN prefix
+        '@'  # Revolut handle
+    ]
+    import re
+    for ind in indicators:
+        if ind.startswith('[') or ind.startswith('('):
+            # It's a regex pattern
+            if re.search(ind, response_lower):
+                return True
+        elif ind in response_lower:
+            return True
+    return False
+
+
 def clean_response_placeholders(response: str, payment_links: list) -> str:
     """Reemplaza placeholders de links con links reales y añade link si falta"""
     if not response:
@@ -145,6 +166,11 @@ def clean_response_placeholders(response: str, payment_links: list) -> str:
 
     logger.info(f"Payment links available: {payment_links}, using: {real_link}")
 
+    # Check if response already has alternative payment method
+    has_alternative_payment = _contains_alternative_payment(response)
+    if has_alternative_payment:
+        logger.info("Response contains alternative payment method - NOT appending Stripe link")
+
     # Replace common placeholders
     placeholders = [
         "[LINK_REAL]", "[link de pago]", "[link]", "[LINK]",
@@ -153,18 +179,20 @@ def clean_response_placeholders(response: str, payment_links: list) -> str:
 
     for placeholder in placeholders:
         if placeholder in response:
-            if real_link:
+            # Don't replace with Stripe link if alternative payment is mentioned
+            if real_link and not has_alternative_payment:
                 response = response.replace(placeholder, real_link)
             else:
-                # Remove placeholder if no link available
+                # Remove placeholder
                 response = response.replace(placeholder, "")
 
     # If response mentions giving a link but no URL present, add it
+    # BUT ONLY if not using alternative payment method
     link_phrases = ['aquí tienes', 'here you go', 'aquí está', 'here is', 'este enlace', 'this link']
     has_link_phrase = any(phrase in response.lower() for phrase in link_phrases)
     has_url = 'http' in response.lower()
 
-    if has_link_phrase and not has_url and real_link:
+    if has_link_phrase and not has_url and real_link and not has_alternative_payment:
         logger.info(f"Response mentions link but has no URL, appending: {real_link}")
         response = f"{response} {real_link}"
 
