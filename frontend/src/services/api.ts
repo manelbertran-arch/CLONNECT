@@ -683,6 +683,20 @@ export async function deleteFAQ(
 }
 
 /**
+ * Update an existing FAQ
+ */
+export async function updateFAQ(
+  creatorId: string = CREATOR_ID,
+  itemId: string,
+  data: { question: string; answer: string }
+): Promise<{ status: string; item: FAQItem }> {
+  return apiFetch(`/creator/config/${creatorId}/knowledge/faqs/${itemId}`, {
+    method: "PUT",
+    body: JSON.stringify(data),
+  });
+}
+
+/**
  * Get About Me/Business info
  */
 export async function getAbout(
@@ -920,6 +934,7 @@ export default {
   getFAQs,
   addFAQ,
   deleteFAQ,
+  updateFAQ,
   getAbout,
   updateAbout,
   generateKnowledge,

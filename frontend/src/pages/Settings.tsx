@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { useSearchParams, useNavigate } from "react-router-dom";
 import { useQueryClient } from "@tanstack/react-query";
-import { Bot, Link2, Package, Save, RefreshCw, Loader2, AlertCircle, Plus, Trash2, BookOpen, Check, Sparkles, Wand2, HelpCircle, User, ChevronDown } from "lucide-react";
+import { Bot, Link2, Package, Save, RefreshCw, Loader2, AlertCircle, Plus, Trash2, BookOpen, Check, Sparkles, Wand2, HelpCircle, User, ChevronDown, Pencil } from "lucide-react";
 
 // Platform SVG Logos
 const PlatformLogo = ({ platform, size = 20 }: { platform: string; size?: number }) => {
@@ -82,7 +82,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Switch } from "@/components/ui/switch";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
-import { useCreatorConfig, useProducts, useUpdateConfig, useAddProduct, useUpdateProduct, useDeleteProduct, useKnowledge, useAddFAQ, useDeleteFAQ, useGenerateKnowledge, useUpdateAbout, useConnections, useUpdateConnection, useDisconnectPlatform } from "@/hooks/useApi";
+import { useCreatorConfig, useProducts, useUpdateConfig, useAddProduct, useUpdateProduct, useDeleteProduct, useKnowledge, useAddFAQ, useDeleteFAQ, useUpdateFAQ, useGenerateKnowledge, useUpdateAbout, useConnections, useUpdateConnection, useDisconnectPlatform } from "@/hooks/useApi";
 import { startOAuth, API_URL } from "@/services/api";
 import { useToast } from "@/hooks/use-toast";
 import type { Product } from "@/types/api";
@@ -205,6 +205,7 @@ export default function Settings() {
   const { data: knowledgeData, isLoading: knowledgeLoading } = useKnowledge();
   const addFAQMutation = useAddFAQ();
   const deleteFAQMutation = useDeleteFAQ();
+  const updateFAQMutation = useUpdateFAQ();
   const generateKnowledgeMutation = useGenerateKnowledge();
   const updateAboutMutation = useUpdateAbout();
   const { data: connectionsData, isLoading: connectionsLoading } = useConnections();
@@ -270,6 +271,7 @@ export default function Settings() {
   const [faqModalOpen, setFaqModalOpen] = useState(false);
   const [aiKnowledgePrompt, setAiKnowledgePrompt] = useState("");
   const [isGeneratingKnowledge, setIsGeneratingKnowledge] = useState(false);
+  const [editingFaq, setEditingFaq] = useState<{ id: string; question: string; answer: string } | null>(null);
 
   // About section state
   const [aboutOpen, setAboutOpen] = useState(false);
@@ -277,7 +279,7 @@ export default function Settings() {
     bio: "",
     specialties: "",
     experience: "",
-    audience: ""
+    target_audience: ""
   });
 
   // FAQ Templates
@@ -367,17 +369,21 @@ export default function Settings() {
   }, [config]);
 
   // Sync About data from knowledgeData
-  const [originalAboutData, setOriginalAboutData] = useState({ bio: "", specialties: "", experience: "", audience: "" });
+  const [originalAboutData, setOriginalAboutData] = useState({ bio: "", specialties: "", experience: "", target_audience: "" });
   const [aboutHasChanges, setAboutHasChanges] = useState(false);
 
   useEffect(() => {
     if (knowledgeData?.about) {
       const about = knowledgeData.about;
+      // Handle specialties as array or string
+      const specialtiesValue = Array.isArray(about.specialties)
+        ? about.specialties.join(", ")
+        : (about.specialties || "");
       const newData = {
         bio: about.bio || "",
-        specialties: about.specialties || "",
+        specialties: specialtiesValue,
         experience: about.experience || "",
-        audience: about.audience || ""
+        target_audience: about.target_audience || ""
       };
       setAboutData(newData);
       setOriginalAboutData(newData);
@@ -391,7 +397,7 @@ export default function Settings() {
       aboutData.bio !== originalAboutData.bio ||
       aboutData.specialties !== originalAboutData.specialties ||
       aboutData.experience !== originalAboutData.experience ||
-      aboutData.audience !== originalAboutData.audience;
+      aboutData.target_audience !== originalAboutData.target_audience;
     setAboutHasChanges(hasChanges);
   }, [aboutData, originalAboutData]);
 
@@ -603,6 +609,25 @@ export default function Settings() {
     }
   };
 
+  const handleUpdateFAQ = async () => {
+    if (!editingFaq) return;
+    try {
+      await updateFAQMutation.mutateAsync({
+        itemId: editingFaq.id,
+        question: editingFaq.question,
+        answer: editingFaq.answer
+      });
+      setEditingFaq(null);
+      toast({ title: "FAQ actualizada", description: "La pregunta ha sido actualizada." });
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: error instanceof Error ? error.message : "Failed to update FAQ",
+        variant: "destructive",
+      });
+    }
+  };
+
   const handleSelectTemplate = (template: { question: string; answer: string }) => {
     setFaqQuestion(template.question);
     setFaqAnswer("");
@@ -644,11 +669,14 @@ export default function Settings() {
 
       // Update About data if returned
       if (result.about) {
+        const specialtiesValue = Array.isArray(result.about.specialties)
+          ? result.about.specialties.join(", ")
+          : (result.about.specialties || "");
         setAboutData(prev => ({
           bio: result.about.bio || prev.bio,
-          specialties: result.about.specialties || prev.specialties,
+          specialties: specialtiesValue || prev.specialties,
           experience: result.about.experience || prev.experience,
-          audience: result.about.audience || prev.audience,
+          target_audience: result.about.target_audience || prev.target_audience,
         }));
         setAboutOpen(true); // Open to show the user
       }
@@ -1254,8 +1282,8 @@ export default function Settings() {
                 <div>
                   <Label className="text-sm text-muted-foreground mb-2 block">Público objetivo</Label>
                   <Input
-                    value={aboutData.audience}
-                    onChange={(e) => setAboutData({...aboutData, audience: e.target.value})}
+                    value={aboutData.target_audience}
+                    onChange={(e) => setAboutData({...aboutData, target_audience: e.target.value})}
                     placeholder="Personas que quieren aprender a invertir"
                     className="bg-secondary border-0"
                   />
@@ -1419,23 +1447,75 @@ Garantía: 30 días. Pagos: Stripe, PayPal, Bizum. Horario: L-V 9:00-18:00"
                 </p>
                 {(knowledgeData?.faqs || []).map((faq) => (
                   <div key={faq.id} className="rounded-lg p-4 bg-secondary/30 border border-border/50">
-                    <div className="flex justify-between items-start gap-3">
-                      <div className="flex-1 min-w-0">
-                        <p className="font-medium text-primary">{faq.question}</p>
-                        <p className="text-sm text-muted-foreground mt-1">
-                          {faq.answer.length > 200 ? `${faq.answer.slice(0, 200)}...` : faq.answer}
-                        </p>
+                    {editingFaq?.id === faq.id ? (
+                      // Editing mode
+                      <div className="space-y-3">
+                        <Input
+                          value={editingFaq.question}
+                          onChange={(e) => setEditingFaq({ ...editingFaq, question: e.target.value })}
+                          placeholder="Pregunta"
+                          className="bg-background border-border"
+                        />
+                        <Textarea
+                          value={editingFaq.answer}
+                          onChange={(e) => setEditingFaq({ ...editingFaq, answer: e.target.value })}
+                          placeholder="Respuesta"
+                          className="bg-background border-border min-h-[80px]"
+                        />
+                        <div className="flex justify-end gap-2">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => setEditingFaq(null)}
+                          >
+                            Cancelar
+                          </Button>
+                          <Button
+                            size="sm"
+                            onClick={handleUpdateFAQ}
+                            disabled={updateFAQMutation.isPending || !editingFaq.question.trim() || !editingFaq.answer.trim()}
+                          >
+                            {updateFAQMutation.isPending ? (
+                              <Loader2 className="w-4 h-4 animate-spin" />
+                            ) : (
+                              <>
+                                <Check className="w-4 h-4 mr-1" />
+                                Guardar
+                              </>
+                            )}
+                          </Button>
+                        </div>
                       </div>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => handleDeleteFAQ(faq.id)}
-                        disabled={deleteFAQMutation.isPending}
-                        className="shrink-0 text-muted-foreground hover:text-destructive"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </Button>
-                    </div>
+                    ) : (
+                      // View mode
+                      <div className="flex justify-between items-start gap-3">
+                        <div className="flex-1 min-w-0">
+                          <p className="font-medium text-primary">{faq.question}</p>
+                          <p className="text-sm text-muted-foreground mt-1">
+                            {faq.answer.length > 200 ? `${faq.answer.slice(0, 200)}...` : faq.answer}
+                          </p>
+                        </div>
+                        <div className="flex shrink-0">
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => setEditingFaq({ id: faq.id, question: faq.question, answer: faq.answer })}
+                            className="text-muted-foreground hover:text-primary"
+                          >
+                            <Pencil className="w-4 h-4" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => handleDeleteFAQ(faq.id)}
+                            disabled={deleteFAQMutation.isPending}
+                            className="text-muted-foreground hover:text-destructive"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </Button>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 ))}
               </div>
