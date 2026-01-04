@@ -59,8 +59,8 @@ import {
   getConnections,
   updateConnection,
   disconnectPlatform,
-  getOnboardingTourStatus,
-  completeOnboardingTour,
+  getVisualOnboardingStatus,
+  completeVisualOnboarding,
   apiKeys,
 } from "@/services/api";
 import type { UpdateConnectionData } from "@/services/api";
@@ -857,29 +857,29 @@ export function useDisconnectPlatform(creatorId: string = CREATOR_ID) {
 }
 
 // =============================================================================
-// ONBOARDING TOUR HOOKS
+// VISUAL ONBOARDING HOOKS
 // =============================================================================
 
 /**
- * Hook to fetch onboarding tour status
+ * Hook to fetch visual onboarding status
  */
-export function useOnboardingTourStatus(creatorId: string = CREATOR_ID) {
+export function useVisualOnboardingStatus(creatorId: string = CREATOR_ID) {
   return useQuery({
-    queryKey: apiKeys.onboardingTour(creatorId),
-    queryFn: () => getOnboardingTourStatus(creatorId),
-    staleTime: 60000, // 1 minute
+    queryKey: ["visualOnboarding", creatorId],
+    queryFn: () => getVisualOnboardingStatus(creatorId),
+    staleTime: Infinity, // Don't refetch - this rarely changes
   });
 }
 
 /**
- * Hook to complete onboarding tour
+ * Hook to mark visual onboarding as complete
  */
-export function useCompleteOnboardingTour(creatorId: string = CREATOR_ID) {
+export function useCompleteVisualOnboarding(creatorId: string = CREATOR_ID) {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: () => completeOnboardingTour(creatorId),
+    mutationFn: () => completeVisualOnboarding(creatorId),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: apiKeys.onboardingTour(creatorId) });
+      queryClient.invalidateQueries({ queryKey: ["visualOnboarding", creatorId] });
     },
   });
 }

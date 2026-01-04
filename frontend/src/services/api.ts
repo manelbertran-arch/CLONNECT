@@ -900,25 +900,30 @@ export async function startOAuth(
 }
 
 // =============================================================================
-// ONBOARDING TOUR
+// VISUAL ONBOARDING
 // =============================================================================
 
-/**
- * Check if onboarding tour is completed
- */
-export async function getOnboardingTourStatus(
-  creatorId: string = CREATOR_ID
-): Promise<{ status: string; onboarding_completed: boolean }> {
-  return apiFetch(`/onboarding/${creatorId}/tour-completed`);
+export interface VisualOnboardingStatus {
+  status: string;
+  onboarding_completed: boolean;
 }
 
 /**
- * Mark onboarding tour as completed
+ * Get visual onboarding status (if the intro tour has been completed)
  */
-export async function completeOnboardingTour(
+export async function getVisualOnboardingStatus(
   creatorId: string = CREATOR_ID
-): Promise<{ status: string; message: string; onboarding_completed: boolean }> {
-  return apiFetch(`/onboarding/${creatorId}/complete-tour`, {
+): Promise<VisualOnboardingStatus> {
+  return apiFetch(`/onboarding/${creatorId}/visual-status`);
+}
+
+/**
+ * Mark the visual onboarding tour as completed
+ */
+export async function completeVisualOnboarding(
+  creatorId: string = CREATOR_ID
+): Promise<{ status: string; message: string }> {
+  return apiFetch(`/onboarding/${creatorId}/complete`, {
     method: "POST",
   });
 }
@@ -965,6 +970,8 @@ export default {
   updateAbout,
   generateKnowledge,
   deleteKnowledge,
+  getVisualOnboardingStatus,
+  completeVisualOnboarding,
   apiKeys,
   CREATOR_ID,
   API_URL,

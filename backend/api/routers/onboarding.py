@@ -186,9 +186,9 @@ async def skip_onboarding(creator_id: str):
     return {"status": "ok", "message": "Onboarding skipped"}
 
 
-@router.get("/{creator_id}/tour-completed")
-async def get_onboarding_tour_status(creator_id: str):
-    """Check if the user has completed the onboarding tour"""
+@router.get("/{creator_id}/visual-status")
+async def get_visual_onboarding_status(creator_id: str):
+    """Check if the visual onboarding tour has been completed"""
     try:
         from api.database import DATABASE_URL, SessionLocal
         if DATABASE_URL and SessionLocal:
@@ -204,14 +204,14 @@ async def get_onboarding_tour_status(creator_id: str):
             finally:
                 session.close()
     except Exception as e:
-        logger.warning(f"Error checking onboarding tour status: {e}")
+        logger.warning(f"Error checking visual onboarding status: {e}")
 
     return {"status": "ok", "onboarding_completed": False}
 
 
-@router.post("/{creator_id}/complete-tour")
-async def complete_onboarding_tour(creator_id: str):
-    """Mark the onboarding tour as completed"""
+@router.post("/{creator_id}/complete")
+async def complete_visual_onboarding(creator_id: str):
+    """Mark the visual onboarding tour as completed"""
     try:
         from api.database import DATABASE_URL, SessionLocal
         if DATABASE_URL and SessionLocal:
@@ -222,13 +222,25 @@ async def complete_onboarding_tour(creator_id: str):
                 if creator:
                     creator.onboarding_completed = True
                     session.commit()
-                    return {"status": "ok", "message": "Onboarding tour completed", "onboarding_completed": True}
+                    logger.info(f"Visual onboarding completed for creator: {creator_id}")
+                    return {"status": "ok", "message": "Onboarding completed"}
                 else:
-                    return {"status": "error", "message": "Creator not found"}
+                    # Creator doesn't exist in DB yet - create them
+                    import uuid
+                    new_creator = Creator(
+                        id=uuid.uuid4(),
+                        name=creator_id,
+                        email=f"{creator_id}@clonnect.io",
+                        onboarding_completed=True
+                    )
+                    session.add(new_creator)
+                    session.commit()
+                    logger.info(f"Created creator and completed onboarding: {creator_id}")
+                    return {"status": "ok", "message": "Onboarding completed"}
             finally:
                 session.close()
     except Exception as e:
-        logger.error(f"Error completing onboarding tour: {e}")
+        logger.error(f"Error completing visual onboarding: {e}")
         return {"status": "error", "message": str(e)}
 
-    return {"status": "error", "message": "Database not configured"}
+    return {"status": "ok", "message": "Onboarding completed"}
