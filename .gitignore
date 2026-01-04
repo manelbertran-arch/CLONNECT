@@ -58,3 +58,6 @@ backend/data/analytics/manel_events.json
 backend/data/escalations/manel_escalations.jsonl
 backend/data/nurturing/manel_followups.json
 backend/data/sales/
+
+# Cloned repos for auditing
+Clonnect-creators/
