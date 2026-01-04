@@ -48,6 +48,8 @@ class Creator(Base):
     other_payment_methods = Column(JSON, default=dict)
     # Knowledge base: About Me/Business info (JSON with structured fields)
     knowledge_about = Column(JSON, default=dict)
+    # Onboarding status
+    onboarding_completed = Column(Boolean, default=False)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
 class Lead(Base):

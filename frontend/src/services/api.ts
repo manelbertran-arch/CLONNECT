@@ -828,6 +828,7 @@ export const apiKeys = {
   nurturingFollowups: (creatorId: string) => ["nurturingFollowups", creatorId] as const,
   knowledge: (creatorId: string) => ["knowledge", creatorId] as const,
   connections: (creatorId: string) => ["connections", creatorId] as const,
+  onboardingTour: (creatorId: string) => ["onboardingTour", creatorId] as const,
 };
 
 // =============================================================================
@@ -896,6 +897,30 @@ export async function startOAuth(
   creatorId: string = CREATOR_ID
 ): Promise<OAuthStartResponse> {
   return apiFetch(`/oauth/${platform}/start?creator_id=${creatorId}`);
+}
+
+// =============================================================================
+// ONBOARDING TOUR
+// =============================================================================
+
+/**
+ * Check if onboarding tour is completed
+ */
+export async function getOnboardingTourStatus(
+  creatorId: string = CREATOR_ID
+): Promise<{ status: string; onboarding_completed: boolean }> {
+  return apiFetch(`/onboarding/${creatorId}/tour-completed`);
+}
+
+/**
+ * Mark onboarding tour as completed
+ */
+export async function completeOnboardingTour(
+  creatorId: string = CREATOR_ID
+): Promise<{ status: string; message: string; onboarding_completed: boolean }> {
+  return apiFetch(`/onboarding/${creatorId}/complete-tour`, {
+    method: "POST",
+  });
 }
 
 // Default export for convenience
