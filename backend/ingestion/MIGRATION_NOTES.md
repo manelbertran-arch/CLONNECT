@@ -5,47 +5,35 @@
 
 ## Resumen Ejecutivo
 
-| Funcionalidad | Archivo Origen | Fase | Prioridad |
-|---------------|----------------|------|-----------|
-| Chunking con overlap | `api/main.py:83-96` | 1 | ALTA |
-| Extracción PDF | `api/main.py:99-104` | 2 | MEDIA |
-| Transcripción audio | `api/main.py:107-117` | 2 | MEDIA |
-| PDF con fallback | `core/ingest.py:21-41` | 2 | BAJA |
-| Transcripción GCS | `core/ingest.py:44-53` | 2 | BAJA |
+| Funcionalidad | Archivo Origen | Fase | Estado |
+|---------------|----------------|------|--------|
+| Chunking con overlap | `api/main.py:83-96` | 1 | ✅ MIGRADO |
+| Extracción PDF | `api/main.py:99-104` | 2 | ⏳ Pendiente |
+| Transcripción audio | `api/main.py:107-117` | 2 | ⏳ Pendiente |
+| PDF con fallback | `core/ingest.py:21-41` | 2 | ⏳ Pendiente |
+| Transcripción GCS | `core/ingest.py:44-53` | 2 | ⏳ Pendiente |
 
 ---
 
 ## Código Encontrado para Migrar
 
-### 1. Chunking con Overlap (FASE 1 - PRIORITARIO)
+### 1. Chunking con Overlap (FASE 1) ✅ MIGRADO
 
 **Archivo origen:** `clonnect-memory/api/main.py`
 **Líneas:** 83-96
 **Función:** `split_text(text, chunk_size=1000, overlap=200)`
 **Dependencias:** Ninguna (Python puro)
-**Estado:** ⏳ Pendiente migración Fase 1
+**Estado:** ✅ Migrado a `content_indexer.py` (2026-01-04)
 
-```python
-def split_text(text: str, chunk_size: int = 1000, overlap: int = 200) -> List[str]:
-    text = text.strip()
-    if not text:
-        return []
-    chunks = []
-    start = 0
-    n = len(text)
-    while start < n:
-        end = min(n, start + chunk_size)
-        chunks.append(text[start:end])
-        if end == n:
-            break
-        start = max(0, end - overlap)
-    return chunks
-```
+**Mejoras implementadas:**
+- Respeta límites de oraciones (corta en `. `, `? `, `! `, `\n`)
+- Chunk size reducido a 500 (mejor para RAG)
+- Overlap reducido a 50 (suficiente contexto)
+- Añadido `ContentChunk` dataclass para estructurar chunks
+- Añadido `create_chunks_from_content()` para crear chunks con metadata
+- Añadido `generate_chunk_id()` para IDs determinísticos
 
-**Notas:**
-- Algoritmo simple pero efectivo para RAG
-- El overlap de 200 chars ayuda a no cortar contexto
-- Considerar versión mejorada que respete límites de palabras/oraciones
+**Tests:** 12 tests en `backend/tests/test_content_indexer.py`
 
 ---
 
@@ -137,10 +125,10 @@ pdfplumber            # (opcional) Mejor extracción PDF
 
 ## Plan de Migración
 
-### Fase 1: Chunking
-1. Copiar `split_text()` a `content_indexer.py`
-2. Añadir tests unitarios
-3. Integrar con pipeline RAG existente
+### Fase 1: Chunking ✅ COMPLETADO
+1. ✅ Copiar `split_text()` a `content_indexer.py`
+2. ✅ Añadir tests unitarios (12 tests)
+3. ⏳ Integrar con pipeline RAG existente
 
 ### Fase 2: PDF + Audio
 1. Copiar `extract_text_from_pdf()` a `pdf_extractor.py`
