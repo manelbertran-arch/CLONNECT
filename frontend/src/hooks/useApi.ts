@@ -59,6 +59,8 @@ import {
   getConnections,
   updateConnection,
   disconnectPlatform,
+  getOnboardingTourStatus,
+  completeOnboardingTour,
   apiKeys,
 } from "@/services/api";
 import type { UpdateConnectionData } from "@/services/api";
@@ -850,6 +852,34 @@ export function useDisconnectPlatform(creatorId: string = CREATOR_ID) {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: apiKeys.connections(creatorId) });
       queryClient.invalidateQueries({ queryKey: ["onboarding"] });
+    },
+  });
+}
+
+// =============================================================================
+// ONBOARDING TOUR HOOKS
+// =============================================================================
+
+/**
+ * Hook to fetch onboarding tour status
+ */
+export function useOnboardingTourStatus(creatorId: string = CREATOR_ID) {
+  return useQuery({
+    queryKey: apiKeys.onboardingTour(creatorId),
+    queryFn: () => getOnboardingTourStatus(creatorId),
+    staleTime: 60000, // 1 minute
+  });
+}
+
+/**
+ * Hook to complete onboarding tour
+ */
+export function useCompleteOnboardingTour(creatorId: string = CREATOR_ID) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: () => completeOnboardingTour(creatorId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: apiKeys.onboardingTour(creatorId) });
     },
   });
 }

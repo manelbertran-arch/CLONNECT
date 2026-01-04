@@ -184,3 +184,51 @@ async def skip_onboarding(creator_id: str):
     """Mark onboarding as skipped (user will configure later)"""
     # Could store in database/file that user skipped onboarding
     return {"status": "ok", "message": "Onboarding skipped"}
+
+
+@router.get("/{creator_id}/tour-completed")
+async def get_onboarding_tour_status(creator_id: str):
+    """Check if the user has completed the onboarding tour"""
+    try:
+        from api.database import DATABASE_URL, SessionLocal
+        if DATABASE_URL and SessionLocal:
+            session = SessionLocal()
+            try:
+                from api.models import Creator
+                creator = session.query(Creator).filter_by(name=creator_id).first()
+                if creator:
+                    return {
+                        "status": "ok",
+                        "onboarding_completed": creator.onboarding_completed or False
+                    }
+            finally:
+                session.close()
+    except Exception as e:
+        logger.warning(f"Error checking onboarding tour status: {e}")
+
+    return {"status": "ok", "onboarding_completed": False}
+
+
+@router.post("/{creator_id}/complete-tour")
+async def complete_onboarding_tour(creator_id: str):
+    """Mark the onboarding tour as completed"""
+    try:
+        from api.database import DATABASE_URL, SessionLocal
+        if DATABASE_URL and SessionLocal:
+            session = SessionLocal()
+            try:
+                from api.models import Creator
+                creator = session.query(Creator).filter_by(name=creator_id).first()
+                if creator:
+                    creator.onboarding_completed = True
+                    session.commit()
+                    return {"status": "ok", "message": "Onboarding tour completed", "onboarding_completed": True}
+                else:
+                    return {"status": "error", "message": "Creator not found"}
+            finally:
+                session.close()
+    except Exception as e:
+        logger.error(f"Error completing onboarding tour: {e}")
+        return {"status": "error", "message": str(e)}
+
+    return {"status": "error", "message": "Database not configured"}
