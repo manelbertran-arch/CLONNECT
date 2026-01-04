@@ -334,5 +334,5 @@ class TestQuickAnalyzeText:
     def test_empty_text(self):
         result = quick_analyze_text("")
         assert result['length'] == 0
-        assert result['word_count'] == 1  # split on empty returns ['']
+        assert result['word_count'] == 0  # split on empty returns []
         assert result['has_questions'] == False
