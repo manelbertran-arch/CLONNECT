@@ -1,37 +1,16 @@
-import { TrendingUp, Flame, MessageCircle, Users, AlertCircle, Loader2, Power, PowerOff, UserCheck, DollarSign, Bot } from "lucide-react";
+import { TrendingUp, Flame, MessageCircle, Users, AlertCircle, Loader2, Power, PowerOff, UserCheck, Bot } from "lucide-react";
 import { Area, AreaChart, ResponsiveContainer, XAxis, YAxis, Tooltip } from "recharts";
 import { Progress } from "@/components/ui/progress";
 import { Button } from "@/components/ui/button";
-import { useDashboard, useToggleBot, useRevenue, useOnboardingTourStatus, useCompleteOnboardingTour } from "@/hooks/useApi";
+import { useDashboard, useToggleBot, useRevenue } from "@/hooks/useApi";
 import { useToast } from "@/hooks/use-toast";
 import { getPurchaseIntent } from "@/types/api";
-import { OnboardingChecklist } from "@/components/OnboardingChecklist";
-import { Onboarding } from "@/components/Onboarding";
 
 export default function Dashboard() {
   const { data, isLoading, error } = useDashboard();
   const { data: revenueData } = useRevenue();
   const toggleBot = useToggleBot();
   const { toast } = useToast();
-
-  // Onboarding tour state
-  const { data: onboardingStatus, isLoading: onboardingLoading } = useOnboardingTourStatus();
-  const completeOnboardingTour = useCompleteOnboardingTour();
-
-  // Handle onboarding completion
-  const handleOnboardingComplete = () => {
-    completeOnboardingTour.mutate(undefined, {
-      onSuccess: () => {
-        toast({
-          title: "¡Bienvenido a Clonnect!",
-          description: "Tu clon de IA está listo para configurar.",
-        });
-      },
-    });
-  };
-
-  // Show onboarding if not completed
-  const showOnboarding = !onboardingLoading && onboardingStatus && !onboardingStatus.onboarding_completed;
 
   const currentHour = new Date().getHours();
   const greeting = currentHour < 12 ? "Good morning" : currentHour < 18 ? "Good afternoon" : "Good evening";
@@ -189,11 +168,6 @@ export default function Dashboard() {
     });
   }
 
-  // Render onboarding if not completed
-  if (showOnboarding) {
-    return <Onboarding onComplete={handleOnboardingComplete} />;
-  }
-
   return (
     <div className="space-y-8">
       {/* Header */}
@@ -221,8 +195,6 @@ export default function Dashboard() {
         </Button>
       </div>
 
-      {/* Onboarding Checklist - shows only if incomplete */}
-      <OnboardingChecklist />
 
       {/* Main Stats Card */}
       <div className="metric-card glow relative overflow-hidden">
