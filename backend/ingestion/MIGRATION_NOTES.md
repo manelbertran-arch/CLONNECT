@@ -125,10 +125,29 @@ pdfplumber            # (opcional) Mejor extracción PDF
 
 ## Plan de Migración
 
-### Fase 1: Chunking ✅ COMPLETADO
-1. ✅ Copiar `split_text()` a `content_indexer.py`
-2. ✅ Añadir tests unitarios (12 tests)
-3. ⏳ Integrar con pipeline RAG existente
+### Fase 1: Magic Slice ✅ COMPLETADO
+1. ✅ Content Indexer (`content_indexer.py`) - 12 tests
+   - Smart chunking con respeto a límites de oraciones
+   - ContentChunk dataclass, generate_chunk_id(), create_chunks_from_content()
+
+2. ✅ Instagram Scraper (`instagram_scraper.py`) - 17 tests
+   - 3 métodos: Meta Graph API, Instaloader, Manual JSON
+   - InstagramPost dataclass con has_content property
+
+3. ✅ Tone Analyzer (`tone_analyzer.py`) - 18 tests
+   - ToneProfile con 25+ atributos para clonación de voz
+   - to_system_prompt_section() genera prompt para LLM
+
+4. ✅ Content Citation (`content_citation.py`) - 22 tests
+   - Citation con to_natural_reference() para lenguaje natural
+   - CitationContext con to_prompt_context() para inyección LLM
+
+5. ✅ Response Engine v2 (`response_engine_v2.py`) - ~20 tests
+   - ConversationContext integra follower + creator + citations
+   - ResponseEngineV2 genera respuestas mejoradas
+   - build_magic_slice_prompt() para sistemas existentes
+
+**Total: ~89 tests pasando**
 
 ### Fase 2: PDF + Audio
 1. Copiar `extract_text_from_pdf()` a `pdf_extractor.py`
@@ -151,4 +170,4 @@ pdfplumber            # (opcional) Mejor extracción PDF
 
 - Repo origen: `https://github.com/manelbertran-arch/clonnect-memory`
 - Auditoría: `AUDITORIA_clonnect-memory.md`
-- Rama de trabajo: `feature/content-ingestion-pipeline`
+- Rama de trabajo: `claude/audit-clonnect-repo-GB0Sy`
