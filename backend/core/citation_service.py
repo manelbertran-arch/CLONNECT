@@ -470,3 +470,26 @@ async def index_creator_posts(
         'total_chunks': total_chunks,
         'index_stats': index.stats
     }
+
+
+def delete_content_index(creator_id: str) -> bool:
+    """
+    Elimina el indice de contenido de un creador.
+
+    Args:
+        creator_id: ID del creador
+
+    Returns:
+        True si se elimino, False si no existia
+    """
+    import shutil
+
+    index_dir = Path(f"data/content_index/{creator_id}")
+    if index_dir.exists():
+        shutil.rmtree(index_dir)
+        # Limpiar cache
+        if creator_id in _index_cache:
+            del _index_cache[creator_id]
+        logger.info(f"Deleted content index for {creator_id}")
+        return True
+    return False

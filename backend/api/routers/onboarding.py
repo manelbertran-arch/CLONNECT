@@ -1,13 +1,52 @@
-"""Onboarding checklist endpoints"""
+"""Onboarding checklist endpoints + Magic Slice pipeline"""
 import os
 import logging
-from fastapi import APIRouter
+from fastapi import APIRouter, HTTPException
+from pydantic import BaseModel
+from typing import Optional, List, Dict
 
 from core.products import ProductManager
 from core.creator_config import CreatorConfigManager
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/onboarding", tags=["onboarding"])
+
+
+# =============================================================================
+# PYDANTIC MODELS FOR MAGIC SLICE ONBOARDING
+# =============================================================================
+
+class PostInput(BaseModel):
+    """Post input for onboarding."""
+    caption: str
+    post_id: Optional[str] = None
+    post_type: Optional[str] = "instagram_post"
+    url: Optional[str] = None
+    permalink: Optional[str] = None
+    timestamp: Optional[str] = None
+    likes_count: Optional[int] = None
+    comments_count: Optional[int] = None
+
+
+class QuickOnboardRequest(BaseModel):
+    """Request simplificado para onboarding rapido."""
+    creator_id: str
+    posts: List[PostInput]
+
+
+class FullOnboardRequest(BaseModel):
+    """Request completo para onboarding."""
+    creator_id: str
+    instagram_username: Optional[str] = None
+    instagram_access_token: Optional[str] = None
+    manual_posts: Optional[List[Dict]] = None
+    scraping_method: str = "manual"
+    max_posts: int = 50
+
+
+# =============================================================================
+# EXISTING HELPER FUNCTIONS
+# =============================================================================
 
 
 async def check_instagram_connected(creator_id: str) -> bool:
@@ -244,3 +283,135 @@ async def complete_visual_onboarding(creator_id: str):
         return {"status": "error", "message": str(e)}
 
     return {"status": "ok", "message": "Onboarding completed"}
+
+
+# =============================================================================
+# MAGIC SLICE ONBOARDING ENDPOINTS
+# =============================================================================
+
+@router.post("/magic-slice/quick")
+async def quick_onboard(request: QuickOnboardRequest):
+    """
+    Onboarding rapido con posts manuales.
+
+    Simplificacion para casos donde ya tienes los posts.
+
+    Body:
+    ```json
+    {
+        "creator_id": "creator_123",
+        "posts": [
+            {"caption": "Mi primer post sobre nutricion..."},
+            {"caption": "Hoy quiero hablarles de..."}
+        ]
+    }
+    ```
+    """
+    from core.onboarding_service import OnboardingRequest, get_onboarding_service
+
+    # Convertir posts a formato esperado
+    manual_posts = [p.model_dump() for p in request.posts]
+
+    full_request = OnboardingRequest(
+        creator_id=request.creator_id,
+        manual_posts=manual_posts,
+        scraping_method="manual"
+    )
+
+    service = get_onboarding_service()
+    result = await service.onboard_creator(full_request)
+
+    if not result.success and not result.posts_processed:
+        raise HTTPException(status_code=400, detail=result.errors)
+
+    return result.to_dict()
+
+
+@router.post("/magic-slice/creator")
+async def full_onboard(request: FullOnboardRequest):
+    """
+    Onboarding completo de un creador.
+
+    Flujo:
+    1. Obtiene posts (scraping o manual)
+    2. Genera ToneProfile
+    3. Indexa contenido para citaciones
+
+    Returns:
+        OnboardingResult con estadisticas del proceso
+    """
+    from core.onboarding_service import OnboardingRequest, get_onboarding_service
+
+    full_request = OnboardingRequest(
+        creator_id=request.creator_id,
+        instagram_username=request.instagram_username,
+        instagram_access_token=request.instagram_access_token,
+        manual_posts=request.manual_posts,
+        scraping_method=request.scraping_method,
+        max_posts=request.max_posts
+    )
+
+    service = get_onboarding_service()
+    result = await service.onboard_creator(full_request)
+
+    if not result.success and not result.posts_processed:
+        raise HTTPException(status_code=400, detail=result.errors)
+
+    return result.to_dict()
+
+
+@router.get("/magic-slice/{creator_id}/status")
+async def get_magic_slice_status(creator_id: str):
+    """
+    Verifica el estado de onboarding Magic Slice de un creador.
+
+    Returns:
+        - has_tone_profile: bool
+        - has_content_index: bool
+        - tone_summary: dict | null
+        - citation_count: int
+    """
+    from core.tone_service import get_tone_profile
+    from core.citation_service import get_content_index
+
+    tone_profile = await get_tone_profile(creator_id)
+    content_index = get_content_index(creator_id)
+
+    tone_summary = None
+    if tone_profile:
+        tone_summary = {
+            "formality": tone_profile.formality,
+            "energy": tone_profile.energy,
+            "warmth": tone_profile.warmth,
+            "main_topics": tone_profile.main_topics[:5] if tone_profile.main_topics else []
+        }
+
+    return {
+        "creator_id": creator_id,
+        "has_tone_profile": tone_profile is not None,
+        "has_content_index": content_index is not None and len(content_index.chunks) > 0,
+        "tone_summary": tone_summary,
+        "citation_count": len(content_index.chunks) if content_index else 0
+    }
+
+
+@router.delete("/magic-slice/{creator_id}/reset")
+async def reset_magic_slice_data(creator_id: str):
+    """
+    Resetea los datos de Magic Slice de un creador.
+
+    Util para re-onboarding con nuevo contenido.
+
+    WARNING: Elimina ToneProfile y ContentIndex del creador.
+    """
+    from core.tone_service import delete_tone_profile
+    from core.citation_service import delete_content_index
+
+    tone_deleted = delete_tone_profile(creator_id)
+    index_deleted = delete_content_index(creator_id)
+
+    return {
+        "creator_id": creator_id,
+        "tone_profile_deleted": tone_deleted,
+        "content_index_deleted": index_deleted
+    }
