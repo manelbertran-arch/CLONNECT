@@ -69,6 +69,8 @@ class Intent(Enum):
     GREETING = "greeting"
     INTEREST_SOFT = "interest_soft"
     INTEREST_STRONG = "interest_strong"
+    ACKNOWLEDGMENT = "acknowledgment"  # User just confirms/acknowledges (ok, vale, entendido)
+    CORRECTION = "correction"  # User corrects a misunderstanding (no te he dicho que...)
     OBJECTION_PRICE = "objection_price"
     OBJECTION_TIME = "objection_time"
     OBJECTION_DOUBT = "objection_doubt"
@@ -959,7 +961,34 @@ class DMResponderAgent:
         """Clasificar intención del mensaje por keywords"""
         msg = message.lower()
 
-        # Escalación (prioridad máxima)
+        # === CORRECTION - MÁXIMA PRIORIDAD ===
+        # Cuando el usuario corrige un malentendido
+        correction_patterns = [
+            'no te he dicho', 'no he dicho', 'no quiero comprar', 'no quiero pagar',
+            'me has entendido mal', 'no es eso', 'no me refiero', 'no era eso',
+            'no te estoy diciendo', 'no estoy diciendo', 'malentendido',
+            'no he pedido', 'no te pedi', 'no te pedí', 'yo no dije',
+            'no dije eso', 'no es lo que dije', 'no quise decir'
+        ]
+        if any(p in msg for p in correction_patterns):
+            return Intent.CORRECTION, 0.95
+
+        # === ACKNOWLEDGMENT - Before purchase intent ===
+        # Simple confirmations that don't indicate purchase intent
+        # Only match if message is SHORT (< 20 chars) or ONLY acknowledgment words
+        acknowledgment_words = ['ok', 'okey', 'okay', 'vale', 'entendido', 'de acuerdo',
+                                'perfecto', 'bien', 'bueno', 'claro', 'ya', 'ah ok',
+                                'ah vale', 'ah bien', 'entiendo', 'comprendo', 'sí', 'si']
+        msg_stripped = msg.strip()
+        # Only classify as acknowledgment if it's a short, simple response
+        if len(msg_stripped) < 25:
+            if any(msg_stripped == w or msg_stripped == w + '!' or msg_stripped == w + '.' for w in acknowledgment_words):
+                return Intent.ACKNOWLEDGMENT, 0.90
+            # Also match if starts with acknowledgment and nothing else substantial
+            if any(msg_stripped.startswith(w) and len(msg_stripped) < 15 for w in acknowledgment_words):
+                return Intent.ACKNOWLEDGMENT, 0.85
+
+        # Escalación (prioridad máxima después de corrections)
         # Patrones por defecto para detectar solicitud de humano
         default_escalation = [
             "hablar con persona", "hablar con humano", "persona real",
@@ -1579,6 +1608,8 @@ USA ESTA RESPUESTA PARA LA OBJECION (adaptala a tu tono):
             Intent.GREETING: "Saluda de forma cercana y VARIADA (no uses siempre 'Ey!'). Pregunta en que puedes ayudar.",
             Intent.INTEREST_STRONG: "El usuario QUIERE COMPRAR. Dale el link directamente y destaca 2-3 beneficios clave.",
             Intent.INTEREST_SOFT: "Hay interes. Pregunta que necesita y menciona sutilmente el producto.",
+            Intent.ACKNOWLEDGMENT: "El usuario solo confirma/entiende. NO asumas que quiere comprar. Pregunta '¿Te gustaria saber mas?' o '¿En que mas puedo ayudarte?'",
+            Intent.CORRECTION: "El usuario corrige un malentendido. Disculpate brevemente y pregunta en que puedes ayudar realmente.",
             Intent.OBJECTION_PRICE: "Maneja la objecion de precio. Se empatico, menciona garantia/valor.",
             Intent.OBJECTION_TIME: "Maneja la objecion de tiempo. Destaca que es rapido/flexible.",
             Intent.OBJECTION_DOUBT: "Resuelve dudas sin presionar. Ofrece mas info.",
@@ -1966,12 +1997,45 @@ USA ESTA RESPUESTA PARA LA OBJECION (adaptala a tu tono):
                 else:
                     response_text = f"Perfect! {emoji} Here you go: {product_url}"
             else:
-                # No hay link configurado - escalate to human
-                logger.warning(f"NO PAYMENT LINK FOUND for any product!")
-                if follower.preferred_language == "es":
-                    response_text = f"¡Genial que quieras comprar! {emoji} Te paso con el equipo para completar el pago. Escríbenos y te atendemos enseguida."
+                # No hay link configurado - TRY ALTERNATIVE PAYMENT METHODS FIRST
+                logger.warning(f"NO PAYMENT LINK FOUND for any product! Checking alternative methods...")
+
+                # Build list of available alternative payment methods
+                available_methods = []
+
+                bizum = other_payment_methods.get('bizum', {})
+                if isinstance(bizum, dict) and bizum.get('enabled') and bizum.get('phone'):
+                    available_methods.append(f"Bizum al {bizum['phone']}")
+
+                bank = other_payment_methods.get('bank_transfer', {})
+                if isinstance(bank, dict) and bank.get('enabled') and bank.get('iban'):
+                    holder = bank.get('holder_name', '')
+                    holder_text = f" ({holder})" if holder else ""
+                    available_methods.append(f"Transferencia a {bank['iban']}{holder_text}")
+
+                revolut = other_payment_methods.get('revolut', {})
+                if isinstance(revolut, dict) and revolut.get('enabled') and revolut.get('link'):
+                    available_methods.append(f"Revolut: {revolut['link']}")
+
+                other = other_payment_methods.get('other', {})
+                if isinstance(other, dict) and other.get('enabled') and other.get('instructions'):
+                    available_methods.append(f"PayPal: {other['instructions']}")
+
+                if available_methods:
+                    # Show alternative payment methods
+                    methods_text = "\n- ".join(available_methods)
+                    logger.info(f"Found alternative payment methods: {available_methods}")
+                    if follower.preferred_language == "es":
+                        response_text = f"¡Genial! {emoji} Puedes pagar por:\n- {methods_text}\n\n¿Cuál prefieres?"
+                    else:
+                        response_text = f"Great! {emoji} You can pay via:\n- {methods_text}\n\nWhich do you prefer?"
                 else:
-                    response_text = f"Great that you want to buy! {emoji} Let me connect you with the team to complete the payment."
+                    # No alternative methods either - escalate to human
+                    logger.warning(f"NO ALTERNATIVE PAYMENT METHODS FOUND either!")
+                    if follower.preferred_language == "es":
+                        response_text = f"¡Genial que quieras comprar! {emoji} Te paso con el equipo para completar el pago. Escríbenos y te atendemos enseguida."
+                    else:
+                        response_text = f"Great that you want to buy! {emoji} Let me connect you with the team to complete the payment."
 
             # Guardar en historial
             follower.last_messages.append({
@@ -2779,6 +2843,16 @@ USA ESTA RESPUESTA PARA LA OBJECION (adaptala a tu tono):
             Intent.INTEREST_SOFT: [
                 "Me alegra que te interese! Cuentame, que necesitas exactamente?",
                 "Que bien! Que te gustaria saber mas?",
+            ],
+            Intent.ACKNOWLEDGMENT: [
+                "Perfecto! ¿Te gustaria saber mas sobre algo?",
+                "Genial! ¿En que mas puedo ayudarte?",
+                "Ok! ¿Hay algo mas que quieras saber?",
+            ],
+            Intent.CORRECTION: [
+                "Disculpa la confusion! ¿En que puedo ayudarte entonces?",
+                "Perdona, te entendi mal. ¿Que necesitas?",
+                "Ups, disculpa! Cuentame, ¿que te gustaria saber?",
             ],
             Intent.OBJECTION_PRICE: [
                 "Entiendo que es una inversion. Que es lo que mas te preocupa?",
