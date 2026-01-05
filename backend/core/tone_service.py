@@ -163,3 +163,24 @@ def list_profiles() -> List[str]:
     """
     _ensure_dir()
     return [p.stem for p in TONE_PROFILES_DIR.glob("*.json")]
+
+
+def delete_tone_profile(creator_id: str) -> bool:
+    """
+    Elimina el ToneProfile de un creador.
+
+    Args:
+        creator_id: ID del creador
+
+    Returns:
+        True si se elimino, False si no existia
+    """
+    filepath = TONE_PROFILES_DIR / f"{creator_id}.json"
+    if filepath.exists():
+        filepath.unlink()
+        # Limpiar cache
+        if creator_id in _tone_cache:
+            del _tone_cache[creator_id]
+        logger.info(f"Deleted ToneProfile for {creator_id}")
+        return True
+    return False
