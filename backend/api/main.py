@@ -4845,9 +4845,26 @@ async def debug_agent_config(creator_id: str):
     """Debug: ver qué config carga el DMAgent"""
     from core.dm_agent import DMResponderAgent
     agent = DMResponderAgent(creator_id=creator_id)
+    vocab = agent.creator_config.get("clone_vocabulary", "")
+
+    # Detect preset like dm_agent does
+    vocab_lower = vocab.lower() if vocab else ""
+    detected_preset = None
+    if "trata de usted" in vocab_lower or "evita emojis" in vocab_lower:
+        detected_preset = "profesional"
+    elif "ve al grano" in vocab_lower or "llamadas a la acción" in vocab_lower:
+        detected_preset = "vendedor"
+    elif "posiciónate como experto" in vocab_lower or "da consejos prácticos" in vocab_lower:
+        detected_preset = "mentor"
+    elif "tutea siempre" in vocab_lower or "amigo de confianza" in vocab_lower:
+        detected_preset = "amigo"
+
     return {
         "clone_tone": agent.creator_config.get("clone_tone"),
         "clone_name": agent.creator_config.get("clone_name"),
+        "clone_vocabulary": vocab[:500] if vocab else "(empty)",
+        "clone_vocabulary_length": len(vocab) if vocab else 0,
+        "detected_preset": detected_preset,
         "name": agent.creator_config.get("name"),
         "config_keys": list(agent.creator_config.keys())
     }
