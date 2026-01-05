@@ -17,6 +17,14 @@ import Privacy from "./pages/Privacy";
 import NotFound from "./pages/NotFound";
 import BookService from "./pages/BookService";
 
+// New Dashboard Pages
+import { NewLayout } from "./components/layout/NewLayout";
+import Onboarding from "./pages/new/Onboarding";
+import Inicio from "./pages/new/Inicio";
+import Mensajes from "./pages/new/Mensajes";
+import Clientes from "./pages/new/Clientes";
+import Ajustes from "./pages/new/Ajustes";
+
 const queryClient = new QueryClient();
 
 const App = () => (
@@ -39,6 +47,16 @@ const App = () => (
             <Route path="/terms" element={<Terms />} />
             <Route path="/privacy" element={<Privacy />} />
           </Route>
+          {/* New Dashboard Routes */}
+          <Route path="/new" element={<NewLayout />}>
+            <Route index element={<Navigate to="/new/inicio" replace />} />
+            <Route path="inicio" element={<Inicio />} />
+            <Route path="mensajes" element={<Mensajes />} />
+            <Route path="mensajes/:conversationId" element={<Mensajes />} />
+            <Route path="clientes" element={<Clientes />} />
+            <Route path="ajustes" element={<Ajustes />} />
+          </Route>
+          <Route path="/onboarding" element={<Onboarding />} />
           {/* Public booking page - no authentication required */}
           <Route path="/book/:creatorId/:serviceId" element={<BookService />} />
           <Route path="*" element={<NotFound />} />
