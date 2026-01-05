@@ -7,7 +7,7 @@ from pydantic import BaseModel
 from typing import List, Optional
 from datetime import datetime
 
-from backend.core.citation_service import (
+from core.citation_service import (
     get_content_index,
     find_relevant_citations,
     index_creator_posts
