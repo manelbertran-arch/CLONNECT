@@ -341,7 +341,7 @@ IMPORTANTE:
             else:
                 # Fallback: intentar importar cliente default de Clonnect
                 try:
-                    from backend.core.llm_client import get_llm_client
+                    from core.llm_client import get_llm_client
                     client = get_llm_client()
                     response_text = await client.generate(prompt, temperature=0.3)
                 except ImportError:
