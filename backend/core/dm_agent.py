@@ -1021,7 +1021,8 @@ class DMResponderAgent:
             'videollamada', 'zoom', 'meet', 'calendly', 'hablar contigo',
             'cuando podemos hablar', 'podemos hablar', 'disponibilidad',
             'sesion', 'sesión', 'consulta', 'consultoria', 'consultoría',
-            'coaching', 'mentoria', 'mentoría', 'discovery'
+            'coaching', 'mentoria', 'mentoría', 'discovery',
+            'call', 'una call', 'quiero call', 'hacer call', 'tener call'
         ]):
             return Intent.BOOKING, 0.90
 

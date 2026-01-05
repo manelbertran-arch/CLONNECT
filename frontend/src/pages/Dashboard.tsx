@@ -108,8 +108,9 @@ export default function Dashboard() {
       dateToDay[dateKey] = dayNames[d.getDay()];
     }
 
-    // Count MESSAGES (not conversations) per day
-    // Each conversation adds its total_messages to its last_contact date
+    // Count ACTIVE CONVERSATIONS per day
+    // Each conversation with activity on a given day counts as 1
+    // (Using total_messages would incorrectly pile up all historical messages on one day)
     recentConversations.forEach((conv: any) => {
       if (conv.last_contact) {
         const contactDate = new Date(conv.last_contact);
@@ -118,8 +119,8 @@ export default function Dashboard() {
 
         // Only count if this date is in our 7-day window
         if (dateKey in messagesByDate) {
-          // Add total_messages for this conversation to this day
-          messagesByDate[dateKey] += (conv.total_messages || 1);
+          // Count each conversation once per day they were active
+          messagesByDate[dateKey] += 1;
         }
       }
     });
@@ -144,7 +145,8 @@ export default function Dashboard() {
   // Build action items from hot leads - use NAME not username
   // Hot = 50%+ with new ranges (0-25% new | 25-50% warm | 50%+ hot)
   const hotLeads = data?.leads?.filter(l => getPurchaseIntent(l) >= 0.50) || [];
-  const actionItems = hotLeads.slice(0, 3).map((lead, i) => {
+  const totalHotLeads = hotLeads.length;
+  const actionItems = hotLeads.slice(0, 10).map((lead, i) => {
     // Use extracted name, fallback to username, then follower_id
     const displayName = lead.name || lead.username || lead.follower_id;
     const isUsername = !lead.name && lead.username;
@@ -288,8 +290,13 @@ export default function Dashboard() {
           <h3 className="font-semibold mb-4 flex items-center gap-2">
             <AlertCircle className="w-5 h-5 text-warning" />
             Action Required
+            {totalHotLeads > 0 && (
+              <span className="ml-auto text-xs text-muted-foreground">
+                {actionItems.length} of {totalHotLeads} hot leads
+              </span>
+            )}
           </h3>
-          <div className="space-y-3">
+          <div className="space-y-3 max-h-[280px] overflow-y-auto pr-1">
             {actionItems.length > 0 ? (
               actionItems.map((item) => (
                 <div
@@ -317,7 +324,7 @@ export default function Dashboard() {
         <div className="metric-card">
           <h3 className="font-semibold mb-4 flex items-center gap-2">
             <MessageCircle className="w-5 h-5 text-primary" />
-            Message Activity
+            Conversation Activity
           </h3>
           <div className="h-[180px]">
             <ResponsiveContainer width="100%" height="100%">
@@ -337,7 +344,7 @@ export default function Dashboard() {
                     borderRadius: '8px',
                     color: 'hsl(0, 0%, 98%)',
                   }}
-                  formatter={(value: number) => [`${value} message${value !== 1 ? 's' : ''}`, 'Activity']}
+                  formatter={(value: number) => [`${value} active conversation${value !== 1 ? 's' : ''}`, 'Activity']}
                 />
                 <Area
                   type="monotone"
