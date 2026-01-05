@@ -34,6 +34,7 @@ from core.sales_tracker import get_sales_tracker
 from core.guardrails import get_response_guardrail
 from core.reasoning import get_self_consistency_validator, get_chain_of_thought_reasoner
 from core.tone_service import get_tone_prompt_section
+from core.citation_service import get_citation_prompt_section
 from core.metrics import (
     record_message_processed,
     record_llm_error,
@@ -1130,8 +1131,8 @@ class DMResponderAgent:
 
         return None
 
-    def _build_system_prompt(self) -> str:
-        """Construir system prompt con configuración y productos"""
+    def _build_system_prompt(self, message: str = "") -> str:
+        """Construir system prompt con configuración, productos y citaciones relevantes"""
         # Reload config to get latest settings (from DB)
         self.creator_config = self._load_creator_config()
         config = self.creator_config
@@ -1383,6 +1384,14 @@ IMPORTANTE: Las instrucciones anteriores son OBLIGATORIAS y tienen prioridad sob
         if magic_slice_tone:
             logger.info(f"Injecting Magic Slice ToneProfile for {self.creator_id}")
 
+        # Get Magic Slice Citations if message provided
+        citation_section = ""
+        if message:
+            citation_section = get_citation_prompt_section(self.creator_id, message)
+            if citation_section:
+                citation_count = citation_section.count('[1]') + citation_section.count('[2]') + citation_section.count('[3]')
+                logger.info(f"Injecting {citation_count} citations for {self.creator_id}")
+
         # NEW PROMPT: Optimized for Llama/Grok - few-shot examples at END
         return f"""Eres {name}, un creador de contenido que responde mensajes de Instagram/WhatsApp.
 {vocabulary_section}{no_products_warning}
@@ -1391,6 +1400,7 @@ PERSONALIDAD:
 - {formality_rule}
 {emoji_instruction}
 {magic_slice_tone}
+{citation_section}
 
 SOBRE MÍ:
 {knowledge_section}
@@ -1973,8 +1983,8 @@ USA ESTA RESPUESTA PARA LA OBJECION (adaptala a tu tono):
         # Usar el nombre guardado del follower si existe, sino el username del mensaje
         display_name = follower.name or username
 
-        # Construir prompts
-        system_prompt = self._build_system_prompt()
+        # Construir prompts (pass message for citation lookup)
+        system_prompt = self._build_system_prompt(message=message_text)
         user_prompt = self._build_user_prompt(
             message=message_text,
             intent=intent,
