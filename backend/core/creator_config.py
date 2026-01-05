@@ -7,9 +7,14 @@ import json
 from typing import List, Optional, Dict, Any
 from dataclasses import dataclass, asdict, field
 from datetime import datetime
+from pathlib import Path
 import logging
 
 logger = logging.getLogger(__name__)
+
+# Use absolute path for data storage
+_BASE_DIR = Path(__file__).resolve().parent.parent
+_DEFAULT_STORAGE = str(_BASE_DIR / "data" / "creators")
 
 
 @dataclass
@@ -113,7 +118,8 @@ class CreatorConfig:
 class CreatorConfigManager:
     """Gestor de configuración de creadores"""
 
-    def __init__(self, storage_path: str = "data/creators"):
+    def __init__(self, storage_path: str = None):
+        storage_path = storage_path or _DEFAULT_STORAGE
         self.storage_path = storage_path
         os.makedirs(storage_path, exist_ok=True)
 

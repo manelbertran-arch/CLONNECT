@@ -257,7 +257,7 @@ def test_by_sequence_breakdown():
         {
             "id": f"{creator_id}_op_0",
             "creator_id": creator_id,
-            "follower_id": "tg_user_2",
+            "follower_id": "ig_user_2",  # Use instagram to avoid Telegram config requirement
             "sequence_type": "objection_price",
             "step": 0,
             "scheduled_at": past.isoformat(),
