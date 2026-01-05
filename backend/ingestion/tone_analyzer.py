@@ -399,17 +399,23 @@ IMPORTANTE:
         else:
             msg_length = 'muy_larga'
 
-        # Calcular confidence score
+        # Calcular confidence score - adjusted for better results with fewer posts
         if posts_count >= 30:
             confidence = 0.95
         elif posts_count >= 20:
+            confidence = 0.90
+        elif posts_count >= 15:
             confidence = 0.85
         elif posts_count >= 10:
+            confidence = 0.80
+        elif posts_count >= 7:
             confidence = 0.70
         elif posts_count >= 5:
+            confidence = 0.65
+        elif posts_count >= 3:
             confidence = 0.50
         else:
-            confidence = 0.30
+            confidence = 0.35
 
         # Extraer emojis favoritos de estadisticas
         favorite_emojis = [emoji for emoji, count in stats.get('emoji_counts', [])]

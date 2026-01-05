@@ -239,9 +239,9 @@ class TestToneAnalyzer:
             'uses_line_breaks': False, 'avg_length': 200, 'question_marks': 0
         }
 
-        # Pocos posts = baja confianza
+        # Pocos posts = confianza media-baja (adjusted thresholds)
         profile = analyzer._merge_analyses("test", stats, {}, 3)
-        assert profile.confidence_score == 0.30
+        assert profile.confidence_score == 0.50  # 3 posts = 0.50
 
     def test_merge_analyses_confidence_score_medium(self):
         analyzer = ToneAnalyzer()
@@ -252,7 +252,7 @@ class TestToneAnalyzer:
         }
 
         profile = analyzer._merge_analyses("test", stats, {}, 10)
-        assert profile.confidence_score == 0.70
+        assert profile.confidence_score == 0.80  # 10 posts = 0.80 (adjusted)
 
     def test_merge_analyses_confidence_score_high(self):
         analyzer = ToneAnalyzer()
