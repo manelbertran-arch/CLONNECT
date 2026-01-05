@@ -171,12 +171,24 @@ class CitationContext:
             lines.append("")
 
         lines.extend([
-            "INSTRUCCIONES PARA CITAR:",
-            "- Puedes referenciar este contenido de forma NATURAL en tu respuesta",
-            "- NO copies el texto exacto, parafrasea con tu estilo",
-            "- Usa frases como 'en un post que hice...', 'lo explique en un video...'",
-            "- Solo cita si es RELEVANTE para la pregunta del seguidor",
-            "- Si el contenido no es relevante, NO lo menciones"
+            "",
+            "⚠️ INSTRUCCIONES OBLIGATORIAS PARA CITAR (MUY IMPORTANTE):",
+            "- DEBES hacer referencia EXPLÍCITA a este contenido en tu respuesta",
+            "- USA frases como:",
+            "  * 'Como comenté en un post...'",
+            "  * 'Justo hablé de esto en mi último video...'",
+            "  * 'En un contenido que publiqué expliqué que...'",
+            "  * 'Lo expliqué en detalle en un post...'",
+            "  * 'Precisamente toqué este tema y...'",
+            "- Parafrasea con tu estilo, NO copies textualmente",
+            "- La referencia hace tu respuesta más AUTÉNTICA y personal",
+            "",
+            "EJEMPLO DE CITA CORRECTA:",
+            "Usuario: ¿Qué opinas de meter todo en una operación?",
+            "Tú: Justo hablé de esto en un post: la gestión de riesgo es CLAVE. Nunca metas más del 2% por operación 👍",
+            "",
+            "EJEMPLO INCORRECTO (sin citar):",
+            "Tú: La gestión de riesgo es importante, no metas todo..."
         ])
 
         return "\n".join(lines)

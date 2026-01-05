@@ -1637,6 +1637,51 @@ USA ESTA RESPUESTA PARA LA OBJECION (adaptala a tu tono):
 
         msg_lower = message.lower()
 
+        # Check for GENERIC payment questions first - "¿cómo pago?", "formas de pago", etc.
+        generic_payment_triggers = [
+            'cómo pago', 'como pago', 'cómo puedo pagar', 'como puedo pagar',
+            'formas de pago', 'métodos de pago', 'metodos de pago',
+            'qué opciones', 'que opciones', 'opciones de pago',
+            'cómo te pago', 'como te pago', 'cómo lo pago', 'como lo pago',
+            'manera de pagar', 'maneras de pagar', 'how do i pay', 'how can i pay',
+            'quiero pagar', 'puedo pagar', 'para pagar'
+        ]
+
+        is_generic_payment_question = any(trigger in msg_lower for trigger in generic_payment_triggers)
+
+        if is_generic_payment_question:
+            # Build list of ALL available payment methods
+            available_methods = []
+
+            bizum = other_payment_methods.get('bizum', {})
+            if isinstance(bizum, dict) and bizum.get('enabled') and bizum.get('phone'):
+                available_methods.append(f"Bizum al {bizum['phone']}")
+
+            bank = other_payment_methods.get('bank_transfer', {})
+            if isinstance(bank, dict) and bank.get('enabled') and bank.get('iban'):
+                holder = bank.get('holder_name', '')
+                holder_text = f" ({holder})" if holder else ""
+                available_methods.append(f"Transferencia a {bank['iban']}{holder_text}")
+
+            revolut = other_payment_methods.get('revolut', {})
+            if isinstance(revolut, dict) and revolut.get('enabled') and revolut.get('link'):
+                available_methods.append(f"Revolut: {revolut['link']}")
+
+            other = other_payment_methods.get('other', {})
+            if isinstance(other, dict) and other.get('enabled') and other.get('instructions'):
+                available_methods.append(f"PayPal: {other['instructions']}")
+
+            # Also mention card payment if there are product payment links
+            if self.products:
+                has_payment_link = any(p.get('payment_link') or p.get('url') for p in self.products)
+                if has_payment_link:
+                    available_methods.append("Tarjeta (te paso el link)")
+
+            if available_methods:
+                methods_text = "\n- ".join(available_methods)
+                logger.info(f"Direct payment response: Listing all methods -> {available_methods}")
+                return f"¡Genial! Puedes pagar por:\n- {methods_text}\n\n¿Cuál prefieres? 😊"
+
         # Bizum
         if 'bizum' in msg_lower:
             bizum = other_payment_methods.get('bizum', {})

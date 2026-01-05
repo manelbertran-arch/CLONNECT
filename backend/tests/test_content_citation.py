@@ -203,7 +203,7 @@ class TestCitationContext:
         assert "CONTENIDO RELEVANTE" in prompt
         assert "Post sobre ayuno" in prompt
         assert "85%" in prompt
-        assert "INSTRUCCIONES PARA CITAR" in prompt
+        assert "INSTRUCCIONES OBLIGATORIAS PARA CITAR" in prompt
 
     def test_empty_context(self):
         context = CitationContext(query="test", citations=[])
