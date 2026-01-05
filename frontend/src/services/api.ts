@@ -829,6 +829,9 @@ export const apiKeys = {
   knowledge: (creatorId: string) => ["knowledge", creatorId] as const,
   connections: (creatorId: string) => ["connections", creatorId] as const,
   onboardingTour: (creatorId: string) => ["onboardingTour", creatorId] as const,
+  setupProgress: (creatorId: string) => ["setupProgress", creatorId] as const,
+  toneProfile: (creatorId: string) => ["toneProfile", creatorId] as const,
+  contentStats: (creatorId: string) => ["contentStats", creatorId] as const,
 };
 
 // =============================================================================
@@ -928,6 +931,124 @@ export async function completeVisualOnboarding(
   });
 }
 
+// =============================================================================
+// FULL SETUP (ONBOARDING)
+// =============================================================================
+
+export interface SetupProgress {
+  status: "not_started" | "in_progress" | "completed" | "error";
+  progress: number;
+  current_step?: string;
+  steps: {
+    instagram_connected: boolean;
+    posts_imported: number;
+    tone_profile_generated: boolean;
+    tone_summary: string | null;
+    content_indexed: number;
+    dms_imported: number;
+    leads_created: number;
+    youtube_detected: boolean;
+    youtube_videos_imported: number;
+    website_detected: boolean;
+    website_url: string | null;
+  };
+  errors: string[];
+}
+
+/**
+ * Start full setup process (background task)
+ */
+export async function startFullSetup(
+  creatorId: string = CREATOR_ID
+): Promise<{ status: string; message: string; creator_id: string }> {
+  return apiFetch(`/onboarding/full-setup/${creatorId}`, {
+    method: "POST",
+  });
+}
+
+/**
+ * Get full setup progress
+ */
+export async function getSetupProgress(
+  creatorId: string = CREATOR_ID
+): Promise<SetupProgress> {
+  return apiFetch(`/onboarding/full-setup/${creatorId}/progress`);
+}
+
+// =============================================================================
+// TONE PROFILE
+// =============================================================================
+
+export interface ToneProfile {
+  formality: number;      // 0-100
+  energy: number;         // 0-100
+  warmth: number;         // 0-100
+  emoji_usage: number;    // 0-100
+  summary: string;
+  generated_at?: string;
+}
+
+export interface ContentStats {
+  posts_count: number;
+  videos_count: number;
+  pdfs_count: number;
+  audios_count: number;
+  total_indexed: number;
+}
+
+/**
+ * Get tone profile for a creator
+ */
+export async function getToneProfile(
+  creatorId: string = CREATOR_ID
+): Promise<{ status: string; tone_profile: ToneProfile | null }> {
+  return apiFetch(`/creator/${creatorId}/tone-profile`);
+}
+
+/**
+ * Regenerate tone profile from content
+ */
+export async function regenerateToneProfile(
+  creatorId: string = CREATOR_ID
+): Promise<{ status: string; tone_profile: ToneProfile; message: string }> {
+  return apiFetch(`/creator/${creatorId}/tone-profile/regenerate`, {
+    method: "POST",
+  });
+}
+
+/**
+ * Get content statistics
+ */
+export async function getContentStats(
+  creatorId: string = CREATOR_ID
+): Promise<{ status: string; stats: ContentStats }> {
+  return apiFetch(`/creator/${creatorId}/content-stats`);
+}
+
+// =============================================================================
+// TEST CLONE
+// =============================================================================
+
+export interface TestCloneResponse {
+  status: string;
+  response: string;
+  sources?: string[];
+  tone_applied: boolean;
+}
+
+/**
+ * Test the clone with a sample message
+ */
+export async function testClone(
+  creatorId: string = CREATOR_ID,
+  message: string
+): Promise<TestCloneResponse> {
+  return apiFetch(`/clone/${creatorId}/test`, {
+    method: "POST",
+    body: JSON.stringify({ message }),
+  });
+}
+
 // Default export for convenience
 export default {
   getDashboardOverview,
@@ -972,6 +1093,12 @@ export default {
   deleteKnowledge,
   getVisualOnboardingStatus,
   completeVisualOnboarding,
+  startFullSetup,
+  getSetupProgress,
+  getToneProfile,
+  regenerateToneProfile,
+  getContentStats,
+  testClone,
   apiKeys,
   CREATOR_ID,
   API_URL,

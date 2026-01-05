@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { ArrowLeft, Save, Plus, Trash2 } from 'lucide-react';
+import { ArrowLeft, Save, Plus, Trash2, RefreshCw, Send, Loader2, MessageSquare } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -11,7 +11,13 @@ import {
   getKnowledge,
   addFAQ,
   deleteFAQ,
+  getToneProfile,
+  regenerateToneProfile,
+  getContentStats,
+  testClone,
   CREATOR_ID,
+  type ToneProfile,
+  type ContentStats,
 } from '@/services/api';
 
 interface Props {
@@ -22,7 +28,7 @@ export default function TuClonSection({ onBack }: Props) {
   const creatorId = CREATOR_ID;
   const queryClient = useQueryClient();
 
-  const [activeTab, setActiveTab] = useState<'personality' | 'knowledge'>('personality');
+  const [activeTab, setActiveTab] = useState<'overview' | 'personality' | 'knowledge'>('overview');
   const [personalityForm, setPersonalityForm] = useState({
     clone_name: '',
     clone_tone: '',
@@ -31,6 +37,8 @@ export default function TuClonSection({ onBack }: Props) {
   });
   const [newFaq, setNewFaq] = useState({ question: '', answer: '' });
   const [isAddingFaq, setIsAddingFaq] = useState(false);
+  const [testMessage, setTestMessage] = useState('');
+  const [testResponse, setTestResponse] = useState<string | null>(null);
 
   const { data: configData } = useQuery({
     queryKey: ['config', creatorId],
@@ -42,10 +50,34 @@ export default function TuClonSection({ onBack }: Props) {
     queryFn: () => getKnowledge(creatorId),
   });
 
+  const { data: toneData, isLoading: isLoadingTone } = useQuery({
+    queryKey: ['toneProfile', creatorId],
+    queryFn: () => getToneProfile(creatorId),
+  });
+
+  const { data: statsData, isLoading: isLoadingStats } = useQuery({
+    queryKey: ['contentStats', creatorId],
+    queryFn: () => getContentStats(creatorId),
+  });
+
   const updateConfigMutation = useMutation({
     mutationFn: (config: any) => updateCreatorConfig(creatorId, config),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['config', creatorId] });
+    },
+  });
+
+  const regenerateToneMutation = useMutation({
+    mutationFn: () => regenerateToneProfile(creatorId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['toneProfile', creatorId] });
+    },
+  });
+
+  const testCloneMutation = useMutation({
+    mutationFn: (message: string) => testClone(creatorId, message),
+    onSuccess: (data) => {
+      setTestResponse(data.response);
     },
   });
 
@@ -68,6 +100,8 @@ export default function TuClonSection({ onBack }: Props) {
 
   const config = configData?.config;
   const faqs = knowledgeData?.faqs || [];
+  const toneProfile = toneData?.tone_profile;
+  const contentStats = statsData?.stats;
 
   useEffect(() => {
     if (config) {
@@ -104,38 +138,180 @@ export default function TuClonSection({ onBack }: Props) {
     }
   };
 
+  const handleTestClone = () => {
+    if (testMessage.trim()) {
+      testCloneMutation.mutate(testMessage);
+    }
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex items-center gap-4">
-        <button onClick={onBack}>
+        <button onClick={onBack} className="p-2 -ml-2">
           <ArrowLeft className="text-gray-400" />
         </button>
         <h1 className="text-xl font-bold text-white">Tu Clon</h1>
       </div>
 
-      {/* Tabs */}
-      <div className="flex gap-2">
-        <button
-          onClick={() => setActiveTab('personality')}
-          className={`px-4 py-2 rounded-lg text-sm transition-colors ${
-            activeTab === 'personality'
-              ? 'bg-purple-500 text-white'
-              : 'bg-gray-800 text-gray-400 hover:bg-gray-700'
-          }`}
-        >
-          Personalidad
-        </button>
-        <button
-          onClick={() => setActiveTab('knowledge')}
-          className={`px-4 py-2 rounded-lg text-sm transition-colors ${
-            activeTab === 'knowledge'
-              ? 'bg-purple-500 text-white'
-              : 'bg-gray-800 text-gray-400 hover:bg-gray-700'
-          }`}
-        >
-          Conocimiento
-        </button>
+      {/* Tabs - Mobile optimized with scroll */}
+      <div className="flex gap-2 overflow-x-auto pb-2 -mx-1 px-1">
+        {[
+          { id: 'overview', label: 'Resumen' },
+          { id: 'personality', label: 'Personalidad' },
+          { id: 'knowledge', label: 'Conocimiento' },
+        ].map((tab) => (
+          <button
+            key={tab.id}
+            onClick={() => setActiveTab(tab.id as any)}
+            className={`px-4 py-2 rounded-lg text-sm whitespace-nowrap transition-colors min-h-[44px] ${
+              activeTab === tab.id
+                ? 'bg-purple-500 text-white'
+                : 'bg-gray-800 text-gray-400 hover:bg-gray-700'
+            }`}
+          >
+            {tab.label}
+          </button>
+        ))}
       </div>
+
+      {/* Overview Tab */}
+      {activeTab === 'overview' && (
+        <div className="space-y-4">
+          {/* Tone Profile Card */}
+          <div className="bg-gray-900 rounded-xl p-4 border border-gray-800">
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center gap-2">
+                <span className="text-2xl">🎭</span>
+                <h3 className="font-medium text-white">Perfil de Tono</h3>
+              </div>
+              <Button
+                size="sm"
+                variant="ghost"
+                onClick={() => regenerateToneMutation.mutate()}
+                disabled={regenerateToneMutation.isPending}
+                className="text-purple-400 hover:text-purple-300 min-h-[44px]"
+              >
+                {regenerateToneMutation.isPending ? (
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                ) : (
+                  <RefreshCw className="w-4 h-4" />
+                )}
+              </Button>
+            </div>
+
+            {isLoadingTone ? (
+              <div className="flex items-center justify-center py-8">
+                <Loader2 className="w-6 h-6 text-purple-500 animate-spin" />
+              </div>
+            ) : toneProfile ? (
+              <div className="space-y-4">
+                {/* Tone summary */}
+                <p className="text-sm text-gray-300 bg-gray-800 rounded-lg p-3">
+                  {toneProfile.summary}
+                </p>
+
+                {/* Tone bars */}
+                <div className="space-y-3">
+                  <ToneBar label="Formalidad" value={toneProfile.formality} color="bg-blue-500" />
+                  <ToneBar label="Energía" value={toneProfile.energy} color="bg-yellow-500" />
+                  <ToneBar label="Calidez" value={toneProfile.warmth} color="bg-pink-500" />
+                  <ToneBar label="Uso de emojis" value={toneProfile.emoji_usage} color="bg-green-500" />
+                </div>
+              </div>
+            ) : (
+              <div className="text-center py-6">
+                <p className="text-gray-500 text-sm mb-4">
+                  No hay perfil de tono generado
+                </p>
+                <Button
+                  onClick={() => regenerateToneMutation.mutate()}
+                  disabled={regenerateToneMutation.isPending}
+                  className="bg-purple-500 hover:bg-purple-600 min-h-[44px]"
+                >
+                  {regenerateToneMutation.isPending ? (
+                    <>
+                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                      Generando...
+                    </>
+                  ) : (
+                    'Generar perfil de tono'
+                  )}
+                </Button>
+              </div>
+            )}
+          </div>
+
+          {/* Content Stats Card */}
+          <div className="bg-gray-900 rounded-xl p-4 border border-gray-800">
+            <div className="flex items-center gap-2 mb-4">
+              <span className="text-2xl">📚</span>
+              <h3 className="font-medium text-white">Contenido Indexado</h3>
+            </div>
+
+            {isLoadingStats ? (
+              <div className="flex items-center justify-center py-8">
+                <Loader2 className="w-6 h-6 text-purple-500 animate-spin" />
+              </div>
+            ) : contentStats ? (
+              <div className="grid grid-cols-2 gap-3">
+                <StatBox value={contentStats.posts_count} label="Posts" icon="📸" />
+                <StatBox value={contentStats.videos_count} label="Videos" icon="🎬" />
+                <StatBox value={contentStats.pdfs_count} label="PDFs" icon="📄" />
+                <StatBox value={contentStats.audios_count} label="Audios" icon="🎙️" />
+              </div>
+            ) : (
+              <p className="text-gray-500 text-sm text-center py-4">
+                Sin estadísticas disponibles
+              </p>
+            )}
+          </div>
+
+          {/* Test Clone Card */}
+          <div className="bg-gray-900 rounded-xl p-4 border border-gray-800">
+            <div className="flex items-center gap-2 mb-4">
+              <span className="text-2xl">💬</span>
+              <h3 className="font-medium text-white">Probar tu Clon</h3>
+            </div>
+
+            <div className="space-y-3">
+              <div className="flex gap-2">
+                <Input
+                  placeholder="Escribe un mensaje de prueba..."
+                  value={testMessage}
+                  onChange={(e) => setTestMessage(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' && !e.shiftKey) {
+                      e.preventDefault();
+                      handleTestClone();
+                    }
+                  }}
+                  className="bg-gray-800 border-gray-700 flex-1 min-h-[44px]"
+                />
+                <Button
+                  onClick={handleTestClone}
+                  disabled={!testMessage.trim() || testCloneMutation.isPending}
+                  className="bg-purple-500 hover:bg-purple-600 min-h-[44px] min-w-[44px]"
+                >
+                  {testCloneMutation.isPending ? (
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                  ) : (
+                    <Send className="w-4 h-4" />
+                  )}
+                </Button>
+              </div>
+
+              {testResponse && (
+                <div className="bg-gray-800 rounded-lg p-3 border border-gray-700">
+                  <div className="flex items-start gap-2">
+                    <MessageSquare className="w-4 h-4 text-purple-400 mt-0.5 flex-shrink-0" />
+                    <p className="text-sm text-gray-300">{testResponse}</p>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Personality Tab */}
       {activeTab === 'personality' && (
@@ -150,7 +326,7 @@ export default function TuClonSection({ onBack }: Props) {
               onChange={(e) =>
                 setPersonalityForm({ ...personalityForm, clone_name: e.target.value })
               }
-              className="bg-gray-900 border-gray-800"
+              className="bg-gray-900 border-gray-800 min-h-[44px]"
             />
           </div>
 
@@ -169,7 +345,7 @@ export default function TuClonSection({ onBack }: Props) {
           </div>
 
           <div className="space-y-3">
-            <div className="flex items-center justify-between p-3 bg-gray-900 rounded-lg">
+            <div className="flex items-center justify-between p-3 bg-gray-900 rounded-lg min-h-[64px]">
               <div>
                 <p className="text-white">Usar emojis</p>
                 <p className="text-sm text-gray-400">
@@ -184,7 +360,7 @@ export default function TuClonSection({ onBack }: Props) {
               />
             </div>
 
-            <div className="flex items-center justify-between p-3 bg-gray-900 rounded-lg">
+            <div className="flex items-center justify-between p-3 bg-gray-900 rounded-lg min-h-[64px]">
               <div>
                 <p className="text-white">Mostrar empatía</p>
                 <p className="text-sm text-gray-400">
@@ -203,7 +379,7 @@ export default function TuClonSection({ onBack }: Props) {
           <Button
             onClick={handleSavePersonality}
             disabled={updateConfigMutation.isPending}
-            className="w-full bg-purple-500 hover:bg-purple-600"
+            className="w-full bg-purple-500 hover:bg-purple-600 min-h-[48px]"
           >
             <Save className="mr-2" size={18} />
             Guardar cambios
@@ -219,7 +395,9 @@ export default function TuClonSection({ onBack }: Props) {
           </p>
 
           {isLoadingKnowledge ? (
-            <p className="text-gray-500 text-center py-4">Cargando...</p>
+            <div className="flex items-center justify-center py-8">
+              <Loader2 className="w-6 h-6 text-purple-500 animate-spin" />
+            </div>
           ) : (
             <>
               {/* FAQ List */}
@@ -241,7 +419,7 @@ export default function TuClonSection({ onBack }: Props) {
                         </div>
                         <button
                           onClick={() => handleDeleteFaq(faq.id)}
-                          className="p-2 text-gray-400 hover:text-red-500 transition-colors"
+                          className="p-2 text-gray-400 hover:text-red-500 transition-colors min-h-[44px] min-w-[44px] flex items-center justify-center"
                         >
                           <Trash2 size={18} />
                         </button>
@@ -264,7 +442,7 @@ export default function TuClonSection({ onBack }: Props) {
                       onChange={(e) =>
                         setNewFaq({ ...newFaq, question: e.target.value })
                       }
-                      className="bg-gray-800 border-gray-700"
+                      className="bg-gray-800 border-gray-700 min-h-[44px]"
                     />
                   </div>
                   <div>
@@ -287,7 +465,7 @@ export default function TuClonSection({ onBack }: Props) {
                         setIsAddingFaq(false);
                         setNewFaq({ question: '', answer: '' });
                       }}
-                      className="flex-1 border-gray-700"
+                      className="flex-1 border-gray-700 min-h-[48px]"
                     >
                       Cancelar
                     </Button>
@@ -298,7 +476,7 @@ export default function TuClonSection({ onBack }: Props) {
                         !newFaq.answer ||
                         addFaqMutation.isPending
                       }
-                      className="flex-1 bg-purple-500 hover:bg-purple-600"
+                      className="flex-1 bg-purple-500 hover:bg-purple-600 min-h-[48px]"
                     >
                       Añadir
                     </Button>
@@ -307,7 +485,7 @@ export default function TuClonSection({ onBack }: Props) {
               ) : (
                 <Button
                   onClick={() => setIsAddingFaq(true)}
-                  className="w-full bg-purple-500 hover:bg-purple-600"
+                  className="w-full bg-purple-500 hover:bg-purple-600 min-h-[48px]"
                 >
                   <Plus className="mr-2" size={18} />
                   Añadir FAQ
@@ -317,6 +495,50 @@ export default function TuClonSection({ onBack }: Props) {
           )}
         </div>
       )}
+    </div>
+  );
+}
+
+// Helper components
+function ToneBar({
+  label,
+  value,
+  color,
+}: {
+  label: string;
+  value: number;
+  color: string;
+}) {
+  return (
+    <div>
+      <div className="flex justify-between text-sm mb-1">
+        <span className="text-gray-400">{label}</span>
+        <span className="text-gray-300">{value}%</span>
+      </div>
+      <div className="h-2 bg-gray-800 rounded-full overflow-hidden">
+        <div
+          className={`h-full ${color} rounded-full transition-all duration-500`}
+          style={{ width: `${value}%` }}
+        />
+      </div>
+    </div>
+  );
+}
+
+function StatBox({
+  value,
+  label,
+  icon,
+}: {
+  value: number;
+  label: string;
+  icon: string;
+}) {
+  return (
+    <div className="bg-gray-800 rounded-lg p-3 text-center">
+      <div className="text-xl mb-1">{icon}</div>
+      <div className="text-xl font-bold text-white">{value}</div>
+      <div className="text-xs text-gray-400">{label}</div>
     </div>
   );
 }
