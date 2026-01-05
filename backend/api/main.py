@@ -8,6 +8,7 @@ import json
 import logging
 import time
 import shutil
+import asyncio
 import httpx
 from datetime import datetime, timezone
 from typing import Optional, List, Dict, Any
@@ -1286,6 +1287,38 @@ TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN", "")
 TELEGRAM_PROXY_URL = os.getenv("TELEGRAM_PROXY_URL", "")  # Cloudflare Worker URL
 TELEGRAM_PROXY_SECRET = os.getenv("TELEGRAM_PROXY_SECRET", "")
 
+# Deduplication cache for Telegram messages (prevents multiple responses)
+# Stores {update_id: timestamp} with 60 second TTL
+_telegram_processed_updates: Dict[int, float] = {}
+_telegram_dedup_lock = asyncio.Lock()
+TELEGRAM_DEDUP_TTL = 60  # seconds
+
+
+async def _check_telegram_duplicate(update_id: int) -> bool:
+    """
+    Check if this update was already processed.
+    Returns True if duplicate (should skip), False if new.
+    Also cleans up old entries.
+    """
+    import time
+    current_time = time.time()
+
+    async with _telegram_dedup_lock:
+        # Clean up old entries (older than TTL)
+        expired = [uid for uid, ts in _telegram_processed_updates.items()
+                   if current_time - ts > TELEGRAM_DEDUP_TTL]
+        for uid in expired:
+            del _telegram_processed_updates[uid]
+
+        # Check if this update was already processed
+        if update_id in _telegram_processed_updates:
+            logger.warning(f"Telegram duplicate update_id={update_id} - skipping")
+            return True
+
+        # Mark as processed
+        _telegram_processed_updates[update_id] = current_time
+        return False
+
 
 async def send_telegram_via_proxy(chat_id: int, text: str, bot_token: str, reply_markup: dict = None) -> dict:
     """Send Telegram message via Cloudflare Worker proxy"""
@@ -1836,6 +1869,13 @@ async def telegram_webhook(request: Request):
     try:
         payload = await request.json()
         logger.info(f"Telegram webhook received: {payload}")
+
+        # === DEDUPLICATION CHECK ===
+        # Telegram may retry webhooks if response is slow
+        # Check update_id to prevent duplicate processing
+        update_id = payload.get("update_id")
+        if update_id and await _check_telegram_duplicate(update_id):
+            return {"status": "ok", "message": "Duplicate update - already processed"}
 
         # Handle callback_query (button clicks for booking flow)
         callback_query = payload.get("callback_query")
