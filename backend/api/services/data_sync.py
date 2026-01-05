@@ -7,12 +7,16 @@ import json
 import logging
 from datetime import datetime, timezone
 from typing import Optional, Dict, Any
+from pathlib import Path
 
 logger = logging.getLogger(__name__)
 
 DATABASE_URL = os.getenv("DATABASE_URL", "")
 USE_POSTGRES = bool(DATABASE_URL)
-STORAGE_PATH = "data/followers"
+
+# Use absolute path consistent with leads.py
+_BASE_DIR = Path(__file__).resolve().parent.parent.parent
+STORAGE_PATH = str(_BASE_DIR / "data" / "followers")
 
 
 def _get_json_path(creator_id: str, follower_id: str) -> str:

@@ -6,6 +6,11 @@ Tests the complete flow from message input to response generation
 using the Manel creator configuration.
 
 Run with: pytest tests/test_full_flow.py -v
+
+NOTE: These are integration tests that require:
+- Manel creator config
+- Manel products
+- LLM API access (Groq)
 """
 
 import pytest
@@ -15,6 +20,10 @@ import sys
 
 # Add parent to path
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+# Check if LLM API is available
+GROQ_API_KEY = os.environ.get("GROQ_API_KEY", "")
+HAS_LLM_API = GROQ_API_KEY and GROQ_API_KEY.startswith("gsk_")
 
 from core.dm_agent import DMResponderAgent, DMResponse
 from core.dm_agent import Intent
@@ -254,6 +263,7 @@ class TestObjectionTiempoFlow:
         assert response.intent == Intent.OBJECTION_TIME
 
 
+@pytest.mark.skipif(not HAS_LLM_API, reason="Requires LLM API (GROQ_API_KEY)")
 class TestQuestionProductFlow:
     """Test 6: Pregunta producto -> responde con beneficios"""
 
@@ -498,6 +508,7 @@ class TestResponseQuality:
         assert 10 < len(response.response_text) < 1000
 
 
+@pytest.mark.skipif(not HAS_LLM_API, reason="Requires LLM API (GROQ_API_KEY)")
 class TestIntentClassification:
     """Test intent classification accuracy"""
 

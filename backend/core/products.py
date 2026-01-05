@@ -7,9 +7,14 @@ import json
 from typing import List, Optional, Dict, Any
 from dataclasses import dataclass, asdict, field
 from datetime import datetime
+from pathlib import Path
 import logging
 
 logger = logging.getLogger(__name__)
+
+# Use absolute path for data storage
+_BASE_DIR = Path(__file__).resolve().parent.parent
+_DEFAULT_STORAGE = str(_BASE_DIR / "data" / "products")
 
 
 @dataclass
@@ -87,9 +92,9 @@ class ProductManager:
         "ya_tengo": "¡Genial que ya tengas experiencia! {product_name} va más allá de lo básico y te enseña {advanced_feature}. ¿Qué nivel dirías que tienes actualmente?"
     }
 
-    def __init__(self, storage_path: str = "data/products"):
-        self.storage_path = storage_path
-        os.makedirs(storage_path, exist_ok=True)
+    def __init__(self, storage_path: str = None):
+        self.storage_path = storage_path or _DEFAULT_STORAGE
+        os.makedirs(self.storage_path, exist_ok=True)
 
     def _get_creator_file(self, creator_id: str) -> str:
         return os.path.join(self.storage_path, f"{creator_id}_products.json")

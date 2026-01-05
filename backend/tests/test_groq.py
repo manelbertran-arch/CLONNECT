@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 Test rápido para verificar que Groq funciona.
-Skip if groq package not installed.
+Skip if groq package not installed or API key not configured.
 """
 
 import pytest
@@ -19,11 +19,17 @@ try:
 except ImportError:
     GROQ_AVAILABLE = False
 
-# Skip all tests if groq not installed
-pytestmark = pytest.mark.skipif(not GROQ_AVAILABLE, reason="groq package not installed")
+# Check if real API key is available (not test_key)
+GROQ_API_KEY = os.environ.get("GROQ_API_KEY", "")
+HAS_REAL_API_KEY = GROQ_API_KEY and GROQ_API_KEY != "test_key" and GROQ_API_KEY.startswith("gsk_")
 
-# Set API key for test
-os.environ["GROQ_API_KEY"] = os.environ.get("GROQ_API_KEY", "test_key")
+# Skip all tests if groq not installed OR no real API key
+pytestmark = pytest.mark.skipif(
+    not GROQ_AVAILABLE or not HAS_REAL_API_KEY,
+    reason="groq package not installed or GROQ_API_KEY not configured"
+)
+
+# Set environment for tests
 os.environ["LLM_PROVIDER"] = "groq"
 
 from core.llm import get_llm_client, GroqClient
