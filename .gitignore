@@ -47,6 +47,9 @@ Thumbs.db
 
 # Data (ephemeral)
 data/followers/
+data/analytics/
+data/nurturing/
+data/sales/
 *.json.bak
 
 # Test data
