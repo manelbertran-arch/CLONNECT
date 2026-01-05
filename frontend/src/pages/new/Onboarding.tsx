@@ -1,7 +1,8 @@
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Instagram, Youtube, Globe, CheckCircle, Loader2 } from 'lucide-react';
+import { Instagram, Youtube, Globe, CheckCircle, Loader2, Zap } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { Progress } from '@/components/ui/progress';
 import { API_URL, CREATOR_ID } from '@/services/api';
 
 type OnboardingStep = 'connect' | 'loading' | 'complete';
@@ -96,32 +97,33 @@ export default function Onboarding() {
   // STEP 1: Connect platforms
   if (step === 'connect') {
     return (
-      <div className="min-h-screen bg-gray-950 flex flex-col">
-        {/* Mobile-first: full width, padding for touch */}
+      <div className="min-h-screen bg-background flex flex-col">
         <div className="flex-1 flex flex-col justify-center px-6 py-12 max-w-md mx-auto w-full">
-          {/* Logo */}
+          {/* Logo - matches Sidebar */}
           <div className="text-center mb-8">
-            <div className="text-5xl mb-4">🤖</div>
-            <h1 className="text-2xl font-bold text-white mb-2">
-              Conecta y listo
+            <div className="w-16 h-16 rounded-xl bg-gradient-to-br from-primary to-accent flex items-center justify-center mx-auto mb-4">
+              <Zap className="w-8 h-8 text-white" />
+            </div>
+            <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">
+              Conecta y <span className="gradient-text">listo</span>
             </h1>
-            <p className="text-gray-400">
+            <p className="text-muted-foreground mt-2">
               Tu clon aprenderá de tu contenido automáticamente
             </p>
           </div>
 
           {/* Error message */}
           {error && (
-            <div className="bg-red-500/10 border border-red-500/30 rounded-xl p-4 mb-6">
-              <p className="text-red-400 text-sm">{error}</p>
+            <div className="metric-card border-destructive/50 mb-6">
+              <p className="text-destructive text-sm">{error}</p>
             </div>
           )}
 
-          {/* Main CTA - Instagram (obligatorio) */}
+          {/* Main CTA - Instagram */}
           <Button
             onClick={handleConnectInstagram}
             size="lg"
-            className="w-full h-14 text-lg bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 mb-6"
+            className="w-full h-14 text-lg bg-gradient-to-r from-primary to-accent hover:opacity-90 transition-opacity mb-6"
           >
             <Instagram className="mr-3 h-6 w-6" />
             Conectar Instagram
@@ -129,28 +131,28 @@ export default function Onboarding() {
 
           {/* Optional platforms */}
           <div className="space-y-3">
-            <p className="text-sm text-gray-500 text-center mb-3">
+            <p className="text-sm text-muted-foreground text-center mb-3">
               Opcional: más contenido = clon más inteligente
             </p>
 
             <Button
               variant="outline"
-              className="w-full h-12 border-gray-700 text-gray-300 hover:bg-gray-800"
+              className="w-full h-12 border-border text-muted-foreground hover:bg-secondary hover:text-foreground"
               disabled
             >
-              <Youtube className="mr-3 h-5 w-5 text-red-500" />
+              <Youtube className="mr-3 h-5 w-5 text-destructive" />
               YouTube
-              <span className="ml-auto text-xs text-gray-500">Próximamente</span>
+              <span className="ml-auto text-xs text-muted-foreground">Próximamente</span>
             </Button>
 
             <Button
               variant="outline"
-              className="w-full h-12 border-gray-700 text-gray-300 hover:bg-gray-800"
+              className="w-full h-12 border-border text-muted-foreground hover:bg-secondary hover:text-foreground"
               disabled
             >
-              <Globe className="mr-3 h-5 w-5 text-blue-500" />
+              <Globe className="mr-3 h-5 w-5 text-accent" />
               Website
-              <span className="ml-auto text-xs text-gray-500">Próximamente</span>
+              <span className="ml-auto text-xs text-muted-foreground">Próximamente</span>
             </Button>
           </div>
         </div>
@@ -164,26 +166,26 @@ export default function Onboarding() {
     const steps = status?.steps;
 
     return (
-      <div className="min-h-screen bg-gray-950 flex flex-col">
+      <div className="min-h-screen bg-background flex flex-col">
         <div className="flex-1 flex flex-col justify-center px-6 py-12 max-w-md mx-auto w-full">
           {/* Header */}
           <div className="text-center mb-8">
-            <div className="text-5xl mb-4">✨</div>
-            <h1 className="text-2xl font-bold text-white mb-2">
-              Creando tu clon...
+            <div className="w-16 h-16 rounded-xl bg-gradient-to-br from-primary to-accent flex items-center justify-center mx-auto mb-4 animate-pulse">
+              <Zap className="w-8 h-8 text-white" />
+            </div>
+            <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">
+              Creando tu <span className="gradient-text">clon</span>...
             </h1>
           </div>
 
-          {/* Progress bar */}
-          <div className="w-full bg-gray-800 rounded-full h-3 mb-8">
-            <div
-              className="bg-gradient-to-r from-purple-500 to-pink-500 h-3 rounded-full transition-all duration-500"
-              style={{ width: `${progress}%` }}
-            />
+          {/* Progress bar - use shadcn Progress */}
+          <div className="mb-8">
+            <Progress value={progress} className="h-2" />
+            <p className="text-sm text-muted-foreground text-center mt-2">{progress}%</p>
           </div>
 
           {/* Steps list */}
-          <div className="space-y-4">
+          <div className="metric-card space-y-4">
             <StepItem
               done={steps?.instagram_connected}
               loading={!steps?.instagram_connected && progress < 15}
@@ -252,18 +254,20 @@ export default function Onboarding() {
     const steps = status?.steps;
 
     return (
-      <div className="min-h-screen bg-gray-950 flex flex-col">
+      <div className="min-h-screen bg-background flex flex-col">
         <div className="flex-1 flex flex-col justify-center px-6 py-12 max-w-md mx-auto w-full">
           {/* Header */}
           <div className="text-center mb-8">
-            <div className="text-5xl mb-4">🎉</div>
-            <h1 className="text-2xl font-bold text-white mb-2">
-              ¡Tu clon está listo!
+            <div className="w-16 h-16 rounded-xl bg-gradient-to-br from-success to-accent flex items-center justify-center mx-auto mb-4">
+              <CheckCircle className="w-8 h-8 text-white" />
+            </div>
+            <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">
+              ¡Tu clon está <span className="gradient-text">listo</span>!
             </h1>
           </div>
 
-          {/* Stats grid - 2x2 for mobile */}
-          <div className="grid grid-cols-2 gap-4 mb-8">
+          {/* Stats grid - metric cards style */}
+          <div className="grid grid-cols-2 gap-4 mb-6">
             <StatCard
               value={steps?.posts_imported || 0}
               label="Posts"
@@ -288,27 +292,32 @@ export default function Onboarding() {
 
           {/* Tone summary */}
           {steps?.tone_summary && (
-            <div className="bg-gray-900 rounded-xl p-4 mb-8 text-center">
-              <p className="text-sm text-gray-400 mb-1">Tu clon es</p>
-              <p className="text-lg text-white font-medium">
+            <div className="metric-card mb-6 text-center">
+              <p className="text-sm text-muted-foreground mb-1">Tu clon es</p>
+              <p className="text-lg font-medium gradient-text">
                 {steps.tone_summary}
               </p>
             </div>
           )}
 
           {/* Tip */}
-          <div className="bg-purple-500/10 border border-purple-500/30 rounded-xl p-4 mb-8">
-            <p className="text-sm text-gray-300">
-              💡 <strong className="text-white">Para vender:</strong> Añade tu
-              producto y métodos de pago en Ajustes
-            </p>
+          <div className="metric-card border-primary/30 mb-6">
+            <div className="flex items-start gap-3">
+              <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center flex-shrink-0">
+                <span>💡</span>
+              </div>
+              <p className="text-sm text-muted-foreground">
+                <strong className="text-foreground">Para vender:</strong> Añade tu
+                producto y métodos de pago en Settings
+              </p>
+            </div>
           </div>
 
-          {/* CTA */}
+          {/* CTA - Navigate to OLD dashboard */}
           <Button
-            onClick={() => navigate('/new/inicio')}
+            onClick={() => navigate('/dashboard')}
             size="lg"
-            className="w-full h-14 text-lg bg-gradient-to-r from-purple-500 to-pink-500"
+            className="w-full h-14 text-lg bg-gradient-to-r from-primary to-accent hover:opacity-90 transition-opacity"
           >
             Ir al Dashboard →
           </Button>
@@ -320,7 +329,7 @@ export default function Onboarding() {
   return null;
 }
 
-// Helper components
+// Helper components - styled to match old dashboard
 function StepItem({
   done,
   loading,
@@ -333,15 +342,15 @@ function StepItem({
   return (
     <div className="flex items-center gap-3">
       {done ? (
-        <div className="w-6 h-6 rounded-full bg-green-500 flex items-center justify-center flex-shrink-0">
+        <div className="w-6 h-6 rounded-full bg-success flex items-center justify-center flex-shrink-0">
           <CheckCircle className="w-4 h-4 text-white" />
         </div>
       ) : loading ? (
-        <Loader2 className="w-6 h-6 text-purple-500 animate-spin flex-shrink-0" />
+        <Loader2 className="w-6 h-6 text-primary animate-spin flex-shrink-0" />
       ) : (
-        <div className="w-6 h-6 rounded-full bg-gray-700 flex-shrink-0" />
+        <div className="w-6 h-6 rounded-full bg-secondary flex-shrink-0" />
       )}
-      <span className={`text-sm ${done ? 'text-white' : 'text-gray-500'}`}>
+      <span className={`text-sm ${done ? 'text-foreground' : 'text-muted-foreground'}`}>
         {text}
       </span>
     </div>
@@ -358,10 +367,10 @@ function StatCard({
   icon: string;
 }) {
   return (
-    <div className="bg-gray-900 rounded-xl p-4 text-center">
+    <div className="metric-card text-center group hover:glow transition-all">
       <div className="text-2xl mb-1">{icon}</div>
-      <div className="text-2xl font-bold text-white">{value}</div>
-      <div className="text-xs text-gray-400">{label}</div>
+      <div className="text-2xl font-bold">{value}</div>
+      <div className="text-xs text-muted-foreground">{label}</div>
     </div>
   );
 }
