@@ -50,6 +50,7 @@ data/followers/
 data/analytics/
 data/nurturing/
 data/sales/
+data/escalations/
 *.json.bak
 
 # Test data
