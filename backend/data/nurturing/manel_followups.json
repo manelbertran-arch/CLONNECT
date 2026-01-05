@@ -234,7 +234,7 @@
     "message_template": "Ey! Vi que te interesaba {product_name}. ¿Te quedó alguna duda? Estoy aquí para ayudarte 💪",
     "status": "sent",
     "created_at": "2025-12-21T14:34:02.757088",
-    "sent_at": "2026-01-04T09:34:21.174371",
+    "sent_at": "2026-01-05T16:49:45.827423",
     "metadata": {
       "product_name": "Curso Automatizacion Total"
     }
@@ -249,7 +249,7 @@
     "message_template": "¿Qué tal? Solo quería recordarte que {product_name} sigue disponible. Si tienes preguntas, escríbeme sin compromiso.",
     "status": "sent",
     "created_at": "2025-12-21T14:34:02.757142",
-    "sent_at": "2026-01-04T09:34:21.175697",
+    "sent_at": "2026-01-05T16:49:45.828947",
     "metadata": {
       "product_name": "Curso Automatizacion Total"
     }
@@ -264,7 +264,7 @@
     "message_template": "Última vez que te escribo sobre esto: {product_name} ha ayudado a +200 personas. Si en algún momento te interesa, aquí estaré. ¡Un abrazo!",
     "status": "sent",
     "created_at": "2025-12-21T14:34:02.757183",
-    "sent_at": "2026-01-04T09:34:21.176772",
+    "sent_at": "2026-01-05T16:49:45.830286",
     "metadata": {
       "product_name": "Curso Automatizacion Total"
     }
