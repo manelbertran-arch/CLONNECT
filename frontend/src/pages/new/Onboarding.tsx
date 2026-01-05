@@ -101,40 +101,33 @@ export default function Onboarding() {
     }, 2000);
   };
 
-  // SPLASH SCREEN
+  // SPLASH SCREEN - Pure black, logo integrated
   if (step === 'splash') {
     return (
       <div className="min-h-screen bg-black flex flex-col items-center justify-center">
-        {/* Logo with glow effect */}
-        <div className="relative animate-fade-in">
+        {/* Logo - clean, no effects */}
+        <div className="animate-fade-in">
           <img
             src="/clonnect-logo.png"
             alt="Clonnect"
-            className="w-48 h-48 md:w-64 md:h-64 object-contain"
+            className="w-56 h-56 md:w-72 md:h-72 object-contain"
           />
-          {/* Glow effect behind logo */}
-          <div className="absolute inset-0 bg-purple-500/30 blur-3xl rounded-full -z-10 scale-150" />
         </div>
-
-        {/* Tagline */}
-        <p className="text-fuchsia-400 text-sm md:text-base mt-6 tracking-[0.2em] animate-fade-in">
-          FROM FOLLOW TO HELLO
-        </p>
       </div>
     );
   }
 
-  // CONNECT SCREEN
+  // CONNECT SCREEN - Black background, bigger logo
   if (step === 'connect') {
     return (
       <div className="min-h-screen bg-black flex flex-col">
         <div className="flex-1 flex flex-col justify-center px-6 py-12 max-w-md mx-auto w-full animate-fade-in">
-          {/* Small logo */}
-          <div className="flex justify-center mb-8">
+          {/* Logo - bigger */}
+          <div className="flex justify-center mb-6">
             <img
               src="/clonnect-logo.png"
               alt="Clonnect"
-              className="w-20 h-20 object-contain"
+              className="w-32 h-32 md:w-40 md:h-40 object-contain"
             />
           </div>
 
