@@ -35,12 +35,12 @@ export default function Onboarding() {
   const pollingRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const creatorId = CREATOR_ID;
 
-  // Auto-advance from splash after 4 seconds
+  // Auto-advance from splash after 3 seconds
   useEffect(() => {
     if (step === 'splash') {
       const timer = setTimeout(() => {
         setStep('connect');
-      }, 4000);
+      }, 3000);
       return () => clearTimeout(timer);
     }
   }, [step]);
@@ -101,16 +101,16 @@ export default function Onboarding() {
     }, 2000);
   };
 
-  // SPLASH SCREEN - Pure black, logo integrated
+  // SPLASH SCREEN - Pure black, logo with pulse
   if (step === 'splash') {
     return (
       <div className="min-h-screen bg-black flex flex-col items-center justify-center">
-        {/* Logo - clean, no effects */}
+        {/* Logo with pulse animation */}
         <div className="animate-fade-in">
           <img
             src="/clonnect-logo.png"
             alt="Clonnect"
-            className="w-56 h-56 md:w-72 md:h-72 object-contain"
+            className="w-56 h-56 md:w-72 md:h-72 object-contain animate-pulse"
           />
         </div>
       </div>
@@ -127,14 +127,14 @@ export default function Onboarding() {
             <img
               src="/clonnect-logo.png"
               alt="Clonnect"
-              className="w-32 h-32 md:w-40 md:h-40 object-contain"
+              className="w-40 h-40 md:w-48 md:h-48 object-contain"
             />
           </div>
 
           {/* Title */}
           <div className="text-center mb-8">
             <h1 className="text-2xl md:text-3xl font-bold text-white mb-2">
-              Clonnecta y listo
+              Conecta y listo
             </h1>
             <p className="text-gray-400">
               Tu clon aprenderá de tu contenido automáticamente
