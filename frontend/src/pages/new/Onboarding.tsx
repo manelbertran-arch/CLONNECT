@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
 import { API_URL, CREATOR_ID } from '@/services/api';
 
-type OnboardingStep = 'connect' | 'loading' | 'complete';
+type OnboardingStep = 'splash' | 'connect' | 'loading' | 'complete';
 
 interface SetupStatus {
   status: string;
@@ -28,12 +28,22 @@ interface SetupStatus {
 }
 
 export default function Onboarding() {
-  const [step, setStep] = useState<OnboardingStep>('connect');
+  const [step, setStep] = useState<OnboardingStep>('splash');
   const [status, setStatus] = useState<SetupStatus | null>(null);
   const [error, setError] = useState<string | null>(null);
   const navigate = useNavigate();
   const pollingRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const creatorId = CREATOR_ID;
+
+  // Auto-advance from splash after 2.5 seconds
+  useEffect(() => {
+    if (step === 'splash') {
+      const timer = setTimeout(() => {
+        setStep('connect');
+      }, 2500);
+      return () => clearTimeout(timer);
+    }
+  }, [step]);
 
   // Cleanup polling on unmount
   useEffect(() => {
@@ -49,7 +59,6 @@ export default function Onboarding() {
     setError(null);
 
     try {
-      // Start full setup
       const response = await fetch(`${API_URL}/onboarding/full-setup/${creatorId}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -59,7 +68,6 @@ export default function Onboarding() {
         throw new Error('Failed to start setup');
       }
 
-      // Start polling for progress
       startPolling();
     } catch (err) {
       console.error('Setup error:', err);
@@ -69,7 +77,6 @@ export default function Onboarding() {
   };
 
   const startPolling = () => {
-    // Poll every 2 seconds
     pollingRef.current = setInterval(async () => {
       try {
         const response = await fetch(`${API_URL}/onboarding/full-setup/${creatorId}/progress`);
@@ -94,28 +101,58 @@ export default function Onboarding() {
     }, 2000);
   };
 
-  // STEP 1: Connect platforms
+  // SPLASH SCREEN
+  if (step === 'splash') {
+    return (
+      <div className="min-h-screen bg-black flex flex-col items-center justify-center">
+        {/* Logo with glow effect */}
+        <div className="relative animate-fade-in">
+          <div className="w-32 h-32 md:w-40 md:h-40 rounded-2xl bg-gradient-to-br from-purple-600 to-fuchsia-500 flex items-center justify-center">
+            <Zap className="w-16 h-16 md:w-20 md:h-20 text-white" />
+          </div>
+          {/* Glow effect behind logo */}
+          <div className="absolute inset-0 bg-purple-500/30 blur-3xl rounded-full -z-10 scale-150" />
+        </div>
+
+        {/* CLONNECT text */}
+        <h1 className="text-3xl md:text-4xl font-bold text-white mt-8 tracking-[0.3em]">
+          CLONNECT
+        </h1>
+
+        {/* Tagline */}
+        <p className="text-fuchsia-400 text-sm md:text-base mt-3 tracking-[0.2em]">
+          FROM FOLLOW TO HELLO
+        </p>
+      </div>
+    );
+  }
+
+  // CONNECT SCREEN
   if (step === 'connect') {
     return (
-      <div className="min-h-screen bg-background flex flex-col">
-        <div className="flex-1 flex flex-col justify-center px-6 py-12 max-w-md mx-auto w-full">
-          {/* Logo - matches Sidebar */}
-          <div className="text-center mb-8">
-            <div className="w-16 h-16 rounded-xl bg-gradient-to-br from-primary to-accent flex items-center justify-center mx-auto mb-4">
+      <div className="min-h-screen bg-black flex flex-col">
+        <div className="flex-1 flex flex-col justify-center px-6 py-12 max-w-md mx-auto w-full animate-fade-in">
+          {/* Small logo */}
+          <div className="flex justify-center mb-8">
+            <div className="w-16 h-16 rounded-xl bg-gradient-to-br from-purple-600 to-fuchsia-500 flex items-center justify-center">
               <Zap className="w-8 h-8 text-white" />
             </div>
-            <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">
-              Clonnecta y <span className="gradient-text">listo</span>
+          </div>
+
+          {/* Title */}
+          <div className="text-center mb-8">
+            <h1 className="text-2xl md:text-3xl font-bold text-white mb-2">
+              Clonnecta y listo
             </h1>
-            <p className="text-muted-foreground mt-2">
+            <p className="text-gray-400">
               Tu clon aprenderá de tu contenido automáticamente
             </p>
           </div>
 
           {/* Error message */}
           {error && (
-            <div className="metric-card border-destructive/50 mb-6">
-              <p className="text-destructive text-sm">{error}</p>
+            <div className="bg-red-500/10 border border-red-500/30 rounded-xl p-4 mb-6">
+              <p className="text-red-400 text-sm">{error}</p>
             </div>
           )}
 
@@ -123,7 +160,7 @@ export default function Onboarding() {
           <Button
             onClick={handleConnectInstagram}
             size="lg"
-            className="w-full h-14 text-lg bg-gradient-to-r from-primary to-accent hover:opacity-90 transition-opacity mb-6"
+            className="w-full h-14 text-lg bg-gradient-to-r from-purple-600 to-fuchsia-500 hover:from-purple-700 hover:to-fuchsia-600 transition-all mb-6"
           >
             <Instagram className="mr-3 h-6 w-6" />
             Clonnectar Instagram
@@ -131,28 +168,28 @@ export default function Onboarding() {
 
           {/* Optional platforms */}
           <div className="space-y-3">
-            <p className="text-sm text-muted-foreground text-center mb-3">
+            <p className="text-sm text-gray-500 text-center mb-3">
               Opcional: más contenido = clon más inteligente
             </p>
 
             <Button
               variant="outline"
-              className="w-full h-12 border-border text-muted-foreground hover:bg-secondary hover:text-foreground"
+              className="w-full h-12 border-gray-800 bg-gray-900/50 text-gray-400 hover:bg-gray-800"
               disabled
             >
-              <Youtube className="mr-3 h-5 w-5 text-destructive" />
+              <Youtube className="mr-3 h-5 w-5 text-red-500" />
               YouTube
-              <span className="ml-auto text-xs text-muted-foreground">Próximamente</span>
+              <span className="ml-auto text-xs text-gray-600">Próximamente</span>
             </Button>
 
             <Button
               variant="outline"
-              className="w-full h-12 border-border text-muted-foreground hover:bg-secondary hover:text-foreground"
+              className="w-full h-12 border-gray-800 bg-gray-900/50 text-gray-400 hover:bg-gray-800"
               disabled
             >
-              <Globe className="mr-3 h-5 w-5 text-accent" />
+              <Globe className="mr-3 h-5 w-5 text-blue-400" />
               Website
-              <span className="ml-auto text-xs text-muted-foreground">Próximamente</span>
+              <span className="ml-auto text-xs text-gray-600">Próximamente</span>
             </Button>
           </div>
         </div>
@@ -160,32 +197,37 @@ export default function Onboarding() {
     );
   }
 
-  // STEP 2: Loading with real-time progress
+  // LOADING SCREEN
   if (step === 'loading') {
     const progress = status?.progress || 0;
     const steps = status?.steps;
 
     return (
-      <div className="min-h-screen bg-background flex flex-col">
+      <div className="min-h-screen bg-black flex flex-col">
         <div className="flex-1 flex flex-col justify-center px-6 py-12 max-w-md mx-auto w-full">
           {/* Header */}
           <div className="text-center mb-8">
-            <div className="w-16 h-16 rounded-xl bg-gradient-to-br from-primary to-accent flex items-center justify-center mx-auto mb-4 animate-pulse">
+            <div className="w-16 h-16 rounded-xl bg-gradient-to-br from-purple-600 to-fuchsia-500 flex items-center justify-center mx-auto mb-4 animate-pulse">
               <Zap className="w-8 h-8 text-white" />
             </div>
-            <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">
-              Creando tu <span className="gradient-text">clon</span>...
+            <h1 className="text-2xl md:text-3xl font-bold text-white">
+              Creando tu clon...
             </h1>
           </div>
 
-          {/* Progress bar - use shadcn Progress */}
+          {/* Progress bar - purple/fuchsia gradient */}
           <div className="mb-8">
-            <Progress value={progress} className="h-2" />
-            <p className="text-sm text-muted-foreground text-center mt-2">{progress}%</p>
+            <div className="w-full bg-gray-800 rounded-full h-2">
+              <div
+                className="bg-gradient-to-r from-purple-600 to-fuchsia-500 h-2 rounded-full transition-all duration-500"
+                style={{ width: `${progress}%` }}
+              />
+            </div>
+            <p className="text-sm text-gray-500 text-center mt-2">{progress}%</p>
           </div>
 
           {/* Steps list */}
-          <div className="metric-card space-y-4">
+          <div className="bg-gray-900/50 rounded-xl p-5 border border-gray-800 space-y-4">
             <StepItem
               done={steps?.instagram_connected}
               loading={!steps?.instagram_connected && progress < 15}
@@ -249,75 +291,57 @@ export default function Onboarding() {
     );
   }
 
-  // STEP 3: Complete
+  // COMPLETE SCREEN
   if (step === 'complete') {
     const steps = status?.steps;
 
     return (
-      <div className="min-h-screen bg-background flex flex-col">
-        <div className="flex-1 flex flex-col justify-center px-6 py-12 max-w-md mx-auto w-full">
+      <div className="min-h-screen bg-black flex flex-col">
+        <div className="flex-1 flex flex-col justify-center px-6 py-12 max-w-md mx-auto w-full animate-fade-in">
           {/* Header */}
           <div className="text-center mb-8">
-            <div className="w-16 h-16 rounded-xl bg-gradient-to-br from-success to-accent flex items-center justify-center mx-auto mb-4">
+            <div className="w-16 h-16 rounded-xl bg-gradient-to-br from-green-500 to-emerald-400 flex items-center justify-center mx-auto mb-4">
               <CheckCircle className="w-8 h-8 text-white" />
             </div>
-            <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">
-              ¡Tu clon está <span className="gradient-text">listo</span>!
+            <h1 className="text-2xl md:text-3xl font-bold text-white">
+              ¡Tu clon está listo!
             </h1>
           </div>
 
-          {/* Stats grid - metric cards style */}
+          {/* Stats grid */}
           <div className="grid grid-cols-2 gap-4 mb-6">
-            <StatCard
-              value={steps?.posts_imported || 0}
-              label="Posts"
-              icon="📸"
-            />
-            <StatCard
-              value={steps?.youtube_videos_imported || 0}
-              label="Videos"
-              icon="🎬"
-            />
-            <StatCard
-              value={steps?.leads_created || 0}
-              label="Leads"
-              icon="👥"
-            />
-            <StatCard
-              value={steps?.dms_imported || 0}
-              label="DMs"
-              icon="💬"
-            />
+            <StatCard value={steps?.posts_imported || 0} label="Posts" icon="📸" />
+            <StatCard value={steps?.youtube_videos_imported || 0} label="Videos" icon="🎬" />
+            <StatCard value={steps?.leads_created || 0} label="Leads" icon="👥" />
+            <StatCard value={steps?.dms_imported || 0} label="DMs" icon="💬" />
           </div>
 
           {/* Tone summary */}
           {steps?.tone_summary && (
-            <div className="metric-card mb-6 text-center">
-              <p className="text-sm text-muted-foreground mb-1">Tu clon es</p>
-              <p className="text-lg font-medium gradient-text">
+            <div className="bg-gray-900/50 rounded-xl p-4 mb-6 text-center border border-gray-800">
+              <p className="text-sm text-gray-400 mb-1">Tu clon es</p>
+              <p className="text-lg font-medium bg-gradient-to-r from-purple-400 to-fuchsia-400 bg-clip-text text-transparent">
                 {steps.tone_summary}
               </p>
             </div>
           )}
 
           {/* Tip */}
-          <div className="metric-card border-primary/30 mb-6">
+          <div className="bg-purple-500/10 border border-purple-500/30 rounded-xl p-4 mb-6">
             <div className="flex items-start gap-3">
-              <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center flex-shrink-0">
-                <span>💡</span>
-              </div>
-              <p className="text-sm text-muted-foreground">
-                <strong className="text-foreground">Para vender:</strong> Añade tu
+              <span className="text-lg">💡</span>
+              <p className="text-sm text-gray-300">
+                <strong className="text-white">Para vender:</strong> Añade tu
                 producto y métodos de pago en Settings
               </p>
             </div>
           </div>
 
-          {/* CTA - Navigate to OLD dashboard */}
+          {/* CTA - Navigate to dashboard */}
           <Button
             onClick={() => navigate('/dashboard')}
             size="lg"
-            className="w-full h-14 text-lg bg-gradient-to-r from-primary to-accent hover:opacity-90 transition-opacity"
+            className="w-full h-14 text-lg bg-gradient-to-r from-purple-600 to-fuchsia-500 hover:from-purple-700 hover:to-fuchsia-600 transition-all"
           >
             Ir al Dashboard →
           </Button>
@@ -329,7 +353,7 @@ export default function Onboarding() {
   return null;
 }
 
-// Helper components - styled to match old dashboard
+// Helper components
 function StepItem({
   done,
   loading,
@@ -342,15 +366,15 @@ function StepItem({
   return (
     <div className="flex items-center gap-3">
       {done ? (
-        <div className="w-6 h-6 rounded-full bg-success flex items-center justify-center flex-shrink-0">
+        <div className="w-6 h-6 rounded-full bg-green-500 flex items-center justify-center flex-shrink-0">
           <CheckCircle className="w-4 h-4 text-white" />
         </div>
       ) : loading ? (
-        <Loader2 className="w-6 h-6 text-primary animate-spin flex-shrink-0" />
+        <Loader2 className="w-6 h-6 text-fuchsia-500 animate-spin flex-shrink-0" />
       ) : (
-        <div className="w-6 h-6 rounded-full bg-secondary flex-shrink-0" />
+        <div className="w-6 h-6 rounded-full bg-gray-700 flex-shrink-0" />
       )}
-      <span className={`text-sm ${done ? 'text-foreground' : 'text-muted-foreground'}`}>
+      <span className={`text-sm ${done ? 'text-white' : 'text-gray-500'}`}>
         {text}
       </span>
     </div>
@@ -367,10 +391,10 @@ function StatCard({
   icon: string;
 }) {
   return (
-    <div className="metric-card text-center group hover:glow transition-all">
+    <div className="bg-gray-900/50 rounded-xl p-4 text-center border border-gray-800 hover:border-purple-500/50 transition-all">
       <div className="text-2xl mb-1">{icon}</div>
-      <div className="text-2xl font-bold">{value}</div>
-      <div className="text-xs text-muted-foreground">{label}</div>
+      <div className="text-2xl font-bold text-white">{value}</div>
+      <div className="text-xs text-gray-400">{label}</div>
     </div>
   );
 }
