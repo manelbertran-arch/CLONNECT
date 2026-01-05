@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 """
 Ingestion Module - Magic Slice Pipeline.
-Fase 1 del desarrollo de Clonnect.
+Fases 1 y 2 del desarrollo de Clonnect.
 
 Este modulo contiene todos los componentes para:
 - Indexar contenido del creador (Content Indexer)
@@ -9,6 +9,12 @@ Este modulo contiene todos los componentes para:
 - Analizar tono/voz del creador (Tone Analyzer)
 - Citar contenido en respuestas (Content Citation)
 - Generar respuestas mejoradas (Response Engine v2)
+
+Fase 2 - Media Connectors:
+- Transcribir audio/video (Transcriber - Whisper)
+- Importar videos de YouTube (YouTube Connector)
+- Importar episodios de podcast (Podcast Connector)
+- Extraer texto de PDFs (PDF Extractor)
 """
 
 # Content Indexer
@@ -57,6 +63,40 @@ from .response_engine_v2 import (
     build_magic_slice_prompt
 )
 
+# Phase 2 - Transcriber
+from .transcriber import (
+    AudioFormat,
+    TranscriptSegment,
+    Transcript,
+    Transcriber,
+    get_transcriber
+)
+
+# Phase 2 - YouTube Connector
+from .youtube_connector import (
+    YouTubeVideo,
+    YouTubeTranscript,
+    YouTubeConnector,
+    get_youtube_connector
+)
+
+# Phase 2 - Podcast Connector
+from .podcast_connector import (
+    PodcastShow,
+    PodcastEpisode,
+    PodcastTranscript,
+    PodcastConnector,
+    get_podcast_connector
+)
+
+# Phase 2 - PDF Extractor
+from .pdf_extractor import (
+    PDFPage,
+    PDFDocument,
+    PDFExtractor,
+    get_pdf_extractor
+)
+
 __all__ = [
     # Content Indexer
     'ContentChunk',
@@ -93,4 +133,30 @@ __all__ = [
     'create_conversation_context',
     'enhance_response_with_magic_slice',
     'build_magic_slice_prompt',
+
+    # Phase 2 - Transcriber
+    'AudioFormat',
+    'TranscriptSegment',
+    'Transcript',
+    'Transcriber',
+    'get_transcriber',
+
+    # Phase 2 - YouTube Connector
+    'YouTubeVideo',
+    'YouTubeTranscript',
+    'YouTubeConnector',
+    'get_youtube_connector',
+
+    # Phase 2 - Podcast Connector
+    'PodcastShow',
+    'PodcastEpisode',
+    'PodcastTranscript',
+    'PodcastConnector',
+    'get_podcast_connector',
+
+    # Phase 2 - PDF Extractor
+    'PDFPage',
+    'PDFDocument',
+    'PDFExtractor',
+    'get_pdf_extractor',
 ]
