@@ -105,7 +105,7 @@ export default function Onboarding() {
               <Zap className="w-8 h-8 text-white" />
             </div>
             <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">
-              Conecta y <span className="gradient-text">listo</span>
+              Clonnecta y <span className="gradient-text">listo</span>
             </h1>
             <p className="text-muted-foreground mt-2">
               Tu clon aprenderá de tu contenido automáticamente
@@ -126,7 +126,7 @@ export default function Onboarding() {
             className="w-full h-14 text-lg bg-gradient-to-r from-primary to-accent hover:opacity-90 transition-opacity mb-6"
           >
             <Instagram className="mr-3 h-6 w-6" />
-            Conectar Instagram
+            Clonnectar Instagram
           </Button>
 
           {/* Optional platforms */}
@@ -189,7 +189,7 @@ export default function Onboarding() {
             <StepItem
               done={steps?.instagram_connected}
               loading={!steps?.instagram_connected && progress < 15}
-              text="Conectado a Instagram"
+              text="Clonnectado a Instagram"
             />
             <StepItem
               done={(steps?.posts_imported || 0) > 0}
