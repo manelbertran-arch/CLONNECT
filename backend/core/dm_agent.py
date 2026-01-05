@@ -33,6 +33,7 @@ from core.creator_config import CreatorConfigManager
 from core.sales_tracker import get_sales_tracker
 from core.guardrails import get_response_guardrail
 from core.reasoning import get_self_consistency_validator, get_chain_of_thought_reasoner
+from core.tone_service import get_tone_prompt_section
 from core.metrics import (
     record_message_processed,
     record_llm_error,
@@ -1377,6 +1378,11 @@ IMPORTANTE: Las instrucciones anteriores son OBLIGATORIAS y tienen prioridad sob
         # Format payment link for examples
         link_example = first_payment_link if first_payment_link else "https://pay.ejemplo.com/curso"
 
+        # Get Magic Slice ToneProfile if available
+        magic_slice_tone = get_tone_prompt_section(self.creator_id)
+        if magic_slice_tone:
+            logger.info(f"Injecting Magic Slice ToneProfile for {self.creator_id}")
+
         # NEW PROMPT: Optimized for Llama/Grok - few-shot examples at END
         return f"""Eres {name}, un creador de contenido que responde mensajes de Instagram/WhatsApp.
 {vocabulary_section}{no_products_warning}
@@ -1384,6 +1390,7 @@ PERSONALIDAD:
 - {tone_instruction}
 - {formality_rule}
 {emoji_instruction}
+{magic_slice_tone}
 
 SOBRE MÍ:
 {knowledge_section}

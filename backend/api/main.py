@@ -131,7 +131,7 @@ app.include_router(messages.router)
 app.include_router(payments.router)
 app.include_router(calendar.router)
 app.include_router(nurturing.router)
-from api.routers import knowledge, analytics, onboarding, admin, connections, oauth, booking
+from api.routers import knowledge, analytics, onboarding, admin, connections, oauth, booking, tone
 app.include_router(knowledge.router)
 app.include_router(analytics.router)
 app.include_router(onboarding.router)
@@ -139,8 +139,9 @@ app.include_router(admin.router)
 app.include_router(connections.router)
 app.include_router(oauth.router)
 app.include_router(booking.router)
+app.include_router(tone.router)
 
-logging.info("Routers loaded: health, dashboard, config, leads, products, analytics, connections, oauth, booking")
+logging.info("Routers loaded: health, dashboard, config, leads, products, analytics, connections, oauth, booking, tone")
 # AUTHENTICATION
 # ---------------------------------------------------------
 # Endpoints publicos (no requieren autenticacion)
