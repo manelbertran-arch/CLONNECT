@@ -12,13 +12,13 @@ from datetime import datetime
 from typing import Optional, List, Dict, Any
 from dataclasses import dataclass, field
 
-from backend.ingestion import (
+from ingestion import (
     InstagramPost,
     ToneProfile,
     ToneAnalyzer
 )
-from backend.core.tone_service import save_tone_profile, get_tone_profile
-from backend.core.citation_service import index_creator_posts, get_content_index
+from core.tone_service import save_tone_profile, get_tone_profile
+from core.citation_service import index_creator_posts, get_content_index
 
 logger = logging.getLogger(__name__)
 
@@ -161,7 +161,7 @@ class OnboardingService:
     async def _scrape_instagram(self, request: OnboardingRequest) -> List[Dict]:
         """Scraping de Instagram segun metodo configurado."""
         try:
-            from backend.ingestion import (
+            from ingestion import (
                 MetaGraphAPIScraper,
                 ManualJSONScraper,
                 get_instagram_scraper

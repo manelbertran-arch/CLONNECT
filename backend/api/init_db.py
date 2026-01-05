@@ -31,6 +31,8 @@ def run_migrations(engine):
         ("creators", "other_payment_methods", "JSON"),
         # Knowledge base - About Me/Business info
         ("creators", "knowledge_about", "JSON"),
+        # Onboarding status
+        ("creators", "onboarding_completed", "BOOLEAN DEFAULT FALSE"),
         # Price for booking links
         ("booking_links", "price", "INTEGER DEFAULT 0"),
         # Payment link for products (Stripe/PayPal)

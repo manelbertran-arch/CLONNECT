@@ -9,7 +9,7 @@ from typing import Optional, List, Dict, Any
 from pathlib import Path
 from datetime import datetime
 
-from backend.ingestion import (
+from ingestion import (
     ContentChunk,
     Citation,
     CitationContext,

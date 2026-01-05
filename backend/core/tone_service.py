@@ -8,7 +8,7 @@ import logging
 from typing import Optional, Dict, List
 from pathlib import Path
 
-from backend.ingestion import ToneProfile, ToneAnalyzer
+from ingestion import ToneProfile, ToneAnalyzer
 
 logger = logging.getLogger(__name__)
 
