@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Instagram, Youtube, Globe, CheckCircle, Loader2, Zap } from 'lucide-react';
+import { Instagram, Youtube, Globe, CheckCircle, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
 import { API_URL, CREATOR_ID } from '@/services/api';
@@ -35,12 +35,12 @@ export default function Onboarding() {
   const pollingRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const creatorId = CREATOR_ID;
 
-  // Auto-advance from splash after 2.5 seconds
+  // Auto-advance from splash after 4 seconds
   useEffect(() => {
     if (step === 'splash') {
       const timer = setTimeout(() => {
         setStep('connect');
-      }, 2500);
+      }, 4000);
       return () => clearTimeout(timer);
     }
   }, [step]);
@@ -107,20 +107,17 @@ export default function Onboarding() {
       <div className="min-h-screen bg-black flex flex-col items-center justify-center">
         {/* Logo with glow effect */}
         <div className="relative animate-fade-in">
-          <div className="w-32 h-32 md:w-40 md:h-40 rounded-2xl bg-gradient-to-br from-purple-600 to-fuchsia-500 flex items-center justify-center">
-            <Zap className="w-16 h-16 md:w-20 md:h-20 text-white" />
-          </div>
+          <img
+            src="/clonnect-logo.png"
+            alt="Clonnect"
+            className="w-48 h-48 md:w-64 md:h-64 object-contain"
+          />
           {/* Glow effect behind logo */}
           <div className="absolute inset-0 bg-purple-500/30 blur-3xl rounded-full -z-10 scale-150" />
         </div>
 
-        {/* CLONNECT text */}
-        <h1 className="text-3xl md:text-4xl font-bold text-white mt-8 tracking-[0.3em]">
-          CLONNECT
-        </h1>
-
         {/* Tagline */}
-        <p className="text-fuchsia-400 text-sm md:text-base mt-3 tracking-[0.2em]">
+        <p className="text-fuchsia-400 text-sm md:text-base mt-6 tracking-[0.2em] animate-fade-in">
           FROM FOLLOW TO HELLO
         </p>
       </div>
@@ -134,9 +131,11 @@ export default function Onboarding() {
         <div className="flex-1 flex flex-col justify-center px-6 py-12 max-w-md mx-auto w-full animate-fade-in">
           {/* Small logo */}
           <div className="flex justify-center mb-8">
-            <div className="w-16 h-16 rounded-xl bg-gradient-to-br from-purple-600 to-fuchsia-500 flex items-center justify-center">
-              <Zap className="w-8 h-8 text-white" />
-            </div>
+            <img
+              src="/clonnect-logo.png"
+              alt="Clonnect"
+              className="w-20 h-20 object-contain"
+            />
           </div>
 
           {/* Title */}
@@ -207,9 +206,11 @@ export default function Onboarding() {
         <div className="flex-1 flex flex-col justify-center px-6 py-12 max-w-md mx-auto w-full">
           {/* Header */}
           <div className="text-center mb-8">
-            <div className="w-16 h-16 rounded-xl bg-gradient-to-br from-purple-600 to-fuchsia-500 flex items-center justify-center mx-auto mb-4 animate-pulse">
-              <Zap className="w-8 h-8 text-white" />
-            </div>
+            <img
+              src="/clonnect-logo.png"
+              alt="Clonnect"
+              className="w-16 h-16 object-contain mx-auto mb-4 animate-pulse"
+            />
             <h1 className="text-2xl md:text-3xl font-bold text-white">
               Creando tu clon...
             </h1>
