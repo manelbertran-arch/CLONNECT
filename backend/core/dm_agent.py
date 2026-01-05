@@ -1914,6 +1914,38 @@ USA ESTA RESPUESTA PARA LA OBJECION (adaptala a tu tono):
                 metadata=metadata
             )
 
+        # === FAST PATH: Acknowledgment (Ok, Vale, Entendido) ===
+        # User just confirms/acknowledges - don't assume purchase intent!
+        if intent == Intent.ACKNOWLEDGMENT:
+            logger.info(f"=== ACKNOWLEDGMENT DETECTED - NOT assuming purchase ===")
+            # Use fallback responses for acknowledgment
+            response_text = self._get_fallback_response(Intent.ACKNOWLEDGMENT, follower.preferred_language)
+            await self._update_memory(follower, message_text, response_text, intent)
+
+            return DMResponse(
+                response_text=response_text,
+                intent=intent,
+                action_taken="acknowledge",
+                confidence=confidence,
+                metadata={"acknowledgment": True}
+            )
+
+        # === FAST PATH: Correction (No te he dicho que quiero comprar) ===
+        # User corrects a misunderstanding - apologize and ask how to help
+        if intent == Intent.CORRECTION:
+            logger.info(f"=== CORRECTION DETECTED - apologizing ===")
+            # Use fallback responses for correction
+            response_text = self._get_fallback_response(Intent.CORRECTION, follower.preferred_language)
+            await self._update_memory(follower, message_text, response_text, intent)
+
+            return DMResponse(
+                response_text=response_text,
+                intent=intent,
+                action_taken="clarify",
+                confidence=confidence,
+                metadata={"correction": True}
+            )
+
         # Buscar producto relevante
         product = self._get_relevant_product(message_text, intent)
         if product:
