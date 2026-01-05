@@ -318,7 +318,7 @@ class TestCitationIntegration:
         # 4. Generar prompt context
         prompt_context = citation_context.to_prompt_context()
         assert "CONTENIDO RELEVANTE" in prompt_context
-        assert "INSTRUCCIONES PARA CITAR" in prompt_context
+        assert "INSTRUCCIONES OBLIGATORIAS PARA CITAR" in prompt_context
 
     @pytest.mark.asyncio
     async def test_citation_respects_relevance_threshold(self):
