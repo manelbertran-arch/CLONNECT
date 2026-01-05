@@ -100,7 +100,7 @@ export default function Onboarding() {
     }, 2000);
   };
 
-  // SPLASH SCREEN - Pure black, logo with pulse, 4 seconds
+  // SPLASH SCREEN - Pure black, BIG logo with pulse, 4 seconds
   if (step === 'splash') {
     return (
       <div className="min-h-screen bg-black flex flex-col items-center justify-center">
@@ -108,7 +108,7 @@ export default function Onboarding() {
           <img
             src="/clonnect-logo.png"
             alt="Clonnect"
-            className="w-56 h-56 md:w-72 md:h-72 object-contain animate-pulse"
+            className="w-72 h-72 md:w-96 md:h-96 object-contain animate-pulse"
           />
         </div>
       </div>
@@ -187,7 +187,7 @@ export default function Onboarding() {
     );
   }
 
-  // LOADING SCREEN - Same black aesthetic with purple/fuchsia
+  // LOADING SCREEN
   if (step === 'loading') {
     const progress = status?.progress || 0;
     const steps = status?.steps;
@@ -209,32 +209,29 @@ export default function Onboarding() {
             <h1 className="text-2xl md:text-3xl font-bold text-white">
               Creando tu clon...
             </h1>
-            <p className="text-gray-400 mt-2">Esto puede tardar unos segundos</p>
           </div>
 
-          {/* Progress bar - purple/fuchsia gradient */}
+          {/* Progress bar */}
           <div className="mb-8">
-            <div className="w-full bg-gray-900 rounded-full h-3 border border-gray-800">
+            <div className="w-full bg-gray-800 rounded-full h-2">
               <div
-                className="bg-gradient-to-r from-purple-600 to-fuchsia-500 h-3 rounded-full transition-all duration-500"
+                className="bg-gradient-to-r from-purple-600 to-fuchsia-500 h-2 rounded-full transition-all duration-500"
                 style={{ width: `${progress}%` }}
               />
             </div>
-            <p className="text-sm text-fuchsia-400 text-center mt-3 font-medium">{progress}%</p>
+            <p className="text-sm text-gray-500 text-center mt-2">{progress}%</p>
           </div>
 
           {/* Steps list */}
-          <div className="space-y-4">
+          <div className="space-y-3">
             <StepItem
               done={steps?.instagram_connected}
               loading={!steps?.instagram_connected && progress < 15}
-              icon="📱"
               text="Conectado a Instagram"
             />
             <StepItem
               done={(steps?.posts_imported || 0) > 0}
               loading={steps?.instagram_connected && !(steps?.posts_imported)}
-              icon="🖼️"
               text={
                 steps?.posts_imported
                   ? `${steps.posts_imported} posts importados`
@@ -244,13 +241,11 @@ export default function Onboarding() {
             <StepItem
               done={steps?.tone_profile_generated}
               loading={(steps?.posts_imported || 0) > 0 && !steps?.tone_profile_generated}
-              icon="🎭"
               text={steps?.tone_summary || 'Analizando tu tono...'}
             />
             <StepItem
               done={(steps?.content_indexed || 0) > 0}
               loading={steps?.tone_profile_generated && !(steps?.content_indexed)}
-              icon="🧠"
               text={
                 steps?.content_indexed
                   ? `${steps.content_indexed} contenidos indexados`
@@ -260,7 +255,6 @@ export default function Onboarding() {
             <StepItem
               done={(steps?.dms_imported || 0) > 0}
               loading={(steps?.content_indexed || 0) > 0 && !(steps?.dms_imported)}
-              icon="💬"
               text={
                 steps?.dms_imported
                   ? `${steps.dms_imported} conversaciones importadas`
@@ -270,11 +264,10 @@ export default function Onboarding() {
             <StepItem
               done={(steps?.leads_created || 0) > 0}
               loading={(steps?.dms_imported || 0) > 0 && !(steps?.leads_created)}
-              icon="🎯"
               text={
                 steps?.leads_created
-                  ? `${steps.leads_created} leads detectados`
-                  : 'Detectando leads...'
+                  ? `${steps.leads_created} leads creados`
+                  : 'Creando leads...'
               }
             />
           </div>
@@ -283,7 +276,7 @@ export default function Onboarding() {
     );
   }
 
-  // COMPLETE SCREEN - Same aesthetic
+  // COMPLETE SCREEN
   if (step === 'complete') {
     const steps = status?.steps;
 
@@ -301,7 +294,7 @@ export default function Onboarding() {
         <div className="flex-1 flex flex-col justify-center px-6 pb-12 max-w-md mx-auto w-full animate-fade-in">
           {/* Header */}
           <div className="text-center mb-8">
-            <div className="text-6xl mb-4">🎉</div>
+            <div className="text-5xl mb-4">🎉</div>
             <h1 className="text-2xl md:text-3xl font-bold text-white">
               ¡Tu clon está listo!
             </h1>
@@ -309,17 +302,17 @@ export default function Onboarding() {
 
           {/* Stats grid */}
           <div className="grid grid-cols-2 gap-4 mb-6">
-            <StatCard value={steps?.posts_imported || 0} label="Posts" icon="🖼️" />
+            <StatCard value={steps?.posts_imported || 0} label="Posts" icon="📸" />
             <StatCard value={steps?.youtube_videos_imported || 0} label="Videos" icon="🎬" />
-            <StatCard value={steps?.leads_created || 0} label="Leads" icon="🎯" />
+            <StatCard value={steps?.leads_created || 0} label="Leads" icon="👥" />
             <StatCard value={steps?.dms_imported || 0} label="DMs" icon="💬" />
           </div>
 
           {/* Tone summary */}
           {steps?.tone_summary && (
-            <div className="bg-gray-900/80 rounded-xl p-4 mb-6 text-center border border-purple-500/30">
+            <div className="bg-gray-900 rounded-xl p-4 mb-6 text-center border border-gray-800">
               <p className="text-sm text-gray-400 mb-1">Tu clon es</p>
-              <p className="text-lg font-medium bg-gradient-to-r from-purple-400 to-fuchsia-400 bg-clip-text text-transparent">
+              <p className="text-lg font-medium text-white">
                 {steps.tone_summary}
               </p>
             </div>
@@ -327,16 +320,13 @@ export default function Onboarding() {
 
           {/* Tip */}
           <div className="bg-purple-500/10 border border-purple-500/30 rounded-xl p-4 mb-6">
-            <div className="flex items-start gap-3">
-              <span className="text-xl">💡</span>
-              <p className="text-sm text-gray-300">
-                <strong className="text-white">Para vender:</strong> Añade tu
-                producto y métodos de pago en Settings
-              </p>
-            </div>
+            <p className="text-sm text-gray-300">
+              💡 <strong className="text-white">Para vender:</strong> Añade tu
+              producto y métodos de pago en Settings
+            </p>
           </div>
 
-          {/* CTA - Navigate to dashboard */}
+          {/* CTA */}
           <Button
             onClick={() => navigate('/dashboard')}
             size="lg"
@@ -352,33 +342,30 @@ export default function Onboarding() {
   return null;
 }
 
-// Helper components
+// Simple StepItem without icon
 function StepItem({
   done,
   loading,
-  icon,
   text,
 }: {
   done?: boolean;
   loading?: boolean;
-  icon: string;
   text: string;
 }) {
   return (
-    <div className="flex items-center gap-4 p-3 rounded-xl bg-gray-900/50 border border-gray-800">
-      <div className="text-2xl">{icon}</div>
-      <span className={`flex-1 text-sm ${done ? 'text-white' : 'text-gray-500'}`}>
-        {text}
-      </span>
+    <div className="flex items-center gap-3">
       {done ? (
-        <div className="w-6 h-6 rounded-full bg-gradient-to-r from-purple-500 to-fuchsia-500 flex items-center justify-center flex-shrink-0">
+        <div className="w-6 h-6 rounded-full bg-green-500 flex items-center justify-center flex-shrink-0">
           <CheckCircle className="w-4 h-4 text-white" />
         </div>
       ) : loading ? (
-        <Loader2 className="w-5 h-5 text-fuchsia-500 animate-spin flex-shrink-0" />
+        <Loader2 className="w-6 h-6 text-fuchsia-500 animate-spin flex-shrink-0" />
       ) : (
-        <div className="w-6 h-6 rounded-full bg-gray-800 flex-shrink-0" />
+        <div className="w-6 h-6 rounded-full bg-gray-700 flex-shrink-0" />
       )}
+      <span className={`text-sm ${done ? 'text-white' : 'text-gray-500'}`}>
+        {text}
+      </span>
     </div>
   );
 }
@@ -393,8 +380,8 @@ function StatCard({
   icon: string;
 }) {
   return (
-    <div className="bg-gray-900/80 rounded-xl p-4 text-center border border-gray-800 hover:border-purple-500/50 transition-all">
-      <div className="text-3xl mb-2">{icon}</div>
+    <div className="bg-gray-900 rounded-xl p-4 text-center border border-gray-800">
+      <div className="text-2xl mb-1">{icon}</div>
       <div className="text-2xl font-bold text-white">{value}</div>
       <div className="text-xs text-gray-400">{label}</div>
     </div>
