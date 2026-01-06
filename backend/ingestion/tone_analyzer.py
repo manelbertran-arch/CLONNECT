@@ -69,76 +69,83 @@ class ToneProfile:
         """
         Genera la seccion del system prompt que define el tono.
         Se inyecta en cada llamada al LLM.
+        IMPORTANTE: Este prompt tiene MAXIMA PRIORIDAD.
         """
         prompt_parts = []
 
-        # Estilo base
-        prompt_parts.append("ESTILO DE COMUNICACION:")
-        prompt_parts.append(f"- Nivel de formalidad: {self.formality}")
-        prompt_parts.append(f"- Energia: {self.energy}")
-        prompt_parts.append(f"- Calidez: {self.warmth}")
-        prompt_parts.append(f"- Nivel de directness: {self.directness}")
+        # CRITICAL: Strong header to ensure LLM follows
+        prompt_parts.append("\n=== ESTILO DE COMUNICACION DEL CREADOR (OBLIGATORIO) ===")
+        prompt_parts.append("DEBES imitar EXACTAMENTE este estilo. NO suenes como un bot corporativo.")
 
-        # Frases caracteristicas
+        # Tuteo vs Usted
+        if self.formality in ['muy_informal', 'informal']:
+            prompt_parts.append("\n🔴 REGLA CRITICA: TUTEA SIEMPRE. Usa 'tú', NUNCA 'usted'.")
+        elif self.formality in ['formal', 'muy_formal']:
+            prompt_parts.append("\n🔴 REGLA CRITICA: Usa 'usted'. Sé formal y respetuoso.")
+        else:
+            prompt_parts.append("\n🔴 REGLA: Tutea de forma natural y cercana.")
+
+        # Energia y calidez
+        if self.energy in ['alta', 'muy_alta']:
+            prompt_parts.append("- Sé ENERGICO y entusiasta. Transmite pasion.")
+        if self.warmth in ['calido', 'muy_calido']:
+            prompt_parts.append("- Sé CALIDO y cercano. Como hablando con un amigo.")
+
+        # Frases caracteristicas - MUY IMPORTANTE
         if self.signature_phrases:
-            prompt_parts.append("\nFRASES CARACTERISTICAS que usa frecuentemente:")
-            for phrase in self.signature_phrases[:10]:
-                prompt_parts.append(f'  - "{phrase}"')
+            prompt_parts.append("\n📌 FRASES QUE DEBES USAR (son tu marca personal):")
+            for phrase in self.signature_phrases[:8]:
+                prompt_parts.append(f'   "{phrase}"')
+            prompt_parts.append("   Integra estas frases de forma NATURAL en tus respuestas.")
 
-        # Saludos
+        # Saludos - directos
         if self.common_greetings:
-            prompt_parts.append("\nFORMAS DE SALUDAR:")
-            for greeting in self.common_greetings[:5]:
-                prompt_parts.append(f'  - "{greeting}"')
+            prompt_parts.append(f"\n👋 SALUDA ASI: {', '.join(self.common_greetings[:3])}")
 
         # Despedidas
         if self.common_closings:
-            prompt_parts.append("\nFORMAS DE DESPEDIRSE:")
-            for closing in self.common_closings[:5]:
-                prompt_parts.append(f'  - "{closing}"')
+            prompt_parts.append(f"👋 DESPIDETE ASI: {', '.join(self.common_closings[:3])}")
 
-        # Muletillas
+        # Muletillas - muy importante para sonar natural
         if self.filler_words:
-            prompt_parts.append("\nMULETILLAS que usa:")
-            prompt_parts.append(f"  {', '.join(self.filler_words[:10])}")
+            prompt_parts.append(f"\n💬 USA ESTAS MULETILLAS: {', '.join(self.filler_words[:8])}")
+            prompt_parts.append("   (ej: 'mira, lo que te digo es...', 'bueno, pues...')")
 
-        # Emojis
-        prompt_parts.append("\nUSO DE EMOJIS:")
+        # Emojis - CRITICO
+        prompt_parts.append("\n😀 EMOJIS:")
         if self.uses_emojis and self.favorite_emojis:
-            prompt_parts.append(f"  - Frecuencia: {self.emoji_frequency}")
-            prompt_parts.append(f"  - Emojis favoritos: {' '.join(self.favorite_emojis[:10])}")
+            freq_text = {
+                'muy_alta': 'USA MUCHOS (2-3 por mensaje)',
+                'alta': 'USA FRECUENTEMENTE (1-2 por mensaje)',
+                'media': 'USA MODERADAMENTE (1 por mensaje)',
+                'baja': 'USA POCOS (ocasionalmente)',
+                'ninguna': 'NO USES emojis'
+            }.get(self.emoji_frequency, 'USA MODERADAMENTE')
+            prompt_parts.append(f"   {freq_text}")
+            prompt_parts.append(f"   Emojis favoritos: {' '.join(self.favorite_emojis[:8])}")
         else:
-            prompt_parts.append("  - No usa emojis o muy raramente")
+            prompt_parts.append("   NO USES emojis o muy raramente")
 
         # Formato
-        prompt_parts.append("\nFORMATO DE MENSAJES:")
-        prompt_parts.append(f"  - Longitud tipica: {self.average_message_length}")
+        if self.average_message_length in ['corta', 'muy_corta']:
+            prompt_parts.append("\n📝 MENSAJES CORTOS: 1-2 lineas maximo. Directo al grano.")
+        elif self.average_message_length in ['larga', 'muy_larga']:
+            prompt_parts.append("\n📝 PUEDES extenderte si es necesario explicar algo.")
+
         if self.uses_caps_emphasis:
-            prompt_parts.append("  - USA MAYUSCULAS para enfatizar")
-        if self.uses_ellipsis:
-            prompt_parts.append("  - Usa puntos suspensivos...")
-        if self.uses_line_breaks:
-            prompt_parts.append("  - Separa ideas en diferentes lineas")
+            prompt_parts.append("   USA MAYUSCULAS para ENFATIZAR palabras importantes")
 
         # Comportamiento
-        prompt_parts.append("\nCOMPORTAMIENTO:")
         if self.asks_questions:
-            prompt_parts.append("  - Hace preguntas para conocer mejor al seguidor")
+            prompt_parts.append("\n❓ PREGUNTA al usuario para conocerle mejor y mantener la conversacion.")
         if self.uses_humor:
-            prompt_parts.append("  - Usa humor de forma natural")
-        if self.uses_anglicisms:
-            prompt_parts.append("  - Mezcla palabras en ingles de forma natural")
+            prompt_parts.append("😄 USA HUMOR de forma natural cuando sea apropiado.")
 
         # Expresiones regionales
         if self.regional_expressions:
-            prompt_parts.append("\nEXPRESIONES REGIONALES:")
-            for expr in self.regional_expressions[:5]:
-                prompt_parts.append(f'  - "{expr}"')
+            prompt_parts.append(f"\n🌍 EXPRESIONES LOCALES: {', '.join(self.regional_expressions[:5])}")
 
-        # Temas
-        if self.main_topics:
-            prompt_parts.append("\nTEMAS PRINCIPALES sobre los que habla:")
-            prompt_parts.append(f"  {', '.join(self.main_topics[:10])}")
+        prompt_parts.append("\n=== FIN ESTILO CREADOR ===\n")
 
         return "\n".join(prompt_parts)
 
