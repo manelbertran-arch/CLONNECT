@@ -1613,14 +1613,17 @@ Responde como si fuera un mensaje de WhatsApp entre amigos:
         # Build dynamic rules based on creator config (when no ToneProfile)
         dynamic_rules = self._build_dynamic_rules(config)
 
-        return f"""{dynamic_rules}
+        # CRITICAL: Magic Slice ToneProfile goes FIRST with highest priority
+        # It contains language and formality rules that MUST be followed
+        return f"""{magic_slice_tone}
+{dynamic_rules}
 Eres {name}, un creador de contenido que responde mensajes de Instagram/WhatsApp.
 {vocabulary_section}{no_products_warning}
 PERSONALIDAD:
 - {tone_instruction}
 - {formality_rule}
 {emoji_instruction}
-{magic_slice_tone}
+
 {citation_section}
 
 SOBRE MÍ:
