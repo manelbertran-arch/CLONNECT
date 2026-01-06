@@ -2165,6 +2165,161 @@ async def whatsapp_status():
 
 
 # ---------------------------------------------------------
+# ONBOARDING - Automated Instagram scraping
+# ---------------------------------------------------------
+@app.post("/onboarding/scrape-instagram")
+async def scrape_instagram_onboarding(request: dict):
+    """
+    Automated onboarding: scrape Instagram, generate ToneProfile, index content.
+
+    Body:
+        creator_id: str - ID for the creator (e.g., "stefano")
+        instagram_username: str - Public Instagram username (e.g., "stefanobonanno")
+        max_posts: int (optional) - Max posts to scrape (default: 50)
+
+    Returns:
+        Summary of what was processed
+    """
+    from ingestion import InstaloaderScraper, ToneAnalyzer, InstagramScraperError
+    from core.citation_service import index_creator_posts, get_content_index
+    from core.tone_service import save_tone_profile
+    import asyncio
+
+    creator_id = request.get("creator_id")
+    instagram_username = request.get("instagram_username")
+    max_posts = request.get("max_posts", 50)
+
+    if not creator_id or not instagram_username:
+        raise HTTPException(status_code=400, detail="creator_id and instagram_username are required")
+
+    result = {
+        "creator_id": creator_id,
+        "instagram_username": instagram_username,
+        "posts_scraped": 0,
+        "tone_profile_generated": False,
+        "content_indexed": False,
+        "chunks_created": 0,
+        "errors": []
+    }
+
+    # Step 1: Scrape Instagram posts
+    try:
+        logger.info(f"[Onboarding] Scraping Instagram @{instagram_username} for {creator_id}")
+        scraper = InstaloaderScraper()  # No login needed for public profiles
+        posts = scraper.get_posts(instagram_username, limit=max_posts)
+        result["posts_scraped"] = len(posts)
+        logger.info(f"[Onboarding] Scraped {len(posts)} posts")
+
+        if not posts:
+            result["errors"].append("No posts found or profile is private")
+            return {"status": "warning", "result": result}
+
+        # Convert to dict format for processing
+        posts_data = [
+            {
+                "post_id": p.post_id,
+                "caption": p.caption,
+                "timestamp": p.timestamp.isoformat() if p.timestamp else None,
+                "permalink": p.permalink,
+                "likes_count": p.likes_count,
+                "comments_count": p.comments_count,
+                "post_type": p.post_type,
+                "hashtags": p.hashtags
+            }
+            for p in posts if p.has_content
+        ]
+
+    except InstagramScraperError as e:
+        result["errors"].append(f"Scraping error: {str(e)}")
+        return {"status": "error", "result": result}
+    except Exception as e:
+        logger.error(f"[Onboarding] Scraping failed: {e}")
+        result["errors"].append(f"Unexpected error: {str(e)}")
+        return {"status": "error", "result": result}
+
+    # Step 2: Generate ToneProfile
+    try:
+        logger.info(f"[Onboarding] Generating ToneProfile for {creator_id}")
+        analyzer = ToneAnalyzer()
+        tone_profile = await analyzer.analyze(creator_id, posts_data)
+
+        # Save the tone profile
+        await save_tone_profile(tone_profile)
+        result["tone_profile_generated"] = True
+        result["tone_summary"] = {
+            "formality": tone_profile.formality,
+            "energy": tone_profile.energy,
+            "warmth": tone_profile.warmth,
+            "emoji_frequency": tone_profile.emoji_frequency,
+            "signature_phrases": tone_profile.signature_phrases[:5] if tone_profile.signature_phrases else []
+        }
+        logger.info(f"[Onboarding] ToneProfile generated: formality={tone_profile.formality}")
+
+    except Exception as e:
+        logger.error(f"[Onboarding] ToneProfile generation failed: {e}")
+        result["errors"].append(f"ToneProfile error: {str(e)}")
+
+    # Step 3: Index content for citations
+    try:
+        logger.info(f"[Onboarding] Indexing content for {creator_id}")
+        index_result = await index_creator_posts(creator_id, posts_data, save=True)
+        result["content_indexed"] = True
+        result["chunks_created"] = index_result.get("total_chunks", 0)
+        logger.info(f"[Onboarding] Indexed {result['chunks_created']} chunks")
+
+    except Exception as e:
+        logger.error(f"[Onboarding] Content indexing failed: {e}")
+        result["errors"].append(f"Indexing error: {str(e)}")
+
+    status = "ok" if not result["errors"] else "partial"
+    return {"status": status, "result": result}
+
+
+@app.get("/onboarding/status/{creator_id}")
+async def get_onboarding_status(creator_id: str):
+    """
+    Check onboarding status for a creator.
+
+    Returns:
+        Status of ToneProfile and ContentIndex for the creator
+    """
+    from core.tone_service import get_tone_profile
+    from core.citation_service import get_content_index
+
+    status = {
+        "creator_id": creator_id,
+        "tone_profile_exists": False,
+        "tone_profile_summary": None,
+        "content_index_exists": False,
+        "chunks_count": 0
+    }
+
+    # Check ToneProfile
+    try:
+        tone_profile = await get_tone_profile(creator_id)
+        if tone_profile:
+            status["tone_profile_exists"] = True
+            status["tone_profile_summary"] = {
+                "formality": tone_profile.formality,
+                "energy": tone_profile.energy,
+                "warmth": tone_profile.warmth
+            }
+    except Exception as e:
+        logger.warning(f"Error checking ToneProfile: {e}")
+
+    # Check ContentIndex
+    try:
+        index = get_content_index(creator_id)
+        if index.chunks:
+            status["content_index_exists"] = True
+            status["chunks_count"] = len(index.chunks)
+    except Exception as e:
+        logger.warning(f"Error checking ContentIndex: {e}")
+
+    return {"status": "ok", **status}
+
+
+# ---------------------------------------------------------
 # CREATOR CONFIG
 # ---------------------------------------------------------
 @app.post("/creator/config")
