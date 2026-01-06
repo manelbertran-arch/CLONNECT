@@ -18,7 +18,8 @@ from ingestion import (
     create_chunks_from_content,
     split_text,
     extract_topics_from_query,
-    should_cite_content
+    should_cite_content,
+    normalize_text
 )
 
 logger = logging.getLogger(__name__)
@@ -85,26 +86,34 @@ class CreatorContentIndex:
         self,
         query: str,
         max_results: int = 5,
-        min_relevance: float = 0.3
+        min_relevance: float = 0.25
     ) -> List[Dict[str, Any]]:
         """
-        Busqueda simple por keywords.
+        Busqueda simple por keywords con normalizacion de acentos.
         (En produccion usar embeddings + FAISS)
         """
         if not self.chunks:
+            logger.debug(f"No chunks loaded for search")
             return []
 
-        # Extraer keywords de la query
+        # Extraer keywords de la query (ya normalizadas sin acentos)
         keywords = extract_topics_from_query(query)
         if not keywords:
+            logger.debug(f"No keywords extracted from query: {query}")
             return []
+
+        logger.debug(f"Searching with keywords: {keywords}")
 
         results = []
 
         for chunk in self.chunks:
-            # Calcular relevancia simple (proporcion de keywords encontradas)
-            content_lower = chunk.content.lower()
-            matches = sum(1 for kw in keywords if kw.lower() in content_lower)
+            # Normalizar contenido (quitar acentos) para matching
+            content_normalized = normalize_text(chunk.content)
+            # También buscar en el título
+            title_normalized = normalize_text(chunk.title or '')
+            combined_text = f"{content_normalized} {title_normalized}"
+
+            matches = sum(1 for kw in keywords if kw in combined_text)
 
             if matches > 0:
                 relevance = matches / len(keywords)
@@ -337,7 +346,7 @@ async def find_relevant_citations(
 def get_citation_prompt_section(
     creator_id: str,
     query: str,
-    min_relevance: float = 0.4
+    min_relevance: float = 0.25
 ) -> str:
     """
     Version sincrona para obtener seccion de citas.

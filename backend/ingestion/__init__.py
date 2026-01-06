@@ -50,7 +50,8 @@ from .content_citation import (
     ContentCitationEngine,
     extract_topics_from_query,
     format_citation_for_response,
-    should_cite_content
+    should_cite_content,
+    normalize_text
 )
 
 # Response Engine v2
@@ -125,6 +126,7 @@ __all__ = [
     'extract_topics_from_query',
     'format_citation_for_response',
     'should_cite_content',
+    'normalize_text',
 
     # Response Engine v2
     'FollowerContext',

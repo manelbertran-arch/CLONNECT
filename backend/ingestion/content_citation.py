@@ -7,12 +7,25 @@ Este modulo habilita el WOW #4: "Sabe tanto como el creador"
 
 import logging
 import re
+import unicodedata
 from typing import List, Dict, Optional
 from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
 
 logger = logging.getLogger(__name__)
+
+
+def normalize_text(text: str) -> str:
+    """
+    Normaliza texto removiendo acentos y caracteres especiales.
+    Útil para matching de búsqueda.
+    """
+    # Normalizar unicode (descomponer caracteres acentuados)
+    normalized = unicodedata.normalize('NFD', text)
+    # Remover marcas diacríticas (acentos)
+    without_accents = ''.join(c for c in normalized if unicodedata.category(c) != 'Mn')
+    return without_accents.lower()
 
 
 class ContentType(Enum):
@@ -370,30 +383,56 @@ def extract_topics_from_query(query: str) -> List[str]:
         query: Pregunta del seguidor
 
     Returns:
-        Lista de temas/keywords
+        Lista de temas/keywords (normalizados sin acentos)
     """
-    # Remover palabras comunes en espanol
+    # Remover palabras comunes en espanol (sin acentos para matching)
     stopwords = {
         'el', 'la', 'los', 'las', 'un', 'una', 'unos', 'unas',
         'de', 'del', 'al', 'a', 'en', 'con', 'por', 'para',
-        'que', 'qué', 'cual', 'cuál', 'como', 'cómo',
+        'que', 'cual', 'como',
         'me', 'te', 'se', 'nos', 'mi', 'tu', 'su',
-        'es', 'son', 'está', 'están', 'ser', 'estar',
+        'es', 'son', 'esta', 'estan', 'ser', 'estar',
         'hola', 'hey', 'buenas', 'buenos',
         'quiero', 'quisiera', 'puedo', 'puedes',
         'saber', 'conocer', 'preguntar',
         'sobre', 'acerca', 'respecto',
-        'y', 'o', 'pero', 'si', 'no', 'más', 'muy'
+        'y', 'o', 'pero', 'si', 'no', 'mas', 'muy',
+        'tienes', 'tiene', 'hay', 'info', 'informacion'
     }
 
-    # Normalizar y tokenizar
-    query_lower = query.lower()
-    words = re.findall(r'\b\w+\b', query_lower)
+    # Sinónimos comunes (inglés -> español)
+    synonyms = {
+        'challenge': ['reto', 'desafio', 'challenge'],
+        'reto': ['challenge', 'desafio'],
+        'coaching': ['acompanamiento', 'coach', 'coaching'],
+        'coach': ['coaching', 'acompanamiento'],
+        'taller': ['workshop', 'talleres'],
+        'workshop': ['taller', 'talleres'],
+        'respiracion': ['respira', 'respirar', 'breathwork'],
+        'breathwork': ['respiracion', 'respira'],
+    }
 
-    # Filtrar stopwords y palabras muy cortas
-    topics = [w for w in words if w not in stopwords and len(w) > 2]
+    # Normalizar (quitar acentos) y tokenizar
+    query_normalized = normalize_text(query)
+    words = re.findall(r'\b\w+\b', query_normalized)
 
-    return topics
+    # Filtrar stopwords y palabras muy cortas (pero permitir números como "11")
+    topics = []
+    for w in words:
+        if w in stopwords:
+            continue
+        if len(w) < 2:
+            continue
+        # Permitir números de 2+ dígitos
+        if w.isdigit() and len(w) >= 2:
+            topics.append(w)
+        elif len(w) > 2:
+            topics.append(w)
+            # Añadir sinónimos si existen
+            if w in synonyms:
+                topics.extend(synonyms[w])
+
+    return list(set(topics))  # Eliminar duplicados
 
 
 def format_citation_for_response(
