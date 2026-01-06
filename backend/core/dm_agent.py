@@ -1167,8 +1167,15 @@ class DMResponderAgent:
         Solo se usa cuando NO hay ToneProfile (magic_slice_tone está vacío).
         Si hay ToneProfile, este genera sus propias reglas más completas.
         """
+        # Ensure config is a dict
+        if not isinstance(config, dict):
+            config = {}
+
         # Get personality settings from config
         personality = config.get('personality', {})
+        if not isinstance(personality, dict):
+            personality = {}
+
         formality = personality.get('formality', config.get('formality', 'informal'))
         language = config.get('language', 'es')
 
