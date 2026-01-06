@@ -1176,7 +1176,17 @@ class DMResponderAgent:
         if not isinstance(personality, dict):
             personality = {}
 
+        # Check both clone_tone (Settings) and formality (config)
+        clone_tone = config.get('clone_tone', 'friendly')
         formality = personality.get('formality', config.get('formality', 'informal'))
+
+        # Map clone_tone to formality if needed
+        # professional = formal, casual/friendly = informal
+        if clone_tone == 'professional':
+            formality = 'formal'
+        elif clone_tone in ['casual', 'friendly'] and formality not in ['formal', 'muy_formal']:
+            formality = 'informal'
+
         language = config.get('language', 'es')
 
         # Map language code to full name
