@@ -33,7 +33,7 @@ from core.creator_config import CreatorConfigManager
 from core.sales_tracker import get_sales_tracker
 from core.guardrails import get_response_guardrail
 from core.reasoning import get_self_consistency_validator, get_chain_of_thought_reasoner
-from core.tone_service import get_tone_prompt_section
+from core.tone_service import get_tone_prompt_section, get_tone_language
 from core.citation_service import get_citation_prompt_section
 from core.metrics import (
     record_message_processed,
@@ -2310,7 +2310,14 @@ USA ESTA RESPUESTA PARA LA OBJECION (adaptala a tu tono):
         )
 
         # Agregar instruccion de idioma al prompt
-        user_language = follower.preferred_language
+        # PRIORIDAD: ToneProfile.primary_language > follower.preferred_language
+        # Esto asegura que el bot responde en el idioma del creador, no del usuario
+        tone_language = get_tone_language(self.creator_id)
+        if tone_language:
+            user_language = tone_language
+            logger.info(f"Using ToneProfile language: {tone_language} (overrides follower preferred: {follower.preferred_language})")
+        else:
+            user_language = follower.preferred_language
         user_prompt += self._build_language_instruction(user_language)
 
         # Check cache para respuestas frecuentes (solo intents cacheables)
