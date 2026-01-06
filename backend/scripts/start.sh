@@ -1,6 +1,10 @@
 #!/bin/bash
 set -e
 
+echo "=========================================="
+echo "START.SH EXECUTING - $(date)"
+echo "=========================================="
+
 PORT=${PORT:-8000}
 
 # Fix permissions for mounted volume (runs as root before switching user)
