@@ -17,8 +17,13 @@ if [ -d /app/data ]; then
 
         # Copy content_index (creator citations) - always sync new files
         if [ -d /app/initial_data/content_index ]; then
-            cp -r /app/initial_data/content_index/* /app/data/content_index/ 2>/dev/null || true
-            echo "  - Synced content_index"
+            echo "  - Found initial_data/content_index, contents:"
+            ls -la /app/initial_data/content_index/
+            cp -rv /app/initial_data/content_index/* /app/data/content_index/ 2>&1 || echo "  - cp failed: $?"
+            echo "  - After sync, content_index contains:"
+            ls -la /app/data/content_index/
+        else
+            echo "  - WARNING: /app/initial_data/content_index does not exist!"
         fi
 
         # Copy tone_profiles (creator voice) - always sync new files
