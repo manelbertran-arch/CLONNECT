@@ -5,13 +5,13 @@
     "source_type": "web_page",
     "source_id": "about",
     "source_url": "https://stefanobonanno.com/sobre-mi",
-    "title": "Sobre Stefano",
-    "content": "Soy Stefano, Coach, Terapeuta e Instructor de Movimiento y Respiración. Durante años viví en desequilibrio hasta que tuve que frenar y mirarme de verdad. Hoy ayudo a personas que están listas para dejar de sobrevivir y empezar a vivir.",
+    "title": "Sobre Stefano - Coach y Terapeuta",
+    "content": "Soy Stefano, Coach, Terapeuta e Instructor de Movimiento y Respiración. Durante años viví en desequilibrio hasta que tuve que frenar y mirarme de verdad. Hoy ayudo a personas que están listas para dejar de sobrevivir y empezar a vivir. Mi trabajo combina coaching, terapia, movimiento consciente y técnicas de respiración para una transformación integral.",
     "chunk_index": 0,
     "total_chunks": 1,
     "metadata": {
       "section": "about",
-      "keywords": ["coach", "terapeuta", "movimiento", "respiración", "transformación", "vivir"]
+      "keywords": ["coach", "terapeuta", "movimiento", "respiracion", "transformacion", "vivir", "quien soy", "sobre mi"]
     },
     "created_at": "2026-01-06T12:00:00"
   },
@@ -21,13 +21,13 @@
     "source_type": "web_page",
     "source_id": "metodologia",
     "source_url": "https://stefanobonanno.com/metodologia",
-    "title": "Metodología - 3 Pilares",
-    "content": "Mi metodología se basa en 3 pilares: Mente Consciente (espacio seguro para tu expresión auténtica), Cuerpo Saludable (respiración y movimiento consciente), Espíritu Libre (prácticas ancestrales y técnicas modernas). Trabajo de forma integral para que puedas transformarte desde dentro.",
+    "title": "Metodología - 3 Pilares de Transformación",
+    "content": "Mi metodología se basa en 3 pilares fundamentales: Mente Consciente (espacio seguro para tu expresión auténtica), Cuerpo Saludable (respiración y movimiento consciente), y Espíritu Libre (prácticas ancestrales y técnicas modernas). Trabajo de forma integral para que puedas transformarte desde dentro. Este enfoque holístico aborda mente, cuerpo y espíritu de manera conjunta.",
     "chunk_index": 0,
     "total_chunks": 1,
     "metadata": {
       "section": "metodologia",
-      "keywords": ["mente", "cuerpo", "espíritu", "pilares", "respiración", "movimiento", "consciente"]
+      "keywords": ["metodologia", "pilares", "mente", "cuerpo", "espiritu", "holistico", "como trabajas", "enfoque"]
     },
     "created_at": "2026-01-06T12:00:00"
   },
@@ -38,13 +38,13 @@
     "source_id": "acompanamiento",
     "source_url": "https://stefanobonanno.com/acompanamiento",
     "title": "Acompañamiento 1:1 - Del Síntoma a la Plenitud",
-    "content": "Te ayudo a comprender tu realidad a nivel inconsciente, permitiéndote sanar desde la raíz, integrar tu proceso actual y evolucionar como persona. Más de 100 personas transformadas con este programa de acompañamiento personalizado.",
+    "content": "En el acompañamiento 1:1 'Del Síntoma a la Plenitud' te ayudo a comprender tu realidad a nivel inconsciente, permitiéndote sanar desde la raíz, integrar tu proceso actual y evolucionar como persona. Más de 100 personas ya han pasado por este programa de coaching personalizado y han transformado sus vidas. Es un proceso profundo de varias sesiones donde trabajamos juntos.",
     "chunk_index": 0,
     "total_chunks": 1,
     "metadata": {
       "section": "producto",
       "product_id": "stefano_1to1",
-      "keywords": ["acompañamiento", "sanar", "inconsciente", "transformación", "evolucionar", "1:1"]
+      "keywords": ["acompanamiento", "1:1", "coaching", "sanar", "transformar", "100 personas", "personalizado", "sesiones"]
     },
     "created_at": "2026-01-06T12:00:00"
   },
@@ -54,14 +54,14 @@
     "source_type": "web_page",
     "source_id": "fitpack",
     "source_url": "https://stefanobonanno.com/fitpack",
-    "title": "Challenge 11 Días - Fitpack",
-    "content": "Desafío para entrenar de forma integral, moverte más y mejor, experimentar cómo el movimiento diario puede hacer que te sientas con más energía y enfoque. Más de 3000 personas transformadas con este reto de 11 días.",
+    "title": "Challenge 11 Días - Fitpack Movimiento",
+    "content": "El Challenge de 11 días Fitpack es un desafío para entrenar de forma integral, moverte más y mejor. Experimentarás cómo el movimiento diario puede hacer que te sientas con más energía y enfoque. Más de 3000 personas ya han completado este reto de 11 días y han transformado su relación con el movimiento. Cada día recibes un video con ejercicios guiados.",
     "chunk_index": 0,
     "total_chunks": 1,
     "metadata": {
       "section": "producto",
       "product_id": "stefano_fitpack",
-      "keywords": ["challenge", "11 días", "movimiento", "energía", "enfoque", "entrenar", "reto"]
+      "keywords": ["challenge", "11 dias", "reto", "fitpack", "movimiento", "energia", "3000 personas", "ejercicios", "videos"]
     },
     "created_at": "2026-01-06T12:00:00"
   },
@@ -71,14 +71,14 @@
     "source_type": "web_page",
     "source_id": "talleres",
     "source_url": "https://stefanobonanno.com/talleres",
-    "title": "Respira Siente Conecta - Taller",
-    "content": "Taller de respiración, meditación y baño de hielo. Un viaje profundo de autoconocimiento y transformación personal. Te desafía a soltar miedos, enfrentar tus límites y liberar tensiones acumuladas. Una experiencia transformadora.",
+    "title": "Respira Siente Conecta - Taller de Respiración",
+    "content": "El taller 'Respira Siente Conecta' es una experiencia de respiración, meditación y baño de hielo. Es un viaje profundo de autoconocimiento y transformación personal que te desafía a soltar miedos, enfrentar tus límites y liberar tensiones acumuladas. Una experiencia transformadora que combina breathwork, meditación guiada y exposición al frío.",
     "chunk_index": 0,
     "total_chunks": 1,
     "metadata": {
       "section": "producto",
       "product_id": "stefano_talleres",
-      "keywords": ["respiración", "meditación", "baño de hielo", "miedos", "límites", "tensiones", "taller"]
+      "keywords": ["taller", "workshop", "respiracion", "breathwork", "meditacion", "bano de hielo", "frio", "miedos", "limites"]
     },
     "created_at": "2026-01-06T12:00:00"
   }
