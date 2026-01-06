@@ -15,27 +15,27 @@ if [ -d /app/data ]; then
     if [ -d /app/initial_data ]; then
         echo "Syncing initial data to volume..."
 
-        # Copy content_index (creator citations)
+        # Copy content_index (creator citations) - always sync new files
         if [ -d /app/initial_data/content_index ]; then
-            cp -rn /app/initial_data/content_index/* /app/data/content_index/ 2>/dev/null || true
+            cp -r /app/initial_data/content_index/* /app/data/content_index/ 2>/dev/null || true
             echo "  - Synced content_index"
         fi
 
-        # Copy tone_profiles (creator voice)
+        # Copy tone_profiles (creator voice) - always sync new files
         if [ -d /app/initial_data/tone_profiles ]; then
-            cp -rn /app/initial_data/tone_profiles/* /app/data/tone_profiles/ 2>/dev/null || true
+            cp -r /app/initial_data/tone_profiles/* /app/data/tone_profiles/ 2>/dev/null || true
             echo "  - Synced tone_profiles"
         fi
 
-        # Copy creator configs
+        # Copy creator configs - always sync new files
         if [ -d /app/initial_data/creators ]; then
-            cp -rn /app/initial_data/creators/* /app/data/creators/ 2>/dev/null || true
+            cp -r /app/initial_data/creators/* /app/data/creators/ 2>/dev/null || true
             echo "  - Synced creators"
         fi
 
-        # Copy products
+        # Copy products - always sync new files
         if [ -d /app/initial_data/products ]; then
-            cp -rn /app/initial_data/products/* /app/data/products/ 2>/dev/null || true
+            cp -r /app/initial_data/products/* /app/data/products/ 2>/dev/null || true
             echo "  - Synced products"
         fi
     fi
