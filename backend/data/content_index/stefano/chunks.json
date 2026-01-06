@@ -1,0 +1,85 @@
+[
+  {
+    "id": "stefano_about_1",
+    "creator_id": "stefano",
+    "source_type": "web_page",
+    "source_id": "about",
+    "source_url": "https://stefanobonanno.com/sobre-mi",
+    "title": "Sobre Stefano",
+    "content": "Soy Stefano, Coach, Terapeuta e Instructor de Movimiento y Respiración. Durante años viví en desequilibrio hasta que tuve que frenar y mirarme de verdad. Hoy ayudo a personas que están listas para dejar de sobrevivir y empezar a vivir.",
+    "chunk_index": 0,
+    "total_chunks": 1,
+    "metadata": {
+      "section": "about",
+      "keywords": ["coach", "terapeuta", "movimiento", "respiración", "transformación", "vivir"]
+    },
+    "created_at": "2026-01-06T12:00:00"
+  },
+  {
+    "id": "stefano_metodologia_1",
+    "creator_id": "stefano",
+    "source_type": "web_page",
+    "source_id": "metodologia",
+    "source_url": "https://stefanobonanno.com/metodologia",
+    "title": "Metodología - 3 Pilares",
+    "content": "Mi metodología se basa en 3 pilares: Mente Consciente (espacio seguro para tu expresión auténtica), Cuerpo Saludable (respiración y movimiento consciente), Espíritu Libre (prácticas ancestrales y técnicas modernas). Trabajo de forma integral para que puedas transformarte desde dentro.",
+    "chunk_index": 0,
+    "total_chunks": 1,
+    "metadata": {
+      "section": "metodologia",
+      "keywords": ["mente", "cuerpo", "espíritu", "pilares", "respiración", "movimiento", "consciente"]
+    },
+    "created_at": "2026-01-06T12:00:00"
+  },
+  {
+    "id": "stefano_1to1_1",
+    "creator_id": "stefano",
+    "source_type": "web_page",
+    "source_id": "acompanamiento",
+    "source_url": "https://stefanobonanno.com/acompanamiento",
+    "title": "Acompañamiento 1:1 - Del Síntoma a la Plenitud",
+    "content": "Te ayudo a comprender tu realidad a nivel inconsciente, permitiéndote sanar desde la raíz, integrar tu proceso actual y evolucionar como persona. Más de 100 personas transformadas con este programa de acompañamiento personalizado.",
+    "chunk_index": 0,
+    "total_chunks": 1,
+    "metadata": {
+      "section": "producto",
+      "product_id": "stefano_1to1",
+      "keywords": ["acompañamiento", "sanar", "inconsciente", "transformación", "evolucionar", "1:1"]
+    },
+    "created_at": "2026-01-06T12:00:00"
+  },
+  {
+    "id": "stefano_fitpack_1",
+    "creator_id": "stefano",
+    "source_type": "web_page",
+    "source_id": "fitpack",
+    "source_url": "https://stefanobonanno.com/fitpack",
+    "title": "Challenge 11 Días - Fitpack",
+    "content": "Desafío para entrenar de forma integral, moverte más y mejor, experimentar cómo el movimiento diario puede hacer que te sientas con más energía y enfoque. Más de 3000 personas transformadas con este reto de 11 días.",
+    "chunk_index": 0,
+    "total_chunks": 1,
+    "metadata": {
+      "section": "producto",
+      "product_id": "stefano_fitpack",
+      "keywords": ["challenge", "11 días", "movimiento", "energía", "enfoque", "entrenar", "reto"]
+    },
+    "created_at": "2026-01-06T12:00:00"
+  },
+  {
+    "id": "stefano_taller_1",
+    "creator_id": "stefano",
+    "source_type": "web_page",
+    "source_id": "talleres",
+    "source_url": "https://stefanobonanno.com/talleres",
+    "title": "Respira Siente Conecta - Taller",
+    "content": "Taller de respiración, meditación y baño de hielo. Un viaje profundo de autoconocimiento y transformación personal. Te desafía a soltar miedos, enfrentar tus límites y liberar tensiones acumuladas. Una experiencia transformadora.",
+    "chunk_index": 0,
+    "total_chunks": 1,
+    "metadata": {
+      "section": "producto",
+      "product_id": "stefano_talleres",
+      "keywords": ["respiración", "meditación", "baño de hielo", "miedos", "límites", "tensiones", "taller"]
+    },
+    "created_at": "2026-01-06T12:00:00"
+  }
+]
