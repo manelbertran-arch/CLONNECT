@@ -791,10 +791,33 @@ async def scrape_instagram_onboarding(request: ScrapeInstagramRequest):
                 "uses_emojis": tone_profile.uses_emojis,
                 "emoji_frequency": tone_profile.emoji_frequency,
                 "signature_phrases": tone_profile.signature_phrases[:5],
-                "analyzed_posts": tone_profile.analyzed_posts_count
+                "analyzed_posts": tone_profile.analyzed_posts_count,
+                "primary_language": tone_profile.primary_language
             }
 
-            logger.info(f"[ScrapeOnboarding] ToneProfile generated: {tone_profile.formality}, {tone_profile.energy}")
+            logger.info(f"[ScrapeOnboarding] ToneProfile generated: {tone_profile.formality}, {tone_profile.energy}, lang={tone_profile.primary_language}")
+
+            # Step 2b: Create basic creator_config if it doesn't exist
+            try:
+                config_manager = CreatorConfigManager()
+                existing_config = config_manager.get_config(request.creator_id)
+
+                if not existing_config or not existing_config.get('name'):
+                    # Create basic config from ToneProfile
+                    basic_config = {
+                        "name": request.instagram_username,
+                        "instagram_username": request.instagram_username,
+                        "personality": {
+                            "formality": tone_profile.formality,
+                            "language": tone_profile.primary_language
+                        },
+                        "clone_tone": "friendly" if tone_profile.formality in ['informal', 'muy_informal'] else "professional",
+                        "bot_active": True
+                    }
+                    config_manager.save_config(request.creator_id, basic_config)
+                    logger.info(f"[ScrapeOnboarding] Created basic creator_config for {request.creator_id}")
+            except Exception as config_error:
+                logger.warning(f"[ScrapeOnboarding] Could not create creator_config: {config_error}")
 
         except Exception as e:
             errors.append(f"ToneProfile generation error: {str(e)}")
