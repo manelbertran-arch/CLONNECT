@@ -227,8 +227,11 @@ Analiza y responde en JSON con esta estructura exacta:
     "asks_questions": true|false,
     "uses_humor": true|false,
     "main_topics": ["tema1", "tema2", ...],
-    "values_expressed": ["valor1", "valor2", ...]
+    "values_expressed": ["valor1", "valor2", ...],
+    "primary_language": "es|en|pt|fr|de|it"
 }}
+
+NOTA: Detecta el idioma principal de los posts (es=español, en=inglés, etc.)
 
 IMPORTANTE:
 - Extrae FRASES EXACTAS que usa el creador, no las inventes
@@ -468,6 +471,7 @@ IMPORTANTE:
             common_closings=llm_analysis.get('common_closings', []),
             filler_words=llm_analysis.get('filler_words', []),
             uses_anglicisms=llm_analysis.get('uses_anglicisms', False),
+            primary_language=llm_analysis.get('primary_language', 'es'),
             regional_expressions=llm_analysis.get('regional_expressions', []),
             asks_questions=llm_analysis.get('asks_questions', stats['question_marks'] > posts_count * 0.3),
             uses_humor=llm_analysis.get('uses_humor', False),
