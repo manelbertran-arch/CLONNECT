@@ -139,6 +139,36 @@ def get_tone_prompt_section(creator_id: str) -> str:
     return ""
 
 
+def get_tone_language(creator_id: str) -> Optional[str]:
+    """
+    Obtiene el primary_language del ToneProfile de un creador.
+
+    Args:
+        creator_id: ID del creador
+
+    Returns:
+        Código de idioma ("es", "en", "pt") o None si no hay perfil
+    """
+    # Buscar en cache
+    if creator_id in _tone_cache:
+        return _tone_cache[creator_id].primary_language
+
+    # Intentar cargar de archivo
+    profile_path = TONE_PROFILES_DIR / f"{creator_id}.json"
+    if profile_path.exists():
+        try:
+            with open(profile_path, 'r', encoding='utf-8') as f:
+                data = json.load(f)
+            profile = ToneProfile.from_dict(data)
+            _tone_cache[creator_id] = profile
+            logger.info(f"ToneProfile for {creator_id} loaded for language check")
+            return profile.primary_language
+        except Exception as e:
+            logger.error(f"Error loading ToneProfile for language: {e}")
+
+    return None
+
+
 def clear_cache(creator_id: Optional[str] = None):
     """
     Limpia el cache de perfiles.
