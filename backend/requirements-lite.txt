@@ -26,6 +26,9 @@ pytest-asyncio>=0.21.0
 # Telegram Bot
 python-telegram-bot>=20.0
 
+# Instagram Scraping
+instaloader>=4.10.0
+
 # Note: Heavy ML dependencies (sentence-transformers, faiss-cpu, torch)
 # are optional. The system works without them using mock implementations.
 sqlalchemy==2.0.23

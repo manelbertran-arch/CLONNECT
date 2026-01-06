@@ -268,6 +268,33 @@ def clear_index_cache(creator_id: Optional[str] = None) -> None:
         _index_cache.clear()
 
 
+def reload_creator_index(creator_id: str) -> bool:
+    """
+    Recarga el índice de un creador desde disco.
+    Útil después de añadir nuevo contenido.
+
+    Args:
+        creator_id: ID del creador
+
+    Returns:
+        True si se recargó correctamente
+    """
+    global _index_cache
+
+    # Eliminar del cache si existe
+    _index_cache.pop(creator_id, None)
+
+    # Crear nuevo índice y cargar
+    index = CreatorContentIndex(creator_id)
+    loaded = index.load()
+
+    if loaded:
+        _index_cache[creator_id] = index
+        logger.info(f"Reloaded index for {creator_id}: {len(index.chunks)} chunks")
+
+    return loaded
+
+
 async def find_relevant_citations(
     creator_id: str,
     query: str,
