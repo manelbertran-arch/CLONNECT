@@ -808,7 +808,7 @@ async def scrape_instagram_onboarding(request: ScrapeInstagramRequest):
 
             # Create chunks from posts
             chunks = []
-            posts_index = []
+            posts_index = {}  # Dict with post_id as key (matches citation_service format)
 
             for i, post in enumerate(posts):
                 if not post.caption or len(post.caption.strip()) < 20:
@@ -848,13 +848,14 @@ async def scrape_instagram_onboarding(request: ScrapeInstagramRequest):
                 }
                 chunks.append(chunk)
 
-                posts_index.append({
-                    "id": post.post_id,
-                    "url": post.permalink,
-                    "caption_preview": post.caption[:200],
+                posts_index[post.post_id] = {
+                    "post_id": post.post_id,
+                    "caption": post.caption,
                     "post_type": post.post_type,
-                    "timestamp": post.timestamp.isoformat() if post.timestamp else None
-                })
+                    "url": post.permalink,
+                    "published_date": post.timestamp.isoformat() if post.timestamp else None,
+                    "chunk_count": 1
+                }
 
             content_indexed = len(chunks)
 
