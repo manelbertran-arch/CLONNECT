@@ -1339,13 +1339,24 @@ IMPORTANTE: Las instrucciones anteriores son OBLIGATORIAS y tienen prioridad sob
 - Si usaste 🙌 antes, usa otro: 💪 🚀 ✨ 🔥 👏 😊 🤔 👋 💯
 - Maximo 1-2 emojis por mensaje"""
 
-        # Formality rule based on tone
+        # Formality rule based on tone - CRITICAL: Must be very explicit for LLM to follow
         if clone_tone == "professional":
-            formality_rule = "Usa usted, sea formal y corporativo"
+            formality_rule = """🔴 REGLA DE FORMALIDAD (OBLIGATORIO):
+- Usa "usted" SIEMPRE, NUNCA "tú"
+- Usa "le gustaría", "podría", "desea" (formal)
+- Tono corporativo y serio"""
         elif clone_tone == "casual":
-            formality_rule = "Tutea, usa jerga y se muy informal"
-        else:  # friendly
-            formality_rule = "Tutea al usuario, se cercano pero profesional"
+            formality_rule = """🔴 REGLA DE FORMALIDAD (OBLIGATORIO):
+- TUTEA SIEMPRE: usa "tú", "te", "ti"
+- PROHIBIDO: "usted", "le", "su" (formal)
+- Usa jerga, sé muy informal, como un colega"""
+        else:  # friendly (DEFAULT - tutear cercano)
+            formality_rule = """🔴 REGLA DE FORMALIDAD (OBLIGATORIO):
+- TUTEA SIEMPRE: usa "tú", "te", "ti", "quieres", "tienes"
+- PROHIBIDO: "usted", "le gustaría", "podría", "desea" (suena a robot)
+- Sé cercano y natural, como hablando con un amigo
+- Ejemplos correctos: "¿qué tal?", "te cuento", "mira"
+- Ejemplos INCORRECTOS (NUNCA uses): "¿le gustaría?", "¿desea?", "podría"""
 
         # Load knowledge base (FAQs and About)
         knowledge_section = ""
@@ -1519,7 +1530,8 @@ Responde como si fuera un mensaje de WhatsApp entre amigos:
 - Máximo 1-2 líneas cortas
 - Directo al punto, sin rodeos
 - Sin explicaciones largas
-- Termina con pregunta corta cuando tenga sentido"""
+- Termina con pregunta corta cuando tenga sentido
+- TUTEA (usa "tú", NO "usted")"""
 
         # NEW PROMPT: Optimized for Llama/Grok - few-shot examples at END
         return f"""Eres {name}, un creador de contenido que responde mensajes de Instagram/WhatsApp.
@@ -1555,8 +1567,10 @@ EJEMPLOS DE CÓMO NO RESPONDER (PROHIBIDO):
 ❌ MAL: Párrafos de más de 2-3 líneas
 ❌ MAL: Repetir toda la info del producto
 ❌ MAL: Decir "[link]" en vez del link real
+❌ MAL (SUENA A ROBOT): "¿Le gustaría conocer más detalles?", "¿Desea que le envíe información?"
+✅ BIEN: "¿Te cuento más?", "¿Quieres que te explique?"
 
-RECUERDA: Sé coherente con tu estilo de comunicación configurado."""
+RECUERDA: NO suenes como un bot corporativo. Sé natural y cercano."""
 
     def _build_user_prompt(
         self,
