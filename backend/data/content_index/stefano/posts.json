@@ -1,0 +1,42 @@
+{
+  "about": {
+    "post_id": "about",
+    "caption": "Soy Stefano, Coach, Terapeuta e Instructor de Movimiento y Respiración. Durante años viví en desequilibrio hasta que tuve que frenar y mirarme de verdad. Hoy ayudo a personas que están listas para dejar de sobrevivir y empezar a vivir.",
+    "post_type": "web_page",
+    "url": "https://stefanobonanno.com/sobre-mi",
+    "published_date": "2026-01-06T12:00:00",
+    "chunk_count": 1
+  },
+  "metodologia": {
+    "post_id": "metodologia",
+    "caption": "Mi metodología se basa en 3 pilares: Mente Consciente, Cuerpo Saludable, Espíritu Libre.",
+    "post_type": "web_page",
+    "url": "https://stefanobonanno.com/metodologia",
+    "published_date": "2026-01-06T12:00:00",
+    "chunk_count": 1
+  },
+  "acompanamiento": {
+    "post_id": "acompanamiento",
+    "caption": "Te ayudo a comprender tu realidad a nivel inconsciente, permitiéndote sanar desde la raíz. Más de 100 personas transformadas.",
+    "post_type": "web_page",
+    "url": "https://stefanobonanno.com/acompanamiento",
+    "published_date": "2026-01-06T12:00:00",
+    "chunk_count": 1
+  },
+  "fitpack": {
+    "post_id": "fitpack",
+    "caption": "Desafío para entrenar de forma integral. Más de 3000 personas transformadas.",
+    "post_type": "web_page",
+    "url": "https://stefanobonanno.com/fitpack",
+    "published_date": "2026-01-06T12:00:00",
+    "chunk_count": 1
+  },
+  "talleres": {
+    "post_id": "talleres",
+    "caption": "Taller de respiración, meditación y baño de hielo. Un viaje profundo de autoconocimiento.",
+    "post_type": "web_page",
+    "url": "https://stefanobonanno.com/talleres",
+    "published_date": "2026-01-06T12:00:00",
+    "chunk_count": 1
+  }
+}
