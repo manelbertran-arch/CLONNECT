@@ -74,16 +74,45 @@ class ToneProfile:
         prompt_parts = []
 
         # CRITICAL: Strong header to ensure LLM follows
-        prompt_parts.append("\n=== ESTILO DE COMUNICACION DEL CREADOR (OBLIGATORIO) ===")
+        prompt_parts.append("\n🚨🚨🚨 REGLAS OBLIGATORIAS DEL CREADOR (MÁXIMA PRIORIDAD) 🚨🚨🚨")
         prompt_parts.append("DEBES imitar EXACTAMENTE este estilo. NO suenes como un bot corporativo.")
 
-        # Tuteo vs Usted
+        # REGLA DE IDIOMA - Basado en primary_language
+        language_name = {
+            'es': 'ESPAÑOL',
+            'en': 'INGLÉS',
+            'pt': 'PORTUGUÉS',
+            'fr': 'FRANCÉS',
+            'de': 'ALEMÁN',
+            'it': 'ITALIANO'
+        }.get(self.primary_language, 'ESPAÑOL')
+
+        prompt_parts.append(f"\n📌 REGLA 1 - IDIOMA (OBLIGATORIO):")
+        prompt_parts.append(f"SIEMPRE responde en {language_name}. NUNCA cambies de idioma.")
+        prompt_parts.append(f"Aunque el usuario escriba en otro idioma, TÚ respondes en {language_name}.")
+
+        # REGLA DE TUTEO/USTED - Basado en formality
+        prompt_parts.append(f"\n📌 REGLA 2 - FORMALIDAD (OBLIGATORIO):")
         if self.formality in ['muy_informal', 'informal']:
-            prompt_parts.append("\n🔴 REGLA CRITICA: TUTEA SIEMPRE. Usa 'tú', NUNCA 'usted'.")
+            prompt_parts.append("SIEMPRE debes TUTEAR al usuario. Esta regla es INNEGOCIABLE.")
+            prompt_parts.append("✅ OBLIGATORIO: tú, te, ti, tu, tus, contigo, quieres, tienes, puedes")
+            prompt_parts.append("❌ PROHIBIDO: usted, le, su, sus, consigo, quiere, tiene, puede, desea, podría")
+            prompt_parts.append("Ejemplos:")
+            prompt_parts.append('- ❌ "¿Le gustaría saber más?" → ✅ "¿Te gustaría saber más?"')
+            prompt_parts.append('- ❌ "¿En qué puedo ayudarle?" → ✅ "¿En qué puedo ayudarte?"')
         elif self.formality in ['formal', 'muy_formal']:
-            prompt_parts.append("\n🔴 REGLA CRITICA: Usa 'usted'. Sé formal y respetuoso.")
-        else:
-            prompt_parts.append("\n🔴 REGLA: Tutea de forma natural y cercana.")
+            prompt_parts.append("SIEMPRE debes usar USTED. Esta regla es INNEGOCIABLE.")
+            prompt_parts.append("✅ OBLIGATORIO: usted, le, su, sus, consigo, quiere, tiene, puede")
+            prompt_parts.append("❌ PROHIBIDO: tú, te, ti, tu, tus, contigo, quieres, tienes, puedes")
+            prompt_parts.append("Ejemplos:")
+            prompt_parts.append('- ❌ "¿Te gustaría saber más?" → ✅ "¿Le gustaría saber más?"')
+            prompt_parts.append('- ❌ "¿En qué puedo ayudarte?" → ✅ "¿En qué puedo ayudarle?"')
+        else:  # neutral
+            prompt_parts.append("Tutea de forma natural y cercana, pero con respeto.")
+            prompt_parts.append("✅ USA: tú, te, ti (informal pero educado)")
+            prompt_parts.append("❌ EVITA: sonar demasiado formal o corporativo")
+
+        prompt_parts.append("\n🚨🚨🚨 FIN REGLAS OBLIGATORIAS 🚨🚨🚨")
 
         # Energia y calidez
         if self.energy in ['alta', 'muy_alta']:

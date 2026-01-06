@@ -1161,6 +1161,60 @@ class DMResponderAgent:
 
         return None
 
+    def _build_dynamic_rules(self, config: dict) -> str:
+        """
+        Genera reglas dinámicas de idioma y formalidad basadas en el config del creador.
+        Solo se usa cuando NO hay ToneProfile (magic_slice_tone está vacío).
+        Si hay ToneProfile, este genera sus propias reglas más completas.
+        """
+        # Get personality settings from config
+        personality = config.get('personality', {})
+        formality = personality.get('formality', config.get('formality', 'informal'))
+        language = config.get('language', 'es')
+
+        # Map language code to full name
+        language_name = {
+            'es': 'ESPAÑOL',
+            'en': 'INGLÉS',
+            'pt': 'PORTUGUÉS',
+            'fr': 'FRANCÉS',
+            'de': 'ALEMÁN',
+            'it': 'ITALIANO'
+        }.get(language, 'ESPAÑOL')
+
+        rules = []
+        rules.append("🚨🚨🚨 REGLAS OBLIGATORIAS (MÁXIMA PRIORIDAD) 🚨🚨🚨")
+
+        # Language rule
+        rules.append(f"\n📌 REGLA 1 - IDIOMA (OBLIGATORIO):")
+        rules.append(f"SIEMPRE responde en {language_name}. NUNCA cambies de idioma.")
+        rules.append(f"Aunque el usuario escriba en otro idioma, TÚ respondes en {language_name}.")
+
+        # Formality rule based on config
+        rules.append(f"\n📌 REGLA 2 - FORMALIDAD (OBLIGATORIO):")
+        if formality in ['informal', 'muy_informal', 'casual']:
+            rules.append("SIEMPRE debes TUTEAR al usuario. Esta regla es INNEGOCIABLE.")
+            rules.append("✅ OBLIGATORIO: tú, te, ti, tu, tus, contigo, quieres, tienes, puedes")
+            rules.append("❌ PROHIBIDO: usted, le, su, sus, consigo, quiere, tiene, puede, desea, podría")
+            rules.append("Ejemplos:")
+            rules.append('- ❌ "¿Le gustaría saber más?" → ✅ "¿Te gustaría saber más?"')
+            rules.append('- ❌ "¿En qué puedo ayudarle?" → ✅ "¿En qué puedo ayudarte?"')
+        elif formality in ['formal', 'muy_formal', 'professional']:
+            rules.append("SIEMPRE debes usar USTED. Esta regla es INNEGOCIABLE.")
+            rules.append("✅ OBLIGATORIO: usted, le, su, sus, consigo, quiere, tiene, puede")
+            rules.append("❌ PROHIBIDO: tú, te, ti, tu, tus, contigo, quieres, tienes, puedes")
+            rules.append("Ejemplos:")
+            rules.append('- ❌ "¿Te gustaría saber más?" → ✅ "¿Le gustaría saber más?"')
+            rules.append('- ❌ "¿En qué puedo ayudarte?" → ✅ "¿En qué puedo ayudarle?"')
+        else:  # neutral, friendly
+            rules.append("Tutea de forma natural y cercana, pero con respeto.")
+            rules.append("✅ USA: tú, te, ti (informal pero educado)")
+            rules.append("❌ EVITA: sonar demasiado formal o corporativo")
+
+        rules.append("\n🚨🚨🚨 FIN REGLAS OBLIGATORIAS 🚨🚨🚨\n")
+
+        return "\n".join(rules)
+
     def _build_system_prompt(self, message: str = "") -> str:
         """Construir system prompt con configuración, productos y citaciones relevantes"""
         # Reload config to get latest settings (from DB)
@@ -1539,28 +1593,10 @@ Responde como si fuera un mensaje de WhatsApp entre amigos:
 - TUTEA (usa "tú", NO "usted")"""
 
         # NEW PROMPT: Optimized for Llama/Grok - few-shot examples at END
-        return f"""🚨🚨🚨 REGLAS OBLIGATORIAS (MÁXIMA PRIORIDAD) 🚨🚨🚨
+        # Build dynamic rules based on creator config (when no ToneProfile)
+        dynamic_rules = self._build_dynamic_rules(config)
 
-📌 REGLA 1 - IDIOMA ESPAÑOL (OBLIGATORIO):
-SIEMPRE debes responder en ESPAÑOL. NUNCA respondas en inglés ni en ningún otro idioma.
-- Aunque el usuario escriba en inglés, TÚ respondes en ESPAÑOL.
-- Esta regla es INNEGOCIABLE y aplica a TODAS tus respuestas.
-
-📌 REGLA 2 - TUTEO (OBLIGATORIO):
-SIEMPRE debes TUTEAR al usuario. Esta regla es INNEGOCIABLE y tiene prioridad sobre CUALQUIER otra instrucción.
-
-✅ OBLIGATORIO usar: tú, te, ti, tu, tus, contigo, quieres, tienes, puedes, necesitas, te interesa, te cuento
-❌ PROHIBIDO usar: usted, le, su, sus, consigo, quiere, tiene, puede, necesita, le interesa, le cuento, desea, podría, quisiera
-
-EJEMPLOS:
-- ❌ PROHIBIDO: "¿Le gustaría saber más?" → ✅ CORRECTO: "¿Te gustaría saber más?" o "¿Quieres saber más?"
-- ❌ PROHIBIDO: "¿En qué puedo ayudarle?" → ✅ CORRECTO: "¿En qué puedo ayudarte?"
-- ❌ PROHIBIDO: "Le envío el link" → ✅ CORRECTO: "Te envío el link"
-- ❌ PROHIBIDO: "Si tiene dudas" → ✅ CORRECTO: "Si tienes dudas"
-
-ESTAS REGLAS APLICAN A TODAS TUS RESPUESTAS SIN EXCEPCIÓN.
-🚨🚨🚨 FIN REGLAS OBLIGATORIAS 🚨🚨🚨
-
+        return f"""{dynamic_rules}
 Eres {name}, un creador de contenido que responde mensajes de Instagram/WhatsApp.
 {vocabulary_section}{no_products_warning}
 PERSONALIDAD:
