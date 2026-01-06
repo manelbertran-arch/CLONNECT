@@ -36,6 +36,7 @@ class ToneProfileResponse(BaseModel):
     formality: str
     energy: str
     warmth: str
+    primary_language: str = "es"
     signature_phrases: List[str]
     favorite_emojis: List[str]
     uses_emojis: bool
@@ -65,6 +66,7 @@ async def get_creator_tone(creator_id: str):
         formality=profile.formality,
         energy=profile.energy,
         warmth=profile.warmth,
+        primary_language=profile.primary_language,
         signature_phrases=profile.signature_phrases[:10],
         favorite_emojis=profile.favorite_emojis[:10],
         uses_emojis=profile.uses_emojis,
