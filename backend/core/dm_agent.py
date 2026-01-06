@@ -2435,7 +2435,8 @@ USA ESTA RESPUESTA PARA LA OBJECION (adaptala a tu tono):
                 # SKIP for most intents - only validate objections and escalations
                 intents_needing_validation = {
                     Intent.ESCALATION,
-                    Intent.SUPPORT,
+                    # Intent.SUPPORT removido - preguntas generales no necesitan validación extra
+                    # El self-consistency penaliza respuestas válidas pero textuamente diferentes
                 }
                 # Skip consistency for most intents (trust the LLM with good prompt)
                 skip_consistency = intent not in intents_needing_validation
