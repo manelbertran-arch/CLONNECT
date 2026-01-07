@@ -51,6 +51,8 @@ class Creator(Base):
     knowledge_about = Column(JSON, default=dict)
     # Onboarding status
     onboarding_completed = Column(Boolean, default=False)
+    # Copilot mode: if True, bot suggestions require approval before sending
+    copilot_mode = Column(Boolean, default=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
 class Lead(Base):
@@ -75,6 +77,12 @@ class Message(Base):
     role = Column(String(20), nullable=False)
     content = Column(Text, nullable=False)
     intent = Column(String(50))
+    # Copilot mode fields
+    status = Column(String(20), default="sent")  # pending_approval, sent, edited, discarded
+    suggested_response = Column(Text)  # Original bot suggestion (before edit)
+    approved_at = Column(DateTime(timezone=True))
+    approved_by = Column(String(50))  # "creator" or "auto"
+    platform_message_id = Column(String(255))  # ID del mensaje en Instagram/Telegram
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
 class Product(Base):

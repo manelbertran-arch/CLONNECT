@@ -1,0 +1,341 @@
+"""
+DM History Service - Carga historial de DMs desde Instagram.
+
+Este servicio:
+1. Obtiene conversaciones existentes via Meta Graph API
+2. Crea leads por cada conversación
+3. Calcula scoring inicial
+4. Guarda historial de mensajes
+"""
+
+import logging
+from datetime import datetime, timezone
+from typing import Optional, List, Dict, Any
+from dataclasses import dataclass
+
+logger = logging.getLogger(__name__)
+
+
+@dataclass
+class ConversationSummary:
+    """Resumen de una conversación importada"""
+    follower_id: str
+    username: str
+    message_count: int
+    last_message: str
+    first_contact: str
+    calculated_score: float
+    status: str
+
+
+class DMHistoryService:
+    """Servicio para cargar historial de DMs"""
+
+    async def load_dm_history(
+        self,
+        creator_id: str,
+        access_token: str,
+        page_id: str,
+        ig_user_id: str,
+        limit: int = 30
+    ) -> Dict[str, Any]:
+        """
+        Cargar historial de DMs desde Instagram.
+
+        Returns:
+            Dict con estadísticas de la importación
+        """
+        from core.instagram import InstagramConnector
+
+        logger.info(f"[DMHistory] Loading DM history for {creator_id}...")
+
+        stats = {
+            "conversations_found": 0,
+            "leads_created": 0,
+            "messages_imported": 0,
+            "errors": []
+        }
+
+        try:
+            connector = InstagramConnector(
+                access_token=access_token,
+                page_id=page_id,
+                ig_user_id=ig_user_id
+            )
+
+            # Obtener conversaciones
+            conversations = await connector.get_conversations(limit=limit)
+            stats["conversations_found"] = len(conversations)
+            logger.info(f"[DMHistory] Found {len(conversations)} conversations")
+
+            for conv in conversations:
+                try:
+                    conv_id = conv.get("id")
+                    if not conv_id:
+                        continue
+
+                    # Obtener mensajes de la conversación
+                    messages = await connector.get_conversation_messages(conv_id, limit=50)
+
+                    if not messages:
+                        continue
+
+                    # Extraer participant (el otro usuario, no el creador)
+                    participant_id = None
+                    participant_username = ""
+
+                    for msg in messages:
+                        from_data = msg.get("from", {})
+                        from_id = from_data.get("id", "")
+
+                        # El participant es quien NO es el page_id ni ig_user_id
+                        if from_id and from_id != page_id and from_id != ig_user_id:
+                            participant_id = from_id
+                            participant_username = from_data.get("username", "")
+                            break
+
+                    if not participant_id:
+                        # Intentar con to
+                        for msg in messages:
+                            to_data = msg.get("to", {}).get("data", [{}])[0]
+                            to_id = to_data.get("id", "")
+                            if to_id and to_id != page_id and to_id != ig_user_id:
+                                participant_id = to_id
+                                participant_username = to_data.get("username", "")
+                                break
+
+                    if not participant_id:
+                        logger.warning(f"[DMHistory] Could not find participant in conv {conv_id}")
+                        continue
+
+                    # Intentar obtener perfil del usuario
+                    if not participant_username:
+                        try:
+                            profile = await connector.get_user_profile(participant_id)
+                            if profile:
+                                participant_username = profile.username
+                        except:
+                            pass
+
+                    # Crear/actualizar lead y guardar mensajes
+                    result = await self._import_conversation(
+                        creator_id=creator_id,
+                        follower_id=participant_id,
+                        username=participant_username,
+                        messages=messages,
+                        page_id=page_id,
+                        ig_user_id=ig_user_id
+                    )
+
+                    if result.get("lead_created"):
+                        stats["leads_created"] += 1
+                    stats["messages_imported"] += result.get("messages_imported", 0)
+
+                except Exception as e:
+                    error_msg = f"Error processing conversation: {e}"
+                    logger.error(f"[DMHistory] {error_msg}")
+                    stats["errors"].append(error_msg)
+
+            await connector.close()
+
+        except Exception as e:
+            error_msg = f"Error loading DM history: {e}"
+            logger.error(f"[DMHistory] {error_msg}")
+            stats["errors"].append(error_msg)
+
+        logger.info(f"[DMHistory] Import complete: {stats}")
+        return stats
+
+    async def _import_conversation(
+        self,
+        creator_id: str,
+        follower_id: str,
+        username: str,
+        messages: List[Dict],
+        page_id: str,
+        ig_user_id: str
+    ) -> Dict[str, Any]:
+        """Importar una conversación a la base de datos"""
+        from api.database import SessionLocal
+        from api.models import Creator, Lead, Message
+        from core.intent_classifier import classify_intent_simple
+
+        session = SessionLocal()
+        result = {"lead_created": False, "messages_imported": 0}
+
+        try:
+            creator = session.query(Creator).filter_by(name=creator_id).first()
+            if not creator:
+                return result
+
+            # Verificar si el lead ya existe
+            lead = session.query(Lead).filter_by(
+                creator_id=creator.id,
+                platform_user_id=follower_id
+            ).first()
+
+            if not lead:
+                lead = Lead(
+                    creator_id=creator.id,
+                    platform="instagram",
+                    platform_user_id=follower_id,
+                    username=username,
+                    status="new"
+                )
+                session.add(lead)
+                session.commit()
+                result["lead_created"] = True
+
+            # Procesar mensajes (del más antiguo al más reciente)
+            messages_sorted = sorted(
+                messages,
+                key=lambda m: m.get("created_time", ""),
+                reverse=False
+            )
+
+            purchase_signals = 0
+            total_user_messages = 0
+
+            for msg in messages_sorted:
+                msg_id = msg.get("id", "")
+                content = msg.get("message", "")
+                from_id = msg.get("from", {}).get("id", "")
+                created_time = msg.get("created_time", "")
+
+                if not content:
+                    continue
+
+                # Determinar rol
+                is_from_creator = from_id in [page_id, ig_user_id]
+                role = "assistant" if is_from_creator else "user"
+
+                # Verificar si el mensaje ya existe
+                existing = session.query(Message).filter_by(
+                    lead_id=lead.id,
+                    platform_message_id=msg_id
+                ).first()
+
+                if existing:
+                    continue
+
+                # Clasificar intent si es mensaje del usuario
+                intent = None
+                if role == "user":
+                    total_user_messages += 1
+                    intent = classify_intent_simple(content)
+
+                    # Calcular señales de compra
+                    if intent in ["interest_strong", "purchase"]:
+                        purchase_signals += 3
+                    elif intent in ["interest_soft", "question_product"]:
+                        purchase_signals += 1
+                    elif intent in ["objection"]:
+                        purchase_signals -= 1
+
+                # Parse timestamp
+                created_at = None
+                if created_time:
+                    try:
+                        created_at = datetime.fromisoformat(created_time.replace('Z', '+00:00'))
+                    except:
+                        created_at = datetime.now(timezone.utc)
+                else:
+                    created_at = datetime.now(timezone.utc)
+
+                # Crear mensaje
+                db_msg = Message(
+                    lead_id=lead.id,
+                    role=role,
+                    content=content,
+                    intent=intent,
+                    status="sent",
+                    platform_message_id=msg_id,
+                    created_at=created_at
+                )
+                session.add(db_msg)
+                result["messages_imported"] += 1
+
+            # Calcular score inicial
+            if total_user_messages > 0:
+                raw_score = purchase_signals / max(total_user_messages, 1)
+                purchase_intent = min(1.0, max(0.0, 0.25 + (raw_score * 0.5)))
+            else:
+                purchase_intent = 0.1
+
+            # Actualizar lead
+            lead.purchase_intent = purchase_intent
+
+            # Determinar status basado en score
+            if purchase_intent >= 0.6:
+                lead.status = "hot"
+            elif purchase_intent >= 0.35:
+                lead.status = "active"
+            else:
+                lead.status = "new"
+
+            # Actualizar timestamps
+            if messages_sorted:
+                first_msg_time = messages_sorted[0].get("created_time")
+                last_msg_time = messages_sorted[-1].get("created_time")
+
+                if first_msg_time:
+                    try:
+                        lead.first_contact_at = datetime.fromisoformat(first_msg_time.replace('Z', '+00:00'))
+                    except:
+                        pass
+
+                if last_msg_time:
+                    try:
+                        lead.last_contact_at = datetime.fromisoformat(last_msg_time.replace('Z', '+00:00'))
+                    except:
+                        pass
+
+            session.commit()
+            logger.info(f"[DMHistory] Imported conversation with {follower_id}: {result['messages_imported']} messages, score={purchase_intent:.2f}")
+
+        except Exception as e:
+            logger.error(f"[DMHistory] Error importing conversation: {e}")
+            session.rollback()
+        finally:
+            session.close()
+
+        return result
+
+
+def classify_intent_simple(text: str) -> str:
+    """Clasificación simple de intent basada en keywords"""
+    text_lower = text.lower()
+
+    # Interest strong
+    if any(kw in text_lower for kw in ["quiero comprar", "me apunto", "lo quiero", "cómo pago", "como pago", "link de pago", "reservar", "agendar"]):
+        return "interest_strong"
+
+    # Interest soft
+    if any(kw in text_lower for kw in ["me interesa", "cuéntame más", "info", "información", "detalles"]):
+        return "interest_soft"
+
+    # Question product
+    if any(kw in text_lower for kw in ["precio", "cuánto", "cuanto", "cuesta", "incluye", "qué tiene", "que tiene"]):
+        return "question_product"
+
+    # Objection
+    if any(kw in text_lower for kw in ["caro", "no puedo", "lo pienso", "después", "despues", "no estoy seguro"]):
+        return "objection"
+
+    # Greeting
+    if any(kw in text_lower for kw in ["hola", "buenas", "hey", "hi", "hello"]):
+        return "greeting"
+
+    return "other"
+
+
+# Singleton instance
+_dm_history_service: Optional[DMHistoryService] = None
+
+
+def get_dm_history_service() -> DMHistoryService:
+    """Obtener instancia singleton del servicio"""
+    global _dm_history_service
+    if _dm_history_service is None:
+        _dm_history_service = DMHistoryService()
+    return _dm_history_service

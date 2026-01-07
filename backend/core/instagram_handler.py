@@ -159,6 +159,9 @@ class InstagramHandler:
         if not messages:
             return {"status": "ok", "messages_processed": 0, "results": []}
 
+        # Check if copilot mode is enabled for this creator
+        copilot_enabled = await self._is_copilot_enabled()
+
         results = []
         for message in messages:
             # Skip messages from our own page/account (prevent self-reply loop)
@@ -178,21 +181,63 @@ class InstagramHandler:
             logger.info(f"[IG:{message.sender_id}] Input: {message.text[:100]}")
 
             try:
-                # Process with DM agent
+                # Process with DM agent to get suggested response
                 response = await self.process_message(message)
 
-                # Send response via Instagram
-                await self.send_response(message.sender_id, response.response_text)
+                # Get username if available
+                username = ""
+                try:
+                    if self.connector:
+                        profile = await self.connector.get_user_profile(message.sender_id)
+                        if profile:
+                            username = profile.username
+                except:
+                    pass
 
-                self._record_response(message, response)
+                if copilot_enabled:
+                    # COPILOT MODE: Save as pending approval, don't send
+                    from core.copilot_service import get_copilot_service
+                    copilot = get_copilot_service()
 
-                results.append({
-                    "message_id": message.message_id,
-                    "sender_id": message.sender_id,
-                    "response": response.response_text,
-                    "intent": response.intent.value if hasattr(response.intent, 'value') else str(response.intent),
-                    "confidence": response.confidence
-                })
+                    pending = await copilot.create_pending_response(
+                        creator_id=self.creator_id,
+                        lead_id="",  # Will be set by service
+                        follower_id=message.sender_id,
+                        platform="instagram",
+                        user_message=message.text,
+                        user_message_id=message.message_id,
+                        suggested_response=response.response_text,
+                        intent=response.intent.value if hasattr(response.intent, 'value') else str(response.intent),
+                        confidence=response.confidence,
+                        username=username
+                    )
+
+                    logger.info(f"[Copilot] Created pending response {pending.id} for {message.sender_id}")
+
+                    results.append({
+                        "message_id": message.message_id,
+                        "sender_id": message.sender_id,
+                        "copilot_mode": True,
+                        "pending_id": pending.id,
+                        "suggested_response": response.response_text,
+                        "intent": response.intent.value if hasattr(response.intent, 'value') else str(response.intent),
+                        "confidence": response.confidence,
+                        "status": "pending_approval"
+                    })
+                else:
+                    # AUTOPILOT MODE: Send response immediately
+                    await self.send_response(message.sender_id, response.response_text)
+                    self._record_response(message, response)
+
+                    results.append({
+                        "message_id": message.message_id,
+                        "sender_id": message.sender_id,
+                        "copilot_mode": False,
+                        "response": response.response_text,
+                        "intent": response.intent.value if hasattr(response.intent, 'value') else str(response.intent),
+                        "confidence": response.confidence,
+                        "status": "sent"
+                    })
 
             except Exception as e:
                 logger.error(f"Error processing message {message.message_id}: {e}")
@@ -206,8 +251,27 @@ class InstagramHandler:
         return {
             "status": "ok",
             "messages_processed": len(messages),
+            "copilot_mode": copilot_enabled,
             "results": results
         }
+
+    async def _is_copilot_enabled(self) -> bool:
+        """Check if copilot mode is enabled for this creator"""
+        try:
+            from api.database import SessionLocal
+            from api.models import Creator
+
+            session = SessionLocal()
+            try:
+                creator = session.query(Creator).filter_by(name=self.creator_id).first()
+                if creator:
+                    return getattr(creator, 'copilot_mode', True)
+                return True  # Default to copilot mode
+            finally:
+                session.close()
+        except Exception as e:
+            logger.error(f"Error checking copilot mode: {e}")
+            return True  # Default to copilot mode on error
 
     async def _extract_messages(self, payload: Dict[str, Any]) -> List[InstagramMessage]:
         """Extract messages from webhook payload"""
