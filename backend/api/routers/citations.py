@@ -105,3 +105,43 @@ async def get_citation_prompt(request: SearchRequest):
         "has_content": True,
         "prompt_section": citation_context.to_prompt_context()
     }
+
+
+@router.get("/{creator_id}/posts-preview")
+async def get_posts_preview(creator_id: str, limit: int = 5):
+    """Endpoint temporal para ver los posts indexados de un creador."""
+    import json
+    from pathlib import Path
+
+    data_dir = Path("./data/creators") / creator_id
+
+    # Try chunks.json first (has full content)
+    chunks_path = data_dir / "chunks.json"
+    posts_path = data_dir / "posts.json"
+
+    result = {
+        "creator_id": creator_id,
+        "posts": [],
+        "source": None
+    }
+
+    if chunks_path.exists():
+        with open(chunks_path, 'r', encoding='utf-8') as f:
+            chunks = json.load(f)
+        result["source"] = "chunks.json"
+        result["total_chunks"] = len(chunks)
+        result["posts"] = chunks[:limit]
+    elif posts_path.exists():
+        with open(posts_path, 'r', encoding='utf-8') as f:
+            posts = json.load(f)
+        result["source"] = "posts.json"
+        if isinstance(posts, dict):
+            result["total_posts"] = len(posts)
+            result["posts"] = list(posts.values())[:limit]
+        else:
+            result["total_posts"] = len(posts)
+            result["posts"] = posts[:limit]
+    else:
+        raise HTTPException(status_code=404, detail=f"No indexed content found for {creator_id}")
+
+    return result
