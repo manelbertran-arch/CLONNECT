@@ -61,6 +61,14 @@ import {
   disconnectPlatform,
   getVisualOnboardingStatus,
   completeVisualOnboarding,
+  // Copilot
+  getCopilotPending,
+  getCopilotStatus,
+  approveCopilotResponse,
+  discardCopilotResponse,
+  toggleCopilotMode,
+  getCopilotNotifications,
+  approveAllCopilot,
   apiKeys,
 } from "@/services/api";
 import type { UpdateConnectionData } from "@/services/api";
@@ -880,6 +888,92 @@ export function useCompleteVisualOnboarding(creatorId: string = CREATOR_ID) {
     mutationFn: () => completeVisualOnboarding(creatorId),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["visualOnboarding", creatorId] });
+    },
+  });
+}
+
+// =============================================================================
+// COPILOT HOOKS
+// =============================================================================
+
+/**
+ * Hook to fetch pending copilot responses
+ */
+export function useCopilotPending(creatorId: string = CREATOR_ID) {
+  return useQuery({
+    queryKey: apiKeys.copilotPending(creatorId),
+    queryFn: () => getCopilotPending(creatorId),
+    refetchInterval: 5000, // Poll every 5 seconds
+    staleTime: 2000,
+  });
+}
+
+/**
+ * Hook to fetch copilot status
+ */
+export function useCopilotStatus(creatorId: string = CREATOR_ID) {
+  return useQuery({
+    queryKey: apiKeys.copilotStatus(creatorId),
+    queryFn: () => getCopilotStatus(creatorId),
+    refetchInterval: 10000,
+    staleTime: 5000,
+  });
+}
+
+/**
+ * Hook to approve a copilot response
+ */
+export function useApproveCopilotResponse(creatorId: string = CREATOR_ID) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ messageId, editedText }: { messageId: string; editedText?: string }) =>
+      approveCopilotResponse(creatorId, messageId, editedText),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: apiKeys.copilotPending(creatorId) });
+      queryClient.invalidateQueries({ queryKey: apiKeys.copilotStatus(creatorId) });
+      queryClient.invalidateQueries({ queryKey: apiKeys.conversations(creatorId) });
+    },
+  });
+}
+
+/**
+ * Hook to discard a copilot response
+ */
+export function useDiscardCopilotResponse(creatorId: string = CREATOR_ID) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (messageId: string) => discardCopilotResponse(creatorId, messageId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: apiKeys.copilotPending(creatorId) });
+      queryClient.invalidateQueries({ queryKey: apiKeys.copilotStatus(creatorId) });
+    },
+  });
+}
+
+/**
+ * Hook to toggle copilot mode
+ */
+export function useToggleCopilotMode(creatorId: string = CREATOR_ID) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (enabled: boolean) => toggleCopilotMode(creatorId, enabled),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: apiKeys.copilotStatus(creatorId) });
+    },
+  });
+}
+
+/**
+ * Hook to approve all pending responses
+ */
+export function useApproveAllCopilot(creatorId: string = CREATOR_ID) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: () => approveAllCopilot(creatorId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: apiKeys.copilotPending(creatorId) });
+      queryClient.invalidateQueries({ queryKey: apiKeys.copilotStatus(creatorId) });
+      queryClient.invalidateQueries({ queryKey: apiKeys.conversations(creatorId) });
     },
   });
 }

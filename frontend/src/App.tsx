@@ -11,6 +11,7 @@ import Nurturing from "./pages/Nurturing";
 import Products from "./pages/Products";
 import Bookings from "./pages/Bookings";
 import Settings from "./pages/Settings";
+import Copilot from "./pages/Copilot";
 import Docs from "./pages/Docs";
 import Terms from "./pages/Terms";
 import Privacy from "./pages/Privacy";
@@ -38,6 +39,7 @@ const App = () => (
             <Route path="/" element={<Navigate to="/dashboard" replace />} />
             <Route path="/dashboard" element={<Dashboard />} />
             <Route path="/inbox" element={<Inbox />} />
+            <Route path="/copilot" element={<Copilot />} />
             <Route path="/leads" element={<Leads />} />
             <Route path="/nurturing" element={<Nurturing />} />
             <Route path="/products" element={<Products />} />
