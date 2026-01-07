@@ -48,6 +48,7 @@ class ToneProfile:
 
     # Idioma
     primary_language: str = 'es'
+    dialect: str = 'neutral'  # 'neutral', 'rioplatense' (voseo), 'mexicano', 'español'
     uses_anglicisms: bool = False  # "cool", "random", "flow"
     regional_expressions: List[str] = field(default_factory=list)  # Expresiones locales
 
@@ -91,9 +92,24 @@ class ToneProfile:
         prompt_parts.append(f"SIEMPRE responde en {language_name}. NUNCA cambies de idioma.")
         prompt_parts.append(f"Aunque el usuario escriba en otro idioma, TÚ respondes en {language_name}.")
 
-        # REGLA DE TUTEO/USTED - Basado en formality
-        prompt_parts.append(f"\n📌 REGLA 2 - FORMALIDAD (OBLIGATORIO):")
-        if self.formality in ['muy_informal', 'informal']:
+        # REGLA DE TUTEO/VOSEO/USTED - Basado en formality y dialect
+        prompt_parts.append(f"\n📌 REGLA 2 - FORMALIDAD Y DIALECTO (OBLIGATORIO):")
+
+        # Primero verificar si usa VOSEO (rioplatense/argentino)
+        if self.dialect == 'rioplatense':
+            prompt_parts.append("🇦🇷 SIEMPRE debes usar VOSEO ARGENTINO. Esta regla es INNEGOCIABLE.")
+            prompt_parts.append("✅ OBLIGATORIO: vos, te, tenés, podés, querés, sentís, dejás, sabés, sos")
+            prompt_parts.append("✅ IMPERATIVOS: contame, escribime, agendá, mirá, pensá, decime, fijate")
+            prompt_parts.append("❌ PROHIBIDO TUTEO ESPAÑOL: tú, tienes, puedes, quieres, sientes, dejas, sabes, eres")
+            prompt_parts.append("❌ PROHIBIDO IMPERATIVOS ESPAÑOLES: cuéntame, escríbeme, agenda, mira, piensa, dime, fíjate")
+            prompt_parts.append("❌ PROHIBIDO: usted, le, su")
+            prompt_parts.append("Ejemplos de VOSEO correcto:")
+            prompt_parts.append('- ❌ "¿Tú tienes dudas?" → ✅ "¿Vos tenés dudas?"')
+            prompt_parts.append('- ❌ "¿Quieres saber más?" → ✅ "¿Querés saber más?"')
+            prompt_parts.append('- ❌ "Cuéntame qué te interesa" → ✅ "Contame qué te interesa"')
+            prompt_parts.append('- ❌ "Escríbeme por privado" → ✅ "Escribime por privado"')
+            prompt_parts.append('- ❌ "¿Puedes?" → ✅ "¿Podés?"')
+        elif self.formality in ['muy_informal', 'informal']:
             prompt_parts.append("SIEMPRE debes TUTEAR al usuario. Esta regla es INNEGOCIABLE.")
             prompt_parts.append("✅ OBLIGATORIO: tú, te, ti, tu, tus, contigo, quieres, tienes, puedes")
             prompt_parts.append("❌ PROHIBIDO: usted, le, su, sus, consigo, quiere, tiene, puede, desea, podría")
@@ -228,10 +244,17 @@ Analiza y responde en JSON con esta estructura exacta:
     "uses_humor": true|false,
     "main_topics": ["tema1", "tema2", ...],
     "values_expressed": ["valor1", "valor2", ...],
-    "primary_language": "es|en|pt|fr|de|it"
+    "primary_language": "es|en|pt|fr|de|it",
+    "dialect": "neutral|rioplatense|mexicano|español"
 }}
 
-NOTA: Detecta el idioma principal de los posts (es=español, en=inglés, etc.)
+NOTA IDIOMA: Detecta el idioma principal de los posts (es=español, en=inglés, etc.)
+
+NOTA DIALECTO (MUY IMPORTANTE para español):
+- "rioplatense": Si usa VOSEO argentino/uruguayo (vos, tenés, podés, querés, sentís, dejás, contame, escribime, agendá)
+- "mexicano": Si usa expresiones mexicanas (güey, chido, padre, órale, mero)
+- "español": Si usa vosotros, tío, mola, flipar, quedamos
+- "neutral": Si no hay dialectalismo claro o mezcla estilos
 
 IMPORTANTE:
 - Extrae FRASES EXACTAS que usa el creador, no las inventes
@@ -472,6 +495,7 @@ IMPORTANTE:
             filler_words=llm_analysis.get('filler_words', []),
             uses_anglicisms=llm_analysis.get('uses_anglicisms', False),
             primary_language=llm_analysis.get('primary_language', 'es'),
+            dialect=llm_analysis.get('dialect', 'neutral'),
             regional_expressions=llm_analysis.get('regional_expressions', []),
             asks_questions=llm_analysis.get('asks_questions', stats['question_marks'] > posts_count * 0.3),
             uses_humor=llm_analysis.get('uses_humor', False),

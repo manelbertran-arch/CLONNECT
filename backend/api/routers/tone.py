@@ -37,11 +37,17 @@ class ToneProfileResponse(BaseModel):
     energy: str
     warmth: str
     primary_language: str = "es"
+    dialect: str = "neutral"
     signature_phrases: List[str]
     favorite_emojis: List[str]
     uses_emojis: bool
     confidence_score: float
     analyzed_posts_count: int
+
+
+class UpdateDialectRequest(BaseModel):
+    """Request para actualizar el dialecto."""
+    dialect: str  # 'neutral', 'rioplatense', 'mexicano', 'español'
 
 
 @router.get("/profiles")
@@ -67,6 +73,7 @@ async def get_creator_tone(creator_id: str):
         energy=profile.energy,
         warmth=profile.warmth,
         primary_language=profile.primary_language,
+        dialect=getattr(profile, 'dialect', 'neutral'),
         signature_phrases=profile.signature_phrases[:10],
         favorite_emojis=profile.favorite_emojis[:10],
         uses_emojis=profile.uses_emojis,
@@ -138,4 +145,35 @@ async def refresh_tone_cache(creator_id: str):
         "status": "success",
         "creator_id": creator_id,
         "message": "ToneProfile reloaded from file"
+    }
+
+
+@router.patch("/{creator_id}/dialect")
+async def update_dialect(creator_id: str, request: UpdateDialectRequest):
+    """Actualiza el dialecto de un ToneProfile existente."""
+    valid_dialects = ['neutral', 'rioplatense', 'mexicano', 'español']
+    if request.dialect not in valid_dialects:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Dialecto invalido. Opciones: {valid_dialects}"
+        )
+
+    profile = await get_tone_profile(creator_id)
+    if not profile:
+        raise HTTPException(status_code=404, detail="ToneProfile not found")
+
+    # Actualizar dialect
+    profile.dialect = request.dialect
+
+    # Guardar
+    await save_tone_profile(profile)
+
+    # Limpiar cache para forzar recarga
+    clear_cache(creator_id)
+
+    return {
+        "status": "success",
+        "creator_id": creator_id,
+        "dialect": request.dialect,
+        "message": f"Dialecto actualizado a '{request.dialect}'"
     }
