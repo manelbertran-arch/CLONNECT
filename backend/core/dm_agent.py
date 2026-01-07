@@ -610,6 +610,10 @@ class FollowerMemory:
     last_greeting_style: str = ""  # Último estilo de saludo usado
     last_emojis_used: List[str] = field(default_factory=list)  # Últimos emojis usados
     messages_since_name_used: int = 0  # Mensajes desde que se usó el nombre
+    # Campos para contacto alternativo (WhatsApp/Telegram)
+    alternative_contact: str = ""  # Número o usuario de WhatsApp/Telegram
+    alternative_contact_type: str = ""  # "whatsapp", "telegram", u otro
+    contact_requested: bool = False  # Si ya pedimos el contacto
 
 
 class MemoryStore:
@@ -676,7 +680,11 @@ class MemoryStore:
                 # Campos para naturalidad
                 "last_greeting_style": memory.last_greeting_style,
                 "last_emojis_used": memory.last_emojis_used[-5:],  # Últimos 5
-                "messages_since_name_used": memory.messages_since_name_used
+                "messages_since_name_used": memory.messages_since_name_used,
+                # Campos para contacto alternativo
+                "alternative_contact": memory.alternative_contact,
+                "alternative_contact_type": memory.alternative_contact_type,
+                "contact_requested": memory.contact_requested
             }
             with open(file_path, 'w', encoding='utf-8') as f:
                 json.dump(data, f, indent=2, ensure_ascii=False)
@@ -1656,6 +1664,29 @@ EJEMPLOS DE CÓMO NO RESPONDER (PROHIBIDO):
 ❌ MAL (SALTAR AL PAGO): Usuario dice "me interesa" → Tú respondes con IBAN o Bizum
 ✅ BIEN: Primero explica qué ofreces, luego el precio, luego pregunta si quiere comprar
 
+📱 CAPTURA DE CONTACTO ALTERNATIVO (WhatsApp/Telegram):
+Cuando detectes interés genuino (no en el primer mensaje), pide el contacto de forma natural:
+
+CUÁNDO PEDIRLO (elige UN momento, no todos):
+- Después de explicar un producto y el usuario muestra interés
+- Cuando el usuario hace preguntas específicas sobre un servicio
+- Si la conversación se alarga y hay buena conexión
+
+CÓMO PEDIRLO (ejemplos naturales):
+- "Por cierto, ¿tenés WhatsApp o Telegram? Así te paso info más detallada 📲"
+- "¿Te paso mi WhatsApp para coordinar mejor?"
+- "Si querés, pasame tu WhatsApp y te envío los detalles"
+
+CUÁNDO NO PEDIRLO:
+- En el primer mensaje (demasiado pronto)
+- Si el usuario solo pregunta precio sin más interés
+- Si ya dio su contacto antes
+- En cada mensaje (sería spam)
+
+SI EL USUARIO DA SU CONTACTO:
+- Agradece brevemente: "¡Perfecto! Te escribo por ahí 👍"
+- NO pidas más datos innecesarios
+
 RECUERDA: NO suenes como un bot corporativo. Sé natural y cercano. NO des datos de pago hasta que el usuario lo pida."""
 
     def _build_user_prompt(
@@ -1695,6 +1726,14 @@ RECUERDA: NO suenes como un bot corporativo. Sé natural y cercano. NO des datos
                 user_context += f"\n- ES CLIENTE (ya ha comprado)"
             elif follower.is_lead:
                 user_context += f"\n- Es un lead interesado (intencion de compra: {int(follower.purchase_intent_score * 100)}%)"
+            # Información de contacto alternativo
+            if follower.alternative_contact:
+                user_context += f"\n- Contacto alternativo: {follower.alternative_contact} ({follower.alternative_contact_type})"
+                user_context += f"\n  → YA TENEMOS SU CONTACTO, NO lo pidas de nuevo"
+            elif follower.contact_requested:
+                user_context += f"\n- Ya pedimos su contacto pero no lo dio, NO insistas"
+            elif follower.total_messages >= 3 and follower.purchase_intent_score >= 0.3:
+                user_context += f"\n- 📱 BUEN MOMENTO para pedir WhatsApp/Telegram (interés detectado)"
             user_context += "\n"
 
         # Construir contexto de naturalidad - qué NO repetir
@@ -2699,6 +2738,50 @@ USA ESTA RESPUESTA PARA LA OBJECION (adaptala a tu tono):
                 follower.messages_since_name_used += 1
         else:
             follower.messages_since_name_used += 1
+
+        # === TRACKING DE CONTACTO ALTERNATIVO ===
+        # Detectar si el bot pidió el contacto
+        contact_request_phrases = ['whatsapp', 'telegram', 'te paso mi', 'pasame tu', 'tu número', 'tu numero']
+        if any(phrase in response.lower() for phrase in contact_request_phrases):
+            if not follower.alternative_contact:  # Solo marcar si no tenemos el contacto ya
+                follower.contact_requested = True
+                logger.info(f"Contact requested from follower {follower.follower_id}")
+
+        # Detectar si el usuario dio su contacto (número de teléfono o username)
+        if not follower.alternative_contact:
+            import re
+            # Patrones para detectar contacto
+            # Número de teléfono (varios formatos)
+            phone_patterns = [
+                r'\+?\d{1,3}[-.\s]?\d{2,4}[-.\s]?\d{2,4}[-.\s]?\d{2,4}',  # +34 612 345 678
+                r'\d{9,12}',  # 612345678
+            ]
+            # Username de Telegram (@username)
+            telegram_pattern = r'@[\w]{4,32}'
+
+            message_lower = message.lower()
+
+            # Buscar número de teléfono
+            for pattern in phone_patterns:
+                match = re.search(pattern, message)
+                if match:
+                    phone = match.group()
+                    # Verificar que parece un teléfono válido (no cualquier número)
+                    digits_only = re.sub(r'\D', '', phone)
+                    if len(digits_only) >= 9:
+                        follower.alternative_contact = phone
+                        follower.alternative_contact_type = "whatsapp"
+                        logger.info(f"Phone captured: {phone} for follower {follower.follower_id}")
+                        break
+
+            # Buscar username de Telegram
+            if not follower.alternative_contact:
+                telegram_match = re.search(telegram_pattern, message)
+                if telegram_match:
+                    username = telegram_match.group()
+                    follower.alternative_contact = username
+                    follower.alternative_contact_type = "telegram"
+                    logger.info(f"Telegram captured: {username} for follower {follower.follower_id}")
 
         # Actualizar score de intención
         # Usamos MÍNIMOS para intenciones positivas (el score no baja de ese valor)
