@@ -953,11 +953,15 @@ class DMResponderAgent:
         For Telegram, uses URL buttons that open the booking page directly.
         """
         if not links:
-            creator_name = self.creator_config.get('name', 'el creador')
+            # No booking links - give natural response asking to continue in DM
             if language == "es":
-                text = f"Actualmente no tengo servicios de llamada configurados. Contacta directamente con {creator_name} para agendar."
+                dialect = get_tone_dialect(self.creator_id)
+                if dialect == "rioplatense":
+                    text = "¡Claro! Para agendar una sesión, escribime por acá y coordinamos 📲"
+                else:
+                    text = "¡Claro! Para agendar una sesión, escríbeme por aquí y coordinamos 📲"
             else:
-                text = f"I don't have any call services set up right now. Contact {creator_name} directly to schedule."
+                text = "Sure! To schedule a session, just message me here and we'll coordinate 📲"
             return {"text": text}
 
         # Frontend URL for internal booking system
@@ -2364,16 +2368,28 @@ USA ESTA RESPUESTA PARA LA OBJECION (adaptala a tu tono):
             product_url = ""
             product_name = "el producto"
 
+            # Helper to check if link is valid (not placeholder)
+            def is_valid_link(link: str) -> bool:
+                if not link:
+                    return False
+                if link.startswith('PENDIENTE'):
+                    return False
+                if not link.startswith('http'):
+                    return False
+                return True
+
             # First try the relevant product
             if product:
-                product_url = product.get('payment_link', product.get('url', ''))
+                potential_url = product.get('payment_link', product.get('url', ''))
+                if is_valid_link(potential_url):
+                    product_url = potential_url
                 product_name = product.get('name', 'el producto')
 
             # If no link, try to find ANY product with a payment link
             if not product_url:
                 for p in self.products:
                     link = p.get('payment_link', p.get('url', ''))
-                    if link and link.startswith('http'):
+                    if is_valid_link(link):
                         product_url = link
                         product_name = p.get('name', 'el producto')
                         logger.info(f"Found fallback payment link from product: {product_name}")
@@ -2435,17 +2451,17 @@ USA ESTA RESPUESTA PARA LA OBJECION (adaptala a tu tono):
                     else:
                         response_text = f"Great! {emoji} You can pay via:\n- {methods_text}\n\nWhich do you prefer?"
                 else:
-                    # No alternative methods either - escalate to human
-                    logger.warning(f"NO ALTERNATIVE PAYMENT METHODS FOUND either!")
+                    # No alternative methods either - natural response asking to continue DM
+                    logger.warning(f"NO ALTERNATIVE PAYMENT METHODS FOUND either - using natural DM response")
                     if follower.preferred_language == "es":
                         # Check dialect for voseo
                         dialect = get_tone_dialect(self.creator_id)
                         if dialect == "rioplatense":
-                            response_text = f"¡Genial que quieras comprar! {emoji} Te paso con el equipo para completar el pago. Escribinos y te atendemos enseguida."
+                            response_text = f"¡Genial que te interese! {emoji} Para pagos y reservas, escribime por acá y te paso los datos. ¿Qué producto te interesa?"
                         else:
-                            response_text = f"¡Genial que quieras comprar! {emoji} Te paso con el equipo para completar el pago. Escríbenos y te atendemos enseguida."
+                            response_text = f"¡Genial que te interese! {emoji} Para pagos y reservas, escríbeme por aquí y te paso los datos. ¿Qué producto te interesa?"
                     else:
-                        response_text = f"Great that you want to buy! {emoji} Let me connect you with the team to complete the payment."
+                        response_text = f"Great that you're interested! {emoji} For payments and bookings, just message me here and I'll send you the details. Which product interests you?"
 
             # Guardar en historial
             follower.last_messages.append({

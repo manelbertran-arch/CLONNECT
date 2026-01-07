@@ -5,7 +5,7 @@
     "description": "Programa de acompañamiento individual personalizado. Un viaje profundo de transformación donde trabajamos juntos tu cuerpo, mente y emociones. Incluye sesiones de coaching, movimiento consciente y técnicas de respiración para que reconectes con tu esencia y sanes desde dentro.",
     "price": 997,
     "currency": "EUR",
-    "payment_link": "",
+    "payment_link": "PENDIENTE_CONFIRMAR_CON_STEFANO",
     "url": "https://stefanobonanno.com/acompanamiento",
     "category": "coaching",
     "is_active": true,
@@ -25,7 +25,7 @@
     "description": "Reto de 11 días para despertar tu cuerpo y tu energía. Cada día recibes un vídeo con ejercicios de movimiento y respiración diseñados para reconectar con tu cuerpo y liberar tensiones acumuladas.",
     "price": 47,
     "currency": "EUR",
-    "payment_link": "",
+    "payment_link": "PENDIENTE_CONFIRMAR_CON_STEFANO",
     "url": "https://stefanobonanno.com/fitpack",
     "category": "programa",
     "is_active": true,
@@ -45,7 +45,7 @@
     "description": "Talleres grupales donde exploramos juntos el poder de la respiración consciente y el movimiento. Un espacio seguro para conectar con otros y con tu interior. Sesiones presenciales y online.",
     "price": 35,
     "currency": "EUR",
-    "payment_link": "",
+    "payment_link": "PENDIENTE_CONFIRMAR_CON_STEFANO",
     "url": "https://stefanobonanno.com/talleres",
     "category": "taller",
     "is_active": true,
@@ -66,6 +66,7 @@
     "price": 0,
     "currency": "EUR",
     "payment_link": "",
+    "booking_link": "PENDIENTE_CONFIRMAR_CON_STEFANO",
     "url": "https://stefanobonanno.com/sesion-descubrimiento",
     "category": "consulta",
     "is_active": true,
@@ -78,5 +79,26 @@
     ],
     "duration": "30 minutos",
     "created_at": "2026-01-06T12:00:00"
+  },
+  {
+    "id": "stefano_auto_retiro",
+    "name": "Retiro Fuerteventura 2025",
+    "description": "Retiro de transformación en Fuerteventura. Una experiencia inmersiva de varios días para reconectar con tu cuerpo, mente y emociones en un entorno natural único.",
+    "price": 0,
+    "price_note": "Precio a consultar",
+    "currency": "EUR",
+    "payment_link": "PENDIENTE_CONFIRMAR_CON_STEFANO",
+    "url": "https://letawaken.com/retreat-fuerteventura-2025",
+    "category": "retiro",
+    "is_active": true,
+    "features": [
+      "Experiencia inmersiva",
+      "Entorno natural",
+      "Respiración consciente",
+      "Movimiento consciente",
+      "Liberación emocional"
+    ],
+    "duration": "Varios días",
+    "created_at": "2026-01-07T12:00:00"
   }
 ]
