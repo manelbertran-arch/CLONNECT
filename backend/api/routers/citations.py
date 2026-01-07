@@ -113,7 +113,7 @@ async def get_posts_preview(creator_id: str, limit: int = 5):
     import json
     from pathlib import Path
 
-    data_dir = Path("./data/creators") / creator_id
+    data_dir = Path("./data/content_index") / creator_id
 
     # Try chunks.json first (has full content)
     chunks_path = data_dir / "chunks.json"
