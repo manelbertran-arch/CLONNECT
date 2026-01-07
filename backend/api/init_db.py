@@ -107,6 +107,7 @@ def init_database():
             print(f"Note: Could not clean up debug booking_links: {e}")
     
     with Session(engine) as session:
+        # Create default creator 'manel'
         existing = session.query(Creator).filter_by(name="manel").first()
         if not existing:
             creator = Creator(
@@ -115,11 +116,35 @@ def init_database():
                 api_key="clonnect_manel_key",
                 clone_tone="friendly",
                 clone_name="Manel",
-                bot_active=True
+                bot_active=True,
+                copilot_mode=True  # Enable copilot by default
             )
             session.add(creator)
             session.commit()
-            print("Default creator 'manel' created")
+            print("Default creator 'manel' created with copilot_mode=True")
+
+        # Create Stefano creator for Telegram bot
+        stefano = session.query(Creator).filter_by(name="stefano_auto").first()
+        if not stefano:
+            stefano = Creator(
+                email="stefano@clonnect.com",
+                name="stefano_auto",
+                api_key="clonnect_stefano_key",
+                clone_tone="professional",
+                clone_name="Stefano Bonanno",
+                bot_active=True,
+                copilot_mode=True  # CRITICAL: Enable copilot mode
+            )
+            session.add(stefano)
+            session.commit()
+            print("Creator 'stefano_auto' created with copilot_mode=True")
+        else:
+            # Ensure copilot_mode is enabled for existing creator
+            if stefano.copilot_mode is not True:
+                stefano.copilot_mode = True
+                session.commit()
+                print("Updated 'stefano_auto' copilot_mode to True")
+
     return True
 
 if __name__ == "__main__":
