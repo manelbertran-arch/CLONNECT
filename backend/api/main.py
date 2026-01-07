@@ -1949,21 +1949,30 @@ async def telegram_webhook(request: Request):
             logger.info(f"Telegram DM from {sender_name} ({sender_id}): '{text[:50]}' -> intent={intent}, creator={creator_id}")
 
             # === CHECK COPILOT MODE ===
-            copilot_enabled = False
+            # Default to TRUE (copilot mode) - safer to require approval than auto-send
+            copilot_enabled = True
             try:
                 from api.models import Creator
                 session = SessionLocal()
                 try:
                     creator = session.query(Creator).filter_by(name=creator_id).first()
                     if creator:
+                        # Check if copilot_mode attribute exists and get its value
                         copilot_enabled = getattr(creator, 'copilot_mode', True)
+                        if copilot_enabled is None:
+                            copilot_enabled = True  # Default to True if NULL
+                        logger.info(f"🔵 COPILOT CHECK: creator={creator_id}, copilot_mode={copilot_enabled}")
+                    else:
+                        logger.warning(f"🔴 COPILOT CHECK: Creator '{creator_id}' not found in DB, defaulting to copilot_mode=True")
                 finally:
                     session.close()
             except Exception as e:
-                logger.error(f"Error checking copilot mode: {e}")
+                logger.error(f"🔴 COPILOT CHECK ERROR: {e} - defaulting to copilot_mode=True")
+                copilot_enabled = True  # Default to True on error
 
             if copilot_enabled:
                 # COPILOT MODE: Save as pending approval, don't send
+                logger.info(f"🟢🟢🟢 COPILOT MODE ACTIVE - NOT sending auto-reply, creating pending response 🟢🟢🟢")
                 from core.copilot_service import get_copilot_service
                 copilot = get_copilot_service()
 
@@ -1995,6 +2004,7 @@ async def telegram_webhook(request: Request):
                 }
 
             # AUTOPILOT MODE: Send response immediately
+            logger.info(f"🔴🔴🔴 AUTOPILOT MODE - sending auto-reply immediately 🔴🔴🔴")
             # Build inline keyboard if present in metadata
             reply_markup = None
             if response.metadata and "telegram_keyboard" in response.metadata:
