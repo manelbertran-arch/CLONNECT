@@ -10,6 +10,7 @@ def run_migrations(engine):
     migrations = [
         # Connection columns for creators table
         ("creators", "instagram_page_id", "VARCHAR(255)"),
+        ("creators", "instagram_user_id", "VARCHAR(255)"),  # Instagram Business Account ID for auto-onboarding
         ("creators", "whatsapp_token", "TEXT"),
         ("creators", "whatsapp_phone_id", "VARCHAR(255)"),
         ("creators", "stripe_api_key", "TEXT"),

@@ -6,10 +6,121 @@ import os
 import logging
 import secrets
 from urllib.parse import urlencode
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, HTTPException, Query, BackgroundTasks
 from fastapi.responses import RedirectResponse
 
 logger = logging.getLogger(__name__)
+
+
+# =============================================================================
+# AUTO-ONBOARDING FUNCTION
+# =============================================================================
+
+async def _auto_onboard_after_instagram_oauth(
+    creator_id: str,
+    access_token: str,
+    instagram_user_id: str
+):
+    """
+    Ejecuta onboarding completo automáticamente después de OAuth.
+
+    Pipeline:
+    1. Scrape Instagram posts (últimos 50)
+    2. Generar ToneProfile
+    3. Indexar contenido en RAG
+    4. Activar bot automáticamente
+    """
+    logger.info(f"[AutoOnboard] Starting automatic onboarding for {creator_id}...")
+
+    try:
+        from ingestion import MetaGraphAPIScraper
+        from core.onboarding_service import get_onboarding_service, OnboardingRequest
+        from api.database import SessionLocal
+        from api.models import Creator
+
+        # STEP 1: Scrape Instagram posts
+        logger.info(f"[AutoOnboard] Scraping Instagram posts for {creator_id}...")
+        scraper = MetaGraphAPIScraper(
+            access_token=access_token,
+            instagram_business_id=instagram_user_id
+        )
+
+        posts = await scraper.get_posts(limit=50)
+        logger.info(f"[AutoOnboard] Scraped {len(posts)} posts from Instagram")
+
+        if not posts:
+            logger.warning(f"[AutoOnboard] No posts found for {creator_id}, skipping tone analysis")
+            # Still activate bot with default config
+            _activate_bot_default(creator_id)
+            return
+
+        # Convert InstagramPost objects to dicts for onboarding service
+        posts_data = []
+        for p in posts:
+            if p.caption and len(p.caption.strip()) > 10:
+                posts_data.append({
+                    "post_id": p.post_id,
+                    "caption": p.caption,
+                    "post_type": p.post_type,
+                    "timestamp": p.timestamp.isoformat() if p.timestamp else None,
+                    "permalink": p.permalink,
+                    "media_url": p.media_url,
+                    "likes_count": p.likes_count,
+                    "comments_count": p.comments_count
+                })
+
+        # STEP 2 & 3: Run onboarding service (tone analysis + RAG indexing)
+        logger.info(f"[AutoOnboard] Running onboarding pipeline with {len(posts_data)} posts...")
+        service = get_onboarding_service()
+        request = OnboardingRequest(
+            creator_id=creator_id,
+            manual_posts=posts_data,
+            scraping_method="manual"  # Already scraped
+        )
+        result = await service.onboard_creator(request)
+
+        logger.info(f"[AutoOnboard] Onboarding result: posts={result.posts_processed}, tone={result.tone_profile_generated}, indexed={result.content_indexed}")
+
+        # STEP 4: Activate bot
+        session = SessionLocal()
+        try:
+            creator = session.query(Creator).filter_by(name=creator_id).first()
+            if creator:
+                creator.bot_active = True
+                creator.onboarding_completed = True
+                session.commit()
+                logger.info(f"[AutoOnboard] ✅ Bot activated for {creator_id}")
+        finally:
+            session.close()
+
+        logger.info(f"[AutoOnboard] ✅ Complete! {creator_id} is ready to receive DMs")
+
+    except Exception as e:
+        logger.error(f"[AutoOnboard] ❌ Error during auto-onboarding for {creator_id}: {e}")
+        import traceback
+        logger.error(traceback.format_exc())
+        # Don't raise - this is a background task
+
+
+def _activate_bot_default(creator_id: str):
+    """Activate bot with default configuration when no posts available."""
+    try:
+        from api.database import SessionLocal
+        from api.models import Creator
+
+        session = SessionLocal()
+        try:
+            creator = session.query(Creator).filter_by(name=creator_id).first()
+            if creator:
+                creator.bot_active = True
+                session.commit()
+                logger.info(f"[AutoOnboard] Bot activated with defaults for {creator_id}")
+        finally:
+            session.close()
+    except Exception as e:
+        logger.error(f"[AutoOnboard] Error activating bot: {e}")
+
+
 router = APIRouter(prefix="/oauth", tags=["oauth"])
 
 # Frontend URL for redirects after OAuth
@@ -100,6 +211,7 @@ async def instagram_oauth_start(creator_id: str):
 
 @router.get("/instagram/callback")
 async def instagram_oauth_callback(
+    background_tasks: BackgroundTasks,
     code: str = Query(None),
     state: str = Query(""),
     error_code: str = Query(None),
@@ -219,14 +331,25 @@ async def instagram_oauth_callback(
                 logger.warning("No Facebook Pages found for this user")
 
             # Step 6: Save to database
+            final_access_token = page_access_token or access_token
             await _save_instagram_connection(
                 creator_id=creator_id,
-                access_token=page_access_token or access_token,
+                access_token=final_access_token,
                 page_id=page_id,
                 instagram_user_id=instagram_user_id
             )
 
-            success_msg = f"instagram&ig_user_id={instagram_user_id}" if instagram_user_id else "instagram"
+            # Step 7: AUTO-ONBOARDING - Trigger scraping, tone analysis, and bot activation
+            if instagram_user_id:
+                logger.info(f"🚀 Starting auto-onboarding for {creator_id} in background...")
+                background_tasks.add_task(
+                    _auto_onboard_after_instagram_oauth,
+                    creator_id=creator_id,
+                    access_token=final_access_token,
+                    instagram_user_id=instagram_user_id
+                )
+
+            success_msg = f"instagram&ig_user_id={instagram_user_id}&onboarding=started" if instagram_user_id else "instagram"
             return RedirectResponse(f"{FRONTEND_URL}/settings?tab=connections&success={success_msg}")
 
     except Exception as e:
