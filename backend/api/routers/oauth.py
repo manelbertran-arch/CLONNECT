@@ -51,24 +51,51 @@ META_REDIRECT_URI = os.getenv("META_REDIRECT_URI", f"{API_URL}/oauth/instagram/c
 
 @router.get("/instagram/start")
 async def instagram_oauth_start(creator_id: str):
-    """Start Instagram OAuth flow"""
+    """
+    Start Instagram OAuth flow with full messaging permissions.
+
+    Required scopes for Instagram DMs:
+    - instagram_manage_messages: Send and receive DMs
+    - instagram_basic: Basic Instagram info
+    - pages_messaging: Page messaging
+    - pages_show_list: List pages
+    - pages_read_engagement: Read engagement data
+    """
     if not META_APP_ID:
         raise HTTPException(status_code=500, detail="META_APP_ID not configured")
 
     # Store state for CSRF protection
     state = f"{creator_id}:{secrets.token_urlsafe(16)}"
 
-    # Basic scopes - messaging requires adding permissions in Meta dashboard first
+    # Full scopes for Instagram DM automation
+    # Note: These must be approved in Meta App Review first
+    scopes = [
+        "instagram_manage_messages",  # Required for DMs
+        "instagram_basic",            # Basic Instagram account info
+        "pages_messaging",            # Page messaging capability
+        "pages_show_list",            # List connected pages
+        "pages_read_engagement",      # Read engagement data
+        "pages_manage_metadata",      # Manage page metadata
+    ]
+
     params = {
         "client_id": META_APP_ID,
         "redirect_uri": META_REDIRECT_URI,
-        "scope": "public_profile,pages_show_list",
+        "scope": ",".join(scopes),
         "response_type": "code",
         "state": state,
     }
 
     auth_url = f"https://www.facebook.com/v21.0/dialog/oauth?{urlencode(params)}"
-    return {"auth_url": auth_url, "state": state}
+
+    logger.info(f"Instagram OAuth start for {creator_id} with scopes: {scopes}")
+
+    return {
+        "auth_url": auth_url,
+        "state": state,
+        "scopes_requested": scopes,
+        "note": "User must have Instagram Business/Creator account connected to a Facebook Page"
+    }
 
 
 @router.get("/instagram/callback")
@@ -78,27 +105,34 @@ async def instagram_oauth_callback(
     error_code: str = Query(None),
     error_message: str = Query(None)
 ):
-    """Handle Instagram OAuth callback"""
+    """
+    Handle Instagram OAuth callback.
+
+    This exchanges the code for a token, finds the Instagram Business account,
+    and stores everything needed for DM automation.
+    """
     import httpx
 
     # Handle OAuth errors (like invalid scopes)
     if error_code or error_message:
         logger.error(f"Instagram OAuth error: {error_code} - {error_message}")
-        return RedirectResponse(f"{FRONTEND_URL}/settings?tab=connections&error=instagram_scope_error")
+        return RedirectResponse(f"{FRONTEND_URL}/settings?tab=connections&error=instagram_scope_error&message={error_message}")
 
     if not code:
         logger.error("Instagram OAuth: No code received")
         return RedirectResponse(f"{FRONTEND_URL}/settings?tab=connections&error=instagram_no_code")
 
     if not META_APP_ID or not META_APP_SECRET:
+        logger.error("Instagram OAuth: META_APP_SECRET not configured")
         return RedirectResponse(f"{FRONTEND_URL}/settings?tab=connections&error=instagram_not_configured")
 
     # Extract creator_id from state
     creator_id = state.split(":")[0] if ":" in state else "manel"
+    logger.info(f"Instagram OAuth callback for creator: {creator_id}")
 
     try:
-        async with httpx.AsyncClient() as client:
-            # Exchange code for access token
+        async with httpx.AsyncClient(timeout=30.0) as client:
+            # Step 1: Exchange code for short-lived access token
             token_response = await client.get(
                 "https://graph.facebook.com/v21.0/oauth/access_token",
                 params={
@@ -114,36 +148,91 @@ async def instagram_oauth_callback(
                 logger.error(f"Meta token error: {token_data}")
                 return RedirectResponse(f"{FRONTEND_URL}/settings?tab=connections&error=instagram_auth_failed")
 
-            access_token = token_data.get("access_token")
+            short_lived_token = token_data.get("access_token")
+            logger.info("Got short-lived token from Meta")
 
-            # Get Instagram Business Account ID
+            # Step 2: Exchange for long-lived token (60 days)
+            long_token_response = await client.get(
+                "https://graph.facebook.com/v21.0/oauth/access_token",
+                params={
+                    "grant_type": "fb_exchange_token",
+                    "client_id": META_APP_ID,
+                    "client_secret": META_APP_SECRET,
+                    "fb_exchange_token": short_lived_token,
+                }
+            )
+            long_token_data = long_token_response.json()
+
+            if "error" in long_token_data:
+                logger.warning(f"Could not get long-lived token: {long_token_data}, using short-lived")
+                access_token = short_lived_token
+            else:
+                access_token = long_token_data.get("access_token", short_lived_token)
+                logger.info("Got long-lived token (60 days)")
+
+            # Step 3: Get Facebook Pages connected to this user
             pages_response = await client.get(
-                "https://graph.facebook.com/v18.0/me/accounts",
+                "https://graph.facebook.com/v21.0/me/accounts",
                 params={"access_token": access_token}
             )
             pages_data = pages_response.json()
 
-            instagram_page_id = None
+            page_id = None
+            page_access_token = None
+            instagram_user_id = None
+
             if pages_data.get("data"):
-                page_id = pages_data["data"][0]["id"]
-                # Get Instagram account linked to page
+                # Get the first page (most users have one)
+                page = pages_data["data"][0]
+                page_id = page["id"]
+                page_access_token = page.get("access_token", access_token)
+                logger.info(f"Found Facebook Page: {page_id}")
+
+                # Step 4: Get Instagram Business Account linked to this page
                 ig_response = await client.get(
-                    f"https://graph.facebook.com/v18.0/{page_id}",
+                    f"https://graph.facebook.com/v21.0/{page_id}",
                     params={
-                        "fields": "instagram_business_account",
-                        "access_token": access_token
+                        "fields": "instagram_business_account,name",
+                        "access_token": page_access_token
                     }
                 )
                 ig_data = ig_response.json()
-                instagram_page_id = ig_data.get("instagram_business_account", {}).get("id")
 
-            # Save to database
-            await _save_connection(creator_id, "instagram", access_token, instagram_page_id)
+                if ig_data.get("instagram_business_account"):
+                    instagram_user_id = ig_data["instagram_business_account"]["id"]
+                    logger.info(f"Found Instagram Business Account: {instagram_user_id}")
 
-            return RedirectResponse(f"{FRONTEND_URL}/settings?tab=connections&success=instagram")
+                    # Step 5: Get Instagram username for confirmation
+                    ig_info_response = await client.get(
+                        f"https://graph.facebook.com/v21.0/{instagram_user_id}",
+                        params={
+                            "fields": "username,name,profile_picture_url",
+                            "access_token": page_access_token
+                        }
+                    )
+                    ig_info = ig_info_response.json()
+                    ig_username = ig_info.get("username", "unknown")
+                    logger.info(f"Instagram username: @{ig_username}")
+                else:
+                    logger.warning("No Instagram Business Account linked to this Facebook Page")
+            else:
+                logger.warning("No Facebook Pages found for this user")
+
+            # Step 6: Save to database
+            await _save_instagram_connection(
+                creator_id=creator_id,
+                access_token=page_access_token or access_token,
+                page_id=page_id,
+                instagram_user_id=instagram_user_id
+            )
+
+            success_msg = f"instagram&ig_user_id={instagram_user_id}" if instagram_user_id else "instagram"
+            return RedirectResponse(f"{FRONTEND_URL}/settings?tab=connections&success={success_msg}")
 
     except Exception as e:
         logger.error(f"Instagram OAuth error: {e}")
+        import traceback
+        logger.error(traceback.format_exc())
         return RedirectResponse(f"{FRONTEND_URL}/settings?tab=connections&error=instagram_failed")
 
 
@@ -634,6 +723,41 @@ async def google_oauth_callback(code: str = Query(...), state: str = Query("")):
 # =============================================================================
 # HELPER FUNCTIONS
 # =============================================================================
+
+async def _save_instagram_connection(
+    creator_id: str,
+    access_token: str,
+    page_id: str = None,
+    instagram_user_id: str = None
+):
+    """Save Instagram OAuth connection to database"""
+    try:
+        from api.database import DATABASE_URL, SessionLocal
+        if DATABASE_URL and SessionLocal:
+            session = SessionLocal()
+            try:
+                from api.models import Creator
+                creator = session.query(Creator).filter_by(name=creator_id).first()
+
+                if not creator:
+                    logger.warning(f"Creator {creator_id} not found, creating...")
+                    creator = Creator(name=creator_id, email=f"{creator_id}@clonnect.com")
+                    session.add(creator)
+
+                creator.instagram_token = access_token
+                creator.instagram_page_id = page_id
+                # Store Instagram user ID if we have it
+                if instagram_user_id:
+                    creator.instagram_user_id = instagram_user_id
+
+                session.commit()
+                logger.info(f"Saved Instagram connection for {creator_id} (page: {page_id}, ig_user: {instagram_user_id})")
+            finally:
+                session.close()
+    except Exception as e:
+        logger.error(f"Error saving Instagram connection: {e}")
+        raise
+
 
 async def _save_connection(creator_id: str, platform: str, token: str, extra_id: str = None):
     """Save OAuth connection to database"""
