@@ -163,6 +163,24 @@ class TelegramAdapter:
         except Exception as e:
             logger.error(f"Failed to initialize DM agent: {e}")
 
+    async def _is_copilot_enabled(self) -> bool:
+        """Check if copilot mode is enabled for this creator"""
+        try:
+            from api.database import SessionLocal
+            from api.models import Creator
+
+            session = SessionLocal()
+            try:
+                creator = session.query(Creator).filter_by(name=self.creator_id).first()
+                if creator:
+                    return getattr(creator, 'copilot_mode', True)
+                return True  # Default to copilot mode
+            finally:
+                session.close()
+        except Exception as e:
+            logger.error(f"Error checking copilot mode: {e}")
+            return True  # Default to copilot mode on error
+
     async def start(self, mode: str = "polling") -> None:
         """
         Start the Telegram bot.
@@ -294,24 +312,49 @@ class TelegramAdapter:
             # Process with DM agent
             response = await self.process_message(telegram_msg)
 
-            # Check for inline keyboard in metadata (for booking responses)
-            reply_markup = None
-            if response.metadata and "telegram_keyboard" in response.metadata:
-                reply_markup = self._build_inline_keyboard(response.metadata["telegram_keyboard"])
+            # Check if copilot mode is enabled
+            copilot_enabled = await self._is_copilot_enabled()
 
-            # Send response with optional inline keyboard
-            if reply_markup:
-                await update.message.reply_text(
-                    response.response_text,
-                    reply_markup=reply_markup
+            if copilot_enabled:
+                # COPILOT MODE: Save as pending approval, don't send
+                from core.copilot_service import get_copilot_service
+                copilot = get_copilot_service()
+
+                pending = await copilot.create_pending_response(
+                    creator_id=self.creator_id,
+                    lead_id="",
+                    follower_id=telegram_msg.follower_id,
+                    platform="telegram",
+                    user_message=telegram_msg.text,
+                    user_message_id=str(telegram_msg.message_id),
+                    suggested_response=response.response_text,
+                    intent=response.intent.value if hasattr(response.intent, 'value') else str(response.intent),
+                    confidence=response.confidence,
+                    username=telegram_msg.username,
+                    full_name=f"{telegram_msg.first_name} {telegram_msg.last_name}".strip()
                 )
+
+                logger.info(f"[Copilot] Created pending response {pending.id} for {telegram_msg.display_name}")
+                self._record_response(telegram_msg, response)
+
             else:
-                await update.message.reply_text(response.response_text)
+                # AUTOPILOT MODE: Send response immediately
+                # Check for inline keyboard in metadata (for booking responses)
+                reply_markup = None
+                if response.metadata and "telegram_keyboard" in response.metadata:
+                    reply_markup = self._build_inline_keyboard(response.metadata["telegram_keyboard"])
 
-            self._record_sent()
+                # Send response with optional inline keyboard
+                if reply_markup:
+                    await update.message.reply_text(
+                        response.response_text,
+                        reply_markup=reply_markup
+                    )
+                else:
+                    await update.message.reply_text(response.response_text)
 
-            # Record response
-            self._record_response(telegram_msg, response)
+                self._record_sent()
+                self._record_response(telegram_msg, response)
 
         except Exception as e:
             logger.error(f"Error handling message: {e}")
@@ -424,19 +467,46 @@ class TelegramAdapter:
             # Process message
             response = await self.process_message(telegram_msg)
 
-            # Check for inline keyboard in metadata (for booking responses)
-            reply_markup = None
-            if response.metadata and "telegram_keyboard" in response.metadata:
-                reply_markup = self._build_inline_keyboard(response.metadata["telegram_keyboard"])
+            # Check if copilot mode is enabled
+            copilot_enabled = await self._is_copilot_enabled()
 
-            # Send response via bot with optional inline keyboard
-            await self.bot.send_message(
-                chat_id=telegram_msg.chat_id,
-                text=response.response_text,
-                reply_markup=reply_markup
-            )
-            self._record_sent()
-            self._record_response(telegram_msg, response)
+            if copilot_enabled:
+                # COPILOT MODE: Save as pending approval, don't send
+                from core.copilot_service import get_copilot_service
+                copilot = get_copilot_service()
+
+                pending = await copilot.create_pending_response(
+                    creator_id=self.creator_id,
+                    lead_id="",
+                    follower_id=telegram_msg.follower_id,
+                    platform="telegram",
+                    user_message=telegram_msg.text,
+                    user_message_id=str(telegram_msg.message_id),
+                    suggested_response=response.response_text,
+                    intent=response.intent.value if hasattr(response.intent, 'value') else str(response.intent),
+                    confidence=response.confidence,
+                    username=telegram_msg.username,
+                    full_name=f"{telegram_msg.first_name} {telegram_msg.last_name}".strip()
+                )
+
+                logger.info(f"[Copilot] Created pending response {pending.id} for {telegram_msg.display_name}")
+                self._record_response(telegram_msg, response)
+
+            else:
+                # AUTOPILOT MODE: Send response immediately
+                # Check for inline keyboard in metadata (for booking responses)
+                reply_markup = None
+                if response.metadata and "telegram_keyboard" in response.metadata:
+                    reply_markup = self._build_inline_keyboard(response.metadata["telegram_keyboard"])
+
+                # Send response via bot with optional inline keyboard
+                await self.bot.send_message(
+                    chat_id=telegram_msg.chat_id,
+                    text=response.response_text,
+                    reply_markup=reply_markup
+                )
+                self._record_sent()
+                self._record_response(telegram_msg, response)
 
             return response
 

@@ -1948,6 +1948,53 @@ async def telegram_webhook(request: Request):
 
             logger.info(f"Telegram DM from {sender_name} ({sender_id}): '{text[:50]}' -> intent={intent}, creator={creator_id}")
 
+            # === CHECK COPILOT MODE ===
+            copilot_enabled = False
+            try:
+                from api.models import Creator
+                session = SessionLocal()
+                try:
+                    creator = session.query(Creator).filter_by(name=creator_id).first()
+                    if creator:
+                        copilot_enabled = getattr(creator, 'copilot_mode', True)
+                finally:
+                    session.close()
+            except Exception as e:
+                logger.error(f"Error checking copilot mode: {e}")
+
+            if copilot_enabled:
+                # COPILOT MODE: Save as pending approval, don't send
+                from core.copilot_service import get_copilot_service
+                copilot = get_copilot_service()
+
+                pending = await copilot.create_pending_response(
+                    creator_id=creator_id,
+                    lead_id="",
+                    follower_id=f"tg_{sender_id}",
+                    platform="telegram",
+                    user_message=text,
+                    user_message_id=str(message.get("message_id", "")),
+                    suggested_response=bot_reply,
+                    intent=intent,
+                    confidence=response.confidence if hasattr(response, 'confidence') else 0.9,
+                    username=sender_name,
+                    full_name=full_name
+                )
+
+                logger.info(f"[Copilot] Created pending response {pending.id} for Telegram user {sender_name}")
+
+                return {
+                    "status": "ok",
+                    "chat_id": chat_id,
+                    "intent": intent,
+                    "creator_id": creator_id,
+                    "bot_id": bot_id,
+                    "copilot_mode": True,
+                    "pending_response_id": pending.id,
+                    "response_sent": False
+                }
+
+            # AUTOPILOT MODE: Send response immediately
             # Build inline keyboard if present in metadata
             reply_markup = None
             if response.metadata and "telegram_keyboard" in response.metadata:
@@ -1978,6 +2025,7 @@ async def telegram_webhook(request: Request):
                 "intent": intent,
                 "creator_id": creator_id,
                 "bot_id": bot_id,
+                "copilot_mode": False,
                 "response_sent": bool(bot_reply and bot_token)
             }
 
