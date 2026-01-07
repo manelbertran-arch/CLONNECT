@@ -25,6 +25,7 @@ class Creator(Base):
     telegram_bot_token = Column(String(255))
     instagram_token = Column(Text)
     instagram_page_id = Column(String(255))
+    instagram_user_id = Column(String(255))  # Instagram Business Account ID
     whatsapp_token = Column(Text)
     whatsapp_phone_id = Column(String(255))
     # Payment connections
