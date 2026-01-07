@@ -33,7 +33,7 @@ from core.creator_config import CreatorConfigManager
 from core.sales_tracker import get_sales_tracker
 from core.guardrails import get_response_guardrail
 from core.reasoning import get_self_consistency_validator, get_chain_of_thought_reasoner
-from core.tone_service import get_tone_prompt_section, get_tone_language
+from core.tone_service import get_tone_prompt_section, get_tone_language, get_tone_dialect
 from core.citation_service import get_citation_prompt_section
 from core.metrics import (
     record_message_processed,
@@ -103,6 +103,71 @@ NON_CACHEABLE_INTENTS = {
     Intent.SUPPORT,  # Soporte necesita respuestas personalizadas
     Intent.OTHER,  # Fallback - siempre regenerar para evitar respuestas genéricas
 }
+
+
+def apply_voseo(text: str) -> str:
+    """
+    Convierte texto de tuteo español a voseo argentino.
+    Transforma: tú->vos, tienes->tenés, puedes->podés, etc.
+    """
+    import re
+
+    # Diccionario de conversiones tuteo -> voseo
+    conversions = [
+        # Pronombres
+        (r'\btú\b', 'vos'),
+        (r'\bTú\b', 'Vos'),
+
+        # Verbos comunes en presente (2da persona singular)
+        (r'\btienes\b', 'tenés'),
+        (r'\bTienes\b', 'Tenés'),
+        (r'\bpuedes\b', 'podés'),
+        (r'\bPuedes\b', 'Podés'),
+        (r'\bquieres\b', 'querés'),
+        (r'\bQuieres\b', 'Querés'),
+        (r'\bsabes\b', 'sabés'),
+        (r'\bSabes\b', 'Sabés'),
+        (r'\beres\b', 'sos'),
+        (r'\bEres\b', 'Sos'),
+        (r'\bvienes\b', 'venís'),
+        (r'\bpiensas\b', 'pensás'),
+        (r'\bsientes\b', 'sentís'),
+        (r'\bprefieres\b', 'preferís'),
+        (r'\bnecesitas\b', 'necesitás'),
+        (r'\bestás\b', 'estás'),  # igual en voseo
+        (r'\bvas\b', 'vas'),  # igual en voseo
+
+        # Imperativos
+        (r'\bcuéntame\b', 'contame'),
+        (r'\bCuéntame\b', 'Contame'),
+        (r'\bescríbeme\b', 'escribime'),
+        (r'\bEscríbeme\b', 'Escribime'),
+        (r'\bdime\b', 'decime'),
+        (r'\bDime\b', 'Decime'),
+        (r'\bmira\b', 'mirá'),
+        (r'\bMira\b', 'Mirá'),
+        (r'\bpiensa\b', 'pensá'),
+        (r'\bPiensa\b', 'Pensá'),
+        (r'\bespera\b', 'esperá'),
+        (r'\bEspera\b', 'Esperá'),
+        (r'\bescucha\b', 'escuchá'),
+        (r'\bEscucha\b', 'Escuchá'),
+        (r'\bfíjate\b', 'fijate'),
+        (r'\bFíjate\b', 'Fijate'),
+        (r'\bpregunta\b', 'preguntá'),
+
+        # Frases comunes
+        (r'\bte respondo\b', 'te respondo'),  # igual
+        (r'\bte cuento\b', 'te cuento'),  # igual
+        (r'\bte paso\b', 'te paso'),  # igual
+        (r'\bte gustaría\b', 'te gustaría'),  # igual
+    ]
+
+    result = text
+    for pattern, replacement in conversions:
+        result = re.sub(pattern, replacement, result)
+
+    return result
 
 
 def truncate_response(response: str, max_sentences: int = 2) -> str:
@@ -1967,8 +2032,14 @@ USA ESTA RESPUESTA PARA LA OBJECION (adaptala a tu tono):
         allowed, reason = rate_limiter.check_limit(rate_key)
         if not allowed:
             logger.warning(f"Rate limited: {rate_key} - {reason}")
+            # Check dialect for voseo
+            dialect = get_tone_dialect(self.creator_id)
+            if dialect == "rioplatense":
+                rate_msg = "Dame un momento, estoy procesando varios mensajes. Te respondo enseguida!"
+            else:
+                rate_msg = "Dame un momento, estoy procesando varios mensajes. Te respondo enseguida!"
             return DMResponse(
-                response_text="Dame un momento, estoy procesando varios mensajes. Te respondo enseguida!",
+                response_text=rate_msg,
                 intent=Intent.OTHER,
                 action_taken="rate_limited",
                 confidence=1.0,
@@ -2231,14 +2302,24 @@ USA ESTA RESPUESTA PARA LA OBJECION (adaptala a tu tono):
                     methods_text = "\n- ".join(available_methods)
                     logger.info(f"Found alternative payment methods: {available_methods}")
                     if follower.preferred_language == "es":
-                        response_text = f"¡Genial! {emoji} Puedes pagar por:\n- {methods_text}\n\n¿Cuál prefieres?"
+                        # Check dialect for voseo
+                        dialect = get_tone_dialect(self.creator_id)
+                        if dialect == "rioplatense":
+                            response_text = f"¡Genial! {emoji} Podés pagar por:\n- {methods_text}\n\n¿Cuál preferís?"
+                        else:
+                            response_text = f"¡Genial! {emoji} Puedes pagar por:\n- {methods_text}\n\n¿Cuál prefieres?"
                     else:
                         response_text = f"Great! {emoji} You can pay via:\n- {methods_text}\n\nWhich do you prefer?"
                 else:
                     # No alternative methods either - escalate to human
                     logger.warning(f"NO ALTERNATIVE PAYMENT METHODS FOUND either!")
                     if follower.preferred_language == "es":
-                        response_text = f"¡Genial que quieras comprar! {emoji} Te paso con el equipo para completar el pago. Escríbenos y te atendemos enseguida."
+                        # Check dialect for voseo
+                        dialect = get_tone_dialect(self.creator_id)
+                        if dialect == "rioplatense":
+                            response_text = f"¡Genial que quieras comprar! {emoji} Te paso con el equipo para completar el pago. Escribinos y te atendemos enseguida."
+                        else:
+                            response_text = f"¡Genial que quieras comprar! {emoji} Te paso con el equipo para completar el pago. Escríbenos y te atendemos enseguida."
                     else:
                         response_text = f"Great that you want to buy! {emoji} Let me connect you with the team to complete the payment."
 
@@ -2463,7 +2544,12 @@ USA ESTA RESPUESTA PARA LA OBJECION (adaptala a tu tono):
                             # Low confidence -> safe fallback
                             creator_name = self.creator_config.get('name', 'el creador')
                             if user_language == "es":
-                                response_text = f"Déjame confirmarlo con {creator_name} y te respondo enseguida."
+                                # Check dialect for voseo
+                                dialect = get_tone_dialect(self.creator_id)
+                                if dialect == "rioplatense":
+                                    response_text = f"Dejame confirmarlo con {creator_name} y te respondo enseguida."
+                                else:
+                                    response_text = f"Déjame confirmarlo con {creator_name} y te respondo enseguida."
                             elif user_language == "en":
                                 response_text = f"Let me confirm this with {creator_name} and I'll get back to you shortly."
                             elif user_language == "pt":
@@ -3024,16 +3110,31 @@ USA ESTA RESPUESTA PARA LA OBJECION (adaptala a tu tono):
         name = self.creator_config.get('name', 'el equipo')
         email = self.creator_config.get('escalation_email', '')
 
-        # Variantes de respuesta para ser más natural
-        responses = [
-            f"Entendido, paso tu mensaje a {name} y te contactará pronto. 🙌",
-            f"Perfecto, le paso tu mensaje a {name} y se pondrá en contacto contigo lo antes posible.",
-            f"Sin problema, {name} te responderá personalmente en breve.",
-            f"Claro, he tomado nota y {name} te contactará pronto para ayudarte mejor."
-        ]
-        response = random.choice(responses)
-        if email:
-            response += f" Si es urgente, puedes escribir a {email}."
+        # Check dialect for voseo
+        dialect = get_tone_dialect(self.creator_id)
+
+        if dialect == "rioplatense":
+            # Variantes con voseo argentino
+            responses = [
+                f"Entendido, le paso tu mensaje a {name} y te contacta pronto. 🙌",
+                f"Perfecto, le paso tu mensaje a {name} y se pone en contacto con vos lo antes posible.",
+                f"Sin problema, {name} te responde personalmente en breve.",
+                f"Claro, tomé nota y {name} te contacta pronto para ayudarte mejor."
+            ]
+            response = random.choice(responses)
+            if email:
+                response += f" Si es urgente, podés escribir a {email}."
+        else:
+            # Variantes con tuteo español
+            responses = [
+                f"Entendido, paso tu mensaje a {name} y te contactará pronto. 🙌",
+                f"Perfecto, le paso tu mensaje a {name} y se pondrá en contacto contigo lo antes posible.",
+                f"Sin problema, {name} te responderá personalmente en breve.",
+                f"Claro, he tomado nota y {name} te contactará pronto para ayudarte mejor."
+            ]
+            response = random.choice(responses)
+            if email:
+                response += f" Si es urgente, puedes escribir a {email}."
         return response
 
     def _get_fallback_response(self, intent: Intent, language: str = "es") -> str:
@@ -3043,50 +3144,100 @@ USA ESTA RESPUESTA PARA LA OBJECION (adaptala a tu tono):
         """
         name = self.creator_config.get('name', 'yo')
 
-        # Spanish fallbacks with variations
-        fallbacks_es = {
+        # Check dialect for voseo
+        dialect = get_tone_dialect(self.creator_id)
+
+        # Spanish fallbacks with voseo (rioplatense)
+        fallbacks_es_voseo = {
             Intent.GREETING: [
-                f"Ey! Que tal? Soy {name}. En que puedo ayudarte?",
-                f"Hola! Soy {name}, encantado de saludarte. Que necesitas?",
+                f"Ey! Qué tal? Soy {name}. ¿En qué puedo ayudarte?",
+                f"Hola! Soy {name}, encantado de saludarte. ¿Qué necesitás?",
             ],
             Intent.INTEREST_STRONG: [
                 "Genial que te interese! Te paso toda la info ahora mismo.",
-                "Me encanta tu interes! Dejame contarte todo.",
+                "Me encanta tu interés! Dejame contarte todo.",
             ],
             Intent.INTEREST_SOFT: [
-                "Me alegra que te interese! Cuentame, que necesitas exactamente?",
-                "Que bien! Que te gustaria saber mas?",
+                "Me alegra que te interese! Contame, ¿qué necesitás exactamente?",
+                "Qué bien! ¿Qué te gustaría saber más?",
             ],
             Intent.ACKNOWLEDGMENT: [
-                "Perfecto! ¿Te gustaria saber mas sobre algo?",
-                "Genial! ¿En que mas puedo ayudarte?",
-                "Ok! ¿Hay algo mas que quieras saber?",
+                "Perfecto! ¿Te gustaría saber más sobre algo?",
+                "Genial! ¿En qué más puedo ayudarte?",
+                "Ok! ¿Hay algo más que quieras saber?",
             ],
             Intent.CORRECTION: [
-                "Disculpa la confusion! ¿En que puedo ayudarte entonces?",
-                "Perdona, te entendi mal. ¿Que necesitas?",
-                "Ups, disculpa! Cuentame, ¿que te gustaria saber?",
+                "Disculpa la confusión! ¿En qué puedo ayudarte entonces?",
+                "Perdona, te entendí mal. ¿Qué necesitás?",
+                "Ups, disculpa! Contame, ¿qué te gustaría saber?",
             ],
             Intent.OBJECTION_PRICE: [
-                "Entiendo que es una inversion. Que es lo que mas te preocupa?",
-                "Comprendo. Es normal pensarselo. Que te gustaria saber sobre el valor?",
+                "Entiendo que es una inversión. ¿Qué es lo que más te preocupa?",
+                "Comprendo. Es normal pensarlo. ¿Qué te gustaría saber sobre el valor?",
             ],
             Intent.OBJECTION_TIME: [
                 "Lo entiendo, el tiempo es oro. Precisamente esto te ayuda a ganar tiempo.",
-                "Claro, el tiempo es importante. Por eso esta disenado para ser rapido.",
+                "Claro, el tiempo es importante. Por eso está diseñado para ser rápido.",
             ],
             Intent.OBJECTION_DOUBT: [
-                "Normal tener dudas. Que te gustaria saber?",
-                "Entiendo tus dudas. Cuentame, que te preocupa?",
+                "Normal tener dudas. ¿Qué te gustaría saber?",
+                "Entiendo tus dudas. Contame, ¿qué te preocupa?",
             ],
             Intent.OBJECTION_LATER: [
-                "Claro, sin prisa. Aunque te digo que el mejor momento es ahora.",
-                "Entiendo! Cuando estes listo, aqui estoy.",
+                "Claro, sin apuro. Aunque te digo que el mejor momento es ahora.",
+                "Entiendo! Cuando estés listo, acá estoy.",
             ],
             Intent.OTHER: [
                 "Gracias por tu mensaje! Dame un momento para responder.",
-                "Recibido! En un momento te cuento mas.",
-                "Gracias por escribir! En que puedo ayudarte?",
+                "Recibido! En un momento te cuento más.",
+                "Gracias por escribir! ¿En qué puedo ayudarte?",
+            ],
+        }
+
+        # Spanish fallbacks with tuteo (standard)
+        fallbacks_es = {
+            Intent.GREETING: [
+                f"Ey! Qué tal? Soy {name}. ¿En qué puedo ayudarte?",
+                f"Hola! Soy {name}, encantado de saludarte. ¿Qué necesitas?",
+            ],
+            Intent.INTEREST_STRONG: [
+                "Genial que te interese! Te paso toda la info ahora mismo.",
+                "Me encanta tu interés! Déjame contarte todo.",
+            ],
+            Intent.INTEREST_SOFT: [
+                "Me alegra que te interese! Cuéntame, ¿qué necesitas exactamente?",
+                "Qué bien! ¿Qué te gustaría saber más?",
+            ],
+            Intent.ACKNOWLEDGMENT: [
+                "Perfecto! ¿Te gustaría saber más sobre algo?",
+                "Genial! ¿En qué más puedo ayudarte?",
+                "Ok! ¿Hay algo más que quieras saber?",
+            ],
+            Intent.CORRECTION: [
+                "Disculpa la confusión! ¿En qué puedo ayudarte entonces?",
+                "Perdona, te entendí mal. ¿Qué necesitas?",
+                "Ups, disculpa! Cuéntame, ¿qué te gustaría saber?",
+            ],
+            Intent.OBJECTION_PRICE: [
+                "Entiendo que es una inversión. ¿Qué es lo que más te preocupa?",
+                "Comprendo. Es normal pensárselo. ¿Qué te gustaría saber sobre el valor?",
+            ],
+            Intent.OBJECTION_TIME: [
+                "Lo entiendo, el tiempo es oro. Precisamente esto te ayuda a ganar tiempo.",
+                "Claro, el tiempo es importante. Por eso está diseñado para ser rápido.",
+            ],
+            Intent.OBJECTION_DOUBT: [
+                "Normal tener dudas. ¿Qué te gustaría saber?",
+                "Entiendo tus dudas. Cuéntame, ¿qué te preocupa?",
+            ],
+            Intent.OBJECTION_LATER: [
+                "Claro, sin prisa. Aunque te digo que el mejor momento es ahora.",
+                "Entiendo! Cuando estés listo, aquí estoy.",
+            ],
+            Intent.OTHER: [
+                "Gracias por tu mensaje! Dame un momento para responder.",
+                "Recibido! En un momento te cuento más.",
+                "Gracias por escribir! ¿En qué puedo ayudarte?",
             ],
         }
 
@@ -3102,7 +3253,15 @@ USA ESTA RESPUESTA PARA LA OBJECION (adaptala a tu tono):
             ],
         }
 
-        fallbacks = fallbacks_es if language == "es" else fallbacks_en
+        # Select appropriate fallbacks based on language and dialect
+        if language == "es":
+            if dialect == "rioplatense":
+                fallbacks = fallbacks_es_voseo
+            else:
+                fallbacks = fallbacks_es
+        else:
+            fallbacks = fallbacks_en
+
         options = fallbacks.get(intent, fallbacks.get(Intent.OTHER, ["Gracias por escribir!"]))
         return random.choice(options)
 

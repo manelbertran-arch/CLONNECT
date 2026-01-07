@@ -169,6 +169,36 @@ def get_tone_language(creator_id: str) -> Optional[str]:
     return None
 
 
+def get_tone_dialect(creator_id: str) -> str:
+    """
+    Obtiene el dialect del ToneProfile de un creador.
+
+    Args:
+        creator_id: ID del creador
+
+    Returns:
+        Dialecto ("neutral", "rioplatense", "mexicano", "español") o "neutral" por defecto
+    """
+    # Buscar en cache
+    if creator_id in _tone_cache:
+        return getattr(_tone_cache[creator_id], 'dialect', 'neutral')
+
+    # Intentar cargar de archivo
+    profile_path = TONE_PROFILES_DIR / f"{creator_id}.json"
+    if profile_path.exists():
+        try:
+            with open(profile_path, 'r', encoding='utf-8') as f:
+                data = json.load(f)
+            profile = ToneProfile.from_dict(data)
+            _tone_cache[creator_id] = profile
+            logger.info(f"ToneProfile for {creator_id} loaded for dialect check")
+            return getattr(profile, 'dialect', 'neutral')
+        except Exception as e:
+            logger.error(f"Error loading ToneProfile for dialect: {e}")
+
+    return "neutral"
+
+
 def clear_cache(creator_id: Optional[str] = None):
     """
     Limpia el cache de perfiles.

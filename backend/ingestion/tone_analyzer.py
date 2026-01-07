@@ -190,6 +190,20 @@ class ToneProfile:
         if self.regional_expressions:
             prompt_parts.append(f"\n🌍 EXPRESIONES LOCALES: {', '.join(self.regional_expressions[:5])}")
 
+        # RECORDATORIO FINAL FUERTE para voseo
+        if self.dialect == 'rioplatense':
+            prompt_parts.append("\n" + "="*50)
+            prompt_parts.append("🚨 RECORDATORIO FINAL - VOSEO OBLIGATORIO 🚨")
+            prompt_parts.append("ANTES de enviar tu respuesta, REVISA que:")
+            prompt_parts.append("- NO uses 'tú' → USA 'vos'")
+            prompt_parts.append("- NO uses 'tienes' → USA 'tenés'")
+            prompt_parts.append("- NO uses 'puedes' → USA 'podés'")
+            prompt_parts.append("- NO uses 'quieres' → USA 'querés'")
+            prompt_parts.append("- NO uses 'cuéntame' → USA 'contame'")
+            prompt_parts.append("- NO uses 'escríbeme' → USA 'escribime'")
+            prompt_parts.append("Si escribiste alguna de las palabras PROHIBIDAS, CORRÍGELAS ahora.")
+            prompt_parts.append("="*50)
+
         prompt_parts.append("\n=== FIN ESTILO CREADOR ===\n")
 
         return "\n".join(prompt_parts)
