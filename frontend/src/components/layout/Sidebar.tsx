@@ -7,12 +7,14 @@ import {
   ShoppingBag,
   Calendar,
   Settings,
+  Bot,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const navItems = [
   { path: "/dashboard", label: "Home", icon: LayoutDashboard },
   { path: "/inbox", label: "Inbox", icon: MessageSquare },
+  { path: "/copilot", label: "Copilot", icon: Bot },
   { path: "/leads", label: "Leads", icon: Users },
   { path: "/nurturing", label: "Nurturing", icon: Sparkles },
   { path: "/products", label: "Products", icon: ShoppingBag },

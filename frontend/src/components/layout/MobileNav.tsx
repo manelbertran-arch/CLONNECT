@@ -10,7 +10,8 @@ import {
   Settings,
   Zap,
   Menu,
-  X
+  X,
+  Bot,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
@@ -19,6 +20,7 @@ import { Button } from "@/components/ui/button";
 const navItems = [
   { path: "/dashboard", label: "Home", icon: LayoutDashboard },
   { path: "/inbox", label: "Inbox", icon: MessageSquare },
+  { path: "/copilot", label: "Copilot", icon: Bot },
   { path: "/leads", label: "Leads", icon: Users },
   { path: "/nurturing", label: "Nurturing", icon: Sparkles },
   { path: "/products", label: "Products", icon: ShoppingBag },
