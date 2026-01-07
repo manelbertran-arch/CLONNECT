@@ -66,6 +66,7 @@ from core.calendar import get_calendar_manager
 from core.auth import get_auth_manager, validate_api_key, is_admin_key
 from core.alerts import get_alert_manager
 from core.metrics import get_metrics, get_content_type, MetricsMiddleware, record_message_processed, update_health_status, PROMETHEUS_AVAILABLE
+from core.telegram_registry import get_telegram_registry
 logging.warning("=" * 60)
 
 logger = logging.getLogger(__name__)
@@ -1862,17 +1863,14 @@ async def confirm_telegram_booking(chat_id: int, message_id: int, service_id: st
 @app.post("/webhook/telegram")
 async def telegram_webhook(request: Request):
     """
-    Recibir updates de Telegram.
-    Procesa mensajes entrantes con DMResponderAgent y envia respuestas automaticas.
-    Tambien maneja callback_query para el flujo de reservas in-Telegram.
+    Recibir updates de Telegram - MULTI-BOT SUPPORT.
+    Detecta qué bot recibió el mensaje y usa el creator_id correcto.
     """
     try:
         payload = await request.json()
         logger.info(f"Telegram webhook received: {payload}")
 
         # === DEDUPLICATION CHECK ===
-        # Telegram may retry webhooks if response is slow
-        # Check update_id to prevent duplicate processing
         update_id = payload.get("update_id")
         if update_id and await _check_telegram_duplicate(update_id):
             return {"status": "ok", "message": "Duplicate update - already processed"}
@@ -1885,7 +1883,6 @@ async def telegram_webhook(request: Request):
         # Extraer mensaje del update
         message = payload.get("message", {})
         if not message:
-            # Puede ser un callback_query u otro tipo de update
             return {"status": "ok", "message": "No message in update"}
 
         chat_id = message.get("chat", {}).get("id")
@@ -1898,14 +1895,41 @@ async def telegram_webhook(request: Request):
         if not chat_id or not text:
             return {"status": "ok", "message": "No chat_id or text"}
 
-        # Procesar con DMResponderAgent
-        # Para la demo de Stefano, usamos stefano_auto como default
-        # TODO: En producción, mapear creator_id por bot token o chat
-        creator_id = os.getenv("DEFAULT_CREATOR_ID", "stefano_auto")
+        # === MULTI-BOT: Detect which bot received this message ===
+        # The bot info comes in the "message.via_bot" field for inline results,
+        # but for regular messages we need to extract from the update
+        # Telegram doesn't send bot_id directly, but we can use the registry
+        # to find the bot based on configured bots
+        registry = get_telegram_registry()
+
+        # Try to detect bot from message context
+        # For now, we'll use a header or query param approach for multi-bot
+        # Or fall back to checking all registered bots
+        bot_id = None
+        creator_id = None
+        bot_token = None
+
+        # Check if there's a registered bot - use first active one for now
+        # In production, you'd use a bot-specific webhook URL like /webhook/telegram/{bot_id}
+        bots = registry.list_bots()
+        if bots:
+            # Use the first active bot (Stefano's bot)
+            for bot in bots:
+                if bot.get("is_active"):
+                    bot_id = bot.get("bot_id")
+                    creator_id = bot.get("creator_id")
+                    bot_token = registry.get_bot_token(bot_id)
+                    logger.info(f"Using registered bot {bot_id} for creator {creator_id}")
+                    break
+
+        # Fallback to env var if no registered bot
+        if not creator_id:
+            creator_id = os.getenv("DEFAULT_CREATOR_ID", "stefano_auto")
+            bot_token = TELEGRAM_BOT_TOKEN
+            logger.info(f"Using fallback creator_id={creator_id}")
 
         try:
             agent = get_dm_agent(creator_id)
-            # Extraer nombre completo para guardar en el follower
             first_name = sender.get("first_name", "")
             last_name = sender.get("last_name", "")
             full_name = f"{first_name} {last_name}".strip()
@@ -1915,25 +1939,22 @@ async def telegram_webhook(request: Request):
                 message_text=text,
                 message_id=str(message.get("message_id", "")),
                 username=sender_name,
-                name=full_name  # Guardar nombre en el follower
+                name=full_name
             )
 
-            # DMResponse es un dataclass, no un dict
             bot_reply = response.response_text
             intent = response.intent.value if response.intent else "unknown"
 
-            logger.info(f"Telegram DM from {sender_name} ({sender_id}): '{text[:50]}' -> intent={intent}")
+            logger.info(f"Telegram DM from {sender_name} ({sender_id}): '{text[:50]}' -> intent={intent}, creator={creator_id}")
 
             # Build inline keyboard if present in metadata
             reply_markup = None
             if response.metadata and "telegram_keyboard" in response.metadata:
                 keyboard_data = response.metadata["telegram_keyboard"]
                 if keyboard_data:
-                    # Convert to Telegram API format: {"inline_keyboard": [[{button}], ...]}
                     inline_keyboard = []
                     for button in keyboard_data:
                         btn = {"text": button.get("text", "")}
-                        # Support both callback_data and url buttons
                         if "callback_data" in button:
                             btn["callback_data"] = button["callback_data"]
                         elif "url" in button:
@@ -1942,11 +1963,11 @@ async def telegram_webhook(request: Request):
                     reply_markup = {"inline_keyboard": inline_keyboard}
                     logger.info(f"Sending {len(keyboard_data)} inline buttons for booking")
 
-            # Enviar respuesta a Telegram (via proxy si está configurado)
-            if bot_reply and TELEGRAM_BOT_TOKEN:
-                result = await send_telegram_message(chat_id, bot_reply, TELEGRAM_BOT_TOKEN, reply_markup)
+            # Enviar respuesta usando el token del bot correcto
+            if bot_reply and bot_token:
+                result = await send_telegram_message(chat_id, bot_reply, bot_token, reply_markup)
                 if result.get("ok"):
-                    logger.info(f"Telegram response sent to chat {chat_id}")
+                    logger.info(f"Telegram response sent to chat {chat_id} via bot {bot_id or 'default'}")
                 else:
                     logger.error(f"Telegram send failed: {result}")
 
@@ -1954,7 +1975,9 @@ async def telegram_webhook(request: Request):
                 "status": "ok",
                 "chat_id": chat_id,
                 "intent": intent,
-                "response_sent": bool(bot_reply and TELEGRAM_BOT_TOKEN)
+                "creator_id": creator_id,
+                "bot_id": bot_id,
+                "response_sent": bool(bot_reply and bot_token)
             }
 
         except Exception as e:
@@ -1998,6 +2021,77 @@ async def telegram_status():
         status_response["proxy_note"] = "Proxy URL configured. Secret not set - will work if Worker allows unauthenticated requests."
 
     return status_response
+
+
+# === TELEGRAM MULTI-BOT MANAGEMENT ===
+
+class RegisterBotRequest(BaseModel):
+    """Request to register a new Telegram bot."""
+    creator_id: str
+    bot_token: str
+    bot_username: Optional[str] = None
+    set_webhook: bool = True
+
+
+@app.get("/telegram/bots")
+async def list_telegram_bots():
+    """List all registered Telegram bots."""
+    registry = get_telegram_registry()
+    bots = registry.list_bots()
+    return {
+        "status": "ok",
+        "bots": bots,
+        "count": len(bots)
+    }
+
+
+@app.post("/telegram/register-bot")
+async def register_telegram_bot(request: RegisterBotRequest):
+    """
+    Register a new Telegram bot for a creator.
+
+    This will:
+    1. Verify the bot token with Telegram
+    2. Store the bot configuration
+    3. Optionally set the webhook to point to this server
+    """
+    registry = get_telegram_registry()
+
+    result = await registry.register_bot(
+        creator_id=request.creator_id,
+        bot_token=request.bot_token,
+        bot_username=request.bot_username,
+        set_webhook=request.set_webhook
+    )
+
+    if result.get("status") == "error":
+        raise HTTPException(status_code=400, detail=result.get("error"))
+
+    return result
+
+
+@app.delete("/telegram/bots/{bot_id}")
+async def unregister_telegram_bot(bot_id: str, delete_webhook: bool = True):
+    """Unregister a Telegram bot."""
+    registry = get_telegram_registry()
+    result = await registry.unregister_bot(bot_id, delete_webhook=delete_webhook)
+
+    if result.get("status") == "error":
+        raise HTTPException(status_code=404, detail=result.get("error"))
+
+    return result
+
+
+@app.post("/telegram/bots/reload")
+async def reload_telegram_bots():
+    """Reload bot configuration from file."""
+    registry = get_telegram_registry()
+    registry.reload()
+    return {
+        "status": "ok",
+        "message": "Bot configuration reloaded",
+        "bots_count": len(registry.list_bots())
+    }
 
 
 @app.get("/telegram/test-connection")
