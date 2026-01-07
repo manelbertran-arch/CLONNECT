@@ -2082,6 +2082,136 @@ async def telegram_status():
     return status_response
 
 
+@app.get("/telegram/diagnose")
+async def telegram_diagnose():
+    """
+    DIAGNOSTIC ENDPOINT - Check webhook status for ALL registered bots.
+    Use this to verify that webhooks are correctly pointing to Railway.
+    """
+    results = {"bots": [], "expected_webhook_url": ""}
+
+    # Expected webhook URL
+    base_url = os.getenv("RAILWAY_PUBLIC_URL") or os.getenv("RENDER_EXTERNAL_URL") or "https://web-production-9f69.up.railway.app"
+    expected_webhook = f"{base_url}/webhook/telegram"
+    results["expected_webhook_url"] = expected_webhook
+
+    registry = get_telegram_registry()
+    bots = registry.list_bots()
+
+    for bot in bots:
+        bot_id = bot.get("bot_id")
+        bot_token = registry.get_bot_token(bot_id)
+
+        if not bot_token:
+            results["bots"].append({
+                "bot_id": bot_id,
+                "creator_id": bot.get("creator_id"),
+                "error": "No token found"
+            })
+            continue
+
+        # Call Telegram API to get current webhook info
+        try:
+            async with httpx.AsyncClient(timeout=10.0) as client:
+                response = await client.get(f"https://api.telegram.org/bot{bot_token}/getWebhookInfo")
+                webhook_info = response.json()
+
+                if webhook_info.get("ok"):
+                    current_webhook = webhook_info.get("result", {}).get("url", "")
+                    is_correct = current_webhook == expected_webhook
+
+                    results["bots"].append({
+                        "bot_id": bot_id,
+                        "bot_username": bot.get("bot_username"),
+                        "creator_id": bot.get("creator_id"),
+                        "current_webhook": current_webhook or "NOT SET",
+                        "webhook_correct": is_correct,
+                        "pending_update_count": webhook_info.get("result", {}).get("pending_update_count", 0),
+                        "last_error": webhook_info.get("result", {}).get("last_error_message"),
+                        "last_error_date": webhook_info.get("result", {}).get("last_error_date")
+                    })
+                else:
+                    results["bots"].append({
+                        "bot_id": bot_id,
+                        "error": webhook_info.get("description", "Unknown error")
+                    })
+        except Exception as e:
+            results["bots"].append({
+                "bot_id": bot_id,
+                "error": f"Failed to check: {str(e)}"
+            })
+
+    # Also check creators in DB for copilot_mode
+    try:
+        from api.models import Creator
+        session = SessionLocal()
+        try:
+            creators = session.query(Creator).all()
+            results["creators_copilot_status"] = [
+                {
+                    "name": c.name,
+                    "copilot_mode": c.copilot_mode,
+                    "bot_active": c.bot_active
+                }
+                for c in creators
+            ]
+        finally:
+            session.close()
+    except Exception as e:
+        results["creators_error"] = str(e)
+
+    return results
+
+
+@app.post("/telegram/fix-webhook/{bot_id}")
+async def fix_telegram_webhook(bot_id: str):
+    """
+    Re-configure webhook for a specific bot to point to Railway.
+    Use this if the webhook is pointing to the wrong URL.
+    """
+    registry = get_telegram_registry()
+    bot_token = registry.get_bot_token(bot_id)
+
+    if not bot_token:
+        raise HTTPException(status_code=404, detail=f"Bot {bot_id} not found")
+
+    # Build webhook URL
+    base_url = os.getenv("RAILWAY_PUBLIC_URL") or os.getenv("RENDER_EXTERNAL_URL") or "https://web-production-9f69.up.railway.app"
+    webhook_url = f"{base_url}/webhook/telegram"
+
+    try:
+        async with httpx.AsyncClient(timeout=30.0) as client:
+            # First delete any existing webhook
+            await client.post(f"https://api.telegram.org/bot{bot_token}/deleteWebhook")
+
+            # Then set the new webhook
+            response = await client.post(
+                f"https://api.telegram.org/bot{bot_token}/setWebhook",
+                json={"url": webhook_url}
+            )
+            result = response.json()
+
+            if result.get("ok"):
+                logger.info(f"✅ Webhook fixed for bot {bot_id}: {webhook_url}")
+                return {
+                    "status": "success",
+                    "bot_id": bot_id,
+                    "webhook_url": webhook_url,
+                    "telegram_response": result
+                }
+            else:
+                logger.error(f"❌ Failed to set webhook for bot {bot_id}: {result}")
+                return {
+                    "status": "error",
+                    "bot_id": bot_id,
+                    "error": result.get("description"),
+                    "telegram_response": result
+                }
+    except Exception as e:
+        logger.error(f"Error fixing webhook: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 # === TELEGRAM MULTI-BOT MANAGEMENT ===
 
 class RegisterBotRequest(BaseModel):
