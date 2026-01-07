@@ -1,0 +1,82 @@
+[
+  {
+    "id": "stefano_auto_1to1",
+    "name": "Del Síntoma a la Plenitud - Acompañamiento 1:1",
+    "description": "Programa de acompañamiento individual personalizado. Un viaje profundo de transformación donde trabajamos juntos tu cuerpo, mente y emociones. Incluye sesiones de coaching, movimiento consciente y técnicas de respiración para que reconectes con tu esencia y sanes desde dentro.",
+    "price": 997,
+    "currency": "EUR",
+    "payment_link": "",
+    "url": "https://stefanobonanno.com/acompanamiento",
+    "category": "coaching",
+    "is_active": true,
+    "features": [
+      "Sesiones individuales personalizadas",
+      "Técnicas de movimiento y respiración",
+      "Coaching transformacional",
+      "Acompañamiento durante el proceso",
+      "Material de apoyo"
+    ],
+    "duration": "3 meses",
+    "created_at": "2026-01-06T12:00:00"
+  },
+  {
+    "id": "stefano_auto_fitpack",
+    "name": "Challenge 11 Días - Fitpack",
+    "description": "Reto de 11 días para despertar tu cuerpo y tu energía. Cada día recibes un vídeo con ejercicios de movimiento y respiración diseñados para reconectar con tu cuerpo y liberar tensiones acumuladas.",
+    "price": 47,
+    "currency": "EUR",
+    "payment_link": "",
+    "url": "https://stefanobonanno.com/fitpack",
+    "category": "programa",
+    "is_active": true,
+    "features": [
+      "11 vídeos diarios",
+      "Ejercicios de movimiento",
+      "Técnicas de respiración",
+      "Acceso de por vida",
+      "Comunidad de apoyo"
+    ],
+    "duration": "11 días",
+    "created_at": "2026-01-06T12:00:00"
+  },
+  {
+    "id": "stefano_auto_talleres",
+    "name": "Respira, Siente, Conecta - Talleres Grupales",
+    "description": "Talleres grupales donde exploramos juntos el poder de la respiración consciente y el movimiento. Un espacio seguro para conectar con otros y con tu interior. Sesiones presenciales y online.",
+    "price": 35,
+    "currency": "EUR",
+    "payment_link": "",
+    "url": "https://stefanobonanno.com/talleres",
+    "category": "taller",
+    "is_active": true,
+    "features": [
+      "Sesión grupal de 2 horas",
+      "Técnicas de respiración",
+      "Movimiento consciente",
+      "Conexión con el grupo",
+      "Material de práctica"
+    ],
+    "duration": "2 horas",
+    "created_at": "2026-01-06T12:00:00"
+  },
+  {
+    "id": "stefano_auto_discovery",
+    "name": "Sesión de Descubrimiento",
+    "description": "Sesión gratuita de 30 minutos donde nos conocemos y exploramos cómo puedo acompañarte en tu proceso de transformación. Sin compromiso, solo una conversación para ver si conectamos.",
+    "price": 0,
+    "currency": "EUR",
+    "payment_link": "",
+    "url": "https://stefanobonanno.com/sesion-descubrimiento",
+    "category": "consulta",
+    "is_active": true,
+    "features": [
+      "30 minutos de sesión",
+      "Conocernos mejor",
+      "Explorar tus necesidades",
+      "Sin compromiso",
+      "Por videollamada"
+    ],
+    "duration": "30 minutos",
+    "created_at": "2026-01-06T12:00:00"
+  }
+]
