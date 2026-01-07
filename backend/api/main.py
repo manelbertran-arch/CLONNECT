@@ -1899,8 +1899,9 @@ async def telegram_webhook(request: Request):
             return {"status": "ok", "message": "No chat_id or text"}
 
         # Procesar con DMResponderAgent
-        # Por ahora usamos "manel" como creator_id, luego se puede mapear por chat
-        creator_id = os.getenv("DEFAULT_CREATOR_ID", "manel")
+        # Para la demo de Stefano, usamos stefano_auto como default
+        # TODO: En producción, mapear creator_id por bot token o chat
+        creator_id = os.getenv("DEFAULT_CREATOR_ID", "stefano_auto")
 
         try:
             agent = get_dm_agent(creator_id)
