@@ -38,6 +38,14 @@ def run_migrations(engine):
         ("booking_links", "price", "INTEGER DEFAULT 0"),
         # Payment link for products (Stripe/PayPal)
         ("products", "payment_link", "VARCHAR(500) DEFAULT ''"),
+        # Copilot mode fields for messages
+        ("messages", "status", "VARCHAR(20) DEFAULT 'sent'"),
+        ("messages", "suggested_response", "TEXT"),
+        ("messages", "approved_at", "TIMESTAMPTZ"),
+        ("messages", "approved_by", "VARCHAR(50)"),
+        ("messages", "platform_message_id", "VARCHAR(255)"),
+        # Copilot mode setting for creators
+        ("creators", "copilot_mode", "BOOLEAN DEFAULT TRUE"),
     ]
 
     with engine.connect() as conn:

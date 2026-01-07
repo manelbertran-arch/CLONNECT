@@ -19,7 +19,8 @@ logger = logging.getLogger(__name__)
 async def _auto_onboard_after_instagram_oauth(
     creator_id: str,
     access_token: str,
-    instagram_user_id: str
+    instagram_user_id: str,
+    page_id: str = ""
 ):
     """
     Ejecuta onboarding completo automáticamente después de OAuth.
@@ -29,14 +30,26 @@ async def _auto_onboard_after_instagram_oauth(
     2. Generar ToneProfile
     3. Indexar contenido en RAG
     4. Activar bot automáticamente
+    5. Cargar historial de DMs existentes
     """
     logger.info(f"[AutoOnboard] Starting automatic onboarding for {creator_id}...")
 
     try:
         from ingestion import MetaGraphAPIScraper
         from core.onboarding_service import get_onboarding_service, OnboardingRequest
+        from core.dm_history_service import get_dm_history_service
         from api.database import SessionLocal
         from api.models import Creator
+
+        # Get page_id from DB if not provided
+        if not page_id:
+            session = SessionLocal()
+            try:
+                creator = session.query(Creator).filter_by(name=creator_id).first()
+                if creator:
+                    page_id = creator.instagram_page_id or ""
+            finally:
+                session.close()
 
         # STEP 1: Scrape Instagram posts
         logger.info(f"[AutoOnboard] Scraping Instagram posts for {creator_id}...")
@@ -52,34 +65,33 @@ async def _auto_onboard_after_instagram_oauth(
             logger.warning(f"[AutoOnboard] No posts found for {creator_id}, skipping tone analysis")
             # Still activate bot with default config
             _activate_bot_default(creator_id)
-            return
+        else:
+            # Convert InstagramPost objects to dicts for onboarding service
+            posts_data = []
+            for p in posts:
+                if p.caption and len(p.caption.strip()) > 10:
+                    posts_data.append({
+                        "post_id": p.post_id,
+                        "caption": p.caption,
+                        "post_type": p.post_type,
+                        "timestamp": p.timestamp.isoformat() if p.timestamp else None,
+                        "permalink": p.permalink,
+                        "media_url": p.media_url,
+                        "likes_count": p.likes_count,
+                        "comments_count": p.comments_count
+                    })
 
-        # Convert InstagramPost objects to dicts for onboarding service
-        posts_data = []
-        for p in posts:
-            if p.caption and len(p.caption.strip()) > 10:
-                posts_data.append({
-                    "post_id": p.post_id,
-                    "caption": p.caption,
-                    "post_type": p.post_type,
-                    "timestamp": p.timestamp.isoformat() if p.timestamp else None,
-                    "permalink": p.permalink,
-                    "media_url": p.media_url,
-                    "likes_count": p.likes_count,
-                    "comments_count": p.comments_count
-                })
+            # STEP 2 & 3: Run onboarding service (tone analysis + RAG indexing)
+            logger.info(f"[AutoOnboard] Running onboarding pipeline with {len(posts_data)} posts...")
+            service = get_onboarding_service()
+            request = OnboardingRequest(
+                creator_id=creator_id,
+                manual_posts=posts_data,
+                scraping_method="manual"  # Already scraped
+            )
+            result = await service.onboard_creator(request)
 
-        # STEP 2 & 3: Run onboarding service (tone analysis + RAG indexing)
-        logger.info(f"[AutoOnboard] Running onboarding pipeline with {len(posts_data)} posts...")
-        service = get_onboarding_service()
-        request = OnboardingRequest(
-            creator_id=creator_id,
-            manual_posts=posts_data,
-            scraping_method="manual"  # Already scraped
-        )
-        result = await service.onboard_creator(request)
-
-        logger.info(f"[AutoOnboard] Onboarding result: posts={result.posts_processed}, tone={result.tone_profile_generated}, indexed={result.content_indexed}")
+            logger.info(f"[AutoOnboard] Onboarding result: posts={result.posts_processed}, tone={result.tone_profile_generated}, indexed={result.content_indexed}")
 
         # STEP 4: Activate bot
         session = SessionLocal()
@@ -88,10 +100,29 @@ async def _auto_onboard_after_instagram_oauth(
             if creator:
                 creator.bot_active = True
                 creator.onboarding_completed = True
+                creator.copilot_mode = True  # Enable copilot mode by default
                 session.commit()
                 logger.info(f"[AutoOnboard] ✅ Bot activated for {creator_id}")
         finally:
             session.close()
+
+        # STEP 5: Load DM history
+        if page_id:
+            logger.info(f"[AutoOnboard] Loading DM history for {creator_id}...")
+            try:
+                dm_service = get_dm_history_service()
+                dm_stats = await dm_service.load_dm_history(
+                    creator_id=creator_id,
+                    access_token=access_token,
+                    page_id=page_id,
+                    ig_user_id=instagram_user_id,
+                    limit=30
+                )
+                logger.info(f"[AutoOnboard] DM history loaded: {dm_stats}")
+            except Exception as dm_error:
+                logger.warning(f"[AutoOnboard] Could not load DM history: {dm_error}")
+        else:
+            logger.warning(f"[AutoOnboard] No page_id, skipping DM history load")
 
         logger.info(f"[AutoOnboard] ✅ Complete! {creator_id} is ready to receive DMs")
 
@@ -346,7 +377,8 @@ async def instagram_oauth_callback(
                     _auto_onboard_after_instagram_oauth,
                     creator_id=creator_id,
                     access_token=final_access_token,
-                    instagram_user_id=instagram_user_id
+                    instagram_user_id=instagram_user_id,
+                    page_id=page_id or ""
                 )
 
             success_msg = f"instagram&ig_user_id={instagram_user_id}&onboarding=started" if instagram_user_id else "instagram"
