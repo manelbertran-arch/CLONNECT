@@ -5126,7 +5126,6 @@ async def reset_creator_data(
 @app.on_event("startup")
 async def startup_event():
     """Inicializacion al arrancar"""
-    logger.info("=" * 60)
     logger.info("Clonnect Creators API starting...")
     logger.info(f"LLM Provider: {os.getenv('LLM_PROVIDER', 'openai')}")
 
@@ -5150,57 +5149,6 @@ async def startup_event():
     except Exception as e:
         logger.error(f"Failed to start nurturing scheduler: {e}")
 
-    # === TELEGRAM WEBHOOK AUTO-FIX ===
-    # Automatically verify and fix webhook on startup
-    try:
-        base_url = os.getenv("RAILWAY_PUBLIC_URL") or os.getenv("RENDER_EXTERNAL_URL") or "https://web-production-9f69.up.railway.app"
-        expected_webhook = f"{base_url}/webhook/telegram"
-
-        registry = get_telegram_registry()
-        bots = registry.list_bots()
-
-        for bot in bots:
-            bot_id = bot.get("bot_id")
-            bot_token = registry.get_bot_token(bot_id)
-
-            if not bot_token:
-                continue
-
-            try:
-                async with httpx.AsyncClient(timeout=10.0) as client:
-                    # Check current webhook
-                    response = await client.get(f"https://api.telegram.org/bot{bot_token}/getWebhookInfo")
-                    webhook_info = response.json()
-
-                    if webhook_info.get("ok"):
-                        current_webhook = webhook_info.get("result", {}).get("url", "")
-
-                        if current_webhook != expected_webhook:
-                            # FIX WEBHOOK
-                            logger.warning(f"[STARTUP] Bot {bot_id} webhook incorrect!")
-                            logger.warning(f"  Current:  {current_webhook or 'NOT SET'}")
-                            logger.warning(f"  Expected: {expected_webhook}")
-
-                            # Delete old webhook and set new one
-                            await client.post(f"https://api.telegram.org/bot{bot_token}/deleteWebhook")
-                            fix_response = await client.post(
-                                f"https://api.telegram.org/bot{bot_token}/setWebhook",
-                                json={"url": expected_webhook}
-                            )
-                            fix_result = fix_response.json()
-
-                            if fix_result.get("ok"):
-                                logger.info(f"[STARTUP] Bot {bot_id} webhook FIXED to {expected_webhook}")
-                            else:
-                                logger.error(f"[STARTUP] Failed to fix webhook: {fix_result}")
-                        else:
-                            logger.info(f"[STARTUP] Bot {bot_id} (@{bot.get('bot_username')}) webhook OK")
-            except Exception as e:
-                logger.error(f"[STARTUP] Error checking bot {bot_id}: {e}")
-    except Exception as e:
-        logger.error(f"[STARTUP] Telegram webhook check failed: {e}")
-
-    logger.info("=" * 60)
     logger.info("Ready to receive requests!")
 
 
