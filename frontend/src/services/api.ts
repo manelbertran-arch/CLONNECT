@@ -19,8 +19,9 @@ import type {
   BookingLinksResponse,
 } from "@/types/api";
 
-// API Base URL from environment
-export const API_URL = import.meta.env.VITE_API_URL || "https://web-production-9f69.up.railway.app";
+// API Base URL - empty string means same origin (for Railway deployment)
+// Falls back to Railway URL for local development
+export const API_URL = import.meta.env.VITE_API_URL || "";
 
 // Auth token storage key
 const AUTH_TOKEN_KEY = "clonnect_auth_token";

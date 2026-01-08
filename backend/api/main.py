@@ -14,7 +14,8 @@ from datetime import datetime, timezone
 from typing import Optional, List, Dict, Any
 from fastapi import FastAPI, HTTPException, Request, Depends, Header, Body
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import Response, HTMLResponse, PlainTextResponse
+from fastapi.responses import Response, HTMLResponse, PlainTextResponse, FileResponse
+from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
 logging.basicConfig(level=logging.INFO)
@@ -5670,3 +5671,71 @@ async def debug_system_prompt(creator_id: str):
     agent = DMResponderAgent(creator_id=creator_id)
     prompt = agent._build_system_prompt()
     return {"prompt": prompt[:2000]}  # Primeros 2000 chars
+
+
+# =============================================================================
+# SERVE FRONTEND STATIC FILES
+# =============================================================================
+# This must be at the VERY END after all API routes are defined
+
+_static_dir = os.path.join(os.path.dirname(__file__), "..", "static")
+
+if os.path.exists(_static_dir):
+    # Mount assets directory for JS/CSS files
+    _assets_dir = os.path.join(_static_dir, "assets")
+    if os.path.exists(_assets_dir):
+        app.mount("/assets", StaticFiles(directory=_assets_dir), name="static_assets")
+        logger.info(f"Mounted frontend assets from {_assets_dir}")
+
+    # Serve static files (images, favicon, etc.)
+    @app.get("/clonnect-logo.png")
+    async def serve_logo():
+        logo_path = os.path.join(_static_dir, "clonnect-logo.png")
+        if os.path.exists(logo_path):
+            return FileResponse(logo_path)
+        raise HTTPException(status_code=404)
+
+    @app.get("/favicon.ico")
+    async def serve_favicon():
+        favicon_path = os.path.join(_static_dir, "favicon.ico")
+        if os.path.exists(favicon_path):
+            return FileResponse(favicon_path)
+        raise HTTPException(status_code=404)
+
+    @app.get("/placeholder.svg")
+    async def serve_placeholder():
+        placeholder_path = os.path.join(_static_dir, "placeholder.svg")
+        if os.path.exists(placeholder_path):
+            return FileResponse(placeholder_path, media_type="image/svg+xml")
+        raise HTTPException(status_code=404)
+
+    @app.get("/robots.txt")
+    async def serve_robots():
+        robots_path = os.path.join(_static_dir, "robots.txt")
+        if os.path.exists(robots_path):
+            return FileResponse(robots_path, media_type="text/plain")
+        raise HTTPException(status_code=404)
+
+    # Catch-all route for frontend SPA - must be LAST
+    @app.get("/{full_path:path}")
+    async def serve_frontend(full_path: str):
+        """Serve frontend for all non-API routes (SPA catch-all)"""
+        # Don't catch API routes - they're already handled above
+        api_prefixes = (
+            "api/", "dm/", "dashboard/", "copilot/", "webhook/", "auth/",
+            "debug/", "health", "leads/", "products/", "onboarding/",
+            "creator/", "messages/", "payments/", "calendar/", "nurturing/",
+            "knowledge/", "analytics/", "admin/", "connections/", "oauth/",
+            "booking/", "tone/", "citations/", "config/", "telegram/",
+            "instagram/", "whatsapp/", "metrics", "docs", "openapi.json", "redoc"
+        )
+        if full_path.startswith(api_prefixes):
+            raise HTTPException(status_code=404, detail="API route not found")
+
+        index_path = os.path.join(_static_dir, "index.html")
+        if os.path.exists(index_path):
+            return FileResponse(index_path, media_type="text/html")
+
+        raise HTTPException(status_code=404, detail="Frontend not found")
+else:
+    logger.warning(f"Static directory not found: {_static_dir}")
