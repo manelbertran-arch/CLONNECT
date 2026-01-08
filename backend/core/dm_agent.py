@@ -603,10 +603,36 @@ def is_direct_purchase_intent(message: str) -> bool:
 
     msg_lower = message.lower()
 
+    # EXCLUSIÓN: Si contiene frases de objeción/duda, NO es compra directa
+    # Esto evita que "no sé si es para mí" active el link por contener "si"
+    objection_phrases = [
+        'no sé si', 'no se si', 'no estoy seguro', 'no estoy segura',
+        'no es para mi', 'no es para mí', 'tengo dudas', 'no creo',
+        'me lo pienso', 'lo pienso', 'lo tengo que pensar',
+        'es muy caro', 'es caro', 'no tengo', 'no puedo',
+        'más adelante', 'mas adelante', 'luego', 'después', 'despues',
+        'ya veré', 'ya vere', 'ya te digo', 'no sé', 'no se'
+    ]
+    for phrase in objection_phrases:
+        if phrase in msg_lower:
+            return False  # Es una objeción, no compra directa
+
+    # Keywords cortos que necesitan match de palabra completa para evitar falsos positivos
+    # "si" puede estar en "no sé si", "sí" solo debe matchear como palabra sola
+    short_keywords_whole_word = {'sí', 'si', 'ok', 'ya'}
+
     # Check direct purchase keywords
     for keyword in DIRECT_PURCHASE_KEYWORDS:
-        if keyword in msg_lower:
-            return True
+        if keyword in short_keywords_whole_word:
+            # Para keywords cortos, verificar que sea palabra completa
+            # y que el mensaje sea corto (respuesta directa tipo "sí" o "ok")
+            words = msg_lower.split()
+            if keyword in words and len(words) <= 3:
+                return True
+        else:
+            # Para keywords largos, búsqueda normal
+            if keyword in msg_lower:
+                return True
 
     return False
 
