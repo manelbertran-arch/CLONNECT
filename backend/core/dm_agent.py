@@ -2721,7 +2721,7 @@ USA ESTA RESPUESTA PARA LA OBJECION (adaptala a tu tono):
 
                         if not consistency_result.is_consistent:
                             # Low confidence -> safe fallback
-                            creator_name = self.creator_config.get('name', 'el creador')
+                            creator_name = self.creator_config.get('clone_name') or self.creator_config.get('name', 'el creador')
                             if user_language == "es":
                                 # Check dialect for voseo
                                 dialect = get_tone_dialect(self.creator_id)
@@ -3330,7 +3330,7 @@ USA ESTA RESPUESTA PARA LA OBJECION (adaptala a tu tono):
 
     def _get_escalation_response(self) -> str:
         """Respuesta de escalación cuando el usuario pide hablar con humano"""
-        name = self.creator_config.get('name', 'el equipo')
+        name = self.creator_config.get('clone_name') or self.creator_config.get('name', 'el equipo')
         email = self.creator_config.get('escalation_email', '')
 
         # Check dialect for voseo
@@ -3365,7 +3365,8 @@ USA ESTA RESPUESTA PARA LA OBJECION (adaptala a tu tono):
         Respuesta de fallback cuando LLM falla.
         Uses varied responses to seem more natural.
         """
-        name = self.creator_config.get('name', 'yo')
+        # Use clone_name (display name) with fallback to name
+        name = self.creator_config.get('clone_name') or self.creator_config.get('name', 'yo')
 
         # Check dialect for voseo
         dialect = get_tone_dialect(self.creator_id)
