@@ -22,10 +22,9 @@ import type {
 // API Base URL from environment
 export const API_URL = import.meta.env.VITE_API_URL || "https://web-production-9f69.up.railway.app";
 
-// Get current creator ID from localStorage (set by AuthContext)
+// HARDCODED FOR DEMO - TODO: implement proper auth later
 export function getCreatorId(): string {
-  const stored = localStorage.getItem("clonnect_creator_id");
-  return stored || "stefano_auto"; // Fallback for backwards compatibility
+  return "stefano_auto";
 }
 
 // Legacy export for components that haven't been updated yet
