@@ -1,7 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "react-router-dom";
 
-const CREATOR_ID = import.meta.env.VITE_CREATOR_ID || "manel";
+const CREATOR_ID = import.meta.env.VITE_CREATOR_ID || "stefano_auto";
 const API_URL = import.meta.env.VITE_API_URL || "http://localhost:8000";
 
 interface OnboardingStep {

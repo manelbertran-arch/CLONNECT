@@ -76,7 +76,7 @@ import type { RunNurturingParams, CreateBookingLinkData, RecordPurchaseData } fr
 import type { CreateLeadData, UpdateLeadData } from "@/services/api";
 import type { Product } from "@/types/api";
 
-const CREATOR_ID = import.meta.env.VITE_CREATOR_ID || "manel";
+const CREATOR_ID = import.meta.env.VITE_CREATOR_ID || "stefano_auto";
 
 /**
  * Hook to fetch dashboard overview

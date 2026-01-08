@@ -21,7 +21,7 @@ import type {
 
 // API Base URL from environment
 export const API_URL = import.meta.env.VITE_API_URL || "https://web-production-9f69.up.railway.app";
-export const CREATOR_ID = import.meta.env.VITE_CREATOR_ID || "manel";
+export const CREATOR_ID = import.meta.env.VITE_CREATOR_ID || "stefano_auto";
 
 /**
  * Generic fetch wrapper with error handling
