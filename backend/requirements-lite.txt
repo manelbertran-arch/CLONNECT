@@ -36,3 +36,7 @@ instaloader>=4.10.0
 # are optional. The system works without them using mock implementations.
 sqlalchemy==2.0.23
 psycopg2-binary==2.9.9
+
+# Authentication
+bcrypt>=4.0.0
+PyJWT>=2.8.0
