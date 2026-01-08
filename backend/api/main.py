@@ -661,7 +661,7 @@ async def full_diagnosis():
     if SessionLocal:
         try:
             from sqlalchemy import text
-            from api.models import Creator, PendingResponse
+            from api.models import Creator, Message, Lead
 
             session = SessionLocal()
             try:
@@ -679,8 +679,11 @@ async def full_diagnosis():
                 creator_count = session.query(Creator).count()
                 db_status["total_creators"] = creator_count
 
-                # Count pending responses
-                pending_count = session.query(PendingResponse).filter_by(status="pending_approval").count()
+                # Count pending responses (Messages with status='pending_approval')
+                pending_count = session.query(Message).filter_by(
+                    status="pending_approval",
+                    role="assistant"
+                ).count()
                 db_status["total_pending_responses"] = pending_count
 
             finally:
@@ -701,7 +704,7 @@ async def full_diagnosis():
 
     if SessionLocal:
         try:
-            from api.models import Creator, PendingResponse
+            from api.models import Creator, Message, Lead
             session = SessionLocal()
             try:
                 creator = session.query(Creator).filter_by(name="stefano_auto").first()
@@ -710,22 +713,31 @@ async def full_diagnosis():
                     stefano_status["copilot_mode"] = getattr(creator, 'copilot_mode', None)
                     stefano_status["bot_active"] = getattr(creator, 'bot_active', None)
 
-                    # Get pending responses for stefano_auto
-                    pending = session.query(PendingResponse).filter_by(
-                        creator_id="stefano_auto",
-                        status="pending_approval"
-                    ).order_by(PendingResponse.created_at.desc()).all()
+                    # Get pending responses for stefano_auto via Lead -> Message
+                    pending = session.query(Message, Lead).join(
+                        Lead, Message.lead_id == Lead.id
+                    ).filter(
+                        Lead.creator_id == creator.id,
+                        Message.status == "pending_approval",
+                        Message.role == "assistant"
+                    ).order_by(Message.created_at.desc()).all()
 
                     stefano_status["pending_responses_count"] = len(pending)
 
                     if pending:
-                        last = pending[0]
+                        msg, lead = pending[0]
+                        # Get user message for context
+                        user_msg = session.query(Message).filter(
+                            Message.lead_id == lead.id,
+                            Message.role == "user"
+                        ).order_by(Message.created_at.desc()).first()
+
                         stefano_status["last_pending_response"] = {
-                            "id": str(last.id),
-                            "created_at": last.created_at.isoformat() if last.created_at else None,
-                            "user_message": last.user_message[:50] if last.user_message else None,
-                            "suggested_response": last.suggested_response[:50] if last.suggested_response else None,
-                            "platform": last.platform
+                            "id": str(msg.id),
+                            "created_at": msg.created_at.isoformat() if msg.created_at else None,
+                            "user_message": user_msg.content[:50] if user_msg and user_msg.content else None,
+                            "suggested_response": msg.content[:50] if msg.content else None,
+                            "platform": lead.platform
                         }
             finally:
                 session.close()
