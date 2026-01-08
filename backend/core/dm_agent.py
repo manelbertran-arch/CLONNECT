@@ -2023,7 +2023,7 @@ USA ESTA RESPUESTA PARA LA OBJECION (adaptala a tu tono):
             Intent.OBJECTION_NOT_FOR_ME: "Maneja la objecion de 'no es para mi'. Empatiza, explica que es para todos los niveles.",
             Intent.OBJECTION_COMPLICATED: "Maneja la objecion de complejidad. Destaca que es facil y hay soporte.",
             Intent.OBJECTION_ALREADY_HAVE: "Maneja la objecion de 'ya tengo algo'. Diferencia tu producto, valor unico.",
-            Intent.QUESTION_PRODUCT: "Responde la pregunta con los beneficios del producto.",
+            Intent.QUESTION_PRODUCT: "Responde la pregunta sobre el producto. SIEMPRE menciona el PRECIO exacto y los beneficios principales. Ejemplo: 'El Acompañamiento 1:1 tiene un precio de €997 e incluye...'",
             Intent.QUESTION_GENERAL: "Explica brevemente quien eres y que haces.",
             Intent.LEAD_MAGNET: "Ofrece el recurso GRATIS con entusiasmo y da el link.",
             Intent.THANKS: "Agradece genuinamente y ofrece mas ayuda.",
