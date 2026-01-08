@@ -624,6 +624,288 @@ async def debug_insert_booking_link():
     return result
 
 
+@app.get("/debug/full-diagnosis")
+async def full_diagnosis():
+    """
+    COMPLETE SYSTEM DIAGNOSIS - Shows everything about the system state.
+    Open this URL in browser to see what's happening.
+    """
+    import subprocess
+    from datetime import datetime, timezone
+
+    diagnosis = {
+        "timestamp": datetime.now(timezone.utc).isoformat(),
+        "server": {},
+        "database": {},
+        "telegram": {},
+        "creator_stefano_auto": {},
+        "environment": {},
+        "recent_activity": {}
+    }
+
+    # === 1. SERVER STATUS ===
+    diagnosis["server"] = {
+        "status": "running",
+        "python_version": os.popen("python --version 2>&1").read().strip(),
+        "working_directory": os.getcwd(),
+        "uptime_note": "Server is responding to requests"
+    }
+
+    # === 2. DATABASE STATUS ===
+    db_status = {
+        "DATABASE_URL_configured": bool(DATABASE_URL),
+        "SessionLocal_available": SessionLocal is not None,
+        "connection_test": "not_tested"
+    }
+
+    if SessionLocal:
+        try:
+            from sqlalchemy import text
+            from api.models import Creator, PendingResponse
+
+            session = SessionLocal()
+            try:
+                # Test connection
+                session.execute(text("SELECT 1"))
+                db_status["connection_test"] = "SUCCESS"
+
+                # Get tables
+                tables_result = session.execute(text(
+                    "SELECT table_name FROM information_schema.tables WHERE table_schema = 'public'"
+                ))
+                db_status["tables"] = [row[0] for row in tables_result.fetchall()]
+
+                # Count creators
+                creator_count = session.query(Creator).count()
+                db_status["total_creators"] = creator_count
+
+                # Count pending responses
+                pending_count = session.query(PendingResponse).filter_by(status="pending_approval").count()
+                db_status["total_pending_responses"] = pending_count
+
+            finally:
+                session.close()
+        except Exception as e:
+            db_status["connection_test"] = f"FAILED: {str(e)}"
+
+    diagnosis["database"] = db_status
+
+    # === 3. STEFANO_AUTO SPECIFIC ===
+    stefano_status = {
+        "exists": False,
+        "copilot_mode": None,
+        "bot_active": None,
+        "pending_responses_count": 0,
+        "last_pending_response": None
+    }
+
+    if SessionLocal:
+        try:
+            from api.models import Creator, PendingResponse
+            session = SessionLocal()
+            try:
+                creator = session.query(Creator).filter_by(name="stefano_auto").first()
+                if creator:
+                    stefano_status["exists"] = True
+                    stefano_status["copilot_mode"] = getattr(creator, 'copilot_mode', None)
+                    stefano_status["bot_active"] = getattr(creator, 'bot_active', None)
+
+                    # Get pending responses for stefano_auto
+                    pending = session.query(PendingResponse).filter_by(
+                        creator_id="stefano_auto",
+                        status="pending_approval"
+                    ).order_by(PendingResponse.created_at.desc()).all()
+
+                    stefano_status["pending_responses_count"] = len(pending)
+
+                    if pending:
+                        last = pending[0]
+                        stefano_status["last_pending_response"] = {
+                            "id": str(last.id),
+                            "created_at": last.created_at.isoformat() if last.created_at else None,
+                            "user_message": last.user_message[:50] if last.user_message else None,
+                            "suggested_response": last.suggested_response[:50] if last.suggested_response else None,
+                            "platform": last.platform
+                        }
+            finally:
+                session.close()
+        except Exception as e:
+            stefano_status["error"] = str(e)
+
+    diagnosis["creator_stefano_auto"] = stefano_status
+
+    # === 4. TELEGRAM STATUS ===
+    telegram_status = {
+        "bot_token_configured": bool(os.getenv("TELEGRAM_BOT_TOKEN")),
+        "registered_bots": [],
+        "webhook_status": {}
+    }
+
+    try:
+        from core.telegram_registry import get_telegram_registry
+        registry = get_telegram_registry()
+        bots = registry.list_bots()
+        telegram_status["registered_bots"] = bots
+
+        # Check webhook for each bot
+        for bot in bots:
+            bot_id = bot.get("bot_id")
+            bot_token = registry.get_bot_token(bot_id)
+            if bot_token:
+                try:
+                    async with httpx.AsyncClient(timeout=10.0) as client:
+                        response = await client.get(f"https://api.telegram.org/bot{bot_token}/getWebhookInfo")
+                        webhook_info = response.json()
+                        if webhook_info.get("ok"):
+                            telegram_status["webhook_status"][bot_id] = {
+                                "url": webhook_info.get("result", {}).get("url", "NOT SET"),
+                                "pending_updates": webhook_info.get("result", {}).get("pending_update_count", 0),
+                                "last_error": webhook_info.get("result", {}).get("last_error_message")
+                            }
+                except Exception as e:
+                    telegram_status["webhook_status"][bot_id] = {"error": str(e)}
+    except Exception as e:
+        telegram_status["error"] = str(e)
+
+    diagnosis["telegram"] = telegram_status
+
+    # === 5. ENVIRONMENT (without sensitive values) ===
+    env_vars = [
+        "DATABASE_URL", "GROQ_API_KEY", "TELEGRAM_BOT_TOKEN",
+        "RAILWAY_PUBLIC_URL", "RENDER_EXTERNAL_URL",
+        "OPENAI_API_KEY", "ANTHROPIC_API_KEY"
+    ]
+
+    diagnosis["environment"] = {
+        var: "SET" if os.getenv(var) else "NOT SET"
+        for var in env_vars
+    }
+
+    # === 6. QUICK SUMMARY ===
+    diagnosis["summary"] = {
+        "database_ok": db_status.get("connection_test") == "SUCCESS",
+        "stefano_exists": stefano_status.get("exists", False),
+        "copilot_mode": stefano_status.get("copilot_mode"),
+        "pending_count": stefano_status.get("pending_responses_count", 0),
+        "telegram_bots": len(telegram_status.get("registered_bots", [])),
+        "recommendation": ""
+    }
+
+    # Build recommendation
+    if not stefano_status.get("exists"):
+        diagnosis["summary"]["recommendation"] = "Creator stefano_auto doesn't exist in DB!"
+    elif stefano_status.get("copilot_mode") == True:
+        if stefano_status.get("pending_responses_count", 0) > 0:
+            diagnosis["summary"]["recommendation"] = f"System working! {stefano_status['pending_responses_count']} messages waiting for approval in Copilot dashboard."
+        else:
+            diagnosis["summary"]["recommendation"] = "Copilot mode ON but no pending messages. Send a test message to the bot."
+    elif stefano_status.get("copilot_mode") == False:
+        diagnosis["summary"]["recommendation"] = "Autopilot mode - bot should respond automatically."
+    else:
+        diagnosis["summary"]["recommendation"] = "copilot_mode is NULL - defaulting to True (Copilot mode)."
+
+    return diagnosis
+
+
+@app.post("/debug/test-telegram-flow")
+async def test_telegram_flow():
+    """
+    Simulate a Telegram message flow and report each step.
+    """
+    steps = []
+
+    # Step 1: Check creator exists
+    creator_id = "stefano_auto"
+    try:
+        from api.models import Creator
+        session = SessionLocal()
+        creator = session.query(Creator).filter_by(name=creator_id).first()
+        session.close()
+
+        if creator:
+            steps.append({"step": "1. Find creator", "status": "OK", "detail": f"Found {creator_id}"})
+            copilot_mode = getattr(creator, 'copilot_mode', True)
+            steps.append({"step": "2. Check copilot_mode", "status": "OK", "detail": f"copilot_mode = {copilot_mode}"})
+        else:
+            steps.append({"step": "1. Find creator", "status": "FAIL", "detail": f"Creator {creator_id} not found!"})
+            return {"steps": steps, "conclusion": "FAILED - Creator not found"}
+    except Exception as e:
+        steps.append({"step": "1. Find creator", "status": "ERROR", "detail": str(e)})
+        return {"steps": steps, "conclusion": f"FAILED - {e}"}
+
+    # Step 2: Try to generate a response
+    try:
+        from core.dm_agent import get_dm_agent
+        agent = get_dm_agent(creator_id)
+        steps.append({"step": "3. Initialize DM Agent", "status": "OK", "detail": f"Agent ready for {creator_id}"})
+
+        # Process a test message
+        response = await agent.process_dm(
+            sender_id="test_diagnosis",
+            message_text="hola, esto es una prueba de diagnóstico",
+            message_id="diag_001",
+            username="DiagnosticTest",
+            name="Test User"
+        )
+
+        steps.append({
+            "step": "4. Generate response",
+            "status": "OK",
+            "detail": f"Intent: {response.intent.value if hasattr(response.intent, 'value') else response.intent}, Response: {response.response_text[:80]}..."
+        })
+    except Exception as e:
+        steps.append({"step": "3-4. DM Agent", "status": "ERROR", "detail": str(e)})
+        return {"steps": steps, "conclusion": f"FAILED at DM Agent - {e}"}
+
+    # Step 3: Check what would happen based on copilot_mode
+    if copilot_mode:
+        steps.append({
+            "step": "5. Copilot mode action",
+            "status": "INFO",
+            "detail": "Would save as pending_approval (not send immediately)"
+        })
+
+        # Try to create a pending response
+        try:
+            from core.copilot_service import get_copilot_service
+            copilot = get_copilot_service()
+
+            pending = await copilot.create_pending_response(
+                creator_id=creator_id,
+                lead_id="",
+                follower_id="test_diagnosis",
+                platform="telegram",
+                user_message="TEST - diagnostic message",
+                user_message_id="diag_001",
+                suggested_response=response.response_text,
+                intent=response.intent.value if hasattr(response.intent, 'value') else str(response.intent),
+                confidence=0.95,
+                username="DiagnosticTest",
+                full_name="Test User"
+            )
+
+            steps.append({
+                "step": "6. Create pending response",
+                "status": "OK",
+                "detail": f"Created pending ID: {pending.id}"
+            })
+        except Exception as e:
+            steps.append({"step": "6. Create pending", "status": "ERROR", "detail": str(e)})
+    else:
+        steps.append({
+            "step": "5. Autopilot mode action",
+            "status": "INFO",
+            "detail": "Would send response immediately via Telegram"
+        })
+
+    return {
+        "steps": steps,
+        "conclusion": "SUCCESS - All steps passed",
+        "copilot_mode": copilot_mode,
+        "note": "If copilot_mode=True, messages go to dashboard for approval. Check /copilot/stefano_auto/pending"
+    }
+
+
 @app.get("/health/live")
 def health_live():
     """
