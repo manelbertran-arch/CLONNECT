@@ -1091,14 +1091,23 @@ class DMResponderAgent:
         if any(w in msg for w in ['interesa', 'cuentame', 'cuéntame', 'info', 'información', 'saber mas', 'saber más', 'como funciona', 'cómo funciona']):
             return Intent.INTEREST_SOFT, 0.85
 
+        # PRECIO - ANTES de booking para que "cuanto cuesta la mentoria" sea QUESTION_PRODUCT
+        price_keywords = ['cuanto cuesta', 'cuánto cuesta', 'precio', 'cuanto vale', 'cuánto vale',
+                          'que cuesta', 'qué cuesta', 'cuanto es', 'cuánto es', 'inversion', 'inversión',
+                          'cuanto sale', 'cuánto sale', 'que precio', 'qué precio']
+        if any(w in msg for w in price_keywords):
+            logger.info(f"=== PRICE QUESTION detected === msg='{msg}'")
+            return Intent.QUESTION_PRODUCT, 0.95  # Alta prioridad
+
         # Booking / Agendar llamada - ANTES de saludos para que "hola, quiero agendar" sea BOOKING
+        # NOTA: "mentoria/mentoría" removido - solo booking si quiere AGENDAR explícitamente
         if any(w in msg for w in [
             'agendar', 'reservar', 'llamada', 'reunion', 'reunión', 'cita',
             'agenda', 'book', 'booking', 'appointment', 'schedule',
             'videollamada', 'zoom', 'meet', 'calendly', 'hablar contigo',
             'cuando podemos hablar', 'podemos hablar', 'disponibilidad',
             'sesion', 'sesión', 'consulta', 'consultoria', 'consultoría',
-            'coaching', 'mentoria', 'mentoría', 'discovery',
+            'coaching', 'discovery',
             'call', 'una call', 'quiero call', 'hacer call', 'tener call'
         ]):
             return Intent.BOOKING, 0.90
@@ -1128,7 +1137,9 @@ class DMResponderAgent:
             return Intent.OBJECTION_WORKS, 0.85
 
         # Objeción "no es para mí"
-        if any(w in msg for w in ['no es para mi', 'no se si', 'principiante', 'no tengo experiencia', 'soy nuevo']):
+        if any(w in msg for w in ['no es para mi', 'no es para mí', 'no se si', 'no sé si',
+                                   'principiante', 'no tengo experiencia', 'soy nuevo', 'soy nueva',
+                                   'no estoy seguro', 'no estoy segura', 'tengo dudas', 'no creo que']):
             return Intent.OBJECTION_NOT_FOR_ME, 0.85
 
         # Objeción "es complicado"
@@ -2020,7 +2031,7 @@ USA ESTA RESPUESTA PARA LA OBJECION (adaptala a tu tono):
             Intent.OBJECTION_DOUBT: "Resuelve dudas sin presionar. Ofrece mas info.",
             Intent.OBJECTION_LATER: "Maneja la objecion de 'luego'. Crea urgencia sutil, menciona que es el mejor momento.",
             Intent.OBJECTION_WORKS: "Maneja la objecion de resultados. Comparte casos de exito, garantia, testimonios.",
-            Intent.OBJECTION_NOT_FOR_ME: "Maneja la objecion de 'no es para mi'. Empatiza, explica que es para todos los niveles.",
+            Intent.OBJECTION_NOT_FOR_ME: "Maneja la objecion de 'no es para mi'. Empatiza y pregunta: '¿Qué es lo que más te preocupa?' o '¿Qué te hace dudar?'. NO envíes links de pago ni Calendly. Solo escucha y resuelve dudas.",
             Intent.OBJECTION_COMPLICATED: "Maneja la objecion de complejidad. Destaca que es facil y hay soporte.",
             Intent.OBJECTION_ALREADY_HAVE: "Maneja la objecion de 'ya tengo algo'. Diferencia tu producto, valor unico.",
             Intent.QUESTION_PRODUCT: "Responde la pregunta sobre el producto. SIEMPRE menciona el PRECIO exacto y los beneficios principales. Ejemplo: 'El Acompañamiento 1:1 tiene un precio de €997 e incluye...'",
