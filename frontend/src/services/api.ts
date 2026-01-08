@@ -22,8 +22,9 @@ import type {
 // API Base URL from environment
 export const API_URL = import.meta.env.VITE_API_URL || "https://web-production-9f69.up.railway.app";
 
-// HARDCODED FOR DEMO - TODO: implement proper auth later
+// HARDCODED FOR DEMO - Forces stefano_auto (updated 2026-01-08)
 export function getCreatorId(): string {
+  // CRITICAL: Always return stefano_auto for demo
   return "stefano_auto";
 }
 
