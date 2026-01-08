@@ -145,7 +145,11 @@ app.include_router(tone.router)
 app.include_router(citations.router)
 app.include_router(copilot.router)
 
-logging.info("Routers loaded: health, dashboard, config, leads, products, analytics, connections, oauth, booking, tone, citations, copilot")
+# Authentication router
+from api.auth import router as auth_router
+app.include_router(auth_router)
+
+logging.info("Routers loaded: health, dashboard, config, leads, products, analytics, connections, oauth, booking, tone, citations, copilot, auth")
 # AUTHENTICATION
 # ---------------------------------------------------------
 # Endpoints publicos (no requieren autenticacion)

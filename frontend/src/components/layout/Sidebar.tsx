@@ -27,16 +27,17 @@ const navItems = [
 export function Sidebar() {
   const location = useLocation();
   const navigate = useNavigate();
-  const { creatorId, logout } = useAuth();
+  const { user, creatorId, logout } = useAuth();
 
   const handleLogout = () => {
     logout();
     navigate("/login");
   };
 
-  // Get display name and initials from creatorId
-  const displayName = creatorId?.replace(/_/g, " ").replace(/\b\w/g, c => c.toUpperCase()) || "User";
+  // Get display name from user or creatorId
+  const displayName = user?.name || creatorId?.replace(/_/g, " ").replace(/\b\w/g, c => c.toUpperCase()) || "User";
   const initials = displayName.split(" ").map(n => n[0]).join("").slice(0, 2).toUpperCase();
+  const userEmail = user?.email || "";
 
   return (
     <aside className="fixed left-0 top-0 h-screen w-64 bg-background border-r border-border/50 flex flex-col z-50">
@@ -82,12 +83,14 @@ export function Sidebar() {
           </div>
           <div className="flex-1 min-w-0">
             <p className="text-sm font-medium truncate">{displayName}</p>
-            <p className="text-xs text-muted-foreground truncate">Pro Plan</p>
+            <p className="text-xs text-muted-foreground truncate">
+              {userEmail || "Pro Plan"}
+            </p>
           </div>
           <button
             onClick={handleLogout}
             className="p-2 hover:bg-secondary rounded-lg transition-colors text-muted-foreground hover:text-foreground"
-            title="Cambiar cuenta"
+            title="Cerrar sesión"
           >
             <LogOut className="w-4 h-4" />
           </button>

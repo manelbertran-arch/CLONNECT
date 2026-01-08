@@ -77,10 +77,10 @@ def init_database():
 
     try:
         from api.database import Base
-        from api.models import Creator, Lead, Message, Product, NurturingSequence, KnowledgeBase, BookingLink, CalendarBooking, CreatorAvailability, BookingSlot
+        from api.models import User, UserCreator, Creator, Lead, Message, Product, NurturingSequence, KnowledgeBase, BookingLink, CalendarBooking, CreatorAvailability, BookingSlot
     except:
         from database import Base
-        from models import Creator, Lead, Message, Product, NurturingSequence, KnowledgeBase, BookingLink, CalendarBooking, CreatorAvailability, BookingSlot
+        from models import User, UserCreator, Creator, Lead, Message, Product, NurturingSequence, KnowledgeBase, BookingLink, CalendarBooking, CreatorAvailability, BookingSlot
 
     print(f"Creating engine with DATABASE_URL configured: {bool(DATABASE_URL)}")
     engine = create_engine(DATABASE_URL)
@@ -143,7 +143,55 @@ def init_database():
             # The user can toggle this via the API
             print(f"Creator 'stefano_auto' already exists with copilot_mode={stefano.copilot_mode}")
 
+        # Create demo user for Stefano
+        create_demo_user(session)
+
     return True
+
+
+def create_demo_user(session):
+    """Create demo user for Stefano with bcrypt password hash"""
+    import bcrypt
+
+    # Check if user exists
+    existing_user = session.query(User).filter_by(email="stefano@stefanobonanno.com").first()
+    if existing_user:
+        print(f"Demo user 'stefano@stefanobonanno.com' already exists")
+        return
+
+    # Hash the password
+    password = "demo2024"
+    password_hash = bcrypt.hashpw(password.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
+
+    # Create user
+    user = User(
+        email="stefano@stefanobonanno.com",
+        password_hash=password_hash,
+        name="Stefano Bonanno",
+        is_active=True,
+        is_admin=False
+    )
+    session.add(user)
+    session.commit()
+    print(f"Created demo user: stefano@stefanobonanno.com (password: demo2024)")
+
+    # Link user to stefano_auto creator
+    stefano_creator = session.query(Creator).filter_by(name="stefano_auto").first()
+    if stefano_creator:
+        # Check if link exists
+        existing_link = session.query(UserCreator).filter_by(
+            user_id=user.id,
+            creator_id=stefano_creator.id
+        ).first()
+        if not existing_link:
+            user_creator = UserCreator(
+                user_id=user.id,
+                creator_id=stefano_creator.id,
+                role="owner"
+            )
+            session.add(user_creator)
+            session.commit()
+            print(f"Linked user to creator 'stefano_auto'")
 
 if __name__ == "__main__":
     init_database()

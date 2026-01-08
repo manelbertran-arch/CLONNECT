@@ -22,6 +22,51 @@ import type {
 // API Base URL from environment
 export const API_URL = import.meta.env.VITE_API_URL || "https://web-production-9f69.up.railway.app";
 
+// Auth token storage key
+const AUTH_TOKEN_KEY = "clonnect_auth_token";
+const AUTH_USER_KEY = "clonnect_auth_user";
+
+// Get auth token from localStorage
+export function getAuthToken(): string | null {
+  return localStorage.getItem(AUTH_TOKEN_KEY);
+}
+
+// Set auth token in localStorage
+export function setAuthToken(token: string): void {
+  localStorage.setItem(AUTH_TOKEN_KEY, token);
+}
+
+// Clear auth token
+export function clearAuthToken(): void {
+  localStorage.removeItem(AUTH_TOKEN_KEY);
+  localStorage.removeItem(AUTH_USER_KEY);
+}
+
+// Get stored user
+export function getStoredUser(): AuthUser | null {
+  const user = localStorage.getItem(AUTH_USER_KEY);
+  return user ? JSON.parse(user) : null;
+}
+
+// Set stored user
+export function setStoredUser(user: AuthUser): void {
+  localStorage.setItem(AUTH_USER_KEY, JSON.stringify(user));
+}
+
+// Auth types
+export interface AuthUser {
+  id: string;
+  email: string;
+  name: string | null;
+  creators: { id: string; name: string; clone_name: string; role: string }[];
+}
+
+export interface LoginResponse {
+  access_token: string;
+  token_type: string;
+  user: AuthUser;
+}
+
 // HARDCODED FOR DEMO - Forces stefano_auto (updated 2026-01-08)
 export function getCreatorId(): string {
   // CRITICAL: Always return stefano_auto for demo
@@ -36,13 +81,20 @@ export const CREATOR_ID = getCreatorId();
  */
 async function apiFetch<T>(
   endpoint: string,
-  options: RequestInit = {}
+  options: RequestInit = {},
+  skipAuth: boolean = false
 ): Promise<T> {
   const url = `${API_URL}${endpoint}`;
 
   const defaultHeaders: HeadersInit = {
     "Content-Type": "application/json",
   };
+
+  // Add auth token if available and not skipping auth
+  const token = getAuthToken();
+  if (token && !skipAuth) {
+    (defaultHeaders as Record<string, string>)["Authorization"] = `Bearer ${token}`;
+  }
 
   const response = await fetch(url, {
     ...options,
@@ -69,6 +121,91 @@ async function apiFetch<T>(
   }
 
   return response.json();
+}
+
+// =============================================================================
+// AUTHENTICATION
+// =============================================================================
+
+/**
+ * Login with email and password
+ */
+export async function login(email: string, password: string): Promise<LoginResponse> {
+  const response = await apiFetch<LoginResponse>(
+    "/auth/login",
+    {
+      method: "POST",
+      body: JSON.stringify({ email, password }),
+    },
+    true // Skip auth header for login
+  );
+
+  // Store token and user
+  setAuthToken(response.access_token);
+  setStoredUser(response.user);
+
+  return response;
+}
+
+/**
+ * Register a new user
+ */
+export async function register(
+  email: string,
+  password: string,
+  name?: string
+): Promise<LoginResponse> {
+  const response = await apiFetch<LoginResponse>(
+    "/auth/register",
+    {
+      method: "POST",
+      body: JSON.stringify({ email, password, name }),
+    },
+    true // Skip auth header for register
+  );
+
+  // Store token and user
+  setAuthToken(response.access_token);
+  setStoredUser(response.user);
+
+  return response;
+}
+
+/**
+ * Get current user info
+ */
+export async function getCurrentUser(): Promise<AuthUser> {
+  const response = await apiFetch<{
+    id: string;
+    email: string;
+    name: string | null;
+    is_active: boolean;
+    creators: { id: string; name: string; clone_name: string; role: string }[];
+  }>("/auth/me");
+
+  const user: AuthUser = {
+    id: response.id,
+    email: response.email,
+    name: response.name,
+    creators: response.creators,
+  };
+
+  setStoredUser(user);
+  return user;
+}
+
+/**
+ * Logout - clear stored auth data
+ */
+export function logout(): void {
+  clearAuthToken();
+}
+
+/**
+ * Check if user is authenticated
+ */
+export function isAuthenticated(): boolean {
+  return !!getAuthToken();
 }
 
 // =============================================================================

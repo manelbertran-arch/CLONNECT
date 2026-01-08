@@ -1,55 +1,107 @@
 /**
- * Simple Auth Context for multi-creator support
- * Stores creator_id in localStorage for persistence
+ * Auth Context with JWT authentication
+ * Supports real login with email/password
  */
 
 import { createContext, useContext, useState, useEffect, ReactNode } from "react";
+import {
+  login as apiLogin,
+  logout as apiLogout,
+  getCurrentUser,
+  isAuthenticated as checkAuth,
+  getStoredUser,
+  AuthUser,
+} from "@/services/api";
 
 interface AuthContextType {
+  user: AuthUser | null;
   creatorId: string | null;
   isAuthenticated: boolean;
-  login: (creatorId: string) => void;
+  isLoading: boolean;
+  login: (email: string, password: string) => Promise<void>;
   logout: () => void;
+  selectCreator: (creatorName: string) => void;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-const STORAGE_KEY = "clonnect_creator_id";
+const SELECTED_CREATOR_KEY = "clonnect_selected_creator";
 
-// DEMO MODE: Default to stefano_auto for the Stefano demo
+// DEMO MODE: Default creator for backwards compatibility
 const DEFAULT_CREATOR = "stefano_auto";
 
 export function AuthProvider({ children }: { children: ReactNode }) {
+  const [user, setUser] = useState<AuthUser | null>(null);
   const [creatorId, setCreatorId] = useState<string | null>(() => {
     // Initialize from localStorage
-    const stored = localStorage.getItem(STORAGE_KEY);
-
-    // DEMO FIX: If nothing stored or old "manel" value, use stefano_auto
-    if (!stored || stored === "manel") {
-      localStorage.setItem(STORAGE_KEY, DEFAULT_CREATOR);
-      return DEFAULT_CREATOR;
-    }
-
-    return stored;
+    return localStorage.getItem(SELECTED_CREATOR_KEY) || DEFAULT_CREATOR;
   });
+  const [isLoading, setIsLoading] = useState(true);
 
-  const login = (id: string) => {
-    localStorage.setItem(STORAGE_KEY, id);
-    setCreatorId(id);
+  // Check authentication status on mount
+  useEffect(() => {
+    const checkAuthStatus = async () => {
+      if (checkAuth()) {
+        try {
+          // Try to get user from stored data first
+          const storedUser = getStoredUser();
+          if (storedUser) {
+            setUser(storedUser);
+            // If user has creators, select the first one if none selected
+            if (storedUser.creators.length > 0 && !creatorId) {
+              setCreatorId(storedUser.creators[0].name);
+            }
+          }
+          // Verify token is still valid
+          const currentUser = await getCurrentUser();
+          setUser(currentUser);
+        } catch (error) {
+          console.error("Auth check failed:", error);
+          // Token invalid, clear auth
+          apiLogout();
+          setUser(null);
+        }
+      }
+      setIsLoading(false);
+    };
+
+    checkAuthStatus();
+  }, []);
+
+  const login = async (email: string, password: string) => {
+    const response = await apiLogin(email, password);
+    setUser(response.user);
+    // If user has creators, select the first one
+    if (response.user.creators.length > 0) {
+      const firstCreator = response.user.creators[0].name;
+      setCreatorId(firstCreator);
+      localStorage.setItem(SELECTED_CREATOR_KEY, firstCreator);
+    }
   };
 
   const logout = () => {
-    localStorage.removeItem(STORAGE_KEY);
-    setCreatorId(null);
+    apiLogout();
+    setUser(null);
+    // Keep creatorId for backwards compatibility with demo mode
+    setCreatorId(DEFAULT_CREATOR);
+    localStorage.setItem(SELECTED_CREATOR_KEY, DEFAULT_CREATOR);
+  };
+
+  const selectCreator = (creatorName: string) => {
+    setCreatorId(creatorName);
+    localStorage.setItem(SELECTED_CREATOR_KEY, creatorName);
   };
 
   return (
     <AuthContext.Provider
       value={{
+        user,
         creatorId,
-        isAuthenticated: !!creatorId,
+        isAuthenticated: !!user || checkAuth(),
+        isLoading,
         login,
         logout,
+        selectCreator,
       }}
     >
       {children}
@@ -67,8 +119,6 @@ export function useAuth() {
 
 export function useCreatorId(): string {
   const { creatorId } = useAuth();
-  if (!creatorId) {
-    throw new Error("No creator logged in");
-  }
-  return creatorId;
+  // For backwards compatibility, always return a valid creator ID
+  return creatorId || DEFAULT_CREATOR;
 }
