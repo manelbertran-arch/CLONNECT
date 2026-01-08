@@ -152,6 +152,10 @@ def init_database():
 def create_demo_user(session):
     """Create demo user for Stefano with bcrypt password hash"""
     import bcrypt
+    try:
+        from api.models import User, UserCreator, Creator
+    except:
+        from models import User, UserCreator, Creator
 
     # Check if user exists
     existing_user = session.query(User).filter_by(email="stefano@stefanobonanno.com").first()
