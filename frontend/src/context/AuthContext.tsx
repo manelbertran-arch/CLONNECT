@@ -16,10 +16,21 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 const STORAGE_KEY = "clonnect_creator_id";
 
+// DEMO MODE: Default to stefano_auto for the Stefano demo
+const DEFAULT_CREATOR = "stefano_auto";
+
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [creatorId, setCreatorId] = useState<string | null>(() => {
     // Initialize from localStorage
-    return localStorage.getItem(STORAGE_KEY);
+    const stored = localStorage.getItem(STORAGE_KEY);
+
+    // DEMO FIX: If nothing stored or old "manel" value, use stefano_auto
+    if (!stored || stored === "manel") {
+      localStorage.setItem(STORAGE_KEY, DEFAULT_CREATOR);
+      return DEFAULT_CREATOR;
+    }
+
+    return stored;
   });
 
   const login = (id: string) => {
