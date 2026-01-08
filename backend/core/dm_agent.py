@@ -1125,15 +1125,31 @@ class DMResponderAgent:
             logger.info(f"=== PRICE QUESTION detected === msg='{msg}'")
             return Intent.QUESTION_PRODUCT, 0.95  # Alta prioridad
 
-        # Booking / Agendar llamada - ANTES de saludos para que "hola, quiero agendar" sea BOOKING
-        # NOTA: "mentoria/mentoría" removido - solo booking si quiere AGENDAR explícitamente
+        # PREGUNTAS SOBRE CONTENIDO/METODOLOGÍA - ANTES de booking
+        # Para que "cual es tu filosofia de coaching" sea QUESTION_PRODUCT, no BOOKING
+        content_question_kw = [
+            'que es', 'qué es', 'en que consiste', 'en qué consiste',
+            'como trabajas', 'cómo trabajas', 'tu metodologia', 'tu metodología',
+            'filosofia', 'filosofía', 'enfoque', 'tu programa', 'tus programas',
+            'de que trata', 'de qué trata', 'como funciona tu', 'cómo funciona tu',
+            'sintoma', 'síntoma', 'plenitud', 'sanacion', 'sanación',
+            'transformacion', 'transformación', 'autoconocimiento',
+            'programa de', 'acompañamiento', 'acompanamiento',
+            'resultados de tus', 'testimonios de', 'clientes han'
+        ]
+        if any(w in msg for w in content_question_kw):
+            logger.info(f"=== QUESTION_PRODUCT (content) detected === msg='{msg}'")
+            return Intent.QUESTION_PRODUCT, 0.92
+
+        # Booking / Agendar llamada - DESPUÉS de preguntas sobre contenido
+        # NOTA: "coaching" solo si quiere AGENDAR, no si pregunta sobre él
         if any(w in msg for w in [
             'agendar', 'reservar', 'llamada', 'reunion', 'reunión', 'cita',
             'agenda', 'book', 'booking', 'appointment', 'schedule',
             'videollamada', 'zoom', 'meet', 'calendly', 'hablar contigo',
             'cuando podemos hablar', 'podemos hablar', 'disponibilidad',
-            'sesion', 'sesión', 'consulta', 'consultoria', 'consultoría',
-            'coaching', 'discovery',
+            'sesion de coaching', 'sesión de coaching', 'consulta', 'consultoria', 'consultoría',
+            'quiero coaching', 'contratar coaching', 'discovery',
             'call', 'una call', 'quiero call', 'hacer call', 'tener call'
         ]):
             return Intent.BOOKING, 0.90
@@ -1176,7 +1192,7 @@ class DMResponderAgent:
         if any(w in msg for w in ['ya tengo', 'algo similar', 'parecido', 'otro curso', 'ya compre']):
             return Intent.OBJECTION_ALREADY_HAVE, 0.85
 
-        # Pregunta sobre producto - EXPANDIDO con tildes y métodos de pago
+        # Pregunta sobre producto/contenido - EXPANDIDO con preguntas sobre programas y metodología
         product_question_kw = [
             # Precio
             'que incluye', 'qué incluye', 'contenido', 'modulos', 'módulos',
@@ -1190,7 +1206,16 @@ class DMResponderAgent:
             'bizum', 'paypal', 'stripe', 'transferencia', 'tarjeta',
             # Acceso
             'acceso', 'duracion', 'duración', 'cuanto dura', 'cuánto dura',
-            'que tiene', 'qué tiene'
+            'que tiene', 'qué tiene',
+            # Preguntas sobre programas, metodología y contenido
+            'que es', 'qué es', 'en que consiste', 'en qué consiste',
+            'como trabajas', 'cómo trabajas', 'tu metodologia', 'tu metodología',
+            'filosofia', 'filosofía', 'enfoque', 'tu programa', 'tus programas',
+            'de que trata', 'de qué trata', 'como funciona tu', 'cómo funciona tu',
+            # Keywords específicos de coaching/sanación
+            'sintoma', 'síntoma', 'plenitud', 'sanacion', 'sanación',
+            'transformacion', 'transformación', 'autoconocimiento',
+            'programa de', 'acompañamiento', 'acompanamiento'
         ]
         matched_kw = [w for w in product_question_kw if w in msg]
         if matched_kw:
@@ -2060,8 +2085,8 @@ USA ESTA RESPUESTA PARA LA OBJECION (adaptala a tu tono):
             Intent.OBJECTION_NOT_FOR_ME: "Maneja la objecion de 'no es para mi'. Empatiza y pregunta: '¿Qué es lo que más te preocupa?' o '¿Qué te hace dudar?'. NO envíes links de pago ni Calendly. Solo escucha y resuelve dudas.",
             Intent.OBJECTION_COMPLICATED: "Maneja la objecion de complejidad. Destaca que es facil y hay soporte.",
             Intent.OBJECTION_ALREADY_HAVE: "Maneja la objecion de 'ya tengo algo'. Diferencia tu producto, valor unico.",
-            Intent.QUESTION_PRODUCT: "Responde la pregunta sobre el producto. SIEMPRE menciona el PRECIO exacto y los beneficios principales. Ejemplo: 'El Acompañamiento 1:1 tiene un precio de €997 e incluye...'",
-            Intent.QUESTION_GENERAL: "Explica brevemente quien eres y que haces.",
+            Intent.QUESTION_PRODUCT: "Responde la pregunta sobre el producto/programa. USA el CONTENIDO RELEVANTE del creador si está disponible en el prompt. Menciona el precio si aplica. Si preguntan por metodología/filosofía/programa, responde con información REAL de los posts del creador, no genérica.",
+            Intent.QUESTION_GENERAL: "Explica brevemente quien eres y que haces. USA el CONTENIDO RELEVANTE del creador si está disponible.",
             Intent.LEAD_MAGNET: "Ofrece el recurso GRATIS con entusiasmo y da el link.",
             Intent.THANKS: "Agradece genuinamente y ofrece mas ayuda.",
             Intent.GOODBYE: "Despidete de forma calida, deja la puerta abierta.",
