@@ -133,17 +133,15 @@ def init_database():
                 clone_tone="professional",
                 clone_name="Stefano Bonanno",
                 bot_active=True,
-                copilot_mode=True  # CRITICAL: Enable copilot mode
+                copilot_mode=False  # Default to autopilot (bot responds automatically)
             )
             session.add(stefano)
             session.commit()
-            print("Creator 'stefano_auto' created with copilot_mode=True")
+            print("Creator 'stefano_auto' created with copilot_mode=False (autopilot)")
         else:
-            # Ensure copilot_mode is enabled for existing creator
-            if stefano.copilot_mode is not True:
-                stefano.copilot_mode = True
-                session.commit()
-                print("Updated 'stefano_auto' copilot_mode to True")
+            # Don't override existing copilot_mode setting
+            # The user can toggle this via the API
+            print(f"Creator 'stefano_auto' already exists with copilot_mode={stefano.copilot_mode}")
 
     return True
 
