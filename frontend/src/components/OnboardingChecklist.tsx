@@ -1,8 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "react-router-dom";
-
-const CREATOR_ID = import.meta.env.VITE_CREATOR_ID || "stefano_auto";
-const API_URL = import.meta.env.VITE_API_URL || "http://localhost:8000";
+import { getCreatorId, API_URL } from "@/services/api";
 
 interface OnboardingStep {
   key: string;
@@ -23,7 +21,8 @@ interface OnboardingStatus {
 }
 
 async function fetchOnboardingStatus(): Promise<OnboardingStatus> {
-  const response = await fetch(`${API_URL}/onboarding/${CREATOR_ID}/status`);
+  const creatorId = getCreatorId();
+  const response = await fetch(`${API_URL}/onboarding/${creatorId}/status`);
   if (!response.ok) throw new Error("Failed to fetch onboarding status");
   return response.json();
 }
@@ -39,8 +38,9 @@ const stepLabels: Record<string, { label: string; link: string }> = {
 };
 
 export function OnboardingChecklist() {
+  const creatorId = getCreatorId();
   const { data, isLoading, error } = useQuery({
-    queryKey: ["onboarding", CREATOR_ID],
+    queryKey: ["onboarding", creatorId],
     queryFn: fetchOnboardingStatus,
     staleTime: 60000, // 1 minute
   });

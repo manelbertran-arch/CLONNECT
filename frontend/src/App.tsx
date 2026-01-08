@@ -3,6 +3,7 @@ import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import { AuthProvider, useAuth } from "@/context/AuthContext";
 import { DashboardLayout } from "./components/layout/DashboardLayout";
 import Dashboard from "./pages/Dashboard";
 import Inbox from "./pages/Inbox";
@@ -17,6 +18,7 @@ import Terms from "./pages/Terms";
 import Privacy from "./pages/Privacy";
 import NotFound from "./pages/NotFound";
 import BookService from "./pages/BookService";
+import Login from "./pages/Login";
 
 // New Dashboard Pages
 import { NewLayout } from "./components/layout/NewLayout";
@@ -28,43 +30,73 @@ import Ajustes from "./pages/new/Ajustes";
 
 const queryClient = new QueryClient();
 
+// Protected route wrapper - redirects to login if not authenticated
+function ProtectedRoute({ children }: { children: React.ReactNode }) {
+  const { isAuthenticated } = useAuth();
+  if (!isAuthenticated) {
+    return <Navigate to="/login" replace />;
+  }
+  return <>{children}</>;
+}
+
+const AppRoutes = () => {
+  const { isAuthenticated } = useAuth();
+
+  return (
+    <Routes>
+      {/* Login route - redirect to dashboard if already logged in */}
+      <Route
+        path="/login"
+        element={isAuthenticated ? <Navigate to="/dashboard" replace /> : <Login />}
+      />
+
+      {/* Protected dashboard routes */}
+      <Route element={<ProtectedRoute><DashboardLayout /></ProtectedRoute>}>
+        <Route path="/" element={<Navigate to="/dashboard" replace />} />
+        <Route path="/dashboard" element={<Dashboard />} />
+        <Route path="/inbox" element={<Inbox />} />
+        <Route path="/copilot" element={<Copilot />} />
+        <Route path="/leads" element={<Leads />} />
+        <Route path="/nurturing" element={<Nurturing />} />
+        <Route path="/products" element={<Products />} />
+        <Route path="/bookings" element={<Bookings />} />
+        <Route path="/settings" element={<Settings />} />
+        <Route path="/docs" element={<Docs />} />
+        <Route path="/terms" element={<Terms />} />
+        <Route path="/privacy" element={<Privacy />} />
+      </Route>
+
+      {/* New Dashboard Routes - also protected */}
+      <Route path="/new" element={<ProtectedRoute><NewLayout /></ProtectedRoute>}>
+        <Route index element={<Navigate to="/new/inicio" replace />} />
+        <Route path="inicio" element={<Inicio />} />
+        <Route path="mensajes" element={<Mensajes />} />
+        <Route path="mensajes/:conversationId" element={<Mensajes />} />
+        <Route path="clientes" element={<Clientes />} />
+        <Route path="ajustes" element={<Ajustes />} />
+      </Route>
+
+      <Route path="/onboarding" element={<ProtectedRoute><Onboarding /></ProtectedRoute>} />
+
+      {/* Public booking page - no authentication required */}
+      <Route path="/book/:creatorId/:serviceId" element={<BookService />} />
+
+      <Route path="*" element={<NotFound />} />
+    </Routes>
+  );
+};
+
 const App = () => (
   <QueryClientProvider client={queryClient}>
-    <TooltipProvider>
-      <Toaster />
-      <Sonner />
-      <BrowserRouter>
-        <Routes>
-          <Route element={<DashboardLayout />}>
-            <Route path="/" element={<Navigate to="/dashboard" replace />} />
-            <Route path="/dashboard" element={<Dashboard />} />
-            <Route path="/inbox" element={<Inbox />} />
-            <Route path="/copilot" element={<Copilot />} />
-            <Route path="/leads" element={<Leads />} />
-            <Route path="/nurturing" element={<Nurturing />} />
-            <Route path="/products" element={<Products />} />
-            <Route path="/bookings" element={<Bookings />} />
-            <Route path="/settings" element={<Settings />} />
-            <Route path="/docs" element={<Docs />} />
-            <Route path="/terms" element={<Terms />} />
-            <Route path="/privacy" element={<Privacy />} />
-          </Route>
-          {/* New Dashboard Routes */}
-          <Route path="/new" element={<NewLayout />}>
-            <Route index element={<Navigate to="/new/inicio" replace />} />
-            <Route path="inicio" element={<Inicio />} />
-            <Route path="mensajes" element={<Mensajes />} />
-            <Route path="mensajes/:conversationId" element={<Mensajes />} />
-            <Route path="clientes" element={<Clientes />} />
-            <Route path="ajustes" element={<Ajustes />} />
-          </Route>
-          <Route path="/onboarding" element={<Onboarding />} />
-          {/* Public booking page - no authentication required */}
-          <Route path="/book/:creatorId/:serviceId" element={<BookService />} />
-          <Route path="*" element={<NotFound />} />
-        </Routes>
-      </BrowserRouter>
-    </TooltipProvider>
+    <AuthProvider>
+      <TooltipProvider>
+        <Toaster />
+        <Sonner />
+        <BrowserRouter>
+          <AppRoutes />
+        </BrowserRouter>
+      </TooltipProvider>
+    </AuthProvider>
   </QueryClientProvider>
 );
 
