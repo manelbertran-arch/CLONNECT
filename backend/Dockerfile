@@ -65,4 +65,4 @@ EXPOSE 8000
 
 # Run the application via start script
 CMD ["/app/scripts/start.sh"]
-# Force rebuild viernes, 19 de diciembre de 2025, 17:50:14 CET
+# Force rebuild 2026-01-09 23:35:00 - add beautifulsoup4
