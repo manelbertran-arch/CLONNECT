@@ -17,10 +17,13 @@ export default function Login() {
     try {
       const response = await api.post('/auth/login', { email, password });
       localStorage.setItem('token', response.data.access_token);
-      localStorage.setItem('creator_id', response.data.creator_id);
+
+      // Get creator_id from user.creators array (first creator)
+      const creatorId = response.data.user?.creators?.[0]?.id || 'stefano_auto';
+      localStorage.setItem('creator_id', creatorId);
 
       // Verificar onboarding
-      const status = await api.get(`/onboarding/${response.data.creator_id}/visual-status`);
+      const status = await api.get(`/onboarding/${creatorId}/visual-status`);
       if (status.data.onboarding_completed) {
         navigate('/dashboard');
       } else {
@@ -44,9 +47,12 @@ export default function Login() {
         password: 'demo2024'
       });
       localStorage.setItem('token', response.data.access_token);
-      localStorage.setItem('creator_id', response.data.creator_id);
 
-      const status = await api.get(`/onboarding/${response.data.creator_id}/visual-status`);
+      // Get creator_id from user.creators array (first creator)
+      const creatorId = response.data.user?.creators?.[0]?.id || 'stefano_auto';
+      localStorage.setItem('creator_id', creatorId);
+
+      const status = await api.get(`/onboarding/${creatorId}/visual-status`);
       if (status.data.onboarding_completed) {
         navigate('/dashboard');
       } else {
