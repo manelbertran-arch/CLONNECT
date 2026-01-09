@@ -1,54 +1,35 @@
-import { useState, useEffect } from "react";
-import { Outlet } from "react-router-dom";
+import { useEffect } from "react";
+import { Outlet, useNavigate } from "react-router-dom";
 import { Sidebar } from "./Sidebar";
 import { MobileNav } from "./MobileNav";
-import { Onboarding } from "@/components/Onboarding";
-import { useVisualOnboardingStatus, useCompleteVisualOnboarding } from "@/hooks/useApi";
+import { useVisualOnboardingStatus } from "@/hooks/useApi";
 
 export function DashboardLayout() {
-  const [showOnboarding, setShowOnboarding] = useState(false);
-  const { data: onboardingStatus, isLoading, error: statusError } = useVisualOnboardingStatus();
-  const completeOnboarding = useCompleteVisualOnboarding();
+  const navigate = useNavigate();
+  const { data: onboardingStatus, isLoading } = useVisualOnboardingStatus();
 
-  // Determine if we should show onboarding based on API response
+  // Redirect to /onboarding if not completed
   useEffect(() => {
     if (isLoading) return;
 
-    // If API error, skip onboarding (don't block user)
-    if (statusError) {
-      console.error("Failed to fetch onboarding status:", statusError);
-      setShowOnboarding(false);
-      return;
-    }
-
-    // Show onboarding only if status says not completed
+    // If onboarding not completed, redirect to /onboarding page
     if (onboardingStatus && !onboardingStatus.onboarding_completed) {
-      setShowOnboarding(true);
-    } else {
-      setShowOnboarding(false);
+      console.log("Onboarding not completed, redirecting to /onboarding");
+      navigate("/onboarding", { replace: true });
     }
-  }, [isLoading, onboardingStatus, statusError]);
+  }, [isLoading, onboardingStatus, navigate]);
 
-  const handleOnboardingComplete = async () => {
-    try {
-      // 1. Call API to mark as completed
-      await completeOnboarding.mutateAsync(undefined);
-
-      // 2. Close the onboarding modal
-      setShowOnboarding(false);
-
-      console.log("Onboarding completed successfully");
-    } catch (error) {
-      // Even if API fails, close the modal so user isn't stuck
-      console.error("Error completing onboarding:", error);
-      setShowOnboarding(false);
-    }
-  };
+  // Show loading while checking onboarding status
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <div className="animate-pulse text-muted-foreground">Cargando...</div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-background">
-      {/* Visual Onboarding Modal */}
-      {showOnboarding && <Onboarding onComplete={handleOnboardingComplete} />}
 
       {/* Desktop Sidebar - hidden on mobile */}
       <div className="hidden md:block">
