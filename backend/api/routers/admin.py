@@ -348,6 +348,116 @@ async def reset_demo_data(creator_id: str):
     return await reset_creator(creator_id)
 
 
+@router.delete("/creators/{creator_name}")
+async def delete_creator(creator_name: str):
+    """
+    Completely delete a creator and all associated data.
+    Use with caution - this is irreversible!
+    """
+    if not DEMO_RESET_ENABLED:
+        raise HTTPException(
+            status_code=403,
+            detail="Demo reset is disabled. Set ENABLE_DEMO_RESET=true to enable."
+        )
+
+    results = {
+        "creator_name": creator_name,
+        "deleted": {
+            "leads": 0,
+            "messages": 0,
+            "products": 0,
+            "sequences": 0,
+            "knowledge_base": 0,
+            "creator": False
+        }
+    }
+
+    try:
+        from api.database import SessionLocal
+        session = SessionLocal()
+        try:
+            from api.models import Creator, Lead, Message, Product, NurturingSequence, KnowledgeBase
+
+            # Find creator by name
+            creator = session.query(Creator).filter_by(name=creator_name).first()
+            if not creator:
+                raise HTTPException(status_code=404, detail=f"Creator '{creator_name}' not found")
+
+            creator_uuid = creator.id
+
+            # Delete messages for this creator's leads
+            leads = session.query(Lead).filter_by(creator_id=creator_uuid).all()
+            lead_ids = [l.id for l in leads]
+
+            if lead_ids:
+                msg_count = session.query(Message).filter(
+                    Message.lead_id.in_(lead_ids)
+                ).delete(synchronize_session='fetch')
+                results["deleted"]["messages"] = msg_count
+
+            # Delete leads
+            lead_count = session.query(Lead).filter_by(creator_id=creator_uuid).delete()
+            results["deleted"]["leads"] = lead_count
+
+            # Delete products
+            prod_count = session.query(Product).filter_by(creator_id=creator_uuid).delete()
+            results["deleted"]["products"] = prod_count
+
+            # Delete sequences
+            seq_count = session.query(NurturingSequence).filter_by(creator_id=creator_uuid).delete()
+            results["deleted"]["sequences"] = seq_count
+
+            # Delete knowledge base
+            kb_count = session.query(KnowledgeBase).filter_by(creator_id=creator_uuid).delete()
+            results["deleted"]["knowledge_base"] = kb_count
+
+            # Delete email tracking and platform identities
+            try:
+                from api.models import EmailAskTracking, PlatformIdentity
+                session.query(EmailAskTracking).filter_by(creator_id=creator_uuid).delete()
+                session.query(PlatformIdentity).filter_by(creator_id=creator_uuid).delete()
+            except Exception as e:
+                logger.warning(f"Could not delete email tracking: {e}")
+
+            # Delete the creator itself
+            session.delete(creator)
+            results["deleted"]["creator"] = True
+
+            session.commit()
+            logger.info(f"Creator '{creator_name}' deleted completely")
+
+        except HTTPException:
+            raise
+        except Exception as e:
+            session.rollback()
+            logger.error(f"Delete creator failed: {e}")
+            raise HTTPException(status_code=500, detail=str(e))
+        finally:
+            session.close()
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+    # Clean up tone profile and RAG
+    try:
+        from core.tone_service import delete_tone_profile, clear_cache
+        delete_tone_profile(creator_name)
+        clear_cache(creator_name)
+    except:
+        pass
+
+    try:
+        from core.rag import get_hybrid_rag
+        rag = get_hybrid_rag()
+        rag.delete_by_creator(creator_name)
+    except:
+        pass
+
+    return {"status": "success", **results}
+
+
 @router.post("/run-migration/email-capture")
 async def run_email_capture_migration():
     """
