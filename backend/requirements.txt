@@ -46,4 +46,5 @@ psycopg2-binary==2.9.9
 bcrypt>=4.0.0
 PyJWT>=2.8.0
 python-multipart>=0.0.6
+email-validator>=2.0.0
 # Force rebuild 1767980000 - ensure numpy installed
