@@ -134,7 +134,7 @@ app.include_router(messages.router)
 app.include_router(payments.router)
 app.include_router(calendar.router)
 app.include_router(nurturing.router)
-from api.routers import knowledge, analytics, onboarding, admin, connections, oauth, booking, tone, citations, copilot
+from api.routers import knowledge, analytics, onboarding, admin, connections, oauth, booking, tone, citations, copilot, ingestion_v2
 app.include_router(knowledge.router)
 app.include_router(analytics.router)
 app.include_router(onboarding.router)
@@ -145,6 +145,7 @@ app.include_router(booking.router)
 app.include_router(tone.router)
 app.include_router(citations.router)
 app.include_router(copilot.router)
+app.include_router(ingestion_v2.router)
 
 # Authentication router
 from api.auth import router as auth_router
