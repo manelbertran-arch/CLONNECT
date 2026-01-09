@@ -51,4 +51,4 @@ bcrypt>=4.0.0
 PyJWT>=2.8.0
 python-multipart>=0.0.6
 email-validator>=2.0.0
-# Force rebuild 1767980000 - ensure numpy installed
+# Force rebuild 1736461200 - ensure beautifulsoup4 installed
