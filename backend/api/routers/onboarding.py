@@ -1092,7 +1092,7 @@ async def manual_setup(request: ManualSetupRequest):
 
                 rag.add_document(
                     doc_id=doc_id,
-                    content=post.caption,
+                    text=post.caption,
                     metadata=metadata
                 )
                 indexed_count += 1
