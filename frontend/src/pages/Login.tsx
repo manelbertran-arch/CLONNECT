@@ -7,6 +7,7 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/context/AuthContext";
 import { Eye, EyeOff, Loader2 } from "lucide-react";
+import { API_URL, CREATOR_ID } from "@/services/api";
 
 export default function Login() {
   const [email, setEmail] = useState("");
@@ -16,6 +17,28 @@ export default function Login() {
   const [isLoading, setIsLoading] = useState(false);
   const { login } = useAuth();
   const navigate = useNavigate();
+
+  // Check onboarding status and navigate accordingly
+  const checkOnboardingAndNavigate = async () => {
+    try {
+      const response = await fetch(`${API_URL}/onboarding/${CREATOR_ID}/visual-status`);
+      if (response.ok) {
+        const data = await response.json();
+        if (data.onboarding_completed) {
+          navigate("/dashboard");
+        } else {
+          navigate("/onboarding");
+        }
+      } else {
+        // If API fails, go to onboarding to be safe
+        navigate("/onboarding");
+      }
+    } catch (err) {
+      console.error("Failed to check onboarding status:", err);
+      // Default to onboarding if check fails
+      navigate("/onboarding");
+    }
+  };
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -34,7 +57,7 @@ export default function Login() {
 
     try {
       await login(email.trim(), password);
-      navigate("/dashboard");
+      await checkOnboardingAndNavigate();
     } catch (err: any) {
       console.error("Login error:", err);
       if (err.message?.includes("Invalid email or password")) {
@@ -56,7 +79,7 @@ export default function Login() {
 
     try {
       await login("stefano@stefanobonanno.com", "demo2024");
-      navigate("/dashboard");
+      await checkOnboardingAndNavigate();
     } catch (err: any) {
       console.error("Demo login error:", err);
       setError("Error en login de demo. El servidor puede estar reiniciando.");
