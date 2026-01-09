@@ -302,33 +302,6 @@ class DMHistoryService:
         return result
 
 
-def classify_intent_simple(text: str) -> str:
-    """Clasificación simple de intent basada en keywords"""
-    text_lower = text.lower()
-
-    # Interest strong
-    if any(kw in text_lower for kw in ["quiero comprar", "me apunto", "lo quiero", "cómo pago", "como pago", "link de pago", "reservar", "agendar"]):
-        return "interest_strong"
-
-    # Interest soft
-    if any(kw in text_lower for kw in ["me interesa", "cuéntame más", "info", "información", "detalles"]):
-        return "interest_soft"
-
-    # Question product
-    if any(kw in text_lower for kw in ["precio", "cuánto", "cuanto", "cuesta", "incluye", "qué tiene", "que tiene"]):
-        return "question_product"
-
-    # Objection
-    if any(kw in text_lower for kw in ["caro", "no puedo", "lo pienso", "después", "despues", "no estoy seguro"]):
-        return "objection"
-
-    # Greeting
-    if any(kw in text_lower for kw in ["hola", "buenas", "hey", "hi", "hello"]):
-        return "greeting"
-
-    return "other"
-
-
 # Singleton instance
 _dm_history_service: Optional[DMHistoryService] = None
 

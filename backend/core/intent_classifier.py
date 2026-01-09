@@ -327,6 +327,96 @@ Responde SOLO con un JSON válido:
         return descriptions.get(intent, "Desconocido")
 
 
+def classify_intent_simple(text: str) -> str:
+    """
+    Clasificación simple de intent basada en keywords.
+
+    Retorna string de intent para uso en scoring de leads:
+    - "interest_strong" / "purchase": Alta intención de compra
+    - "interest_soft": Interés moderado
+    - "question_product": Pregunta sobre producto/precio
+    - "objection": Objeción o duda
+    - "greeting": Saludo
+    - "support": Necesita ayuda
+    - "other": No clasificado
+    """
+    text_lower = text.lower().strip()
+
+    # Interest strong / purchase signals
+    if any(kw in text_lower for kw in [
+        "quiero comprar", "me apunto", "lo quiero", "cómo pago", "como pago",
+        "link de pago", "reservar", "agendar", "dónde compro", "donde compro",
+        "quiero el curso", "quiero inscribirme", "lo necesito", "cuándo empezamos",
+        "cuando empezamos", "me interesa comprar", "quiero contratar"
+    ]):
+        return "interest_strong"
+
+    # Purchase intent (price questions often indicate buying intent)
+    if any(kw in text_lower for kw in [
+        "precio", "cuánto cuesta", "cuanto cuesta", "cuánto vale", "cuanto vale",
+        "forma de pago", "tarjeta", "transferencia", "cuotas"
+    ]):
+        return "purchase"
+
+    # Interest soft
+    if any(kw in text_lower for kw in [
+        "me interesa", "cuéntame más", "cuentame mas", "info", "información",
+        "detalles", "quiero saber más", "qué incluye", "que incluye",
+        "suena bien", "suena interesante", "está interesante"
+    ]):
+        return "interest_soft"
+
+    # Question product
+    if any(kw in text_lower for kw in [
+        "qué tiene", "que tiene", "qué ofreces", "que ofreces", "cómo funciona",
+        "como funciona", "qué es", "que es", "para qué sirve", "para que sirve",
+        "cuánto dura", "cuanto dura", "tienes", "disponible"
+    ]):
+        return "question_product"
+
+    # Objection
+    if any(kw in text_lower for kw in [
+        "caro", "muy caro", "no puedo", "no tengo tiempo", "lo pienso",
+        "después", "despues", "no estoy seguro", "ahora no", "más adelante",
+        "demasiado", "no creo", "lo voy a pensar"
+    ]):
+        return "objection"
+
+    # Support
+    if any(kw in text_lower for kw in [
+        "problema", "error", "no funciona", "ayuda", "soporte",
+        "no me deja", "no puedo acceder", "falla"
+    ]):
+        return "support"
+
+    # Greeting
+    if any(kw in text_lower for kw in [
+        "hola", "buenas", "hey", "hi", "hello", "qué tal", "que tal",
+        "buenos días", "buenas tardes", "buenas noches"
+    ]):
+        return "greeting"
+
+    return "other"
+
+
+def get_lead_status_from_intent(intent: str) -> str:
+    """
+    Mapea un intent a un status de lead.
+
+    Args:
+        intent: String de intent del clasificador
+
+    Returns:
+        Status: "hot", "active", o "new"
+    """
+    if intent in ["interest_strong", "purchase"]:
+        return "hot"
+    elif intent in ["interest_soft", "question_product"]:
+        return "active"
+    else:
+        return "new"
+
+
 class ConversationAnalyzer:
     """Analizador de conversaciones completas"""
 

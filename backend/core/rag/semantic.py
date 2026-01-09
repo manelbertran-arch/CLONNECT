@@ -313,6 +313,46 @@ class HybridRAG:
         """Count indexed documents"""
         return self.semantic_rag.count()
 
+    def delete_by_creator(self, creator_id: str) -> int:
+        """
+        Delete all documents for a specific creator.
+
+        Args:
+            creator_id: Creator ID to delete documents for
+
+        Returns:
+            Number of documents deleted
+        """
+        deleted = 0
+        docs_to_delete = []
+
+        # Find all documents for this creator
+        for doc_id, doc in self.semantic_rag._documents.items():
+            if doc.metadata and doc.metadata.get("creator_id") == creator_id:
+                docs_to_delete.append(doc_id)
+
+        # Delete them
+        for doc_id in docs_to_delete:
+            self.delete_document(doc_id)
+            deleted += 1
+
+        logger.info(f"Deleted {deleted} RAG documents for creator {creator_id}")
+        return deleted
+
+    def clear_all(self):
+        """Clear all documents from the index (use with caution)."""
+        count = len(self.semantic_rag._documents)
+        self.semantic_rag._documents.clear()
+        self.semantic_rag._doc_list.clear()
+        self.semantic_rag._index = None  # Reset FAISS index
+
+        bm25 = self._get_bm25()
+        if bm25:
+            bm25.clear()
+
+        logger.info(f"Cleared all {count} documents from RAG")
+        return count
+
 
 # Singleton instances
 _simple_rag: Optional[SimpleRAG] = None

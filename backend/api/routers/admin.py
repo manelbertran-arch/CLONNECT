@@ -151,10 +151,24 @@ async def reset_all_data():
     return results
 
 
-@router.post("/reset-demo-data/{creator_id}")
-async def reset_demo_data(creator_id: str):
+@router.post("/reset-creator/{creator_id}")
+async def reset_creator(creator_id: str):
     """
-    Reset all demo data for a specific creator.
+    Full reset for a creator - empties everything for demo.
+
+    Resets:
+    - All leads and conversations/messages
+    - All products
+    - All nurturing sequences
+    - Knowledge base
+    - Tone profile
+    - RAG content index
+    - Bot status (paused)
+    - Onboarding status (not completed)
+
+    Keeps:
+    - Creator record (user, credentials, connections)
+    - Instagram/WhatsApp tokens
     """
     if not DEMO_RESET_ENABLED:
         raise HTTPException(
@@ -169,11 +183,15 @@ async def reset_demo_data(creator_id: str):
             "messages": 0,
             "products": 0,
             "sequences": 0,
-            "bot_paused": False
+            "knowledge_base": 0,
+            "tone_profile": False,
+            "rag_documents": 0,
+            "bot_paused": False,
+            "onboarding_reset": False
         }
     }
 
-    # Database reset using SQLAlchemy
+    # 1. Database reset using SQLAlchemy
     try:
         from api.database import DATABASE_URL, SessionLocal
         if DATABASE_URL and SessionLocal:
@@ -220,11 +238,15 @@ async def reset_demo_data(creator_id: str):
                     kb_count = session.query(KnowledgeBase).filter_by(creator_id=creator_uuid).delete()
                     results["deleted"]["knowledge_base"] = kb_count
 
-                    # Set bot to paused
+                    # Reset bot and onboarding status
                     creator.bot_active = False
+                    creator.onboarding_completed = False
+                    creator.copilot_mode = True  # Reset to default copilot mode
                     results["deleted"]["bot_paused"] = True
+                    results["deleted"]["onboarding_reset"] = True
 
                     session.commit()
+                    logger.info(f"Database reset complete for {creator_id}")
                 else:
                     results["error"] = f"Creator '{creator_id}' not found in database"
 
@@ -237,7 +259,27 @@ async def reset_demo_data(creator_id: str):
     except Exception as e:
         logger.warning(f"Database not available: {e}")
 
-    # JSON files reset
+    # 2. Delete Tone Profile
+    try:
+        from core.tone_service import delete_tone_profile, clear_cache
+        if delete_tone_profile(creator_id):
+            results["deleted"]["tone_profile"] = True
+            logger.info(f"Tone profile deleted for {creator_id}")
+        clear_cache(creator_id)
+    except Exception as e:
+        logger.warning(f"Could not delete tone profile: {e}")
+
+    # 3. Clear RAG documents for this creator
+    try:
+        from core.rag import get_hybrid_rag
+        rag = get_hybrid_rag()
+        deleted_docs = rag.delete_by_creator(creator_id)
+        results["deleted"]["rag_documents"] = deleted_docs
+        logger.info(f"RAG documents deleted for {creator_id}: {deleted_docs}")
+    except Exception as e:
+        logger.warning(f"Could not clear RAG: {e}")
+
+    # 4. JSON files reset
     data_dir = Path("data")
     json_patterns = [
         f"leads_{creator_id}.json",
@@ -272,7 +314,7 @@ async def reset_demo_data(creator_id: str):
                 except Exception as e:
                     logger.warning(f"Failed to reset {filepath}: {e}")
 
-    # Clean follower directory for this creator
+    # 5. Clean follower directory for this creator
     followers_dir = data_dir / "followers" / creator_id
     if followers_dir.exists():
         try:
@@ -280,8 +322,16 @@ async def reset_demo_data(creator_id: str):
         except:
             pass
 
-    logger.info(f"Demo data reset for {creator_id}: {results}")
+    logger.info(f"Full reset complete for {creator_id}: {results}")
     return {"status": "success", **results}
+
+
+@router.post("/reset-demo-data/{creator_id}")
+async def reset_demo_data(creator_id: str):
+    """
+    Legacy endpoint - redirects to reset-creator.
+    """
+    return await reset_creator(creator_id)
 
 
 @router.get("/demo-status")
@@ -302,20 +352,44 @@ async def get_demo_status():
                 counts["products"] = session.query(Product).count()
                 counts["sequences"] = session.query(NurturingSequence).count()
 
-                # Get bot status
+                # Get bot status and onboarding status
                 creators = session.query(Creator).all()
-                counts["bot_statuses"] = {c.name: c.bot_active for c in creators}
+                counts["creator_statuses"] = {
+                    c.name: {
+                        "bot_active": c.bot_active,
+                        "onboarding_completed": c.onboarding_completed,
+                        "copilot_mode": c.copilot_mode,
+                        "has_instagram": bool(c.instagram_token),
+                    }
+                    for c in creators
+                }
 
             finally:
                 session.close()
     except Exception as e:
         counts["db_error"] = str(e)
 
+    # Check tone profiles
+    try:
+        from core.tone_service import list_profiles
+        counts["tone_profiles"] = list_profiles()
+    except Exception as e:
+        counts["tone_profiles_error"] = str(e)
+
+    # Check RAG documents
+    try:
+        from core.rag import get_hybrid_rag
+        rag = get_hybrid_rag()
+        counts["rag_documents"] = rag.count()
+    except Exception as e:
+        counts["rag_error"] = str(e)
+
     return {
         "demo_reset_enabled": DEMO_RESET_ENABLED,
         "counts": counts,
         "endpoints": {
             "reset_all": "POST /admin/reset-db",
-            "reset_creator": "POST /admin/reset-demo-data/{creator_id}"
+            "reset_creator": "POST /admin/reset-creator/{creator_id}",
+            "demo_status": "GET /admin/demo-status"
         }
     }

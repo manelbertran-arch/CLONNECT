@@ -27,10 +27,11 @@ async def _auto_onboard_after_instagram_oauth(
 
     Pipeline:
     1. Scrape Instagram posts (últimos 50)
-    2. Generar ToneProfile
+    2. Generar ToneProfile (Magic Slice)
     3. Indexar contenido en RAG
     4. Activar bot automáticamente
-    5. Cargar historial de DMs existentes
+    5. Cargar historial de DMs existentes y categorizar leads
+    6. Scrapear website de la bio e indexar en RAG
     """
     logger.info(f"[AutoOnboard] Starting automatic onboarding for {creator_id}...")
 
@@ -123,6 +124,42 @@ async def _auto_onboard_after_instagram_oauth(
                 logger.warning(f"[AutoOnboard] Could not load DM history: {dm_error}")
         else:
             logger.warning(f"[AutoOnboard] No page_id, skipping DM history load")
+
+        # STEP 6: Scrape website from Instagram bio (if available)
+        try:
+            logger.info(f"[AutoOnboard] Checking for website in Instagram bio...")
+            import httpx
+            from core.website_scraper import extract_url_from_text, scrape_and_index_website
+
+            # Get Instagram profile bio
+            async with httpx.AsyncClient(timeout=10.0) as client:
+                profile_response = await client.get(
+                    f"https://graph.facebook.com/v21.0/{instagram_user_id}",
+                    params={
+                        "fields": "biography,website",
+                        "access_token": access_token
+                    }
+                )
+                if profile_response.status_code == 200:
+                    profile_data = profile_response.json()
+                    bio = profile_data.get("biography", "")
+                    website = profile_data.get("website", "")
+
+                    # Try to extract URL from bio or use website field
+                    url_to_scrape = website or extract_url_from_text(bio)
+
+                    if url_to_scrape:
+                        logger.info(f"[AutoOnboard] Found website: {url_to_scrape}")
+                        web_stats = await scrape_and_index_website(
+                            creator_id=creator_id,
+                            url=url_to_scrape,
+                            max_pages=5
+                        )
+                        logger.info(f"[AutoOnboard] Website indexed: {web_stats['pages_scraped']} pages, {web_stats['chunks_indexed']} chunks")
+                    else:
+                        logger.info(f"[AutoOnboard] No website found in bio")
+        except Exception as web_error:
+            logger.warning(f"[AutoOnboard] Could not scrape website: {web_error}")
 
         logger.info(f"[AutoOnboard] ✅ Complete! {creator_id} is ready to receive DMs")
 
