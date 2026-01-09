@@ -11,7 +11,14 @@ export default function Onboarding() {
   const [error, setError] = useState('');
   const navigate = useNavigate();
 
-  const creatorId = localStorage.getItem('creator_id') || 'stefano_auto';
+  // Get creator_id from localStorage, fallback to stefano_auto
+  // Also handle case where "undefined" string was stored
+  const storedCreatorId = localStorage.getItem('creator_id');
+  const creatorId = (storedCreatorId && storedCreatorId !== 'undefined' && storedCreatorId !== 'null')
+    ? storedCreatorId
+    : 'stefano_auto';
+
+  console.log('[Onboarding] Using creator_id:', creatorId);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
