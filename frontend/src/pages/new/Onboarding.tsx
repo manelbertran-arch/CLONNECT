@@ -1,10 +1,12 @@
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Instagram, Youtube, Globe, CheckCircle, Loader2 } from 'lucide-react';
+import { Instagram, Youtube, Globe, CheckCircle, Loader2, Edit3 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import { API_URL, CREATOR_ID } from '@/services/api';
 
 type OnboardingStep = 'splash' | 'connect' | 'loading' | 'complete';
+type SetupMode = 'oauth' | 'manual';
 
 interface SetupStatus {
   status: string;
@@ -26,10 +28,45 @@ interface SetupStatus {
   errors: string[];
 }
 
+interface ManualSetupStatus {
+  success: boolean;
+  creator_id: string;
+  steps_completed: {
+    posts_scraped: boolean;
+    tone_profile_generated: boolean;
+    rag_indexed: boolean;
+    website_scraped: boolean;
+    onboarding_completed: boolean;
+    bot_activated: boolean;
+  };
+  details: {
+    posts_count: number;
+    tone_summary: {
+      formality: string;
+      energy: string;
+      warmth: string;
+      uses_emojis: boolean;
+      primary_language: string;
+      signature_phrases: string[];
+    } | null;
+    rag_documents: number;
+    website_pages: number;
+  };
+  errors: string[];
+}
+
 export default function Onboarding() {
   const [step, setStep] = useState<OnboardingStep>('splash');
+  const [setupMode, setSetupMode] = useState<SetupMode>('manual'); // Default to manual for demo
   const [status, setStatus] = useState<SetupStatus | null>(null);
+  const [manualStatus, setManualStatus] = useState<ManualSetupStatus | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
+
+  // Manual setup form fields
+  const [instagramUsername, setInstagramUsername] = useState('');
+  const [websiteUrl, setWebsiteUrl] = useState('');
+
   const navigate = useNavigate();
   const pollingRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const creatorId = CREATOR_ID;
@@ -100,6 +137,50 @@ export default function Onboarding() {
     }, 2000);
   };
 
+  // Handle manual setup (public scraping, no OAuth)
+  const handleManualSetup = async () => {
+    if (!instagramUsername.trim()) {
+      setError('Por favor ingresa tu usuario de Instagram');
+      return;
+    }
+
+    // Clean username (remove @ if present)
+    const cleanUsername = instagramUsername.trim().replace(/^@/, '');
+
+    setStep('loading');
+    setIsLoading(true);
+    setError(null);
+
+    try {
+      const response = await fetch(`${API_URL}/onboarding/manual-setup`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          creator_id: creatorId,
+          instagram_username: cleanUsername,
+          website_url: websiteUrl.trim() || null,
+          max_posts: 50
+        })
+      });
+
+      const data: ManualSetupStatus = await response.json();
+      setManualStatus(data);
+
+      if (data.success) {
+        setStep('complete');
+      } else {
+        setError(data.errors?.[0] || 'Error durante el setup manual');
+        setStep('connect');
+      }
+    } catch (err) {
+      console.error('Manual setup error:', err);
+      setError('Error al conectar con el servidor. Inténtalo de nuevo.');
+      setStep('connect');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   // SPLASH SCREEN - Pure black, BIG logo with pulse, 4 seconds
   if (step === 'splash') {
     return (
@@ -115,7 +196,7 @@ export default function Onboarding() {
     );
   }
 
-  // CONNECT SCREEN - Logo top left with pulse
+  // CONNECT SCREEN - With mode toggle (OAuth vs Manual)
   if (step === 'connect') {
     return (
       <div className="min-h-screen bg-black flex flex-col">
@@ -130,13 +211,39 @@ export default function Onboarding() {
 
         <div className="flex-1 flex flex-col justify-center px-6 pb-12 max-w-md mx-auto w-full animate-fade-in">
           {/* Title */}
-          <div className="text-center mb-8">
+          <div className="text-center mb-6">
             <h1 className="text-2xl md:text-3xl font-bold text-white mb-2">
               Conecta y listo
             </h1>
             <p className="text-gray-400">
               Tu clon aprenderá de tu contenido automáticamente
             </p>
+          </div>
+
+          {/* Mode Toggle */}
+          <div className="flex gap-2 mb-6 p-1 bg-gray-900 rounded-xl">
+            <button
+              onClick={() => setSetupMode('manual')}
+              className={`flex-1 py-2 px-4 rounded-lg text-sm font-medium transition-all ${
+                setupMode === 'manual'
+                  ? 'bg-gradient-to-r from-purple-600 to-fuchsia-500 text-white'
+                  : 'text-gray-400 hover:text-white'
+              }`}
+            >
+              <Edit3 className="w-4 h-4 inline mr-2" />
+              Manual
+            </button>
+            <button
+              onClick={() => setSetupMode('oauth')}
+              className={`flex-1 py-2 px-4 rounded-lg text-sm font-medium transition-all ${
+                setupMode === 'oauth'
+                  ? 'bg-gradient-to-r from-purple-600 to-fuchsia-500 text-white'
+                  : 'text-gray-400 hover:text-white'
+              }`}
+            >
+              <Instagram className="w-4 h-4 inline mr-2" />
+              OAuth
+            </button>
           </div>
 
           {/* Error message */}
@@ -146,42 +253,120 @@ export default function Onboarding() {
             </div>
           )}
 
-          {/* Main CTA - Instagram */}
-          <Button
-            onClick={handleConnectInstagram}
-            size="lg"
-            className="w-full h-14 text-lg bg-gradient-to-r from-purple-600 to-fuchsia-500 hover:from-purple-700 hover:to-fuchsia-600 transition-all mb-6"
-          >
-            <Instagram className="mr-3 h-6 w-6" />
-            Conectar Instagram
-          </Button>
+          {/* MANUAL MODE */}
+          {setupMode === 'manual' && (
+            <div className="space-y-4">
+              {/* Instagram Username Input */}
+              <div>
+                <label className="block text-sm text-gray-400 mb-2">
+                  Usuario de Instagram *
+                </label>
+                <div className="relative">
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500">@</span>
+                  <Input
+                    type="text"
+                    placeholder="tu_usuario"
+                    value={instagramUsername}
+                    onChange={(e) => setInstagramUsername(e.target.value)}
+                    className="pl-8 h-12 bg-gray-900 border-gray-700 text-white placeholder:text-gray-600 focus:border-fuchsia-500"
+                  />
+                </div>
+                <p className="text-xs text-gray-600 mt-1">
+                  Tu perfil debe ser público para el scraping
+                </p>
+              </div>
 
-          {/* Optional platforms */}
-          <div className="space-y-3">
-            <p className="text-sm text-gray-500 text-center mb-3">
-              Opcional: más contenido = clon más inteligente
-            </p>
+              {/* Website URL Input (Optional) */}
+              <div>
+                <label className="block text-sm text-gray-400 mb-2">
+                  Website (opcional)
+                </label>
+                <div className="relative">
+                  <Globe className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500" />
+                  <Input
+                    type="url"
+                    placeholder="https://tuwebsite.com"
+                    value={websiteUrl}
+                    onChange={(e) => setWebsiteUrl(e.target.value)}
+                    className="pl-10 h-12 bg-gray-900 border-gray-700 text-white placeholder:text-gray-600 focus:border-fuchsia-500"
+                  />
+                </div>
+                <p className="text-xs text-gray-600 mt-1">
+                  Añadiremos tu web al conocimiento del clon
+                </p>
+              </div>
 
-            <Button
-              variant="outline"
-              className="w-full h-12 border-gray-800 bg-gray-900/50 text-gray-400 hover:bg-gray-800"
-              disabled
-            >
-              <Youtube className="mr-3 h-5 w-5 text-red-500" />
-              YouTube
-              <span className="ml-auto text-xs text-gray-600">Próximamente</span>
-            </Button>
+              {/* Manual Setup CTA */}
+              <Button
+                onClick={handleManualSetup}
+                disabled={isLoading || !instagramUsername.trim()}
+                size="lg"
+                className="w-full h-14 text-lg bg-gradient-to-r from-purple-600 to-fuchsia-500 hover:from-purple-700 hover:to-fuchsia-600 transition-all mt-4 disabled:opacity-50"
+              >
+                {isLoading ? (
+                  <>
+                    <Loader2 className="mr-3 h-6 w-6 animate-spin" />
+                    Procesando...
+                  </>
+                ) : (
+                  <>
+                    Crear mi clon
+                    <span className="ml-2">→</span>
+                  </>
+                )}
+              </Button>
 
-            <Button
-              variant="outline"
-              className="w-full h-12 border-gray-800 bg-gray-900/50 text-gray-400 hover:bg-gray-800"
-              disabled
-            >
-              <Globe className="mr-3 h-5 w-5 text-blue-400" />
-              Website
-              <span className="ml-auto text-xs text-gray-600">Próximamente</span>
-            </Button>
-          </div>
+              <p className="text-xs text-gray-500 text-center mt-2">
+                Scrapearemos ~50 posts públicos para entrenar tu clon
+              </p>
+            </div>
+          )}
+
+          {/* OAUTH MODE */}
+          {setupMode === 'oauth' && (
+            <div className="space-y-4">
+              {/* Main CTA - Instagram OAuth */}
+              <Button
+                onClick={handleConnectInstagram}
+                size="lg"
+                className="w-full h-14 text-lg bg-gradient-to-r from-purple-600 to-fuchsia-500 hover:from-purple-700 hover:to-fuchsia-600 transition-all"
+              >
+                <Instagram className="mr-3 h-6 w-6" />
+                Conectar con Instagram
+              </Button>
+
+              <p className="text-xs text-gray-500 text-center">
+                Conecta tu cuenta para acceso completo a posts y DMs
+              </p>
+
+              {/* Optional platforms */}
+              <div className="space-y-3 mt-6">
+                <p className="text-sm text-gray-500 text-center mb-3">
+                  Opcional: más contenido = clon más inteligente
+                </p>
+
+                <Button
+                  variant="outline"
+                  className="w-full h-12 border-gray-800 bg-gray-900/50 text-gray-400 hover:bg-gray-800"
+                  disabled
+                >
+                  <Youtube className="mr-3 h-5 w-5 text-red-500" />
+                  YouTube
+                  <span className="ml-auto text-xs text-gray-600">Próximamente</span>
+                </Button>
+
+                <Button
+                  variant="outline"
+                  className="w-full h-12 border-gray-800 bg-gray-900/50 text-gray-400 hover:bg-gray-800"
+                  disabled
+                >
+                  <Globe className="mr-3 h-5 w-5 text-blue-400" />
+                  Website
+                  <span className="ml-auto text-xs text-gray-600">Próximamente</span>
+                </Button>
+              </div>
+            </div>
+          )}
         </div>
       </div>
     );
@@ -189,6 +374,73 @@ export default function Onboarding() {
 
   // LOADING SCREEN
   if (step === 'loading') {
+    // For manual mode, show indeterminate loading
+    if (setupMode === 'manual') {
+      return (
+        <div className="min-h-screen bg-black flex flex-col">
+          {/* Header with logo top left */}
+          <div className="p-6">
+            <img
+              src="/clonnect-logo.png"
+              alt="Clonnect"
+              className="w-12 h-12 object-contain animate-pulse"
+            />
+          </div>
+
+          <div className="flex-1 flex flex-col justify-center px-6 pb-12 max-w-md mx-auto w-full">
+            {/* Header */}
+            <div className="text-center mb-8">
+              <h1 className="text-2xl md:text-3xl font-bold text-white">
+                Creando tu clon...
+              </h1>
+              <p className="text-gray-400 mt-2">
+                Esto puede tardar 1-2 minutos
+              </p>
+            </div>
+
+            {/* Indeterminate progress bar */}
+            <div className="mb-8">
+              <div className="w-full bg-gray-800 rounded-full h-2 overflow-hidden">
+                <div className="bg-gradient-to-r from-purple-600 to-fuchsia-500 h-2 rounded-full animate-pulse w-full" />
+              </div>
+            </div>
+
+            {/* Steps being processed */}
+            <div className="space-y-3">
+              <StepItem
+                done={false}
+                loading={true}
+                text={`Scrapeando posts de @${instagramUsername}...`}
+              />
+              <StepItem
+                done={false}
+                loading={false}
+                text="Analizando tu tono y estilo..."
+              />
+              <StepItem
+                done={false}
+                loading={false}
+                text="Indexando contenido en RAG..."
+              />
+              {websiteUrl && (
+                <StepItem
+                  done={false}
+                  loading={false}
+                  text="Scrapeando tu website..."
+                />
+              )}
+              <StepItem
+                done={false}
+                loading={false}
+                text="Activando tu clon..."
+              />
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    // For OAuth mode, show polling progress
     const progress = status?.progress || 0;
     const steps = status?.steps;
 
@@ -278,7 +530,40 @@ export default function Onboarding() {
 
   // COMPLETE SCREEN
   if (step === 'complete') {
-    const steps = status?.steps;
+    // Handle both manual and OAuth completion data
+    const oauthSteps = status?.steps;
+    const manualDetails = manualStatus?.details;
+    const manualStepsCompleted = manualStatus?.steps_completed;
+
+    // Determine what data to show
+    const postsCount = setupMode === 'manual'
+      ? (manualDetails?.posts_count || 0)
+      : (oauthSteps?.posts_imported || 0);
+
+    const ragDocuments = setupMode === 'manual'
+      ? (manualDetails?.rag_documents || 0)
+      : (oauthSteps?.content_indexed || 0);
+
+    const websitePages = setupMode === 'manual'
+      ? (manualDetails?.website_pages || 0)
+      : 0;
+
+    const toneSummary = setupMode === 'manual'
+      ? manualDetails?.tone_summary
+      : oauthSteps?.tone_summary;
+
+    // Format tone summary for display
+    const formatToneSummary = () => {
+      if (setupMode === 'manual' && manualDetails?.tone_summary) {
+        const t = manualDetails.tone_summary;
+        const parts = [];
+        if (t.formality) parts.push(t.formality);
+        if (t.energy) parts.push(t.energy);
+        if (t.uses_emojis) parts.push('usa emojis');
+        return parts.join(', ') || 'Personalidad analizada';
+      }
+      return oauthSteps?.tone_summary || 'Personalidad analizada';
+    };
 
     return (
       <div className="min-h-screen bg-black flex flex-col">
@@ -300,21 +585,58 @@ export default function Onboarding() {
             </h1>
           </div>
 
-          {/* Stats grid */}
-          <div className="grid grid-cols-2 gap-4 mb-6">
-            <StatCard value={steps?.posts_imported || 0} label="Posts" icon="📸" />
-            <StatCard value={steps?.youtube_videos_imported || 0} label="Videos" icon="🎬" />
-            <StatCard value={steps?.leads_created || 0} label="Leads" icon="👥" />
-            <StatCard value={steps?.dms_imported || 0} label="DMs" icon="💬" />
-          </div>
+          {/* Stats grid - Different for manual vs OAuth */}
+          {setupMode === 'manual' ? (
+            <div className="grid grid-cols-2 gap-4 mb-6">
+              <StatCard value={postsCount} label="Posts" icon="📸" />
+              <StatCard value={ragDocuments} label="En RAG" icon="🧠" />
+              <StatCard value={websitePages} label="Páginas web" icon="🌐" />
+              <StatCard
+                value={manualStepsCompleted?.bot_activated ? 1 : 0}
+                label="Bot activo"
+                icon="🤖"
+              />
+            </div>
+          ) : (
+            <div className="grid grid-cols-2 gap-4 mb-6">
+              <StatCard value={oauthSteps?.posts_imported || 0} label="Posts" icon="📸" />
+              <StatCard value={oauthSteps?.youtube_videos_imported || 0} label="Videos" icon="🎬" />
+              <StatCard value={oauthSteps?.leads_created || 0} label="Leads" icon="👥" />
+              <StatCard value={oauthSteps?.dms_imported || 0} label="DMs" icon="💬" />
+            </div>
+          )}
 
           {/* Tone summary */}
-          {steps?.tone_summary && (
+          {(toneSummary || setupMode === 'manual') && (
             <div className="bg-gray-900 rounded-xl p-4 mb-6 text-center border border-gray-800">
               <p className="text-sm text-gray-400 mb-1">Tu clon es</p>
               <p className="text-lg font-medium text-white">
-                {steps.tone_summary}
+                {formatToneSummary()}
               </p>
+            </div>
+          )}
+
+          {/* Success checklist for manual mode */}
+          {setupMode === 'manual' && manualStepsCompleted && (
+            <div className="bg-gray-900/50 rounded-xl p-4 mb-6 border border-gray-800">
+              <div className="space-y-2">
+                <div className="flex items-center gap-2 text-sm">
+                  <CheckCircle className={`w-4 h-4 ${manualStepsCompleted.posts_scraped ? 'text-green-500' : 'text-gray-600'}`} />
+                  <span className={manualStepsCompleted.posts_scraped ? 'text-white' : 'text-gray-500'}>Posts scrapeados</span>
+                </div>
+                <div className="flex items-center gap-2 text-sm">
+                  <CheckCircle className={`w-4 h-4 ${manualStepsCompleted.tone_profile_generated ? 'text-green-500' : 'text-gray-600'}`} />
+                  <span className={manualStepsCompleted.tone_profile_generated ? 'text-white' : 'text-gray-500'}>Tono analizado</span>
+                </div>
+                <div className="flex items-center gap-2 text-sm">
+                  <CheckCircle className={`w-4 h-4 ${manualStepsCompleted.rag_indexed ? 'text-green-500' : 'text-gray-600'}`} />
+                  <span className={manualStepsCompleted.rag_indexed ? 'text-white' : 'text-gray-500'}>RAG indexado</span>
+                </div>
+                <div className="flex items-center gap-2 text-sm">
+                  <CheckCircle className={`w-4 h-4 ${manualStepsCompleted.bot_activated ? 'text-green-500' : 'text-gray-600'}`} />
+                  <span className={manualStepsCompleted.bot_activated ? 'text-white' : 'text-gray-500'}>Bot activado</span>
+                </div>
+              </div>
             </div>
           )}
 
