@@ -333,6 +333,7 @@ class SanityChecker:
                 product.source_url,
                 timeout=10,
                 follow_redirects=True,
+                verify=False,  # Some sites have SSL cert issues
                 headers={
                     "User-Agent": "Mozilla/5.0 (compatible; ClonnectBot/1.0)"
                 }
