@@ -1045,12 +1045,12 @@ async def seed_demo_data(request: SeedDemoRequest):
                         platform=lead_data["platform"],
                         platform_user_id=platform_user_id,
                         username=lead_data["name"].lower().replace(" ", "_"),
-                        display_name=lead_data["name"],
+                        full_name=lead_data["name"],
                         purchase_intent=lead_data["intent"],
                         status=lead_data["status"],
                         first_contact_at=datetime.utcnow() - timedelta(days=random.randint(1, 30)),
                         last_contact_at=datetime.utcnow() - timedelta(hours=random.randint(1, 72)),
-                        message_count=random.randint(3, 15)
+                        score=random.randint(30, 90)
                     )
                     session.add(new_lead)
                     details["leads_created"] += 1
@@ -1355,12 +1355,12 @@ async def manual_setup(request: ManualSetupRequest):
                                 platform=lead_data["platform"],
                                 platform_user_id=platform_user_id,
                                 username=lead_data["name"].lower().replace(" ", "_"),
-                                display_name=lead_data["name"],
+                                full_name=lead_data["name"],
                                 purchase_intent=lead_data["intent"],
                                 status=lead_data["status"],
                                 first_contact_at=datetime.utcnow() - timedelta(days=random.randint(1, 30)),
                                 last_contact_at=datetime.utcnow() - timedelta(hours=random.randint(1, 72)),
-                                message_count=random.randint(3, 15)
+                                score=random.randint(30, 90)
                             )
                             session.add(new_lead)
                             leads_created += 1
