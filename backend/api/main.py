@@ -147,11 +147,19 @@ app.include_router(citations.router)
 app.include_router(copilot.router)
 app.include_router(ingestion_v2.router)
 
+# Ingestion router (anti-hallucination pipeline)
+from api.routers import ingestion
+app.include_router(ingestion.router)
+
+# Ingestion V2 router (zero-hallucination pipeline)
+from api.routers import ingestion_v2
+app.include_router(ingestion_v2.router)
+
 # Authentication router
 from api.auth import router as auth_router
 app.include_router(auth_router)
 
-logging.info("Routers loaded: health, dashboard, config, leads, products, analytics, connections, oauth, booking, tone, citations, copilot, auth")
+logging.info("Routers loaded: health, dashboard, config, leads, products, analytics, connections, oauth, booking, tone, citations, copilot, ingestion, auth")
 # AUTHENTICATION
 # ---------------------------------------------------------
 # Endpoints publicos (no requieren autenticacion)

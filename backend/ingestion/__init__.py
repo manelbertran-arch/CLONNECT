@@ -98,6 +98,35 @@ from .pdf_extractor import (
     get_pdf_extractor
 )
 
+# Phase 3 - Deterministic Ingestion Pipeline (Anti-hallucination)
+from .deterministic_scraper import (
+    ScrapedPage,
+    DeterministicScraper,
+    get_deterministic_scraper
+)
+
+from .structured_extractor import (
+    ExtractedProduct,
+    ExtractedTestimonial,
+    ExtractedFAQ,
+    ExtractedContent,
+    StructuredExtractor,
+    get_structured_extractor
+)
+
+from .content_store import (
+    ContentStore,
+    get_content_store,
+    generate_doc_id
+)
+
+from .pipeline import (
+    IngestionResult,
+    IngestionPipeline,
+    get_ingestion_pipeline,
+    ingest_website
+)
+
 __all__ = [
     # Content Indexer
     'ContentChunk',
@@ -161,4 +190,22 @@ __all__ = [
     'PDFDocument',
     'PDFExtractor',
     'get_pdf_extractor',
+
+    # Phase 3 - Deterministic Ingestion Pipeline
+    'ScrapedPage',
+    'DeterministicScraper',
+    'get_deterministic_scraper',
+    'ExtractedProduct',
+    'ExtractedTestimonial',
+    'ExtractedFAQ',
+    'ExtractedContent',
+    'StructuredExtractor',
+    'get_structured_extractor',
+    'ContentStore',
+    'get_content_store',
+    'generate_doc_id',
+    'IngestionResult',
+    'IngestionPipeline',
+    'get_ingestion_pipeline',
+    'ingest_website',
 ]

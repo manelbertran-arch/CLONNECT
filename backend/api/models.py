@@ -123,6 +123,10 @@ class Product(Base):
     currency = Column(String(3), default="EUR")
     payment_link = Column(String(500), default="")  # Stripe/PayPal payment link
     is_active = Column(Boolean, default=True)
+    # Anti-hallucination fields: source tracking
+    source_url = Column(Text)  # URL where product info was found
+    price_verified = Column(Boolean, default=False)  # True if price was extracted from source
+    confidence = Column(Float, default=0.0)  # 0.0-1.0 extraction confidence
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
 class NurturingSequence(Base):
@@ -267,5 +271,32 @@ class EmailAskTracking(Base):
     last_asked_at = Column(DateTime(timezone=True))
     declined_count = Column(Integer, default=0)
     captured_email = Column(String(255))  # Email once captured
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+
+
+# =============================================================================
+# RAG DOCUMENTS - Persistent storage for indexed content
+# =============================================================================
+
+class RAGDocument(Base):
+    """
+    Persistent storage for RAG documents with source tracking.
+    Anti-hallucination: Every piece of content has a verifiable source_url.
+    """
+    __tablename__ = "rag_documents"
+    __table_args__ = {'extend_existing': True}
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    creator_id = Column(UUID(as_uuid=True), ForeignKey("creators.id"), nullable=False, index=True)
+    doc_id = Column(String(64), nullable=False, index=True)  # Hash-based unique ID
+    content = Column(Text, nullable=False)
+    source_url = Column(Text, nullable=False)  # REQUIRED: Original source for verification
+    source_type = Column(String(50), nullable=False)  # website, instagram, pdf, youtube, etc.
+    content_type = Column(String(50))  # service, testimonial, faq, about, product, etc.
+    title = Column(String(500))
+    chunk_index = Column(Integer, default=0)
+    total_chunks = Column(Integer, default=1)
+    embedding_model = Column(String(100), default="all-MiniLM-L6-v2")
+    extra_data = Column(JSON, default=dict)  # Additional structured data (renamed from metadata - reserved)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
