@@ -3,7 +3,7 @@
  * Uses JWT tokens for secure authentication
  */
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/context/AuthContext";
 import { Eye, EyeOff, Loader2 } from "lucide-react";
@@ -15,8 +15,15 @@ export default function Login() {
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState("");
   const [isLoading, setIsLoading] = useState(false);
-  const { login } = useAuth();
+  const { login, isAuthenticated } = useAuth();
   const navigate = useNavigate();
+
+  // If already authenticated, check onboarding and redirect
+  useEffect(() => {
+    if (isAuthenticated) {
+      checkOnboardingAndNavigate();
+    }
+  }, [isAuthenticated]);
 
   // Check onboarding status and navigate accordingly
   const checkOnboardingAndNavigate = async () => {

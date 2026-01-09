@@ -56,7 +56,7 @@ interface ManualSetupStatus {
 }
 
 export default function Onboarding() {
-  const [step, setStep] = useState<OnboardingStep>('splash');
+  const [step, setStep] = useState<OnboardingStep>('connect'); // Skip splash, go directly to form
   const [setupMode, setSetupMode] = useState<SetupMode>('manual'); // Default to manual for demo
   const [status, setStatus] = useState<SetupStatus | null>(null);
   const [manualStatus, setManualStatus] = useState<ManualSetupStatus | null>(null);

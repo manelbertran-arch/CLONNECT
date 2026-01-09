@@ -44,11 +44,8 @@ const AppRoutes = () => {
 
   return (
     <Routes>
-      {/* Login route - redirect to dashboard if already logged in */}
-      <Route
-        path="/login"
-        element={isAuthenticated ? <Navigate to="/dashboard" replace /> : <Login />}
-      />
+      {/* Login route - always show login page (let Login.tsx handle redirect) */}
+      <Route path="/login" element={<Login />} />
 
       {/* Protected dashboard routes */}
       <Route element={<ProtectedRoute><DashboardLayout /></ProtectedRoute>}>
