@@ -348,6 +348,103 @@ async def reset_demo_data(creator_id: str):
     return await reset_creator(creator_id)
 
 
+@router.post("/run-migration/email-capture")
+async def run_email_capture_migration():
+    """
+    Run migration to add email capture tables and columns.
+    Safe to run multiple times (uses IF NOT EXISTS).
+    """
+    try:
+        from api.database import SessionLocal
+        from sqlalchemy import text
+
+        session = SessionLocal()
+        try:
+            # Add email_capture_config column
+            session.execute(text("""
+                ALTER TABLE creators
+                ADD COLUMN IF NOT EXISTS email_capture_config JSONB DEFAULT NULL
+            """))
+
+            # Create unified_profiles table
+            session.execute(text("""
+                CREATE TABLE IF NOT EXISTS unified_profiles (
+                    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+                    email VARCHAR(255) UNIQUE NOT NULL,
+                    name VARCHAR(255),
+                    phone VARCHAR(50),
+                    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+                    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+                )
+            """))
+
+            # Create platform_identities table
+            session.execute(text("""
+                CREATE TABLE IF NOT EXISTS platform_identities (
+                    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+                    unified_profile_id UUID REFERENCES unified_profiles(id),
+                    creator_id UUID REFERENCES creators(id),
+                    platform VARCHAR(50) NOT NULL,
+                    platform_user_id VARCHAR(255) NOT NULL,
+                    username VARCHAR(255),
+                    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+                )
+            """))
+
+            # Create unique index
+            session.execute(text("""
+                CREATE UNIQUE INDEX IF NOT EXISTS idx_platform_identity_unique
+                ON platform_identities(platform, platform_user_id)
+            """))
+
+            # Create email_ask_tracking table
+            session.execute(text("""
+                CREATE TABLE IF NOT EXISTS email_ask_tracking (
+                    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+                    creator_id UUID REFERENCES creators(id),
+                    platform VARCHAR(50) NOT NULL,
+                    platform_user_id VARCHAR(255) NOT NULL,
+                    ask_level INTEGER DEFAULT 0,
+                    last_asked_at TIMESTAMP WITH TIME ZONE,
+                    declined_count INTEGER DEFAULT 0,
+                    captured_email VARCHAR(255),
+                    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+                    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+                )
+            """))
+
+            # Create index for fast lookups
+            session.execute(text("""
+                CREATE INDEX IF NOT EXISTS idx_email_ask_tracking_lookup
+                ON email_ask_tracking(platform, platform_user_id)
+            """))
+
+            session.commit()
+            logger.info("Email capture migration completed successfully")
+
+            return {
+                "status": "success",
+                "message": "Migration completed",
+                "tables_created": [
+                    "unified_profiles",
+                    "platform_identities",
+                    "email_ask_tracking"
+                ],
+                "columns_added": [
+                    "creators.email_capture_config"
+                ]
+            }
+        finally:
+            session.close()
+
+    except Exception as e:
+        logger.error(f"Migration failed: {e}")
+        return {
+            "status": "error",
+            "error": str(e)
+        }
+
+
 @router.get("/demo-status")
 async def get_demo_status():
     """Check if demo reset is enabled and get current data counts"""
