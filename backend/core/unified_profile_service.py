@@ -36,50 +36,77 @@ class EmailAskDecision:
 def get_ask_message_by_offer_type(offer_type: str, offer_config: Dict = None) -> str:
     """
     Genera mensaje de ask segun el tipo de oferta configurada.
+
+    REGLA ESTRICTA: NUNCA usar valores por defecto que el creador no configuro.
+    Si falta config requerida → fallback a mensaje basico (solo memoria).
     """
     offer_config = offer_config or {}
 
+    # Mensaje basico - solo memoria/servicio (SAFE DEFAULT)
+    BASE_MESSAGE = (
+        "Por cierto, si me dejas tu email puedo recordar nuestras conversaciones "
+        "y darte mejor atencion. Asi no tenes que repetirme las cosas 😊 ¿Te parece?"
+    )
+
     if offer_type == "none" or not offer_type:
-        return (
-            "Por cierto, si me dejas tu email puedo recordar nuestras conversaciones "
-            "y darte mejor atencion. Asi no tenes que repetirme las cosas 😊 ¿Te parece?"
-        )
+        return BASE_MESSAGE
 
     elif offer_type == "discount":
-        percent = offer_config.get("percent", 10)
-        return (
-            f"Si me dejas tu email te envio un codigo de {percent}% de descuento "
-            "para cuando decidas dar el paso. Ademas asi puedo recordar lo que hablamos "
-            "y atenderte mejor. ¿Que decis?"
-        )
+        # REQUIERE: percent Y code configurados explicitamente
+        percent = offer_config.get("percent")
+        code = offer_config.get("code")
+        if percent and code:
+            return (
+                f"Si me dejas tu email te envio un codigo de {percent}% de descuento "
+                "para cuando decidas dar el paso. Ademas asi puedo recordar lo que hablamos "
+                "y atenderte mejor. ¿Que decis?"
+            )
+        # Config incompleta → fallback a mensaje basico
+        logger.warning(f"discount config incompleta: percent={percent}, code={code}")
+        return BASE_MESSAGE
 
     elif offer_type == "content":
-        description = offer_config.get("description", "contenido exclusivo")
-        return (
-            f"Si me das tu email, te envio {description} que no comparto en redes. "
-            "Tambien me ayuda a recordar nuestras conversaciones. ¿Te interesa?"
-        )
+        # REQUIERE: description configurada explicitamente
+        description = offer_config.get("description")
+        if description:
+            return (
+                f"Si me das tu email, te envio {description} que no comparto en redes. "
+                "Tambien me ayuda a recordar nuestras conversaciones. ¿Te interesa?"
+            )
+        # Config incompleta → fallback
+        logger.warning(f"content config incompleta: description={description}")
+        return BASE_MESSAGE
 
     elif offer_type == "priority":
-        description = offer_config.get("description", "lanzamientos y ofertas")
-        return (
-            f"¿Queres que te avise antes que a nadie sobre {description}? "
-            "Dejame tu email y te pongo en mi lista prioritaria. "
-            "Ademas asi puedo recordar lo que hablamos 👍"
-        )
+        # REQUIERE: description configurada explicitamente
+        description = offer_config.get("description")
+        if description:
+            return (
+                f"¿Queres que te avise antes que a nadie sobre {description}? "
+                "Dejame tu email y te pongo en mi lista prioritaria. "
+                "Ademas asi puedo recordar lo que hablamos 👍"
+            )
+        # Config incompleta → fallback
+        logger.warning(f"priority config incompleta: description={description}")
+        return BASE_MESSAGE
 
     elif offer_type == "custom":
-        message = offer_config.get("message", "")
+        # REQUIERE: message configurado explicitamente
+        message = offer_config.get("message")
         if message:
             return f"{message}\n\n¿Me dejas tu email?"
-        return get_ask_message_by_offer_type("none", None)
+        # Config incompleta → fallback
+        logger.warning(f"custom config incompleta: message={message}")
+        return BASE_MESSAGE
 
-    return get_ask_message_by_offer_type("none", None)
+    return BASE_MESSAGE
 
 
 def get_captured_message(name: str, offer_type: str, offer_config: Dict = None) -> str:
     """
     Genera mensaje cuando capturamos el email segun configuracion.
+
+    REGLA ESTRICTA: Solo mencionar ofertas si el creador las configuro explicitamente.
     """
     offer_config = offer_config or {}
     name_part = f" {name}" if name else ""
@@ -91,15 +118,19 @@ def get_captured_message(name: str, offer_type: str, offer_config: Dict = None) 
         "Si me escribis desde otra app, decime tu email y seguimos donde lo dejamos."
     )
 
-    # Añadir segun offer_type
+    # Añadir SOLO si la config esta completa
     if offer_type == "discount":
-        code = offer_config.get("code", "VIP10")
-        percent = offer_config.get("percent", 10)
-        base += f"\n\n🎁 Te envio el codigo {code} ({percent}% off) a tu correo."
+        code = offer_config.get("code")
+        percent = offer_config.get("percent")
+        # Solo mencionar si AMBOS estan configurados
+        if code and percent:
+            base += f"\n\n🎁 Te envio el codigo {code} ({percent}% off) a tu correo."
 
     elif offer_type == "content":
-        description = offer_config.get("description", "el contenido")
-        base += f"\n\n📩 Te envio {description} a tu correo."
+        description = offer_config.get("description")
+        # Solo mencionar si description esta configurada
+        if description:
+            base += f"\n\n📩 Te envio {description} a tu correo."
 
     return base
 
@@ -418,7 +449,12 @@ def mark_email_captured(platform: str, platform_user_id: str, email: str):
 # =============================================================================
 
 def get_creator_email_config(creator_id: str) -> Dict[str, Any]:
-    """Obtiene la configuracion de email capture del creator."""
+    """
+    Obtiene la configuracion de email capture del creator.
+
+    REGLA ESTRICTA: Si el creador NO configura email_capture,
+    el bot NUNCA pide email (enabled=False por defecto).
+    """
     try:
         from api.database import SessionLocal
         from api.models import Creator
@@ -427,10 +463,11 @@ def get_creator_email_config(creator_id: str) -> Dict[str, Any]:
         try:
             creator = session.query(Creator).filter_by(name=creator_id).first()
             if creator and creator.email_capture_config:
+                # Creador tiene config explicita
                 return creator.email_capture_config
-            # Default config
+            # NO HAY CONFIG = NO PEDIR EMAIL
             return {
-                "enabled": True,
+                "enabled": False,
                 "ask_after_messages": 3,
                 "offer_type": "none",
                 "offer_config": None
@@ -439,7 +476,8 @@ def get_creator_email_config(creator_id: str) -> Dict[str, Any]:
             session.close()
     except Exception as e:
         logger.error(f"Error getting email config: {e}")
-        return {"enabled": True, "ask_after_messages": 3, "offer_type": "none"}
+        # Error = NO pedir email (safe default)
+        return {"enabled": False, "ask_after_messages": 3, "offer_type": "none"}
 
 
 def should_ask_email(
@@ -458,8 +496,8 @@ def should_ask_email(
     # Get config
     config = get_creator_email_config(creator_id)
 
-    # Check if enabled
-    if not config.get("enabled", True):
+    # REGLA ESTRICTA: Si enabled no es explicitamente True, NO pedir
+    if not config.get("enabled", False):
         return EmailAskDecision(False, "", "disabled")
 
     # Check if already has email
