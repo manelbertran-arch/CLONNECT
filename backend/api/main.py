@@ -984,9 +984,9 @@ async def health_ready():
         }
 
 
-@app.get("/")
-def root():
-    """API info"""
+@app.get("/api")
+def api_info():
+    """API info - moved to /api to let root serve frontend"""
     return {
         "name": "Clonnect Creators API",
         "version": VERSION,
@@ -997,6 +997,16 @@ def root():
         "privacy": "/privacy",
         "terms": "/terms"
     }
+
+
+@app.get("/")
+async def serve_root():
+    """Serve frontend index.html for root"""
+    _static_dir = os.path.join(os.path.dirname(__file__), "..", "static")
+    index_path = os.path.join(_static_dir, "index.html")
+    if os.path.exists(index_path):
+        return FileResponse(index_path, media_type="text/html")
+    return {"error": "Frontend not found"}
 
 
 # ---------------------------------------------------------
