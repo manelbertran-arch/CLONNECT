@@ -79,6 +79,8 @@ class Creator(Base):
     onboarding_completed = Column(Boolean, default=False)
     # Copilot mode: if True, bot suggestions require approval before sending
     copilot_mode = Column(Boolean, default=True)
+    # Email capture configuration (JSON with messages per level, discount codes, etc.)
+    email_capture_config = Column(JSON, default=dict)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
 class Lead(Base):
@@ -211,5 +213,59 @@ class BookingSlot(Base):
     booked_by_phone = Column(String(50))
     meeting_url = Column(Text)  # Generated when booking is confirmed
     calendar_booking_id = Column(UUID(as_uuid=True), ForeignKey("calendar_bookings.id"))  # Link to CalendarBooking
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+
+
+# =============================================================================
+# UNIFIED PROFILES - Cross-platform identity & email capture
+# =============================================================================
+
+class UnifiedProfile(Base):
+    """
+    Unified profile linking users across platforms via email.
+    Enables cross-platform conversation continuity.
+    """
+    __tablename__ = "unified_profiles"
+    __table_args__ = {'extend_existing': True}
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    email = Column(String(255), unique=True, nullable=False, index=True)
+    name = Column(String(255))
+    phone = Column(String(50))
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+
+
+class PlatformIdentity(Base):
+    """
+    Links platform-specific identities to unified profiles.
+    One unified profile can have multiple platform identities.
+    """
+    __tablename__ = "platform_identities"
+    __table_args__ = {'extend_existing': True}
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    unified_profile_id = Column(UUID(as_uuid=True), ForeignKey("unified_profiles.id"), index=True)
+    creator_id = Column(UUID(as_uuid=True), ForeignKey("creators.id"), index=True)
+    platform = Column(String(50), nullable=False)  # instagram, telegram, whatsapp
+    platform_user_id = Column(String(255), nullable=False)
+    username = Column(String(255))
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+
+class EmailAskTracking(Base):
+    """
+    Tracks email ask attempts per user to implement progressive asking strategy.
+    Levels: 0=never asked, 1=subtle, 2=value offer, 3=irresistible, 4=necessary
+    """
+    __tablename__ = "email_ask_tracking"
+    __table_args__ = {'extend_existing': True}
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    creator_id = Column(UUID(as_uuid=True), ForeignKey("creators.id"), index=True)
+    platform = Column(String(50), nullable=False)
+    platform_user_id = Column(String(255), nullable=False, index=True)
+    ask_level = Column(Integer, default=0)  # 0-4
+    last_asked_at = Column(DateTime(timezone=True))
+    declined_count = Column(Integer, default=0)
+    captured_email = Column(String(255))  # Email once captured
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())

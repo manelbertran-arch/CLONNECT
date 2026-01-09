@@ -184,6 +184,8 @@ async def reset_creator(creator_id: str):
             "products": 0,
             "sequences": 0,
             "knowledge_base": 0,
+            "email_tracking": 0,
+            "platform_identities": 0,
             "tone_profile": False,
             "rag_documents": 0,
             "bot_paused": False,
@@ -237,6 +239,18 @@ async def reset_creator(creator_id: str):
                     # Delete knowledge base
                     kb_count = session.query(KnowledgeBase).filter_by(creator_id=creator_uuid).delete()
                     results["deleted"]["knowledge_base"] = kb_count
+
+                    # Delete email tracking for this creator
+                    try:
+                        from api.models import EmailAskTracking, PlatformIdentity
+                        email_tracking_count = session.query(EmailAskTracking).filter_by(creator_id=creator_uuid).delete()
+                        results["deleted"]["email_tracking"] = email_tracking_count
+
+                        # Delete platform identities (but keep unified profiles - they're cross-creator)
+                        identity_count = session.query(PlatformIdentity).filter_by(creator_id=creator_uuid).delete()
+                        results["deleted"]["platform_identities"] = identity_count
+                    except Exception as e:
+                        logger.warning(f"Could not delete email tracking tables: {e}")
 
                     # Reset bot and onboarding status
                     creator.bot_active = False
