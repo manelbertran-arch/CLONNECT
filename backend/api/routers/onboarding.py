@@ -934,3 +934,263 @@ async def scrape_instagram_onboarding(request: ScrapeInstagramRequest):
             content_indexed=content_indexed,
             errors=errors
         )
+
+
+# =============================================================================
+# MANUAL SETUP ENDPOINT - Full onboarding without OAuth
+# =============================================================================
+
+class ManualSetupRequest(BaseModel):
+    """Request para setup manual sin OAuth."""
+    creator_id: str
+    instagram_username: str
+    website_url: Optional[str] = None
+    max_posts: int = 50
+
+
+class ManualSetupResponse(BaseModel):
+    """Response del setup manual."""
+    success: bool
+    creator_id: str
+    steps_completed: Dict[str, bool]
+    details: Dict
+    errors: List[str] = []
+
+
+@router.post("/manual-setup", response_model=ManualSetupResponse)
+async def manual_setup(request: ManualSetupRequest):
+    """
+    Setup manual completo sin OAuth.
+
+    Ideal para demos o cuando no se tiene acceso a Instagram OAuth.
+
+    Este endpoint:
+    1. Scrapea 50 posts públicos del Instagram username
+    2. Genera ToneProfile con Magic Slice
+    3. Indexa contenido en RAG (PostgreSQL + archivos)
+    4. Scrapea website y añade al RAG
+    5. Marca onboarding como completado
+    6. Activa el bot
+
+    Body:
+    ```json
+    {
+        "creator_id": "stefano_auto",
+        "instagram_username": "stefanobonanno",
+        "website_url": "https://stefanobonanno.com"
+    }
+    ```
+    """
+    errors = []
+    steps_completed = {
+        "posts_scraped": False,
+        "tone_profile_generated": False,
+        "rag_indexed": False,
+        "website_scraped": False,
+        "onboarding_completed": False,
+        "bot_activated": False
+    }
+    details = {
+        "posts_count": 0,
+        "tone_summary": None,
+        "rag_documents": 0,
+        "website_pages": 0
+    }
+
+    logger.info(f"[ManualSetup] Starting for {request.creator_id} from @{request.instagram_username}")
+
+    # ==========================================================================
+    # STEP 1: Scrape Instagram posts (public, no OAuth)
+    # ==========================================================================
+    posts = []
+    try:
+        from ingestion.instagram_scraper import InstaloaderScraper, InstagramScraperError
+
+        scraper = InstaloaderScraper()
+        posts = scraper.get_posts(
+            target_username=request.instagram_username,
+            limit=request.max_posts
+        )
+
+        if posts:
+            steps_completed["posts_scraped"] = True
+            details["posts_count"] = len(posts)
+            logger.info(f"[ManualSetup] Scraped {len(posts)} posts from @{request.instagram_username}")
+        else:
+            errors.append("No posts found or profile is private")
+
+    except Exception as e:
+        errors.append(f"Instagram scraping failed: {str(e)}")
+        logger.error(f"[ManualSetup] Scraping error: {e}")
+
+    # ==========================================================================
+    # STEP 2: Generate ToneProfile with Magic Slice
+    # ==========================================================================
+    if posts:
+        try:
+            from ingestion.tone_analyzer import ToneAnalyzer
+            from core.tone_service import save_tone_profile
+
+            # Convert posts to dict format
+            posts_data = [
+                {
+                    "caption": post.caption,
+                    "post_id": post.post_id,
+                    "post_type": post.post_type,
+                    "permalink": post.permalink,
+                    "timestamp": post.timestamp.isoformat() if post.timestamp else None,
+                    "likes_count": post.likes_count,
+                    "comments_count": post.comments_count
+                }
+                for post in posts if post.caption
+            ]
+
+            if posts_data:
+                analyzer = ToneAnalyzer()
+                tone_profile = await analyzer.analyze(request.creator_id, posts_data)
+                await save_tone_profile(tone_profile)
+
+                steps_completed["tone_profile_generated"] = True
+                details["tone_summary"] = {
+                    "formality": tone_profile.formality,
+                    "energy": tone_profile.energy,
+                    "warmth": tone_profile.warmth,
+                    "uses_emojis": tone_profile.uses_emojis,
+                    "primary_language": tone_profile.primary_language,
+                    "signature_phrases": tone_profile.signature_phrases[:5]
+                }
+                logger.info(f"[ManualSetup] ToneProfile generated: {tone_profile.formality}, {tone_profile.energy}")
+
+        except Exception as e:
+            errors.append(f"ToneProfile generation failed: {str(e)}")
+            logger.error(f"[ManualSetup] Tone error: {e}")
+
+    # ==========================================================================
+    # STEP 3: Index content in RAG
+    # ==========================================================================
+    if posts:
+        try:
+            from core.rag import get_hybrid_rag
+
+            rag = get_hybrid_rag()
+            indexed_count = 0
+
+            for post in posts:
+                if not post.caption or len(post.caption.strip()) < 20:
+                    continue
+
+                doc_id = f"ig_post_{post.post_id}"
+                metadata = {
+                    "creator_id": request.creator_id,
+                    "source_type": "instagram_post",
+                    "post_type": post.post_type,
+                    "url": post.permalink,
+                    "hashtags": post.hashtags[:10] if post.hashtags else [],
+                    "likes": post.likes_count,
+                    "comments": post.comments_count
+                }
+
+                rag.add_document(
+                    doc_id=doc_id,
+                    content=post.caption,
+                    metadata=metadata
+                )
+                indexed_count += 1
+
+            if indexed_count > 0:
+                steps_completed["rag_indexed"] = True
+                details["rag_documents"] = indexed_count
+                logger.info(f"[ManualSetup] Indexed {indexed_count} posts in RAG")
+
+        except Exception as e:
+            errors.append(f"RAG indexing failed: {str(e)}")
+            logger.error(f"[ManualSetup] RAG error: {e}")
+
+    # ==========================================================================
+    # STEP 4: Scrape website and add to RAG
+    # ==========================================================================
+    if request.website_url:
+        try:
+            from core.website_scraper import scrape_and_index_website
+
+            result = await scrape_and_index_website(
+                creator_id=request.creator_id,
+                url=request.website_url
+            )
+
+            if result.get("success"):
+                steps_completed["website_scraped"] = True
+                details["website_pages"] = result.get("pages_indexed", 0)
+                logger.info(f"[ManualSetup] Website scraped: {result.get('pages_indexed', 0)} pages")
+            else:
+                errors.append(f"Website scraping: {result.get('error', 'Unknown error')}")
+
+        except Exception as e:
+            errors.append(f"Website scraping failed: {str(e)}")
+            logger.error(f"[ManualSetup] Website error: {e}")
+    else:
+        # No website provided - mark as completed (optional step)
+        steps_completed["website_scraped"] = True
+        details["website_pages"] = 0
+
+    # ==========================================================================
+    # STEP 5 & 6: Mark onboarding completed and activate bot
+    # ==========================================================================
+    try:
+        from api.database import DATABASE_URL, SessionLocal
+
+        if DATABASE_URL and SessionLocal:
+            session = SessionLocal()
+            try:
+                from api.models import Creator
+                import uuid as uuid_module
+
+                creator = session.query(Creator).filter_by(name=request.creator_id).first()
+
+                if not creator:
+                    # Create creator if doesn't exist
+                    creator = Creator(
+                        id=uuid_module.uuid4(),
+                        name=request.creator_id,
+                        email=f"{request.creator_id}@clonnect.io",
+                        bot_active=True,
+                        onboarding_completed=True,
+                        copilot_mode=True
+                    )
+                    session.add(creator)
+                    logger.info(f"[ManualSetup] Created new creator: {request.creator_id}")
+                else:
+                    # Update existing creator
+                    creator.bot_active = True
+                    creator.onboarding_completed = True
+                    logger.info(f"[ManualSetup] Updated creator: {request.creator_id}")
+
+                session.commit()
+                steps_completed["onboarding_completed"] = True
+                steps_completed["bot_activated"] = True
+
+            finally:
+                session.close()
+
+    except Exception as e:
+        errors.append(f"Database update failed: {str(e)}")
+        logger.error(f"[ManualSetup] DB error: {e}")
+
+    # ==========================================================================
+    # RESULT
+    # ==========================================================================
+    success = (
+        steps_completed["posts_scraped"] and
+        steps_completed["tone_profile_generated"] and
+        steps_completed["bot_activated"]
+    )
+
+    logger.info(f"[ManualSetup] Completed for {request.creator_id}: success={success}, steps={steps_completed}")
+
+    return ManualSetupResponse(
+        success=success,
+        creator_id=request.creator_id,
+        steps_completed=steps_completed,
+        details=details,
+        errors=errors
+    )
