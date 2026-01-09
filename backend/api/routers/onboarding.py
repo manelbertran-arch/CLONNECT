@@ -940,6 +940,148 @@ async def scrape_instagram_onboarding(request: ScrapeInstagramRequest):
 # MANUAL SETUP ENDPOINT - Full onboarding without OAuth
 # =============================================================================
 
+class SeedDemoRequest(BaseModel):
+    """Request para sembrar datos demo cuando Instagram está rate limited."""
+    creator_id: str
+    force: bool = False  # Si es true, crea datos aunque ya existan
+
+
+@router.post("/seed-demo")
+async def seed_demo_data(request: SeedDemoRequest):
+    """
+    Seed demo data for a creator when Instagram is rate limited.
+
+    Creates:
+    - 8 demo leads with various purchase intents
+    - 3 demo products
+    - Marks onboarding as completed
+    - Activates the bot
+
+    Use this when manual-setup fails due to Instagram rate limiting.
+    """
+    errors = []
+    details = {
+        "leads_created": 0,
+        "products_created": 0
+    }
+
+    try:
+        from api.database import DATABASE_URL, SessionLocal
+        from api.models import Creator, Lead, Product
+        import uuid as uuid_module
+        from datetime import datetime, timedelta
+        import random
+
+        if not DATABASE_URL or not SessionLocal:
+            return {"success": False, "error": "Database not configured"}
+
+        session = SessionLocal()
+        try:
+            # Get or create creator
+            creator = session.query(Creator).filter_by(name=request.creator_id).first()
+            if not creator:
+                creator = Creator(
+                    id=uuid_module.uuid4(),
+                    name=request.creator_id,
+                    email=f"{request.creator_id}@clonnect.io",
+                    bot_active=True,
+                    onboarding_completed=True,
+                    copilot_mode=True
+                )
+                session.add(creator)
+                session.commit()
+                logger.info(f"[SeedDemo] Created new creator: {request.creator_id}")
+
+            creator_uuid = creator.id
+
+            # Create demo products
+            demo_products = [
+                {"name": "Consultoría 1:1", "price": 150.0, "description": "Sesión de consultoría personalizada de 1 hora"},
+                {"name": "Curso Online", "price": 97.0, "description": "Acceso completo al curso con materiales"},
+                {"name": "Mentoría Grupal", "price": 49.0, "description": "Sesión grupal mensual con Q&A"},
+            ]
+
+            for prod in demo_products:
+                existing = session.query(Product).filter_by(
+                    creator_id=creator_uuid, name=prod["name"]
+                ).first()
+                if not existing or request.force:
+                    if existing and request.force:
+                        session.delete(existing)
+                    new_product = Product(
+                        id=uuid_module.uuid4(),
+                        creator_id=creator_uuid,
+                        name=prod["name"],
+                        price=prod["price"],
+                        description=prod["description"],
+                        is_active=True
+                    )
+                    session.add(new_product)
+                    details["products_created"] += 1
+
+            # Create demo leads
+            demo_leads = [
+                {"name": "María García", "platform": "instagram", "intent": 0.8, "status": "hot"},
+                {"name": "Carlos López", "platform": "instagram", "intent": 0.6, "status": "warm"},
+                {"name": "Ana Martínez", "platform": "instagram", "intent": 0.9, "status": "hot"},
+                {"name": "Pedro Sánchez", "platform": "whatsapp", "intent": 0.4, "status": "warm"},
+                {"name": "Laura Fernández", "platform": "instagram", "intent": 0.3, "status": "cold"},
+                {"name": "Diego Ruiz", "platform": "instagram", "intent": 0.7, "status": "hot"},
+                {"name": "Sofia Torres", "platform": "whatsapp", "intent": 0.5, "status": "warm"},
+                {"name": "Miguel Herrera", "platform": "instagram", "intent": 0.2, "status": "cold"},
+            ]
+
+            for i, lead_data in enumerate(demo_leads):
+                platform_user_id = f"demo_{lead_data['name'].lower().replace(' ', '_')}_{i}"
+                existing = session.query(Lead).filter_by(
+                    creator_id=creator_uuid, platform_user_id=platform_user_id
+                ).first()
+                if not existing or request.force:
+                    if existing and request.force:
+                        session.delete(existing)
+                    new_lead = Lead(
+                        id=uuid_module.uuid4(),
+                        creator_id=creator_uuid,
+                        platform=lead_data["platform"],
+                        platform_user_id=platform_user_id,
+                        username=lead_data["name"].lower().replace(" ", "_"),
+                        display_name=lead_data["name"],
+                        purchase_intent=lead_data["intent"],
+                        status=lead_data["status"],
+                        first_contact_at=datetime.utcnow() - timedelta(days=random.randint(1, 30)),
+                        last_contact_at=datetime.utcnow() - timedelta(hours=random.randint(1, 72)),
+                        message_count=random.randint(3, 15)
+                    )
+                    session.add(new_lead)
+                    details["leads_created"] += 1
+
+            # Mark onboarding as completed and activate bot
+            creator.onboarding_completed = True
+            creator.bot_active = True
+
+            session.commit()
+            logger.info(f"[SeedDemo] Created {details['leads_created']} leads and {details['products_created']} products for {request.creator_id}")
+
+            return {
+                "success": True,
+                "creator_id": request.creator_id,
+                "details": details,
+                "onboarding_completed": True,
+                "bot_activated": True
+            }
+
+        finally:
+            session.close()
+
+    except Exception as e:
+        logger.error(f"[SeedDemo] Error: {e}")
+        return {
+            "success": False,
+            "creator_id": request.creator_id,
+            "error": str(e)
+        }
+
+
 class ManualSetupRequest(BaseModel):
     """Request para setup manual sin OAuth."""
     creator_id: str
@@ -1134,8 +1276,113 @@ async def manual_setup(request: ManualSetupRequest):
         details["website_pages"] = 0
 
     # ==========================================================================
-    # STEP 5 & 6: Mark onboarding completed and activate bot
+    # STEP 5: Create demo leads and products if posts were scraped
     # ==========================================================================
+    if steps_completed["posts_scraped"] or steps_completed["tone_profile_generated"]:
+        try:
+            from api.database import DATABASE_URL, SessionLocal
+            from api.models import Creator, Lead, Product
+            import uuid as uuid_module
+            from datetime import datetime, timedelta
+            import random
+
+            if DATABASE_URL and SessionLocal:
+                session = SessionLocal()
+                try:
+                    # Get or create creator
+                    creator = session.query(Creator).filter_by(name=request.creator_id).first()
+                    if not creator:
+                        creator = Creator(
+                            id=uuid_module.uuid4(),
+                            name=request.creator_id,
+                            email=f"{request.creator_id}@clonnect.io",
+                            bot_active=False,
+                            onboarding_completed=False,
+                            copilot_mode=True
+                        )
+                        session.add(creator)
+                        session.commit()
+                        logger.info(f"[ManualSetup] Created new creator: {request.creator_id}")
+
+                    creator_uuid = creator.id
+
+                    # Create demo products
+                    demo_products = [
+                        {"name": "Consultoría 1:1", "price": 150.0, "description": "Sesión de consultoría personalizada de 1 hora"},
+                        {"name": "Curso Online", "price": 97.0, "description": "Acceso completo al curso con materiales"},
+                        {"name": "Mentoría Grupal", "price": 49.0, "description": "Sesión grupal mensual con Q&A"},
+                    ]
+
+                    products_created = 0
+                    for prod in demo_products:
+                        existing = session.query(Product).filter_by(
+                            creator_id=creator_uuid, name=prod["name"]
+                        ).first()
+                        if not existing:
+                            new_product = Product(
+                                id=uuid_module.uuid4(),
+                                creator_id=creator_uuid,
+                                name=prod["name"],
+                                price=prod["price"],
+                                description=prod["description"],
+                                is_active=True
+                            )
+                            session.add(new_product)
+                            products_created += 1
+
+                    # Create demo leads
+                    demo_leads = [
+                        {"name": "María García", "platform": "instagram", "intent": 0.8, "status": "hot"},
+                        {"name": "Carlos López", "platform": "instagram", "intent": 0.6, "status": "warm"},
+                        {"name": "Ana Martínez", "platform": "instagram", "intent": 0.9, "status": "hot"},
+                        {"name": "Pedro Sánchez", "platform": "whatsapp", "intent": 0.4, "status": "warm"},
+                        {"name": "Laura Fernández", "platform": "instagram", "intent": 0.3, "status": "cold"},
+                        {"name": "Diego Ruiz", "platform": "instagram", "intent": 0.7, "status": "hot"},
+                        {"name": "Sofia Torres", "platform": "whatsapp", "intent": 0.5, "status": "warm"},
+                        {"name": "Miguel Herrera", "platform": "instagram", "intent": 0.2, "status": "cold"},
+                    ]
+
+                    leads_created = 0
+                    for i, lead_data in enumerate(demo_leads):
+                        platform_user_id = f"demo_{lead_data['name'].lower().replace(' ', '_')}_{i}"
+                        existing = session.query(Lead).filter_by(
+                            creator_id=creator_uuid, platform_user_id=platform_user_id
+                        ).first()
+                        if not existing:
+                            new_lead = Lead(
+                                id=uuid_module.uuid4(),
+                                creator_id=creator_uuid,
+                                platform=lead_data["platform"],
+                                platform_user_id=platform_user_id,
+                                username=lead_data["name"].lower().replace(" ", "_"),
+                                display_name=lead_data["name"],
+                                purchase_intent=lead_data["intent"],
+                                status=lead_data["status"],
+                                first_contact_at=datetime.utcnow() - timedelta(days=random.randint(1, 30)),
+                                last_contact_at=datetime.utcnow() - timedelta(hours=random.randint(1, 72)),
+                                message_count=random.randint(3, 15)
+                            )
+                            session.add(new_lead)
+                            leads_created += 1
+
+                    session.commit()
+                    details["demo_leads_created"] = leads_created
+                    details["demo_products_created"] = products_created
+                    logger.info(f"[ManualSetup] Created {leads_created} demo leads and {products_created} demo products")
+
+                finally:
+                    session.close()
+
+        except Exception as e:
+            errors.append(f"Demo data creation failed: {str(e)}")
+            logger.error(f"[ManualSetup] Demo data error: {e}")
+
+    # ==========================================================================
+    # STEP 6: Mark onboarding completed and activate bot (ONLY if setup succeeded)
+    # ==========================================================================
+    # Only mark as completed if we have meaningful data
+    should_complete = steps_completed["posts_scraped"] or steps_completed["tone_profile_generated"]
+
     try:
         from api.database import DATABASE_URL, SessionLocal
 
@@ -1153,21 +1400,25 @@ async def manual_setup(request: ManualSetupRequest):
                         id=uuid_module.uuid4(),
                         name=request.creator_id,
                         email=f"{request.creator_id}@clonnect.io",
-                        bot_active=True,
-                        onboarding_completed=True,
+                        bot_active=should_complete,
+                        onboarding_completed=should_complete,
                         copilot_mode=True
                     )
                     session.add(creator)
                     logger.info(f"[ManualSetup] Created new creator: {request.creator_id}")
                 else:
-                    # Update existing creator
-                    creator.bot_active = True
-                    creator.onboarding_completed = True
-                    logger.info(f"[ManualSetup] Updated creator: {request.creator_id}")
+                    # Update existing creator - only complete if setup succeeded
+                    if should_complete:
+                        creator.bot_active = True
+                        creator.onboarding_completed = True
+                        logger.info(f"[ManualSetup] Updated creator (completed): {request.creator_id}")
+                    else:
+                        # Keep onboarding_completed=false so user can retry
+                        logger.info(f"[ManualSetup] Setup failed, keeping onboarding incomplete: {request.creator_id}")
 
                 session.commit()
-                steps_completed["onboarding_completed"] = True
-                steps_completed["bot_activated"] = True
+                steps_completed["onboarding_completed"] = should_complete
+                steps_completed["bot_activated"] = should_complete
 
             finally:
                 session.close()
