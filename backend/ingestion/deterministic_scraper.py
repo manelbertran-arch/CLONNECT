@@ -174,6 +174,7 @@ class DeterministicScraper:
             async with httpx.AsyncClient(
                 timeout=self.timeout,
                 follow_redirects=True,
+                verify=False,  # Some sites have SSL cert issues
                 headers={
                     "User-Agent": "Mozilla/5.0 (compatible; ClonnectBot/1.0; +https://clonnect.com)"
                 }
