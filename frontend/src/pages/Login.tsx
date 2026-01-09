@@ -1,209 +1,110 @@
-/**
- * Login Page with real email/password authentication
- * Uses JWT tokens for secure authentication
- */
-
-import { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
-import { useAuth } from "@/context/AuthContext";
-import { Eye, EyeOff, Loader2 } from "lucide-react";
-import { API_URL, CREATOR_ID } from "@/services/api";
+import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { api } from '../services/api';
 
 export default function Login() {
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [showPassword, setShowPassword] = useState(false);
-  const [error, setError] = useState("");
-  const [isLoading, setIsLoading] = useState(false);
-  const { login, isAuthenticated } = useAuth();
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
   const navigate = useNavigate();
-
-  // If already authenticated, check onboarding and redirect
-  useEffect(() => {
-    if (isAuthenticated) {
-      checkOnboardingAndNavigate();
-    }
-  }, [isAuthenticated]);
-
-  // Check onboarding status and navigate accordingly
-  const checkOnboardingAndNavigate = async () => {
-    try {
-      const response = await fetch(`${API_URL}/onboarding/${CREATOR_ID}/visual-status`);
-      if (response.ok) {
-        const data = await response.json();
-        if (data.onboarding_completed) {
-          navigate("/dashboard");
-        } else {
-          navigate("/onboarding");
-        }
-      } else {
-        // If API fails, go to onboarding to be safe
-        navigate("/onboarding");
-      }
-    } catch (err) {
-      console.error("Failed to check onboarding status:", err);
-      // Default to onboarding if check fails
-      navigate("/onboarding");
-    }
-  };
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-
-    if (!email.trim()) {
-      setError("Por favor ingresa tu email");
-      return;
-    }
-    if (!password) {
-      setError("Por favor ingresa tu contraseña");
-      return;
-    }
-
-    setIsLoading(true);
-    setError("");
+    setLoading(true);
+    setError('');
 
     try {
-      await login(email.trim(), password);
-      await checkOnboardingAndNavigate();
-    } catch (err: any) {
-      console.error("Login error:", err);
-      if (err.message?.includes("Invalid email or password")) {
-        setError("Email o contraseña incorrectos");
+      const response = await api.post('/auth/login', { email, password });
+      localStorage.setItem('token', response.data.access_token);
+      localStorage.setItem('creator_id', response.data.creator_id);
+
+      // Verificar onboarding
+      const status = await api.get(`/onboarding/${response.data.creator_id}/visual-status`);
+      if (status.data.onboarding_completed) {
+        navigate('/dashboard');
       } else {
-        setError(err.message || "Error al iniciar sesión. Intenta de nuevo.");
+        navigate('/onboarding');
       }
+    } catch (err) {
+      setError('Credenciales incorrectas');
     } finally {
-      setIsLoading(false);
+      setLoading(false);
     }
   };
 
-  // Demo login for Stefano
   const handleDemoLogin = async () => {
-    setEmail("stefano@stefanobonanno.com");
-    setPassword("demo2024");
-    setIsLoading(true);
-    setError("");
+    setEmail('stefano@stefanobonanno.com');
+    setPassword('demo2024');
 
+    setLoading(true);
     try {
-      await login("stefano@stefanobonanno.com", "demo2024");
-      await checkOnboardingAndNavigate();
-    } catch (err: any) {
-      console.error("Demo login error:", err);
-      setError("Error en login de demo. El servidor puede estar reiniciando.");
+      const response = await api.post('/auth/login', {
+        email: 'stefano@stefanobonanno.com',
+        password: 'demo2024'
+      });
+      localStorage.setItem('token', response.data.access_token);
+      localStorage.setItem('creator_id', response.data.creator_id);
+
+      const status = await api.get(`/onboarding/${response.data.creator_id}/visual-status`);
+      if (status.data.onboarding_completed) {
+        navigate('/dashboard');
+      } else {
+        navigate('/onboarding');
+      }
+    } catch (err) {
+      setError('Error en demo login');
     } finally {
-      setIsLoading(false);
+      setLoading(false);
     }
   };
+
+  // NO HAY useEffect que verifique sesión
+  // NO HAY auto-redirect
+  // SIEMPRE mostrar el formulario
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-purple-900 via-purple-800 to-indigo-900 flex items-center justify-center p-4">
-      <div className="bg-white/10 backdrop-blur-lg rounded-2xl p-8 w-full max-w-md border border-white/20">
-        <div className="text-center mb-8">
-          <img
-            src="/clonnect-logo.png"
-            alt="Clonnect"
-            className="w-16 h-16 mx-auto mb-4 object-contain"
+    <div className="min-h-screen flex items-center justify-center bg-gray-900">
+      <div className="bg-gray-800 p-8 rounded-lg w-full max-w-md">
+        <h1 className="text-2xl font-bold text-white mb-6">Clonnect</h1>
+
+        {error && <div className="bg-red-500 text-white p-2 rounded mb-4">{error}</div>}
+
+        <form onSubmit={handleLogin}>
+          <input
+            type="email"
+            placeholder="Email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            className="w-full p-3 mb-4 bg-gray-700 text-white rounded"
+            required
           />
-          <h1 className="text-3xl font-bold text-white mb-2">Clonnect</h1>
-          <p className="text-purple-200">Inicia sesión en tu cuenta</p>
-        </div>
-
-        {/* Demo quick login */}
-        <button
-          onClick={handleDemoLogin}
-          disabled={isLoading}
-          className="w-full p-4 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 rounded-xl border border-white/20 transition-all text-center mb-6 disabled:opacity-50"
-        >
-          <div className="flex items-center justify-center gap-2">
-            {isLoading ? (
-              <Loader2 className="w-5 h-5 text-white animate-spin" />
-            ) : null}
-            <div>
-              <p className="text-white font-semibold">Demo: Stefano Bonanno</p>
-              <p className="text-purple-200 text-sm">Entrar como demo</p>
-            </div>
-          </div>
-        </button>
-
-        <div className="relative my-6">
-          <div className="absolute inset-0 flex items-center">
-            <div className="w-full border-t border-white/20"></div>
-          </div>
-          <div className="relative flex justify-center text-sm">
-            <span className="px-2 bg-transparent text-purple-300">o con tu cuenta</span>
-          </div>
-        </div>
-
-        {/* Login form */}
-        <form onSubmit={handleLogin} className="space-y-4">
-          <div>
-            <label htmlFor="email" className="block text-sm font-medium text-purple-200 mb-1">
-              Email
-            </label>
-            <input
-              id="email"
-              type="email"
-              value={email}
-              onChange={(e) => {
-                setEmail(e.target.value);
-                setError("");
-              }}
-              placeholder="tu@email.com"
-              className="w-full px-4 py-3 bg-white/10 border border-white/20 rounded-xl text-white placeholder-purple-300 focus:outline-none focus:ring-2 focus:ring-purple-400"
-              disabled={isLoading}
-            />
-          </div>
-
-          <div>
-            <label htmlFor="password" className="block text-sm font-medium text-purple-200 mb-1">
-              Contraseña
-            </label>
-            <div className="relative">
-              <input
-                id="password"
-                type={showPassword ? "text" : "password"}
-                value={password}
-                onChange={(e) => {
-                  setPassword(e.target.value);
-                  setError("");
-                }}
-                placeholder="••••••••"
-                className="w-full px-4 py-3 bg-white/10 border border-white/20 rounded-xl text-white placeholder-purple-300 focus:outline-none focus:ring-2 focus:ring-purple-400 pr-12"
-                disabled={isLoading}
-              />
-              <button
-                type="button"
-                onClick={() => setShowPassword(!showPassword)}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-purple-300 hover:text-white transition-colors"
-              >
-                {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
-              </button>
-            </div>
-          </div>
-
-          {error && (
-            <p className="text-red-400 text-sm bg-red-500/10 rounded-lg p-3">{error}</p>
-          )}
-
+          <input
+            type="password"
+            placeholder="Password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            className="w-full p-3 mb-4 bg-gray-700 text-white rounded"
+            required
+          />
           <button
             type="submit"
-            disabled={isLoading}
-            className="w-full py-3 bg-purple-600 hover:bg-purple-500 text-white rounded-xl font-semibold transition-colors flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+            disabled={loading}
+            className="w-full p-3 bg-blue-600 text-white rounded hover:bg-blue-700"
           >
-            {isLoading ? (
-              <>
-                <Loader2 className="w-5 h-5 animate-spin" />
-                Entrando...
-              </>
-            ) : (
-              "Entrar"
-            )}
+            {loading ? 'Entrando...' : 'Entrar'}
           </button>
         </form>
 
-        <p className="text-purple-300 text-xs text-center mt-6">
-          Sistema de autenticación seguro con JWT
-        </p>
+        <div className="mt-4 text-center text-gray-400">o</div>
+
+        <button
+          onClick={handleDemoLogin}
+          disabled={loading}
+          className="w-full mt-4 p-3 bg-purple-600 text-white rounded hover:bg-purple-700"
+        >
+          Demo: Stefano Bonanno
+        </button>
       </div>
     </div>
   );

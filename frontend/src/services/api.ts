@@ -1376,5 +1376,42 @@ export default {
   CREATOR_ID,
   API_URL,
 };
+// =============================================================================
+// AXIOS-LIKE API WRAPPER
+// =============================================================================
+
+/**
+ * Simple axios-like API wrapper for cleaner syntax
+ */
+export const api = {
+  async get<T = any>(endpoint: string): Promise<{ data: T }> {
+    const data = await apiFetch<T>(endpoint);
+    return { data };
+  },
+
+  async post<T = any>(endpoint: string, body?: any): Promise<{ data: T }> {
+    const data = await apiFetch<T>(endpoint, {
+      method: "POST",
+      body: body ? JSON.stringify(body) : undefined,
+    });
+    return { data };
+  },
+
+  async put<T = any>(endpoint: string, body?: any): Promise<{ data: T }> {
+    const data = await apiFetch<T>(endpoint, {
+      method: "PUT",
+      body: body ? JSON.stringify(body) : undefined,
+    });
+    return { data };
+  },
+
+  async delete<T = any>(endpoint: string): Promise<{ data: T }> {
+    const data = await apiFetch<T>(endpoint, {
+      method: "DELETE",
+    });
+    return { data };
+  },
+};
+
 // Force redeploy 1767880558
 // Force deploy jueves,  8 de enero de 2026, 15:45:57 CET
