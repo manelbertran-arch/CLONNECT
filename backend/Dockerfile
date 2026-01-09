@@ -15,6 +15,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 COPY requirements-lite.txt .
 
 # Create virtual environment and install dependencies
+# ARG to bust cache when deps change
+ARG DEPS_CACHE_BUST=20260109_2345
 RUN python -m venv /opt/venv
 ENV PATH="/opt/venv/bin:$PATH"
 RUN pip install --no-cache-dir --upgrade pip && \
