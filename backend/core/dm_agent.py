@@ -706,6 +706,64 @@ class FollowerMemory:
     alternative_contact_type: str = ""  # "whatsapp", "telegram", u otro
     contact_requested: bool = False  # Si ya pedimos el contacto
 
+    def __post_init__(self):
+        """Sanitize None values that may come from JSON/DB loading."""
+        # Int fields - replace None with 0
+        if self.total_messages is None:
+            self.total_messages = 0
+        if self.links_sent_count is None:
+            self.links_sent_count = 0
+        if self.last_link_message_num is None:
+            self.last_link_message_num = 0
+        if self.greeting_variant_index is None:
+            self.greeting_variant_index = 0
+        if self.messages_since_name_used is None:
+            self.messages_since_name_used = 0
+        # Float fields - replace None with 0.0
+        if self.purchase_intent_score is None:
+            self.purchase_intent_score = 0.0
+        # String fields - replace None with ""
+        if self.username is None:
+            self.username = ""
+        if self.name is None:
+            self.name = ""
+        if self.first_contact is None:
+            self.first_contact = ""
+        if self.last_contact is None:
+            self.last_contact = ""
+        if self.status is None:
+            self.status = "new"
+        if self.preferred_language is None:
+            self.preferred_language = "es"
+        if self.last_greeting_style is None:
+            self.last_greeting_style = ""
+        if self.alternative_contact is None:
+            self.alternative_contact = ""
+        if self.alternative_contact_type is None:
+            self.alternative_contact_type = ""
+        # Bool fields - replace None with False
+        if self.is_lead is None:
+            self.is_lead = False
+        if self.is_customer is None:
+            self.is_customer = False
+        if self.contact_requested is None:
+            self.contact_requested = False
+        # List fields - replace None with []
+        if self.interests is None:
+            self.interests = []
+        if self.products_discussed is None:
+            self.products_discussed = []
+        if self.objections_raised is None:
+            self.objections_raised = []
+        if self.last_messages is None:
+            self.last_messages = []
+        if self.objections_handled is None:
+            self.objections_handled = []
+        if self.arguments_used is None:
+            self.arguments_used = []
+        if self.last_emojis_used is None:
+            self.last_emojis_used = []
+
 
 class MemoryStore:
     """Almacén simplificado de memoria"""
