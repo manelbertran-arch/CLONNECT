@@ -269,3 +269,67 @@ class EmailAskTracking(Base):
     captured_email = Column(String(255))  # Email once captured
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+
+
+# =============================================================================
+# PERSISTENT DATA - Migrated from JSON files to PostgreSQL
+# =============================================================================
+
+class ToneProfile(Base):
+    """
+    Creator's voice/personality profile for AI clone.
+    Migrated from data/tone_profiles/{creator_id}.json
+    """
+    __tablename__ = "tone_profiles"
+    __table_args__ = {'extend_existing': True}
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    creator_id = Column(String(100), unique=True, nullable=False, index=True)
+    profile_data = Column(JSON, nullable=False)  # Full ToneProfile as JSON
+    analyzed_posts_count = Column(Integer, default=0)
+    confidence_score = Column(Float, default=0.0)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+
+
+class ContentChunk(Base):
+    """
+    Content chunks for RAG/citation system.
+    Migrated from data/content_index/{creator_id}/chunks.json
+    """
+    __tablename__ = "content_chunks"
+    __table_args__ = {'extend_existing': True}
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    creator_id = Column(String(100), nullable=False, index=True)
+    chunk_id = Column(String(255), nullable=False)  # Original chunk ID
+    content = Column(Text, nullable=False)
+    source_type = Column(String(50))  # instagram_post, web_page, etc.
+    source_id = Column(String(255))  # Post ID, page slug, etc.
+    source_url = Column(Text)
+    title = Column(String(500))
+    chunk_index = Column(Integer, default=0)
+    total_chunks = Column(Integer, default=1)
+    metadata = Column(JSON, default=dict)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+
+class InstagramPost(Base):
+    """
+    Instagram posts scraped during onboarding.
+    Used for ToneProfile analysis and RAG indexing.
+    """
+    __tablename__ = "instagram_posts"
+    __table_args__ = {'extend_existing': True}
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    creator_id = Column(String(100), nullable=False, index=True)
+    post_id = Column(String(100), nullable=False)  # Instagram post ID
+    caption = Column(Text)
+    permalink = Column(Text)
+    media_type = Column(String(50))  # IMAGE, VIDEO, CAROUSEL_ALBUM
+    media_url = Column(Text)
+    thumbnail_url = Column(Text)
+    post_timestamp = Column(DateTime(timezone=True))
+    likes_count = Column(Integer, default=0)
+    comments_count = Column(Integer, default=0)
+    hashtags = Column(JSON, default=list)  # Extracted hashtags
+    mentions = Column(JSON, default=list)  # Extracted mentions
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
