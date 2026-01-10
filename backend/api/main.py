@@ -2360,9 +2360,8 @@ async def telegram_webhook(request: Request):
         except Exception as e:
             logger.error(f"Error processing Telegram message: {type(e).__name__}: {e}")
             import traceback
-            tb = traceback.format_exc()
-            logger.error(f"Traceback: {tb}")
-            return {"status": "error", "detail": str(e), "traceback": tb}
+            logger.error(f"Traceback: {traceback.format_exc()}")
+            return {"status": "error", "detail": str(e)}
 
     except Exception as e:
         logger.error(f"Error in Telegram webhook: {type(e).__name__}: {e}")
