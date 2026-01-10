@@ -6,54 +6,25 @@ from sqlalchemy import create_engine, text
 from sqlalchemy.orm import Session
 
 def setup_pgvector(engine):
-    """Enable pgvector extension and create embeddings table."""
+    """
+    Verify pgvector extension and content_embeddings table exist.
+
+    NOTE: The pgvector extension and table are pre-created in Neon via SQL Editor.
+    We skip CREATE statements to avoid connection pooler limitations.
+    Just verify they exist.
+    """
     from sqlalchemy import text
 
     with engine.connect() as conn:
         try:
-            # Enable pgvector extension
-            conn.execute(text("CREATE EXTENSION IF NOT EXISTS vector"))
-            conn.commit()
-            print("pgvector extension enabled")
+            # Just verify the table exists by counting rows
+            result = conn.execute(text("SELECT COUNT(*) as count FROM content_embeddings"))
+            row = result.fetchone()
+            count = row[0] if row else 0
+            print(f"pgvector ready: content_embeddings table exists with {count} embeddings")
         except Exception as e:
-            print(f"Note: pgvector extension may already exist or not be available: {e}")
-
-        try:
-            # Create embeddings table if not exists
-            conn.execute(text("""
-                CREATE TABLE IF NOT EXISTS content_embeddings (
-                    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-                    chunk_id VARCHAR(255) NOT NULL UNIQUE,
-                    creator_id VARCHAR(100) NOT NULL,
-                    content_preview TEXT,
-                    embedding vector(1536),
-                    created_at TIMESTAMPTZ DEFAULT NOW(),
-                    updated_at TIMESTAMPTZ DEFAULT NOW()
-                )
-            """))
-            conn.commit()
-            print("content_embeddings table created")
-
-            # Create index for faster similarity search
-            conn.execute(text("""
-                CREATE INDEX IF NOT EXISTS idx_embeddings_creator
-                ON content_embeddings (creator_id)
-            """))
-            conn.commit()
-
-            # Create IVFFlat index for faster vector search (if enough rows)
-            # This will be created later when we have more data
-            conn.execute(text("""
-                CREATE INDEX IF NOT EXISTS idx_embeddings_vector
-                ON content_embeddings
-                USING ivfflat (embedding vector_cosine_ops)
-                WITH (lists = 10)
-            """))
-            conn.commit()
-            print("Embedding indexes created")
-
-        except Exception as e:
-            print(f"Note: Embeddings table setup: {e}")
+            # Table doesn't exist yet - this is OK, it was created manually in Neon
+            print(f"Note: content_embeddings table not found (create it via Neon SQL Editor): {e}")
 
 
 def run_migrations(engine):

@@ -4468,8 +4468,8 @@ async def content_stats(creator_id: str = None):
 @app.post("/content/setup-pgvector")
 async def setup_pgvector_endpoint():
     """
-    Setup pgvector extension and create content_embeddings table.
-    Call this once to enable semantic search with OpenAI embeddings.
+    Verify pgvector extension and content_embeddings table exist.
+    The extension and table are pre-created in Neon - this just verifies they work.
     """
     try:
         from sqlalchemy import text
@@ -4479,50 +4479,22 @@ async def setup_pgvector_endpoint():
 
         db = SessionLocal()
         try:
-            # Enable pgvector extension
-            db.execute(text("CREATE EXTENSION IF NOT EXISTS vector"))
-            db.commit()
-
-            # Create embeddings table
-            db.execute(text("""
-                CREATE TABLE IF NOT EXISTS content_embeddings (
-                    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-                    chunk_id VARCHAR(255) NOT NULL UNIQUE,
-                    creator_id VARCHAR(100) NOT NULL,
-                    content_preview TEXT,
-                    embedding vector(1536),
-                    created_at TIMESTAMPTZ DEFAULT NOW(),
-                    updated_at TIMESTAMPTZ DEFAULT NOW()
-                )
-            """))
-            db.commit()
-
-            # Create indexes
-            db.execute(text("""
-                CREATE INDEX IF NOT EXISTS idx_embeddings_creator
-                ON content_embeddings (creator_id)
-            """))
-            db.commit()
-
-            # Create IVFFlat index for faster vector search
-            db.execute(text("""
-                CREATE INDEX IF NOT EXISTS idx_embeddings_vector
-                ON content_embeddings
-                USING ivfflat (embedding vector_cosine_ops)
-                WITH (lists = 10)
-            """))
-            db.commit()
+            # Just verify the table exists by counting rows
+            result = db.execute(text("SELECT COUNT(*) as count FROM content_embeddings"))
+            row = result.fetchone()
+            count = row.count if row else 0
 
             return {
                 "status": "ok",
-                "message": "pgvector extension enabled and content_embeddings table created"
+                "message": "pgvector and content_embeddings table are ready (pre-configured in Neon)",
+                "embeddings_count": count
             }
 
         finally:
             db.close()
 
     except Exception as e:
-        logger.error(f"Error setting up pgvector: {e}")
+        logger.error(f"Error verifying pgvector setup: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 

@@ -122,7 +122,12 @@ def cosine_similarity(vec1: List[float], vec2: List[float]) -> float:
 # =============================================================================
 
 def ensure_pgvector_extension():
-    """Enable pgvector extension in PostgreSQL."""
+    """
+    Verify pgvector extension is available.
+
+    NOTE: The extension is pre-installed in Neon. We skip CREATE EXTENSION
+    to avoid connection pooler limitations. Just verify it works.
+    """
     try:
         from api.database import SessionLocal
         from sqlalchemy import text
@@ -133,15 +138,15 @@ def ensure_pgvector_extension():
 
         db = SessionLocal()
         try:
-            db.execute(text("CREATE EXTENSION IF NOT EXISTS vector"))
-            db.commit()
-            logger.info("pgvector extension enabled")
+            # Just verify the table exists (extension must be enabled if table exists)
+            result = db.execute(text("SELECT COUNT(*) FROM content_embeddings LIMIT 1"))
+            logger.info("pgvector extension verified (content_embeddings table exists)")
             return True
         finally:
             db.close()
 
     except Exception as e:
-        logger.error(f"Failed to enable pgvector: {e}")
+        logger.warning(f"pgvector not verified (table may not exist yet): {e}")
         return False
 
 
