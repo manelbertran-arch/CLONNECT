@@ -922,6 +922,14 @@ async def scrape_instagram_onboarding(request: ScrapeInstagramRequest):
                     posts_saved = await save_instagram_posts_db(request.creator_id, posts_for_db)
                     logger.info(f"[ScrapeOnboarding] Saved {posts_saved} Instagram posts to PostgreSQL")
 
+                    # Hydrate RAG with the new chunks (critical for search)
+                    try:
+                        from api.main import rag
+                        loaded = rag.load_from_db(request.creator_id)
+                        logger.info(f"[ScrapeOnboarding] Hydrated RAG with {loaded} chunks for {request.creator_id}")
+                    except Exception as rag_error:
+                        logger.warning(f"[ScrapeOnboarding] Could not hydrate RAG: {rag_error}")
+
                 except Exception as db_error:
                     logger.warning(f"[ScrapeOnboarding] DB save failed (JSON backup exists): {db_error}")
 

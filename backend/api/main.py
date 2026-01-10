@@ -4343,6 +4343,24 @@ async def search_content_debug(query: str, top_k: int = 5, creator_id: str = Non
         return {"status": "error", "detail": str(e), "traceback": traceback.format_exc()}
 
 
+@app.post("/content/reload")
+async def content_reload(creator_id: str = None):
+    """
+    Force reload RAG from PostgreSQL.
+    Use after onboarding or if chunks are missing from memory.
+    """
+    try:
+        loaded = rag.load_from_db(creator_id)
+        return {
+            "status": "ok",
+            "loaded": loaded,
+            "creator_id": creator_id,
+            "total_documents": rag.count()
+        }
+    except Exception as e:
+        return {"status": "error", "detail": str(e)}
+
+
 @app.get("/content/debug")
 async def content_debug():
     """Debug endpoint to inspect RAG internal state."""
