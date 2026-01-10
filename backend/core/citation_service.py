@@ -1,6 +1,8 @@
 """
 Citation Service - Gestiona busqueda y citacion de contenido del creador.
 Conecta Magic Slice ContentCitation con el sistema existente.
+
+MIGRADO: Usa PostgreSQL como almacenamiento principal con JSON como fallback.
 """
 
 import json
@@ -25,10 +27,91 @@ from ingestion import (
 logger = logging.getLogger(__name__)
 
 
+def _try_load_chunks_from_db(creator_id: str) -> Optional[List[dict]]:
+    """Intenta cargar chunks desde PostgreSQL."""
+    try:
+        from core.tone_profile_db import get_content_chunks_db
+        import asyncio
+
+        # Run async function
+        loop = asyncio.new_event_loop()
+        chunks = loop.run_until_complete(get_content_chunks_db(creator_id))
+        loop.close()
+
+        if chunks and len(chunks) > 0:
+            logger.info(f"Loaded {len(chunks)} chunks from PostgreSQL for {creator_id}")
+            return chunks
+    except Exception as e:
+        logger.warning(f"DB read failed for chunks, will try JSON: {e}")
+    return None
+
+
+def _try_load_chunks_from_json(creator_id: str) -> Optional[List[dict]]:
+    """Intenta cargar chunks desde archivo JSON."""
+    chunks_path = Path(f"data/content_index/{creator_id}/chunks.json")
+    if chunks_path.exists():
+        try:
+            with open(chunks_path, 'r', encoding='utf-8') as f:
+                chunks = json.load(f)
+            logger.info(f"Loaded {len(chunks)} chunks from JSON for {creator_id}")
+            return chunks
+        except Exception as e:
+            logger.error(f"Error loading chunks from JSON: {e}")
+    return None
+
+
+def _save_chunks_to_db(creator_id: str, chunks_data: List[dict]) -> bool:
+    """Guarda chunks en PostgreSQL."""
+    try:
+        from core.tone_profile_db import save_content_chunks_db
+        import asyncio
+
+        loop = asyncio.new_event_loop()
+        saved = loop.run_until_complete(save_content_chunks_db(creator_id, chunks_data))
+        loop.close()
+
+        if saved > 0:
+            logger.info(f"Saved {saved} chunks to PostgreSQL for {creator_id}")
+            return True
+    except Exception as e:
+        logger.error(f"Error saving chunks to DB: {e}")
+    return False
+
+
+def _save_chunks_to_json(creator_id: str, chunks_data: List[dict], posts_metadata: dict) -> bool:
+    """Guarda chunks y metadata en JSON (backup)."""
+    try:
+        index_dir = Path(f"data/content_index/{creator_id}")
+        index_dir.mkdir(parents=True, exist_ok=True)
+
+        with open(index_dir / "chunks.json", 'w', encoding='utf-8') as f:
+            json.dump(chunks_data, f, ensure_ascii=False, indent=2)
+
+        # Serializar fechas en posts_metadata
+        posts_serializable = {}
+        for pid, meta in posts_metadata.items():
+            meta_copy = meta.copy()
+            if meta_copy.get('published_date'):
+                meta_copy['published_date'] = meta_copy['published_date'].isoformat() \
+                    if isinstance(meta_copy['published_date'], datetime) \
+                    else meta_copy['published_date']
+            posts_serializable[pid] = meta_copy
+
+        with open(index_dir / "posts.json", 'w', encoding='utf-8') as f:
+            json.dump(posts_serializable, f, ensure_ascii=False, indent=2)
+
+        return True
+    except Exception as e:
+        logger.error(f"Error saving to JSON: {e}")
+        return False
+
+
 class CreatorContentIndex:
     """
     Indice de contenido de un creador.
     Version simple sin FAISS (para integracion rapida).
+
+    MIGRADO: Usa PostgreSQL con fallback a JSON.
     """
 
     def __init__(self, creator_id: str):
@@ -36,6 +119,7 @@ class CreatorContentIndex:
         self.chunks: List[ContentChunk] = []
         self.posts_metadata: Dict[str, Dict] = {}  # post_id -> metadata
         self._loaded = False
+        self._loaded_from_db = False
 
     def add_post(
         self,
@@ -139,100 +223,91 @@ class CreatorContentIndex:
         return results[:max_results]
 
     def save(self) -> bool:
-        """Guarda el indice en disco."""
-        try:
-            index_dir = Path(f"data/content_index/{self.creator_id}")
-            index_dir.mkdir(parents=True, exist_ok=True)
+        """
+        Guarda el indice.
+        Guarda en: 1) PostgreSQL (principal), 2) JSON (backup)
+        """
+        # Preparar datos
+        chunks_data = [
+            {
+                'id': c.id,
+                'creator_id': c.creator_id,
+                'source_type': c.source_type,
+                'source_id': c.source_id,
+                'source_url': c.source_url,
+                'title': c.title,
+                'content': c.content,
+                'chunk_index': c.chunk_index,
+                'total_chunks': c.total_chunks,
+                'metadata': c.metadata,
+                'created_at': c.created_at.isoformat() if c.created_at else None
+            }
+            for c in self.chunks
+        ]
 
-            # Guardar chunks
-            chunks_data = [
-                {
-                    'id': c.id,
-                    'creator_id': c.creator_id,
-                    'source_type': c.source_type,
-                    'source_id': c.source_id,
-                    'source_url': c.source_url,
-                    'title': c.title,
-                    'content': c.content,
-                    'chunk_index': c.chunk_index,
-                    'total_chunks': c.total_chunks,
-                    'metadata': c.metadata,
-                    'created_at': c.created_at.isoformat() if c.created_at else None
-                }
-                for c in self.chunks
-            ]
+        db_success = _save_chunks_to_db(self.creator_id, chunks_data)
+        json_success = _save_chunks_to_json(self.creator_id, chunks_data, self.posts_metadata)
 
-            with open(index_dir / "chunks.json", 'w', encoding='utf-8') as f:
-                json.dump(chunks_data, f, ensure_ascii=False, indent=2)
+        if db_success:
+            logger.info(f"Saved index for {self.creator_id} to PostgreSQL: {len(self.chunks)} chunks")
+        if json_success:
+            logger.info(f"Saved index for {self.creator_id} to JSON (backup): {len(self.chunks)} chunks")
 
-            # Guardar metadata de posts
-            with open(index_dir / "posts.json", 'w', encoding='utf-8') as f:
-                # Serializar fechas
-                posts_serializable = {}
-                for pid, meta in self.posts_metadata.items():
-                    meta_copy = meta.copy()
-                    if meta_copy.get('published_date'):
-                        meta_copy['published_date'] = meta_copy['published_date'].isoformat() \
-                            if isinstance(meta_copy['published_date'], datetime) \
-                            else meta_copy['published_date']
-                    posts_serializable[pid] = meta_copy
-
-                json.dump(posts_serializable, f, ensure_ascii=False, indent=2)
-
-            logger.info(f"Saved index for {self.creator_id}: {len(self.chunks)} chunks")
-            return True
-
-        except Exception as e:
-            logger.error(f"Error saving index: {e}")
-            return False
+        return db_success or json_success
 
     def load(self) -> bool:
-        """Carga el indice desde disco."""
+        """
+        Carga el indice.
+        Busca en: 1) PostgreSQL, 2) JSON (fallback)
+        """
         if self._loaded:
             return True
 
-        try:
-            index_dir = Path(f"data/content_index/{self.creator_id}")
+        chunks_data = None
 
-            chunks_path = index_dir / "chunks.json"
-            posts_path = index_dir / "posts.json"
+        # 1. Intentar PostgreSQL
+        chunks_data = _try_load_chunks_from_db(self.creator_id)
+        if chunks_data:
+            self._loaded_from_db = True
 
-            if not chunks_path.exists():
-                return False
+        # 2. Fallback a JSON
+        if not chunks_data:
+            chunks_data = _try_load_chunks_from_json(self.creator_id)
 
-            # Cargar chunks
-            with open(chunks_path, 'r', encoding='utf-8') as f:
-                chunks_data = json.load(f)
+        if not chunks_data:
+            return False
 
-            self.chunks = [
-                ContentChunk(
-                    id=c['id'],
-                    creator_id=c['creator_id'],
-                    source_type=c['source_type'],
-                    source_id=c['source_id'],
-                    source_url=c.get('source_url'),
-                    title=c.get('title'),
-                    content=c['content'],
-                    chunk_index=c['chunk_index'],
-                    total_chunks=c['total_chunks'],
-                    metadata=c.get('metadata', {}),
-                    created_at=datetime.fromisoformat(c['created_at']) if c.get('created_at') else None
-                )
-                for c in chunks_data
-            ]
+        # Convertir a ContentChunk objects
+        self.chunks = [
+            ContentChunk(
+                id=c.get('id', c.get('chunk_id', '')),
+                creator_id=c.get('creator_id', self.creator_id),
+                source_type=c.get('source_type'),
+                source_id=c.get('source_id'),
+                source_url=c.get('source_url'),
+                title=c.get('title'),
+                content=c.get('content', ''),
+                chunk_index=c.get('chunk_index', 0),
+                total_chunks=c.get('total_chunks', 1),
+                metadata=c.get('metadata', {}),
+                created_at=datetime.fromisoformat(c['created_at']) if c.get('created_at') else None
+            )
+            for c in chunks_data
+        ]
 
-            # Cargar metadata de posts
-            if posts_path.exists():
+        # Cargar metadata de posts (solo de JSON)
+        posts_path = Path(f"data/content_index/{self.creator_id}/posts.json")
+        if posts_path.exists():
+            try:
                 with open(posts_path, 'r', encoding='utf-8') as f:
                     self.posts_metadata = json.load(f)
+            except Exception as e:
+                logger.warning(f"Could not load posts metadata: {e}")
 
-            self._loaded = True
-            logger.info(f"Loaded index for {self.creator_id}: {len(self.chunks)} chunks")
-            return True
-
-        except Exception as e:
-            logger.error(f"Error loading index: {e}")
-            return False
+        self._loaded = True
+        source = "PostgreSQL" if self._loaded_from_db else "JSON"
+        logger.info(f"Loaded index for {self.creator_id} from {source}: {len(self.chunks)} chunks")
+        return True
 
     @property
     def stats(self) -> Dict:
@@ -241,7 +316,8 @@ class CreatorContentIndex:
             'creator_id': self.creator_id,
             'total_chunks': len(self.chunks),
             'total_posts': len(self.posts_metadata),
-            'loaded': self._loaded
+            'loaded': self._loaded,
+            'loaded_from_db': self._loaded_from_db
         }
 
 
@@ -253,7 +329,7 @@ def get_content_index(creator_id: str) -> CreatorContentIndex:
     """Obtiene o crea el indice de contenido de un creador."""
     if creator_id not in _index_cache:
         index = CreatorContentIndex(creator_id)
-        index.load()  # Intentar cargar de disco
+        index.load()  # Intentar cargar (DB primero, luego JSON)
         _index_cache[creator_id] = index
 
     return _index_cache[creator_id]
@@ -461,11 +537,12 @@ async def index_creator_posts(
 ) -> Dict:
     """
     Indexa posts de un creador.
+    Guarda en PostgreSQL + JSON backup.
 
     Args:
         creator_id: ID del creador
         posts: Lista de posts con caption, post_id, etc.
-        save: Si guardar en disco
+        save: Si guardar en disco/DB
 
     Returns:
         Estadisticas de indexacion
@@ -498,7 +575,7 @@ async def index_creator_posts(
         total_chunks += len(chunks)
 
     if save:
-        index.save()
+        index.save()  # Saves to DB + JSON
 
     return {
         'creator_id': creator_id,
@@ -511,21 +588,42 @@ async def index_creator_posts(
 def delete_content_index(creator_id: str) -> bool:
     """
     Elimina el indice de contenido de un creador.
+    Elimina de PostgreSQL y JSON.
 
     Args:
         creator_id: ID del creador
 
     Returns:
-        True si se elimino, False si no existia
+        True si se elimino de algún lugar
     """
     import shutil
 
+    deleted_any = False
+
+    # 1. Eliminar de PostgreSQL
+    try:
+        from core.tone_profile_db import delete_content_chunks_db
+        import asyncio
+
+        loop = asyncio.new_event_loop()
+        deleted_count = loop.run_until_complete(delete_content_chunks_db(creator_id))
+        loop.close()
+
+        if deleted_count > 0:
+            logger.info(f"Deleted {deleted_count} chunks from PostgreSQL for {creator_id}")
+            deleted_any = True
+    except Exception as e:
+        logger.warning(f"Could not delete from DB: {e}")
+
+    # 2. Eliminar de JSON
     index_dir = Path(f"data/content_index/{creator_id}")
     if index_dir.exists():
         shutil.rmtree(index_dir)
-        # Limpiar cache
-        if creator_id in _index_cache:
-            del _index_cache[creator_id]
-        logger.info(f"Deleted content index for {creator_id}")
-        return True
-    return False
+        logger.info(f"Deleted content index JSON for {creator_id}")
+        deleted_any = True
+
+    # 3. Limpiar cache
+    if creator_id in _index_cache:
+        del _index_cache[creator_id]
+
+    return deleted_any
