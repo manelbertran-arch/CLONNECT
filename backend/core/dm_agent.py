@@ -3874,3 +3874,9 @@ USA ESTA RESPUESTA PARA LA OBJECION (adaptala a tu tono):
 # ============================================================
 # POSTGRESQL INTEGRATION (saves messages to DB for dashboard)
 # ============================================================
+
+# Factory function for creating DM agents
+def get_dm_agent(creator_id: str) -> DMResponderAgent:
+    """Factory to create DM agent for a creator."""
+    return DMResponderAgent(creator_id=creator_id)
+
