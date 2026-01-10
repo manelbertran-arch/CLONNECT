@@ -15,7 +15,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 COPY requirements-lite.txt .
 
 # Force rebuild - change this value to invalidate pip cache
-ENV FORCE_REBUILD="2026-01-10-v1"
+ENV FORCE_REBUILD="2026-01-10-v2-faiss"
 
 # Create virtual environment and install dependencies
 RUN python -m venv /opt/venv
