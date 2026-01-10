@@ -4344,10 +4344,12 @@ async def search_content_debug(query: str, top_k: int = 5, creator_id: str = Non
 
 
 @app.post("/content/reload")
+@app.get("/content/reload")
 async def content_reload(creator_id: str = None):
     """
     Force reload RAG from PostgreSQL.
     Use after onboarding or if chunks are missing from memory.
+    Works with both POST and GET (for browser access).
     """
     try:
         loaded = rag.load_from_db(creator_id)
