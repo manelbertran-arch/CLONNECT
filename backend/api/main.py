@@ -4318,6 +4318,41 @@ async def search_content(creator_id: str, query: str, top_k: int = 3):
         raise HTTPException(status_code=500, detail=str(e))
 
 
+@app.get("/content/stats")
+async def content_stats(creator_id: str = None):
+    """Get RAG content statistics - shows in-memory count and database count."""
+    try:
+        # In-memory RAG count
+        rag_count = rag.count()
+
+        # Database count
+        db_count = 0
+        if DATABASE_URL and SessionLocal:
+            try:
+                from api.models import ContentChunk
+                db = SessionLocal()
+                try:
+                    query = db.query(ContentChunk)
+                    if creator_id:
+                        query = query.filter(ContentChunk.creator_id == creator_id)
+                    db_count = query.count()
+                finally:
+                    db.close()
+            except Exception as db_err:
+                logger.warning(f"Failed to get DB count: {db_err}")
+
+        return {
+            "status": "ok",
+            "rag_in_memory": rag_count,
+            "db_persisted": db_count,
+            "creator_id": creator_id,
+            "synced": rag_count == db_count or (creator_id and rag_count >= db_count)
+        }
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 # ---------------------------------------------------------
 # GDPR COMPLIANCE
 # ---------------------------------------------------------
