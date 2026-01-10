@@ -5768,12 +5768,18 @@ async def startup_event():
     except Exception as e:
         logger.error(f"Failed to start nurturing scheduler: {e}")
 
-    # Hydrate RAG from PostgreSQL
-    try:
-        loaded = rag.load_from_db()
-        logger.info(f"RAG hydrated with {loaded} documents from database")
-    except Exception as e:
-        logger.error(f"Failed to hydrate RAG from database: {e}")
+    # Hydrate RAG from PostgreSQL - DO IT IN BACKGROUND to not block health check
+    # Railway gives only 30s for health check, but FAISS encoding can take 60s+
+    async def hydrate_rag_background():
+        await asyncio.sleep(5)  # Wait for app to be fully ready
+        try:
+            loaded = rag.load_from_db()
+            logger.info(f"RAG hydrated with {loaded} documents from database")
+        except Exception as e:
+            logger.error(f"Failed to hydrate RAG from database: {e}")
+
+    asyncio.create_task(hydrate_rag_background())
+    logger.info("RAG hydration scheduled (background task)")
 
     logger.info("Ready to receive requests!")
 
