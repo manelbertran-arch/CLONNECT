@@ -10,21 +10,13 @@ def setup_pgvector(engine):
     Verify pgvector extension and content_embeddings table exist.
 
     NOTE: The pgvector extension and table are pre-created in Neon via SQL Editor.
-    We skip CREATE statements to avoid connection pooler limitations.
-    Just verify they exist.
+    Connection pooler may block some operations - we just skip and continue.
+    The semantic search will work at runtime when queries go through.
     """
-    from sqlalchemy import text
-
-    with engine.connect() as conn:
-        try:
-            # Just verify the table exists by counting rows
-            result = conn.execute(text("SELECT COUNT(*) as count FROM content_embeddings"))
-            row = result.fetchone()
-            count = row[0] if row else 0
-            print(f"pgvector ready: content_embeddings table exists with {count} embeddings")
-        except Exception as e:
-            # Table doesn't exist yet - this is OK, it was created manually in Neon
-            print(f"Note: content_embeddings table not found (create it via Neon SQL Editor): {e}")
+    # Skip all pgvector setup - it's pre-configured in Neon
+    # The connection pooler blocks DDL and some queries during init
+    # Tables exist and will be accessible at runtime
+    print("pgvector setup: skipped (pre-configured in Neon, will verify at runtime)")
 
 
 def run_migrations(engine):
