@@ -2023,14 +2023,18 @@ MENSAJE DEL USUARIO: "{message}"
         include_link = True
         link_note = ""
         if follower:
-            messages_since_last_link = follower.total_messages - follower.last_link_message_num
+            # Safe access to potentially None values
+            total_msgs = follower.total_messages or 0
+            last_link_num = follower.last_link_message_num or 0
+            links_sent = follower.links_sent_count or 0
+            messages_since_last_link = total_msgs - last_link_num
             # Solo incluir link si:
             # 1. Es la primera vez, O
             # 2. Han pasado 3+ mensajes desde el ultimo link, O
             # 3. El usuario pregunta explicitamente "como pago", "donde compro", etc.
             asking_for_link = any(kw in message.lower() for kw in ['pagar', 'compro', 'comprar', 'link', 'donde', 'how to pay', 'buy'])
 
-            if follower.links_sent_count > 0 and messages_since_last_link < 3 and not asking_for_link:
+            if links_sent > 0 and messages_since_last_link < 3 and not asking_for_link:
                 include_link = False
                 link_note = "\n⚠️ NOTA: Ya enviaste el link recientemente. NO lo repitas a menos que el usuario pregunte."
 
