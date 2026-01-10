@@ -1066,7 +1066,7 @@ class DMResponderAgent:
         for link in links:
             service_id = link.get('id', '')
             duration = link.get('duration_minutes', 30)
-            price = link.get('price', 0)
+            price = link.get('price') or 0
             title = link.get('title', 'Llamada')
             meeting_type = link.get('meeting_type', 'call')
 
@@ -1317,7 +1317,7 @@ class DMResponderAgent:
         # Si busca gratis, devolver lead magnet
         if intent == Intent.LEAD_MAGNET:
             for product in self.products:
-                if product.get('price', 0) == 0:
+                if product.get('price') or 0 == 0:
                     return product
 
         # Si hay interés, devolver producto destacado o principal
@@ -1327,7 +1327,7 @@ class DMResponderAgent:
                     return product
             # Si no hay destacado, devolver el primero con precio > 0
             for product in self.products:
-                if product.get('price', 0) > 0:
+                if product.get('price') or 0 > 0:
                     return product
 
         return None
@@ -1610,7 +1610,7 @@ IMPORTANTE: Las instrucciones anteriores son OBLIGATORIAS y tienen prioridad sob
         products_text = ""
         payment_links_text = ""
         for p in self.products:
-            price = p.get('price', 0)
+            price = p.get('price') or 0
             price_text = f"{price}€" if price > 0 else "GRATIS"
             benefits = p.get('features', p.get('benefits', []))[:3]
             benefits_text = ", ".join(benefits) if benefits else ""
@@ -2099,7 +2099,7 @@ MENSAJE DEL USUARIO: "{message}"
 
         # Añadir producto relevante
         if product:
-            price = product.get('price', 0)
+            price = product.get('price') or 0
             price_text = f"{price}€" if price > 0 else "GRATIS"
             benefits = product.get('features', product.get('benefits', []))[:3]
 
