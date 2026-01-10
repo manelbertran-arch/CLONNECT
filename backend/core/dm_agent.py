@@ -2286,6 +2286,8 @@ USA ESTA RESPUESTA PARA LA OBJECION (adaptala a tu tono):
         name: str = ""
     ) -> DMResponse:
         """Procesar DM y generar respuesta personalizada"""
+        import time
+        _process_start = time.time()
 
         logger.info(f"Processing DM from {sender_id}: {message_text}")
 
@@ -2684,7 +2686,11 @@ USA ESTA RESPUESTA PARA LA OBJECION (adaptala a tu tono):
         display_name = follower.name or username
 
         # Construir prompts (pass message for citation lookup)
+        import time
+        _t0 = time.time()
         system_prompt = self._build_system_prompt(message=message_text)
+        logger.info(f"⏱️ _build_system_prompt took {time.time() - _t0:.2f}s")
+        _t1 = time.time()
         user_prompt = self._build_user_prompt(
             message=message_text,
             intent=intent,
@@ -2694,6 +2700,8 @@ USA ESTA RESPUESTA PARA LA OBJECION (adaptala a tu tono):
             conversation_history=follower.last_messages,
             follower=follower  # Para control de links y objeciones
         )
+
+        logger.info(f"⏱️ _build_user_prompt took {time.time() - _t1:.2f}s")
 
         # Agregar instruccion de idioma al prompt
         # PRIORIDAD: ToneProfile.primary_language > follower.preferred_language
@@ -2725,8 +2733,8 @@ USA ESTA RESPUESTA PARA LA OBJECION (adaptala a tu tono):
         is_cacheable = intent not in NON_CACHEABLE_INTENTS
         cached_response = None
 
-        # TEMPORARY: Bypass cache to debug fallback issue
-        bypass_cache = True  # TODO: Remove after fixing fallback bug
+        # Response cache enabled for faster responses
+        bypass_cache = False
 
         if is_cacheable and not bypass_cache:
             # Normalizar mensaje para cache (sin puntuacion, minusculas)
@@ -2777,12 +2785,14 @@ USA ESTA RESPUESTA PARA LA OBJECION (adaptala a tu tono):
                     logger.info(f"Intent: {intent.value} ({confidence:.2f})")
                     logger.info(f"Products loaded: {len(self.products)}")
 
+                    _t_llm = time.time()
                     response_text = await self.llm.chat(
                         messages,
                         max_tokens=80,  # CORTO - 1-2 frases máximo
                         temperature=0.8  # Más natural, menos robótico
                     )
                     response_text = response_text.strip()
+                    logger.info(f"⏱️ LLM call took {time.time() - _t_llm:.2f}s")
                     logger.info(f"LLM Response: {response_text[:150] if response_text else 'EMPTY'}")
 
                 # Validate response with guardrails
@@ -3023,6 +3033,7 @@ USA ESTA RESPUESTA PARA LA OBJECION (adaptala a tu tono):
         except Exception as email_error:
             logger.warning(f"Email capture error (non-fatal): {email_error}")
 
+        logger.info(f"⏱️ TOTAL process_dm took {time.time() - _process_start:.2f}s")
         return DMResponse(
             response_text=response_text,
             intent=intent,
