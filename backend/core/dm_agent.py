@@ -866,7 +866,10 @@ class DMResponderAgent:
     """Agent principal que procesa DMs y genera respuestas personalizadas"""
 
     async def _save_message_to_db(self, follower_id: str, role: str, content: str, intent: str = None):
-        """Save message to PostgreSQL if available"""
+        """Save message to PostgreSQL if available - with timing"""
+        import time
+        _t_start = time.time()
+
         if not USE_POSTGRES or not db_service:
             logger.debug(f"PostgreSQL disabled: USE_POSTGRES={USE_POSTGRES}, db_service={db_service}")
             return
@@ -877,11 +880,29 @@ class DMResponderAgent:
                 lead = await db_service.create_lead_async(self.creator_id, {"platform_user_id": follower_id, "platform": "telegram" if follower_id.startswith("tg_") else "instagram", "username": follower_id})
             if lead and "id" in lead:
                 result = await db_service.save_message(lead["id"], role, content, intent)
-                logger.info(f"Message saved to PostgreSQL: lead={lead['id']}, role={role}, result={result}")
+                logger.info(f"⏱️ DB save ({role}) took {time.time() - _t_start:.2f}s - lead={lead['id']}")
             else:
                 logger.warning(f"Could not get/create lead for {follower_id}: lead={lead}")
         except Exception as e:
             logger.error(f"PostgreSQL save failed for {follower_id}: {e}", exc_info=True)
+
+    def _save_message_to_db_fire_and_forget(self, follower_id: str, role: str, content: str, intent: str = None):
+        """
+        Fire-and-forget DB save - doesn't block the response.
+        Creates a background task for the DB operation.
+        """
+        import asyncio
+        try:
+            loop = asyncio.get_event_loop()
+            if loop.is_running():
+                # Create task that runs in background
+                asyncio.create_task(self._save_message_to_db(follower_id, role, content, intent))
+                logger.debug(f"DB save scheduled (fire-and-forget) for {role}")
+            else:
+                # Fallback: run synchronously if no loop
+                loop.run_until_complete(self._save_message_to_db(follower_id, role, content, intent))
+        except Exception as e:
+            logger.warning(f"Fire-and-forget DB save failed to schedule: {e}")
 
     # Class-level cache for system prompts and configs (shared across instances)
     _system_prompt_cache: Dict[str, str] = {}
@@ -2709,9 +2730,9 @@ USA ESTA RESPUESTA PARA LA OBJECION (adaptala a tu tono):
                 follower.last_messages = follower.last_messages[-20:]
 
             await self.memory_store.save(follower)
-            # Save BOTH messages to PostgreSQL
-            await self._save_message_to_db(follower.follower_id, 'user', message_text, str(intent))
-            await self._save_message_to_db(follower.follower_id, 'assistant', response_text, None)
+            # Save BOTH messages to PostgreSQL (fire-and-forget - don't block response)
+            self._save_message_to_db_fire_and_forget(follower.follower_id, 'user', message_text, str(intent))
+            self._save_message_to_db_fire_and_forget(follower.follower_id, 'assistant', response_text, None)
 
             # Track product link click
             try:
@@ -3347,9 +3368,9 @@ USA ESTA RESPUESTA PARA LA OBJECION (adaptala a tu tono):
             follower.status = "new"
 
         await self.memory_store.save(follower)
-        # Save BOTH messages to PostgreSQL for dashboard stats
-        await self._save_message_to_db(follower.follower_id, 'user', message, str(intent))
-        await self._save_message_to_db(follower.follower_id, 'assistant', response, None)
+        # Save BOTH messages to PostgreSQL for dashboard stats (fire-and-forget)
+        self._save_message_to_db_fire_and_forget(follower.follower_id, 'user', message, str(intent))
+        self._save_message_to_db_fire_and_forget(follower.follower_id, 'assistant', response, None)
         # Sync lead data to PostgreSQL
         if USE_POSTGRES and db_service:
             try:
@@ -3884,8 +3905,8 @@ USA ESTA RESPUESTA PARA LA OBJECION (adaptala a tu tono):
 
             # Save to memory store
             await self.memory_store.save(follower)
-            # Save to PostgreSQL (manual message from assistant)
-            await self._save_message_to_db(follower.follower_id, 'assistant', message_text, None)
+            # Save to PostgreSQL (manual message from assistant) - fire-and-forget
+            self._save_message_to_db_fire_and_forget(follower.follower_id, 'assistant', message_text, None)
 
             logger.info(f"Saved manual message for {follower_id}")
             return True
@@ -3946,8 +3967,45 @@ USA ESTA RESPUESTA PARA LA OBJECION (adaptala a tu tono):
 # POSTGRESQL INTEGRATION (saves messages to DB for dashboard)
 # ============================================================
 
-# Factory function for creating DM agents
+# Singleton cache for DM agents (one per creator, reused across requests)
+_dm_agent_cache: Dict[str, DMResponderAgent] = {}
+_dm_agent_cache_timestamp: Dict[str, float] = {}
+_DM_AGENT_CACHE_TTL = 600  # 10 minutes - agents are reused for this long
+
+
 def get_dm_agent(creator_id: str) -> DMResponderAgent:
-    """Factory to create DM agent for a creator."""
-    return DMResponderAgent(creator_id=creator_id)
+    """
+    Factory to get DM agent for a creator - SINGLETON PATTERN.
+    Reuses existing agent for same creator to avoid expensive initialization.
+    """
+    import time
+    _t_start = time.time()
+
+    cache_key = creator_id
+    now = time.time()
+    cache_age = now - _dm_agent_cache_timestamp.get(cache_key, 0)
+
+    if cache_age < _DM_AGENT_CACHE_TTL and cache_key in _dm_agent_cache:
+        agent = _dm_agent_cache[cache_key]
+        logger.info(f"⏱️ get_dm_agent: reusing cached agent for {creator_id} (age: {cache_age:.1f}s) took {time.time() - _t_start:.3f}s")
+        return agent
+
+    # Create new agent and cache it
+    agent = DMResponderAgent(creator_id=creator_id)
+    _dm_agent_cache[cache_key] = agent
+    _dm_agent_cache_timestamp[cache_key] = now
+    logger.info(f"⏱️ get_dm_agent: created new agent for {creator_id} took {time.time() - _t_start:.2f}s")
+    return agent
+
+
+def invalidate_dm_agent_cache(creator_id: str = None):
+    """Invalidate DM agent cache - call when creator config changes."""
+    if creator_id:
+        _dm_agent_cache.pop(creator_id, None)
+        _dm_agent_cache_timestamp.pop(creator_id, None)
+        logger.info(f"Invalidated DM agent cache for {creator_id}")
+    else:
+        _dm_agent_cache.clear()
+        _dm_agent_cache_timestamp.clear()
+        logger.info("Invalidated all DM agent caches")
 

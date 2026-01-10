@@ -1685,14 +1685,21 @@ async def send_telegram_direct(chat_id: int, text: str, bot_token: str, reply_ma
 
 async def send_telegram_message(chat_id: int, text: str, bot_token: str, reply_markup: dict = None) -> dict:
     """Send Telegram message - uses proxy if configured, otherwise direct"""
+    import time
+    _t_start = time.time()
+
     if TELEGRAM_PROXY_URL:
         logger.info(f"Sending Telegram message via proxy to chat {chat_id}")
         if not TELEGRAM_PROXY_SECRET:
             logger.warning("TELEGRAM_PROXY_SECRET not set - proxy may reject request if it requires auth")
-        return await send_telegram_via_proxy(chat_id, text, bot_token, reply_markup)
+        result = await send_telegram_via_proxy(chat_id, text, bot_token, reply_markup)
+        logger.info(f"⏱️ Telegram proxy call took {time.time() - _t_start:.2f}s")
+        return result
     else:
         logger.info(f"Sending Telegram message directly to chat {chat_id}")
-        return await send_telegram_direct(chat_id, text, bot_token, reply_markup)
+        result = await send_telegram_direct(chat_id, text, bot_token, reply_markup)
+        logger.info(f"⏱️ Telegram direct call took {time.time() - _t_start:.2f}s")
+        return result
 
 
 async def answer_callback_query(callback_query_id: str, text: str = None) -> dict:
@@ -2248,7 +2255,13 @@ async def telegram_webhook(request: Request):
             logger.info(f"Using fallback creator_id={creator_id}")
 
         try:
+            import time
+            _t_webhook_start = time.time()
+
             agent = get_dm_agent(creator_id)
+            _t_agent_ready = time.time()
+            logger.info(f"⏱️ Agent ready in {_t_agent_ready - _t_webhook_start:.3f}s")
+
             first_name = sender.get("first_name", "")
             last_name = sender.get("last_name", "")
             full_name = f"{first_name} {last_name}".strip()
@@ -2260,6 +2273,8 @@ async def telegram_webhook(request: Request):
                 username=sender_name,
                 name=full_name
             )
+            _t_process_done = time.time()
+            logger.info(f"⏱️ process_dm completed in {_t_process_done - _t_agent_ready:.2f}s")
 
             bot_reply = response.response_text
             intent = response.intent.value if response.intent else "unknown"
