@@ -888,21 +888,29 @@ class DMResponderAgent:
 
     def _save_message_to_db_fire_and_forget(self, follower_id: str, role: str, content: str, intent: str = None):
         """
-        Fire-and-forget DB save - doesn't block the response.
-        Creates a background task for the DB operation.
+        Fire-and-forget DB save - uses thread pool to truly not block.
+        asyncio.create_task runs during next await, blocking the response.
+        Threading ensures DB saves happen completely in background.
         """
+        import threading
         import asyncio
-        try:
-            loop = asyncio.get_event_loop()
-            if loop.is_running():
-                # Create task that runs in background
-                asyncio.create_task(self._save_message_to_db(follower_id, role, content, intent))
-                logger.debug(f"DB save scheduled (fire-and-forget) for {role}")
-            else:
-                # Fallback: run synchronously if no loop
-                loop.run_until_complete(self._save_message_to_db(follower_id, role, content, intent))
-        except Exception as e:
-            logger.warning(f"Fire-and-forget DB save failed to schedule: {e}")
+
+        def run_in_thread():
+            try:
+                # Create new event loop for this thread
+                loop = asyncio.new_event_loop()
+                asyncio.set_event_loop(loop)
+                try:
+                    loop.run_until_complete(self._save_message_to_db(follower_id, role, content, intent))
+                finally:
+                    loop.close()
+            except Exception as e:
+                logger.warning(f"Background DB save failed: {e}")
+
+        # Start in background thread - truly non-blocking
+        thread = threading.Thread(target=run_in_thread, daemon=True)
+        thread.start()
+        logger.debug(f"DB save started in background thread for {role}")
 
     # Class-level cache for system prompts and configs (shared across instances)
     _system_prompt_cache: Dict[str, str] = {}

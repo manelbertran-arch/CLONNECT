@@ -2371,25 +2371,25 @@ async def telegram_webhook(request: Request):
                     reply_markup = {"inline_keyboard": inline_keyboard}
                     logger.info(f"Sending {len(keyboard_data)} inline buttons for booking")
 
-            # Enviar respuesta usando el token del bot correcto
-            # FIRE-AND-FORGET: Don't wait for Telegram confirmation to return faster
+            # CRITICAL: Send Telegram FIRST, THEN return
+            # This is only ~0.3s direct API call - user sees response immediately
+            # DB saves happen in background AFTER this
+            telegram_sent = False
             if bot_reply and bot_token:
-                import asyncio
-                async def send_and_log():
-                    try:
-                        result = await send_telegram_message(chat_id, bot_reply, bot_token, reply_markup)
-                        if result.get("ok"):
-                            logger.info(f"Telegram response sent to chat {chat_id} via bot {bot_id or 'default'}")
-                        else:
-                            logger.error(f"Telegram send failed: {result}")
-                    except Exception as e:
-                        logger.error(f"Telegram send error: {e}")
-
-                asyncio.create_task(send_and_log())
-                logger.info(f"Telegram send scheduled (fire-and-forget) for chat {chat_id}")
+                try:
+                    _t_tg_start = time.time()
+                    result = await send_telegram_message(chat_id, bot_reply, bot_token, reply_markup)
+                    _t_tg_end = time.time()
+                    if result.get("ok"):
+                        telegram_sent = True
+                        logger.info(f"⏱️ Telegram sent in {_t_tg_end - _t_tg_start:.2f}s to chat {chat_id}")
+                    else:
+                        logger.error(f"Telegram send failed: {result}")
+                except Exception as e:
+                    logger.error(f"Telegram send error: {e}")
 
             _t_webhook_end = time.time()
-            logger.info(f"⏱️ TOTAL webhook processing: {_t_webhook_end - _t_webhook_start:.2f}s")
+            logger.info(f"⏱️ TOTAL webhook processing: {_t_webhook_end - _t_webhook_start:.2f}s (user perceived)")
 
             return {
                 "status": "ok",
@@ -2398,7 +2398,7 @@ async def telegram_webhook(request: Request):
                 "creator_id": creator_id,
                 "bot_id": bot_id,
                 "copilot_mode": False,
-                "response_sent": bool(bot_reply and bot_token)
+                "response_sent": telegram_sent
             }
 
         except Exception as e:
