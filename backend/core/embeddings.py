@@ -196,7 +196,8 @@ def store_embedding(chunk_id: str, creator_id: str, content: str, embedding: Lis
 
     except Exception as e:
         logger.error(f"Failed to store embedding: {e}")
-        return False
+        # Re-raise to allow caller to see the actual error
+        raise
 
 
 def search_similar(

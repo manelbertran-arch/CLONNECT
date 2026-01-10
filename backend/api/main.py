@@ -4534,18 +4534,27 @@ async def test_single_embedding():
             }
 
         # Step 2: Store embedding
-        stored = store_embedding(
-            chunk_id="test_embedding_001",
-            creator_id="test",
-            content=test_text,
-            embedding=embedding
-        )
+        try:
+            stored = store_embedding(
+                chunk_id="test_embedding_001",
+                creator_id="test",
+                content=test_text,
+                embedding=embedding
+            )
+        except Exception as store_err:
+            import traceback
+            return {
+                "status": "error",
+                "step": "store_embedding",
+                "message": str(store_err),
+                "traceback": traceback.format_exc()
+            }
 
         if not stored:
             return {
                 "status": "error",
                 "step": "store_embedding",
-                "message": "Failed to store embedding in pgvector"
+                "message": "store_embedding returned False"
             }
 
         return {
