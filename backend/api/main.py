@@ -4514,6 +4514,56 @@ async def setup_pgvector_endpoint():
         }
 
 
+@app.post("/content/test-embedding")
+async def test_single_embedding():
+    """
+    Test generating and storing a single embedding to debug issues.
+    """
+    try:
+        from core.embeddings import generate_embedding, store_embedding
+
+        test_text = "Este es un texto de prueba para verificar que los embeddings funcionan correctamente."
+
+        # Step 1: Generate embedding
+        embedding = generate_embedding(test_text)
+        if not embedding:
+            return {
+                "status": "error",
+                "step": "generate_embedding",
+                "message": "Failed to generate embedding - check OPENAI_API_KEY"
+            }
+
+        # Step 2: Store embedding
+        stored = store_embedding(
+            chunk_id="test_embedding_001",
+            creator_id="test",
+            content=test_text,
+            embedding=embedding
+        )
+
+        if not stored:
+            return {
+                "status": "error",
+                "step": "store_embedding",
+                "message": "Failed to store embedding in pgvector"
+            }
+
+        return {
+            "status": "ok",
+            "message": "Embedding generated and stored successfully",
+            "embedding_dimensions": len(embedding),
+            "chunk_id": "test_embedding_001"
+        }
+
+    except Exception as e:
+        import traceback
+        return {
+            "status": "error",
+            "message": str(e),
+            "traceback": traceback.format_exc()
+        }
+
+
 @app.post("/content/generate-embeddings")
 async def generate_embeddings_for_existing(creator_id: str, batch_size: int = 10):
     """
