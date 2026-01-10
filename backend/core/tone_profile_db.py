@@ -248,7 +248,7 @@ async def save_content_chunks_db(creator_id: str, chunks: List[dict]) -> int:
                     existing.title = chunk.get('title')
                     existing.chunk_index = chunk.get('chunk_index', 0)
                     existing.total_chunks = chunk.get('total_chunks', 1)
-                    existing.metadata = chunk.get('metadata', {})
+                    existing.extra_data = chunk.get('metadata', {})
                 else:
                     # Insert
                     new_chunk = ContentChunk(
@@ -261,7 +261,7 @@ async def save_content_chunks_db(creator_id: str, chunks: List[dict]) -> int:
                         title=chunk.get('title'),
                         chunk_index=chunk.get('chunk_index', 0),
                         total_chunks=chunk.get('total_chunks', 1),
-                        metadata=chunk.get('metadata', {})
+                        extra_data=chunk.get('metadata', {})
                     )
                     db.add(new_chunk)
 
@@ -308,7 +308,7 @@ async def get_content_chunks_db(creator_id: str) -> List[dict]:
                     'title': c.title,
                     'chunk_index': c.chunk_index,
                     'total_chunks': c.total_chunks,
-                    'metadata': c.metadata or {},
+                    'metadata': c.extra_data or {},  # SQLAlchemy column renamed from metadata
                     'created_at': c.created_at.isoformat() if c.created_at else None
                 })
 

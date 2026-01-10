@@ -46,6 +46,10 @@ def run_migrations(engine):
         ("messages", "platform_message_id", "VARCHAR(255)"),
         # Copilot mode setting for creators
         ("creators", "copilot_mode", "BOOLEAN DEFAULT TRUE"),
+        # Anti-hallucination: Product source tracking
+        ("products", "source_url", "TEXT"),
+        ("products", "price_verified", "BOOLEAN DEFAULT FALSE"),
+        ("products", "confidence", "FLOAT DEFAULT 0.0"),
     ]
 
     with engine.connect() as conn:

@@ -339,7 +339,7 @@ class ContentChunk(Base):
     title = Column(String(500))
     chunk_index = Column(Integer, default=0)
     total_chunks = Column(Integer, default=1)
-    metadata = Column(JSON, default=dict)
+    extra_data = Column(JSON, default=dict)  # Renamed from metadata - reserved in SQLAlchemy
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
 
