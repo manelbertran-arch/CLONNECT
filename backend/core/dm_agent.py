@@ -883,10 +883,35 @@ class DMResponderAgent:
         except Exception as e:
             logger.error(f"PostgreSQL save failed for {follower_id}: {e}", exc_info=True)
 
+    # Class-level cache for system prompts and configs (shared across instances)
+    _system_prompt_cache: Dict[str, str] = {}
+    _config_cache: Dict[str, dict] = {}
+    _products_cache: Dict[str, list] = {}
+    _cache_timestamp: Dict[str, float] = {}
+    _CACHE_TTL = 300  # 5 minutes cache TTL
+
     def __init__(self, creator_id: str = "manel"):
+        import time
         self.creator_id = creator_id
-        self.creator_config = self._load_creator_config()
-        self.products = self._load_products()
+
+        # Use cached config/products if available and fresh
+        cache_key = creator_id
+        now = time.time()
+        cache_age = now - self._cache_timestamp.get(cache_key, 0)
+
+        if cache_age < self._CACHE_TTL and cache_key in self._config_cache:
+            self.creator_config = self._config_cache[cache_key]
+            self.products = self._products_cache.get(cache_key, [])
+            logger.info(f"Using cached config/products for {creator_id} (age: {cache_age:.1f}s)")
+        else:
+            self.creator_config = self._load_creator_config()
+            self.products = self._load_products()
+            # Cache them
+            self._config_cache[cache_key] = self.creator_config
+            self._products_cache[cache_key] = self.products
+            self._cache_timestamp[cache_key] = now
+            logger.info(f"Loaded and cached config/products for {creator_id}")
+
         self.llm = get_llm_client()
         self.memory_store = MemoryStore()
         self.config_manager = CreatorConfigManager()
@@ -1550,9 +1575,33 @@ Tú: "Pero es una oportunidad única, solo quedan 3 plazas..."  ← NUNCA
 
     def _build_system_prompt(self, message: str = "") -> str:
         """Construir system prompt con configuración, productos y citaciones relevantes"""
-        # Reload config to get latest settings (from DB)
-        self.creator_config = self._load_creator_config()
+        import time
+        import hashlib
+
+        # Check if we have a cached base prompt (without citations)
+        cache_key = self.creator_id
         config = self.creator_config
+
+        # Create hash of config to detect changes
+        config_str = json.dumps(config, sort_keys=True, default=str)
+        products_str = json.dumps(self.products, sort_keys=True, default=str)
+        config_hash = hashlib.md5((config_str + products_str).encode()).hexdigest()[:8]
+
+        # Check if base prompt is cached and config hasn't changed
+        base_prompt_key = f"{cache_key}_{config_hash}"
+        if base_prompt_key in self._system_prompt_cache:
+            base_prompt = self._system_prompt_cache[base_prompt_key]
+            logger.info(f"Using cached base system prompt for {cache_key}")
+
+            # Add citations for this specific message if needed
+            if message:
+                citation_section = get_citation_prompt_section(self.creator_id, message)
+                if citation_section:
+                    # Insert citations after PERSONALIDAD section
+                    return base_prompt.replace("{CITATION_PLACEHOLDER}", citation_section)
+            return base_prompt.replace("{CITATION_PLACEHOLDER}", "")
+
+        logger.info(f"Building new system prompt for {cache_key} (config_hash={config_hash})")
         # Use clone_name (from Settings) with fallback to name
         name = config.get('clone_name') or config.get('name', 'Asistente')
 
@@ -1817,13 +1866,8 @@ IMPORTANTE: Las instrucciones anteriores son OBLIGATORIAS y tienen prioridad sob
         if magic_slice_tone:
             logger.info(f"Injecting Magic Slice ToneProfile for {self.creator_id}")
 
-        # Get Magic Slice Citations if message provided
-        citation_section = ""
-        if message:
-            citation_section = get_citation_prompt_section(self.creator_id, message)
-            if citation_section:
-                citation_count = citation_section.count('[1]') + citation_section.count('[2]') + citation_section.count('[3]')
-                logger.info(f"Injecting {citation_count} citations for {self.creator_id}")
+        # Use placeholder for citations - will be filled in from cache
+        citation_placeholder = "{CITATION_PLACEHOLDER}"
 
         # Build examples based on detected tone (CRITICAL for LLM to follow correct style)
         if clone_tone == "professional":
@@ -1935,7 +1979,7 @@ Responde como si fuera un mensaje de WhatsApp entre amigos:
         # CRITICAL: Magic Slice ToneProfile goes FIRST with highest priority
         # Then Sales Strategy as the core behavior guide
         # It contains language and formality rules that MUST be followed
-        return f"""{magic_slice_tone}
+        base_prompt = f"""{magic_slice_tone}
 {dynamic_rules}
 {sales_strategy}
 Eres {name}, un creador de contenido que responde mensajes de Instagram/WhatsApp.
@@ -1945,7 +1989,7 @@ PERSONALIDAD:
 - {formality_rule}
 {emoji_instruction}
 
-{citation_section}
+{citation_placeholder}
 
 SOBRE MÍ:
 {knowledge_section}
@@ -2001,6 +2045,20 @@ SI EL USUARIO DA SU CONTACTO:
 - NO pidas más datos innecesarios
 
 RECUERDA: NO suenes como un bot corporativo. Sé natural y cercano. NO des datos de pago hasta que el usuario lo pida."""
+
+        # Cache the base prompt with placeholder
+        self._system_prompt_cache[base_prompt_key] = base_prompt
+        logger.info(f"Cached base system prompt for {base_prompt_key}")
+
+        # Add citations for this specific message if available
+        if message:
+            citation_section = get_citation_prompt_section(self.creator_id, message)
+            if citation_section:
+                citation_count = citation_section.count('[1]') + citation_section.count('[2]') + citation_section.count('[3]')
+                logger.info(f"Injecting {citation_count} citations for {self.creator_id}")
+                return base_prompt.replace("{CITATION_PLACEHOLDER}", citation_section)
+
+        return base_prompt.replace("{CITATION_PLACEHOLDER}", "")
 
     def _build_user_prompt(
         self,
@@ -2316,9 +2374,8 @@ USA ESTA RESPUESTA PARA LA OBJECION (adaptala a tu tono):
                 metadata={"status": "paused", "message": "Bot pausado por el creador"}
             )
 
-        # Reload products fresh from DB to respect is_active changes
-        self.products = self._load_products()
-        logger.info(f"Reloaded {len(self.products)} active products for this request")
+        # Products cached in __init__ with 5-minute TTL
+        logger.info(f"Using {len(self.products)} cached products")
 
         # Rate limiting para prevenir abuse y controlar costes
         rate_limiter = get_rate_limiter()
@@ -2341,12 +2398,14 @@ USA ESTA RESPUESTA PARA LA OBJECION (adaptala a tu tono):
             )
 
         # Obtener/crear memoria del seguidor (with name/username if available)
+        _t_mem = time.time()
         follower = await self.memory_store.get_or_create(
             self.creator_id,
             sender_id,
             name=name,
             username=username if username != "amigo" else ""
         )
+        logger.info(f"⏱️ memory_store.get_or_create took {time.time() - _t_mem:.2f}s")
 
         # Extraer nombre del mensaje si el usuario se presenta
         # Patrones: "soy [nombre]", "me llamo [nombre]", "I'm [name]", etc.
@@ -2385,7 +2444,9 @@ USA ESTA RESPUESTA PARA LA OBJECION (adaptala a tu tono):
             logger.info(f"Language changed from {old_lang} to {detected_lang} (strong evidence)")
 
         # Clasificar intent
+        _t_intent = time.time()
         intent, confidence = self._classify_intent(message_text)
+        logger.info(f"⏱️ _classify_intent took {time.time() - _t_intent:.2f}s")
         logger.info(f"Intent: {intent.value} ({confidence:.0%})")
 
         # Verificar escalación
@@ -2494,8 +2555,7 @@ USA ESTA RESPUESTA PARA LA OBJECION (adaptala a tu tono):
 
         # === FAST PATH: Pregunta específica de método de pago ===
         # Bypass LLM when user asks specifically about Bizum, Transferencia, Revolut, PayPal
-        # Reload config to get fresh payment methods from DB
-        self.creator_config = self._load_creator_config()
+        # Use cached config (5-minute TTL)
         other_payment_methods = self.creator_config.get('other_payment_methods', {})
         logger.info(f"Payment methods for direct handler: {list(other_payment_methods.keys()) if other_payment_methods else 'None'}")
         direct_payment_response = self._handle_direct_payment_question(
