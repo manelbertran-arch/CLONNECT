@@ -47,6 +47,29 @@ class FollowerMemory:
     conversation_summary: str = ""
     last_messages: List[Dict] = field(default_factory=list)
 
+    def __post_init__(self):
+        """Sanitize None values that may come from JSON loading."""
+        if self.total_messages is None:
+            self.total_messages = 0
+        if self.purchase_intent_score is None:
+            self.purchase_intent_score = 0.0
+        if self.engagement_score is None:
+            self.engagement_score = 0.0
+        if self.interests is None:
+            self.interests = []
+        if self.products_discussed is None:
+            self.products_discussed = []
+        if self.objections_raised is None:
+            self.objections_raised = []
+        if self.last_messages is None:
+            self.last_messages = []
+        if self.is_lead is None:
+            self.is_lead = False
+        if self.is_customer is None:
+            self.is_customer = False
+        if self.needs_followup is None:
+            self.needs_followup = False
+
     def to_dict(self) -> dict:
         return asdict(self)
 
