@@ -4318,6 +4318,31 @@ async def search_content(creator_id: str, query: str, top_k: int = 3):
         raise HTTPException(status_code=500, detail=str(e))
 
 
+@app.get("/content/search-debug")
+async def search_content_debug(query: str, top_k: int = 5, creator_id: str = None):
+    """Debug search - shows raw results before and after filtering."""
+    try:
+        # Get raw results without creator filter
+        raw_results = rag.search(query, top_k=top_k, creator_id=None)
+
+        # Get filtered results
+        filtered_results = rag.search(query, top_k=top_k, creator_id=creator_id) if creator_id else raw_results
+
+        return {
+            "status": "ok",
+            "query": query,
+            "creator_id_filter": creator_id,
+            "raw_count": len(raw_results),
+            "filtered_count": len(filtered_results),
+            "raw_results": [{"doc_id": r["doc_id"], "metadata": r["metadata"]} for r in raw_results],
+            "filtered_results": [{"doc_id": r["doc_id"], "metadata": r["metadata"]} for r in filtered_results]
+        }
+
+    except Exception as e:
+        import traceback
+        return {"status": "error", "detail": str(e), "traceback": traceback.format_exc()}
+
+
 @app.get("/content/debug")
 async def content_debug():
     """Debug endpoint to inspect RAG internal state."""
