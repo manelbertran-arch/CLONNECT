@@ -4351,7 +4351,27 @@ async def content_debug():
         doc_list_count = len(rag._doc_list)
         index = rag._get_index()
         index_type = type(index).__name__
-        index_vectors = len(index.vectors) if hasattr(index, 'vectors') else 'N/A'
+        index_vectors = len(index.vectors) if hasattr(index, 'vectors') else getattr(index, 'ntotal', 'N/A')
+
+        # Check dependencies availability
+        deps = {}
+        try:
+            import numpy
+            deps['numpy'] = numpy.__version__
+        except ImportError as e:
+            deps['numpy'] = f"NOT INSTALLED: {e}"
+
+        try:
+            import sentence_transformers
+            deps['sentence_transformers'] = sentence_transformers.__version__
+        except ImportError as e:
+            deps['sentence_transformers'] = f"NOT INSTALLED: {e}"
+
+        try:
+            import faiss
+            deps['faiss'] = "installed"
+        except ImportError as e:
+            deps['faiss'] = f"NOT INSTALLED: {e}"
 
         # Sample a few documents to check metadata
         samples = []
@@ -4369,6 +4389,7 @@ async def content_debug():
             "_doc_list_count": doc_list_count,
             "index_type": index_type,
             "index_vectors": index_vectors,
+            "dependencies": deps,
             "samples": samples,
             "doc_list_first_5": rag._doc_list[:5] if rag._doc_list else []
         }
