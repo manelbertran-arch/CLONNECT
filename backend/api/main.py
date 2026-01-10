@@ -4318,6 +4318,39 @@ async def search_content(creator_id: str, query: str, top_k: int = 3):
         raise HTTPException(status_code=500, detail=str(e))
 
 
+@app.get("/content/debug")
+async def content_debug():
+    """Debug endpoint to inspect RAG internal state."""
+    try:
+        doc_count = len(rag._documents)
+        doc_list_count = len(rag._doc_list)
+        index = rag._get_index()
+        index_type = type(index).__name__
+        index_vectors = len(index.vectors) if hasattr(index, 'vectors') else 'N/A'
+
+        # Sample a few documents to check metadata
+        samples = []
+        for doc_id in list(rag._documents.keys())[:3]:
+            doc = rag._documents[doc_id]
+            samples.append({
+                "doc_id": doc_id,
+                "text_preview": doc.text[:100] if doc.text else "",
+                "metadata": doc.metadata
+            })
+
+        return {
+            "status": "ok",
+            "_documents_count": doc_count,
+            "_doc_list_count": doc_list_count,
+            "index_type": index_type,
+            "index_vectors": index_vectors,
+            "samples": samples,
+            "doc_list_first_5": rag._doc_list[:5] if rag._doc_list else []
+        }
+    except Exception as e:
+        return {"status": "error", "detail": str(e)}
+
+
 @app.get("/content/stats")
 async def content_stats(creator_id: str = None):
     """Get RAG content statistics - shows in-memory count and database count."""
