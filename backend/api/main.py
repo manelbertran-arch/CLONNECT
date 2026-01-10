@@ -4353,6 +4353,140 @@ async def content_stats(creator_id: str = None):
         raise HTTPException(status_code=500, detail=str(e))
 
 
+@app.delete("/content/{creator_id}/clear")
+async def clear_content(creator_id: str):
+    """
+    Clear all content chunks for a creator (from DB and in-memory RAG).
+    Use this to remove fake/test content before loading real scraped content.
+    """
+    try:
+        deleted_db = 0
+        deleted_rag = 0
+
+        # Delete from PostgreSQL
+        if DATABASE_URL and SessionLocal:
+            try:
+                from api.models import ContentChunk
+                db = SessionLocal()
+                try:
+                    deleted_db = db.query(ContentChunk).filter(
+                        ContentChunk.creator_id == creator_id
+                    ).delete()
+                    db.commit()
+                finally:
+                    db.close()
+            except Exception as db_err:
+                logger.warning(f"Failed to delete from DB: {db_err}")
+
+        # Delete from in-memory RAG
+        docs_to_delete = [
+            doc_id for doc_id, doc in rag._documents.items()
+            if doc.metadata and doc.metadata.get("creator_id") == creator_id
+        ]
+        for doc_id in docs_to_delete:
+            if doc_id in rag._documents:
+                del rag._documents[doc_id]
+                deleted_rag += 1
+
+        logger.info(f"Cleared content for {creator_id}: {deleted_db} from DB, {deleted_rag} from RAG")
+
+        return {
+            "status": "ok",
+            "deleted_from_db": deleted_db,
+            "deleted_from_rag": deleted_rag,
+            "creator_id": creator_id
+        }
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+class BulkContentRequest(BaseModel):
+    creator_id: str
+    chunks: List[Dict[str, Any]]  # List of {content, source_type, source_url, title}
+
+
+@app.post("/content/bulk-load")
+async def bulk_load_content(request: BulkContentRequest):
+    """
+    Bulk load real scraped content into RAG and PostgreSQL.
+
+    Each chunk should have:
+    - content: The text content
+    - source_type: 'web_page', 'instagram_post', etc.
+    - source_url: Original URL (for citation)
+    - title: Page/post title (optional)
+    """
+    try:
+        import hashlib
+        loaded = 0
+
+        for i, chunk_data in enumerate(request.chunks):
+            content = chunk_data.get("content", "")
+            if not content or len(content.strip()) < 10:
+                continue
+
+            # Generate unique chunk_id from content hash
+            chunk_id = hashlib.sha256(
+                f"{request.creator_id}:{chunk_data.get('source_url', '')}:{i}".encode()
+            ).hexdigest()[:32]
+
+            source_type = chunk_data.get("source_type", "web_page")
+            source_url = chunk_data.get("source_url", "")
+            title = chunk_data.get("title", "")
+
+            # Add to in-memory RAG
+            rag.add_document(
+                doc_id=chunk_id,
+                text=content,
+                metadata={
+                    "creator_id": request.creator_id,
+                    "type": source_type,
+                    "source_url": source_url,
+                    "title": title
+                }
+            )
+
+            # Persist to PostgreSQL
+            if DATABASE_URL and SessionLocal:
+                try:
+                    from api.models import ContentChunk
+                    db = SessionLocal()
+                    try:
+                        existing = db.query(ContentChunk).filter(
+                            ContentChunk.chunk_id == chunk_id
+                        ).first()
+
+                        if not existing:
+                            db_chunk = ContentChunk(
+                                creator_id=request.creator_id,
+                                chunk_id=chunk_id,
+                                content=content,
+                                source_type=source_type,
+                                source_url=source_url,
+                                title=title
+                            )
+                            db.add(db_chunk)
+                            db.commit()
+                    finally:
+                        db.close()
+                except Exception as db_err:
+                    logger.warning(f"Failed to persist chunk to DB: {db_err}")
+
+            loaded += 1
+
+        logger.info(f"Bulk loaded {loaded} real content chunks for {request.creator_id}")
+
+        return {
+            "status": "ok",
+            "chunks_loaded": loaded,
+            "creator_id": request.creator_id
+        }
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 # ---------------------------------------------------------
 # GDPR COMPLIANCE
 # ---------------------------------------------------------
