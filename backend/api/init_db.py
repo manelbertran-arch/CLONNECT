@@ -81,7 +81,7 @@ def init_database():
             User, UserCreator, Creator, Lead, Message, Product,
             NurturingSequence, KnowledgeBase, BookingLink, CalendarBooking,
             CreatorAvailability, BookingSlot, UnifiedProfile, PlatformIdentity,
-            EmailAskTracking, ToneProfile, ContentChunk, InstagramPost
+            EmailAskTracking, RAGDocument, ToneProfile, ContentChunk, InstagramPost
         )
     except:
         from database import Base
@@ -89,7 +89,7 @@ def init_database():
             User, UserCreator, Creator, Lead, Message, Product,
             NurturingSequence, KnowledgeBase, BookingLink, CalendarBooking,
             CreatorAvailability, BookingSlot, UnifiedProfile, PlatformIdentity,
-            EmailAskTracking, ToneProfile, ContentChunk, InstagramPost
+            EmailAskTracking, RAGDocument, ToneProfile, ContentChunk, InstagramPost
         )
 
     print(f"Creating engine with DATABASE_URL configured: {bool(DATABASE_URL)}")
