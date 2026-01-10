@@ -1987,7 +1987,7 @@ RECUERDA: NO suenes como un bot corporativo. Sé natural y cercano. NO des datos
                 user_context += f"\n  → YA TENEMOS SU CONTACTO, NO lo pidas de nuevo"
             elif follower.contact_requested:
                 user_context += f"\n- Ya pedimos su contacto pero no lo dio, NO insistas"
-            elif follower.total_messages >= 3 and follower.purchase_intent_score >= 0.3:
+            elif (follower.total_messages or 0) >= 3 and (follower.purchase_intent_score or 0) >= 0.3:
                 user_context += f"\n- 📱 BUEN MOMENTO para pedir WhatsApp/Telegram (interés detectado)"
             user_context += "\n"
 
@@ -1996,10 +1996,11 @@ RECUERDA: NO suenes como un bot corporativo. Sé natural y cercano. NO des datos
         if follower:
             # Decidir si usar el nombre (solo 1 de cada 5 mensajes, y NUNCA consecutivos)
             # Requiere >= 5 mensajes desde el último uso
-            if follower.messages_since_name_used >= 5:
+            msgs_since_name = follower.messages_since_name_used or 0
+            if msgs_since_name >= 5:
                 naturalidad_context += f"\n✓ PUEDES usar '{first_name}' (solo primer nombre, NO '{username}')"
             else:
-                msgs_restantes = 5 - follower.messages_since_name_used
+                msgs_restantes = 5 - msgs_since_name
                 naturalidad_context += f"\n⚠️ PROHIBIDO usar el nombre (faltan {msgs_restantes} mensajes)"
 
             # Evitar repetir emojis
@@ -2307,13 +2308,14 @@ USA ESTA RESPUESTA PARA LA OBJECION (adaptala a tu tono):
 
         # Detectar idioma del mensaje usando detección ROBUSTA
         # Solo cambia el idioma si hay evidencia fuerte (3+ keywords)
-        current_lang = follower.preferred_language if follower.total_messages > 0 else None
+        total_msgs = follower.total_messages or 0
+        current_lang = follower.preferred_language if total_msgs > 0 else None
         detected_lang = detect_language_robust(message_text, current_lang)
 
         # Actualizar idioma preferido solo si:
         # 1. Es el primer mensaje, O
         # 2. La detección robusta cambió el idioma (evidencia fuerte)
-        if follower.total_messages == 0:
+        if total_msgs == 0:
             follower.preferred_language = detected_lang
             logger.info(f"Language set on first message: {detected_lang}")
         elif detected_lang != follower.preferred_language:
@@ -2877,7 +2879,7 @@ USA ESTA RESPUESTA PARA LA OBJECION (adaptala a tu tono):
 
         # Add AI transparency disclosure for first message if enabled
         transparency_enabled = os.getenv("TRANSPARENCY_ENABLED", "false").lower() == "true"
-        is_first_message = follower.total_messages <= 1
+        is_first_message = (follower.total_messages or 0) <= 1
         if transparency_enabled and is_first_message:
             creator_name = self.config.get("name", self.creator_id)
             disclosure = get_transparency_disclosure(creator_name, user_language)
@@ -3158,10 +3160,11 @@ USA ESTA RESPUESTA PARA LA OBJECION (adaptala a tu tono):
             }
             change = objection_decrements.get(intent, 0)
             if change != 0:
-                follower.purchase_intent_score = max(0.0, min(1.0, follower.purchase_intent_score + change))
+                current_score = follower.purchase_intent_score or 0.0
+                follower.purchase_intent_score = max(0.0, min(1.0, current_score + change))
 
         # Marcar como lead (score > 25% = sale de New Leads)
-        if follower.purchase_intent_score > 0.25 or intent == Intent.INTEREST_STRONG:
+        if (follower.purchase_intent_score or 0) > 0.25 or intent == Intent.INTEREST_STRONG:
             follower.is_lead = True
 
         # ============================================================
@@ -3189,6 +3192,8 @@ USA ESTA RESPUESTA PARA LA OBJECION (adaptala a tu tono):
 
         old_status = follower.status
         current_status = follower.status or "new"
+        intent_score = follower.purchase_intent_score or 0.0
+        follower_msgs = follower.total_messages or 0
 
         # Rule: Customer status is permanent (set via payment webhooks)
         if current_status == "customer" or follower.is_customer:
@@ -3197,17 +3202,17 @@ USA ESTA RESPUESTA PARA LA OBJECION (adaptala a tu tono):
         elif current_status in ["new", "active", ""] and (
             intent in hot_intents or
             is_direct_purchase_intent(message) or
-            follower.purchase_intent_score >= HOT_INTENT_THRESHOLD
+            intent_score >= HOT_INTENT_THRESHOLD
         ):
             follower.status = "hot"
-            logger.info(f"Pipeline transition: {old_status} → hot (intent={intent.value}, score={follower.purchase_intent_score:.0%})")
+            logger.info(f"Pipeline transition: {old_status} → hot (intent={intent.value}, score={intent_score:.0%})")
         # Rule: NEW → ACTIVE (engagement without clear buy intent)
         elif current_status in ["new", ""] and (
             intent in active_intents or
-            follower.total_messages >= 2  # At least one back-and-forth
+            follower_msgs >= 2  # At least one back-and-forth
         ):
             follower.status = "active"
-            logger.info(f"Pipeline transition: {old_status} → active (intent={intent.value}, messages={follower.total_messages})")
+            logger.info(f"Pipeline transition: {old_status} → active (intent={intent.value}, messages={follower_msgs})")
         # Keep current status if no transition rule applies
         elif not follower.status:
             follower.status = "new"
