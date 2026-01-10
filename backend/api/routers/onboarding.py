@@ -883,7 +883,7 @@ async def scrape_instagram_onboarding(request: ScrapeInstagramRequest):
             content_indexed = len(chunks)
 
             if content_indexed > 0:
-                # Save to content_index directory
+                # Save to content_index directory (JSON backup)
                 content_dir = Path("data/content_index") / request.creator_id
                 content_dir.mkdir(parents=True, exist_ok=True)
 
@@ -896,7 +896,34 @@ async def scrape_instagram_onboarding(request: ScrapeInstagramRequest):
                 with open(posts_path, 'w', encoding='utf-8') as f:
                     json.dump(posts_index, f, ensure_ascii=False, indent=2)
 
-                logger.info(f"[ScrapeOnboarding] Indexed {content_indexed} posts to {content_dir}")
+                logger.info(f"[ScrapeOnboarding] Indexed {content_indexed} posts to JSON")
+
+                # Save to PostgreSQL (primary storage)
+                try:
+                    from core.tone_profile_db import save_content_chunks_db, save_instagram_posts_db
+
+                    # Save chunks to DB
+                    chunks_saved = await save_content_chunks_db(request.creator_id, chunks)
+                    logger.info(f"[ScrapeOnboarding] Saved {chunks_saved} chunks to PostgreSQL")
+
+                    # Save Instagram posts to DB
+                    posts_for_db = [
+                        {
+                            "id": post.post_id,
+                            "caption": post.caption,
+                            "permalink": post.permalink,
+                            "media_type": post.post_type,
+                            "timestamp": post.timestamp.isoformat() if post.timestamp else None,
+                            "like_count": post.likes_count,
+                            "comments_count": post.comments_count
+                        }
+                        for post in posts
+                    ]
+                    posts_saved = await save_instagram_posts_db(request.creator_id, posts_for_db)
+                    logger.info(f"[ScrapeOnboarding] Saved {posts_saved} Instagram posts to PostgreSQL")
+
+                except Exception as db_error:
+                    logger.warning(f"[ScrapeOnboarding] DB save failed (JSON backup exists): {db_error}")
 
                 # Reload citation index
                 try:
