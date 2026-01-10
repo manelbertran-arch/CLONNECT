@@ -2447,7 +2447,7 @@ USA ESTA RESPUESTA PARA LA OBJECION (adaptala a tu tono):
             logger.info(f"Response: {direct_payment_response}")
 
             # Update lead status - high purchase intent
-            follower.purchase_intent_score = max(follower.purchase_intent_score, 0.85)
+            follower.purchase_intent_score = max(follower.purchase_intent_score or 0.0, 0.85)
             follower.is_lead = True
 
             await self._update_memory(follower, message_text, direct_payment_response, Intent.INTEREST_STRONG)
@@ -2505,7 +2505,7 @@ USA ESTA RESPUESTA PARA LA OBJECION (adaptala a tu tono):
             logger.info(f"DIRECT PURCHASE: product={product_name}, payment_link={product_url}")
 
             # Subir purchase_intent a 85%+ inmediatamente
-            follower.purchase_intent_score = max(follower.purchase_intent_score, 0.85)
+            follower.purchase_intent_score = max(follower.purchase_intent_score or 0.0, 0.85)
             follower.is_lead = True
 
             logger.info(f"DIRECT PURCHASE detected - giving link only, score set to {follower.purchase_intent_score}")
@@ -3133,19 +3133,19 @@ USA ESTA RESPUESTA PARA LA OBJECION (adaptala a tu tono):
 
         # BOOST: Si hay keywords de compra directa, subir a 75% (Hot)
         if is_direct_purchase_intent(message):
-            follower.purchase_intent_score = max(follower.purchase_intent_score, 0.75)
+            follower.purchase_intent_score = max(follower.purchase_intent_score or 0.0, 0.75)
             logger.info(f"Direct purchase keywords detected - score boosted to {follower.purchase_intent_score}")
         elif intent == Intent.INTEREST_STRONG:
             # Interés fuerte ("quiero comprar"): 75% → Hot
-            follower.purchase_intent_score = max(follower.purchase_intent_score, 0.75)
+            follower.purchase_intent_score = max(follower.purchase_intent_score or 0.0, 0.75)
             logger.info(f"INTEREST_STRONG detected - score set to 75% (Hot)")
         elif intent == Intent.INTEREST_SOFT:
             # Interés suave ("me interesa"): 50% → Warm
-            follower.purchase_intent_score = max(follower.purchase_intent_score, 0.50)
+            follower.purchase_intent_score = max(follower.purchase_intent_score or 0.0, 0.50)
             logger.info(f"INTEREST_SOFT detected - score set to 50% (Warm)")
         elif intent == Intent.QUESTION_PRODUCT:
             # Pregunta sobre producto: 25% → sale de New Leads
-            follower.purchase_intent_score = max(follower.purchase_intent_score, 0.25)
+            follower.purchase_intent_score = max(follower.purchase_intent_score or 0.0, 0.25)
         else:
             # Para objeciones y otros, aplicar decrementos
             objection_decrements = {
