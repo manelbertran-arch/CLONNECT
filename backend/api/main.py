@@ -4343,14 +4343,8 @@ async def search_content_debug(query: str, top_k: int = 5, creator_id: str = Non
         return {"status": "error", "detail": str(e), "traceback": traceback.format_exc()}
 
 
-@app.post("/content/reload")
-@app.get("/content/reload")
-async def content_reload(creator_id: str = None):
-    """
-    Force reload RAG from PostgreSQL.
-    Use after onboarding or if chunks are missing from memory.
-    Works with both POST and GET (for browser access).
-    """
+async def _do_reload(creator_id: str = None):
+    """Helper to reload RAG from PostgreSQL."""
     try:
         loaded = rag.load_from_db(creator_id)
         return {
@@ -4361,6 +4355,18 @@ async def content_reload(creator_id: str = None):
         }
     except Exception as e:
         return {"status": "error", "detail": str(e)}
+
+
+@app.post("/content/reload")
+async def content_reload_post(creator_id: str = None):
+    """Force reload RAG from PostgreSQL (POST)."""
+    return await _do_reload(creator_id)
+
+
+@app.get("/content/reload")
+async def content_reload_get(creator_id: str = None):
+    """Force reload RAG from PostgreSQL (GET - browser friendly)."""
+    return await _do_reload(creator_id)
 
 
 @app.get("/content/debug")
