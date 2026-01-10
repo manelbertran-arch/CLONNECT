@@ -195,7 +195,7 @@ class InstaloaderScraper:
         self._loader = None
 
     def _get_loader(self):
-        """Inicializa Instaloader de forma lazy."""
+        """Inicializa Instaloader de forma lazy con configuración anti-rate-limit."""
         if self._loader is None:
             try:
                 import instaloader
@@ -206,8 +206,15 @@ class InstaloaderScraper:
                     download_geotags=False,
                     download_comments=False,
                     save_metadata=False,
-                    compress_json=False
+                    compress_json=False,
+                    max_connection_attempts=3,
+                    request_timeout=30,
+                    quiet=True  # Less verbose output
                 )
+
+                # Set slower rate to avoid rate limits
+                self._loader.context.sleep = True
+                self._loader.context.max_connection_attempts = 3
 
                 if self.username and self.password:
                     try:
@@ -227,7 +234,8 @@ class InstaloaderScraper:
         self,
         target_username: str,
         limit: int = 50,
-        since: Optional[datetime] = None
+        since: Optional[datetime] = None,
+        delay_between_posts: float = 1.5
     ) -> List[InstagramPost]:
         """
         Obtiene posts de un perfil usando Instaloader.
@@ -236,17 +244,24 @@ class InstaloaderScraper:
             target_username: Username del creador a scrapear
             limit: Numero maximo de posts
             since: Solo posts despues de esta fecha
+            delay_between_posts: Segundos a esperar entre cada post (anti-rate-limit)
 
         Returns:
             Lista de InstagramPost
         """
         import instaloader
+        import time
+        import random
 
         loader = self._get_loader()
         posts = []
 
         try:
+            # Initial delay before fetching profile
+            time.sleep(random.uniform(1.0, 2.0))
+
             profile = instaloader.Profile.from_username(loader.context, target_username)
+            logger.info(f"Fetching posts from @{target_username} (limit={limit})")
 
             for post in profile.get_posts():
                 if len(posts) >= limit:
@@ -273,6 +288,9 @@ class InstaloaderScraper:
 
                 if ig_post.has_content:
                     posts.append(ig_post)
+                    # Add delay between posts to avoid rate limiting
+                    if len(posts) < limit:
+                        time.sleep(random.uniform(delay_between_posts * 0.8, delay_between_posts * 1.2))
 
             logger.info(f"Obtenidos {len(posts)} posts via Instaloader")
             return posts
@@ -280,7 +298,7 @@ class InstaloaderScraper:
         except instaloader.exceptions.ProfileNotExistsException:
             raise InstagramScraperError(f"Perfil '{target_username}' no existe")
         except instaloader.exceptions.ConnectionException as e:
-            if "429" in str(e):
+            if "429" in str(e) or "401" in str(e) or "wait" in str(e).lower():
                 raise RateLimitError("Instagram rate limit. Espera unos minutos.")
             raise InstagramScraperError(f"Error de conexion: {e}")
         except Exception as e:
