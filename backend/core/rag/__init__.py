@@ -1,16 +1,20 @@
 """
 RAG (Retrieval-Augmented Generation) modules for Clonnect.
-Includes semantic search (FAISS), BM25 lexical search, and HybridRAG.
+
+Uses OpenAI Embeddings + pgvector for semantic search with BM25 fallback.
+Embeddings persist in PostgreSQL - no regeneration on deploy.
 """
 
-# Semantic search (original rag.py content)
+# Semantic search with OpenAI Embeddings + pgvector
 from .semantic import (
     Document,
+    SemanticRAG,
     SimpleRAG,
+    HybridRAG,
     MockEmbedder,
     MockIndex,
-    HybridRAG,
     get_simple_rag,
+    get_semantic_rag,
     get_hybrid_rag,
 )
 
@@ -18,13 +22,15 @@ from .semantic import (
 from .bm25 import BM25Retriever, get_bm25_retriever
 
 __all__ = [
-    # Semantic
+    # Semantic (OpenAI + pgvector)
     "Document",
+    "SemanticRAG",
     "SimpleRAG",
+    "HybridRAG",
     "MockEmbedder",
     "MockIndex",
-    "HybridRAG",
     "get_simple_rag",
+    "get_semantic_rag",
     "get_hybrid_rag",
     # BM25
     "BM25Retriever",

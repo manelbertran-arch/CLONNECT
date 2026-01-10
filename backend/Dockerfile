@@ -15,7 +15,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 COPY requirements-lite.txt .
 
 # Force rebuild - change this value to invalidate pip cache
-ENV FORCE_REBUILD="2026-01-10-v3-faiss-runtime-libs"
+ENV FORCE_REBUILD="2026-01-10-v4-openai-pgvector"
 
 # Create virtual environment and install dependencies
 RUN python -m venv /opt/venv
@@ -27,12 +27,6 @@ RUN pip install --no-cache-dir --upgrade pip && \
 FROM python:3.11-slim as runtime
 
 WORKDIR /app
-
-# Install runtime dependencies for numpy/FAISS
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    libgomp1 \
-    libopenblas0 \
-    && rm -rf /var/lib/apt/lists/*
 
 # Create non-root user for security
 RUN groupadd -r clonnect && useradd -r -g clonnect clonnect
@@ -74,4 +68,3 @@ EXPOSE 8000
 
 # Run the application via start script
 CMD ["/app/scripts/start.sh"]
-# Force rebuild 2026-01-09 23:35:00 - add beautifulsoup4

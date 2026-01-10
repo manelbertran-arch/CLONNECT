@@ -5,6 +5,57 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from sqlalchemy import create_engine, text
 from sqlalchemy.orm import Session
 
+def setup_pgvector(engine):
+    """Enable pgvector extension and create embeddings table."""
+    from sqlalchemy import text
+
+    with engine.connect() as conn:
+        try:
+            # Enable pgvector extension
+            conn.execute(text("CREATE EXTENSION IF NOT EXISTS vector"))
+            conn.commit()
+            print("pgvector extension enabled")
+        except Exception as e:
+            print(f"Note: pgvector extension may already exist or not be available: {e}")
+
+        try:
+            # Create embeddings table if not exists
+            conn.execute(text("""
+                CREATE TABLE IF NOT EXISTS content_embeddings (
+                    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+                    chunk_id VARCHAR(255) NOT NULL UNIQUE,
+                    creator_id VARCHAR(100) NOT NULL,
+                    content_preview TEXT,
+                    embedding vector(1536),
+                    created_at TIMESTAMPTZ DEFAULT NOW(),
+                    updated_at TIMESTAMPTZ DEFAULT NOW()
+                )
+            """))
+            conn.commit()
+            print("content_embeddings table created")
+
+            # Create index for faster similarity search
+            conn.execute(text("""
+                CREATE INDEX IF NOT EXISTS idx_embeddings_creator
+                ON content_embeddings (creator_id)
+            """))
+            conn.commit()
+
+            # Create IVFFlat index for faster vector search (if enough rows)
+            # This will be created later when we have more data
+            conn.execute(text("""
+                CREATE INDEX IF NOT EXISTS idx_embeddings_vector
+                ON content_embeddings
+                USING ivfflat (embedding vector_cosine_ops)
+                WITH (lists = 10)
+            """))
+            conn.commit()
+            print("Embedding indexes created")
+
+        except Exception as e:
+            print(f"Note: Embeddings table setup: {e}")
+
+
 def run_migrations(engine):
     """Run migrations to add new columns to existing tables"""
     migrations = [
@@ -106,6 +157,11 @@ def init_database():
     print("Running migrations...")
     run_migrations(engine)
     print("Migrations complete!")
+
+    # Setup pgvector for semantic search
+    print("Setting up pgvector...")
+    setup_pgvector(engine)
+    print("pgvector setup complete!")
 
     # NOTE: Removed automatic cleanup of booking_links - was causing services to be deleted
     # Only clean up debug test entries if needed

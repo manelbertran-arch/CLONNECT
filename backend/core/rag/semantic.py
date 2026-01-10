@@ -1,6 +1,10 @@
 """
-Sistema RAG simplificado para Clonnect Creators
-Solo busqueda semantica basica, sin complejidad enterprise
+Sistema RAG con OpenAI Embeddings + pgvector
+
+Búsqueda semántica real usando:
+- OpenAI text-embedding-3-small (1536 dimensions)
+- PostgreSQL pgvector para almacenamiento y búsqueda
+- Embeddings persistidos en DB (no se regeneran en cada deploy)
 """
 
 import os
@@ -26,137 +30,171 @@ class Document:
         }
 
 
-class SimpleRAG:
+class SemanticRAG:
     """
-    RAG simplificado usando sentence-transformers + FAISS
-    Sin reranking, sin BM25, sin complejidad
+    RAG con búsqueda semántica usando OpenAI Embeddings + pgvector.
+
+    - Embeddings generados con OpenAI API (text-embedding-3-small)
+    - Almacenados en PostgreSQL con pgvector
+    - Búsqueda por cosine similarity
+    - Persistencia: embeddings sobreviven redeploys
     """
 
-    def __init__(self, model_name: str = "all-MiniLM-L6-v2"):
-        self.model_name = model_name
-        self._model = None
-        self._index = None
+    def __init__(self):
+        self._embeddings_available = None
+        # In-memory cache for documents (loaded from DB)
         self._documents: Dict[str, Document] = {}
-        self._doc_list: List[str] = []  # Ordenado para mapear indices
+        self._doc_list: List[str] = []
 
-    def _get_model(self):
-        if self._model is None:
-            try:
-                from sentence_transformers import SentenceTransformer
-                self._model = SentenceTransformer(self.model_name)
-            except ImportError:
-                logger.warning("sentence-transformers not installed, using mock")
-                self._model = MockEmbedder()
-        return self._model
-
-    def _get_index(self):
-        if self._index is None:
-            try:
-                import faiss
-                # Crear indice FAISS (384 dimensiones para MiniLM)
-                self._index = faiss.IndexFlatL2(384)
-            except ImportError:
-                logger.warning("faiss not installed, using mock")
-                self._index = MockIndex()
-        return self._index
+    def _check_embeddings_available(self) -> bool:
+        """Check if OpenAI embeddings are available."""
+        if self._embeddings_available is None:
+            api_key = os.getenv("OPENAI_API_KEY")
+            self._embeddings_available = bool(api_key)
+            if not self._embeddings_available:
+                logger.warning("OPENAI_API_KEY not set - semantic search disabled")
+        return self._embeddings_available
 
     def add_document(self, doc_id: str, text: str, metadata: Dict = None):
-        """Anadir documento al indice"""
+        """
+        Add document and generate embedding.
+
+        If OpenAI is available, generates and stores embedding in pgvector.
+        Always adds to in-memory cache for fallback search.
+        """
         doc = Document(doc_id=doc_id, text=text, metadata=metadata)
         self._documents[doc_id] = doc
-        self._doc_list.append(doc_id)
+        if doc_id not in self._doc_list:
+            self._doc_list.append(doc_id)
 
-        # Generar embedding y anadir al indice
-        model = self._get_model()
-        index = self._get_index()
+        # Generate and store embedding if OpenAI available
+        if self._check_embeddings_available():
+            try:
+                from core.embeddings import generate_embedding, store_embedding
 
-        try:
-            embedding = model.encode([text])
-            # Handle both numpy arrays and lists (for mock mode)
-            if isinstance(index, MockIndex):
-                # Mock mode - no numpy needed
-                index.add(embedding)
-            else:
-                # Real FAISS mode - numpy required
-                import numpy as np
-                if isinstance(embedding, list):
-                    embedding = np.array(embedding)
-                index.add(embedding.astype('float32'))
-        except Exception as e:
-            logger.error(f"Error adding document: {e}")
+                embedding = generate_embedding(text)
+                if embedding:
+                    creator_id = metadata.get("creator_id", "unknown") if metadata else "unknown"
+                    store_embedding(doc_id, creator_id, text, embedding)
+                    logger.debug(f"Stored embedding for {doc_id}")
+            except Exception as e:
+                logger.error(f"Error storing embedding: {e}")
 
-    def search(self, query: str, top_k: int = 3, creator_id: str = None) -> List[Dict]:
-        """Buscar documentos relevantes"""
-        if not self._documents:
+    def search(self, query: str, top_k: int = 5, creator_id: str = None) -> List[Dict]:
+        """
+        Search for relevant documents using semantic similarity.
+
+        Uses pgvector cosine similarity if embeddings are available,
+        falls back to simple text matching otherwise.
+        """
+        if not creator_id:
+            logger.warning("search() called without creator_id")
             return []
 
-        model = self._get_model()
-        index = self._get_index()
+        # Try semantic search with pgvector
+        if self._check_embeddings_available():
+            try:
+                from core.embeddings import generate_embedding, search_similar
 
-        try:
-            query_embedding = model.encode([query])
+                # Generate query embedding
+                query_embedding = generate_embedding(query)
+                if query_embedding:
+                    results = search_similar(
+                        query_embedding=query_embedding,
+                        creator_id=creator_id,
+                        top_k=top_k,
+                        min_similarity=0.3
+                    )
 
-            # Handle both mock mode (no numpy) and real FAISS mode
-            if isinstance(index, MockIndex):
-                # Mock mode - no numpy needed
-                distances, indices = index.search(query_embedding, min(top_k, len(self._doc_list)))
-            else:
-                # Real FAISS mode - numpy required
-                import numpy as np
-                if isinstance(query_embedding, list):
-                    query_embedding = np.array(query_embedding)
-                distances, indices = index.search(query_embedding.astype('float32'), min(top_k, len(self._doc_list)))
+                    if results:
+                        logger.info(f"Semantic search: '{query[:30]}...' -> {len(results)} results")
+                        return [
+                            {
+                                "doc_id": r["chunk_id"],
+                                "text": r["content"],
+                                "metadata": {
+                                    "creator_id": creator_id,
+                                    "source_url": r.get("source_url"),
+                                    "title": r.get("title"),
+                                    "type": r.get("source_type")
+                                },
+                                "score": r["similarity"]
+                            }
+                            for r in results
+                        ]
 
-            results = []
+            except Exception as e:
+                logger.error(f"Semantic search failed: {e}")
 
-            for i, idx in enumerate(indices[0]):
-                if idx < len(self._doc_list) and idx >= 0:
-                    doc_id = self._doc_list[idx]
-                    doc = self._documents.get(doc_id)
+        # Fallback: simple text search in memory
+        logger.debug("Using fallback text search")
+        return self._fallback_search(query, top_k, creator_id)
 
-                    if doc:
-                        # Filtrar por creator_id si se especifica
-                        if creator_id and doc.metadata:
-                            if doc.metadata.get("creator_id") != creator_id:
-                                continue
+    def _fallback_search(self, query: str, top_k: int, creator_id: str) -> List[Dict]:
+        """Simple keyword-based fallback search."""
+        results = []
+        query_lower = query.lower()
+        query_words = set(query_lower.split())
 
-                        results.append({
-                            "doc_id": doc.doc_id,
-                            "text": doc.text,
-                            "metadata": doc.metadata,
-                            "score": float(1 / (1 + distances[0][i]))  # Convertir distancia a score
-                        })
+        for doc_id, doc in self._documents.items():
+            # Filter by creator_id
+            if doc.metadata and doc.metadata.get("creator_id") != creator_id:
+                continue
 
-            return results
+            # Simple word overlap scoring
+            doc_lower = doc.text.lower()
+            doc_words = set(doc_lower.split())
+            overlap = len(query_words & doc_words)
 
-        except Exception as e:
-            logger.error(f"Error searching: {e}")
-            return []
+            if overlap > 0 or any(w in doc_lower for w in query_words):
+                score = overlap / max(len(query_words), 1)
+                results.append({
+                    "doc_id": doc.doc_id,
+                    "text": doc.text,
+                    "metadata": doc.metadata,
+                    "score": min(score, 1.0)
+                })
+
+        # Sort by score and return top_k
+        results.sort(key=lambda x: x["score"], reverse=True)
+        return results[:top_k]
 
     def delete_document(self, doc_id: str):
-        """Eliminar documento (nota: FAISS no soporta delete eficiente)"""
+        """Delete document from memory and DB."""
         if doc_id in self._documents:
             del self._documents[doc_id]
-            # Para delete real, habria que reconstruir el indice
-            logger.warning("Document deleted from dict, but FAISS index not updated")
+        if doc_id in self._doc_list:
+            self._doc_list.remove(doc_id)
+
+        # Also delete from embeddings table
+        try:
+            from api.database import SessionLocal
+            from sqlalchemy import text
+
+            if SessionLocal:
+                db = SessionLocal()
+                try:
+                    db.execute(text(
+                        "DELETE FROM content_embeddings WHERE chunk_id = :chunk_id"
+                    ), {"chunk_id": doc_id})
+                    db.commit()
+                finally:
+                    db.close()
+        except Exception as e:
+            logger.error(f"Error deleting embedding: {e}")
 
     def get_document(self, doc_id: str) -> Optional[Document]:
-        """Obtener documento por ID"""
+        """Get document by ID."""
         return self._documents.get(doc_id)
 
     def count(self) -> int:
-        """Contar documentos indexados"""
+        """Count documents in memory."""
         return len(self._documents)
 
     def load_from_db(self, creator_id: str = None) -> int:
         """
         Load documents from PostgreSQL content_chunks table.
-
-        Args:
-            creator_id: Optional filter by creator. If None, loads all.
-
-        Returns:
-            Number of documents loaded
+        Does NOT regenerate embeddings - those are persisted separately.
         """
         try:
             from api.database import SessionLocal
@@ -180,7 +218,8 @@ class SimpleRAG:
                     if chunk.chunk_id in self._documents:
                         continue
 
-                    self.add_document(
+                    # Add to memory (don't regenerate embedding - it's in pgvector)
+                    doc = Document(
                         doc_id=chunk.chunk_id,
                         text=chunk.content,
                         metadata={
@@ -190,6 +229,9 @@ class SimpleRAG:
                             "title": chunk.title
                         }
                     )
+                    self._documents[chunk.chunk_id] = doc
+                    if chunk.chunk_id not in self._doc_list:
+                        self._doc_list.append(chunk.chunk_id)
                     loaded += 1
 
                 logger.info(f"RAG hydrated: loaded {loaded} documents from PostgreSQL" +
@@ -207,243 +249,41 @@ class SimpleRAG:
             return 0
 
 
+# Keep SimpleRAG as alias for backward compatibility
+SimpleRAG = SemanticRAG
+
+# HybridRAG is now just SemanticRAG (OpenAI + pgvector handles both semantic and fallback)
+HybridRAG = SemanticRAG
+
+
+# Singleton instance
+_rag_instance: Optional[SemanticRAG] = None
+
+
+def get_simple_rag() -> SemanticRAG:
+    """Get or create RAG singleton."""
+    global _rag_instance
+    if _rag_instance is None:
+        _rag_instance = SemanticRAG()
+    return _rag_instance
+
+
+def get_semantic_rag() -> SemanticRAG:
+    """Get or create RAG singleton (alias)."""
+    return get_simple_rag()
+
+
+def get_hybrid_rag() -> SemanticRAG:
+    """Get or create RAG singleton (alias for backward compatibility)."""
+    return get_simple_rag()
+
+
+# Backward compatibility stubs (no longer needed with OpenAI + pgvector)
 class MockEmbedder:
-    """Mock para cuando no hay sentence-transformers"""
-    def encode(self, texts):
-        import random
-        return [[random.random() for _ in range(384)] for _ in texts]
+    """Deprecated: OpenAI embeddings used instead."""
+    pass
 
 
 class MockIndex:
-    """Mock para cuando no hay FAISS - NO requiere numpy"""
-    def __init__(self):
-        self.vectors = []
-
-    def add(self, vectors):
-        # Accept both numpy arrays and lists
-        if hasattr(vectors, 'tolist'):
-            vectors = vectors.tolist()
-        for v in vectors:
-            self.vectors.append(v if isinstance(v, list) else list(v))
-
-    def search(self, query, k):
-        # Return mock results as nested lists (numpy-compatible format)
-        n = min(k, len(self.vectors))
-        distances = [[0.0] * n]  # Mock distances
-        indices = [list(range(n))]  # Sequential indices
-        return distances, indices
-
-
-class HybridRAG:
-    """
-    Hybrid RAG combining semantic search (FAISS) with lexical search (BM25).
-
-    Benefits:
-    - Semantic: understands meaning, handles synonyms
-    - BM25: exact keyword matching, important for product names, technical terms
-    """
-
-    def __init__(self, model_name: str = "all-MiniLM-L6-v2", bm25_weight: float = 0.3):
-        """
-        Initialize HybridRAG.
-
-        Args:
-            model_name: Sentence transformer model for semantic search
-            bm25_weight: Weight for BM25 scores (0.0-1.0), semantic gets (1-bm25_weight)
-        """
-        self.semantic_rag = SimpleRAG(model_name)
-        self.bm25_weight = bm25_weight
-        self._bm25 = None
-
-    def _get_bm25(self):
-        """Lazy load BM25 retriever"""
-        if self._bm25 is None:
-            try:
-                from .bm25 import BM25Retriever
-                self._bm25 = BM25Retriever()
-            except ImportError:
-                logger.warning("BM25 module not available, using semantic only")
-        return self._bm25
-
-    def add_document(self, doc_id: str, text: str, metadata: Dict = None):
-        """Add document to both semantic and BM25 indices"""
-        # Add to semantic index
-        self.semantic_rag.add_document(doc_id, text, metadata)
-
-        # Add to BM25 index
-        bm25 = self._get_bm25()
-        if bm25:
-            bm25.add_document(doc_id, text, metadata)
-            logger.debug(f"Document {doc_id} added to hybrid index")
-
-    def search(
-        self,
-        query: str,
-        top_k: int = 5,
-        creator_id: str = None,
-        use_hybrid: bool = True
-    ) -> List[Dict]:
-        """
-        Search using hybrid semantic + BM25.
-
-        Args:
-            query: Search query
-            top_k: Maximum results
-            creator_id: Optional creator filter
-            use_hybrid: If False, use semantic only
-
-        Returns:
-            List of results with combined scores
-        """
-        # Get semantic results
-        semantic_results = self.semantic_rag.search(query, top_k * 2, creator_id)
-
-        if not use_hybrid:
-            return semantic_results[:top_k]
-
-        # Get BM25 results
-        bm25 = self._get_bm25()
-        if not bm25:
-            return semantic_results[:top_k]
-
-        try:
-            filter_metadata = {"creator_id": creator_id} if creator_id else None
-            bm25_results = bm25.search(query, top_k * 2, filter_metadata=filter_metadata)
-
-            # Combine scores
-            combined = {}
-
-            # Add semantic scores (normalized)
-            max_semantic = max((r["score"] for r in semantic_results), default=1)
-            for r in semantic_results:
-                doc_id = r["doc_id"]
-                norm_score = r["score"] / max_semantic if max_semantic > 0 else 0
-                combined[doc_id] = {
-                    "doc_id": doc_id,
-                    "text": r["text"],
-                    "metadata": r["metadata"],
-                    "semantic_score": norm_score,
-                    "bm25_score": 0,
-                    "combined_score": norm_score * (1 - self.bm25_weight)
-                }
-
-            # Add BM25 scores (normalized)
-            max_bm25 = max((r.score for r in bm25_results), default=1)
-            for r in bm25_results:
-                doc_id = r.doc_id
-                norm_score = r.score / max_bm25 if max_bm25 > 0 else 0
-
-                if doc_id in combined:
-                    combined[doc_id]["bm25_score"] = norm_score
-                    combined[doc_id]["combined_score"] += norm_score * self.bm25_weight
-                else:
-                    combined[doc_id] = {
-                        "doc_id": doc_id,
-                        "text": r.text,
-                        "metadata": r.metadata,
-                        "semantic_score": 0,
-                        "bm25_score": norm_score,
-                        "combined_score": norm_score * self.bm25_weight
-                    }
-
-            # Sort by combined score and return top_k
-            sorted_results = sorted(
-                combined.values(),
-                key=lambda x: x["combined_score"],
-                reverse=True
-            )
-
-            # Format results
-            results = []
-            for r in sorted_results[:top_k]:
-                results.append({
-                    "doc_id": r["doc_id"],
-                    "text": r["text"],
-                    "metadata": r["metadata"],
-                    "score": r["combined_score"],
-                    "semantic_score": r["semantic_score"],
-                    "bm25_score": r["bm25_score"]
-                })
-
-            logger.info(f"Hybrid search: query='{query[:30]}...', results={len(results)}")
-            return results
-
-        except Exception as e:
-            logger.error(f"Hybrid search failed: {e}, falling back to semantic")
-            return semantic_results[:top_k]
-
-    def delete_document(self, doc_id: str):
-        """Delete from both indices"""
-        self.semantic_rag.delete_document(doc_id)
-        bm25 = self._get_bm25()
-        if bm25:
-            bm25.remove_document(doc_id)
-
-    def get_document(self, doc_id: str) -> Optional[Document]:
-        """Get document by ID"""
-        return self.semantic_rag.get_document(doc_id)
-
-    def count(self) -> int:
-        """Count indexed documents"""
-        return self.semantic_rag.count()
-
-    def delete_by_creator(self, creator_id: str) -> int:
-        """
-        Delete all documents for a specific creator.
-
-        Args:
-            creator_id: Creator ID to delete documents for
-
-        Returns:
-            Number of documents deleted
-        """
-        deleted = 0
-        docs_to_delete = []
-
-        # Find all documents for this creator
-        for doc_id, doc in self.semantic_rag._documents.items():
-            if doc.metadata and doc.metadata.get("creator_id") == creator_id:
-                docs_to_delete.append(doc_id)
-
-        # Delete them
-        for doc_id in docs_to_delete:
-            self.delete_document(doc_id)
-            deleted += 1
-
-        logger.info(f"Deleted {deleted} RAG documents for creator {creator_id}")
-        return deleted
-
-    def clear_all(self):
-        """Clear all documents from the index (use with caution)."""
-        count = len(self.semantic_rag._documents)
-        self.semantic_rag._documents.clear()
-        self.semantic_rag._doc_list.clear()
-        self.semantic_rag._index = None  # Reset FAISS index
-
-        bm25 = self._get_bm25()
-        if bm25:
-            bm25.clear()
-
-        logger.info(f"Cleared all {count} documents from RAG")
-        return count
-
-
-# Singleton instances
-_simple_rag: Optional[SimpleRAG] = None
-_hybrid_rag: Optional[HybridRAG] = None
-
-
-def get_simple_rag() -> SimpleRAG:
-    """Get or create SimpleRAG singleton"""
-    global _simple_rag
-    if _simple_rag is None:
-        _simple_rag = SimpleRAG()
-    return _simple_rag
-
-
-def get_hybrid_rag(bm25_weight: float = 0.3) -> HybridRAG:
-    """Get or create HybridRAG singleton"""
-    global _hybrid_rag
-    if _hybrid_rag is None:
-        _hybrid_rag = HybridRAG(bm25_weight=bm25_weight)
-    return _hybrid_rag
+    """Deprecated: pgvector used instead."""
+    pass

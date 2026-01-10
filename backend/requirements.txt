@@ -13,9 +13,11 @@ groq>=0.4.0
 aiohttp>=3.9.0
 
 # Embeddings y busqueda
-numpy>=1.24.0
-sentence-transformers>=2.2.0
-faiss-cpu>=1.7.4
+# NOTE: Using OpenAI Embeddings API + pgvector instead of local models
+# sentence-transformers and faiss-cpu caused OOM on Railway free tier (~2GB RAM)
+# numpy>=1.24.0
+# sentence-transformers>=2.2.0
+# faiss-cpu>=1.7.4
 
 # Dashboard
 streamlit>=1.28.0

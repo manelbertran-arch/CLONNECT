@@ -4371,33 +4371,30 @@ async def content_reload_get(creator_id: str = None):
 
 @app.get("/content/debug")
 async def content_debug():
-    """Debug endpoint to inspect RAG internal state."""
+    """Debug endpoint to inspect RAG internal state and embedding status."""
     try:
         doc_count = len(rag._documents)
         doc_list_count = len(rag._doc_list)
-        index = rag._get_index()
-        index_type = type(index).__name__
-        index_vectors = len(index.vectors) if hasattr(index, 'vectors') else getattr(index, 'ntotal', 'N/A')
 
-        # Check dependencies availability
+        # Check OpenAI and pgvector availability
         deps = {}
         try:
-            import numpy
-            deps['numpy'] = numpy.__version__
+            import openai
+            deps['openai'] = openai.__version__
         except ImportError as e:
-            deps['numpy'] = f"NOT INSTALLED: {e}"
+            deps['openai'] = f"NOT INSTALLED: {e}"
 
-        try:
-            import sentence_transformers
-            deps['sentence_transformers'] = sentence_transformers.__version__
-        except ImportError as e:
-            deps['sentence_transformers'] = f"NOT INSTALLED: {e}"
+        # Check if OpenAI API key is set
+        import os
+        deps['openai_api_key'] = "SET" if os.getenv("OPENAI_API_KEY") else "NOT SET"
 
+        # Get embedding stats from pgvector
+        embedding_stats = {}
         try:
-            import faiss
-            deps['faiss'] = "installed"
-        except ImportError as e:
-            deps['faiss'] = f"NOT INSTALLED: {e}"
+            from core.embeddings import get_embedding_stats
+            embedding_stats = get_embedding_stats()
+        except Exception as e:
+            embedding_stats = {"error": str(e)}
 
         # Sample a few documents to check metadata
         samples = []
@@ -4413,9 +4410,9 @@ async def content_debug():
             "status": "ok",
             "_documents_count": doc_count,
             "_doc_list_count": doc_list_count,
-            "index_type": index_type,
-            "index_vectors": index_vectors,
+            "search_type": "OpenAI Embeddings + pgvector",
             "dependencies": deps,
+            "embedding_stats": embedding_stats,
             "samples": samples,
             "doc_list_first_5": rag._doc_list[:5] if rag._doc_list else []
         }
@@ -4446,15 +4443,111 @@ async def content_stats(creator_id: str = None):
             except Exception as db_err:
                 logger.warning(f"Failed to get DB count: {db_err}")
 
+        # Get embedding count
+        embedding_count = 0
+        try:
+            from core.embeddings import get_embedding_stats
+            stats = get_embedding_stats(creator_id)
+            embedding_count = stats.get("embeddings_count", 0)
+        except Exception:
+            pass
+
         return {
             "status": "ok",
             "rag_in_memory": rag_count,
             "db_persisted": db_count,
+            "embeddings_stored": embedding_count,
             "creator_id": creator_id,
             "synced": rag_count == db_count or (creator_id and rag_count >= db_count)
         }
 
     except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/content/generate-embeddings")
+async def generate_embeddings_for_existing(creator_id: str, batch_size: int = 10):
+    """
+    Generate OpenAI embeddings for existing content chunks that don't have embeddings yet.
+
+    This is useful for migrating existing content to use semantic search.
+    Uses batch API calls to OpenAI for efficiency.
+
+    Args:
+        creator_id: Filter by creator
+        batch_size: Number of chunks to process in each API call (default 10)
+
+    Returns:
+        Number of embeddings generated
+    """
+    try:
+        from api.models import ContentChunk
+        from core.embeddings import generate_embeddings_batch, store_embedding
+        from sqlalchemy import text
+
+        if not SessionLocal:
+            raise HTTPException(status_code=500, detail="Database not configured")
+
+        db = SessionLocal()
+        try:
+            # Get chunks that don't have embeddings yet
+            # Join with content_embeddings to find missing ones
+            result = db.execute(text("""
+                SELECT c.chunk_id, c.creator_id, c.content
+                FROM content_chunks c
+                LEFT JOIN content_embeddings e ON c.chunk_id = e.chunk_id
+                WHERE c.creator_id = :creator_id AND e.chunk_id IS NULL
+                ORDER BY c.created_at
+            """), {"creator_id": creator_id})
+
+            chunks_without_embeddings = result.fetchall()
+
+            if not chunks_without_embeddings:
+                return {
+                    "status": "ok",
+                    "message": "All chunks already have embeddings",
+                    "generated": 0,
+                    "creator_id": creator_id
+                }
+
+            # Process in batches
+            generated = 0
+            failed = 0
+
+            for i in range(0, len(chunks_without_embeddings), batch_size):
+                batch = chunks_without_embeddings[i:i + batch_size]
+                texts = [row.content for row in batch]
+
+                # Generate embeddings in batch
+                embeddings = generate_embeddings_batch(texts)
+
+                # Store each embedding
+                for j, (row, embedding) in enumerate(zip(batch, embeddings)):
+                    if embedding:
+                        if store_embedding(row.chunk_id, row.creator_id, row.content, embedding):
+                            generated += 1
+                        else:
+                            failed += 1
+                    else:
+                        failed += 1
+
+            logger.info(f"Generated {generated} embeddings for {creator_id} ({failed} failed)")
+
+            return {
+                "status": "ok",
+                "generated": generated,
+                "failed": failed,
+                "total_processed": len(chunks_without_embeddings),
+                "creator_id": creator_id
+            }
+
+        finally:
+            db.close()
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error generating embeddings: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 
