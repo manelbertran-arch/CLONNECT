@@ -148,6 +148,64 @@ class SimpleRAG:
         """Contar documentos indexados"""
         return len(self._documents)
 
+    def load_from_db(self, creator_id: str = None) -> int:
+        """
+        Load documents from PostgreSQL content_chunks table.
+
+        Args:
+            creator_id: Optional filter by creator. If None, loads all.
+
+        Returns:
+            Number of documents loaded
+        """
+        try:
+            from api.database import SessionLocal
+            from api.models import ContentChunk
+
+            if SessionLocal is None:
+                logger.warning("No database configured, skipping RAG hydration")
+                return 0
+
+            db = SessionLocal()
+            try:
+                query = db.query(ContentChunk)
+                if creator_id:
+                    query = query.filter(ContentChunk.creator_id == creator_id)
+
+                chunks = query.all()
+                loaded = 0
+
+                for chunk in chunks:
+                    # Skip if already loaded
+                    if chunk.chunk_id in self._documents:
+                        continue
+
+                    self.add_document(
+                        doc_id=chunk.chunk_id,
+                        text=chunk.content,
+                        metadata={
+                            "creator_id": chunk.creator_id,
+                            "type": chunk.source_type or "content",
+                            "source_url": chunk.source_url,
+                            "title": chunk.title
+                        }
+                    )
+                    loaded += 1
+
+                logger.info(f"RAG hydrated: loaded {loaded} documents from PostgreSQL" +
+                           (f" for {creator_id}" if creator_id else ""))
+                return loaded
+
+            finally:
+                db.close()
+
+        except ImportError:
+            logger.warning("Database modules not available, skipping RAG hydration")
+            return 0
+        except Exception as e:
+            logger.error(f"Error loading RAG from database: {e}")
+            return 0
+
 
 class MockEmbedder:
     """Mock para cuando no hay sentence-transformers"""

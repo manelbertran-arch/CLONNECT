@@ -4265,6 +4265,7 @@ async def add_content(request: AddContentRequest):
         import hashlib
         doc_id = f"{request.creator_id}_{request.doc_type}_{hashlib.md5(request.text.encode()).hexdigest()[:8]}"
 
+        # Add to in-memory RAG
         rag.add_document(
             doc_id=doc_id,
             text=request.text,
@@ -4273,6 +4274,32 @@ async def add_content(request: AddContentRequest):
                 "type": request.doc_type
             }
         )
+
+        # Persist to PostgreSQL
+        if DATABASE_URL and SessionLocal:
+            try:
+                from api.models import ContentChunk
+                db = SessionLocal()
+                try:
+                    # Check if already exists
+                    existing = db.query(ContentChunk).filter(
+                        ContentChunk.chunk_id == doc_id
+                    ).first()
+
+                    if not existing:
+                        chunk = ContentChunk(
+                            creator_id=request.creator_id,
+                            chunk_id=doc_id,
+                            content=request.text,
+                            source_type=request.doc_type
+                        )
+                        db.add(chunk)
+                        db.commit()
+                        logger.info(f"Content chunk {doc_id} persisted to PostgreSQL")
+                finally:
+                    db.close()
+            except Exception as db_err:
+                logger.warning(f"Failed to persist content to DB: {db_err}")
 
         return {"status": "ok", "doc_id": doc_id}
 
@@ -5466,6 +5493,13 @@ async def startup_event():
         logger.info("Nurturing scheduler started")
     except Exception as e:
         logger.error(f"Failed to start nurturing scheduler: {e}")
+
+    # Hydrate RAG from PostgreSQL
+    try:
+        loaded = rag.load_from_db()
+        logger.info(f"RAG hydrated with {loaded} documents from database")
+    except Exception as e:
+        logger.error(f"Failed to hydrate RAG from database: {e}")
 
     logger.info("Ready to receive requests!")
 
