@@ -43,6 +43,13 @@ class EscalationNotification:
     def __post_init__(self):
         if self.timestamp is None:
             self.timestamp = datetime.now().isoformat()
+        # Sanitize None values to prevent comparison errors
+        if self.purchase_intent_score is None:
+            self.purchase_intent_score = 0.0
+        if self.total_messages is None:
+            self.total_messages = 0
+        if self.products_discussed is None:
+            self.products_discussed = []
 
     def to_dict(self) -> dict:
         return asdict(self)
