@@ -8,13 +8,6 @@ from typing import List, Dict, Any, Optional
 from dataclasses import dataclass
 import logging
 
-# Set cache directory for sentence-transformers (must be writable)
-CACHE_DIR = os.path.join(os.getcwd(), "data", "models")
-os.makedirs(CACHE_DIR, exist_ok=True)
-os.environ["SENTENCE_TRANSFORMERS_HOME"] = CACHE_DIR
-os.environ["HF_HOME"] = CACHE_DIR
-os.environ["TRANSFORMERS_CACHE"] = CACHE_DIR
-
 logger = logging.getLogger(__name__)
 
 
