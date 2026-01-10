@@ -29,7 +29,16 @@ from .pipeline import (
     ingest_website_v2
 )
 
+from .instagram_ingestion import (
+    InstagramSanityResult,
+    InstagramIngestionResult,
+    InstagramPostSanityChecker,
+    InstagramIngestionV2,
+    ingest_instagram_v2
+)
+
 __all__ = [
+    # Website ingestion
     'ProductSignal',
     'DetectedProduct',
     'ProductDetector',
@@ -40,4 +49,10 @@ __all__ = [
     'IngestionV2Result',
     'IngestionV2Pipeline',
     'ingest_website_v2',
+    # Instagram ingestion
+    'InstagramSanityResult',
+    'InstagramIngestionResult',
+    'InstagramPostSanityChecker',
+    'InstagramIngestionV2',
+    'ingest_instagram_v2',
 ]
