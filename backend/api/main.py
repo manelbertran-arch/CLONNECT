@@ -4465,6 +4465,67 @@ async def content_stats(creator_id: str = None):
         raise HTTPException(status_code=500, detail=str(e))
 
 
+@app.post("/content/setup-pgvector")
+async def setup_pgvector_endpoint():
+    """
+    Setup pgvector extension and create content_embeddings table.
+    Call this once to enable semantic search with OpenAI embeddings.
+    """
+    try:
+        from sqlalchemy import text
+
+        if not SessionLocal:
+            raise HTTPException(status_code=500, detail="Database not configured")
+
+        db = SessionLocal()
+        try:
+            # Enable pgvector extension
+            db.execute(text("CREATE EXTENSION IF NOT EXISTS vector"))
+            db.commit()
+
+            # Create embeddings table
+            db.execute(text("""
+                CREATE TABLE IF NOT EXISTS content_embeddings (
+                    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+                    chunk_id VARCHAR(255) NOT NULL UNIQUE,
+                    creator_id VARCHAR(100) NOT NULL,
+                    content_preview TEXT,
+                    embedding vector(1536),
+                    created_at TIMESTAMPTZ DEFAULT NOW(),
+                    updated_at TIMESTAMPTZ DEFAULT NOW()
+                )
+            """))
+            db.commit()
+
+            # Create indexes
+            db.execute(text("""
+                CREATE INDEX IF NOT EXISTS idx_embeddings_creator
+                ON content_embeddings (creator_id)
+            """))
+            db.commit()
+
+            # Create IVFFlat index for faster vector search
+            db.execute(text("""
+                CREATE INDEX IF NOT EXISTS idx_embeddings_vector
+                ON content_embeddings
+                USING ivfflat (embedding vector_cosine_ops)
+                WITH (lists = 10)
+            """))
+            db.commit()
+
+            return {
+                "status": "ok",
+                "message": "pgvector extension enabled and content_embeddings table created"
+            }
+
+        finally:
+            db.close()
+
+    except Exception as e:
+        logger.error(f"Error setting up pgvector: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 @app.post("/content/generate-embeddings")
 async def generate_embeddings_for_existing(creator_id: str, batch_size: int = 10):
     """
