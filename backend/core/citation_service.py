@@ -28,19 +28,48 @@ logger = logging.getLogger(__name__)
 
 
 def _try_load_chunks_from_db(creator_id: str) -> Optional[List[dict]]:
-    """Intenta cargar chunks desde PostgreSQL."""
+    """Intenta cargar chunks desde PostgreSQL usando llamada sincrónica."""
     try:
-        from core.tone_profile_db import get_content_chunks_db
-        import asyncio
+        # Direct synchronous DB call (SQLAlchemy is sync anyway)
+        from api.database import SessionLocal
+        from api.models import ContentChunk
 
-        # Run async function
-        loop = asyncio.new_event_loop()
-        chunks = loop.run_until_complete(get_content_chunks_db(creator_id))
-        loop.close()
+        if SessionLocal is None:
+            logger.debug("No database configured")
+            return None
 
-        if chunks and len(chunks) > 0:
-            logger.info(f"Loaded {len(chunks)} chunks from PostgreSQL for {creator_id}")
-            return chunks
+        db = SessionLocal()
+        try:
+            chunks = db.query(ContentChunk).filter(
+                ContentChunk.creator_id == creator_id
+            ).all()
+
+            if not chunks:
+                return None
+
+            result = []
+            for c in chunks:
+                result.append({
+                    'id': c.chunk_id,
+                    'chunk_id': c.chunk_id,
+                    'creator_id': c.creator_id,
+                    'source_type': c.source_type,
+                    'source_id': c.source_id,
+                    'source_url': c.source_url,
+                    'title': c.title,
+                    'content': c.content,
+                    'chunk_index': c.chunk_index,
+                    'total_chunks': c.total_chunks,
+                    'metadata': {},
+                    'created_at': c.created_at.isoformat() if c.created_at else None
+                })
+
+            if result:
+                logger.info(f"Loaded {len(result)} chunks from PostgreSQL for {creator_id}")
+            return result
+        finally:
+            db.close()
+
     except Exception as e:
         logger.warning(f"DB read failed for chunks, will try JSON: {e}")
     return None
@@ -61,18 +90,52 @@ def _try_load_chunks_from_json(creator_id: str) -> Optional[List[dict]]:
 
 
 def _save_chunks_to_db(creator_id: str, chunks_data: List[dict]) -> bool:
-    """Guarda chunks en PostgreSQL."""
+    """Guarda chunks en PostgreSQL usando llamada sincrónica."""
     try:
-        from core.tone_profile_db import save_content_chunks_db
-        import asyncio
+        from api.database import SessionLocal
+        from api.models import ContentChunk
 
-        loop = asyncio.new_event_loop()
-        saved = loop.run_until_complete(save_content_chunks_db(creator_id, chunks_data))
-        loop.close()
+        if SessionLocal is None:
+            return False
 
-        if saved > 0:
-            logger.info(f"Saved {saved} chunks to PostgreSQL for {creator_id}")
-            return True
+        db = SessionLocal()
+        try:
+            saved_count = 0
+            for chunk in chunks_data:
+                # Check if exists
+                existing = db.query(ContentChunk).filter(
+                    ContentChunk.chunk_id == chunk.get('id', chunk.get('chunk_id'))
+                ).first()
+
+                if existing:
+                    # Update
+                    existing.content = chunk.get('content', '')
+                    existing.title = chunk.get('title')
+                    existing.source_url = chunk.get('source_url')
+                else:
+                    # Insert
+                    new_chunk = ContentChunk(
+                        chunk_id=chunk.get('id', chunk.get('chunk_id')),
+                        creator_id=creator_id,
+                        source_type=chunk.get('source_type', 'instagram_post'),
+                        source_id=chunk.get('source_id'),
+                        source_url=chunk.get('source_url'),
+                        title=chunk.get('title'),
+                        content=chunk.get('content', ''),
+                        chunk_index=chunk.get('chunk_index', 0),
+                        total_chunks=chunk.get('total_chunks', 1)
+                    )
+                    db.add(new_chunk)
+                saved_count += 1
+
+            db.commit()
+
+            if saved_count > 0:
+                logger.info(f"Saved {saved_count} chunks to PostgreSQL for {creator_id}")
+                return True
+        finally:
+            db.close()
+
     except Exception as e:
         logger.error(f"Error saving chunks to DB: {e}")
     return False
@@ -600,18 +663,24 @@ def delete_content_index(creator_id: str) -> bool:
 
     deleted_any = False
 
-    # 1. Eliminar de PostgreSQL
+    # 1. Eliminar de PostgreSQL (sync call)
     try:
-        from core.tone_profile_db import delete_content_chunks_db
-        import asyncio
+        from api.database import SessionLocal
+        from api.models import ContentChunk
 
-        loop = asyncio.new_event_loop()
-        deleted_count = loop.run_until_complete(delete_content_chunks_db(creator_id))
-        loop.close()
+        if SessionLocal:
+            db = SessionLocal()
+            try:
+                deleted_count = db.query(ContentChunk).filter(
+                    ContentChunk.creator_id == creator_id
+                ).delete()
+                db.commit()
 
-        if deleted_count > 0:
-            logger.info(f"Deleted {deleted_count} chunks from PostgreSQL for {creator_id}")
-            deleted_any = True
+                if deleted_count > 0:
+                    logger.info(f"Deleted {deleted_count} chunks from PostgreSQL for {creator_id}")
+                    deleted_any = True
+            finally:
+                db.close()
     except Exception as e:
         logger.warning(f"Could not delete from DB: {e}")
 
