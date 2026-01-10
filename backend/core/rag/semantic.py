@@ -71,11 +71,17 @@ class SimpleRAG:
         index = self._get_index()
 
         try:
-            import numpy as np
             embedding = model.encode([text])
-            if isinstance(embedding, list):
-                embedding = np.array(embedding)
-            index.add(embedding.astype('float32'))
+            # Handle both numpy arrays and lists (for mock mode)
+            if isinstance(index, MockIndex):
+                # Mock mode - no numpy needed
+                index.add(embedding)
+            else:
+                # Real FAISS mode - numpy required
+                import numpy as np
+                if isinstance(embedding, list):
+                    embedding = np.array(embedding)
+                index.add(embedding.astype('float32'))
         except Exception as e:
             logger.error(f"Error adding document: {e}")
 
@@ -88,12 +94,18 @@ class SimpleRAG:
         index = self._get_index()
 
         try:
-            import numpy as np
             query_embedding = model.encode([query])
-            if isinstance(query_embedding, list):
-                query_embedding = np.array(query_embedding)
 
-            distances, indices = index.search(query_embedding.astype('float32'), min(top_k, len(self._doc_list)))
+            # Handle both mock mode (no numpy) and real FAISS mode
+            if isinstance(index, MockIndex):
+                # Mock mode - no numpy needed
+                distances, indices = index.search(query_embedding, min(top_k, len(self._doc_list)))
+            else:
+                # Real FAISS mode - numpy required
+                import numpy as np
+                if isinstance(query_embedding, list):
+                    query_embedding = np.array(query_embedding)
+                distances, indices = index.search(query_embedding.astype('float32'), min(top_k, len(self._doc_list)))
 
             results = []
 
@@ -145,19 +157,23 @@ class MockEmbedder:
 
 
 class MockIndex:
-    """Mock para cuando no hay FAISS"""
+    """Mock para cuando no hay FAISS - NO requiere numpy"""
     def __init__(self):
         self.vectors = []
 
     def add(self, vectors):
-        import numpy as np
+        # Accept both numpy arrays and lists
+        if hasattr(vectors, 'tolist'):
+            vectors = vectors.tolist()
         for v in vectors:
-            self.vectors.append(v)
+            self.vectors.append(v if isinstance(v, list) else list(v))
 
     def search(self, query, k):
-        import numpy as np
+        # Return mock results as nested lists (numpy-compatible format)
         n = min(k, len(self.vectors))
-        return np.zeros((1, n)), np.arange(n).reshape(1, -1)
+        distances = [[0.0] * n]  # Mock distances
+        indices = [list(range(n))]  # Sequential indices
+        return distances, indices
 
 
 class HybridRAG:
