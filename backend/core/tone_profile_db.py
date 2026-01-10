@@ -5,13 +5,13 @@ Replaces JSON file-based storage with proper database persistence.
 
 import json
 import logging
-from typing import Optional, Dict, List
+from typing import Optional, Dict, List, Any
 from datetime import datetime
 
 logger = logging.getLogger(__name__)
 
 # In-memory cache for performance
-_tone_cache: Dict[str, any] = {}
+_tone_cache: Dict[str, Any] = {}
 
 
 def _get_db_session():
