@@ -1684,22 +1684,39 @@ async def send_telegram_direct(chat_id: int, text: str, bot_token: str, reply_ma
 
 
 async def send_telegram_message(chat_id: int, text: str, bot_token: str, reply_markup: dict = None) -> dict:
-    """Send Telegram message - uses proxy if configured, otherwise direct"""
+    """
+    Send Telegram message - DIRECT FIRST, proxy as fallback.
+    Direct is much faster (~0.5s vs 7-8s for proxy).
+    """
     import time
     _t_start = time.time()
 
-    if TELEGRAM_PROXY_URL:
-        logger.info(f"Sending Telegram message via proxy to chat {chat_id}")
-        if not TELEGRAM_PROXY_SECRET:
-            logger.warning("TELEGRAM_PROXY_SECRET not set - proxy may reject request if it requires auth")
-        result = await send_telegram_via_proxy(chat_id, text, bot_token, reply_markup)
-        logger.info(f"⏱️ Telegram proxy call took {time.time() - _t_start:.2f}s")
-        return result
-    else:
+    # Try direct first (faster) - Railway doesn't block Telegram API
+    try:
         logger.info(f"Sending Telegram message directly to chat {chat_id}")
         result = await send_telegram_direct(chat_id, text, bot_token, reply_markup)
         logger.info(f"⏱️ Telegram direct call took {time.time() - _t_start:.2f}s")
-        return result
+
+        # Check if successful
+        if result.get("ok"):
+            return result
+        else:
+            logger.warning(f"Direct Telegram failed: {result}, trying proxy...")
+    except Exception as e:
+        logger.warning(f"Direct Telegram error: {e}, trying proxy...")
+
+    # Fallback to proxy if direct fails and proxy is configured
+    if TELEGRAM_PROXY_URL:
+        try:
+            logger.info(f"Fallback: sending via proxy to chat {chat_id}")
+            result = await send_telegram_via_proxy(chat_id, text, bot_token, reply_markup)
+            logger.info(f"⏱️ Telegram proxy fallback took {time.time() - _t_start:.2f}s")
+            return result
+        except Exception as e:
+            logger.error(f"Proxy also failed: {e}")
+            return {"ok": False, "error": str(e)}
+
+    return {"ok": False, "error": "Direct failed and no proxy configured"}
 
 
 async def answer_callback_query(callback_query_id: str, text: str = None) -> dict:
@@ -2355,12 +2372,24 @@ async def telegram_webhook(request: Request):
                     logger.info(f"Sending {len(keyboard_data)} inline buttons for booking")
 
             # Enviar respuesta usando el token del bot correcto
+            # FIRE-AND-FORGET: Don't wait for Telegram confirmation to return faster
             if bot_reply and bot_token:
-                result = await send_telegram_message(chat_id, bot_reply, bot_token, reply_markup)
-                if result.get("ok"):
-                    logger.info(f"Telegram response sent to chat {chat_id} via bot {bot_id or 'default'}")
-                else:
-                    logger.error(f"Telegram send failed: {result}")
+                import asyncio
+                async def send_and_log():
+                    try:
+                        result = await send_telegram_message(chat_id, bot_reply, bot_token, reply_markup)
+                        if result.get("ok"):
+                            logger.info(f"Telegram response sent to chat {chat_id} via bot {bot_id or 'default'}")
+                        else:
+                            logger.error(f"Telegram send failed: {result}")
+                    except Exception as e:
+                        logger.error(f"Telegram send error: {e}")
+
+                asyncio.create_task(send_and_log())
+                logger.info(f"Telegram send scheduled (fire-and-forget) for chat {chat_id}")
+
+            _t_webhook_end = time.time()
+            logger.info(f"⏱️ TOTAL webhook processing: {_t_webhook_end - _t_webhook_start:.2f}s")
 
             return {
                 "status": "ok",
