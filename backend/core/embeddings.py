@@ -175,18 +175,18 @@ def store_embedding(chunk_id: str, creator_id: str, content: str, embedding: Lis
             # Convert embedding to pgvector format
             embedding_str = "[" + ",".join(str(x) for x in embedding) + "]"
 
-            # Upsert embedding
-            db.execute(text("""
+            # Upsert embedding - use string formatting for the vector since
+            # psycopg2 doesn't handle the ::vector cast well with parameters
+            db.execute(text(f"""
                 INSERT INTO content_embeddings (chunk_id, creator_id, content_preview, embedding)
-                VALUES (:chunk_id, :creator_id, :content_preview, :embedding::vector)
+                VALUES (:chunk_id, :creator_id, :content_preview, '{embedding_str}'::vector)
                 ON CONFLICT (chunk_id) DO UPDATE SET
-                    embedding = :embedding::vector,
+                    embedding = '{embedding_str}'::vector,
                     updated_at = NOW()
             """), {
                 "chunk_id": chunk_id,
                 "creator_id": creator_id,
-                "content_preview": content[:500],  # Store preview for debugging
-                "embedding": embedding_str
+                "content_preview": content[:500]  # Store preview for debugging
             })
             db.commit()
             return True
