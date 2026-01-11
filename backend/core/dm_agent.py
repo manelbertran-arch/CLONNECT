@@ -2148,6 +2148,33 @@ LINKS DE PAGO:
 {payment_links_text}
 {alt_payment_text}
 
+=== REGLAS DE COHERENCIA CONVERSACIONAL (CRÍTICO) ===
+
+ANTES de responder, SIEMPRE revisa la CONVERSACIÓN ANTERIOR:
+
+1. Si el usuario dice "sí", "vale", "ok", "claro":
+   → Responde a la ÚLTIMA PREGUNTA que TÚ hiciste
+   → NO preguntes "¿en qué más puedo ayudarte?"
+   → Ejemplo: Si preguntaste "¿quieres saber más sobre el curso?" y dice "sí" → explica el curso
+
+2. Si el usuario dice "ya te lo dije", "te lo acabo de decir", "revisa el chat":
+   → BUSCA en el historial qué dijo antes
+   → Discúlpate brevemente y responde basándote en lo que YA dijo
+   → Ejemplo: "Perdona, tienes razón. Mencionaste que te interesa [X]. Te cuento..."
+
+3. NUNCA preguntes algo que el usuario YA respondió
+   → Si ya dijo su nombre, no preguntes cómo se llama
+   → Si ya dijo qué le interesa, no preguntes qué necesita
+
+4. Mantén el HILO de la conversación
+   → No cambies de tema abruptamente
+   → Cada respuesta debe conectar con lo anterior
+
+5. Si genuinamente pierdes el contexto:
+   → Di: "Perdona, quiero asegurarme de entenderte bien. ¿Me confirmas que te interesa [último tema]?"
+
+=== FIN REGLAS DE COHERENCIA ===
+
 ---
 
 {format_instruction}
@@ -2223,7 +2250,8 @@ RECUERDA: NO suenes como un bot corporativo. Sé natural y cercano. NO des datos
         history_text = ""
         if conversation_history:
             history_text = "\nCONVERSACION RECIENTE:\n"
-            for msg in conversation_history[-4:]:
+            # 8 mensajes = 4 intercambios completos para mejor contexto
+            for msg in conversation_history[-8:]:
                 role = "Usuario" if msg.get("role") == "user" else "Yo"
                 history_text += f"{role}: {msg.get('content', '')}\n"
 
@@ -2967,10 +2995,24 @@ USA ESTA RESPUESTA PARA LA OBJECION (adaptala a tu tono):
 
                 # Standard LLM response if CoT not used
                 if not cot_used:
-                    messages = [
-                        {"role": "system", "content": system_prompt},
-                        {"role": "user", "content": user_prompt}
-                    ]
+                    # === MULTI-TURN: Construir conversación real ===
+                    # ANTES: Solo system + user_prompt (historial como texto)
+                    # AHORA: system + historial como mensajes reales + mensaje actual
+                    messages = [{"role": "system", "content": system_prompt}]
+
+                    # Añadir historial como mensajes reales (últimos 8 = 4 intercambios)
+                    if follower.last_messages:
+                        for msg in follower.last_messages[-8:]:
+                            role = msg.get("role", "user")
+                            content = msg.get("content", "")
+                            if content and role in ("user", "assistant"):
+                                messages.append({"role": role, "content": content})
+
+                    # Mensaje actual del usuario (si no está ya en el historial)
+                    if not follower.last_messages or follower.last_messages[-1].get("content") != message_text:
+                        messages.append({"role": "user", "content": message_text})
+
+                    logger.info(f"Multi-turn LLM call: {len(messages)} messages ({len(messages)-1} history + system)")
                     logger.info(f"=== DEBUG: Calling LLM ===")
                     logger.info(f"Message: {message_text[:100]}")
                     logger.info(f"Intent: {intent.value} ({confidence:.2f})")
