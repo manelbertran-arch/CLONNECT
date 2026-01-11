@@ -617,20 +617,30 @@ def is_direct_purchase_intent(message: str) -> bool:
         if phrase in msg_lower:
             return False  # Es una objeción, no compra directa
 
-    # Keywords cortos que necesitan match de palabra completa para evitar falsos positivos
-    # "si" puede estar en "no sé si", "sí" solo debe matchear como palabra sola
-    short_keywords_whole_word = {'sí', 'si', 'ok', 'ya'}
+    # FIX: "si", "sí", "ok", "ya" solos son CONFIRMACIONES, no compra directa
+    # Solo deben activar compra si hay contexto adicional
+    # Ejemplo: "sí, quiero comprarlo" = compra directa
+    # Ejemplo: "sí" (solo) = confirmación genérica, NO compra directa
+    ambiguous_confirmations = {'sí', 'si', 'ok', 'ya', 'vale', 'dale', 'claro', 'bueno'}
 
-    # Check direct purchase keywords
+    words = msg_lower.split()
+
+    # Si el mensaje es SOLO una confirmación simple (1-2 palabras), NO es compra directa
+    # Estas confirmaciones deben pasar por el LLM para que use el contexto
+    if len(words) <= 2:
+        is_only_confirmation = all(w.rstrip('!.?') in ambiguous_confirmations for w in words)
+        if is_only_confirmation:
+            return False  # No es compra directa, dejar que el LLM use el contexto
+
+    # Check direct purchase keywords (solo los explícitos)
     for keyword in DIRECT_PURCHASE_KEYWORDS:
-        if keyword in short_keywords_whole_word:
-            # Para keywords cortos, verificar que sea palabra completa
-            # y que el mensaje sea corto (respuesta directa tipo "sí" o "ok")
-            words = msg_lower.split()
-            if keyword in words and len(words) <= 3:
+        if keyword in ambiguous_confirmations:
+            # Para confirmaciones ambiguas, solo activar si hay más contexto
+            # "sí, lo quiero" = compra, pero "sí" solo = no compra
+            if keyword in words and len(words) > 2:
                 return True
         else:
-            # Para keywords largos, búsqueda normal
+            # Para keywords largos/explícitos, búsqueda normal
             if keyword in msg_lower:
                 return True
 
