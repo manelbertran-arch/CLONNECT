@@ -1407,5 +1407,210 @@
     "amount": 0.0,
     "score": 0.0,
     "metadata": {}
+  },
+  {
+    "event_id": "evt_45a56dbeeb91",
+    "event_type": "message_received",
+    "creator_id": "manel",
+    "follower_id": "test_ack_427",
+    "timestamp": "2026-01-11T21:16:46.578288+00:00",
+    "platform": "api",
+    "intent": "interest_soft",
+    "product_id": "",
+    "amount": 0.0,
+    "score": 0.0,
+    "metadata": {}
+  },
+  {
+    "event_id": "evt_643acaf3760f",
+    "event_type": "message_sent",
+    "creator_id": "manel",
+    "follower_id": "test_ack_427",
+    "timestamp": "2026-01-11T21:16:46.582031+00:00",
+    "platform": "api",
+    "intent": "",
+    "product_id": "",
+    "amount": 0.0,
+    "score": 0.0,
+    "metadata": {}
+  },
+  {
+    "event_id": "evt_052175a46727",
+    "event_type": "lead_created",
+    "creator_id": "manel",
+    "follower_id": "test_ack_427",
+    "timestamp": "2026-01-11T21:16:46.586098+00:00",
+    "platform": "api",
+    "intent": "",
+    "product_id": "",
+    "amount": 0.0,
+    "score": 0.5,
+    "metadata": {
+      "source": "dm"
+    }
+  },
+  {
+    "event_id": "evt_9c7ed2517e0b",
+    "event_type": "message_received",
+    "creator_id": "manel",
+    "follower_id": "test_ack_427",
+    "timestamp": "2026-01-11T21:16:46.605778+00:00",
+    "platform": "api",
+    "intent": "other",
+    "product_id": "",
+    "amount": 0.0,
+    "score": 0.0,
+    "metadata": {}
+  },
+  {
+    "event_id": "evt_160317e72e73",
+    "event_type": "message_sent",
+    "creator_id": "manel",
+    "follower_id": "test_ack_427",
+    "timestamp": "2026-01-11T21:16:46.608988+00:00",
+    "platform": "api",
+    "intent": "",
+    "product_id": "",
+    "amount": 0.0,
+    "score": 0.0,
+    "metadata": {}
+  },
+  {
+    "event_id": "evt_b7641ec310a7",
+    "event_type": "lead_created",
+    "creator_id": "manel",
+    "follower_id": "test_ack_427",
+    "timestamp": "2026-01-11T21:16:46.611771+00:00",
+    "platform": "api",
+    "intent": "",
+    "product_id": "",
+    "amount": 0.0,
+    "score": 0.5,
+    "metadata": {
+      "source": "dm"
+    }
+  },
+  {
+    "event_id": "evt_63f2fca6f0e6",
+    "event_type": "message_received",
+    "creator_id": "manel",
+    "follower_id": "test_ack_480",
+    "timestamp": "2026-01-11T21:17:39.834270+00:00",
+    "platform": "api",
+    "intent": "interest_soft",
+    "product_id": "",
+    "amount": 0.0,
+    "score": 0.0,
+    "metadata": {}
+  },
+  {
+    "event_id": "evt_8af6f5a97fa7",
+    "event_type": "message_sent",
+    "creator_id": "manel",
+    "follower_id": "test_ack_480",
+    "timestamp": "2026-01-11T21:17:39.839679+00:00",
+    "platform": "api",
+    "intent": "",
+    "product_id": "",
+    "amount": 0.0,
+    "score": 0.0,
+    "metadata": {}
+  },
+  {
+    "event_id": "evt_c3601649d020",
+    "event_type": "lead_created",
+    "creator_id": "manel",
+    "follower_id": "test_ack_480",
+    "timestamp": "2026-01-11T21:17:39.842484+00:00",
+    "platform": "api",
+    "intent": "",
+    "product_id": "",
+    "amount": 0.0,
+    "score": 0.5,
+    "metadata": {
+      "source": "dm"
+    }
+  },
+  {
+    "event_id": "evt_afb37a3dbf17",
+    "event_type": "message_received",
+    "creator_id": "manel",
+    "follower_id": "test_ack_480",
+    "timestamp": "2026-01-11T21:17:39.856686+00:00",
+    "platform": "api",
+    "intent": "other",
+    "product_id": "",
+    "amount": 0.0,
+    "score": 0.0,
+    "metadata": {}
+  },
+  {
+    "event_id": "evt_c3922dc21e00",
+    "event_type": "message_sent",
+    "creator_id": "manel",
+    "follower_id": "test_ack_480",
+    "timestamp": "2026-01-11T21:17:39.859713+00:00",
+    "platform": "api",
+    "intent": "",
+    "product_id": "",
+    "amount": 0.0,
+    "score": 0.0,
+    "metadata": {}
+  },
+  {
+    "event_id": "evt_0ea12be55ea7",
+    "event_type": "lead_created",
+    "creator_id": "manel",
+    "follower_id": "test_ack_480",
+    "timestamp": "2026-01-11T21:17:39.862390+00:00",
+    "platform": "api",
+    "intent": "",
+    "product_id": "",
+    "amount": 0.0,
+    "score": 0.5,
+    "metadata": {
+      "source": "dm"
+    }
+  },
+  {
+    "event_id": "evt_03b232570925",
+    "event_type": "message_received",
+    "creator_id": "manel",
+    "follower_id": "test_ack_480",
+    "timestamp": "2026-01-11T21:17:39.874981+00:00",
+    "platform": "api",
+    "intent": "acknowledgment",
+    "product_id": "",
+    "amount": 0.0,
+    "score": 0.0,
+    "metadata": {}
+  },
+  {
+    "event_id": "evt_c6836710cc24",
+    "event_type": "message_sent",
+    "creator_id": "manel",
+    "follower_id": "test_ack_480",
+    "timestamp": "2026-01-11T21:17:39.878502+00:00",
+    "platform": "api",
+    "intent": "",
+    "product_id": "",
+    "amount": 0.0,
+    "score": 0.0,
+    "metadata": {}
+  },
+  {
+    "event_id": "evt_71bf4f937c10",
+    "event_type": "lead_created",
+    "creator_id": "manel",
+    "follower_id": "test_ack_480",
+    "timestamp": "2026-01-11T21:17:39.881414+00:00",
+    "platform": "api",
+    "intent": "",
+    "product_id": "",
+    "amount": 0.0,
+    "score": 0.5,
+    "metadata": {
+      "source": "dm"
+    }
   }
 ]
