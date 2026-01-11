@@ -1244,6 +1244,79 @@ class DMResponderAgent:
 
         return None
 
+    def _detect_meta_message(self, message: str, history: List[dict]) -> Optional[Dict[str, Any]]:
+        """Detecta cuando el usuario hace referencia a la conversación misma.
+
+        Detecta patrones como:
+        - "ya te lo dije" → Usuario quiere que recordemos algo
+        - "revisa el chat" → Usuario frustrado porque repetimos
+        - "no me entiendes" → Usuario frustrado
+
+        Args:
+            message: Mensaje actual del usuario
+            history: Historial de conversación
+
+        Returns:
+            Dict con {action: str, context: str} o None si no es meta-mensaje
+        """
+        msg_lower = message.lower().strip()
+
+        # === PATRONES: "Revisa lo que dije" ===
+        review_patterns = [
+            "ya te lo dije", "te lo dije", "ya te dije",
+            "revisa el chat", "lee el chat", "mira el chat",
+            "te lo acabo de decir", "lo acabo de decir",
+            "ya te lo he dicho", "te lo he dicho",
+            "lee arriba", "mira arriba", "scroll up",
+            "ya lo mencioné", "ya lo mencione", "te lo comenté",
+            "como te dije antes", "como ya te dije"
+        ]
+
+        if any(p in msg_lower for p in review_patterns):
+            # Buscar el último mensaje relevante del usuario (no el actual)
+            user_messages = [m for m in history if m.get("role") == "user"]
+            if len(user_messages) >= 1:
+                # Retornar el penúltimo mensaje del usuario si existe
+                previous_msg = user_messages[-1].get("content", "") if len(user_messages) >= 1 else ""
+                return {
+                    "action": "REVIEW_HISTORY",
+                    "context": previous_msg,
+                    "instruction": f"El usuario me pide que recuerde lo que dijo antes: '{previous_msg[:100]}'"
+                }
+
+        # === PATRONES: Frustración ===
+        frustration_patterns = [
+            "no me entiendes", "no entiendes", "no me escuchas",
+            "eres un bot", "habla con alguien", "persona real",
+            "no sirves", "inútil", "no ayudas", "qué malo"
+        ]
+
+        if any(p in msg_lower for p in frustration_patterns):
+            return {
+                "action": "USER_FRUSTRATED",
+                "context": message,
+                "instruction": "Usuario frustrado - responder con empatía y ofrecer ayuda clara"
+            }
+
+        # === PATRONES: Repetición pedida ===
+        repeat_patterns = [
+            "repite", "otra vez", "no entendí", "no entendi",
+            "puedes repetir", "me lo repites", "dilo de nuevo"
+        ]
+
+        if any(p in msg_lower for p in repeat_patterns):
+            # Buscar última respuesta del bot
+            bot_messages = [m for m in history if m.get("role") == "assistant"]
+            if bot_messages:
+                last_bot = bot_messages[-1].get("content", "")
+                return {
+                    "action": "REPEAT_REQUESTED",
+                    "context": last_bot,
+                    "instruction": f"Usuario pide repetición. Mi último mensaje fue: '{last_bot[:100]}'"
+                }
+
+        return None
+
     def _classify_intent(self, message: str, conversation_history: Optional[List[dict]] = None) -> tuple:
         """Clasificar intención del mensaje por keywords.
 
@@ -2617,6 +2690,40 @@ USA ESTA RESPUESTA PARA LA OBJECION (adaptala a tu tono):
             old_lang = follower.preferred_language
             follower.preferred_language = detected_lang
             logger.info(f"Language changed from {old_lang} to {detected_lang} (strong evidence)")
+
+        # === META-MESSAGE DETECTION ===
+        # Detectar cuando el usuario hace referencia a la conversación misma
+        # ("ya te lo dije", "revisa el chat", "no me entiendes")
+        meta_result = self._detect_meta_message(message_text, follower.last_messages or [])
+
+        if meta_result:
+            action = meta_result.get("action")
+            context = meta_result.get("context", "")
+            instruction = meta_result.get("instruction", "")
+
+            logger.info(f"Meta-message detected: {action} - {instruction[:50]}...")
+
+            if action == "USER_FRUSTRATED":
+                # Respuesta de recuperación empática
+                response_text = "Perdona si no te he entendido bien. Cuéntame de nuevo qué necesitas y te ayudo ahora mismo."
+                await self._update_memory(follower, message_text, response_text, Intent.OTHER)
+                return DMResponse(
+                    response_text=response_text,
+                    intent=Intent.OTHER,
+                    confidence=0.95,
+                    metadata={"meta_action": "frustrated_recovery"}
+                )
+
+            elif action == "REVIEW_HISTORY":
+                # Inyectar contexto en el mensaje para que el LLM lo vea
+                # El LLM verá esto como parte del mensaje y responderá apropiadamente
+                message_text = f"[CONTEXTO: El usuario me pide que recuerde que antes dijo: '{context[:150]}']\n\nUsuario: {message_text}"
+                logger.info(f"Injected review context into message")
+
+            elif action == "REPEAT_REQUESTED":
+                # Inyectar contexto de repetición
+                message_text = f"[CONTEXTO: El usuario pide que repita. Mi último mensaje fue: '{context[:150]}']\n\nUsuario: {message_text}"
+                logger.info(f"Injected repeat context into message")
 
         # Clasificar intent con contexto conversacional
         _t_intent = time.time()

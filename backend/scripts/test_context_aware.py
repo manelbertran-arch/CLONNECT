@@ -195,6 +195,70 @@ def test_context_aware_classification():
     return failed == 0
 
 
+def test_meta_message_detection():
+    """Test de detección de meta-mensajes."""
+    print("\n" + "=" * 80)
+    print("TEST: Meta-Message Detection - Detección de referencias a la conversación")
+    print("=" * 80 + "\n")
+
+    from core.dm_agent import DMResponderAgent
+
+    agent = DMResponderAgent(creator_id="test_meta")
+
+    test_cases = [
+        # (mensaje, historial, acción esperada)
+        (
+            "Ya te lo dije antes",
+            [{"role": "user", "content": "Me interesa el curso de trading"}],
+            "REVIEW_HISTORY"
+        ),
+        (
+            "Revisa el chat",
+            [{"role": "user", "content": "Quiero información sobre coaching"}],
+            "REVIEW_HISTORY"
+        ),
+        (
+            "No me entiendes",
+            [{"role": "assistant", "content": "¿Qué te gustaría saber?"}],
+            "USER_FRUSTRATED"
+        ),
+        (
+            "Eres un bot inútil",
+            [],
+            "USER_FRUSTRATED"
+        ),
+        (
+            "Puedes repetir?",
+            [{"role": "assistant", "content": "El precio es 297€"}],
+            "REPEAT_REQUESTED"
+        ),
+        (
+            "Hola, me interesa",  # No es meta-mensaje
+            [],
+            None
+        ),
+    ]
+
+    passed = 0
+    failed = 0
+
+    for msg, history, expected_action in test_cases:
+        result = agent._detect_meta_message(msg, history)
+        actual_action = result.get("action") if result else None
+
+        status = "✅" if actual_action == expected_action else "❌"
+        if actual_action == expected_action:
+            passed += 1
+        else:
+            failed += 1
+
+        print(f"{status} '{msg}' → {actual_action} (esperado: {expected_action})")
+
+    print(f"\n{'─' * 40}")
+    print(f"Passed: {passed} | Failed: {failed}")
+    return failed == 0
+
+
 if __name__ == "__main__":
     print("\n" + "🧪" * 40)
     print("INICIANDO TESTS DE CONTEXT-AWARE CLASSIFICATION")
@@ -212,6 +276,10 @@ if __name__ == "__main__":
 
     # Test 3: Context-aware classification
     if not test_context_aware_classification():
+        all_passed = False
+
+    # Test 4: Meta-message detection
+    if not test_meta_message_detection():
         all_passed = False
 
     # Resumen final
