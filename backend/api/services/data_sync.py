@@ -137,13 +137,18 @@ def sync_json_to_postgres(creator_name: str, follower_id: str) -> Optional[str]:
             ).first()
 
             if lead:
+                # ALWAYS sync purchase_intent_score from JSON (FIX P0: score was never persisting)
+                new_score = json_data.get("purchase_intent_score", 0.0)
+                if new_score != (lead.purchase_intent or 0.0):
+                    lead.purchase_intent = new_score
+                    logger.info(f"Synced purchase_intent {lead.purchase_intent} → {new_score} for {follower_id}")
+
                 # Update existing lead with JSON data if JSON is newer
                 json_last_contact = json_data.get("last_contact")
                 if json_last_contact:
                     try:
                         json_dt = datetime.fromisoformat(json_last_contact.replace('Z', '+00:00'))
                         if not lead.last_contact_at or json_dt > lead.last_contact_at:
-                            lead.purchase_intent = json_data.get("purchase_intent_score", lead.purchase_intent or 0.0)
                             lead.username = json_data.get("username") or lead.username
                             lead.full_name = json_data.get("name") or lead.full_name
                             lead.last_contact_at = json_dt
@@ -153,9 +158,10 @@ def sync_json_to_postgres(creator_name: str, follower_id: str) -> Optional[str]:
                             if status_order.get(json_status, 0) > status_order.get(lead.status, 0):
                                 lead.status = json_status
                                 logger.info(f"Synced status {lead.status} → {json_status} for {follower_id}")
-                            session.commit()
-                    except:
-                        pass
+                    except Exception as e:
+                        logger.warning(f"Could not parse json_last_contact for {follower_id}: {e}")
+
+                session.commit()
                 return str(lead.id)
             else:
                 # Create new lead from JSON

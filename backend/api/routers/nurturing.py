@@ -440,7 +440,7 @@ async def _try_send_message(creator_id: str, follower_id: str, message: str) -> 
 async def run_nurturing_followups(
     creator_id: str,
     due_only: bool = True,
-    dry_run: bool = True,
+    dry_run: bool = False,  # FIX P0: Changed from True - messages should actually send
     limit: int = 50,
     force_due: bool = False
 ):
