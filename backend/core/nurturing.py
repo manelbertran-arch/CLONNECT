@@ -533,9 +533,12 @@ def is_sequence_active(creator_id: str, sequence_type: str) -> bool:
     sequences = config.get("sequences", {})
 
     if sequence_type in sequences:
-        return sequences[sequence_type].get("is_active", False)
+        is_active = sequences[sequence_type].get("is_active", False)
+        logger.info(f"[NURTURING] is_sequence_active({creator_id}, {sequence_type}) = {is_active}")
+        return is_active
 
     # Default: sequences are inactive unless explicitly enabled
+    logger.info(f"[NURTURING] is_sequence_active({creator_id}, {sequence_type}) = False (not in config)")
     return False
 
 

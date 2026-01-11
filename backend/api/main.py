@@ -6088,6 +6088,66 @@ async def startup_event():
     asyncio.create_task(prewarm_creator_caches())
     logger.info("Cache pre-warming scheduled (background task)")
 
+    # KEEP-ALIVE: Ping every 4 minutes to prevent cold starts
+    # Railway puts containers to sleep after ~5 min of inactivity
+    # This keeps the DM agent cache warm and eliminates cold start latency
+    async def keep_alive_task():
+        import time
+        KEEP_ALIVE_INTERVAL = 240  # 4 minutes
+
+        # Wait for initial startup to complete
+        await asyncio.sleep(10)
+        logger.info(f"[KEEP-ALIVE] Started - will ping every {KEEP_ALIVE_INTERVAL}s")
+
+        while True:
+            try:
+                _t_start = time.time()
+
+                # 1. Pre-load DM agent for stefano_auto (most active creator)
+                try:
+                    agent = get_dm_agent("stefano_auto")
+                    # Touch the system prompt cache to keep it warm
+                    if hasattr(agent, '_build_system_prompt'):
+                        _ = agent._build_system_prompt("")
+                    logger.debug(f"[KEEP-ALIVE] DM agent for stefano_auto warmed")
+                except Exception as e:
+                    logger.warning(f"[KEEP-ALIVE] DM agent warm failed: {e}")
+
+                # 2. Refresh ToneProfile cache
+                try:
+                    from core.tone_service import get_tone_prompt_section
+                    get_tone_prompt_section("stefano_auto")
+                except Exception:
+                    pass
+
+                # 3. Refresh CitationIndex cache
+                try:
+                    from core.citation_service import get_content_index
+                    get_content_index("stefano_auto")
+                except Exception:
+                    pass
+
+                # 4. Light DB ping to keep connection pool alive
+                if SessionLocal:
+                    try:
+                        from sqlalchemy import text
+                        session = SessionLocal()
+                        session.execute(text("SELECT 1"))
+                        session.close()
+                    except Exception:
+                        pass
+
+                _t_end = time.time()
+                logger.info(f"[KEEP-ALIVE] Ping completed in {_t_end - _t_start:.2f}s")
+
+            except Exception as e:
+                logger.error(f"[KEEP-ALIVE] Error: {e}")
+
+            await asyncio.sleep(KEEP_ALIVE_INTERVAL)
+
+    asyncio.create_task(keep_alive_task())
+    logger.info("Keep-alive task scheduled (every 4 minutes)")
+
     logger.info("Ready to receive requests!")
 
 

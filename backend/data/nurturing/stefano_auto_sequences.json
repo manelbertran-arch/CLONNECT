@@ -2,6 +2,15 @@
   "sequences": {
     "interest_cold": {
       "is_active": true
+    },
+    "abandoned": {
+      "is_active": true
+    },
+    "re_engagement": {
+      "is_active": false
+    },
+    "post_purchase": {
+      "is_active": false
     }
   }
 }
