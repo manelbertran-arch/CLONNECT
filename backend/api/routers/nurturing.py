@@ -180,6 +180,7 @@ async def get_nurturing_followups(
 
 
 @router.get("/{creator_id}/stats")
+@router.get("/{creator_id}/status")  # Alias for /stats
 async def get_nurturing_stats(creator_id: str):
     """Get nurturing statistics"""
     manager = get_nurturing_manager()

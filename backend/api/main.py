@@ -68,6 +68,15 @@ from core.auth import get_auth_manager, validate_api_key, is_admin_key
 from core.alerts import get_alert_manager
 from core.metrics import get_metrics, get_content_type, MetricsMiddleware, record_message_processed, update_health_status, PROMETHEUS_AVAILABLE
 from core.telegram_registry import get_telegram_registry
+
+# Optional psutil for memory health checks
+try:
+    import psutil
+    PSUTIL_AVAILABLE = True
+except ImportError:
+    PSUTIL_AVAILABLE = False
+    psutil = None
+
 logging.warning("=" * 60)
 
 logger = logging.getLogger(__name__)
