@@ -6095,9 +6095,9 @@ async def startup_event():
         import time
         KEEP_ALIVE_INTERVAL = 240  # 4 minutes
 
-        # Wait for initial startup to complete
-        await asyncio.sleep(10)
-        logger.info(f"[KEEP-ALIVE] Started - will ping every {KEEP_ALIVE_INTERVAL}s")
+        # Wait briefly for startup to complete
+        await asyncio.sleep(3)
+        logger.warning(f"[KEEP-ALIVE] ===== STARTED - will ping every {KEEP_ALIVE_INTERVAL}s =====")
 
         while True:
             try:
@@ -6138,10 +6138,10 @@ async def startup_event():
                         pass
 
                 _t_end = time.time()
-                logger.info(f"[KEEP-ALIVE] Ping completed in {_t_end - _t_start:.2f}s")
+                logger.warning(f"[KEEP-ALIVE] ===== Ping completed in {_t_end - _t_start:.2f}s =====")
 
             except Exception as e:
-                logger.error(f"[KEEP-ALIVE] Error: {e}")
+                logger.error(f"[KEEP-ALIVE] Error: {e}", exc_info=True)
 
             await asyncio.sleep(KEEP_ALIVE_INTERVAL)
 

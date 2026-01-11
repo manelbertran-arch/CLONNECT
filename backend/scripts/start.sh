@@ -47,6 +47,14 @@ if [ -d /app/data ]; then
             cp -r /app/initial_data/products/* /app/data/products/ 2>/dev/null || true
             echo "  - Synced products"
         fi
+
+        # Copy nurturing configs - FORCE sync to update sequence configs
+        if [ -d /app/initial_data/nurturing ]; then
+            cp -r /app/initial_data/nurturing/* /app/data/nurturing/ 2>/dev/null || true
+            echo "  - Synced nurturing configs"
+            echo "  - Nurturing files after sync:"
+            ls -la /app/data/nurturing/
+        fi
     fi
 
     chown -R clonnect:clonnect /app/data 2>/dev/null || true
