@@ -49,11 +49,17 @@ if [ -d /app/data ]; then
         fi
 
         # Copy nurturing configs - FORCE sync to update sequence configs
+        # Use -rf to OVERWRITE existing files (volume may have old configs)
         if [ -d /app/initial_data/nurturing ]; then
-            cp -r /app/initial_data/nurturing/* /app/data/nurturing/ 2>/dev/null || true
-            echo "  - Synced nurturing configs"
+            cp -rf /app/initial_data/nurturing/* /app/data/nurturing/ 2>/dev/null || true
+            echo "  - Synced nurturing configs (force overwrite)"
             echo "  - Nurturing files after sync:"
             ls -la /app/data/nurturing/
+            # Debug: show actual config content for stefano_auto
+            if [ -f /app/data/nurturing/stefano_auto_sequences.json ]; then
+                echo "  - stefano_auto_sequences.json content:"
+                cat /app/data/nurturing/stefano_auto_sequences.json
+            fi
         fi
     fi
 
