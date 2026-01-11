@@ -2391,6 +2391,36 @@ ANTES de responder, SIEMPRE revisa la CONVERSACIÓN ANTERIOR:
 
 {examples_section}
 
+🎯 PERSONALIZACIÓN (MUY IMPORTANTE):
+Para que tus respuestas NO suenen genéricas, USA la información del usuario:
+
+1. SI CONOCES SUS INTERESES:
+   - Menciona el tema específico que le interesa
+   - Ejemplo: "Vi que te interesa [tema], justo tengo algo para eso..."
+
+2. SI YA HABLARON ANTES:
+   - Referencia conversaciones previas: "Como te comenté antes..."
+   - NO repitas info que ya diste
+
+3. SI MOSTRÓ INTERÉS EN UN PRODUCTO:
+   - Habla de ESE producto específicamente
+   - Usa beneficios relevantes para SU situación
+
+4. SI ES UN LEAD CALIENTE (alta intención):
+   - Ve más directo al grano
+   - Ofrece el siguiente paso concreto
+
+5. SIEMPRE:
+   - Usa su nombre de forma natural (no en cada mensaje)
+   - Adapta el tono a cómo te escribió
+   - Haz preguntas sobre SU situación específica
+
+❌ GENÉRICO: "¿En qué puedo ayudarte?"
+✅ PERSONALIZADO: "Vi que preguntaste sobre [tema]. ¿Qué es lo que más te interesa saber?"
+
+❌ GENÉRICO: "Tenemos varias opciones..."
+✅ PERSONALIZADO: "Para lo que necesitas, te recomendaría [producto específico]"
+
 EJEMPLOS DE CÓMO NO RESPONDER (PROHIBIDO):
 
 ❌ MAL: "El precio del Curso Trading Pro es de 297€, lo que incluye 20 horas de vídeo, acceso a comunidad privada, sesiones Q&A semanales..."
@@ -2468,28 +2498,67 @@ RECUERDA: NO suenes como un bot corporativo. Sé natural y cercano. NO des datos
         # Extraer SOLO el primer nombre
         first_name = get_first_name(username)
 
-        # Construir contexto del usuario (memoria)
+        # Construir contexto del usuario (memoria) con hints de personalización
         user_context = ""
+        personalization_hints = []
+
         if follower:
-            user_context = f"\nINFORMACION DEL USUARIO QUE CONOZCO:"
+            user_context = f"\n📋 INFORMACIÓN DEL USUARIO (USA ESTO PARA PERSONALIZAR):"
             user_context += f"\n- Nombre: {first_name}"
-            user_context += f"\n- Total de mensajes: {follower.total_messages}"
+
+            # Status del usuario con hint de cómo tratarlo
+            total_msgs = follower.total_messages or 0
+            if total_msgs == 0:
+                user_context += f"\n- Estado: PRIMERA CONVERSACIÓN"
+                personalization_hints.append("Es su primer mensaje, preséntate brevemente y pregunta sobre su situación")
+            elif total_msgs < 3:
+                user_context += f"\n- Estado: Conversación nueva ({total_msgs} mensajes previos)"
+                personalization_hints.append("Aún no lo conoces bien, haz preguntas para entender qué necesita")
+            else:
+                user_context += f"\n- Estado: Conocido ({total_msgs} mensajes previos)"
+                personalization_hints.append("Ya se conocen, sé más directo y referencia conversaciones anteriores")
+
+            # Intereses con hint
             if follower.interests:
-                user_context += f"\n- Intereses: {', '.join(follower.interests[:3])}"
+                interests_str = ', '.join(follower.interests[:3])
+                user_context += f"\n- Intereses detectados: {interests_str}"
+                personalization_hints.append(f"Menciona algo sobre {follower.interests[0]} que le interesa")
+
+            # Productos discutidos con hint
             if follower.products_discussed:
-                user_context += f"\n- Productos que le interesan: {', '.join(follower.products_discussed[:3])}"
+                products_str = ', '.join(follower.products_discussed[:3])
+                user_context += f"\n- Productos que le interesan: {products_str}"
+                personalization_hints.append(f"Enfócate en {follower.products_discussed[0]}, ya mostró interés")
+
+            # Status de cliente/lead con hint
             if follower.is_customer:
-                user_context += f"\n- ES CLIENTE (ya ha comprado)"
+                user_context += f"\n- 🌟 ES CLIENTE (ya ha comprado)"
+                personalization_hints.append("Trátalo como cliente VIP, pregunta cómo le va con lo que compró")
             elif follower.is_lead:
-                user_context += f"\n- Es un lead interesado (intencion de compra: {int(follower.purchase_intent_score * 100)}%)"
+                intent_pct = int((follower.purchase_intent_score or 0) * 100)
+                user_context += f"\n- 🔥 Es LEAD caliente (intención: {intent_pct}%)"
+                if intent_pct >= 70:
+                    personalization_hints.append("Está muy interesado, ofrece el siguiente paso concreto")
+                elif intent_pct >= 40:
+                    personalization_hints.append("Tiene interés, resuelve sus dudas y guíalo al siguiente paso")
+                else:
+                    personalization_hints.append("Interés inicial, haz preguntas para entender qué busca")
+
             # Información de contacto alternativo
             if follower.alternative_contact:
                 user_context += f"\n- Contacto alternativo: {follower.alternative_contact} ({follower.alternative_contact_type})"
                 user_context += f"\n  → YA TENEMOS SU CONTACTO, NO lo pidas de nuevo"
             elif follower.contact_requested:
                 user_context += f"\n- Ya pedimos su contacto pero no lo dio, NO insistas"
-            elif (follower.total_messages or 0) >= 3 and (follower.purchase_intent_score or 0) >= 0.3:
+            elif total_msgs >= 3 and (follower.purchase_intent_score or 0) >= 0.3:
                 user_context += f"\n- 📱 BUEN MOMENTO para pedir WhatsApp/Telegram (interés detectado)"
+
+            # Agregar hints de personalización
+            if personalization_hints:
+                user_context += f"\n\n💡 CÓMO PERSONALIZAR ESTA RESPUESTA:"
+                for hint in personalization_hints:
+                    user_context += f"\n  → {hint}"
+
             user_context += "\n"
 
         # Construir contexto de naturalidad - qué NO repetir
@@ -2576,31 +2645,32 @@ USA ESTA RESPUESTA PARA LA OBJECION (adaptala a tu tono):
 "{objection_handler}"
 """
 
-        # Instrucciones según intent
+        # Instrucciones según intent - con hints de personalización
         instructions = {
-            Intent.GREETING: "Saluda de forma cercana y VARIADA (no uses siempre 'Ey!'). Pregunta en que puedes ayudar.",
-            Intent.INTEREST_STRONG: "El usuario QUIERE COMPRAR. Dale el link directamente y destaca 2-3 beneficios clave.",
-            Intent.INTEREST_SOFT: "Hay interes. Pregunta que necesita y menciona sutilmente el producto.",
-            Intent.ACKNOWLEDGMENT: "El usuario solo confirma/entiende. NO asumas que quiere comprar. Pregunta '¿Te gustaria saber mas?' o '¿En que mas puedo ayudarte?'",
-            Intent.CORRECTION: "El usuario corrige un malentendido. Disculpate brevemente y pregunta en que puedes ayudar realmente.",
-            Intent.OBJECTION_PRICE: "Maneja la objecion de precio. Se empatico, menciona garantia/valor.",
-            Intent.OBJECTION_TIME: "Maneja la objecion de tiempo. Destaca que es rapido/flexible.",
-            Intent.OBJECTION_DOUBT: "Resuelve dudas sin presionar. Ofrece mas info.",
-            Intent.OBJECTION_LATER: "Maneja la objecion de 'luego'. Crea urgencia sutil, menciona que es el mejor momento.",
-            Intent.OBJECTION_WORKS: "Maneja la objecion de resultados. Comparte casos de exito, garantia, testimonios.",
-            Intent.OBJECTION_NOT_FOR_ME: "Maneja la objecion de 'no es para mi'. Empatiza y pregunta: '¿Qué es lo que más te preocupa?' o '¿Qué te hace dudar?'. NO envíes links de pago ni Calendly. Solo escucha y resuelve dudas.",
-            Intent.OBJECTION_COMPLICATED: "Maneja la objecion de complejidad. Destaca que es facil y hay soporte.",
-            Intent.OBJECTION_ALREADY_HAVE: "Maneja la objecion de 'ya tengo algo'. Diferencia tu producto, valor unico.",
-            Intent.QUESTION_PRODUCT: "Responde la pregunta sobre el producto/programa. USA el CONTENIDO RELEVANTE del creador si está disponible en el prompt. Menciona el precio si aplica. Si preguntan por metodología/filosofía/programa, responde con información REAL de los posts del creador, no genérica.",
-            Intent.QUESTION_GENERAL: "Explica brevemente quien eres y que haces. USA el CONTENIDO RELEVANTE del creador si está disponible.",
-            Intent.LEAD_MAGNET: "Ofrece el recurso GRATIS con entusiasmo y da el link.",
-            Intent.THANKS: "Agradece genuinamente y ofrece mas ayuda.",
-            Intent.GOODBYE: "Despidete de forma calida, deja la puerta abierta.",
-            Intent.SUPPORT: "Muestra empatia y ofrece ayuda concreta.",
-            Intent.OTHER: "Responde de forma util y cercana."
+            Intent.GREETING: "Saluda de forma cercana y VARIADA. Si ya conoces al usuario, pregunta sobre algo específico que discutieron. Si es nuevo, pregunta sobre SU situación/necesidad específica.",
+            Intent.INTEREST_STRONG: "El usuario QUIERE COMPRAR. Dale el link directamente. Si conoces sus intereses, destaca beneficios relevantes para ÉL.",
+            Intent.INTEREST_SOFT: "Hay interés. Pregunta sobre SU situación específica para entender qué necesita. Si ya mencionó intereses, conecta con eso.",
+            Intent.ACKNOWLEDGMENT: "El usuario confirma. Haz una pregunta personalizada basada en lo que ya discutieron, NO genérica.",
+            Intent.CORRECTION: "El usuario corrige. Discúlpate brevemente y pregunta específicamente qué es lo que busca.",
+            Intent.OBJECTION_PRICE: "Maneja precio. Si conoces su situación, relaciona el valor con SU caso específico. Menciona garantía.",
+            Intent.OBJECTION_TIME: "Maneja tiempo. Adapta la respuesta a SU situación específica. Destaca flexibilidad.",
+            Intent.OBJECTION_DOUBT: "Resuelve dudas. Pregunta QUÉ le genera duda específicamente. No des respuesta genérica.",
+            Intent.OBJECTION_LATER: "Maneja 'luego'. Referencia algo específico de la conversación para crear relevancia, no urgencia artificial.",
+            Intent.OBJECTION_WORKS: "Maneja resultados. Si conoces su situación, comparte un caso similar. Si no, pregunta sobre su caso.",
+            Intent.OBJECTION_NOT_FOR_ME: "Maneja 'no es para mí'. Pregunta específicamente: '¿Qué es lo que te hace pensar eso?' o '¿Cuál es tu situación actual?'. Escucha primero.",
+            Intent.OBJECTION_COMPLICATED: "Maneja complejidad. Pregunta qué le parece complicado específicamente. Ofrece soporte personalizado.",
+            Intent.OBJECTION_ALREADY_HAVE: "Maneja 'ya tengo'. Pregunta qué tiene y qué resultados le ha dado. Diferencia basándote en SU experiencia.",
+            Intent.QUESTION_PRODUCT: "Responde la pregunta. USA el CONTENIDO RELEVANTE del creador. Si conoces sus intereses, enfoca la respuesta a eso.",
+            Intent.QUESTION_GENERAL: "Explica brevemente. Si conoces sus intereses, conecta tu experiencia con lo que le interesa.",
+            Intent.LEAD_MAGNET: "Ofrece el recurso GRATIS. Si conoces sus intereses, destaca por qué le será útil específicamente.",
+            Intent.THANKS: "Agradece. Ofrece ayuda específica basada en lo que discutieron, no genérica.",
+            Intent.GOODBYE: "Despídete. Menciona algo específico de la conversación y deja la puerta abierta para continuar.",
+            Intent.SUPPORT: "Muestra empatía. Pregunta sobre SU problema específico antes de ofrecer soluciones.",
+            Intent.OTHER: "Responde de forma útil. Haz preguntas para entender mejor SU situación específica."
         }
 
         prompt += f"\nINSTRUCCION: {instructions.get(intent, instructions[Intent.OTHER])}"
+        prompt += "\n\n⚠️ RECUERDA: Usa la INFORMACIÓN DEL USUARIO de arriba para personalizar. NO des respuestas genéricas."
 
         return prompt
 
