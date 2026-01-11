@@ -1229,13 +1229,21 @@ class DMResponderAgent:
         msg = message.lower()
 
         # === CORRECTION - MÁXIMA PRIORIDAD ===
-        # Cuando el usuario corrige un malentendido
+        # Cuando el usuario corrige un malentendido O pide que revise el historial
         correction_patterns = [
+            # Correcciones de malentendido
             'no te he dicho', 'no he dicho', 'no quiero comprar', 'no quiero pagar',
             'me has entendido mal', 'no es eso', 'no me refiero', 'no era eso',
             'no te estoy diciendo', 'no estoy diciendo', 'malentendido',
             'no he pedido', 'no te pedi', 'no te pedí', 'yo no dije',
-            'no dije eso', 'no es lo que dije', 'no quise decir'
+            'no dije eso', 'no es lo que dije', 'no quise decir',
+            # Meta-mensajes: usuario pide que revise el historial
+            'ya te lo dije', 'te lo dije', 'ya te dije', 'te lo acabo de decir',
+            'ya te lo he dicho', 'te lo he dicho', 'como te dije', 'como te comenté',
+            'revisa el chat', 'mira el chat', 'lee el chat', 'lee arriba',
+            'mira arriba', 'scroll up', 'lo que te dije', 'ya lo dije',
+            'ya te expliqué', 'ya te explique', 'te acabo de decir',
+            'no me escuchas', 'no lees', 'no prestas atención'
         ]
         if any(p in msg for p in correction_patterns):
             return Intent.CORRECTION, 0.95
@@ -2603,21 +2611,13 @@ USA ESTA RESPUESTA PARA LA OBJECION (adaptala a tu tono):
             logger.info(f"=== ACKNOWLEDGMENT - procesando con contexto conversacional ===")
             # NO retornar aquí - continuar al flujo normal del LLM
 
-        # === FAST PATH: Correction (No te he dicho que quiero comprar) ===
-        # User corrects a misunderstanding - apologize and ask how to help
+        # === CORRECTION: Ahora pasa por flujo normal con LLM ===
+        # ANTES: Fast path con respuesta hardcoded "Disculpa la confusión!"
+        # AHORA: El LLM verá el historial y responderá según el contexto
+        # Ejemplo: "ya te lo dije" → el LLM buscará en el historial qué dijo
         if intent == Intent.CORRECTION:
-            logger.info(f"=== CORRECTION DETECTED - apologizing ===")
-            # Use fallback responses for correction
-            response_text = self._get_fallback_response(Intent.CORRECTION, follower.preferred_language)
-            await self._update_memory(follower, message_text, response_text, intent)
-
-            return DMResponse(
-                response_text=response_text,
-                intent=intent,
-                action_taken="clarify",
-                confidence=confidence,
-                metadata={"correction": True}
-            )
+            logger.info(f"=== CORRECTION - procesando con contexto conversacional ===")
+            # NO retornar aquí - continuar al flujo normal del LLM
 
         # Buscar producto relevante
         product = self._get_relevant_product(message_text, intent)
