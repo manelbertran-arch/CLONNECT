@@ -35,6 +35,7 @@ from core.guardrails import get_response_guardrail
 from core.reasoning import get_self_consistency_validator, get_chain_of_thought_reasoner
 from core.tone_service import get_tone_prompt_section, get_tone_language, get_tone_dialect
 from core.citation_service import get_citation_prompt_section
+from core.bot_question_analyzer import get_bot_question_analyzer, QuestionType, is_short_affirmation
 from core.metrics import (
     record_message_processed,
     record_llm_error,
@@ -1224,8 +1225,32 @@ class DMResponderAgent:
 
             return {"text": intro + "\n\n".join(formatted_links) + outro}
 
-    def _classify_intent(self, message: str) -> tuple:
-        """Clasificar intención del mensaje por keywords"""
+    def _get_last_bot_message(self, conversation_history: List[dict]) -> Optional[str]:
+        """Obtiene el último mensaje del bot (assistant) del historial.
+
+        Args:
+            conversation_history: Lista de mensajes [{role: 'user'|'assistant', content: '...'}]
+
+        Returns:
+            El contenido del último mensaje del assistant, o None si no hay.
+        """
+        if not conversation_history:
+            return None
+
+        # Buscar desde el final hacia atrás
+        for msg in reversed(conversation_history):
+            if msg.get("role") == "assistant":
+                return msg.get("content", "")
+
+        return None
+
+    def _classify_intent(self, message: str, conversation_history: Optional[List[dict]] = None) -> tuple:
+        """Clasificar intención del mensaje por keywords.
+
+        Args:
+            message: Mensaje del usuario
+            conversation_history: Historial de conversación (opcional) para context-aware classification
+        """
         msg = message.lower()
 
         # === CORRECTION - MÁXIMA PRIORIDAD ===
@@ -1248,20 +1273,53 @@ class DMResponderAgent:
         if any(p in msg for p in correction_patterns):
             return Intent.CORRECTION, 0.95
 
-        # === ACKNOWLEDGMENT - Before purchase intent ===
-        # Simple confirmations that don't indicate purchase intent
-        # Only match if message is SHORT (< 20 chars) or ONLY acknowledgment words
-        acknowledgment_words = ['ok', 'okey', 'okay', 'vale', 'entendido', 'de acuerdo',
-                                'perfecto', 'bien', 'bueno', 'claro', 'ya', 'ah ok',
-                                'ah vale', 'ah bien', 'entiendo', 'comprendo', 'sí', 'si']
-        msg_stripped = msg.strip()
-        # Only classify as acknowledgment if it's a short, simple response
-        if len(msg_stripped) < 25:
-            if any(msg_stripped == w or msg_stripped == w + '!' or msg_stripped == w + '.' for w in acknowledgment_words):
-                return Intent.ACKNOWLEDGMENT, 0.90
-            # Also match if starts with acknowledgment and nothing else substantial
-            if any(msg_stripped.startswith(w) and len(msg_stripped) < 15 for w in acknowledgment_words):
-                return Intent.ACKNOWLEDGMENT, 0.85
+        # === CONTEXT-AWARE ACKNOWLEDGMENT ===
+        # Cuando el usuario responde con "Si", "Vale", "Ok", etc., analizamos
+        # el contexto de la conversación para clasificar mejor la intención.
+        #
+        # ANTES: "Si" → ACKNOWLEDGMENT → respuesta genérica "¿En qué más puedo ayudarte?"
+        # AHORA: "Si" después de "¿Quieres saber más?" → INTEREST_SOFT → continúa conversación
+        #
+        if is_short_affirmation(message):
+            # Si tenemos historial, analizar qué preguntó el bot
+            if conversation_history:
+                last_bot_msg = self._get_last_bot_message(conversation_history)
+                if last_bot_msg:
+                    analyzer = get_bot_question_analyzer()
+                    question_type, q_confidence = analyzer.analyze_with_confidence(last_bot_msg)
+
+                    logger.info(f"Context-aware: '{message}' after bot question type={question_type.value}")
+
+                    # Mapear tipo de pregunta del bot → intent del usuario
+                    if question_type == QuestionType.INTEREST:
+                        logger.info(f"→ Context: Bot asked about interest → INTEREST_SOFT")
+                        return Intent.INTEREST_SOFT, 0.88
+
+                    elif question_type == QuestionType.PURCHASE:
+                        logger.info(f"→ Context: Bot asked about purchase → INTEREST_STRONG")
+                        return Intent.INTEREST_STRONG, 0.90
+
+                    elif question_type == QuestionType.BOOKING:
+                        logger.info(f"→ Context: Bot asked about booking → BOOKING")
+                        return Intent.BOOKING, 0.88
+
+                    elif question_type == QuestionType.PAYMENT_METHOD:
+                        logger.info(f"→ Context: Bot asked about payment → INTEREST_STRONG")
+                        return Intent.INTEREST_STRONG, 0.88
+
+                    elif question_type == QuestionType.INFORMATION:
+                        # Bot hizo pregunta abierta, usuario confirma → continuar flujo
+                        logger.info(f"→ Context: Bot asked open question → INTEREST_SOFT")
+                        return Intent.INTEREST_SOFT, 0.80
+
+                    elif question_type == QuestionType.CONFIRMATION:
+                        # Bot preguntó si quedó claro → usuario confirma → ACKNOWLEDGMENT (OK aquí)
+                        logger.info(f"→ Context: Bot asked for confirmation → ACKNOWLEDGMENT")
+                        return Intent.ACKNOWLEDGMENT, 0.85
+
+            # Sin contexto o tipo desconocido → ACKNOWLEDGMENT original
+            logger.info(f"→ No context or unknown question type → ACKNOWLEDGMENT")
+            return Intent.ACKNOWLEDGMENT, 0.85
 
         # Escalación (prioridad máxima después de corrections)
         # Patrones por defecto para detectar solicitud de humano
@@ -2532,9 +2590,9 @@ USA ESTA RESPUESTA PARA LA OBJECION (adaptala a tu tono):
             follower.preferred_language = detected_lang
             logger.info(f"Language changed from {old_lang} to {detected_lang} (strong evidence)")
 
-        # Clasificar intent
+        # Clasificar intent con contexto conversacional
         _t_intent = time.time()
-        intent, confidence = self._classify_intent(message_text)
+        intent, confidence = self._classify_intent(message_text, follower.last_messages)
         logger.info(f"⏱️ _classify_intent took {time.time() - _t_intent:.2f}s")
         logger.info(f"Intent: {intent.value} ({confidence:.0%})")
 
