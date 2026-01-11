@@ -1244,6 +1244,103 @@ class DMResponderAgent:
 
         return None
 
+    def _extract_known_info(self, history: List[dict]) -> List[str]:
+        """Extrae información que el usuario ya proporcionó en la conversación.
+
+        Returns:
+            Lista de strings con la información conocida
+        """
+        import re
+        known = []
+        seen = set()  # Evitar duplicados
+
+        for msg in history:
+            if msg.get("role") != "user":
+                continue
+            content = msg.get("content", "").lower()
+
+            # Detectar nombre
+            match = re.search(r'(?:soy|me llamo|mi nombre es)\s+(\w+)', content)
+            if match and "nombre" not in seen:
+                known.append(f"Nombre: {match.group(1).title()}")
+                seen.add("nombre")
+
+            # Detectar profesión
+            match = re.search(r'(?:trabajo como|soy|trabajo de)\s+([\w\s]+?)(?:\.|,|$)', content)
+            if match and "profesion" not in seen:
+                prof = match.group(1).strip()
+                if len(prof) > 2 and len(prof) < 30:
+                    known.append(f"Profesión: {prof}")
+                    seen.add("profesion")
+
+            # Detectar presupuesto
+            match = re.search(r'(?:presupuesto|gastar|pagar)[^0-9]*(\d+)\s*[€$]?', content)
+            if match and "presupuesto" not in seen:
+                known.append(f"Presupuesto: {match.group(1)}€")
+                seen.add("presupuesto")
+
+            # Detectar interés específico
+            interests = ['ansiedad', 'estrés', 'meditación', 'yoga', 'coaching', 'curso']
+            for interest in interests:
+                if interest in content and f"interes_{interest}" not in seen:
+                    known.append(f"Interés: {interest}")
+                    seen.add(f"interes_{interest}")
+
+            # Detectar objeción de precio
+            if any(kw in content for kw in ['caro', 'muy caro', 'precio alto', 'no puedo pagar']):
+                if "objecion_precio" not in seen:
+                    known.append("Objeción mencionada: precio")
+                    seen.add("objecion_precio")
+
+            # Detectar objeción de tiempo
+            if any(kw in content for kw in ['no tengo tiempo', 'ocupado', 'sin tiempo']):
+                if "objecion_tiempo" not in seen:
+                    known.append("Objeción mencionada: tiempo")
+                    seen.add("objecion_tiempo")
+
+            # Detectar situación personal
+            if 'hijo' in content and "hijos" not in seen:
+                known.append("Situación: tiene hijos")
+                seen.add("hijos")
+
+        return known
+
+    def _extract_conversation_topic(self, history: List[dict]) -> Optional[str]:
+        """Extrae el tema principal de la conversación.
+
+        Returns:
+            El tema principal o None si no se detecta
+        """
+        topics_mentioned = []
+
+        topic_keywords = {
+            'ansiedad': ['ansiedad', 'ansioso', 'nervios', 'estrés', 'estres'],
+            'meditación': ['meditación', 'meditacion', 'meditar', 'mindfulness', 'respiración'],
+            'coaching': ['coaching', 'coach', 'sesión', 'sesion', 'acompañamiento'],
+            'curso': ['curso', 'programa', 'formación', 'formacion', 'módulos', 'modulos'],
+            'yoga': ['yoga', 'posturas', 'asanas'],
+            'precio': ['precio', 'cuesta', 'vale', 'pagar', 'euros', '€'],
+            'llamada': ['llamada', 'agendar', 'videollamada', 'reunión', 'reunion'],
+        }
+
+        for msg in history:
+            content = msg.get("content", "").lower()
+            for topic, keywords in topic_keywords.items():
+                if any(kw in content for kw in keywords):
+                    topics_mentioned.append(topic)
+
+        if topics_mentioned:
+            # Retornar el tema más frecuente (excluir 'precio' si hay otro)
+            from collections import Counter
+            counts = Counter(topics_mentioned)
+            # Si el tema más común es 'precio' y hay otros, preferir los otros
+            most_common = counts.most_common()
+            if most_common[0][0] == 'precio' and len(most_common) > 1:
+                return most_common[1][0]
+            return most_common[0][0]
+
+        return None
+
     def _detect_meta_message(self, message: str, history: List[dict]) -> Optional[Dict[str, Any]]:
         """Detecta cuando el usuario hace referencia a la conversación misma.
 
@@ -1313,6 +1410,46 @@ class DMResponderAgent:
                     "action": "REPEAT_REQUESTED",
                     "context": last_bot,
                     "instruction": f"Usuario pide repetición. Mi último mensaje fue: '{last_bot[:100]}'"
+                }
+
+        # === FIX MEMORIA: Referencias implícitas al contexto ===
+        # "Por eso necesito flexibilidad" → conectar con lo que dijo antes
+        import re
+        implicit_patterns = [
+            r'^por eso\b', r'^por esa raz[oó]n', r'^debido a eso',
+            r'^entonces\b', r'^es por eso', r'^por lo que te',
+            r'^como te dec[íi]a', r'^lo que pasa es',
+            r'^el tema es', r'^la cosa es', r'^el problema es',
+        ]
+
+        for pattern in implicit_patterns:
+            if re.match(pattern, msg_lower):
+                # Buscar contexto relevante de mensajes anteriores
+                user_messages = [m for m in history if m.get("role") == "user"]
+                if len(user_messages) >= 1:
+                    # Buscar el mensaje anterior que da contexto
+                    previous_context = user_messages[-1].get("content", "")
+                    return {
+                        "action": "IMPLICIT_REFERENCE",
+                        "context": previous_context,
+                        "instruction": f"Usuario hace referencia implícita a lo que dijo antes: '{previous_context[:100]}'"
+                    }
+
+        # === FIX FRUSTRACIÓN: Detección de sarcasmo ===
+        sarcasm_patterns = [
+            r'como si', r'seguro que s[íi]', r'ya ver[áa]s',
+            r'aj[áa]', r'ya ya', r'qu[ée] gracioso',
+            r's[íi].*(?:claro|seguro).*no', r'claro.*como si',
+            r'obvio.*que no', r'seguro.*(?:vas|puedes|sabes)',
+            r'otra vez.*(?:igual|lo mismo)',
+        ]
+
+        for pattern in sarcasm_patterns:
+            if re.search(pattern, msg_lower):
+                return {
+                    "action": "SARCASM_DETECTED",
+                    "context": message,
+                    "instruction": "Usuario usando sarcasmo/ironía - responder con empatía, no literal"
                 }
 
         return None
@@ -2725,6 +2862,22 @@ USA ESTA RESPUESTA PARA LA OBJECION (adaptala a tu tono):
                 message_text = f"[CONTEXTO: El usuario pide que repita. Mi último mensaje fue: '{context[:150]}']\n\nUsuario: {message_text}"
                 logger.info(f"Injected repeat context into message")
 
+            elif action == "IMPLICIT_REFERENCE":
+                # Inyectar contexto de referencia implícita
+                message_text = f"[CONTEXTO PREVIO: El usuario mencionó antes: '{context[:150]}'. Su mensaje actual hace referencia a eso.]\n\nUsuario: {message_text}"
+                logger.info(f"Injected implicit reference context")
+
+            elif action == "SARCASM_DETECTED":
+                # Respuesta empática para sarcasmo
+                response_text = "Entiendo que estás frustrado. Perdona si no te he ayudado bien. ¿Qué puedo hacer para ayudarte de verdad?"
+                await self._update_memory(follower, message_text, response_text, Intent.OTHER)
+                return DMResponse(
+                    response_text=response_text,
+                    intent=Intent.OTHER,
+                    confidence=0.90,
+                    metadata={"meta_action": "sarcasm_recovery"}
+                )
+
         # Clasificar intent con contexto conversacional
         _t_intent = time.time()
         intent, confidence = self._classify_intent(message_text, follower.last_messages)
@@ -3102,6 +3255,35 @@ USA ESTA RESPUESTA PARA LA OBJECION (adaptala a tu tono):
 
                 # Standard LLM response if CoT not used
                 if not cot_used:
+                    # === FIX NO_REPETIR: Extraer info conocida del usuario ===
+                    known_info = self._extract_known_info(follower.last_messages or [])
+                    if known_info:
+                        known_section = "\n=== INFORMACIÓN YA CONOCIDA DEL USUARIO ===\n"
+                        known_section += "\n".join(f"• {info}" for info in known_info)
+                        known_section += "\n\n⚠️ NO preguntes nada de lo anterior, ya lo sabes.\n"
+                        system_prompt += known_section
+                        logger.info(f"Added known info to prompt: {known_info}")
+
+                    # === FIX COHERENCIA: Extraer tema de conversación ===
+                    topic = self._extract_conversation_topic(follower.last_messages or [])
+                    if topic:
+                        topic_section = f"\n=== TEMA ACTUAL DE LA CONVERSACIÓN ===\n"
+                        topic_section += f"Estamos hablando de: {topic.upper()}\n"
+                        topic_section += f"⚠️ MANTÉN el foco en este tema. No cambies de tema sin razón.\n"
+                        system_prompt += topic_section
+                        logger.info(f"Conversation topic detected: {topic}")
+
+                    # === FIX CONVERSIÓN: Auto-CTA después de varios mensajes ===
+                    total_msgs = follower.total_messages or 0
+                    if total_msgs > 0 and total_msgs % 4 == 0:
+                        cta_section = "\n=== MOMENTO DE AVANZAR ===\n"
+                        cta_section += "Llevamos varios mensajes. Propón una ACCIÓN CONCRETA:\n"
+                        cta_section += "- Si hay interés: ofrece el link de pago o agendar llamada\n"
+                        cta_section += "- Si hay dudas: resuelve la duda más importante\n"
+                        cta_section += "⚠️ NO hagas otra pregunta abierta. PROPÓN algo concreto.\n"
+                        system_prompt += cta_section
+                        logger.info(f"Added auto-CTA prompt (message #{total_msgs})")
+
                     # === MULTI-TURN: Construir conversación real ===
                     # ANTES: Solo system + user_prompt (historial como texto)
                     # AHORA: system + historial como mensajes reales + mensaje actual

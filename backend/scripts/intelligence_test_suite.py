@@ -608,6 +608,8 @@ class IntelligenceTestRunner:
                 action = bot_response.split("[META:")[1].split("]")[0].strip()
                 if action == "REVIEW_HISTORY":
                     return {"pass": True, "score": 95, "reason": "Meta-mensaje REVIEW_HISTORY detectado"}
+                if action == "IMPLICIT_REFERENCE":
+                    return {"pass": True, "score": 92, "reason": "Referencia implícita detectada"}
                 if action == "USER_FRUSTRATED":
                     return {"pass": True, "score": 90, "reason": "Frustración detectada"}
                 return {"pass": True, "score": 85, "reason": f"Meta-mensaje detectado: {action}"}
@@ -640,6 +642,8 @@ class IntelligenceTestRunner:
         if test.category == TestCategory.FRUSTRACION:
             if "[META: USER_FRUSTRATED]" in bot_response:
                 return {"pass": True, "score": 95, "reason": "Frustración detectada correctamente"}
+            if "[META: SARCASM_DETECTED]" in bot_response:
+                return {"pass": True, "score": 92, "reason": "Sarcasmo detectado (frustración implícita)"}
             if intent.upper() == "ESCALATION":
                 return {"pass": True, "score": 90, "reason": "Escalación detectada"}
             if intent.upper() == "CORRECTION":

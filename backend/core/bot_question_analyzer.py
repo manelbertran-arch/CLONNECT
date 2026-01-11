@@ -140,6 +140,36 @@ class BotQuestionAnalyzer:
         r'cu[áa]l prefer[íi]s',  # voseo
     ]
 
+    # === FIX CONTINUIDAD: Statements que esperan respuesta (no tienen ?) ===
+    # Cuando el bot hace una oferta o explicación, "Ok" significa interés
+    STATEMENT_EXPECTING_RESPONSE = [
+        # Ofertas / Descuentos
+        r'te (?:hago|ofrezco|puedo hacer).*descuento',
+        r'(?:tienes|ten[ée]s).*descuento',
+        r'son solo \d+',
+        r'cuesta (?:solo )?\d+',
+        r'el precio es',
+        r'vale \d+',
+        r'\d+\s*[€$]',
+        # Explicaciones que esperan feedback
+        r'el (?:programa|curso|taller) (?:incluye|tiene|consiste)',
+        r'(?:incluye|tiene|consiste en)',
+        r'funciona as[íi]',
+        r'lo que hacemos es',
+        r'b[áa]sicamente',
+        r'en resumen',
+        # Propuestas
+        r'(?:podemos|podr[íi]amos)',
+        r'te parece si',
+        r'qu[ée] tal si',
+        r'si quieres',
+        r'si quer[ée]s',  # voseo
+        # Afirmaciones que esperan reacción
+        r'es perfecto para',
+        r'te va a (?:encantar|servir|ayudar)',
+        r'vas a (?:aprender|lograr|conseguir)',
+    ]
+
     def __init__(self):
         # Compilar patrones para eficiencia
         self._compiled_patterns = {
@@ -150,6 +180,8 @@ class BotQuestionAnalyzer:
             QuestionType.BOOKING: [re.compile(p, re.IGNORECASE) for p in self.BOOKING_PATTERNS],
             QuestionType.PAYMENT_METHOD: [re.compile(p, re.IGNORECASE) for p in self.PAYMENT_PATTERNS],
         }
+        # Patrones de statements que esperan respuesta (→ INTEREST)
+        self._statement_patterns = [re.compile(p, re.IGNORECASE) for p in self.STATEMENT_EXPECTING_RESPONSE]
 
     def analyze(self, bot_message: str) -> QuestionType:
         """
@@ -186,6 +218,13 @@ class BotQuestionAnalyzer:
         # Si tiene signo de pregunta pero no matchea patrones, es pregunta genérica
         if has_question:
             return QuestionType.INFORMATION
+
+        # === FIX CONTINUIDAD: Buscar statements que esperan respuesta ===
+        # Si no hay pregunta (?) pero hay statement que espera feedback → INTEREST
+        for pattern in self._statement_patterns:
+            if pattern.search(bot_message):
+                logger.debug(f"BotQuestionAnalyzer: Statement expecting response detected → INTEREST")
+                return QuestionType.INTEREST
 
         return QuestionType.UNKNOWN
 
