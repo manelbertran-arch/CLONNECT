@@ -928,6 +928,32 @@ class DMResponderAgent:
         thread.start()
         logger.debug(f"DB save started in background thread for {role}")
 
+    def _sync_lead_to_postgres_fire_and_forget(self, creator_id: str, follower_id: str, purchase_intent_score: float = 0.0):
+        """
+        Fire-and-forget lead sync - uses thread pool to truly not block.
+        FIX P0: sync_json_to_postgres was blocking the response by 3-4 seconds.
+        """
+        import threading
+        import time
+
+        def run_in_thread():
+            try:
+                _t_start = time.time()
+                from api.services.data_sync import sync_json_to_postgres
+                result = sync_json_to_postgres(creator_id, follower_id)
+                _t_end = time.time()
+                if result:
+                    logger.info(f"⏱️ Lead sync completed in {_t_end - _t_start:.2f}s: {follower_id} (score={purchase_intent_score})")
+                else:
+                    logger.debug(f"Lead sync returned None for {follower_id} ({_t_end - _t_start:.2f}s)")
+            except Exception as e:
+                logger.error(f"Lead sync FAILED for {follower_id}: {e}", exc_info=True)
+
+        # Start in background thread - truly non-blocking
+        thread = threading.Thread(target=run_in_thread, daemon=True)
+        thread.start()
+        logger.debug(f"Lead sync started in background thread for {follower_id}")
+
     # Class-level cache for system prompts and configs (shared across instances)
     _system_prompt_cache: Dict[str, str] = {}
     _config_cache: Dict[str, dict] = {}
@@ -3395,17 +3421,14 @@ USA ESTA RESPUESTA PARA LA OBJECION (adaptala a tu tono):
         # Save BOTH messages to PostgreSQL for dashboard stats (fire-and-forget)
         self._save_message_to_db_fire_and_forget(follower.follower_id, 'user', message, str(intent))
         self._save_message_to_db_fire_and_forget(follower.follower_id, 'assistant', response, None)
-        # Sync lead data (including purchase_intent_score) to PostgreSQL
+        # Sync lead data (including purchase_intent_score) to PostgreSQL (fire-and-forget)
+        # FIX P0: This was blocking by 3-4 seconds - now runs in background thread
         if USE_POSTGRES and db_service:
-            try:
-                from api.services.data_sync import sync_json_to_postgres
-                result = sync_json_to_postgres(self.creator_id, follower.follower_id)
-                if result:
-                    logger.info(f"Lead synced to PostgreSQL: {follower.follower_id} (score={follower.purchase_intent_score})")
-                else:
-                    logger.warning(f"Lead sync returned None for {follower.follower_id}")
-            except Exception as e:
-                logger.error(f"Lead sync FAILED for {follower.follower_id}: {e}", exc_info=True)
+            self._sync_lead_to_postgres_fire_and_forget(
+                self.creator_id,
+                follower.follower_id,
+                follower.purchase_intent_score
+            )
 
     async def _schedule_nurturing_if_needed(
         self,
