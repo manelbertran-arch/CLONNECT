@@ -39,7 +39,7 @@ class Creator(Base):
     __table_args__ = {'extend_existing': True}
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     email = Column(String(255), unique=True)
-    name = Column(String(255), nullable=False)
+    name = Column(String(255), nullable=False, index=True)  # FIX P1: Added index for faster lookups
     api_key = Column(String(64), unique=True)
     bot_active = Column(Boolean, default=False)  # Start paused by default
     clone_tone = Column(String(50), default="friendly")
@@ -86,9 +86,9 @@ class Creator(Base):
 class Lead(Base):
     __tablename__ = "leads"
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    creator_id = Column(UUID(as_uuid=True), ForeignKey("creators.id"))
+    creator_id = Column(UUID(as_uuid=True), ForeignKey("creators.id"), index=True)  # FIX P1: Added index
     platform = Column(String(20), nullable=False)
-    platform_user_id = Column(String(255), nullable=False)
+    platform_user_id = Column(String(255), nullable=False, index=True)  # FIX P1: Added index for lookups
     username = Column(String(255))
     full_name = Column(String(255))
     status = Column(String(50), default="new")
@@ -101,7 +101,7 @@ class Lead(Base):
 class Message(Base):
     __tablename__ = "messages"
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    lead_id = Column(UUID(as_uuid=True), ForeignKey("leads.id"))
+    lead_id = Column(UUID(as_uuid=True), ForeignKey("leads.id"), index=True)  # FIX P1: Added index for joins
     role = Column(String(20), nullable=False)
     content = Column(Text, nullable=False)
     intent = Column(String(50))

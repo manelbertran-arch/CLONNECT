@@ -256,19 +256,14 @@ class InstagramHandler:
         }
 
     async def _is_copilot_enabled(self) -> bool:
-        """Check if copilot mode is enabled for this creator"""
+        """
+        Check if copilot mode is enabled for this creator.
+        FIX P1: Uses cached copilot_service to avoid duplicate DB queries.
+        """
         try:
-            from api.database import SessionLocal
-            from api.models import Creator
-
-            session = SessionLocal()
-            try:
-                creator = session.query(Creator).filter_by(name=self.creator_id).first()
-                if creator:
-                    return getattr(creator, 'copilot_mode', True)
-                return True  # Default to copilot mode
-            finally:
-                session.close()
+            from core.copilot_service import get_copilot_service
+            copilot = get_copilot_service()
+            return copilot.is_copilot_enabled(self.creator_id)
         except Exception as e:
             logger.error(f"Error checking copilot mode: {e}")
             return True  # Default to copilot mode on error

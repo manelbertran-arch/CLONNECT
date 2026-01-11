@@ -891,21 +891,37 @@ class DMResponderAgent:
         Fire-and-forget DB save - uses thread pool to truly not block.
         asyncio.create_task runs during next await, blocking the response.
         Threading ensures DB saves happen completely in background.
+        FIX P0: Added retry logic and proper error logging.
         """
         import threading
         import asyncio
+        import time
+
+        MAX_RETRIES = 3
+        RETRY_DELAYS = [1, 2, 4]  # Exponential backoff: 1s, 2s, 4s
 
         def run_in_thread():
-            try:
-                # Create new event loop for this thread
-                loop = asyncio.new_event_loop()
-                asyncio.set_event_loop(loop)
+            last_error = None
+            for attempt in range(MAX_RETRIES):
                 try:
-                    loop.run_until_complete(self._save_message_to_db(follower_id, role, content, intent))
-                finally:
-                    loop.close()
-            except Exception as e:
-                logger.warning(f"Background DB save failed: {e}")
+                    # Create new event loop for this thread
+                    loop = asyncio.new_event_loop()
+                    asyncio.set_event_loop(loop)
+                    try:
+                        loop.run_until_complete(self._save_message_to_db(follower_id, role, content, intent))
+                        if attempt > 0:
+                            logger.info(f"DB save succeeded on retry {attempt + 1} for {follower_id}/{role}")
+                        return  # Success - exit
+                    finally:
+                        loop.close()
+                except Exception as e:
+                    last_error = e
+                    if attempt < MAX_RETRIES - 1:
+                        delay = RETRY_DELAYS[attempt]
+                        logger.warning(f"DB save attempt {attempt + 1} failed for {follower_id}/{role}, retrying in {delay}s: {e}")
+                        time.sleep(delay)
+                    else:
+                        logger.error(f"DB save FAILED after {MAX_RETRIES} attempts for {follower_id}/{role}: {e}", exc_info=True)
 
         # Start in background thread - truly non-blocking
         thread = threading.Thread(target=run_in_thread, daemon=True)
@@ -3379,13 +3395,17 @@ USA ESTA RESPUESTA PARA LA OBJECION (adaptala a tu tono):
         # Save BOTH messages to PostgreSQL for dashboard stats (fire-and-forget)
         self._save_message_to_db_fire_and_forget(follower.follower_id, 'user', message, str(intent))
         self._save_message_to_db_fire_and_forget(follower.follower_id, 'assistant', response, None)
-        # Sync lead data to PostgreSQL
+        # Sync lead data (including purchase_intent_score) to PostgreSQL
         if USE_POSTGRES and db_service:
             try:
                 from api.services.data_sync import sync_json_to_postgres
-                sync_json_to_postgres(self.creator_id, follower.follower_id)
+                result = sync_json_to_postgres(self.creator_id, follower.follower_id)
+                if result:
+                    logger.info(f"Lead synced to PostgreSQL: {follower.follower_id} (score={follower.purchase_intent_score})")
+                else:
+                    logger.warning(f"Lead sync returned None for {follower.follower_id}")
             except Exception as e:
-                logger.debug(f"Lead sync skipped: {e}")
+                logger.error(f"Lead sync FAILED for {follower.follower_id}: {e}", exc_info=True)
 
     async def _schedule_nurturing_if_needed(
         self,
