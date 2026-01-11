@@ -2585,21 +2585,13 @@ USA ESTA RESPUESTA PARA LA OBJECION (adaptala a tu tono):
                 metadata=metadata
             )
 
-        # === FAST PATH: Acknowledgment (Ok, Vale, Entendido) ===
-        # User just confirms/acknowledges - don't assume purchase intent!
+        # === ACKNOWLEDGMENT: Ahora pasa por flujo normal con LLM ===
+        # ANTES: Fast path con respuesta hardcoded "¿En qué más puedo ayudarte?"
+        # AHORA: El LLM verá el historial y responderá según el contexto
+        # Ejemplo: "Si" después de "¿quieres saber más?" → el LLM explicará el producto
         if intent == Intent.ACKNOWLEDGMENT:
-            logger.info(f"=== ACKNOWLEDGMENT DETECTED - NOT assuming purchase ===")
-            # Use fallback responses for acknowledgment
-            response_text = self._get_fallback_response(Intent.ACKNOWLEDGMENT, follower.preferred_language)
-            await self._update_memory(follower, message_text, response_text, intent)
-
-            return DMResponse(
-                response_text=response_text,
-                intent=intent,
-                action_taken="acknowledge",
-                confidence=confidence,
-                metadata={"acknowledgment": True}
-            )
+            logger.info(f"=== ACKNOWLEDGMENT - procesando con contexto conversacional ===")
+            # NO retornar aquí - continuar al flujo normal del LLM
 
         # === FAST PATH: Correction (No te he dicho que quiero comprar) ===
         # User corrects a misunderstanding - apologize and ask how to help
