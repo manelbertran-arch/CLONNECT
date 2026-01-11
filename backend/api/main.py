@@ -120,10 +120,26 @@ app = FastAPI(
     version="1.0.0"
 )
 
+# =============================================================================
+# CORS CONFIGURATION
+# =============================================================================
+# In production, set CORS_ORIGINS to comma-separated list of allowed origins
+# Example: CORS_ORIGINS=https://app.clonnect.com,https://dashboard.clonnect.com
+CORS_ORIGINS_ENV = os.getenv("CORS_ORIGINS", "")
+if CORS_ORIGINS_ENV:
+    # Production: use explicit origins
+    CORS_ORIGINS = [origin.strip() for origin in CORS_ORIGINS_ENV.split(",") if origin.strip()]
+    print(f"CORS: Restricting to {len(CORS_ORIGINS)} origins: {CORS_ORIGINS}")
+else:
+    # Development: allow all (with warning)
+    CORS_ORIGINS = ["*"]
+    if os.getenv("RAILWAY_ENVIRONMENT") or os.getenv("PRODUCTION"):
+        print("⚠️  WARNING: CORS_ORIGINS not set - allowing all origins. Set CORS_ORIGINS for production!")
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
-    allow_methods=["*"],
+    allow_origins=CORS_ORIGINS,
+    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"],
     allow_headers=["*"],
     allow_credentials=True,
 )
