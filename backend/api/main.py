@@ -20,6 +20,32 @@ from pydantic import BaseModel
 
 logging.basicConfig(level=logging.INFO)
 
+# =============================================================================
+# SENTRY ERROR TRACKING
+# =============================================================================
+SENTRY_DSN = os.getenv("SENTRY_DSN")
+if SENTRY_DSN:
+    try:
+        import sentry_sdk
+        from sentry_sdk.integrations.fastapi import FastApiIntegration
+        from sentry_sdk.integrations.sqlalchemy import SqlalchemyIntegration
+
+        sentry_sdk.init(
+            dsn=SENTRY_DSN,
+            environment=os.getenv("SENTRY_ENVIRONMENT", "production"),
+            traces_sample_rate=float(os.getenv("SENTRY_TRACES_SAMPLE_RATE", "0.1")),
+            integrations=[
+                FastApiIntegration(transaction_style="endpoint"),
+                SqlalchemyIntegration(),
+            ],
+            send_default_pii=False,  # Don't send personally identifiable information
+        )
+        print(f"Sentry initialized: {SENTRY_DSN[:40]}...")
+    except ImportError:
+        print("sentry-sdk not installed, error tracking disabled")
+    except Exception as e:
+        print(f"Sentry init failed: {e}")
+
 # PostgreSQL Init - define defaults first
 SessionLocal = None
 BookingLinkModel = None
