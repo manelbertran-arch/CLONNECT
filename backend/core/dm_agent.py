@@ -125,6 +125,79 @@ NON_CACHEABLE_INTENTS = {
 }
 
 
+# === CONVERSION OPTIMIZATION PROMPTS ===
+# These prompts are injected dynamically based on user intent and purchase score
+
+PROACTIVE_CLOSE_INSTRUCTION = """
+=== CIERRE PROACTIVO (USUARIO CON ALTO INTERÉS) ===
+El usuario muestra INTERÉS FUERTE. En tu respuesta:
+1. Responde su pregunta de forma concisa
+2. Ofrece NATURALMENTE el siguiente paso con el LINK REAL
+3. Usa frases como: "Si quieres reservar...", "Puedes apuntarte aquí...", "Te dejo el link..."
+4. NUNCA uses [link] o placeholders - usa el URL COMPLETO real
+5. No presiones, pero facilita la compra
+
+Ejemplo BUENO: "Son 297€ y tienes garantía de 30 días. Aquí puedes apuntarte: https://pay.ejemplo.com/curso"
+Ejemplo MALO: "Son 297€. Si te interesa, [aquí tienes el link]"
+=== FIN CIERRE PROACTIVO ===
+"""
+
+NO_REPETITION_INSTRUCTION = """
+=== REGLA CRÍTICA - NO REPETIR ===
+Revisa el HISTORIAL antes de responder:
+- NUNCA repitas un saludo si ya saludaste en esta conversación
+- NUNCA uses la misma frase dos veces (varía expresiones)
+- NUNCA repitas la misma estructura de respuesta
+- Si dijiste "genial", "perfecto", "claro" → usa otra palabra diferente
+- Si el usuario repite una pregunta, responde DIFERENTE pero con la misma info
+- Si ya diste un link, NO lo repitas a menos que lo pidan
+=== FIN NO REPETIR ===
+"""
+
+COHERENCE_INSTRUCTION = """
+=== REGLA CRÍTICA - COHERENCIA ===
+Mantén CONSISTENCIA con todo lo dicho:
+- Si diste un precio, NO lo cambies
+- Si dijiste que algo está disponible, NO digas luego que no
+- Si el usuario dio información (nombre, situación), ÚSALA
+- Recuerda el contexto: si hablaban de un producto, SIGUE en ese tema
+- NO cambies de tema sin razón
+- Si no sabes algo, admítelo - NO inventes
+- USA la información del follower para personalizar
+=== FIN COHERENCIA ===
+"""
+
+CONVERSION_INSTRUCTION = """
+=== OBJETIVO - CONVERSIÓN ===
+Cada respuesta debe ACERCAR al usuario a la acción (compra/reserva):
+
+- Si pregunta info general → responde + menciona UN beneficio del producto
+- Si muestra interés → responde + ofrece siguiente paso concreto
+- Si tiene objeción → maneja objeción + reafirma valor
+- Si está listo → facilita la compra con LINK DIRECTO (no placeholder)
+- Si está frío → genera curiosidad sin presionar
+
+NUNCA termines una respuesta sin:
+1. Responder lo que preguntó
+2. Añadir valor (tip, beneficio, insight breve)
+3. Invitar sutilmente al siguiente paso
+
+Ejemplos de CTAs suaves:
+- "¿Te cuento más sobre cómo funciona?"
+- "¿Quieres que te pase el link?"
+- "¿Reservamos una llamada para verlo juntos?"
+=== FIN CONVERSIÓN ===
+"""
+
+# Keywords that indicate strong interest (for proactive close detection)
+STRONG_INTEREST_KEYWORDS = [
+    "me interesa", "cuánto cuesta", "cuanto cuesta", "cómo me apunto", "como me apunto",
+    "quiero saber más", "quiero saber mas", "cómo funciona", "como funciona",
+    "qué incluye", "que incluye", "dónde compro", "donde compro", "cómo pago", "como pago",
+    "precio", "comprar", "apuntarme", "inscribirme", "reservar"
+]
+
+
 def apply_voseo(text: str) -> str:
     """
     Convierte texto de tuteo español a voseo argentino.
@@ -2539,8 +2612,8 @@ RECUERDA: NO suenes como un bot corporativo. Sé natural y cercano. NO des datos
         history_text = ""
         if conversation_history:
             history_text = "\nCONVERSACION RECIENTE:\n"
-            # 8 mensajes = 4 intercambios completos para mejor contexto
-            for msg in conversation_history[-8:]:
+            # 10 mensajes = 5 intercambios completos para mejor coherencia
+            for msg in conversation_history[-10:]:
                 role = "Usuario" if msg.get("role") == "user" else "Yo"
                 history_text += f"{role}: {msg.get('content', '')}\n"
 
@@ -3403,14 +3476,32 @@ USA ESTA RESPUESTA PARA LA OBJECION (adaptala a tu tono):
                         system_prompt += cta_section
                         logger.info(f"Added auto-CTA prompt (message #{total_msgs})")
 
+                    # === CONVERSION OPTIMIZATION: Inject dynamic prompts ===
+                    # Always add base conversion optimization
+                    system_prompt += NO_REPETITION_INSTRUCTION
+                    system_prompt += COHERENCE_INSTRUCTION
+                    system_prompt += CONVERSION_INSTRUCTION
+
+                    # Proactive close for high-intent users
+                    purchase_score = follower.purchase_intent_score or 0.0
+                    has_strong_interest_keywords = any(kw in message_text.lower() for kw in STRONG_INTEREST_KEYWORDS)
+                    high_intent_intents = {Intent.INTEREST_STRONG, Intent.INTEREST_SOFT, Intent.QUESTION_PRODUCT}
+
+                    if purchase_score >= 0.70 or intent in high_intent_intents or has_strong_interest_keywords:
+                        system_prompt += PROACTIVE_CLOSE_INSTRUCTION
+                        logger.info(f"Added PROACTIVE_CLOSE (score={purchase_score:.0%}, intent={intent.value}, keywords={has_strong_interest_keywords})")
+
+                    logger.info(f"Conversion optimization injected: NO_REPEAT + COHERENCE + CONVERSION" +
+                               (f" + PROACTIVE_CLOSE" if purchase_score >= 0.70 or intent in high_intent_intents or has_strong_interest_keywords else ""))
+
                     # === MULTI-TURN: Construir conversación real ===
                     # ANTES: Solo system + user_prompt (historial como texto)
                     # AHORA: system + historial como mensajes reales + mensaje actual
                     messages = [{"role": "system", "content": system_prompt}]
 
-                    # Añadir historial como mensajes reales (últimos 8 = 4 intercambios)
+                    # Añadir historial como mensajes reales (últimos 10 = 5 intercambios para mejor coherencia)
                     if follower.last_messages:
-                        for msg in follower.last_messages[-8:]:
+                        for msg in follower.last_messages[-10:]:
                             role = msg.get("role", "user")
                             content = msg.get("content", "")
                             if content and role in ("user", "assistant"):
