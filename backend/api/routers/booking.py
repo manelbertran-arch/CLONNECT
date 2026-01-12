@@ -24,6 +24,9 @@ router = APIRouter(prefix="/booking", tags=["booking"])
 @router.get("/availability/{creator_id}")
 async def get_availability(creator_id: str, db: Session = Depends(get_db)):
     """Get creator's weekly availability schedule"""
+    import time as _time
+    start = _time.time()
+    logger.info(f"[AVAILABILITY] Starting get_availability for {creator_id}")
     try:
         availability = db.query(CreatorAvailability).filter(
             CreatorAvailability.creator_id == creator_id
@@ -49,13 +52,14 @@ async def get_availability(creator_id: str, db: Session = Depends(get_db)):
                 for i, name in enumerate(["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"])
             ]
 
+        logger.info(f"[AVAILABILITY] Completed for {creator_id} in {_time.time() - start:.2f}s ({len(days)} days)")
         return {
             "status": "ok",
             "creator_id": creator_id,
             "availability": days
         }
     except Exception as e:
-        logger.error(f"Error getting availability: {e}")
+        logger.error(f"[AVAILABILITY] Error after {_time.time() - start:.2f}s: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 
@@ -120,8 +124,8 @@ async def get_available_slots(
 ):
     """
     Get available slots for a specific date and service.
-    Calculates slots based on creator's availability and service duration.
-    Excludes already booked slots.
+    Uses DEFAULT availability (Mon-Fri 9:00-18:00) if creator hasn't configured custom hours.
+    Excludes: booked slots + Google Calendar busy times (via freebusy API).
     """
     try:
         # Parse date
@@ -160,26 +164,37 @@ async def get_available_slots(
 
         duration_minutes = service.duration_minutes or 30
 
-        # Get day of week (Python: 0=Monday)
+        # Get day of week (Python: 0=Monday, 6=Sunday)
         day_of_week = target_date.weekday()
 
-        # Get creator's availability for this day
+        # Get creator's availability for this day (if configured)
         availability = db.query(CreatorAvailability).filter(
             CreatorAvailability.creator_id == creator_id,
             CreatorAvailability.day_of_week == day_of_week,
             CreatorAvailability.is_active == True
         ).first()
 
+        # === DEFAULT AVAILABILITY: Mon-Fri 9:00-18:00 ===
         if not availability:
-            return {
-                "status": "ok",
-                "date": date_str,
-                "day_of_week": day_of_week,
-                "slots": [],
-                "message": "No availability for this day"
-            }
+            # Weekends (5=Sat, 6=Sun) have no default availability
+            if day_of_week >= 5:
+                return {
+                    "status": "ok",
+                    "date": date_str,
+                    "day_of_week": day_of_week,
+                    "slots": [],
+                    "message": "Weekend - no default availability",
+                    "using_default": True
+                }
+            # Weekdays use 9:00-18:00 default
+            default_start = time(9, 0)
+            default_end = time(18, 0)
+            logger.info(f"Using DEFAULT availability 09:00-18:00 for {creator_id} on day {day_of_week}")
+        else:
+            default_start = availability.start_time
+            default_end = availability.end_time
 
-        # Get already booked slots for this date
+        # Get already booked slots for this date (internal bookings)
         booked_slots = db.query(BookingSlot).filter(
             BookingSlot.creator_id == creator_id,
             BookingSlot.date == target_date,
@@ -200,10 +215,30 @@ async def get_available_slots(
             if booking.scheduled_at and booking.scheduled_at.date() == target_date:
                 booked_times.add(booking.scheduled_at.strftime("%H:%M"))
 
+        # === GOOGLE CALENDAR FREEBUSY: Check creator's actual calendar ===
+        google_busy_periods = []
+        try:
+            # Check if creator has Google Calendar connected
+            creator = db.query(Creator).filter(Creator.name == creator_id).first()
+            if creator and creator.google_refresh_token:
+                try:
+                    from api.routers.oauth import get_google_freebusy
+                except:
+                    from routers.oauth import get_google_freebusy
+
+                # Query freebusy for the target date
+                day_start = datetime.combine(target_date, time(0, 0)).replace(tzinfo=timezone.utc)
+                day_end = datetime.combine(target_date, time(23, 59)).replace(tzinfo=timezone.utc)
+                google_busy_periods = await get_google_freebusy(creator_id, day_start, day_end)
+                logger.info(f"Google freebusy: {len(google_busy_periods)} busy periods for {creator_id}")
+        except Exception as e:
+            logger.warning(f"Could not check Google freebusy: {e}")
+            # Continue without Google data - graceful degradation
+
         # Generate available slots
         slots = []
-        current_time = datetime.combine(target_date, availability.start_time)
-        end_datetime = datetime.combine(target_date, availability.end_time)
+        current_time = datetime.combine(target_date, default_start)
+        end_datetime = datetime.combine(target_date, default_end)
 
         # If it's today, start from current time (rounded up to next slot)
         if target_date == today:
@@ -226,8 +261,25 @@ async def get_available_slots(
         while current_time + slot_duration <= end_datetime:
             time_str = current_time.strftime("%H:%M")
             end_time_str = (current_time + slot_duration).strftime("%H:%M")
+            slot_end = current_time + slot_duration
 
-            if time_str not in booked_times:
+            # Check if slot is booked (internal)
+            if time_str in booked_times:
+                current_time += slot_duration
+                continue
+
+            # Check if slot overlaps with Google Calendar busy time
+            is_google_busy = False
+            for busy in google_busy_periods:
+                busy_start = busy["start"].replace(tzinfo=None) if busy["start"].tzinfo else busy["start"]
+                busy_end = busy["end"].replace(tzinfo=None) if busy["end"].tzinfo else busy["end"]
+                # Check overlap: slot overlaps if it starts before busy ends AND ends after busy starts
+                if current_time < busy_end and slot_end > busy_start:
+                    is_google_busy = True
+                    logger.debug(f"Slot {time_str} blocked by Google event: {busy_start}-{busy_end}")
+                    break
+
+            if not is_google_busy:
                 slots.append({
                     "start_time": time_str,
                     "end_time": end_time_str,
@@ -247,7 +299,9 @@ async def get_available_slots(
                 "duration_minutes": duration_minutes
             },
             "slots": slots,
-            "total_available": len(slots)
+            "total_available": len(slots),
+            "using_default": availability is None,
+            "google_calendar_checked": len(google_busy_periods) > 0 or (creator and creator.google_refresh_token)
         }
 
     except HTTPException:
@@ -508,6 +562,7 @@ async def get_available_dates(
 ):
     """
     Get dates with availability for the next 30 days (or specified month).
+    Uses DEFAULT availability (Mon-Fri) if creator hasn't configured custom hours.
     Used for calendar display on booking page.
     """
     try:
@@ -524,14 +579,15 @@ async def get_available_dates(
             CreatorAvailability.is_active == True
         ).all()
 
+        # === DEFAULT: Mon-Fri if no custom availability ===
         if not availability:
-            return {
-                "status": "ok",
-                "available_dates": [],
-                "message": "No availability set"
-            }
-
-        active_days = {av.day_of_week for av in availability}
+            # Default to Monday-Friday (0-4)
+            active_days = {0, 1, 2, 3, 4}
+            using_default = True
+            logger.info(f"Using DEFAULT availability (Mon-Fri) for {creator_id}")
+        else:
+            active_days = {av.day_of_week for av in availability}
+            using_default = False
 
         # Generate dates for the month
         available_dates = []
@@ -549,7 +605,8 @@ async def get_available_dates(
             "month": month,
             "year": year,
             "available_dates": available_dates,
-            "active_days_of_week": list(active_days)
+            "active_days_of_week": list(active_days),
+            "using_default": using_default
         }
 
     except Exception as e:

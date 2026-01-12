@@ -1,32 +1,10 @@
-import { useEffect } from "react";
-import { Outlet, useNavigate } from "react-router-dom";
+import { Outlet } from "react-router-dom";
 import { Sidebar } from "./Sidebar";
 import { MobileNav } from "./MobileNav";
-import { useVisualOnboardingStatus } from "@/hooks/useApi";
 
 export function DashboardLayout() {
-  const navigate = useNavigate();
-  const { data: onboardingStatus, isLoading } = useVisualOnboardingStatus();
-
-  // Redirect to /onboarding if not completed
-  useEffect(() => {
-    if (isLoading) return;
-
-    // If onboarding not completed, redirect to /onboarding page
-    if (onboardingStatus && !onboardingStatus.onboarding_completed) {
-      console.log("Onboarding not completed, redirecting to /onboarding");
-      navigate("/onboarding", { replace: true });
-    }
-  }, [isLoading, onboardingStatus, navigate]);
-
-  // Show loading while checking onboarding status
-  if (isLoading) {
-    return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
-        <div className="animate-pulse text-muted-foreground">Cargando...</div>
-      </div>
-    );
-  }
+  // REMOVED: useVisualOnboardingStatus check that was causing issues
+  // Onboarding redirect should be handled at login or app level, not here
 
   return (
     <div className="min-h-screen bg-background">

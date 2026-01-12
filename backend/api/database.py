@@ -1,12 +1,19 @@
 import os
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker, declarative_base
+from sqlalchemy.pool import QueuePool
 
 # Get DATABASE_URL and fix Railway's postgres:// to postgresql://
 DATABASE_URL = os.getenv("DATABASE_URL", "")
 if DATABASE_URL.startswith("postgres://"):
     DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql://", 1)
     print(f"Fixed DATABASE_URL scheme: postgres:// -> postgresql://")
+
+# Ensure sslmode=require for Neon PostgreSQL
+if DATABASE_URL and "sslmode" not in DATABASE_URL:
+    separator = "&" if "?" in DATABASE_URL else "?"
+    DATABASE_URL = f"{DATABASE_URL}{separator}sslmode=require"
+    print(f"Added sslmode=require to DATABASE_URL")
 
 print(f"DATABASE_URL configured: {bool(DATABASE_URL)}")
 
@@ -15,9 +22,26 @@ SessionLocal = None
 
 if DATABASE_URL:
     try:
-        engine = create_engine(DATABASE_URL, echo=False)
+        # Connection pooling with keepalive and pre_ping for Neon PostgreSQL
+        # NOTE: With 4 gunicorn workers, each has its own pool (4 × 3 = 12 base connections)
+        engine = create_engine(
+            DATABASE_URL,
+            echo=False,
+            poolclass=QueuePool,
+            pool_size=3,  # Reduced for multi-worker setup (4 workers × 3 = 12)
+            max_overflow=5,  # Reduced (4 workers × 5 = 20 overflow max)
+            pool_timeout=30,
+            pool_recycle=300,  # Recycle connections every 5 minutes
+            pool_pre_ping=True,  # Test connections before using them
+            connect_args={
+                "keepalives": 1,
+                "keepalives_idle": 30,
+                "keepalives_interval": 10,
+                "keepalives_count": 5,
+            }
+        )
         SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
-        print(f"SQLAlchemy engine created successfully")
+        print(f"SQLAlchemy engine created successfully with connection pooling")
     except Exception as e:
         print(f"Failed to create SQLAlchemy engine: {e}")
         import traceback

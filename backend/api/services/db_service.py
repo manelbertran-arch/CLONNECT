@@ -322,85 +322,61 @@ def get_products(creator_name: str):
         session.close()
 
 def get_dashboard_metrics(creator_name: str):
+    """Optimized dashboard metrics - uses aggregated queries instead of N+1"""
     session = get_session()
     if not session:
         return None
     try:
         from api.models import Creator, Lead, Message, Product
-        from sqlalchemy import not_
+        from sqlalchemy import not_, func, Integer
+
         creator = session.query(Creator).filter_by(name=creator_name).first()
-        logger.info(f"[METRICS] creator_name={creator_name}, found={creator is not None}")
         if not creator:
             return None
 
-        logger.info(f"[METRICS] creator.id={creator.id}")
-
-        # Get leads (excluding archived and spam)
+        # Get leads (excluding archived and spam) - SINGLE QUERY
         leads = session.query(Lead).filter_by(creator_id=creator.id).filter(
             not_(Lead.status.in_(["archived", "spam"]))
         ).order_by(Lead.last_contact_at.desc()).all()
         total_leads = len(leads)
-        logger.info(f"[METRICS] total_leads={total_leads}")
 
-        # Categorize leads by intent (hot >= 0.5, warm 0.25-0.5, cold < 0.25)
+        # Categorize leads by intent (in-memory, no extra queries)
         hot_leads = len([l for l in leads if l.purchase_intent and l.purchase_intent >= 0.5])
         warm_leads = len([l for l in leads if l.purchase_intent and 0.25 <= l.purchase_intent < 0.5])
         cold_leads = len([l for l in leads if not l.purchase_intent or l.purchase_intent < 0.25])
         customers = len([l for l in leads if l.context and l.context.get("is_customer")])
 
-        # Get messages count (only user messages, not bot responses)
+        # Get ALL message counts in SINGLE AGGREGATED QUERY (fixes N+1)
         lead_ids = [l.id for l in leads]
-        total_messages = session.query(Message).filter(Message.lead_id.in_(lead_ids), Message.role == 'user').count() if lead_ids else 0
-        # Debug: also count all messages (regardless of role)
-        all_messages = session.query(Message).filter(Message.lead_id.in_(lead_ids)).count() if lead_ids else 0
-        # Debug: count all messages in table
-        all_messages_total = session.query(Message).count()
-        logger.info(f"[METRICS] user_messages={total_messages}, all_messages_for_leads={all_messages}, all_messages_in_table={all_messages_total}")
+        message_counts = {}
+        if lead_ids:
+            # Single query with GROUP BY - returns (lead_id, user_count, total_count)
+            counts_query = session.query(
+                Message.lead_id,
+                func.sum(func.cast(Message.role == 'user', Integer)).label('user_count'),
+                func.count(Message.id).label('total_count')
+            ).filter(Message.lead_id.in_(lead_ids)).group_by(Message.lead_id).all()
 
-        # If PostgreSQL has 0 messages, count from JSON files as fallback
-        if total_messages == 0:
-            json_total = 0
-            for lead in leads:
-                if lead.platform_user_id:
-                    try:
-                        from api.services.data_sync import _load_json
-                        json_data = _load_json(creator_name, lead.platform_user_id)
-                        if json_data:
-                            last_messages = json_data.get("last_messages", [])
-                            json_total += len([m for m in last_messages if m.get("role") == "user"])
-                    except:
-                        pass
-            if json_total > 0:
-                logger.info(f"[METRICS] Fallback to JSON: total_messages={json_total}")
-                total_messages = json_total
+            for row in counts_query:
+                message_counts[row.lead_id] = {
+                    'user': int(row.user_count or 0),
+                    'total': int(row.total_count or 0)
+                }
 
-        # Get products count
+        # Calculate total user messages (sum from aggregated data)
+        total_messages = sum(c['user'] for c in message_counts.values())
+
+        # Get products count - SINGLE QUERY
         products_count = session.query(Product).filter_by(creator_id=creator.id).count()
 
         # Calculate conversion rate
         conversion_rate = (customers / total_leads) if total_leads > 0 else 0.0
-        lead_rate = (total_leads / total_leads) if total_leads > 0 else 0.0  # All contacts become leads
+        lead_rate = 1.0 if total_leads > 0 else 0.0
 
-        # Build leads array for frontend
+        # Build leads array using pre-fetched counts (NO additional queries)
         leads_data = []
-        for lead in leads[:50]:  # Limit to 50 most recent
-            user_count = session.query(Message).filter_by(lead_id=lead.id, role='user').count()
-            all_count = session.query(Message).filter_by(lead_id=lead.id).count()
-
-            # Fallback to JSON if PostgreSQL has 0
-            final_count = user_count
-            if user_count == 0 and lead.platform_user_id:
-                try:
-                    from api.services.data_sync import _load_json
-                    json_data = _load_json(creator_name, lead.platform_user_id)
-                    if json_data:
-                        last_messages = json_data.get("last_messages", [])
-                        final_count = len([m for m in last_messages if m.get("role") == "user"])
-                except:
-                    pass
-
-            if all_count > 0 or final_count > 0:  # Log leads with messages
-                logger.info(f"[METRICS] Lead {lead.platform_user_id}: pg_user={user_count}, pg_all={all_count}, final={final_count}")
+        for lead in leads[:50]:
+            counts = message_counts.get(lead.id, {'user': 0, 'total': 0})
             leads_data.append({
                 "id": str(lead.id),
                 "follower_id": lead.platform_user_id or str(lead.id),
@@ -412,35 +388,24 @@ def get_dashboard_metrics(creator_name: str):
                 "is_lead": True,
                 "is_customer": lead.context.get("is_customer", False) if lead.context else False,
                 "last_contact": lead.last_contact_at.isoformat() if lead.last_contact_at else None,
-                "total_messages": final_count,
+                "total_messages": counts['user'],
             })
 
-        # Build recent conversations (same as leads but with different structure)
+        # Build recent conversations using pre-fetched counts (NO additional queries)
         recent_conversations = []
-        for lead in leads[:20]:  # Last 20 conversations
-            msg_count = session.query(Message).filter_by(lead_id=lead.id, role='user').count()
-
-            # Fallback to JSON if PostgreSQL has 0
-            final_msg_count = msg_count
-            if msg_count == 0 and lead.platform_user_id:
-                try:
-                    from api.services.data_sync import _load_json
-                    json_data = _load_json(creator_name, lead.platform_user_id)
-                    if json_data:
-                        last_messages = json_data.get("last_messages", [])
-                        final_msg_count = len([m for m in last_messages if m.get("role") == "user"])
-                except:
-                    pass
-
+        for lead in leads[:20]:
+            counts = message_counts.get(lead.id, {'user': 0, 'total': 0})
             recent_conversations.append({
                 "follower_id": lead.platform_user_id or str(lead.id),
                 "username": lead.username,
                 "name": lead.full_name,
                 "platform": lead.platform or "instagram",
-                "total_messages": final_msg_count,
+                "total_messages": counts['user'],
                 "purchase_intent": lead.purchase_intent or 0.0,
                 "last_contact": lead.last_contact_at.isoformat() if lead.last_contact_at else None,
             })
+
+        logger.info(f"[METRICS] {creator_name}: {total_leads} leads, {total_messages} messages (optimized)")
 
         # Build config
         config = {

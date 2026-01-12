@@ -20,7 +20,9 @@ from pydantic import BaseModel
 
 logging.basicConfig(level=logging.INFO)
 
-# Sentry Error Tracking
+# =============================================================================
+# SENTRY ERROR TRACKING
+# =============================================================================
 SENTRY_DSN = os.getenv("SENTRY_DSN")
 if SENTRY_DSN:
     try:
@@ -30,20 +32,21 @@ if SENTRY_DSN:
 
         sentry_sdk.init(
             dsn=SENTRY_DSN,
+            environment=os.getenv("SENTRY_ENVIRONMENT", "production"),
+            traces_sample_rate=float(os.getenv("SENTRY_TRACES_SAMPLE_RATE", "0.1")),
+            profiles_sample_rate=0.1,
+            release=os.getenv("RAILWAY_GIT_COMMIT_SHA", "unknown"),
             integrations=[
                 FastApiIntegration(transaction_style="endpoint"),
                 SqlalchemyIntegration(),
             ],
-            traces_sample_rate=0.1,  # 10% of transactions for performance monitoring
-            profiles_sample_rate=0.1,
-            environment=os.getenv("ENVIRONMENT", "production"),
-            release=os.getenv("RAILWAY_GIT_COMMIT_SHA", "unknown"),
+            send_default_pii=False,
         )
-        logging.info("Sentry initialized successfully")
+        print(f"Sentry initialized: {SENTRY_DSN[:40]}...")
     except ImportError:
-        logging.warning("Sentry SDK not installed - error tracking disabled")
+        print("sentry-sdk not installed, error tracking disabled")
     except Exception as e:
-        logging.warning(f"Sentry initialization failed: {e}")
+        print(f"Sentry init failed: {e}")
 
 # PostgreSQL Init - define defaults first
 SessionLocal = None
@@ -93,6 +96,15 @@ from core.auth import get_auth_manager, validate_api_key, is_admin_key
 from core.alerts import get_alert_manager
 from core.metrics import get_metrics, get_content_type, MetricsMiddleware, record_message_processed, update_health_status, PROMETHEUS_AVAILABLE
 from core.telegram_registry import get_telegram_registry
+
+# Optional psutil for memory health checks
+try:
+    import psutil
+    PSUTIL_AVAILABLE = True
+except ImportError:
+    PSUTIL_AVAILABLE = False
+    psutil = None
+
 logging.warning("=" * 60)
 
 logger = logging.getLogger(__name__)
@@ -110,10 +122,26 @@ app = FastAPI(
     version="1.0.0"
 )
 
+# =============================================================================
+# CORS CONFIGURATION
+# =============================================================================
+# In production, set CORS_ORIGINS to comma-separated list of allowed origins
+# Example: CORS_ORIGINS=https://app.clonnect.com,https://dashboard.clonnect.com
+CORS_ORIGINS_ENV = os.getenv("CORS_ORIGINS", "")
+if CORS_ORIGINS_ENV:
+    # Production: use explicit origins
+    CORS_ORIGINS = [origin.strip() for origin in CORS_ORIGINS_ENV.split(",") if origin.strip()]
+    print(f"CORS: Restricting to {len(CORS_ORIGINS)} origins: {CORS_ORIGINS}")
+else:
+    # Development: allow all (with warning)
+    CORS_ORIGINS = ["*"]
+    if os.getenv("RAILWAY_ENVIRONMENT") or os.getenv("PRODUCTION"):
+        print("⚠️  WARNING: CORS_ORIGINS not set - allowing all origins. Set CORS_ORIGINS for production!")
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
-    allow_methods=["*"],
+    allow_origins=CORS_ORIGINS,
+    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"],
     allow_headers=["*"],
     allow_credentials=True,
 )
@@ -3815,94 +3843,90 @@ async def process_dm(payload: ProcessDMRequest):
 
 @app.get("/dm/conversations/{creator_id}")
 async def get_conversations(creator_id: str, limit: int = 50):
-    """Listar conversaciones del creador"""
+    """Listar conversaciones del creador - OPTIMIZED to avoid N+1 queries"""
+    import time as _time
+    start_time = _time.time()
+
     try:
-        # Use PostgreSQL for conversations with message counts
-        # Messages ARE being saved to PostgreSQL (confirmed in logs)
         if USE_DB:
             from api.services.db_service import get_session
             from api.models import Creator, Lead, Message
-            from sqlalchemy import func, not_
+            from sqlalchemy import func, not_, desc
 
             session = get_session()
             if session:
                 try:
                     creator = session.query(Creator).filter_by(name=creator_id).first()
-                    logger.info(f"[CONV] creator_id={creator_id}, found={creator is not None}")
-                    if creator:
-                        logger.info(f"[CONV] creator.id={creator.id}")
+                    if not creator:
+                        return {"status": "ok", "conversations": [], "count": 0}
 
-                        # Count user messages per lead
-                        msg_count_subq = session.query(
-                            Message.lead_id,
-                            func.count(Message.id).label('msg_count')
-                        ).filter(Message.role == 'user').group_by(Message.lead_id).subquery()
+                    # OPTIMIZED: Single query for leads with message counts
+                    msg_count_subq = session.query(
+                        Message.lead_id,
+                        func.count(Message.id).label('msg_count')
+                    ).filter(Message.role == 'user').group_by(Message.lead_id).subquery()
 
-                        # Get leads with message counts, excluding archived/spam
-                        results = session.query(
-                            Lead,
-                            func.coalesce(msg_count_subq.c.msg_count, 0).label('total_messages')
-                        ).outerjoin(
-                            msg_count_subq, Lead.id == msg_count_subq.c.lead_id
-                        ).filter(
-                            Lead.creator_id == creator.id,
-                            not_(Lead.status.in_(["archived", "spam"]))
-                        ).order_by(Lead.last_contact_at.desc()).limit(limit).all()
+                    results = session.query(
+                        Lead,
+                        func.coalesce(msg_count_subq.c.msg_count, 0).label('total_messages')
+                    ).outerjoin(
+                        msg_count_subq, Lead.id == msg_count_subq.c.lead_id
+                    ).filter(
+                        Lead.creator_id == creator.id,
+                        not_(Lead.status.in_(["archived", "spam"]))
+                    ).order_by(Lead.last_contact_at.desc()).limit(limit).all()
 
-                        logger.info(f"[CONV] Found {len(results)} leads")
+                    # OPTIMIZED: Get last message for each lead in ONE query
+                    lead_ids = [lead.id for lead, _ in results]
 
-                        conversations = []
-                        for lead, msg_count in results:
-                            # Count from PostgreSQL
-                            direct_count = session.query(Message).filter_by(lead_id=lead.id, role='user').count()
+                    # Subquery to get the latest message per lead
+                    last_msg_subq = session.query(
+                        Message.lead_id,
+                        func.max(Message.created_at).label('max_date')
+                    ).filter(Message.lead_id.in_(lead_ids)).group_by(Message.lead_id).subquery()
 
-                            # If PostgreSQL has 0, try to get count from JSON
-                            final_count = direct_count
-                            if direct_count == 0 and lead.platform_user_id:
-                                try:
-                                    from api.services.data_sync import _load_json
-                                    json_data = _load_json(creator_id, lead.platform_user_id)
-                                    if json_data:
-                                        last_messages = json_data.get("last_messages", [])
-                                        final_count = len([m for m in last_messages if m.get("role") == "user"])
-                                        if final_count > 0:
-                                            logger.info(f"[CONV] Lead {lead.platform_user_id}: PG=0, JSON={final_count}")
-                                except Exception as json_err:
-                                    logger.debug(f"JSON fallback failed for {lead.platform_user_id}: {json_err}")
+                    last_messages_query = session.query(Message).join(
+                        last_msg_subq,
+                        (Message.lead_id == last_msg_subq.c.lead_id) &
+                        (Message.created_at == last_msg_subq.c.max_date)
+                    ).all()
 
-                            logger.info(f"[CONV] Lead {lead.platform_user_id}: subq={msg_count}, direct={direct_count}, final={final_count}")
+                    # Build lookup dict for last messages
+                    last_msg_by_lead = {msg.lead_id: msg for msg in last_messages_query}
 
-                            # Get last_messages from JSON for preview
-                            last_messages = []
-                            if lead.platform_user_id:
-                                try:
-                                    from api.services.data_sync import _load_json
-                                    json_data = _load_json(creator_id, lead.platform_user_id)
-                                    if json_data:
-                                        last_messages = json_data.get("last_messages", [])[-5:]  # Last 5 for preview
-                                except:
-                                    pass
+                    conversations = []
+                    for lead, msg_count in results:
+                        ctx = lead.context or {}
 
-                            # Extract email/phone/notes from context JSON
-                            ctx = lead.context or {}
+                        # Get last message from pre-fetched data
+                        last_msg = last_msg_by_lead.get(lead.id)
+                        last_messages = []
+                        if last_msg:
+                            last_messages = [{
+                                "role": last_msg.role,
+                                "content": last_msg.content[:200] if last_msg.content else "",
+                                "timestamp": last_msg.created_at.isoformat() if last_msg.created_at else None
+                            }]
 
-                            conversations.append({
-                                "follower_id": lead.platform_user_id,
-                                "id": str(lead.id),
-                                "username": lead.username or lead.platform_user_id,
-                                "name": lead.full_name or lead.username or "",
-                                "platform": lead.platform or "instagram",
-                                "total_messages": final_count,
-                                "purchase_intent_score": lead.purchase_intent or 0.0,
-                                "is_lead": True,
-                                "last_contact": lead.last_contact_at.isoformat() if lead.last_contact_at else None,
-                                "last_messages": last_messages,
-                                "email": ctx.get("email") or "",
-                                "phone": ctx.get("phone") or "",
-                                "notes": ctx.get("notes") or "",
-                            })
+                        conversations.append({
+                            "follower_id": lead.platform_user_id,
+                            "id": str(lead.id),
+                            "username": lead.username or lead.platform_user_id,
+                            "name": lead.full_name or lead.username or "",
+                            "platform": lead.platform or "instagram",
+                            "total_messages": msg_count,
+                            "purchase_intent_score": lead.purchase_intent or 0.0,
+                            "is_lead": True,
+                            "last_contact": lead.last_contact_at.isoformat() if lead.last_contact_at else None,
+                            "last_messages": last_messages,
+                            "email": ctx.get("email") or "",
+                            "phone": ctx.get("phone") or "",
+                            "notes": ctx.get("notes") or "",
+                        })
 
-                        return {"status": "ok", "conversations": conversations, "count": len(conversations)}
+                    elapsed = _time.time() - start_time
+                    logger.info(f"[CONV] {creator_id}: {len(conversations)} conversations in {elapsed:.2f}s (optimized)")
+                    return {"status": "ok", "conversations": conversations, "count": len(conversations)}
                 finally:
                     session.close()
 
@@ -4277,14 +4301,29 @@ async def update_follower_status(
 # ---------------------------------------------------------
 # DASHBOARD
 # ---------------------------------------------------------
+# Cache for dashboard overview (30 second TTL)
+_dashboard_cache: Dict[str, tuple] = {}
+_DASHBOARD_CACHE_TTL = 30  # seconds
+
 @app.get("/dashboard/{creator_id}/overview")
 async def dashboard_overview(creator_id: str):
-    """Datos para dashboard principal"""
+    """Datos para dashboard principal (cached for 30s)"""
+    import time as _time
     try:
+        # Check cache first
+        now = _time.time()
+        if creator_id in _dashboard_cache:
+            cached_data, timestamp = _dashboard_cache[creator_id]
+            if now - timestamp < _DASHBOARD_CACHE_TTL:
+                logging.debug(f"[DASHBOARD] Cache HIT for {creator_id}")
+                return cached_data
+
         # PostgreSQL first
         if USE_DB:
             metrics = db_service.get_dashboard_metrics(creator_id)
             if metrics:
+                # Cache the result
+                _dashboard_cache[creator_id] = (metrics, now)
                 return metrics
         agent = get_dm_agent(creator_id)
 
@@ -6066,6 +6105,129 @@ async def startup_event():
     asyncio.create_task(hydrate_rag_background())
     logger.info("RAG hydration scheduled (background task)")
 
+    # PRE-WARM: Load ToneProfile and CitationIndex for active creators
+    # This reduces first-request latency from ~4s to ~0.5s
+    # Added 10s timeout to prevent blocking if DB is slow
+    async def prewarm_creator_caches():
+        await asyncio.sleep(2)  # Wait a bit for app to be ready
+        try:
+            # Wrap in timeout to prevent blocking on slow DB
+            await asyncio.wait_for(_do_prewarm(), timeout=10.0)
+        except asyncio.TimeoutError:
+            logger.warning("Pre-warming timeout after 10s, continuing anyway")
+        except Exception as e:
+            logger.error(f"Failed to pre-warm caches: {e}")
+
+    async def _do_prewarm():
+        try:
+            import time
+            _t_start = time.time()
+
+            # Get active creators from database
+            active_creators = []
+            if SessionLocal:
+                try:
+                    from api.models import Creator
+                    session = SessionLocal()
+                    try:
+                        creators = session.query(Creator).filter_by(bot_active=True).all()
+                        active_creators = [c.name for c in creators if c.name]
+                    finally:
+                        session.close()
+                except Exception as e:
+                    logger.warning(f"Could not get creators from DB: {e}")
+
+            # Fallback: at minimum, pre-warm stefano_auto
+            if not active_creators:
+                active_creators = ["stefano_auto"]
+
+            logger.info(f"Pre-warming caches for {len(active_creators)} creators: {active_creators}")
+
+            # Pre-load ToneProfile cache
+            from core.tone_service import get_tone_prompt_section
+            for creator_id in active_creators:
+                try:
+                    get_tone_prompt_section(creator_id)
+                except Exception as e:
+                    logger.debug(f"ToneProfile not found for {creator_id}: {e}")
+
+            # Pre-load CitationIndex cache
+            from core.citation_service import get_content_index
+            for creator_id in active_creators:
+                try:
+                    get_content_index(creator_id)
+                except Exception as e:
+                    logger.debug(f"CitationIndex not found for {creator_id}: {e}")
+
+            _t_end = time.time()
+            logger.info(f"⏱️ Pre-warmed caches in {_t_end - _t_start:.2f}s for {active_creators}")
+
+        except Exception as e:
+            logger.warning(f"Pre-warm inner error: {e}")
+
+    asyncio.create_task(prewarm_creator_caches())
+    logger.info("Cache pre-warming scheduled (background task)")
+
+    # KEEP-ALIVE: Ping every 15 minutes to prevent cold starts
+    # Railway puts containers to sleep after extended inactivity
+    # Reduced from 4 min to 15 min to avoid blocking workers
+    async def keep_alive_task():
+        import time
+        KEEP_ALIVE_INTERVAL = 900  # 15 minutes (was 240)
+
+        # Wait briefly for startup to complete
+        await asyncio.sleep(3)
+        logger.warning(f"[KEEP-ALIVE] ===== STARTED - will ping every {KEEP_ALIVE_INTERVAL}s =====")
+
+        while True:
+            try:
+                _t_start = time.time()
+
+                # 1. Pre-load DM agent for stefano_auto (most active creator)
+                try:
+                    agent = get_dm_agent("stefano_auto")
+                    # Touch the system prompt cache to keep it warm
+                    if hasattr(agent, '_build_system_prompt'):
+                        _ = agent._build_system_prompt("")
+                    logger.debug(f"[KEEP-ALIVE] DM agent for stefano_auto warmed")
+                except Exception as e:
+                    logger.warning(f"[KEEP-ALIVE] DM agent warm failed: {e}")
+
+                # 2. Refresh ToneProfile cache
+                try:
+                    from core.tone_service import get_tone_prompt_section
+                    get_tone_prompt_section("stefano_auto")
+                except Exception:
+                    pass
+
+                # 3. Refresh CitationIndex cache
+                try:
+                    from core.citation_service import get_content_index
+                    get_content_index("stefano_auto")
+                except Exception:
+                    pass
+
+                # 4. Light DB ping to keep connection pool alive
+                if SessionLocal:
+                    try:
+                        from sqlalchemy import text
+                        session = SessionLocal()
+                        session.execute(text("SELECT 1"))
+                        session.close()
+                    except Exception:
+                        pass
+
+                _t_end = time.time()
+                logger.warning(f"[KEEP-ALIVE] ===== Ping completed in {_t_end - _t_start:.2f}s =====")
+
+            except Exception as e:
+                logger.error(f"[KEEP-ALIVE] Error: {e}", exc_info=True)
+
+            await asyncio.sleep(KEEP_ALIVE_INTERVAL)
+
+    asyncio.create_task(keep_alive_task())
+    logger.info("Keep-alive task scheduled (every 15 minutes)")
+
     logger.info("Ready to receive requests!")
 
 
@@ -6334,13 +6496,89 @@ if os.path.exists(_static_dir):
             return FileResponse(robots_path, media_type="text/plain")
         raise HTTPException(status_code=404)
 
+    @app.get("/debug.html")
+    async def serve_debug_page():
+        debug_path = os.path.join(_static_dir, "debug.html")
+        if os.path.exists(debug_path):
+            return FileResponse(debug_path, media_type="text/html")
+        raise HTTPException(status_code=404, detail="Debug page not found")
+
+    @app.get("/debug/status")
+    async def debug_status():
+        """Comprehensive diagnostic endpoint"""
+        import glob as _glob
+
+        # Check static files
+        static_files = []
+        if os.path.exists(_static_dir):
+            for f in os.listdir(_static_dir):
+                fpath = os.path.join(_static_dir, f)
+                static_files.append({
+                    "name": f,
+                    "size": os.path.getsize(fpath) if os.path.isfile(fpath) else 0,
+                    "type": "file" if os.path.isfile(fpath) else "dir"
+                })
+
+        # Check assets folder
+        assets_dir = os.path.join(_static_dir, "assets")
+        assets_files = []
+        if os.path.exists(assets_dir):
+            for f in os.listdir(assets_dir):
+                fpath = os.path.join(assets_dir, f)
+                assets_files.append({
+                    "name": f,
+                    "size": os.path.getsize(fpath) if os.path.isfile(fpath) else 0
+                })
+
+        # Check index.html
+        index_path = os.path.join(_static_dir, "index.html")
+        index_info = None
+        if os.path.exists(index_path):
+            with open(index_path, 'r') as f:
+                content = f.read()
+                index_info = {
+                    "exists": True,
+                    "size": len(content),
+                    "has_root_div": 'id="root"' in content,
+                    "js_files": [m.split('"')[0] for m in content.split('src="') if '.js' in m.split('"')[0]][:5],
+                    "css_files": [m.split('"')[0] for m in content.split('href="') if '.css' in m.split('"')[0]][:5]
+                }
+
+        # Database check
+        db_status = "unknown"
+        try:
+            from api.services.db_service import db_service
+            with db_service._get_session() as session:
+                session.execute("SELECT 1")
+                db_status = "connected"
+        except Exception as e:
+            db_status = f"error: {str(e)[:100]}"
+
+        return {
+            "status": "ok",
+            "timestamp": datetime.now().isoformat(),
+            "static_dir": _static_dir,
+            "static_dir_exists": os.path.exists(_static_dir),
+            "static_files": static_files,
+            "assets_files": assets_files,
+            "index_html": index_info,
+            "database": db_status,
+            "environment": {
+                "RAILWAY_ENVIRONMENT": os.environ.get("RAILWAY_ENVIRONMENT", "not set"),
+                "PYTHON_VERSION": os.environ.get("PYTHON_VERSION", "unknown")
+            }
+        }
+
     # Catch-all route for frontend SPA - must be LAST
     @app.get("/{full_path:path}")
     async def serve_frontend(full_path: str):
         """Serve frontend for all non-API routes (SPA catch-all)"""
         # Don't catch API routes - they're already handled above
+        # NOTE: "dashboard/" removed from prefixes - frontend uses /dashboard/{id} route
+        # The actual API endpoints /dashboard/{id}/overview and /dashboard/{id}/toggle
+        # are defined before this catch-all, so they'll match first
         api_prefixes = (
-            "api/", "dm/", "dashboard/", "copilot/", "webhook/", "auth/",
+            "api/", "dm/", "copilot/", "webhook/", "auth/",
             "debug/", "health", "leads/", "products/", "onboarding/",
             "creator/", "messages/", "payments/", "calendar/", "nurturing/",
             "knowledge/", "analytics/", "admin/", "connections/", "oauth/",

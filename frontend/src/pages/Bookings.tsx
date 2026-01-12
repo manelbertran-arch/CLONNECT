@@ -1,10 +1,12 @@
-import { useState } from "react";
-import { Calendar as CalendarIcon, Clock, Video, Users, CheckCircle2, XCircle, Loader2, AlertCircle, Plus, X, Trash2, Settings, Mail, History } from "lucide-react";
+import { useState, useEffect } from "react";
+import { Calendar as CalendarIcon, Clock, Video, Users, CheckCircle2, XCircle, Loader2, AlertCircle, Plus, X, Trash2, Settings, Mail, History, ChevronDown, ChevronUp, Save } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { useCalendarStats, useBookings, useBookingLinks, useCreateBookingLink, useDeleteBookingLink, useCancelBooking, useClearBookingHistory, useDeleteHistoryItem, useConnections } from "@/hooks/useApi";
+import { Switch } from "@/components/ui/switch";
+import { useCalendarStats, useBookings, useBookingLinks, useCreateBookingLink, useDeleteBookingLink, useCancelBooking, useClearBookingHistory, useDeleteHistoryItem, useConnections, useAvailability, useSetAvailability } from "@/hooks/useApi";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import { useNavigate } from "react-router-dom";
+import type { DayAvailability } from "@/services/api";
 
 function formatDate(dateString: string): string {
   return new Date(dateString).toLocaleDateString("es-ES", {
@@ -85,6 +87,132 @@ const PRICES = [
   { value: -1, label: "Custom" },
 ];
 
+// Day names for availability
+const DAY_NAMES = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo'];
+
+// Time options for availability (30 min intervals)
+const TIME_OPTIONS = Array.from({ length: 48 }, (_, i) => {
+  const hours = Math.floor(i / 2);
+  const minutes = (i % 2) * 30;
+  return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`;
+});
+
+// Availability presets
+interface PresetDay {
+  day: number;
+  active: boolean;
+  start: string;
+  end: string;
+}
+
+interface AvailabilityPreset {
+  id: string;
+  icon: string;
+  name: string;
+  description: string;
+  days: PresetDay[] | null;
+}
+
+const AVAILABILITY_PRESETS: AvailabilityPreset[] = [
+  {
+    id: 'office',
+    icon: '🏢',
+    name: 'Oficina',
+    description: 'L-V 9-18',
+    days: [
+      { day: 0, active: true, start: '09:00', end: '18:00' },
+      { day: 1, active: true, start: '09:00', end: '18:00' },
+      { day: 2, active: true, start: '09:00', end: '18:00' },
+      { day: 3, active: true, start: '09:00', end: '18:00' },
+      { day: 4, active: true, start: '09:00', end: '18:00' },
+      { day: 5, active: false, start: '09:00', end: '18:00' },
+      { day: 6, active: false, start: '09:00', end: '18:00' },
+    ]
+  },
+  {
+    id: 'mornings',
+    icon: '🌅',
+    name: 'Mañanas',
+    description: 'L-V 9-14',
+    days: [
+      { day: 0, active: true, start: '09:00', end: '14:00' },
+      { day: 1, active: true, start: '09:00', end: '14:00' },
+      { day: 2, active: true, start: '09:00', end: '14:00' },
+      { day: 3, active: true, start: '09:00', end: '14:00' },
+      { day: 4, active: true, start: '09:00', end: '14:00' },
+      { day: 5, active: false, start: '09:00', end: '14:00' },
+      { day: 6, active: false, start: '09:00', end: '14:00' },
+    ]
+  },
+  {
+    id: 'afternoons',
+    icon: '🌙',
+    name: 'Tardes',
+    description: 'L-V 15-20',
+    days: [
+      { day: 0, active: true, start: '15:00', end: '20:00' },
+      { day: 1, active: true, start: '15:00', end: '20:00' },
+      { day: 2, active: true, start: '15:00', end: '20:00' },
+      { day: 3, active: true, start: '15:00', end: '20:00' },
+      { day: 4, active: true, start: '15:00', end: '20:00' },
+      { day: 5, active: false, start: '15:00', end: '20:00' },
+      { day: 6, active: false, start: '15:00', end: '20:00' },
+    ]
+  },
+  {
+    id: 'fullweek',
+    icon: '📅',
+    name: 'Toda la semana',
+    description: 'L-D 9-20',
+    days: [
+      { day: 0, active: true, start: '09:00', end: '20:00' },
+      { day: 1, active: true, start: '09:00', end: '20:00' },
+      { day: 2, active: true, start: '09:00', end: '20:00' },
+      { day: 3, active: true, start: '09:00', end: '20:00' },
+      { day: 4, active: true, start: '09:00', end: '20:00' },
+      { day: 5, active: true, start: '09:00', end: '20:00' },
+      { day: 6, active: true, start: '09:00', end: '20:00' },
+    ]
+  },
+  {
+    id: 'custom',
+    icon: '🔧',
+    name: 'Personalizado',
+    description: 'Configura tú',
+    days: null
+  }
+];
+
+// Default availability: Mon-Fri 9:00-18:00
+const DEFAULT_AVAILABILITY: DayAvailability[] = DAY_NAMES.map((_, i) => ({
+  day_of_week: i,
+  start_time: '09:00',
+  end_time: '18:00',
+  is_active: i < 5,
+}));
+
+// Helper to check if current availability matches a preset
+function detectPreset(availability: DayAvailability[]): string {
+  for (const preset of AVAILABILITY_PRESETS) {
+    if (!preset.days) continue;
+
+    const matches = preset.days.every((presetDay) => {
+      const currentDay = availability.find(d => d.day_of_week === presetDay.day);
+      if (!currentDay) return false;
+
+      return (
+        currentDay.is_active === presetDay.active &&
+        currentDay.start_time === presetDay.start &&
+        currentDay.end_time === presetDay.end
+      );
+    });
+
+    if (matches) return preset.id;
+  }
+
+  return 'custom';
+}
+
 // Platform logos - official brand colors and SVG paths
 const PlatformLogo = ({ platform, size = 24 }: { platform: string; size?: number }) => {
   switch (platform) {
@@ -131,6 +259,32 @@ export default function Bookings() {
 
   // Check if Google Calendar is connected (for auto Meet link generation)
   const googleConnected = connectionsData?.google?.connected ?? false;
+
+  // Availability hooks and state
+  const { data: availabilityData, isLoading: availabilityLoading } = useAvailability();
+  const setAvailabilityMutation = useSetAvailability();
+  const [availability, setLocalAvailability] = useState<DayAvailability[]>(DEFAULT_AVAILABILITY);
+  const [availabilityChanged, setAvailabilityChanged] = useState(false);
+  const [selectedPreset, setSelectedPreset] = useState<string>('office');
+  const [showCustomSchedule, setShowCustomSchedule] = useState(false);
+
+  // Load availability from API and detect preset
+  useEffect(() => {
+    if (availabilityData?.availability) {
+      const merged = DEFAULT_AVAILABILITY.map((defaultDay) => {
+        const savedDay = availabilityData.availability.find(
+          (d) => d.day_of_week === defaultDay.day_of_week
+        );
+        return savedDay || defaultDay;
+      });
+      setLocalAvailability(merged);
+
+      // Detect which preset matches
+      const detectedPreset = detectPreset(merged);
+      setSelectedPreset(detectedPreset);
+      setShowCustomSchedule(detectedPreset === 'custom');
+    }
+  }, [availabilityData]);
 
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [selectedServiceType, setSelectedServiceType] = useState("discovery");
@@ -288,6 +442,69 @@ export default function Bookings() {
       toast({ title: "Deleted", description: "History item removed" });
     } catch (error: any) {
       toast({ title: "Error", description: error.message || "Failed to delete", variant: "destructive" });
+    }
+  };
+
+  // Availability handlers
+  const handleAvailabilityToggle = (dayIndex: number) => {
+    setLocalAvailability(prev => {
+      const updated = [...prev];
+      updated[dayIndex] = { ...updated[dayIndex], is_active: !updated[dayIndex].is_active };
+      return updated;
+    });
+    setAvailabilityChanged(true);
+  };
+
+  const handleTimeChange = (dayIndex: number, field: 'start_time' | 'end_time', value: string) => {
+    setLocalAvailability(prev => {
+      const updated = [...prev];
+      updated[dayIndex] = { ...updated[dayIndex], [field]: value };
+      return updated;
+    });
+    setAvailabilityChanged(true);
+  };
+
+  const handleSaveAvailability = async () => {
+    try {
+      await setAvailabilityMutation.mutateAsync(availability);
+      toast({ title: "Saved", description: "Availability schedule updated" });
+      setAvailabilityChanged(false);
+      // Update detected preset after save
+      const detectedPreset = detectPreset(availability);
+      setSelectedPreset(detectedPreset);
+      setShowCustomSchedule(detectedPreset === 'custom');
+    } catch (error: any) {
+      toast({ title: "Error", description: error.message || "Failed to save", variant: "destructive" });
+    }
+  };
+
+  const handlePresetSelect = async (presetId: string) => {
+    setSelectedPreset(presetId);
+
+    if (presetId === 'custom') {
+      setShowCustomSchedule(true);
+      return;
+    }
+
+    setShowCustomSchedule(false);
+    const preset = AVAILABILITY_PRESETS.find(p => p.id === presetId);
+    if (!preset?.days) return;
+
+    // Convert preset days to DayAvailability format
+    const newAvailability: DayAvailability[] = preset.days.map(d => ({
+      day_of_week: d.day,
+      start_time: d.start,
+      end_time: d.end,
+      is_active: d.active,
+    }));
+
+    // Save immediately
+    try {
+      await setAvailabilityMutation.mutateAsync(newAvailability);
+      setLocalAvailability(newAvailability);
+      toast({ title: "Guardado", description: `Horario "${preset.name}" aplicado` });
+    } catch (error: any) {
+      toast({ title: "Error", description: error.message || "Failed to save", variant: "destructive" });
     }
   };
 
@@ -801,6 +1018,161 @@ export default function Bookings() {
             ))}
           </div>
         ) : null}
+      </div>
+
+      {/* Availability Schedule - Presets */}
+      <div className="metric-card">
+        <div className="flex items-center gap-3 mb-4">
+          <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
+            <Clock className="w-5 h-5 text-primary" />
+          </div>
+          <div>
+            <h3 className="font-semibold">¿Cuándo pueden reservar contigo?</h3>
+            <p className="text-sm text-muted-foreground">
+              Selecciona tu horario de disponibilidad
+            </p>
+          </div>
+        </div>
+
+        {availabilityLoading ? (
+          <div className="flex justify-center py-8">
+            <Loader2 className="w-6 h-6 animate-spin text-primary" />
+          </div>
+        ) : (
+          <>
+            {/* Preset Cards */}
+            <div className="grid grid-cols-3 gap-3 mb-4">
+              {AVAILABILITY_PRESETS.slice(0, 3).map((preset) => (
+                <button
+                  key={preset.id}
+                  onClick={() => handlePresetSelect(preset.id)}
+                  disabled={setAvailabilityMutation.isPending}
+                  className={cn(
+                    "relative p-4 rounded-xl border-2 transition-all text-center",
+                    selectedPreset === preset.id
+                      ? "border-primary bg-primary/10"
+                      : "border-border hover:border-primary/50 hover:bg-secondary/50"
+                  )}
+                >
+                  {selectedPreset === preset.id && (
+                    <div className="absolute top-2 right-2">
+                      <CheckCircle2 className="w-5 h-5 text-primary" />
+                    </div>
+                  )}
+                  <div className="text-2xl mb-2">{preset.icon}</div>
+                  <div className="font-medium text-sm">{preset.name}</div>
+                  <div className="text-xs text-muted-foreground">{preset.description}</div>
+                </button>
+              ))}
+            </div>
+
+            <div className="grid grid-cols-2 gap-3 mb-4">
+              {AVAILABILITY_PRESETS.slice(3).map((preset) => (
+                <button
+                  key={preset.id}
+                  onClick={() => handlePresetSelect(preset.id)}
+                  disabled={setAvailabilityMutation.isPending}
+                  className={cn(
+                    "relative p-4 rounded-xl border-2 transition-all text-center",
+                    selectedPreset === preset.id
+                      ? "border-primary bg-primary/10"
+                      : "border-border hover:border-primary/50 hover:bg-secondary/50"
+                  )}
+                >
+                  {selectedPreset === preset.id && (
+                    <div className="absolute top-2 right-2">
+                      <CheckCircle2 className="w-5 h-5 text-primary" />
+                    </div>
+                  )}
+                  <div className="text-2xl mb-2">{preset.icon}</div>
+                  <div className="font-medium text-sm">{preset.name}</div>
+                  <div className="text-xs text-muted-foreground">{preset.description}</div>
+                </button>
+              ))}
+            </div>
+
+            {/* Custom Schedule - Only shown when "Personalizado" is selected */}
+            {showCustomSchedule && (
+              <div className="mt-4 pt-4 border-t">
+                <div className="space-y-2">
+                  {availability.map((day, index) => (
+                    <div
+                      key={day.day_of_week}
+                      className={cn(
+                        "flex items-center gap-3 p-3 rounded-lg transition-colors",
+                        day.is_active ? "bg-secondary/50" : "bg-secondary/20"
+                      )}
+                    >
+                      <Switch
+                        checked={day.is_active}
+                        onCheckedChange={() => handleAvailabilityToggle(index)}
+                      />
+                      <span className={cn(
+                        "w-24 font-medium text-sm",
+                        day.is_active ? "text-foreground" : "text-muted-foreground"
+                      )}>
+                        {DAY_NAMES[index]}
+                      </span>
+                      {day.is_active ? (
+                        <div className="flex items-center gap-2 flex-1">
+                          <select
+                            value={day.start_time}
+                            onChange={(e) => handleTimeChange(index, 'start_time', e.target.value)}
+                            className="px-2 py-1.5 rounded border bg-background text-sm w-24"
+                          >
+                            {TIME_OPTIONS.map(time => (
+                              <option key={time} value={time}>{time}</option>
+                            ))}
+                          </select>
+                          <span className="text-muted-foreground text-sm">a</span>
+                          <select
+                            value={day.end_time}
+                            onChange={(e) => handleTimeChange(index, 'end_time', e.target.value)}
+                            className="px-2 py-1.5 rounded border bg-background text-sm w-24"
+                          >
+                            {TIME_OPTIONS.map(time => (
+                              <option key={time} value={time}>{time}</option>
+                            ))}
+                          </select>
+                        </div>
+                      ) : (
+                        <span className="text-sm text-muted-foreground">No disponible</span>
+                      )}
+                    </div>
+                  ))}
+                </div>
+
+                <Button
+                  onClick={handleSaveAvailability}
+                  disabled={!availabilityChanged || setAvailabilityMutation.isPending}
+                  className={cn(
+                    "w-full mt-4",
+                    availabilityChanged
+                      ? "bg-primary hover:bg-primary/90"
+                      : "bg-secondary text-muted-foreground"
+                  )}
+                >
+                  {setAvailabilityMutation.isPending ? (
+                    <Loader2 className="w-4 h-4 animate-spin mr-2" />
+                  ) : (
+                    <Save className="w-4 h-4 mr-2" />
+                  )}
+                  Guardar horarios
+                </Button>
+              </div>
+            )}
+
+            {/* Info about Google Calendar */}
+            {googleConnected && (
+              <div className="flex items-start gap-2 mt-4 p-3 rounded-lg bg-primary/5 text-sm text-muted-foreground">
+                <CalendarIcon className="w-4 h-4 mt-0.5 text-primary flex-shrink-0" />
+                <span>
+                  Google Calendar bloquea automáticamente cuando estés ocupado
+                </span>
+              </div>
+            )}
+          </>
+        )}
       </div>
     </div>
   );

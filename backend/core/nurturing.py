@@ -14,8 +14,12 @@ from datetime import datetime, timedelta
 from typing import Dict, Any, List, Optional
 from dataclasses import dataclass, asdict, field
 from enum import Enum
+from pathlib import Path
 
 logger = logging.getLogger(__name__)
+
+# Base directory for data files (backend/)
+_BASE_DIR = Path(__file__).resolve().parent.parent
 
 # =============================================================================
 # TESTING MODE - Set to True to force default delays (bypass custom config)
@@ -151,7 +155,10 @@ def render_template(template: str, variables: Dict[str, Any]) -> str:
 class NurturingManager:
     """Gestiona los follow-ups automáticos de nurturing"""
 
-    def __init__(self, storage_path: str = "data/nurturing"):
+    def __init__(self, storage_path: str = None):
+        # Use absolute path based on _BASE_DIR
+        if storage_path is None:
+            storage_path = str(_BASE_DIR / "data" / "nurturing")
         self.storage_path = storage_path
         os.makedirs(storage_path, exist_ok=True)
         self._cache: Dict[str, List[FollowUp]] = {}
@@ -489,9 +496,12 @@ def _load_creator_nurturing_config(creator_id: str) -> Dict[str, Any]:
     Load the nurturing sequence config for a creator.
 
     This reads from the config file saved by the dashboard.
+    Uses absolute path based on _BASE_DIR to work regardless of CWD.
     """
-    config_path = f"data/nurturing/{creator_id}_sequences.json"
-    if os.path.exists(config_path):
+    config_path = _BASE_DIR / "data" / "nurturing" / f"{creator_id}_sequences.json"
+    logger.debug(f"[NURTURING] Loading config from: {config_path}")
+
+    if config_path.exists():
         try:
             with open(config_path, 'r', encoding='utf-8') as f:
                 config = json.load(f)
@@ -499,9 +509,12 @@ def _load_creator_nurturing_config(creator_id: str) -> Dict[str, Any]:
                 sequences = config.get("sequences", {})
                 if not isinstance(sequences, dict):
                     sequences = {}
+                logger.info(f"[NURTURING] Loaded config for {creator_id}: {list(sequences.keys())}")
                 return {"sequences": sequences}
         except Exception as e:
             logger.error(f"Error loading nurturing config for {creator_id}: {e}")
+    else:
+        logger.debug(f"[NURTURING] Config file not found: {config_path}")
     return {"sequences": {}}
 
 
@@ -520,9 +533,12 @@ def is_sequence_active(creator_id: str, sequence_type: str) -> bool:
     sequences = config.get("sequences", {})
 
     if sequence_type in sequences:
-        return sequences[sequence_type].get("is_active", False)
+        is_active = sequences[sequence_type].get("is_active", False)
+        logger.info(f"[NURTURING] is_sequence_active({creator_id}, {sequence_type}) = {is_active}")
+        return is_active
 
     # Default: sequences are inactive unless explicitly enabled
+    logger.info(f"[NURTURING] is_sequence_active({creator_id}, {sequence_type}) = False (not in config)")
     return False
 
 

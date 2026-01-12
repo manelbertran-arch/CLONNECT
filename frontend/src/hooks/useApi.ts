@@ -47,6 +47,8 @@ import {
   cancelBooking,
   clearBookingHistory,
   deleteHistoryItem,
+  getAvailability,
+  setAvailability,
   getNurturingSequences,
   getNurturingStats,
   getNurturingFollowups,
@@ -85,8 +87,8 @@ export function useDashboard(creatorId: string = getCreatorId()) {
   return useQuery({
     queryKey: apiKeys.dashboard(creatorId),
     queryFn: () => getDashboardOverview(creatorId),
-    refetchInterval: 5000, // Refetch every 5 seconds
-    staleTime: 2000, // Consider data stale after 2 seconds
+    refetchInterval: 60000, // Refetch every 60 seconds (reduced from 5s)
+    staleTime: 30000, // Data is fresh for 30 seconds
   });
 }
 
@@ -98,8 +100,8 @@ export function useConversations(creatorId: string = getCreatorId(), limit = 50)
   return useQuery({
     queryKey: apiKeys.conversations(creatorId),
     queryFn: () => getConversations(creatorId, limit),
-    refetchInterval: 5000, // Refetch every 5 seconds
-    staleTime: 2000,
+    refetchInterval: 30000, // Refetch every 30 seconds (reduced from 5s to prevent request backlog)
+    staleTime: 15000, // Data is fresh for 15 seconds
   });
 }
 
@@ -112,8 +114,8 @@ export function useFollowerDetail(followerId: string | null, creatorId: string =
     queryKey: apiKeys.follower(creatorId, followerId || ""),
     queryFn: () => getFollowerDetail(creatorId, followerId!),
     enabled: !!followerId, // Only fetch when we have a followerId
-    refetchInterval: 5000, // Refetch every 5 seconds for real-time updates
-    staleTime: 2000,
+    refetchInterval: 15000, // Refetch every 15 seconds (reduced from 5s)
+    staleTime: 10000, // Data is fresh for 10 seconds
   });
 }
 
@@ -137,8 +139,8 @@ export function useMetrics(creatorId: string = getCreatorId()) {
   return useQuery({
     queryKey: apiKeys.metrics(creatorId),
     queryFn: () => getMetrics(creatorId),
-    refetchInterval: 5000,
-    staleTime: 2000,
+    refetchInterval: 60000, // Refetch every 60 seconds (reduced from 5s)
+    staleTime: 30000, // Data is fresh for 30 seconds
   });
 }
 
@@ -399,6 +401,39 @@ export function useDeleteHistoryItem(creatorId: string = getCreatorId()) {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: apiKeys.bookings(creatorId, true) });
       queryClient.invalidateQueries({ queryKey: apiKeys.calendarStats(creatorId) });
+    },
+  });
+}
+
+// =============================================================================
+// AVAILABILITY HOOKS
+// =============================================================================
+
+/**
+ * Hook to fetch creator's availability schedule
+ */
+export function useAvailability(creatorId: string = getCreatorId()) {
+  return useQuery({
+    queryKey: ["availability", creatorId] as const,
+    queryFn: () => getAvailability(creatorId),
+    staleTime: 60000,
+  });
+}
+
+/**
+ * Hook to update creator's availability schedule
+ */
+export function useSetAvailability(creatorId: string = getCreatorId()) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (days: Array<{
+      day_of_week: number;
+      start_time: string;
+      end_time: string;
+      is_active: boolean;
+    }>) => setAvailability(creatorId, days),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["availability", creatorId] });
     },
   });
 }
@@ -795,12 +830,13 @@ export function useDeleteConversation(creatorId: string = getCreatorId()) {
 /**
  * Hook to fetch archived/spam conversations
  */
-export function useArchivedConversations(creatorId: string = getCreatorId()) {
+export function useArchivedConversations(creatorId: string = getCreatorId(), options?: { enabled?: boolean }) {
   return useQuery({
     queryKey: apiKeys.archivedConversations(creatorId),
     queryFn: () => getArchivedConversations(creatorId),
     select: (data) => data.conversations || [],
     refetchInterval: 30000,
+    enabled: options?.enabled !== false, // Default true, can be disabled for sequential loading
   });
 }
 

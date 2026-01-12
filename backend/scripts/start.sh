@@ -47,6 +47,20 @@ if [ -d /app/data ]; then
             cp -r /app/initial_data/products/* /app/data/products/ 2>/dev/null || true
             echo "  - Synced products"
         fi
+
+        # Copy nurturing configs - FORCE sync to update sequence configs
+        # Use -rf to OVERWRITE existing files (volume may have old configs)
+        if [ -d /app/initial_data/nurturing ]; then
+            cp -rf /app/initial_data/nurturing/* /app/data/nurturing/ 2>/dev/null || true
+            echo "  - Synced nurturing configs (force overwrite)"
+            echo "  - Nurturing files after sync:"
+            ls -la /app/data/nurturing/
+            # Debug: show actual config content for stefano_auto
+            if [ -f /app/data/nurturing/stefano_auto_sequences.json ]; then
+                echo "  - stefano_auto_sequences.json content:"
+                cat /app/data/nurturing/stefano_auto_sequences.json
+            fi
+        fi
     fi
 
     chown -R clonnect:clonnect /app/data 2>/dev/null || true
@@ -54,10 +68,26 @@ if [ -d /app/data ]; then
 fi
 
 echo "Starting Clonnect Creators API on port $PORT"
+echo "Workers: 4"
+echo "Worker class: uvicorn.workers.UvicornWorker"
 
-# If running as root, switch to clonnect user
+# Using gunicorn with uvicorn workers for REAL concurrency
+# --preload: Load app before forking workers (more reliable worker creation)
+# --workers 4: 4 separate processes handling requests in parallel
+
 if [ "$(id -u)" = "0" ]; then
-    exec su -s /bin/bash clonnect -c "uvicorn api.main:app --host 0.0.0.0 --port $PORT"
+    # Running as root - switch to clonnect user
+    exec su -s /bin/bash clonnect -c "gunicorn api.main:app --workers 4 --worker-class uvicorn.workers.UvicornWorker --bind 0.0.0.0:$PORT --timeout 120 --keep-alive 5 --preload --access-logfile - --error-logfile - --log-level info"
 else
-    exec uvicorn api.main:app --host 0.0.0.0 --port $PORT
+    # Already running as non-root user
+    exec gunicorn api.main:app \
+        --workers 4 \
+        --worker-class uvicorn.workers.UvicornWorker \
+        --bind 0.0.0.0:$PORT \
+        --timeout 120 \
+        --keep-alive 5 \
+        --preload \
+        --access-logfile - \
+        --error-logfile - \
+        --log-level info
 fi

@@ -19,6 +19,9 @@ router = APIRouter(prefix="/calendar", tags=["calendar"])
 @router.get("/{creator_id}/bookings")
 async def get_bookings(creator_id: str, upcoming: bool = True, db: Session = Depends(get_db)):
     """Get all bookings for a creator."""
+    import time as _time
+    start = _time.time()
+    logger.info(f"[BOOKINGS] Starting get_bookings for {creator_id}")
     try:
         # Update status of past bookings
         now = datetime.now(timezone.utc)
@@ -38,7 +41,7 @@ async def get_bookings(creator_id: str, upcoming: bool = True, db: Session = Dep
             CalendarBooking.creator_id == creator_id
         ).order_by(CalendarBooking.scheduled_at.desc()).all()
 
-        return {
+        result = {
             "status": "ok",
             "creator_id": creator_id,
             "bookings": [
@@ -59,13 +62,18 @@ async def get_bookings(creator_id: str, upcoming: bool = True, db: Session = Dep
             ],
             "count": len(bookings)
         }
+        logger.info(f"[BOOKINGS] Completed get_bookings for {creator_id} in {_time.time() - start:.2f}s ({len(bookings)} bookings)")
+        return result
     except Exception as e:
-        logger.error(f"Error getting bookings: {e}")
+        logger.error(f"[BOOKINGS] Error getting bookings after {_time.time() - start:.2f}s: {e}")
         return {"status": "ok", "creator_id": creator_id, "bookings": [], "count": 0}
 
 @router.get("/{creator_id}/stats")
 async def get_calendar_stats(creator_id: str, days: int = 30, db: Session = Depends(get_db)):
     """Get calendar statistics for a creator"""
+    import time as _time
+    start = _time.time()
+    logger.info(f"[STATS] Starting get_calendar_stats for {creator_id}")
     try:
         from datetime import datetime, timezone
 
@@ -98,7 +106,7 @@ async def get_calendar_stats(creator_id: str, days: int = 30, db: Session = Depe
         # Total = completed + upcoming (excludes cancelled)
         total = completed + upcoming
 
-        logger.info(f"Stats for {creator_id}: completed={completed}, cancelled={cancelled}, upcoming={upcoming}, total={total}")
+        logger.info(f"[STATS] {creator_id}: completed={completed}, cancelled={cancelled}, upcoming={upcoming}, total={total} in {_time.time() - start:.2f}s")
 
         return {
             "status": "ok",
@@ -109,7 +117,7 @@ async def get_calendar_stats(creator_id: str, days: int = 30, db: Session = Depe
             "upcoming": upcoming,
         }
     except Exception as e:
-        logger.error(f"Error getting stats: {e}")
+        logger.error(f"[STATS] Error after {_time.time() - start:.2f}s: {e}")
         return {"status": "ok", "creator_id": creator_id, "total_bookings": 0, "completed": 0, "cancelled": 0, "upcoming": 0}
 
 @router.get("/{creator_id}/links")

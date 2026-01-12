@@ -5,6 +5,16 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider } from "@/context/AuthContext";
 import { DashboardLayout } from "./components/layout/DashboardLayout";
+import { DashboardLayoutClean } from "./components/layout/DashboardLayoutClean";
+import NotFound from "./pages/NotFound";
+import Login from "./pages/Login";
+
+// Debug logging
+console.log("[CLONNECT DEBUG] App.tsx module loading");
+console.log("[CLONNECT DEBUG] Current URL:", window.location.href);
+console.log("[CLONNECT DEBUG] Pathname:", window.location.pathname);
+
+// Normal imports (no lazy loading)
 import Dashboard from "./pages/Dashboard";
 import Inbox from "./pages/Inbox";
 import Leads from "./pages/Leads";
@@ -16,10 +26,10 @@ import Copilot from "./pages/Copilot";
 import Docs from "./pages/Docs";
 import Terms from "./pages/Terms";
 import Privacy from "./pages/Privacy";
-import NotFound from "./pages/NotFound";
 import BookService from "./pages/BookService";
-import Login from "./pages/Login";
 import Onboarding from "./pages/Onboarding";
+import InboxTest from "./pages/InboxTest";
+import HomeWithConversations from "./pages/HomeWithConversations";
 
 // New Dashboard Pages
 import { NewLayout } from "./components/layout/NewLayout";
@@ -28,9 +38,20 @@ import Mensajes from "./pages/new/Mensajes";
 import Clientes from "./pages/new/Clientes";
 import Ajustes from "./pages/new/Ajustes";
 
-const queryClient = new QueryClient();
+// Configure QueryClient with optimized settings
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      staleTime: 30000, // 30 seconds before refetch
+      gcTime: 300000, // 5 minutes cache
+      refetchOnWindowFocus: false,
+      retry: 1,
+    },
+  },
+});
 
 const AppRoutes = () => {
+  console.log("[CLONNECT DEBUG] AppRoutes rendering, pathname:", window.location.pathname);
   return (
     <Routes>
       {/* Login route - always show login page */}
@@ -39,9 +60,19 @@ const AppRoutes = () => {
       {/* Onboarding route - no protection, let onboarding handle its own state */}
       <Route path="/onboarding" element={<Onboarding />} />
 
+      {/* Minimal test route to isolate Inbox slowness */}
+      <Route path="/inbox-test" element={<InboxTest />} />
+
+      {/* Clean layout test - no Sidebar/MobileNav */}
+      <Route element={<DashboardLayoutClean />}>
+        <Route path="/clean-inbox-test" element={<HomeWithConversations />} />
+      </Route>
+
       {/* Dashboard routes */}
       <Route element={<DashboardLayout />}>
         <Route path="/dashboard" element={<Dashboard />} />
+        <Route path="/home-conv-test" element={<HomeWithConversations />} />
+        <Route path="/dashboard/:creatorId" element={<Dashboard />} />
         <Route path="/inbox" element={<Inbox />} />
         <Route path="/copilot" element={<Copilot />} />
         <Route path="/leads" element={<Leads />} />
@@ -90,4 +121,3 @@ const App = () => (
 );
 
 export default App;
-// Deploy 1767966560

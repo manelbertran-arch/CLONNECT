@@ -35,6 +35,7 @@ from core.guardrails import get_response_guardrail
 from core.reasoning import get_self_consistency_validator, get_chain_of_thought_reasoner
 from core.tone_service import get_tone_prompt_section, get_tone_language, get_tone_dialect
 from core.citation_service import get_citation_prompt_section
+from core.bot_question_analyzer import get_bot_question_analyzer, QuestionType, is_short_affirmation
 from core.metrics import (
     record_message_processed,
     record_llm_error,
@@ -62,6 +63,25 @@ logger = logging.getLogger(__name__)
 
 # Configuration: Set to True to require consent before processing
 REQUIRE_CONSENT = os.getenv("REQUIRE_GDPR_CONSENT", "false").lower() == "true"
+
+
+def get_valid_payment_url(product: Dict[str, Any]) -> str:
+    """
+    Get a valid payment URL from a product.
+    Checks payment_link first, falls back to url if payment_link is not a valid URL.
+    """
+    payment_link = product.get('payment_link', '')
+    url = product.get('url', '')
+
+    # Check if payment_link is a valid URL
+    if payment_link and isinstance(payment_link, str) and payment_link.startswith('http'):
+        return payment_link
+
+    # Fall back to url
+    if url and isinstance(url, str) and url.startswith('http'):
+        return url
+
+    return ''
 
 
 class Intent(Enum):
@@ -103,6 +123,79 @@ NON_CACHEABLE_INTENTS = {
     Intent.SUPPORT,  # Soporte necesita respuestas personalizadas
     Intent.OTHER,  # Fallback - siempre regenerar para evitar respuestas genéricas
 }
+
+
+# === CONVERSION OPTIMIZATION PROMPTS ===
+# These prompts are injected dynamically based on user intent and purchase score
+
+PROACTIVE_CLOSE_INSTRUCTION = """
+=== CIERRE PROACTIVO (USUARIO CON ALTO INTERÉS) ===
+El usuario muestra INTERÉS FUERTE. En tu respuesta:
+1. Responde su pregunta de forma concisa
+2. Ofrece NATURALMENTE el siguiente paso con el LINK REAL
+3. Usa frases como: "Si quieres reservar...", "Puedes apuntarte aquí...", "Te dejo el link..."
+4. NUNCA uses [link] o placeholders - usa el URL COMPLETO real
+5. No presiones, pero facilita la compra
+
+Ejemplo BUENO: "Son 297€ y tienes garantía de 30 días. Aquí puedes apuntarte: https://pay.ejemplo.com/curso"
+Ejemplo MALO: "Son 297€. Si te interesa, [aquí tienes el link]"
+=== FIN CIERRE PROACTIVO ===
+"""
+
+NO_REPETITION_INSTRUCTION = """
+=== REGLA CRÍTICA - NO REPETIR ===
+Revisa el HISTORIAL antes de responder:
+- NUNCA repitas un saludo si ya saludaste en esta conversación
+- NUNCA uses la misma frase dos veces (varía expresiones)
+- NUNCA repitas la misma estructura de respuesta
+- Si dijiste "genial", "perfecto", "claro" → usa otra palabra diferente
+- Si el usuario repite una pregunta, responde DIFERENTE pero con la misma info
+- Si ya diste un link, NO lo repitas a menos que lo pidan
+=== FIN NO REPETIR ===
+"""
+
+COHERENCE_INSTRUCTION = """
+=== REGLA CRÍTICA - COHERENCIA ===
+Mantén CONSISTENCIA con todo lo dicho:
+- Si diste un precio, NO lo cambies
+- Si dijiste que algo está disponible, NO digas luego que no
+- Si el usuario dio información (nombre, situación), ÚSALA
+- Recuerda el contexto: si hablaban de un producto, SIGUE en ese tema
+- NO cambies de tema sin razón
+- Si no sabes algo, admítelo - NO inventes
+- USA la información del follower para personalizar
+=== FIN COHERENCIA ===
+"""
+
+CONVERSION_INSTRUCTION = """
+=== OBJETIVO - CONVERSIÓN ===
+Cada respuesta debe ACERCAR al usuario a la acción (compra/reserva):
+
+- Si pregunta info general → responde + menciona UN beneficio del producto
+- Si muestra interés → responde + ofrece siguiente paso concreto
+- Si tiene objeción → maneja objeción + reafirma valor
+- Si está listo → facilita la compra con LINK DIRECTO (no placeholder)
+- Si está frío → genera curiosidad sin presionar
+
+NUNCA termines una respuesta sin:
+1. Responder lo que preguntó
+2. Añadir valor (tip, beneficio, insight breve)
+3. Invitar sutilmente al siguiente paso
+
+Ejemplos de CTAs suaves:
+- "¿Te cuento más sobre cómo funciona?"
+- "¿Quieres que te pase el link?"
+- "¿Reservamos una llamada para verlo juntos?"
+=== FIN CONVERSIÓN ===
+"""
+
+# Keywords that indicate strong interest (for proactive close detection)
+STRONG_INTEREST_KEYWORDS = [
+    "me interesa", "cuánto cuesta", "cuanto cuesta", "cómo me apunto", "como me apunto",
+    "quiero saber más", "quiero saber mas", "cómo funciona", "como funciona",
+    "qué incluye", "que incluye", "dónde compro", "donde compro", "cómo pago", "como pago",
+    "precio", "comprar", "apuntarme", "inscribirme", "reservar"
+]
 
 
 def apply_voseo(text: str) -> str:
@@ -275,10 +368,12 @@ def clean_response_placeholders(response: str, payment_links: list) -> str:
     if has_alternative_payment:
         logger.info("Response contains alternative payment method - NOT appending Stripe link")
 
-    # Replace common placeholders
+    # Replace common placeholders (payment + booking links)
     placeholders = [
         "[LINK_REAL]", "[link de pago]", "[link]", "[LINK]",
-        "(link de pago)", "(link)", "[payment link]", "[pago]"
+        "(link de pago)", "(link)", "[payment link]", "[pago]",
+        "[tu enlace de reserva]", "[enlace de reserva]", "[booking link]",
+        "[enlace]", "[tu enlace]", "[link de reserva]", "(enlace de reserva)"
     ]
 
     for placeholder in placeholders:
@@ -617,20 +712,30 @@ def is_direct_purchase_intent(message: str) -> bool:
         if phrase in msg_lower:
             return False  # Es una objeción, no compra directa
 
-    # Keywords cortos que necesitan match de palabra completa para evitar falsos positivos
-    # "si" puede estar en "no sé si", "sí" solo debe matchear como palabra sola
-    short_keywords_whole_word = {'sí', 'si', 'ok', 'ya'}
+    # FIX: "si", "sí", "ok", "ya" solos son CONFIRMACIONES, no compra directa
+    # Solo deben activar compra si hay contexto adicional
+    # Ejemplo: "sí, quiero comprarlo" = compra directa
+    # Ejemplo: "sí" (solo) = confirmación genérica, NO compra directa
+    ambiguous_confirmations = {'sí', 'si', 'ok', 'ya', 'vale', 'dale', 'claro', 'bueno'}
 
-    # Check direct purchase keywords
+    words = msg_lower.split()
+
+    # Si el mensaje es SOLO una confirmación simple (1-2 palabras), NO es compra directa
+    # Estas confirmaciones deben pasar por el LLM para que use el contexto
+    if len(words) <= 2:
+        is_only_confirmation = all(w.rstrip('!.?') in ambiguous_confirmations for w in words)
+        if is_only_confirmation:
+            return False  # No es compra directa, dejar que el LLM use el contexto
+
+    # Check direct purchase keywords (solo los explícitos)
     for keyword in DIRECT_PURCHASE_KEYWORDS:
-        if keyword in short_keywords_whole_word:
-            # Para keywords cortos, verificar que sea palabra completa
-            # y que el mensaje sea corto (respuesta directa tipo "sí" o "ok")
-            words = msg_lower.split()
-            if keyword in words and len(words) <= 3:
+        if keyword in ambiguous_confirmations:
+            # Para confirmaciones ambiguas, solo activar si hay más contexto
+            # "sí, lo quiero" = compra, pero "sí" solo = no compra
+            if keyword in words and len(words) > 2:
                 return True
         else:
-            # Para keywords largos, búsqueda normal
+            # Para keywords largos/explícitos, búsqueda normal
             if keyword in msg_lower:
                 return True
 
@@ -891,26 +996,68 @@ class DMResponderAgent:
         Fire-and-forget DB save - uses thread pool to truly not block.
         asyncio.create_task runs during next await, blocking the response.
         Threading ensures DB saves happen completely in background.
+        FIX P0: Added retry logic and proper error logging.
         """
         import threading
         import asyncio
+        import time
+
+        MAX_RETRIES = 3
+        RETRY_DELAYS = [1, 2, 4]  # Exponential backoff: 1s, 2s, 4s
 
         def run_in_thread():
-            try:
-                # Create new event loop for this thread
-                loop = asyncio.new_event_loop()
-                asyncio.set_event_loop(loop)
+            last_error = None
+            for attempt in range(MAX_RETRIES):
                 try:
-                    loop.run_until_complete(self._save_message_to_db(follower_id, role, content, intent))
-                finally:
-                    loop.close()
-            except Exception as e:
-                logger.warning(f"Background DB save failed: {e}")
+                    # Create new event loop for this thread
+                    loop = asyncio.new_event_loop()
+                    asyncio.set_event_loop(loop)
+                    try:
+                        loop.run_until_complete(self._save_message_to_db(follower_id, role, content, intent))
+                        if attempt > 0:
+                            logger.info(f"DB save succeeded on retry {attempt + 1} for {follower_id}/{role}")
+                        return  # Success - exit
+                    finally:
+                        loop.close()
+                except Exception as e:
+                    last_error = e
+                    if attempt < MAX_RETRIES - 1:
+                        delay = RETRY_DELAYS[attempt]
+                        logger.warning(f"DB save attempt {attempt + 1} failed for {follower_id}/{role}, retrying in {delay}s: {e}")
+                        time.sleep(delay)
+                    else:
+                        logger.error(f"DB save FAILED after {MAX_RETRIES} attempts for {follower_id}/{role}: {e}", exc_info=True)
 
         # Start in background thread - truly non-blocking
         thread = threading.Thread(target=run_in_thread, daemon=True)
         thread.start()
         logger.debug(f"DB save started in background thread for {role}")
+
+    def _sync_lead_to_postgres_fire_and_forget(self, creator_id: str, follower_id: str, purchase_intent_score: float = 0.0):
+        """
+        Fire-and-forget lead sync - uses thread pool to truly not block.
+        FIX P0: sync_json_to_postgres was blocking the response by 3-4 seconds.
+        """
+        import threading
+        import time
+
+        def run_in_thread():
+            try:
+                _t_start = time.time()
+                from api.services.data_sync import sync_json_to_postgres
+                result = sync_json_to_postgres(creator_id, follower_id)
+                _t_end = time.time()
+                if result:
+                    logger.info(f"⏱️ Lead sync completed in {_t_end - _t_start:.2f}s: {follower_id} (score={purchase_intent_score})")
+                else:
+                    logger.debug(f"Lead sync returned None for {follower_id} ({_t_end - _t_start:.2f}s)")
+            except Exception as e:
+                logger.error(f"Lead sync FAILED for {follower_id}: {e}", exc_info=True)
+
+        # Start in background thread - truly non-blocking
+        thread = threading.Thread(target=run_in_thread, daemon=True)
+        thread.start()
+        logger.debug(f"Lead sync started in background thread for {follower_id}")
 
     # Class-level cache for system prompts and configs (shared across instances)
     _system_prompt_cache: Dict[str, str] = {}
@@ -1172,36 +1319,311 @@ class DMResponderAgent:
 
             return {"text": intro + "\n\n".join(formatted_links) + outro}
 
-    def _classify_intent(self, message: str) -> tuple:
-        """Clasificar intención del mensaje por keywords"""
+    def _get_last_bot_message(self, conversation_history: List[dict]) -> Optional[str]:
+        """Obtiene el último mensaje del bot (assistant) del historial.
+
+        Args:
+            conversation_history: Lista de mensajes [{role: 'user'|'assistant', content: '...'}]
+
+        Returns:
+            El contenido del último mensaje del assistant, o None si no hay.
+        """
+        if not conversation_history:
+            return None
+
+        # Buscar desde el final hacia atrás
+        for msg in reversed(conversation_history):
+            if msg.get("role") == "assistant":
+                return msg.get("content", "")
+
+        return None
+
+    def _extract_known_info(self, history: List[dict]) -> List[str]:
+        """Extrae información que el usuario ya proporcionó en la conversación.
+
+        Returns:
+            Lista de strings con la información conocida
+        """
+        import re
+        known = []
+        seen = set()  # Evitar duplicados
+
+        for msg in history:
+            if msg.get("role") != "user":
+                continue
+            content = msg.get("content", "").lower()
+
+            # Detectar nombre
+            match = re.search(r'(?:soy|me llamo|mi nombre es)\s+(\w+)', content)
+            if match and "nombre" not in seen:
+                known.append(f"Nombre: {match.group(1).title()}")
+                seen.add("nombre")
+
+            # Detectar profesión
+            match = re.search(r'(?:trabajo como|soy|trabajo de)\s+([\w\s]+?)(?:\.|,|$)', content)
+            if match and "profesion" not in seen:
+                prof = match.group(1).strip()
+                if len(prof) > 2 and len(prof) < 30:
+                    known.append(f"Profesión: {prof}")
+                    seen.add("profesion")
+
+            # Detectar presupuesto
+            match = re.search(r'(?:presupuesto|gastar|pagar)[^0-9]*(\d+)\s*[€$]?', content)
+            if match and "presupuesto" not in seen:
+                known.append(f"Presupuesto: {match.group(1)}€")
+                seen.add("presupuesto")
+
+            # Detectar interés específico
+            interests = ['ansiedad', 'estrés', 'meditación', 'yoga', 'coaching', 'curso']
+            for interest in interests:
+                if interest in content and f"interes_{interest}" not in seen:
+                    known.append(f"Interés: {interest}")
+                    seen.add(f"interes_{interest}")
+
+            # Detectar objeción de precio
+            if any(kw in content for kw in ['caro', 'muy caro', 'precio alto', 'no puedo pagar']):
+                if "objecion_precio" not in seen:
+                    known.append("Objeción mencionada: precio")
+                    seen.add("objecion_precio")
+
+            # Detectar objeción de tiempo
+            if any(kw in content for kw in ['no tengo tiempo', 'ocupado', 'sin tiempo']):
+                if "objecion_tiempo" not in seen:
+                    known.append("Objeción mencionada: tiempo")
+                    seen.add("objecion_tiempo")
+
+            # Detectar situación personal
+            if 'hijo' in content and "hijos" not in seen:
+                known.append("Situación: tiene hijos")
+                seen.add("hijos")
+
+        return known
+
+    def _extract_conversation_topic(self, history: List[dict]) -> Optional[str]:
+        """Extrae el tema principal de la conversación.
+
+        Returns:
+            El tema principal o None si no se detecta
+        """
+        topics_mentioned = []
+
+        topic_keywords = {
+            'ansiedad': ['ansiedad', 'ansioso', 'nervios', 'estrés', 'estres'],
+            'meditación': ['meditación', 'meditacion', 'meditar', 'mindfulness', 'respiración'],
+            'coaching': ['coaching', 'coach', 'sesión', 'sesion', 'acompañamiento'],
+            'curso': ['curso', 'programa', 'formación', 'formacion', 'módulos', 'modulos'],
+            'yoga': ['yoga', 'posturas', 'asanas'],
+            'precio': ['precio', 'cuesta', 'vale', 'pagar', 'euros', '€'],
+            'llamada': ['llamada', 'agendar', 'videollamada', 'reunión', 'reunion'],
+        }
+
+        for msg in history:
+            content = msg.get("content", "").lower()
+            for topic, keywords in topic_keywords.items():
+                if any(kw in content for kw in keywords):
+                    topics_mentioned.append(topic)
+
+        if topics_mentioned:
+            # Retornar el tema más frecuente (excluir 'precio' si hay otro)
+            from collections import Counter
+            counts = Counter(topics_mentioned)
+            # Si el tema más común es 'precio' y hay otros, preferir los otros
+            most_common = counts.most_common()
+            if most_common[0][0] == 'precio' and len(most_common) > 1:
+                return most_common[1][0]
+            return most_common[0][0]
+
+        return None
+
+    def _detect_meta_message(self, message: str, history: List[dict]) -> Optional[Dict[str, Any]]:
+        """Detecta cuando el usuario hace referencia a la conversación misma.
+
+        Detecta patrones como:
+        - "ya te lo dije" → Usuario quiere que recordemos algo
+        - "revisa el chat" → Usuario frustrado porque repetimos
+        - "no me entiendes" → Usuario frustrado
+
+        Args:
+            message: Mensaje actual del usuario
+            history: Historial de conversación
+
+        Returns:
+            Dict con {action: str, context: str} o None si no es meta-mensaje
+        """
+        msg_lower = message.lower().strip()
+
+        # === PATRONES: "Revisa lo que dije" ===
+        review_patterns = [
+            "ya te lo dije", "te lo dije", "ya te dije",
+            "revisa el chat", "lee el chat", "mira el chat",
+            "te lo acabo de decir", "lo acabo de decir",
+            "ya te lo he dicho", "te lo he dicho",
+            "lee arriba", "mira arriba", "scroll up",
+            "ya lo mencioné", "ya lo mencione", "te lo comenté",
+            "como te dije antes", "como ya te dije"
+        ]
+
+        if any(p in msg_lower for p in review_patterns):
+            # Buscar el último mensaje relevante del usuario (no el actual)
+            user_messages = [m for m in history if m.get("role") == "user"]
+            if len(user_messages) >= 1:
+                # Retornar el penúltimo mensaje del usuario si existe
+                previous_msg = user_messages[-1].get("content", "") if len(user_messages) >= 1 else ""
+                return {
+                    "action": "REVIEW_HISTORY",
+                    "context": previous_msg,
+                    "instruction": f"El usuario me pide que recuerde lo que dijo antes: '{previous_msg[:100]}'"
+                }
+
+        # === PATRONES: Frustración ===
+        frustration_patterns = [
+            "no me entiendes", "no entiendes", "no me escuchas",
+            "eres un bot", "habla con alguien", "persona real",
+            "no sirves", "inútil", "no ayudas", "qué malo"
+        ]
+
+        if any(p in msg_lower for p in frustration_patterns):
+            return {
+                "action": "USER_FRUSTRATED",
+                "context": message,
+                "instruction": "Usuario frustrado - responder con empatía y ofrecer ayuda clara"
+            }
+
+        # === PATRONES: Repetición pedida ===
+        repeat_patterns = [
+            "repite", "otra vez", "no entendí", "no entendi",
+            "puedes repetir", "me lo repites", "dilo de nuevo"
+        ]
+
+        if any(p in msg_lower for p in repeat_patterns):
+            # Buscar última respuesta del bot
+            bot_messages = [m for m in history if m.get("role") == "assistant"]
+            if bot_messages:
+                last_bot = bot_messages[-1].get("content", "")
+                return {
+                    "action": "REPEAT_REQUESTED",
+                    "context": last_bot,
+                    "instruction": f"Usuario pide repetición. Mi último mensaje fue: '{last_bot[:100]}'"
+                }
+
+        # === FIX MEMORIA: Referencias implícitas al contexto ===
+        # "Por eso necesito flexibilidad" → conectar con lo que dijo antes
+        import re
+        implicit_patterns = [
+            r'^por eso\b', r'^por esa raz[oó]n', r'^debido a eso',
+            r'^entonces\b', r'^es por eso', r'^por lo que te',
+            r'^como te dec[íi]a', r'^lo que pasa es',
+            r'^el tema es', r'^la cosa es', r'^el problema es',
+        ]
+
+        for pattern in implicit_patterns:
+            if re.match(pattern, msg_lower):
+                # Buscar contexto relevante de mensajes anteriores
+                user_messages = [m for m in history if m.get("role") == "user"]
+                if len(user_messages) >= 1:
+                    # Buscar el mensaje anterior que da contexto
+                    previous_context = user_messages[-1].get("content", "")
+                    return {
+                        "action": "IMPLICIT_REFERENCE",
+                        "context": previous_context,
+                        "instruction": f"Usuario hace referencia implícita a lo que dijo antes: '{previous_context[:100]}'"
+                    }
+
+        # === FIX FRUSTRACIÓN: Detección de sarcasmo ===
+        sarcasm_patterns = [
+            r'como si', r'seguro que s[íi]', r'ya ver[áa]s',
+            r'aj[áa]', r'ya ya', r'qu[ée] gracioso',
+            r's[íi].*(?:claro|seguro).*no', r'claro.*como si',
+            r'obvio.*que no', r'seguro.*(?:vas|puedes|sabes)',
+            r'otra vez.*(?:igual|lo mismo)',
+        ]
+
+        for pattern in sarcasm_patterns:
+            if re.search(pattern, msg_lower):
+                return {
+                    "action": "SARCASM_DETECTED",
+                    "context": message,
+                    "instruction": "Usuario usando sarcasmo/ironía - responder con empatía, no literal"
+                }
+
+        return None
+
+    def _classify_intent(self, message: str, conversation_history: Optional[List[dict]] = None) -> tuple:
+        """Clasificar intención del mensaje por keywords.
+
+        Args:
+            message: Mensaje del usuario
+            conversation_history: Historial de conversación (opcional) para context-aware classification
+        """
         msg = message.lower()
 
         # === CORRECTION - MÁXIMA PRIORIDAD ===
-        # Cuando el usuario corrige un malentendido
+        # Cuando el usuario corrige un malentendido O pide que revise el historial
         correction_patterns = [
+            # Correcciones de malentendido
             'no te he dicho', 'no he dicho', 'no quiero comprar', 'no quiero pagar',
             'me has entendido mal', 'no es eso', 'no me refiero', 'no era eso',
             'no te estoy diciendo', 'no estoy diciendo', 'malentendido',
             'no he pedido', 'no te pedi', 'no te pedí', 'yo no dije',
-            'no dije eso', 'no es lo que dije', 'no quise decir'
+            'no dije eso', 'no es lo que dije', 'no quise decir',
+            # Meta-mensajes: usuario pide que revise el historial
+            'ya te lo dije', 'te lo dije', 'ya te dije', 'te lo acabo de decir',
+            'ya te lo he dicho', 'te lo he dicho', 'como te dije', 'como te comenté',
+            'revisa el chat', 'mira el chat', 'lee el chat', 'lee arriba',
+            'mira arriba', 'scroll up', 'lo que te dije', 'ya lo dije',
+            'ya te expliqué', 'ya te explique', 'te acabo de decir',
+            'no me escuchas', 'no lees', 'no prestas atención'
         ]
         if any(p in msg for p in correction_patterns):
             return Intent.CORRECTION, 0.95
 
-        # === ACKNOWLEDGMENT - Before purchase intent ===
-        # Simple confirmations that don't indicate purchase intent
-        # Only match if message is SHORT (< 20 chars) or ONLY acknowledgment words
-        acknowledgment_words = ['ok', 'okey', 'okay', 'vale', 'entendido', 'de acuerdo',
-                                'perfecto', 'bien', 'bueno', 'claro', 'ya', 'ah ok',
-                                'ah vale', 'ah bien', 'entiendo', 'comprendo', 'sí', 'si']
-        msg_stripped = msg.strip()
-        # Only classify as acknowledgment if it's a short, simple response
-        if len(msg_stripped) < 25:
-            if any(msg_stripped == w or msg_stripped == w + '!' or msg_stripped == w + '.' for w in acknowledgment_words):
-                return Intent.ACKNOWLEDGMENT, 0.90
-            # Also match if starts with acknowledgment and nothing else substantial
-            if any(msg_stripped.startswith(w) and len(msg_stripped) < 15 for w in acknowledgment_words):
-                return Intent.ACKNOWLEDGMENT, 0.85
+        # === CONTEXT-AWARE ACKNOWLEDGMENT ===
+        # Cuando el usuario responde con "Si", "Vale", "Ok", etc., analizamos
+        # el contexto de la conversación para clasificar mejor la intención.
+        #
+        # ANTES: "Si" → ACKNOWLEDGMENT → respuesta genérica "¿En qué más puedo ayudarte?"
+        # AHORA: "Si" después de "¿Quieres saber más?" → INTEREST_SOFT → continúa conversación
+        #
+        if is_short_affirmation(message):
+            # Si tenemos historial, analizar qué preguntó el bot
+            if conversation_history:
+                last_bot_msg = self._get_last_bot_message(conversation_history)
+                if last_bot_msg:
+                    analyzer = get_bot_question_analyzer()
+                    question_type, q_confidence = analyzer.analyze_with_confidence(last_bot_msg)
+
+                    logger.info(f"Context-aware: '{message}' after bot question type={question_type.value}")
+
+                    # Mapear tipo de pregunta del bot → intent del usuario
+                    if question_type == QuestionType.INTEREST:
+                        logger.info(f"→ Context: Bot asked about interest → INTEREST_SOFT")
+                        return Intent.INTEREST_SOFT, 0.88
+
+                    elif question_type == QuestionType.PURCHASE:
+                        logger.info(f"→ Context: Bot asked about purchase → INTEREST_STRONG")
+                        return Intent.INTEREST_STRONG, 0.90
+
+                    elif question_type == QuestionType.BOOKING:
+                        logger.info(f"→ Context: Bot asked about booking → BOOKING")
+                        return Intent.BOOKING, 0.88
+
+                    elif question_type == QuestionType.PAYMENT_METHOD:
+                        logger.info(f"→ Context: Bot asked about payment → INTEREST_STRONG")
+                        return Intent.INTEREST_STRONG, 0.88
+
+                    elif question_type == QuestionType.INFORMATION:
+                        # Bot hizo pregunta abierta, usuario confirma → continuar flujo
+                        logger.info(f"→ Context: Bot asked open question → INTEREST_SOFT")
+                        return Intent.INTEREST_SOFT, 0.80
+
+                    elif question_type == QuestionType.CONFIRMATION:
+                        # Bot preguntó si quedó claro → usuario confirma → ACKNOWLEDGMENT (OK aquí)
+                        logger.info(f"→ Context: Bot asked for confirmation → ACKNOWLEDGMENT")
+                        return Intent.ACKNOWLEDGMENT, 0.85
+
+            # Sin contexto o tipo desconocido → ACKNOWLEDGMENT original
+            logger.info(f"→ No context or unknown question type → ACKNOWLEDGMENT")
+            return Intent.ACKNOWLEDGMENT, 0.85
 
         # Escalación (prioridad máxima después de corrections)
         # Patrones por defecto para detectar solicitud de humano
@@ -1692,7 +2114,7 @@ IMPORTANTE: Las instrucciones anteriores son OBLIGATORIAS y tienen prioridad sob
             price_text = f"{price}€" if price > 0 else "GRATIS"
             benefits = p.get('features', p.get('benefits', []))[:3]
             benefits_text = ", ".join(benefits) if benefits else ""
-            url = p.get('payment_link', p.get('url', ''))
+            url = get_valid_payment_url(p)
             product_name = p.get('name', 'Producto')
 
             products_text += f"""
@@ -1784,6 +2206,33 @@ IMPORTANTE: Las instrucciones anteriores son OBLIGATORIAS y tienen prioridad sob
             logger.info(f"=== FINAL ALT_PAYMENT_TEXT ===\n{alt_payment_text}")
         else:
             logger.info("No alternative payment methods enabled")
+
+        # === BOOKING LINKS SECTION ===
+        # Add booking/reservation links to system prompt so LLM knows the real URLs
+        booking_links_text = ""
+        try:
+            booking_links = self._load_booking_links()
+            if booking_links:
+                frontend_url = os.getenv("FRONTEND_URL", "https://clonnect.vercel.app")
+                booking_links_text = "\nSERVICIOS DE RESERVA/CITAS DISPONIBLES:\n"
+                for link in booking_links:
+                    service_id = link.get('id', '')
+                    title = link.get('title', 'Llamada')
+                    duration = link.get('duration_minutes', 30)
+                    price = link.get('price', 0)
+                    price_text = f"{price}€" if price > 0 else "GRATIS"
+                    booking_url = f"{frontend_url}/book/{self.creator_id}/{service_id}"
+                    booking_links_text += f"- {title} ({duration} min) - {price_text}: {booking_url}\n"
+
+                booking_links_text += "\n📅 REGLA PARA RESERVAS:\n"
+                booking_links_text += "- Cuando el usuario quiera agendar/reservar/llamada → da el LINK REAL de arriba\n"
+                booking_links_text += "- NUNCA digas '[tu enlace de reserva]' o '[link]' - usa el URL completo\n"
+                booking_links_text += "- Ejemplo: 'Aquí puedes reservar: https://clonnect.vercel.app/book/...'\n"
+                logger.info(f"Added {len(booking_links)} booking links to system prompt")
+            else:
+                logger.info("No booking links configured for system prompt")
+        except Exception as e:
+            logger.warning(f"Could not load booking links for prompt: {e}")
 
         # Ejemplos de respuestas
         examples_text = ""
@@ -1882,7 +2331,7 @@ IMPORTANTE: Las instrucciones anteriores son OBLIGATORIAS y tienen prioridad sob
         # Get first payment link for examples
         first_payment_link = ""
         for p in self.products:
-            link = p.get('payment_link', p.get('url', ''))
+            link = get_valid_payment_url(p)
             if link:
                 first_payment_link = link
                 break
@@ -2029,12 +2478,140 @@ MIS PRODUCTOS:
 LINKS DE PAGO:
 {payment_links_text}
 {alt_payment_text}
+{booking_links_text}
+
+=== REGLAS DE COHERENCIA CONVERSACIONAL (CRÍTICO) ===
+
+ANTES de responder, SIEMPRE revisa la CONVERSACIÓN ANTERIOR:
+
+1. Si el usuario dice "sí", "vale", "ok", "claro":
+   → Responde a la ÚLTIMA PREGUNTA que TÚ hiciste
+   → NO preguntes "¿en qué más puedo ayudarte?"
+   → Ejemplo: Si preguntaste "¿quieres saber más sobre el curso?" y dice "sí" → explica el curso
+
+2. Si el usuario dice "ya te lo dije", "te lo acabo de decir", "revisa el chat":
+   → BUSCA en el historial qué dijo antes
+   → Discúlpate brevemente y responde basándote en lo que YA dijo
+   → Ejemplo: "Perdona, tienes razón. Mencionaste que te interesa [X]. Te cuento..."
+
+3. NUNCA preguntes algo que el usuario YA respondió
+   → Si ya dijo su nombre, no preguntes cómo se llama
+   → Si ya dijo qué le interesa, no preguntes qué necesita
+
+4. Mantén el HILO de la conversación
+   → No cambies de tema abruptamente
+   → Cada respuesta debe conectar con lo anterior
+
+5. Si genuinamente pierdes el contexto:
+   → Di: "Perdona, quiero asegurarme de entenderte bien. ¿Me confirmas que te interesa [último tema]?"
+
+=== FIN REGLAS DE COHERENCIA ===
+
+=== REGLAS ANTI-REPETICIÓN (OBLIGATORIO) ===
+
+NUNCA repitas lo mismo que dijiste antes. Antes de responder:
+
+1. REVISA tus respuestas anteriores en el historial
+2. Si ya explicaste algo, NO lo vuelvas a explicar completo
+   → Ejemplo MAL: Usuario pregunta precio 2 veces → das toda la info otra vez
+   → Ejemplo BIEN: "Como te comenté, son 297€. ¿Quieres que te pase el link?"
+
+3. USA VARIACIÓN en tus respuestas:
+   → Si ya dijiste "¿te cuento más?", ahora di "¿quieres que te explique?"
+   → Si ya saludaste con "¡Hola!", ahora usa "¡Hey!" o "¿Qué tal?"
+   → Nunca repitas la misma frase de cierre 2 veces seguidas
+
+4. NO repitas beneficios que ya mencionaste
+   → Si ya hablaste de "acceso de por vida", menciona otro beneficio
+   → Cada mensaje debe aportar algo NUEVO
+
+5. Referencia lo anterior en vez de repetir:
+   → "Como te dije antes...", "Ya te comenté que...", "Recuerda que..."
+
+=== FIN REGLAS ANTI-REPETICIÓN ===
+
+=== CIERRE PROACTIVO PARA LEADS CALIENTES (CRÍTICO PARA CONVERSIÓN) ===
+
+Cuando detectes ALTA INTENCIÓN de compra, actúa PROACTIVAMENTE:
+
+SEÑALES DE ALTA INTENCIÓN (cualquiera de estas):
+- "Me interesa", "lo quiero", "¿cómo pago?"
+- Preguntas específicas sobre fechas, horarios, acceso
+- Ha preguntado precio Y sigue en la conversación
+- Menciona que ya vio tu contenido/perfil
+- Compara con otras opciones (indica decisión cercana)
+
+CUANDO DETECTES ALTA INTENCIÓN → CIERRA LA VENTA:
+
+1. NO sigas dando más info - ya tiene suficiente
+2. Ofrece el SIGUIENTE PASO CONCRETO:
+   → "¿Te paso el link para que reserves tu plaza?"
+   → "¿Empezamos? Te lo envío ahora mismo"
+   → "¿Por dónde prefieres pagar: tarjeta, Bizum o transferencia?"
+
+3. Crea URGENCIA NATURAL (sin ser agresivo):
+   → "Hay pocas plazas disponibles"
+   → "Este precio es por tiempo limitado"
+   → "Si empiezas hoy, ya podrías ver resultados esta semana"
+
+4. ELIMINA FRICCIÓN:
+   → Si tiene dudas, resuélvelas rápido y vuelve al cierre
+   → Ofrece garantía: "Si no te convence, te devuelvo el dinero"
+   → Simplifica: "Es muy fácil, solo tienes que..."
+
+EJEMPLOS DE CIERRE PROACTIVO:
+- Usuario: "Me interesa el curso"
+  TÚ: "¡Genial! ¿Te paso el link ahora para que reserves tu plaza? 🚀"
+
+- Usuario: "¿El curso incluye soporte?"
+  TÚ: "Sí, tienes soporte directo conmigo. ¿Empezamos? Te paso el acceso"
+
+- Usuario: "Lo voy a pensar"
+  TÚ: "Claro, tómate tu tiempo. Pero te cuento: el precio actual solo está disponible esta semana. ¿Hay algo que te frene?"
+
+PROHIBIDO cuando hay alta intención:
+- Seguir listando beneficios innecesariamente
+- Preguntar "¿tienes alguna otra duda?"
+- Esperar a que el usuario pida el link
+- Dar largas sin ofrecer el siguiente paso
+
+=== FIN CIERRE PROACTIVO ===
 
 ---
 
 {format_instruction}
 
 {examples_section}
+
+🎯 PERSONALIZACIÓN (MUY IMPORTANTE):
+Para que tus respuestas NO suenen genéricas, USA la información del usuario:
+
+1. SI CONOCES SUS INTERESES:
+   - Menciona el tema específico que le interesa
+   - Ejemplo: "Vi que te interesa [tema], justo tengo algo para eso..."
+
+2. SI YA HABLARON ANTES:
+   - Referencia conversaciones previas: "Como te comenté antes..."
+   - NO repitas info que ya diste
+
+3. SI MOSTRÓ INTERÉS EN UN PRODUCTO:
+   - Habla de ESE producto específicamente
+   - Usa beneficios relevantes para SU situación
+
+4. SI ES UN LEAD CALIENTE (alta intención):
+   - Ve más directo al grano
+   - Ofrece el siguiente paso concreto
+
+5. SIEMPRE:
+   - Usa su nombre de forma natural (no en cada mensaje)
+   - Adapta el tono a cómo te escribió
+   - Haz preguntas sobre SU situación específica
+
+❌ GENÉRICO: "¿En qué puedo ayudarte?"
+✅ PERSONALIZADO: "Vi que preguntaste sobre [tema]. ¿Qué es lo que más te interesa saber?"
+
+❌ GENÉRICO: "Tenemos varias opciones..."
+✅ PERSONALIZADO: "Para lo que necesitas, te recomendaría [producto específico]"
 
 EJEMPLOS DE CÓMO NO RESPONDER (PROHIBIDO):
 
@@ -2105,35 +2682,75 @@ RECUERDA: NO suenes como un bot corporativo. Sé natural y cercano. NO des datos
         history_text = ""
         if conversation_history:
             history_text = "\nCONVERSACION RECIENTE:\n"
-            for msg in conversation_history[-4:]:
+            # 10 mensajes = 5 intercambios completos para mejor coherencia
+            for msg in conversation_history[-10:]:
                 role = "Usuario" if msg.get("role") == "user" else "Yo"
                 history_text += f"{role}: {msg.get('content', '')}\n"
 
         # Extraer SOLO el primer nombre
         first_name = get_first_name(username)
 
-        # Construir contexto del usuario (memoria)
+        # Construir contexto del usuario (memoria) con hints de personalización
         user_context = ""
+        personalization_hints = []
+
         if follower:
-            user_context = f"\nINFORMACION DEL USUARIO QUE CONOZCO:"
+            user_context = f"\n📋 INFORMACIÓN DEL USUARIO (USA ESTO PARA PERSONALIZAR):"
             user_context += f"\n- Nombre: {first_name}"
-            user_context += f"\n- Total de mensajes: {follower.total_messages}"
+
+            # Status del usuario con hint de cómo tratarlo
+            total_msgs = follower.total_messages or 0
+            if total_msgs == 0:
+                user_context += f"\n- Estado: PRIMERA CONVERSACIÓN"
+                personalization_hints.append("Es su primer mensaje, preséntate brevemente y pregunta sobre su situación")
+            elif total_msgs < 3:
+                user_context += f"\n- Estado: Conversación nueva ({total_msgs} mensajes previos)"
+                personalization_hints.append("Aún no lo conoces bien, haz preguntas para entender qué necesita")
+            else:
+                user_context += f"\n- Estado: Conocido ({total_msgs} mensajes previos)"
+                personalization_hints.append("Ya se conocen, sé más directo y referencia conversaciones anteriores")
+
+            # Intereses con hint
             if follower.interests:
-                user_context += f"\n- Intereses: {', '.join(follower.interests[:3])}"
+                interests_str = ', '.join(follower.interests[:3])
+                user_context += f"\n- Intereses detectados: {interests_str}"
+                personalization_hints.append(f"Menciona algo sobre {follower.interests[0]} que le interesa")
+
+            # Productos discutidos con hint
             if follower.products_discussed:
-                user_context += f"\n- Productos que le interesan: {', '.join(follower.products_discussed[:3])}"
+                products_str = ', '.join(follower.products_discussed[:3])
+                user_context += f"\n- Productos que le interesan: {products_str}"
+                personalization_hints.append(f"Enfócate en {follower.products_discussed[0]}, ya mostró interés")
+
+            # Status de cliente/lead con hint
             if follower.is_customer:
-                user_context += f"\n- ES CLIENTE (ya ha comprado)"
+                user_context += f"\n- 🌟 ES CLIENTE (ya ha comprado)"
+                personalization_hints.append("Trátalo como cliente VIP, pregunta cómo le va con lo que compró")
             elif follower.is_lead:
-                user_context += f"\n- Es un lead interesado (intencion de compra: {int(follower.purchase_intent_score * 100)}%)"
+                intent_pct = int((follower.purchase_intent_score or 0) * 100)
+                user_context += f"\n- 🔥 Es LEAD caliente (intención: {intent_pct}%)"
+                if intent_pct >= 70:
+                    personalization_hints.append("Está muy interesado, ofrece el siguiente paso concreto")
+                elif intent_pct >= 40:
+                    personalization_hints.append("Tiene interés, resuelve sus dudas y guíalo al siguiente paso")
+                else:
+                    personalization_hints.append("Interés inicial, haz preguntas para entender qué busca")
+
             # Información de contacto alternativo
             if follower.alternative_contact:
                 user_context += f"\n- Contacto alternativo: {follower.alternative_contact} ({follower.alternative_contact_type})"
                 user_context += f"\n  → YA TENEMOS SU CONTACTO, NO lo pidas de nuevo"
             elif follower.contact_requested:
                 user_context += f"\n- Ya pedimos su contacto pero no lo dio, NO insistas"
-            elif (follower.total_messages or 0) >= 3 and (follower.purchase_intent_score or 0) >= 0.3:
+            elif total_msgs >= 3 and (follower.purchase_intent_score or 0) >= 0.3:
                 user_context += f"\n- 📱 BUEN MOMENTO para pedir WhatsApp/Telegram (interés detectado)"
+
+            # Agregar hints de personalización
+            if personalization_hints:
+                user_context += f"\n\n💡 CÓMO PERSONALIZAR ESTA RESPUESTA:"
+                for hint in personalization_hints:
+                    user_context += f"\n  → {hint}"
+
             user_context += "\n"
 
         # Construir contexto de naturalidad - qué NO repetir
@@ -2195,7 +2812,7 @@ MENSAJE DEL USUARIO: "{message}"
 PRODUCTO RELEVANTE PARA MENCIONAR:
 - Nombre: {product.get('name')}
 - Precio: {price_text}
-- Link: {product.get('payment_link', product.get('url', ''))}
+- Link: {get_valid_payment_url(product)}
 - Beneficios: {', '.join(benefits)}
 """
             else:
@@ -2220,31 +2837,41 @@ USA ESTA RESPUESTA PARA LA OBJECION (adaptala a tu tono):
 "{objection_handler}"
 """
 
-        # Instrucciones según intent
+        # Instrucciones según intent - con hints de personalización y CIERRE PROACTIVO
         instructions = {
-            Intent.GREETING: "Saluda de forma cercana y VARIADA (no uses siempre 'Ey!'). Pregunta en que puedes ayudar.",
-            Intent.INTEREST_STRONG: "El usuario QUIERE COMPRAR. Dale el link directamente y destaca 2-3 beneficios clave.",
-            Intent.INTEREST_SOFT: "Hay interes. Pregunta que necesita y menciona sutilmente el producto.",
-            Intent.ACKNOWLEDGMENT: "El usuario solo confirma/entiende. NO asumas que quiere comprar. Pregunta '¿Te gustaria saber mas?' o '¿En que mas puedo ayudarte?'",
-            Intent.CORRECTION: "El usuario corrige un malentendido. Disculpate brevemente y pregunta en que puedes ayudar realmente.",
-            Intent.OBJECTION_PRICE: "Maneja la objecion de precio. Se empatico, menciona garantia/valor.",
-            Intent.OBJECTION_TIME: "Maneja la objecion de tiempo. Destaca que es rapido/flexible.",
-            Intent.OBJECTION_DOUBT: "Resuelve dudas sin presionar. Ofrece mas info.",
-            Intent.OBJECTION_LATER: "Maneja la objecion de 'luego'. Crea urgencia sutil, menciona que es el mejor momento.",
-            Intent.OBJECTION_WORKS: "Maneja la objecion de resultados. Comparte casos de exito, garantia, testimonios.",
-            Intent.OBJECTION_NOT_FOR_ME: "Maneja la objecion de 'no es para mi'. Empatiza y pregunta: '¿Qué es lo que más te preocupa?' o '¿Qué te hace dudar?'. NO envíes links de pago ni Calendly. Solo escucha y resuelve dudas.",
-            Intent.OBJECTION_COMPLICATED: "Maneja la objecion de complejidad. Destaca que es facil y hay soporte.",
-            Intent.OBJECTION_ALREADY_HAVE: "Maneja la objecion de 'ya tengo algo'. Diferencia tu producto, valor unico.",
-            Intent.QUESTION_PRODUCT: "Responde la pregunta sobre el producto/programa. USA el CONTENIDO RELEVANTE del creador si está disponible en el prompt. Menciona el precio si aplica. Si preguntan por metodología/filosofía/programa, responde con información REAL de los posts del creador, no genérica.",
-            Intent.QUESTION_GENERAL: "Explica brevemente quien eres y que haces. USA el CONTENIDO RELEVANTE del creador si está disponible.",
-            Intent.LEAD_MAGNET: "Ofrece el recurso GRATIS con entusiasmo y da el link.",
-            Intent.THANKS: "Agradece genuinamente y ofrece mas ayuda.",
-            Intent.GOODBYE: "Despidete de forma calida, deja la puerta abierta.",
-            Intent.SUPPORT: "Muestra empatia y ofrece ayuda concreta.",
-            Intent.OTHER: "Responde de forma util y cercana."
+            Intent.GREETING: "Saluda de forma cercana y VARIADA. Si ya conoces al usuario, pregunta sobre algo específico que discutieron. Si es nuevo, pregunta sobre SU situación/necesidad específica.",
+            Intent.INTEREST_STRONG: "🔥 EL USUARIO QUIERE COMPRAR - CIERRA AHORA: (1) Confirma brevemente el valor, (2) Da el link de pago INMEDIATAMENTE, (3) Crea urgencia: '¿Te paso el acceso ahora?' NO sigas explicando beneficios - ¡CIERRA!",
+            Intent.INTEREST_SOFT: "Hay interés. AVANZA hacia la venta: Responde su duda en 1 frase, luego pregunta '¿Te cuento más o prefieres que te pase el acceso directo?'. Siempre ofrece el siguiente paso.",
+            Intent.ACKNOWLEDGMENT: "El usuario confirma. Si confirmó interés → OFRECE el siguiente paso hacia la compra. NO hagas preguntas abiertas genéricas.",
+            Intent.CORRECTION: "El usuario corrige. Discúlpate brevemente y pregunta específicamente qué es lo que busca.",
+            Intent.OBJECTION_PRICE: "Maneja precio CERRANDO: (1) Justifica el valor en 1 frase, (2) Ofrece garantía, (3) Pregunta '¿Empezamos?' o '¿Te paso el link?'. NO te quedes en la objeción.",
+            Intent.OBJECTION_TIME: "Maneja tiempo: (1) Muestra flexibilidad en 1 frase, (2) Ofrece empezar: '¿Quieres que te pase el acceso y empiezas cuando puedas?'",
+            Intent.OBJECTION_DOUBT: "Resuelve la duda en 1-2 frases cortas, luego CIERRA: '¿Te queda más claro? ¿Empezamos?'",
+            Intent.OBJECTION_LATER: "Maneja 'luego' creando urgencia natural: 'El precio actual es por tiempo limitado. ¿Hay algo que te frene para empezar hoy?'",
+            Intent.OBJECTION_WORKS: "Comparte 1 resultado específico, luego CIERRA: 'Y podrías tener resultados similares. ¿Empezamos?'",
+            Intent.OBJECTION_NOT_FOR_ME: "Pregunta QUÉ lo hace pensar eso, escucha, y reconecta con valor específico para SU caso.",
+            Intent.OBJECTION_COMPLICATED: "Simplifica en 1 frase, luego: 'Es más fácil de lo que parece. ¿Te paso el acceso y te guío?'",
+            Intent.OBJECTION_ALREADY_HAVE: "Diferencia en 1 frase, pregunta resultados de lo que tiene, y muestra por qué esto es mejor.",
+            Intent.QUESTION_PRODUCT: "Responde en 2 frases máximo, luego AVANZA: '¿Quieres que te pase el acceso?' o '¿Te cuento algo más?'",
+            Intent.QUESTION_GENERAL: "Responde brevemente y conecta con el producto: 'Por cierto, esto lo enseño en detalle en el curso...'",
+            Intent.LEAD_MAGNET: "Ofrece el recurso GRATIS e incluye CTA hacia el producto de pago.",
+            Intent.THANKS: "Agradece brevemente y ofrece el siguiente paso: '¿Hay algo más en lo que pueda ayudarte o empezamos?'",
+            Intent.GOODBYE: "Despídete, crea apertura futura: 'Si decides avanzar, aquí estoy. ¡Éxitos!'",
+            Intent.SUPPORT: "Muestra empatía breve y resuelve. Si es sobre el producto, aprovecha para cerrar.",
+            Intent.OTHER: "Responde de forma útil y siempre ofrece el siguiente paso hacia la conversión."
         }
 
-        prompt += f"\nINSTRUCCION: {instructions.get(intent, instructions[Intent.OTHER])}"
+        # High-intent boost - add conversion pressure when purchase intent is high
+        conversion_boost = ""
+        if follower:
+            intent_score = follower.purchase_intent_score or 0
+            if intent_score >= 0.7:
+                conversion_boost = "\n\n🔥 ALERTA - LEAD MUY CALIENTE: Tiene {:.0%} de intención de compra. CIERRA LA VENTA AHORA. Ofrece el link de pago directamente.".format(intent_score)
+            elif intent_score >= 0.4:
+                conversion_boost = "\n\n⚡ LEAD CON INTERÉS: Tiene {:.0%} de intención. Avanza hacia el cierre - no hagas preguntas abiertas, ofrece el siguiente paso concreto.".format(intent_score)
+
+        prompt += f"\nINSTRUCCION: {instructions.get(intent, instructions[Intent.OTHER])}{conversion_boost}"
+        prompt += "\n\n⚠️ RECUERDA: Usa la INFORMACIÓN DEL USUARIO de arriba para personalizar. NO des respuestas genéricas. SIEMPRE ofrece el siguiente paso."
 
         return prompt
 
@@ -2321,7 +2948,7 @@ USA ESTA RESPUESTA PARA LA OBJECION (adaptala a tu tono):
 
             # Also mention card payment if there are product payment links
             if self.products:
-                has_payment_link = any(p.get('payment_link') or p.get('url') for p in self.products)
+                has_payment_link = any(get_valid_payment_url(p) for p in self.products)
                 if has_payment_link:
                     available_methods.append("Tarjeta (te paso el link)")
 
@@ -2472,9 +3099,59 @@ USA ESTA RESPUESTA PARA LA OBJECION (adaptala a tu tono):
             follower.preferred_language = detected_lang
             logger.info(f"Language changed from {old_lang} to {detected_lang} (strong evidence)")
 
-        # Clasificar intent
+        # === META-MESSAGE DETECTION ===
+        # Detectar cuando el usuario hace referencia a la conversación misma
+        # ("ya te lo dije", "revisa el chat", "no me entiendes")
+        meta_result = self._detect_meta_message(message_text, follower.last_messages or [])
+
+        if meta_result:
+            action = meta_result.get("action")
+            context = meta_result.get("context", "")
+            instruction = meta_result.get("instruction", "")
+
+            logger.info(f"Meta-message detected: {action} - {instruction[:50]}...")
+
+            if action == "USER_FRUSTRATED":
+                # Respuesta de recuperación empática
+                response_text = "Perdona si no te he entendido bien. Cuéntame de nuevo qué necesitas y te ayudo ahora mismo."
+                await self._update_memory(follower, message_text, response_text, Intent.OTHER)
+                return DMResponse(
+                    response_text=response_text,
+                    intent=Intent.OTHER,
+                    confidence=0.95,
+                    metadata={"meta_action": "frustrated_recovery"}
+                )
+
+            elif action == "REVIEW_HISTORY":
+                # Inyectar contexto en el mensaje para que el LLM lo vea
+                # El LLM verá esto como parte del mensaje y responderá apropiadamente
+                message_text = f"[CONTEXTO: El usuario me pide que recuerde que antes dijo: '{context[:150]}']\n\nUsuario: {message_text}"
+                logger.info(f"Injected review context into message")
+
+            elif action == "REPEAT_REQUESTED":
+                # Inyectar contexto de repetición
+                message_text = f"[CONTEXTO: El usuario pide que repita. Mi último mensaje fue: '{context[:150]}']\n\nUsuario: {message_text}"
+                logger.info(f"Injected repeat context into message")
+
+            elif action == "IMPLICIT_REFERENCE":
+                # Inyectar contexto de referencia implícita
+                message_text = f"[CONTEXTO PREVIO: El usuario mencionó antes: '{context[:150]}'. Su mensaje actual hace referencia a eso.]\n\nUsuario: {message_text}"
+                logger.info(f"Injected implicit reference context")
+
+            elif action == "SARCASM_DETECTED":
+                # Respuesta empática para sarcasmo
+                response_text = "Entiendo que estás frustrado. Perdona si no te he ayudado bien. ¿Qué puedo hacer para ayudarte de verdad?"
+                await self._update_memory(follower, message_text, response_text, Intent.OTHER)
+                return DMResponse(
+                    response_text=response_text,
+                    intent=Intent.OTHER,
+                    confidence=0.90,
+                    metadata={"meta_action": "sarcasm_recovery"}
+                )
+
+        # Clasificar intent con contexto conversacional
         _t_intent = time.time()
-        intent, confidence = self._classify_intent(message_text)
+        intent, confidence = self._classify_intent(message_text, follower.last_messages)
         logger.info(f"⏱️ _classify_intent took {time.time() - _t_intent:.2f}s")
         logger.info(f"Intent: {intent.value} ({confidence:.0%})")
 
@@ -2543,42 +3220,26 @@ USA ESTA RESPUESTA PARA LA OBJECION (adaptala a tu tono):
                 metadata=metadata
             )
 
-        # === FAST PATH: Acknowledgment (Ok, Vale, Entendido) ===
-        # User just confirms/acknowledges - don't assume purchase intent!
+        # === ACKNOWLEDGMENT: Ahora pasa por flujo normal con LLM ===
+        # ANTES: Fast path con respuesta hardcoded "¿En qué más puedo ayudarte?"
+        # AHORA: El LLM verá el historial y responderá según el contexto
+        # Ejemplo: "Si" después de "¿quieres saber más?" → el LLM explicará el producto
         if intent == Intent.ACKNOWLEDGMENT:
-            logger.info(f"=== ACKNOWLEDGMENT DETECTED - NOT assuming purchase ===")
-            # Use fallback responses for acknowledgment
-            response_text = self._get_fallback_response(Intent.ACKNOWLEDGMENT, follower.preferred_language)
-            await self._update_memory(follower, message_text, response_text, intent)
+            logger.info(f"=== ACKNOWLEDGMENT - procesando con contexto conversacional ===")
+            # NO retornar aquí - continuar al flujo normal del LLM
 
-            return DMResponse(
-                response_text=response_text,
-                intent=intent,
-                action_taken="acknowledge",
-                confidence=confidence,
-                metadata={"acknowledgment": True}
-            )
-
-        # === FAST PATH: Correction (No te he dicho que quiero comprar) ===
-        # User corrects a misunderstanding - apologize and ask how to help
+        # === CORRECTION: Ahora pasa por flujo normal con LLM ===
+        # ANTES: Fast path con respuesta hardcoded "Disculpa la confusión!"
+        # AHORA: El LLM verá el historial y responderá según el contexto
+        # Ejemplo: "ya te lo dije" → el LLM buscará en el historial qué dijo
         if intent == Intent.CORRECTION:
-            logger.info(f"=== CORRECTION DETECTED - apologizing ===")
-            # Use fallback responses for correction
-            response_text = self._get_fallback_response(Intent.CORRECTION, follower.preferred_language)
-            await self._update_memory(follower, message_text, response_text, intent)
-
-            return DMResponse(
-                response_text=response_text,
-                intent=intent,
-                action_taken="clarify",
-                confidence=confidence,
-                metadata={"correction": True}
-            )
+            logger.info(f"=== CORRECTION - procesando con contexto conversacional ===")
+            # NO retornar aquí - continuar al flujo normal del LLM
 
         # Buscar producto relevante
         product = self._get_relevant_product(message_text, intent)
         if product:
-            logger.info(f"Relevant product: {product.get('name')}, payment_link={product.get('payment_link', 'NONE')}")
+            logger.info(f"Relevant product: {product.get('name')}, payment_link={get_valid_payment_url(product) or 'NONE'}")
             if product.get('id') and product.get('id') not in follower.products_discussed:
                 follower.products_discussed.append(product.get('id'))
 
@@ -2618,7 +3279,7 @@ USA ESTA RESPUESTA PARA LA OBJECION (adaptala a tu tono):
         if is_direct_purchase_intent(message_text):
             logger.info(f"=== DIRECT PURCHASE INTENT DETECTED ===")
             logger.info(f"Message: {message_text}")
-            logger.info(f"All products: {[(p.get('name'), p.get('payment_link', 'NONE')) for p in self.products]}")
+            logger.info(f"All products: {[(p.get('name'), get_valid_payment_url(p) or 'NONE') for p in self.products]}")
 
             # Try to find a product with a payment link
             product_url = ""
@@ -2636,7 +3297,7 @@ USA ESTA RESPUESTA PARA LA OBJECION (adaptala a tu tono):
 
             # First try the relevant product
             if product:
-                potential_url = product.get('payment_link', product.get('url', ''))
+                potential_url = get_valid_payment_url(product)
                 if is_valid_link(potential_url):
                     product_url = potential_url
                 product_name = product.get('name', 'el producto')
@@ -2644,7 +3305,7 @@ USA ESTA RESPUESTA PARA LA OBJECION (adaptala a tu tono):
             # If no link, try to find ANY product with a payment link
             if not product_url:
                 for p in self.products:
-                    link = p.get('payment_link', p.get('url', ''))
+                    link = get_valid_payment_url(p)
                     if is_valid_link(link):
                         product_url = link
                         product_name = p.get('name', 'el producto')
@@ -2865,10 +3526,71 @@ USA ESTA RESPUESTA PARA LA OBJECION (adaptala a tu tono):
 
                 # Standard LLM response if CoT not used
                 if not cot_used:
-                    messages = [
-                        {"role": "system", "content": system_prompt},
-                        {"role": "user", "content": user_prompt}
-                    ]
+                    # === FIX NO_REPETIR: Extraer info conocida del usuario ===
+                    known_info = self._extract_known_info(follower.last_messages or [])
+                    if known_info:
+                        known_section = "\n=== INFORMACIÓN YA CONOCIDA DEL USUARIO ===\n"
+                        known_section += "\n".join(f"• {info}" for info in known_info)
+                        known_section += "\n\n⚠️ NO preguntes nada de lo anterior, ya lo sabes.\n"
+                        system_prompt += known_section
+                        logger.info(f"Added known info to prompt: {known_info}")
+
+                    # === FIX COHERENCIA: Extraer tema de conversación ===
+                    topic = self._extract_conversation_topic(follower.last_messages or [])
+                    if topic:
+                        topic_section = f"\n=== TEMA ACTUAL DE LA CONVERSACIÓN ===\n"
+                        topic_section += f"Estamos hablando de: {topic.upper()}\n"
+                        topic_section += f"⚠️ MANTÉN el foco en este tema. No cambies de tema sin razón.\n"
+                        system_prompt += topic_section
+                        logger.info(f"Conversation topic detected: {topic}")
+
+                    # === FIX CONVERSIÓN: Auto-CTA después de varios mensajes ===
+                    total_msgs = follower.total_messages or 0
+                    if total_msgs > 0 and total_msgs % 4 == 0:
+                        cta_section = "\n=== MOMENTO DE AVANZAR ===\n"
+                        cta_section += "Llevamos varios mensajes. Propón una ACCIÓN CONCRETA:\n"
+                        cta_section += "- Si hay interés: ofrece el link de pago o agendar llamada\n"
+                        cta_section += "- Si hay dudas: resuelve la duda más importante\n"
+                        cta_section += "⚠️ NO hagas otra pregunta abierta. PROPÓN algo concreto.\n"
+                        system_prompt += cta_section
+                        logger.info(f"Added auto-CTA prompt (message #{total_msgs})")
+
+                    # === CONVERSION OPTIMIZATION: Inject dynamic prompts ===
+                    # Always add base conversion optimization
+                    system_prompt += NO_REPETITION_INSTRUCTION
+                    system_prompt += COHERENCE_INSTRUCTION
+                    system_prompt += CONVERSION_INSTRUCTION
+
+                    # Proactive close for high-intent users
+                    purchase_score = follower.purchase_intent_score or 0.0
+                    has_strong_interest_keywords = any(kw in message_text.lower() for kw in STRONG_INTEREST_KEYWORDS)
+                    high_intent_intents = {Intent.INTEREST_STRONG, Intent.INTEREST_SOFT, Intent.QUESTION_PRODUCT}
+
+                    if purchase_score >= 0.70 or intent in high_intent_intents or has_strong_interest_keywords:
+                        system_prompt += PROACTIVE_CLOSE_INSTRUCTION
+                        logger.info(f"Added PROACTIVE_CLOSE (score={purchase_score:.0%}, intent={intent.value}, keywords={has_strong_interest_keywords})")
+
+                    logger.info(f"Conversion optimization injected: NO_REPEAT + COHERENCE + CONVERSION" +
+                               (f" + PROACTIVE_CLOSE" if purchase_score >= 0.70 or intent in high_intent_intents or has_strong_interest_keywords else ""))
+
+                    # === MULTI-TURN: Construir conversación real ===
+                    # ANTES: Solo system + user_prompt (historial como texto)
+                    # AHORA: system + historial como mensajes reales + mensaje actual
+                    messages = [{"role": "system", "content": system_prompt}]
+
+                    # Añadir historial como mensajes reales (últimos 10 = 5 intercambios para mejor coherencia)
+                    if follower.last_messages:
+                        for msg in follower.last_messages[-10:]:
+                            role = msg.get("role", "user")
+                            content = msg.get("content", "")
+                            if content and role in ("user", "assistant"):
+                                messages.append({"role": role, "content": content})
+
+                    # Mensaje actual del usuario (si no está ya en el historial)
+                    if not follower.last_messages or follower.last_messages[-1].get("content") != message_text:
+                        messages.append({"role": "user", "content": message_text})
+
+                    logger.info(f"Multi-turn LLM call: {len(messages)} messages ({len(messages)-1} history + system)")
                     logger.info(f"=== DEBUG: Calling LLM ===")
                     logger.info(f"Message: {message_text[:100]}")
                     logger.info(f"Intent: {intent.value} ({confidence:.2f})")
@@ -2908,7 +3630,7 @@ USA ESTA RESPUESTA PARA LA OBJECION (adaptala a tu tono):
                 response_text = truncate_response(response_text, max_sentences=2)
 
                 # 2. Reemplazar placeholders de links con links reales
-                payment_links = [p.get('payment_link', p.get('url', '')) for p in self.products]
+                payment_links = [get_valid_payment_url(p) for p in self.products]
                 response_text = clean_response_placeholders(response_text, payment_links)
 
                 # 3. EXTRA AGRESIVO: Si es respuesta de pago alternativo, solo primera frase + CTA
@@ -3049,7 +3771,7 @@ USA ESTA RESPUESTA PARA LA OBJECION (adaptala a tu tono):
         if product and ('http' in response_text.lower() or '.com' in response_text.lower() or 'hotmart' in response_text.lower()):
             try:
                 sales_tracker = get_sales_tracker()
-                product_url = product.get('payment_link', product.get('url', ''))
+                product_url = get_valid_payment_url(product)
                 sales_tracker.record_click(
                     creator_id=self.creator_id,
                     product_id=product.get('id', ''),
@@ -3379,13 +4101,14 @@ USA ESTA RESPUESTA PARA LA OBJECION (adaptala a tu tono):
         # Save BOTH messages to PostgreSQL for dashboard stats (fire-and-forget)
         self._save_message_to_db_fire_and_forget(follower.follower_id, 'user', message, str(intent))
         self._save_message_to_db_fire_and_forget(follower.follower_id, 'assistant', response, None)
-        # Sync lead data to PostgreSQL
+        # Sync lead data (including purchase_intent_score) to PostgreSQL (fire-and-forget)
+        # FIX P0: This was blocking by 3-4 seconds - now runs in background thread
         if USE_POSTGRES and db_service:
-            try:
-                from api.services.data_sync import sync_json_to_postgres
-                sync_json_to_postgres(self.creator_id, follower.follower_id)
-            except Exception as e:
-                logger.debug(f"Lead sync skipped: {e}")
+            self._sync_lead_to_postgres_fire_and_forget(
+                self.creator_id,
+                follower.follower_id,
+                follower.purchase_intent_score
+            )
 
     async def _schedule_nurturing_if_needed(
         self,

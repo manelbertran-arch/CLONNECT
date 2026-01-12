@@ -57,4 +57,8 @@ bcrypt>=4.0.0
 PyJWT>=2.8.0
 python-multipart>=0.0.6
 email-validator>=2.0.0
-# Force rebuild 1736461200 - ensure beautifulsoup4 installed
+
+# Monitoring
+sentry-sdk[fastapi]>=1.39.0
+prometheus_client>=0.19.0
+gunicorn>=21.0.0

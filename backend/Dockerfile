@@ -15,7 +15,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 COPY requirements-lite.txt .
 
 # Force rebuild - change this value to invalidate pip cache
-ENV FORCE_REBUILD="2026-01-10-v4-openai-pgvector"
+ENV FORCE_REBUILD="2026-01-11-v6-conversation-memory"
 
 # Create virtual environment and install dependencies
 RUN python -m venv /opt/venv
@@ -54,7 +54,8 @@ RUN mkdir -p /app/initial_data && \
     cp -r data/content_index /app/initial_data/ 2>/dev/null || true && \
     cp -r data/tone_profiles /app/initial_data/ 2>/dev/null || true && \
     cp -r data/creators /app/initial_data/ 2>/dev/null || true && \
-    cp -r data/products /app/initial_data/ 2>/dev/null || true
+    cp -r data/products /app/initial_data/ 2>/dev/null || true && \
+    cp -r data/nurturing /app/initial_data/ 2>/dev/null || true
 
 # Environment variables
 ENV PYTHONUNBUFFERED=1 \
