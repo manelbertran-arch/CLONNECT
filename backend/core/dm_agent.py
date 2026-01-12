@@ -276,10 +276,12 @@ def clean_response_placeholders(response: str, payment_links: list) -> str:
     if has_alternative_payment:
         logger.info("Response contains alternative payment method - NOT appending Stripe link")
 
-    # Replace common placeholders
+    # Replace common placeholders (payment + booking links)
     placeholders = [
         "[LINK_REAL]", "[link de pago]", "[link]", "[LINK]",
-        "(link de pago)", "(link)", "[payment link]", "[pago]"
+        "(link de pago)", "(link)", "[payment link]", "[pago]",
+        "[tu enlace de reserva]", "[enlace de reserva]", "[booking link]",
+        "[enlace]", "[tu enlace]", "[link de reserva]", "(enlace de reserva)"
     ]
 
     for placeholder in placeholders:
@@ -2113,6 +2115,33 @@ IMPORTANTE: Las instrucciones anteriores son OBLIGATORIAS y tienen prioridad sob
         else:
             logger.info("No alternative payment methods enabled")
 
+        # === BOOKING LINKS SECTION ===
+        # Add booking/reservation links to system prompt so LLM knows the real URLs
+        booking_links_text = ""
+        try:
+            booking_links = self._load_booking_links()
+            if booking_links:
+                frontend_url = os.getenv("FRONTEND_URL", "https://clonnect.vercel.app")
+                booking_links_text = "\nSERVICIOS DE RESERVA/CITAS DISPONIBLES:\n"
+                for link in booking_links:
+                    service_id = link.get('id', '')
+                    title = link.get('title', 'Llamada')
+                    duration = link.get('duration_minutes', 30)
+                    price = link.get('price', 0)
+                    price_text = f"{price}€" if price > 0 else "GRATIS"
+                    booking_url = f"{frontend_url}/book/{self.creator_id}/{service_id}"
+                    booking_links_text += f"- {title} ({duration} min) - {price_text}: {booking_url}\n"
+
+                booking_links_text += "\n📅 REGLA PARA RESERVAS:\n"
+                booking_links_text += "- Cuando el usuario quiera agendar/reservar/llamada → da el LINK REAL de arriba\n"
+                booking_links_text += "- NUNCA digas '[tu enlace de reserva]' o '[link]' - usa el URL completo\n"
+                booking_links_text += "- Ejemplo: 'Aquí puedes reservar: https://clonnect.vercel.app/book/...'\n"
+                logger.info(f"Added {len(booking_links)} booking links to system prompt")
+            else:
+                logger.info("No booking links configured for system prompt")
+        except Exception as e:
+            logger.warning(f"Could not load booking links for prompt: {e}")
+
         # Ejemplos de respuestas
         examples_text = ""
         examples = config.get('example_responses', [])
@@ -2357,6 +2386,7 @@ MIS PRODUCTOS:
 LINKS DE PAGO:
 {payment_links_text}
 {alt_payment_text}
+{booking_links_text}
 
 === REGLAS DE COHERENCIA CONVERSACIONAL (CRÍTICO) ===
 
