@@ -68,25 +68,26 @@ if [ -d /app/data ]; then
 fi
 
 echo "Starting Clonnect Creators API on port $PORT"
+echo "Workers: 4"
+echo "Worker class: uvicorn.workers.UvicornWorker"
 
 # Using gunicorn with uvicorn workers for REAL concurrency
-# - 4 workers = 4 separate processes that can handle requests in parallel
-# - Each worker has its own event loop, avoiding blocking
-# - timeout 120s for slow database queries
-# - keep-alive 5s to prevent connection accumulation
-
-GUNICORN_CMD="gunicorn api.main:app \
-    --workers 4 \
-    --worker-class uvicorn.workers.UvicornWorker \
-    --bind 0.0.0.0:$PORT \
-    --timeout 120 \
-    --keep-alive 5 \
-    --access-logfile - \
-    --error-logfile - \
-    --capture-output"
+# --preload: Load app before forking workers (more reliable worker creation)
+# --workers 4: 4 separate processes handling requests in parallel
 
 if [ "$(id -u)" = "0" ]; then
-    exec su -s /bin/bash clonnect -c "$GUNICORN_CMD"
+    # Running as root - switch to clonnect user
+    exec su -s /bin/bash clonnect -c "gunicorn api.main:app --workers 4 --worker-class uvicorn.workers.UvicornWorker --bind 0.0.0.0:$PORT --timeout 120 --keep-alive 5 --preload --access-logfile - --error-logfile - --log-level info"
 else
-    exec $GUNICORN_CMD
+    # Already running as non-root user
+    exec gunicorn api.main:app \
+        --workers 4 \
+        --worker-class uvicorn.workers.UvicornWorker \
+        --bind 0.0.0.0:$PORT \
+        --timeout 120 \
+        --keep-alive 5 \
+        --preload \
+        --access-logfile - \
+        --error-logfile - \
+        --log-level info
 fi
