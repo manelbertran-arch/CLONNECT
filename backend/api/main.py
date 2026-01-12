@@ -4288,14 +4288,29 @@ async def update_follower_status(
 # ---------------------------------------------------------
 # DASHBOARD
 # ---------------------------------------------------------
+# Cache for dashboard overview (30 second TTL)
+_dashboard_cache: Dict[str, tuple] = {}
+_DASHBOARD_CACHE_TTL = 30  # seconds
+
 @app.get("/dashboard/{creator_id}/overview")
 async def dashboard_overview(creator_id: str):
-    """Datos para dashboard principal"""
+    """Datos para dashboard principal (cached for 30s)"""
+    import time as _time
     try:
+        # Check cache first
+        now = _time.time()
+        if creator_id in _dashboard_cache:
+            cached_data, timestamp = _dashboard_cache[creator_id]
+            if now - timestamp < _DASHBOARD_CACHE_TTL:
+                logging.debug(f"[DASHBOARD] Cache HIT for {creator_id}")
+                return cached_data
+
         # PostgreSQL first
         if USE_DB:
             metrics = db_service.get_dashboard_metrics(creator_id)
             if metrics:
+                # Cache the result
+                _dashboard_cache[creator_id] = (metrics, now)
                 return metrics
         agent = get_dm_agent(creator_id)
 
