@@ -6463,8 +6463,11 @@ if os.path.exists(_static_dir):
     async def serve_frontend(full_path: str):
         """Serve frontend for all non-API routes (SPA catch-all)"""
         # Don't catch API routes - they're already handled above
+        # NOTE: "dashboard/" removed from prefixes - frontend uses /dashboard/{id} route
+        # The actual API endpoints /dashboard/{id}/overview and /dashboard/{id}/toggle
+        # are defined before this catch-all, so they'll match first
         api_prefixes = (
-            "api/", "dm/", "dashboard/", "copilot/", "webhook/", "auth/",
+            "api/", "dm/", "copilot/", "webhook/", "auth/",
             "debug/", "health", "leads/", "products/", "onboarding/",
             "creator/", "messages/", "payments/", "calendar/", "nurturing/",
             "knowledge/", "analytics/", "admin/", "connections/", "oauth/",
