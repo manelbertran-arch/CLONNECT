@@ -100,8 +100,11 @@ function getSmartDisplayName(
 }
 
 export default function Inbox() {
-  const { data, isLoading, error } = useConversations();
-  const { data: archivedData, isLoading: archivedLoading } = useArchivedConversations();
+  // SEQUENTIAL LOADING: Load conversations first, then archived (prevents backend blocking)
+  const { data, isLoading, error, isSuccess } = useConversations();
+  const { data: archivedData, isLoading: archivedLoading } = useArchivedConversations(undefined, {
+    enabled: isSuccess // Only load AFTER conversations finishes
+  });
   const [selectedId, setSelectedId] = useState<string | null>(null);
 
   const [message, setMessage] = useState("");

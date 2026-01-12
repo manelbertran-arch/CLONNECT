@@ -830,12 +830,13 @@ export function useDeleteConversation(creatorId: string = getCreatorId()) {
 /**
  * Hook to fetch archived/spam conversations
  */
-export function useArchivedConversations(creatorId: string = getCreatorId()) {
+export function useArchivedConversations(creatorId: string = getCreatorId(), options?: { enabled?: boolean }) {
   return useQuery({
     queryKey: apiKeys.archivedConversations(creatorId),
     queryFn: () => getArchivedConversations(creatorId),
     select: (data) => data.conversations || [],
     refetchInterval: 30000,
+    enabled: options?.enabled !== false, // Default true, can be disabled for sequential loading
   });
 }
 

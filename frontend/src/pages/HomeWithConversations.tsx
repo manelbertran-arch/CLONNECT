@@ -7,8 +7,11 @@ import { useConversations, useArchivedConversations } from "@/hooks/useApi";
 export default function HomeWithConversations() {
   console.log('[HOME+CONV] Component render start', Date.now());
 
-  const { data, isLoading, error } = useConversations();
-  const { data: archivedData, isLoading: archivedLoading } = useArchivedConversations();
+  // SEQUENTIAL LOADING: Load conversations first, then archived (prevents backend blocking)
+  const { data, isLoading, error, isSuccess } = useConversations();
+  const { data: archivedData, isLoading: archivedLoading } = useArchivedConversations(undefined, {
+    enabled: isSuccess // Only load AFTER conversations finishes
+  });
 
   console.log('[HOME+CONV] After hooks:', {
     isLoading,
