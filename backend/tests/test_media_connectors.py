@@ -124,7 +124,7 @@ class TestTranscriber:
     def test_get_transcriber_singleton(self):
         """get_transcriber retorna singleton."""
         from ingestion.transcriber import get_transcriber
-        import backend.ingestion.transcriber as module
+        import ingestion.transcriber as module
 
         module._transcriber = None
 
@@ -251,7 +251,7 @@ class TestYouTubeConnector:
     def test_get_youtube_connector_singleton(self):
         """get_youtube_connector retorna singleton."""
         from ingestion.youtube_connector import get_youtube_connector
-        import backend.ingestion.youtube_connector as module
+        import ingestion.youtube_connector as module
 
         module._connector = None
 
@@ -383,7 +383,7 @@ class TestPodcastConnector:
     def test_get_podcast_connector_singleton(self):
         """get_podcast_connector retorna singleton."""
         from ingestion.podcast_connector import get_podcast_connector
-        import backend.ingestion.podcast_connector as module
+        import ingestion.podcast_connector as module
 
         module._connector = None
 
@@ -566,7 +566,7 @@ class TestPDFExtractor:
     def test_get_pdf_extractor_singleton(self):
         """get_pdf_extractor retorna singleton."""
         from ingestion.pdf_extractor import get_pdf_extractor
-        import backend.ingestion.pdf_extractor as module
+        import ingestion.pdf_extractor as module
 
         module._extractor = None
 

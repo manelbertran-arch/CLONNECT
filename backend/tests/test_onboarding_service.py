@@ -284,7 +284,7 @@ class TestSingleton:
     def test_get_onboarding_service_returns_same_instance(self):
         """Retorna la misma instancia."""
         # Reset singleton
-        import backend.core.onboarding_service as module
+        import core.onboarding_service as module
         module._onboarding_service = None
 
         service1 = get_onboarding_service()
