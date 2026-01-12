@@ -1,20 +1,45 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { ArrowLeft, Plus, Trash2, Check, ExternalLink } from 'lucide-react';
+import { ArrowLeft, Plus, Trash2, Check, ExternalLink, Clock, Save } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Switch } from '@/components/ui/switch';
 import {
   getBookingLinks,
   createBookingLink,
   deleteBookingLink,
   getConnections,
   startOAuth,
+  getAvailability,
+  setAvailability,
   CREATOR_ID,
+  DayAvailability,
 } from '@/services/api';
+import { toast } from 'sonner';
 
 interface Props {
   onBack: () => void;
 }
+
+const DAY_NAMES_ES = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo'];
+
+// Generate time options from 00:00 to 23:30 in 30min intervals
+const TIME_OPTIONS = Array.from({ length: 48 }, (_, i) => {
+  const hours = Math.floor(i / 2);
+  const minutes = (i % 2) * 30;
+  return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`;
+});
+
+// Default availability: Mon-Fri 9:00-18:00
+const DEFAULT_AVAILABILITY: DayAvailability[] = [
+  { day_of_week: 0, start_time: '09:00', end_time: '18:00', is_active: true },
+  { day_of_week: 1, start_time: '09:00', end_time: '18:00', is_active: true },
+  { day_of_week: 2, start_time: '09:00', end_time: '18:00', is_active: true },
+  { day_of_week: 3, start_time: '09:00', end_time: '18:00', is_active: true },
+  { day_of_week: 4, start_time: '09:00', end_time: '18:00', is_active: true },
+  { day_of_week: 5, start_time: '09:00', end_time: '18:00', is_active: false },
+  { day_of_week: 6, start_time: '09:00', end_time: '18:00', is_active: false },
+];
 
 export default function CalendarioSection({ onBack }: Props) {
   const creatorId = CREATOR_ID;
@@ -27,6 +52,31 @@ export default function CalendarioSection({ onBack }: Props) {
     duration_minutes: '30',
     description: '',
   });
+
+  // Availability state
+  const [availability, setLocalAvailability] = useState<DayAvailability[]>(DEFAULT_AVAILABILITY);
+  const [availabilityChanged, setAvailabilityChanged] = useState(false);
+  const [savingAvailability, setSavingAvailability] = useState(false);
+
+  // Fetch availability
+  const { data: availabilityData, isLoading: loadingAvailability } = useQuery({
+    queryKey: ['availability', creatorId],
+    queryFn: () => getAvailability(creatorId),
+  });
+
+  // Update local state when data loads
+  useEffect(() => {
+    if (availabilityData?.availability) {
+      // Merge with defaults to ensure all 7 days exist
+      const merged = DEFAULT_AVAILABILITY.map((defaultDay) => {
+        const savedDay = availabilityData.availability.find(
+          (d) => d.day_of_week === defaultDay.day_of_week
+        );
+        return savedDay || defaultDay;
+      });
+      setLocalAvailability(merged);
+    }
+  }, [availabilityData]);
 
   const { data: linksData, isLoading } = useQuery({
     queryKey: ['bookingLinks', creatorId],
@@ -100,6 +150,40 @@ export default function CalendarioSection({ onBack }: Props) {
     }
   };
 
+  // Availability handlers
+  const handleDayToggle = (dayIndex: number) => {
+    setLocalAvailability((prev) =>
+      prev.map((day) =>
+        day.day_of_week === dayIndex ? { ...day, is_active: !day.is_active } : day
+      )
+    );
+    setAvailabilityChanged(true);
+  };
+
+  const handleTimeChange = (dayIndex: number, field: 'start_time' | 'end_time', value: string) => {
+    setLocalAvailability((prev) =>
+      prev.map((day) =>
+        day.day_of_week === dayIndex ? { ...day, [field]: value } : day
+      )
+    );
+    setAvailabilityChanged(true);
+  };
+
+  const handleSaveAvailability = async () => {
+    setSavingAvailability(true);
+    try {
+      await setAvailability(creatorId, availability);
+      toast.success('Horarios guardados correctamente');
+      setAvailabilityChanged(false);
+      queryClient.invalidateQueries({ queryKey: ['availability', creatorId] });
+    } catch (error) {
+      console.error('Error saving availability:', error);
+      toast.error('Error al guardar los horarios');
+    } finally {
+      setSavingAvailability(false);
+    }
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex items-center gap-4">
@@ -140,6 +224,83 @@ export default function CalendarioSection({ onBack }: Props) {
         </div>
       </div>
 
+      {/* ========== AVAILABILITY SECTION ========== */}
+      <div className="border-t border-gray-800 pt-4">
+        <div className="flex items-center gap-2 mb-4">
+          <Clock className="text-purple-400" size={20} />
+          <h2 className="font-medium text-white">Horarios de disponibilidad</h2>
+        </div>
+        <p className="text-sm text-gray-400 mb-4">
+          Define cuándo estás disponible para llamadas. Por defecto: L-V 9:00-18:00
+        </p>
+
+        {loadingAvailability ? (
+          <p className="text-gray-500 text-center py-4">Cargando...</p>
+        ) : (
+          <div className="space-y-3">
+            {availability.map((day) => (
+              <div
+                key={day.day_of_week}
+                className={`flex items-center gap-4 p-3 rounded-lg transition-colors ${
+                  day.is_active ? 'bg-gray-800' : 'bg-gray-900/50'
+                }`}
+              >
+                {/* Day toggle */}
+                <div className="flex items-center gap-3 w-28">
+                  <Switch
+                    checked={day.is_active}
+                    onCheckedChange={() => handleDayToggle(day.day_of_week)}
+                  />
+                  <span className={`text-sm font-medium ${day.is_active ? 'text-white' : 'text-gray-500'}`}>
+                    {DAY_NAMES_ES[day.day_of_week]}
+                  </span>
+                </div>
+
+                {/* Time selectors */}
+                <div className={`flex items-center gap-2 flex-1 ${!day.is_active && 'opacity-40'}`}>
+                  <select
+                    value={day.start_time}
+                    onChange={(e) => handleTimeChange(day.day_of_week, 'start_time', e.target.value)}
+                    disabled={!day.is_active}
+                    className="bg-gray-700 border border-gray-600 rounded-md px-2 py-1 text-sm text-white"
+                  >
+                    {TIME_OPTIONS.map((time) => (
+                      <option key={time} value={time}>{time}</option>
+                    ))}
+                  </select>
+                  <span className="text-gray-400 text-sm">hasta</span>
+                  <select
+                    value={day.end_time}
+                    onChange={(e) => handleTimeChange(day.day_of_week, 'end_time', e.target.value)}
+                    disabled={!day.is_active}
+                    className="bg-gray-700 border border-gray-600 rounded-md px-2 py-1 text-sm text-white"
+                  >
+                    {TIME_OPTIONS.map((time) => (
+                      <option key={time} value={time}>{time}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+            ))}
+
+            {/* Save button */}
+            <Button
+              onClick={handleSaveAvailability}
+              disabled={!availabilityChanged || savingAvailability}
+              className={`w-full mt-4 ${
+                availabilityChanged
+                  ? 'bg-purple-500 hover:bg-purple-600'
+                  : 'bg-gray-700 text-gray-400'
+              }`}
+            >
+              <Save className="mr-2" size={18} />
+              {savingAvailability ? 'Guardando...' : 'Guardar horarios'}
+            </Button>
+          </div>
+        )}
+      </div>
+
+      {/* ========== BOOKING LINKS SECTION ========== */}
       <div className="border-t border-gray-800 pt-4">
         <h2 className="font-medium text-white mb-4">Tipos de llamada</h2>
 

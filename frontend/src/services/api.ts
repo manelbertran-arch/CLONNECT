@@ -600,6 +600,46 @@ export async function deleteHistoryItem(
 }
 
 // =============================================================================
+// AVAILABILITY
+// =============================================================================
+
+export interface DayAvailability {
+  day_of_week: number;  // 0=Monday, 6=Sunday
+  day_name?: string;
+  start_time: string;   // "09:00"
+  end_time: string;     // "18:00"
+  is_active: boolean;
+}
+
+export interface AvailabilityResponse {
+  status: string;
+  creator_id: string;
+  availability: DayAvailability[];
+}
+
+/**
+ * Get creator's weekly availability schedule
+ */
+export async function getAvailability(
+  creatorId: string = CREATOR_ID
+): Promise<AvailabilityResponse> {
+  return apiFetch(`/booking/availability/${creatorId}`);
+}
+
+/**
+ * Set creator's weekly availability schedule
+ */
+export async function setAvailability(
+  creatorId: string = CREATOR_ID,
+  days: DayAvailability[]
+): Promise<{ status: string; message: string; days_set: number }> {
+  return apiFetch(`/booking/availability/${creatorId}`, {
+    method: "POST",
+    body: JSON.stringify(days),
+  });
+}
+
+// =============================================================================
 // NURTURING
 // =============================================================================
 
