@@ -50,6 +50,7 @@ jobs:
           DATABASE_URL: postgresql://test:test@localhost:5432/clonnect_test
           GROQ_API_KEY: test_key
           ENVIRONMENT: test
+          RATE_LIMIT_ENABLED: false
         run: |
           cd backend
           pytest -v --tb=short -x

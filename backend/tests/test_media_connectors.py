@@ -242,6 +242,11 @@ class TestYouTubeConnector:
     @pytest.mark.asyncio
     async def test_get_channel_videos_requires_id_or_url(self):
         """Falla sin channel_id ni channel_url."""
+        try:
+            import yt_dlp
+        except ImportError:
+            pytest.skip("yt-dlp not installed")
+
         from ingestion.youtube_connector import YouTubeConnector
 
         connector = YouTubeConnector()

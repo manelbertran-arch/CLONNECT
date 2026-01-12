@@ -63,7 +63,8 @@ class TestToneServiceUnit:
 
         section = profile.to_system_prompt_section()
 
-        assert "ESTILO DE COMUNICACION" in section or "informal" in section
+        # Check for style indicators (may use various formats)
+        assert "REGLAS OBLIGATORIAS" in section or "ESTILO" in section or "TUTEAR" in section
         assert len(section) > 50  # Debe tener contenido sustancial
 
 

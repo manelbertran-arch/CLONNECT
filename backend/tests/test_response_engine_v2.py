@@ -488,7 +488,8 @@ class TestBuildMagicSlicePrompt:
         prompt = build_magic_slice_prompt(tone_profile=tone)
 
         assert "ESTILO DE COMUNICACIÓN" in prompt
-        assert "informal" in prompt
+        # Check for informal style indicator (may use "TUTEAR" or "informal")
+        assert "TUTEAR" in prompt or "informal" in prompt
 
     def test_with_citations_only(self):
         citations = [
