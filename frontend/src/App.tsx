@@ -28,6 +28,7 @@ import Privacy from "./pages/Privacy";
 import BookService from "./pages/BookService";
 import Onboarding from "./pages/Onboarding";
 import InboxTest from "./pages/InboxTest";
+import HomeWithConversations from "./pages/HomeWithConversations";
 
 // New Dashboard Pages
 import { NewLayout } from "./components/layout/NewLayout";
@@ -64,6 +65,7 @@ const AppRoutes = () => {
       {/* Dashboard routes */}
       <Route element={<DashboardLayout />}>
         <Route path="/dashboard" element={<Dashboard />} />
+        <Route path="/home-conv-test" element={<HomeWithConversations />} />
         <Route path="/dashboard/:creatorId" element={<Dashboard />} />
         <Route path="/inbox" element={<Inbox />} />
         <Route path="/copilot" element={<Copilot />} />
