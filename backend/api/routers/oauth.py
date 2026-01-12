@@ -1376,3 +1376,69 @@ async def delete_google_calendar_event(creator_id: str, event_id: str) -> bool:
     except Exception as e:
         logger.error(f"Error deleting Google Calendar event: {e}")
         return False
+
+
+async def get_google_freebusy(
+    creator_id: str,
+    start_time,
+    end_time
+) -> list:
+    """
+    Get busy times from Google Calendar using freebusy API.
+
+    Args:
+        creator_id: The creator's ID
+        start_time: Start of time range (datetime, timezone-aware)
+        end_time: End of time range (datetime, timezone-aware)
+
+    Returns:
+        List of busy periods: [{"start": datetime, "end": datetime}, ...]
+    """
+    import httpx
+    from datetime import datetime
+
+    try:
+        access_token = await get_valid_google_token(creator_id)
+
+        # Build freebusy request
+        request_body = {
+            "timeMin": start_time.isoformat(),
+            "timeMax": end_time.isoformat(),
+            "items": [{"id": "primary"}]  # Query primary calendar
+        }
+
+        async with httpx.AsyncClient() as client:
+            response = await client.post(
+                "https://www.googleapis.com/calendar/v3/freeBusy",
+                headers={
+                    "Authorization": f"Bearer {access_token}",
+                    "Content-Type": "application/json"
+                },
+                json=request_body,
+                timeout=10.0
+            )
+
+            if response.status_code != 200:
+                logger.error(f"Google freebusy API error: {response.status_code} - {response.text}")
+                return []  # Return empty if error - will show all slots as available
+
+            data = response.json()
+
+            # Extract busy periods
+            busy_periods = []
+            calendars = data.get("calendars", {})
+            primary_cal = calendars.get("primary", {})
+            busy_list = primary_cal.get("busy", [])
+
+            for busy in busy_list:
+                busy_periods.append({
+                    "start": datetime.fromisoformat(busy["start"].replace("Z", "+00:00")),
+                    "end": datetime.fromisoformat(busy["end"].replace("Z", "+00:00"))
+                })
+
+            logger.info(f"Found {len(busy_periods)} busy periods for {creator_id}")
+            return busy_periods
+
+    except Exception as e:
+        logger.error(f"Error getting Google freebusy: {e}")
+        return []  # Return empty on error - graceful degradation
