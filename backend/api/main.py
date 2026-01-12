@@ -20,6 +20,31 @@ from pydantic import BaseModel
 
 logging.basicConfig(level=logging.INFO)
 
+# Sentry Error Tracking
+SENTRY_DSN = os.getenv("SENTRY_DSN")
+if SENTRY_DSN:
+    try:
+        import sentry_sdk
+        from sentry_sdk.integrations.fastapi import FastApiIntegration
+        from sentry_sdk.integrations.sqlalchemy import SqlalchemyIntegration
+
+        sentry_sdk.init(
+            dsn=SENTRY_DSN,
+            integrations=[
+                FastApiIntegration(transaction_style="endpoint"),
+                SqlalchemyIntegration(),
+            ],
+            traces_sample_rate=0.1,  # 10% of transactions for performance monitoring
+            profiles_sample_rate=0.1,
+            environment=os.getenv("ENVIRONMENT", "production"),
+            release=os.getenv("RAILWAY_GIT_COMMIT_SHA", "unknown"),
+        )
+        logging.info("Sentry initialized successfully")
+    except ImportError:
+        logging.warning("Sentry SDK not installed - error tracking disabled")
+    except Exception as e:
+        logging.warning(f"Sentry initialization failed: {e}")
+
 # PostgreSQL Init - define defaults first
 SessionLocal = None
 BookingLinkModel = None
@@ -92,6 +117,21 @@ app.add_middleware(
     allow_headers=["*"],
     allow_credentials=True,
 )
+
+# Rate Limiting Middleware
+RATE_LIMIT_ENABLED = os.getenv("RATE_LIMIT_ENABLED", "true").lower() == "true"
+if RATE_LIMIT_ENABLED:
+    try:
+        from api.middleware.rate_limit import RateLimitMiddleware
+        app.add_middleware(
+            RateLimitMiddleware,
+            requests_per_minute=60,
+            requests_per_hour=1000,
+            webhook_rpm=200,
+        )
+        logging.info("Rate limiting middleware enabled")
+    except ImportError as e:
+        logging.warning(f"Rate limiting middleware not available: {e}")
 
 # Add exception handler to log 422 validation errors
 from fastapi.exceptions import RequestValidationError
