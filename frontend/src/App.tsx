@@ -54,6 +54,7 @@ const AppRoutes = () => {
       {/* Dashboard routes */}
       <Route element={<DashboardLayout />}>
         <Route path="/dashboard" element={<Dashboard />} />
+        <Route path="/dashboard/:creatorId" element={<Dashboard />} />
         <Route path="/inbox" element={<Inbox />} />
         <Route path="/copilot" element={<Copilot />} />
         <Route path="/leads" element={<Leads />} />
