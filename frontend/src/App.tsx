@@ -27,6 +27,7 @@ import Terms from "./pages/Terms";
 import Privacy from "./pages/Privacy";
 import BookService from "./pages/BookService";
 import Onboarding from "./pages/Onboarding";
+import InboxTest from "./pages/InboxTest";
 
 // New Dashboard Pages
 import { NewLayout } from "./components/layout/NewLayout";
@@ -56,6 +57,9 @@ const AppRoutes = () => {
 
       {/* Onboarding route - no protection, let onboarding handle its own state */}
       <Route path="/onboarding" element={<Onboarding />} />
+
+      {/* Minimal test route to isolate Inbox slowness */}
+      <Route path="/inbox-test" element={<InboxTest />} />
 
       {/* Dashboard routes */}
       <Route element={<DashboardLayout />}>
