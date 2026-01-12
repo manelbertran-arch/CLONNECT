@@ -47,6 +47,8 @@ import {
   cancelBooking,
   clearBookingHistory,
   deleteHistoryItem,
+  getAvailability,
+  setAvailability,
   getNurturingSequences,
   getNurturingStats,
   getNurturingFollowups,
@@ -399,6 +401,39 @@ export function useDeleteHistoryItem(creatorId: string = getCreatorId()) {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: apiKeys.bookings(creatorId, true) });
       queryClient.invalidateQueries({ queryKey: apiKeys.calendarStats(creatorId) });
+    },
+  });
+}
+
+// =============================================================================
+// AVAILABILITY HOOKS
+// =============================================================================
+
+/**
+ * Hook to fetch creator's availability schedule
+ */
+export function useAvailability(creatorId: string = getCreatorId()) {
+  return useQuery({
+    queryKey: ["availability", creatorId] as const,
+    queryFn: () => getAvailability(creatorId),
+    staleTime: 60000,
+  });
+}
+
+/**
+ * Hook to update creator's availability schedule
+ */
+export function useSetAvailability(creatorId: string = getCreatorId()) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (days: Array<{
+      day_of_week: number;
+      start_time: string;
+      end_time: string;
+      is_active: boolean;
+    }>) => setAvailability(creatorId, days),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["availability", creatorId] });
     },
   });
 }
