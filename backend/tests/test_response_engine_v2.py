@@ -2,15 +2,15 @@
 
 import pytest
 from datetime import datetime, timedelta
-from backend.ingestion.response_engine_v2 import (
+from ingestion.response_engine_v2 import (
     FollowerContext,
     ConversationContext,
     ResponseEngineV2,
     create_conversation_context,
     build_magic_slice_prompt
 )
-from backend.ingestion.tone_analyzer import ToneProfile
-from backend.ingestion.content_citation import (
+from ingestion.tone_analyzer import ToneProfile
+from ingestion.content_citation import (
     Citation,
     CitationContext,
     ContentType

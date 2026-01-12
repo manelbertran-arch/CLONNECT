@@ -6,7 +6,7 @@ import pytest
 from datetime import datetime
 from unittest.mock import AsyncMock, MagicMock, patch
 
-from backend.core.onboarding_service import (
+from core.onboarding_service import (
     OnboardingService,
     OnboardingRequest,
     OnboardingResult,
@@ -49,7 +49,7 @@ def sample_posts():
 @pytest.fixture
 def sample_tone_profile():
     """ToneProfile de ejemplo."""
-    from backend.ingestion import ToneProfile
+    from ingestion import ToneProfile
     return ToneProfile(
         creator_id="test_creator",
         formality="informal",
@@ -348,7 +348,7 @@ class TestIntegration:
 
             # Mock del tone analyzer
             with patch.object(service.tone_analyzer, 'analyze', new_callable=AsyncMock) as mock_analyze:
-                from backend.ingestion import ToneProfile
+                from ingestion import ToneProfile
                 mock_analyze.return_value = ToneProfile(
                     creator_id="integration_test_creator",
                     formality="informal",
@@ -371,7 +371,7 @@ class TestDeleteFunctions:
 
     def test_delete_tone_profile_nonexistent(self):
         """delete_tone_profile retorna False si no existe."""
-        from backend.core.tone_service import delete_tone_profile
+        from core.tone_service import delete_tone_profile
 
         result = delete_tone_profile("nonexistent_creator_xyz_123")
 
@@ -379,7 +379,7 @@ class TestDeleteFunctions:
 
     def test_delete_content_index_nonexistent(self):
         """delete_content_index retorna False si no existe."""
-        from backend.core.citation_service import delete_content_index
+        from core.citation_service import delete_content_index
 
         result = delete_content_index("nonexistent_creator_xyz_123")
 

@@ -2,7 +2,7 @@
 
 import pytest
 from datetime import datetime
-from backend.ingestion.instagram_scraper import (
+from ingestion.instagram_scraper import (
     InstagramPost,
     ManualJSONScraper,
     MetaGraphAPIScraper,

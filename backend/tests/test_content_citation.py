@@ -2,7 +2,7 @@
 
 import pytest
 from datetime import datetime, timedelta
-from backend.ingestion.content_citation import (
+from ingestion.content_citation import (
     Citation,
     CitationContext,
     ContentType,

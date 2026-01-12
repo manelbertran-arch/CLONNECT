@@ -2,7 +2,7 @@
 
 import pytest
 from datetime import datetime
-from backend.ingestion.tone_analyzer import (
+from ingestion.tone_analyzer import (
     ToneProfile,
     ToneAnalyzer,
     quick_analyze_text

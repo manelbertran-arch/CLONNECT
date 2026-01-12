@@ -16,7 +16,7 @@ class TestTranscriberDataclasses:
 
     def test_transcript_segment_duration(self):
         """TranscriptSegment calcula duracion correctamente."""
-        from backend.ingestion.transcriber import TranscriptSegment
+        from ingestion.transcriber import TranscriptSegment
 
         segment = TranscriptSegment(
             text="Hola mundo",
@@ -31,7 +31,7 @@ class TestTranscriberDataclasses:
 
     def test_transcript_segment_to_dict(self):
         """TranscriptSegment serializa correctamente."""
-        from backend.ingestion.transcriber import TranscriptSegment
+        from ingestion.transcriber import TranscriptSegment
 
         segment = TranscriptSegment(
             text="Test",
@@ -46,7 +46,7 @@ class TestTranscriberDataclasses:
 
     def test_transcript_get_text_at_timestamp(self):
         """Transcript.get_text_at_timestamp retorna texto correcto."""
-        from backend.ingestion.transcriber import Transcript, TranscriptSegment
+        from ingestion.transcriber import Transcript, TranscriptSegment
 
         transcript = Transcript(
             source_file="test.mp3",
@@ -65,7 +65,7 @@ class TestTranscriberDataclasses:
 
     def test_transcript_to_dict(self):
         """Transcript serializa correctamente."""
-        from backend.ingestion.transcriber import Transcript
+        from ingestion.transcriber import Transcript
 
         transcript = Transcript(
             source_file="audio.mp3",
@@ -82,7 +82,7 @@ class TestTranscriberDataclasses:
 
     def test_audio_format_enum(self):
         """AudioFormat enum tiene valores correctos."""
-        from backend.ingestion.transcriber import AudioFormat
+        from ingestion.transcriber import AudioFormat
 
         assert AudioFormat.MP3.value == "mp3"
         assert AudioFormat.WAV.value == "wav"
@@ -94,7 +94,7 @@ class TestTranscriber:
 
     def test_transcriber_supported_formats(self):
         """Verifica formatos soportados."""
-        from backend.ingestion.transcriber import Transcriber
+        from ingestion.transcriber import Transcriber
 
         t = Transcriber()
         assert "mp3" in t.SUPPORTED_FORMATS
@@ -105,7 +105,7 @@ class TestTranscriber:
     @pytest.mark.asyncio
     async def test_transcribe_file_not_found(self):
         """Falla si archivo no existe."""
-        from backend.ingestion.transcriber import Transcriber
+        from ingestion.transcriber import Transcriber
 
         t = Transcriber()
         with pytest.raises(FileNotFoundError):
@@ -113,7 +113,7 @@ class TestTranscriber:
 
     def test_get_extension_from_content_type(self):
         """Mapea content-type correctamente."""
-        from backend.ingestion.transcriber import Transcriber
+        from ingestion.transcriber import Transcriber
 
         t = Transcriber()
         assert t._get_extension_from_content_type("audio/mpeg") == "mp3"
@@ -123,7 +123,7 @@ class TestTranscriber:
 
     def test_get_transcriber_singleton(self):
         """get_transcriber retorna singleton."""
-        from backend.ingestion.transcriber import get_transcriber
+        from ingestion.transcriber import get_transcriber
         import backend.ingestion.transcriber as module
 
         module._transcriber = None
@@ -143,7 +143,7 @@ class TestYouTubeDataclasses:
 
     def test_youtube_video_url_property(self):
         """YouTubeVideo genera URL correctamente."""
-        from backend.ingestion.youtube_connector import YouTubeVideo
+        from ingestion.youtube_connector import YouTubeVideo
 
         video = YouTubeVideo(
             video_id="dQw4w9WgXcQ",
@@ -159,7 +159,7 @@ class TestYouTubeDataclasses:
 
     def test_youtube_video_to_dict(self):
         """YouTubeVideo serializa correctamente."""
-        from backend.ingestion.youtube_connector import YouTubeVideo
+        from ingestion.youtube_connector import YouTubeVideo
 
         video = YouTubeVideo(
             video_id="abc123",
@@ -181,7 +181,7 @@ class TestYouTubeDataclasses:
 
     def test_youtube_transcript_to_dict(self):
         """YouTubeTranscript serializa correctamente."""
-        from backend.ingestion.youtube_connector import YouTubeTranscript
+        from ingestion.youtube_connector import YouTubeTranscript
 
         transcript = YouTubeTranscript(
             video_id="abc123",
@@ -204,7 +204,7 @@ class TestYouTubeConnector:
 
     def test_extract_video_id_standard_url(self):
         """Extrae video ID de URL estandar."""
-        from backend.ingestion.youtube_connector import YouTubeConnector
+        from ingestion.youtube_connector import YouTubeConnector
 
         assert YouTubeConnector.extract_video_id(
             "https://www.youtube.com/watch?v=dQw4w9WgXcQ"
@@ -212,7 +212,7 @@ class TestYouTubeConnector:
 
     def test_extract_video_id_short_url(self):
         """Extrae video ID de URL corta."""
-        from backend.ingestion.youtube_connector import YouTubeConnector
+        from ingestion.youtube_connector import YouTubeConnector
 
         assert YouTubeConnector.extract_video_id(
             "https://youtu.be/dQw4w9WgXcQ"
@@ -220,7 +220,7 @@ class TestYouTubeConnector:
 
     def test_extract_video_id_embed_url(self):
         """Extrae video ID de URL embed."""
-        from backend.ingestion.youtube_connector import YouTubeConnector
+        from ingestion.youtube_connector import YouTubeConnector
 
         assert YouTubeConnector.extract_video_id(
             "https://www.youtube.com/embed/dQw4w9WgXcQ"
@@ -228,13 +228,13 @@ class TestYouTubeConnector:
 
     def test_extract_video_id_raw(self):
         """Extrae video ID cuando se pasa solo el ID."""
-        from backend.ingestion.youtube_connector import YouTubeConnector
+        from ingestion.youtube_connector import YouTubeConnector
 
         assert YouTubeConnector.extract_video_id("dQw4w9WgXcQ") == "dQw4w9WgXcQ"
 
     def test_extract_video_id_invalid(self):
         """Retorna None para URL invalida."""
-        from backend.ingestion.youtube_connector import YouTubeConnector
+        from ingestion.youtube_connector import YouTubeConnector
 
         assert YouTubeConnector.extract_video_id("not-a-valid-url") is None
         assert YouTubeConnector.extract_video_id("") is None
@@ -242,7 +242,7 @@ class TestYouTubeConnector:
     @pytest.mark.asyncio
     async def test_get_channel_videos_requires_id_or_url(self):
         """Falla sin channel_id ni channel_url."""
-        from backend.ingestion.youtube_connector import YouTubeConnector
+        from ingestion.youtube_connector import YouTubeConnector
 
         connector = YouTubeConnector()
         with pytest.raises(ValueError, match="Se requiere"):
@@ -250,7 +250,7 @@ class TestYouTubeConnector:
 
     def test_get_youtube_connector_singleton(self):
         """get_youtube_connector retorna singleton."""
-        from backend.ingestion.youtube_connector import get_youtube_connector
+        from ingestion.youtube_connector import get_youtube_connector
         import backend.ingestion.youtube_connector as module
 
         module._connector = None
@@ -270,7 +270,7 @@ class TestPodcastDataclasses:
 
     def test_podcast_show_id_generated(self):
         """PodcastShow genera ID unico."""
-        from backend.ingestion.podcast_connector import PodcastShow
+        from ingestion.podcast_connector import PodcastShow
 
         show = PodcastShow(
             feed_url="https://feed.example.com/podcast.rss",
@@ -282,7 +282,7 @@ class TestPodcastDataclasses:
 
     def test_podcast_show_to_dict(self):
         """PodcastShow serializa correctamente."""
-        from backend.ingestion.podcast_connector import PodcastShow
+        from ingestion.podcast_connector import PodcastShow
 
         show = PodcastShow(
             feed_url="https://feed.example.com/rss",
@@ -300,7 +300,7 @@ class TestPodcastDataclasses:
 
     def test_podcast_episode_url_property(self):
         """PodcastEpisode.url retorna audio_url."""
-        from backend.ingestion.podcast_connector import PodcastEpisode
+        from ingestion.podcast_connector import PodcastEpisode
 
         episode = PodcastEpisode(
             episode_id="ep1",
@@ -314,7 +314,7 @@ class TestPodcastDataclasses:
 
     def test_podcast_episode_to_dict(self):
         """PodcastEpisode serializa correctamente."""
-        from backend.ingestion.podcast_connector import PodcastEpisode
+        from ingestion.podcast_connector import PodcastEpisode
 
         episode = PodcastEpisode(
             episode_id="ep1",
@@ -339,7 +339,7 @@ class TestPodcastConnector:
 
     def test_duration_to_seconds_hhmmss(self):
         """Convierte HH:MM:SS correctamente."""
-        from backend.ingestion.podcast_connector import PodcastConnector
+        from ingestion.podcast_connector import PodcastConnector
 
         connector = PodcastConnector()
         assert connector._duration_to_seconds("01:30:00") == 5400
@@ -348,7 +348,7 @@ class TestPodcastConnector:
 
     def test_duration_to_seconds_mmss(self):
         """Convierte MM:SS correctamente."""
-        from backend.ingestion.podcast_connector import PodcastConnector
+        from ingestion.podcast_connector import PodcastConnector
 
         connector = PodcastConnector()
         assert connector._duration_to_seconds("30:00") == 1800
@@ -356,7 +356,7 @@ class TestPodcastConnector:
 
     def test_duration_to_seconds_raw_seconds(self):
         """Convierte segundos directos."""
-        from backend.ingestion.podcast_connector import PodcastConnector
+        from ingestion.podcast_connector import PodcastConnector
 
         connector = PodcastConnector()
         assert connector._duration_to_seconds("3600") == 3600
@@ -364,7 +364,7 @@ class TestPodcastConnector:
 
     def test_duration_to_seconds_invalid(self):
         """Retorna 0 para formato invalido."""
-        from backend.ingestion.podcast_connector import PodcastConnector
+        from ingestion.podcast_connector import PodcastConnector
 
         connector = PodcastConnector()
         assert connector._duration_to_seconds("invalid") == 0
@@ -372,7 +372,7 @@ class TestPodcastConnector:
 
     def test_get_audio_extension(self):
         """Detecta extension de audio."""
-        from backend.ingestion.podcast_connector import PodcastConnector
+        from ingestion.podcast_connector import PodcastConnector
 
         connector = PodcastConnector()
         assert connector._get_audio_extension("https://example.com/audio.mp3") == "mp3"
@@ -382,7 +382,7 @@ class TestPodcastConnector:
 
     def test_get_podcast_connector_singleton(self):
         """get_podcast_connector retorna singleton."""
-        from backend.ingestion.podcast_connector import get_podcast_connector
+        from ingestion.podcast_connector import get_podcast_connector
         import backend.ingestion.podcast_connector as module
 
         module._connector = None
@@ -402,7 +402,7 @@ class TestPDFDataclasses:
 
     def test_pdf_page_char_count(self):
         """PDFPage calcula char_count automaticamente."""
-        from backend.ingestion.pdf_extractor import PDFPage
+        from ingestion.pdf_extractor import PDFPage
 
         page = PDFPage(page_number=1, text="Hello world")
 
@@ -410,7 +410,7 @@ class TestPDFDataclasses:
 
     def test_pdf_page_to_dict(self):
         """PDFPage serializa correctamente."""
-        from backend.ingestion.pdf_extractor import PDFPage
+        from ingestion.pdf_extractor import PDFPage
 
         page = PDFPage(page_number=5, text="Test content")
 
@@ -421,7 +421,7 @@ class TestPDFDataclasses:
 
     def test_pdf_document_id_generated(self):
         """PDFDocument genera document_id."""
-        from backend.ingestion.pdf_extractor import PDFDocument
+        from ingestion.pdf_extractor import PDFDocument
 
         doc = PDFDocument(
             source="/path/to/document.pdf",
@@ -434,7 +434,7 @@ class TestPDFDataclasses:
 
     def test_pdf_document_word_count(self):
         """PDFDocument calcula word_count."""
-        from backend.ingestion.pdf_extractor import PDFDocument
+        from ingestion.pdf_extractor import PDFDocument
 
         doc = PDFDocument(
             source="test.pdf",
@@ -446,7 +446,7 @@ class TestPDFDataclasses:
 
     def test_pdf_document_char_count(self):
         """PDFDocument calcula char_count."""
-        from backend.ingestion.pdf_extractor import PDFDocument
+        from ingestion.pdf_extractor import PDFDocument
 
         doc = PDFDocument(
             source="test.pdf",
@@ -458,7 +458,7 @@ class TestPDFDataclasses:
 
     def test_pdf_document_get_text_by_pages(self):
         """PDFDocument.get_text_by_pages funciona correctamente."""
-        from backend.ingestion.pdf_extractor import PDFDocument, PDFPage
+        from ingestion.pdf_extractor import PDFDocument, PDFPage
 
         doc = PDFDocument(
             source="test.pdf",
@@ -482,7 +482,7 @@ class TestPDFExtractor:
 
     def test_extractor_supported_extensions(self):
         """Verifica extensiones soportadas."""
-        from backend.ingestion.pdf_extractor import PDFExtractor
+        from ingestion.pdf_extractor import PDFExtractor
 
         e = PDFExtractor()
         assert ".pdf" in e.SUPPORTED_EXTENSIONS
@@ -491,7 +491,7 @@ class TestPDFExtractor:
     @pytest.mark.asyncio
     async def test_extract_file_not_found(self):
         """Retorna None si archivo no existe."""
-        from backend.ingestion.pdf_extractor import PDFExtractor
+        from ingestion.pdf_extractor import PDFExtractor
 
         e = PDFExtractor()
         result = await e.extract_file("/nonexistent/document.pdf")
@@ -500,7 +500,7 @@ class TestPDFExtractor:
 
     def test_clean_text(self):
         """Limpia texto correctamente."""
-        from backend.ingestion.pdf_extractor import PDFExtractor
+        from ingestion.pdf_extractor import PDFExtractor
 
         e = PDFExtractor()
 
@@ -513,7 +513,7 @@ class TestPDFExtractor:
 
     def test_parse_pdf_date_valid(self):
         """Parsea fecha PDF correctamente."""
-        from backend.ingestion.pdf_extractor import PDFExtractor
+        from ingestion.pdf_extractor import PDFExtractor
 
         e = PDFExtractor()
 
@@ -523,7 +523,7 @@ class TestPDFExtractor:
 
     def test_parse_pdf_date_invalid(self):
         """Retorna None para fecha invalida."""
-        from backend.ingestion.pdf_extractor import PDFExtractor
+        from ingestion.pdf_extractor import PDFExtractor
 
         e = PDFExtractor()
 
@@ -532,7 +532,7 @@ class TestPDFExtractor:
 
     def test_chunk_document(self):
         """chunk_document divide correctamente."""
-        from backend.ingestion.pdf_extractor import PDFExtractor, PDFDocument
+        from ingestion.pdf_extractor import PDFExtractor, PDFDocument
 
         e = PDFExtractor()
         doc = PDFDocument(
@@ -551,7 +551,7 @@ class TestPDFExtractor:
 
     def test_chunk_document_empty(self):
         """chunk_document maneja documento vacio."""
-        from backend.ingestion.pdf_extractor import PDFExtractor, PDFDocument
+        from ingestion.pdf_extractor import PDFExtractor, PDFDocument
 
         e = PDFExtractor()
         doc = PDFDocument(
@@ -565,7 +565,7 @@ class TestPDFExtractor:
 
     def test_get_pdf_extractor_singleton(self):
         """get_pdf_extractor retorna singleton."""
-        from backend.ingestion.pdf_extractor import get_pdf_extractor
+        from ingestion.pdf_extractor import get_pdf_extractor
         import backend.ingestion.pdf_extractor as module
 
         module._extractor = None
@@ -585,7 +585,7 @@ class TestModuleImports:
 
     def test_import_from_ingestion_transcriber(self):
         """Verifica imports del transcriber."""
-        from backend.ingestion import (
+        from ingestion import (
             AudioFormat,
             TranscriptSegment,
             Transcript,
@@ -601,7 +601,7 @@ class TestModuleImports:
 
     def test_import_from_ingestion_youtube(self):
         """Verifica imports de YouTube."""
-        from backend.ingestion import (
+        from ingestion import (
             YouTubeVideo,
             YouTubeTranscript,
             YouTubeConnector,
@@ -615,7 +615,7 @@ class TestModuleImports:
 
     def test_import_from_ingestion_podcast(self):
         """Verifica imports de Podcast."""
-        from backend.ingestion import (
+        from ingestion import (
             PodcastShow,
             PodcastEpisode,
             PodcastTranscript,
@@ -631,7 +631,7 @@ class TestModuleImports:
 
     def test_import_from_ingestion_pdf(self):
         """Verifica imports de PDF."""
-        from backend.ingestion import (
+        from ingestion import (
             PDFPage,
             PDFDocument,
             PDFExtractor,
