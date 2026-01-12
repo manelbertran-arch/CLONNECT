@@ -68,10 +68,41 @@ export interface LoginResponse {
   user: AuthUser;
 }
 
-// HARDCODED FOR DEMO - Forces stefano_auto (updated 2026-01-08)
+// P1 FIX: Dynamic creator ID from localStorage/auth
+const DEFAULT_CREATOR_ID = "stefano_auto";  // Fallback for demo/unauthenticated
+const CREATOR_ID_KEY = "clonnect_selected_creator";  // Must match AuthContext
+const LEGACY_CREATOR_ID_KEY = "creator_id";  // Legacy key for backwards compatibility
+
 export function getCreatorId(): string {
-  // CRITICAL: Always return stefano_auto for demo
-  return "stefano_auto";
+  // Priority order:
+  // 1. New key (AuthContext)
+  // 2. Legacy key (old code)
+  // 3. Default fallback for demo
+  const stored = localStorage.getItem(CREATOR_ID_KEY);
+  if (stored) {
+    return stored;
+  }
+  // Check legacy key
+  const legacy = localStorage.getItem(LEGACY_CREATOR_ID_KEY);
+  if (legacy) {
+    // Migrate to new key
+    localStorage.setItem(CREATOR_ID_KEY, legacy);
+    return legacy;
+  }
+  return DEFAULT_CREATOR_ID;
+}
+
+// Helper to set creator ID on login
+export function setCreatorId(creatorId: string): void {
+  localStorage.setItem(CREATOR_ID_KEY, creatorId);
+  // Also set legacy key for backwards compatibility
+  localStorage.setItem(LEGACY_CREATOR_ID_KEY, creatorId);
+}
+
+// Helper to clear creator ID on logout
+export function clearCreatorId(): void {
+  localStorage.removeItem(CREATOR_ID_KEY);
+  localStorage.removeItem(LEGACY_CREATOR_ID_KEY);
 }
 
 // Legacy export for components that haven't been updated yet
