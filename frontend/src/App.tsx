@@ -5,6 +5,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider } from "@/context/AuthContext";
 import { DashboardLayout } from "./components/layout/DashboardLayout";
+import { DashboardLayoutClean } from "./components/layout/DashboardLayoutClean";
 import NotFound from "./pages/NotFound";
 import Login from "./pages/Login";
 
@@ -61,6 +62,11 @@ const AppRoutes = () => {
 
       {/* Minimal test route to isolate Inbox slowness */}
       <Route path="/inbox-test" element={<InboxTest />} />
+
+      {/* Clean layout test - no Sidebar/MobileNav */}
+      <Route element={<DashboardLayoutClean />}>
+        <Route path="/clean-inbox-test" element={<HomeWithConversations />} />
+      </Route>
 
       {/* Dashboard routes */}
       <Route element={<DashboardLayout />}>
