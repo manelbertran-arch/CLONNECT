@@ -1,8 +1,6 @@
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo } from "react";
 import { Instagram, MoreHorizontal, Plus, TrendingUp, Loader2, AlertCircle, MessageCircle, Send, Eye, Pencil, Trash2, X } from "lucide-react";
 
-// DEBUG: Log data flow
-const DEBUG = true;
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -139,18 +137,6 @@ export default function Leads() {
   const { data, isLoading, error } = useConversations();
   const [draggedLead, setDraggedLead] = useState<LeadDisplay | null>(null);
 
-  // DEBUG: Log data flow
-  useEffect(() => {
-    if (DEBUG) {
-      console.log('[LEADS DEBUG]', {
-        data,
-        isLoading,
-        error: error?.message || error,
-        conversationsLength: data?.conversations?.length,
-        rawDataPreview: JSON.stringify(data)?.substring(0, 500)
-      });
-    }
-  }, [data, isLoading, error]);
   const [localStatusOverrides, setLocalStatusOverrides] = useState<Record<string, LeadStatus>>({});
   const { toast } = useToast();
   const updateStatusMutation = useUpdateLeadStatus();
