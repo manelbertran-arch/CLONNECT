@@ -1,29 +1,10 @@
-import { useEffect } from "react";
-import { Outlet, useNavigate } from "react-router-dom";
+import { Outlet } from "react-router-dom";
 import { Sidebar } from "./Sidebar";
 import { MobileNav } from "./MobileNav";
-import { useVisualOnboardingStatus } from "@/hooks/useApi";
 
 export function DashboardLayout() {
-  const navigate = useNavigate();
-  // Don't block rendering on onboarding check - use error handling
-  const { data: onboardingStatus, isLoading, error } = useVisualOnboardingStatus();
-
-  // Redirect to /onboarding if not completed (non-blocking)
-  useEffect(() => {
-    // Only redirect if we have a definitive response (not loading, no error)
-    if (isLoading || error) return;
-
-    // If onboarding not completed, redirect to /onboarding page
-    if (onboardingStatus && !onboardingStatus.onboarding_completed) {
-      console.log("Onboarding not completed, redirecting to /onboarding");
-      navigate("/onboarding", { replace: true });
-    }
-  }, [isLoading, error, onboardingStatus, navigate]);
-
-  // DON'T block rendering while checking onboarding status
-  // The redirect will happen in the background if needed
-  // This fixes the infinite spinner issue when onboarding endpoint fails
+  // REMOVED: useVisualOnboardingStatus check that was causing issues
+  // Onboarding redirect should be handled at login or app level, not here
 
   return (
     <div className="min-h-screen bg-background">
