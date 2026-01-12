@@ -97,13 +97,121 @@ const TIME_OPTIONS = Array.from({ length: 48 }, (_, i) => {
   return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`;
 });
 
+// Availability presets
+interface PresetDay {
+  day: number;
+  active: boolean;
+  start: string;
+  end: string;
+}
+
+interface AvailabilityPreset {
+  id: string;
+  icon: string;
+  name: string;
+  description: string;
+  days: PresetDay[] | null;
+}
+
+const AVAILABILITY_PRESETS: AvailabilityPreset[] = [
+  {
+    id: 'office',
+    icon: '🏢',
+    name: 'Oficina',
+    description: 'L-V 9-18',
+    days: [
+      { day: 0, active: true, start: '09:00', end: '18:00' },
+      { day: 1, active: true, start: '09:00', end: '18:00' },
+      { day: 2, active: true, start: '09:00', end: '18:00' },
+      { day: 3, active: true, start: '09:00', end: '18:00' },
+      { day: 4, active: true, start: '09:00', end: '18:00' },
+      { day: 5, active: false, start: '09:00', end: '18:00' },
+      { day: 6, active: false, start: '09:00', end: '18:00' },
+    ]
+  },
+  {
+    id: 'mornings',
+    icon: '🌅',
+    name: 'Mañanas',
+    description: 'L-V 9-14',
+    days: [
+      { day: 0, active: true, start: '09:00', end: '14:00' },
+      { day: 1, active: true, start: '09:00', end: '14:00' },
+      { day: 2, active: true, start: '09:00', end: '14:00' },
+      { day: 3, active: true, start: '09:00', end: '14:00' },
+      { day: 4, active: true, start: '09:00', end: '14:00' },
+      { day: 5, active: false, start: '09:00', end: '14:00' },
+      { day: 6, active: false, start: '09:00', end: '14:00' },
+    ]
+  },
+  {
+    id: 'afternoons',
+    icon: '🌙',
+    name: 'Tardes',
+    description: 'L-V 15-20',
+    days: [
+      { day: 0, active: true, start: '15:00', end: '20:00' },
+      { day: 1, active: true, start: '15:00', end: '20:00' },
+      { day: 2, active: true, start: '15:00', end: '20:00' },
+      { day: 3, active: true, start: '15:00', end: '20:00' },
+      { day: 4, active: true, start: '15:00', end: '20:00' },
+      { day: 5, active: false, start: '15:00', end: '20:00' },
+      { day: 6, active: false, start: '15:00', end: '20:00' },
+    ]
+  },
+  {
+    id: 'fullweek',
+    icon: '📅',
+    name: 'Toda la semana',
+    description: 'L-D 9-20',
+    days: [
+      { day: 0, active: true, start: '09:00', end: '20:00' },
+      { day: 1, active: true, start: '09:00', end: '20:00' },
+      { day: 2, active: true, start: '09:00', end: '20:00' },
+      { day: 3, active: true, start: '09:00', end: '20:00' },
+      { day: 4, active: true, start: '09:00', end: '20:00' },
+      { day: 5, active: true, start: '09:00', end: '20:00' },
+      { day: 6, active: true, start: '09:00', end: '20:00' },
+    ]
+  },
+  {
+    id: 'custom',
+    icon: '🔧',
+    name: 'Personalizado',
+    description: 'Configura tú',
+    days: null
+  }
+];
+
 // Default availability: Mon-Fri 9:00-18:00
 const DEFAULT_AVAILABILITY: DayAvailability[] = DAY_NAMES.map((_, i) => ({
   day_of_week: i,
   start_time: '09:00',
   end_time: '18:00',
-  is_active: i < 5, // Mon-Fri active
+  is_active: i < 5,
 }));
+
+// Helper to check if current availability matches a preset
+function detectPreset(availability: DayAvailability[]): string {
+  for (const preset of AVAILABILITY_PRESETS) {
+    if (!preset.days) continue;
+
+    const matches = preset.days.every((presetDay) => {
+      const currentDay = availability.find(d => d.day_of_week === presetDay.day);
+      if (!currentDay) return false;
+
+      return (
+        currentDay.is_active === presetDay.active &&
+        currentDay.start_time === presetDay.start &&
+        currentDay.end_time === presetDay.end
+      );
+    });
+
+    if (matches) return preset.id;
+  }
+
+  return 'custom';
+}
 
 // Platform logos - official brand colors and SVG paths
 const PlatformLogo = ({ platform, size = 24 }: { platform: string; size?: number }) => {
@@ -157,9 +265,10 @@ export default function Bookings() {
   const setAvailabilityMutation = useSetAvailability();
   const [availability, setLocalAvailability] = useState<DayAvailability[]>(DEFAULT_AVAILABILITY);
   const [availabilityChanged, setAvailabilityChanged] = useState(false);
-  const [showAvailability, setShowAvailability] = useState(false);
+  const [selectedPreset, setSelectedPreset] = useState<string>('office');
+  const [showCustomSchedule, setShowCustomSchedule] = useState(false);
 
-  // Load availability from API
+  // Load availability from API and detect preset
   useEffect(() => {
     if (availabilityData?.availability) {
       const merged = DEFAULT_AVAILABILITY.map((defaultDay) => {
@@ -169,6 +278,11 @@ export default function Bookings() {
         return savedDay || defaultDay;
       });
       setLocalAvailability(merged);
+
+      // Detect which preset matches
+      const detectedPreset = detectPreset(merged);
+      setSelectedPreset(detectedPreset);
+      setShowCustomSchedule(detectedPreset === 'custom');
     }
   }, [availabilityData]);
 
@@ -355,6 +469,40 @@ export default function Bookings() {
       await setAvailabilityMutation.mutateAsync(availability);
       toast({ title: "Saved", description: "Availability schedule updated" });
       setAvailabilityChanged(false);
+      // Update detected preset after save
+      const detectedPreset = detectPreset(availability);
+      setSelectedPreset(detectedPreset);
+      setShowCustomSchedule(detectedPreset === 'custom');
+    } catch (error: any) {
+      toast({ title: "Error", description: error.message || "Failed to save", variant: "destructive" });
+    }
+  };
+
+  const handlePresetSelect = async (presetId: string) => {
+    setSelectedPreset(presetId);
+
+    if (presetId === 'custom') {
+      setShowCustomSchedule(true);
+      return;
+    }
+
+    setShowCustomSchedule(false);
+    const preset = AVAILABILITY_PRESETS.find(p => p.id === presetId);
+    if (!preset?.days) return;
+
+    // Convert preset days to DayAvailability format
+    const newAvailability: DayAvailability[] = preset.days.map(d => ({
+      day_of_week: d.day,
+      start_time: d.start,
+      end_time: d.end,
+      is_active: d.active,
+    }));
+
+    // Save immediately
+    try {
+      await setAvailabilityMutation.mutateAsync(newAvailability);
+      setLocalAvailability(newAvailability);
+      toast({ title: "Guardado", description: `Horario "${preset.name}" aplicado` });
     } catch (error: any) {
       toast({ title: "Error", description: error.message || "Failed to save", variant: "destructive" });
     }
@@ -872,38 +1020,80 @@ export default function Bookings() {
         ) : null}
       </div>
 
-      {/* Availability Schedule */}
+      {/* Availability Schedule - Presets */}
       <div className="metric-card">
-        <button
-          onClick={() => setShowAvailability(!showAvailability)}
-          className="w-full flex items-center justify-between"
-        >
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
-              <Clock className="w-5 h-5 text-primary" />
-            </div>
-            <div className="text-left">
-              <h3 className="font-semibold">Horarios de disponibilidad</h3>
-              <p className="text-sm text-muted-foreground">
-                {availability.filter(d => d.is_active).length} días activos
-              </p>
-            </div>
+        <div className="flex items-center gap-3 mb-4">
+          <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
+            <Clock className="w-5 h-5 text-primary" />
           </div>
-          {showAvailability ? (
-            <ChevronUp className="w-5 h-5 text-muted-foreground" />
-          ) : (
-            <ChevronDown className="w-5 h-5 text-muted-foreground" />
-          )}
-        </button>
+          <div>
+            <h3 className="font-semibold">¿Cuándo pueden reservar contigo?</h3>
+            <p className="text-sm text-muted-foreground">
+              Selecciona tu horario de disponibilidad
+            </p>
+          </div>
+        </div>
 
-        {showAvailability && (
-          <div className="mt-4 pt-4 border-t">
-            {availabilityLoading ? (
-              <div className="flex justify-center py-4">
-                <Loader2 className="w-6 h-6 animate-spin text-primary" />
-              </div>
-            ) : (
-              <>
+        {availabilityLoading ? (
+          <div className="flex justify-center py-8">
+            <Loader2 className="w-6 h-6 animate-spin text-primary" />
+          </div>
+        ) : (
+          <>
+            {/* Preset Cards */}
+            <div className="grid grid-cols-3 gap-3 mb-4">
+              {AVAILABILITY_PRESETS.slice(0, 3).map((preset) => (
+                <button
+                  key={preset.id}
+                  onClick={() => handlePresetSelect(preset.id)}
+                  disabled={setAvailabilityMutation.isPending}
+                  className={cn(
+                    "relative p-4 rounded-xl border-2 transition-all text-center",
+                    selectedPreset === preset.id
+                      ? "border-primary bg-primary/10"
+                      : "border-border hover:border-primary/50 hover:bg-secondary/50"
+                  )}
+                >
+                  {selectedPreset === preset.id && (
+                    <div className="absolute top-2 right-2">
+                      <CheckCircle2 className="w-5 h-5 text-primary" />
+                    </div>
+                  )}
+                  <div className="text-2xl mb-2">{preset.icon}</div>
+                  <div className="font-medium text-sm">{preset.name}</div>
+                  <div className="text-xs text-muted-foreground">{preset.description}</div>
+                </button>
+              ))}
+            </div>
+
+            <div className="grid grid-cols-2 gap-3 mb-4">
+              {AVAILABILITY_PRESETS.slice(3).map((preset) => (
+                <button
+                  key={preset.id}
+                  onClick={() => handlePresetSelect(preset.id)}
+                  disabled={setAvailabilityMutation.isPending}
+                  className={cn(
+                    "relative p-4 rounded-xl border-2 transition-all text-center",
+                    selectedPreset === preset.id
+                      ? "border-primary bg-primary/10"
+                      : "border-border hover:border-primary/50 hover:bg-secondary/50"
+                  )}
+                >
+                  {selectedPreset === preset.id && (
+                    <div className="absolute top-2 right-2">
+                      <CheckCircle2 className="w-5 h-5 text-primary" />
+                    </div>
+                  )}
+                  <div className="text-2xl mb-2">{preset.icon}</div>
+                  <div className="font-medium text-sm">{preset.name}</div>
+                  <div className="text-xs text-muted-foreground">{preset.description}</div>
+                </button>
+              ))}
+            </div>
+
+            {/* Custom Schedule - Only shown when "Personalizado" is selected */}
+            {showCustomSchedule && (
+              <div className="mt-4 pt-4 border-t">
                 <div className="space-y-2">
                   {availability.map((day, index) => (
                     <div
@@ -969,9 +1159,19 @@ export default function Bookings() {
                   )}
                   Guardar horarios
                 </Button>
-              </>
+              </div>
             )}
-          </div>
+
+            {/* Info about Google Calendar */}
+            {googleConnected && (
+              <div className="flex items-start gap-2 mt-4 p-3 rounded-lg bg-primary/5 text-sm text-muted-foreground">
+                <CalendarIcon className="w-4 h-4 mt-0.5 text-primary flex-shrink-0" />
+                <span>
+                  Google Calendar bloquea automáticamente cuando estés ocupado
+                </span>
+              </div>
+            )}
+          </>
         )}
       </div>
     </div>
