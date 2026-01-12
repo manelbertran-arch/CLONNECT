@@ -313,48 +313,36 @@ async def update_follower_status(creator_id: str, follower_id: str, data: dict =
 
 @router.get("/conversations/{creator_id}")
 async def get_conversations(creator_id: str, limit: int = 50):
-    # Try PostgreSQL first
+    # Try PostgreSQL with OPTIMIZED query (single query with JOIN instead of N+1)
     if USE_DB:
         try:
-            leads = db_service.get_leads(creator_id)
-            if leads:
+            # Use optimized function that does a single query with subquery join
+            conversations_data = db_service.get_conversations_with_counts(creator_id, limit=limit)
+            if conversations_data is not None:
                 conversations = []
-                for l in leads[:limit]:
-                    follower_id = l.get("platform_user_id", l.get("id"))
-                    lead_uuid = l.get("id")
-                    # Get message count and last messages from PostgreSQL
-                    msg_count = 0
-                    last_messages = []
-                    if lead_uuid:
-                        msg_count = db_service.count_user_messages_by_lead_id(lead_uuid)
-                        db_msgs = db_service.get_messages_by_lead_id(lead_uuid, limit=10)
-                        last_messages = db_msgs[-5:] if db_msgs else []
-                    # Extract email/phone/notes from context (stored as JSON in PostgreSQL)
-                    ctx = l.get("context") or {}
-                    lead_status = l.get("status", "new")
-                    intent = l.get("purchase_intent", 0)
+                for c in conversations_data:
+                    lead_status = c.get("status", "new")
+                    intent = c.get("purchase_intent_score", 0)
                     conversations.append({
-                        "follower_id": follower_id,
-                        "id": l.get("id"),  # UUID for reliable updates
-                        "username": l.get("username"),
-                        "name": l.get("full_name"),
-                        "platform": l.get("platform", "instagram"),
-                        "total_messages": msg_count,
-                        # AI Intent Score (0-1 and 0-100)
+                        "follower_id": c.get("platform_user_id") or c.get("follower_id"),
+                        "id": c.get("id"),
+                        "username": c.get("username"),
+                        "name": c.get("name"),
+                        "platform": c.get("platform", "instagram"),
+                        "total_messages": c.get("total_messages", 0),
                         "purchase_intent": intent,
-                        "purchase_intent_score": round(intent * 100),
-                        # Pipeline Status & Score
+                        "purchase_intent_score": round(intent * 100) if intent <= 1 else int(intent),
                         "lead_status": lead_status,
                         "pipeline_score": get_pipeline_score(lead_status),
-                        "last_messages": last_messages,
-                        "last_contact": l.get("last_contact_at"),
-                        "email": ctx.get("email") or l.get("email") or "",
-                        "phone": ctx.get("phone") or l.get("phone") or "",
-                        "notes": ctx.get("notes") or l.get("notes") or "",
+                        "last_messages": [],  # Skip for performance - fetch on detail view
+                        "last_contact": c.get("last_contact"),
+                        "email": "",
+                        "phone": "",
+                        "notes": "",
                     })
                 return {"status": "ok", "conversations": conversations, "count": len(conversations)}
         except Exception as e:
-            logger.warning(f"Get conversations (PostgreSQL) failed: {e}")
+            logger.warning(f"Get conversations (PostgreSQL optimized) failed: {e}")
 
     # Fallback to JSON files
     try:
