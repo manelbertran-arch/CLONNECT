@@ -87,8 +87,8 @@ export function useDashboard(creatorId: string = getCreatorId()) {
   return useQuery({
     queryKey: apiKeys.dashboard(creatorId),
     queryFn: () => getDashboardOverview(creatorId),
-    refetchInterval: 5000, // Refetch every 5 seconds
-    staleTime: 2000, // Consider data stale after 2 seconds
+    refetchInterval: 60000, // Refetch every 60 seconds (reduced from 5s)
+    staleTime: 30000, // Data is fresh for 30 seconds
   });
 }
 
@@ -100,8 +100,8 @@ export function useConversations(creatorId: string = getCreatorId(), limit = 50)
   return useQuery({
     queryKey: apiKeys.conversations(creatorId),
     queryFn: () => getConversations(creatorId, limit),
-    refetchInterval: 5000, // Refetch every 5 seconds
-    staleTime: 2000,
+    refetchInterval: 30000, // Refetch every 30 seconds (reduced from 5s to prevent request backlog)
+    staleTime: 15000, // Data is fresh for 15 seconds
   });
 }
 
@@ -114,8 +114,8 @@ export function useFollowerDetail(followerId: string | null, creatorId: string =
     queryKey: apiKeys.follower(creatorId, followerId || ""),
     queryFn: () => getFollowerDetail(creatorId, followerId!),
     enabled: !!followerId, // Only fetch when we have a followerId
-    refetchInterval: 5000, // Refetch every 5 seconds for real-time updates
-    staleTime: 2000,
+    refetchInterval: 15000, // Refetch every 15 seconds (reduced from 5s)
+    staleTime: 10000, // Data is fresh for 10 seconds
   });
 }
 
@@ -139,8 +139,8 @@ export function useMetrics(creatorId: string = getCreatorId()) {
   return useQuery({
     queryKey: apiKeys.metrics(creatorId),
     queryFn: () => getMetrics(creatorId),
-    refetchInterval: 5000,
-    staleTime: 2000,
+    refetchInterval: 60000, // Refetch every 60 seconds (reduced from 5s)
+    staleTime: 30000, // Data is fresh for 30 seconds
   });
 }
 

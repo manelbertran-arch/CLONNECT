@@ -23,12 +23,13 @@ SessionLocal = None
 if DATABASE_URL:
     try:
         # Connection pooling with keepalive and pre_ping for Neon PostgreSQL
+        # NOTE: With 4 gunicorn workers, each has its own pool (4 × 3 = 12 base connections)
         engine = create_engine(
             DATABASE_URL,
             echo=False,
             poolclass=QueuePool,
-            pool_size=5,
-            max_overflow=10,
+            pool_size=3,  # Reduced for multi-worker setup (4 workers × 3 = 12)
+            max_overflow=5,  # Reduced (4 workers × 5 = 20 overflow max)
             pool_timeout=30,
             pool_recycle=300,  # Recycle connections every 5 minutes
             pool_pre_ping=True,  # Test connections before using them

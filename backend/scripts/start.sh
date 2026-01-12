@@ -69,10 +69,24 @@ fi
 
 echo "Starting Clonnect Creators API on port $PORT"
 
-# If running as root, switch to clonnect user
-# Using 4 workers to prevent background tasks from blocking requests
+# Using gunicorn with uvicorn workers for REAL concurrency
+# - 4 workers = 4 separate processes that can handle requests in parallel
+# - Each worker has its own event loop, avoiding blocking
+# - timeout 120s for slow database queries
+# - keep-alive 5s to prevent connection accumulation
+
+GUNICORN_CMD="gunicorn api.main:app \
+    --workers 4 \
+    --worker-class uvicorn.workers.UvicornWorker \
+    --bind 0.0.0.0:$PORT \
+    --timeout 120 \
+    --keep-alive 5 \
+    --access-logfile - \
+    --error-logfile - \
+    --capture-output"
+
 if [ "$(id -u)" = "0" ]; then
-    exec su -s /bin/bash clonnect -c "uvicorn api.main:app --host 0.0.0.0 --port $PORT --workers 4 --timeout-keep-alive 5"
+    exec su -s /bin/bash clonnect -c "$GUNICORN_CMD"
 else
-    exec uvicorn api.main:app --host 0.0.0.0 --port $PORT --workers 4 --timeout-keep-alive 5
+    exec $GUNICORN_CMD
 fi
