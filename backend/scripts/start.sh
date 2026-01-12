@@ -70,8 +70,9 @@ fi
 echo "Starting Clonnect Creators API on port $PORT"
 
 # If running as root, switch to clonnect user
+# Using 4 workers to prevent background tasks from blocking requests
 if [ "$(id -u)" = "0" ]; then
-    exec su -s /bin/bash clonnect -c "uvicorn api.main:app --host 0.0.0.0 --port $PORT"
+    exec su -s /bin/bash clonnect -c "uvicorn api.main:app --host 0.0.0.0 --port $PORT --workers 4 --timeout-keep-alive 5"
 else
-    exec uvicorn api.main:app --host 0.0.0.0 --port $PORT
+    exec uvicorn api.main:app --host 0.0.0.0 --port $PORT --workers 4 --timeout-keep-alive 5
 fi

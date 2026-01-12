@@ -47,6 +47,9 @@ def mask_token(token: Optional[str]) -> Optional[str]:
 @router.get("/{creator_id}")
 async def get_connections(creator_id: str) -> AllConnections:
     """Get all connection statuses for a creator"""
+    import time as _time
+    start = _time.time()
+    logger.info(f"[CONNECTIONS] Starting get_connections for {creator_id}")
     # Default empty connections
     empty_connections = AllConnections(
         instagram=ConnectionStatus(connected=False),
@@ -72,7 +75,7 @@ async def get_connections(creator_id: str) -> AllConnections:
                     # Return empty connections instead of 404
                     return empty_connections
 
-                return AllConnections(
+                result = AllConnections(
                     instagram=ConnectionStatus(
                         connected=bool(creator.instagram_token and len(creator.instagram_token) > 10),
                         username=creator.instagram_page_id if creator.instagram_token else None,
@@ -119,15 +122,18 @@ async def get_connections(creator_id: str) -> AllConnections:
                         masked_token=mask_token(getattr(creator, 'google_access_token', None))
                     )
                 )
+                logger.info(f"[CONNECTIONS] Completed for {creator_id} in {_time.time() - start:.2f}s")
+                return result
             finally:
                 session.close()
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"Error getting connections: {e}")
+        logger.error(f"[CONNECTIONS] Error after {_time.time() - start:.2f}s: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
     # Fallback: return empty connections
+    logger.info(f"[CONNECTIONS] Returning empty for {creator_id} in {_time.time() - start:.2f}s")
     return empty_connections
 
 

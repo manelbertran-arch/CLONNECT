@@ -24,6 +24,9 @@ router = APIRouter(prefix="/booking", tags=["booking"])
 @router.get("/availability/{creator_id}")
 async def get_availability(creator_id: str, db: Session = Depends(get_db)):
     """Get creator's weekly availability schedule"""
+    import time as _time
+    start = _time.time()
+    logger.info(f"[AVAILABILITY] Starting get_availability for {creator_id}")
     try:
         availability = db.query(CreatorAvailability).filter(
             CreatorAvailability.creator_id == creator_id
@@ -49,13 +52,14 @@ async def get_availability(creator_id: str, db: Session = Depends(get_db)):
                 for i, name in enumerate(["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"])
             ]
 
+        logger.info(f"[AVAILABILITY] Completed for {creator_id} in {_time.time() - start:.2f}s ({len(days)} days)")
         return {
             "status": "ok",
             "creator_id": creator_id,
             "availability": days
         }
     except Exception as e:
-        logger.error(f"Error getting availability: {e}")
+        logger.error(f"[AVAILABILITY] Error after {_time.time() - start:.2f}s: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 
