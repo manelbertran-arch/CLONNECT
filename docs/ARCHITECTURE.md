@@ -747,7 +747,50 @@ curl https://web-production-9f69.up.railway.app/health/ready
 - ✅ Podcast connector
 - ✅ PDF extractor
 
+### Phase 3 - Instagram Multi-Creator (Completed - 2026-01-12)
+- ✅ Multi-Creator Routing (page_id → creator_id)
+- ✅ Dedicated Instagram Router
+- ✅ Ice Breakers configuration
+- ✅ Persistent Menu support
+- ✅ Stories Reply/Mention Handler
+- ✅ E2E Tests for Instagram
+
+---
+
+## 13. Métricas del Proyecto
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                    PROJECT METRICS (2026-01-12)                 │
+├─────────────────────────────────────────────────────────────────┤
+│                                                                 │
+│  CODEBASE:                                                      │
+│  ├── Archivos Python:            186                           │
+│  ├── Archivos TypeScript/React:  80+                           │
+│  ├── Líneas Python (backend):    ~75,000                       │
+│  ├── Líneas TS/React (frontend): ~22,000                       │
+│  └── Tests pasando:              422                           │
+│                                                                 │
+│  API:                                                           │
+│  ├── Endpoints totales:          281                           │
+│  ├── Routers:                    23                            │
+│  └── Modelos de datos:           19                            │
+│                                                                 │
+│  FRONTEND:                                                      │
+│  ├── Páginas:                    35                            │
+│  ├── Servicios core:             37                            │
+│  └── Tests frontend:             31                            │
+│                                                                 │
+│  PERFORMANCE:                                                   │
+│  ├── DM response time:           2-5 segundos                  │
+│  ├── Dashboard load:             <2 segundos                   │
+│  └── Webhook processing:         <1 segundo                    │
+│                                                                 │
+└─────────────────────────────────────────────────────────────────┘
+```
+
 ---
 
 *Documento generado el 2026-01-05*
-*Versión: 1.0*
+*Última actualización: 2026-01-12*
+*Versión: 1.1*
