@@ -223,11 +223,15 @@ app.include_router(ingestion.router)
 from api.routers import ingestion_v2
 app.include_router(ingestion_v2.router)
 
+# Instagram router (multi-creator support)
+from api.routers import instagram as instagram_router
+app.include_router(instagram_router.router)
+
 # Authentication router
 from api.auth import router as auth_router
 app.include_router(auth_router)
 
-logging.info("Routers loaded: health, dashboard, config, leads, products, analytics, connections, oauth, booking, tone, citations, copilot, ingestion, auth")
+logging.info("Routers loaded: health, dashboard, config, leads, products, analytics, connections, oauth, booking, tone, citations, copilot, ingestion, instagram, auth")
 # AUTHENTICATION
 # ---------------------------------------------------------
 # Endpoints publicos (no requieren autenticacion)
