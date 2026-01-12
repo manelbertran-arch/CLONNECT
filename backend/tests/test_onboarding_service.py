@@ -137,7 +137,7 @@ class TestOnboardingPipeline:
 
         with patch.object(onboarding_service, '_analyze_tone') as mock_tone, \
              patch.object(onboarding_service, '_index_content') as mock_index, \
-             patch('backend.core.onboarding_service.save_tone_profile', new_callable=AsyncMock):
+             patch('core.onboarding_service.save_tone_profile', new_callable=AsyncMock):
 
             mock_tone.return_value = sample_tone_profile
             mock_index.return_value = {"posts_indexed": 3, "total_chunks": 3}
@@ -339,9 +339,9 @@ class TestIntegration:
         )
 
         # Mock de dependencias externas
-        with patch('backend.core.onboarding_service.save_tone_profile', new_callable=AsyncMock), \
-             patch('backend.core.onboarding_service.index_creator_posts', new_callable=AsyncMock) as mock_index, \
-             patch('backend.core.onboarding_service.get_content_index') as mock_get_index:
+        with patch('core.onboarding_service.save_tone_profile', new_callable=AsyncMock), \
+             patch('core.onboarding_service.index_creator_posts', new_callable=AsyncMock) as mock_index, \
+             patch('core.onboarding_service.get_content_index') as mock_get_index:
 
             mock_index.return_value = {"posts_indexed": 3, "total_chunks": 3}
             mock_get_index.return_value = MagicMock(chunks=[1, 2, 3])
