@@ -25,6 +25,9 @@ import { useToast } from "@/hooks/use-toast";
 import type { Conversation, Message } from "@/types/api";
 import { getPurchaseIntent, detectPlatform, getFriendlyName, extractNameFromMessages, getMessages } from "@/types/api";
 
+// DEBUG: Log data flow
+const DEBUG = true;
+
 const statusColors: Record<string, string> = {
   hot: "bg-destructive/10 text-destructive border-destructive/20",
   active: "bg-accent/10 text-accent border-accent/20",
@@ -103,6 +106,19 @@ export default function Inbox() {
   const { data, isLoading, error } = useConversations();
   const { data: archivedData, isLoading: archivedLoading } = useArchivedConversations();
   const [selectedId, setSelectedId] = useState<string | null>(null);
+
+  // DEBUG: Log data flow
+  useEffect(() => {
+    if (DEBUG) {
+      console.log('[INBOX DEBUG]', {
+        data,
+        isLoading,
+        error: error?.message || error,
+        conversationsLength: data?.conversations?.length,
+        rawDataPreview: JSON.stringify(data)?.substring(0, 500)
+      });
+    }
+  }, [data, isLoading, error]);
   const [message, setMessage] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
