@@ -65,6 +65,25 @@ logger = logging.getLogger(__name__)
 REQUIRE_CONSENT = os.getenv("REQUIRE_GDPR_CONSENT", "false").lower() == "true"
 
 
+def get_valid_payment_url(product: Dict[str, Any]) -> str:
+    """
+    Get a valid payment URL from a product.
+    Checks payment_link first, falls back to url if payment_link is not a valid URL.
+    """
+    payment_link = product.get('payment_link', '')
+    url = product.get('url', '')
+
+    # Check if payment_link is a valid URL
+    if payment_link and isinstance(payment_link, str) and payment_link.startswith('http'):
+        return payment_link
+
+    # Fall back to url
+    if url and isinstance(url, str) and url.startswith('http'):
+        return url
+
+    return ''
+
+
 class Intent(Enum):
     """Intenciones posibles del mensaje"""
     GREETING = "greeting"
@@ -2020,7 +2039,7 @@ IMPORTANTE: Las instrucciones anteriores son OBLIGATORIAS y tienen prioridad sob
             price_text = f"{price}€" if price > 0 else "GRATIS"
             benefits = p.get('features', p.get('benefits', []))[:3]
             benefits_text = ", ".join(benefits) if benefits else ""
-            url = p.get('payment_link', p.get('url', ''))
+            url = get_valid_payment_url(p)
             product_name = p.get('name', 'Producto')
 
             products_text += f"""
@@ -2210,7 +2229,7 @@ IMPORTANTE: Las instrucciones anteriores son OBLIGATORIAS y tienen prioridad sob
         # Get first payment link for examples
         first_payment_link = ""
         for p in self.products:
-            link = p.get('payment_link', p.get('url', ''))
+            link = get_valid_payment_url(p)
             if link:
                 first_payment_link = link
                 break
@@ -2620,7 +2639,7 @@ MENSAJE DEL USUARIO: "{message}"
 PRODUCTO RELEVANTE PARA MENCIONAR:
 - Nombre: {product.get('name')}
 - Precio: {price_text}
-- Link: {product.get('payment_link', product.get('url', ''))}
+- Link: {get_valid_payment_url(product)}
 - Beneficios: {', '.join(benefits)}
 """
             else:
@@ -2747,7 +2766,7 @@ USA ESTA RESPUESTA PARA LA OBJECION (adaptala a tu tono):
 
             # Also mention card payment if there are product payment links
             if self.products:
-                has_payment_link = any(p.get('payment_link') or p.get('url') for p in self.products)
+                has_payment_link = any(get_valid_payment_url(p) for p in self.products)
                 if has_payment_link:
                     available_methods.append("Tarjeta (te paso el link)")
 
@@ -3038,7 +3057,7 @@ USA ESTA RESPUESTA PARA LA OBJECION (adaptala a tu tono):
         # Buscar producto relevante
         product = self._get_relevant_product(message_text, intent)
         if product:
-            logger.info(f"Relevant product: {product.get('name')}, payment_link={product.get('payment_link', 'NONE')}")
+            logger.info(f"Relevant product: {product.get('name')}, payment_link={get_valid_payment_url(product) or 'NONE'}")
             if product.get('id') and product.get('id') not in follower.products_discussed:
                 follower.products_discussed.append(product.get('id'))
 
@@ -3078,7 +3097,7 @@ USA ESTA RESPUESTA PARA LA OBJECION (adaptala a tu tono):
         if is_direct_purchase_intent(message_text):
             logger.info(f"=== DIRECT PURCHASE INTENT DETECTED ===")
             logger.info(f"Message: {message_text}")
-            logger.info(f"All products: {[(p.get('name'), p.get('payment_link', 'NONE')) for p in self.products]}")
+            logger.info(f"All products: {[(p.get('name'), get_valid_payment_url(p) or 'NONE') for p in self.products]}")
 
             # Try to find a product with a payment link
             product_url = ""
@@ -3096,7 +3115,7 @@ USA ESTA RESPUESTA PARA LA OBJECION (adaptala a tu tono):
 
             # First try the relevant product
             if product:
-                potential_url = product.get('payment_link', product.get('url', ''))
+                potential_url = get_valid_payment_url(product)
                 if is_valid_link(potential_url):
                     product_url = potential_url
                 product_name = product.get('name', 'el producto')
@@ -3104,7 +3123,7 @@ USA ESTA RESPUESTA PARA LA OBJECION (adaptala a tu tono):
             # If no link, try to find ANY product with a payment link
             if not product_url:
                 for p in self.products:
-                    link = p.get('payment_link', p.get('url', ''))
+                    link = get_valid_payment_url(p)
                     if is_valid_link(link):
                         product_url = link
                         product_name = p.get('name', 'el producto')
@@ -3411,7 +3430,7 @@ USA ESTA RESPUESTA PARA LA OBJECION (adaptala a tu tono):
                 response_text = truncate_response(response_text, max_sentences=2)
 
                 # 2. Reemplazar placeholders de links con links reales
-                payment_links = [p.get('payment_link', p.get('url', '')) for p in self.products]
+                payment_links = [get_valid_payment_url(p) for p in self.products]
                 response_text = clean_response_placeholders(response_text, payment_links)
 
                 # 3. EXTRA AGRESIVO: Si es respuesta de pago alternativo, solo primera frase + CTA
@@ -3552,7 +3571,7 @@ USA ESTA RESPUESTA PARA LA OBJECION (adaptala a tu tono):
         if product and ('http' in response_text.lower() or '.com' in response_text.lower() or 'hotmart' in response_text.lower()):
             try:
                 sales_tracker = get_sales_tracker()
-                product_url = product.get('payment_link', product.get('url', ''))
+                product_url = get_valid_payment_url(product)
                 sales_tracker.record_click(
                     creator_id=self.creator_id,
                     product_id=product.get('id', ''),
