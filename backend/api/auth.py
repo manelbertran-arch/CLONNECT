@@ -186,9 +186,29 @@ def get_user_creators(db: Session, user_id: str) -> list:
 
 
 # Routes
+def generate_creator_id(email: str, name: str = None) -> str:
+    """Generate a unique creator_id from email or name"""
+    import re
+    # Use name if provided, otherwise use email prefix
+    base = name if name else email.split('@')[0]
+    # Convert to lowercase, replace spaces with underscore, remove special chars
+    creator_id = re.sub(r'[^a-z0-9_]', '', base.lower().replace(' ', '_'))
+    # Ensure it's not empty
+    if not creator_id:
+        creator_id = 'creator_' + str(uuid.uuid4())[:8]
+    return creator_id
+
+
 @router.post("/register", response_model=TokenResponse)
 async def register(user_data: UserRegister, db: Session = Depends(get_db)):
-    """Register a new user"""
+    """Register a new user with their own creator profile"""
+    # Validate password length
+    if len(user_data.password) < 6:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Password must be at least 6 characters"
+        )
+
     # Check if email already exists
     existing = db.query(User).filter(User.email == user_data.email.lower()).first()
     if existing:
@@ -197,6 +217,16 @@ async def register(user_data: UserRegister, db: Session = Depends(get_db)):
             detail="Email already registered"
         )
 
+    # Generate unique creator_id
+    base_creator_id = generate_creator_id(user_data.email, user_data.name)
+    creator_id = base_creator_id
+
+    # Ensure creator_id is unique by checking if name already exists
+    counter = 1
+    while db.query(Creator).filter(Creator.name == creator_id).first():
+        creator_id = f"{base_creator_id}_{counter}"
+        counter += 1
+
     # Create user
     user = User(
         email=user_data.email.lower(),
@@ -204,8 +234,30 @@ async def register(user_data: UserRegister, db: Session = Depends(get_db)):
         name=user_data.name,
     )
     db.add(user)
+    db.flush()  # Get user.id without committing
+
+    # Create creator profile for this user
+    creator = Creator(
+        email=user_data.email.lower(),
+        name=creator_id,  # This is the creator_id used throughout the app
+        clone_name=user_data.name or creator_id,
+        bot_active=False,
+        onboarding_completed=False,
+    )
+    db.add(creator)
+    db.flush()  # Get creator.id
+
+    # Link user to creator
+    user_creator = UserCreator(
+        user_id=user.id,
+        creator_id=creator.id,
+        role="owner"
+    )
+    db.add(user_creator)
+
     db.commit()
     db.refresh(user)
+    db.refresh(creator)
 
     # Create access token
     token = create_access_token(str(user.id))
@@ -216,7 +268,12 @@ async def register(user_data: UserRegister, db: Session = Depends(get_db)):
             "id": str(user.id),
             "email": user.email,
             "name": user.name,
-            "creators": []
+            "creators": [{
+                "id": str(creator.id),
+                "name": creator.name,
+                "clone_name": creator.clone_name,
+                "role": "owner"
+            }]
         }
     )
 

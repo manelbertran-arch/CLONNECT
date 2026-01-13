@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import { api } from '../services/api';
 
 export default function Login() {
@@ -111,6 +111,13 @@ export default function Login() {
         >
           Demo: Stefano Bonanno
         </button>
+
+        <div className="mt-6 text-center">
+          <span className="text-gray-400">¿No tienes cuenta? </span>
+          <Link to="/register" className="text-blue-400 hover:text-blue-300">
+            Regístrate
+          </Link>
+        </div>
       </div>
     </div>
   );

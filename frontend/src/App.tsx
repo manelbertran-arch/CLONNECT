@@ -8,6 +8,7 @@ import { DashboardLayout } from "./components/layout/DashboardLayout";
 import { DashboardLayoutClean } from "./components/layout/DashboardLayoutClean";
 import NotFound from "./pages/NotFound";
 import Login from "./pages/Login";
+import Register from "./pages/Register";
 
 // Debug logging
 console.log("[CLONNECT DEBUG] App.tsx module loading");
@@ -54,8 +55,9 @@ const AppRoutes = () => {
   console.log("[CLONNECT DEBUG] AppRoutes rendering, pathname:", window.location.pathname);
   return (
     <Routes>
-      {/* Login route - always show login page */}
+      {/* Auth routes */}
       <Route path="/login" element={<Login />} />
+      <Route path="/register" element={<Register />} />
 
       {/* Onboarding route - no protection, let onboarding handle its own state */}
       <Route path="/onboarding" element={<Onboarding />} />

@@ -112,6 +112,9 @@ async def reset_all_data():
                         json_file.write_text('{"clicks": [], "sales": []}')
                     elif "metrics" in json_file.name:
                         json_file.write_text('{"messages_today": 0, "leads_today": 0, "hot_leads_count": 0, "total_messages": 0, "total_leads": 0}')
+                    elif "followups" in json_file.name:
+                        # Followups files are plain arrays
+                        json_file.write_text('[]')
                     elif "nurturing" in json_file.name or "sequences" in json_file.name:
                         json_file.write_text('{"sequences": [], "enrolled": []}')
                     elif "payments" in json_file.name or "purchases" in json_file.name:
