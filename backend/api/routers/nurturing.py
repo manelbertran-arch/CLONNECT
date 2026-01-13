@@ -27,6 +27,9 @@ _scheduler_last_run: Optional[str] = None
 _scheduler_run_count = 0
 _scheduler_interval = int(os.getenv("NURTURING_SCHEDULER_INTERVAL", "300"))  # 5 minutes production
 
+# P0 FIX: Nurturing dry_run controlled by env var, defaults to FALSE (messages WILL send)
+NURTURING_DRY_RUN = os.getenv("NURTURING_DRY_RUN", "false").lower() == "true"
+
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/nurturing", tags=["nurturing"])
 
@@ -441,7 +444,7 @@ async def _try_send_message(creator_id: str, follower_id: str, message: str) -> 
 async def run_nurturing_followups(
     creator_id: str,
     due_only: bool = True,
-    dry_run: bool = False,  # FIX P0: Changed from True - messages should actually send
+    dry_run: Optional[bool] = None,  # P0 FIX: Now uses NURTURING_DRY_RUN env var as default
     limit: int = 50,
     force_due: bool = False
 ):
@@ -451,7 +454,8 @@ async def run_nurturing_followups(
     Args:
         creator_id: The creator ID
         due_only: If True, only process followups where scheduled_at <= now (default: True)
-        dry_run: If True, don't send/mark sent, just return what would be sent (default: True)
+        dry_run: If True, don't send/mark sent, just return what would be sent.
+                 Default: NURTURING_DRY_RUN env var (false = messages WILL send)
         limit: Max followups to process (default: 50)
         force_due: If True, treat ALL pending as due regardless of scheduled_at (default: False)
 
@@ -459,6 +463,9 @@ async def run_nurturing_followups(
         - dry_run=True: list of followups that would be processed
         - dry_run=False: summary with processed/sent/simulated/errors counts
     """
+    # P0 FIX: Use env var default if not explicitly provided
+    if dry_run is None:
+        dry_run = NURTURING_DRY_RUN
     manager = get_nurturing_manager()
     now = datetime.now()
 

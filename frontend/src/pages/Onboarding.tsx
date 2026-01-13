@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { api } from '../services/api';
+import { api, getCreatorId } from '../services/api';
 
 export default function Onboarding() {
   const [instagram, setInstagram] = useState('');
@@ -11,13 +11,8 @@ export default function Onboarding() {
   const [error, setError] = useState('');
   const navigate = useNavigate();
 
-  // Get creator_id from localStorage, fallback to stefano_auto
-  // Also handle case where "undefined" string was stored
-  const storedCreatorId = localStorage.getItem('creator_id');
-  const creatorId = (storedCreatorId && storedCreatorId !== 'undefined' && storedCreatorId !== 'null')
-    ? storedCreatorId
-    : 'stefano_auto';
-
+  // P1 FIX: Use getCreatorId helper (handles fallback and migration)
+  const creatorId = getCreatorId();
   console.log('[Onboarding] Using creator_id:', creatorId);
 
   const handleSubmit = async (e: React.FormEvent) => {

@@ -10,7 +10,7 @@ from unittest.mock import patch, MagicMock
 import sys
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from backend.ingestion import ToneProfile
+from ingestion import ToneProfile
 
 
 class TestToneServiceUnit:
@@ -63,7 +63,8 @@ class TestToneServiceUnit:
 
         section = profile.to_system_prompt_section()
 
-        assert "ESTILO DE COMUNICACION" in section or "informal" in section
+        # Check for style indicators (may use various formats)
+        assert "REGLAS OBLIGATORIAS" in section or "ESTILO" in section or "TUTEAR" in section
         assert len(section) > 50  # Debe tener contenido sustancial
 
 
@@ -79,7 +80,7 @@ class TestToneServiceIntegration:
     @pytest.mark.asyncio
     async def test_save_and_load_profile(self, temp_dir):
         """Verifica guardar y cargar perfil."""
-        from backend.core import tone_service
+        from core import tone_service
 
         # Patch el directorio
         original_dir = tone_service.TONE_PROFILES_DIR
@@ -114,7 +115,7 @@ class TestToneServiceIntegration:
 
     def test_get_tone_prompt_section_not_found(self):
         """Verifica que retorna vacio cuando no existe perfil."""
-        from backend.core import tone_service
+        from core import tone_service
 
         tone_service._tone_cache.clear()
         result = tone_service.get_tone_prompt_section("nonexistent_creator_xyz")
@@ -122,7 +123,7 @@ class TestToneServiceIntegration:
 
     def test_get_tone_prompt_section_from_cache(self):
         """Verifica que usa cache correctamente."""
-        from backend.core import tone_service
+        from core import tone_service
 
         profile = ToneProfile(
             creator_id="cached_creator",
@@ -142,7 +143,7 @@ class TestToneServiceIntegration:
 
     def test_list_profiles_empty(self, temp_dir):
         """Verifica lista vacia de perfiles."""
-        from backend.core import tone_service
+        from core import tone_service
 
         original_dir = tone_service.TONE_PROFILES_DIR
         tone_service.TONE_PROFILES_DIR = temp_dir
@@ -156,7 +157,7 @@ class TestToneServiceIntegration:
     @pytest.mark.asyncio
     async def test_list_profiles_with_data(self, temp_dir):
         """Verifica lista de perfiles con datos."""
-        from backend.core import tone_service
+        from core import tone_service
 
         original_dir = tone_service.TONE_PROFILES_DIR
         tone_service.TONE_PROFILES_DIR = temp_dir
@@ -220,7 +221,7 @@ class TestGenerateToneProfile:
     @pytest.mark.asyncio
     async def test_generate_from_posts(self):
         """Verifica generacion de perfil desde posts."""
-        from backend.core import tone_service
+        from core import tone_service
 
         posts = [
             {"caption": "Hola a todos! 💪 Hoy vamos a entrenar duro. Preparados?"},

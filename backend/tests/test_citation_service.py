@@ -2,7 +2,7 @@
 
 import pytest
 from datetime import datetime
-from backend.core.citation_service import (
+from core.citation_service import (
     CreatorContentIndex,
     get_content_index,
     find_relevant_citations,

@@ -34,11 +34,13 @@ if SENTRY_DSN:
             dsn=SENTRY_DSN,
             environment=os.getenv("SENTRY_ENVIRONMENT", "production"),
             traces_sample_rate=float(os.getenv("SENTRY_TRACES_SAMPLE_RATE", "0.1")),
+            profiles_sample_rate=0.1,
+            release=os.getenv("RAILWAY_GIT_COMMIT_SHA", "unknown"),
             integrations=[
                 FastApiIntegration(transaction_style="endpoint"),
                 SqlalchemyIntegration(),
             ],
-            send_default_pii=False,  # Don't send personally identifiable information
+            send_default_pii=False,
         )
         print(f"Sentry initialized: {SENTRY_DSN[:40]}...")
     except ImportError:
@@ -144,6 +146,21 @@ app.add_middleware(
     allow_credentials=True,
 )
 
+# Rate Limiting Middleware
+RATE_LIMIT_ENABLED = os.getenv("RATE_LIMIT_ENABLED", "true").lower() == "true"
+if RATE_LIMIT_ENABLED:
+    try:
+        from api.middleware.rate_limit import RateLimitMiddleware
+        app.add_middleware(
+            RateLimitMiddleware,
+            requests_per_minute=60,
+            requests_per_hour=1000,
+            webhook_rpm=200,
+        )
+        logging.info("Rate limiting middleware enabled")
+    except ImportError as e:
+        logging.warning(f"Rate limiting middleware not available: {e}")
+
 # Add exception handler to log 422 validation errors
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
@@ -206,11 +223,15 @@ app.include_router(ingestion.router)
 from api.routers import ingestion_v2
 app.include_router(ingestion_v2.router)
 
+# Instagram router (multi-creator support)
+from api.routers import instagram as instagram_router
+app.include_router(instagram_router.router)
+
 # Authentication router
 from api.auth import router as auth_router
 app.include_router(auth_router)
 
-logging.info("Routers loaded: health, dashboard, config, leads, products, analytics, connections, oauth, booking, tone, citations, copilot, ingestion, auth")
+logging.info("Routers loaded: health, dashboard, config, leads, products, analytics, connections, oauth, booking, tone, citations, copilot, ingestion, instagram, auth")
 # AUTHENTICATION
 # ---------------------------------------------------------
 # Endpoints publicos (no requieren autenticacion)

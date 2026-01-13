@@ -147,15 +147,16 @@ class TestHybridRAG:
         assert doc.text == "Curso de automatización"
 
     def test_search_semantic_only(self):
-        """Test search with semantic only (hybrid disabled)"""
+        """Test search with semantic search (HybridRAG is now alias for SemanticRAG)"""
         from core.rag import HybridRAG
 
         hybrid = HybridRAG()
-        hybrid.add_document("doc1", "Automatización de marketing")
+        hybrid.add_document("doc1", "Automatización de marketing", metadata={"creator_id": "test"})
 
-        results = hybrid.search("marketing automation", use_hybrid=False)
+        # SemanticRAG.search requires creator_id
+        results = hybrid.search("marketing automation", creator_id="test")
 
-        # Should work even with mock embedder
+        # Should work even without OpenAI API key (uses fallback)
         assert isinstance(results, list)
 
     def test_delete_document(self):

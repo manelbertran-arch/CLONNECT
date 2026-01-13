@@ -137,11 +137,22 @@ def sync_json_to_postgres(creator_name: str, follower_id: str) -> Optional[str]:
             ).first()
 
             if lead:
-                # ALWAYS sync purchase_intent_score from JSON (FIX P0: score was never persisting)
+                # P0 FIX: ALWAYS sync purchase_intent_score from JSON to PostgreSQL
+                old_score = lead.purchase_intent or 0.0
                 new_score = json_data.get("purchase_intent_score", 0.0)
-                if new_score != (lead.purchase_intent or 0.0):
+                if new_score != old_score:
                     lead.purchase_intent = new_score
-                    logger.info(f"Synced purchase_intent {lead.purchase_intent} → {new_score} for {follower_id}")
+                    logger.info(f"[P0-SYNC] purchase_intent: {old_score:.2f} → {new_score:.2f} for {follower_id}")
+
+                # P0 FIX: Also sync status from JSON to ensure lead_status persists
+                json_status = json_data.get("status")
+                if json_status and json_status != lead.status:
+                    status_order = {"new": 0, "active": 1, "hot": 2, "customer": 3}
+                    # Only upgrade status (never downgrade via sync)
+                    if status_order.get(json_status, 0) > status_order.get(lead.status, 0):
+                        old_status = lead.status
+                        lead.status = json_status
+                        logger.info(f"[P0-SYNC] status: {old_status} → {json_status} for {follower_id}")
 
                 # Update existing lead with JSON data if JSON is newer
                 json_last_contact = json_data.get("last_contact")
@@ -486,3 +497,62 @@ def sync_messages_from_json(creator_name: str) -> Dict[str, int]:
 
     logger.info(f"Message sync for {creator_name}: {stats}")
     return stats
+
+
+def update_lead_score_direct(creator_name: str, follower_id: str, purchase_intent: float, status: str = None) -> bool:
+    """
+    P0 FIX: Direct update of purchase_intent and status to PostgreSQL.
+    This is a backup method that updates PostgreSQL directly without reading JSON.
+
+    Args:
+        creator_name: Creator name (e.g., "manel")
+        follower_id: Follower ID (e.g., "tg_123456")
+        purchase_intent: Purchase intent score (0.0 to 1.0)
+        status: Optional status to set (new/active/hot/customer)
+
+    Returns:
+        True if updated successfully, False otherwise
+    """
+    if not USE_POSTGRES:
+        return False
+
+    try:
+        from api.services.db_service import get_session
+        from api.models import Creator, Lead
+
+        session = get_session()
+        if not session:
+            return False
+
+        try:
+            creator = session.query(Creator).filter_by(name=creator_name).first()
+            if not creator:
+                logger.warning(f"[P0-DIRECT] Creator not found: {creator_name}")
+                return False
+
+            lead = session.query(Lead).filter_by(
+                creator_id=creator.id,
+                platform_user_id=follower_id
+            ).first()
+
+            if not lead:
+                logger.warning(f"[P0-DIRECT] Lead not found: {follower_id}")
+                return False
+
+            old_score = lead.purchase_intent or 0.0
+            old_status = lead.status
+
+            lead.purchase_intent = purchase_intent
+            if status:
+                lead.status = status
+
+            session.commit()
+
+            logger.info(f"[P0-DIRECT] Updated {follower_id}: score {old_score:.2f}→{purchase_intent:.2f}, status {old_status}→{status or old_status}")
+            return True
+
+        finally:
+            session.close()
+    except Exception as e:
+        logger.error(f"[P0-DIRECT] update_lead_score_direct error: {e}")
+        return False

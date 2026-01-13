@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import { api } from '../services/api';
+import { api, setCreatorId } from '../services/api';
 
 export default function Login() {
   const [email, setEmail] = useState('');
@@ -18,9 +18,9 @@ export default function Login() {
       const response = await api.post('/auth/login', { email, password });
       localStorage.setItem('token', response.data.access_token);
 
-      // Get creator NAME (not UUID) from user.creators array
+      // P1 FIX: Get creator NAME (not UUID) from user.creators array
       const creatorName = response.data.user?.creators?.[0]?.name || 'stefano_auto';
-      localStorage.setItem('creator_id', creatorName);
+      setCreatorId(creatorName);
 
       // Verificar onboarding
       const status = await api.get(`/onboarding/${creatorName}/visual-status`);
@@ -48,9 +48,9 @@ export default function Login() {
       });
       localStorage.setItem('token', response.data.access_token);
 
-      // Get creator NAME (not UUID) from user.creators array
+      // P1 FIX: Get creator NAME (not UUID) from user.creators array
       const creatorName = response.data.user?.creators?.[0]?.name || 'stefano_auto';
-      localStorage.setItem('creator_id', creatorName);
+      setCreatorId(creatorName);
 
       const status = await api.get(`/onboarding/${creatorName}/visual-status`);
       if (status.data.onboarding_completed) {

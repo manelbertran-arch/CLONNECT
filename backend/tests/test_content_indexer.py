@@ -1,7 +1,7 @@
 """Tests para Content Indexer."""
 
 import pytest
-from backend.ingestion.content_indexer import (
+from ingestion.content_indexer import (
     split_text,
     generate_chunk_id,
     create_chunks_from_content,
