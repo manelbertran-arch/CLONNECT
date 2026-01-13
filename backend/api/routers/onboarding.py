@@ -1690,7 +1690,7 @@ class ManualSetupRequest(BaseModel):
     creator_id: str
     instagram_username: str
     website_url: Optional[str] = None
-    max_posts: int = 50
+    max_posts: int = 20  # Reduced from 50 to avoid rate limits
 
 
 class ManualSetupResponse(BaseModel):
@@ -1746,6 +1746,7 @@ async def manual_setup(request: ManualSetupRequest):
 
     # ==========================================================================
     # STEP 1: Scrape Instagram posts (public, no OAuth)
+    # Uses delay_between_posts=3.0 to avoid rate limiting
     # ==========================================================================
     posts = []
     try:
@@ -1754,7 +1755,8 @@ async def manual_setup(request: ManualSetupRequest):
         scraper = InstaloaderScraper()
         posts = scraper.get_posts(
             target_username=request.instagram_username,
-            limit=request.max_posts
+            limit=request.max_posts,
+            delay_between_posts=3.0  # 3 seconds between each post to avoid rate limits
         )
 
         if posts:

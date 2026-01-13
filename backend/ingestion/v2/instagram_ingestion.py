@@ -285,12 +285,16 @@ class InstagramIngestionV2:
         return result
 
     def _scrape_instagram(self, username: str, max_posts: int) -> List:
-        """Usa InstaloaderScraper existente."""
+        """Usa InstaloaderScraper existente con delay para evitar rate limits."""
         try:
             from ingestion.instagram_scraper import InstaloaderScraper
 
             scraper = InstaloaderScraper()
-            posts = scraper.get_posts(username, limit=max_posts)
+            posts = scraper.get_posts(
+                username,
+                limit=max_posts,
+                delay_between_posts=3.0  # 3 seconds between posts to avoid rate limits
+            )
             return posts
 
         except Exception as e:
