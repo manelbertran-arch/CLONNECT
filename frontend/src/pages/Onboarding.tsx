@@ -34,10 +34,18 @@ export default function Onboarding() {
         website_url: website || null
       });
 
+      // Check if backend returned success: false
+      if (response.data.success === false) {
+        const errorMsg = response.data.errors?.join(', ') || 'Error durante el onboarding';
+        setError(errorMsg);
+        setStep('form');
+        return;
+      }
+
       setStats(response.data);
       setStep('success');
     } catch (err: any) {
-      setError(err.response?.data?.detail || 'Error al crear el clon');
+      setError(err.response?.data?.detail || err.message || 'Error al crear el clon');
       setStep('form');
     } finally {
       setLoading(false);

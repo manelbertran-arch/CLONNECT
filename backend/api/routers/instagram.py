@@ -774,7 +774,8 @@ async def _register_story_interaction(
 async def connect_instagram_page(
     creator_id: str = Query(..., description="Creator name/ID"),
     page_id: str = Query(..., description="Instagram/Facebook Page ID"),
-    access_token: str = Query(None, description="Page access token (optional if already stored)")
+    access_token: str = Query(None, description="Page access token (optional if already stored)"),
+    ig_user_id: str = Query(None, description="Instagram User ID (optional, defaults to page_id)")
 ):
     """
     Connect/register an Instagram page to a creator.
@@ -796,6 +797,9 @@ async def connect_instagram_page(
             # Update page_id
             creator.instagram_page_id = page_id
 
+            # Update instagram_user_id (use page_id as default if not provided)
+            creator.instagram_user_id = ig_user_id or page_id
+
             # Update token if provided
             if access_token:
                 creator.instagram_token = access_token
@@ -808,6 +812,7 @@ async def connect_instagram_page(
                 "status": "ok",
                 "creator_id": creator_id,
                 "instagram_page_id": page_id,
+                "instagram_user_id": creator.instagram_user_id,
                 "token_updated": bool(access_token)
             }
 

@@ -53,8 +53,11 @@ export function OnboardingDesktop({ onComplete }: OnboardingDesktopProps) {
 
   // Handle keyboard navigation
   const handleKeyDown = useCallback((e: KeyboardEvent) => {
+    console.log('[OnboardingDesktop] keyDown:', e.key, 'isStarted:', isStarted, 'currentSlide:', currentSlide);
+
     if (!isStarted && (e.key === ' ' || e.key === 'Enter')) {
       e.preventDefault();
+      console.log('[OnboardingDesktop] Starting from keyboard');
       setIsStarted(true);
       setCurrentSlide(1);
       return;
@@ -64,9 +67,11 @@ export function OnboardingDesktop({ onComplete }: OnboardingDesktopProps) {
 
     if (e.key === 'ArrowRight' || e.key === ' ' || e.key === 'Enter') {
       e.preventDefault();
+      console.log('[OnboardingDesktop] Next from keyboard, currentSlide:', currentSlide);
       if (currentSlide < totalSlides - 1) {
         setCurrentSlide(prev => prev + 1);
       } else {
+        console.log('[OnboardingDesktop] Completing from keyboard');
         onComplete();
       }
     } else if (e.key === 'ArrowLeft' && currentSlide > 1) {
@@ -125,14 +130,20 @@ export function OnboardingDesktop({ onComplete }: OnboardingDesktopProps) {
   }, [currentSlide, countersAnimated]);
 
   const handleNext = () => {
+    console.log('[OnboardingDesktop] handleNext called, currentSlide:', currentSlide, 'totalSlides:', totalSlides);
     if (currentSlide < totalSlides - 1) {
-      setCurrentSlide(prev => prev + 1);
+      setCurrentSlide(prev => {
+        console.log('[OnboardingDesktop] Moving from slide', prev, 'to', prev + 1);
+        return prev + 1;
+      });
     } else {
+      console.log('[OnboardingDesktop] Last slide reached, calling onComplete');
       onComplete();
     }
   };
 
   const handleStart = () => {
+    console.log('[OnboardingDesktop] handleStart called, starting onboarding');
     setIsStarted(true);
     setCurrentSlide(1);
   };
