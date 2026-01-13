@@ -125,18 +125,23 @@ app = FastAPI(
 # =============================================================================
 # CORS CONFIGURATION
 # =============================================================================
-# In production, set CORS_ORIGINS to comma-separated list of allowed origins
-# Example: CORS_ORIGINS=https://app.clonnect.com,https://dashboard.clonnect.com
+# Always allow Vercel frontend + localhost + any additional origins from env
+DEFAULT_CORS_ORIGINS = [
+    "https://clonnect.vercel.app",
+    "https://www.clonnect.vercel.app",
+    "http://localhost:3000",
+    "http://localhost:5173",
+    "http://127.0.0.1:5173",
+]
+
 CORS_ORIGINS_ENV = os.getenv("CORS_ORIGINS", "")
 if CORS_ORIGINS_ENV:
-    # Production: use explicit origins
-    CORS_ORIGINS = [origin.strip() for origin in CORS_ORIGINS_ENV.split(",") if origin.strip()]
-    print(f"CORS: Restricting to {len(CORS_ORIGINS)} origins: {CORS_ORIGINS}")
+    # Add env origins to defaults
+    env_origins = [origin.strip() for origin in CORS_ORIGINS_ENV.split(",") if origin.strip()]
+    CORS_ORIGINS = list(set(DEFAULT_CORS_ORIGINS + env_origins))
 else:
-    # Development: allow all (with warning)
-    CORS_ORIGINS = ["*"]
-    if os.getenv("RAILWAY_ENVIRONMENT") or os.getenv("PRODUCTION"):
-        print("⚠️  WARNING: CORS_ORIGINS not set - allowing all origins. Set CORS_ORIGINS for production!")
+    CORS_ORIGINS = DEFAULT_CORS_ORIGINS
+print(f"CORS: Allowing origins: {CORS_ORIGINS}")
 
 app.add_middleware(
     CORSMiddleware,
