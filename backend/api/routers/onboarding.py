@@ -2091,7 +2091,7 @@ async def full_reset_creator(creator_id: str, email: Optional[str] = None):
 
     try:
         from api.database import DATABASE_URL, SessionLocal
-        from api.models import Creator, Lead, Product, Message
+        from api.models import Creator, Lead, Product, Message, UserCreator
 
         if not DATABASE_URL or not SessionLocal:
             return {"success": False, "error": "Database not configured"}
@@ -2115,6 +2115,10 @@ async def full_reset_creator(creator_id: str, email: Optional[str] = None):
 
                 # Delete products
                 deleted["products"] = session.query(Product).filter_by(creator_id=creator_uuid).delete()
+
+                # Delete user_creators relationships (MUST be before creator delete)
+                user_creators_deleted = session.query(UserCreator).filter_by(creator_id=creator_uuid).delete()
+                logger.info(f"[FullReset] Deleted {user_creators_deleted} user_creators relationships")
 
                 # Delete creator
                 session.delete(creator)
