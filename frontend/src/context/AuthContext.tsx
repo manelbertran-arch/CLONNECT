@@ -28,7 +28,7 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 const SELECTED_CREATOR_KEY = "clonnect_selected_creator";
 
 // DEMO MODE: Default creator for backwards compatibility
-const DEFAULT_CREATOR = "stefano_auto";
+const DEFAULT_CREATOR = "stefano_bonanno";
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<AuthUser | null>(null);

@@ -69,7 +69,7 @@ export interface LoginResponse {
 }
 
 // P1 FIX: Dynamic creator ID from localStorage/auth
-const DEFAULT_CREATOR_ID = "stefano_auto";  // Fallback for demo/unauthenticated
+const DEFAULT_CREATOR_ID = "stefano_bonanno";  // Fallback for demo/unauthenticated
 const CREATOR_ID_KEY = "clonnect_selected_creator";  // Must match AuthContext
 const LEGACY_CREATOR_ID_KEY = "creator_id";  // Legacy key for backwards compatibility
 

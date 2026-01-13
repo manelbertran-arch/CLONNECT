@@ -19,7 +19,7 @@ export default function Login() {
       localStorage.setItem('token', response.data.access_token);
 
       // P1 FIX: Get creator NAME (not UUID) from user.creators array
-      const creatorName = response.data.user?.creators?.[0]?.name || 'stefano_auto';
+      const creatorName = response.data.user?.creators?.[0]?.name || 'stefano_bonanno';
       setCreatorId(creatorName);
 
       // Verificar onboarding
@@ -49,7 +49,7 @@ export default function Login() {
       localStorage.setItem('token', response.data.access_token);
 
       // P1 FIX: Get creator NAME (not UUID) from user.creators array
-      const creatorName = response.data.user?.creators?.[0]?.name || 'stefano_auto';
+      const creatorName = response.data.user?.creators?.[0]?.name || 'stefano_bonanno';
       setCreatorId(creatorName);
 
       const status = await api.get(`/onboarding/${creatorName}/visual-status`);
