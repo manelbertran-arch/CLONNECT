@@ -29,6 +29,7 @@ import Terms from "./pages/Terms";
 import Privacy from "./pages/Privacy";
 import BookService from "./pages/BookService";
 import Onboarding from "./pages/Onboarding";
+import OnboardingIntro from "./pages/OnboardingIntro";
 import InboxTest from "./pages/InboxTest";
 import HomeWithConversations from "./pages/HomeWithConversations";
 
@@ -59,7 +60,8 @@ const AppRoutes = () => {
       <Route path="/login" element={<Login />} />
       <Route path="/register" element={<Register />} />
 
-      {/* Onboarding route - no protection, let onboarding handle its own state */}
+      {/* Onboarding routes */}
+      <Route path="/onboarding-intro" element={<OnboardingIntro />} />
       <Route path="/onboarding" element={<Onboarding />} />
 
       {/* Minimal test route to isolate Inbox slowness */}
