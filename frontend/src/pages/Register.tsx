@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import { api } from '../services/api';
+import { api, setCreatorId } from '../services/api';
 
 export default function Register() {
   const [name, setName] = useState('');
@@ -26,10 +26,10 @@ export default function Register() {
       const response = await api.post('/auth/register', { name, email, password });
       localStorage.setItem('token', response.data.access_token);
 
-      // Get creator NAME from user.creators array
+      // Get creator NAME from user.creators array and store it
       const creatorName = response.data.user?.creators?.[0]?.name;
       if (creatorName) {
-        localStorage.setItem('creator_id', creatorName);
+        setCreatorId(creatorName);
       }
 
       // New users always go to onboarding
