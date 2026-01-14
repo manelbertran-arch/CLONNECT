@@ -19,17 +19,12 @@ export default function Login() {
       const response = await api.post('/auth/login', { email, password });
       localStorage.setItem('token', response.data.access_token);
 
-      // P1 FIX: Get creator NAME (not UUID) from user.creators array
+      // Get creator NAME (not UUID) from user.creators array
       const creatorName = response.data.user?.creators?.[0]?.name || 'stefano_bonanno';
       setCreatorId(creatorName);
 
-      // Verificar onboarding
-      const status = await api.get(`/onboarding/${creatorName}/visual-status`);
-      if (status.data.onboarding_completed) {
-        navigate('/dashboard');
-      } else {
-        navigate('/onboarding');
-      }
+      // Login siempre va al dashboard (el clon ya está creado)
+      navigate('/dashboard');
     } catch (err) {
       setError('Credenciales incorrectas');
     } finally {
@@ -49,16 +44,12 @@ export default function Login() {
       });
       localStorage.setItem('token', response.data.access_token);
 
-      // P1 FIX: Get creator NAME (not UUID) from user.creators array
+      // Get creator NAME (not UUID) from user.creators array
       const creatorName = response.data.user?.creators?.[0]?.name || 'stefano_bonanno';
       setCreatorId(creatorName);
 
-      const status = await api.get(`/onboarding/${creatorName}/visual-status`);
-      if (status.data.onboarding_completed) {
-        navigate('/dashboard');
-      } else {
-        navigate('/onboarding');
-      }
+      // Login siempre va al dashboard
+      navigate('/dashboard');
     } catch (err) {
       setError('Error en demo login');
     } finally {
