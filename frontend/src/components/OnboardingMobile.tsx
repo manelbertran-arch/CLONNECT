@@ -23,14 +23,8 @@ interface OnboardingMobileProps {
 // Simplified slides for mobile - same content, simpler presentation
 const slides = [
   {
-    id: 'intro',
-    title: 'Clonnect',
-    subtitle: 'Tu clon de IA que vende 24/7',
-    isIntro: true,
-  },
-  {
     id: 'welcome',
-    title: 'Bienvenido',
+    title: 'Bienvenido a Clonnect',
     content: 'Has dado el primer paso para automatizar tu negocio y vender 24/7 sin perder tu toque personal.',
   },
   {
@@ -147,22 +141,12 @@ export function OnboardingMobile({ onComplete }: OnboardingMobileProps) {
       </div>
 
       {/* Progress bar */}
-      {!slide.isIntro && (
-        <div className="mobile-progress">
-          <div className="mobile-progress-fill" style={{ width: `${progress}%` }} />
-        </div>
-      )}
+      <div className="mobile-progress">
+        <div className="mobile-progress-fill" style={{ width: `${progress}%` }} />
+      </div>
 
       {/* Content */}
       <div className="mobile-content">
-        {/* Intro slide */}
-        {slide.isIntro && (
-          <div className="mobile-intro">
-            <h1 className="mobile-intro-title" style={{ fontSize: '2.5rem' }}>{slide.title}</h1>
-            <p className="mobile-intro-subtitle">{slide.subtitle}</p>
-          </div>
-        )}
-
         {/* Ready slide */}
         {slide.isReady && (
           <div className="mobile-ready">
@@ -267,22 +251,20 @@ export function OnboardingMobile({ onComplete }: OnboardingMobileProps) {
         )}
 
         <button className="mobile-nav-btn mobile-nav-next" onClick={handleNext}>
-          {isLast ? 'Empezar' : isFirst ? 'Comenzar' : 'Continuar'}
+          {isLast ? 'Empezar' : 'Continuar'}
           <ChevronRight className="w-5 h-5" />
         </button>
       </div>
 
       {/* Slide indicator */}
-      {!slide.isIntro && (
-        <div className="mobile-dots">
-          {slides.slice(1).map((_, i) => (
-            <div
-              key={i}
-              className={`mobile-dot ${i + 1 === currentSlide ? 'active' : ''}`}
-            />
-          ))}
-        </div>
-      )}
+      <div className="mobile-dots">
+        {slides.map((_, i) => (
+          <div
+            key={i}
+            className={`mobile-dot ${i === currentSlide ? 'active' : ''}`}
+          />
+        ))}
+      </div>
     </div>
   );
 }
