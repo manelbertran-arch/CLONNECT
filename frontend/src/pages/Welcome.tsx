@@ -1,18 +1,11 @@
 import { useNavigate } from 'react-router-dom';
-import { useEffect } from 'react';
-import { Sparkles, ArrowRight, Zap } from 'lucide-react';
+import { Sparkles, ArrowRight } from 'lucide-react';
 
 export default function Welcome() {
   const navigate = useNavigate();
 
-  // Check if user is already logged in
-  useEffect(() => {
-    const token = localStorage.getItem('token');
-    if (token) {
-      // Already logged in, go to dashboard
-      navigate('/dashboard');
-    }
-  }, [navigate]);
+  // No auto-redirect - always show welcome page
+  // User chooses to login or register
 
   return (
     <div
