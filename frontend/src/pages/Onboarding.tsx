@@ -31,57 +31,80 @@ export default function Onboarding() {
   // Auto-navigate to dashboard when step is success
   useEffect(() => {
     if (step === 'success') {
-      console.log('Success state reached, navigating to dashboard in 2.5s');
+      console.log('Success state reached, navigating to dashboard in 3s');
       const timer = setTimeout(() => {
         navigate('/dashboard');
-      }, 2500);
+      }, 3000);
       return () => clearTimeout(timer);
     }
   }, [step, navigate]);
 
-  // Simulated streaming logs during loading
+  // Simulated streaming logs during loading - 30 seconds minimum
   useEffect(() => {
     if (step !== 'loading') return;
 
     const igUsername = (instagram || '').replace('@', '') || 'usuario';
     const logs = [
       '> Iniciando conexión segura...',
+      '> Verificando credenciales...',
       '> Autenticando con Instagram API...',
-      '> Conexión establecida',
+      '> Conexión establecida correctamente',
       '> Obteniendo perfil de @' + igUsername,
+      '> Verificando permisos de acceso...',
       '> Descargando últimos 50 posts...',
+      '> Post 1-10 descargados...',
+      '> Post 11-25 descargados...',
+      '> Post 26-40 descargados...',
+      '> Post 41-50 descargados...',
       '> Analizando captions y hashtags...',
+      '> Detectando idioma principal...',
       '> Extrayendo patrones de comunicación...',
+      '> Identificando estilo de escritura...',
       '> Procesando engagement metrics...',
-      website ? '> Escaneando ' + website + '...' : '> Saltando análisis de website...',
-      website ? '> Extrayendo contenido de páginas...' : '',
+      '> Calculando ratio de interacción...',
+      website ? '> Escaneando ' + website + '...' : '> Preparando análisis de contenido...',
+      website ? '> Extrayendo contenido de páginas...' : '> Procesando datos disponibles...',
+      website ? '> Indexando información del website...' : '> Optimizando base de datos...',
       '> Inicializando modelo de lenguaje...',
+      '> Cargando parámetros del modelo...',
       '> Entrenando perfil de personalidad...',
+      '> Ajustando parámetros de tono...',
       '> Calibrando tono de voz...',
+      '> Analizando vocabulario frecuente...',
       '> Generando embeddings de contenido...',
+      '> Procesando vectores semánticos...',
       '> Indexando documentos en RAG...',
+      '> Creando índices de búsqueda...',
       '> Configurando respuestas automáticas...',
+      '> Estableciendo reglas de conversación...',
       '> Preparando métricas del dashboard...',
+      '> Configurando analytics...',
       '> Activando sistema de leads...',
+      '> Configurando scoring automático...',
       '> Configurando nurturing sequences...',
-      '> Finalizando configuración del bot...',
+      '> Estableciendo triggers de seguimiento...',
+      '> Verificando configuración final...',
+      '> Activando bot de respuestas...',
+      '> Finalizando configuración...',
+      '> ¡Proceso completado con éxito!'
     ].filter(Boolean);
 
     let currentLog = 0;
+    // 43 logs at 700ms = ~30 seconds
     const interval = setInterval(() => {
       if (currentLog < logs.length) {
         setLogLines(prev => [...prev.slice(-8), logs[currentLog]]);
         currentLog++;
       }
-    }, 400);
+    }, 700);
 
-    // Progress through steps
+    // Progress through steps - 7 steps over 30 seconds = ~4.3s per step
     const stepInterval = setInterval(() => {
       setCurrentProcessStep(prev => {
         if (prev < processingSteps.length - 1) return prev + 1;
         return prev;
       });
-    }, 2500);
+    }, 4300);
 
     return () => {
       clearInterval(interval);
@@ -103,6 +126,9 @@ export default function Onboarding() {
     setLogLines([]);
     setCurrentProcessStep(0);
 
+    const startTime = Date.now();
+    const MIN_LOADING_TIME = 30000; // 30 seconds minimum
+
     try {
       // Use quick-setup for faster onboarding (no scraping)
       const response = await api.post('/onboarding/quick-setup', {
@@ -121,15 +147,17 @@ export default function Onboarding() {
         return;
       }
 
-      // Success - update state and navigate
-      setStats(response.data);
-      setLoading(false);
-      setStep('success');
+      // Calculate remaining time to reach minimum 30 seconds
+      const elapsed = Date.now() - startTime;
+      const remainingTime = Math.max(0, MIN_LOADING_TIME - elapsed);
 
-      // Auto-navigate to dashboard after 2.5 seconds
+      // Wait for minimum loading time before showing success
       setTimeout(() => {
-        navigate('/dashboard');
-      }, 2500);
+        setStats(response.data);
+        setLoading(false);
+        setStep('success');
+      }, remainingTime);
+
     } catch (err: any) {
       console.error('Onboarding error:', err);
       setError(err.response?.data?.detail || err.message || 'Error al crear el clon');
@@ -236,13 +264,13 @@ export default function Onboarding() {
               Tu website (opcional)
             </label>
             <input
-              type="url"
+              type="text"
               id="onboarding-website"
               name="website"
               placeholder="https://tuwebsite.com"
               value={website}
               onChange={(e) => setWebsite(e.target.value)}
-              autoComplete="url"
+              autoComplete="on"
               className="w-full p-4 mb-6 rounded-xl text-white outline-none transition-all"
               style={{ background: 'rgba(255, 255, 255, 0.05)', border: '1px solid rgba(255, 255, 255, 0.08)' }}
               onFocus={(e) => e.target.style.borderColor = 'rgba(168, 85, 247, 0.5)'}
@@ -413,21 +441,53 @@ export default function Onboarding() {
     <div className="min-h-screen flex items-center justify-center" style={{ background: '#09090b' }}>
       <BackgroundOrbs />
 
-      <div
-        className="p-8 rounded-2xl w-full max-w-md text-center relative z-10"
-        style={{ background: '#0f0f14', border: '1px solid rgba(255, 255, 255, 0.08)' }}
-      >
-        <div className="flex justify-center mb-6">
+      {/* Success celebration particles */}
+      <div className="fixed inset-0 pointer-events-none overflow-hidden">
+        {[...Array(20)].map((_, i) => (
           <div
-            className="w-20 h-20 rounded-2xl flex items-center justify-center animate-pulse"
-            style={{ background: 'linear-gradient(135deg, #22c55e, #16a34a)' }}
-          >
-            <Check className="w-10 h-10 text-white" />
+            key={i}
+            className="absolute w-2 h-2 rounded-full"
+            style={{
+              left: `${Math.random() * 100}%`,
+              top: '-10px',
+              background: i % 2 === 0 ? '#a855f7' : '#6366f1',
+              animation: `fall ${3 + Math.random() * 2}s linear infinite`,
+              animationDelay: `${Math.random() * 3}s`,
+              opacity: 0.6
+            }}
+          />
+        ))}
+      </div>
+
+      <div
+        className="p-10 rounded-3xl w-full max-w-lg text-center relative z-10"
+        style={{
+          background: 'linear-gradient(180deg, #0f0f14 0%, #1a1a24 100%)',
+          border: '1px solid rgba(168, 85, 247, 0.2)',
+          boxShadow: '0 0 60px rgba(168, 85, 247, 0.15)'
+        }}
+      >
+        {/* Success icon with glow */}
+        <div className="flex justify-center mb-8">
+          <div className="relative">
+            <div
+              className="absolute inset-0 rounded-full blur-xl"
+              style={{ background: 'rgba(34, 197, 94, 0.4)' }}
+            />
+            <div
+              className="relative w-24 h-24 rounded-full flex items-center justify-center"
+              style={{
+                background: 'linear-gradient(135deg, #22c55e, #16a34a)',
+                boxShadow: '0 0 30px rgba(34, 197, 94, 0.5)'
+              }}
+            >
+              <Check className="w-12 h-12 text-white" strokeWidth={3} />
+            </div>
           </div>
         </div>
 
         <h2
-          className="text-3xl font-bold mb-3"
+          className="text-4xl font-bold mb-4"
           style={{
             background: 'linear-gradient(135deg, #a855f7, #6366f1)',
             WebkitBackgroundClip: 'text',
@@ -436,27 +496,59 @@ export default function Onboarding() {
         >
           ¡Tu clon está listo!
         </h2>
-        <p className="text-lg mb-6" style={{ color: 'rgba(255, 255, 255, 0.6)' }}>
-          Entrando al dashboard...
+
+        <p className="text-xl mb-8" style={{ color: 'rgba(255, 255, 255, 0.7)' }}>
+          Tu asistente de IA está configurado y listo para responder
         </p>
 
+        {/* Features summary */}
+        <div className="grid grid-cols-3 gap-4 mb-8">
+          <div className="p-3 rounded-xl" style={{ background: 'rgba(168, 85, 247, 0.1)' }}>
+            <div className="text-2xl mb-1">24/7</div>
+            <div className="text-xs" style={{ color: 'rgba(255, 255, 255, 0.5)' }}>Activo</div>
+          </div>
+          <div className="p-3 rounded-xl" style={{ background: 'rgba(99, 102, 241, 0.1)' }}>
+            <div className="text-2xl mb-1">IA</div>
+            <div className="text-xs" style={{ color: 'rgba(255, 255, 255, 0.5)' }}>Entrenada</div>
+          </div>
+          <div className="p-3 rounded-xl" style={{ background: 'rgba(34, 197, 94, 0.1)' }}>
+            <div className="text-2xl mb-1">100%</div>
+            <div className="text-xs" style={{ color: 'rgba(255, 255, 255, 0.5)' }}>Listo</div>
+          </div>
+        </div>
+
+        {/* Loading indicator */}
         <div className="flex items-center justify-center gap-2 mb-6">
-          <div className="w-2 h-2 rounded-full animate-bounce" style={{ background: '#a855f7', animationDelay: '0ms' }} />
-          <div className="w-2 h-2 rounded-full animate-bounce" style={{ background: '#a855f7', animationDelay: '150ms' }} />
-          <div className="w-2 h-2 rounded-full animate-bounce" style={{ background: '#a855f7', animationDelay: '300ms' }} />
+          <span className="text-sm" style={{ color: 'rgba(255, 255, 255, 0.5)' }}>
+            Redirigiendo al dashboard
+          </span>
+          <div className="flex gap-1">
+            <div className="w-1.5 h-1.5 rounded-full animate-bounce" style={{ background: '#a855f7', animationDelay: '0ms' }} />
+            <div className="w-1.5 h-1.5 rounded-full animate-bounce" style={{ background: '#a855f7', animationDelay: '150ms' }} />
+            <div className="w-1.5 h-1.5 rounded-full animate-bounce" style={{ background: '#a855f7', animationDelay: '300ms' }} />
+          </div>
         </div>
 
         <button
           onClick={goToDashboard}
-          className="w-full p-4 text-white font-semibold rounded-xl transition-all hover:opacity-90"
+          className="w-full p-4 text-white font-semibold rounded-xl transition-all hover:scale-[1.02] active:scale-[0.98]"
           style={{
             background: 'linear-gradient(135deg, #a855f7, #6366f1)',
-            boxShadow: '0 4px 20px rgba(168, 85, 247, 0.3)'
+            boxShadow: '0 4px 20px rgba(168, 85, 247, 0.4)'
           }}
         >
           Ir al Dashboard
         </button>
       </div>
+
+      <style>{`
+        @keyframes fall {
+          0% { transform: translateY(-10px) rotate(0deg); opacity: 0; }
+          10% { opacity: 0.6; }
+          90% { opacity: 0.6; }
+          100% { transform: translateY(100vh) rotate(720deg); opacity: 0; }
+        }
+      `}</style>
     </div>
   );
 }
