@@ -197,9 +197,11 @@ export default function Onboarding() {
             </label>
             <input
               type="text"
+              name="instagram"
               placeholder="@usuario"
               value={instagram}
               onChange={(e) => setInstagram(e.target.value)}
+              autoComplete="username"
               className="w-full p-4 mb-4 rounded-xl text-white outline-none transition-all"
               style={{ background: 'rgba(255, 255, 255, 0.05)', border: '1px solid rgba(255, 255, 255, 0.08)' }}
               onFocus={(e) => e.target.style.borderColor = 'rgba(168, 85, 247, 0.5)'}
@@ -212,9 +214,11 @@ export default function Onboarding() {
             </label>
             <input
               type="url"
+              name="website"
               placeholder="https://tuwebsite.com"
               value={website}
               onChange={(e) => setWebsite(e.target.value)}
+              autoComplete="url"
               className="w-full p-4 mb-6 rounded-xl text-white outline-none transition-all"
               style={{ background: 'rgba(255, 255, 255, 0.05)', border: '1px solid rgba(255, 255, 255, 0.08)' }}
               onFocus={(e) => e.target.style.borderColor = 'rgba(168, 85, 247, 0.5)'}

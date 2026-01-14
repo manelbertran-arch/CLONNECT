@@ -131,9 +131,11 @@ export default function Login() {
         <form onSubmit={handleLogin}>
           <input
             type="email"
+            name="email"
             placeholder="Email"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
+            autoComplete="email"
             className="w-full p-4 mb-4 rounded-xl text-white outline-none transition-all"
             style={{
               background: 'rgba(255, 255, 255, 0.05)',
@@ -145,9 +147,11 @@ export default function Login() {
           />
           <input
             type="password"
+            name="password"
             placeholder="Contraseña"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
+            autoComplete="current-password"
             className="w-full p-4 mb-6 rounded-xl text-white outline-none transition-all"
             style={{
               background: 'rgba(255, 255, 255, 0.05)',

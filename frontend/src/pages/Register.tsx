@@ -119,9 +119,11 @@ export default function Register() {
         <form onSubmit={handleRegister}>
           <input
             type="text"
+            name="name"
             placeholder="Nombre completo"
             value={name}
             onChange={(e) => setName(e.target.value)}
+            autoComplete="name"
             className="w-full p-4 mb-4 rounded-xl text-white outline-none transition-all"
             style={{
               background: 'rgba(255, 255, 255, 0.05)',
@@ -133,9 +135,11 @@ export default function Register() {
           />
           <input
             type="email"
+            name="email"
             placeholder="Email"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
+            autoComplete="email"
             className="w-full p-4 mb-4 rounded-xl text-white outline-none transition-all"
             style={{
               background: 'rgba(255, 255, 255, 0.05)',
@@ -147,9 +151,11 @@ export default function Register() {
           />
           <input
             type="password"
+            name="password"
             placeholder="Contraseña (mínimo 6 caracteres)"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
+            autoComplete="new-password"
             className="w-full p-4 mb-6 rounded-xl text-white outline-none transition-all"
             style={{
               background: 'rgba(255, 255, 255, 0.05)',
