@@ -32,8 +32,8 @@ export default function Register() {
         setCreatorId(creatorName);
       }
 
-      // New users go directly to clone creation
-      navigate('/onboarding');
+      // New users see intro slides first, then create clone
+      navigate('/onboarding-intro');
     } catch (err: any) {
       // Handle specific error messages from backend
       const message = err.message || 'Error al crear la cuenta';
