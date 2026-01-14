@@ -90,21 +90,21 @@ export default function Onboarding() {
     ].filter(Boolean);
 
     let currentLog = 0;
-    // 43 logs at 700ms = ~30 seconds
+    // 43 logs at 350ms = ~15 seconds
     const interval = setInterval(() => {
       if (currentLog < logs.length) {
         setLogLines(prev => [...prev.slice(-8), logs[currentLog]]);
         currentLog++;
       }
-    }, 700);
+    }, 350);
 
-    // Progress through steps - 7 steps over 30 seconds = ~4.3s per step
+    // Progress through steps - 7 steps over 15 seconds = ~2.1s per step
     const stepInterval = setInterval(() => {
       setCurrentProcessStep(prev => {
         if (prev < processingSteps.length - 1) return prev + 1;
         return prev;
       });
-    }, 4300);
+    }, 2100);
 
     return () => {
       clearInterval(interval);
@@ -127,7 +127,7 @@ export default function Onboarding() {
     setCurrentProcessStep(0);
 
     const startTime = Date.now();
-    const MIN_LOADING_TIME = 30000; // 30 seconds minimum
+    const MIN_LOADING_TIME = 15000; // 15 seconds minimum
 
     try {
       // Use quick-setup for faster onboarding (no scraping)
@@ -441,24 +441,6 @@ export default function Onboarding() {
     <div className="min-h-screen flex items-center justify-center" style={{ background: '#09090b' }}>
       <BackgroundOrbs />
 
-      {/* Success celebration particles */}
-      <div className="fixed inset-0 pointer-events-none overflow-hidden">
-        {[...Array(20)].map((_, i) => (
-          <div
-            key={i}
-            className="absolute w-2 h-2 rounded-full"
-            style={{
-              left: `${Math.random() * 100}%`,
-              top: '-10px',
-              background: i % 2 === 0 ? '#a855f7' : '#6366f1',
-              animation: `fall ${3 + Math.random() * 2}s linear infinite`,
-              animationDelay: `${Math.random() * 3}s`,
-              opacity: 0.6
-            }}
-          />
-        ))}
-      </div>
-
       <div
         className="p-10 rounded-3xl w-full max-w-lg text-center relative z-10"
         style={{
@@ -503,16 +485,16 @@ export default function Onboarding() {
 
         {/* Features summary */}
         <div className="grid grid-cols-3 gap-4 mb-8">
-          <div className="p-3 rounded-xl" style={{ background: 'rgba(168, 85, 247, 0.1)' }}>
-            <div className="text-2xl mb-1">24/7</div>
+          <div className="p-3 rounded-xl text-white" style={{ background: 'rgba(168, 85, 247, 0.1)' }}>
+            <div className="text-2xl font-bold mb-1">24/7</div>
             <div className="text-xs" style={{ color: 'rgba(255, 255, 255, 0.5)' }}>Activo</div>
           </div>
-          <div className="p-3 rounded-xl" style={{ background: 'rgba(99, 102, 241, 0.1)' }}>
-            <div className="text-2xl mb-1">IA</div>
+          <div className="p-3 rounded-xl text-white" style={{ background: 'rgba(99, 102, 241, 0.1)' }}>
+            <div className="text-2xl font-bold mb-1">IA</div>
             <div className="text-xs" style={{ color: 'rgba(255, 255, 255, 0.5)' }}>Entrenada</div>
           </div>
-          <div className="p-3 rounded-xl" style={{ background: 'rgba(34, 197, 94, 0.1)' }}>
-            <div className="text-2xl mb-1">100%</div>
+          <div className="p-3 rounded-xl text-white" style={{ background: 'rgba(34, 197, 94, 0.1)' }}>
+            <div className="text-2xl font-bold mb-1">100%</div>
             <div className="text-xs" style={{ color: 'rgba(255, 255, 255, 0.5)' }}>Listo</div>
           </div>
         </div>
@@ -540,15 +522,6 @@ export default function Onboarding() {
           Ir al Dashboard
         </button>
       </div>
-
-      <style>{`
-        @keyframes fall {
-          0% { transform: translateY(-10px) rotate(0deg); opacity: 0; }
-          10% { opacity: 0.6; }
-          90% { opacity: 0.6; }
-          100% { transform: translateY(100vh) rotate(720deg); opacity: 0; }
-        }
-      `}</style>
     </div>
   );
 }
