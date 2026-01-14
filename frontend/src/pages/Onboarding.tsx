@@ -107,6 +107,10 @@ export default function Onboarding() {
 
       setStats(response.data);
       setStep('success');
+      // Auto-navigate to dashboard after 2 seconds
+      setTimeout(() => {
+        navigate('/dashboard');
+      }, 2000);
     } catch (err: any) {
       setError(err.response?.data?.detail || err.message || 'Error al crear el clon');
       setStep('form');
@@ -393,15 +397,15 @@ export default function Onboarding() {
         >
           <div className="flex justify-center mb-6">
             <div
-              className="w-16 h-16 rounded-2xl flex items-center justify-center"
+              className="w-20 h-20 rounded-2xl flex items-center justify-center animate-pulse"
               style={{ background: 'linear-gradient(135deg, #22c55e, #16a34a)' }}
             >
-              <Check className="w-8 h-8 text-white" />
+              <Check className="w-10 h-10 text-white" />
             </div>
           </div>
 
           <h2
-            className="text-2xl font-bold mb-2"
+            className="text-3xl font-bold mb-3"
             style={{
               background: 'linear-gradient(135deg, #a855f7, #6366f1)',
               WebkitBackgroundClip: 'text',
@@ -410,38 +414,15 @@ export default function Onboarding() {
           >
             ¡Tu clon está listo!
           </h2>
-          <p className="mb-6" style={{ color: 'rgba(255, 255, 255, 0.5)' }}>
-            Hemos analizado tu contenido
+          <p className="text-lg mb-6" style={{ color: 'rgba(255, 255, 255, 0.6)' }}>
+            Entrando al dashboard...
           </p>
 
-          {stats && (
-            <div
-              className="p-4 rounded-xl mb-6 text-left"
-              style={{ background: 'rgba(255, 255, 255, 0.03)', border: '1px solid rgba(255, 255, 255, 0.06)' }}
-            >
-              <p className="flex items-center gap-2 mb-2" style={{ color: 'rgba(255, 255, 255, 0.7)' }}>
-                <span style={{ color: '#22c55e' }}>✓</span> Posts analizados: {stats.details?.posts_count || 50}
-              </p>
-              <p className="flex items-center gap-2 mb-2" style={{ color: 'rgba(255, 255, 255, 0.7)' }}>
-                <span style={{ color: '#22c55e' }}>✓</span> Documentos RAG: {stats.details?.rag_documents || 'N/A'}
-              </p>
-              <p className="flex items-center gap-2" style={{ color: 'rgba(255, 255, 255, 0.7)' }}>
-                <span style={{ color: '#22c55e' }}>✓</span> Perfil de tono creado
-              </p>
-            </div>
-          )}
-
-          <button
-            onClick={goToDashboard}
-            className="w-full p-4 text-white font-semibold rounded-xl transition-all hover:opacity-90 flex items-center justify-center gap-2"
-            style={{
-              background: 'linear-gradient(135deg, #a855f7, #6366f1)',
-              boxShadow: '0 4px 20px rgba(168, 85, 247, 0.3)'
-            }}
-          >
-            Ir al Dashboard
-            <ArrowRight className="w-5 h-5" />
-          </button>
+          <div className="flex items-center justify-center gap-2">
+            <div className="w-2 h-2 rounded-full animate-bounce" style={{ background: '#a855f7', animationDelay: '0ms' }} />
+            <div className="w-2 h-2 rounded-full animate-bounce" style={{ background: '#a855f7', animationDelay: '150ms' }} />
+            <div className="w-2 h-2 rounded-full animate-bounce" style={{ background: '#a855f7', animationDelay: '300ms' }} />
+          </div>
         </div>
       </div>
     );
