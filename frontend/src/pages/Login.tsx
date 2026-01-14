@@ -220,11 +220,11 @@ export default function Login() {
           </Link>
         </div>
 
-        <div className="mt-4 text-center">
+        <div className="mt-5 text-center">
           <Link
-            to="/onboarding"
-            className="text-sm hover:opacity-80 transition-opacity"
-            style={{ color: 'rgba(168, 85, 247, 0.7)' }}
+            to="/onboarding-intro"
+            className="text-base font-medium hover:opacity-80 transition-opacity"
+            style={{ color: '#a855f7' }}
           >
             Ver onboarding
           </Link>
