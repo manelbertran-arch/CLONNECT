@@ -31,7 +31,7 @@ export default function Onboarding() {
     if (step === 'success') {
       const timer = setTimeout(() => {
         navigate('/dashboard');
-      }, 3000);
+      }, 5000);
       return () => clearTimeout(timer);
     }
   }, [step, navigate]);
