@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { api, getCreatorId } from '../services/api';
-import { Sparkles, ArrowRight, Check } from 'lucide-react';
+import { ArrowRight, Check } from 'lucide-react';
 
 export default function Onboarding() {
   const [instagram, setInstagram] = useState('');
@@ -105,16 +105,6 @@ export default function Onboarding() {
             border: '1px solid rgba(255, 255, 255, 0.08)'
           }}
         >
-          {/* Logo/Icon */}
-          <div className="flex justify-center mb-6">
-            <div
-              className="w-16 h-16 rounded-2xl flex items-center justify-center"
-              style={{ background: 'linear-gradient(135deg, #a855f7, #6366f1)' }}
-            >
-              <Sparkles className="w-8 h-8 text-white" />
-            </div>
-          </div>
-
           <h1
             className="text-2xl font-bold text-center mb-2"
             style={{
@@ -212,16 +202,6 @@ export default function Onboarding() {
             border: '1px solid rgba(255, 255, 255, 0.08)'
           }}
         >
-          {/* Logo/Icon */}
-          <div className="flex justify-center mb-6">
-            <div
-              className="w-16 h-16 rounded-2xl flex items-center justify-center"
-              style={{ background: 'linear-gradient(135deg, #a855f7, #6366f1)' }}
-            >
-              <Sparkles className="w-8 h-8 text-white" />
-            </div>
-          </div>
-
           <div
             className="w-12 h-12 border-4 rounded-full mx-auto mb-4 animate-spin"
             style={{

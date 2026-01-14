@@ -1,7 +1,6 @@
 import { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { api, setCreatorId } from '../services/api';
-import { Sparkles } from 'lucide-react';
 
 export default function Register() {
   const [name, setName] = useState('');
@@ -90,16 +89,6 @@ export default function Register() {
           border: '1px solid rgba(255, 255, 255, 0.08)'
         }}
       >
-        {/* Logo/Icon */}
-        <div className="flex justify-center mb-6">
-          <div
-            className="w-16 h-16 rounded-2xl flex items-center justify-center"
-            style={{ background: 'linear-gradient(135deg, #a855f7, #6366f1)' }}
-          >
-            <Sparkles className="w-8 h-8 text-white" />
-          </div>
-        </div>
-
         <h1
           className="text-3xl font-bold text-center mb-2"
           style={{
