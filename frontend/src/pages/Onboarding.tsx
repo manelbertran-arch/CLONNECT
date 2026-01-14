@@ -104,7 +104,8 @@ export default function Onboarding() {
     setCurrentProcessStep(0);
 
     try {
-      const response = await api.post('/onboarding/manual-setup', {
+      // Use quick-setup for faster onboarding (no scraping)
+      const response = await api.post('/onboarding/quick-setup', {
         creator_id: creatorId,
         instagram_username: (instagram || '').replace('@', ''),
         website_url: website || null

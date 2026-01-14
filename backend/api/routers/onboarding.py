@@ -1702,6 +1702,82 @@ class ManualSetupResponse(BaseModel):
     errors: List[str] = []
 
 
+@router.post("/quick-setup")
+async def quick_setup(request: ManualSetupRequest):
+    """
+    Setup rápido sin scraping - para testing y demos.
+
+    Solo crea/actualiza el creator y marca onboarding como completado.
+    No hace scraping de Instagram ni website.
+    """
+    try:
+        from api.database import DATABASE_URL, SessionLocal
+        from api.models import Creator
+        import uuid as uuid_module
+
+        if not DATABASE_URL or not SessionLocal:
+            return {
+                "success": True,
+                "creator_id": request.creator_id,
+                "steps_completed": {"onboarding_completed": True, "bot_activated": True},
+                "details": {"mode": "no_database"},
+                "errors": []
+            }
+
+        session = SessionLocal()
+        try:
+            # Get or create creator
+            creator = session.query(Creator).filter_by(name=request.creator_id).first()
+            if not creator:
+                creator = Creator(
+                    id=uuid_module.uuid4(),
+                    name=request.creator_id,
+                    email=f"{request.creator_id}@clonnect.io",
+                    bot_active=True,
+                    onboarding_completed=True,
+                    copilot_mode=True
+                )
+                session.add(creator)
+                logger.info(f"[QuickSetup] Created new creator: {request.creator_id}")
+            else:
+                creator.bot_active = True
+                creator.onboarding_completed = True
+                logger.info(f"[QuickSetup] Updated existing creator: {request.creator_id}")
+
+            session.commit()
+
+            return {
+                "success": True,
+                "creator_id": request.creator_id,
+                "steps_completed": {
+                    "posts_scraped": False,
+                    "tone_profile_generated": False,
+                    "rag_indexed": False,
+                    "website_scraped": False,
+                    "onboarding_completed": True,
+                    "bot_activated": True
+                },
+                "details": {
+                    "posts_count": 0,
+                    "mode": "quick_setup",
+                    "instagram_username": request.instagram_username
+                },
+                "errors": []
+            }
+        finally:
+            session.close()
+
+    except Exception as e:
+        logger.error(f"[QuickSetup] Error: {e}")
+        return {
+            "success": False,
+            "creator_id": request.creator_id,
+            "steps_completed": {},
+            "details": {},
+            "errors": [str(e)]
+        }
+
+
 @router.post("/manual-setup", response_model=ManualSetupResponse)
 async def manual_setup(request: ManualSetupRequest):
     """
