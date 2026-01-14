@@ -234,7 +234,9 @@ async def scrape_and_index_website(
     stats = {
         "url": url,
         "pages_scraped": 0,
+        "pages_indexed": 0,
         "chunks_indexed": 0,
+        "success": False,
         "errors": []
     }
 
@@ -289,6 +291,8 @@ async def scrape_and_index_website(
                 stats["errors"].append(error_msg)
 
         logger.info(f"[WebScraper] Indexed {stats['chunks_indexed']} chunks from {stats['pages_scraped']} pages for {creator_id}")
+        stats["pages_indexed"] = stats["pages_scraped"]
+        stats["success"] = stats["chunks_indexed"] > 0
 
     except Exception as e:
         error_msg = f"Error scraping website: {e}"
