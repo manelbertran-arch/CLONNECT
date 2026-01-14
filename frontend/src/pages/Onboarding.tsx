@@ -28,6 +28,17 @@ export default function Onboarding() {
 
   const creatorId = getCreatorId();
 
+  // Auto-navigate to dashboard when step is success
+  useEffect(() => {
+    if (step === 'success') {
+      console.log('Success state reached, navigating to dashboard in 2.5s');
+      const timer = setTimeout(() => {
+        navigate('/dashboard');
+      }, 2500);
+      return () => clearTimeout(timer);
+    }
+  }, [step, navigate]);
+
   // Simulated streaming logs during loading
   useEffect(() => {
     if (step !== 'loading') return;
@@ -162,9 +173,9 @@ export default function Onboarding() {
   );
 
   // Debug log
-  console.log('Onboarding render - step:', step, 'loading:', loading);
+  console.log('Onboarding render - step:', step, 'loading:', loading, 'error:', error);
 
-  // FORM
+  // FORM STATE
   if (step === 'form') {
     return (
       <div className="min-h-screen flex items-center justify-center" style={{ background: '#09090b' }}>
@@ -392,69 +403,45 @@ export default function Onboarding() {
     );
   }
 
-  // SUCCESS
-  if (step === 'success') {
-    return (
-      <div className="min-h-screen flex items-center justify-center" style={{ background: '#09090b' }}>
-        <BackgroundOrbs />
-
-        <div
-          className="p-8 rounded-2xl w-full max-w-md text-center relative z-10"
-          style={{ background: '#0f0f14', border: '1px solid rgba(255, 255, 255, 0.08)' }}
-        >
-          <div className="flex justify-center mb-6">
-            <div
-              className="w-20 h-20 rounded-2xl flex items-center justify-center animate-pulse"
-              style={{ background: 'linear-gradient(135deg, #22c55e, #16a34a)' }}
-            >
-              <Check className="w-10 h-10 text-white" />
-            </div>
-          </div>
-
-          <h2
-            className="text-3xl font-bold mb-3"
-            style={{
-              background: 'linear-gradient(135deg, #a855f7, #6366f1)',
-              WebkitBackgroundClip: 'text',
-              WebkitTextFillColor: 'transparent'
-            }}
-          >
-            ¡Tu clon está listo!
-          </h2>
-          <p className="text-lg mb-6" style={{ color: 'rgba(255, 255, 255, 0.6)' }}>
-            Entrando al dashboard...
-          </p>
-
-          <div className="flex items-center justify-center gap-2 mb-6">
-            <div className="w-2 h-2 rounded-full animate-bounce" style={{ background: '#a855f7', animationDelay: '0ms' }} />
-            <div className="w-2 h-2 rounded-full animate-bounce" style={{ background: '#a855f7', animationDelay: '150ms' }} />
-            <div className="w-2 h-2 rounded-full animate-bounce" style={{ background: '#a855f7', animationDelay: '300ms' }} />
-          </div>
-
-          <button
-            onClick={goToDashboard}
-            className="w-full p-4 text-white font-semibold rounded-xl transition-all hover:opacity-90"
-            style={{
-              background: 'linear-gradient(135deg, #a855f7, #6366f1)',
-              boxShadow: '0 4px 20px rgba(168, 85, 247, 0.3)'
-            }}
-          >
-            Ir al Dashboard
-          </button>
-        </div>
-      </div>
-    );
-  }
-
-  // Fallback - render success by default if step is unknown
+  // SUCCESS STATE (also serves as default/fallback)
+  // This renders for step === 'success' OR any unexpected state
   return (
     <div className="min-h-screen flex items-center justify-center" style={{ background: '#09090b' }}>
       <BackgroundOrbs />
+
       <div
         className="p-8 rounded-2xl w-full max-w-md text-center relative z-10"
         style={{ background: '#0f0f14', border: '1px solid rgba(255, 255, 255, 0.08)' }}
       >
-        <h2 className="text-xl font-bold mb-4 text-white">Estado: {step}</h2>
+        <div className="flex justify-center mb-6">
+          <div
+            className="w-20 h-20 rounded-2xl flex items-center justify-center animate-pulse"
+            style={{ background: 'linear-gradient(135deg, #22c55e, #16a34a)' }}
+          >
+            <Check className="w-10 h-10 text-white" />
+          </div>
+        </div>
+
+        <h2
+          className="text-3xl font-bold mb-3"
+          style={{
+            background: 'linear-gradient(135deg, #a855f7, #6366f1)',
+            WebkitBackgroundClip: 'text',
+            WebkitTextFillColor: 'transparent'
+          }}
+        >
+          ¡Tu clon está listo!
+        </h2>
+        <p className="text-lg mb-6" style={{ color: 'rgba(255, 255, 255, 0.6)' }}>
+          Entrando al dashboard...
+        </p>
+
+        <div className="flex items-center justify-center gap-2 mb-6">
+          <div className="w-2 h-2 rounded-full animate-bounce" style={{ background: '#a855f7', animationDelay: '0ms' }} />
+          <div className="w-2 h-2 rounded-full animate-bounce" style={{ background: '#a855f7', animationDelay: '150ms' }} />
+          <div className="w-2 h-2 rounded-full animate-bounce" style={{ background: '#a855f7', animationDelay: '300ms' }} />
+        </div>
+
         <button
           onClick={goToDashboard}
           className="w-full p-4 text-white font-semibold rounded-xl transition-all hover:opacity-90"
