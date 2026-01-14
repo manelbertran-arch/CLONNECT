@@ -219,6 +219,16 @@ export default function Login() {
             Regístrate
           </Link>
         </div>
+
+        <div className="mt-4 text-center">
+          <Link
+            to="/onboarding"
+            className="text-sm hover:opacity-80 transition-opacity"
+            style={{ color: 'rgba(168, 85, 247, 0.7)' }}
+          >
+            Ver onboarding
+          </Link>
+        </div>
       </div>
     </div>
   );
