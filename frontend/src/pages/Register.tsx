@@ -119,6 +119,7 @@ export default function Register() {
         <form onSubmit={handleRegister}>
           <input
             type="text"
+            id="register-name"
             name="name"
             placeholder="Nombre completo"
             value={name}
@@ -135,6 +136,7 @@ export default function Register() {
           />
           <input
             type="email"
+            id="register-email"
             name="email"
             placeholder="Email"
             value={email}
@@ -151,6 +153,7 @@ export default function Register() {
           />
           <input
             type="password"
+            id="register-password"
             name="password"
             placeholder="Contraseña (mínimo 6 caracteres)"
             value={password}

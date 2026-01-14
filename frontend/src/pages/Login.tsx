@@ -131,6 +131,7 @@ export default function Login() {
         <form onSubmit={handleLogin}>
           <input
             type="email"
+            id="login-email"
             name="email"
             placeholder="Email"
             value={email}
@@ -147,6 +148,7 @@ export default function Login() {
           />
           <input
             type="password"
+            id="login-password"
             name="password"
             placeholder="Contraseña"
             value={password}

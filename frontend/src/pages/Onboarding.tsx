@@ -43,11 +43,12 @@ export default function Onboarding() {
   useEffect(() => {
     if (step !== 'loading') return;
 
+    const igUsername = (instagram || '').replace('@', '') || 'usuario';
     const logs = [
       '> Iniciando conexión segura...',
       '> Autenticando con Instagram API...',
       '> Conexión establecida',
-      '> Obteniendo perfil de @' + instagram.replace('@', ''),
+      '> Obteniendo perfil de @' + igUsername,
       '> Descargando últimos 50 posts...',
       '> Analizando captions y hashtags...',
       '> Extrayendo patrones de comunicación...',
@@ -105,7 +106,7 @@ export default function Onboarding() {
     try {
       const response = await api.post('/onboarding/manual-setup', {
         creator_id: creatorId,
-        instagram_username: instagram.replace('@', ''),
+        instagram_username: (instagram || '').replace('@', ''),
         website_url: website || null
       });
 
@@ -217,6 +218,7 @@ export default function Onboarding() {
             </label>
             <input
               type="text"
+              id="onboarding-instagram"
               name="instagram"
               placeholder="@usuario"
               value={instagram}
@@ -234,6 +236,7 @@ export default function Onboarding() {
             </label>
             <input
               type="url"
+              id="onboarding-website"
               name="website"
               placeholder="https://tuwebsite.com"
               value={website}
@@ -288,7 +291,7 @@ export default function Onboarding() {
             <div>
               <h2 className="text-lg font-semibold text-white">Creando tu clon de IA</h2>
               <p className="text-sm" style={{ color: 'rgba(255, 255, 255, 0.5)' }}>
-                @{instagram.replace('@', '')}
+                @{(instagram || '').replace('@', '') || 'usuario'}
               </p>
             </div>
           </div>
