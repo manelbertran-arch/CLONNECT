@@ -158,13 +158,7 @@ export function OnboardingMobile({ onComplete }: OnboardingMobileProps) {
         {/* Intro slide */}
         {slide.isIntro && (
           <div className="mobile-intro">
-            <div className="mobile-logo">
-              <svg viewBox="0 0 40 40" className="mobile-logo-icon">
-                <circle cx="20" cy="20" r="18" fill="none" stroke="currentColor" strokeWidth="2" />
-                <circle cx="20" cy="20" r="8" fill="currentColor" />
-              </svg>
-            </div>
-            <h1 className="mobile-intro-title">{slide.title}</h1>
+            <h1 className="mobile-intro-title" style={{ fontSize: '2.5rem' }}>{slide.title}</h1>
             <p className="mobile-intro-subtitle">{slide.subtitle}</p>
           </div>
         )}

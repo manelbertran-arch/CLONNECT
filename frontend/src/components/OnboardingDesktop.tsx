@@ -198,15 +198,6 @@ export function OnboardingDesktop({ onComplete }: OnboardingDesktopProps) {
         </div>
 
         <div className="intro-content" onClick={handleStart}>
-          <div className="intro-logo">
-            <div className="logo-glow">
-              <svg viewBox="0 0 40 40" className="logo-icon">
-                <circle cx="20" cy="20" r="18" fill="none" stroke="currentColor" strokeWidth="2" />
-                <circle cx="20" cy="20" r="8" fill="currentColor" />
-              </svg>
-            </div>
-          </div>
-
           <h1 className="intro-title">
             <span className="gradient-text-onboarding">Clonnect</span>
           </h1>
@@ -245,13 +236,7 @@ export function OnboardingDesktop({ onComplete }: OnboardingDesktopProps) {
         {/* Slide 1: Welcome */}
         {currentSlide === 1 && (
           <div className="slide slide-center">
-            <div className="slide-logo-small">
-              <svg viewBox="0 0 40 40" className="logo-icon-small">
-                <circle cx="20" cy="20" r="18" fill="none" stroke="currentColor" strokeWidth="2" />
-                <circle cx="20" cy="20" r="8" fill="currentColor" />
-              </svg>
-            </div>
-            <h2 className="slide-title">Bienvenido a <span className="gradient-text-onboarding">Clonnect</span></h2>
+            <h2 className="slide-title" style={{ fontSize: '2.5rem' }}>Bienvenido a <span className="gradient-text-onboarding">Clonnect</span></h2>
             <p className="slide-text">
               Has dado el primer paso para automatizar tu negocio y vender 24/7 sin perder tu toque personal.
             </p>
