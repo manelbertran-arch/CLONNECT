@@ -20,7 +20,7 @@ interface OnboardingMobileProps {
   onComplete: () => void;
 }
 
-// Only 2 intro slides, then go to clone creation
+// Simplified slides for mobile - same content, simpler presentation
 const slides = [
   {
     id: 'welcome',
@@ -35,6 +35,77 @@ const slides = [
       { icon: MessageCircle, title: 'Detecta intención', desc: 'Identifica quién quiere comprar' },
       { icon: Sparkles, title: 'Tu estilo', desc: 'Usa tu tono y vocabulario' },
       { icon: Zap, title: 'Vende 24/7', desc: 'Convierte mientras duermes' },
+    ],
+  },
+  {
+    id: 'demo',
+    title: 'Demo en vivo',
+    content: 'Mira cómo tu clon cierra una venta automáticamente',
+    demo: true,
+  },
+  {
+    id: 'steps',
+    title: '4 pasos simples',
+    content: 'Configura tu clon en minutos',
+    steps: [
+      { icon: Send, title: 'Conecta canal', desc: 'Instagram, Telegram o WhatsApp' },
+      { icon: Package, title: 'Añade productos', desc: 'Cursos, mentorías, servicios' },
+      { icon: Sparkles, title: 'Personalidad', desc: 'Tu tono y estilo' },
+      { icon: Zap, title: 'Activa', desc: 'Empieza a vender' },
+    ],
+  },
+  {
+    id: 'home',
+    title: 'Dashboard: Home',
+    icon: Home,
+    content: 'Tu centro de control con métricas en tiempo real',
+    highlights: ['🔥 Hot Leads', '📊 Métricas', '💰 Revenue'],
+  },
+  {
+    id: 'inbox',
+    title: 'Dashboard: Inbox',
+    icon: Inbox,
+    content: 'Todas las conversaciones en un solo lugar',
+    highlights: ['💬 Chat unificado', '🎮 Toma el control', '🏷️ Badges automáticos'],
+  },
+  {
+    id: 'leads',
+    title: 'Dashboard: Leads',
+    icon: Users,
+    content: 'Gestiona tu pipeline de ventas visualmente',
+    highlights: ['📋 Kanban visual', '🎯 Score automático', '📱 Multi-plataforma'],
+  },
+  {
+    id: 'nurturing',
+    title: 'Dashboard: Nurturing',
+    icon: Sparkles,
+    content: 'Secuencias automáticas que recuperan ventas',
+    highlights: ['🛒 Carritos abandonados', '🔥 Leads fríos', '⏰ Timing inteligente'],
+  },
+  {
+    id: 'products',
+    title: 'Dashboard: Products',
+    icon: Package,
+    content: 'Tu catálogo de productos y servicios',
+    highlights: ['📦 Gestión fácil', '💳 Links de pago', '📈 Métricas de ventas'],
+  },
+  {
+    id: 'settings',
+    title: 'Dashboard: Settings',
+    icon: Settings,
+    content: 'Configura la personalidad de tu clon',
+    highlights: ['🎭 Presets', '🔗 Conexiones', '🧠 Knowledge base'],
+  },
+  {
+    id: 'ready',
+    title: '¡Estás listo!',
+    content: 'Ahora configura tu clon y empieza a vender',
+    isReady: true,
+    checklist: [
+      'Conectar un canal',
+      'Añadir un producto',
+      'Configurar personalidad',
+      'Activar el bot',
     ],
   },
 ];
