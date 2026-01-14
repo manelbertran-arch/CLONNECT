@@ -61,7 +61,7 @@ export default function Welcome() {
         {/* Buttons */}
         <div className="flex flex-col sm:flex-row gap-4 justify-center">
           <button
-            onClick={() => navigate('/register')}
+            onClick={() => navigate('/onboarding-intro')}
             className="px-10 py-5 text-xl font-semibold rounded-xl transition-all hover:opacity-90 flex items-center justify-center gap-2"
             style={{
               background: 'linear-gradient(135deg, #a855f7, #6366f1)',
@@ -69,7 +69,7 @@ export default function Welcome() {
               color: 'white'
             }}
           >
-            Crear cuenta
+            Empezar
             <ArrowRight className="w-6 h-6" />
           </button>
 
@@ -82,7 +82,7 @@ export default function Welcome() {
               color: 'rgba(255, 255, 255, 0.85)'
             }}
           >
-            Iniciar sesión
+            Ya tengo cuenta
           </button>
         </div>
       </div>
