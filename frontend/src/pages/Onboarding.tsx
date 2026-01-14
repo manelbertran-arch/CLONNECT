@@ -98,23 +98,29 @@ export default function Onboarding() {
         website_url: website || null
       });
 
+      console.log('Onboarding response:', response.data);
+
       if (response.data.success === false) {
         const errorMsg = response.data.errors?.join(', ') || 'Error durante el onboarding';
         setError(errorMsg);
         setStep('form');
+        setLoading(false);
         return;
       }
 
+      // Success - update state and navigate
       setStats(response.data);
+      setLoading(false);
       setStep('success');
-      // Auto-navigate to dashboard after 2 seconds
+
+      // Auto-navigate to dashboard after 2.5 seconds
       setTimeout(() => {
         navigate('/dashboard');
-      }, 2000);
+      }, 2500);
     } catch (err: any) {
+      console.error('Onboarding error:', err);
       setError(err.response?.data?.detail || err.message || 'Error al crear el clon');
       setStep('form');
-    } finally {
       setLoading(false);
     }
   };
@@ -154,6 +160,9 @@ export default function Onboarding() {
       />
     </>
   );
+
+  // Debug log
+  console.log('Onboarding render - step:', step, 'loading:', loading);
 
   // FORM
   if (step === 'form') {
@@ -416,21 +425,47 @@ export default function Onboarding() {
             Entrando al dashboard...
           </p>
 
-          <div className="flex items-center justify-center gap-2">
+          <div className="flex items-center justify-center gap-2 mb-6">
             <div className="w-2 h-2 rounded-full animate-bounce" style={{ background: '#a855f7', animationDelay: '0ms' }} />
             <div className="w-2 h-2 rounded-full animate-bounce" style={{ background: '#a855f7', animationDelay: '150ms' }} />
             <div className="w-2 h-2 rounded-full animate-bounce" style={{ background: '#a855f7', animationDelay: '300ms' }} />
           </div>
+
+          <button
+            onClick={goToDashboard}
+            className="w-full p-4 text-white font-semibold rounded-xl transition-all hover:opacity-90"
+            style={{
+              background: 'linear-gradient(135deg, #a855f7, #6366f1)',
+              boxShadow: '0 4px 20px rgba(168, 85, 247, 0.3)'
+            }}
+          >
+            Ir al Dashboard
+          </button>
         </div>
       </div>
     );
   }
 
-  // Fallback - should never reach here
+  // Fallback - render success by default if step is unknown
   return (
     <div className="min-h-screen flex items-center justify-center" style={{ background: '#09090b' }}>
       <BackgroundOrbs />
-      <div className="text-white">Cargando...</div>
+      <div
+        className="p-8 rounded-2xl w-full max-w-md text-center relative z-10"
+        style={{ background: '#0f0f14', border: '1px solid rgba(255, 255, 255, 0.08)' }}
+      >
+        <h2 className="text-xl font-bold mb-4 text-white">Estado: {step}</h2>
+        <button
+          onClick={goToDashboard}
+          className="w-full p-4 text-white font-semibold rounded-xl transition-all hover:opacity-90"
+          style={{
+            background: 'linear-gradient(135deg, #a855f7, #6366f1)',
+            boxShadow: '0 4px 20px rgba(168, 85, 247, 0.3)'
+          }}
+        >
+          Ir al Dashboard
+        </button>
+      </div>
     </div>
   );
 }
