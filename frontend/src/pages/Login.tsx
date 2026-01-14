@@ -33,13 +33,13 @@ export default function Login() {
   };
 
   const handleDemoLogin = async () => {
-    setEmail('stefano@stefanobonanno.com');
+    setEmail('sbonanno92@gmail.com');
     setPassword('demo2024');
 
     setLoading(true);
     try {
       const response = await api.post('/auth/login', {
-        email: 'stefano@stefanobonanno.com',
+        email: 'sbonanno92@gmail.com',
         password: 'demo2024'
       });
       localStorage.setItem('token', response.data.access_token);
