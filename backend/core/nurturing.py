@@ -634,3 +634,65 @@ def should_schedule_nurturing(
 
     logger.info(f"[NURTURING] ✓ Will schedule '{sequence_type}' for {creator_id}")
     return sequence_type
+
+
+# =============================================================================
+# DEFAULT SEQUENCE ACTIVATION
+# =============================================================================
+
+# Sequences to activate by default for new creators
+DEFAULT_ACTIVE_SEQUENCES = [
+    "interest_cold",      # Follow up on soft interest
+    "abandoned",          # Recover abandoned carts
+    "booking_reminder",   # Remind about upcoming bookings
+]
+
+
+def activate_default_sequences(creator_id: str) -> Dict[str, bool]:
+    """
+    Activate default nurturing sequences for a new creator.
+
+    Call this after creating a new creator to ensure basic follow-up
+    sequences are enabled.
+
+    Args:
+        creator_id: Creator ID
+
+    Returns:
+        Dict mapping sequence_type to activation status
+    """
+    config_path = _BASE_DIR / "data" / "nurturing" / f"{creator_id}_sequences.json"
+
+    # Ensure directory exists
+    config_path.parent.mkdir(parents=True, exist_ok=True)
+
+    # Load existing config or create new
+    if config_path.exists():
+        try:
+            with open(config_path, 'r', encoding='utf-8') as f:
+                config = json.load(f)
+        except Exception:
+            config = {"sequences": {}}
+    else:
+        config = {"sequences": {}}
+
+    if "sequences" not in config or not isinstance(config["sequences"], dict):
+        config["sequences"] = {}
+
+    results = {}
+    for seq_type in DEFAULT_ACTIVE_SEQUENCES:
+        if seq_type not in config["sequences"]:
+            config["sequences"][seq_type] = {}
+        config["sequences"][seq_type]["is_active"] = True
+        results[seq_type] = True
+        logger.info(f"[NURTURING] Activated default sequence '{seq_type}' for {creator_id}")
+
+    # Save config
+    try:
+        with open(config_path, 'w', encoding='utf-8') as f:
+            json.dump(config, f, indent=2, ensure_ascii=False)
+        logger.info(f"[NURTURING] Saved default sequences config for {creator_id}")
+    except Exception as e:
+        logger.error(f"[NURTURING] Error saving config for {creator_id}: {e}")
+
+    return results

@@ -107,6 +107,14 @@ async def _auto_onboard_after_instagram_oauth(
         finally:
             session.close()
 
+        # STEP 4b: Activate default nurturing sequences
+        try:
+            from core.nurturing import activate_default_sequences
+            nurturing_result = activate_default_sequences(creator_id)
+            logger.info(f"[AutoOnboard] ✅ Nurturing sequences activated: {list(nurturing_result.keys())}")
+        except Exception as nurturing_error:
+            logger.warning(f"[AutoOnboard] Could not activate nurturing: {nurturing_error}")
+
         # STEP 5: Load DM history
         if page_id:
             logger.info(f"[AutoOnboard] Loading DM history for {creator_id}...")

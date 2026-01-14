@@ -53,6 +53,7 @@ except (ImportError, Exception) as e:
 
 # Import DM Agent components from clonnect-creators
 from core.dm_agent import DMResponderAgent, DMResponse
+from core.rate_limiter import get_rate_limiter
 
 
 @dataclass
@@ -304,6 +305,15 @@ class TelegramAdapter:
             # Record message
             self._record_received(telegram_msg)
 
+            # Rate limit check - prevent spam and control costs
+            rate_limiter = get_rate_limiter()
+            allowed, reason = rate_limiter.check_limit(telegram_msg.follower_id)
+            if not allowed:
+                logger.warning(f"[TG:{telegram_msg.display_name}] Rate limited: {reason}")
+                # Optionally notify user about rate limit
+                await update.message.reply_text(reason)
+                return
+
             # Process with DM agent
             response = await self.process_message(telegram_msg)
 
@@ -458,6 +468,13 @@ class TelegramAdapter:
                 return None
 
             self._record_received(telegram_msg)
+
+            # Rate limit check - prevent spam and control costs
+            rate_limiter = get_rate_limiter()
+            allowed, reason = rate_limiter.check_limit(telegram_msg.follower_id)
+            if not allowed:
+                logger.warning(f"[TG:{telegram_msg.display_name}] Rate limited: {reason}")
+                return {"status": "rate_limited", "reason": reason}
 
             # Process message
             response = await self.process_message(telegram_msg)

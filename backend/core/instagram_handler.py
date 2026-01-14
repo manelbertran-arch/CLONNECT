@@ -16,6 +16,7 @@ from dataclasses import dataclass, field, asdict
 
 from core.dm_agent import DMResponderAgent, DMResponse
 from core.instagram import InstagramConnector, InstagramMessage
+from core.rate_limiter import get_rate_limiter
 
 logger = logging.getLogger("clonnect-instagram")
 
@@ -179,6 +180,19 @@ class InstagramHandler:
 
             self._record_received(message)
             logger.info(f"[IG:{message.sender_id}] Input: {message.text[:100]}")
+
+            # Rate limit check - prevent spam and control costs
+            rate_limiter = get_rate_limiter()
+            allowed, reason = rate_limiter.check_limit(message.sender_id)
+            if not allowed:
+                logger.warning(f"[IG:{message.sender_id}] Rate limited: {reason}")
+                results.append({
+                    "message_id": message.message_id,
+                    "sender_id": message.sender_id,
+                    "status": "rate_limited",
+                    "reason": reason
+                })
+                continue
 
             try:
                 # Process with DM agent to get suggested response
