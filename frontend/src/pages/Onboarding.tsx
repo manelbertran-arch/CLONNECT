@@ -335,13 +335,7 @@ export default function Onboarding() {
             className="rounded-xl p-4 font-mono text-sm overflow-hidden"
             style={{ background: 'rgba(0, 0, 0, 0.3)', border: '1px solid rgba(255, 255, 255, 0.05)' }}
           >
-            <div className="flex items-center gap-2 mb-3 pb-2" style={{ borderBottom: '1px solid rgba(255, 255, 255, 0.1)' }}>
-              <div className="w-3 h-3 rounded-full" style={{ background: '#ef4444' }} />
-              <div className="w-3 h-3 rounded-full" style={{ background: '#eab308' }} />
-              <div className="w-3 h-3 rounded-full" style={{ background: '#22c55e' }} />
-              <span className="ml-2 text-xs" style={{ color: 'rgba(255, 255, 255, 0.4)' }}>clonnect-ai</span>
-            </div>
-            <div className="space-y-1 h-40 overflow-hidden">
+            <div className="space-y-1 h-44 overflow-hidden">
               {logLines.map((line, i) => (
                 <div
                   key={i}
@@ -428,5 +422,11 @@ export default function Onboarding() {
     );
   }
 
-  return null;
+  // Fallback - should never reach here
+  return (
+    <div className="min-h-screen flex items-center justify-center" style={{ background: '#09090b' }}>
+      <BackgroundOrbs />
+      <div className="text-white">Cargando...</div>
+    </div>
+  );
 }
