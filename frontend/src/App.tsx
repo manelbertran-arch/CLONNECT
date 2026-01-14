@@ -9,6 +9,7 @@ import { DashboardLayoutClean } from "./components/layout/DashboardLayoutClean";
 import NotFound from "./pages/NotFound";
 import Login from "./pages/Login";
 import Register from "./pages/Register";
+import Welcome from "./pages/Welcome";
 
 // Debug logging
 console.log("[CLONNECT DEBUG] App.tsx module loading");
@@ -99,8 +100,8 @@ const AppRoutes = () => {
         <Route path="ajustes" element={<Ajustes />} />
       </Route>
 
-      {/* Root redirects to login */}
-      <Route path="/" element={<Navigate to="/login" replace />} />
+      {/* Root shows welcome page */}
+      <Route path="/" element={<Welcome />} />
 
       {/* Public booking page - no authentication required */}
       <Route path="/book/:creatorId/:serviceId" element={<BookService />} />
