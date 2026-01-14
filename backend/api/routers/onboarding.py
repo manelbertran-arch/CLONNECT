@@ -1262,41 +1262,40 @@ async def seed_demo_data(request: SeedDemoRequest):
                     session.add(new_product)
                     details["products_created"] += 1
 
-            # Create demo leads
-            demo_leads = [
-                {"name": "María García", "platform": "instagram", "intent": 0.8, "status": "hot"},
-                {"name": "Carlos López", "platform": "instagram", "intent": 0.6, "status": "warm"},
-                {"name": "Ana Martínez", "platform": "instagram", "intent": 0.9, "status": "hot"},
-                {"name": "Pedro Sánchez", "platform": "whatsapp", "intent": 0.4, "status": "warm"},
-                {"name": "Laura Fernández", "platform": "instagram", "intent": 0.3, "status": "cold"},
-                {"name": "Diego Ruiz", "platform": "instagram", "intent": 0.7, "status": "hot"},
-                {"name": "Sofia Torres", "platform": "whatsapp", "intent": 0.5, "status": "warm"},
-                {"name": "Miguel Herrera", "platform": "instagram", "intent": 0.2, "status": "cold"},
-            ]
-
-            for i, lead_data in enumerate(demo_leads):
-                platform_user_id = f"demo_{lead_data['name'].lower().replace(' ', '_')}_{i}"
-                existing = session.query(Lead).filter_by(
-                    creator_id=creator_uuid, platform_user_id=platform_user_id
-                ).first()
-                if not existing or request.force:
-                    if existing and request.force:
-                        session.delete(existing)
-                    new_lead = Lead(
-                        id=uuid_module.uuid4(),
-                        creator_id=creator_uuid,
-                        platform=lead_data["platform"],
-                        platform_user_id=platform_user_id,
-                        username=lead_data["name"].lower().replace(" ", "_"),
-                        full_name=lead_data["name"],
-                        purchase_intent=lead_data["intent"],
-                        status=lead_data["status"],
-                        first_contact_at=datetime.utcnow() - timedelta(days=random.randint(1, 30)),
-                        last_contact_at=datetime.utcnow() - timedelta(hours=random.randint(1, 72)),
-                        score=random.randint(30, 90)
-                    )
-                    session.add(new_lead)
-                    details["leads_created"] += 1
+            # NOTE: Demo leads DISABLED - only load real Instagram DMs
+            # demo_leads = [
+            #     {"name": "María García", "platform": "instagram", "intent": 0.8, "status": "hot"},
+            #     {"name": "Carlos López", "platform": "instagram", "intent": 0.6, "status": "warm"},
+            #     {"name": "Ana Martínez", "platform": "instagram", "intent": 0.9, "status": "hot"},
+            #     {"name": "Pedro Sánchez", "platform": "whatsapp", "intent": 0.4, "status": "warm"},
+            #     {"name": "Laura Fernández", "platform": "instagram", "intent": 0.3, "status": "cold"},
+            #     {"name": "Diego Ruiz", "platform": "instagram", "intent": 0.7, "status": "hot"},
+            #     {"name": "Sofia Torres", "platform": "whatsapp", "intent": 0.5, "status": "warm"},
+            #     {"name": "Miguel Herrera", "platform": "instagram", "intent": 0.2, "status": "cold"},
+            # ]
+            # for i, lead_data in enumerate(demo_leads):
+            #     platform_user_id = f"demo_{lead_data['name'].lower().replace(' ', '_')}_{i}"
+            #     existing = session.query(Lead).filter_by(
+            #         creator_id=creator_uuid, platform_user_id=platform_user_id
+            #     ).first()
+            #     if not existing or request.force:
+            #         if existing and request.force:
+            #             session.delete(existing)
+            #         new_lead = Lead(
+            #             id=uuid_module.uuid4(),
+            #             creator_id=creator_uuid,
+            #             platform=lead_data["platform"],
+            #             platform_user_id=platform_user_id,
+            #             username=lead_data["name"].lower().replace(" ", "_"),
+            #             full_name=lead_data["name"],
+            #             purchase_intent=lead_data["intent"],
+            #             status=lead_data["status"],
+            #             first_contact_at=datetime.utcnow() - timedelta(days=random.randint(1, 30)),
+            #             last_contact_at=datetime.utcnow() - timedelta(hours=random.randint(1, 72)),
+            #             score=random.randint(30, 90)
+            #         )
+            #         session.add(new_lead)
+            #         details["leads_created"] += 1
 
             # Mark onboarding as completed and activate bot
             creator.onboarding_completed = True
@@ -2328,40 +2327,40 @@ async def manual_setup(request: ManualSetupRequest):
                             session.add(new_product)
                             products_created += 1
 
-                    # Create demo leads
-                    demo_leads = [
-                        {"name": "María García", "platform": "instagram", "intent": 0.8, "status": "hot"},
-                        {"name": "Carlos López", "platform": "instagram", "intent": 0.6, "status": "warm"},
-                        {"name": "Ana Martínez", "platform": "instagram", "intent": 0.9, "status": "hot"},
-                        {"name": "Pedro Sánchez", "platform": "whatsapp", "intent": 0.4, "status": "warm"},
-                        {"name": "Laura Fernández", "platform": "instagram", "intent": 0.3, "status": "cold"},
-                        {"name": "Diego Ruiz", "platform": "instagram", "intent": 0.7, "status": "hot"},
-                        {"name": "Sofia Torres", "platform": "whatsapp", "intent": 0.5, "status": "warm"},
-                        {"name": "Miguel Herrera", "platform": "instagram", "intent": 0.2, "status": "cold"},
-                    ]
-
+                    # NOTE: Demo leads creation DISABLED - we only show real DMs from Instagram
+                    # To re-enable for testing, uncomment the code below
                     leads_created = 0
-                    for i, lead_data in enumerate(demo_leads):
-                        platform_user_id = f"demo_{lead_data['name'].lower().replace(' ', '_')}_{i}"
-                        existing = session.query(Lead).filter_by(
-                            creator_id=creator_uuid, platform_user_id=platform_user_id
-                        ).first()
-                        if not existing:
-                            new_lead = Lead(
-                                id=uuid_module.uuid4(),
-                                creator_id=creator_uuid,
-                                platform=lead_data["platform"],
-                                platform_user_id=platform_user_id,
-                                username=lead_data["name"].lower().replace(" ", "_"),
-                                full_name=lead_data["name"],
-                                purchase_intent=lead_data["intent"],
-                                status=lead_data["status"],
-                                first_contact_at=datetime.utcnow() - timedelta(days=random.randint(1, 30)),
-                                last_contact_at=datetime.utcnow() - timedelta(hours=random.randint(1, 72)),
-                                score=random.randint(30, 90)
-                            )
-                            session.add(new_lead)
-                            leads_created += 1
+                    # demo_leads = [
+                    #     {"name": "María García", "platform": "instagram", "intent": 0.8, "status": "hot"},
+                    #     {"name": "Carlos López", "platform": "instagram", "intent": 0.6, "status": "warm"},
+                    #     {"name": "Ana Martínez", "platform": "instagram", "intent": 0.9, "status": "hot"},
+                    #     {"name": "Pedro Sánchez", "platform": "whatsapp", "intent": 0.4, "status": "warm"},
+                    #     {"name": "Laura Fernández", "platform": "instagram", "intent": 0.3, "status": "cold"},
+                    #     {"name": "Diego Ruiz", "platform": "instagram", "intent": 0.7, "status": "hot"},
+                    #     {"name": "Sofia Torres", "platform": "whatsapp", "intent": 0.5, "status": "warm"},
+                    #     {"name": "Miguel Herrera", "platform": "instagram", "intent": 0.2, "status": "cold"},
+                    # ]
+                    # for i, lead_data in enumerate(demo_leads):
+                    #     platform_user_id = f"demo_{lead_data['name'].lower().replace(' ', '_')}_{i}"
+                    #     existing = session.query(Lead).filter_by(
+                    #         creator_id=creator_uuid, platform_user_id=platform_user_id
+                    #     ).first()
+                    #     if not existing:
+                    #         new_lead = Lead(
+                    #             id=uuid_module.uuid4(),
+                    #             creator_id=creator_uuid,
+                    #             platform=lead_data["platform"],
+                    #             platform_user_id=platform_user_id,
+                    #             username=lead_data["name"].lower().replace(" ", "_"),
+                    #             full_name=lead_data["name"],
+                    #             purchase_intent=lead_data["intent"],
+                    #             status=lead_data["status"],
+                    #             first_contact_at=datetime.utcnow() - timedelta(days=random.randint(1, 30)),
+                    #             last_contact_at=datetime.utcnow() - timedelta(hours=random.randint(1, 72)),
+                    #             score=random.randint(30, 90)
+                    #         )
+                    #         session.add(new_lead)
+                    #         leads_created += 1
 
                     session.commit()
                     details["demo_leads_created"] = leads_created
