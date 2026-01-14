@@ -203,7 +203,7 @@ export default function Login() {
 
         <div className="mt-5 text-center">
           <Link
-            to="/onboarding"
+            to="/onboarding-intro"
             className="text-base font-medium hover:opacity-80 transition-opacity"
             style={{ color: '#a855f7' }}
           >
