@@ -1,5 +1,5 @@
 import { useNavigate } from 'react-router-dom';
-import { Sparkles, ArrowRight } from 'lucide-react';
+import { ArrowRight } from 'lucide-react';
 
 export default function Welcome() {
   const navigate = useNavigate();
@@ -15,8 +15,8 @@ export default function Welcome() {
           position: 'fixed',
           top: '20%',
           left: '10%',
-          width: '400px',
-          height: '400px',
+          width: '500px',
+          height: '500px',
           background: 'radial-gradient(circle, rgba(168, 85, 247, 0.15) 0%, transparent 70%)',
           borderRadius: '50%',
           filter: 'blur(80px)',
@@ -28,8 +28,8 @@ export default function Welcome() {
           position: 'fixed',
           bottom: '20%',
           right: '10%',
-          width: '300px',
-          height: '300px',
+          width: '400px',
+          height: '400px',
           background: 'radial-gradient(circle, rgba(99, 102, 241, 0.15) 0%, transparent 70%)',
           borderRadius: '50%',
           filter: 'blur(80px)',
@@ -38,22 +38,9 @@ export default function Welcome() {
       />
 
       <div className="relative z-10 text-center px-6">
-        {/* Logo */}
-        <div className="flex justify-center mb-6">
-          <div
-            className="w-16 h-16 rounded-2xl flex items-center justify-center"
-            style={{
-              background: 'linear-gradient(135deg, #a855f7, #6366f1)',
-              boxShadow: '0 8px 32px rgba(168, 85, 247, 0.3)'
-            }}
-          >
-            <Sparkles className="w-8 h-8 text-white" />
-          </div>
-        </div>
-
         {/* Title */}
         <h1
-          className="text-4xl md:text-5xl font-bold mb-3"
+          className="text-6xl md:text-8xl font-bold mb-6"
           style={{
             background: 'linear-gradient(135deg, #a855f7, #6366f1)',
             WebkitBackgroundClip: 'text',
@@ -65,30 +52,30 @@ export default function Welcome() {
 
         {/* Subtitle */}
         <p
-          className="text-lg mb-10"
+          className="text-2xl md:text-3xl mb-16"
           style={{ color: 'rgba(255, 255, 255, 0.5)' }}
         >
           Automatiza tus DMs con IA
         </p>
 
         {/* Buttons */}
-        <div className="flex flex-col gap-3 max-w-xs mx-auto">
+        <div className="flex flex-col gap-4 max-w-md mx-auto">
           <button
             onClick={() => navigate('/register')}
-            className="w-full px-6 py-4 font-semibold rounded-xl transition-all hover:opacity-90 flex items-center justify-center gap-2"
+            className="w-full px-8 py-5 text-xl font-semibold rounded-2xl transition-all hover:opacity-90 flex items-center justify-center gap-3"
             style={{
               background: 'linear-gradient(135deg, #a855f7, #6366f1)',
-              boxShadow: '0 4px 20px rgba(168, 85, 247, 0.3)',
+              boxShadow: '0 4px 30px rgba(168, 85, 247, 0.4)',
               color: 'white'
             }}
           >
             Crear cuenta
-            <ArrowRight className="w-5 h-5" />
+            <ArrowRight className="w-6 h-6" />
           </button>
 
           <button
             onClick={() => navigate('/login')}
-            className="w-full px-6 py-4 font-semibold rounded-xl transition-all hover:opacity-80"
+            className="w-full px-8 py-5 text-xl font-semibold rounded-2xl transition-all hover:opacity-80"
             style={{
               background: 'rgba(255, 255, 255, 0.05)',
               border: '1px solid rgba(255, 255, 255, 0.1)',
