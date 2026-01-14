@@ -40,7 +40,7 @@ export default function Welcome() {
       <div className="relative z-10 text-center px-6">
         {/* Title */}
         <h1
-          className="text-5xl md:text-6xl font-bold mb-4"
+          className="text-6xl md:text-7xl font-bold mb-5"
           style={{
             background: 'linear-gradient(135deg, #a855f7, #6366f1)',
             WebkitBackgroundClip: 'text',
@@ -52,7 +52,7 @@ export default function Welcome() {
 
         {/* Subtitle */}
         <p
-          className="text-xl md:text-2xl mb-12"
+          className="text-2xl md:text-3xl mb-14"
           style={{ color: 'rgba(255, 255, 255, 0.5)' }}
         >
           Automatiza tus DMs con IA
@@ -62,7 +62,7 @@ export default function Welcome() {
         <div className="flex flex-col sm:flex-row gap-4 justify-center">
           <button
             onClick={() => navigate('/register')}
-            className="px-8 py-4 text-lg font-semibold rounded-xl transition-all hover:opacity-90 flex items-center justify-center gap-2"
+            className="px-10 py-5 text-xl font-semibold rounded-xl transition-all hover:opacity-90 flex items-center justify-center gap-2"
             style={{
               background: 'linear-gradient(135deg, #a855f7, #6366f1)',
               boxShadow: '0 4px 24px rgba(168, 85, 247, 0.35)',
@@ -70,12 +70,12 @@ export default function Welcome() {
             }}
           >
             Crear cuenta
-            <ArrowRight className="w-5 h-5" />
+            <ArrowRight className="w-6 h-6" />
           </button>
 
           <button
             onClick={() => navigate('/login')}
-            className="px-8 py-4 text-lg font-semibold rounded-xl transition-all hover:opacity-80"
+            className="px-10 py-5 text-xl font-semibold rounded-xl transition-all hover:opacity-80"
             style={{
               background: 'rgba(255, 255, 255, 0.05)',
               border: '1px solid rgba(255, 255, 255, 0.15)',
