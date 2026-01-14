@@ -48,7 +48,7 @@ export function OnboardingDesktop({ onComplete }: OnboardingDesktopProps) {
   const [showSaleNotification, setShowSaleNotification] = useState(false);
   const [countersAnimated, setCountersAnimated] = useState(false);
 
-  const totalSlides = 11; // 11 slides (no intro)
+  const totalSlides = 2; // Only 2 intro slides, then go to clone creation
 
   // Handle keyboard navigation
   const handleKeyDown = useCallback((e: KeyboardEvent) => {
