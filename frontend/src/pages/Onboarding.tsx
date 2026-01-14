@@ -1,7 +1,18 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { api, getCreatorId } from '../services/api';
-import { ArrowRight, Check } from 'lucide-react';
+import { ArrowRight, Check, Instagram, Globe, Brain, MessageSquare, BarChart3, Zap } from 'lucide-react';
+
+// Processing steps configuration
+const processingSteps = [
+  { id: 'connect', icon: Instagram, label: 'Conectando con Instagram', detail: 'Accediendo a tu perfil...' },
+  { id: 'posts', icon: Instagram, label: 'Analizando posts', detail: 'Extrayendo contenido de publicaciones...' },
+  { id: 'website', icon: Globe, label: 'Escaneando website', detail: 'Procesando páginas y contenido...' },
+  { id: 'brain', icon: Brain, label: 'Entrenando tu clon', detail: 'Aprendiendo tu estilo y tono...' },
+  { id: 'rag', icon: MessageSquare, label: 'Creando base de conocimiento', detail: 'Indexando documentos RAG...' },
+  { id: 'metrics', icon: BarChart3, label: 'Configurando métricas', detail: 'Preparando dashboard...' },
+  { id: 'bot', icon: Zap, label: 'Activando bot', detail: 'Tu clon está casi listo...' },
+];
 
 export default function Onboarding() {
   const [instagram, setInstagram] = useState('');
@@ -10,11 +21,61 @@ export default function Onboarding() {
   const [step, setStep] = useState<'form' | 'loading' | 'success'>('form');
   const [stats, setStats] = useState<any>(null);
   const [error, setError] = useState('');
+  const [currentProcessStep, setCurrentProcessStep] = useState(0);
+  const [streamingText, setStreamingText] = useState('');
+  const [logLines, setLogLines] = useState<string[]>([]);
   const navigate = useNavigate();
 
-  // P1 FIX: Use getCreatorId helper (handles fallback and migration)
   const creatorId = getCreatorId();
-  console.log('[Onboarding] Using creator_id:', creatorId);
+
+  // Simulated streaming logs during loading
+  useEffect(() => {
+    if (step !== 'loading') return;
+
+    const logs = [
+      '> Iniciando conexión segura...',
+      '> Autenticando con Instagram API...',
+      '> Conexión establecida',
+      '> Obteniendo perfil de @' + instagram.replace('@', ''),
+      '> Descargando últimos 50 posts...',
+      '> Analizando captions y hashtags...',
+      '> Extrayendo patrones de comunicación...',
+      '> Procesando engagement metrics...',
+      website ? '> Escaneando ' + website + '...' : '> Saltando análisis de website...',
+      website ? '> Extrayendo contenido de páginas...' : '',
+      '> Inicializando modelo de lenguaje...',
+      '> Entrenando perfil de personalidad...',
+      '> Calibrando tono de voz...',
+      '> Generando embeddings de contenido...',
+      '> Indexando documentos en RAG...',
+      '> Configurando respuestas automáticas...',
+      '> Preparando métricas del dashboard...',
+      '> Activando sistema de leads...',
+      '> Configurando nurturing sequences...',
+      '> Finalizando configuración del bot...',
+    ].filter(Boolean);
+
+    let currentLog = 0;
+    const interval = setInterval(() => {
+      if (currentLog < logs.length) {
+        setLogLines(prev => [...prev.slice(-8), logs[currentLog]]);
+        currentLog++;
+      }
+    }, 400);
+
+    // Progress through steps
+    const stepInterval = setInterval(() => {
+      setCurrentProcessStep(prev => {
+        if (prev < processingSteps.length - 1) return prev + 1;
+        return prev;
+      });
+    }, 2500);
+
+    return () => {
+      clearInterval(interval);
+      clearInterval(stepInterval);
+    };
+  }, [step, instagram, website]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -27,6 +88,8 @@ export default function Onboarding() {
     setLoading(true);
     setStep('loading');
     setError('');
+    setLogLines([]);
+    setCurrentProcessStep(0);
 
     try {
       const response = await api.post('/onboarding/manual-setup', {
@@ -35,7 +98,6 @@ export default function Onboarding() {
         website_url: website || null
       });
 
-      // Check if backend returned success: false
       if (response.data.success === false) {
         const errorMsg = response.data.errors?.join(', ') || 'Error durante el onboarding';
         setError(errorMsg);
@@ -57,7 +119,7 @@ export default function Onboarding() {
     navigate('/dashboard');
   };
 
-  // Background orbs component
+  // Background orbs
   const BackgroundOrbs = () => (
     <>
       <div
@@ -89,21 +151,14 @@ export default function Onboarding() {
     </>
   );
 
-  // FORMULARIO
+  // FORM
   if (step === 'form') {
     return (
-      <div
-        className="min-h-screen flex items-center justify-center"
-        style={{ background: '#09090b' }}
-      >
+      <div className="min-h-screen flex items-center justify-center" style={{ background: '#09090b' }}>
         <BackgroundOrbs />
-
         <div
           className="p-8 rounded-2xl w-full max-w-md relative z-10"
-          style={{
-            background: '#0f0f14',
-            border: '1px solid rgba(255, 255, 255, 0.08)'
-          }}
+          style={{ background: '#0f0f14', border: '1px solid rgba(255, 255, 255, 0.08)' }}
         >
           <h1
             className="text-2xl font-bold text-center mb-2"
@@ -142,10 +197,7 @@ export default function Onboarding() {
               value={instagram}
               onChange={(e) => setInstagram(e.target.value)}
               className="w-full p-4 mb-4 rounded-xl text-white outline-none transition-all"
-              style={{
-                background: 'rgba(255, 255, 255, 0.05)',
-                border: '1px solid rgba(255, 255, 255, 0.08)'
-              }}
+              style={{ background: 'rgba(255, 255, 255, 0.05)', border: '1px solid rgba(255, 255, 255, 0.08)' }}
               onFocus={(e) => e.target.style.borderColor = 'rgba(168, 85, 247, 0.5)'}
               onBlur={(e) => e.target.style.borderColor = 'rgba(255, 255, 255, 0.08)'}
               required
@@ -160,10 +212,7 @@ export default function Onboarding() {
               value={website}
               onChange={(e) => setWebsite(e.target.value)}
               className="w-full p-4 mb-6 rounded-xl text-white outline-none transition-all"
-              style={{
-                background: 'rgba(255, 255, 255, 0.05)',
-                border: '1px solid rgba(255, 255, 255, 0.08)'
-              }}
+              style={{ background: 'rgba(255, 255, 255, 0.05)', border: '1px solid rgba(255, 255, 255, 0.08)' }}
               onFocus={(e) => e.target.style.borderColor = 'rgba(168, 85, 247, 0.5)'}
               onBlur={(e) => e.target.style.borderColor = 'rgba(255, 255, 255, 0.08)'}
             />
@@ -186,46 +235,148 @@ export default function Onboarding() {
     );
   }
 
-  // LOADING
+  // LOADING - AI Streaming Style
   if (step === 'loading') {
+    const currentStep = processingSteps[currentProcessStep];
+    const CurrentIcon = currentStep.icon;
+    const progress = ((currentProcessStep + 1) / processingSteps.length) * 100;
+
     return (
-      <div
-        className="min-h-screen flex items-center justify-center"
-        style={{ background: '#09090b' }}
-      >
+      <div className="min-h-screen flex items-center justify-center" style={{ background: '#09090b' }}>
         <BackgroundOrbs />
 
         <div
-          className="p-8 rounded-2xl w-full max-w-md text-center relative z-10"
-          style={{
-            background: '#0f0f14',
-            border: '1px solid rgba(255, 255, 255, 0.08)'
-          }}
+          className="p-8 rounded-2xl w-full max-w-2xl relative z-10"
+          style={{ background: '#0f0f14', border: '1px solid rgba(255, 255, 255, 0.08)' }}
         >
+          {/* Header */}
+          <div className="flex items-center gap-3 mb-6">
+            <div
+              className="w-10 h-10 rounded-xl flex items-center justify-center"
+              style={{ background: 'linear-gradient(135deg, #a855f7, #6366f1)' }}
+            >
+              <Brain className="w-5 h-5 text-white" />
+            </div>
+            <div>
+              <h2 className="text-lg font-semibold text-white">Creando tu clon de IA</h2>
+              <p className="text-sm" style={{ color: 'rgba(255, 255, 255, 0.5)' }}>
+                @{instagram.replace('@', '')}
+              </p>
+            </div>
+          </div>
+
+          {/* Progress bar */}
+          <div className="mb-6">
+            <div className="flex justify-between text-sm mb-2">
+              <span style={{ color: 'rgba(255, 255, 255, 0.7)' }}>{currentStep.label}</span>
+              <span style={{ color: '#a855f7' }}>{Math.round(progress)}%</span>
+            </div>
+            <div
+              className="h-2 rounded-full overflow-hidden"
+              style={{ background: 'rgba(255, 255, 255, 0.1)' }}
+            >
+              <div
+                className="h-full rounded-full transition-all duration-500"
+                style={{
+                  width: `${progress}%`,
+                  background: 'linear-gradient(90deg, #a855f7, #6366f1)'
+                }}
+              />
+            </div>
+          </div>
+
+          {/* Steps grid */}
+          <div className="grid grid-cols-4 gap-2 mb-6">
+            {processingSteps.slice(0, 4).map((s, i) => {
+              const Icon = s.icon;
+              const isActive = i === currentProcessStep;
+              const isDone = i < currentProcessStep;
+              return (
+                <div
+                  key={s.id}
+                  className="flex flex-col items-center gap-2 p-3 rounded-lg transition-all"
+                  style={{
+                    background: isActive ? 'rgba(168, 85, 247, 0.1)' : 'transparent',
+                    border: isActive ? '1px solid rgba(168, 85, 247, 0.3)' : '1px solid transparent'
+                  }}
+                >
+                  <div
+                    className="w-8 h-8 rounded-lg flex items-center justify-center"
+                    style={{
+                      background: isDone ? 'rgba(34, 197, 94, 0.2)' : isActive ? 'rgba(168, 85, 247, 0.2)' : 'rgba(255, 255, 255, 0.05)'
+                    }}
+                  >
+                    {isDone ? (
+                      <Check className="w-4 h-4" style={{ color: '#22c55e' }} />
+                    ) : (
+                      <Icon
+                        className={`w-4 h-4 ${isActive ? 'animate-pulse' : ''}`}
+                        style={{ color: isActive ? '#a855f7' : 'rgba(255, 255, 255, 0.4)' }}
+                      />
+                    )}
+                  </div>
+                  <span
+                    className="text-xs text-center"
+                    style={{ color: isDone ? '#22c55e' : isActive ? '#a855f7' : 'rgba(255, 255, 255, 0.4)' }}
+                  >
+                    {s.label.split(' ').slice(0, 2).join(' ')}
+                  </span>
+                </div>
+              );
+            })}
+          </div>
+
+          {/* Terminal/Log output */}
           <div
-            className="w-12 h-12 border-4 rounded-full mx-auto mb-4 animate-spin"
-            style={{
-              borderColor: 'rgba(168, 85, 247, 0.2)',
-              borderTopColor: '#a855f7'
-            }}
-          />
-          <h2
-            className="text-xl font-bold mb-2"
-            style={{
-              background: 'linear-gradient(135deg, #a855f7, #6366f1)',
-              WebkitBackgroundClip: 'text',
-              WebkitTextFillColor: 'transparent'
-            }}
+            className="rounded-xl p-4 font-mono text-sm overflow-hidden"
+            style={{ background: 'rgba(0, 0, 0, 0.3)', border: '1px solid rgba(255, 255, 255, 0.05)' }}
           >
-            Creando tu clon...
-          </h2>
-          <p style={{ color: 'rgba(255, 255, 255, 0.5)' }}>
-            Analizando tu contenido de Instagram
-          </p>
-          <p className="text-sm mt-4" style={{ color: 'rgba(255, 255, 255, 0.3)' }}>
-            Esto puede tardar 1-2 minutos
-          </p>
+            <div className="flex items-center gap-2 mb-3 pb-2" style={{ borderBottom: '1px solid rgba(255, 255, 255, 0.1)' }}>
+              <div className="w-3 h-3 rounded-full" style={{ background: '#ef4444' }} />
+              <div className="w-3 h-3 rounded-full" style={{ background: '#eab308' }} />
+              <div className="w-3 h-3 rounded-full" style={{ background: '#22c55e' }} />
+              <span className="ml-2 text-xs" style={{ color: 'rgba(255, 255, 255, 0.4)' }}>clonnect-ai</span>
+            </div>
+            <div className="space-y-1 h-40 overflow-hidden">
+              {logLines.map((line, i) => (
+                <div
+                  key={i}
+                  className="flex items-start gap-2"
+                  style={{
+                    animation: 'fadeIn 0.3s ease-out',
+                    opacity: i === logLines.length - 1 ? 1 : 0.6
+                  }}
+                >
+                  <span style={{ color: '#a855f7' }}>{'>'}</span>
+                  <span style={{ color: i === logLines.length - 1 ? '#22c55e' : 'rgba(255, 255, 255, 0.6)' }}>
+                    {line.replace('> ', '')}
+                    {i === logLines.length - 1 && (
+                      <span className="inline-block w-2 h-4 ml-1 animate-pulse" style={{ background: '#a855f7' }} />
+                    )}
+                  </span>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Current action */}
+          <div className="mt-4 flex items-center justify-center gap-2">
+            <div
+              className="w-2 h-2 rounded-full animate-pulse"
+              style={{ background: '#a855f7' }}
+            />
+            <span className="text-sm" style={{ color: 'rgba(255, 255, 255, 0.5)' }}>
+              {currentStep.detail}
+            </span>
+          </div>
         </div>
+
+        <style>{`
+          @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+          }
+        `}</style>
       </div>
     );
   }
@@ -233,20 +384,13 @@ export default function Onboarding() {
   // SUCCESS
   if (step === 'success') {
     return (
-      <div
-        className="min-h-screen flex items-center justify-center"
-        style={{ background: '#09090b' }}
-      >
+      <div className="min-h-screen flex items-center justify-center" style={{ background: '#09090b' }}>
         <BackgroundOrbs />
 
         <div
           className="p-8 rounded-2xl w-full max-w-md text-center relative z-10"
-          style={{
-            background: '#0f0f14',
-            border: '1px solid rgba(255, 255, 255, 0.08)'
-          }}
+          style={{ background: '#0f0f14', border: '1px solid rgba(255, 255, 255, 0.08)' }}
         >
-          {/* Success Icon */}
           <div className="flex justify-center mb-6">
             <div
               className="w-16 h-16 rounded-2xl flex items-center justify-center"
@@ -273,10 +417,7 @@ export default function Onboarding() {
           {stats && (
             <div
               className="p-4 rounded-xl mb-6 text-left"
-              style={{
-                background: 'rgba(255, 255, 255, 0.03)',
-                border: '1px solid rgba(255, 255, 255, 0.06)'
-              }}
+              style={{ background: 'rgba(255, 255, 255, 0.03)', border: '1px solid rgba(255, 255, 255, 0.06)' }}
             >
               <p className="flex items-center gap-2 mb-2" style={{ color: 'rgba(255, 255, 255, 0.7)' }}>
                 <span style={{ color: '#22c55e' }}>✓</span> Posts analizados: {stats.details?.posts_count || 50}
