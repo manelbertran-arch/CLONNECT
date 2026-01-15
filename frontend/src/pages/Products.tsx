@@ -31,12 +31,12 @@ import { cn } from "@/lib/utils";
 import type { Product } from "@/types/api";
 
 const PRODUCT_TYPES = [
-  { value: "ebook", label: "Ebook / Guide", icon: BookOpen },
-  { value: "course", label: "Course", icon: GraduationCap },
-  { value: "membership", label: "Membership", icon: Users },
-  { value: "template", label: "Template", icon: FileText },
-  { value: "service", label: "Service", icon: Wrench },
-  { value: "other", label: "Other", icon: Box },
+  { value: "ebook", label: "Ebook / Guía", icon: BookOpen },
+  { value: "course", label: "Curso", icon: GraduationCap },
+  { value: "membership", label: "Membresía", icon: Users },
+  { value: "template", label: "Plantilla", icon: FileText },
+  { value: "service", label: "Servicio", icon: Wrench },
+  { value: "other", label: "Otro", icon: Box },
 ];
 
 function getTypeIcon(type: string) {
@@ -57,7 +57,7 @@ function getTypeEmoji(type: string) {
 }
 
 function formatPrice(price: number, currency: string = "EUR") {
-  if (price === 0) return "Free";
+  if (price === 0) return "Gratis";
   const symbols: Record<string, string> = { EUR: "€", USD: "$", MXN: "$" };
   return `${symbols[currency] || "€"}${price}`;
 }
@@ -127,14 +127,14 @@ export default function Products() {
 
   const handleSubmit = async () => {
     if (!formData.name.trim()) {
-      toast({ title: "Error", description: "Product name is required", variant: "destructive" });
+      toast({ title: "Error", description: "El nombre del producto es obligatorio", variant: "destructive" });
       return;
     }
 
     // Validate price - accept any valid number >= 0
     const priceValue = parseFloat(formData.price);
     if (formData.price.trim() === "" || isNaN(priceValue) || priceValue < 0) {
-      toast({ title: "Error", description: "Valid price is required", variant: "destructive" });
+      toast({ title: "Error", description: "Se requiere un precio válido", variant: "destructive" });
       return;
     }
 
@@ -151,42 +151,42 @@ export default function Products() {
     try {
       if (editingProduct) {
         await updateProductMutation.mutateAsync({ productId: editingProduct.id, product: productData });
-        toast({ title: "Updated", description: "Product updated successfully" });
+        toast({ title: "Actualizado", description: "Producto actualizado correctamente" });
       } else {
         await addProductMutation.mutateAsync(productData);
-        toast({ title: "Created", description: "Product created successfully" });
+        toast({ title: "Creado", description: "Producto creado correctamente" });
       }
       setShowAddModal(false);
       resetForm();
       refetch();
     } catch (error: any) {
       console.error("Save product error:", error);
-      const message = error?.response?.data?.detail || error?.response?.data?.message || error?.message || "Failed to save product";
+      const message = error?.response?.data?.detail || error?.response?.data?.message || error?.message || "Error al guardar producto";
       toast({ title: "Error", description: String(message), variant: "destructive" });
     }
   };
 
   const handleDelete = async (productId: string, name: string) => {
-    if (!confirm(`Delete "${name}"? This cannot be undone.`)) return;
+    if (!confirm(`¿Eliminar "${name}"? Esta acción no se puede deshacer.`)) return;
     try {
       await deleteProductMutation.mutateAsync(productId);
-      toast({ title: "Deleted", description: "Product deleted" });
+      toast({ title: "Eliminado", description: "Producto eliminado" });
       refetch();
     } catch (error: any) {
       console.error("Delete product error:", error);
-      const message = error?.response?.data?.detail || error?.response?.data?.message || error?.message || "Failed to delete";
+      const message = error?.response?.data?.detail || error?.response?.data?.message || error?.message || "Error al eliminar";
       toast({ title: "Error", description: String(message), variant: "destructive" });
     }
   };
 
   const handleCopyLink = async (product: Product) => {
     if (!product.purchase_url) {
-      toast({ title: "No link", description: "This product has no purchase link", variant: "destructive" });
+      toast({ title: "Sin enlace", description: "Este producto no tiene enlace de compra", variant: "destructive" });
       return;
     }
     await navigator.clipboard.writeText(product.purchase_url);
     setCopiedId(product.id);
-    toast({ title: "Copied!", description: "Link copied to clipboard" });
+    toast({ title: "¡Copiado!", description: "Enlace copiado al portapapeles" });
     setTimeout(() => setCopiedId(null), 2000);
   };
 
@@ -195,12 +195,12 @@ export default function Products() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-xl sm:text-2xl font-bold tracking-tight">Products</h1>
-          <p className="text-muted-foreground text-sm">Manage your digital products and track sales</p>
+          <h1 className="text-xl sm:text-2xl font-bold tracking-tight">Productos</h1>
+          <p className="text-muted-foreground text-sm">Gestiona tus productos digitales y rastrea ventas</p>
         </div>
         <Button onClick={handleOpenAdd} className="w-full sm:w-auto">
           <Plus className="w-4 h-4 mr-2" />
-          Add Product
+          Añadir Producto
         </Button>
       </div>
 
@@ -213,7 +213,7 @@ export default function Products() {
             </div>
           </div>
           <p className="text-3xl font-bold text-success">€{totalRevenue.toFixed(0)}</p>
-          <p className="text-sm text-muted-foreground">Revenue (30d)</p>
+          <p className="text-sm text-muted-foreground">Ingresos (30d)</p>
         </div>
 
         <div className="metric-card">
@@ -223,7 +223,7 @@ export default function Products() {
             </div>
           </div>
           <p className="text-3xl font-bold">{totalSales}</p>
-          <p className="text-sm text-muted-foreground">Sales</p>
+          <p className="text-sm text-muted-foreground">Ventas</p>
         </div>
 
         <div className="metric-card">
@@ -233,7 +233,7 @@ export default function Products() {
             </div>
           </div>
           <p className="text-3xl font-bold">{products.length}</p>
-          <p className="text-sm text-muted-foreground">Products</p>
+          <p className="text-sm text-muted-foreground">Productos</p>
         </div>
 
         <div className="metric-card">
@@ -243,13 +243,13 @@ export default function Products() {
             </div>
           </div>
           <p className="text-3xl font-bold">€{avgOrderValue.toFixed(0)}</p>
-          <p className="text-sm text-muted-foreground">Avg Order</p>
+          <p className="text-sm text-muted-foreground">Ticket Medio</p>
         </div>
       </div>
 
       {/* Products List */}
       <div className="metric-card">
-        <h3 className="font-semibold mb-4">Your Products</h3>
+        <h3 className="font-semibold mb-4">Tus Productos</h3>
 
         {isLoading ? (
           <div className="flex justify-center py-8">
@@ -260,13 +260,13 @@ export default function Products() {
             <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center mx-auto mb-4">
               <ShoppingBag className="w-8 h-8 text-primary" />
             </div>
-            <h4 className="text-lg font-semibold mb-2">No products yet</h4>
+            <h4 className="text-lg font-semibold mb-2">Aún no hay productos</h4>
             <p className="text-muted-foreground text-sm max-w-sm mx-auto mb-4">
-              Add your digital products to start tracking sales and let your bot recommend them
+              Añade tus productos digitales para rastrear ventas y que tu bot los recomiende
             </p>
             <Button onClick={handleOpenAdd}>
               <Plus className="w-4 h-4 mr-2" />
-              Add Your First Product
+              Añadir Tu Primer Producto
             </Button>
           </div>
         ) : (
@@ -347,11 +347,11 @@ export default function Products() {
                   {/* Stats */}
                   <div className="mt-4 pt-4 border-t flex gap-6 flex-wrap text-sm">
                     <div>
-                      <span className="text-muted-foreground">Sales:</span>
+                      <span className="text-muted-foreground">Ventas:</span>
                       <span className="ml-2 font-medium">{product.sales_count || 0}</span>
                     </div>
                     <div>
-                      <span className="text-muted-foreground">Revenue:</span>
+                      <span className="text-muted-foreground">Ingresos:</span>
                       <span className="ml-2 font-medium text-success">€{product.revenue || 0}</span>
                     </div>
                     {product.purchase_url && (
@@ -362,7 +362,7 @@ export default function Products() {
                           rel="noopener noreferrer"
                           className="text-primary hover:underline flex items-center gap-1"
                         >
-                          View link <ExternalLink className="w-3 h-3" />
+                          Ver enlace <ExternalLink className="w-3 h-3" />
                         </a>
                       </div>
                     )}
@@ -378,7 +378,7 @@ export default function Products() {
       {recentSales.length > 0 && (
         <div className="metric-card">
           <div className="flex items-center justify-between mb-4">
-            <h3 className="font-semibold">Recent Sales</h3>
+            <h3 className="font-semibold">Ventas Recientes</h3>
           </div>
 
           {purchasesLoading ? (
@@ -428,15 +428,15 @@ export default function Products() {
       <Dialog open={showAddModal} onOpenChange={setShowAddModal}>
         <DialogContent className="max-w-md">
           <DialogHeader>
-            <DialogTitle>{editingProduct ? "Edit Product" : "Add Product"}</DialogTitle>
+            <DialogTitle>{editingProduct ? "Editar Producto" : "Añadir Producto"}</DialogTitle>
           </DialogHeader>
 
           <div className="space-y-4">
             {/* Name */}
             <div>
-              <Label>Product name *</Label>
+              <Label>Nombre del producto *</Label>
               <Input
-                placeholder="e.g. Instagram Growth Guide"
+                placeholder="Ej: Guía de Crecimiento Instagram"
                 value={formData.name}
                 onChange={(e) => setFormData({ ...formData, name: e.target.value })}
               />
@@ -444,9 +444,9 @@ export default function Products() {
 
             {/* Description */}
             <div>
-              <Label>Short description</Label>
+              <Label>Descripción corta</Label>
               <Input
-                placeholder="What will they learn/get?"
+                placeholder="¿Qué aprenderán/obtendrán?"
                 value={formData.description}
                 onChange={(e) => setFormData({ ...formData, description: e.target.value })}
               />
@@ -454,7 +454,7 @@ export default function Products() {
 
             {/* Type */}
             <div>
-              <Label>Type</Label>
+              <Label>Tipo</Label>
               <Select value={formData.type} onValueChange={(v) => setFormData({ ...formData, type: v })}>
                 <SelectTrigger>
                   <SelectValue />
@@ -472,7 +472,7 @@ export default function Products() {
             {/* Price */}
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <Label>Price *</Label>
+                <Label>Precio *</Label>
                 <Input
                   type="number"
                   min="0"
@@ -483,7 +483,7 @@ export default function Products() {
                 />
               </div>
               <div>
-                <Label>Currency</Label>
+                <Label>Moneda</Label>
                 <Select value={formData.currency} onValueChange={(v) => setFormData({ ...formData, currency: v })}>
                   <SelectTrigger>
                     <SelectValue />
@@ -499,14 +499,14 @@ export default function Products() {
 
             {/* Purchase URL */}
             <div>
-              <Label>Purchase link</Label>
+              <Label>Enlace de compra</Label>
               <Input
                 placeholder="https://gumroad.com/l/..."
                 value={formData.purchase_url}
                 onChange={(e) => setFormData({ ...formData, purchase_url: e.target.value })}
               />
               <p className="text-xs text-muted-foreground mt-1">
-                Where customers can buy (Gumroad, Hotmart, your website, etc.)
+                Donde pueden comprar (Gumroad, Hotmart, tu web, etc.)
               </p>
             </div>
 
@@ -525,7 +525,7 @@ export default function Products() {
 
           <DialogFooter>
             <Button variant="outline" onClick={() => setShowAddModal(false)}>
-              Cancel
+              Cancelar
             </Button>
             <Button
               onClick={handleSubmit}
@@ -534,7 +534,7 @@ export default function Products() {
               {(addProductMutation.isPending || updateProductMutation.isPending) && (
                 <Loader2 className="w-4 h-4 animate-spin mr-2" />
               )}
-              {editingProduct ? "Update" : "Create"} Product
+              {editingProduct ? "Actualizar" : "Crear"} Producto
             </Button>
           </DialogFooter>
         </DialogContent>

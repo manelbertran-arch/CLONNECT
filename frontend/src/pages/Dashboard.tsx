@@ -13,7 +13,7 @@ export default function Dashboard() {
   const { toast } = useToast();
 
   const currentHour = new Date().getHours();
-  const greeting = currentHour < 12 ? "Good morning" : currentHour < 18 ? "Good afternoon" : "Good evening";
+  const greeting = currentHour < 12 ? "Buenos días" : currentHour < 18 ? "Buenas tardes" : "Buenas noches";
 
   // Handle bot toggle
   const handleToggleBot = () => {
@@ -25,10 +25,10 @@ export default function Dashboard() {
       {
         onSuccess: () => {
           toast({
-            title: newStatus ? "Bot Activated" : "Bot Paused",
+            title: newStatus ? "Bot Activado" : "Bot Pausado",
             description: newStatus
-              ? "Your AI clone is now responding to messages"
-              : "Your AI clone is paused",
+              ? "Tu clon IA está respondiendo mensajes"
+              : "Tu clon IA está pausado",
           });
         },
         onError: (error) => {
@@ -56,7 +56,7 @@ export default function Dashboard() {
     return (
       <div className="flex flex-col items-center justify-center h-[60vh] gap-4">
         <AlertCircle className="w-12 h-12 text-destructive" />
-        <p className="text-muted-foreground">Failed to load dashboard data</p>
+        <p className="text-muted-foreground">Error al cargar los datos del dashboard</p>
         <p className="text-sm text-destructive">{error.message}</p>
       </div>
     );
@@ -89,7 +89,7 @@ export default function Dashboard() {
   // Generate engagement trend data from recent conversations
   // Shows MESSAGE COUNT per day from conversations
   const getEngagementData = () => {
-    const dayNames = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+    const dayNames = ["Dom", "Lun", "Mar", "Mié", "Jue", "Vie", "Sáb"];
     const now = new Date();
 
     // Get recent conversations
@@ -152,10 +152,10 @@ export default function Dashboard() {
     const isUsername = !lead.name && lead.username;
     return {
       id: `lead-${i}`,
-      title: `${isUsername ? '@' : ''}${displayName} is a hot lead`,
-      subtitle: `Intent Score: ${(getPurchaseIntent(lead) * 100).toFixed(0)}%`,
+      title: `${isUsername ? '@' : ''}${displayName} es un lead caliente`,
+      subtitle: `Intención de compra: ${(getPurchaseIntent(lead) * 100).toFixed(0)}%`,
       priority: "high" as const,
-      time: "Recently active",
+      time: "Activo recientemente",
     };
   });
 
@@ -163,10 +163,10 @@ export default function Dashboard() {
   if ((metrics.high_intent_followers || 0) > 0 && actionItems.length === 0) {
     actionItems.push({
       id: "high-intent",
-      title: `${metrics.high_intent_followers} high intent follower${metrics.high_intent_followers > 1 ? 's' : ''}`,
-      subtitle: "Ready to convert",
+      title: `${metrics.high_intent_followers} seguidor${metrics.high_intent_followers > 1 ? 'es' : ''} con alta intención`,
+      subtitle: "Listos para convertir",
       priority: "high" as const,
-      time: "Now",
+      time: "Ahora",
     });
   }
 
@@ -178,7 +178,7 @@ export default function Dashboard() {
           <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">
             {greeting}, <span className="gradient-text">{creatorName}</span>
           </h1>
-          <p className="text-muted-foreground mt-1 text-sm sm:text-base">Here's what's happening with your business today.</p>
+          <p className="text-muted-foreground mt-1 text-sm sm:text-base">Esto es lo que está pasando con tu negocio hoy.</p>
         </div>
         <Button
           variant={isActive ? "default" : "outline"}
@@ -193,7 +193,7 @@ export default function Dashboard() {
           ) : (
             <PowerOff className="w-4 h-4" />
           )}
-          {isActive ? "Bot Online" : "Bot Paused"}
+          {isActive ? "Bot Activo" : "Bot Pausado"}
         </Button>
       </div>
 
@@ -204,17 +204,17 @@ export default function Dashboard() {
         <div className="relative">
           <div className="flex items-center justify-between mb-4">
             <div>
-              <p className="text-muted-foreground text-sm font-medium">Total Messages</p>
+              <p className="text-muted-foreground text-sm font-medium">Mensajes Totales</p>
               <p className="text-4xl font-bold mt-1">{(metrics.total_messages || 0).toLocaleString()}</p>
             </div>
             <div className="flex items-center gap-2 text-success text-sm font-medium">
               <TrendingUp className="w-4 h-4" />
-              {metrics.leads || 0} leads · {metrics.customers || 0} customers
+              {metrics.leads || 0} leads · {metrics.customers || 0} clientes
             </div>
           </div>
           <div className="space-y-2">
             <div className="flex justify-between text-sm">
-              <span className="text-muted-foreground">Progress to {leadsGoal} leads goal</span>
+              <span className="text-muted-foreground">Progreso hacia {leadsGoal} leads</span>
               <span className="font-medium">{progressPercent.toFixed(0)}%</span>
             </div>
             <Progress value={progressPercent} className="h-2" />
@@ -231,15 +231,15 @@ export default function Dashboard() {
               <Bot className="w-7 h-7 text-success" />
             </div>
             <div>
-              <p className="text-muted-foreground text-sm font-medium">Bot Generated Revenue</p>
+              <p className="text-muted-foreground text-sm font-medium">Ingresos Generados por Bot</p>
               <p className="text-3xl font-bold text-success">€{botAttributedRevenue.toLocaleString()}</p>
             </div>
           </div>
           <div className="text-right">
-            <p className="text-muted-foreground text-sm">Total Revenue (30d)</p>
+            <p className="text-muted-foreground text-sm">Ingresos Totales (30d)</p>
             <p className="text-xl font-semibold">€{totalRevenue.toLocaleString()}</p>
             {totalRevenue > 0 && (
-              <p className="text-xs text-success mt-1">{botAttributedPercent.toFixed(0)}% from bot</p>
+              <p className="text-xs text-success mt-1">{botAttributedPercent.toFixed(0)}% del bot</p>
             )}
           </div>
         </div>
@@ -253,7 +253,7 @@ export default function Dashboard() {
               <Flame className="w-6 h-6 text-destructive" />
             </div>
             <div>
-              <p className="text-muted-foreground text-sm">Hot Leads</p>
+              <p className="text-muted-foreground text-sm">Leads Calientes</p>
               <p className="text-2xl font-bold">{metrics.high_intent_followers || 0}</p>
             </div>
           </div>
@@ -265,7 +265,7 @@ export default function Dashboard() {
               <Users className="w-6 h-6 text-accent" />
             </div>
             <div>
-              <p className="text-muted-foreground text-sm">Total Followers</p>
+              <p className="text-muted-foreground text-sm">Seguidores Totales</p>
               <p className="text-2xl font-bold">{metrics.total_followers || 0}</p>
             </div>
           </div>
@@ -277,7 +277,7 @@ export default function Dashboard() {
               <UserCheck className="w-6 h-6 text-primary" />
             </div>
             <div>
-              <p className="text-muted-foreground text-sm">Conversion Rate</p>
+              <p className="text-muted-foreground text-sm">Tasa de Conversión</p>
               <p className="text-2xl font-bold">{((metrics.conversion_rate || 0) * 100).toFixed(0)}%</p>
             </div>
           </div>
@@ -285,14 +285,14 @@ export default function Dashboard() {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Action Required */}
+        {/* Acción Requerida */}
         <div className="metric-card">
           <h3 className="font-semibold mb-4 flex items-center gap-2">
             <AlertCircle className="w-5 h-5 text-warning" />
-            Action Required
+            Acción Requerida
             {totalHotLeads > 0 && (
               <span className="ml-auto text-xs text-muted-foreground">
-                {actionItems.length} of {totalHotLeads} hot leads
+                {actionItems.length} de {totalHotLeads} leads calientes
               </span>
             )}
           </h3>
@@ -313,18 +313,18 @@ export default function Dashboard() {
               ))
             ) : (
               <div className="text-center py-8 text-muted-foreground">
-                <p>No actions required</p>
-                <p className="text-sm">Your bot is handling everything!</p>
+                <p>Sin acciones pendientes</p>
+                <p className="text-sm">¡Tu bot se está encargando de todo!</p>
               </div>
             )}
           </div>
         </div>
 
-        {/* Engagement Trend */}
+        {/* Actividad de Conversaciones */}
         <div className="metric-card">
           <h3 className="font-semibold mb-4 flex items-center gap-2">
             <MessageCircle className="w-5 h-5 text-primary" />
-            Conversation Activity
+            Actividad de Conversaciones
           </h3>
           <div className="h-[180px]">
             <ResponsiveContainer width="100%" height="100%">
@@ -344,7 +344,7 @@ export default function Dashboard() {
                     borderRadius: '8px',
                     color: 'hsl(0, 0%, 98%)',
                   }}
-                  formatter={(value: number) => [`${value} active conversation${value !== 1 ? 's' : ''}`, 'Activity']}
+                  formatter={(value: number) => [`${value} conversación${value !== 1 ? 'es' : ''} activa${value !== 1 ? 's' : ''}`, 'Actividad']}
                 />
                 <Area
                   type="monotone"

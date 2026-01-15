@@ -59,10 +59,10 @@ interface LeadDisplay {
 }
 
 const columns: { status: LeadStatus; title: string; color: string }[] = [
-  { status: "new", title: "New Leads", color: "bg-muted-foreground" },
-  { status: "active", title: "Active", color: "bg-accent" },
-  { status: "hot", title: "Hot 🔥", color: "bg-destructive" },
-  { status: "customer", title: "Customers ✅", color: "bg-success" },
+  { status: "new", title: "Nuevos Leads", color: "bg-muted-foreground" },
+  { status: "active", title: "Activos", color: "bg-accent" },
+  { status: "hot", title: "Calientes 🔥", color: "bg-destructive" },
+  { status: "customer", title: "Clientes ✅", color: "bg-success" },
 ];
 
 const platformIcons: Record<string, React.ReactNode> = {
@@ -226,8 +226,8 @@ export default function Leads() {
       });
 
       toast({
-        title: "Status updated",
-        description: `Lead moved to ${status.toUpperCase()}`,
+        title: "Estado actualizado",
+        description: `Lead movido a ${status.toUpperCase()}`,
       });
     } catch (error) {
       // Revert on error
@@ -237,8 +237,8 @@ export default function Leads() {
       }));
 
       toast({
-        title: "Error updating status",
-        description: error instanceof Error ? error.message : "Failed to update",
+        title: "Error al actualizar estado",
+        description: error instanceof Error ? error.message : "Error al actualizar",
         variant: "destructive",
       });
     }
@@ -257,8 +257,8 @@ export default function Leads() {
   const handleAddLead = async () => {
     if (!formData.name.trim()) {
       toast({
-        title: "Name required",
-        description: "Please enter a name for the lead",
+        title: "Nombre requerido",
+        description: "Por favor ingresa un nombre para el lead",
         variant: "destructive",
       });
       return;
@@ -273,15 +273,15 @@ export default function Leads() {
         notes: formData.notes || undefined,
       });
       toast({
-        title: "Lead created",
-        description: `${formData.name} has been added to your pipeline`,
+        title: "Lead creado",
+        description: `${formData.name} ha sido añadido a tu pipeline`,
       });
       setIsAddModalOpen(false);
       setFormData(initialFormState);
     } catch (err) {
       toast({
-        title: "Error creating lead",
-        description: err instanceof Error ? err.message : "Failed to create lead",
+        title: "Error al crear lead",
+        description: err instanceof Error ? err.message : "Error al crear lead",
         variant: "destructive",
       });
     }
@@ -319,15 +319,15 @@ export default function Leads() {
         },
       });
       toast({
-        title: "Lead updated",
-        description: `${formData.name} has been updated`,
+        title: "Lead actualizado",
+        description: `${formData.name} ha sido actualizado`,
       });
       setIsEditModalOpen(false);
       setSelectedLead(null);
     } catch (err) {
       toast({
-        title: "Error updating lead",
-        description: err instanceof Error ? err.message : "Failed to update lead",
+        title: "Error al actualizar lead",
+        description: err instanceof Error ? err.message : "Error al actualizar lead",
         variant: "destructive",
       });
     }
@@ -344,15 +344,15 @@ export default function Leads() {
     try {
       await deleteLeadMutation.mutateAsync(selectedLead.id);
       toast({
-        title: "Lead deleted",
-        description: `${selectedLead.name || selectedLead.username} has been removed`,
+        title: "Lead eliminado",
+        description: `${selectedLead.name || selectedLead.username} ha sido eliminado`,
       });
       setIsDeleteDialogOpen(false);
       setSelectedLead(null);
     } catch (err) {
       toast({
-        title: "Error deleting lead",
-        description: err instanceof Error ? err.message : "Failed to delete lead",
+        title: "Error al eliminar lead",
+        description: err instanceof Error ? err.message : "Error al eliminar lead",
         variant: "destructive",
       });
     }
@@ -372,7 +372,7 @@ export default function Leads() {
     return (
       <div className="flex flex-col items-center justify-center h-[60vh] gap-4">
         <AlertCircle className="w-12 h-12 text-destructive" />
-        <p className="text-muted-foreground">Failed to load leads</p>
+        <p className="text-muted-foreground">Error al cargar leads</p>
         <p className="text-sm text-destructive">{error.message}</p>
       </div>
     );
@@ -383,9 +383,9 @@ export default function Leads() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-xl sm:text-2xl font-bold tracking-tight">Lead Pipeline</h1>
+          <h1 className="text-xl sm:text-2xl font-bold tracking-tight">Pipeline de Leads</h1>
           <p className="text-muted-foreground text-sm sm:text-base">
-            {leads.length} total leads • Drag to update status
+            {leads.length} leads en total • Arrastra para cambiar estado
           </p>
         </div>
         <Button
@@ -393,7 +393,7 @@ export default function Leads() {
           className="bg-gradient-to-r from-primary to-accent hover:opacity-90 transition-opacity w-full sm:w-auto"
         >
           <Plus className="w-4 h-4 mr-2" />
-          Add Lead
+          Añadir Lead
         </Button>
       </div>
 
@@ -425,7 +425,7 @@ export default function Leads() {
               <div className="flex-1 overflow-auto p-3 space-y-3">
                 {columnLeads.length === 0 ? (
                   <div className="text-center py-8 text-muted-foreground text-xs">
-                    No leads
+                    Sin leads
                   </div>
                 ) : (
                   columnLeads.map((lead) => (
@@ -460,11 +460,11 @@ export default function Leads() {
                           <DropdownMenuContent align="end">
                             <DropdownMenuItem onClick={() => handleViewLead(lead)}>
                               <Eye className="w-4 h-4 mr-2" />
-                              View
+                              Ver
                             </DropdownMenuItem>
                             <DropdownMenuItem onClick={() => handleOpenEditModal(lead)}>
                               <Pencil className="w-4 h-4 mr-2" />
-                              Edit
+                              Editar
                             </DropdownMenuItem>
                             <DropdownMenuSeparator />
                             <DropdownMenuItem
@@ -472,7 +472,7 @@ export default function Leads() {
                               className="text-destructive focus:text-destructive"
                             >
                               <Trash2 className="w-4 h-4 mr-2" />
-                              Delete
+                              Eliminar
                             </DropdownMenuItem>
                           </DropdownMenuContent>
                         </DropdownMenu>
@@ -505,7 +505,7 @@ export default function Leads() {
 
       {/* Footer */}
       <div className="metric-card flex items-center justify-between">
-        <span className="text-muted-foreground">Total Pipeline Value</span>
+        <span className="text-muted-foreground">Valor Total del Pipeline</span>
         <span className="text-2xl font-bold gradient-text">€{totalPipelineValue.toLocaleString()}</span>
       </div>
 
@@ -513,35 +513,35 @@ export default function Leads() {
       <Dialog open={isAddModalOpen} onOpenChange={setIsAddModalOpen}>
         <DialogContent className="sm:max-w-[425px]">
           <DialogHeader>
-            <DialogTitle>Add New Lead</DialogTitle>
+            <DialogTitle>Añadir Nuevo Lead</DialogTitle>
             <DialogDescription>
-              Create a manual lead entry. Fill in the details below.
+              Crea una entrada de lead manual. Completa los detalles abajo.
             </DialogDescription>
           </DialogHeader>
           <div className="grid gap-4 py-4">
             <div className="grid gap-2">
-              <Label htmlFor="name">Name *</Label>
+              <Label htmlFor="name">Nombre *</Label>
               <Input
                 id="name"
                 value={formData.name}
                 onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                placeholder="John Doe"
+                placeholder="Juan García"
               />
             </div>
             <div className="grid gap-2">
-              <Label htmlFor="platform">Platform</Label>
+              <Label htmlFor="platform">Plataforma</Label>
               <Select
                 value={formData.platform}
                 onValueChange={(value) => setFormData({ ...formData, platform: value })}
               >
                 <SelectTrigger>
-                  <SelectValue placeholder="Select platform" />
+                  <SelectValue placeholder="Selecciona plataforma" />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="instagram">Instagram</SelectItem>
                   <SelectItem value="telegram">Telegram</SelectItem>
                   <SelectItem value="whatsapp">WhatsApp</SelectItem>
-                  <SelectItem value="manual">Manual / Other</SelectItem>
+                  <SelectItem value="manual">Manual / Otro</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -552,11 +552,11 @@ export default function Leads() {
                 type="email"
                 value={formData.email}
                 onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                placeholder="john@example.com"
+                placeholder="juan@ejemplo.com"
               />
             </div>
             <div className="grid gap-2">
-              <Label htmlFor="phone">Phone</Label>
+              <Label htmlFor="phone">Teléfono</Label>
               <Input
                 id="phone"
                 value={formData.phone}
@@ -565,18 +565,18 @@ export default function Leads() {
               />
             </div>
             <div className="grid gap-2">
-              <Label htmlFor="notes">Notes</Label>
+              <Label htmlFor="notes">Notas</Label>
               <Input
                 id="notes"
                 value={formData.notes}
                 onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
-                placeholder="Any additional notes..."
+                placeholder="Notas adicionales..."
               />
             </div>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setIsAddModalOpen(false)}>
-              Cancel
+              Cancelar
             </Button>
             <Button
               onClick={handleAddLead}
@@ -588,7 +588,7 @@ export default function Leads() {
               ) : (
                 <Plus className="w-4 h-4 mr-2" />
               )}
-              Add Lead
+              Añadir Lead
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -598,7 +598,7 @@ export default function Leads() {
       <Dialog open={isViewModalOpen} onOpenChange={setIsViewModalOpen}>
         <DialogContent className="sm:max-w-[425px]">
           <DialogHeader>
-            <DialogTitle>Lead Details</DialogTitle>
+            <DialogTitle>Detalles del Lead</DialogTitle>
           </DialogHeader>
           {selectedLead && (
             <div className="grid gap-4 py-4">
@@ -616,20 +616,20 @@ export default function Leads() {
               </div>
               <div className="grid grid-cols-3 gap-4">
                 <div className="p-3 rounded-lg bg-muted/50">
-                  <p className="text-xs text-muted-foreground">Pipeline Score</p>
+                  <p className="text-xs text-muted-foreground">Puntuación Pipeline</p>
                   <p className="text-lg font-semibold">{selectedLead.score}%</p>
                 </div>
                 <div className="p-3 rounded-lg bg-muted/50">
-                  <p className="text-xs text-muted-foreground">AI Intent</p>
+                  <p className="text-xs text-muted-foreground">Intención IA</p>
                   <p className="text-lg font-semibold">{selectedLead.intentScore}%</p>
                 </div>
                 <div className="p-3 rounded-lg bg-muted/50">
-                  <p className="text-xs text-muted-foreground">Est. Value</p>
+                  <p className="text-xs text-muted-foreground">Valor Est.</p>
                   <p className="text-lg font-semibold">€{selectedLead.value}</p>
                 </div>
               </div>
               <div className="p-3 rounded-lg bg-muted/50">
-                <p className="text-xs text-muted-foreground">Status</p>
+                <p className="text-xs text-muted-foreground">Estado</p>
                 <p className="text-sm font-medium capitalize">{selectedLead.status}</p>
               </div>
               <div className="p-3 rounded-lg bg-muted/50">
@@ -644,13 +644,13 @@ export default function Leads() {
               )}
               {selectedLead.phone && (
                 <div className="p-3 rounded-lg bg-muted/50">
-                  <p className="text-xs text-muted-foreground">Phone</p>
+                  <p className="text-xs text-muted-foreground">Teléfono</p>
                   <p className="text-sm">{selectedLead.phone}</p>
                 </div>
               )}
               {selectedLead.notes && (
                 <div className="p-3 rounded-lg bg-muted/50">
-                  <p className="text-xs text-muted-foreground">Notes</p>
+                  <p className="text-xs text-muted-foreground">Notas</p>
                   <p className="text-sm">{selectedLead.notes}</p>
                 </div>
               )}
@@ -658,7 +658,7 @@ export default function Leads() {
           )}
           <DialogFooter>
             <Button variant="outline" onClick={() => setIsViewModalOpen(false)}>
-              Close
+              Cerrar
             </Button>
             <Button
               onClick={() => {
@@ -667,7 +667,7 @@ export default function Leads() {
               }}
             >
               <Pencil className="w-4 h-4 mr-2" />
-              Edit
+              Editar
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -677,14 +677,14 @@ export default function Leads() {
       <Dialog open={isEditModalOpen} onOpenChange={setIsEditModalOpen}>
         <DialogContent className="sm:max-w-[425px]">
           <DialogHeader>
-            <DialogTitle>Edit Lead</DialogTitle>
+            <DialogTitle>Editar Lead</DialogTitle>
             <DialogDescription>
-              Update the lead information below.
+              Actualiza la información del lead abajo.
             </DialogDescription>
           </DialogHeader>
           <div className="grid gap-4 py-4">
             <div className="grid gap-2">
-              <Label htmlFor="edit-name">Name</Label>
+              <Label htmlFor="edit-name">Nombre</Label>
               <Input
                 id="edit-name"
                 value={formData.name}
@@ -698,11 +698,11 @@ export default function Leads() {
                 type="email"
                 value={formData.email}
                 onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                placeholder="john@example.com"
+                placeholder="juan@ejemplo.com"
               />
             </div>
             <div className="grid gap-2">
-              <Label htmlFor="edit-phone">Phone</Label>
+              <Label htmlFor="edit-phone">Teléfono</Label>
               <Input
                 id="edit-phone"
                 value={formData.phone}
@@ -711,18 +711,18 @@ export default function Leads() {
               />
             </div>
             <div className="grid gap-2">
-              <Label htmlFor="edit-notes">Notes</Label>
+              <Label htmlFor="edit-notes">Notas</Label>
               <Input
                 id="edit-notes"
                 value={formData.notes}
                 onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
-                placeholder="Any additional notes..."
+                placeholder="Notas adicionales..."
               />
             </div>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setIsEditModalOpen(false)}>
-              Cancel
+              Cancelar
             </Button>
             <Button
               onClick={handleEditLead}
@@ -733,7 +733,7 @@ export default function Leads() {
               ) : (
                 <Pencil className="w-4 h-4 mr-2" />
               )}
-              Save Changes
+              Guardar Cambios
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -743,15 +743,15 @@ export default function Leads() {
       <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Delete Lead</AlertDialogTitle>
+            <AlertDialogTitle>Eliminar Lead</AlertDialogTitle>
             <AlertDialogDescription>
-              Are you sure you want to delete{" "}
+              ¿Estás seguro de que quieres eliminar a{" "}
               <span className="font-semibold">{selectedLead?.name || selectedLead?.username}</span>?
-              This action cannot be undone.
+              Esta acción no se puede deshacer.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
             <AlertDialogAction
               onClick={handleDeleteLead}
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
@@ -761,7 +761,7 @@ export default function Leads() {
               ) : (
                 <Trash2 className="w-4 h-4 mr-2" />
               )}
-              Delete
+              Eliminar
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

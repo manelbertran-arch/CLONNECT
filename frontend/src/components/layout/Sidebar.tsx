@@ -14,14 +14,14 @@ import { cn } from "@/lib/utils";
 import { useAuth } from "@/context/AuthContext";
 
 const navItems = [
-  { path: "/dashboard", label: "Home", icon: LayoutDashboard },
-  { path: "/inbox", label: "Inbox", icon: MessageSquare },
+  { path: "/dashboard", label: "Inicio", icon: LayoutDashboard },
+  { path: "/inbox", label: "Bandeja", icon: MessageSquare },
   { path: "/copilot", label: "Copilot", icon: Bot },
   { path: "/leads", label: "Leads", icon: Users },
   { path: "/nurturing", label: "Nurturing", icon: Sparkles },
-  { path: "/products", label: "Products", icon: ShoppingBag },
-  { path: "/bookings", label: "Bookings", icon: Calendar },
-  { path: "/settings", label: "Settings", icon: Settings },
+  { path: "/products", label: "Productos", icon: ShoppingBag },
+  { path: "/bookings", label: "Reservas", icon: Calendar },
+  { path: "/settings", label: "Ajustes", icon: Settings },
 ];
 
 export function Sidebar() {
@@ -84,7 +84,7 @@ export function Sidebar() {
           <div className="flex-1 min-w-0">
             <p className="text-sm font-medium truncate">{displayName}</p>
             <p className="text-xs text-muted-foreground truncate">
-              {userEmail || "Pro Plan"}
+              {userEmail || "Plan Pro"}
             </p>
           </div>
           <button

@@ -98,34 +98,34 @@ function PendingCard({ item, onApprove, onDiscard, isLoading }: PendingCardProps
         )}
       </div>
 
-      {/* User Message */}
+      {/* Mensaje del Usuario */}
       <div className="bg-secondary/50 rounded-lg p-3">
         <p className="text-xs text-muted-foreground mb-1 flex items-center gap-1">
           <MessageSquare className="w-3 h-3" />
-          User message
+          Mensaje del usuario
         </p>
         <p className="text-sm">{item.user_message}</p>
       </div>
 
-      {/* Bot Response */}
+      {/* Respuesta del Bot */}
       <div className="bg-primary/5 border border-primary/20 rounded-lg p-3">
         <p className="text-xs text-muted-foreground mb-1 flex items-center gap-1">
           <Bot className="w-3 h-3" />
-          Suggested response
+          Respuesta sugerida
         </p>
         {isEditing ? (
           <Textarea
             value={editedText}
             onChange={(e) => setEditedText(e.target.value)}
             className="min-h-[100px] text-sm"
-            placeholder="Edit the response..."
+            placeholder="Edita la respuesta..."
           />
         ) : (
           <p className="text-sm whitespace-pre-wrap">{item.suggested_response}</p>
         )}
       </div>
 
-      {/* Actions */}
+      {/* Acciones */}
       <div className="flex items-center justify-end gap-2 pt-2">
         {isEditing ? (
           <>
@@ -135,7 +135,7 @@ function PendingCard({ item, onApprove, onDiscard, isLoading }: PendingCardProps
               onClick={handleCancelEdit}
               disabled={isLoading}
             >
-              Cancel
+              Cancelar
             </Button>
             <Button
               variant="default"
@@ -145,7 +145,7 @@ function PendingCard({ item, onApprove, onDiscard, isLoading }: PendingCardProps
               className="gap-1"
             >
               {isLoading ? <Loader2 className="w-3 h-3 animate-spin" /> : <Send className="w-3 h-3" />}
-              Send Edited
+              Enviar Editado
             </Button>
           </>
         ) : (
@@ -158,7 +158,7 @@ function PendingCard({ item, onApprove, onDiscard, isLoading }: PendingCardProps
               className="text-destructive hover:text-destructive hover:bg-destructive/10"
             >
               <X className="w-4 h-4 mr-1" />
-              Discard
+              Descartar
             </Button>
             <Button
               variant="outline"
@@ -167,7 +167,7 @@ function PendingCard({ item, onApprove, onDiscard, isLoading }: PendingCardProps
               disabled={isLoading}
             >
               <Edit3 className="w-4 h-4 mr-1" />
-              Edit
+              Editar
             </Button>
             <Button
               variant="default"
@@ -177,7 +177,7 @@ function PendingCard({ item, onApprove, onDiscard, isLoading }: PendingCardProps
               className="bg-success hover:bg-success/90"
             >
               {isLoading ? <Loader2 className="w-3 h-3 animate-spin" /> : <Check className="w-4 h-4 mr-1" />}
-              Approve
+              Aprobar
             </Button>
           </>
         )}
@@ -187,8 +187,84 @@ function PendingCard({ item, onApprove, onDiscard, isLoading }: PendingCardProps
 }
 
 /**
+ * Response Mode Card Component
+ * Large clickable cards with icons, titles, and benefits
+ */
+interface ModeCardProps {
+  title: string;
+  icon: React.ReactNode;
+  benefits: string[];
+  isActive: boolean;
+  isLoading: boolean;
+  onClick: () => void;
+}
+
+function ModeCard({ title, icon, benefits, isActive, isLoading, onClick }: ModeCardProps) {
+  return (
+    <button
+      onClick={onClick}
+      disabled={isLoading}
+      className={`
+        relative flex-1 flex flex-col items-center p-6 rounded-xl
+        transition-all duration-200 text-left
+        ${isActive
+          ? 'bg-card border-2 border-success shadow-lg'
+          : 'bg-secondary/30 border-2 border-transparent hover:bg-secondary/50 hover:border-border'
+        }
+        ${isLoading ? 'opacity-70 cursor-not-allowed' : 'cursor-pointer'}
+      `}
+    >
+      {/* Active Badge */}
+      {isActive && (
+        <div className="absolute -top-2 -right-2 bg-success text-white text-xs font-bold px-2 py-0.5 rounded-full">
+          Activo
+        </div>
+      )}
+
+      {/* Icon */}
+      <div className={`
+        w-16 h-16 rounded-full flex items-center justify-center mb-4
+        ${isActive ? 'bg-success/20' : 'bg-secondary'}
+      `}>
+        {isLoading ? (
+          <Loader2 className="w-8 h-8 animate-spin text-primary" />
+        ) : (
+          <div className={`${isActive ? 'text-success' : 'text-muted-foreground'}`}>
+            {icon}
+          </div>
+        )}
+      </div>
+
+      {/* Title */}
+      <h3 className={`
+        text-lg font-bold mb-3 text-center
+        ${isActive ? 'text-foreground' : 'text-muted-foreground'}
+      `}>
+        {title}
+      </h3>
+
+      {/* Benefits */}
+      <ul className="space-y-2 w-full">
+        {benefits.map((benefit, index) => (
+          <li
+            key={index}
+            className={`
+              flex items-center gap-2 text-sm
+              ${isActive ? 'text-foreground' : 'text-muted-foreground'}
+            `}
+          >
+            <Check className={`w-4 h-4 flex-shrink-0 ${isActive ? 'text-success' : 'text-muted-foreground/50'}`} />
+            {benefit}
+          </li>
+        ))}
+      </ul>
+    </button>
+  );
+}
+
+/**
  * Response Mode Toggle Component
- * Clear UX with two distinct options: Automático vs Manual
+ * Card-based UX with two distinct options
  */
 interface ResponseModeToggleProps {
   isManualMode: boolean; // true = copilot_enabled (human reviews)
@@ -198,71 +274,40 @@ interface ResponseModeToggleProps {
 
 function ResponseModeToggle({ isManualMode, isLoading, onToggle }: ResponseModeToggleProps) {
   return (
-    <div className="bg-card border border-border rounded-xl p-4 space-y-3">
+    <div className="space-y-4">
       <p className="text-sm font-medium text-muted-foreground">
-        ¿Cómo quieres responder a los mensajes?
+        Elige cómo quieres gestionar las respuestas:
       </p>
 
-      <div className="flex gap-2">
-        {/* Automático Button */}
-        <button
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        {/* Modo Automático Card */}
+        <ModeCard
+          title="MODO AUTOMÁTICO"
+          icon={<Bot className="w-8 h-8" />}
+          benefits={[
+            "Respuestas 24/7",
+            "Sin intervención necesaria",
+            "Ideal para alto volumen"
+          ]}
+          isActive={!isManualMode}
+          isLoading={isLoading && !isManualMode}
           onClick={() => !isLoading && onToggle(false)}
-          disabled={isLoading}
-          className={`
-            flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-lg
-            font-medium text-sm transition-all duration-200
-            ${!isManualMode
-              ? 'bg-success text-white shadow-md'
-              : 'bg-secondary/50 text-muted-foreground hover:bg-secondary'
-            }
-            ${isLoading ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}
-          `}
-        >
-          {isLoading && !isManualMode ? (
-            <Loader2 className="w-4 h-4 animate-spin" />
-          ) : (
-            <Zap className="w-4 h-4" />
-          )}
-          Automático
-        </button>
+        />
 
-        {/* Manual Button */}
-        <button
+        {/* Modo Copilot Card */}
+        <ModeCard
+          title="MODO COPILOT"
+          icon={<UserCheck className="w-8 h-8" />}
+          benefits={[
+            "Control total",
+            "Puedes editar respuestas",
+            "Apruebas antes de enviar"
+          ]}
+          isActive={isManualMode}
+          isLoading={isLoading && isManualMode}
           onClick={() => !isLoading && onToggle(true)}
-          disabled={isLoading}
-          className={`
-            flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-lg
-            font-medium text-sm transition-all duration-200
-            ${isManualMode
-              ? 'bg-primary text-white shadow-md'
-              : 'bg-secondary/50 text-muted-foreground hover:bg-secondary'
-            }
-            ${isLoading ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}
-          `}
-        >
-          {isLoading && isManualMode ? (
-            <Loader2 className="w-4 h-4 animate-spin" />
-          ) : (
-            <UserCheck className="w-4 h-4" />
-          )}
-          Manual
-        </button>
+        />
       </div>
-
-      {/* Description */}
-      <p className="text-xs text-muted-foreground">
-        {isManualMode ? (
-          <span className="flex items-center gap-1">
-            <UserCheck className="w-3 h-3" />
-            Tú revisas y apruebas cada respuesta antes de enviarla
-          </span>
-        ) : (
-          <span className="flex items-center gap-1">
-            <Zap className="w-3 h-3" />
-            El bot responde automáticamente sin tu intervención
-          </span>
-        )}
-      </p>
     </div>
   );
 }
@@ -289,8 +334,8 @@ export default function CopilotPanel() {
       {
         onSuccess: () => {
           toast({
-            title: "Response sent",
-            description: editedText ? "Edited response sent successfully" : "Response approved and sent",
+            title: "Respuesta enviada",
+            description: editedText ? "Respuesta editada enviada correctamente" : "Respuesta aprobada y enviada",
           });
         },
         onError: (error) => {
@@ -308,8 +353,8 @@ export default function CopilotPanel() {
     discardMutation.mutate(messageId, {
       onSuccess: () => {
         toast({
-          title: "Response discarded",
-          description: "The suggested response was discarded",
+          title: "Respuesta descartada",
+          description: "La respuesta sugerida fue descartada",
         });
       },
       onError: (error) => {
@@ -350,8 +395,8 @@ export default function CopilotPanel() {
       onSuccess: (data) => {
         const results = data.results;
         toast({
-          title: "Bulk approval complete",
-          description: `${results.approved} responses sent, ${results.failed} failed`,
+          title: "Aprobación masiva completada",
+          description: `${results.approved} respuestas enviadas, ${results.failed} fallidas`,
         });
       },
     });
@@ -378,7 +423,7 @@ export default function CopilotPanel() {
             Gestión de Respuestas
             {pendingCount > 0 && (
               <Badge variant="destructive" className="ml-2">
-                {pendingCount} pending
+                {pendingCount} pendientes
               </Badge>
             )}
           </h2>
@@ -387,7 +432,7 @@ export default function CopilotPanel() {
           </p>
         </div>
 
-        {/* Approve All Button */}
+        {/* Aprobar Todas Button */}
         {pendingCount > 1 && (
           <Button
             variant="outline"
@@ -400,7 +445,7 @@ export default function CopilotPanel() {
             ) : (
               <CheckCheck className="w-4 h-4" />
             )}
-            Approve All ({pendingCount})
+            Aprobar Todas ({pendingCount})
           </Button>
         )}
       </div>
@@ -412,18 +457,6 @@ export default function CopilotPanel() {
         onToggle={handleModeToggle}
       />
 
-      {/* Mode Status Banner */}
-      {!isManualMode && (
-        <div className="bg-success/10 border border-success/20 rounded-lg p-4 flex items-start gap-3">
-          <Zap className="w-5 h-5 text-success mt-0.5" />
-          <div>
-            <p className="font-medium text-success">Modo Automático Activo</p>
-            <p className="text-sm text-muted-foreground">
-              El bot está respondiendo automáticamente. Cambia a Manual para revisar las respuestas primero.
-            </p>
-          </div>
-        </div>
-      )}
 
       {/* Pending Responses Section */}
       {isManualMode && (
@@ -443,7 +476,7 @@ export default function CopilotPanel() {
                 <Bot className="w-12 h-12 mx-auto text-muted-foreground mb-4" />
                 <h3 className="font-medium text-lg">No hay respuestas pendientes</h3>
                 <p className="text-muted-foreground text-sm mt-1">
-                  Las nuevas respuestas aparecerán aquí para tu aprobación
+                  Las nuevas respuestas del bot aparecerán aquí para tu aprobación
                 </p>
               </div>
             ) : (
@@ -466,11 +499,11 @@ export default function CopilotPanel() {
       {/* Info when in automatic mode */}
       {!isManualMode && (
         <div className="text-center py-8 bg-secondary/20 rounded-lg">
-          <Zap className="w-12 h-12 mx-auto text-success mb-4" />
+          <Bot className="w-12 h-12 mx-auto text-success mb-4" />
           <h3 className="font-medium text-lg">Bot en piloto automático</h3>
           <p className="text-muted-foreground text-sm mt-1 max-w-md mx-auto">
             El bot está respondiendo automáticamente a todos los mensajes.
-            Cambia a modo Manual si quieres revisar las respuestas antes de enviarlas.
+            Cambia a Modo Copilot si quieres revisar las respuestas antes de enviarlas.
           </p>
         </div>
       )}

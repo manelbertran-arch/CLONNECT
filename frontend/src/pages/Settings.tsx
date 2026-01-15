@@ -717,7 +717,7 @@ export default function Settings() {
     return (
       <div className="flex flex-col items-center justify-center h-[60vh] gap-4">
         <AlertCircle className="w-12 h-12 text-destructive" />
-        <p className="text-muted-foreground">Failed to load settings</p>
+        <p className="text-muted-foreground">Error al cargar ajustes</p>
         <p className="text-sm text-destructive">{configError.message}</p>
       </div>
     );
@@ -727,8 +727,8 @@ export default function Settings() {
     <div className="space-y-6 max-w-4xl">
       {/* Header */}
       <div>
-        <h1 className="text-xl sm:text-2xl font-bold tracking-tight">Settings</h1>
-        <p className="text-muted-foreground text-sm sm:text-base">Configure your bot personality and integrations</p>
+        <h1 className="text-xl sm:text-2xl font-bold tracking-tight">Ajustes</h1>
+        <p className="text-muted-foreground text-sm sm:text-base">Configura la personalidad del bot e integraciones</p>
       </div>
 
       {/* Tabs */}
@@ -737,17 +737,17 @@ export default function Settings() {
           <TabsList className="bg-secondary p-1 rounded-xl w-max sm:w-auto">
             <TabsTrigger value="personality" className="rounded-lg data-[state=active]:bg-card text-xs sm:text-sm">
               <Bot className="w-4 h-4 mr-1 sm:mr-2" />
-              <span className="hidden sm:inline">Personality</span>
+              <span className="hidden sm:inline">Personalidad</span>
               <span className="sm:hidden">Bot</span>
             </TabsTrigger>
             <TabsTrigger value="connections" className="rounded-lg data-[state=active]:bg-card text-xs sm:text-sm">
               <Link2 className="w-4 h-4 mr-1 sm:mr-2" />
-              <span className="hidden sm:inline">Connections</span>
+              <span className="hidden sm:inline">Conexiones</span>
               <span className="sm:hidden">Links</span>
             </TabsTrigger>
             <TabsTrigger value="knowledge" className="rounded-lg data-[state=active]:bg-card text-xs sm:text-sm">
               <BookOpen className="w-4 h-4 mr-1 sm:mr-2" />
-              <span className="hidden sm:inline">Knowledge</span>
+              <span className="hidden sm:inline">Conocimiento</span>
               <span className="sm:hidden">KB</span>
             </TabsTrigger>
           </TabsList>
@@ -877,8 +877,8 @@ export default function Settings() {
                     <span className="text-xl">💬</span>
                   </div>
                   <div>
-                    <h3 className="font-semibold">Social & Messaging</h3>
-                    <p className="text-sm text-muted-foreground">Connect your communication channels</p>
+                    <h3 className="font-semibold">Redes y Mensajería</h3>
+                    <p className="text-sm text-muted-foreground">Conecta tus canales de comunicación</p>
                   </div>
                 </div>
                 <div className="space-y-2">
@@ -977,8 +977,8 @@ export default function Settings() {
                     <span className="text-xl">💰</span>
                   </div>
                   <div>
-                    <h3 className="font-semibold">Payments</h3>
-                    <p className="text-sm text-muted-foreground">Track and manage payments</p>
+                    <h3 className="font-semibold">Pagos</h3>
+                    <p className="text-sm text-muted-foreground">Gestiona y rastrea pagos</p>
                   </div>
                 </div>
 
@@ -1035,8 +1035,8 @@ export default function Settings() {
 
                 {/* Manual payment methods sub-card */}
                 <div className="p-4 rounded-lg bg-secondary/30 border border-border/50">
-                  <p className="text-sm font-medium mb-1">Alternative payment methods</p>
-                  <p className="text-xs text-muted-foreground mb-4">Bot will mention these when customers ask about payment</p>
+                  <p className="text-sm font-medium mb-1">Métodos de pago alternativos</p>
+                  <p className="text-xs text-muted-foreground mb-4">El bot los mencionará cuando los clientes pregunten por formas de pago</p>
 
                   <div className="space-y-2">
                     {/* Bizum */}
@@ -1167,8 +1167,8 @@ export default function Settings() {
                     <span className="text-xl">📅</span>
                   </div>
                   <div>
-                    <h3 className="font-semibold">Scheduling</h3>
-                    <p className="text-sm text-muted-foreground">Calendar and video call integrations</p>
+                    <h3 className="font-semibold">Calendario</h3>
+                    <p className="text-sm text-muted-foreground">Integración con calendario y videollamadas</p>
                   </div>
                 </div>
                 <div className="space-y-2">

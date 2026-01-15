@@ -18,14 +18,14 @@ import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
 
 const navItems = [
-  { path: "/dashboard", label: "Home", icon: LayoutDashboard },
-  { path: "/inbox", label: "Inbox", icon: MessageSquare },
+  { path: "/dashboard", label: "Inicio", icon: LayoutDashboard },
+  { path: "/inbox", label: "Bandeja", icon: MessageSquare },
   { path: "/copilot", label: "Copilot", icon: Bot },
   { path: "/leads", label: "Leads", icon: Users },
   { path: "/nurturing", label: "Nurturing", icon: Sparkles },
-  { path: "/products", label: "Products", icon: ShoppingBag },
-  { path: "/bookings", label: "Bookings", icon: Calendar },
-  { path: "/settings", label: "Settings", icon: Settings },
+  { path: "/products", label: "Productos", icon: ShoppingBag },
+  { path: "/bookings", label: "Reservas", icon: Calendar },
+  { path: "/settings", label: "Ajustes", icon: Settings },
 ];
 
 export function MobileNav() {
@@ -47,7 +47,7 @@ export function MobileNav() {
         <SheetTrigger asChild>
           <Button variant="ghost" size="icon">
             <Menu className="h-6 w-6" />
-            <span className="sr-only">Toggle menu</span>
+            <span className="sr-only">Abrir menú</span>
           </Button>
         </SheetTrigger>
         <SheetContent side="left" className="w-64 p-0">
@@ -92,7 +92,7 @@ export function MobileNav() {
               </div>
               <div className="flex-1 min-w-0">
                 <p className="text-sm font-medium truncate">Manel</p>
-                <p className="text-xs text-muted-foreground truncate">Pro Plan</p>
+                <p className="text-xs text-muted-foreground truncate">Plan Pro</p>
               </div>
             </div>
           </div>
