@@ -2700,6 +2700,18 @@ async def register_telegram_bot(request: RegisterBotRequest):
     return result
 
 
+@app.put("/telegram/bots/{bot_id}/creator")
+async def update_telegram_bot_creator(bot_id: str, creator_id: str):
+    """Update the creator_id for an existing Telegram bot."""
+    registry = get_telegram_registry()
+    result = registry.update_bot_creator(bot_id, creator_id)
+
+    if result.get("status") == "error":
+        raise HTTPException(status_code=404, detail=result.get("error"))
+
+    return result
+
+
 @app.delete("/telegram/bots/{bot_id}")
 async def unregister_telegram_bot(bot_id: str, delete_webhook: bool = True):
     """Unregister a Telegram bot."""

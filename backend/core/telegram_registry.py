@@ -216,6 +216,46 @@ class TelegramBotRegistry:
                 "error": str(e)
             }
 
+    def update_bot_creator(self, bot_id: str, new_creator_id: str) -> dict:
+        """
+        Update the creator_id for an existing bot.
+
+        Args:
+            bot_id: The bot ID to update
+            new_creator_id: The new creator_id to assign
+
+        Returns:
+            dict with status and updated info
+        """
+        if bot_id not in self._bots:
+            return {
+                "status": "error",
+                "error": f"Bot {bot_id} not found"
+            }
+
+        bot_data = self._bots[bot_id]
+        old_creator_id = bot_data.get("creator_id")
+
+        # Update reverse lookup
+        if old_creator_id and old_creator_id in self._creator_to_bot:
+            del self._creator_to_bot[old_creator_id]
+
+        # Update bot data
+        bot_data["creator_id"] = new_creator_id
+        self._creator_to_bot[new_creator_id] = bot_id
+
+        # Save config
+        self._save_config()
+
+        logger.info(f"Updated bot {bot_id} creator_id: {old_creator_id} -> {new_creator_id}")
+
+        return {
+            "status": "success",
+            "bot_id": bot_id,
+            "old_creator_id": old_creator_id,
+            "new_creator_id": new_creator_id
+        }
+
     async def unregister_bot(self, bot_id: str, delete_webhook: bool = True) -> dict:
         """
         Unregister a Telegram bot.
