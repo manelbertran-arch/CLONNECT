@@ -1085,10 +1085,10 @@ async def simple_dm_sync(creator_id: str, max_convs: int = 20):
             api_base = "https://graph.instagram.com/v21.0"
 
             async with httpx.AsyncClient(timeout=60.0) as client:
-                # Get conversations
+                # Get conversations with updated_time
                 conv_resp = await client.get(
                     f"{api_base}/{ig_user_id}/conversations",
-                    params={"access_token": access_token, "limit": max_convs}
+                    params={"access_token": access_token, "limit": max_convs, "fields": "id,updated_time"}
                 )
 
                 if conv_resp.status_code != 200:
@@ -1158,6 +1158,16 @@ async def simple_dm_sync(creator_id: str, max_convs: int = 20):
                             platform_user_id=follower_id
                         ).first()
 
+                        # Parse conversation updated_time as fallback
+                        conv_updated_time = None
+                        if conv.get("updated_time"):
+                            try:
+                                conv_updated_time = datetime.fromisoformat(
+                                    conv["updated_time"].replace("+0000", "+00:00")
+                                )
+                            except:
+                                pass
+
                         # Parse message timestamps for first/last contact
                         msg_timestamps = []
                         for msg in messages:
@@ -1168,8 +1178,8 @@ async def simple_dm_sync(creator_id: str, max_convs: int = 20):
                                 except:
                                     pass
 
-                        first_msg_time = min(msg_timestamps) if msg_timestamps else None
-                        last_msg_time = max(msg_timestamps) if msg_timestamps else None
+                        first_msg_time = min(msg_timestamps) if msg_timestamps else conv_updated_time
+                        last_msg_time = max(msg_timestamps) if msg_timestamps else conv_updated_time
 
                         if not lead:
                             lead = Lead(
