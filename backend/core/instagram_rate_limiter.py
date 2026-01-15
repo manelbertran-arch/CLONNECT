@@ -1,250 +1,274 @@
+#!/usr/bin/env python3
 """
-Instagram API Rate Limiter - Maneja rate limits con backoff exponencial.
+Instagram API Rate Limiter - Prevención de rate limits de Meta.
 
-Meta Graph API limits:
-- 200 calls/user/hour para la mayoría de endpoints
-- Más restrictivo para mensajes de Instagram
+3 Capas de protección:
+1. RECUPERACIÓN: Backoff exponencial cuando Meta nos bloquea
+2. PREVENCIÓN: Limitar llamadas ANTES de que Meta nos bloquee
+3. OPTIMIZACIÓN: Tracking para sync incremental
 
-Implementa:
-1. Backoff exponencial con retry
-2. Throttling entre llamadas
-3. Detección de errores de rate limit
+Límites de Meta (conservadores):
+- 200 llamadas/hora por token
+- 4800 llamadas/día por token
 """
 
+import time
 import asyncio
 import logging
-import time
-from typing import Optional, Dict, Any, Callable
-from functools import wraps
-from dataclasses import dataclass
+from typing import Dict, Optional, Tuple
+from dataclasses import dataclass, field
+from datetime import datetime, timezone
+from collections import defaultdict
 
 logger = logging.getLogger(__name__)
 
 
-class InstagramRateLimitError(Exception):
-    """Error cuando Instagram API devuelve rate limit."""
-    def __init__(self, message: str, retry_after: Optional[int] = None):
-        self.message = message
-        self.retry_after = retry_after
-        super().__init__(message)
+@dataclass
+class APICallRecord:
+    """Registro de una llamada a la API"""
+    timestamp: float
+    endpoint: str
+    response_code: int = 200
+    creator_id: str = ""
 
 
 @dataclass
-class RateLimitConfig:
-    """Configuración del rate limiter."""
-    max_retries: int = 5
-    base_delay: float = 30.0  # segundos
-    max_delay: float = 300.0  # 5 minutos máximo
-    calls_per_minute: int = 20  # Throttle
-    batch_size: int = 10
-    batch_delay: float = 30.0  # segundos entre batches
+class RateLimitState:
+    """Estado del rate limiter para un creator"""
+    calls_minute: list = field(default_factory=list)
+    calls_hour: list = field(default_factory=list)
+    calls_day: list = field(default_factory=list)
+    last_error_time: float = 0
+    consecutive_errors: int = 0
+    backoff_until: float = 0
 
 
 class InstagramRateLimiter:
     """
-    Rate limiter para Instagram Graph API.
+    Rate limiter específico para Instagram/Meta API.
 
-    Uso:
-        limiter = InstagramRateLimiter()
-
-        async with limiter.throttle():
-            response = await client.get(url)
-            limiter.check_response(response)
+    Características:
+    - Prevención: Bloquea ANTES de alcanzar límites de Meta
+    - Backoff: Espera exponencial cuando hay errores
+    - Tracking: Registra todas las llamadas para análisis
     """
 
-    def __init__(self, config: Optional[RateLimitConfig] = None):
-        self.config = config or RateLimitConfig()
-        self._last_call_time: float = 0
-        self._call_count: int = 0
-        self._minute_start: float = 0
+    # Límites conservadores (Meta permite más, pero mejor prevenir)
+    CALLS_PER_MINUTE = 10   # Muy conservador
+    CALLS_PER_HOUR = 150    # Meta permite ~200
+    CALLS_PER_DAY = 3000    # Meta permite ~4800
 
-    def check_response(self, response_data: Dict[str, Any]) -> None:
-        """
-        Verificar si la respuesta contiene un error de rate limit.
+    # Backoff exponencial
+    INITIAL_BACKOFF_SECONDS = 5
+    MAX_BACKOFF_SECONDS = 300  # 5 minutos máximo
+    BACKOFF_MULTIPLIER = 2
 
-        Args:
-            response_data: JSON response de la API
+    # Errores que indican rate limit
+    RATE_LIMIT_CODES = {429, 503, 190, 4, 17, 32, 613}
 
-        Raises:
-            InstagramRateLimitError: Si hay rate limit
-        """
-        error = response_data.get("error", {})
+    def __init__(self):
+        # Estado por creator_id
+        self._states: Dict[str, RateLimitState] = defaultdict(RateLimitState)
+        # Historial global de llamadas (últimas 24h)
+        self._call_history: list = []
+        # Lock para thread safety
+        self._lock = asyncio.Lock()
 
-        # Error code 4 = Rate limit
-        if error.get("code") == 4:
-            message = error.get("message", "Rate limit reached")
-            # Algunos errores incluyen retry_after
-            retry_after = error.get("error_data", {}).get("retry_after")
-            raise InstagramRateLimitError(message, retry_after)
-
-        # Error code 17 = User request limit reached
-        if error.get("code") == 17:
-            raise InstagramRateLimitError(error.get("message", "User request limit"))
-
-        # Error subcode 1349210 = Traffic limit
-        if error.get("error_subcode") == 1349210:
-            raise InstagramRateLimitError(error.get("message", "Traffic limit"))
-
-    async def throttle(self) -> None:
-        """
-        Aplicar throttling entre llamadas.
-        Espera si estamos haciendo demasiadas llamadas por minuto.
-        """
+    def _clean_old_calls(self, state: RateLimitState):
+        """Limpiar llamadas antiguas de los contadores"""
         now = time.time()
+        minute_ago = now - 60
+        hour_ago = now - 3600
+        day_ago = now - 86400
 
-        # Reset contador cada minuto
-        if now - self._minute_start >= 60:
-            self._minute_start = now
-            self._call_count = 0
+        state.calls_minute = [t for t in state.calls_minute if t > minute_ago]
+        state.calls_hour = [t for t in state.calls_hour if t > hour_ago]
+        state.calls_day = [t for t in state.calls_day if t > day_ago]
 
-        # Si excedemos el límite, esperar
-        if self._call_count >= self.config.calls_per_minute:
-            wait_time = 60 - (now - self._minute_start)
-            if wait_time > 0:
-                logger.info(f"[RateLimiter] Throttling: waiting {wait_time:.1f}s")
-                await asyncio.sleep(wait_time)
-                self._minute_start = time.time()
-                self._call_count = 0
-
-        # Delay mínimo entre llamadas (evitar ráfagas)
-        min_interval = 60.0 / self.config.calls_per_minute
-        time_since_last = now - self._last_call_time
-        if time_since_last < min_interval:
-            await asyncio.sleep(min_interval - time_since_last)
-
-        self._last_call_time = time.time()
-        self._call_count += 1
-
-    def calculate_backoff(self, attempt: int, retry_after: Optional[int] = None) -> float:
+    def can_make_request(self, creator_id: str) -> Tuple[bool, str, int]:
         """
-        Calcular tiempo de espera con backoff exponencial.
-
-        Args:
-            attempt: Número de intento (0-indexed)
-            retry_after: Tiempo sugerido por la API (opcional)
+        Verificar si se puede hacer una llamada a la API.
 
         Returns:
-            Segundos a esperar
+            Tuple de (allowed, reason, wait_seconds)
         """
-        if retry_after:
-            return min(retry_after, self.config.max_delay)
+        state = self._states[creator_id]
+        self._clean_old_calls(state)
+        now = time.time()
 
-        # Backoff exponencial: 30s, 60s, 120s, 240s...
-        delay = self.config.base_delay * (2 ** attempt)
-        return min(delay, self.config.max_delay)
+        # 1. Verificar backoff activo
+        if state.backoff_until > now:
+            wait = int(state.backoff_until - now)
+            return False, f"Backoff activo ({state.consecutive_errors} errores)", wait
+
+        # 2. Verificar límite por minuto
+        if len(state.calls_minute) >= self.CALLS_PER_MINUTE:
+            return False, f"Límite/minuto alcanzado ({self.CALLS_PER_MINUTE})", 60
+
+        # 3. Verificar límite por hora
+        if len(state.calls_hour) >= self.CALLS_PER_HOUR:
+            oldest_call = min(state.calls_hour) if state.calls_hour else now
+            wait = int(3600 - (now - oldest_call))
+            return False, f"Límite/hora alcanzado ({self.CALLS_PER_HOUR})", max(1, wait)
+
+        # 4. Verificar límite por día
+        if len(state.calls_day) >= self.CALLS_PER_DAY:
+            oldest_call = min(state.calls_day) if state.calls_day else now
+            wait = int(86400 - (now - oldest_call))
+            return False, f"Límite/día alcanzado ({self.CALLS_PER_DAY})", max(1, wait)
+
+        return True, "OK", 0
+
+    async def wait_if_needed(self, creator_id: str) -> int:
+        """
+        Esperar si es necesario antes de hacer una llamada.
+
+        Returns:
+            Segundos que se esperó (0 si no fue necesario)
+        """
+        allowed, reason, wait = self.can_make_request(creator_id)
+
+        if not allowed and wait > 0:
+            logger.warning(f"[RateLimit] {creator_id}: {reason}. Esperando {wait}s...")
+            await asyncio.sleep(min(wait, 60))  # Máximo 60s de espera por llamada
+            return wait
+
+        return 0
+
+    def record_call(self, creator_id: str, endpoint: str, response_code: int = 200):
+        """
+        Registrar una llamada a la API.
+
+        Args:
+            creator_id: ID del creator
+            endpoint: Endpoint llamado (ej: "/conversations")
+            response_code: Código de respuesta HTTP
+        """
+        now = time.time()
+        state = self._states[creator_id]
+
+        # Registrar la llamada
+        state.calls_minute.append(now)
+        state.calls_hour.append(now)
+        state.calls_day.append(now)
+
+        # Guardar en historial global
+        self._call_history.append(APICallRecord(
+            timestamp=now,
+            endpoint=endpoint,
+            response_code=response_code,
+            creator_id=creator_id
+        ))
+
+        # Limpiar historial viejo (>24h)
+        day_ago = now - 86400
+        self._call_history = [c for c in self._call_history if c.timestamp > day_ago]
+
+        # Manejar errores
+        if response_code in self.RATE_LIMIT_CODES or response_code >= 400:
+            self._handle_error(state, response_code)
+        else:
+            # Reset errores consecutivos en éxito
+            if state.consecutive_errors > 0:
+                logger.info(f"[RateLimit] {creator_id}: Recuperado después de {state.consecutive_errors} errores")
+            state.consecutive_errors = 0
+            state.backoff_until = 0
+
+    def _handle_error(self, state: RateLimitState, response_code: int):
+        """Manejar error de API con backoff exponencial"""
+        state.consecutive_errors += 1
+        state.last_error_time = time.time()
+
+        # Calcular backoff exponencial
+        backoff = min(
+            self.INITIAL_BACKOFF_SECONDS * (self.BACKOFF_MULTIPLIER ** (state.consecutive_errors - 1)),
+            self.MAX_BACKOFF_SECONDS
+        )
+
+        state.backoff_until = time.time() + backoff
+
+        logger.warning(
+            f"[RateLimit] Error {response_code}. "
+            f"Errores consecutivos: {state.consecutive_errors}. "
+            f"Backoff: {backoff}s"
+        )
+
+    def get_stats(self, creator_id: str = None) -> Dict:
+        """
+        Obtener estadísticas de rate limiting.
+
+        Args:
+            creator_id: Si se especifica, stats de ese creator. Si no, globales.
+        """
+        if creator_id:
+            state = self._states[creator_id]
+            self._clean_old_calls(state)
+            return {
+                "creator_id": creator_id,
+                "calls_last_minute": len(state.calls_minute),
+                "calls_last_hour": len(state.calls_hour),
+                "calls_last_day": len(state.calls_day),
+                "remaining_minute": self.CALLS_PER_MINUTE - len(state.calls_minute),
+                "remaining_hour": self.CALLS_PER_HOUR - len(state.calls_hour),
+                "remaining_day": self.CALLS_PER_DAY - len(state.calls_day),
+                "consecutive_errors": state.consecutive_errors,
+                "backoff_active": state.backoff_until > time.time(),
+                "backoff_remaining": max(0, int(state.backoff_until - time.time())),
+            }
+        else:
+            # Stats globales
+            now = time.time()
+            minute_ago = now - 60
+            hour_ago = now - 3600
+
+            calls_minute = len([c for c in self._call_history if c.timestamp > minute_ago])
+            calls_hour = len([c for c in self._call_history if c.timestamp > hour_ago])
+            calls_day = len(self._call_history)
+
+            return {
+                "total_creators": len(self._states),
+                "calls_last_minute": calls_minute,
+                "calls_last_hour": calls_hour,
+                "calls_last_day": calls_day,
+                "limits": {
+                    "per_minute": self.CALLS_PER_MINUTE,
+                    "per_hour": self.CALLS_PER_HOUR,
+                    "per_day": self.CALLS_PER_DAY,
+                }
+            }
+
+    def get_call_history(self, creator_id: str = None, hours: int = 1) -> list:
+        """
+        Obtener historial de llamadas.
+
+        Args:
+            creator_id: Filtrar por creator (opcional)
+            hours: Últimas N horas
+        """
+        cutoff = time.time() - (hours * 3600)
+        calls = [c for c in self._call_history if c.timestamp > cutoff]
+
+        if creator_id:
+            calls = [c for c in calls if c.creator_id == creator_id]
+
+        return [
+            {
+                "timestamp": datetime.fromtimestamp(c.timestamp, tz=timezone.utc).isoformat(),
+                "endpoint": c.endpoint,
+                "response_code": c.response_code,
+                "creator_id": c.creator_id,
+            }
+            for c in calls
+        ]
 
 
-def with_rate_limit_retry(limiter: InstagramRateLimiter):
-    """
-    Decorador para retry automático con backoff en rate limits.
-
-    Uso:
-        limiter = InstagramRateLimiter()
-
-        @with_rate_limit_retry(limiter)
-        async def fetch_messages(conv_id: str):
-            response = await client.get(url)
-            return response.json()
-    """
-    def decorator(func: Callable):
-        @wraps(func)
-        async def wrapper(*args, **kwargs):
-            last_error = None
-
-            for attempt in range(limiter.config.max_retries):
-                try:
-                    # Aplicar throttling antes de la llamada
-                    await limiter.throttle()
-                    return await func(*args, **kwargs)
-
-                except InstagramRateLimitError as e:
-                    last_error = e
-
-                    if attempt == limiter.config.max_retries - 1:
-                        logger.error(f"[RateLimiter] Max retries reached: {e.message}")
-                        raise
-
-                    delay = limiter.calculate_backoff(attempt, e.retry_after)
-                    logger.warning(
-                        f"[RateLimiter] Rate limit hit, attempt {attempt + 1}/{limiter.config.max_retries}, "
-                        f"waiting {delay:.0f}s"
-                    )
-                    await asyncio.sleep(delay)
-
-            raise last_error
-
-        return wrapper
-    return decorator
+# Singleton global
+_instagram_rate_limiter: Optional[InstagramRateLimiter] = None
 
 
-async def process_in_batches(
-    items: list,
-    processor: Callable,
-    limiter: InstagramRateLimiter,
-    on_progress: Optional[Callable[[int, int], None]] = None
-) -> Dict[str, Any]:
-    """
-    Procesar items en batches con rate limiting.
-
-    Args:
-        items: Lista de items a procesar
-        processor: Función async que procesa cada item
-        limiter: Instancia del rate limiter
-        on_progress: Callback opcional (processed, total)
-
-    Returns:
-        Dict con resultados y errores
-    """
-    results = {
-        "processed": 0,
-        "success": 0,
-        "failed": 0,
-        "errors": [],
-        "data": []
-    }
-
-    total = len(items)
-    batch_size = limiter.config.batch_size
-
-    for batch_start in range(0, total, batch_size):
-        batch_end = min(batch_start + batch_size, total)
-        batch = items[batch_start:batch_end]
-        batch_num = (batch_start // batch_size) + 1
-        total_batches = (total + batch_size - 1) // batch_size
-
-        logger.info(f"[RateLimiter] Processing batch {batch_num}/{total_batches}")
-
-        for item in batch:
-            try:
-                await limiter.throttle()
-                result = await processor(item)
-                results["data"].append(result)
-                results["success"] += 1
-            except InstagramRateLimitError as e:
-                # En rate limit, esperar y reintentar este item
-                delay = limiter.calculate_backoff(0, e.retry_after)
-                logger.warning(f"[RateLimiter] Rate limit in batch, waiting {delay:.0f}s")
-                await asyncio.sleep(delay)
-
-                try:
-                    result = await processor(item)
-                    results["data"].append(result)
-                    results["success"] += 1
-                except Exception as retry_error:
-                    results["failed"] += 1
-                    results["errors"].append(str(retry_error))
-            except Exception as e:
-                results["failed"] += 1
-                results["errors"].append(str(e))
-
-            results["processed"] += 1
-
-            if on_progress:
-                on_progress(results["processed"], total)
-
-        # Pausa entre batches (excepto el último)
-        if batch_end < total:
-            logger.info(f"[RateLimiter] Batch complete, waiting {limiter.config.batch_delay}s before next")
-            await asyncio.sleep(limiter.config.batch_delay)
-
-    return results
+def get_instagram_rate_limiter() -> InstagramRateLimiter:
+    """Obtener instancia global del rate limiter de Instagram"""
+    global _instagram_rate_limiter
+    if _instagram_rate_limiter is None:
+        _instagram_rate_limiter = InstagramRateLimiter()
+    return _instagram_rate_limiter

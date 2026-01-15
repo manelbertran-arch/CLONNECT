@@ -1,6 +1,8 @@
 """
 Instagram Connector para Clonnect MVP
 Maneja: OAuth, Webhooks, Send/Receive DMs, Content Ingestion
+
+Con rate limiting preventivo integrado.
 """
 
 import os
@@ -14,6 +16,21 @@ from datetime import datetime
 import logging
 
 logger = logging.getLogger(__name__)
+
+# Import rate limiter (lazy para evitar circular imports)
+_rate_limiter = None
+
+def _get_rate_limiter():
+    """Obtener rate limiter de forma lazy"""
+    global _rate_limiter
+    if _rate_limiter is None:
+        try:
+            from core.instagram_rate_limiter import get_instagram_rate_limiter
+            _rate_limiter = get_instagram_rate_limiter()
+        except ImportError:
+            logger.warning("Instagram rate limiter not available")
+            _rate_limiter = None
+    return _rate_limiter
 
 
 @dataclass
@@ -54,14 +71,72 @@ class InstagramConnector:
         page_id: str,
         ig_user_id: str,
         app_secret: str = None,
-        verify_token: str = None
+        verify_token: str = None,
+        creator_id: str = None
     ):
         self.access_token = access_token
         self.page_id = page_id
         self.ig_user_id = ig_user_id
         self.app_secret = app_secret or os.getenv("INSTAGRAM_APP_SECRET", "")
         self.verify_token = verify_token or os.getenv("INSTAGRAM_VERIFY_TOKEN", "clonnect_verify_2024")
+        self.creator_id = creator_id or ig_user_id  # Para rate limiting
         self._session: Optional[aiohttp.ClientSession] = None
+
+    async def _rate_limited_request(
+        self,
+        method: str,
+        url: str,
+        endpoint_name: str,
+        **kwargs
+    ) -> dict:
+        """
+        Hacer request con rate limiting preventivo.
+
+        Args:
+            method: "GET" o "POST"
+            url: URL completa
+            endpoint_name: Nombre del endpoint para logging
+            **kwargs: Argumentos para aiohttp (params, json, headers)
+
+        Returns:
+            Respuesta JSON
+        """
+        rate_limiter = _get_rate_limiter()
+
+        # 1. Esperar si es necesario (rate limit preventivo)
+        if rate_limiter:
+            await rate_limiter.wait_if_needed(self.creator_id)
+
+        # 2. Hacer la request
+        session = await self._get_session()
+        response_code = 200
+
+        try:
+            if method.upper() == "GET":
+                async with session.get(url, **kwargs) as resp:
+                    response_code = resp.status
+                    data = await resp.json()
+            else:
+                async with session.post(url, **kwargs) as resp:
+                    response_code = resp.status
+                    data = await resp.json()
+
+            # 3. Registrar la llamada
+            if rate_limiter:
+                # Detectar errores de rate limit en la respuesta
+                if "error" in data:
+                    error_code = data["error"].get("code", 0)
+                    if error_code in rate_limiter.RATE_LIMIT_CODES:
+                        response_code = error_code
+                rate_limiter.record_call(self.creator_id, endpoint_name, response_code)
+
+            return data
+
+        except Exception as e:
+            # Registrar error
+            if rate_limiter:
+                rate_limiter.record_call(self.creator_id, endpoint_name, 500)
+            raise
 
     async def _get_session(self) -> aiohttp.ClientSession:
         """Obtener o crear sesión HTTP"""
@@ -180,29 +255,27 @@ class InstagramConnector:
 
     async def get_user_profile(self, user_id: str) -> Optional[InstagramUser]:
         """Obtener perfil de usuario de Instagram"""
-        session = await self._get_session()
         url = f"{self.FACEBOOK_API_URL}/{user_id}"
         params = {
             "fields": "id,username,name,profile_pic",
             "access_token": self.access_token
         }
 
-        async with session.get(url, params=params) as resp:
-            data = await resp.json()
-            if "error" in data:
-                logger.error(f"Error getting profile: {data['error']}")
-                return None
+        data = await self._rate_limited_request("GET", url, "get_user_profile", params=params)
 
-            return InstagramUser(
-                user_id=data.get("id", user_id),
-                username=data.get("username", ""),
-                name=data.get("name", ""),
-                profile_pic_url=data.get("profile_pic", "")
-            )
+        if "error" in data:
+            logger.error(f"Error getting profile: {data['error']}")
+            return None
+
+        return InstagramUser(
+            user_id=data.get("id", user_id),
+            username=data.get("username", ""),
+            name=data.get("name", ""),
+            profile_pic_url=data.get("profile_pic", "")
+        )
 
     async def get_media(self, limit: int = 100) -> List[dict]:
         """Obtener posts/reels del creador"""
-        session = await self._get_session()
         url = f"{self.FACEBOOK_API_URL}/{self.ig_user_id}/media"
         params = {
             "fields": "id,caption,media_type,media_url,timestamp,permalink,like_count,comments_count",
@@ -210,37 +283,24 @@ class InstagramConnector:
             "access_token": self.access_token
         }
 
-        async with session.get(url, params=params) as resp:
-            data = await resp.json()
-            return data.get("data", [])
+        data = await self._rate_limited_request("GET", url, "get_media", params=params)
+        return data.get("data", [])
 
     async def get_conversations(self, limit: int = 20) -> List[dict]:
-        """Obtener conversaciones recientes, ordenadas por updated_time DESC.
-
-        Meta Graph API devuelve por updated_time DESC por defecto,
-        pero añadimos el campo explícitamente y ordenamos para garantizarlo.
-        """
-        session = await self._get_session()
+        """Obtener conversaciones recientes, ordenadas por updated_time DESC."""
         url = f"{self.FACEBOOK_API_URL}/{self.page_id}/conversations"
         params = {
             "platform": "instagram",
-            "fields": "id,updated_time,participants",  # Incluir updated_time
+            "fields": "id,updated_time,participants",
             "limit": limit,
             "access_token": self.access_token
         }
 
-        async with session.get(url, params=params) as resp:
-            data = await resp.json()
-            conversations = data.get("data", [])
+        data = await self._rate_limited_request("GET", url, "get_conversations", params=params)
+        conversations = data.get("data", [])
 
-            # Ordenar explícitamente por updated_time DESC (más recientes primero)
-            # para garantizar que siempre obtenemos las 50 conversaciones más recientes
-            conversations_sorted = sorted(
-                conversations,
-                key=lambda c: c.get("updated_time", ""),
-                reverse=True  # DESC: más reciente primero
-            )
-            return conversations_sorted
+        # Ordenar por updated_time DESC (más recientes primero)
+        return sorted(conversations, key=lambda c: c.get("updated_time", ""), reverse=True)
 
     async def get_conversation_messages(
         self,
@@ -248,7 +308,6 @@ class InstagramConnector:
         limit: int = 50
     ) -> List[dict]:
         """Obtener mensajes de una conversación"""
-        session = await self._get_session()
         url = f"{self.FACEBOOK_API_URL}/{conversation_id}/messages"
         params = {
             "fields": "id,message,from,to,created_time",
@@ -256,9 +315,8 @@ class InstagramConnector:
             "access_token": self.access_token
         }
 
-        async with session.get(url, params=params) as resp:
-            data = await resp.json()
-            return data.get("data", [])
+        data = await self._rate_limited_request("GET", url, "get_conversation_messages", params=params)
+        return data.get("data", [])
 
     async def mark_message_seen(self, sender_id: str) -> dict:
         """Marcar mensajes como vistos via Instagram API"""

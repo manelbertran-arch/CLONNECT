@@ -41,13 +41,14 @@ import { useToast } from "@/hooks/use-toast";
 import type { Conversation } from "@/types/api";
 import { getPurchaseIntent, detectPlatform, getDisplayName } from "@/types/api";
 
-type LeadStatus = "new" | "active" | "hot" | "customer";
+// Sistema de Embudo Estándar
+type LeadStatus = "nuevo" | "interesado" | "caliente" | "cliente" | "fantasma";
 
 interface LeadDisplay {
   id: string;
   name: string;
   username: string;
-  score: number;         // Pipeline score (25/50/75/100) - main display
+  score: number;         // Pipeline score (20/40/60/80/100) - main display
   intentScore: number;   // AI intent score (0-100) - secondary display
   value: number;
   status: LeadStatus;
@@ -58,12 +59,26 @@ interface LeadDisplay {
   notes: string;
 }
 
-const columns: { status: LeadStatus; title: string; color: string }[] = [
-  { status: "new", title: "Nuevos Leads", color: "bg-muted-foreground" },
-  { status: "active", title: "Activos", color: "bg-accent" },
-  { status: "hot", title: "Calientes 🔥", color: "bg-destructive" },
-  { status: "customer", title: "Clientes ✅", color: "bg-success" },
+// Configuración de columnas con el nuevo embudo estándar
+const columns: { status: LeadStatus; title: string; icon: string; color: string; bgColor: string }[] = [
+  { status: "nuevo", title: "Nuevo", icon: "⚪", color: "#9CA3AF", bgColor: "bg-gray-400" },
+  { status: "interesado", title: "Interesado", icon: "🟡", color: "#F59E0B", bgColor: "bg-amber-500" },
+  { status: "caliente", title: "Caliente", icon: "🔴", color: "#EF4444", bgColor: "bg-red-500" },
+  { status: "cliente", title: "Cliente", icon: "🟢", color: "#10B981", bgColor: "bg-emerald-500" },
+  { status: "fantasma", title: "Fantasma", icon: "👻", color: "#6B7280", bgColor: "bg-gray-500" },
 ];
+
+// Leyenda de categorías para el usuario
+const CategoryLegend = () => (
+  <div className="flex flex-wrap gap-2 text-xs mb-4 p-3 bg-card/50 rounded-lg border border-border/50">
+    <span className="text-muted-foreground font-medium mr-2">Estados:</span>
+    <span className="flex items-center gap-1"><span>⚪</span> Nuevo - Acaba de llegar</span>
+    <span className="flex items-center gap-1"><span>🟡</span> Interesado - Hace preguntas</span>
+    <span className="flex items-center gap-1 text-red-400"><span>🔴</span> Caliente - Quiere comprar!</span>
+    <span className="flex items-center gap-1 text-emerald-400"><span>🟢</span> Cliente - Ya compró</span>
+    <span className="flex items-center gap-1"><span>👻</span> Fantasma - Sin respuesta +7 días</span>
+  </div>
+);
 
 const platformIcons: Record<string, React.ReactNode> = {
   instagram: <Instagram className="w-3 h-3" />,
@@ -89,19 +104,21 @@ function getInitials(name?: string, username?: string, id?: string): string {
 }
 
 /**
- * Classify lead status based on purchase_intent
- * Ranges: 0-25% (new) | 25-50% (active) | 50%+ (hot) | customer
- * - is_customer = true → customer
- * - purchase_intent >= 0.50 → hot
- * - purchase_intent >= 0.25 → active
- * - purchase_intent < 0.25 → new
+ * Clasificar lead según embudo estándar
+ * - cliente: is_customer = true
+ * - caliente: intent >= 0.50 (quiere comprar)
+ * - interesado: intent >= 0.20 (hace preguntas)
+ * - fantasma: sin respuesta +7 días (detectado en backend)
+ * - nuevo: por defecto
  */
 function getLeadStatus(convo: Conversation): LeadStatus {
-  if (convo.is_customer) return "customer";
+  if (convo.is_customer) return "cliente";
+  // Si el backend ya clasifica como fantasma, respetar
+  if (convo.lead_status === "fantasma") return "fantasma";
   const intent = getPurchaseIntent(convo);
-  if (intent >= 0.50) return "hot";
-  if (intent >= 0.25) return "active";
-  return "new";
+  if (intent >= 0.50) return "caliente";
+  if (intent >= 0.20) return "interesado";
+  return "nuevo";
 }
 
 function estimateValue(convo: Conversation): number {
@@ -114,12 +131,13 @@ function estimateValue(convo: Conversation): number {
   return baseValue;
 }
 
-// Map UI status to backend status
-const statusToBackend: Record<LeadStatus, "cold" | "warm" | "hot" | "customer"> = {
-  new: "cold",
-  active: "warm",
-  hot: "hot",
-  customer: "customer",
+// Mapeo de status UI a status backend (nuevo embudo)
+const statusToBackend: Record<LeadStatus, string> = {
+  nuevo: "nuevo",
+  interesado: "interesado",
+  caliente: "caliente",
+  cliente: "cliente",
+  fantasma: "fantasma",
 };
 
 // Initial form state for adding/editing leads
@@ -167,11 +185,16 @@ export default function Leads() {
         || (convo.lead_status as LeadStatus)
         || getLeadStatus(convo);
 
-      // Pipeline score: use backend value or derive from status
-      // new=25, active=50, hot=75, customer=100
-      const pipelineScore = convo.pipeline_score
-        ?? { new: 25, active: 50, hot: 75, customer: 100 }[status]
-        ?? 25;
+      // Pipeline score: derive from status (nuevo embudo)
+      // nuevo=10, interesado=35, caliente=70, cliente=100, fantasma=5
+      const pipelineScoreMap: Record<LeadStatus, number> = {
+        nuevo: 10,
+        interesado: 35,
+        caliente: 70,
+        cliente: 100,
+        fantasma: 5,
+      };
+      const pipelineScore = convo.pipeline_score ?? pipelineScoreMap[status] ?? 10;
 
       // AI Intent score: 0-100 from purchase_intent
       const intentScore = convo.purchase_intent_score
@@ -226,8 +249,8 @@ export default function Leads() {
       });
 
       toast({
-        title: "Estado actualizado",
-        description: `Lead movido a ${status.toUpperCase()}`,
+        title: "Status updated",
+        description: `Lead moved to ${status.toUpperCase()}`,
       });
     } catch (error) {
       // Revert on error
@@ -237,8 +260,8 @@ export default function Leads() {
       }));
 
       toast({
-        title: "Error al actualizar estado",
-        description: error instanceof Error ? error.message : "Error al actualizar",
+        title: "Error updating status",
+        description: error instanceof Error ? error.message : "Failed to update",
         variant: "destructive",
       });
     }
@@ -257,8 +280,8 @@ export default function Leads() {
   const handleAddLead = async () => {
     if (!formData.name.trim()) {
       toast({
-        title: "Nombre requerido",
-        description: "Por favor ingresa un nombre para el lead",
+        title: "Name required",
+        description: "Please enter a name for the lead",
         variant: "destructive",
       });
       return;
@@ -273,15 +296,15 @@ export default function Leads() {
         notes: formData.notes || undefined,
       });
       toast({
-        title: "Lead creado",
-        description: `${formData.name} ha sido añadido a tu pipeline`,
+        title: "Lead created",
+        description: `${formData.name} has been added to your pipeline`,
       });
       setIsAddModalOpen(false);
       setFormData(initialFormState);
     } catch (err) {
       toast({
-        title: "Error al crear lead",
-        description: err instanceof Error ? err.message : "Error al crear lead",
+        title: "Error creating lead",
+        description: err instanceof Error ? err.message : "Failed to create lead",
         variant: "destructive",
       });
     }
@@ -319,15 +342,15 @@ export default function Leads() {
         },
       });
       toast({
-        title: "Lead actualizado",
-        description: `${formData.name} ha sido actualizado`,
+        title: "Lead updated",
+        description: `${formData.name} has been updated`,
       });
       setIsEditModalOpen(false);
       setSelectedLead(null);
     } catch (err) {
       toast({
-        title: "Error al actualizar lead",
-        description: err instanceof Error ? err.message : "Error al actualizar lead",
+        title: "Error updating lead",
+        description: err instanceof Error ? err.message : "Failed to update lead",
         variant: "destructive",
       });
     }
@@ -344,15 +367,15 @@ export default function Leads() {
     try {
       await deleteLeadMutation.mutateAsync(selectedLead.id);
       toast({
-        title: "Lead eliminado",
-        description: `${selectedLead.name || selectedLead.username} ha sido eliminado`,
+        title: "Lead deleted",
+        description: `${selectedLead.name || selectedLead.username} has been removed`,
       });
       setIsDeleteDialogOpen(false);
       setSelectedLead(null);
     } catch (err) {
       toast({
-        title: "Error al eliminar lead",
-        description: err instanceof Error ? err.message : "Error al eliminar lead",
+        title: "Error deleting lead",
+        description: err instanceof Error ? err.message : "Failed to delete lead",
         variant: "destructive",
       });
     }
@@ -372,7 +395,7 @@ export default function Leads() {
     return (
       <div className="flex flex-col items-center justify-center h-[60vh] gap-4">
         <AlertCircle className="w-12 h-12 text-destructive" />
-        <p className="text-muted-foreground">Error al cargar leads</p>
+        <p className="text-muted-foreground">Failed to load leads</p>
         <p className="text-sm text-destructive">{error.message}</p>
       </div>
     );
@@ -383,7 +406,7 @@ export default function Leads() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-xl sm:text-2xl font-bold tracking-tight">Pipeline de Leads</h1>
+          <h1 className="text-xl sm:text-2xl font-bold tracking-tight">Embudo de Leads</h1>
           <p className="text-muted-foreground text-sm sm:text-base">
             {leads.length} leads en total • Arrastra para cambiar estado
           </p>
@@ -393,13 +416,16 @@ export default function Leads() {
           className="bg-gradient-to-r from-primary to-accent hover:opacity-90 transition-opacity w-full sm:w-auto"
         >
           <Plus className="w-4 h-4 mr-2" />
-          Añadir Lead
+          Agregar Lead
         </Button>
       </div>
 
+      {/* Leyenda de categorías */}
+      <CategoryLegend />
+
       {/* Kanban Board - horizontally scrollable on mobile */}
       <div className="overflow-x-auto pb-4 -mx-4 px-4 md:mx-0 md:px-0">
-        <div className="flex md:grid md:grid-cols-4 gap-4 h-[calc(100vh-14rem)] md:h-[calc(100vh-16rem)] min-w-max md:min-w-0">
+        <div className="flex md:grid md:grid-cols-5 gap-3 h-[calc(100vh-18rem)] md:h-[calc(100vh-20rem)] min-w-max md:min-w-0">
         {columns.map((column) => {
           const columnLeads = getLeadsByStatus(column.status);
           const columnValue = columnLeads.reduce((sum, lead) => sum + lead.value, 0);
@@ -414,9 +440,9 @@ export default function Leads() {
               {/* Column Header */}
               <div className="p-4 border-b border-border/50">
                 <div className="flex items-center gap-2">
-                  <div className={cn("w-2 h-2 rounded-full", column.color)}></div>
+                  <span className="text-base">{column.icon}</span>
                   <h3 className="font-semibold text-sm">{column.title}</h3>
-                  <span className="text-xs text-muted-foreground ml-auto">{columnLeads.length}</span>
+                  <span className="text-xs text-muted-foreground ml-auto bg-muted px-1.5 py-0.5 rounded-full">{columnLeads.length}</span>
                 </div>
                 <p className="text-xs text-muted-foreground mt-1">€{columnValue.toLocaleString()}</p>
               </div>
@@ -425,7 +451,7 @@ export default function Leads() {
               <div className="flex-1 overflow-auto p-3 space-y-3">
                 {columnLeads.length === 0 ? (
                   <div className="text-center py-8 text-muted-foreground text-xs">
-                    Sin leads
+                    No leads
                   </div>
                 ) : (
                   columnLeads.map((lead) => (
@@ -460,11 +486,11 @@ export default function Leads() {
                           <DropdownMenuContent align="end">
                             <DropdownMenuItem onClick={() => handleViewLead(lead)}>
                               <Eye className="w-4 h-4 mr-2" />
-                              Ver
+                              View
                             </DropdownMenuItem>
                             <DropdownMenuItem onClick={() => handleOpenEditModal(lead)}>
                               <Pencil className="w-4 h-4 mr-2" />
-                              Editar
+                              Edit
                             </DropdownMenuItem>
                             <DropdownMenuSeparator />
                             <DropdownMenuItem
@@ -472,7 +498,7 @@ export default function Leads() {
                               className="text-destructive focus:text-destructive"
                             >
                               <Trash2 className="w-4 h-4 mr-2" />
-                              Eliminar
+                              Delete
                             </DropdownMenuItem>
                           </DropdownMenuContent>
                         </DropdownMenu>
@@ -505,7 +531,7 @@ export default function Leads() {
 
       {/* Footer */}
       <div className="metric-card flex items-center justify-between">
-        <span className="text-muted-foreground">Valor Total del Pipeline</span>
+        <span className="text-muted-foreground">Total Pipeline Value</span>
         <span className="text-2xl font-bold gradient-text">€{totalPipelineValue.toLocaleString()}</span>
       </div>
 
@@ -513,35 +539,35 @@ export default function Leads() {
       <Dialog open={isAddModalOpen} onOpenChange={setIsAddModalOpen}>
         <DialogContent className="sm:max-w-[425px]">
           <DialogHeader>
-            <DialogTitle>Añadir Nuevo Lead</DialogTitle>
+            <DialogTitle>Add New Lead</DialogTitle>
             <DialogDescription>
-              Crea una entrada de lead manual. Completa los detalles abajo.
+              Create a manual lead entry. Fill in the details below.
             </DialogDescription>
           </DialogHeader>
           <div className="grid gap-4 py-4">
             <div className="grid gap-2">
-              <Label htmlFor="name">Nombre *</Label>
+              <Label htmlFor="name">Name *</Label>
               <Input
                 id="name"
                 value={formData.name}
                 onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                placeholder="Juan García"
+                placeholder="John Doe"
               />
             </div>
             <div className="grid gap-2">
-              <Label htmlFor="platform">Plataforma</Label>
+              <Label htmlFor="platform">Platform</Label>
               <Select
                 value={formData.platform}
                 onValueChange={(value) => setFormData({ ...formData, platform: value })}
               >
                 <SelectTrigger>
-                  <SelectValue placeholder="Selecciona plataforma" />
+                  <SelectValue placeholder="Select platform" />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="instagram">Instagram</SelectItem>
                   <SelectItem value="telegram">Telegram</SelectItem>
                   <SelectItem value="whatsapp">WhatsApp</SelectItem>
-                  <SelectItem value="manual">Manual / Otro</SelectItem>
+                  <SelectItem value="manual">Manual / Other</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -552,11 +578,11 @@ export default function Leads() {
                 type="email"
                 value={formData.email}
                 onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                placeholder="juan@ejemplo.com"
+                placeholder="john@example.com"
               />
             </div>
             <div className="grid gap-2">
-              <Label htmlFor="phone">Teléfono</Label>
+              <Label htmlFor="phone">Phone</Label>
               <Input
                 id="phone"
                 value={formData.phone}
@@ -565,18 +591,18 @@ export default function Leads() {
               />
             </div>
             <div className="grid gap-2">
-              <Label htmlFor="notes">Notas</Label>
+              <Label htmlFor="notes">Notes</Label>
               <Input
                 id="notes"
                 value={formData.notes}
                 onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
-                placeholder="Notas adicionales..."
+                placeholder="Any additional notes..."
               />
             </div>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setIsAddModalOpen(false)}>
-              Cancelar
+              Cancel
             </Button>
             <Button
               onClick={handleAddLead}
@@ -588,7 +614,7 @@ export default function Leads() {
               ) : (
                 <Plus className="w-4 h-4 mr-2" />
               )}
-              Añadir Lead
+              Add Lead
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -598,7 +624,7 @@ export default function Leads() {
       <Dialog open={isViewModalOpen} onOpenChange={setIsViewModalOpen}>
         <DialogContent className="sm:max-w-[425px]">
           <DialogHeader>
-            <DialogTitle>Detalles del Lead</DialogTitle>
+            <DialogTitle>Lead Details</DialogTitle>
           </DialogHeader>
           {selectedLead && (
             <div className="grid gap-4 py-4">
@@ -616,20 +642,20 @@ export default function Leads() {
               </div>
               <div className="grid grid-cols-3 gap-4">
                 <div className="p-3 rounded-lg bg-muted/50">
-                  <p className="text-xs text-muted-foreground">Puntuación Pipeline</p>
+                  <p className="text-xs text-muted-foreground">Pipeline Score</p>
                   <p className="text-lg font-semibold">{selectedLead.score}%</p>
                 </div>
                 <div className="p-3 rounded-lg bg-muted/50">
-                  <p className="text-xs text-muted-foreground">Intención IA</p>
+                  <p className="text-xs text-muted-foreground">AI Intent</p>
                   <p className="text-lg font-semibold">{selectedLead.intentScore}%</p>
                 </div>
                 <div className="p-3 rounded-lg bg-muted/50">
-                  <p className="text-xs text-muted-foreground">Valor Est.</p>
+                  <p className="text-xs text-muted-foreground">Est. Value</p>
                   <p className="text-lg font-semibold">€{selectedLead.value}</p>
                 </div>
               </div>
               <div className="p-3 rounded-lg bg-muted/50">
-                <p className="text-xs text-muted-foreground">Estado</p>
+                <p className="text-xs text-muted-foreground">Status</p>
                 <p className="text-sm font-medium capitalize">{selectedLead.status}</p>
               </div>
               <div className="p-3 rounded-lg bg-muted/50">
@@ -644,13 +670,13 @@ export default function Leads() {
               )}
               {selectedLead.phone && (
                 <div className="p-3 rounded-lg bg-muted/50">
-                  <p className="text-xs text-muted-foreground">Teléfono</p>
+                  <p className="text-xs text-muted-foreground">Phone</p>
                   <p className="text-sm">{selectedLead.phone}</p>
                 </div>
               )}
               {selectedLead.notes && (
                 <div className="p-3 rounded-lg bg-muted/50">
-                  <p className="text-xs text-muted-foreground">Notas</p>
+                  <p className="text-xs text-muted-foreground">Notes</p>
                   <p className="text-sm">{selectedLead.notes}</p>
                 </div>
               )}
@@ -658,7 +684,7 @@ export default function Leads() {
           )}
           <DialogFooter>
             <Button variant="outline" onClick={() => setIsViewModalOpen(false)}>
-              Cerrar
+              Close
             </Button>
             <Button
               onClick={() => {
@@ -667,7 +693,7 @@ export default function Leads() {
               }}
             >
               <Pencil className="w-4 h-4 mr-2" />
-              Editar
+              Edit
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -677,14 +703,14 @@ export default function Leads() {
       <Dialog open={isEditModalOpen} onOpenChange={setIsEditModalOpen}>
         <DialogContent className="sm:max-w-[425px]">
           <DialogHeader>
-            <DialogTitle>Editar Lead</DialogTitle>
+            <DialogTitle>Edit Lead</DialogTitle>
             <DialogDescription>
-              Actualiza la información del lead abajo.
+              Update the lead information below.
             </DialogDescription>
           </DialogHeader>
           <div className="grid gap-4 py-4">
             <div className="grid gap-2">
-              <Label htmlFor="edit-name">Nombre</Label>
+              <Label htmlFor="edit-name">Name</Label>
               <Input
                 id="edit-name"
                 value={formData.name}
@@ -698,11 +724,11 @@ export default function Leads() {
                 type="email"
                 value={formData.email}
                 onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                placeholder="juan@ejemplo.com"
+                placeholder="john@example.com"
               />
             </div>
             <div className="grid gap-2">
-              <Label htmlFor="edit-phone">Teléfono</Label>
+              <Label htmlFor="edit-phone">Phone</Label>
               <Input
                 id="edit-phone"
                 value={formData.phone}
@@ -711,18 +737,18 @@ export default function Leads() {
               />
             </div>
             <div className="grid gap-2">
-              <Label htmlFor="edit-notes">Notas</Label>
+              <Label htmlFor="edit-notes">Notes</Label>
               <Input
                 id="edit-notes"
                 value={formData.notes}
                 onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
-                placeholder="Notas adicionales..."
+                placeholder="Any additional notes..."
               />
             </div>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setIsEditModalOpen(false)}>
-              Cancelar
+              Cancel
             </Button>
             <Button
               onClick={handleEditLead}
@@ -733,7 +759,7 @@ export default function Leads() {
               ) : (
                 <Pencil className="w-4 h-4 mr-2" />
               )}
-              Guardar Cambios
+              Save Changes
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -743,15 +769,15 @@ export default function Leads() {
       <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Eliminar Lead</AlertDialogTitle>
+            <AlertDialogTitle>Delete Lead</AlertDialogTitle>
             <AlertDialogDescription>
-              ¿Estás seguro de que quieres eliminar a{" "}
+              Are you sure you want to delete{" "}
               <span className="font-semibold">{selectedLead?.name || selectedLead?.username}</span>?
-              Esta acción no se puede deshacer.
+              This action cannot be undone.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
             <AlertDialogAction
               onClick={handleDeleteLead}
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
@@ -761,7 +787,7 @@ export default function Leads() {
               ) : (
                 <Trash2 className="w-4 h-4 mr-2" />
               )}
-              Eliminar
+              Delete
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
