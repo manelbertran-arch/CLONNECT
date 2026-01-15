@@ -41,13 +41,14 @@ import { useToast } from "@/hooks/use-toast";
 import type { Conversation } from "@/types/api";
 import { getPurchaseIntent, detectPlatform, getDisplayName } from "@/types/api";
 
-type LeadStatus = "new" | "active" | "hot" | "customer";
+// Sistema de Embudo Estándar
+type LeadStatus = "nuevo" | "interesado" | "caliente" | "cliente" | "fantasma";
 
 interface LeadDisplay {
   id: string;
   name: string;
   username: string;
-  score: number;         // Pipeline score (25/50/75/100) - main display
+  score: number;         // Pipeline score (20/40/60/80/100) - main display
   intentScore: number;   // AI intent score (0-100) - secondary display
   value: number;
   status: LeadStatus;
@@ -58,12 +59,26 @@ interface LeadDisplay {
   notes: string;
 }
 
-const columns: { status: LeadStatus; title: string; color: string }[] = [
-  { status: "new", title: "New Leads", color: "bg-muted-foreground" },
-  { status: "active", title: "Active", color: "bg-accent" },
-  { status: "hot", title: "Hot 🔥", color: "bg-destructive" },
-  { status: "customer", title: "Customers ✅", color: "bg-success" },
+// Configuración de columnas con el nuevo embudo estándar
+const columns: { status: LeadStatus; title: string; icon: string; color: string; bgColor: string }[] = [
+  { status: "nuevo", title: "Nuevo", icon: "⚪", color: "#9CA3AF", bgColor: "bg-gray-400" },
+  { status: "interesado", title: "Interesado", icon: "🟡", color: "#F59E0B", bgColor: "bg-amber-500" },
+  { status: "caliente", title: "Caliente", icon: "🔴", color: "#EF4444", bgColor: "bg-red-500" },
+  { status: "cliente", title: "Cliente", icon: "🟢", color: "#10B981", bgColor: "bg-emerald-500" },
+  { status: "fantasma", title: "Fantasma", icon: "👻", color: "#6B7280", bgColor: "bg-gray-500" },
 ];
+
+// Leyenda de categorías para el usuario
+const CategoryLegend = () => (
+  <div className="flex flex-wrap gap-2 text-xs mb-4 p-3 bg-card/50 rounded-lg border border-border/50">
+    <span className="text-muted-foreground font-medium mr-2">Estados:</span>
+    <span className="flex items-center gap-1"><span>⚪</span> Nuevo - Acaba de llegar</span>
+    <span className="flex items-center gap-1"><span>🟡</span> Interesado - Hace preguntas</span>
+    <span className="flex items-center gap-1 text-red-400"><span>🔴</span> Caliente - Quiere comprar!</span>
+    <span className="flex items-center gap-1 text-emerald-400"><span>🟢</span> Cliente - Ya compró</span>
+    <span className="flex items-center gap-1"><span>👻</span> Fantasma - Sin respuesta +7 días</span>
+  </div>
+);
 
 const platformIcons: Record<string, React.ReactNode> = {
   instagram: <Instagram className="w-3 h-3" />,
@@ -89,19 +104,21 @@ function getInitials(name?: string, username?: string, id?: string): string {
 }
 
 /**
- * Classify lead status based on purchase_intent
- * Ranges: 0-25% (new) | 25-50% (active) | 50%+ (hot) | customer
- * - is_customer = true → customer
- * - purchase_intent >= 0.50 → hot
- * - purchase_intent >= 0.25 → active
- * - purchase_intent < 0.25 → new
+ * Clasificar lead según embudo estándar
+ * - cliente: is_customer = true
+ * - caliente: intent >= 0.50 (quiere comprar)
+ * - interesado: intent >= 0.20 (hace preguntas)
+ * - fantasma: sin respuesta +7 días (detectado en backend)
+ * - nuevo: por defecto
  */
 function getLeadStatus(convo: Conversation): LeadStatus {
-  if (convo.is_customer) return "customer";
+  if (convo.is_customer) return "cliente";
+  // Si el backend ya clasifica como fantasma, respetar
+  if (convo.lead_status === "fantasma") return "fantasma";
   const intent = getPurchaseIntent(convo);
-  if (intent >= 0.50) return "hot";
-  if (intent >= 0.25) return "active";
-  return "new";
+  if (intent >= 0.50) return "caliente";
+  if (intent >= 0.20) return "interesado";
+  return "nuevo";
 }
 
 function estimateValue(convo: Conversation): number {
@@ -114,12 +131,13 @@ function estimateValue(convo: Conversation): number {
   return baseValue;
 }
 
-// Map UI status to backend status
-const statusToBackend: Record<LeadStatus, "cold" | "warm" | "hot" | "customer"> = {
-  new: "cold",
-  active: "warm",
-  hot: "hot",
-  customer: "customer",
+// Mapeo de status UI a status backend (nuevo embudo)
+const statusToBackend: Record<LeadStatus, string> = {
+  nuevo: "nuevo",
+  interesado: "interesado",
+  caliente: "caliente",
+  cliente: "cliente",
+  fantasma: "fantasma",
 };
 
 // Initial form state for adding/editing leads
@@ -167,11 +185,16 @@ export default function Leads() {
         || (convo.lead_status as LeadStatus)
         || getLeadStatus(convo);
 
-      // Pipeline score: use backend value or derive from status
-      // new=25, active=50, hot=75, customer=100
-      const pipelineScore = convo.pipeline_score
-        ?? { new: 25, active: 50, hot: 75, customer: 100 }[status]
-        ?? 25;
+      // Pipeline score: derive from status (nuevo embudo)
+      // nuevo=10, interesado=35, caliente=70, cliente=100, fantasma=5
+      const pipelineScoreMap: Record<LeadStatus, number> = {
+        nuevo: 10,
+        interesado: 35,
+        caliente: 70,
+        cliente: 100,
+        fantasma: 5,
+      };
+      const pipelineScore = convo.pipeline_score ?? pipelineScoreMap[status] ?? 10;
 
       // AI Intent score: 0-100 from purchase_intent
       const intentScore = convo.purchase_intent_score
@@ -383,9 +406,9 @@ export default function Leads() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-xl sm:text-2xl font-bold tracking-tight">Lead Pipeline</h1>
+          <h1 className="text-xl sm:text-2xl font-bold tracking-tight">Embudo de Leads</h1>
           <p className="text-muted-foreground text-sm sm:text-base">
-            {leads.length} total leads • Drag to update status
+            {leads.length} leads en total • Arrastra para cambiar estado
           </p>
         </div>
         <Button
@@ -393,13 +416,16 @@ export default function Leads() {
           className="bg-gradient-to-r from-primary to-accent hover:opacity-90 transition-opacity w-full sm:w-auto"
         >
           <Plus className="w-4 h-4 mr-2" />
-          Add Lead
+          Agregar Lead
         </Button>
       </div>
 
+      {/* Leyenda de categorías */}
+      <CategoryLegend />
+
       {/* Kanban Board - horizontally scrollable on mobile */}
       <div className="overflow-x-auto pb-4 -mx-4 px-4 md:mx-0 md:px-0">
-        <div className="flex md:grid md:grid-cols-4 gap-4 h-[calc(100vh-14rem)] md:h-[calc(100vh-16rem)] min-w-max md:min-w-0">
+        <div className="flex md:grid md:grid-cols-5 gap-3 h-[calc(100vh-18rem)] md:h-[calc(100vh-20rem)] min-w-max md:min-w-0">
         {columns.map((column) => {
           const columnLeads = getLeadsByStatus(column.status);
           const columnValue = columnLeads.reduce((sum, lead) => sum + lead.value, 0);
@@ -414,9 +440,9 @@ export default function Leads() {
               {/* Column Header */}
               <div className="p-4 border-b border-border/50">
                 <div className="flex items-center gap-2">
-                  <div className={cn("w-2 h-2 rounded-full", column.color)}></div>
+                  <span className="text-base">{column.icon}</span>
                   <h3 className="font-semibold text-sm">{column.title}</h3>
-                  <span className="text-xs text-muted-foreground ml-auto">{columnLeads.length}</span>
+                  <span className="text-xs text-muted-foreground ml-auto bg-muted px-1.5 py-0.5 rounded-full">{columnLeads.length}</span>
                 </div>
                 <p className="text-xs text-muted-foreground mt-1">€{columnValue.toLocaleString()}</p>
               </div>

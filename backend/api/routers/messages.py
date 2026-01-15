@@ -12,13 +12,29 @@ USE_DB = bool(os.getenv("DATABASE_URL"))
 def get_pipeline_score(status: str) -> int:
     """
     Convert pipeline status to a fixed score.
-    Stage-based score: deterministic, independent of AI intent.
-    - new → 25
-    - active → 50
-    - hot → 75
-    - customer → 100
+    Embudo estándar:
+    - nuevo → 10
+    - interesado → 35
+    - caliente → 70
+    - cliente → 100
+    - fantasma → 5
+    Legacy mapping (backward compat):
+    - new → 10, active → 35, hot → 70, customer → 100
     """
-    return {"new": 25, "active": 50, "hot": 75, "customer": 100}.get(status, 25)
+    scores = {
+        # Nuevo embudo
+        "nuevo": 10,
+        "interesado": 35,
+        "caliente": 70,
+        "cliente": 100,
+        "fantasma": 5,
+        # Legacy (backward compat)
+        "new": 10,
+        "active": 35,
+        "hot": 70,
+        "customer": 100,
+    }
+    return scores.get(status, 10)
 
 
 if USE_DB:
@@ -213,25 +229,40 @@ async def send_message(creator_id: str, data: dict = Body(...)):
 
 @router.put("/follower/{creator_id}/{follower_id}/status")
 async def update_follower_status(creator_id: str, follower_id: str, data: dict = Body(...)):
-    new_status = data.get("status", "cold")
+    new_status = data.get("status", "nuevo")
 
-    # Map API status to Lead.status column values
-    # Frontend uses: cold, warm, hot, customer
-    # Lead.status uses: new, active, hot, customer (matching Kanban columns)
+    # Embudo estándar - status directos
+    # Frontend envía: nuevo, interesado, caliente, cliente, fantasma
+    # Legacy mapping para compatibilidad
     api_to_db_status = {
-        "cold": "new",
-        "warm": "active",
-        "hot": "hot",
-        "customer": "customer"
+        # Nuevo embudo (directo)
+        "nuevo": "nuevo",
+        "interesado": "interesado",
+        "caliente": "caliente",
+        "cliente": "cliente",
+        "fantasma": "fantasma",
+        # Legacy (backward compat)
+        "cold": "nuevo",
+        "warm": "interesado",
+        "hot": "caliente",
+        "customer": "cliente",
+        "new": "nuevo",
+        "active": "interesado",
     }
-    db_status = api_to_db_status.get(new_status, "new")
+    db_status = api_to_db_status.get(new_status, "nuevo")
 
     # Map status to purchase_intent score
     status_to_intent = {
+        "nuevo": 0.1,
+        "interesado": 0.35,
+        "caliente": 0.7,
+        "cliente": 1.0,
+        "fantasma": 0.05,
+        # Legacy
         "cold": 0.1,
         "warm": 0.35,
         "hot": 0.7,
-        "customer": 1.0
+        "customer": 1.0,
     }
     new_intent = status_to_intent.get(new_status, 0.1)
 
@@ -259,7 +290,7 @@ async def update_follower_status(creator_id: str, follower_id: str, data: dict =
                             # Update both status column AND purchase_intent
                             lead.status = db_status
                             lead.purchase_intent = new_intent
-                            if new_status == "customer":
+                            if new_status in ("customer", "cliente"):
                                 if not lead.context:
                                     lead.context = {}
                                 lead.context["is_customer"] = True
@@ -290,7 +321,7 @@ async def update_follower_status(creator_id: str, follower_id: str, data: dict =
             # Update status and purchase_intent in JSON
             json_data["status"] = db_status
             json_data["purchase_intent_score"] = new_intent
-            if new_status == "customer":
+            if new_status in ("customer", "cliente"):
                 json_data["is_customer"] = True
 
             # Save back to JSON file
