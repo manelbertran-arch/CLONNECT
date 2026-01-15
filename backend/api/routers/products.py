@@ -19,6 +19,16 @@ except ImportError:
     def adapt_products_response(x): return x
     def adapt_product_response(x): return x
 
+
+def _invalidate_bot_cache(creator_id: str):
+    """Invalidar caché del bot cuando cambian productos."""
+    try:
+        from core.dm_agent import invalidate_dm_agent_cache
+        invalidate_dm_agent_cache(creator_id)
+        logger.info(f"[CACHE] Bot cache invalidated for {creator_id}")
+    except Exception as e:
+        logger.warning(f"[CACHE] Failed to invalidate bot cache: {e}")
+
 @router.get("/{creator_id}/products")
 async def get_products(creator_id: str, active_only: bool = True):
     if USE_DB:
@@ -39,6 +49,7 @@ async def create_product(creator_id: str, data: dict = Body(...)):
         try:
             result = db_service.create_product(creator_id, data)
             if result:
+                _invalidate_bot_cache(creator_id)
                 return {"status": "ok", "product": adapt_product_response(result)}
         except Exception as e:
             logger.warning(f"DB create product failed: {e}")
@@ -54,6 +65,7 @@ async def update_product(creator_id: str, product_id: str, data: dict = Body(...
             success = db_service.update_product(creator_id, product_id, data)
             logger.info(f"DB update result: {success}")
             if success:
+                _invalidate_bot_cache(creator_id)
                 return {"status": "ok", "message": "Product updated"}
         except Exception as e:
             logger.error(f"DB update product failed: {e}", exc_info=True)
@@ -65,6 +77,7 @@ async def delete_product(creator_id: str, product_id: str):
         try:
             success = db_service.delete_product(creator_id, product_id)
             if success:
+                _invalidate_bot_cache(creator_id)
                 return {"status": "ok", "message": "Product deleted"}
         except Exception as e:
             logger.warning(f"DB delete product failed: {e}")
