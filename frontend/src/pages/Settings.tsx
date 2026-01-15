@@ -725,12 +725,9 @@ export default function Settings() {
 
   return (
     <div className="space-y-6 max-w-4xl">
-      {/* Page Color Accent - Slate/Gray for Settings */}
-      <div className="h-1 w-full bg-gradient-to-r from-slate-500 via-gray-500 to-zinc-500 rounded-full opacity-60" />
-
       {/* Header */}
       <div>
-        <h1 className="text-xl sm:text-2xl font-semibold tracking-tight">Ajustes</h1>
+        <h1 className="text-xl font-semibold tracking-tight">Ajustes</h1>
         <p className="text-muted-foreground text-sm">Configuración</p>
       </div>
 

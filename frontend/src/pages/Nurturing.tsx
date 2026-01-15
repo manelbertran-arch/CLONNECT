@@ -297,14 +297,11 @@ export default function Nurturing() {
 
   return (
     <div className="space-y-6">
-      {/* Page Color Accent - Teal/Cyan for Nurturing */}
-      <div className="h-1 w-full bg-gradient-to-r from-teal-500 via-cyan-500 to-emerald-500 rounded-full opacity-80" />
-
       {/* Header */}
-      <div className="metric-card border-t-2 border-t-teal-500/50">
+      <div className="metric-card">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
           <div>
-            <h1 className="text-xl sm:text-2xl font-semibold tracking-tight">Nurturing</h1>
+            <h1 className="text-xl font-semibold tracking-tight">Nurturing</h1>
             <p className="text-muted-foreground text-sm">Followups automáticos</p>
           </div>
           <div className="flex gap-2">
