@@ -6,14 +6,22 @@ Este servicio:
 2. Crea leads por cada conversación
 3. Calcula scoring inicial
 4. Guarda historial de mensajes
+
+FILTROS DE SEGURIDAD:
+- max_age_days: Solo importa mensajes de los últimos X días (default: 90)
+- Valida mensajes vacíos/whitespace antes de guardar
 """
 
 import logging
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 from typing import Optional, List, Dict, Any
 from dataclasses import dataclass
 
 logger = logging.getLogger(__name__)
+
+# Configuración por defecto
+DEFAULT_MAX_AGE_DAYS = 90  # Solo mensajes de los últimos 90 días
+DEFAULT_MIN_MESSAGE_LENGTH = 1  # Mínimo 1 carácter después de strip()
 
 
 @dataclass
@@ -37,22 +45,35 @@ class DMHistoryService:
         access_token: str,
         page_id: str,
         ig_user_id: str,
-        limit: int = 30
+        limit: int = 50,
+        max_age_days: int = DEFAULT_MAX_AGE_DAYS
     ) -> Dict[str, Any]:
         """
         Cargar historial de DMs desde Instagram.
+
+        Args:
+            creator_id: ID del creador
+            access_token: Token de acceso de Meta
+            page_id: ID de la página de Facebook
+            ig_user_id: ID del usuario de Instagram
+            limit: Máximo de conversaciones a cargar (default: 50)
+            max_age_days: Solo importar mensajes de los últimos X días (default: 90)
 
         Returns:
             Dict con estadísticas de la importación
         """
         from core.instagram import InstagramConnector
 
-        logger.info(f"[DMHistory] Loading DM history for {creator_id}...")
+        # Calcular fecha límite para filtrar mensajes
+        cutoff_date = datetime.now(timezone.utc) - timedelta(days=max_age_days)
+        logger.info(f"[DMHistory] Loading DM history for {creator_id} (max_age: {max_age_days} days, cutoff: {cutoff_date.date()})")
 
         stats = {
             "conversations_found": 0,
             "leads_created": 0,
             "messages_imported": 0,
+            "messages_filtered": 0,  # Mensajes filtrados por fecha/vacíos
+            "max_age_days": max_age_days,
             "errors": []
         }
 
@@ -124,12 +145,14 @@ class DMHistoryService:
                         username=participant_username,
                         messages=messages,
                         page_id=page_id,
-                        ig_user_id=ig_user_id
+                        ig_user_id=ig_user_id,
+                        cutoff_date=cutoff_date
                     )
 
                     if result.get("lead_created"):
                         stats["leads_created"] += 1
                     stats["messages_imported"] += result.get("messages_imported", 0)
+                    stats["messages_filtered"] += result.get("messages_filtered", 0)
 
                 except Exception as e:
                     error_msg = f"Error processing conversation: {e}"
@@ -153,15 +176,21 @@ class DMHistoryService:
         username: str,
         messages: List[Dict],
         page_id: str,
-        ig_user_id: str
+        ig_user_id: str,
+        cutoff_date: datetime = None
     ) -> Dict[str, Any]:
-        """Importar una conversación a la base de datos"""
+        """
+        Importar una conversación a la base de datos.
+
+        Args:
+            cutoff_date: Solo importar mensajes después de esta fecha
+        """
         from api.database import SessionLocal
         from api.models import Creator, Lead, Message
         from core.intent_classifier import classify_intent_simple
 
         session = SessionLocal()
-        result = {"lead_created": False, "messages_imported": 0}
+        result = {"lead_created": False, "messages_imported": 0, "messages_filtered": 0}
 
         try:
             creator = session.query(Creator).filter_by(name=creator_id).first()
@@ -202,7 +231,34 @@ class DMHistoryService:
                 from_id = msg.get("from", {}).get("id", "")
                 created_time = msg.get("created_time", "")
 
-                if not content:
+                # =====================================================
+                # VALIDACIÓN 1: Mensaje no vacío (GAP 2 FIX)
+                # =====================================================
+                if not content or not content.strip():
+                    result["messages_filtered"] += 1
+                    continue
+
+                # Limpiar contenido
+                content = content.strip()
+
+                # Validar longitud mínima
+                if len(content) < DEFAULT_MIN_MESSAGE_LENGTH:
+                    result["messages_filtered"] += 1
+                    continue
+
+                # =====================================================
+                # VALIDACIÓN 2: Filtro de fecha (GAP 1 FIX)
+                # =====================================================
+                msg_timestamp = None
+                if created_time:
+                    try:
+                        msg_timestamp = datetime.fromisoformat(created_time.replace('Z', '+00:00'))
+                    except:
+                        pass
+
+                # Si tenemos cutoff_date y el mensaje es muy antiguo, saltarlo
+                if cutoff_date and msg_timestamp and msg_timestamp < cutoff_date:
+                    result["messages_filtered"] += 1
                     continue
 
                 # Determinar rol
@@ -232,15 +288,8 @@ class DMHistoryService:
                     elif intent in ["objection"]:
                         purchase_signals -= 1
 
-                # Parse timestamp
-                created_at = None
-                if created_time:
-                    try:
-                        created_at = datetime.fromisoformat(created_time.replace('Z', '+00:00'))
-                    except:
-                        created_at = datetime.now(timezone.utc)
-                else:
-                    created_at = datetime.now(timezone.utc)
+                # Usar timestamp ya parseado o parsear ahora
+                created_at = msg_timestamp if msg_timestamp else datetime.now(timezone.utc)
 
                 # Crear mensaje
                 db_msg = Message(
@@ -291,7 +340,12 @@ class DMHistoryService:
                         pass
 
             session.commit()
-            logger.info(f"[DMHistory] Imported conversation with {follower_id}: {result['messages_imported']} messages, score={purchase_intent:.2f}")
+            logger.info(
+                f"[DMHistory] Imported conversation with {follower_id}: "
+                f"{result['messages_imported']} messages imported, "
+                f"{result['messages_filtered']} filtered (old/empty), "
+                f"score={purchase_intent:.2f}"
+            )
 
         except Exception as e:
             logger.error(f"[DMHistory] Error importing conversation: {e}")
