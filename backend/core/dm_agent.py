@@ -185,6 +185,26 @@ NON_CACHEABLE_INTENTS = {
     Intent.OTHER,  # Fallback - siempre regenerar para evitar respuestas genéricas
 }
 
+# === ANTI-ALUCINACIÓN: Intents que REQUIEREN contenido RAG ===
+# Si el RAG no encuentra contenido relevante para estos intents → Escalar al creador
+# Intents genéricos (GREETING, THANKS, GOODBYE, OTHER) pueden responder sin RAG
+INTENTS_REQUIRING_RAG = {
+    Intent.INTEREST_SOFT,
+    Intent.INTEREST_STRONG,
+    Intent.QUESTION_PRODUCT,
+    Intent.QUESTION_GENERAL,
+    Intent.OBJECTION_PRICE,
+    Intent.OBJECTION_TIME,
+    Intent.OBJECTION_DOUBT,
+    Intent.OBJECTION_LATER,
+    Intent.OBJECTION_WORKS,
+    Intent.OBJECTION_NOT_FOR_ME,
+    Intent.OBJECTION_COMPLICATED,
+    Intent.OBJECTION_ALREADY_HAVE,
+    Intent.SUPPORT,
+    Intent.LEAD_MAGNET,
+}
+
 
 # === CONVERSION OPTIMIZATION PROMPTS ===
 # These prompts are injected dynamically based on user intent and purchase score
@@ -3510,6 +3530,63 @@ USA ESTA RESPUESTA PARA LA OBJECION (adaptala a tu tono):
                     "purchase_intent_score": follower.purchase_intent_score
                 }
             )
+
+        # =============================================================================
+        # ANTI-ALUCINACIÓN: Verificar si el intent requiere contenido RAG
+        # Si requiere RAG y no hay contenido relevante → Escalar al creador
+        # =============================================================================
+        if intent in INTENTS_REQUIRING_RAG:
+            from core.citation_service import get_citation_prompt_section
+
+            # Buscar contenido relevante en RAG
+            citation_section = get_citation_prompt_section(self.creator_id, message_text, min_relevance=0.25)
+
+            if not citation_section:
+                # NO hay contenido relevante en RAG → Escalar al creador
+                logger.warning(f"[ANTI-HALLUCINATION] Intent {intent.value} requires RAG but NO content found. Escalating.")
+
+                # Obtener nombre del creador para el mensaje
+                creator_name = self.creator_config.get('clone_name') or self.creator_config.get('name', 'el creador')
+
+                # Mensaje de escalado personalizado
+                dialect = get_tone_dialect(self.creator_id)
+                if dialect == "rioplatense":
+                    escalation_response = f"Me encantaría ayudarte con eso 🙌 Te paso con {creator_name} directamente para que pueda darte toda la info que necesitás. ¡Te escribe pronto!"
+                else:
+                    escalation_response = f"Me encantaría ayudarte con eso 🙌 Te paso con {creator_name} directamente para que pueda darte toda la info que necesitas. ¡Te escribe pronto!"
+
+                # Actualizar memoria con la escalación
+                await self._update_memory(follower, message_text, escalation_response, intent)
+
+                # Marcar lead como needs_human en PostgreSQL
+                try:
+                    if USE_POSTGRES and db_service:
+                        db_service.update_lead(
+                            creator_name=self.creator_id,
+                            lead_id=sender_id,  # platform_user_id
+                            data={"status": "needs_human"}
+                        )
+                        logger.info(f"[ANTI-HALLUCINATION] Lead {sender_id} marked as needs_human")
+                except Exception as e:
+                    logger.warning(f"[ANTI-HALLUCINATION] Failed to update lead status: {e}")
+
+                # Registrar escalación en métricas
+                record_escalation(self.creator_id, reason="no_rag_content")
+
+                return DMResponse(
+                    response_text=escalation_response,
+                    intent=intent,
+                    action_taken="escalate_no_rag",
+                    escalate_to_human=True,
+                    confidence=0.95,
+                    metadata={
+                        "anti_hallucination": True,
+                        "reason": "no_relevant_rag_content",
+                        "original_intent": intent.value
+                    }
+                )
+            else:
+                logger.info(f"[ANTI-HALLUCINATION] Intent {intent.value} - RAG content found, proceeding with LLM")
 
         # Obtener handler de objeción
         objection_handler = self._get_objection_handler(intent, product)
