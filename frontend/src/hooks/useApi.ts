@@ -220,6 +220,7 @@ export function useSendMessage(creatorId: string = getCreatorId()) {
 
 /**
  * Hook to update lead status (for drag & drop in pipeline)
+ * Nuevo embudo: nuevo, interesado, caliente, cliente, fantasma
  */
 export function useUpdateLeadStatus(creatorId: string = getCreatorId()) {
   const queryClient = useQueryClient();
@@ -230,7 +231,7 @@ export function useUpdateLeadStatus(creatorId: string = getCreatorId()) {
       status
     }: {
       followerId: string;
-      status: "cold" | "warm" | "hot" | "customer";
+      status: string; // nuevo | interesado | caliente | cliente | fantasma (+ legacy)
     }) => updateLeadStatus(creatorId, followerId, status),
     onSuccess: (_, variables) => {
       // Invalidate leads, conversations, and follower detail

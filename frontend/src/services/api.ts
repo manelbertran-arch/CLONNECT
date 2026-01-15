@@ -327,11 +327,12 @@ export async function sendMessage(
 
 /**
  * Update the lead status for a follower
+ * Nuevo embudo: nuevo, interesado, caliente, cliente, fantasma
  */
 export async function updateLeadStatus(
   creatorId: string = CREATOR_ID,
   followerId: string,
-  status: "cold" | "warm" | "hot" | "customer"
+  status: string // nuevo | interesado | caliente | cliente | fantasma
 ): Promise<{ status: string; follower_id: string; new_status: string; purchase_intent: number }> {
   return apiFetch(`/dm/follower/${creatorId}/${followerId}/status`, {
     method: "PUT",
