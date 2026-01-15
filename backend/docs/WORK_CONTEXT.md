@@ -38,9 +38,10 @@
 - Fast path para preguntas de precio (bypass LLM)
 - Bot Instagram verificado con DM real ✅
 - Bot Telegram usa mismo creator_id que Instagram (fitpack_global) ✅
+- Bot Telegram verificado con mensaje real - 77€ correcto ✅
 
 ### Pendientes
-- [ ] Manel: Verificar Telegram con mensaje real
+- (ninguno)
 
 ## PRODUCTOS EN DB
 - Coaching 1:1: 77€
