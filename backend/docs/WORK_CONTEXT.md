@@ -8,7 +8,8 @@
 5. Si algo se rompe: Rollback con ./scripts/rollback.sh
 
 ## CHECKPOINTS DISPONIBLES
-- instagram-verificado-ok ← ACTUAL (15 ene 2026)
+- telegram-creator-fix ← ACTUAL (15 ene 2026)
+- instagram-verificado-ok
 - precio-coaching-fix
 - cache-productos-fix
 - rag-anti-alucinacion-completa
@@ -36,9 +37,10 @@
 - RAG con 108 documentos
 - Fast path para preguntas de precio (bypass LLM)
 - Bot Instagram verificado con DM real ✅
+- Bot Telegram usa mismo creator_id que Instagram (fitpack_global) ✅
 
 ### Pendientes
-- [ ] Bot Telegram no respeta Copilot
+- [ ] Manel: Verificar Telegram con mensaje real
 
 ## PRODUCTOS EN DB
 - Coaching 1:1: 77€
@@ -52,3 +54,12 @@ el RAG tenía contenido sobre "COACHING CUÁNTICO" (diferente del producto "Coac
 Solución: Fast path que responde directamente con el precio del producto cuando
 el usuario pregunta "cuánto cuesta X" y el producto está identificado.
 Archivo: `core/dm_agent.py` - búsqueda por "FAST PATH: Pregunta de precio"
+
+## FIX APLICADO: Telegram creator_id
+El problema era que Telegram usaba `creator_id: "stefano_auto"` en vez de `fitpack_global`.
+- Instagram: fitpack_global (productos correctos)
+- Telegram: stefano_auto (productos diferentes: 997€)
+
+Solución: Cambiar creator_id del bot en el registry.
+Comando: `PUT /telegram/bots/8485313235/creator?creator_id=fitpack_global`
+Almacenamiento: `data/telegram/bots.json` (archivo JSON en servidor)
