@@ -8,7 +8,8 @@
 5. Si algo se rompe: Rollback con ./scripts/rollback.sh
 
 ## CHECKPOINTS DISPONIBLES
-- telegram-creator-fix ← ACTUAL (15 ene 2026)
+- copilot-telegram-fix ← ACTUAL (15 ene 2026)
+- telegram-creator-fix
 - instagram-verificado-ok
 - precio-coaching-fix
 - cache-productos-fix
@@ -39,6 +40,7 @@
 - Bot Instagram verificado con DM real ✅
 - Bot Telegram usa mismo creator_id que Instagram (fitpack_global) ✅
 - Bot Telegram verificado con mensaje real - 77€ correcto ✅
+- Dashboard Copilot envía mensajes a Telegram ✅
 
 ### Pendientes
 - (ninguno)
@@ -64,3 +66,11 @@ El problema era que Telegram usaba `creator_id: "stefano_auto"` en vez de `fitpa
 Solución: Cambiar creator_id del bot en el registry.
 Comando: `PUT /telegram/bots/8485313235/creator?creator_id=fitpack_global`
 Almacenamiento: `data/telegram/bots.json` (archivo JSON en servidor)
+
+## FIX APLICADO: Copilot envío Telegram
+El problema era que el Dashboard mostraba "no está conectado" al enviar mensajes.
+- copilot_service.py buscaba `creator.telegram_bot_token` (tabla Creator)
+- Pero el token está en `data/telegram/bots.json` (TelegramBotRegistry)
+
+Solución: Modificar `_send_telegram_message()` para buscar primero en el registry.
+Archivo: `core/copilot_service.py` - método `_send_telegram_message()`
