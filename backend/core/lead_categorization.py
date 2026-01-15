@@ -70,7 +70,9 @@ def calcular_categoria(
     mensajes: List[Dict],
     es_cliente: bool = False,
     ultimo_mensaje_lead: Optional[datetime] = None,
-    dias_fantasma: int = 7
+    dias_fantasma: int = 7,
+    lead_created_at: Optional[datetime] = None,
+    ultima_interaccion: Optional[datetime] = None
 ) -> CategorizationResult:
     """
     Calcula la categoría de un lead basándose en sus mensajes.
@@ -80,6 +82,8 @@ def calcular_categoria(
         es_cliente: Si ya tiene compra confirmada
         ultimo_mensaje_lead: Fecha del último mensaje del lead
         dias_fantasma: Días sin respuesta para considerar fantasma
+        lead_created_at: Fecha de creación del lead (para fantasma sin mensajes)
+        ultima_interaccion: Última interacción (cualquier tipo) del lead
 
     Returns:
         CategorizationResult con categoría, score y razones
@@ -133,8 +137,10 @@ def calcular_categoria(
         )
 
     # 3. FANTASMA - Sin respuesta del lead por X días
+    ahora = datetime.now(timezone.utc)
+
+    # Caso A: Lead con mensajes pero sin respuesta después de mensaje del bot
     if ultimo_mensaje_lead:
-        ahora = datetime.now(timezone.utc)
         if ultimo_mensaje_lead.tzinfo is None:
             ultimo_mensaje_lead = ultimo_mensaje_lead.replace(tzinfo=timezone.utc)
 
@@ -148,6 +154,23 @@ def calcular_categoria(
                     categoria="fantasma",
                     intent_score=0.1,
                     razones=[f"Sin respuesta hace {dias_sin_respuesta} días"],
+                    keywords_detectados=[]
+                )
+
+    # Caso B: Lead sin mensajes de texto, usar última interacción o fecha de creación
+    elif total_mensajes == 0:
+        fecha_referencia = ultima_interaccion or lead_created_at
+        if fecha_referencia:
+            if fecha_referencia.tzinfo is None:
+                fecha_referencia = fecha_referencia.replace(tzinfo=timezone.utc)
+
+            dias_desde_creacion = (ahora - fecha_referencia).days
+
+            if dias_desde_creacion >= dias_fantasma:
+                return CategorizationResult(
+                    categoria="fantasma",
+                    intent_score=0.05,
+                    razones=[f"Sin interacción hace {dias_desde_creacion} días (sin mensajes)"],
                     keywords_detectados=[]
                 )
 

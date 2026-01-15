@@ -815,6 +815,9 @@ async def rescore_leads(creator_id: str):
                 mensajes_usuario = [m for m in messages if m.role == "user"]
                 ultimo_msg_lead = mensajes_usuario[-1].created_at if mensajes_usuario else None
 
+                # Obtener última interacción (cualquier mensaje)
+                ultima_interaccion = messages[-1].created_at if messages else None
+
                 # Verificar si es cliente (por ahora manual, luego webhook)
                 es_cliente = getattr(lead, 'has_purchased', False) if hasattr(lead, 'has_purchased') else False
 
@@ -823,7 +826,9 @@ async def rescore_leads(creator_id: str):
                     mensajes=mensajes_dict,
                     es_cliente=es_cliente,
                     ultimo_mensaje_lead=ultimo_msg_lead,
-                    dias_fantasma=7
+                    dias_fantasma=7,
+                    lead_created_at=lead.created_at,
+                    ultima_interaccion=ultima_interaccion
                 )
 
                 # Convertir a status legacy para compatibilidad con frontend actual
