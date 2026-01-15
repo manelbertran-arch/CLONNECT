@@ -1892,6 +1892,15 @@ class DMResponderAgent:
             if any(kw.lower() in msg for kw in keywords):
                 return product
 
+        # Buscar por nombre del producto (palabras clave del nombre)
+        for product in self.products:
+            product_name = product.get('name', '').lower()
+            # Extraer palabras significativas del nombre (>3 chars, no artículos)
+            name_words = [w for w in product_name.split() if len(w) > 3 and w not in ['para', 'respira', 'siente', 'conecta']]
+            if any(word in msg for word in name_words):
+                logger.info(f"[PRODUCT MATCH] Matched by name: {product.get('name')} (word in msg)")
+                return product
+
         # Si busca gratis, devolver lead magnet
         if intent == Intent.LEAD_MAGNET:
             for product in self.products:
