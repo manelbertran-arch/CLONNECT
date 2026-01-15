@@ -2866,22 +2866,42 @@ class InstagramDMSyncResponse(BaseModel):
 async def sync_instagram_dms(request: InstagramDMSyncRequest):
     """
     Sincroniza mensajes históricos de Instagram DM usando Graph API.
-    1. Obtiene conversaciones desde Instagram Graph API
-    2. Obtiene mensajes de cada conversación
-    3. Crea/actualiza Leads y guarda Messages en la DB
-    4. Analiza mensajes para extraer insights
+
+    Implementa:
+    - Rate limiting con backoff exponencial
+    - Throttling entre llamadas (max 20/min)
+    - Procesamiento en batches
+    - Retry automático en rate limits
     """
+    import asyncio
+    import httpx
+    from datetime import datetime
+    from core.instagram_rate_limiter import (
+        InstagramRateLimiter,
+        InstagramRateLimitError,
+        RateLimitConfig
+    )
+
     errors = []
     conversations_fetched = 0
     messages_saved = 0
     leads_created = 0
     insights = []
+    rate_limit_hits = 0
+
+    # Configurar rate limiter
+    config = RateLimitConfig(
+        max_retries=5,
+        base_delay=30.0,
+        calls_per_minute=15,  # Conservador para evitar limits
+        batch_size=5,
+        batch_delay=10.0
+    )
+    limiter = InstagramRateLimiter(config)
 
     try:
         from api.database import DATABASE_URL, SessionLocal
         from api.models import Creator, Lead, Message
-        import httpx
-        from datetime import datetime
 
         if not DATABASE_URL or not SessionLocal:
             raise HTTPException(status_code=500, detail="Database not configured")
@@ -2903,219 +2923,251 @@ async def sync_instagram_dms(request: InstagramDMSyncRequest):
             access_token = creator.instagram_token
             api_base = "https://graph.instagram.com/v21.0"
 
-            logger.info(f"[DMSync] Starting sync for {request.creator_id}, ig_user_id={ig_user_id}")
+            logger.info(f"[DMSync] Starting sync for {request.creator_id} with rate limiting")
 
-            # Fetch conversations
-            async with httpx.AsyncClient(timeout=30.0) as client:
+            async with httpx.AsyncClient(timeout=60.0) as client:
+
+                # Helper para hacer llamadas con rate limiting
+                async def fetch_with_retry(url: str, params: dict, max_retries: int = 5) -> dict:
+                    nonlocal rate_limit_hits
+
+                    for attempt in range(max_retries):
+                        await limiter.throttle()
+
+                        response = await client.get(url, params=params)
+                        data = response.json()
+
+                        # Verificar rate limit
+                        error = data.get("error", {})
+                        if error.get("code") in [4, 17] or error.get("error_subcode") == 1349210:
+                            rate_limit_hits += 1
+                            if attempt == max_retries - 1:
+                                raise InstagramRateLimitError(error.get("message", "Rate limit"))
+
+                            delay = limiter.calculate_backoff(attempt)
+                            logger.warning(f"[DMSync] Rate limit hit, waiting {delay:.0f}s (attempt {attempt + 1})")
+                            await asyncio.sleep(delay)
+                            continue
+
+                        if response.status_code != 200:
+                            return {"error": data.get("error", {}), "data": []}
+
+                        return data
+
+                    return {"error": {"message": "Max retries exceeded"}, "data": []}
+
+                # 1. Fetch conversations (1 llamada)
                 conv_url = f"{api_base}/{ig_user_id}/conversations"
-                conv_params = {
+                conv_data = await fetch_with_retry(conv_url, {
                     "access_token": access_token,
                     "limit": min(request.max_conversations, 50)
-                }
+                })
 
-                conv_resp = await client.get(conv_url, params=conv_params)
-                if conv_resp.status_code != 200:
-                    error_data = conv_resp.json()
-                    error_msg = error_data.get("error", {}).get("message", "Unknown error")
+                if "error" in conv_data and conv_data["error"]:
+                    error_msg = conv_data["error"].get("message", "Unknown error")
                     errors.append(f"Conversations API error: {error_msg}")
-                    logger.error(f"[DMSync] Conversations error: {error_data}")
+                    logger.error(f"[DMSync] Conversations error: {conv_data['error']}")
                     return InstagramDMSyncResponse(
                         success=False,
                         creator_id=request.creator_id,
                         errors=errors
                     )
 
-                conv_data = conv_resp.json()
                 conversations = conv_data.get("data", [])
                 conversations_fetched = len(conversations)
-
                 logger.info(f"[DMSync] Found {conversations_fetched} conversations")
 
-                # Process each conversation
-                for conv in conversations:
-                    conv_id = conv.get("id")
-                    if not conv_id:
-                        continue
+                # 2. Process conversations in batches
+                batch_size = config.batch_size
+                total_batches = (len(conversations) + batch_size - 1) // batch_size
 
-                    # Fetch messages for this conversation
-                    msg_url = f"{api_base}/{conv_id}/messages"
-                    msg_params = {
-                        "fields": "id,message,from,to,created_time",
-                        "access_token": access_token,
-                        "limit": min(request.max_messages_per_conversation, 50)
-                    }
+                for batch_idx in range(total_batches):
+                    batch_start = batch_idx * batch_size
+                    batch_end = min(batch_start + batch_size, len(conversations))
+                    batch = conversations[batch_start:batch_end]
 
-                    try:
-                        msg_resp = await client.get(msg_url, params=msg_params)
-                        if msg_resp.status_code != 200:
-                            logger.warning(f"[DMSync] Messages error for conv {conv_id}")
+                    logger.info(f"[DMSync] Processing batch {batch_idx + 1}/{total_batches} ({len(batch)} conversations)")
+
+                    for conv in batch:
+                        conv_id = conv.get("id")
+                        if not conv_id:
                             continue
 
-                        msg_data = msg_resp.json()
-                        messages = msg_data.get("data", [])
+                        try:
+                            # Fetch messages for this conversation
+                            msg_url = f"{api_base}/{conv_id}/messages"
+                            msg_data = await fetch_with_retry(msg_url, {
+                                "fields": "id,message,from,to,created_time",
+                                "access_token": access_token,
+                                "limit": min(request.max_messages_per_conversation, 50)
+                            })
 
-                        if not messages:
-                            continue
+                            if "error" in msg_data and msg_data["error"]:
+                                logger.warning(f"[DMSync] Messages error for conv {conv_id}: {msg_data['error']}")
+                                continue
 
-                        # Find the follower (the other person in the conversation)
-                        follower_id = None
-                        follower_username = None
+                            messages = msg_data.get("data", [])
+                            if not messages:
+                                continue
 
-                        for msg in messages:
-                            from_data = msg.get("from", {})
-                            from_id = from_data.get("id")
-                            from_username = from_data.get("username", "")
+                            # Find the follower
+                            follower_id = None
+                            follower_username = None
 
-                            # If sender is not the creator, they're the follower
-                            if from_id and from_id != ig_user_id:
-                                follower_id = from_id
-                                follower_username = from_username
-                                break
-
-                        if not follower_id:
-                            # Check 'to' field if sender was always the creator
                             for msg in messages:
-                                to_data = msg.get("to", {}).get("data", [])
-                                for recipient in to_data:
-                                    if recipient.get("id") != ig_user_id:
-                                        follower_id = recipient.get("id")
-                                        follower_username = recipient.get("username", "")
-                                        break
-                                if follower_id:
+                                from_data = msg.get("from", {})
+                                from_id = from_data.get("id")
+                                from_username = from_data.get("username", "")
+
+                                if from_id and from_id != ig_user_id:
+                                    follower_id = from_id
+                                    follower_username = from_username
                                     break
 
-                        if not follower_id:
-                            logger.warning(f"[DMSync] No follower found in conv {conv_id}")
-                            continue
+                            if not follower_id:
+                                for msg in messages:
+                                    to_data = msg.get("to", {}).get("data", [])
+                                    for recipient in to_data:
+                                        if recipient.get("id") != ig_user_id:
+                                            follower_id = recipient.get("id")
+                                            follower_username = recipient.get("username", "")
+                                            break
+                                    if follower_id:
+                                        break
 
-                        # Create or get Lead
-                        lead = session.query(Lead).filter_by(
-                            creator_id=creator.id,
-                            platform="instagram",
-                            platform_user_id=follower_id
-                        ).first()
+                            if not follower_id:
+                                continue
 
-                        if not lead:
-                            lead = Lead(
+                            # Create or get Lead
+                            lead = session.query(Lead).filter_by(
                                 creator_id=creator.id,
                                 platform="instagram",
-                                platform_user_id=follower_id,
-                                username=follower_username,
-                                status="active"
-                            )
-                            session.add(lead)
-                            session.commit()
-                            leads_created += 1
-                            logger.info(f"[DMSync] Created lead: {follower_username} ({follower_id})")
-
-                        # Save messages (avoid duplicates by platform_message_id)
-                        conv_messages_saved = 0
-                        conv_topics = []
-                        conv_questions = []
-
-                        for msg in messages:
-                            msg_id = msg.get("id")
-                            msg_text = msg.get("message", "")
-                            msg_from = msg.get("from", {})
-                            msg_time = msg.get("created_time")
-
-                            if not msg_text:
-                                continue
-
-                            # Check if already exists
-                            existing = session.query(Message).filter_by(
-                                platform_message_id=msg_id
+                                platform_user_id=follower_id
                             ).first()
 
-                            if existing:
-                                continue
+                            if not lead:
+                                lead = Lead(
+                                    creator_id=creator.id,
+                                    platform="instagram",
+                                    platform_user_id=follower_id,
+                                    username=follower_username,
+                                    status="active"
+                                )
+                                session.add(lead)
+                                session.commit()
+                                leads_created += 1
 
-                            # Determine role
-                            is_from_creator = msg_from.get("id") == ig_user_id
-                            role = "assistant" if is_from_creator else "user"
+                            # Save messages
+                            conv_messages_saved = 0
+                            conv_topics = []
+                            conv_questions = []
 
-                            # Parse timestamp
-                            created_at = None
-                            if msg_time:
-                                try:
-                                    created_at = datetime.fromisoformat(msg_time.replace("+0000", "+00:00"))
-                                except:
-                                    pass
+                            for msg in messages:
+                                msg_id = msg.get("id")
+                                msg_text = msg.get("message", "")
+                                msg_from = msg.get("from", {})
+                                msg_time = msg.get("created_time")
 
-                            new_msg = Message(
-                                lead_id=lead.id,
-                                role=role,
-                                content=msg_text,
-                                status="sent",
-                                platform_message_id=msg_id,
-                                approved_by="historical_sync"
-                            )
-                            if created_at:
-                                new_msg.created_at = created_at
+                                if not msg_text:
+                                    continue
 
-                            session.add(new_msg)
-                            conv_messages_saved += 1
-                            messages_saved += 1
+                                existing = session.query(Message).filter_by(
+                                    platform_message_id=msg_id
+                                ).first()
 
-                            # Collect data for insights
-                            if role == "user":
-                                # Detect questions
-                                if "?" in msg_text:
-                                    conv_questions.append(msg_text.strip())
-                                # Simple topic extraction
-                                lower_text = msg_text.lower()
-                                if any(w in lower_text for w in ["precio", "cuesta", "vale", "pagar"]):
-                                    conv_topics.append("precio")
-                                if any(w in lower_text for w in ["info", "información", "detalles"]):
-                                    conv_topics.append("información")
-                                if any(w in lower_text for w in ["comprar", "quiero", "interesa"]):
-                                    conv_topics.append("intención_compra")
-                                if any(w in lower_text for w in ["challenge", "reto", "programa"]):
-                                    conv_topics.append("productos")
+                                if existing:
+                                    continue
 
-                        # Calculate purchase intent score based on topics
-                        intent_score = 0.0
-                        if "intención_compra" in conv_topics:
-                            intent_score += 0.4
-                        if "precio" in conv_topics:
-                            intent_score += 0.3
-                        if "información" in conv_topics:
-                            intent_score += 0.2
-                        if conv_questions:
-                            intent_score += 0.1
-                        intent_score = min(intent_score, 1.0)
+                                is_from_creator = msg_from.get("id") == ig_user_id
+                                role = "assistant" if is_from_creator else "user"
 
-                        # UPDATE LEAD with purchase_intent and status
-                        lead.purchase_intent = intent_score
-                        if intent_score >= 0.6:
-                            lead.status = "hot"
-                        elif intent_score >= 0.35:
-                            lead.status = "active"
-                        else:
-                            lead.status = "new"
+                                created_at = None
+                                if msg_time:
+                                    try:
+                                        created_at = datetime.fromisoformat(msg_time.replace("+0000", "+00:00"))
+                                    except:
+                                        pass
 
-                        session.commit()
-                        logger.info(f"[DMSync] Saved {conv_messages_saved} messages for {follower_username}, intent={intent_score:.2f}")
+                                new_msg = Message(
+                                    lead_id=lead.id,
+                                    role=role,
+                                    content=msg_text,
+                                    status="sent",
+                                    platform_message_id=msg_id,
+                                    approved_by="historical_sync"
+                                )
+                                if created_at:
+                                    new_msg.created_at = created_at
 
-                        # Generate insights for this conversation
-                        if request.analyze_insights and conv_messages_saved > 0:
-                            insights.append(ConversationInsight(
-                                follower_id=follower_id,
-                                follower_username=follower_username or "unknown",
-                                total_messages=len(messages),
-                                topics=list(set(conv_topics)),
-                                purchase_intent_score=intent_score,
-                                common_questions=conv_questions[:5]
-                            ))
+                                session.add(new_msg)
+                                conv_messages_saved += 1
+                                messages_saved += 1
 
-                    except Exception as e:
-                        logger.warning(f"[DMSync] Error processing conv {conv_id}: {e}")
-                        continue
+                                if role == "user":
+                                    if "?" in msg_text:
+                                        conv_questions.append(msg_text.strip())
+                                    lower_text = msg_text.lower()
+                                    if any(w in lower_text for w in ["precio", "cuesta", "vale", "pagar"]):
+                                        conv_topics.append("precio")
+                                    if any(w in lower_text for w in ["info", "información", "detalles"]):
+                                        conv_topics.append("información")
+                                    if any(w in lower_text for w in ["comprar", "quiero", "interesa"]):
+                                        conv_topics.append("intención_compra")
+
+                            # Calculate intent score
+                            intent_score = 0.0
+                            if "intención_compra" in conv_topics:
+                                intent_score += 0.4
+                            if "precio" in conv_topics:
+                                intent_score += 0.3
+                            if "información" in conv_topics:
+                                intent_score += 0.2
+                            if conv_questions:
+                                intent_score += 0.1
+                            intent_score = min(intent_score, 1.0)
+
+                            lead.purchase_intent = intent_score
+                            if intent_score >= 0.6:
+                                lead.status = "hot"
+                            elif intent_score >= 0.35:
+                                lead.status = "active"
+                            else:
+                                lead.status = "new"
+
+                            session.commit()
+
+                            if conv_messages_saved > 0:
+                                logger.info(f"[DMSync] Saved {conv_messages_saved} msgs for {follower_username}")
+
+                                if request.analyze_insights:
+                                    insights.append(ConversationInsight(
+                                        follower_id=follower_id,
+                                        follower_username=follower_username or "unknown",
+                                        total_messages=len(messages),
+                                        topics=list(set(conv_topics)),
+                                        purchase_intent_score=intent_score,
+                                        common_questions=conv_questions[:5]
+                                    ))
+
+                        except InstagramRateLimitError as e:
+                            logger.error(f"[DMSync] Rate limit exceeded for conv {conv_id}: {e.message}")
+                            errors.append(f"Rate limit: {e.message}")
+                            # Guardar progreso parcial
+                            session.commit()
+                            break
+                        except Exception as e:
+                            logger.warning(f"[DMSync] Error processing conv {conv_id}: {e}")
+                            continue
+
+                    # Pausa entre batches
+                    if batch_idx < total_batches - 1:
+                        logger.info(f"[DMSync] Batch complete, waiting {config.batch_delay}s")
+                        await asyncio.sleep(config.batch_delay)
 
         finally:
             session.close()
 
-        logger.info(f"[DMSync] Complete: {conversations_fetched} convs, {messages_saved} msgs, {leads_created} leads")
+        logger.info(f"[DMSync] Complete: {conversations_fetched} convs, {messages_saved} msgs, {leads_created} leads, {rate_limit_hits} rate limits")
 
         return InstagramDMSyncResponse(
             success=True,
