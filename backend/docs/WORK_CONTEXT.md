@@ -8,7 +8,8 @@
 5. Si algo se rompe: Rollback con ./scripts/rollback.sh
 
 ## CHECKPOINTS DISPONIBLES
-- cache-productos-fix ← ACTUAL (15 ene 2026)
+- precio-coaching-fix ← ACTUAL (15 ene 2026)
+- cache-productos-fix
 - rag-anti-alucinacion-completa
 - anti-alucinacion-completa
 - sesion-15-ene-completa
@@ -22,15 +23,19 @@
 
 ### Funciona
 - Saludos del bot
-- Taller de respiración (75€)
+- **TODOS los productos con precios correctos:**
+  - Coaching 1:1: 77€ ✅
+  - Taller de respiración: 75€ ✅
+  - Challenge 11 Días: 22€ ✅
+  - Sesión de Descubrimiento: GRATIS ✅
 - Caché desactivado (TTL=0)
 - Anti-alucinación (escala si no hay RAG)
 - Toggle Copilot
 - Dashboard en español
 - RAG con 108 documentos
+- Fast path para preguntas de precio (bypass LLM)
 
 ### Pendientes
-- [ ] Coaching da fallback en vez de precio (77€ en DB)
 - [ ] Verificar bot con DM real en Instagram
 
 ## PRODUCTOS EN DB
@@ -38,3 +43,10 @@
 - Taller Respira, Siente y Conecta: 75€
 - Sesión de Descubrimiento: 0€
 - Challenge 11 Días: 22€
+
+## FIX APLICADO: Coaching Fallback
+El problema era que el LLM generaba respuestas incorrectas para "coaching" porque
+el RAG tenía contenido sobre "COACHING CUÁNTICO" (diferente del producto "Coaching 1:1").
+Solución: Fast path que responde directamente con el precio del producto cuando
+el usuario pregunta "cuánto cuesta X" y el producto está identificado.
+Archivo: `core/dm_agent.py` - búsqueda por "FAST PATH: Pregunta de precio"
