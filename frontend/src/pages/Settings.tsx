@@ -1528,6 +1528,37 @@ Garantía: 30 días. Pagos: Stripe, PayPal, Bizum. Horario: L-V 9:00-18:00"
             ) : null}
           </div>
 
+          {/* 3. PRODUCTOS AUTO-SYNC */}
+          <div className="metric-card">
+            <div className="flex items-center gap-2 mb-4">
+              <Package className="w-5 h-5 text-success" />
+              <h3 className="font-semibold">Tus productos</h3>
+              <span className="text-xs bg-secondary px-2 py-0.5 rounded-full text-muted-foreground flex items-center gap-1">
+                <RefreshCw className="w-3 h-3" /> Auto-sync
+              </span>
+            </div>
+
+            {products.length > 0 ? (
+              <div className="space-y-2">
+                {products.map((product) => (
+                  <div key={product.id} className="flex justify-between items-center p-3 bg-secondary/30 rounded-lg">
+                    <div>
+                      <span className="font-medium">{product.name}</span>
+                      {product.description && (
+                        <p className="text-xs text-muted-foreground">{product.description.slice(0, 50)}...</p>
+                      )}
+                    </div>
+                    <span className="text-success font-medium">{product.price}€</span>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="text-muted-foreground text-sm">No hay productos. Añádelos en la página Products.</p>
+            )}
+
+            <p className="text-xs text-muted-foreground mt-3">El bot usará esta información automáticamente</p>
+          </div>
+
         </TabsContent>
       </Tabs>
 
