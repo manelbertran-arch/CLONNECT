@@ -121,9 +121,21 @@ async def get_copilot_status(creator_id: str):
     from api.database import SessionLocal
     from api.models import Creator
 
-    service = get_copilot_service()
-    enabled = service.is_copilot_enabled(creator_id)
+    # Read directly from DB to avoid multi-worker cache inconsistency
+    session = SessionLocal()
+    try:
+        creator = session.query(Creator).filter_by(name=creator_id).first()
+        if not creator:
+            raise HTTPException(status_code=404, detail="Creator not found")
 
+        # Read copilot_mode directly from DB (bypass cache)
+        enabled = getattr(creator, 'copilot_mode', True)
+        if enabled is None:
+            enabled = True  # Default to True if NULL
+    finally:
+        session.close()
+
+    service = get_copilot_service()
     pending = await service.get_pending_responses(creator_id, limit=100)
 
     return {
