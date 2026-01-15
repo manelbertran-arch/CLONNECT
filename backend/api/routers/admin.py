@@ -1158,17 +1158,39 @@ async def simple_dm_sync(creator_id: str, max_convs: int = 20):
                             platform_user_id=follower_id
                         ).first()
 
+                        # Parse message timestamps for first/last contact
+                        msg_timestamps = []
+                        for msg in messages:
+                            if msg.get("created_time"):
+                                try:
+                                    ts = datetime.fromisoformat(msg["created_time"].replace("+0000", "+00:00"))
+                                    msg_timestamps.append(ts)
+                                except:
+                                    pass
+
+                        first_msg_time = min(msg_timestamps) if msg_timestamps else None
+                        last_msg_time = max(msg_timestamps) if msg_timestamps else None
+
                         if not lead:
                             lead = Lead(
                                 creator_id=creator.id,
                                 platform="instagram",
                                 platform_user_id=follower_id,
                                 username=follower_username,
-                                status="new"
+                                status="new",
+                                first_contact_at=first_msg_time,
+                                last_contact_at=last_msg_time
                             )
                             session.add(lead)
                             session.commit()
                             results["leads_created"] += 1
+                        else:
+                            # Update timestamps if we have older/newer messages
+                            if first_msg_time and (not lead.first_contact_at or first_msg_time < lead.first_contact_at):
+                                lead.first_contact_at = first_msg_time
+                            if last_msg_time and (not lead.last_contact_at or last_msg_time > lead.last_contact_at):
+                                lead.last_contact_at = last_msg_time
+                            session.commit()
 
                         # Save messages
                         for msg in messages:
