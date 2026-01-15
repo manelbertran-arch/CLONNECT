@@ -1037,3 +1037,184 @@ async def debug_instagram_api(creator_id: str):
 
     except Exception as e:
         return {"error": str(e)}
+
+
+@router.post("/simple-dm-sync/{creator_id}")
+async def simple_dm_sync(creator_id: str, max_convs: int = 20):
+    """
+    Simple DM sync without complex rate limiting.
+    Fetches messages and saves them directly.
+    """
+    import httpx
+    from datetime import datetime
+
+    results = {
+        "conversations_processed": 0,
+        "messages_saved": 0,
+        "leads_created": 0,
+        "errors": []
+    }
+
+    try:
+        from api.database import DATABASE_URL, SessionLocal
+        from api.models import Creator, Lead, Message
+
+        if not DATABASE_URL or not SessionLocal:
+            return {"error": "Database not configured"}
+
+        session = SessionLocal()
+        try:
+            creator = session.query(Creator).filter_by(name=creator_id).first()
+            if not creator:
+                return {"error": f"Creator not found: {creator_id}"}
+
+            if not creator.instagram_token:
+                return {"error": "Instagram token not configured"}
+
+            ig_user_id = creator.instagram_user_id or creator.instagram_page_id
+            access_token = creator.instagram_token
+            api_base = "https://graph.instagram.com/v21.0"
+
+            async with httpx.AsyncClient(timeout=60.0) as client:
+                # Get conversations
+                conv_resp = await client.get(
+                    f"{api_base}/{ig_user_id}/conversations",
+                    params={"access_token": access_token, "limit": max_convs}
+                )
+
+                if conv_resp.status_code != 200:
+                    return {"error": f"Conversations API error: {conv_resp.json()}"}
+
+                conversations = conv_resp.json().get("data", [])
+
+                for conv in conversations:
+                    conv_id = conv.get("id")
+                    if not conv_id:
+                        continue
+
+                    try:
+                        # Get messages for this conversation
+                        msg_resp = await client.get(
+                            f"{api_base}/{conv_id}/messages",
+                            params={
+                                "fields": "id,message,from,to,created_time",
+                                "access_token": access_token,
+                                "limit": 50
+                            }
+                        )
+
+                        if msg_resp.status_code != 200:
+                            error_data = msg_resp.json().get("error", {})
+                            # Check for rate limit
+                            if error_data.get("code") in [4, 17]:
+                                results["errors"].append(f"Rate limit hit at conv {results['conversations_processed']}")
+                                break
+                            continue
+
+                        messages = msg_resp.json().get("data", [])
+                        if not messages:
+                            continue
+
+                        # Find the follower (non-creator participant)
+                        follower_id = None
+                        follower_username = None
+
+                        for msg in messages:
+                            from_data = msg.get("from", {})
+                            from_id = from_data.get("id")
+                            if from_id and from_id != ig_user_id:
+                                follower_id = from_id
+                                follower_username = from_data.get("username", "unknown")
+                                break
+
+                        if not follower_id:
+                            # Check "to" field
+                            for msg in messages:
+                                to_data = msg.get("to", {}).get("data", [])
+                                for recipient in to_data:
+                                    if recipient.get("id") != ig_user_id:
+                                        follower_id = recipient.get("id")
+                                        follower_username = recipient.get("username", "unknown")
+                                        break
+                                if follower_id:
+                                    break
+
+                        if not follower_id:
+                            continue
+
+                        # Get or create lead
+                        lead = session.query(Lead).filter_by(
+                            creator_id=creator.id,
+                            platform="instagram",
+                            platform_user_id=follower_id
+                        ).first()
+
+                        if not lead:
+                            lead = Lead(
+                                creator_id=creator.id,
+                                platform="instagram",
+                                platform_user_id=follower_id,
+                                username=follower_username,
+                                status="new"
+                            )
+                            session.add(lead)
+                            session.commit()
+                            results["leads_created"] += 1
+
+                        # Save messages
+                        for msg in messages:
+                            msg_id = msg.get("id")
+                            msg_text = msg.get("message", "")
+
+                            if not msg_text or not msg_id:
+                                continue
+
+                            # Check if already exists
+                            existing = session.query(Message).filter_by(
+                                platform_message_id=msg_id
+                            ).first()
+
+                            if existing:
+                                continue
+
+                            from_data = msg.get("from", {})
+                            is_from_creator = from_data.get("id") == ig_user_id
+                            role = "assistant" if is_from_creator else "user"
+
+                            new_msg = Message(
+                                lead_id=lead.id,
+                                role=role,
+                                content=msg_text,
+                                platform="instagram",
+                                platform_message_id=msg_id
+                            )
+
+                            # Parse timestamp
+                            msg_time = msg.get("created_time")
+                            if msg_time:
+                                try:
+                                    new_msg.created_at = datetime.fromisoformat(
+                                        msg_time.replace("+0000", "+00:00")
+                                    )
+                                except:
+                                    pass
+
+                            session.add(new_msg)
+                            results["messages_saved"] += 1
+
+                        session.commit()
+                        results["conversations_processed"] += 1
+
+                    except Exception as e:
+                        results["errors"].append(f"Conv error: {str(e)}")
+                        continue
+
+            return {"status": "success", **results}
+
+        finally:
+            session.close()
+
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return {"error": str(e), **results}
