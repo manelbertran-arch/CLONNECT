@@ -8,7 +8,8 @@
 5. Si algo se rompe: Rollback con ./scripts/rollback.sh
 
 ## CHECKPOINTS DISPONIBLES
-- precio-coaching-fix ← ACTUAL (15 ene 2026)
+- instagram-verificado-ok ← ACTUAL (15 ene 2026)
+- precio-coaching-fix
 - cache-productos-fix
 - rag-anti-alucinacion-completa
 - anti-alucinacion-completa
@@ -34,9 +35,10 @@
 - Dashboard en español
 - RAG con 108 documentos
 - Fast path para preguntas de precio (bypass LLM)
+- Bot Instagram verificado con DM real ✅
 
 ### Pendientes
-- [ ] Verificar bot con DM real en Instagram
+- [ ] Bot Telegram no respeta Copilot
 
 ## PRODUCTOS EN DB
 - Coaching 1:1: 77€
