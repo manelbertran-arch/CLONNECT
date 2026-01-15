@@ -827,8 +827,8 @@ async def rescore_leads(creator_id: str):
                     es_cliente=es_cliente,
                     ultimo_mensaje_lead=ultimo_msg_lead,
                     dias_fantasma=7,
-                    lead_created_at=lead.created_at,
-                    ultima_interaccion=ultima_interaccion
+                    lead_created_at=lead.first_contact_at,
+                    ultima_interaccion=ultima_interaccion or lead.last_contact_at
                 )
 
                 # Convertir a status legacy para compatibilidad con frontend actual
