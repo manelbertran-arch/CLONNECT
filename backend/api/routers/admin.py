@@ -970,3 +970,80 @@ async def cleanup_test_leads(creator_id: str):
             "status": "error",
             "error": str(e)
         }
+
+
+@router.get("/debug-instagram-api/{creator_id}")
+async def debug_instagram_api(creator_id: str):
+    """
+    Debug: Ver qué retorna la API de Instagram para conversaciones y mensajes.
+    """
+    import httpx
+
+    try:
+        from api.database import SessionLocal
+        from api.models import Creator
+
+        session = SessionLocal()
+        try:
+            creator = session.query(Creator).filter_by(name=creator_id).first()
+            if not creator:
+                return {"error": f"Creator not found: {creator_id}"}
+
+            if not creator.instagram_token:
+                return {"error": "No Instagram token"}
+
+            ig_user_id = creator.instagram_user_id or creator.instagram_page_id
+            access_token = creator.instagram_token
+            api_base = "https://graph.instagram.com/v21.0"
+
+            results = {
+                "ig_user_id": ig_user_id,
+                "conversations": [],
+                "sample_messages": []
+            }
+
+            async with httpx.AsyncClient(timeout=30.0) as client:
+                # Get conversations
+                conv_url = f"{api_base}/{ig_user_id}/conversations"
+                conv_resp = await client.get(conv_url, params={
+                    "access_token": access_token,
+                    "limit": 5
+                })
+
+                if conv_resp.status_code != 200:
+                    results["conversations_error"] = conv_resp.json()
+                    return results
+
+                conv_data = conv_resp.json()
+                conversations = conv_data.get("data", [])
+                results["conversations_count"] = len(conversations)
+
+                # Try to get messages for first 3 conversations
+                for i, conv in enumerate(conversations[:3]):
+                    conv_id = conv.get("id")
+                    conv_info = {"conv_id": conv_id, "conv_data": conv}
+
+                    # Get messages
+                    msg_url = f"{api_base}/{conv_id}/messages"
+                    msg_resp = await client.get(msg_url, params={
+                        "fields": "id,message,from,to,created_time",
+                        "access_token": access_token,
+                        "limit": 3
+                    })
+
+                    if msg_resp.status_code != 200:
+                        conv_info["messages_error"] = msg_resp.json()
+                    else:
+                        msg_data = msg_resp.json()
+                        conv_info["messages"] = msg_data.get("data", [])
+                        conv_info["messages_count"] = len(conv_info["messages"])
+
+                    results["sample_messages"].append(conv_info)
+
+            return results
+
+        finally:
+            session.close()
+
+    except Exception as e:
+        return {"error": str(e)}
