@@ -405,6 +405,36 @@ export default function Leads() {
         </Button>
       </div>
 
+      {/* Leyenda de Categorías */}
+      <div className="flex flex-wrap items-center gap-4 p-3 rounded-xl bg-card/50 border border-border/30 text-xs">
+        <span className="text-muted-foreground font-medium">Leyenda:</span>
+        <div className="flex items-center gap-1.5">
+          <span className="w-2 h-2 rounded-full bg-slate-400"></span>
+          <span className="text-slate-400">Nuevo</span>
+          <span className="text-muted-foreground/60">- Bot saluda</span>
+        </div>
+        <div className="flex items-center gap-1.5">
+          <span className="w-2 h-2 rounded-full bg-amber-400"></span>
+          <span className="text-amber-400">Interesado</span>
+          <span className="text-muted-foreground/60">- Bot educa</span>
+        </div>
+        <div className="flex items-center gap-1.5">
+          <span className="w-2 h-2 rounded-full bg-rose-400 animate-pulse"></span>
+          <span className="text-rose-400 font-semibold">Caliente</span>
+          <span className="text-muted-foreground/60">- ¡Contactar YA!</span>
+        </div>
+        <div className="flex items-center gap-1.5">
+          <span className="w-2 h-2 rounded-full bg-emerald-400"></span>
+          <span className="text-emerald-400">Cliente</span>
+          <span className="text-muted-foreground/60">- Ya compró</span>
+        </div>
+        <div className="flex items-center gap-1.5">
+          <span className="w-2 h-2 rounded-full bg-gray-500"></span>
+          <span className="text-gray-500">Fantasma</span>
+          <span className="text-muted-foreground/60">- Bot reactiva</span>
+        </div>
+      </div>
+
       {/* Kanban Board */}
       <div className="overflow-x-auto pb-4 -mx-4 px-4 md:mx-0 md:px-0">
         <div className="flex md:grid md:grid-cols-5 gap-3 h-[calc(100vh-12rem)] min-w-max md:min-w-0">
