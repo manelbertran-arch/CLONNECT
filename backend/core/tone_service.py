@@ -90,6 +90,9 @@ async def get_tone_profile(creator_id: str) -> Optional[ToneProfile]:
         data = _try_load_from_json(creator_id)
 
     if data:
+        # Ensure creator_id is in data for ToneProfile
+        if 'creator_id' not in data:
+            data['creator_id'] = creator_id
         profile = ToneProfile.from_dict(data)
         _tone_cache[creator_id] = profile
         return profile
@@ -182,6 +185,9 @@ def get_tone_prompt_section(creator_id: str) -> str:
         data = _try_load_from_json(creator_id)
 
     if data:
+        # Ensure creator_id is in data for ToneProfile
+        if 'creator_id' not in data:
+            data['creator_id'] = creator_id
         profile = ToneProfile.from_dict(data)
         _tone_cache[creator_id] = profile
         return profile.to_system_prompt_section()
@@ -211,6 +217,9 @@ def get_tone_language(creator_id: str) -> Optional[str]:
         data = _try_load_from_json(creator_id)
 
     if data:
+        # Ensure creator_id is in data for ToneProfile
+        if 'creator_id' not in data:
+            data['creator_id'] = creator_id
         profile = ToneProfile.from_dict(data)
         _tone_cache[creator_id] = profile
         return profile.primary_language
@@ -240,6 +249,9 @@ def get_tone_dialect(creator_id: str) -> str:
         data = _try_load_from_json(creator_id)
 
     if data:
+        # Ensure creator_id is in data for ToneProfile
+        if 'creator_id' not in data:
+            data['creator_id'] = creator_id
         profile = ToneProfile.from_dict(data)
         _tone_cache[creator_id] = profile
         return getattr(profile, 'dialect', 'neutral')

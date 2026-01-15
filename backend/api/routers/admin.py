@@ -558,6 +558,134 @@ async def run_email_capture_migration():
         }
 
 
+@router.post("/refresh-all-tokens")
+async def refresh_all_instagram_tokens():
+    """
+    Cron job: Revisar todos los tokens de Instagram y refrescar los que expiran pronto.
+
+    Diseñado para ser llamado diariamente por un cron job.
+
+    Refresca tokens que expiran en menos de 7 días.
+    Los tokens long-lived duran 60 días y se pueden refrescar indefinidamente.
+    """
+    try:
+        from core.token_refresh_service import refresh_all_creator_tokens
+        from api.database import SessionLocal
+
+        session = SessionLocal()
+        try:
+            result = await refresh_all_creator_tokens(session)
+            return {
+                "status": "success",
+                **result
+            }
+        finally:
+            session.close()
+
+    except Exception as e:
+        logger.error(f"Token refresh failed: {e}")
+        return {
+            "status": "error",
+            "error": str(e)
+        }
+
+
+@router.post("/refresh-token/{creator_id}")
+async def refresh_creator_token(creator_id: str):
+    """
+    Refrescar el token de Instagram de un creator específico.
+
+    Args:
+        creator_id: Nombre o UUID del creator
+
+    Returns:
+        Estado del refresh (success/skip/error)
+    """
+    try:
+        from core.token_refresh_service import check_and_refresh_if_needed
+        from api.database import SessionLocal
+
+        session = SessionLocal()
+        try:
+            result = await check_and_refresh_if_needed(creator_id, session)
+            return {
+                "status": "success" if result.get("success") else "error",
+                **result
+            }
+        finally:
+            session.close()
+
+    except Exception as e:
+        logger.error(f"Token refresh failed for {creator_id}: {e}")
+        return {
+            "status": "error",
+            "error": str(e)
+        }
+
+
+@router.post("/exchange-token/{creator_id}")
+async def exchange_short_lived_token(creator_id: str, short_lived_token: str):
+    """
+    Convertir un token short-lived (1-2h) a long-lived (60 días).
+
+    Usar después del OAuth flow para obtener un token duradero.
+
+    Args:
+        creator_id: Nombre o UUID del creator
+        short_lived_token: Token de corta duración del OAuth
+
+    Returns:
+        Nuevo token long-lived y fecha de expiración
+    """
+    try:
+        from core.token_refresh_service import exchange_for_long_lived_token
+        from api.database import SessionLocal
+        from sqlalchemy import text
+
+        # Exchange token
+        new_token_data = await exchange_for_long_lived_token(short_lived_token)
+
+        if not new_token_data:
+            return {
+                "status": "error",
+                "error": "Failed to exchange token. Check META_APP_SECRET is configured."
+            }
+
+        # Save to database
+        session = SessionLocal()
+        try:
+            session.execute(
+                text("""
+                    UPDATE creators
+                    SET instagram_token = :token,
+                        instagram_token_expires_at = :expires_at
+                    WHERE id::text = :cid OR name = :cid
+                """),
+                {
+                    "token": new_token_data["token"],
+                    "expires_at": new_token_data["expires_at"],
+                    "cid": creator_id
+                }
+            )
+            session.commit()
+
+            return {
+                "status": "success",
+                "token_prefix": new_token_data["token"][:20] + "...",
+                "expires_at": new_token_data["expires_at"].isoformat(),
+                "expires_in_days": new_token_data["expires_in"] // 86400
+            }
+        finally:
+            session.close()
+
+    except Exception as e:
+        logger.error(f"Token exchange failed for {creator_id}: {e}")
+        return {
+            "status": "error",
+            "error": str(e)
+        }
+
+
 @router.get("/demo-status")
 async def get_demo_status():
     """Check if demo reset is enabled and get current data counts"""

@@ -215,18 +215,32 @@ class InstagramConnector:
             return data.get("data", [])
 
     async def get_conversations(self, limit: int = 20) -> List[dict]:
-        """Obtener conversaciones recientes"""
+        """Obtener conversaciones recientes, ordenadas por updated_time DESC.
+
+        Meta Graph API devuelve por updated_time DESC por defecto,
+        pero añadimos el campo explícitamente y ordenamos para garantizarlo.
+        """
         session = await self._get_session()
         url = f"{self.FACEBOOK_API_URL}/{self.page_id}/conversations"
         params = {
             "platform": "instagram",
+            "fields": "id,updated_time,participants",  # Incluir updated_time
             "limit": limit,
             "access_token": self.access_token
         }
 
         async with session.get(url, params=params) as resp:
             data = await resp.json()
-            return data.get("data", [])
+            conversations = data.get("data", [])
+
+            # Ordenar explícitamente por updated_time DESC (más recientes primero)
+            # para garantizar que siempre obtenemos las 50 conversaciones más recientes
+            conversations_sorted = sorted(
+                conversations,
+                key=lambda c: c.get("updated_time", ""),
+                reverse=True  # DESC: más reciente primero
+            )
+            return conversations_sorted
 
     async def get_conversation_messages(
         self,

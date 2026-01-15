@@ -1746,8 +1746,13 @@ class DMResponderAgent:
         # Esto permite que "Hola, me interesa el curso" se clasifique como INTEREST, no GREETING
 
         # Interés fuerte (quiere comprar)
-        if any(w in msg for w in ['comprar', 'quiero comprar', 'adquirir', 'donde compro', 'link de pago', 'pagar', 'apuntarme', 'me apunto']):
-            return Intent.INTEREST_STRONG, 0.90
+        # NOTA: "pagar" solo si es positivo (quiero pagar), no negativo (no puedo pagar)
+        interest_strong_kw = ['comprar', 'quiero comprar', 'adquirir', 'donde compro', 'link de pago',
+                              'apuntarme', 'me apunto', 'lo quiero', 'lo compro', 'quiero pagar']
+        if any(w in msg for w in interest_strong_kw):
+            # Excluir si contiene negación
+            if not any(neg in msg for neg in ['no puedo', 'no tengo', 'no quiero']):
+                return Intent.INTEREST_STRONG, 0.90
 
         # Interés soft - ANTES de saludos para que "hola, me interesa" sea INTEREST_SOFT
         if any(w in msg for w in ['interesa', 'cuentame', 'cuéntame', 'info', 'información', 'saber mas', 'saber más', 'como funciona', 'cómo funciona']):
@@ -1791,24 +1796,32 @@ class DMResponderAgent:
             return Intent.BOOKING, 0.90
 
         # Saludos (solo si NO hay interés ni booking)
-        if any(w in msg for w in ['hola', 'hey', 'ey', 'buenas', 'buenos dias', 'que tal', 'hi']):
+        # Incluye ES + EN básico
+        if any(w in msg for w in ['hola', 'hey', 'ey', 'buenas', 'buenos dias', 'que tal', 'hi', 'hello']):
             return Intent.GREETING, 0.90
 
         # Objeción precio
-        if any(w in msg for w in ['caro', 'costoso', 'mucho dinero', 'no puedo pagar', 'precio alto', 'barato']):
+        if any(w in msg for w in ['caro', 'costoso', 'mucho dinero', 'no puedo pagar', 'precio alto', 'barato', 'no tengo dinero', 'no tengo plata']):
             return Intent.OBJECTION_PRICE, 0.90
 
-        # Objeción tiempo
-        if any(w in msg for w in ['no tengo tiempo', 'ocupado', 'sin tiempo', 'no puedo ahora']):
+        # Objeción tiempo - incluye "ahora no puedo" (específico)
+        if any(w in msg for w in ['no tengo tiempo', 'ocupado', 'sin tiempo', 'no puedo ahora', 'ahora no puedo']):
             return Intent.OBJECTION_TIME, 0.90
 
         # Objeción duda
         if any(w in msg for w in ['pensarlo', 'pensar', 'no se', 'no estoy seguro', 'dudas']):
             return Intent.OBJECTION_DOUBT, 0.85
 
-        # Objeción "luego" / "después"
-        if any(w in msg for w in ['luego', 'despues', 'otro dia', 'ahora no', 'mas adelante', 'en otro momento']):
-            return Intent.OBJECTION_LATER, 0.85
+        # Despedida - ANTES de OBJECTION_LATER para que "hasta luego" no matchee "luego"
+        if any(w in msg for w in ['adios', 'adiós', 'hasta luego', 'chao', 'nos vemos', 'bye', 'goodbye']):
+            return Intent.GOODBYE, 0.85
+
+        # Objeción "luego" / "después" - DESPUÉS de GOODBYE
+        # Excluye "hasta luego" que ya fue capturado arriba
+        if any(w in msg for w in ['luego', 'despues', 'después', 'otro dia', 'ahora no', 'mas adelante', 'más adelante', 'en otro momento']):
+            # Doble check: no es despedida
+            if 'hasta luego' not in msg:
+                return Intent.OBJECTION_LATER, 0.85
 
         # Objeción "¿funciona?" / resultados
         if any(w in msg for w in ['funciona', 'resultados', 'garantia', 'pruebas', 'testimonios', 'casos de exito']):
@@ -1870,9 +1883,7 @@ class DMResponderAgent:
         if any(w in msg for w in ['gracias', 'genial', 'perfecto', 'guay', 'thanks']):
             return Intent.THANKS, 0.85
 
-        # Despedida
-        if any(w in msg for w in ['adios', 'hasta luego', 'chao', 'nos vemos', 'bye']):
-            return Intent.GOODBYE, 0.85
+        # GOODBYE ya se detecta antes de OBJECTION_LATER (línea ~1808)
 
         # Soporte
         if any(w in msg for w in ['problema', 'no funciona', 'error', 'ayuda', 'falla']):

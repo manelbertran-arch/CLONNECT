@@ -216,10 +216,35 @@ class ToneProfile:
 
     @classmethod
     def from_dict(cls, data: Dict) -> 'ToneProfile':
-        """Crea desde diccionario."""
-        if 'last_updated' in data and isinstance(data['last_updated'], str):
-            data['last_updated'] = datetime.fromisoformat(data['last_updated'])
-        return cls(**data)
+        """Crea desde diccionario, filtrando campos desconocidos."""
+        import dataclasses
+
+        # Get valid field names for ToneProfile
+        valid_fields = {f.name for f in dataclasses.fields(cls)}
+
+        # Filter only valid fields
+        filtered_data = {k: v for k, v in data.items() if k in valid_fields}
+
+        # Handle datetime conversion
+        if 'last_updated' in filtered_data and isinstance(filtered_data['last_updated'], str):
+            filtered_data['last_updated'] = datetime.fromisoformat(filtered_data['last_updated'])
+
+        # Map alternative field names from different schema versions
+        if 'emoji_style' in data and 'favorite_emojis' not in filtered_data:
+            filtered_data['favorite_emojis'] = data['emoji_style']
+        if 'avg_message_length' in data and 'average_message_length' not in filtered_data:
+            filtered_data['average_message_length'] = data['avg_message_length']
+        if 'frequent_words' in data and 'filler_words' not in filtered_data:
+            filtered_data['filler_words'] = data['frequent_words']
+        if 'topics' in data and 'main_topics' not in filtered_data:
+            filtered_data['main_topics'] = data['topics']
+        if 'generated_at' in data and 'last_updated' not in filtered_data:
+            try:
+                filtered_data['last_updated'] = datetime.fromisoformat(data['generated_at'])
+            except:
+                pass
+
+        return cls(**filtered_data)
 
 
 class ToneAnalyzer:
