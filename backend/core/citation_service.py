@@ -28,11 +28,10 @@ logger = logging.getLogger(__name__)
 
 
 def _try_load_chunks_from_db(creator_id: str) -> Optional[List[dict]]:
-    """Intenta cargar chunks desde PostgreSQL usando llamada sincrónica."""
+    """Intenta cargar chunks desde PostgreSQL usando RAGDocument (tabla con 108 docs)."""
     try:
-        # Direct synchronous DB call (SQLAlchemy is sync anyway)
         from api.database import SessionLocal
-        from api.models import ContentChunk
+        from api.models import RAGDocument, Creator
 
         if SessionLocal is None:
             logger.debug("No database configured")
@@ -40,38 +39,46 @@ def _try_load_chunks_from_db(creator_id: str) -> Optional[List[dict]]:
 
         db = SessionLocal()
         try:
-            chunks = db.query(ContentChunk).filter(
-                ContentChunk.creator_id == creator_id
+            # RAGDocument usa creator_id como UUID (FK), necesitamos buscar el creator primero
+            creator = db.query(Creator).filter(Creator.name == creator_id).first()
+            if not creator:
+                logger.warning(f"Creator {creator_id} not found in DB")
+                return None
+
+            # Buscar en rag_documents usando el UUID del creator
+            chunks = db.query(RAGDocument).filter(
+                RAGDocument.creator_id == creator.id
             ).all()
 
             if not chunks:
+                logger.info(f"No RAG documents found for {creator_id}")
                 return None
 
             result = []
             for c in chunks:
                 result.append({
-                    'id': c.chunk_id,
-                    'chunk_id': c.chunk_id,
-                    'creator_id': c.creator_id,
+                    'id': c.doc_id,
+                    'chunk_id': c.doc_id,
+                    'creator_id': creator_id,  # Usar el nombre, no el UUID
                     'source_type': c.source_type,
-                    'source_id': c.source_id,
+                    'source_id': c.content_type or '',  # Mapear content_type → source_id
                     'source_url': c.source_url,
                     'title': c.title,
                     'content': c.content,
-                    'chunk_index': c.chunk_index,
-                    'total_chunks': c.total_chunks,
-                    'metadata': {},
+                    'chunk_index': c.chunk_index or 0,
+                    'total_chunks': c.total_chunks or 1,
+                    'metadata': c.extra_data or {},
                     'created_at': c.created_at.isoformat() if c.created_at else None
                 })
 
             if result:
-                logger.info(f"Loaded {len(result)} chunks from PostgreSQL for {creator_id}")
+                logger.info(f"Loaded {len(result)} RAG documents from PostgreSQL for {creator_id}")
             return result
         finally:
             db.close()
 
     except Exception as e:
-        logger.warning(f"DB read failed for chunks, will try JSON: {e}")
+        logger.warning(f"DB read failed for RAG documents, will try JSON: {e}")
     return None
 
 
