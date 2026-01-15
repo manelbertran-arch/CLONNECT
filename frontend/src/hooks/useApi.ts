@@ -945,13 +945,15 @@ export function useCopilotPending(creatorId: string = getCreatorId()) {
 
 /**
  * Hook to fetch copilot status
+ * Polling is reduced to avoid race conditions with toggle mutations
  */
 export function useCopilotStatus(creatorId: string = getCreatorId()) {
   return useQuery({
     queryKey: apiKeys.copilotStatus(creatorId),
     queryFn: () => getCopilotStatus(creatorId),
-    refetchInterval: 10000,
-    staleTime: 5000,
+    refetchInterval: 30000, // Reduced from 10s to 30s to avoid race conditions
+    staleTime: 15000, // Keep data fresh for 15s
+    refetchOnWindowFocus: false, // Prevent refetch on window focus
   });
 }
 
