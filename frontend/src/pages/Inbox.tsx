@@ -281,7 +281,11 @@ export default function Inbox() {
   const showMobileChat = selectedId !== null;
 
   return (
-    <div className="h-[calc(100vh-6rem)] md:h-[calc(100vh-8rem)] flex gap-0 md:gap-6">
+    <div className="flex flex-col h-[calc(100vh-6rem)] md:h-[calc(100vh-8rem)] gap-4">
+      {/* Page Color Accent - Violet/Purple for Inbox */}
+      <div className="h-1 w-full bg-gradient-to-r from-violet-500 via-purple-500 to-fuchsia-500 rounded-full opacity-80 shrink-0" />
+
+      <div className="flex-1 flex gap-0 md:gap-6 min-h-0">
       {/* Conversation List - hidden on mobile when chat is open */}
       <div className={cn(
         "w-full md:w-80 flex flex-col",
@@ -580,6 +584,7 @@ export default function Inbox() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+      </div>
     </div>
   );
 }

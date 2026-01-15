@@ -192,11 +192,14 @@ export default function Products() {
 
   return (
     <div className="space-y-6">
+      {/* Page Color Accent - Orange/Amber for Products */}
+      <div className="h-1 w-full bg-gradient-to-r from-orange-500 via-amber-500 to-yellow-500 rounded-full opacity-80" />
+
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-xl sm:text-2xl font-bold tracking-tight">Productos</h1>
-          <p className="text-muted-foreground text-sm">Gestiona tus productos digitales y rastrea ventas</p>
+          <h1 className="text-xl sm:text-2xl font-semibold tracking-tight">Productos</h1>
+          <p className="text-muted-foreground text-sm">Tus productos digitales</p>
         </div>
         <Button onClick={handleOpenAdd} className="w-full sm:w-auto">
           <Plus className="w-4 h-4 mr-2" />

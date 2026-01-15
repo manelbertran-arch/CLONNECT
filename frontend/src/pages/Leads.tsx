@@ -391,6 +391,9 @@ export default function Leads() {
 
   return (
     <div className="space-y-4">
+      {/* Page Color Accent - Rose/Red gradient for Leads/Sales */}
+      <div className="h-1 w-full bg-gradient-to-r from-rose-500 via-red-500 to-orange-500 rounded-full opacity-80" />
+
       {/* Header - Minimal */}
       <div className="flex items-center justify-between">
         <div>

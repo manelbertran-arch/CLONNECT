@@ -171,14 +171,17 @@ export default function Dashboard() {
   }
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-6">
+      {/* Page Color Accent - Blue/Indigo for Dashboard */}
+      <div className="h-1 w-full bg-gradient-to-r from-blue-500 via-indigo-500 to-blue-600 rounded-full opacity-80" />
+
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">
-            {greeting}, <span className="gradient-text">{creatorName}</span>
+          <h1 className="text-xl sm:text-2xl font-semibold tracking-tight">
+            {greeting}, <span className="text-blue-400">{creatorName}</span>
           </h1>
-          <p className="text-muted-foreground mt-1 text-sm sm:text-base">Esto es lo que está pasando con tu negocio hoy.</p>
+          <p className="text-muted-foreground text-sm">Tu negocio hoy</p>
         </div>
         <Button
           variant={isActive ? "default" : "outline"}
