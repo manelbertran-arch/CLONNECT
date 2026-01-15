@@ -987,12 +987,36 @@ export function useDiscardCopilotResponse(creatorId: string = getCreatorId()) {
 
 /**
  * Hook to toggle copilot mode
+ * Uses optimistic update to prevent race conditions with polling
  */
 export function useToggleCopilotMode(creatorId: string = getCreatorId()) {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (enabled: boolean) => toggleCopilotMode(creatorId, enabled),
-    onSuccess: () => {
+    // Optimistic update: change state immediately before server responds
+    onMutate: async (enabled: boolean) => {
+      // Cancel any outgoing refetches to prevent race conditions
+      await queryClient.cancelQueries({ queryKey: apiKeys.copilotStatus(creatorId) });
+
+      // Snapshot previous value for rollback
+      const previousStatus = queryClient.getQueryData(apiKeys.copilotStatus(creatorId));
+
+      // Optimistically update the cache
+      queryClient.setQueryData(apiKeys.copilotStatus(creatorId), (old: any) => ({
+        ...old,
+        copilot_enabled: enabled,
+      }));
+
+      return { previousStatus };
+    },
+    onError: (err, enabled, context) => {
+      // Rollback to previous value on error
+      if (context?.previousStatus) {
+        queryClient.setQueryData(apiKeys.copilotStatus(creatorId), context.previousStatus);
+      }
+    },
+    onSettled: () => {
+      // Always refetch after mutation to ensure sync with server
       queryClient.invalidateQueries({ queryKey: apiKeys.copilotStatus(creatorId) });
     },
   });

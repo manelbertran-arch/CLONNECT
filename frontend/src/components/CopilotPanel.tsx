@@ -192,10 +192,6 @@ export default function CopilotPanel() {
   const toggleMutation = useToggleCopilotMode();
   const approveAllMutation = useApproveAllCopilot();
 
-  // Debug logging
-  console.log("[CopilotPanel] Render - statusData:", statusData);
-  console.log("[CopilotPanel] Render - toggleMutation.isPending:", toggleMutation.isPending);
-
   const pendingResponses = pendingData?.pending_responses || [];
   const pendingCount = pendingData?.pending_count || 0;
   const copilotEnabled = statusData?.copilot_enabled ?? true;
@@ -240,11 +236,11 @@ export default function CopilotPanel() {
   };
 
   const handleToggle = (enabled: boolean) => {
-    console.log("[CopilotPanel] handleToggle called with:", enabled);
-    console.log("[CopilotPanel] toggleMutation:", toggleMutation);
+    // Prevent multiple clicks while mutation is pending
+    if (toggleMutation.isPending) return;
+
     toggleMutation.mutate(enabled, {
       onSuccess: () => {
-        console.log("[CopilotPanel] Toggle success!");
         toast({
           title: enabled ? "Copilot mode enabled" : "Autopilot mode enabled",
           description: enabled
@@ -253,7 +249,6 @@ export default function CopilotPanel() {
         });
       },
       onError: (error) => {
-        console.error("[CopilotPanel] Toggle error:", error);
         toast({
           title: "Error toggling mode",
           description: error.message,
@@ -305,10 +300,7 @@ export default function CopilotPanel() {
             </span>
             <Switch
               checked={copilotEnabled}
-              onCheckedChange={(checked) => {
-                console.log("[CopilotPanel] Switch onCheckedChange:", checked);
-                handleToggle(checked);
-              }}
+              onCheckedChange={handleToggle}
               disabled={toggleMutation.isPending}
             />
           </div>
