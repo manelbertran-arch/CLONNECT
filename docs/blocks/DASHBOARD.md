@@ -1,28 +1,38 @@
 # BLOQUE: DASHBOARD
 Estado: ✅ CONGELADO
-Última verificación: 2026-01-15
+Última verificación: 2026-01-15 15:30 UTC
+Verificado por: Manel
 
 ## Qué hace
-Panel de control del creator: ve leads, mensajes, productos, analytics.
+Frontend React para que creators gestionen su bot, vean leads,
+aprueben mensajes (Copilot), y configuren productos.
 
-## Archivos principales
-- backend/api/routers/leads.py - CRUD leads
-- backend/api/routers/messages.py - CRUD mensajes
-- backend/api/routers/products.py - CRUD productos
-- Frontend: pages/dashboard/
+## Ubicación
+- Repo: creator-s-connect-hub
+- URL: https://frontend-wine-ten-57.vercel.app
+- Deploy: Vercel
 
-## Funcionalidades
-- ✅ Lista de leads (nombre, status, score)
-- ✅ Ver conversación de cada lead
-- ✅ Filtrar por status (hot/warm/cold)
-- ✅ Ver productos configurados
-- ✅ Configuración de bot (on/off, copilot)
+## Funcionalidades verificadas ✅
+- ✅ Login de creator
+- ✅ Ver lista de leads (78 leads)
+- ✅ Ver conversaciones
+- ✅ Toggle bot activo/inactivo
+- ✅ Toggle copilot mode
+- ✅ Aprobar/rechazar mensajes pendientes
+- ✅ Ver productos con precios correctos
+- ✅ Interfaz en español
 
-## Endpoints principales
-- GET /api/leads?creator_id=X
-- GET /api/messages?lead_id=X
-- GET /api/products?creator_id=X
-- PATCH /api/leads/{id}/status
+## Endpoints que consume
+- GET /dm/leads/{creator_id}
+- GET /creator/{creator_id}/products
+- GET /copilot/{creator_id}/pending
+- POST /copilot/{creator_id}/approve/{id}
+- GET /bot/{creator_id}/status
+- PUT /bot/{creator_id}/toggle
+
+## Configuración
+- VITE_API_URL=https://web-production-9f69.up.railway.app
 
 ## ⚠️ NO TOCAR SIN MOTIVO
-Este bloque funciona. Cualquier cambio requiere re-testear todo.
+El Dashboard funciona. Cambios en frontend requieren
+verificar que no rompen la comunicación con el backend.

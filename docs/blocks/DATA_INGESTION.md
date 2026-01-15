@@ -1,38 +1,41 @@
 # BLOQUE: DATA_INGESTION
-Estado: 🔨 EN TRABAJO (80%)
-Última verificación: 2026-01-15
+Estado: ✅ CONGELADO (para fitpack_global)
+Última verificación: 2026-01-15 15:30 UTC
 
 ## Qué hace
-Pipeline que "absorbe" datos del creator: scraping Instagram,
-scraping web, importar DMs, detectar productos, generar ToneProfile.
+Pipeline que indexa contenido del creator en RAG para que el bot
+pueda responder con información real.
+
+## Estado actual - fitpack_global
+- **RAG Documents**: 108 documentos indexados ✅
+- **Content Chunks**: 53 chunks en DB ✅
+- **Instagram Posts**: 51 posts indexados ✅
+- **Fuente principal**: stefanobonanno.com (10 páginas)
 
 ## Archivos principales
 - backend/ingestion/v2/pipeline.py - Pipeline principal
-- backend/ingestion/instagram_scraper.py - Scraper IG
-- backend/ingestion/website_scraper.py - Scraper web
-- backend/ingestion/v2/product_detector.py - Detectar productos
-- backend/core/tone_service.py - Generar ToneProfile
+- backend/core/citation_service.py - Búsqueda RAG
+- backend/api/routers/content.py - Endpoints de contenido
 
 ## Subcomponentes
-1. Instagram Scraper → Posts, bio, followers
-2. Website Scraper → Páginas web a chunks
-3. DM Importer → Historial de conversaciones
-4. Product Detector → Productos y precios
-5. Tone Analyzer → Personalidad del creator
-6. RAG Indexer → Embeddings para búsqueda
+1. **Website Scraper** → Páginas web a chunks ✅
+2. **RAG Indexer** → Embeddings para búsqueda ✅
+3. **Product Detector** → Productos y precios ✅
 
-## Qué funciona ✅
-- Scraping web (5 páginas)
-- Product detection (determinístico, no LLM)
-- RAG indexing
-- ToneProfile generation
+## Endpoints verificados
+- GET /content/search?creator_id=X&query=Y → Funciona ✅
+- POST /content/add → Funciona ✅
+- GET /citations/{creator_id}/stats → Funciona ✅
 
-## Qué falta ⚠️
-- Instagram scraping limitado por API
-- A veces genera datos fake (bug en onboarding.py - YA ARREGLADO)
+## Lo que funciona ✅
+- Búsqueda RAG devuelve contenido real
+- Bot usa contenido de stefanobonanno.com
+- Anti-alucinación escala si no hay RAG match
 
-## Output esperado
-- 20-50 posts de Instagram
-- 50+ chunks de website en RAG
-- 4+ productos detectados
-- ToneProfile con confianza > 80%
+## Problemas conocidos
+- `/ingestion/website` hace timeout con muchas páginas
+- Solución: usar `/content/add` para chunks individuales
+
+## ⚠️ NO RE-INDEXAR SIN MOTIVO
+El RAG de fitpack_global tiene 108 docs funcionando.
+Re-indexar podría romper el contenido actual.

@@ -1,25 +1,61 @@
 # TRABAJO ACTIVO
 
-## Estado: ✅ COMPLETADO
+## Estado: ✅ SISTEMA ESTABLE
 
-## Tarea actual
-Implementar metodología de desarrollo con sistema de contexto de trabajo.
+## Última sesión: 2026-01-15 15:30 UTC
 
-## Último estado
-- Fecha: 2026-01-15
-- Qué se hizo:
-  - Estructura de documentación en /docs/
-  - Documentación de 8 bloques funcionales
-  - Sistema de checkpoints (checkpoint.sh, rollback.sh, list_checkpoints.sh)
-  - Sistema de contexto de trabajo (WORK_CONTEXT_TEMPLATE.md)
-  - Script de verificación de integraciones (verify_integration.py)
-- Qué falta:
-  - Fase 3: Tests de regresión por bloque
-  - Fase 4: Workflow de inicio/fin de sesión
-- Tests que pasan: N/A (infraestructura)
-- Tests que fallan: N/A
+### Qué se verificó hoy
+- ✅ Bot Instagram responde (DM real)
+- ✅ Bot Telegram responde (precio 77€)
+- ✅ Copilot envía mensajes Telegram
+- ✅ RAG funciona (108 docs)
+- ✅ Dashboard toggle copilot OK
 
-## Próximos pasos
-1. Implementar tests de regresión para bloques congelados
-2. Crear workflow de inicio/fin de sesión
-3. Actualizar CLAUDE.md con nuevas reglas
+### Fixes aplicados
+1. **precio-coaching-fix**: Fast-path precios sin LLM
+2. **telegram-creator-fix**: creator_id correcto
+3. **copilot-telegram-fix**: Usa TelegramBotRegistry
+
+### Checkpoints disponibles
+- `copilot-telegram-fix` ← ACTUAL
+- `telegram-creator-fix`
+- `instagram-verificado-ok`
+- `precio-coaching-fix`
+
+---
+
+## BLOQUES CONGELADOS (NO TOCAR)
+
+| Bloque | Verificado |
+|--------|-----------|
+| BOT_CORE | ✅ 15 ene |
+| COPILOT | ✅ 15 ene |
+| DASHBOARD | ✅ 15 ene |
+| DATA_INGESTION | ✅ 15 ene |
+
+---
+
+## Pendientes (no críticos)
+
+| Tarea | Prioridad |
+|-------|-----------|
+| Payment links en productos | Media |
+| Google Calendar OAuth | Baja |
+| WhatsApp verificar | Baja |
+
+---
+
+## Para próxima sesión
+
+Antes de empezar cualquier tarea:
+1. Leer `docs/CURRENT_STATE.md`
+2. Leer `docs/blocks/` del bloque a tocar
+3. Ejecutar `python scripts/verify_integration.py`
+4. Si todo OK → Proceder con tarea
+5. Si falla → Investigar primero
+
+### Metodología
+1. UN problema a la vez
+2. Verificar que funciona ANTES de tocar
+3. Checkpoint después de cada fix
+4. Manel confirma manualmente

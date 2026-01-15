@@ -1,84 +1,114 @@
 # CLONNECT - Estado Actual del Sistema
 
-**Fecha de verificacion:** 2026-01-15
-**Ambiente:** Produccion (Railway)
-**URL Base:** https://web-production-9f69.up.railway.app
+**Fecha de verificación:** 2026-01-15 15:30 UTC
+**Verificado por:** Manel (DM real Instagram + Telegram)
+**Ambiente:** Producción (Railway)
 
 ---
 
-## Estado General
-
-| Componente | Estado | Detalles |
-|------------|--------|----------|
-| Backend API | Healthy | FastAPI funcionando |
-| Base de Datos | OK | PostgreSQL conectado |
-| LLM (OpenAI) | OK | Latencia ~382ms |
-| RAG System | OK | 108 documentos indexados |
-| Citations | OK | 53 chunks + Instagram posts |
+## URLs de Producción
+- **Backend**: https://web-production-9f69.up.railway.app
+- **Frontend**: https://frontend-wine-ten-57.vercel.app
 
 ---
 
-## Endpoints Verificados
+## BLOQUES - Estado
 
-### Core API
-| Endpoint | Metodo | Estado | Notas |
-|----------|--------|--------|-------|
-| `/health` | GET | OK | Health check completo |
-| `/dm/process` | POST | OK | Bot responde con contenido RAG |
-| `/dm/leads/{creator_id}` | GET | OK | 22 leads para fitpack_global |
-| `/creator/{creator_id}/products` | GET | OK | 14 productos |
-| `/content/search` | GET | OK | Busqueda RAG funcional |
-| `/citations/search` | POST | OK | Busqueda de citas |
-| `/copilot/{creator_id}/status` | GET | OK | Modo copilot disponible |
-| `/bot/{creator_id}/status` | GET | OK | Estado del bot |
+### ✅ CONGELADOS (NO TOCAR)
+| Bloque | Estado | Verificación |
+|--------|--------|--------------|
+| BOT_CORE | ✅ Funciona | DM real Instagram + Telegram |
+| COPILOT | ✅ Funciona | Envío mensaje desde Dashboard |
+| DASHBOARD | ✅ Funciona | Toggle copilot, ver leads |
+| DATA_INGESTION | ✅ Funciona | 108 docs RAG indexados |
 
-### Webhooks
-| Plataforma | Estado | Notas |
-|------------|--------|-------|
-| Instagram | OK | Webhook verificado |
-| Telegram | Pendiente | No verificado |
-| WhatsApp | Pendiente | No verificado |
+### 🔨 EN TRABAJO
+| Bloque | Estado | Pendiente |
+|--------|--------|-----------|
+| INTEGRATIONS | 40% | Payment links, Google Meet |
+| AUTH | Básico | Solo API keys |
+| ONBOARDING | Manual | Script semi-automático |
+| NURTURING | 60% | Secuencias básicas |
 
 ---
 
-## RAG y Contenido
+## CHECKLIST DE ESTABILIZACIÓN
 
-### Estadisticas
-- **RAG Documents:** 108 documentos persistidos
-- **Content Chunks:** 53 chunks en DB
-- **Instagram Posts:** 51 posts indexados
-- **Fuente principal:** stefanobonanno.com (10 paginas)
+### FASE 2: Componentes Core (8/8 ✅)
+| # | Componente | Estado |
+|---|------------|--------|
+| 2.1 | Backend Health | ✅ OK |
+| 2.2 | API Leads | ✅ 78 leads |
+| 2.3 | API Products | ✅ 4 productos |
+| 2.4 | Webhook Instagram | ✅ Bot responde OK |
+| 2.5 | RAG Search | ✅ 108 docs |
+| 2.6 | Bot Response | ✅ 77€ correcto |
+| 2.7 | Copilot Mode | ✅ Genera y envía |
+| 2.8 | Config Bot | ✅ Toggle funciona |
 
-### Busqueda
-- Busqueda por keywords funcional
-- Relevance threshold: 0.25 - 0.4
-- El bot usa contenido real en respuestas
-
----
-
-## Creadores Activos
-
-| Creator ID | Leads | Products | RAG Docs | Estado |
-|------------|-------|----------|----------|--------|
-| fitpack_global | 22 | 14 | 108 | Activo |
-
----
-
-## Problemas Conocidos
-
-1. **Timeout en ingestion:** El endpoint `/ingestion/website` hace timeout con muchas paginas. Solucion: usar `/content/add` para chunks individuales.
-
-2. **Cache de citations:** El cache interno no se actualiza automaticamente. Requiere restart o llamada a `reload_creator_index()`.
+### FASE 5: Problemas Reportados
+| # | Problema | Estado |
+|---|----------|--------|
+| 5.1 | Bot no responde DMs | ✅ RESUELTO |
+| 5.2 | Scraping datos fake | ✅ NO APLICA |
+| 5.3 | Payment links vacíos | ⚠️ PENDIENTE |
+| 5.4 | Google Meet | ⚠️ PENDIENTE |
 
 ---
 
-## Proximos Pasos
+## Productos en DB (fitpack_global)
 
-- [ ] Verificar webhooks de Telegram y WhatsApp
-- [ ] Revisar integracion con frontend
-- [ ] Optimizar umbrales de relevancia
-- [ ] Documentar flujos de usuario
+| Producto | Precio | Payment Link |
+|----------|--------|--------------|
+| Coaching 1:1 | 77€ | ⚠️ Vacío |
+| Taller Respira, Siente y Conecta | 75€ | ⚠️ Vacío |
+| Challenge 11 Días | 22€ | ⚠️ Vacío |
+| Sesión de Descubrimiento | GRATIS | N/A |
 
 ---
 
-*Ultima actualizacion: 2026-01-15 09:00 UTC*
+## Conexiones (fitpack_global)
+
+| Servicio | Estado |
+|----------|--------|
+| Instagram | ✅ Conectado |
+| Telegram | ✅ Conectado (via bots.json) |
+| Google | ❌ No conectado |
+| Stripe | ❌ No conectado |
+| Calendly | ❌ No conectado |
+
+---
+
+## QUÉ NO TOCAR
+
+### Archivos críticos (congelados)
+- `backend/core/dm_agent.py` - Core del bot
+- `backend/core/copilot_service.py` - Lógica copilot
+- `backend/core/citation_service.py` - RAG search
+- `backend/core/telegram_registry.py` - Registry bots
+- `backend/api/routers/instagram.py` - Webhook IG
+
+### Datos críticos
+- `data/telegram/bots.json` - Tokens de Telegram
+- DB: tabla `rag_documents` - 108 docs indexados
+- DB: tabla `products` - Precios correctos
+
+---
+
+## Pendientes Inmediatos (No críticos para bot)
+
+1. **Payment links**: Añadir links de pago a productos
+2. **Google Calendar**: Conectar OAuth
+3. **WhatsApp**: No verificado
+
+---
+
+## Últimos Fixes (15 Ene 2026)
+
+1. **precio-coaching-fix**: Fast-path para preguntas de precio
+2. **telegram-creator-fix**: Bot usa fitpack_global
+3. **copilot-telegram-fix**: Envío usa TelegramBotRegistry
+
+---
+
+*Última actualización: 2026-01-15 15:30 UTC*
