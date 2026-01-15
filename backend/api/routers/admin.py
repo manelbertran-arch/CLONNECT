@@ -880,3 +880,78 @@ async def rescore_leads(creator_id: str):
             "status": "error",
             "error": str(e)
         }
+
+
+@router.delete("/cleanup-test-leads/{creator_id}")
+async def cleanup_test_leads(creator_id: str):
+    """
+    Eliminar leads de test y leads sin username.
+
+    Elimina:
+    - Leads sin username (NULL o vacío)
+    - Leads con username que empieza con 'test'
+    - Leads con platform_user_id que empieza con 'test'
+    """
+    try:
+        from api.database import SessionLocal
+        from api.models import Creator, Lead, Message
+        from sqlalchemy import or_, text
+
+        session = SessionLocal()
+        try:
+            # Get creator
+            creator = session.query(Creator).filter_by(name=creator_id).first()
+            if not creator:
+                return {"status": "error", "error": f"Creator not found: {creator_id}"}
+
+            # Find test leads
+            test_leads = session.query(Lead).filter(
+                Lead.creator_id == creator.id,
+                or_(
+                    Lead.username == None,
+                    Lead.username == "",
+                    Lead.username.like("test%"),
+                    Lead.platform_user_id.like("test%")
+                )
+            ).all()
+
+            lead_ids = [l.id for l in test_leads]
+
+            if not lead_ids:
+                return {
+                    "status": "success",
+                    "message": "No test leads found",
+                    "deleted_leads": 0,
+                    "deleted_messages": 0
+                }
+
+            # Delete messages first (foreign key)
+            deleted_messages = session.query(Message).filter(
+                Message.lead_id.in_(lead_ids)
+            ).delete(synchronize_session=False)
+
+            # Delete leads
+            deleted_leads = session.query(Lead).filter(
+                Lead.id.in_(lead_ids)
+            ).delete(synchronize_session=False)
+
+            session.commit()
+
+            logger.info(f"[Cleanup] Deleted {deleted_leads} test leads and {deleted_messages} messages for {creator_id}")
+
+            return {
+                "status": "success",
+                "creator_id": creator_id,
+                "deleted_leads": deleted_leads,
+                "deleted_messages": deleted_messages
+            }
+
+        finally:
+            session.close()
+
+    except Exception as e:
+        logger.error(f"Cleanup failed for {creator_id}: {e}")
+        return {
+            "status": "error",
+            "error": str(e)
+        }
