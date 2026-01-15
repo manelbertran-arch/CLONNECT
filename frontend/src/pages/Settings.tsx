@@ -727,25 +727,25 @@ export default function Settings() {
     <div className="space-y-6 max-w-4xl">
       {/* Header */}
       <div>
-        <h1 className="text-xl font-semibold tracking-tight">Ajustes</h1>
-        <p className="text-muted-foreground text-sm">Configuración</p>
+        <h1 className="text-2xl font-semibold tracking-tight">Ajustes</h1>
+        <p className="text-sm text-muted-foreground">Configuración del bot</p>
       </div>
 
       {/* Tabs */}
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
         <div className="overflow-x-auto -mx-4 px-4 sm:mx-0 sm:px-0">
-          <TabsList className="bg-secondary p-1 rounded-xl w-max sm:w-auto">
-            <TabsTrigger value="personality" className="rounded-lg data-[state=active]:bg-card text-xs sm:text-sm">
+          <TabsList className="bg-card border border-border/50 p-1 rounded-xl w-max sm:w-auto">
+            <TabsTrigger value="personality" className="rounded-lg data-[state=active]:bg-muted text-xs sm:text-sm">
               <Bot className="w-4 h-4 mr-1 sm:mr-2" />
               <span className="hidden sm:inline">Personalidad</span>
               <span className="sm:hidden">Bot</span>
             </TabsTrigger>
-            <TabsTrigger value="connections" className="rounded-lg data-[state=active]:bg-card text-xs sm:text-sm">
+            <TabsTrigger value="connections" className="rounded-lg data-[state=active]:bg-muted text-xs sm:text-sm">
               <Link2 className="w-4 h-4 mr-1 sm:mr-2" />
               <span className="hidden sm:inline">Conexiones</span>
               <span className="sm:hidden">Links</span>
             </TabsTrigger>
-            <TabsTrigger value="knowledge" className="rounded-lg data-[state=active]:bg-card text-xs sm:text-sm">
+            <TabsTrigger value="knowledge" className="rounded-lg data-[state=active]:bg-muted text-xs sm:text-sm">
               <BookOpen className="w-4 h-4 mr-1 sm:mr-2" />
               <span className="hidden sm:inline">Conocimiento</span>
               <span className="sm:hidden">KB</span>
@@ -756,21 +756,21 @@ export default function Settings() {
         {/* Personality Tab */}
         <TabsContent value="personality" className="space-y-6 animate-fade-in">
           {/* Bot Name */}
-          <div className="metric-card">
-            <Label htmlFor="botName" className="text-base font-semibold mb-3 block">Nombre del bot</Label>
+          <div className="p-5 rounded-2xl bg-card border border-border/50">
+            <Label htmlFor="botName" className="text-sm font-medium mb-3 block">Nombre del bot</Label>
             <Input
               id="botName"
               value={botName}
               onChange={(e) => setBotName(e.target.value)}
-              className="bg-secondary border-0"
+              className="bg-muted/30 border-border/30"
               placeholder="Tu nombre o marca"
             />
           </div>
 
           {/* Presets - 4 opciones */}
-          <div className="metric-card">
-            <h3 className="text-lg font-semibold mb-2">Estilo de comunicación</h3>
-            <p className="text-muted-foreground text-sm mb-4">Elige un estilo base o personaliza con IA</p>
+          <div className="p-5 rounded-2xl bg-card border border-border/50">
+            <h3 className="text-sm font-medium mb-1">Estilo de comunicación</h3>
+            <p className="text-xs text-muted-foreground mb-4">Elige un estilo base</p>
 
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
               {personalityPresets.map((preset) => (
@@ -778,16 +778,16 @@ export default function Settings() {
                   key={preset.id}
                   onClick={() => handlePresetSelect(preset.id)}
                   className={cn(
-                    "p-4 rounded-xl border-2 text-center transition-all hover:scale-105",
+                    "p-4 rounded-xl border text-center transition-all",
                     selectedPreset === preset.id
-                      ? "border-primary bg-primary/10 shadow-lg shadow-primary/20"
-                      : "border-border/50 bg-secondary/30 hover:border-primary/30"
+                      ? "border-primary bg-primary/5"
+                      : "border-border/30 hover:border-border"
                   )}
                 >
-                  <span className="text-2xl block mb-2">{preset.emoji}</span>
-                  <span className="text-sm font-medium">{preset.label}</span>
+                  <span className="text-xl block mb-2">{preset.emoji}</span>
+                  <span className="text-xs font-medium">{preset.label}</span>
                   {selectedPreset === preset.id && (
-                    <Check className="w-4 h-4 text-primary mx-auto mt-2" />
+                    <Check className="w-3.5 h-3.5 text-primary mx-auto mt-2" />
                   )}
                 </button>
               ))}

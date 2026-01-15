@@ -193,179 +193,123 @@ export default function Products() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+      <div className="flex items-start justify-between">
         <div>
-          <h1 className="text-xl font-semibold tracking-tight">Productos</h1>
-          <p className="text-muted-foreground text-sm">Tus productos digitales</p>
+          <h1 className="text-2xl font-semibold tracking-tight">Productos</h1>
+          <p className="text-sm text-muted-foreground">Tus productos digitales</p>
         </div>
-        <Button onClick={handleOpenAdd} className="w-full sm:w-auto">
+        <Button onClick={handleOpenAdd} size="sm" className="h-9 px-4">
           <Plus className="w-4 h-4 mr-2" />
-          Añadir Producto
+          Nuevo
         </Button>
       </div>
 
       {/* Stats Cards */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <div className="metric-card">
-          <div className="flex items-center gap-3 mb-2">
-            <div className="w-10 h-10 rounded-lg bg-success/10 flex items-center justify-center">
-              <DollarSign className="w-5 h-5 text-success" />
-            </div>
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="p-5 rounded-2xl bg-gradient-to-br from-emerald-500/10 via-emerald-500/5 to-transparent border border-emerald-500/20">
+          <div className="flex items-center gap-2 mb-2">
+            <DollarSign className="w-4 h-4 text-emerald-500" />
+            <span className="text-xs font-medium text-emerald-500/80 uppercase tracking-wide">Ingresos</span>
           </div>
-          <p className="text-3xl font-bold text-success">€{totalRevenue.toFixed(0)}</p>
-          <p className="text-sm text-muted-foreground">Ingresos (30d)</p>
+          <p className="text-2xl font-semibold">€{totalRevenue.toFixed(0)}</p>
         </div>
 
-        <div className="metric-card">
-          <div className="flex items-center gap-3 mb-2">
-            <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
-              <ShoppingCart className="w-5 h-5 text-primary" />
-            </div>
+        <div className="p-5 rounded-2xl bg-card border border-border/50">
+          <div className="flex items-center gap-2 mb-2">
+            <ShoppingCart className="w-4 h-4 text-muted-foreground" />
+            <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Ventas</span>
           </div>
-          <p className="text-3xl font-bold">{totalSales}</p>
-          <p className="text-sm text-muted-foreground">Ventas</p>
+          <p className="text-2xl font-semibold">{totalSales}</p>
         </div>
 
-        <div className="metric-card">
-          <div className="flex items-center gap-3 mb-2">
-            <div className="w-10 h-10 rounded-lg bg-accent/10 flex items-center justify-center">
-              <Package className="w-5 h-5 text-accent" />
-            </div>
+        <div className="p-5 rounded-2xl bg-card border border-border/50">
+          <div className="flex items-center gap-2 mb-2">
+            <Package className="w-4 h-4 text-muted-foreground" />
+            <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Productos</span>
           </div>
-          <p className="text-3xl font-bold">{products.length}</p>
-          <p className="text-sm text-muted-foreground">Productos</p>
+          <p className="text-2xl font-semibold">{products.length}</p>
         </div>
 
-        <div className="metric-card">
-          <div className="flex items-center gap-3 mb-2">
-            <div className="w-10 h-10 rounded-lg bg-purple-500/10 flex items-center justify-center">
-              <TrendingUp className="w-5 h-5 text-purple-500" />
-            </div>
+        <div className="p-5 rounded-2xl bg-card border border-border/50">
+          <div className="flex items-center gap-2 mb-2">
+            <TrendingUp className="w-4 h-4 text-muted-foreground" />
+            <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Ticket Medio</span>
           </div>
-          <p className="text-3xl font-bold">€{avgOrderValue.toFixed(0)}</p>
-          <p className="text-sm text-muted-foreground">Ticket Medio</p>
+          <p className="text-2xl font-semibold">€{avgOrderValue.toFixed(0)}</p>
         </div>
       </div>
 
       {/* Products List */}
-      <div className="metric-card">
-        <h3 className="font-semibold mb-4">Tus Productos</h3>
+      <div className="p-5 rounded-2xl bg-card border border-border/50">
+        <h3 className="text-sm font-medium mb-4">Catálogo</h3>
 
         {isLoading ? (
           <div className="flex justify-center py-8">
-            <Loader2 className="w-6 h-6 animate-spin text-primary" />
+            <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
           </div>
         ) : products.length === 0 ? (
           <div className="text-center py-12">
-            <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center mx-auto mb-4">
-              <ShoppingBag className="w-8 h-8 text-primary" />
+            <div className="w-12 h-12 rounded-full bg-muted/50 flex items-center justify-center mx-auto mb-4">
+              <ShoppingBag className="w-6 h-6 text-muted-foreground" />
             </div>
-            <h4 className="text-lg font-semibold mb-2">Aún no hay productos</h4>
-            <p className="text-muted-foreground text-sm max-w-sm mx-auto mb-4">
-              Añade tus productos digitales para rastrear ventas y que tu bot los recomiende
+            <p className="text-sm text-muted-foreground mb-4">
+              Aún no hay productos
             </p>
-            <Button onClick={handleOpenAdd}>
+            <Button onClick={handleOpenAdd} size="sm" variant="outline">
               <Plus className="w-4 h-4 mr-2" />
-              Añadir Tu Primer Producto
+              Añadir producto
             </Button>
           </div>
         ) : (
-          <div className="space-y-3">
+          <div className="space-y-2">
             {products.map((product) => {
               const TypeIcon = getTypeIcon(product.type || "other");
               return (
                 <div
                   key={product.id}
-                  className="p-4 rounded-lg border bg-card hover:bg-accent/5 transition-colors"
+                  className="group p-4 rounded-xl border border-border/30 bg-card hover:border-border transition-colors"
                 >
-                  <div className="flex justify-between items-start gap-4">
-                    <div className="flex gap-4 flex-1 min-w-0">
-                      {/* Icon */}
-                      <div className="w-12 h-12 rounded-lg bg-purple-500/20 flex items-center justify-center flex-shrink-0">
-                        <TypeIcon className="w-6 h-6 text-purple-400" />
-                      </div>
+                  <div className="flex items-center gap-4">
+                    {/* Icon */}
+                    <div className="w-10 h-10 rounded-lg bg-muted/50 flex items-center justify-center shrink-0">
+                      <TypeIcon className="w-5 h-5 text-muted-foreground" />
+                    </div>
 
-                      {/* Info */}
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2 flex-wrap">
-                          <h4 className="font-semibold">{product.name}</h4>
-                          <span className={cn(
-                            "text-xs px-2 py-0.5 rounded-full font-medium",
-                            product.is_active !== false
-                              ? "bg-success/10 text-success"
-                              : "bg-orange-500/10 text-orange-500"
-                          )}>
-                            {product.is_active !== false ? "Activo" : "Pausado"}
-                          </span>
-                        </div>
-                        <p className="text-sm text-muted-foreground">
-                          {getTypeEmoji(product.type || "other")} {product.type || "other"} • {formatPrice(product.price || 0, product.currency)}
-                        </p>
-                        {product.description && (
-                          <p className="text-sm text-muted-foreground mt-1 line-clamp-1">
-                            {product.description}
-                          </p>
-                        )}
+                    {/* Info */}
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2">
+                        <h4 className="font-medium text-sm">{product.name}</h4>
+                        <span className={cn(
+                          "text-[10px] px-1.5 py-0.5 rounded font-medium",
+                          product.is_active !== false
+                            ? "bg-emerald-500/10 text-emerald-500"
+                            : "bg-amber-500/10 text-amber-500"
+                        )}>
+                          {product.is_active !== false ? "Activo" : "Pausado"}
+                        </span>
                       </div>
+                      <p className="text-xs text-muted-foreground">
+                        {formatPrice(product.price || 0, product.currency)} · {product.sales_count || 0} ventas
+                      </p>
+                    </div>
+
+                    {/* Revenue */}
+                    <div className="text-right shrink-0">
+                      <p className="text-sm font-medium text-emerald-500">€{product.revenue || 0}</p>
                     </div>
 
                     {/* Actions */}
-                    <div className="flex items-center gap-1 flex-shrink-0">
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => handleCopyLink(product)}
-                        disabled={!product.purchase_url}
-                        title="Copy link"
-                      >
-                        {copiedId === product.id ? (
-                          <Check className="w-4 h-4 text-success" />
-                        ) : (
-                          <Copy className="w-4 h-4" />
-                        )}
+                    <div className="flex items-center gap-1 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">
+                      <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleCopyLink(product)} disabled={!product.purchase_url}>
+                        {copiedId === product.id ? <Check className="w-4 h-4 text-emerald-500" /> : <Copy className="w-4 h-4" />}
                       </Button>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => handleOpenEdit(product)}
-                        title="Edit"
-                      >
+                      <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleOpenEdit(product)}>
                         <Pencil className="w-4 h-4" />
                       </Button>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="text-destructive hover:text-destructive"
-                        onClick={() => handleDelete(product.id, product.name)}
-                        title="Delete"
-                      >
+                      <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:text-destructive" onClick={() => handleDelete(product.id, product.name)}>
                         <Trash2 className="w-4 h-4" />
                       </Button>
                     </div>
-                  </div>
-
-                  {/* Stats */}
-                  <div className="mt-4 pt-4 border-t flex gap-6 flex-wrap text-sm">
-                    <div>
-                      <span className="text-muted-foreground">Ventas:</span>
-                      <span className="ml-2 font-medium">{product.sales_count || 0}</span>
-                    </div>
-                    <div>
-                      <span className="text-muted-foreground">Ingresos:</span>
-                      <span className="ml-2 font-medium text-success">€{product.revenue || 0}</span>
-                    </div>
-                    {product.purchase_url && (
-                      <div>
-                        <a
-                          href={product.purchase_url}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="text-primary hover:underline flex items-center gap-1"
-                        >
-                          Ver enlace <ExternalLink className="w-3 h-3" />
-                        </a>
-                      </div>
-                    )}
                   </div>
                 </div>
               );
