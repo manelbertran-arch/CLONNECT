@@ -745,3 +745,138 @@ async def get_demo_status():
             "demo_status": "GET /admin/demo-status"
         }
     }
+
+
+@router.post("/rescore-leads/{creator_id}")
+async def rescore_leads(creator_id: str):
+    """
+    Re-calcular purchase_intent para todos los leads de un creator.
+
+    Analiza los mensajes de cada lead y calcula el score basado en:
+    - Preguntas de precio (+0.3)
+    - Intención de compra (+0.4)
+    - Solicitud de información (+0.2)
+    - Preguntas en general (+0.1)
+
+    Args:
+        creator_id: Nombre o UUID del creator
+
+    Returns:
+        Estadísticas de leads actualizados
+    """
+    try:
+        from api.database import SessionLocal
+        from api.models import Creator, Lead, Message
+        from sqlalchemy import text
+
+        session = SessionLocal()
+        try:
+            # Get creator
+            creator = session.query(Creator).filter_by(name=creator_id).first()
+            if not creator:
+                # Try UUID
+                creator = session.query(Creator).filter(
+                    text("id::text = :cid")
+                ).params(cid=creator_id).first()
+
+            if not creator:
+                return {"status": "error", "error": f"Creator not found: {creator_id}"}
+
+            # Get all leads for this creator
+            leads = session.query(Lead).filter_by(creator_id=creator.id).all()
+
+            stats = {
+                "total_leads": len(leads),
+                "leads_updated": 0,
+                "hot": 0,
+                "active": 0,
+                "new": 0,
+                "details": []
+            }
+
+            for lead in leads:
+                # Get messages for this lead
+                messages = session.query(Message).filter_by(lead_id=lead.id).all()
+
+                if not messages:
+                    continue
+
+                # Analyze user messages for intent signals
+                topics = []
+                questions = []
+
+                for msg in messages:
+                    if msg.role != "user":
+                        continue
+
+                    text_lower = (msg.content or "").lower()
+
+                    if "?" in (msg.content or ""):
+                        questions.append(msg.content)
+
+                    if any(w in text_lower for w in ["precio", "cuesta", "vale", "pagar", "cost", "price"]):
+                        topics.append("precio")
+                    if any(w in text_lower for w in ["info", "información", "detalles", "details"]):
+                        topics.append("información")
+                    if any(w in text_lower for w in ["comprar", "quiero", "interesa", "want", "buy"]):
+                        topics.append("intención_compra")
+
+                # Calculate intent score
+                intent_score = 0.0
+                if "intención_compra" in topics:
+                    intent_score += 0.4
+                if "precio" in topics:
+                    intent_score += 0.3
+                if "información" in topics:
+                    intent_score += 0.2
+                if questions:
+                    intent_score += 0.1
+                intent_score = min(intent_score, 1.0)
+
+                # Determine status
+                if intent_score >= 0.6:
+                    new_status = "hot"
+                    stats["hot"] += 1
+                elif intent_score >= 0.35:
+                    new_status = "active"
+                    stats["active"] += 1
+                else:
+                    new_status = "new"
+                    stats["new"] += 1
+
+                # Update lead
+                old_intent = lead.purchase_intent
+                old_status = lead.status
+
+                lead.purchase_intent = intent_score
+                lead.status = new_status
+                stats["leads_updated"] += 1
+
+                stats["details"].append({
+                    "username": lead.username,
+                    "old_intent": old_intent,
+                    "new_intent": intent_score,
+                    "old_status": old_status,
+                    "new_status": new_status,
+                    "messages_count": len(messages),
+                    "topics": list(set(topics))
+                })
+
+            session.commit()
+            logger.info(f"[Rescore] Updated {stats['leads_updated']} leads for {creator_id}")
+
+            return {
+                "status": "success",
+                "creator_id": creator_id,
+                **stats
+            }
+
+        finally:
+            session.close()
+
+    except Exception as e:
+        logger.error(f"Rescore failed for {creator_id}: {e}")
+        return {
+            "status": "error",
+            "error": str(e)
+        }

@@ -3073,28 +3073,38 @@ async def sync_instagram_dms(request: InstagramDMSyncRequest):
                                 if any(w in lower_text for w in ["challenge", "reto", "programa"]):
                                     conv_topics.append("productos")
 
+                        # Calculate purchase intent score based on topics
+                        intent_score = 0.0
+                        if "intención_compra" in conv_topics:
+                            intent_score += 0.4
+                        if "precio" in conv_topics:
+                            intent_score += 0.3
+                        if "información" in conv_topics:
+                            intent_score += 0.2
+                        if conv_questions:
+                            intent_score += 0.1
+                        intent_score = min(intent_score, 1.0)
+
+                        # UPDATE LEAD with purchase_intent and status
+                        lead.purchase_intent = intent_score
+                        if intent_score >= 0.6:
+                            lead.status = "hot"
+                        elif intent_score >= 0.35:
+                            lead.status = "active"
+                        else:
+                            lead.status = "new"
+
                         session.commit()
-                        logger.info(f"[DMSync] Saved {conv_messages_saved} messages for {follower_username}")
+                        logger.info(f"[DMSync] Saved {conv_messages_saved} messages for {follower_username}, intent={intent_score:.2f}")
 
                         # Generate insights for this conversation
                         if request.analyze_insights and conv_messages_saved > 0:
-                            # Calculate simple purchase intent score
-                            intent_score = 0.0
-                            if "intención_compra" in conv_topics:
-                                intent_score += 0.4
-                            if "precio" in conv_topics:
-                                intent_score += 0.3
-                            if "información" in conv_topics:
-                                intent_score += 0.2
-                            if conv_questions:
-                                intent_score += 0.1
-
                             insights.append(ConversationInsight(
                                 follower_id=follower_id,
                                 follower_username=follower_username or "unknown",
                                 total_messages=len(messages),
                                 topics=list(set(conv_topics)),
-                                purchase_intent_score=min(intent_score, 1.0),
+                                purchase_intent_score=intent_score,
                                 common_questions=conv_questions[:5]
                             ))
 

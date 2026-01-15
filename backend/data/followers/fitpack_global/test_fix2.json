@@ -1,0 +1,52 @@
+{
+  "follower_id": "test_fix2",
+  "creator_id": "fitpack_global",
+  "username": "",
+  "name": "",
+  "first_contact": "2026-01-15T20:02:46.014370",
+  "last_contact": "2026-01-15T19:02:54.815635+00:00",
+  "total_messages": 2,
+  "interests": [],
+  "products_discussed": [
+    "713689b9-a80e-4a4c-bd9a-0ac1bad0281e"
+  ],
+  "objections_raised": [],
+  "purchase_intent_score": 0.5,
+  "is_lead": true,
+  "is_customer": false,
+  "status": "active",
+  "preferred_language": "en",
+  "last_messages": [
+    {
+      "role": "user",
+      "content": "Cuéntame sobre tu coaching",
+      "timestamp": "2026-01-15T19:02:51.800502+00:00"
+    },
+    {
+      "role": "assistant",
+      "content": "¡Claro! Mi coaching se centra en acompañarte a transformar tu bienestar y superar cualquier dolor que estés atravesando.",
+      "timestamp": "2026-01-15T19:02:51.800502+00:00"
+    },
+    {
+      "role": "user",
+      "content": "Vendes cursos de blockchain?",
+      "timestamp": "2026-01-15T19:02:54.815635+00:00"
+    },
+    {
+      "role": "assistant",
+      "content": "No, en realidad me enfoco en coaching, terapia y entrenamiento para el bienestar. Si estás interesado, puedo contarte más sobre cómo te puedo ayudar a sanar y mejorar tu relación con el movimiento y la vida.",
+      "timestamp": "2026-01-15T19:02:54.815635+00:00"
+    }
+  ],
+  "links_sent_count": 0,
+  "last_link_message_num": 0,
+  "objections_handled": [],
+  "arguments_used": [],
+  "greeting_variant_index": 0,
+  "last_greeting_style": "claro",
+  "last_emojis_used": [],
+  "messages_since_name_used": 2,
+  "alternative_contact": "",
+  "alternative_contact_type": "",
+  "contact_requested": false
+}

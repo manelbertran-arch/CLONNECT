@@ -1,0 +1,74 @@
+{
+  "follower_id": "test_user_123",
+  "creator_id": "fitpack_global",
+  "username": "",
+  "name": "",
+  "first_contact": "2026-01-15T19:45:10.064599",
+  "last_contact": "2026-01-15T18:49:12.739636+00:00",
+  "total_messages": 4,
+  "interests": [],
+  "products_discussed": [],
+  "objections_raised": [],
+  "purchase_intent_score": 0.25,
+  "is_lead": false,
+  "is_customer": false,
+  "status": "active",
+  "preferred_language": "es",
+  "last_messages": [
+    {
+      "role": "user",
+      "content": "Hola",
+      "timestamp": "2026-01-15T18:48:29.796090+00:00"
+    },
+    {
+      "role": "assistant",
+      "content": "¡Hola! 😊 ¿En qué puedo ayudarte hoy?",
+      "timestamp": "2026-01-15T18:48:29.796090+00:00"
+    },
+    {
+      "role": "user",
+      "content": "Hola",
+      "timestamp": "2026-01-15T18:49:09.508713+00:00"
+    },
+    {
+      "role": "assistant",
+      "content": "¡Hey! ¿Qué tal?",
+      "timestamp": "2026-01-15T18:49:09.508713+00:00"
+    },
+    {
+      "role": "user",
+      "content": "Cuánto cuesta el programa?",
+      "timestamp": "2026-01-15T18:49:10.231073+00:00"
+    },
+    {
+      "role": "assistant",
+      "content": "Me encantaría ayudarte con eso 🙌 Te paso con Stefano directamente para que pueda darte toda la info que necesitas. ¡Te escribe pronto!",
+      "timestamp": "2026-01-15T18:49:10.231073+00:00"
+    },
+    {
+      "role": "user",
+      "content": "Tienen servicio de criptomonedas?",
+      "timestamp": "2026-01-15T18:49:12.739636+00:00"
+    },
+    {
+      "role": "assistant",
+      "content": "Mira, en este momento no aceptamos criptomonedas como método de pago. Avísame cuando lo hagas 👍",
+      "timestamp": "2026-01-15T18:49:12.739636+00:00"
+    }
+  ],
+  "links_sent_count": 0,
+  "last_link_message_num": 0,
+  "objections_handled": [],
+  "arguments_used": [],
+  "greeting_variant_index": 2,
+  "last_greeting_style": "mira",
+  "last_emojis_used": [
+    "😊",
+    "🙌",
+    "👍"
+  ],
+  "messages_since_name_used": 4,
+  "alternative_contact": "",
+  "alternative_contact_type": "",
+  "contact_requested": false
+}
