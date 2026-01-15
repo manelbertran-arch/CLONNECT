@@ -3385,6 +3385,45 @@ USA ESTA RESPUESTA PARA LA OBJECION (adaptala a tu tono):
                 }
             )
 
+        # === FAST PATH: Pregunta de precio específica ===
+        # Cuando usuario pregunta "cuánto cuesta X" y tenemos el producto, responder directamente
+        if intent == Intent.QUESTION_PRODUCT and product:
+            msg_lower = message_text.lower()
+            price_keywords = ['cuanto cuesta', 'cuánto cuesta', 'precio', 'cuanto vale', 'cuánto vale',
+                              'que cuesta', 'qué cuesta', 'cuanto es', 'cuánto es', 'cual es el precio',
+                              'cuál es el precio', 'cuanto sale', 'cuánto sale']
+            is_price_question = any(kw in msg_lower for kw in price_keywords)
+
+            if is_price_question:
+                logger.info(f"=== FAST PATH: Price question for {product.get('name')} ===")
+                price = product.get('price') or 0
+                product_name = product.get('name', 'el servicio')
+                description = product.get('description', '')[:100]
+
+                if price > 0:
+                    price_response = f"¡{product_name} tiene un precio de {int(price)}€! 🎯"
+                    if description:
+                        price_response += f" {description}"
+                else:
+                    price_response = f"¡{product_name} es GRATIS! 🎉"
+                    if description:
+                        price_response += f" {description}"
+
+                await self._update_memory(follower, message_text, price_response, intent)
+
+                return DMResponse(
+                    response_text=price_response,
+                    intent=intent,
+                    action_taken="direct_price_response",
+                    product_mentioned=product_name,
+                    confidence=1.0,
+                    metadata={
+                        "fast_path": True,
+                        "product_price": price,
+                        "product_id": product.get('id')
+                    }
+                )
+
         # === FAST PATH: Compra directa ===
         # Cuando usuario QUIERE COMPRAR, solo dar el link - NO volver a vender
         if is_direct_purchase_intent(message_text):
