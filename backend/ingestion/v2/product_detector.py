@@ -116,6 +116,37 @@ class ProductDetector:
         r'/terminos', r'/terms', r'/faq', r'/ayuda',
     ]
 
+    # ============================================================
+    # FILTRO ANTI-TESTIMONIOS
+    # Un testimonio NO es un producto, aunque aparezca en página de servicios
+    # ============================================================
+
+    # Patrones que indican que es un TESTIMONIO, no un producto
+    TESTIMONIAL_PATTERNS = [
+        # Frases típicas de testimonios
+        r'\bme ayud[óo]\b', r'\bgracias a\b', r'\brecomiendo\b',
+        r'\bcambi[óo] mi vida\b', r'\btransform[óo]\b',
+        r'\bincreíble experiencia\b', r'\bmejor decisión\b',
+        r'\bno puedo agradecer\b', r'\bestoy muy content[oa]\b',
+        r'\bsuperó mis expectativas\b', r'\b100% recomendable\b',
+        r'\bsi estás dudando\b', r'\bno lo dudes\b',
+        r'\bme siento\b.*\b(mejor|genial|increíble)\b',
+        r'\bél me enseñó\b', r'\bella me enseñó\b',
+        r'\baprendí\b.*\bcon (él|ella|stefano)\b',
+        # Atribución de testimonios
+        r'^"[^"]{10,200}"$',  # Texto solo entre comillas
+        r'^\s*—\s*\w+',  # Atribución tipo "— María"
+        r'\b(cliente|alumno|participante)\s+de\b',
+    ]
+
+    # Palabras en el TÍTULO que indican testimonio
+    TESTIMONIAL_TITLE_PATTERNS = [
+        r'^".*"$',  # Título entre comillas
+        r'^'.*'$',  # Título entre comillas simples
+        r'testimonio', r'opinión', r'review', r'reseña',
+        r'lo que dicen', r'experiencias', r'casos de éxito',
+    ]
+
     def detect_products(self, pages: List['ScrapedPage']) -> List[DetectedProduct]:
         """
         Detecta productos reales usando sistema de señales.
@@ -225,6 +256,13 @@ class ProductDetector:
         # Extraer descripción (primeros 500 chars significativos)
         description = self._extract_description(page)
 
+        # ============================================================
+        # FILTRO ANTI-TESTIMONIOS: Verificar que NO sea un testimonio
+        # ============================================================
+        if self._is_testimonial(name, description):
+            logger.info(f"DESCARTADO (testimonio detectado): {name}")
+            return None
+
         # Calcular confianza
         confidence = len(signals) / len(ProductSignal)
 
@@ -324,6 +362,56 @@ class ProductDetector:
         """Extrae HTML relevante como prueba del origen."""
         # Por ahora, guardar primeros 2000 chars del contenido
         return page.main_content[:2000]
+
+    def _is_testimonial(self, title: str, description: str) -> bool:
+        """
+        Detecta si el contenido parece ser un TESTIMONIO, no un producto.
+
+        Un testimonio tiene:
+        - Título entre comillas
+        - Frases tipo "me ayudó", "gracias a", "recomiendo"
+        - Texto en primera persona sobre experiencia
+
+        Returns:
+            True si parece testimonio (NO guardar como producto)
+        """
+        title_lower = (title or "").lower().strip()
+        desc_lower = (description or "").lower()
+
+        # 1. Verificar título
+        for pattern in self.TESTIMONIAL_TITLE_PATTERNS:
+            if re.search(pattern, title_lower, re.IGNORECASE):
+                logger.info(f"Filtrado como testimonio (título): {title}")
+                return True
+
+        # 2. Verificar descripción
+        testimonial_matches = 0
+        for pattern in self.TESTIMONIAL_PATTERNS:
+            if re.search(pattern, desc_lower, re.IGNORECASE):
+                testimonial_matches += 1
+
+        # Si hay 2+ patrones de testimonio, es testimonio
+        if testimonial_matches >= 2:
+            logger.info(f"Filtrado como testimonio ({testimonial_matches} patrones): {title}")
+            return True
+
+        # 3. Título que empieza y termina con comillas = testimonio
+        if title_lower.startswith('"') and title_lower.endswith('"'):
+            logger.info(f"Filtrado como testimonio (comillas en título): {title}")
+            return True
+
+        if title_lower.startswith("'") and title_lower.endswith("'"):
+            logger.info(f"Filtrado como testimonio (comillas simples): {title}")
+            return True
+
+        # 4. Título muy corto con comillas parciales
+        if len(title_lower) < 50 and ('"' in title_lower or '"' in title_lower or '"' in title_lower):
+            # Verificar si el contenido es testimonial
+            if testimonial_matches >= 1:
+                logger.info(f"Filtrado como testimonio (comillas + patrón): {title}")
+                return True
+
+        return False
 
 
 def get_product_detector() -> ProductDetector:
