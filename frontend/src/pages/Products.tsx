@@ -15,9 +15,9 @@ import {
   Copy,
   Pencil,
   Trash2,
-  ExternalLink,
   Loader2,
-  Check
+  Check,
+  Sparkles
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -85,9 +85,8 @@ export default function Products() {
 
   const products = productsData?.products || [];
   const purchases = purchasesData?.purchases || [];
-  const recentSales = purchases.slice(0, 5); // Show last 5 sales
+  const recentSales = purchases.slice(0, 5);
 
-  // Calculate stats
   const totalRevenue = products.reduce((sum, p) => sum + (p.revenue || 0), 0);
   const totalSales = products.reduce((sum, p) => sum + (p.sales_count || 0), 0);
   const avgOrderValue = totalSales > 0 ? totalRevenue / totalSales : 0;
@@ -111,15 +110,14 @@ export default function Products() {
   };
 
   const handleOpenEdit = (product: Product) => {
-    // Map backend field names to frontend form fields
     setFormData({
       name: product.name || "",
       description: product.description || "",
       type: product.type || "ebook",
       price: product.price != null ? String(product.price) : "",
       currency: product.currency || "EUR",
-      purchase_url: product.purchase_url || product.payment_link || "",  // Backend uses payment_link
-      bot_enabled: product.bot_enabled ?? product.is_active ?? true,     // Backend uses is_active
+      purchase_url: product.purchase_url || product.payment_link || "",
+      bot_enabled: product.bot_enabled ?? product.is_active ?? true,
     });
     setEditingProduct(product);
     setShowAddModal(true);
@@ -131,21 +129,19 @@ export default function Products() {
       return;
     }
 
-    // Validate price - accept any valid number >= 0
     const priceValue = parseFloat(formData.price);
     if (formData.price.trim() === "" || isNaN(priceValue) || priceValue < 0) {
       toast({ title: "Error", description: "Se requiere un precio válido", variant: "destructive" });
       return;
     }
 
-    // Map frontend fields to backend field names
     const productData = {
       name: formData.name,
       description: formData.description,
       price: priceValue,
       currency: formData.currency,
-      payment_link: formData.purchase_url,  // Backend uses payment_link
-      is_active: formData.bot_enabled,       // Backend uses is_active
+      payment_link: formData.purchase_url,
+      is_active: formData.bot_enabled,
     };
 
     try {
@@ -160,8 +156,7 @@ export default function Products() {
       resetForm();
       refetch();
     } catch (error: any) {
-      console.error("Save product error:", error);
-      const message = error?.response?.data?.detail || error?.response?.data?.message || error?.message || "Error al guardar producto";
+      const message = error?.response?.data?.detail || error?.message || "Error al guardar producto";
       toast({ title: "Error", description: String(message), variant: "destructive" });
     }
   };
@@ -173,8 +168,7 @@ export default function Products() {
       toast({ title: "Eliminado", description: "Producto eliminado" });
       refetch();
     } catch (error: any) {
-      console.error("Delete product error:", error);
-      const message = error?.response?.data?.detail || error?.response?.data?.message || error?.message || "Error al eliminar";
+      const message = error?.response?.data?.detail || error?.message || "Error al eliminar";
       toast({ title: "Error", description: String(message), variant: "destructive" });
     }
   };
@@ -190,118 +184,148 @@ export default function Products() {
     setTimeout(() => setCopiedId(null), 2000);
   };
 
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center h-[60vh]">
+        <div className="relative">
+          <div className="absolute inset-0 rounded-full bg-primary/20 blur-xl animate-pulse" />
+          <Loader2 className="w-8 h-8 animate-spin text-primary relative" />
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 animate-in fade-in duration-500">
       {/* Header */}
       <div className="flex items-start justify-between">
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight">Productos</h1>
-          <p className="text-sm text-muted-foreground">Tus productos digitales</p>
+          <h1 className="text-3xl font-bold tracking-tight">Productos</h1>
+          <p className="text-sm text-muted-foreground/80 mt-0.5">Tus productos digitales</p>
         </div>
-        <Button onClick={handleOpenAdd} size="sm" className="h-9 px-4">
-          <Plus className="w-4 h-4 mr-2" />
+        <Button onClick={handleOpenAdd} size="sm" className="h-10 px-5 gap-2 shadow-lg shadow-primary/20">
+          <Plus className="w-4 h-4" />
           Nuevo
         </Button>
       </div>
 
-      {/* Stats Cards */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <div className="p-5 rounded-2xl bg-gradient-to-br from-emerald-500/10 via-emerald-500/5 to-transparent border border-emerald-500/20">
-          <div className="flex items-center gap-2 mb-2">
-            <DollarSign className="w-4 h-4 text-emerald-500" />
-            <span className="text-xs font-medium text-emerald-500/80 uppercase tracking-wide">Ingresos</span>
+      {/* Hero Revenue Card */}
+      <div className="relative group">
+        <div className="absolute -inset-0.5 bg-gradient-to-r from-emerald-500 via-cyan-500 to-emerald-500 rounded-3xl blur-lg opacity-25 group-hover:opacity-35 transition-opacity duration-500" />
+        <div className="relative p-6 rounded-2xl bg-gradient-to-br from-emerald-500/20 via-emerald-500/10 to-cyan-500/10 border border-emerald-500/30 backdrop-blur-xl overflow-hidden">
+          <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_20%,rgba(16,185,129,0.15),transparent_50%)]" />
+          <div className="relative flex items-center justify-between">
+            <div>
+              <div className="flex items-center gap-2 mb-2">
+                <DollarSign className="w-5 h-5 text-emerald-400" />
+                <span className="text-sm font-semibold text-emerald-400/90 uppercase tracking-wider">Ingresos Totales</span>
+              </div>
+              <span className="text-4xl font-bold text-white">€{totalRevenue.toFixed(0)}</span>
+            </div>
+            <div className="hidden sm:flex items-center gap-6">
+              <div className="text-center">
+                <p className="text-2xl font-bold">{totalSales}</p>
+                <p className="text-xs text-muted-foreground uppercase tracking-wide">Ventas</p>
+              </div>
+              <div className="text-center">
+                <p className="text-2xl font-bold">€{avgOrderValue.toFixed(0)}</p>
+                <p className="text-xs text-muted-foreground uppercase tracking-wide">Ticket Medio</p>
+              </div>
+            </div>
           </div>
-          <p className="text-2xl font-semibold">€{totalRevenue.toFixed(0)}</p>
+        </div>
+      </div>
+
+      {/* Stats Grid */}
+      <div className="grid grid-cols-3 gap-3">
+        <div className="p-4 rounded-xl bg-gradient-to-br from-violet-500/10 to-purple-500/5 border border-violet-500/20 backdrop-blur-sm">
+          <div className="flex items-center gap-2 mb-1">
+            <ShoppingCart className="w-4 h-4 text-violet-400" />
+            <span className="text-xs font-medium text-violet-400/80 uppercase tracking-wider">Ventas</span>
+          </div>
+          <span className="text-2xl font-bold">{totalSales}</span>
         </div>
 
-        <div className="p-5 rounded-2xl bg-card border border-border/50">
-          <div className="flex items-center gap-2 mb-2">
-            <ShoppingCart className="w-4 h-4 text-muted-foreground" />
-            <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Ventas</span>
+        <div className="p-4 rounded-xl bg-gradient-to-br from-blue-500/10 to-cyan-500/5 border border-blue-500/20 backdrop-blur-sm">
+          <div className="flex items-center gap-2 mb-1">
+            <Package className="w-4 h-4 text-blue-400" />
+            <span className="text-xs font-medium text-blue-400/80 uppercase tracking-wider">Productos</span>
           </div>
-          <p className="text-2xl font-semibold">{totalSales}</p>
+          <span className="text-2xl font-bold">{products.length}</span>
         </div>
 
-        <div className="p-5 rounded-2xl bg-card border border-border/50">
-          <div className="flex items-center gap-2 mb-2">
-            <Package className="w-4 h-4 text-muted-foreground" />
-            <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Productos</span>
+        <div className="p-4 rounded-xl bg-gradient-to-br from-amber-500/10 to-orange-500/5 border border-amber-500/20 backdrop-blur-sm">
+          <div className="flex items-center gap-2 mb-1">
+            <TrendingUp className="w-4 h-4 text-amber-400" />
+            <span className="text-xs font-medium text-amber-400/80 uppercase tracking-wider">Ticket</span>
           </div>
-          <p className="text-2xl font-semibold">{products.length}</p>
-        </div>
-
-        <div className="p-5 rounded-2xl bg-card border border-border/50">
-          <div className="flex items-center gap-2 mb-2">
-            <TrendingUp className="w-4 h-4 text-muted-foreground" />
-            <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Ticket Medio</span>
-          </div>
-          <p className="text-2xl font-semibold">€{avgOrderValue.toFixed(0)}</p>
+          <span className="text-2xl font-bold">€{avgOrderValue.toFixed(0)}</span>
         </div>
       </div>
 
       {/* Products List */}
-      <div className="p-5 rounded-2xl bg-card border border-border/50">
-        <h3 className="text-sm font-medium mb-4">Catálogo</h3>
+      <div className="p-5 sm:p-6 rounded-2xl bg-card/50 border border-white/[0.08] backdrop-blur-sm">
+        <div className="flex items-center gap-2 mb-5">
+          <Sparkles className="w-4 h-4 text-primary" />
+          <h3 className="font-semibold">Catálogo</h3>
+          <span className="text-xs text-muted-foreground bg-muted/30 px-2 py-0.5 rounded-full ml-auto">{products.length} productos</span>
+        </div>
 
-        {isLoading ? (
-          <div className="flex justify-center py-8">
-            <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
-          </div>
-        ) : products.length === 0 ? (
+        {products.length === 0 ? (
           <div className="text-center py-12">
-            <div className="w-12 h-12 rounded-full bg-muted/50 flex items-center justify-center mx-auto mb-4">
-              <ShoppingBag className="w-6 h-6 text-muted-foreground" />
+            <div className="w-14 h-14 rounded-2xl bg-muted/20 flex items-center justify-center mx-auto mb-4 border border-white/[0.05]">
+              <ShoppingBag className="w-7 h-7 text-muted-foreground/50" />
             </div>
-            <p className="text-sm text-muted-foreground mb-4">
-              Aún no hay productos
-            </p>
-            <Button onClick={handleOpenAdd} size="sm" variant="outline">
-              <Plus className="w-4 h-4 mr-2" />
+            <p className="text-sm text-muted-foreground mb-1">Aún no hay productos</p>
+            <p className="text-xs text-muted-foreground/60 mb-4">Crea tu primer producto digital</p>
+            <Button onClick={handleOpenAdd} size="sm" variant="outline" className="gap-2">
+              <Plus className="w-4 h-4" />
               Añadir producto
             </Button>
           </div>
         ) : (
           <div className="space-y-2">
-            {products.map((product) => {
+            {products.map((product, idx) => {
               const TypeIcon = getTypeIcon(product.type || "other");
               return (
                 <div
                   key={product.id}
-                  className="group p-4 rounded-xl border border-border/30 bg-card hover:border-border transition-colors"
+                  className="group p-4 rounded-xl bg-card/80 border border-white/[0.06] hover:border-white/[0.12] hover:bg-card transition-all duration-200 hover:scale-[1.01]"
+                  style={{ animationDelay: `${idx * 30}ms` }}
                 >
                   <div className="flex items-center gap-4">
                     {/* Icon */}
-                    <div className="w-10 h-10 rounded-lg bg-muted/50 flex items-center justify-center shrink-0">
-                      <TypeIcon className="w-5 h-5 text-muted-foreground" />
+                    <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-primary/20 to-accent/20 flex items-center justify-center shrink-0 border border-white/[0.08]">
+                      <TypeIcon className="w-5 h-5 text-primary" />
                     </div>
 
                     {/* Info */}
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2">
-                        <h4 className="font-medium text-sm">{product.name}</h4>
+                        <h4 className="font-semibold text-sm">{product.name}</h4>
                         <span className={cn(
-                          "text-[10px] px-1.5 py-0.5 rounded font-medium",
+                          "text-[10px] px-2 py-0.5 rounded-full font-medium",
                           product.is_active !== false
-                            ? "bg-emerald-500/10 text-emerald-500"
-                            : "bg-amber-500/10 text-amber-500"
+                            ? "bg-emerald-500/15 text-emerald-400 border border-emerald-500/20"
+                            : "bg-amber-500/15 text-amber-400 border border-amber-500/20"
                         )}>
                           {product.is_active !== false ? "Activo" : "Pausado"}
                         </span>
                       </div>
-                      <p className="text-xs text-muted-foreground">
+                      <p className="text-xs text-muted-foreground/70 mt-0.5">
                         {formatPrice(product.price || 0, product.currency)} · {product.sales_count || 0} ventas
                       </p>
                     </div>
 
                     {/* Revenue */}
                     <div className="text-right shrink-0">
-                      <p className="text-sm font-medium text-emerald-500">€{product.revenue || 0}</p>
+                      <p className="text-sm font-bold text-emerald-400">€{product.revenue || 0}</p>
                     </div>
 
                     {/* Actions */}
                     <div className="flex items-center gap-1 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">
                       <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleCopyLink(product)} disabled={!product.purchase_url}>
-                        {copiedId === product.id ? <Check className="w-4 h-4 text-emerald-500" /> : <Copy className="w-4 h-4" />}
+                        {copiedId === product.id ? <Check className="w-4 h-4 text-emerald-400" /> : <Copy className="w-4 h-4" />}
                       </Button>
                       <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleOpenEdit(product)}>
                         <Pencil className="w-4 h-4" />
@@ -320,8 +344,9 @@ export default function Products() {
 
       {/* Recent Sales */}
       {recentSales.length > 0 && (
-        <div className="metric-card">
-          <div className="flex items-center justify-between mb-4">
+        <div className="p-5 sm:p-6 rounded-2xl bg-card/50 border border-white/[0.08] backdrop-blur-sm">
+          <div className="flex items-center gap-2 mb-5">
+            <TrendingUp className="w-4 h-4 text-emerald-400" />
             <h3 className="font-semibold">Ventas Recientes</h3>
           </div>
 
@@ -330,19 +355,20 @@ export default function Products() {
               <Loader2 className="w-5 h-5 animate-spin text-primary" />
             </div>
           ) : (
-            <div className="space-y-3">
-              {recentSales.map((sale) => (
+            <div className="space-y-2">
+              {recentSales.map((sale, idx) => (
                 <div
                   key={sale.id}
-                  className="flex items-center justify-between p-3 rounded-lg bg-secondary/30"
+                  className="flex items-center justify-between p-3 rounded-xl bg-gradient-to-r from-emerald-500/5 to-cyan-500/5 border border-emerald-500/10"
+                  style={{ animationDelay: `${idx * 30}ms` }}
                 >
                   <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-full bg-success/10 flex items-center justify-center">
-                      <DollarSign className="w-5 h-5 text-success" />
+                    <div className="w-10 h-10 rounded-full bg-emerald-500/15 flex items-center justify-center border border-emerald-500/20">
+                      <DollarSign className="w-4 h-4 text-emerald-400" />
                     </div>
                     <div>
                       <p className="font-medium text-sm">{sale.product_name}</p>
-                      <p className="text-xs text-muted-foreground">
+                      <p className="text-xs text-muted-foreground/70">
                         {new Date(sale.created_at).toLocaleDateString("es-ES", {
                           day: "numeric",
                           month: "short",
@@ -354,11 +380,9 @@ export default function Products() {
                     </div>
                   </div>
                   <div className="text-right">
-                    <p className="font-semibold text-success">
-                      {formatPrice(sale.amount, sale.currency)}
-                    </p>
+                    <p className="font-bold text-emerald-400">{formatPrice(sale.amount, sale.currency)}</p>
                     {sale.bot_attributed && (
-                      <span className="text-xs text-muted-foreground">via bot</span>
+                      <span className="text-[10px] text-muted-foreground bg-muted/30 px-1.5 py-0.5 rounded">via bot</span>
                     )}
                   </div>
                 </div>
@@ -376,7 +400,6 @@ export default function Products() {
           </DialogHeader>
 
           <div className="space-y-4">
-            {/* Name */}
             <div>
               <Label>Nombre del producto *</Label>
               <Input
@@ -386,7 +409,6 @@ export default function Products() {
               />
             </div>
 
-            {/* Description */}
             <div>
               <Label>Descripción corta</Label>
               <Input
@@ -396,7 +418,6 @@ export default function Products() {
               />
             </div>
 
-            {/* Type */}
             <div>
               <Label>Tipo</Label>
               <Select value={formData.type} onValueChange={(v) => setFormData({ ...formData, type: v })}>
@@ -413,7 +434,6 @@ export default function Products() {
               </Select>
             </div>
 
-            {/* Price */}
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <Label>Precio *</Label>
@@ -441,7 +461,6 @@ export default function Products() {
               </div>
             </div>
 
-            {/* Purchase URL */}
             <div>
               <Label>Enlace de compra</Label>
               <Input
@@ -454,11 +473,10 @@ export default function Products() {
               </p>
             </div>
 
-            {/* Bot option */}
-            <div className="flex items-center justify-between p-3 bg-secondary rounded-lg">
+            <div className="flex items-center justify-between p-3 bg-muted/20 rounded-xl border border-white/[0.05]">
               <div>
                 <p className="font-medium text-sm">Mostrar en conversaciones</p>
-                <p className="text-xs text-muted-foreground">Si se agotan las existencias o necesitas pausar las ventas, desactívalo temporalmente</p>
+                <p className="text-xs text-muted-foreground">Desactívalo para pausar ventas temporalmente</p>
               </div>
               <Switch
                 checked={formData.bot_enabled}
