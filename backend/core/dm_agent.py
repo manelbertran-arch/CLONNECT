@@ -1166,7 +1166,7 @@ class DMResponderAgent:
     _config_cache: Dict[str, dict] = {}
     _products_cache: Dict[str, list] = {}
     _cache_timestamp: Dict[str, float] = {}
-    _CACHE_TTL = 300  # 5 minutes cache TTL
+    _CACHE_TTL = 0  # NO CACHE - siempre leer productos frescos de DB
 
     def __init__(self, creator_id: str = "manel"):
         import time
