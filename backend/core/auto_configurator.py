@@ -319,7 +319,50 @@ class AutoConfigurator:
         instagram_username: str,
         max_posts: int
     ) -> dict:
-        """Scrapea posts de Instagram con V2 sanity checks."""
+        """
+        Scrapea posts de Instagram con V2 sanity checks.
+
+        Prioridad:
+        1. Meta Graph API (si el Creator tiene token OAuth guardado)
+        2. Instaloader (fallback, scraping público)
+        """
+        # Intentar obtener credenciales OAuth del Creator
+        access_token = None
+        instagram_business_id = None
+
+        try:
+            from api.database import get_db_session
+            from api.models import Creator
+            from sqlalchemy import or_
+
+            with get_db_session() as db:
+                creator = db.query(Creator).filter(
+                    or_(
+                        Creator.id == creator_id if len(str(creator_id)) > 20 else False,
+                        Creator.name == creator_id
+                    )
+                ).first()
+
+                if creator:
+                    access_token = creator.instagram_token
+                    # instagram_business_id puede ser instagram_user_id o instagram_page_id
+                    instagram_business_id = creator.instagram_user_id or creator.instagram_page_id
+
+                    if access_token and instagram_business_id:
+                        logger.info(
+                            f"[AutoConfig] Credenciales OAuth encontradas para {creator_id}, "
+                            f"usando Meta Graph API"
+                        )
+                    else:
+                        logger.info(
+                            f"[AutoConfig] No hay credenciales OAuth completas para {creator_id}, "
+                            f"usando Instaloader"
+                        )
+
+        except Exception as e:
+            logger.warning(f"[AutoConfig] Error obteniendo credenciales OAuth: {e}")
+
+        # Ejecutar ingestion con o sin credenciales OAuth
         try:
             from ingestion.v2.instagram_ingestion import ingest_instagram_v2
 
@@ -327,7 +370,9 @@ class AutoConfigurator:
                 creator_id=creator_id,
                 instagram_username=instagram_username,
                 max_posts=max_posts,
-                clean_before=True
+                clean_before=True,
+                access_token=access_token,
+                instagram_business_id=instagram_business_id
             )
             return result.to_dict()
 

@@ -1,7 +1,11 @@
 """
 Instagram Ingestion V2 - Sanity Checks + PostgreSQL Persistence
 
-Reutiliza InstaloaderScraper existente, añadiendo:
+Soporta dos métodos de scraping:
+1. Meta Graph API (oficial) - si hay access_token + instagram_business_id
+2. Instaloader (fallback) - scraping público, puede ser rate limited
+
+Añade:
 1. Sanity checks (caption, fecha, duplicados)
 2. Persistencia en PostgreSQL
 3. Conversión a content chunks para RAG
@@ -185,13 +189,24 @@ class InstagramIngestionV2:
     """
     Pipeline de ingestion V2 para Instagram.
 
-    1. Usa InstaloaderScraper existente
+    1. Usa Meta Graph API (si hay token) o Instaloader (fallback)
     2. Aplica sanity checks
     3. Persiste en PostgreSQL (instagram_posts + content_chunks)
     """
 
-    def __init__(self):
+    def __init__(
+        self,
+        access_token: Optional[str] = None,
+        instagram_business_id: Optional[str] = None
+    ):
+        """
+        Args:
+            access_token: Token de Meta Graph API (de OAuth)
+            instagram_business_id: ID de Instagram Business/Creator account
+        """
         self.sanity_checker = InstagramPostSanityChecker()
+        self.access_token = access_token
+        self.instagram_business_id = instagram_business_id
 
     async def ingest(
         self,
@@ -228,7 +243,7 @@ class InstagramIngestionV2:
 
             # PASO 2: Scrapear Instagram
             logger.info(f"Scrapeando Instagram @{instagram_username} (max {max_posts} posts)")
-            posts = self._scrape_instagram(instagram_username, max_posts)
+            posts = await self._scrape_instagram(instagram_username, max_posts)
             result.posts_scraped = len(posts)
 
             if not posts:
@@ -284,11 +299,40 @@ class InstagramIngestionV2:
 
         return result
 
-    def _scrape_instagram(self, username: str, max_posts: int) -> List:
-        """Usa InstaloaderScraper existente con delay para evitar rate limits."""
+    async def _scrape_instagram(self, username: str, max_posts: int) -> List:
+        """
+        Scrapea posts de Instagram.
+
+        Prioridad:
+        1. Meta Graph API (oficial) - si hay access_token + instagram_business_id
+        2. Instaloader (fallback) - scraping público
+        """
+        # OPCIÓN 1: Usar Meta Graph API si hay credenciales OAuth
+        if self.access_token and self.instagram_business_id:
+            try:
+                from ingestion.instagram_scraper import MetaGraphAPIScraper
+
+                logger.info(f"Usando Meta Graph API para @{username} (token disponible)")
+                scraper = MetaGraphAPIScraper(
+                    access_token=self.access_token,
+                    instagram_business_id=self.instagram_business_id
+                )
+                posts = await scraper.get_posts(limit=max_posts)
+
+                if posts:
+                    logger.info(f"Meta Graph API: {len(posts)} posts obtenidos")
+                    return posts
+                else:
+                    logger.warning("Meta Graph API no retornó posts, intentando Instaloader...")
+
+            except Exception as e:
+                logger.warning(f"Meta Graph API falló: {e}. Intentando Instaloader...")
+
+        # OPCIÓN 2: Fallback a Instaloader (scraping público)
         try:
             from ingestion.instagram_scraper import InstaloaderScraper
 
+            logger.info(f"Usando Instaloader para @{username} (scraping público)")
             scraper = InstaloaderScraper()
             posts = scraper.get_posts(
                 username,
@@ -405,7 +449,9 @@ async def ingest_instagram_v2(
     creator_id: str,
     instagram_username: str,
     max_posts: int = 50,
-    clean_before: bool = True
+    clean_before: bool = True,
+    access_token: Optional[str] = None,
+    instagram_business_id: Optional[str] = None
 ) -> InstagramIngestionResult:
     """
     Función de conveniencia para ejecutar ingestion Instagram V2.
@@ -415,11 +461,20 @@ async def ingest_instagram_v2(
         instagram_username: Username de Instagram
         max_posts: Máximo de posts
         clean_before: Limpiar datos antes
+        access_token: Token de Meta Graph API (opcional, de OAuth)
+        instagram_business_id: ID de Instagram Business (opcional)
 
     Returns:
         InstagramIngestionResult
+
+    Nota:
+        Si se proveen access_token + instagram_business_id, usa Meta Graph API.
+        Si no, usa Instaloader como fallback (puede ser rate limited).
     """
-    pipeline = InstagramIngestionV2()
+    pipeline = InstagramIngestionV2(
+        access_token=access_token,
+        instagram_business_id=instagram_business_id
+    )
     return await pipeline.ingest(
         creator_id=creator_id,
         instagram_username=instagram_username,
