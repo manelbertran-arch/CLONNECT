@@ -1051,6 +1051,8 @@ async def simple_dm_sync(creator_id: str, max_convs: int = 20):
     results = {
         "conversations_processed": 0,
         "messages_saved": 0,
+        "messages_empty": 0,
+        "messages_duplicate": 0,
         "leads_created": 0,
         "errors": []
     }
@@ -1167,6 +1169,7 @@ async def simple_dm_sync(creator_id: str, max_convs: int = 20):
                             msg_text = msg.get("message", "")
 
                             if not msg_text or not msg_id:
+                                results["messages_empty"] += 1
                                 continue
 
                             # Check if already exists
@@ -1175,6 +1178,7 @@ async def simple_dm_sync(creator_id: str, max_convs: int = 20):
                             ).first()
 
                             if existing:
+                                results["messages_duplicate"] += 1
                                 continue
 
                             from_data = msg.get("from", {})
