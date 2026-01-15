@@ -2839,6 +2839,11 @@ class InstagramDMSyncRequest(BaseModel):
     max_conversations: int = 50
     max_messages_per_conversation: int = 50
     analyze_insights: bool = True
+    run_background: bool = False  # Run as background task
+
+
+# In-memory status for background sync jobs
+dm_sync_status: Dict[str, Dict] = {}
 
 
 class ConversationInsight(BaseModel):
@@ -3194,3 +3199,304 @@ async def sync_instagram_dms(request: InstagramDMSyncRequest):
             leads_created=leads_created,
             errors=errors
         )
+
+
+# =============================================================================
+# BACKGROUND DM SYNC
+# =============================================================================
+
+async def _background_dm_sync(
+    creator_id: str,
+    max_conversations: int,
+    max_messages_per_conversation: int,
+    job_id: str
+):
+    """
+    Background task for DM sync.
+    Updates dm_sync_status with progress.
+    """
+    import asyncio
+    import httpx
+    from datetime import datetime
+    from core.instagram_rate_limiter import (
+        InstagramRateLimiter,
+        InstagramRateLimitError,
+        RateLimitConfig
+    )
+
+    # Initialize status
+    dm_sync_status[job_id] = {
+        "status": "running",
+        "creator_id": creator_id,
+        "started_at": datetime.now().isoformat(),
+        "conversations_fetched": 0,
+        "messages_saved": 0,
+        "leads_created": 0,
+        "current_batch": 0,
+        "total_batches": 0,
+        "errors": [],
+        "completed_at": None
+    }
+
+    errors = []
+    conversations_fetched = 0
+    messages_saved = 0
+    leads_created = 0
+
+    config = RateLimitConfig(
+        max_retries=5,
+        base_delay=30.0,
+        calls_per_minute=15,
+        batch_size=5,
+        batch_delay=10.0
+    )
+    limiter = InstagramRateLimiter(config)
+
+    try:
+        from api.database import DATABASE_URL, SessionLocal
+        from api.models import Creator, Lead, Message
+
+        if not DATABASE_URL or not SessionLocal:
+            dm_sync_status[job_id]["status"] = "failed"
+            dm_sync_status[job_id]["errors"].append("Database not configured")
+            return
+
+        session = SessionLocal()
+        try:
+            creator = session.query(Creator).filter_by(name=creator_id).first()
+            if not creator or not creator.instagram_token:
+                dm_sync_status[job_id]["status"] = "failed"
+                dm_sync_status[job_id]["errors"].append("Creator or token not found")
+                return
+
+            ig_user_id = creator.instagram_user_id or creator.instagram_page_id
+            access_token = creator.instagram_token
+            api_base = "https://graph.instagram.com/v21.0"
+
+            logger.info(f"[BGSync] Starting background sync for {creator_id}")
+
+            async with httpx.AsyncClient(timeout=60.0) as client:
+                async def fetch_with_retry(url: str, params: dict, max_retries: int = 5) -> dict:
+                    for attempt in range(max_retries):
+                        await limiter.throttle()
+                        response = await client.get(url, params=params)
+                        data = response.json()
+                        error = data.get("error", {})
+                        if error.get("code") in [4, 17] or error.get("error_subcode") == 1349210:
+                            if attempt == max_retries - 1:
+                                raise InstagramRateLimitError(error.get("message", "Rate limit"))
+                            delay = limiter.calculate_backoff(attempt)
+                            logger.warning(f"[BGSync] Rate limit, waiting {delay:.0f}s")
+                            await asyncio.sleep(delay)
+                            continue
+                        if response.status_code != 200:
+                            return {"error": data.get("error", {}), "data": []}
+                        return data
+                    return {"error": {"message": "Max retries"}, "data": []}
+
+                # Fetch conversations
+                conv_url = f"{api_base}/{ig_user_id}/conversations"
+                conv_data = await fetch_with_retry(conv_url, {
+                    "access_token": access_token,
+                    "limit": min(max_conversations, 50)
+                })
+
+                if "error" in conv_data and conv_data["error"]:
+                    dm_sync_status[job_id]["status"] = "failed"
+                    dm_sync_status[job_id]["errors"].append(f"API error: {conv_data['error'].get('message')}")
+                    return
+
+                conversations = conv_data.get("data", [])
+                conversations_fetched = len(conversations)
+                dm_sync_status[job_id]["conversations_fetched"] = conversations_fetched
+
+                batch_size = config.batch_size
+                total_batches = (len(conversations) + batch_size - 1) // batch_size
+                dm_sync_status[job_id]["total_batches"] = total_batches
+
+                for batch_idx in range(total_batches):
+                    dm_sync_status[job_id]["current_batch"] = batch_idx + 1
+                    batch_start = batch_idx * batch_size
+                    batch_end = min(batch_start + batch_size, len(conversations))
+                    batch = conversations[batch_start:batch_end]
+
+                    logger.info(f"[BGSync] Batch {batch_idx + 1}/{total_batches}")
+
+                    for conv in batch:
+                        conv_id = conv.get("id")
+                        if not conv_id:
+                            continue
+
+                        try:
+                            msg_url = f"{api_base}/{conv_id}/messages"
+                            msg_data = await fetch_with_retry(msg_url, {
+                                "fields": "id,message,from,to,created_time",
+                                "access_token": access_token,
+                                "limit": min(max_messages_per_conversation, 50)
+                            })
+
+                            if "error" in msg_data and msg_data["error"]:
+                                continue
+
+                            messages = msg_data.get("data", [])
+                            if not messages:
+                                continue
+
+                            # Find follower
+                            follower_id = None
+                            follower_username = None
+                            for msg in messages:
+                                from_data = msg.get("from", {})
+                                from_id = from_data.get("id")
+                                if from_id and from_id != ig_user_id:
+                                    follower_id = from_id
+                                    follower_username = from_data.get("username", "")
+                                    break
+                            if not follower_id:
+                                for msg in messages:
+                                    to_data = msg.get("to", {}).get("data", [])
+                                    for recipient in to_data:
+                                        if recipient.get("id") != ig_user_id:
+                                            follower_id = recipient.get("id")
+                                            follower_username = recipient.get("username", "")
+                                            break
+                                    if follower_id:
+                                        break
+                            if not follower_id:
+                                continue
+
+                            # Get or create lead
+                            lead = session.query(Lead).filter_by(
+                                creator_id=creator.id,
+                                platform="instagram",
+                                platform_user_id=follower_id
+                            ).first()
+
+                            if not lead:
+                                lead = Lead(
+                                    creator_id=creator.id,
+                                    platform="instagram",
+                                    platform_user_id=follower_id,
+                                    username=follower_username,
+                                    status="active"
+                                )
+                                session.add(lead)
+                                session.commit()
+                                leads_created += 1
+                                dm_sync_status[job_id]["leads_created"] = leads_created
+
+                            # Save messages
+                            for msg in messages:
+                                msg_id = msg.get("id")
+                                msg_content = msg.get("message", "")
+                                from_data = msg.get("from", {})
+                                from_id = from_data.get("id")
+                                role = "user" if from_id == follower_id else "assistant"
+
+                                existing = session.query(Message).filter_by(
+                                    lead_id=lead.id,
+                                    platform_message_id=msg_id
+                                ).first()
+
+                                if not existing and msg_content:
+                                    new_msg = Message(
+                                        lead_id=lead.id,
+                                        platform="instagram",
+                                        platform_message_id=msg_id,
+                                        content=msg_content,
+                                        role=role
+                                    )
+                                    if msg.get("created_time"):
+                                        try:
+                                            new_msg.created_at = datetime.fromisoformat(
+                                                msg["created_time"].replace("Z", "+00:00")
+                                            )
+                                        except:
+                                            pass
+                                    session.add(new_msg)
+                                    messages_saved += 1
+                                    dm_sync_status[job_id]["messages_saved"] = messages_saved
+
+                            session.commit()
+
+                        except InstagramRateLimitError as e:
+                            logger.error(f"[BGSync] Rate limit: {e.message}")
+                            errors.append(f"Rate limit: {e.message}")
+                            session.commit()
+                            break
+                        except Exception as e:
+                            logger.warning(f"[BGSync] Error: {e}")
+                            continue
+
+                    # Pause between batches
+                    if batch_idx < total_batches - 1:
+                        await asyncio.sleep(config.batch_delay)
+
+        finally:
+            session.close()
+
+        dm_sync_status[job_id]["status"] = "completed"
+        dm_sync_status[job_id]["completed_at"] = datetime.now().isoformat()
+        dm_sync_status[job_id]["errors"] = errors
+        logger.info(f"[BGSync] Complete: {conversations_fetched} convs, {messages_saved} msgs")
+
+    except Exception as e:
+        logger.error(f"[BGSync] Error: {e}")
+        dm_sync_status[job_id]["status"] = "failed"
+        dm_sync_status[job_id]["errors"].append(str(e))
+        dm_sync_status[job_id]["completed_at"] = datetime.now().isoformat()
+
+
+@router.post("/sync-instagram-dms-background")
+async def sync_instagram_dms_background(
+    request: InstagramDMSyncRequest,
+    background_tasks: BackgroundTasks
+):
+    """
+    Start a background DM sync job.
+    Returns immediately with a job_id to check status.
+    """
+    import uuid
+    from datetime import datetime
+
+    job_id = f"dmsync_{request.creator_id}_{uuid.uuid4().hex[:8]}"
+
+    background_tasks.add_task(
+        _background_dm_sync,
+        request.creator_id,
+        request.max_conversations,
+        request.max_messages_per_conversation,
+        job_id
+    )
+
+    return {
+        "status": "started",
+        "job_id": job_id,
+        "creator_id": request.creator_id,
+        "check_status_url": f"/onboarding/sync-instagram-dms-status/{job_id}",
+        "started_at": datetime.now().isoformat()
+    }
+
+
+@router.get("/sync-instagram-dms-status/{job_id}")
+async def get_dm_sync_status(job_id: str):
+    """
+    Check the status of a background DM sync job.
+    """
+    if job_id not in dm_sync_status:
+        raise HTTPException(status_code=404, detail=f"Job not found: {job_id}")
+
+    return dm_sync_status[job_id]
+
+
+@router.get("/sync-instagram-dms-jobs/{creator_id}")
+async def list_dm_sync_jobs(creator_id: str):
+    """
+    List all DM sync jobs for a creator.
+    """
+    jobs = []
+    for job_id, status in dm_sync_status.items():
+        if status.get("creator_id") == creator_id:
+            jobs.append({"job_id": job_id, **status})
+
+    return {"creator_id": creator_id, "jobs": jobs}
