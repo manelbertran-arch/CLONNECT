@@ -798,7 +798,22 @@ async def rescore_leads(creator_id: str):
                 # Get messages for this lead
                 messages = session.query(Message).filter_by(lead_id=lead.id).all()
 
+                # Leads without messages -> NEW with intent=0.1
                 if not messages:
+                    if lead.purchase_intent is None:
+                        lead.purchase_intent = 0.1
+                        lead.status = "new"
+                        stats["leads_updated"] += 1
+                        stats["new"] += 1
+                        stats["details"].append({
+                            "username": lead.username,
+                            "old_intent": None,
+                            "new_intent": 0.1,
+                            "old_status": lead.status,
+                            "new_status": "new",
+                            "messages_count": 0,
+                            "topics": []
+                        })
                     continue
 
                 # Analyze user messages for intent signals
