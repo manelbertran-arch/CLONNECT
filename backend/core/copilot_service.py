@@ -399,14 +399,23 @@ class CopilotService:
     async def _send_telegram_message(self, creator, lead, text: str) -> Dict[str, Any]:
         """Enviar mensaje via Telegram API"""
         import httpx
+        from core.telegram_registry import get_telegram_registry
 
-        if not creator.telegram_bot_token:
+        # Try registry first (bots.json), fallback to creator.telegram_bot_token
+        registry = get_telegram_registry()
+        bot_token = registry.get_token_for_creator(creator.name)
+
+        if not bot_token:
+            # Fallback to creator table
+            bot_token = creator.telegram_bot_token
+
+        if not bot_token:
             return {"success": False, "error": "Telegram not connected"}
 
         # Extract chat_id from follower_id (format: tg_123456)
         chat_id = lead.platform_user_id.replace("tg_", "")
 
-        url = f"https://api.telegram.org/bot{creator.telegram_bot_token}/sendMessage"
+        url = f"https://api.telegram.org/bot{bot_token}/sendMessage"
 
         async with httpx.AsyncClient() as client:
             response = await client.post(url, json={
