@@ -298,56 +298,53 @@ export default function Nurturing() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="metric-card">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
-          <div>
-            <h1 className="text-xl font-semibold tracking-tight">Nurturing</h1>
-            <p className="text-muted-foreground text-sm">Followups automáticos</p>
-          </div>
-          <div className="flex gap-2">
-            <Button
-              onClick={handleRunNurturing}
-              disabled={runNurturing.isPending}
-              className="bg-gradient-to-r from-primary to-accent"
-            >
-              {runNurturing.isPending ? (
-                <Loader2 className="w-4 h-4 animate-spin mr-2" />
-              ) : (
-                <Play className="w-4 h-4 mr-2" />
-              )}
-              Ejecutar pendientes
-            </Button>
-          </div>
+      <div className="flex items-start justify-between">
+        <div>
+          <h1 className="text-2xl font-semibold tracking-tight">Nurturing</h1>
+          <p className="text-sm text-muted-foreground">Followups automáticos</p>
         </div>
+        <Button
+          onClick={handleRunNurturing}
+          disabled={runNurturing.isPending}
+          size="sm"
+          className="h-9 px-4"
+        >
+          {runNurturing.isPending ? (
+            <Loader2 className="w-4 h-4 animate-spin mr-2" />
+          ) : (
+            <Play className="w-4 h-4 mr-2" />
+          )}
+          Ejecutar
+        </Button>
+      </div>
 
-        {/* Stats Row */}
-        <div className="grid grid-cols-3 gap-4">
-          <div className="text-center p-4 rounded-lg bg-secondary/50">
-            <div className="flex items-center justify-center gap-2 mb-1">
-              <Zap className="w-4 h-4 text-primary" />
-              <span className="text-2xl font-bold">{coreSequenceStats.active}</span>
-            </div>
-            <p className="text-xs text-muted-foreground">Activas</p>
+      {/* Stats Row */}
+      <div className="grid grid-cols-3 gap-4">
+        <div className="p-4 rounded-xl bg-card/50 border border-border/30">
+          <div className="flex items-center justify-between mb-2">
+            <span className="text-xs text-muted-foreground">Activas</span>
+            <Zap className="w-3.5 h-3.5 text-amber-500" />
           </div>
-          <div className="text-center p-4 rounded-lg bg-secondary/50">
-            <div className="flex items-center justify-center gap-2 mb-1">
-              <Users className="w-4 h-4 text-accent" />
-              <span className="text-2xl font-bold">{coreSequenceStats.pending}</span>
-            </div>
-            <p className="text-xs text-muted-foreground">Pendientes</p>
+          <span className="text-xl font-semibold">{coreSequenceStats.active}</span>
+        </div>
+        <div className="p-4 rounded-xl bg-card/50 border border-border/30">
+          <div className="flex items-center justify-between mb-2">
+            <span className="text-xs text-muted-foreground">Pendientes</span>
+            <Users className="w-3.5 h-3.5 text-blue-500" />
           </div>
-          <div className="text-center p-4 rounded-lg bg-secondary/50">
-            <div className="flex items-center justify-center gap-2 mb-1">
-              <Send className="w-4 h-4 text-success" />
-              <span className="text-2xl font-bold">{coreSequenceStats.sent}</span>
-            </div>
-            <p className="text-xs text-muted-foreground">Enviados</p>
+          <span className="text-xl font-semibold">{coreSequenceStats.pending}</span>
+        </div>
+        <div className="p-4 rounded-xl bg-card/50 border border-border/30">
+          <div className="flex items-center justify-between mb-2">
+            <span className="text-xs text-muted-foreground">Enviados</span>
+            <Send className="w-3.5 h-3.5 text-emerald-500" />
           </div>
+          <span className="text-xl font-semibold">{coreSequenceStats.sent}</span>
         </div>
       </div>
 
       {/* Sequences List */}
-      <div className="space-y-4">
+      <div className="space-y-3">
         {CORE_SEQUENCES.map((coreSeq) => {
           const backendSeq = getBackendSequence(coreSeq.backendType);
           const isActive = backendSeq?.is_active !== false;
@@ -358,20 +355,23 @@ export default function Nurturing() {
             <div
               key={coreSeq.id}
               className={cn(
-                "metric-card border transition-all",
-                isActive ? "border-border" : "border-border/50 opacity-75"
+                "p-5 rounded-2xl bg-card border border-border/50 transition-all",
+                !isActive && "opacity-60"
               )}
             >
               {/* Header Row */}
-              <div className="flex items-start justify-between gap-4 mb-4">
+              <div className="flex items-center justify-between gap-4 mb-3">
                 <div className="flex items-center gap-3">
                   <div className={cn(
-                    "w-10 h-10 rounded-lg flex items-center justify-center border",
+                    "w-9 h-9 rounded-lg flex items-center justify-center",
                     coreSeq.colorClass
                   )}>
-                    <Icon className="w-5 h-5" />
+                    <Icon className="w-4 h-4" />
                   </div>
-                  <h3 className="font-semibold text-lg">{coreSeq.name}</h3>
+                  <div>
+                    <h3 className="font-medium">{coreSeq.name}</h3>
+                    <p className="text-xs text-muted-foreground">{coreSeq.description}</p>
+                  </div>
                 </div>
                 <Switch
                   checked={isActive}
@@ -380,52 +380,28 @@ export default function Nurturing() {
                 />
               </div>
 
-              {/* Description */}
-              <p className="text-muted-foreground text-sm mb-4">
-                {coreSeq.description}
-              </p>
-
-              {/* How it works */}
-              <div className="mb-4 p-3 rounded-lg bg-secondary/30">
-                <div className="flex items-start gap-2">
-                  <Lightbulb className="w-4 h-4 text-yellow-500 mt-0.5 shrink-0" />
-                  <div>
-                    <p className="text-xs font-medium text-muted-foreground mb-1">¿Cómo funciona?</p>
-                    <p className="text-sm">{coreSeq.howItWorks}</p>
+              {/* Timeline - Compact */}
+              <div className="mb-3 pl-3 border-l border-border/50 space-y-1">
+                {(steps.length > 0 ? steps : coreSeq.defaultTiming.map((t, i) => ({
+                  delay_hours: t.delay.includes('d')
+                    ? parseInt(t.delay) * 24
+                    : parseInt(t.delay),
+                  message: t.label
+                }))).map((step: any, idx: number) => (
+                  <div key={idx} className="flex items-center gap-2 text-xs">
+                    <span className="font-medium text-muted-foreground w-12">
+                      {formatDelay(step.delay_hours)}
+                    </span>
+                    <span className="truncate text-muted-foreground">
+                      {step.message?.slice(0, 40) || coreSeq.defaultTiming[idx]?.label || `Paso ${idx + 1}`}
+                      {step.message?.length > 40 && '...'}
+                    </span>
                   </div>
-                </div>
-              </div>
-
-              {/* Timeline */}
-              <div className="mb-4">
-                <div className="flex items-center gap-2 mb-2">
-                  <Clock className="w-4 h-4 text-muted-foreground" />
-                  <span className="text-xs font-medium text-muted-foreground">Secuencia:</span>
-                </div>
-                <div className="pl-2 border-l-2 border-muted space-y-2">
-                  {(steps.length > 0 ? steps : coreSeq.defaultTiming.map((t, i) => ({
-                    delay_hours: t.delay.includes('d')
-                      ? parseInt(t.delay) * 24
-                      : parseInt(t.delay),
-                    message: t.label
-                  }))).map((step: any, idx: number) => (
-                    <div key={idx} className="flex items-center gap-2 text-sm">
-                      <div className="w-2 h-2 rounded-full bg-muted-foreground -ml-[5px]" />
-                      <span className="font-medium text-muted-foreground min-w-[60px]">
-                        {formatDelay(step.delay_hours)}
-                      </span>
-                      <span className="text-foreground">→</span>
-                      <span className="truncate">
-                        {step.message?.slice(0, 50) || coreSeq.defaultTiming[idx]?.label || `Paso ${idx + 1}`}
-                        {step.message?.length > 50 && '...'}
-                      </span>
-                    </div>
-                  ))}
-                </div>
+                ))}
               </div>
 
               {/* Stats Row */}
-              <div className="flex items-center justify-between pt-4 border-t">
+              <div className="flex items-center justify-between pt-3 border-t border-border/30">
                 <div className="flex items-center gap-4 text-sm">
                   <span className="text-muted-foreground">
                     <span className="font-semibold text-foreground">{backendSeq?.enrolled_count || 0}</span> Pendientes

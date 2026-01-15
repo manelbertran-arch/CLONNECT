@@ -390,54 +390,48 @@ export default function Leads() {
   }
 
   return (
-    <div className="space-y-4">
-      {/* Header - Minimal */}
-      <div className="flex items-center justify-between">
+    <div className="space-y-6">
+      {/* Header */}
+      <div className="flex items-start justify-between">
         <div>
-          <h1 className="text-lg font-semibold">Pipeline</h1>
-          <p className="text-xs text-muted-foreground">
-            {leads.length} leads · €{totalPipelineValue.toLocaleString()}
+          <h1 className="text-2xl font-semibold tracking-tight">Pipeline</h1>
+          <p className="text-sm text-muted-foreground">
+            {leads.length} leads · €{totalPipelineValue.toLocaleString()} potencial
           </p>
         </div>
-        <Button
-          onClick={handleOpenAddModal}
-          size="sm"
-          className="h-8 px-3"
-        >
-          <Plus className="w-3.5 h-3.5 mr-1.5" />
-          Nuevo
+        <Button onClick={handleOpenAddModal} size="sm" className="h-9 px-4">
+          <Plus className="w-4 h-4 mr-2" />
+          Nuevo Lead
         </Button>
       </div>
 
       {/* Kanban Board */}
-      <div className="overflow-x-auto pb-2 -mx-4 px-4 md:mx-0 md:px-0">
-        <div className="flex md:grid md:grid-cols-5 gap-2 h-[calc(100vh-10rem)] min-w-max md:min-w-0">
+      <div className="overflow-x-auto pb-4 -mx-4 px-4 md:mx-0 md:px-0">
+        <div className="flex md:grid md:grid-cols-5 gap-3 h-[calc(100vh-12rem)] min-w-max md:min-w-0">
         {columns.map((column) => {
           const columnLeads = getLeadsByStatus(column.status);
 
           return (
             <div
               key={column.status}
-              className={cn(
-                "flex flex-col rounded-xl overflow-hidden w-64 md:w-auto shrink-0 md:shrink",
-                "bg-gradient-to-b",
-                column.gradient
-              )}
+              className="flex flex-col rounded-2xl overflow-hidden w-64 md:w-auto shrink-0 md:shrink bg-card/50 border border-border/50"
               onDragOver={handleDragOver}
               onDrop={() => handleDrop(column.status)}
             >
-              {/* Column Header - Compact */}
-              <div className="px-3 py-2.5 flex items-center gap-2">
+              {/* Column Header */}
+              <div className="px-4 py-3 flex items-center gap-2 border-b border-border/30">
                 <span className={cn("opacity-80", column.color)}>{column.icon}</span>
                 <span className="font-medium text-sm">{column.title}</span>
-                <span className="text-xs text-muted-foreground/70 ml-auto">{columnLeads.length}</span>
+                <span className="text-xs bg-muted/50 px-2 py-0.5 rounded-full text-muted-foreground ml-auto">
+                  {columnLeads.length}
+                </span>
               </div>
 
               {/* Cards */}
-              <div className="flex-1 overflow-auto px-2 pb-2 space-y-2">
+              <div className="flex-1 overflow-auto p-2 space-y-2">
                 {columnLeads.length === 0 ? (
-                  <div className="text-center py-12 text-muted-foreground/50 text-xs">
-                    Vacío
+                  <div className="text-center py-16 text-muted-foreground/40 text-xs">
+                    Sin leads
                   </div>
                 ) : (
                   columnLeads.map((lead) => (
@@ -446,59 +440,59 @@ export default function Leads() {
                       draggable
                       onDragStart={() => handleDragStart(lead)}
                       className={cn(
-                        "group p-3 rounded-lg bg-card/80 backdrop-blur-sm cursor-grab active:cursor-grabbing transition-all",
-                        "hover:bg-card hover:shadow-md",
+                        "group p-3 rounded-xl bg-card border border-border/30 cursor-grab active:cursor-grabbing transition-all",
+                        "hover:border-border hover:shadow-sm",
                         draggedLead?.id === lead.id && "opacity-50 scale-95"
                       )}
                     >
-                      <div className="flex items-center gap-2.5">
+                      <div className="flex items-center gap-3">
                         {/* Avatar */}
-                        <div className="w-8 h-8 rounded-full bg-gradient-to-br from-primary/40 to-accent/40 flex items-center justify-center text-[10px] font-medium shrink-0">
+                        <div className="w-9 h-9 rounded-full bg-muted/50 flex items-center justify-center text-xs font-medium shrink-0">
                           {lead.avatar}
                         </div>
 
                         {/* Name & Platform */}
                         <div className="flex-1 min-w-0">
                           <p className="font-medium text-sm truncate">{lead.name || lead.username}</p>
-                          <p className="text-[10px] text-muted-foreground/70 flex items-center gap-1">
+                          <p className="text-xs text-muted-foreground flex items-center gap-1">
                             {platformIcons[lead.platform] || platformIcons.instagram}
                             <span className="truncate">{lead.username}</span>
                           </p>
                         </div>
 
-                        {/* Value Badge */}
+                        {/* Value */}
                         {lead.value > 0 && (
-                          <span className="text-[10px] font-medium text-emerald-400 shrink-0">
+                          <span className="text-xs font-medium text-emerald-500 shrink-0">
                             €{lead.value}
                           </span>
                         )}
 
-                        {/* Menu - Hidden until hover */}
+                        {/* Menu */}
                         <DropdownMenu>
                           <DropdownMenuTrigger asChild>
                             <Button
                               variant="ghost"
                               size="icon"
-                              className="h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity shrink-0"
+                              className="h-7 w-7 opacity-0 group-hover:opacity-100 transition-opacity shrink-0"
                             >
-                              <MoreHorizontal className="w-3.5 h-3.5" />
+                              <MoreHorizontal className="w-4 h-4" />
                             </Button>
                           </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end" className="w-32">
-                            <DropdownMenuItem onClick={() => handleViewLead(lead)} className="text-xs">
-                              <Eye className="w-3.5 h-3.5 mr-2" />
+                          <DropdownMenuContent align="end" className="w-36">
+                            <DropdownMenuItem onClick={() => handleViewLead(lead)}>
+                              <Eye className="w-4 h-4 mr-2" />
                               Ver
                             </DropdownMenuItem>
-                            <DropdownMenuItem onClick={() => handleOpenEditModal(lead)} className="text-xs">
-                              <Pencil className="w-3.5 h-3.5 mr-2" />
+                            <DropdownMenuItem onClick={() => handleOpenEditModal(lead)}>
+                              <Pencil className="w-4 h-4 mr-2" />
                               Editar
                             </DropdownMenuItem>
                             <DropdownMenuSeparator />
                             <DropdownMenuItem
                               onClick={() => handleOpenDeleteDialog(lead)}
-                              className="text-xs text-destructive focus:text-destructive"
+                              className="text-destructive focus:text-destructive"
                             >
-                              <Trash2 className="w-3.5 h-3.5 mr-2" />
+                              <Trash2 className="w-4 h-4 mr-2" />
                               Eliminar
                             </DropdownMenuItem>
                           </DropdownMenuContent>
