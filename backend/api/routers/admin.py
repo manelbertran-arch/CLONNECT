@@ -750,31 +750,36 @@ async def get_demo_status():
 @router.post("/rescore-leads/{creator_id}")
 async def rescore_leads(creator_id: str):
     """
-    Re-calcular purchase_intent para todos los leads de un creator.
+    Re-categorizar todos los leads usando el sistema de embudo estándar.
 
-    Analiza los mensajes de cada lead y calcula el score basado en:
-    - Preguntas de precio (+0.3)
-    - Intención de compra (+0.4)
-    - Solicitud de información (+0.2)
-    - Preguntas en general (+0.1)
+    Categorías:
+    - nuevo: Acaba de llegar, sin señales
+    - interesado: Muestra curiosidad, hace preguntas
+    - caliente: Pregunta precio o quiere comprar
+    - cliente: Ya compró (requiere flag manual o webhook)
+    - fantasma: Sin respuesta 7+ días
 
     Args:
         creator_id: Nombre o UUID del creator
 
     Returns:
-        Estadísticas de leads actualizados
+        Estadísticas de leads actualizados por categoría
     """
     try:
         from api.database import SessionLocal
         from api.models import Creator, Lead, Message
         from sqlalchemy import text
+        from core.lead_categorization import (
+            calcular_categoria,
+            categoria_a_status_legacy,
+            CATEGORIAS_CONFIG
+        )
 
         session = SessionLocal()
         try:
             # Get creator
             creator = session.query(Creator).filter_by(name=creator_id).first()
             if not creator:
-                # Try UUID
                 creator = session.query(Creator).filter(
                     text("id::text = :cid")
                 ).params(cid=creator_id).first()
@@ -782,99 +787,68 @@ async def rescore_leads(creator_id: str):
             if not creator:
                 return {"status": "error", "error": f"Creator not found: {creator_id}"}
 
-            # Get all leads for this creator
             leads = session.query(Lead).filter_by(creator_id=creator.id).all()
 
             stats = {
                 "total_leads": len(leads),
                 "leads_updated": 0,
-                "hot": 0,
-                "active": 0,
-                "new": 0,
+                "por_categoria": {
+                    "nuevo": 0,
+                    "interesado": 0,
+                    "caliente": 0,
+                    "cliente": 0,
+                    "fantasma": 0
+                },
                 "details": []
             }
 
             for lead in leads:
-                # Get messages for this lead
-                messages = session.query(Message).filter_by(lead_id=lead.id).all()
+                messages = session.query(Message).filter_by(lead_id=lead.id).order_by(Message.created_at).all()
 
-                # Leads without messages -> NEW with intent=0.1
-                if not messages:
-                    if lead.purchase_intent is None:
-                        lead.purchase_intent = 0.1
-                        lead.status = "new"
-                        stats["leads_updated"] += 1
-                        stats["new"] += 1
-                        stats["details"].append({
-                            "username": lead.username,
-                            "old_intent": None,
-                            "new_intent": 0.1,
-                            "old_status": lead.status,
-                            "new_status": "new",
-                            "messages_count": 0,
-                            "topics": []
-                        })
-                    continue
+                # Convertir a formato esperado por calcular_categoria
+                mensajes_dict = [
+                    {"role": m.role, "content": m.content or ""}
+                    for m in messages
+                ]
 
-                # Analyze user messages for intent signals
-                topics = []
-                questions = []
+                # Obtener último mensaje del lead para detectar fantasma
+                mensajes_usuario = [m for m in messages if m.role == "user"]
+                ultimo_msg_lead = mensajes_usuario[-1].created_at if mensajes_usuario else None
 
-                for msg in messages:
-                    if msg.role != "user":
-                        continue
+                # Verificar si es cliente (por ahora manual, luego webhook)
+                es_cliente = getattr(lead, 'has_purchased', False) if hasattr(lead, 'has_purchased') else False
 
-                    text_lower = (msg.content or "").lower()
+                # Calcular categoría
+                resultado = calcular_categoria(
+                    mensajes=mensajes_dict,
+                    es_cliente=es_cliente,
+                    ultimo_mensaje_lead=ultimo_msg_lead,
+                    dias_fantasma=7
+                )
 
-                    if "?" in (msg.content or ""):
-                        questions.append(msg.content)
+                # Convertir a status legacy para compatibilidad con frontend actual
+                new_status = categoria_a_status_legacy(resultado.categoria)
 
-                    if any(w in text_lower for w in ["precio", "cuesta", "vale", "pagar", "cost", "price"]):
-                        topics.append("precio")
-                    if any(w in text_lower for w in ["info", "información", "detalles", "details"]):
-                        topics.append("información")
-                    if any(w in text_lower for w in ["comprar", "quiero", "interesa", "want", "buy"]):
-                        topics.append("intención_compra")
-
-                # Calculate intent score
-                intent_score = 0.0
-                if "intención_compra" in topics:
-                    intent_score += 0.4
-                if "precio" in topics:
-                    intent_score += 0.3
-                if "información" in topics:
-                    intent_score += 0.2
-                if questions:
-                    intent_score += 0.1
-                intent_score = min(intent_score, 1.0)
-
-                # Determine status
-                if intent_score >= 0.6:
-                    new_status = "hot"
-                    stats["hot"] += 1
-                elif intent_score >= 0.35:
-                    new_status = "active"
-                    stats["active"] += 1
-                else:
-                    new_status = "new"
-                    stats["new"] += 1
-
-                # Update lead
-                old_intent = lead.purchase_intent
+                # Guardar cambios
                 old_status = lead.status
+                old_intent = lead.purchase_intent
 
-                lead.purchase_intent = intent_score
                 lead.status = new_status
+                lead.purchase_intent = resultado.intent_score
+
                 stats["leads_updated"] += 1
+                stats["por_categoria"][resultado.categoria] += 1
 
                 stats["details"].append({
                     "username": lead.username,
-                    "old_intent": old_intent,
-                    "new_intent": intent_score,
+                    "categoria": resultado.categoria,
+                    "status_legacy": new_status,
                     "old_status": old_status,
-                    "new_status": new_status,
-                    "messages_count": len(messages),
-                    "topics": list(set(topics))
+                    "intent_score": resultado.intent_score,
+                    "old_intent": old_intent,
+                    "razones": resultado.razones,
+                    "keywords": resultado.keywords_detectados[:5],
+                    "messages_count": len(messages)
                 })
 
             session.commit()
@@ -891,10 +865,26 @@ async def rescore_leads(creator_id: str):
 
     except Exception as e:
         logger.error(f"Rescore failed for {creator_id}: {e}")
+        import traceback
+        traceback.print_exc()
         return {
             "status": "error",
             "error": str(e)
         }
+
+
+@router.get("/lead-categories")
+async def get_lead_categories():
+    """
+    Obtener configuración de categorías de leads para el frontend.
+
+    Retorna colores, iconos, labels y descripciones de cada categoría.
+    """
+    from core.lead_categorization import CATEGORIAS_CONFIG
+    return {
+        "status": "success",
+        "categories": CATEGORIAS_CONFIG
+    }
 
 
 @router.delete("/cleanup-test-leads/{creator_id}")
