@@ -739,7 +739,10 @@ async def get_lead_by_platform_id(creator_id: str, platform_id: str) -> dict:
 
 
 async def create_lead_async(creator_id: str, data: dict) -> dict:
-    """Create a new lead for dm_agent integration (async version)"""
+    """Create a new lead for dm_agent integration (async version).
+
+    FIX: Added duplicate check to prevent race conditions from creating duplicate leads.
+    """
     if not USE_POSTGRES:
         return None
     session = get_session()
@@ -752,11 +755,23 @@ async def create_lead_async(creator_id: str, data: dict) -> dict:
         if not creator:
             logger.warning(f"Creator not found: {creator_id}")
             return None
+
+        platform_user_id = data.get("platform_user_id", str(uuid.uuid4()))
+
+        # DUPLICATE CHECK: Prevent race condition duplicates
+        existing = session.query(Lead).filter_by(
+            creator_id=creator.id,
+            platform_user_id=platform_user_id
+        ).first()
+        if existing:
+            logger.info(f"Lead already exists for {platform_user_id}, returning existing")
+            return {"id": str(existing.id), "status": "existing"}
+
         # Create new lead
         lead = Lead(
             creator_id=creator.id,
             platform=data.get("platform", "telegram"),
-            platform_user_id=data.get("platform_user_id", str(uuid.uuid4())),
+            platform_user_id=platform_user_id,
             username=data.get("username", ""),
             full_name=data.get("full_name") or data.get("name", ""),
             status="new",
@@ -774,8 +789,12 @@ async def create_lead_async(creator_id: str, data: dict) -> dict:
         session.close()
 
 
-async def save_message(lead_id: str, role: str, content: str, intent: str = None) -> dict:
-    """Save a message to the database for dm_agent integration"""
+async def save_message(lead_id: str, role: str, content: str, intent: str = None, platform_message_id: str = None) -> dict:
+    """Save a message to the database for dm_agent integration.
+
+    FIX: Added duplicate detection to prevent webhook message duplication.
+    Checks for existing message with same content+lead within last 5 minutes.
+    """
     if not USE_POSTGRES:
         return None
     session = get_session()
@@ -783,16 +802,42 @@ async def save_message(lead_id: str, role: str, content: str, intent: str = None
         return None
     try:
         from api.models import Message
-        from datetime import timezone
+        from datetime import timezone, timedelta
         import uuid as uuid_module
+
         # Convert lead_id string to UUID
         lead_uuid = uuid_module.UUID(lead_id) if isinstance(lead_id, str) else lead_id
+
+        # DUPLICATE CHECK: Check if same message exists for this lead in last 5 minutes
+        # This prevents webhook retries from creating duplicate messages
+        five_minutes_ago = datetime.now(timezone.utc) - timedelta(minutes=5)
+        existing = session.query(Message).filter(
+            Message.lead_id == lead_uuid,
+            Message.role == role,
+            Message.content == content,
+            Message.created_at >= five_minutes_ago
+        ).first()
+
+        if existing:
+            logger.info(f"Duplicate message detected for lead {lead_id}, skipping (role={role})")
+            return {"id": str(existing.id), "status": "duplicate_skipped"}
+
+        # Also check by platform_message_id if provided
+        if platform_message_id:
+            existing_by_id = session.query(Message).filter(
+                Message.platform_message_id == platform_message_id
+            ).first()
+            if existing_by_id:
+                logger.info(f"Duplicate message by platform_message_id: {platform_message_id}")
+                return {"id": str(existing_by_id.id), "status": "duplicate_skipped"}
+
         # Create new message
         message = Message(
             lead_id=lead_uuid,
             role=role,  # 'user' or 'assistant'
             content=content,
             intent=intent,
+            platform_message_id=platform_message_id,
             created_at=datetime.now(timezone.utc)
         )
         session.add(message)

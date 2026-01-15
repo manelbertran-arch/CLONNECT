@@ -6,7 +6,7 @@ import pytest
 from datetime import datetime
 from unittest.mock import AsyncMock, MagicMock, patch
 
-from backend.core.onboarding_service import (
+from core.onboarding_service import (
     OnboardingService,
     OnboardingRequest,
     OnboardingResult,
@@ -49,7 +49,7 @@ def sample_posts():
 @pytest.fixture
 def sample_tone_profile():
     """ToneProfile de ejemplo."""
-    from backend.ingestion import ToneProfile
+    from ingestion import ToneProfile
     return ToneProfile(
         creator_id="test_creator",
         formality="informal",
@@ -137,7 +137,7 @@ class TestOnboardingPipeline:
 
         with patch.object(onboarding_service, '_analyze_tone') as mock_tone, \
              patch.object(onboarding_service, '_index_content') as mock_index, \
-             patch('backend.core.onboarding_service.save_tone_profile', new_callable=AsyncMock):
+             patch('core.onboarding_service.save_tone_profile', new_callable=AsyncMock):
 
             mock_tone.return_value = sample_tone_profile
             mock_index.return_value = {"posts_indexed": 3, "total_chunks": 3}
@@ -284,7 +284,7 @@ class TestSingleton:
     def test_get_onboarding_service_returns_same_instance(self):
         """Retorna la misma instancia."""
         # Reset singleton
-        import backend.core.onboarding_service as module
+        import core.onboarding_service as module
         module._onboarding_service = None
 
         service1 = get_onboarding_service()
@@ -339,16 +339,16 @@ class TestIntegration:
         )
 
         # Mock de dependencias externas
-        with patch('backend.core.onboarding_service.save_tone_profile', new_callable=AsyncMock), \
-             patch('backend.core.onboarding_service.index_creator_posts', new_callable=AsyncMock) as mock_index, \
-             patch('backend.core.onboarding_service.get_content_index') as mock_get_index:
+        with patch('core.onboarding_service.save_tone_profile', new_callable=AsyncMock), \
+             patch('core.onboarding_service.index_creator_posts', new_callable=AsyncMock) as mock_index, \
+             patch('core.onboarding_service.get_content_index') as mock_get_index:
 
             mock_index.return_value = {"posts_indexed": 3, "total_chunks": 3}
             mock_get_index.return_value = MagicMock(chunks=[1, 2, 3])
 
             # Mock del tone analyzer
             with patch.object(service.tone_analyzer, 'analyze', new_callable=AsyncMock) as mock_analyze:
-                from backend.ingestion import ToneProfile
+                from ingestion import ToneProfile
                 mock_analyze.return_value = ToneProfile(
                     creator_id="integration_test_creator",
                     formality="informal",
@@ -371,7 +371,7 @@ class TestDeleteFunctions:
 
     def test_delete_tone_profile_nonexistent(self):
         """delete_tone_profile retorna False si no existe."""
-        from backend.core.tone_service import delete_tone_profile
+        from core.tone_service import delete_tone_profile
 
         result = delete_tone_profile("nonexistent_creator_xyz_123")
 
@@ -379,7 +379,7 @@ class TestDeleteFunctions:
 
     def test_delete_content_index_nonexistent(self):
         """delete_content_index retorna False si no existe."""
-        from backend.core.citation_service import delete_content_index
+        from core.citation_service import delete_content_index
 
         result = delete_content_index("nonexistent_creator_xyz_123")
 

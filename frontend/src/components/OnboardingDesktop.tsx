@@ -42,29 +42,19 @@ const timelineSteps = [
 ];
 
 export function OnboardingDesktop({ onComplete }: OnboardingDesktopProps) {
-  const [currentSlide, setCurrentSlide] = useState(0);
-  const [isStarted, setIsStarted] = useState(false);
+  const [currentSlide, setCurrentSlide] = useState(1); // Start directly at slide 1
   const [visibleMessages, setVisibleMessages] = useState<number[]>([]);
   const [typingVisible, setTypingVisible] = useState(false);
   const [showSaleNotification, setShowSaleNotification] = useState(false);
   const [countersAnimated, setCountersAnimated] = useState(false);
 
-  const totalSlides = 12; // 0 (intro) + 11 slides
+  const totalSlides = 11; // 11 slides (no intro)
 
   // Handle keyboard navigation
   const handleKeyDown = useCallback((e: KeyboardEvent) => {
-    if (!isStarted && (e.key === ' ' || e.key === 'Enter')) {
-      e.preventDefault();
-      setIsStarted(true);
-      setCurrentSlide(1);
-      return;
-    }
-
-    if (!isStarted) return;
-
     if (e.key === 'ArrowRight' || e.key === ' ' || e.key === 'Enter') {
       e.preventDefault();
-      if (currentSlide < totalSlides - 1) {
+      if (currentSlide < totalSlides) {
         setCurrentSlide(prev => prev + 1);
       } else {
         onComplete();
@@ -73,7 +63,7 @@ export function OnboardingDesktop({ onComplete }: OnboardingDesktopProps) {
       e.preventDefault();
       setCurrentSlide(prev => prev - 1);
     }
-  }, [isStarted, currentSlide, onComplete]);
+  }, [currentSlide, onComplete]);
 
   useEffect(() => {
     window.addEventListener('keydown', handleKeyDown);
@@ -125,16 +115,11 @@ export function OnboardingDesktop({ onComplete }: OnboardingDesktopProps) {
   }, [currentSlide, countersAnimated]);
 
   const handleNext = () => {
-    if (currentSlide < totalSlides - 1) {
+    if (currentSlide < totalSlides) {
       setCurrentSlide(prev => prev + 1);
     } else {
       onComplete();
     }
-  };
-
-  const handleStart = () => {
-    setIsStarted(true);
-    setCurrentSlide(1);
   };
 
   // Get current timeline step based on visible messages
@@ -176,43 +161,6 @@ export function OnboardingDesktop({ onComplete }: OnboardingDesktopProps) {
     return <span>{count}{suffix}</span>;
   };
 
-  // Render intro slide (slide 0)
-  if (!isStarted) {
-    return (
-      <div className="onboarding-overlay">
-        <div className="onboarding-orbs">
-          <div className="orb orb-purple" />
-          <div className="orb orb-indigo" />
-          <div className="orb orb-green" />
-        </div>
-
-        <div className="intro-content" onClick={handleStart}>
-          <div className="intro-logo">
-            <div className="logo-glow">
-              <svg viewBox="0 0 40 40" className="logo-icon">
-                <circle cx="20" cy="20" r="18" fill="none" stroke="currentColor" strokeWidth="2" />
-                <circle cx="20" cy="20" r="8" fill="currentColor" />
-              </svg>
-            </div>
-          </div>
-
-          <h1 className="intro-title">
-            <span className="gradient-text-onboarding">Clonnect</span>
-          </h1>
-
-          <p className="intro-subtitle">Tu clon de IA que vende 24/7</p>
-
-          <button className="intro-button bounce-animation" onClick={handleStart}>
-            Comenzar
-            <ChevronRight className="w-5 h-5" />
-          </button>
-
-          <p className="intro-hint">Pulsa espacio o haz click para empezar</p>
-        </div>
-      </div>
-    );
-  }
-
   return (
     <div className="onboarding-overlay">
       <div className="onboarding-orbs">
@@ -225,7 +173,7 @@ export function OnboardingDesktop({ onComplete }: OnboardingDesktopProps) {
       <div className="progress-bar">
         <div
           className="progress-fill"
-          style={{ width: `${(currentSlide / (totalSlides - 1)) * 100}%` }}
+          style={{ width: `${(currentSlide / totalSlides) * 100}%` }}
         />
       </div>
 
@@ -234,17 +182,13 @@ export function OnboardingDesktop({ onComplete }: OnboardingDesktopProps) {
         {/* Slide 1: Welcome */}
         {currentSlide === 1 && (
           <div className="slide slide-center">
-            <div className="slide-logo-small">
-              <svg viewBox="0 0 40 40" className="logo-icon-small">
-                <circle cx="20" cy="20" r="18" fill="none" stroke="currentColor" strokeWidth="2" />
-                <circle cx="20" cy="20" r="8" fill="currentColor" />
-              </svg>
-            </div>
-            <h2 className="slide-title">Bienvenido a <span className="gradient-text-onboarding">Clonnect</span></h2>
-            <p className="slide-text">
+            <h2 className="slide-title" style={{ fontSize: '3rem', marginBottom: '1.5rem' }}>
+              Bienvenido a <span className="gradient-text-onboarding">Clonnect</span>
+            </h2>
+            <p className="slide-text" style={{ fontSize: '1.25rem', maxWidth: '600px', margin: '0 auto 1rem' }}>
               Has dado el primer paso para automatizar tu negocio y vender 24/7 sin perder tu toque personal.
             </p>
-            <p className="slide-text-secondary">
+            <p className="slide-text-secondary" style={{ fontSize: '1.1rem', maxWidth: '550px', margin: '0 auto' }}>
               En los próximos minutos te mostraremos cómo funciona y cómo configurar tu clon de IA.
             </p>
           </div>
@@ -907,10 +851,10 @@ export function OnboardingDesktop({ onComplete }: OnboardingDesktopProps) {
       {/* Footer navigation */}
       <div className="slide-footer">
         <span className="slide-counter">
-          Paso {currentSlide} de {totalSlides - 1}
+          Paso {currentSlide} de {totalSlides}
         </span>
         <button className="next-button" onClick={handleNext}>
-          {currentSlide === totalSlides - 1 ? 'Empezar a configurar' : 'Continuar'}
+          {currentSlide === totalSlides ? 'Empezar a configurar' : 'Continuar'}
           <ChevronRight className="w-5 h-5" />
         </button>
       </div>

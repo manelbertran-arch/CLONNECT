@@ -35,7 +35,7 @@ class InstagramV2Request(BaseModel):
     """Request para ingestion Instagram V2."""
     creator_id: str
     instagram_username: str
-    max_posts: int = 50
+    max_posts: int = 20  # Reduced from 50 to avoid rate limits
     clean_before: bool = True  # Limpiar datos anteriores
 
 

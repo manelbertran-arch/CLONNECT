@@ -23,14 +23,8 @@ interface OnboardingMobileProps {
 // Simplified slides for mobile - same content, simpler presentation
 const slides = [
   {
-    id: 'intro',
-    title: 'Clonnect',
-    subtitle: 'Tu clon de IA que vende 24/7',
-    isIntro: true,
-  },
-  {
     id: 'welcome',
-    title: 'Bienvenido',
+    title: 'Bienvenido a Clonnect',
     content: 'Has dado el primer paso para automatizar tu negocio y vender 24/7 sin perder tu toque personal.',
   },
   {
@@ -147,28 +141,12 @@ export function OnboardingMobile({ onComplete }: OnboardingMobileProps) {
       </div>
 
       {/* Progress bar */}
-      {!slide.isIntro && (
-        <div className="mobile-progress">
-          <div className="mobile-progress-fill" style={{ width: `${progress}%` }} />
-        </div>
-      )}
+      <div className="mobile-progress">
+        <div className="mobile-progress-fill" style={{ width: `${progress}%` }} />
+      </div>
 
       {/* Content */}
       <div className="mobile-content">
-        {/* Intro slide */}
-        {slide.isIntro && (
-          <div className="mobile-intro">
-            <div className="mobile-logo">
-              <svg viewBox="0 0 40 40" className="mobile-logo-icon">
-                <circle cx="20" cy="20" r="18" fill="none" stroke="currentColor" strokeWidth="2" />
-                <circle cx="20" cy="20" r="8" fill="currentColor" />
-              </svg>
-            </div>
-            <h1 className="mobile-intro-title">{slide.title}</h1>
-            <p className="mobile-intro-subtitle">{slide.subtitle}</p>
-          </div>
-        )}
-
         {/* Ready slide */}
         {slide.isReady && (
           <div className="mobile-ready">
@@ -273,22 +251,20 @@ export function OnboardingMobile({ onComplete }: OnboardingMobileProps) {
         )}
 
         <button className="mobile-nav-btn mobile-nav-next" onClick={handleNext}>
-          {isLast ? 'Empezar' : isFirst ? 'Comenzar' : 'Continuar'}
+          {isLast ? 'Empezar' : 'Continuar'}
           <ChevronRight className="w-5 h-5" />
         </button>
       </div>
 
       {/* Slide indicator */}
-      {!slide.isIntro && (
-        <div className="mobile-dots">
-          {slides.slice(1).map((_, i) => (
-            <div
-              key={i}
-              className={`mobile-dot ${i + 1 === currentSlide ? 'active' : ''}`}
-            />
-          ))}
-        </div>
-      )}
+      <div className="mobile-dots">
+        {slides.map((_, i) => (
+          <div
+            key={i}
+            className={`mobile-dot ${i === currentSlide ? 'active' : ''}`}
+          />
+        ))}
+      </div>
     </div>
   );
 }

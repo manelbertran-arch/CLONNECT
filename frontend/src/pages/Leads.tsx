@@ -1,6 +1,5 @@
 import { useState, useMemo } from "react";
 import { Instagram, MoreHorizontal, Plus, TrendingUp, Loader2, AlertCircle, MessageCircle, Send, Eye, Pencil, Trash2, X } from "lucide-react";
-
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -136,7 +135,6 @@ export default function Leads() {
   // Use conversations endpoint to get ALL followers (not just leads with is_lead=true)
   const { data, isLoading, error } = useConversations();
   const [draggedLead, setDraggedLead] = useState<LeadDisplay | null>(null);
-
   const [localStatusOverrides, setLocalStatusOverrides] = useState<Record<string, LeadStatus>>({});
   const { toast } = useToast();
   const updateStatusMutation = useUpdateLeadStatus();

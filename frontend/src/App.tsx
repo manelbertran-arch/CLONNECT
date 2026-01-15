@@ -5,8 +5,11 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider } from "@/context/AuthContext";
 import { DashboardLayout } from "./components/layout/DashboardLayout";
+import { DashboardLayoutClean } from "./components/layout/DashboardLayoutClean";
 import NotFound from "./pages/NotFound";
 import Login from "./pages/Login";
+import Register from "./pages/Register";
+import Welcome from "./pages/Welcome";
 
 // Debug logging
 console.log("[CLONNECT DEBUG] App.tsx module loading");
@@ -27,6 +30,9 @@ import Terms from "./pages/Terms";
 import Privacy from "./pages/Privacy";
 import BookService from "./pages/BookService";
 import Onboarding from "./pages/Onboarding";
+import OnboardingIntro from "./pages/OnboardingIntro";
+import InboxTest from "./pages/InboxTest";
+import HomeWithConversations from "./pages/HomeWithConversations";
 
 // New Dashboard Pages
 import { NewLayout } from "./components/layout/NewLayout";
@@ -51,15 +57,26 @@ const AppRoutes = () => {
   console.log("[CLONNECT DEBUG] AppRoutes rendering, pathname:", window.location.pathname);
   return (
     <Routes>
-      {/* Login route - always show login page */}
+      {/* Auth routes */}
       <Route path="/login" element={<Login />} />
+      <Route path="/register" element={<Register />} />
 
-      {/* Onboarding route - no protection, let onboarding handle its own state */}
+      {/* Onboarding routes */}
+      <Route path="/onboarding-intro" element={<OnboardingIntro />} />
       <Route path="/onboarding" element={<Onboarding />} />
+
+      {/* Minimal test route to isolate Inbox slowness */}
+      <Route path="/inbox-test" element={<InboxTest />} />
+
+      {/* Clean layout test - no Sidebar/MobileNav */}
+      <Route element={<DashboardLayoutClean />}>
+        <Route path="/clean-inbox-test" element={<HomeWithConversations />} />
+      </Route>
 
       {/* Dashboard routes */}
       <Route element={<DashboardLayout />}>
         <Route path="/dashboard" element={<Dashboard />} />
+        <Route path="/home-conv-test" element={<HomeWithConversations />} />
         <Route path="/dashboard/:creatorId" element={<Dashboard />} />
         <Route path="/inbox" element={<Inbox />} />
         <Route path="/copilot" element={<Copilot />} />
@@ -83,8 +100,8 @@ const AppRoutes = () => {
         <Route path="ajustes" element={<Ajustes />} />
       </Route>
 
-      {/* Root redirects to login */}
-      <Route path="/" element={<Navigate to="/login" replace />} />
+      {/* Root shows welcome page */}
+      <Route path="/" element={<Welcome />} />
 
       {/* Public booking page - no authentication required */}
       <Route path="/book/:creatorId/:serviceId" element={<BookService />} />

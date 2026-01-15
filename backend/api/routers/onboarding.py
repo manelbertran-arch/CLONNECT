@@ -1262,41 +1262,40 @@ async def seed_demo_data(request: SeedDemoRequest):
                     session.add(new_product)
                     details["products_created"] += 1
 
-            # Create demo leads
-            demo_leads = [
-                {"name": "María García", "platform": "instagram", "intent": 0.8, "status": "hot"},
-                {"name": "Carlos López", "platform": "instagram", "intent": 0.6, "status": "warm"},
-                {"name": "Ana Martínez", "platform": "instagram", "intent": 0.9, "status": "hot"},
-                {"name": "Pedro Sánchez", "platform": "whatsapp", "intent": 0.4, "status": "warm"},
-                {"name": "Laura Fernández", "platform": "instagram", "intent": 0.3, "status": "cold"},
-                {"name": "Diego Ruiz", "platform": "instagram", "intent": 0.7, "status": "hot"},
-                {"name": "Sofia Torres", "platform": "whatsapp", "intent": 0.5, "status": "warm"},
-                {"name": "Miguel Herrera", "platform": "instagram", "intent": 0.2, "status": "cold"},
-            ]
-
-            for i, lead_data in enumerate(demo_leads):
-                platform_user_id = f"demo_{lead_data['name'].lower().replace(' ', '_')}_{i}"
-                existing = session.query(Lead).filter_by(
-                    creator_id=creator_uuid, platform_user_id=platform_user_id
-                ).first()
-                if not existing or request.force:
-                    if existing and request.force:
-                        session.delete(existing)
-                    new_lead = Lead(
-                        id=uuid_module.uuid4(),
-                        creator_id=creator_uuid,
-                        platform=lead_data["platform"],
-                        platform_user_id=platform_user_id,
-                        username=lead_data["name"].lower().replace(" ", "_"),
-                        full_name=lead_data["name"],
-                        purchase_intent=lead_data["intent"],
-                        status=lead_data["status"],
-                        first_contact_at=datetime.utcnow() - timedelta(days=random.randint(1, 30)),
-                        last_contact_at=datetime.utcnow() - timedelta(hours=random.randint(1, 72)),
-                        score=random.randint(30, 90)
-                    )
-                    session.add(new_lead)
-                    details["leads_created"] += 1
+            # NOTE: Demo leads DISABLED - only load real Instagram DMs
+            # demo_leads = [
+            #     {"name": "María García", "platform": "instagram", "intent": 0.8, "status": "hot"},
+            #     {"name": "Carlos López", "platform": "instagram", "intent": 0.6, "status": "warm"},
+            #     {"name": "Ana Martínez", "platform": "instagram", "intent": 0.9, "status": "hot"},
+            #     {"name": "Pedro Sánchez", "platform": "whatsapp", "intent": 0.4, "status": "warm"},
+            #     {"name": "Laura Fernández", "platform": "instagram", "intent": 0.3, "status": "cold"},
+            #     {"name": "Diego Ruiz", "platform": "instagram", "intent": 0.7, "status": "hot"},
+            #     {"name": "Sofia Torres", "platform": "whatsapp", "intent": 0.5, "status": "warm"},
+            #     {"name": "Miguel Herrera", "platform": "instagram", "intent": 0.2, "status": "cold"},
+            # ]
+            # for i, lead_data in enumerate(demo_leads):
+            #     platform_user_id = f"demo_{lead_data['name'].lower().replace(' ', '_')}_{i}"
+            #     existing = session.query(Lead).filter_by(
+            #         creator_id=creator_uuid, platform_user_id=platform_user_id
+            #     ).first()
+            #     if not existing or request.force:
+            #         if existing and request.force:
+            #             session.delete(existing)
+            #         new_lead = Lead(
+            #             id=uuid_module.uuid4(),
+            #             creator_id=creator_uuid,
+            #             platform=lead_data["platform"],
+            #             platform_user_id=platform_user_id,
+            #             username=lead_data["name"].lower().replace(" ", "_"),
+            #             full_name=lead_data["name"],
+            #             purchase_intent=lead_data["intent"],
+            #             status=lead_data["status"],
+            #             first_contact_at=datetime.utcnow() - timedelta(days=random.randint(1, 30)),
+            #             last_contact_at=datetime.utcnow() - timedelta(hours=random.randint(1, 72)),
+            #             score=random.randint(30, 90)
+            #         )
+            #         session.add(new_lead)
+            #         details["leads_created"] += 1
 
             # Mark onboarding as completed and activate bot
             creator.onboarding_completed = True
@@ -1690,7 +1689,7 @@ class ManualSetupRequest(BaseModel):
     creator_id: str
     instagram_username: str
     website_url: Optional[str] = None
-    max_posts: int = 50
+    max_posts: int = 20  # Reduced from 50 to avoid rate limits
 
 
 class ManualSetupResponse(BaseModel):
@@ -1700,6 +1699,399 @@ class ManualSetupResponse(BaseModel):
     steps_completed: Dict[str, bool]
     details: Dict
     errors: List[str] = []
+
+
+@router.post("/quick-setup")
+async def quick_setup(request: ManualSetupRequest):
+    """
+    Setup rápido sin scraping - para testing y demos.
+
+    Solo crea/actualiza el creator y marca onboarding como completado.
+    No hace scraping de Instagram ni website.
+    """
+    try:
+        from api.database import DATABASE_URL, SessionLocal
+        from api.models import Creator
+        import uuid as uuid_module
+
+        if not DATABASE_URL or not SessionLocal:
+            return {
+                "success": True,
+                "creator_id": request.creator_id,
+                "steps_completed": {"onboarding_completed": True, "bot_activated": True},
+                "details": {"mode": "no_database"},
+                "errors": []
+            }
+
+        session = SessionLocal()
+        try:
+            # Get or create creator
+            creator = session.query(Creator).filter_by(name=request.creator_id).first()
+            if not creator:
+                creator = Creator(
+                    id=uuid_module.uuid4(),
+                    name=request.creator_id,
+                    email=f"{request.creator_id}@clonnect.io",
+                    bot_active=True,
+                    onboarding_completed=True,
+                    copilot_mode=True
+                )
+                session.add(creator)
+                logger.info(f"[QuickSetup] Created new creator: {request.creator_id}")
+            else:
+                creator.bot_active = True
+                creator.onboarding_completed = True
+                logger.info(f"[QuickSetup] Updated existing creator: {request.creator_id}")
+
+            session.commit()
+
+            return {
+                "success": True,
+                "creator_id": request.creator_id,
+                "steps_completed": {
+                    "posts_scraped": False,
+                    "tone_profile_generated": False,
+                    "rag_indexed": False,
+                    "website_scraped": False,
+                    "onboarding_completed": True,
+                    "bot_activated": True
+                },
+                "details": {
+                    "posts_count": 0,
+                    "mode": "quick_setup",
+                    "instagram_username": request.instagram_username
+                },
+                "errors": []
+            }
+        finally:
+            session.close()
+
+    except Exception as e:
+        logger.error(f"[QuickSetup] Error: {e}")
+        return {
+            "success": False,
+            "creator_id": request.creator_id,
+            "steps_completed": {},
+            "details": {},
+            "errors": [str(e)]
+        }
+
+
+# =============================================================================
+# FULL AUTO-SETUP V2 - Uses all V2 technologies for zero-hallucination
+# =============================================================================
+
+class FullAutoSetupRequest(BaseModel):
+    """Request para auto-configuración completa."""
+    creator_id: str
+    instagram_username: str
+    website_url: Optional[str] = None
+    max_posts: int = 50
+    transcribe_videos: bool = False  # Disabled by default (slow)
+
+
+@router.post("/full-auto-setup")
+async def full_auto_setup(request: FullAutoSetupRequest, background_tasks: BackgroundTasks):
+    """
+    Auto-configuración completa V2 del clon.
+
+    Este endpoint ejecuta TODO el pipeline de creación de clon:
+    1. Scrapea 50 posts de Instagram con sanity checks V2
+    2. Transcribe videos/reels con Whisper (opcional)
+    3. Scrapea website y detecta productos con V2 signals
+    4. Genera ToneProfile desde el contenido
+    5. Indexa todo para RAG con citations
+    6. Actualiza el Creator y activa el bot
+
+    El proceso puede tardar 3-5 minutos si transcribe videos.
+    Para una UX rápida, usar quick-setup primero y este en background.
+
+    Body:
+    ```json
+    {
+        "creator_id": "stefano_bonanno",
+        "instagram_username": "stefanobonanno",
+        "website_url": "https://stefanobonanno.com",
+        "max_posts": 50,
+        "transcribe_videos": false
+    }
+    ```
+
+    Returns:
+        AutoConfigResult con estadísticas completas del proceso
+    """
+    try:
+        from core.auto_configurator import auto_configure_clone
+
+        logger.info(f"[FullAutoSetup] Starting for {request.creator_id}")
+
+        result = await auto_configure_clone(
+            creator_id=request.creator_id,
+            instagram_username=request.instagram_username,
+            website_url=request.website_url,
+            max_posts=request.max_posts,
+            transcribe_videos=request.transcribe_videos
+        )
+
+        if not result.success and not result.steps_completed:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Auto-configuration failed: {result.errors}"
+            )
+
+        logger.info(
+            f"[FullAutoSetup] Completed for {request.creator_id}: "
+            f"status={result.status}, steps={result.steps_completed}"
+        )
+
+        return result.to_dict()
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"[FullAutoSetup] Error for {request.creator_id}: {e}")
+        import traceback
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/full-auto-setup-background")
+async def full_auto_setup_background(
+    request: FullAutoSetupRequest,
+    background_tasks: BackgroundTasks
+):
+    """
+    Versión en background de full-auto-setup.
+
+    Inicia el proceso y retorna inmediatamente.
+    Usar /full-auto-setup/{creator_id}/status para ver progreso.
+    """
+    # Initialize status
+    setup_status[request.creator_id] = {
+        "status": "in_progress",
+        "progress": 0,
+        "current_step": "starting",
+        "steps_completed": [],
+        "errors": [],
+        "warnings": [],
+        "result": {}
+    }
+
+    # Run in background
+    background_tasks.add_task(
+        _run_full_auto_setup_background,
+        request.creator_id,
+        request.instagram_username,
+        request.website_url,
+        request.max_posts,
+        request.transcribe_videos
+    )
+
+    return {
+        "status": "started",
+        "message": "Auto-configuration started in background",
+        "creator_id": request.creator_id,
+        "check_status_at": f"/onboarding/full-auto-setup/{request.creator_id}/status"
+    }
+
+
+@router.get("/full-auto-setup/{creator_id}/status")
+async def get_full_auto_setup_status(creator_id: str):
+    """
+    Obtiene el estado de la auto-configuración en background.
+    """
+    if creator_id not in setup_status:
+        return {
+            "status": "not_found",
+            "creator_id": creator_id,
+            "message": "No setup in progress for this creator"
+        }
+
+    return setup_status[creator_id]
+
+
+async def _run_full_auto_setup_background(
+    creator_id: str,
+    instagram_username: str,
+    website_url: Optional[str],
+    max_posts: int,
+    transcribe_videos: bool
+):
+    """Ejecuta auto-setup en background actualizando status en tiempo real."""
+    status = setup_status[creator_id]
+
+    try:
+        from core.auto_configurator import AutoConfigurator
+
+        configurator = AutoConfigurator()
+
+        # Step 1: Instagram scraping
+        status["current_step"] = "instagram_scraping"
+        status["progress"] = 10
+        logger.info(f"[FullAutoSetup-BG] Step 1: Instagram scraping for {creator_id}")
+
+        try:
+            ig_result = await configurator._scrape_instagram(
+                creator_id=creator_id,
+                instagram_username=instagram_username,
+                max_posts=max_posts
+            )
+            posts_scraped = ig_result.get('posts_scraped', 0)
+            posts_passed = ig_result.get('posts_passed_sanity', posts_scraped)
+            status["steps_completed"].append("instagram_scraping")
+            status["progress"] = 30
+            status["result"] = {
+                "instagram": {"posts_scraped": posts_scraped, "sanity_passed": posts_passed}
+            }
+            logger.info(f"[FullAutoSetup-BG] Instagram: {posts_scraped} posts scraped")
+        except Exception as e:
+            logger.warning(f"[FullAutoSetup-BG] Instagram error: {e}")
+            status["errors"].append(f"Instagram: {str(e)}")
+
+        # Step 2: Website scraping + Product detection
+        if website_url:
+            status["current_step"] = "website_scraping"
+            status["progress"] = 40
+            logger.info(f"[FullAutoSetup-BG] Step 2: Website scraping for {creator_id}")
+
+            try:
+                web_result = await configurator._scrape_website(
+                    creator_id=creator_id,
+                    website_url=website_url
+                )
+                products_detected = web_result.get('products_detected', 0)
+                status["steps_completed"].append("website_scraping")
+                status["steps_completed"].append("product_detection")
+                status["progress"] = 55
+                if "result" not in status:
+                    status["result"] = {}
+                status["result"]["website"] = {"products_detected": products_detected}
+                logger.info(f"[FullAutoSetup-BG] Website: {products_detected} products detected")
+            except Exception as e:
+                logger.warning(f"[FullAutoSetup-BG] Website error: {e}")
+                status["errors"].append(f"Website: {str(e)}")
+        else:
+            status["steps_completed"].append("website_scraping")
+            status["steps_completed"].append("product_detection")
+            status["progress"] = 55
+
+        # Step 3: ToneProfile generation
+        status["current_step"] = "tone_profile"
+        status["progress"] = 65
+        logger.info(f"[FullAutoSetup-BG] Step 3: ToneProfile for {creator_id}")
+
+        try:
+            tone_result = await configurator._generate_tone_profile(creator_id)
+            tone_generated = tone_result.get('success', False)
+            tone_confidence = tone_result.get('confidence', 0.0)
+            status["steps_completed"].append("tone_profile")
+            status["progress"] = 80
+            if "result" not in status:
+                status["result"] = {}
+            status["result"]["tone_profile"] = {
+                "generated": tone_generated,
+                "confidence": tone_confidence
+            }
+            logger.info(f"[FullAutoSetup-BG] ToneProfile generated: {tone_generated}")
+        except Exception as e:
+            logger.warning(f"[FullAutoSetup-BG] ToneProfile error: {e}")
+            status["errors"].append(f"ToneProfile: {str(e)}")
+
+        # Step 4: Load DM History (includes lead scoring)
+        status["current_step"] = "dm_history"
+        status["progress"] = 70
+        logger.info(f"[FullAutoSetup-BG] Step 4: Loading DM history for {creator_id}")
+
+        try:
+            dm_result = await configurator._load_dm_history(creator_id)
+            if dm_result.get('success'):
+                status["steps_completed"].append("dm_history")
+                if "result" not in status:
+                    status["result"] = {}
+                status["result"]["dms"] = {
+                    "conversations": dm_result.get('conversations_found', 0),
+                    "messages": dm_result.get('messages_imported', 0),
+                    "leads_created": dm_result.get('leads_created', 0)
+                }
+                logger.info(f"[FullAutoSetup-BG] DM history loaded: {dm_result.get('messages_imported', 0)} messages")
+            else:
+                reason = dm_result.get('reason', 'Unknown')
+                status["warnings"].append(f"DM history: {reason}")
+                logger.info(f"[FullAutoSetup-BG] DM history skipped: {reason}")
+        except Exception as e:
+            logger.warning(f"[FullAutoSetup-BG] DM history error: {e}")
+            status["warnings"].append(f"DM history: {str(e)}")
+
+        # Step 5: Extract Bio
+        status["current_step"] = "bio_extracted"
+        status["progress"] = 78
+        logger.info(f"[FullAutoSetup-BG] Step 5: Extracting bio for {creator_id}")
+
+        try:
+            bio_result = await configurator._extract_bio(creator_id, instagram_username)
+            if bio_result.get('success'):
+                status["steps_completed"].append("bio_extracted")
+                if "result" not in status:
+                    status["result"] = {}
+                status["result"]["bio"] = {"loaded": True}
+                logger.info(f"[FullAutoSetup-BG] Bio extracted successfully")
+            else:
+                logger.info(f"[FullAutoSetup-BG] Bio extraction skipped")
+        except Exception as e:
+            logger.warning(f"[FullAutoSetup-BG] Bio extraction error: {e}")
+            status["warnings"].append(f"Bio extraction: {str(e)}")
+
+        # Step 6: Generate FAQs
+        status["current_step"] = "faqs_generated"
+        status["progress"] = 85
+        logger.info(f"[FullAutoSetup-BG] Step 6: Generating FAQs for {creator_id}")
+
+        try:
+            faq_result = await configurator._generate_faqs(creator_id)
+            faqs_created = faq_result.get('faqs_created', 0)
+            if faqs_created > 0:
+                status["steps_completed"].append("faqs_generated")
+                if "result" not in status:
+                    status["result"] = {}
+                status["result"]["faqs"] = {"generated": faqs_created}
+                logger.info(f"[FullAutoSetup-BG] Generated {faqs_created} FAQs")
+            else:
+                logger.info(f"[FullAutoSetup-BG] No new FAQs generated")
+        except Exception as e:
+            logger.warning(f"[FullAutoSetup-BG] FAQ generation error: {e}")
+            status["warnings"].append(f"FAQ generation: {str(e)}")
+
+        # Step 7: Update Creator (includes RAG indexing)
+        status["current_step"] = "creator_updated"
+        status["progress"] = 92
+        logger.info(f"[FullAutoSetup-BG] Step 7: Updating creator {creator_id}")
+
+        try:
+            await configurator._update_creator(
+                creator_id=creator_id,
+                instagram_username=instagram_username,
+                website_url=website_url,
+                tone_confidence=status.get("result", {}).get("tone_profile", {}).get("confidence", 0.0)
+            )
+            status["steps_completed"].append("creator_updated")
+            logger.info(f"[FullAutoSetup-BG] Creator updated")
+        except Exception as e:
+            logger.warning(f"[FullAutoSetup-BG] Creator update error: {e}")
+            status["warnings"].append(f"Creator update: {str(e)}")
+
+        # Final status
+        status["status"] = "completed"
+        status["progress"] = 100
+        status["current_step"] = "completed"
+
+        logger.info(f"[FullAutoSetup-BG] Completed for {creator_id}: steps={status['steps_completed']}")
+
+    except Exception as e:
+        logger.error(f"[FullAutoSetup-BG] Error for {creator_id}: {e}")
+        import traceback
+        traceback.print_exc()
+        status["status"] = "failed"
+        status["errors"].append(str(e))
 
 
 @router.post("/manual-setup", response_model=ManualSetupResponse)
@@ -1746,6 +2138,7 @@ async def manual_setup(request: ManualSetupRequest):
 
     # ==========================================================================
     # STEP 1: Scrape Instagram posts (public, no OAuth)
+    # Uses delay_between_posts=3.0 to avoid rate limiting
     # ==========================================================================
     posts = []
     try:
@@ -1754,7 +2147,8 @@ async def manual_setup(request: ManualSetupRequest):
         scraper = InstaloaderScraper()
         posts = scraper.get_posts(
             target_username=request.instagram_username,
-            limit=request.max_posts
+            limit=request.max_posts,
+            delay_between_posts=3.0  # 3 seconds between each post to avoid rate limits
         )
 
         if posts:
@@ -1933,40 +2327,40 @@ async def manual_setup(request: ManualSetupRequest):
                             session.add(new_product)
                             products_created += 1
 
-                    # Create demo leads
-                    demo_leads = [
-                        {"name": "María García", "platform": "instagram", "intent": 0.8, "status": "hot"},
-                        {"name": "Carlos López", "platform": "instagram", "intent": 0.6, "status": "warm"},
-                        {"name": "Ana Martínez", "platform": "instagram", "intent": 0.9, "status": "hot"},
-                        {"name": "Pedro Sánchez", "platform": "whatsapp", "intent": 0.4, "status": "warm"},
-                        {"name": "Laura Fernández", "platform": "instagram", "intent": 0.3, "status": "cold"},
-                        {"name": "Diego Ruiz", "platform": "instagram", "intent": 0.7, "status": "hot"},
-                        {"name": "Sofia Torres", "platform": "whatsapp", "intent": 0.5, "status": "warm"},
-                        {"name": "Miguel Herrera", "platform": "instagram", "intent": 0.2, "status": "cold"},
-                    ]
-
+                    # NOTE: Demo leads creation DISABLED - we only show real DMs from Instagram
+                    # To re-enable for testing, uncomment the code below
                     leads_created = 0
-                    for i, lead_data in enumerate(demo_leads):
-                        platform_user_id = f"demo_{lead_data['name'].lower().replace(' ', '_')}_{i}"
-                        existing = session.query(Lead).filter_by(
-                            creator_id=creator_uuid, platform_user_id=platform_user_id
-                        ).first()
-                        if not existing:
-                            new_lead = Lead(
-                                id=uuid_module.uuid4(),
-                                creator_id=creator_uuid,
-                                platform=lead_data["platform"],
-                                platform_user_id=platform_user_id,
-                                username=lead_data["name"].lower().replace(" ", "_"),
-                                full_name=lead_data["name"],
-                                purchase_intent=lead_data["intent"],
-                                status=lead_data["status"],
-                                first_contact_at=datetime.utcnow() - timedelta(days=random.randint(1, 30)),
-                                last_contact_at=datetime.utcnow() - timedelta(hours=random.randint(1, 72)),
-                                score=random.randint(30, 90)
-                            )
-                            session.add(new_lead)
-                            leads_created += 1
+                    # demo_leads = [
+                    #     {"name": "María García", "platform": "instagram", "intent": 0.8, "status": "hot"},
+                    #     {"name": "Carlos López", "platform": "instagram", "intent": 0.6, "status": "warm"},
+                    #     {"name": "Ana Martínez", "platform": "instagram", "intent": 0.9, "status": "hot"},
+                    #     {"name": "Pedro Sánchez", "platform": "whatsapp", "intent": 0.4, "status": "warm"},
+                    #     {"name": "Laura Fernández", "platform": "instagram", "intent": 0.3, "status": "cold"},
+                    #     {"name": "Diego Ruiz", "platform": "instagram", "intent": 0.7, "status": "hot"},
+                    #     {"name": "Sofia Torres", "platform": "whatsapp", "intent": 0.5, "status": "warm"},
+                    #     {"name": "Miguel Herrera", "platform": "instagram", "intent": 0.2, "status": "cold"},
+                    # ]
+                    # for i, lead_data in enumerate(demo_leads):
+                    #     platform_user_id = f"demo_{lead_data['name'].lower().replace(' ', '_')}_{i}"
+                    #     existing = session.query(Lead).filter_by(
+                    #         creator_id=creator_uuid, platform_user_id=platform_user_id
+                    #     ).first()
+                    #     if not existing:
+                    #         new_lead = Lead(
+                    #             id=uuid_module.uuid4(),
+                    #             creator_id=creator_uuid,
+                    #             platform=lead_data["platform"],
+                    #             platform_user_id=platform_user_id,
+                    #             username=lead_data["name"].lower().replace(" ", "_"),
+                    #             full_name=lead_data["name"],
+                    #             purchase_intent=lead_data["intent"],
+                    #             status=lead_data["status"],
+                    #             first_contact_at=datetime.utcnow() - timedelta(days=random.randint(1, 30)),
+                    #             last_contact_at=datetime.utcnow() - timedelta(hours=random.randint(1, 72)),
+                    #             score=random.randint(30, 90)
+                    #         )
+                    #         session.add(new_lead)
+                    #         leads_created += 1
 
                     session.commit()
                     details["demo_leads_created"] = leads_created
@@ -2048,3 +2442,693 @@ async def manual_setup(request: ManualSetupRequest):
         details=details,
         errors=errors
     )
+
+
+# =============================================================================
+# FULL RESET - Delete ALL data for a creator (for testing)
+# =============================================================================
+
+@router.delete("/full-reset/{creator_id}")
+async def full_reset_creator(creator_id: str, email: Optional[str] = None):
+    """
+    Delete ALL data for a creator. Use for testing/starting fresh.
+
+    Deletes:
+    - Creator record from DB
+    - User record (if email provided)
+    - All leads and messages
+    - All products
+    - Instagram posts
+    - Content chunks (RAG)
+    - ToneProfile
+    - ContentIndex files
+
+    WARNING: This is destructive and cannot be undone!
+
+    Usage:
+        DELETE /onboarding/full-reset/stefano_bonanno?email=stefano@fitpackglobal.com
+    """
+    deleted = {
+        "creator": False,
+        "user": False,
+        "leads": 0,
+        "messages": 0,
+        "products": 0,
+        "instagram_posts": 0,
+        "content_chunks": 0,
+        "tone_profile": False,
+        "content_index": False
+    }
+    errors = []
+
+    try:
+        from api.database import DATABASE_URL, SessionLocal
+        from api.models import Creator, Lead, Product, Message, UserCreator
+
+        if not DATABASE_URL or not SessionLocal:
+            return {"success": False, "error": "Database not configured"}
+
+        session = SessionLocal()
+        try:
+            # Find creator by name
+            creator = session.query(Creator).filter_by(name=creator_id).first()
+
+            if creator:
+                creator_uuid = creator.id
+
+                # Delete messages for all leads
+                leads = session.query(Lead).filter_by(creator_id=creator_uuid).all()
+                for lead in leads:
+                    msg_count = session.query(Message).filter_by(lead_id=lead.id).delete()
+                    deleted["messages"] += msg_count
+
+                # Delete leads
+                deleted["leads"] = session.query(Lead).filter_by(creator_id=creator_uuid).delete()
+
+                # Delete products
+                deleted["products"] = session.query(Product).filter_by(creator_id=creator_uuid).delete()
+
+                # Delete user_creators relationships (MUST be before creator delete)
+                user_creators_deleted = session.query(UserCreator).filter_by(creator_id=creator_uuid).delete()
+                logger.info(f"[FullReset] Deleted {user_creators_deleted} user_creators relationships")
+
+                # Delete creator
+                session.delete(creator)
+                deleted["creator"] = True
+
+                logger.info(f"[FullReset] Deleted creator {creator_id} and related data")
+
+            # Delete user by email if provided
+            if email:
+                try:
+                    from api.models import User
+                    user = session.query(User).filter_by(email=email).first()
+                    if user:
+                        session.delete(user)
+                        deleted["user"] = True
+                        logger.info(f"[FullReset] Deleted user {email}")
+                except Exception as e:
+                    errors.append(f"User deletion failed: {str(e)}")
+
+            session.commit()
+
+        finally:
+            session.close()
+
+        # Delete Instagram posts from DB
+        try:
+            from core.tone_profile_db import delete_instagram_posts_db, delete_content_chunks_db
+
+            posts_deleted = await delete_instagram_posts_db(creator_id)
+            deleted["instagram_posts"] = posts_deleted or 0
+
+            chunks_deleted = await delete_content_chunks_db(creator_id)
+            deleted["content_chunks"] = chunks_deleted or 0
+
+        except Exception as e:
+            errors.append(f"Instagram/chunks deletion failed: {str(e)}")
+
+        # Delete ToneProfile
+        try:
+            from core.tone_service import delete_tone_profile
+            deleted["tone_profile"] = delete_tone_profile(creator_id)
+        except Exception as e:
+            errors.append(f"ToneProfile deletion failed: {str(e)}")
+
+        # Delete ContentIndex files
+        try:
+            from core.citation_service import delete_content_index
+            deleted["content_index"] = delete_content_index(creator_id)
+        except Exception as e:
+            errors.append(f"ContentIndex deletion failed: {str(e)}")
+
+        # Delete local data files
+        try:
+            from pathlib import Path
+            import shutil
+
+            paths_to_delete = [
+                Path(f"data/content_index/{creator_id}"),
+                Path(f"data/tone_profiles/{creator_id}.json"),
+                Path(f"data/creators/{creator_id}_config.json"),
+                Path(f"data/products/{creator_id}_products.json"),
+                Path(f"data/followers/{creator_id}"),
+            ]
+
+            for path in paths_to_delete:
+                if path.exists():
+                    if path.is_dir():
+                        shutil.rmtree(path)
+                    else:
+                        path.unlink()
+                    logger.info(f"[FullReset] Deleted {path}")
+
+        except Exception as e:
+            errors.append(f"File deletion failed: {str(e)}")
+
+        return {
+            "success": True,
+            "creator_id": creator_id,
+            "email": email,
+            "deleted": deleted,
+            "errors": errors if errors else None
+        }
+
+    except Exception as e:
+        logger.error(f"[FullReset] Error: {e}")
+        import traceback
+        return {
+            "success": False,
+            "error": str(e),
+            "traceback": traceback.format_exc()
+        }
+
+
+# =============================================================================
+# INSTAGRAM API SYNC - Sync posts using Instagram Graph API
+# =============================================================================
+
+class InstagramAPISyncRequest(BaseModel):
+    """Request para sincronizar posts desde Instagram API."""
+    creator_id: str
+    limit: int = 25
+
+
+class InstagramAPISyncResponse(BaseModel):
+    """Response de sincronización de Instagram API."""
+    success: bool
+    creator_id: str
+    posts_fetched: int
+    posts_saved: int
+    rag_chunks_created: int
+    tone_profile_updated: bool
+    errors: List[str]
+
+
+@router.post("/sync-instagram-api", response_model=InstagramAPISyncResponse)
+async def sync_instagram_from_api(request: InstagramAPISyncRequest):
+    """
+    Sincroniza posts de Instagram usando la Graph API.
+
+    Requiere que el creator tenga un token de Instagram válido guardado.
+
+    1. Obtiene posts desde Instagram Graph API
+    2. Guarda en DB (instagram_posts + content_chunks)
+    3. Actualiza ToneProfile con el nuevo contenido
+
+    Ideal para cargar datos históricos después de conectar la cuenta.
+    """
+    import httpx
+
+    errors = []
+    posts_fetched = 0
+    posts_saved = 0
+    rag_chunks_created = 0
+    tone_profile_updated = False
+
+    try:
+        # Get creator's token from DB
+        from api.database import SessionLocal
+        from api.models import Creator
+
+        session = SessionLocal()
+        try:
+            creator = session.query(Creator).filter_by(name=request.creator_id).first()
+
+            if not creator:
+                raise HTTPException(status_code=404, detail=f"Creator {request.creator_id} not found")
+
+            if not creator.instagram_token:
+                raise HTTPException(status_code=400, detail="Creator has no Instagram token")
+
+            access_token = creator.instagram_token
+
+        finally:
+            session.close()
+
+        # Fetch posts from Instagram API
+        logger.info(f"[InstagramAPISync] Fetching posts for {request.creator_id}")
+
+        async with httpx.AsyncClient() as client:
+            response = await client.get(
+                "https://graph.instagram.com/v21.0/me/media",
+                params={
+                    "fields": "id,caption,media_type,timestamp,permalink,like_count,comments_count",
+                    "limit": request.limit,
+                    "access_token": access_token
+                }
+            )
+
+            data = response.json()
+
+            if "error" in data:
+                error_msg = data["error"].get("message", "Unknown error")
+                errors.append(f"Instagram API error: {error_msg}")
+                return InstagramAPISyncResponse(
+                    success=False,
+                    creator_id=request.creator_id,
+                    posts_fetched=0,
+                    posts_saved=0,
+                    rag_chunks_created=0,
+                    tone_profile_updated=False,
+                    errors=errors
+                )
+
+            posts = data.get("data", [])
+            posts_fetched = len(posts)
+
+            logger.info(f"[InstagramAPISync] Fetched {posts_fetched} posts")
+
+        if posts_fetched == 0:
+            errors.append("No posts found")
+            return InstagramAPISyncResponse(
+                success=False,
+                creator_id=request.creator_id,
+                posts_fetched=0,
+                posts_saved=0,
+                rag_chunks_created=0,
+                tone_profile_updated=False,
+                errors=errors
+            )
+
+        # Convert to DB format and save
+        from core.tone_profile_db import (
+            save_instagram_posts_db,
+            save_content_chunks_db
+        )
+        import hashlib
+
+        posts_data = []
+        chunks_data = []
+
+        for post in posts:
+            caption = post.get("caption", "")
+            if not caption:
+                continue
+
+            post_id = post.get("id", "")
+
+            # Format for instagram_posts table
+            posts_data.append({
+                "id": post_id,
+                "post_id": post_id,
+                "caption": caption,
+                "permalink": post.get("permalink", ""),
+                "media_type": post.get("media_type", ""),
+                "timestamp": post.get("timestamp", ""),
+                "like_count": post.get("like_count", 0),
+                "comments_count": post.get("comments_count", 0)
+            })
+
+            # Format for content_chunks (RAG)
+            chunk_id = hashlib.sha256(f"{request.creator_id}:{post_id}:0".encode()).hexdigest()[:32]
+            first_line = caption.split('\n')[0][:100] if caption else ""
+
+            chunks_data.append({
+                "id": chunk_id,
+                "chunk_id": chunk_id,
+                "creator_id": request.creator_id,
+                "content": caption,
+                "source_type": "instagram_post",
+                "source_id": post_id,
+                "source_url": post.get("permalink", ""),
+                "title": first_line,
+                "chunk_index": 0,
+                "total_chunks": 1,
+                "metadata": {
+                    "media_type": post.get("media_type"),
+                    "likes": post.get("like_count", 0),
+                    "comments": post.get("comments_count", 0),
+                    "timestamp": post.get("timestamp")
+                }
+            })
+
+        # Save to DB
+        if posts_data:
+            posts_saved = await save_instagram_posts_db(request.creator_id, posts_data)
+            logger.info(f"[InstagramAPISync] Saved {posts_saved} posts to DB")
+
+        if chunks_data:
+            rag_chunks_created = await save_content_chunks_db(request.creator_id, chunks_data)
+            logger.info(f"[InstagramAPISync] Created {rag_chunks_created} RAG chunks")
+
+        # Update ToneProfile
+        try:
+            from ingestion.tone_analyzer import ToneAnalyzer
+            from core.tone_service import save_tone_profile
+
+            posts_for_tone = [
+                {
+                    "caption": p.get("caption", ""),
+                    "post_id": p.get("post_id"),
+                    "post_type": p.get("media_type"),
+                    "permalink": p.get("permalink"),
+                    "timestamp": p.get("timestamp"),
+                    "likes_count": p.get("like_count", 0),
+                    "comments_count": p.get("comments_count", 0)
+                }
+                for p in posts_data if p.get("caption")
+            ]
+
+            if posts_for_tone:
+                analyzer = ToneAnalyzer()
+                tone_profile = await analyzer.analyze(request.creator_id, posts_for_tone)
+                await save_tone_profile(tone_profile)
+                tone_profile_updated = True
+                logger.info(f"[InstagramAPISync] ToneProfile updated")
+
+        except Exception as e:
+            errors.append(f"ToneProfile update failed: {str(e)}")
+            logger.warning(f"[InstagramAPISync] ToneProfile error: {e}")
+
+        return InstagramAPISyncResponse(
+            success=True,
+            creator_id=request.creator_id,
+            posts_fetched=posts_fetched,
+            posts_saved=posts_saved,
+            rag_chunks_created=rag_chunks_created,
+            tone_profile_updated=tone_profile_updated,
+            errors=errors if errors else []
+        )
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"[InstagramAPISync] Error: {e}")
+        import traceback
+        traceback.print_exc()
+        errors.append(str(e))
+        return InstagramAPISyncResponse(
+            success=False,
+            creator_id=request.creator_id,
+            posts_fetched=posts_fetched,
+            posts_saved=posts_saved,
+            rag_chunks_created=rag_chunks_created,
+            tone_profile_updated=tone_profile_updated,
+            errors=errors
+        )
+
+
+# =============================================================================
+# INSTAGRAM DM HISTORY SYNC
+# =============================================================================
+
+class InstagramDMSyncRequest(BaseModel):
+    """Request for syncing Instagram DM history"""
+    creator_id: str
+    max_conversations: int = 50
+    max_messages_per_conversation: int = 50
+    analyze_insights: bool = True
+
+
+class ConversationInsight(BaseModel):
+    """Insights from a conversation"""
+    follower_id: str
+    follower_username: str
+    total_messages: int
+    topics: List[str]
+    purchase_intent_score: float
+    common_questions: List[str]
+
+
+class InstagramDMSyncResponse(BaseModel):
+    """Response from Instagram DM sync"""
+    success: bool
+    creator_id: str
+    conversations_fetched: int = 0
+    messages_saved: int = 0
+    leads_created: int = 0
+    insights: Optional[List[ConversationInsight]] = None
+    errors: List[str] = []
+
+
+@router.post("/sync-instagram-dms", response_model=InstagramDMSyncResponse)
+async def sync_instagram_dms(request: InstagramDMSyncRequest):
+    """
+    Sincroniza mensajes históricos de Instagram DM usando Graph API.
+    1. Obtiene conversaciones desde Instagram Graph API
+    2. Obtiene mensajes de cada conversación
+    3. Crea/actualiza Leads y guarda Messages en la DB
+    4. Analiza mensajes para extraer insights
+    """
+    errors = []
+    conversations_fetched = 0
+    messages_saved = 0
+    leads_created = 0
+    insights = []
+
+    try:
+        from api.database import DATABASE_URL, SessionLocal
+        from api.models import Creator, Lead, Message
+        import httpx
+        from datetime import datetime
+
+        if not DATABASE_URL or not SessionLocal:
+            raise HTTPException(status_code=500, detail="Database not configured")
+
+        session = SessionLocal()
+        try:
+            # Get creator and token
+            creator = session.query(Creator).filter_by(name=request.creator_id).first()
+            if not creator:
+                raise HTTPException(status_code=404, detail=f"Creator not found: {request.creator_id}")
+
+            if not creator.instagram_token:
+                raise HTTPException(status_code=400, detail="Instagram token not configured")
+
+            ig_user_id = creator.instagram_user_id or creator.instagram_page_id
+            if not ig_user_id:
+                raise HTTPException(status_code=400, detail="Instagram user ID not configured")
+
+            access_token = creator.instagram_token
+            api_base = "https://graph.instagram.com/v21.0"
+
+            logger.info(f"[DMSync] Starting sync for {request.creator_id}, ig_user_id={ig_user_id}")
+
+            # Fetch conversations
+            async with httpx.AsyncClient(timeout=30.0) as client:
+                conv_url = f"{api_base}/{ig_user_id}/conversations"
+                conv_params = {
+                    "access_token": access_token,
+                    "limit": min(request.max_conversations, 50)
+                }
+
+                conv_resp = await client.get(conv_url, params=conv_params)
+                if conv_resp.status_code != 200:
+                    error_data = conv_resp.json()
+                    error_msg = error_data.get("error", {}).get("message", "Unknown error")
+                    errors.append(f"Conversations API error: {error_msg}")
+                    logger.error(f"[DMSync] Conversations error: {error_data}")
+                    return InstagramDMSyncResponse(
+                        success=False,
+                        creator_id=request.creator_id,
+                        errors=errors
+                    )
+
+                conv_data = conv_resp.json()
+                conversations = conv_data.get("data", [])
+                conversations_fetched = len(conversations)
+
+                logger.info(f"[DMSync] Found {conversations_fetched} conversations")
+
+                # Process each conversation
+                for conv in conversations:
+                    conv_id = conv.get("id")
+                    if not conv_id:
+                        continue
+
+                    # Fetch messages for this conversation
+                    msg_url = f"{api_base}/{conv_id}/messages"
+                    msg_params = {
+                        "fields": "id,message,from,to,created_time",
+                        "access_token": access_token,
+                        "limit": min(request.max_messages_per_conversation, 50)
+                    }
+
+                    try:
+                        msg_resp = await client.get(msg_url, params=msg_params)
+                        if msg_resp.status_code != 200:
+                            logger.warning(f"[DMSync] Messages error for conv {conv_id}")
+                            continue
+
+                        msg_data = msg_resp.json()
+                        messages = msg_data.get("data", [])
+
+                        if not messages:
+                            continue
+
+                        # Find the follower (the other person in the conversation)
+                        follower_id = None
+                        follower_username = None
+
+                        for msg in messages:
+                            from_data = msg.get("from", {})
+                            from_id = from_data.get("id")
+                            from_username = from_data.get("username", "")
+
+                            # If sender is not the creator, they're the follower
+                            if from_id and from_id != ig_user_id:
+                                follower_id = from_id
+                                follower_username = from_username
+                                break
+
+                        if not follower_id:
+                            # Check 'to' field if sender was always the creator
+                            for msg in messages:
+                                to_data = msg.get("to", {}).get("data", [])
+                                for recipient in to_data:
+                                    if recipient.get("id") != ig_user_id:
+                                        follower_id = recipient.get("id")
+                                        follower_username = recipient.get("username", "")
+                                        break
+                                if follower_id:
+                                    break
+
+                        if not follower_id:
+                            logger.warning(f"[DMSync] No follower found in conv {conv_id}")
+                            continue
+
+                        # Create or get Lead
+                        lead = session.query(Lead).filter_by(
+                            creator_id=creator.id,
+                            platform="instagram",
+                            platform_user_id=follower_id
+                        ).first()
+
+                        if not lead:
+                            lead = Lead(
+                                creator_id=creator.id,
+                                platform="instagram",
+                                platform_user_id=follower_id,
+                                username=follower_username,
+                                status="active"
+                            )
+                            session.add(lead)
+                            session.commit()
+                            leads_created += 1
+                            logger.info(f"[DMSync] Created lead: {follower_username} ({follower_id})")
+
+                        # Save messages (avoid duplicates by platform_message_id)
+                        conv_messages_saved = 0
+                        conv_topics = []
+                        conv_questions = []
+
+                        for msg in messages:
+                            msg_id = msg.get("id")
+                            msg_text = msg.get("message", "")
+                            msg_from = msg.get("from", {})
+                            msg_time = msg.get("created_time")
+
+                            if not msg_text:
+                                continue
+
+                            # Check if already exists
+                            existing = session.query(Message).filter_by(
+                                platform_message_id=msg_id
+                            ).first()
+
+                            if existing:
+                                continue
+
+                            # Determine role
+                            is_from_creator = msg_from.get("id") == ig_user_id
+                            role = "assistant" if is_from_creator else "user"
+
+                            # Parse timestamp
+                            created_at = None
+                            if msg_time:
+                                try:
+                                    created_at = datetime.fromisoformat(msg_time.replace("+0000", "+00:00"))
+                                except:
+                                    pass
+
+                            new_msg = Message(
+                                lead_id=lead.id,
+                                role=role,
+                                content=msg_text,
+                                status="sent",
+                                platform_message_id=msg_id,
+                                approved_by="historical_sync"
+                            )
+                            if created_at:
+                                new_msg.created_at = created_at
+
+                            session.add(new_msg)
+                            conv_messages_saved += 1
+                            messages_saved += 1
+
+                            # Collect data for insights
+                            if role == "user":
+                                # Detect questions
+                                if "?" in msg_text:
+                                    conv_questions.append(msg_text.strip())
+                                # Simple topic extraction
+                                lower_text = msg_text.lower()
+                                if any(w in lower_text for w in ["precio", "cuesta", "vale", "pagar"]):
+                                    conv_topics.append("precio")
+                                if any(w in lower_text for w in ["info", "información", "detalles"]):
+                                    conv_topics.append("información")
+                                if any(w in lower_text for w in ["comprar", "quiero", "interesa"]):
+                                    conv_topics.append("intención_compra")
+                                if any(w in lower_text for w in ["challenge", "reto", "programa"]):
+                                    conv_topics.append("productos")
+
+                        session.commit()
+                        logger.info(f"[DMSync] Saved {conv_messages_saved} messages for {follower_username}")
+
+                        # Generate insights for this conversation
+                        if request.analyze_insights and conv_messages_saved > 0:
+                            # Calculate simple purchase intent score
+                            intent_score = 0.0
+                            if "intención_compra" in conv_topics:
+                                intent_score += 0.4
+                            if "precio" in conv_topics:
+                                intent_score += 0.3
+                            if "información" in conv_topics:
+                                intent_score += 0.2
+                            if conv_questions:
+                                intent_score += 0.1
+
+                            insights.append(ConversationInsight(
+                                follower_id=follower_id,
+                                follower_username=follower_username or "unknown",
+                                total_messages=len(messages),
+                                topics=list(set(conv_topics)),
+                                purchase_intent_score=min(intent_score, 1.0),
+                                common_questions=conv_questions[:5]
+                            ))
+
+                    except Exception as e:
+                        logger.warning(f"[DMSync] Error processing conv {conv_id}: {e}")
+                        continue
+
+        finally:
+            session.close()
+
+        logger.info(f"[DMSync] Complete: {conversations_fetched} convs, {messages_saved} msgs, {leads_created} leads")
+
+        return InstagramDMSyncResponse(
+            success=True,
+            creator_id=request.creator_id,
+            conversations_fetched=conversations_fetched,
+            messages_saved=messages_saved,
+            leads_created=leads_created,
+            insights=insights if insights else None,
+            errors=errors if errors else []
+        )
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"[DMSync] Error: {e}")
+        import traceback
+        traceback.print_exc()
+        errors.append(str(e))
+        return InstagramDMSyncResponse(
+            success=False,
+            creator_id=request.creator_id,
+            conversations_fetched=conversations_fetched,
+            messages_saved=messages_saved,
+            leads_created=leads_created,
+            errors=errors
+        )

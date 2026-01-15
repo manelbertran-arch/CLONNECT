@@ -100,8 +100,11 @@ function getSmartDisplayName(
 }
 
 export default function Inbox() {
-  const { data, isLoading, error } = useConversations();
-  const { data: archivedData, isLoading: archivedLoading } = useArchivedConversations();
+  // SEQUENTIAL LOADING: Load conversations first, then archived (prevents backend blocking)
+  const { data, isLoading, error, isSuccess } = useConversations();
+  const { data: archivedData, isLoading: archivedLoading } = useArchivedConversations(undefined, {
+    enabled: isSuccess // Only load AFTER conversations finishes
+  });
   const [selectedId, setSelectedId] = useState<string | null>(null);
 
   const [message, setMessage] = useState("");
@@ -167,20 +170,15 @@ export default function Inbox() {
 
   // Handle sending a manual message
   const handleSend = async () => {
-    console.log("handleSend called", { selectedId, message: message.trim() });
-
     if (!selectedId || !message.trim()) {
-      console.log("handleSend early return - missing data");
       return;
     }
 
-    console.log("Calling sendMessageMutation...");
     try {
       const result = await sendMessageMutation.mutateAsync({
         followerId: selectedId,
         message: message.trim(),
       });
-      console.log("sendMessageMutation result:", result);
 
       if (result.sent) {
         toast({
@@ -196,7 +194,6 @@ export default function Inbox() {
       }
       setMessage(""); // Clear input on success
     } catch (error) {
-      console.error("sendMessageMutation error:", error);
       toast({
         title: "Error sending message",
         description: error instanceof Error ? error.message : "Failed to send",
@@ -538,10 +535,7 @@ export default function Inbox() {
                 />
                 <Button
                   type="button"
-                  onClick={() => {
-                    console.log("Send button clicked!", { selectedId, message, isPending: sendMessageMutation.isPending });
-                    handleSend();
-                  }}
+                  onClick={handleSend}
                   disabled={!selectedId || !message.trim() || sendMessageMutation.isPending}
                   className="bg-gradient-to-r from-primary to-accent hover:opacity-90 transition-opacity"
                 >

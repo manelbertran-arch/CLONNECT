@@ -61,6 +61,67 @@ if USE_POSTGRES:
 logger = logging.getLogger(__name__)
 
 
+# =============================================================================
+# P0 FIX: Retry decorator for DB operations
+# =============================================================================
+
+def retry_db_operation(max_retries: int = 3, delay: float = 0.5, operation_name: str = "DB"):
+    """
+    Decorator to retry database operations with exponential backoff.
+
+    Args:
+        max_retries: Maximum number of retry attempts
+        delay: Initial delay between retries (doubles each attempt)
+        operation_name: Name for logging purposes
+    """
+    import asyncio
+    from functools import wraps
+
+    def decorator(func):
+        @wraps(func)
+        def sync_wrapper(*args, **kwargs):
+            last_error = None
+            for attempt in range(max_retries):
+                try:
+                    return func(*args, **kwargs)
+                except Exception as e:
+                    last_error = e
+                    wait_time = delay * (2 ** attempt)
+                    logger.warning(
+                        f"[P0-RETRY] {operation_name} failed (attempt {attempt + 1}/{max_retries}): {e}. "
+                        f"Retrying in {wait_time:.1f}s..."
+                    )
+                    if attempt < max_retries - 1:
+                        time.sleep(wait_time)
+            logger.error(f"[P0-RETRY] {operation_name} FAILED after {max_retries} attempts: {last_error}")
+            return None
+
+        @wraps(func)
+        async def async_wrapper(*args, **kwargs):
+            last_error = None
+            for attempt in range(max_retries):
+                try:
+                    return await func(*args, **kwargs)
+                except Exception as e:
+                    last_error = e
+                    wait_time = delay * (2 ** attempt)
+                    logger.warning(
+                        f"[P0-RETRY] {operation_name} failed (attempt {attempt + 1}/{max_retries}): {e}. "
+                        f"Retrying in {wait_time:.1f}s..."
+                    )
+                    if attempt < max_retries - 1:
+                        await asyncio.sleep(wait_time)
+            logger.error(f"[P0-RETRY] {operation_name} FAILED after {max_retries} attempts: {last_error}")
+            return None
+
+        # Return appropriate wrapper based on function type
+        if asyncio.iscoroutinefunction(func):
+            return async_wrapper
+        return sync_wrapper
+
+    return decorator
+
+
 # Configuration: Set to True to require consent before processing
 REQUIRE_CONSENT = os.getenv("REQUIRE_GDPR_CONSENT", "false").lower() == "true"
 
@@ -1033,31 +1094,52 @@ class DMResponderAgent:
         thread.start()
         logger.debug(f"DB save started in background thread for {role}")
 
-    def _sync_lead_to_postgres_fire_and_forget(self, creator_id: str, follower_id: str, purchase_intent_score: float = 0.0):
+    def _sync_lead_to_postgres_fire_and_forget(self, creator_id: str, follower_id: str, purchase_intent_score: float = 0.0, status: str = None):
         """
         Fire-and-forget lead sync - uses thread pool to truly not block.
-        FIX P0: sync_json_to_postgres was blocking the response by 3-4 seconds.
+        P0 FIX: Now includes retry logic and direct DB update as backup.
         """
         import threading
         import time
 
+        MAX_RETRIES = 3
+        RETRY_DELAY = 0.5
+
         def run_in_thread():
-            try:
-                _t_start = time.time()
-                from api.services.data_sync import sync_json_to_postgres
-                result = sync_json_to_postgres(creator_id, follower_id)
-                _t_end = time.time()
-                if result:
-                    logger.info(f"⏱️ Lead sync completed in {_t_end - _t_start:.2f}s: {follower_id} (score={purchase_intent_score})")
-                else:
-                    logger.debug(f"Lead sync returned None for {follower_id} ({_t_end - _t_start:.2f}s)")
-            except Exception as e:
-                logger.error(f"Lead sync FAILED for {follower_id}: {e}", exc_info=True)
+            from api.services.data_sync import sync_json_to_postgres, update_lead_score_direct
+
+            for attempt in range(MAX_RETRIES):
+                try:
+                    _t_start = time.time()
+
+                    # Method 1: Sync from JSON (includes all data)
+                    result = sync_json_to_postgres(creator_id, follower_id)
+
+                    # Method 2 (P0 FIX): Also do direct update to ensure score persists
+                    if purchase_intent_score > 0:
+                        update_lead_score_direct(creator_id, follower_id, purchase_intent_score, status)
+
+                    _t_end = time.time()
+                    if result:
+                        logger.info(f"⏱️ [P0-SYNC] Lead sync completed in {_t_end - _t_start:.2f}s: {follower_id} (score={purchase_intent_score:.2f}, status={status})")
+                    else:
+                        logger.debug(f"[P0-SYNC] Lead sync returned None for {follower_id} ({_t_end - _t_start:.2f}s)")
+
+                    # Success - exit retry loop
+                    return
+
+                except Exception as e:
+                    wait_time = RETRY_DELAY * (2 ** attempt)
+                    logger.warning(f"[P0-RETRY] Lead sync failed (attempt {attempt + 1}/{MAX_RETRIES}): {follower_id} - {e}")
+                    if attempt < MAX_RETRIES - 1:
+                        time.sleep(wait_time)
+                    else:
+                        logger.error(f"[P0-RETRY] Lead sync FAILED after {MAX_RETRIES} attempts for {follower_id}: {e}", exc_info=True)
 
         # Start in background thread - truly non-blocking
         thread = threading.Thread(target=run_in_thread, daemon=True)
         thread.start()
-        logger.debug(f"Lead sync started in background thread for {follower_id}")
+        logger.debug(f"[P0-SYNC] Lead sync started in background thread for {follower_id}")
 
     # Class-level cache for system prompts and configs (shared across instances)
     _system_prompt_cache: Dict[str, str] = {}
@@ -4102,12 +4184,13 @@ USA ESTA RESPUESTA PARA LA OBJECION (adaptala a tu tono):
         self._save_message_to_db_fire_and_forget(follower.follower_id, 'user', message, str(intent))
         self._save_message_to_db_fire_and_forget(follower.follower_id, 'assistant', response, None)
         # Sync lead data (including purchase_intent_score) to PostgreSQL (fire-and-forget)
-        # FIX P0: This was blocking by 3-4 seconds - now runs in background thread
+        # P0 FIX: Now includes status and uses direct DB update as backup
         if USE_POSTGRES and db_service:
             self._sync_lead_to_postgres_fire_and_forget(
                 self.creator_id,
                 follower.follower_id,
-                follower.purchase_intent_score
+                follower.purchase_intent_score,
+                follower.status
             )
 
     async def _schedule_nurturing_if_needed(
