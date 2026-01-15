@@ -853,7 +853,9 @@ async def rescore_leads(creator_id: str):
                     "old_intent": old_intent,
                     "razones": resultado.razones,
                     "keywords": resultado.keywords_detectados[:5],
-                    "messages_count": len(messages)
+                    "messages_count": len(messages),
+                    "first_contact": str(lead.first_contact_at) if lead.first_contact_at else None,
+                    "last_contact": str(lead.last_contact_at) if lead.last_contact_at else None
                 })
 
             session.commit()
