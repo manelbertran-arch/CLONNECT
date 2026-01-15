@@ -148,6 +148,7 @@ async def toggle_copilot_mode(creator_id: str, request: ToggleRequest):
     """
     from api.database import SessionLocal
     from api.models import Creator
+    from core.copilot_service import get_copilot_service
 
     session = SessionLocal()
     try:
@@ -157,6 +158,10 @@ async def toggle_copilot_mode(creator_id: str, request: ToggleRequest):
 
         creator.copilot_mode = request.enabled
         session.commit()
+
+        # Invalidate cache so status endpoint returns fresh data
+        service = get_copilot_service()
+        service.invalidate_copilot_cache(creator_id)
 
         logger.info(f"[Copilot] Mode {'enabled' if request.enabled else 'disabled'} for {creator_id}")
 
