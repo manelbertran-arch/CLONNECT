@@ -1435,18 +1435,34 @@ async def fix_lead_timestamps(creator_id: str):
 
             for lead in leads:
                 messages = session.query(Message).filter_by(lead_id=lead.id).order_by(Message.created_at).all()
+                old_first = lead.first_contact_at
+                old_last = lead.last_contact_at
 
                 if not messages:
-                    stats["leads_no_messages"] += 1
+                    # Para leads SIN mensajes: last_contact = first_contact
+                    # Esto permite detectarlos correctamente como fantasma
+                    if lead.first_contact_at and lead.last_contact_at != lead.first_contact_at:
+                        lead.last_contact_at = lead.first_contact_at
+                        stats["leads_no_messages"] += 1
+                        stats["leads_updated"] += 1
+                        stats["details"].append({
+                            "username": lead.username,
+                            "old_first": str(old_first) if old_first else None,
+                            "new_first": str(lead.first_contact_at) if lead.first_contact_at else None,
+                            "old_last": str(old_last) if old_last else None,
+                            "new_last": str(lead.last_contact_at) if lead.last_contact_at else None,
+                            "total_messages": 0,
+                            "user_messages": 0,
+                            "fix_type": "no_messages_use_first_contact"
+                        })
+                    else:
+                        stats["leads_no_messages"] += 1
                     continue
 
                 # Separar mensajes de usuario vs bot
                 user_messages = [m for m in messages if m.role == "user"]
                 all_timestamps = [m.created_at for m in messages if m.created_at]
                 user_timestamps = [m.created_at for m in user_messages if m.created_at]
-
-                old_first = lead.first_contact_at
-                old_last = lead.last_contact_at
 
                 # first_contact = primer mensaje de cualquiera
                 if all_timestamps:
@@ -1467,6 +1483,10 @@ async def fix_lead_timestamps(creator_id: str):
                         "user_messages": len(user_messages)
                     })
                 else:
+                    # Mensajes pero ninguno del usuario: usar first_contact
+                    if lead.first_contact_at:
+                        lead.last_contact_at = lead.first_contact_at
+                        stats["leads_updated"] += 1
                     stats["leads_no_user_messages"] += 1
 
             session.commit()
