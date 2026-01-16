@@ -1169,17 +1169,25 @@ async def simple_dm_sync(creator_id: str, max_convs: int = 20):
                                 pass
 
                         # Parse message timestamps for first/last contact
-                        msg_timestamps = []
+                        all_msg_timestamps = []
+                        user_msg_timestamps = []
+
                         for msg in messages:
                             if msg.get("created_time"):
                                 try:
                                     ts = datetime.fromisoformat(msg["created_time"].replace("+0000", "+00:00"))
-                                    msg_timestamps.append(ts)
+                                    all_msg_timestamps.append(ts)
+
+                                    # Solo contar mensajes del follower para last_contact
+                                    from_id = msg.get("from", {}).get("id")
+                                    if from_id and from_id != ig_user_id:
+                                        user_msg_timestamps.append(ts)
                                 except:
                                     pass
 
-                        first_msg_time = min(msg_timestamps) if msg_timestamps else conv_updated_time
-                        last_msg_time = max(msg_timestamps) if msg_timestamps else conv_updated_time
+                        first_msg_time = min(all_msg_timestamps) if all_msg_timestamps else conv_updated_time
+                        # IMPORTANTE: usar último mensaje del USUARIO para fantasma
+                        last_user_msg_time = max(user_msg_timestamps) if user_msg_timestamps else first_msg_time
 
                         if not lead:
                             lead = Lead(
@@ -1189,7 +1197,8 @@ async def simple_dm_sync(creator_id: str, max_convs: int = 20):
                                 username=follower_username,
                                 status="new",
                                 first_contact_at=first_msg_time,
-                                last_contact_at=last_msg_time
+                                # IMPORTANTE: usar último mensaje del USUARIO para fantasma
+                                last_contact_at=last_user_msg_time or first_msg_time
                             )
                             session.add(lead)
                             session.commit()
@@ -1198,8 +1207,9 @@ async def simple_dm_sync(creator_id: str, max_convs: int = 20):
                             # Update timestamps if we have older/newer messages
                             if first_msg_time and (not lead.first_contact_at or first_msg_time < lead.first_contact_at):
                                 lead.first_contact_at = first_msg_time
-                            if last_msg_time and (not lead.last_contact_at or last_msg_time > lead.last_contact_at):
-                                lead.last_contact_at = last_msg_time
+                            # IMPORTANTE: solo actualizar si hay mensaje del USUARIO más reciente
+                            if last_user_msg_time and (not lead.last_contact_at or last_user_msg_time > lead.last_contact_at):
+                                lead.last_contact_at = last_user_msg_time
                             session.commit()
 
                         # Save messages
@@ -1377,3 +1387,102 @@ async def sync_reset(creator_id: str):
         }
     finally:
         session.close()
+
+
+@router.post("/fix-lead-timestamps/{creator_id}")
+async def fix_lead_timestamps(creator_id: str):
+    """
+    Corrige las fechas de last_contact_at basándose en los mensajes guardados.
+
+    El problema: last_contact_at se estaba guardando con el timestamp del último
+    mensaje de la conversación (incluyendo mensajes del bot), pero para FANTASMA
+    necesitamos el último mensaje del USUARIO.
+
+    Esta función:
+    1. Lee todos los mensajes de cada lead
+    2. Calcula first_contact y last_contact correctamente
+    3. last_contact = último mensaje role=user
+    """
+    try:
+        from api.database import SessionLocal
+        from api.models import Creator, Lead, Message
+        from sqlalchemy import text
+
+        session = SessionLocal()
+        try:
+            # Get creator
+            creator = session.query(Creator).filter_by(name=creator_id).first()
+            if not creator:
+                creator = session.query(Creator).filter(
+                    text("id::text = :cid")
+                ).params(cid=creator_id).first()
+
+            if not creator:
+                return {"status": "error", "error": f"Creator not found: {creator_id}"}
+
+            leads = session.query(Lead).filter_by(creator_id=creator.id).all()
+
+            stats = {
+                "total_leads": len(leads),
+                "leads_updated": 0,
+                "leads_no_messages": 0,
+                "leads_no_user_messages": 0,
+                "details": []
+            }
+
+            for lead in leads:
+                messages = session.query(Message).filter_by(lead_id=lead.id).order_by(Message.created_at).all()
+
+                if not messages:
+                    stats["leads_no_messages"] += 1
+                    continue
+
+                # Separar mensajes de usuario vs bot
+                user_messages = [m for m in messages if m.role == "user"]
+                all_timestamps = [m.created_at for m in messages if m.created_at]
+                user_timestamps = [m.created_at for m in user_messages if m.created_at]
+
+                old_first = lead.first_contact_at
+                old_last = lead.last_contact_at
+
+                # first_contact = primer mensaje de cualquiera
+                if all_timestamps:
+                    lead.first_contact_at = min(all_timestamps)
+
+                # last_contact = último mensaje del USUARIO
+                if user_timestamps:
+                    lead.last_contact_at = max(user_timestamps)
+                    stats["leads_updated"] += 1
+
+                    stats["details"].append({
+                        "username": lead.username,
+                        "old_first": str(old_first) if old_first else None,
+                        "new_first": str(lead.first_contact_at) if lead.first_contact_at else None,
+                        "old_last": str(old_last) if old_last else None,
+                        "new_last": str(lead.last_contact_at) if lead.last_contact_at else None,
+                        "total_messages": len(messages),
+                        "user_messages": len(user_messages)
+                    })
+                else:
+                    stats["leads_no_user_messages"] += 1
+
+            session.commit()
+            logger.info(f"[FixTimestamps] Updated {stats['leads_updated']} leads for {creator_id}")
+
+            return {
+                "status": "success",
+                "creator_id": creator_id,
+                **stats
+            }
+
+        finally:
+            session.close()
+
+    except Exception as e:
+        logger.error(f"Fix timestamps failed for {creator_id}: {e}")
+        import traceback
+        traceback.print_exc()
+        return {
+            "status": "error",
+            "error": str(e)
+        }

@@ -174,18 +174,27 @@ async def process_single_conversation(
                 result["success"] = True
                 return result
 
-            # Parse timestamps
-            msg_timestamps = []
+            # Parse timestamps - separar mensajes de usuario vs creator
+            all_msg_timestamps = []
+            user_msg_timestamps = []
+
             for msg in messages:
                 if msg.get("created_time"):
                     try:
                         ts = datetime.fromisoformat(msg["created_time"].replace("+0000", "+00:00"))
-                        msg_timestamps.append(ts)
+                        all_msg_timestamps.append(ts)
+
+                        # Solo contar mensajes del follower (no del creator)
+                        from_id = msg.get("from", {}).get("id")
+                        if from_id and from_id != ig_user_id:
+                            user_msg_timestamps.append(ts)
                     except:
                         pass
 
-            first_msg_time = min(msg_timestamps) if msg_timestamps else None
-            last_msg_time = max(msg_timestamps) if msg_timestamps else None
+            first_msg_time = min(all_msg_timestamps) if all_msg_timestamps else None
+            # IMPORTANTE: last_contact_at debe ser el último mensaje del USUARIO
+            # para que FANTASMA funcione correctamente
+            last_user_msg_time = max(user_msg_timestamps) if user_msg_timestamps else None
 
             # Get or create lead
             lead = session.query(Lead).filter_by(
@@ -202,7 +211,8 @@ async def process_single_conversation(
                     username=follower_username,
                     status="new",
                     first_contact_at=first_msg_time,
-                    last_contact_at=last_msg_time
+                    # IMPORTANTE: usar último mensaje del USUARIO para fantasma
+                    last_contact_at=last_user_msg_time or first_msg_time
                 )
                 session.add(lead)
                 session.commit()
@@ -211,8 +221,9 @@ async def process_single_conversation(
                 # Update timestamps
                 if first_msg_time and (not lead.first_contact_at or first_msg_time < lead.first_contact_at):
                     lead.first_contact_at = first_msg_time
-                if last_msg_time and (not lead.last_contact_at or last_msg_time > lead.last_contact_at):
-                    lead.last_contact_at = last_msg_time
+                # IMPORTANTE: solo actualizar si hay mensaje del USUARIO más reciente
+                if last_user_msg_time and (not lead.last_contact_at or last_user_msg_time > lead.last_contact_at):
+                    lead.last_contact_at = last_user_msg_time
 
             # Save messages
             for msg in messages:
