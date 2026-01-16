@@ -48,6 +48,112 @@ def get_creator_by_name(name: str):
         session.close()
 
 
+# =============================================================================
+# PROTECTED BLOCK: Instagram Token Access
+# Modified: 2026-01-16
+# Reason: Centralized function for Instagram credentials to prevent lookup bugs
+# Do not modify without considering all usages across the codebase
+# =============================================================================
+def get_instagram_credentials(creator_id: str):
+    """
+    Centralized function to get Instagram credentials for a creator.
+
+    IMPORTANT: This is the ONLY function that should be used to get Instagram tokens.
+    It handles:
+    - Lookup by name or UUID
+    - Clear error messages when token is missing
+    - All Instagram fields in one place
+
+    Args:
+        creator_id: Creator name (e.g., 'fitpack_global') or UUID
+
+    Returns:
+        Dict with:
+            - success: bool
+            - token: str or None
+            - page_id: str or None
+            - user_id: str or None
+            - expires_at: datetime or None
+            - creator_name: str
+            - creator_uuid: str
+            - error: str (if success=False)
+    """
+    session = get_session()
+    if not session:
+        return {
+            "success": False,
+            "error": "Database not available",
+            "token": None,
+            "page_id": None,
+            "user_id": None
+        }
+
+    try:
+        from api.models import Creator
+        from sqlalchemy import text
+
+        # Try by name first
+        creator = session.query(Creator).filter_by(name=creator_id).first()
+
+        # If not found by name, try by UUID
+        if not creator:
+            try:
+                creator = session.query(Creator).filter(
+                    text("id::text = :cid")
+                ).params(cid=creator_id).first()
+            except:
+                pass
+
+        if not creator:
+            return {
+                "success": False,
+                "error": f"Creator '{creator_id}' not found in database",
+                "token": None,
+                "page_id": None,
+                "user_id": None
+            }
+
+        # Creator found - check if token exists
+        if not creator.instagram_token:
+            return {
+                "success": False,
+                "error": f"Creator '{creator.name}' has no Instagram token configured. "
+                        f"Please connect Instagram via OAuth at /connect/instagram",
+                "creator_name": creator.name,
+                "creator_uuid": str(creator.id),
+                "token": None,
+                "page_id": creator.instagram_page_id,
+                "user_id": creator.instagram_user_id
+            }
+
+        # Success - return all credentials
+        # Use getattr for expires_at as it may not exist in all DB schemas
+        expires_at = getattr(creator, 'instagram_token_expires_at', None)
+
+        return {
+            "success": True,
+            "token": creator.instagram_token,
+            "page_id": creator.instagram_page_id,
+            "user_id": creator.instagram_user_id,
+            "expires_at": expires_at,
+            "creator_name": creator.name,
+            "creator_uuid": str(creator.id),
+            "error": None
+        }
+
+    except Exception as e:
+        logger.error(f"get_instagram_credentials error for {creator_id}: {e}")
+        return {
+            "success": False,
+            "error": str(e),
+            "token": None,
+            "page_id": None,
+            "user_id": None
+        }
+    finally:
+        session.close()
+
+
 def get_or_create_creator(name: str):
     """Get creator by name, or create if doesn't exist"""
     session = get_session()
@@ -467,6 +573,12 @@ def get_creator_stats(creator_name: str):
 # CRUD COMPLETO - Phase 11
 # ============================================
 
+# =============================================================================
+# PROTECTED BLOCK: Product Creation with Taxonomy
+# Modified: 2026-01-16
+# Reason: Guarda todos los campos de taxonomía (category, product_type, is_free)
+# Do not remove taxonomy fields - required for frontend forms and bot responses
+# =============================================================================
 def create_product(creator_name: str, data: dict):
     session = get_session()
     if not session:
@@ -480,8 +592,17 @@ def create_product(creator_name: str, data: dict):
             creator_id=creator.id,
             name=data.get("name", ""),
             description=data.get("description", ""),
+            short_description=data.get("short_description", ""),
+            # Taxonomy fields
+            category=data.get("category", "product"),
+            product_type=data.get("product_type", "otro"),
+            is_free=data.get("is_free", False),
+            # Pricing
             price=data.get("price", 0),
             currency=data.get("currency", "EUR"),
+            # Links
+            payment_link=data.get("payment_link", ""),
+            # Status
             is_active=data.get("is_active", True),
         )
         session.add(product)
