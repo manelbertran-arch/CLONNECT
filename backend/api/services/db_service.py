@@ -302,20 +302,26 @@ def create_lead(creator_name: str, data: dict):
 def get_products(creator_name: str):
     session = get_session()
     if not session:
+        logger.warning(f"get_products: no session for {creator_name}")
         return []
     try:
         from api.models import Creator, Product
         creator = session.query(Creator).filter_by(name=creator_name).first()
         if not creator:
+            logger.warning(f"get_products: creator '{creator_name}' not found")
             return []
         products = session.query(Product).filter_by(creator_id=creator.id).all()
+        logger.info(f"get_products: found {len(products)} products for {creator_name}")
         return [{
             "id": str(p.id),
             "name": p.name,
             "description": p.description,
+            "short_description": getattr(p, 'short_description', '') or "",
+            "product_type": getattr(p, 'product_type', 'otro') or "otro",
             "price": p.price,
             "currency": p.currency,
             "payment_link": getattr(p, 'payment_link', '') or "",
+            "source_url": getattr(p, 'source_url', '') or "",
             "is_active": p.is_active,
         } for p in products]
     finally:
