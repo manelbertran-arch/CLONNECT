@@ -1280,6 +1280,9 @@ async def simple_dm_sync(creator_id: str, max_convs: int = 20):
                                 if not msg_text:
                                     attachments = msg.get("attachments", {}).get("data", [])
                                     if attachments:
+                                        # DEBUG: Log all attachment types
+                                        for att in attachments:
+                                            print(f"[SYNC DEBUG] Attachment type: {att.get('type')} - Full: {att}")
                                         for att in attachments:
                                             att_type = att.get("type", "").lower()
                                             att_url = att.get("url") or att.get("video_data", {}).get("url") or att.get("image_data", {}).get("url")
