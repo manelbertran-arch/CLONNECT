@@ -1289,9 +1289,18 @@ async def simple_dm_sync(creator_id: str, max_convs: int = 20):
                                             elif "image" in att_type or "photo" in att_type:
                                                 msg_text = "Imagen"
                                                 msg_metadata = {"type": "image", "url": att_url}
-                                            elif "share" in att_type or "post" in att_type:
+                                            elif "share" in att_type or "post" in att_type or "media_share" in att_type:
+                                                # Obtener URL del post/reel compartido
+                                                post_url = att.get("target", {}).get("url") or att_url
+                                                thumbnail_url = att.get("image_data", {}).get("url") or att.get("preview_url")
+
                                                 msg_text = "Post compartido"
-                                                msg_metadata = {"type": "share", "url": att_url}
+                                                msg_metadata = {
+                                                    "type": "shared_post",
+                                                    "url": post_url,
+                                                    "thumbnail_url": thumbnail_url,
+                                                    "permalink": post_url
+                                                }
                                             elif "link" in att_type:
                                                 msg_text = "Link"
                                                 msg_metadata = {"type": "link", "url": att_url}
