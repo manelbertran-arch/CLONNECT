@@ -6,7 +6,7 @@ import json
 import shutil
 import logging
 from pathlib import Path
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, BackgroundTasks
 
 logger = logging.getLogger(__name__)
 
@@ -1261,3 +1261,119 @@ async def simple_dm_sync(creator_id: str, max_convs: int = 20):
         import traceback
         traceback.print_exc()
         return {"error": str(e), **results}
+
+
+# =============================================================================
+# SYNC QUEUE SYSTEM - Sincronización inteligente con rate limiting
+# =============================================================================
+
+@router.post("/start-sync/{creator_id}")
+async def start_sync(creator_id: str, background_tasks: BackgroundTasks):
+    """
+    Inicia sincronización de DMs en background.
+
+    Características:
+    - Retorna inmediatamente (no-bloqueante)
+    - Procesa 1 conversación cada 3 segundos
+    - Pausa automática si hay rate limit
+    - Guarda progreso después de cada job
+
+    Uso:
+    1. POST /admin/start-sync/fitpack_global → inicia sync
+    2. GET /admin/sync-status/fitpack_global → ver progreso
+    """
+    from core.sync_worker import start_sync_for_creator, run_sync_worker_iteration
+    from api.database import SessionLocal
+
+    # Start the sync (queues conversations)
+    result = await start_sync_for_creator(creator_id)
+
+    if result["status"] == "started":
+        # Run worker in background
+        async def run_worker():
+            session = SessionLocal()
+            try:
+                await run_sync_worker_iteration(session, creator_id)
+            finally:
+                session.close()
+
+        background_tasks.add_task(run_worker)
+
+    return result
+
+
+@router.get("/sync-status/{creator_id}")
+async def sync_status(creator_id: str):
+    """
+    Obtiene el estado actual del sync.
+
+    Respuestas posibles:
+    - status: "not_started" → No hay sync activo
+    - status: "running" → Procesando conversaciones
+    - status: "rate_limited" → Pausado por rate limit (auto-resume)
+    - status: "completed" → Terminado
+    """
+    from core.sync_worker import get_sync_status
+    return get_sync_status(creator_id)
+
+
+@router.post("/sync-continue/{creator_id}")
+async def sync_continue(creator_id: str, background_tasks: BackgroundTasks):
+    """
+    Continúa el sync si hay jobs pendientes.
+    Útil para reanudar después de rate limit.
+    """
+    from core.sync_worker import run_sync_worker_iteration, get_sync_status
+    from api.database import SessionLocal
+
+    status = get_sync_status(creator_id)
+
+    if status["status"] == "not_started":
+        return {"error": "No sync started. Use /start-sync first."}
+
+    if status["pending_jobs"] == 0:
+        return {"message": "No pending jobs. Sync complete."}
+
+    # Run worker in background
+    async def run_worker():
+        session = SessionLocal()
+        try:
+            await run_sync_worker_iteration(session, creator_id)
+        finally:
+            session.close()
+
+    background_tasks.add_task(run_worker)
+
+    return {
+        "status": "continuing",
+        "pending_jobs": status["pending_jobs"],
+        "message": "Sync resumed in background"
+    }
+
+
+@router.delete("/sync-reset/{creator_id}")
+async def sync_reset(creator_id: str):
+    """
+    Resetea el estado del sync para un creator.
+    Limpia la cola y el estado.
+    """
+    from api.database import SessionLocal
+    from api.models import SyncQueue, SyncState
+
+    session = SessionLocal()
+    try:
+        # Delete queue jobs
+        deleted_jobs = session.query(SyncQueue).filter_by(creator_id=creator_id).delete()
+
+        # Delete state
+        deleted_state = session.query(SyncState).filter_by(creator_id=creator_id).delete()
+
+        session.commit()
+
+        return {
+            "status": "reset",
+            "jobs_deleted": deleted_jobs,
+            "state_deleted": deleted_state
+        }
+    finally:
+        session.close()
