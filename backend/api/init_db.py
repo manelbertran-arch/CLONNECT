@@ -64,6 +64,9 @@ def run_migrations(engine):
         ("products", "source_url", "TEXT"),
         ("products", "price_verified", "BOOLEAN DEFAULT FALSE"),
         ("products", "confidence", "FLOAT DEFAULT 0.0"),
+        # Product auto-detection fields
+        ("products", "product_type", "VARCHAR(50) DEFAULT 'otro'"),
+        ("products", "short_description", "VARCHAR(300)"),
     ]
 
     with engine.connect() as conn:
