@@ -658,6 +658,42 @@ async def debug_database():
     return result
 
 
+@app.get("/debug/products/{creator_name}")
+async def debug_products(creator_name: str):
+    """Debug endpoint to check products for a creator."""
+    result = {"creator_name": creator_name, "creator_found": False, "products": [], "error": None}
+    if SessionLocal:
+        try:
+            from sqlalchemy import text
+            db = SessionLocal()
+            try:
+                # Find creator
+                creator_result = db.execute(text(
+                    "SELECT id, name FROM creators WHERE name = :name"
+                ), {"name": creator_name})
+                creator_row = creator_result.fetchone()
+                if creator_row:
+                    result["creator_found"] = True
+                    result["creator_id"] = str(creator_row[0])
+                    # Get products
+                    products_result = db.execute(text(
+                        "SELECT id, name, price, currency, product_type, short_description, payment_link, is_active FROM products WHERE creator_id = :cid"
+                    ), {"cid": creator_row[0]})
+                    result["products"] = [
+                        {"id": str(row[0]), "name": row[1], "price": row[2], "currency": row[3],
+                         "product_type": row[4], "short_description": row[5], "payment_link": row[6], "is_active": row[7]}
+                        for row in products_result.fetchall()
+                    ]
+                    result["count"] = len(result["products"])
+            finally:
+                db.close()
+        except Exception as e:
+            result["error"] = str(e)
+            import traceback
+            result["traceback"] = traceback.format_exc()
+    return result
+
+
 @app.post("/debug/insert-booking-link")
 async def debug_insert_booking_link():
     """
