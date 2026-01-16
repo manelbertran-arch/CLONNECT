@@ -645,6 +645,7 @@ DEFAULT_ACTIVE_SEQUENCES = [
     "interest_cold",      # Follow up on soft interest
     "abandoned",          # Recover abandoned carts
     "booking_reminder",   # Remind about upcoming bookings
+    "re_engagement",      # Reactivate ghost leads automatically
 ]
 
 

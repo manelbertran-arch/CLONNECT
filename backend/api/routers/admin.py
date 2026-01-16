@@ -1489,3 +1489,90 @@ async def fix_lead_timestamps(creator_id: str):
             "status": "error",
             "error": str(e)
         }
+
+
+# =============================================================================
+# GHOST REACTIVATION - Reactivación automática de leads fantasma
+# =============================================================================
+
+@router.get("/ghost-stats/{creator_id}")
+async def get_ghost_stats(creator_id: str):
+    """
+    Obtiene estadísticas de leads fantasma y estado de reactivación.
+
+    Muestra:
+    - Configuración actual
+    - Leads fantasma pendientes de reactivar
+    - Total reactivados
+    """
+    try:
+        from core.ghost_reactivation import get_reactivation_stats
+        return get_reactivation_stats(creator_id)
+    except Exception as e:
+        return {"error": str(e)}
+
+
+@router.post("/ghost-reactivate/{creator_id}")
+async def reactivate_ghosts(creator_id: str, dry_run: bool = False):
+    """
+    Reactiva manualmente leads fantasma de un creator.
+
+    Args:
+        creator_id: ID del creator
+        dry_run: Si True, solo muestra qué haría sin enviar
+
+    Returns:
+        Resultado de la reactivación
+    """
+    try:
+        from core.ghost_reactivation import reactivate_ghost_leads
+        result = await reactivate_ghost_leads(creator_id, dry_run=dry_run)
+        return {"status": "success", **result}
+    except Exception as e:
+        logger.error(f"Ghost reactivation failed for {creator_id}: {e}")
+        return {"status": "error", "error": str(e)}
+
+
+@router.post("/ghost-config")
+async def configure_ghost_reactivation(
+    enabled: bool = None,
+    min_days: int = None,
+    max_days: int = None,
+    cooldown_days: int = None,
+    max_per_cycle: int = None
+):
+    """
+    Configura parámetros de reactivación de fantasmas.
+
+    Args:
+        enabled: Activar/desactivar reactivación automática
+        min_days: Días mínimos sin respuesta para ser fantasma (default: 7)
+        max_days: Días máximos (muy viejo = no molestar) (default: 90)
+        cooldown_days: No reactivar mismo lead en X días (default: 30)
+        max_per_cycle: Máximo leads por ciclo del scheduler (default: 5)
+
+    Returns:
+        Configuración actualizada
+    """
+    try:
+        from core.ghost_reactivation import configure_reactivation
+        config = configure_reactivation(
+            enabled=enabled,
+            min_days=min_days,
+            max_days=max_days,
+            cooldown_days=cooldown_days,
+            max_per_cycle=max_per_cycle
+        )
+        return {"status": "success", "config": config}
+    except Exception as e:
+        return {"status": "error", "error": str(e)}
+
+
+@router.get("/ghost-config")
+async def get_ghost_config():
+    """Obtiene la configuración actual de reactivación."""
+    try:
+        from core.ghost_reactivation import REACTIVATION_CONFIG
+        return {"status": "success", "config": REACTIVATION_CONFIG}
+    except Exception as e:
+        return {"status": "error", "error": str(e)}

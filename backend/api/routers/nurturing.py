@@ -579,7 +579,16 @@ async def _run_scheduler_cycle():
 
     manager = get_nurturing_manager()
 
-    # Get ALL pending followups that are due (no creator_id = all creators)
+    # 1. Run ghost reactivation (find and schedule re-engagement for ghosts)
+    try:
+        from core.ghost_reactivation import run_ghost_reactivation_cycle
+        ghost_result = await run_ghost_reactivation_cycle()
+        if ghost_result.get("total_scheduled", 0) > 0:
+            logger.info(f"[NURTURING SCHEDULER] Ghost reactivation: {ghost_result['total_scheduled']} scheduled")
+    except Exception as e:
+        logger.error(f"[NURTURING SCHEDULER] Ghost reactivation error: {e}")
+
+    # 2. Get ALL pending followups that are due (no creator_id = all creators)
     followups = manager.get_pending_followups()
 
     if not followups:
