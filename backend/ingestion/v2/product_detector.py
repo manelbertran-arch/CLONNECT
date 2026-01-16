@@ -284,12 +284,20 @@ class ProductDetector:
 
         return service_pages
 
-    # Patrones para detectar productos gratuitos
+    # Patrones para detectar productos EXPLÍCITAMENTE gratuitos
+    # Solo detectar si hay indicación clara de que ES gratis (no solo mencionan algo gratis)
     FREE_PATTERNS = [
-        r'\b(gratis|gratuito|gratuita|free)\b',
-        r'\bsin\s+(coste|costo)\b',
-        r'\bcomplimentary\b',
-        r'\b(sesión|llamada|consulta)\s+(de\s+)?(descubrimiento|discovery)\b',
+        r'\b(gratis|gratuito|gratuita|free)\b.*\b(apunta|inscrib|regist|reserv)',  # "gratis - apúntate"
+        r'\b(apunta|inscrib|regist|reserv).*\b(gratis|gratuito|gratuita|free)\b',  # "apúntate gratis"
+        r'€\s*0\b|\b0\s*€',  # Precio explícito €0
+        r'\bprecio[:\s]+gratis\b',  # "precio: gratis"
+        r'\bsin\s+(coste|costo)\s*$',  # "sin coste" al final
+    ]
+
+    # Patrones en URL que indican producto gratuito
+    FREE_URL_PATTERNS = [
+        r'/gratis', r'/free', r'/gratuito',
+        r'/discovery', r'/descubrimiento',
     ]
 
     def _analyze_page(self, page: 'ScrapedPage') -> Optional[DetectedProduct]:
@@ -311,8 +319,12 @@ class ProductDetector:
         if price is not None:
             signals.append(ProductSignal.PRICE_VISIBLE.value)
 
-        # Señal 3b: FREE_PRODUCT - Detectar si es gratuito (precio = 0)
-        is_free = any(re.search(p, content, re.IGNORECASE) for p in self.FREE_PATTERNS)
+        # Señal 3b: FREE_PRODUCT - Detectar si es EXPLÍCITAMENTE gratuito
+        # Debe tener indicación clara en contenido O en URL
+        is_free_url = any(re.search(p, url_lower, re.IGNORECASE) for p in self.FREE_URL_PATTERNS)
+        is_free_content = any(re.search(p, content, re.IGNORECASE) for p in self.FREE_PATTERNS)
+        is_free = is_free_url or is_free_content
+
         if is_free and price is None:
             price = 0.0
             price_text = "gratuito"

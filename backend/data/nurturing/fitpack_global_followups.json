@@ -478,5 +478,65 @@
     "metadata": {
       "product_name": ""
     }
+  },
+  {
+    "id": "fitpack_global_2251413795360010_re_engagement_0_1768555098",
+    "creator_id": "fitpack_global",
+    "follower_id": "2251413795360010",
+    "sequence_type": "re_engagement",
+    "step": 0,
+    "scheduled_at": "2026-01-16T10:18:18.088491",
+    "message_template": "¡Hola! Hace tiempo que no hablamos. ¿Cómo va todo? Si necesitas algo, aquí estoy.",
+    "status": "sent",
+    "created_at": "2026-01-16T10:18:18.088523",
+    "sent_at": "2026-01-16T10:18:18.122253",
+    "metadata": {
+      "product_name": ""
+    }
+  },
+  {
+    "id": "fitpack_global_24195338743475319_re_engagement_0_1768555098",
+    "creator_id": "fitpack_global",
+    "follower_id": "24195338743475319",
+    "sequence_type": "re_engagement",
+    "step": 0,
+    "scheduled_at": "2026-01-16T10:18:18.089476",
+    "message_template": "¡Hola! Hace tiempo que no hablamos. ¿Cómo va todo? Si necesitas algo, aquí estoy.",
+    "status": "sent",
+    "created_at": "2026-01-16T10:18:18.089495",
+    "sent_at": "2026-01-16T10:18:18.123319",
+    "metadata": {
+      "product_name": ""
+    }
+  },
+  {
+    "id": "fitpack_global_2685013705180307_re_engagement_0_1768555098",
+    "creator_id": "fitpack_global",
+    "follower_id": "2685013705180307",
+    "sequence_type": "re_engagement",
+    "step": 0,
+    "scheduled_at": "2026-01-16T10:18:18.090449",
+    "message_template": "¡Hola! Hace tiempo que no hablamos. ¿Cómo va todo? Si necesitas algo, aquí estoy.",
+    "status": "sent",
+    "created_at": "2026-01-16T10:18:18.090466",
+    "sent_at": "2026-01-16T10:18:18.124278",
+    "metadata": {
+      "product_name": ""
+    }
+  },
+  {
+    "id": "fitpack_global_1376551044090333_re_engagement_0_1768555098",
+    "creator_id": "fitpack_global",
+    "follower_id": "1376551044090333",
+    "sequence_type": "re_engagement",
+    "step": 0,
+    "scheduled_at": "2026-01-16T10:18:18.091257",
+    "message_template": "¡Hola! Hace tiempo que no hablamos. ¿Cómo va todo? Si necesitas algo, aquí estoy.",
+    "status": "sent",
+    "created_at": "2026-01-16T10:18:18.091275",
+    "sent_at": "2026-01-16T10:18:18.125280",
+    "metadata": {
+      "product_name": ""
+    }
   }
 ]
