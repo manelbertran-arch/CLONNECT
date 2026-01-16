@@ -114,6 +114,16 @@ class ProductDetector:
         r'/contacto', r'/contact', r'/about', r'/sobremi',
         r'/testimonio', r'/review', r'/legal', r'/privacy',
         r'/terminos', r'/terms', r'/faq', r'/ayuda',
+        # NUEVOS: Excluir recursos que no son productos
+        r'/podcast', r'/recursos', r'/resource', r'/free',
+        r'/spotify', r'/apple.*podcast', r'/youtube',
+    ]
+
+    # Palabras en título/nombre que indican que NO es un producto
+    NOT_PRODUCT_TITLE_PATTERNS = [
+        r'\bpodcast\b', r'\bspotify\b', r'\byoutube\b',
+        r'\bblog\b', r'\bartículo\b', r'\barticle\b',
+        r'\bfree\b', r'\bgratis\b', r'\brecurso\b',
     ]
 
     # ============================================================
@@ -185,13 +195,21 @@ class ProductDetector:
         for page in service_pages:
             product = self._analyze_page(page)
             if product and len(product.signals_matched) >= self.REQUIRED_SIGNALS:
+                # Filtrar títulos que NO son productos (podcast, blog, etc.)
+                if self._is_not_product_title(product.name):
+                    logger.info(f"DESCARTADO (título no es producto): {product.name}")
+                    continue
+
                 candidates.append(product)
                 logger.info(
                     f"Producto detectado: {product.name} "
                     f"({len(product.signals_matched)} señales: {product.signals_matched})"
                 )
 
-        # 3. SANITY CHECK: Si hay demasiados, abortar
+        # 3. ELIMINAR DUPLICADOS: Mantener solo uno por nombre
+        candidates = self._remove_duplicates(candidates)
+
+        # 4. SANITY CHECK: Si hay demasiados, abortar
         if len(candidates) > self.MAX_PRODUCTS:
             raise SuspiciousExtractionError(
                 f"Se detectaron {len(candidates)} productos. "
@@ -201,6 +219,48 @@ class ProductDetector:
 
         logger.info(f"Total productos verificados: {len(candidates)}")
         return candidates
+
+    def _is_not_product_title(self, title: str) -> bool:
+        """Detecta si el título indica que NO es un producto."""
+        title_lower = (title or "").lower()
+        for pattern in self.NOT_PRODUCT_TITLE_PATTERNS:
+            if re.search(pattern, title_lower, re.IGNORECASE):
+                return True
+        return False
+
+    def _remove_duplicates(self, products: List[DetectedProduct]) -> List[DetectedProduct]:
+        """
+        Elimina productos duplicados por nombre.
+        Mantiene el que tiene más señales o precio.
+        """
+        seen_names = {}
+        unique = []
+
+        for product in products:
+            # Normalizar nombre para comparación
+            name_key = product.name.lower().strip()
+
+            if name_key in seen_names:
+                # Ya existe - comparar cuál es mejor
+                existing = seen_names[name_key]
+                # Preferir el que tiene precio
+                if product.price is not None and existing.price is None:
+                    seen_names[name_key] = product
+                    logger.info(f"DUPLICADO reemplazado (tiene precio): {product.name}")
+                # O el que tiene más señales
+                elif len(product.signals_matched) > len(existing.signals_matched):
+                    seen_names[name_key] = product
+                    logger.info(f"DUPLICADO reemplazado (más señales): {product.name}")
+                else:
+                    logger.info(f"DUPLICADO descartado: {product.name}")
+            else:
+                seen_names[name_key] = product
+
+        unique = list(seen_names.values())
+        if len(unique) < len(products):
+            logger.info(f"Eliminados {len(products) - len(unique)} duplicados")
+
+        return unique
 
     def _identify_service_pages(self, pages: List['ScrapedPage']) -> List['ScrapedPage']:
         """Identifica páginas que parecen ser de servicios/productos."""
