@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useParams, Link } from 'react-router-dom';
 import {
@@ -10,6 +10,7 @@ import {
 import { Search, Send, ArrowLeft, MessageCircle } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
+import { MessageRenderer } from '@/components/chat/MessageRenderer';
 
 export default function Mensajes() {
   const { conversationId } = useParams();
@@ -83,26 +84,31 @@ export default function Mensajes() {
   };
 
   return (
-    <div className="h-[calc(100vh-8rem)] md:h-[calc(100vh-4rem)] flex flex-col md:flex-row gap-4">
-      {/* Conversation List */}
+    <div className="h-[calc(100vh-8rem)] md:h-[calc(100vh-4rem)] flex flex-col md:flex-row bg-black rounded-xl overflow-hidden">
+      {/* Conversation List - Instagram Style */}
       <div
         className={`
         ${conversationId ? 'hidden md:flex' : 'flex'}
-        flex-col w-full md:w-80 bg-gray-900 rounded-xl overflow-hidden
+        flex-col w-full md:w-96 bg-black rounded-xl overflow-hidden border-r border-[#262626]
       `}
       >
+        {/* Header with username */}
+        <div className="p-4 border-b border-[#262626]">
+          <h1 className="text-xl font-bold text-white">Mensajes</h1>
+        </div>
+
         {/* Search */}
-        <div className="p-3 border-b border-gray-800">
+        <div className="p-3">
           <div className="relative">
             <Search
               className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500"
-              size={18}
+              size={16}
             />
             <Input
-              placeholder="Buscar..."
+              placeholder="Buscar"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              className="pl-10 bg-gray-800 border-gray-700"
+              className="pl-10 bg-[#262626] border-0 rounded-lg text-white placeholder:text-gray-500 focus-visible:ring-0"
             />
           </div>
         </div>
@@ -119,28 +125,36 @@ export default function Mensajes() {
                 key={conv.follower_id}
                 to={`/new/mensajes/${conv.follower_id}`}
                 className={`
-                flex items-center gap-3 p-4 border-b border-gray-800 hover:bg-gray-800 transition-colors
-                ${conversationId === conv.follower_id ? 'bg-gray-800' : ''}
+                flex items-center gap-3 px-4 py-3 hover:bg-[#121212] transition-colors
+                ${conversationId === conv.follower_id ? 'bg-[#121212]' : ''}
               `}
               >
-                <div className="w-12 h-12 rounded-full bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center text-white font-medium">
-                  {(conv.username || conv.name)?.[0]?.toUpperCase() || '?'}
+                {/* Avatar with optional story ring */}
+                <div className={`p-[2px] rounded-full ${(conv.purchase_intent ?? 0) > 0.7 ? 'bg-gradient-to-tr from-[#FCAF45] via-[#E1306C] to-[#833AB4]' : ''}`}>
+                  <div className={`${(conv.purchase_intent ?? 0) > 0.7 ? 'p-[2px] bg-black rounded-full' : ''}`}>
+                    <div className="w-14 h-14 rounded-full bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center text-white font-semibold text-lg">
+                      {(conv.username || conv.name)?.[0]?.toUpperCase() || '?'}
+                    </div>
+                  </div>
                 </div>
                 <div className="flex-1 min-w-0">
-                  <div className="flex items-center justify-between">
-                    <p className="font-medium text-white truncate">
-                      @{conv.username || conv.name || conv.follower_id}
+                  <div className="flex items-center gap-2">
+                    <p className="font-semibold text-white text-[14px] truncate">
+                      {conv.username || conv.name || conv.follower_id}
                     </p>
-                    <span className="text-xs text-gray-500">
-                      {formatTimeAgo(conv.last_contact)}
+                  </div>
+                  <div className="flex items-center gap-1">
+                    <p className="text-sm text-gray-400 truncate flex-1">
+                      {conv.last_messages?.[0]?.content || 'Sin mensajes'}
+                    </p>
+                    <span className="text-xs text-gray-500 shrink-0">
+                      · {formatTimeAgo(conv.last_contact)}
                     </span>
                   </div>
-                  <p className="text-sm text-gray-400 truncate">
-                    {conv.last_messages?.[0]?.content || 'Sin mensajes'}
-                  </p>
                 </div>
+                {/* Unread indicator */}
                 {(conv.purchase_intent ?? 0) > 0.7 && (
-                  <span className="text-orange-500">🔥</span>
+                  <div className="w-2 h-2 rounded-full bg-[#0095F6]"></div>
                 )}
               </Link>
             ))
@@ -150,38 +164,51 @@ export default function Mensajes() {
 
       {/* Conversation Detail */}
       {conversationId ? (
-        <div className="flex-1 flex flex-col bg-gray-900 rounded-xl overflow-hidden">
-          {/* Header */}
-          <div className="flex items-center gap-3 p-4 border-b border-gray-800">
+        <div className="flex-1 flex flex-col bg-black rounded-xl overflow-hidden">
+          {/* Header - Instagram Style */}
+          <div className="flex items-center gap-3 p-4 border-b border-[#262626] bg-black">
             <Link to="/new/mensajes" className="md:hidden">
-              <ArrowLeft className="text-gray-400" />
+              <ArrowLeft className="text-white" size={24} />
             </Link>
-            <div className="w-10 h-10 rounded-full bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center text-white font-medium">
-              {(
-                selectedConversation?.username ||
-                selectedConversation?.name ||
-                followerDetail?.username
-              )?.[0]?.toUpperCase() || '?'}
+            {/* Instagram gradient ring for avatar */}
+            <div className="p-[2px] rounded-full bg-gradient-to-tr from-[#FCAF45] via-[#E1306C] to-[#833AB4]">
+              <div className="w-10 h-10 rounded-full bg-black p-[2px]">
+                <div className="w-full h-full rounded-full bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center text-white font-semibold text-sm">
+                  {(
+                    selectedConversation?.username ||
+                    selectedConversation?.name ||
+                    followerDetail?.username
+                  )?.[0]?.toUpperCase() || '?'}
+                </div>
+              </div>
             </div>
-            <div>
-              <p className="font-medium text-white">
-                @
+            <div className="flex-1">
+              <p className="font-semibold text-white text-[15px]">
                 {selectedConversation?.username ||
                   selectedConversation?.name ||
                   followerDetail?.username ||
                   conversationId}
               </p>
               <p className="text-xs text-gray-400">
-                {selectedConversation?.platform || followerDetail?.platform || 'instagram'} ·{' '}
                 {(selectedConversation?.purchase_intent ?? 0) > 0.7
-                  ? '🔥 Hot lead'
-                  : 'Activo'}
+                  ? '🔥 Hot lead · Activo ahora'
+                  : 'Activo ahora'}
               </p>
             </div>
+            <button className="text-white p-2">
+              <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
+              </svg>
+            </button>
+            <button className="text-white p-2">
+              <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
+              </svg>
+            </button>
           </div>
 
-          {/* Messages */}
-          <div className="flex-1 overflow-y-auto p-4 space-y-4">
+          {/* Messages - Instagram Style */}
+          <div className="flex-1 overflow-y-auto p-4 space-y-1 bg-black">
             {isLoadingMessages ? (
               <div className="flex items-center justify-center h-full">
                 <div className="text-gray-500">Cargando mensajes...</div>
@@ -191,67 +218,64 @@ export default function Mensajes() {
                 <div className="text-gray-500">No hay mensajes</div>
               </div>
             ) : (
-              messages.map((msg, i) => (
-                <div
-                  key={i}
-                  className={`flex ${msg.role === 'assistant' ? 'justify-start' : 'justify-end'}`}
-                >
-                  <div
-                    className={`
-                    max-w-[80%] p-3 rounded-2xl
-                    ${
-                      msg.role === 'assistant'
-                        ? 'bg-gray-800 text-white rounded-bl-md'
-                        : 'bg-purple-500 text-white rounded-br-md'
-                    }
-                  `}
-                  >
-                    {msg.role === 'assistant' && (
-                      <span className="text-xs text-gray-400 block mb-1">
-                        🤖 Tu clon
-                      </span>
-                    )}
-                    <p>{msg.content}</p>
-                    <span className="text-xs opacity-60 mt-1 block text-right">
-                      {new Date(msg.timestamp).toLocaleTimeString('es', {
-                        hour: '2-digit',
-                        minute: '2-digit',
-                      })}
-                    </span>
-                  </div>
-                </div>
-              ))
+              messages.map((msg, i) => {
+                // Determine if this is the last message in a group from same sender
+                const nextMsg = messages[i + 1];
+                const isLastInGroup = !nextMsg || nextMsg.role !== msg.role;
+
+                return (
+                  <MessageRenderer
+                    key={i}
+                    message={{
+                      role: msg.role === 'assistant' ? 'assistant' : 'user',
+                      content: msg.content,
+                      timestamp: msg.timestamp,
+                      metadata: msg.metadata,
+                    }}
+                    isLastInGroup={isLastInGroup}
+                  />
+                );
+              })
             )}
           </div>
 
-          {/* Input */}
-          <div className="p-4 border-t border-gray-800">
-            <div className="flex gap-2">
+          {/* Input - Instagram Style */}
+          <div className="p-3 border-t border-[#262626] bg-black">
+            <div className="flex items-center gap-3 bg-[#262626] rounded-full px-4 py-2">
               <Input
-                placeholder="Escribe un mensaje..."
+                placeholder="Mensaje..."
                 value={newMessage}
                 onChange={(e) => setNewMessage(e.target.value)}
                 onKeyDown={handleKeyPress}
-                className="flex-1 bg-gray-800 border-gray-700"
+                className="flex-1 bg-transparent border-0 focus-visible:ring-0 focus-visible:ring-offset-0 text-white placeholder:text-gray-500"
               />
-              <Button
-                onClick={handleSendMessage}
-                disabled={!newMessage.trim() || sendMessageMutation.isPending}
-                className="bg-purple-500 hover:bg-purple-600"
-              >
-                <Send size={18} />
-              </Button>
+              {newMessage.trim() ? (
+                <button
+                  onClick={handleSendMessage}
+                  disabled={sendMessageMutation.isPending}
+                  className="text-[#0095F6] font-semibold text-sm hover:text-white transition-colors disabled:opacity-50"
+                >
+                  Enviar
+                </button>
+              ) : (
+                <div className="flex items-center gap-3 text-gray-400">
+                  <span className="text-xl">🎤</span>
+                  <span className="text-xl">📷</span>
+                </div>
+              )}
             </div>
-            <p className="text-xs text-gray-500 mt-2 text-center">
-              💡 El bot está pausado mientras escribes
-            </p>
           </div>
         </div>
       ) : (
-        <div className="hidden md:flex flex-1 items-center justify-center bg-gray-900 rounded-xl">
-          <div className="text-center text-gray-500">
-            <MessageCircle size={48} className="mx-auto mb-4 opacity-50" />
-            <p>Selecciona una conversación</p>
+        <div className="hidden md:flex flex-1 items-center justify-center bg-black rounded-xl">
+          <div className="text-center">
+            <div className="w-24 h-24 mx-auto mb-4 rounded-full border-2 border-white flex items-center justify-center">
+              <MessageCircle size={48} className="text-white" />
+            </div>
+            <h2 className="text-xl font-light text-white mb-2">Tus mensajes</h2>
+            <p className="text-gray-400 text-sm">
+              Envía mensajes privados a un amigo o grupo
+            </p>
           </div>
         </div>
       )}

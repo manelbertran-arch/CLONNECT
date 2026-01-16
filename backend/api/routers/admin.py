@@ -976,74 +976,66 @@ async def cleanup_test_leads(creator_id: str):
 async def debug_instagram_api(creator_id: str):
     """
     Debug: Ver qué retorna la API de Instagram para conversaciones y mensajes.
+    Uses centralized get_instagram_credentials() for consistent token lookup.
     """
     import httpx
+    from api.services import db_service
 
     try:
-        from api.database import SessionLocal
-        from api.models import Creator
+        # Use centralized function for Instagram credentials
+        creds = db_service.get_instagram_credentials(creator_id)
+        if not creds["success"]:
+            return {"error": creds["error"]}
 
-        session = SessionLocal()
-        try:
-            creator = session.query(Creator).filter_by(name=creator_id).first()
-            if not creator:
-                return {"error": f"Creator not found: {creator_id}"}
+        ig_user_id = creds["user_id"] or creds["page_id"]
+        access_token = creds["token"]
+        api_base = "https://graph.instagram.com/v21.0"
 
-            if not creator.instagram_token:
-                return {"error": "No Instagram token"}
+        results = {
+            "ig_user_id": ig_user_id,
+            "conversations": [],
+            "sample_messages": []
+        }
 
-            ig_user_id = creator.instagram_user_id or creator.instagram_page_id
-            access_token = creator.instagram_token
-            api_base = "https://graph.instagram.com/v21.0"
+        async with httpx.AsyncClient(timeout=30.0) as client:
+            # Get conversations
+            conv_url = f"{api_base}/{ig_user_id}/conversations"
+            conv_resp = await client.get(conv_url, params={
+                "access_token": access_token,
+                "limit": 5
+            })
 
-            results = {
-                "ig_user_id": ig_user_id,
-                "conversations": [],
-                "sample_messages": []
-            }
+            if conv_resp.status_code != 200:
+                results["conversations_error"] = conv_resp.json()
+                return results
 
-            async with httpx.AsyncClient(timeout=30.0) as client:
-                # Get conversations
-                conv_url = f"{api_base}/{ig_user_id}/conversations"
-                conv_resp = await client.get(conv_url, params={
+            conv_data = conv_resp.json()
+            conversations = conv_data.get("data", [])
+            results["conversations_count"] = len(conversations)
+
+            # Try to get messages for first 3 conversations
+            for i, conv in enumerate(conversations[:3]):
+                conv_id = conv.get("id")
+                conv_info = {"conv_id": conv_id, "conv_data": conv}
+
+                # Get messages
+                msg_url = f"{api_base}/{conv_id}/messages"
+                msg_resp = await client.get(msg_url, params={
+                    "fields": "id,message,from,to,created_time",
                     "access_token": access_token,
-                    "limit": 5
+                    "limit": 3
                 })
 
-                if conv_resp.status_code != 200:
-                    results["conversations_error"] = conv_resp.json()
-                    return results
+                if msg_resp.status_code != 200:
+                    conv_info["messages_error"] = msg_resp.json()
+                else:
+                    msg_data = msg_resp.json()
+                    conv_info["messages"] = msg_data.get("data", [])
+                    conv_info["messages_count"] = len(conv_info["messages"])
 
-                conv_data = conv_resp.json()
-                conversations = conv_data.get("data", [])
-                results["conversations_count"] = len(conversations)
+                results["sample_messages"].append(conv_info)
 
-                # Try to get messages for first 3 conversations
-                for i, conv in enumerate(conversations[:3]):
-                    conv_id = conv.get("id")
-                    conv_info = {"conv_id": conv_id, "conv_data": conv}
-
-                    # Get messages
-                    msg_url = f"{api_base}/{conv_id}/messages"
-                    msg_resp = await client.get(msg_url, params={
-                        "fields": "id,message,from,to,created_time",
-                        "access_token": access_token,
-                        "limit": 3
-                    })
-
-                    if msg_resp.status_code != 200:
-                        conv_info["messages_error"] = msg_resp.json()
-                    else:
-                        msg_data = msg_resp.json()
-                        conv_info["messages"] = msg_data.get("data", [])
-                        conv_info["messages_count"] = len(conv_info["messages"])
-
-                    results["sample_messages"].append(conv_info)
-
-            return results
-
-        finally:
-            session.close()
+        return results
 
     except Exception as e:
         return {"error": str(e)}
@@ -1054,18 +1046,36 @@ async def simple_dm_sync(creator_id: str, max_convs: int = 20):
     """
     Simple DM sync without complex rate limiting.
     Fetches messages and saves them directly.
+    Uses centralized get_instagram_credentials() for consistent token lookup.
     """
     import httpx
     from datetime import datetime
+    from api.services import db_service
 
     results = {
         "conversations_processed": 0,
         "messages_saved": 0,
         "messages_empty": 0,
         "messages_duplicate": 0,
+        "messages_filtered_180days": 0,
+        "messages_with_attachments": 0,
         "leads_created": 0,
         "errors": []
     }
+
+    # First check Instagram credentials using centralized function
+    creds = db_service.get_instagram_credentials(creator_id)
+    if not creds["success"]:
+        return {"error": creds["error"]}
+
+    # IMPORTANT: Instagram has TWO IDs for the same account:
+    # - page_id: appears in message from.id (e.g., 17841407135263418)
+    # - user_id: used for API calls (e.g., 26196963493255185)
+    # We need to check BOTH when identifying if a message is from the creator
+    ig_user_id = creds["user_id"] or creds["page_id"]
+    ig_page_id = creds["page_id"]
+    creator_ids = {ig_user_id, ig_page_id} - {None}  # Set of all creator IDs
+    access_token = creds["token"]
 
     try:
         from api.database import DATABASE_URL, SessionLocal
@@ -1076,15 +1086,8 @@ async def simple_dm_sync(creator_id: str, max_convs: int = 20):
 
         session = SessionLocal()
         try:
+            # Get creator for UUID (needed for FK relationships)
             creator = session.query(Creator).filter_by(name=creator_id).first()
-            if not creator:
-                return {"error": f"Creator not found: {creator_id}"}
-
-            if not creator.instagram_token:
-                return {"error": "Instagram token not configured"}
-
-            ig_user_id = creator.instagram_user_id or creator.instagram_page_id
-            access_token = creator.instagram_token
             api_base = "https://graph.instagram.com/v21.0"
 
             async with httpx.AsyncClient(timeout=60.0) as client:
@@ -1099,17 +1102,23 @@ async def simple_dm_sync(creator_id: str, max_convs: int = 20):
 
                 conversations = conv_resp.json().get("data", [])
 
+                # REGLA 1: Ordenar por updated_time (más reciente primero)
+                conversations.sort(
+                    key=lambda c: c.get("updated_time", ""),
+                    reverse=True
+                )
+
                 for conv in conversations:
                     conv_id = conv.get("id")
                     if not conv_id:
                         continue
 
                     try:
-                        # Get messages for this conversation
+                        # Get messages for this conversation (REGLA 3+4: attachments, stories, reactions)
                         msg_resp = await client.get(
                             f"{api_base}/{conv_id}/messages",
                             params={
-                                "fields": "id,message,from,to,created_time",
+                                "fields": "id,message,from,to,created_time,attachments,story,reactions",
                                 "access_token": access_token,
                                 "limit": 50
                             }
@@ -1128,13 +1137,15 @@ async def simple_dm_sync(creator_id: str, max_convs: int = 20):
                             continue
 
                         # Find the follower (non-creator participant)
+                        # Check BOTH creator IDs (user_id and page_id)
                         follower_id = None
                         follower_username = None
 
                         for msg in messages:
                             from_data = msg.get("from", {})
                             from_id = from_data.get("id")
-                            if from_id and from_id != ig_user_id:
+                            # Follower is someone whose ID is NOT in creator_ids
+                            if from_id and from_id not in creator_ids:
                                 follower_id = from_id
                                 follower_username = from_data.get("username", "unknown")
                                 break
@@ -1144,7 +1155,7 @@ async def simple_dm_sync(creator_id: str, max_convs: int = 20):
                             for msg in messages:
                                 to_data = msg.get("to", {}).get("data", [])
                                 for recipient in to_data:
-                                    if recipient.get("id") != ig_user_id:
+                                    if recipient.get("id") not in creator_ids:
                                         follower_id = recipient.get("id")
                                         follower_username = recipient.get("username", "unknown")
                                         break
@@ -1215,14 +1226,101 @@ async def simple_dm_sync(creator_id: str, max_convs: int = 20):
                                 lead.last_contact_at = last_user_msg_time
                             session.commit()
 
+                        # REGLA 2: Calcular límite de 90 días
+                        from datetime import timedelta
+                        # 180 days for initial import (captures more valuable conversations)
+                        days_limit_ago = datetime.now().astimezone() - timedelta(days=180)
+
                         # Save messages
+                        messages_saved_this_conv = 0
                         for msg in messages:
                             msg_id = msg.get("id")
                             msg_text = msg.get("message", "")
 
+                            # REGLA 3+4: Si no hay texto, procesar attachments, stories y reacciones
+                            if not msg_text:
+                                # REGLA 4: Primero verificar stories y reacciones
+                                story_data = msg.get("story", {})
+                                reactions_data = msg.get("reactions", {}).get("data", [])
+
+                                # Obtener emoji de reacción si existe
+                                reaction_emoji = None
+                                if reactions_data:
+                                    reaction_emoji = reactions_data[0].get("emoji", "❤")
+
+                                # Obtener link de story si existe
+                                story_link = None
+                                story_type = None
+                                if story_data.get("reply_to"):
+                                    story_link = story_data["reply_to"].get("link", "")
+                                    story_type = "reply_to"
+                                elif story_data.get("mention"):
+                                    story_link = story_data["mention"].get("link", "")
+                                    story_type = "mention"
+
+                                # Build message with metadata for frontend rendering
+                                msg_metadata = {}
+
+                                # Construir mensaje según combinación
+                                if story_type and reaction_emoji:
+                                    msg_text = f"Reacción {reaction_emoji} a story"
+                                    msg_metadata = {"type": "story_reaction", "url": story_link, "emoji": reaction_emoji}
+                                elif story_type == "reply_to":
+                                    msg_text = "Respuesta a story"
+                                    msg_metadata = {"type": "story_reply", "url": story_link}
+                                elif story_type == "mention":
+                                    msg_text = "Mención en story"
+                                    msg_metadata = {"type": "story_mention", "url": story_link}
+                                elif reaction_emoji:
+                                    msg_text = f"Reacción {reaction_emoji}"
+                                    msg_metadata = {"type": "reaction", "emoji": reaction_emoji}
+
+                                # REGLA 3: Si aún no hay texto, procesar attachments
+                                if not msg_text:
+                                    attachments = msg.get("attachments", {}).get("data", [])
+                                    if attachments:
+                                        for att in attachments:
+                                            att_type = att.get("type", "").lower()
+                                            att_url = att.get("url") or att.get("video_data", {}).get("url") or att.get("image_data", {}).get("url")
+
+                                            if "video" in att_type:
+                                                msg_text = "Video"
+                                                msg_metadata = {"type": "video", "url": att_url}
+                                            elif "image" in att_type or "photo" in att_type:
+                                                msg_text = "Imagen"
+                                                msg_metadata = {"type": "image", "url": att_url}
+                                            elif "share" in att_type or "post" in att_type:
+                                                msg_text = "Post compartido"
+                                                msg_metadata = {"type": "share", "url": att_url}
+                                            elif "link" in att_type:
+                                                msg_text = "Link"
+                                                msg_metadata = {"type": "link", "url": att_url}
+                                            elif "audio" in att_type:
+                                                msg_text = "Audio"
+                                                msg_metadata = {"type": "audio", "url": att_url}
+                                            else:
+                                                msg_text = "Archivo"
+                                                msg_metadata = {"type": "file", "url": att_url}
+                                            break  # Solo usar el primer attachment
+
                             if not msg_text or not msg_id:
                                 results["messages_empty"] += 1
                                 continue
+
+                            # REGLA 2: Filtrar por 90 días
+                            msg_time_str = msg.get("created_time")
+                            if msg_time_str:
+                                try:
+                                    msg_timestamp = datetime.fromisoformat(msg_time_str.replace("+0000", "+00:00"))
+                                    if msg_timestamp < days_limit_ago:
+                                        results["messages_filtered_180days"] += 1
+                                        continue  # Skip messages older than 180 days
+                                except:
+                                    pass
+
+                            # Track attachment processing
+                            if msg_text.startswith("[") and msg_text.endswith("]"):
+                                results["messages_with_attachments"] += 1
 
                             # Check if already exists
                             existing = session.query(Message).filter_by(
@@ -1234,15 +1332,16 @@ async def simple_dm_sync(creator_id: str, max_convs: int = 20):
                                 continue
 
                             from_data = msg.get("from", {})
-                            is_from_creator = from_data.get("id") == ig_user_id
+                            # Check if sender is the creator (could be user_id OR page_id)
+                            is_from_creator = from_data.get("id") in creator_ids
                             role = "assistant" if is_from_creator else "user"
 
                             new_msg = Message(
                                 lead_id=lead.id,
                                 role=role,
                                 content=msg_text,
-                                platform="instagram",
-                                platform_message_id=msg_id
+                                platform_message_id=msg_id,
+                                metadata=msg_metadata if msg_metadata else {}
                             )
 
                             # Parse timestamp

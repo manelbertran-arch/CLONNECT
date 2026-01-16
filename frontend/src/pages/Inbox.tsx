@@ -493,13 +493,26 @@ export default function Inbox() {
                     )}
                     <div
                       className={cn(
-                        "max-w-[85%] md:max-w-[70%] p-3 rounded-2xl text-sm",
+                        "max-w-[85%] md:max-w-[70%] p-3 rounded-2xl text-sm break-words overflow-hidden",
                         msg.role === "assistant"
                           ? "bg-secondary rounded-tl-md"
                           : "bg-gradient-to-br from-primary to-accent text-white rounded-tr-md"
                       )}
                     >
-                      <p className="whitespace-pre-wrap">{msg.content}</p>
+                      {/* Render message content - clickable if has metadata.url */}
+                      {msg.metadata?.url ? (
+                        <a
+                          href={msg.metadata.url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="whitespace-pre-wrap break-all hover:underline cursor-pointer inline-flex items-center gap-1"
+                        >
+                          <span>{msg.content}</span>
+                          <span className="text-xs opacity-70">↗</span>
+                        </a>
+                      ) : (
+                        <p className="whitespace-pre-wrap break-all">{msg.content}</p>
+                      )}
                       <p className={cn(
                         "text-[10px] mt-1",
                         msg.role === "assistant" ? "text-muted-foreground" : "text-white/70"
