@@ -1278,43 +1278,77 @@ async def simple_dm_sync(creator_id: str, max_convs: int = 20):
 
                                 # REGLA 3: Si aún no hay texto, procesar attachments
                                 if not msg_text:
-                                    attachments = msg.get("attachments", {}).get("data", [])
-                                    if attachments:
-                                        # DEBUG: Log all attachment types
-                                        for att in attachments:
-                                            print(f"[SYNC DEBUG] Attachment type: {att.get('type')} - Full: {att}")
-                                        for att in attachments:
-                                            att_type = att.get("type", "").lower()
-                                            att_url = att.get("url") or att.get("video_data", {}).get("url") or att.get("image_data", {}).get("url")
+                                    # Check for share field at message level (shared posts/reels)
+                                    share_data = msg.get("share")
+                                    if share_data:
+                                        print(f"[SYNC DEBUG] Share field found: {share_data}")
+                                        msg_text = "Post compartido"
+                                        msg_metadata = {
+                                            "type": "shared_post",
+                                            "url": share_data.get("link", ""),
+                                            "thumbnail_url": share_data.get("image_url", ""),
+                                            "name": share_data.get("name", ""),
+                                            "description": share_data.get("description", "")
+                                        }
+                                    else:
+                                        attachments = msg.get("attachments", {}).get("data", [])
+                                        if attachments:
+                                            for att in attachments:
+                                                # DEBUG: Log attachment structure
+                                                print(f"[SYNC DEBUG] Attachment: {att}")
 
-                                            if "video" in att_type:
-                                                msg_text = "Video"
-                                                msg_metadata = {"type": "video", "url": att_url}
-                                            elif "image" in att_type or "photo" in att_type:
-                                                msg_text = "Imagen"
-                                                msg_metadata = {"type": "image", "url": att_url}
-                                            elif "share" in att_type or "post" in att_type or "media_share" in att_type:
-                                                # Obtener URL del post/reel compartido
-                                                post_url = att.get("target", {}).get("url") or att_url
-                                                thumbnail_url = att.get("image_data", {}).get("url") or att.get("preview_url")
+                                                att_type = (att.get("type") or "").lower()
 
-                                                msg_text = "Post compartido"
-                                                msg_metadata = {
-                                                    "type": "shared_post",
-                                                    "url": post_url,
-                                                    "thumbnail_url": thumbnail_url,
-                                                    "permalink": post_url
-                                                }
-                                            elif "link" in att_type:
-                                                msg_text = "Link"
-                                                msg_metadata = {"type": "link", "url": att_url}
-                                            elif "audio" in att_type:
-                                                msg_text = "Audio"
-                                                msg_metadata = {"type": "audio", "url": att_url}
-                                            else:
-                                                msg_text = "Archivo"
-                                                msg_metadata = {"type": "file", "url": att_url}
-                                            break  # Solo usar el primer attachment
+                                                # Instagram sends structure-based types (no explicit type field)
+                                                has_video = att.get("video_data") is not None
+                                                has_image = att.get("image_data") is not None
+                                                has_audio = att.get("audio_data") is not None
+                                                is_sticker = att.get("render_as_sticker", False)
+                                                is_animated = att.get("animated_gif_url") is not None
+
+                                                # Get URL based on structure
+                                                if has_video:
+                                                    att_url = att["video_data"].get("url")
+                                                elif has_image:
+                                                    att_url = att["image_data"].get("url")
+                                                elif has_audio:
+                                                    att_url = att["audio_data"].get("url")
+                                                else:
+                                                    att_url = att.get("url")
+
+                                                # Detect type by structure or explicit type
+                                                if "video" in att_type or has_video:
+                                                    msg_text = "Video"
+                                                    msg_metadata = {"type": "video", "url": att_url}
+                                                elif "audio" in att_type or has_audio:
+                                                    msg_text = "Audio"
+                                                    msg_metadata = {"type": "audio", "url": att_url}
+                                                elif is_sticker or is_animated:
+                                                    # GIFs/Stickers
+                                                    gif_url = att.get("animated_gif_url") or att_url
+                                                    msg_text = "GIF"
+                                                    msg_metadata = {"type": "gif", "url": gif_url}
+                                                elif "share" in att_type or "post" in att_type or "media_share" in att_type:
+                                                    # Shared post (explicit type)
+                                                    post_url = att.get("target", {}).get("url") or att_url
+                                                    thumbnail_url = att.get("image_data", {}).get("url") if att.get("image_data") else att.get("preview_url")
+                                                    msg_text = "Post compartido"
+                                                    msg_metadata = {
+                                                        "type": "shared_post",
+                                                        "url": post_url,
+                                                        "thumbnail_url": thumbnail_url
+                                                    }
+                                                elif "image" in att_type or "photo" in att_type or has_image:
+                                                    msg_text = "Imagen"
+                                                    msg_metadata = {"type": "image", "url": att_url}
+                                                elif "link" in att_type:
+                                                    msg_text = "Link"
+                                                    msg_metadata = {"type": "link", "url": att_url}
+                                                else:
+                                                    # Unknown type - still save it
+                                                    msg_text = "Archivo"
+                                                    msg_metadata = {"type": "file", "url": att_url}
+                                                break  # Solo usar el primer attachment
 
                             if not msg_text or not msg_id:
                                 results["messages_empty"] += 1
