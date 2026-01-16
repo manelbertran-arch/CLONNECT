@@ -43,7 +43,7 @@ class SanityChecker:
 
     MAX_PRODUCTS = 20
     MIN_CONFIDENCE = 0.5  # Mínimo 50% de señales
-    PRICE_MIN = 1
+    PRICE_MIN = 0  # Permitir productos gratuitos (price=0)
     PRICE_MAX = 50000
 
     def verify(
