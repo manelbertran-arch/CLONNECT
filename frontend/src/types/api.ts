@@ -90,21 +90,42 @@ export interface CreatorConfig {
   telegram_bot_token?: string;
 }
 
+// Taxonomía de contenido
+export type ProductCategory = 'product' | 'service' | 'resource';
+export type ProductType =
+  // Product types
+  | 'ebook' | 'curso' | 'plantilla' | 'membership'
+  // Service types
+  | 'coaching' | 'mentoria' | 'consultoria' | 'call' | 'sesion'
+  // Resource types
+  | 'podcast' | 'blog' | 'youtube' | 'newsletter' | 'free_guide'
+  | 'otro';
+
 export interface Product {
   id: string;
   name: string;
   description?: string;
-  type?: string;          // Product type (ebook, course, etc)
+  short_description?: string;  // Short description for cards
+  // Taxonomía
+  category?: ProductCategory;  // product, service, resource
+  product_type?: ProductType;  // Subtipo según category
+  type?: string;               // Deprecated alias
+  is_free?: boolean;           // True para discovery calls gratuitas
+  // Pricing
   price: number;
   currency?: string;
+  // Links
   payment_link?: string;  // Backend field name
   purchase_url?: string;  // Frontend alias
+  source_url?: string;    // URL where product was detected
   url?: string;           // Deprecated alias
+  // Status
   is_active?: boolean;    // Backend field name
   bot_enabled?: boolean;  // Frontend alias
   active?: boolean;       // Deprecated alias
-  revenue?: number;       // Stats
-  sales_count?: number;   // Stats
+  // Stats
+  revenue?: number;
+  sales_count?: number;
 }
 
 export interface DashboardOverview {
