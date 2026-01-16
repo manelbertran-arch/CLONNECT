@@ -1236,6 +1236,7 @@ async def simple_dm_sync(creator_id: str, max_convs: int = 20):
                         for msg in messages:
                             msg_id = msg.get("id")
                             msg_text = msg.get("message", "")
+                            msg_metadata = {}  # Initialize for all messages
 
                             # REGLA 3+4: Si no hay texto, procesar attachments, stories y reacciones
                             if not msg_text:
@@ -1259,7 +1260,7 @@ async def simple_dm_sync(creator_id: str, max_convs: int = 20):
                                     story_type = "mention"
 
                                 # Build message with metadata for frontend rendering
-                                msg_metadata = {}
+                                # (msg_metadata already initialized at loop start)
 
                                 # Construir mensaje según combinación
                                 if story_type and reaction_emoji:
