@@ -119,8 +119,10 @@ class Product(Base):
     creator_id = Column(UUID(as_uuid=True), ForeignKey("creators.id"))
     name = Column(String(255), nullable=False)
     description = Column(Text)
+    short_description = Column(String(300))  # Descripción corta para cards
+    product_type = Column(String(50), default="otro")  # ebook, curso, servicio, membresia, plantilla, otro
     price = Column(Float)
-    currency = Column(String(3), default="EUR")
+    currency = Column(String(10), default="EUR")
     payment_link = Column(String(500), default="")  # Stripe/PayPal payment link
     is_active = Column(Boolean, default=True)
     # Anti-hallucination fields: source tracking

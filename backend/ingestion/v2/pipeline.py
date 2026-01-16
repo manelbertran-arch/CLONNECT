@@ -319,15 +319,19 @@ class IngestionV2Pipeline:
                     creator_id=creator.id,
                     name=product.name,
                     description=product.description,
+                    short_description=product.short_description,
+                    product_type=product.product_type,
                     price=product.price,
                     currency=product.currency,
                     source_url=product.source_url,
+                    payment_link=product.payment_link,
                     price_verified=product.price is not None,
                     confidence=product.confidence,
                     is_active=True
                 )
                 self.db.add(new_product)
                 saved += 1
+                logger.info(f"Guardado: {product.name} (tipo={product.product_type}, moneda={product.currency})")
 
             self.db.commit()
 

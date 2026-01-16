@@ -44,18 +44,152 @@ class DetectedProduct:
     price_source_text: Optional[str] = None  # Texto literal donde se encontró el precio
     signals_matched: List[str] = field(default_factory=list)
     confidence: float = 0.0
+    # Nuevos campos
+    product_type: str = "otro"  # ebook, curso, servicio, membresia, plantilla, otro
+    short_description: str = ""  # Descripción corta (max 150 chars)
+    payment_link: str = ""  # URL de compra/pago
 
     def to_dict(self) -> dict:
         return {
             "name": self.name,
             "description": self.description,
+            "short_description": self.short_description,
+            "product_type": self.product_type,
             "price": self.price,
             "currency": self.currency,
             "source_url": self.source_url,
+            "payment_link": self.payment_link,
             "price_source_text": self.price_source_text,
             "signals_matched": self.signals_matched,
             "confidence": self.confidence,
         }
+
+
+# =============================================================================
+# DETECTORES DE CAMPOS ADICIONALES
+# =============================================================================
+
+def detectar_tipo_producto(name: str, description: str, url: str) -> str:
+    """
+    Detecta el tipo de producto basándose en keywords.
+
+    Returns: ebook, curso, servicio, membresia, plantilla, otro
+    """
+    text = f"{name} {description}".lower()
+    url_lower = url.lower()
+
+    # Ebook / Guía
+    if any(kw in text or kw in url_lower for kw in ['ebook', 'guía', 'guia', 'pdf', 'descargable', 'download', 'libro']):
+        return 'ebook'
+
+    # Curso / Challenge / Programa
+    if any(kw in text or kw in url_lower for kw in [
+        'curso', 'course', 'programa', 'formación', 'training',
+        'masterclass', 'workshop', 'taller', 'challenge', 'reto',
+        'días', 'dias', 'semanas', 'módulo', 'lecciones'
+    ]):
+        return 'curso'
+
+    # Membresía
+    if any(kw in text or kw in url_lower for kw in [
+        'membresía', 'membership', 'suscripción', 'subscription',
+        'mensual', 'anual', 'comunidad', 'community', 'club'
+    ]):
+        return 'membresia'
+
+    # Plantilla
+    if any(kw in text or kw in url_lower for kw in [
+        'plantilla', 'template', 'notion', 'spreadsheet', 'excel',
+        'canva', 'figma', 'recurso'
+    ]):
+        return 'plantilla'
+
+    # Servicio (coaching, consultoría, sesiones)
+    if any(kw in text or kw in url_lower for kw in [
+        'coaching', 'sesión', 'session', 'consultoría', 'consultoria',
+        'mentoría', 'mentoring', '1:1', 'one-on-one', 'call',
+        'llamada', 'acompañamiento', 'asesoría', 'asesoria'
+    ]):
+        return 'servicio'
+
+    return 'otro'
+
+
+def detectar_moneda(text: str, price_text: str = "") -> str:
+    """
+    Detecta la moneda basándose en símbolos/keywords.
+
+    Returns: EUR, USD, GBP, MXN, etc.
+    """
+    combined = f"{text} {price_text}"
+
+    # USD
+    if '$' in combined and '€' not in combined:
+        if any(kw in combined.lower() for kw in ['usd', 'dólar', 'dollar', 'us$']):
+            return 'USD'
+        # Si hay $ pero no hay contexto de EUR, probablemente USD
+        if '€' not in combined and 'eur' not in combined.lower():
+            return 'USD'
+
+    # GBP
+    if '£' in combined or 'GBP' in combined or 'libra' in combined.lower():
+        return 'GBP'
+
+    # MXN
+    if 'MXN' in combined or 'peso' in combined.lower():
+        return 'MXN'
+
+    # EUR (default para España/LATAM)
+    return 'EUR'
+
+
+def extraer_descripcion_corta(description: str, max_chars: int = 150) -> str:
+    """
+    Extrae una descripción corta del producto.
+    """
+    if not description:
+        return ""
+
+    # Limpiar y truncar
+    desc = description.strip()
+    desc = re.sub(r'\s+', ' ', desc)  # Normalizar espacios
+
+    if len(desc) <= max_chars:
+        return desc
+
+    # Truncar en límite de palabra
+    truncated = desc[:max_chars].rsplit(' ', 1)[0]
+    return truncated + '...'
+
+
+def extraer_payment_link(page_url: str, page_content: str) -> str:
+    """
+    Extrae el enlace de compra/pago.
+
+    Prioridad:
+    1. Link externo a plataforma de pago (Gumroad, Stripe, Calendly, etc.)
+    2. URL de la página del producto
+    """
+    # Buscar links a plataformas de pago en el contenido
+    payment_platforms = [
+        r'https?://[^\s"\'<>]*gumroad\.com[^\s"\'<>]*',
+        r'https?://[^\s"\'<>]*hotmart\.com[^\s"\'<>]*',
+        r'https?://[^\s"\'<>]*calendly\.com[^\s"\'<>]*',
+        r'https?://[^\s"\'<>]*stripe\.com[^\s"\'<>]*',
+        r'https?://[^\s"\'<>]*paypal\.com[^\s"\'<>]*',
+        r'https?://[^\s"\'<>]*checkout\.stripe\.com[^\s"\'<>]*',
+        r'https?://[^\s"\'<>]*buy\.stripe\.com[^\s"\'<>]*',
+        r'https?://[^\s"\'<>]*thrivecart\.com[^\s"\'<>]*',
+        r'https?://[^\s"\'<>]*teachable\.com[^\s"\'<>]*',
+    ]
+
+    for pattern in payment_platforms:
+        match = re.search(pattern, page_content, re.IGNORECASE)
+        if match:
+            return match.group(0)
+
+    # Si no hay link externo, usar la URL de la página
+    return page_url
 
 
 class SuspiciousExtractionError(Exception):
@@ -378,16 +512,27 @@ class ProductDetector:
         # Extraer HTML relevante como prueba
         source_html = self._extract_relevant_html(page)
 
+        # Detectar campos adicionales
+        detected_type = detectar_tipo_producto(name, description, page.url)
+        detected_currency = detectar_moneda(page.main_content, price_text or "") if not currency else currency
+        short_desc = extraer_descripcion_corta(description, max_chars=150)
+        payment_url = extraer_payment_link(page.url, page.main_content)
+
+        logger.info(f"Producto '{name}': tipo={detected_type}, moneda={detected_currency}, payment_link={payment_url[:50] if payment_url else 'N/A'}...")
+
         return DetectedProduct(
             name=name,
             description=description,
             price=price,
-            currency=currency or "EUR",
+            currency=detected_currency or "EUR",
             source_url=page.url,
             source_html=source_html,
             price_source_text=price_text,
             signals_matched=signals,
-            confidence=confidence
+            confidence=confidence,
+            product_type=detected_type,
+            short_description=short_desc,
+            payment_link=payment_url
         )
 
     def _extract_price(self, text: str) -> tuple[Optional[float], Optional[str], Optional[str]]:
