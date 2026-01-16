@@ -137,14 +137,28 @@ class ProductDetector:
         r'^"[^"]{10,200}"$',  # Texto solo entre comillas
         r'^\s*—\s*\w+',  # Atribución tipo "— María"
         r'\b(cliente|alumno|participante)\s+de\b',
+        # NUEVOS: Más patrones de testimonios
+        r'\bdesbloque[óo]\b', r'\bdesbloquear\b',  # "me ayudó a desbloquear"
+        r'\bexcelente profesional\b', r'\bmuy profesional\b',
+        r'\bsin duda\b', r'\bel mejor\b', r'\bla mejor\b',
+        r'\bme ha ayudado\b', r'\bme enseñ[óo]\b',
+        r'\bcreencias limitantes\b', r'\bbloqueos\b',
+        r'\bproceso de\b.*(coaching|transformación|cambio)\b',
+        r'\bsesiones? con\b', r'\btrabaj[éo] con\b',
     ]
 
     # Palabras en el TÍTULO que indican testimonio
     TESTIMONIAL_TITLE_PATTERNS = [
-        r'^".*"$',  # Título entre comillas
-        r'^'.*'$',  # Título entre comillas simples
+        r'^".*"$',  # Título entre comillas rectas
+        r"^'.*'$",  # Título entre comillas simples rectas
+        r'^[\u2018\u201C].*[\u2019\u201D]$',  # Comillas curvas (tipográficas)
+        r'^«.*»$',  # Comillas españolas/francesas
+        r'^„.*"$',  # Comillas alemanas
         r'testimonio', r'opinión', r'review', r'reseña',
         r'lo que dicen', r'experiencias', r'casos de éxito',
+        # NUEVOS: Más patrones de título de testimonio
+        r'profesionalismo', r'cercanía', r'confianza',
+        r'transformación', r'cambio de vida',
     ]
 
     def detect_products(self, pages: List['ScrapedPage']) -> List[DetectedProduct]:
@@ -259,7 +273,8 @@ class ProductDetector:
         # ============================================================
         # FILTRO ANTI-TESTIMONIOS: Verificar que NO sea un testimonio
         # ============================================================
-        if self._is_testimonial(name, description):
+        has_price = price is not None
+        if self._is_testimonial(name, description, has_price=has_price):
             logger.info(f"DESCARTADO (testimonio detectado): {name}")
             return None
 
@@ -363,7 +378,7 @@ class ProductDetector:
         # Por ahora, guardar primeros 2000 chars del contenido
         return page.main_content[:2000]
 
-    def _is_testimonial(self, title: str, description: str) -> bool:
+    def _is_testimonial(self, title: str, description: str, has_price: bool = False) -> bool:
         """
         Detecta si el contenido parece ser un TESTIMONIO, no un producto.
 
@@ -371,45 +386,53 @@ class ProductDetector:
         - Título entre comillas
         - Frases tipo "me ayudó", "gracias a", "recomiendo"
         - Texto en primera persona sobre experiencia
+        - SIN precio visible
 
         Returns:
             True si parece testimonio (NO guardar como producto)
         """
         title_lower = (title or "").lower().strip()
+        title_original = (title or "").strip()
         desc_lower = (description or "").lower()
 
-        # 1. Verificar título
+        # 1. Verificar título - patrones regex
         for pattern in self.TESTIMONIAL_TITLE_PATTERNS:
             if re.search(pattern, title_lower, re.IGNORECASE):
-                logger.info(f"Filtrado como testimonio (título): {title}")
+                logger.info(f"Filtrado como testimonio (título pattern): {title}")
                 return True
 
-        # 2. Verificar descripción
+        # 2. Título que empieza con cualquier tipo de comilla
+        quote_chars = ['"', "'", '"', '"', '«', '„', '"', "'"]
+        for q in quote_chars:
+            if title_original.startswith(q):
+                logger.info(f"Filtrado como testimonio (empieza con comilla '{q}'): {title}")
+                return True
+
+        # 3. Verificar descripción - contar patrones
         testimonial_matches = 0
+        matched_patterns = []
         for pattern in self.TESTIMONIAL_PATTERNS:
             if re.search(pattern, desc_lower, re.IGNORECASE):
                 testimonial_matches += 1
+                matched_patterns.append(pattern[:20])
 
-        # Si hay 2+ patrones de testimonio, es testimonio
+        # Si hay 2+ patrones de testimonio = definitivamente testimonio
         if testimonial_matches >= 2:
             logger.info(f"Filtrado como testimonio ({testimonial_matches} patrones): {title}")
             return True
 
-        # 3. Título que empieza y termina con comillas = testimonio
-        if title_lower.startswith('"') and title_lower.endswith('"'):
-            logger.info(f"Filtrado como testimonio (comillas en título): {title}")
+        # 4. Si hay 1+ patrones Y NO tiene precio = probablemente testimonio
+        if testimonial_matches >= 1 and not has_price:
+            logger.info(f"Filtrado como testimonio (1 patrón + sin precio): {title}")
             return True
 
-        if title_lower.startswith("'") and title_lower.endswith("'"):
-            logger.info(f"Filtrado como testimonio (comillas simples): {title}")
-            return True
-
-        # 4. Título muy corto con comillas parciales
-        if len(title_lower) < 50 and ('"' in title_lower or '"' in title_lower or '"' in title_lower):
-            # Verificar si el contenido es testimonial
-            if testimonial_matches >= 1:
-                logger.info(f"Filtrado como testimonio (comillas + patrón): {title}")
-                return True
+        # 5. Título muy corto con comillas = testimonio (ej: "Profesionalismo y Cercanía")
+        if len(title_lower) < 60:
+            for q in quote_chars:
+                if q in title_original:
+                    if testimonial_matches >= 1 or not has_price:
+                        logger.info(f"Filtrado como testimonio (título corto con comilla + señales): {title}")
+                        return True
 
         return False
 
