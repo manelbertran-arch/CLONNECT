@@ -284,6 +284,14 @@ class ProductDetector:
 
         return service_pages
 
+    # Patrones para detectar productos gratuitos
+    FREE_PATTERNS = [
+        r'\b(gratis|gratuito|gratuita|free)\b',
+        r'\bsin\s+(coste|costo)\b',
+        r'\bcomplimentary\b',
+        r'\b(sesión|llamada|consulta)\s+(de\s+)?(descubrimiento|discovery)\b',
+    ]
+
     def _analyze_page(self, page: 'ScrapedPage') -> Optional[DetectedProduct]:
         """Analiza una página buscando señales de producto."""
         signals = []
@@ -298,15 +306,31 @@ class ProductDetector:
         if any(re.search(p, content, re.IGNORECASE) for p in self.CTA_PATTERNS):
             signals.append(ProductSignal.CTA_PRESENT.value)
 
-        # Señal 3: PRICE_VISIBLE
+        # Señal 3: PRICE_VISIBLE - Extraer precio explícito
         price, currency, price_text = self._extract_price(page.main_content)
         if price is not None:
             signals.append(ProductSignal.PRICE_VISIBLE.value)
 
+        # Señal 3b: FREE_PRODUCT - Detectar si es gratuito (precio = 0)
+        is_free = any(re.search(p, content, re.IGNORECASE) for p in self.FREE_PATTERNS)
+        if is_free and price is None:
+            price = 0.0
+            price_text = "gratuito"
+            signals.append(ProductSignal.PRICE_VISIBLE.value)
+            logger.info(f"Detectado producto gratuito: {page.url}")
+
+        # ============================================================
+        # REGLA PRINCIPAL: Solo es PRODUCTO si tiene precio O es gratuito
+        # Todo lo demás va al RAG como contenido informativo
+        # ============================================================
+        has_price_or_free = price is not None
+        if not has_price_or_free:
+            logger.info(f"DESCARTADO (sin precio): {page.url}")
+            return None
+
         # Señal 4: SUBSTANTIAL_DESCRIPTION
-        # Contar palabras en contenido principal (excluyendo menú, footer)
         word_count = len(content.split())
-        if word_count > 100:  # Más estricto: 100 palabras
+        if word_count > 100:
             signals.append(ProductSignal.SUBSTANTIAL_DESCRIPTION.value)
 
         # Señal 5: PAYMENT_LINK
@@ -318,9 +342,8 @@ class ProductDetector:
         if title and 5 < len(title) < 100:
             signals.append(ProductSignal.CLEAR_TITLE.value)
 
-        # Si no hay suficientes señales, no es producto
-        if len(signals) < self.REQUIRED_SIGNALS:
-            return None
+        # Ya no requerimos mínimo de señales - el precio/gratuito es suficiente
+        # Pero mantenemos las señales para calcular confianza
 
         # Extraer nombre del producto
         name = title or self._extract_name_from_url(page.url)
@@ -333,13 +356,12 @@ class ProductDetector:
         # ============================================================
         # FILTRO ANTI-TESTIMONIOS: Verificar que NO sea un testimonio
         # ============================================================
-        has_price = price is not None
-        if self._is_testimonial(name, description, has_price=has_price):
+        if self._is_testimonial(name, description, has_price=True):
             logger.info(f"DESCARTADO (testimonio detectado): {name}")
             return None
 
-        # Calcular confianza
-        confidence = len(signals) / len(ProductSignal)
+        # Calcular confianza (basada en señales)
+        confidence = max(0.5, len(signals) / len(ProductSignal))
 
         # Extraer HTML relevante como prueba
         source_html = self._extract_relevant_html(page)
