@@ -34,7 +34,13 @@ class ProductSignal(Enum):
 
 @dataclass
 class DetectedProduct:
-    """Producto detectado con todas sus pruebas."""
+    """
+    Producto/Servicio/Recurso detectado con todas sus pruebas.
+
+    Taxonomía:
+    - category: 'product' | 'service' | 'resource'
+    - product_type: depende de category
+    """
     name: str
     description: str
     price: Optional[float]  # NULL si no encontrado, NUNCA inventado
@@ -44,17 +50,21 @@ class DetectedProduct:
     price_source_text: Optional[str] = None  # Texto literal donde se encontró el precio
     signals_matched: List[str] = field(default_factory=list)
     confidence: float = 0.0
-    # Nuevos campos
-    product_type: str = "otro"  # ebook, curso, servicio, membresia, plantilla, otro
+    # Taxonomía
+    category: str = "product"  # product, service, resource
+    product_type: str = "otro"  # Depende de category
+    is_free: bool = False  # True para discovery calls gratuitas
     short_description: str = ""  # Descripción corta (max 150 chars)
-    payment_link: str = ""  # URL de compra/pago
+    payment_link: str = ""  # URL de compra/pago/reserva
 
     def to_dict(self) -> dict:
         return {
             "name": self.name,
             "description": self.description,
             "short_description": self.short_description,
+            "category": self.category,
             "product_type": self.product_type,
+            "is_free": self.is_free,
             "price": self.price,
             "currency": self.currency,
             "source_url": self.source_url,
@@ -66,53 +76,129 @@ class DetectedProduct:
 
 
 # =============================================================================
-# DETECTORES DE CAMPOS ADICIONALES
+# TAXONOMÍA: PRODUCTO vs SERVICIO vs RECURSO
 # =============================================================================
 
-def detectar_tipo_producto(name: str, description: str, url: str) -> str:
-    """
-    Detecta el tipo de producto basándose en keywords.
+# Keywords para detectar RECURSO (contenido gratuito)
+RESOURCE_KEYWORDS = [
+    'podcast', 'spotify', 'apple podcast', 'youtube', 'canal',
+    'blog', 'artículo', 'article', 'newsletter', 'semanal'
+]
 
-    Returns: ebook, curso, servicio, membresia, plantilla, otro
+# Keywords para detectar SERVICIO (requiere interacción humana)
+SERVICE_KEYWORDS = [
+    'coaching', 'sesión', 'session', 'consultoría', 'consultoria',
+    'mentoría', 'mentoring', '1:1', 'one-on-one', 'call',
+    'llamada', 'discovery', 'agendar', 'reservar', 'calendly',
+    'booking', 'acompañamiento', 'asesoría', 'asesoria'
+]
+
+# Subtipos para cada categoría
+PRODUCT_TYPES = {
+    'ebook': ['ebook', 'guía', 'guia', 'pdf', 'descargable', 'download', 'libro'],
+    'curso': ['curso', 'course', 'programa', 'formación', 'training', 'masterclass',
+              'workshop', 'taller', 'challenge', 'reto', 'días', 'dias', 'semanas',
+              'módulo', 'lecciones'],
+    'plantilla': ['plantilla', 'template', 'notion', 'spreadsheet', 'excel', 'canva', 'figma'],
+    'membership': ['membresía', 'membership', 'suscripción', 'subscription', 'mensual',
+                   'anual', 'comunidad', 'community', 'club']
+}
+
+SERVICE_TYPES = {
+    'coaching': ['coaching', 'coach'],
+    'mentoria': ['mentoría', 'mentoring', 'mentor'],
+    'consultoria': ['consultoría', 'consultoria', 'consulting', 'asesoría', 'asesoria'],
+    'call': ['call', 'llamada', 'discovery'],
+    'sesion': ['sesión', 'session', '1:1', 'one-on-one', 'acompañamiento']
+}
+
+RESOURCE_TYPES = {
+    'podcast': ['podcast', 'spotify', 'apple podcast'],
+    'blog': ['blog', 'artículo', 'article', 'post'],
+    'youtube': ['youtube', 'canal', 'video'],
+    'newsletter': ['newsletter', 'semanal', 'boletín'],
+    'free_guide': ['guía gratuita', 'recurso gratuito', 'descarga gratis']
+}
+
+
+def es_recurso(text: str, url: str) -> bool:
+    """Detecta si es un RECURSO (podcast, blog, youtube, etc.)"""
+    combined = f"{text} {url}".lower()
+    return any(kw in combined for kw in RESOURCE_KEYWORDS)
+
+
+def es_servicio(text: str, url: str) -> bool:
+    """Detecta si es un SERVICIO (coaching, sesión, call, etc.)"""
+    combined = f"{text} {url}".lower()
+    return any(kw in combined for kw in SERVICE_KEYWORDS)
+
+
+def detectar_tipo_recurso(text: str, url: str) -> str:
+    """Detecta el subtipo de recurso."""
+    combined = f"{text} {url}".lower()
+    for tipo, keywords in RESOURCE_TYPES.items():
+        if any(kw in combined for kw in keywords):
+            return tipo
+    return 'otro'
+
+
+def detectar_tipo_servicio(text: str, url: str) -> str:
+    """Detecta el subtipo de servicio."""
+    combined = f"{text} {url}".lower()
+    for tipo, keywords in SERVICE_TYPES.items():
+        if any(kw in combined for kw in keywords):
+            return tipo
+    return 'otro'
+
+
+def detectar_tipo_producto(name: str, description: str, url: str) -> str:
+    """Detecta el subtipo de producto."""
+    combined = f"{name} {description} {url}".lower()
+    for tipo, keywords in PRODUCT_TYPES.items():
+        if any(kw in combined for kw in keywords):
+            return tipo
+    return 'otro'
+
+
+def clasificar_contenido(name: str, description: str, url: str, tiene_precio: bool, es_gratis: bool) -> Dict:
+    """
+    Clasifica contenido en la taxonomía: product, service, resource.
+
+    Returns:
+        {
+            'category': 'product' | 'service' | 'resource',
+            'type': subtipo específico,
+            'is_free': bool
+        }
     """
     text = f"{name} {description}".lower()
-    url_lower = url.lower()
 
-    # Ebook / Guía
-    if any(kw in text or kw in url_lower for kw in ['ebook', 'guía', 'guia', 'pdf', 'descargable', 'download', 'libro']):
-        return 'ebook'
+    # 1. RECURSO (podcast, blog, youtube - sin precio, no gratis explícito)
+    if es_recurso(text, url) and not tiene_precio and not es_gratis:
+        return {
+            'category': 'resource',
+            'type': detectar_tipo_recurso(text, url),
+            'is_free': True  # Recursos son siempre gratuitos
+        }
 
-    # Curso / Challenge / Programa
-    if any(kw in text or kw in url_lower for kw in [
-        'curso', 'course', 'programa', 'formación', 'training',
-        'masterclass', 'workshop', 'taller', 'challenge', 'reto',
-        'días', 'dias', 'semanas', 'módulo', 'lecciones'
-    ]):
-        return 'curso'
+    # 2. SERVICIO (coaching, sesión, call - con o sin precio)
+    if es_servicio(text, url):
+        return {
+            'category': 'service',
+            'type': detectar_tipo_servicio(text, url),
+            'is_free': es_gratis and not tiene_precio
+        }
 
-    # Membresía
-    if any(kw in text or kw in url_lower for kw in [
-        'membresía', 'membership', 'suscripción', 'subscription',
-        'mensual', 'anual', 'comunidad', 'community', 'club'
-    ]):
-        return 'membresia'
+    # 3. PRODUCTO (tiene precio, es vendible)
+    if tiene_precio or es_gratis:
+        return {
+            'category': 'product',
+            'type': detectar_tipo_producto(name, description, url),
+            'is_free': es_gratis and not tiene_precio
+        }
 
-    # Plantilla
-    if any(kw in text or kw in url_lower for kw in [
-        'plantilla', 'template', 'notion', 'spreadsheet', 'excel',
-        'canva', 'figma', 'recurso'
-    ]):
-        return 'plantilla'
-
-    # Servicio (coaching, consultoría, sesiones)
-    if any(kw in text or kw in url_lower for kw in [
-        'coaching', 'sesión', 'session', 'consultoría', 'consultoria',
-        'mentoría', 'mentoring', '1:1', 'one-on-one', 'call',
-        'llamada', 'acompañamiento', 'asesoría', 'asesoria'
-    ]):
-        return 'servicio'
-
-    return 'otro'
+    # 4. No clasificable
+    return None
 
 
 def detectar_moneda(text: str, price_text: str = "") -> str:
@@ -512,13 +598,26 @@ class ProductDetector:
         # Extraer HTML relevante como prueba
         source_html = self._extract_relevant_html(page)
 
-        # Detectar campos adicionales
-        detected_type = detectar_tipo_producto(name, description, page.url)
+        # =================================================================
+        # NUEVA TAXONOMÍA: Clasificar como product, service o resource
+        # =================================================================
+        tiene_precio = price is not None and price > 0
+        clasificacion = clasificar_contenido(name, description, page.url, tiene_precio, is_free)
+
+        if clasificacion is None:
+            logger.info(f"DESCARTADO (no clasificable): {name}")
+            return None
+
+        category = clasificacion['category']
+        detected_type = clasificacion['type']
+        item_is_free = clasificacion['is_free']
+
+        # Detectar moneda y campos adicionales
         detected_currency = detectar_moneda(page.main_content, price_text or "") if not currency else currency
         short_desc = extraer_descripcion_corta(description, max_chars=150)
         payment_url = extraer_payment_link(page.url, page.main_content)
 
-        logger.info(f"Producto '{name}': tipo={detected_type}, moneda={detected_currency}, payment_link={payment_url[:50] if payment_url else 'N/A'}...")
+        logger.info(f"Detectado [{category.upper()}] '{name}': tipo={detected_type}, precio={price}, gratis={item_is_free}")
 
         return DetectedProduct(
             name=name,
@@ -530,7 +629,9 @@ class ProductDetector:
             price_source_text=price_text,
             signals_matched=signals,
             confidence=confidence,
+            category=category,
             product_type=detected_type,
+            is_free=item_is_free,
             short_description=short_desc,
             payment_link=payment_url
         )

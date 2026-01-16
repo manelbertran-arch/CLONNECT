@@ -120,10 +120,16 @@ class Product(Base):
     name = Column(String(255), nullable=False)
     description = Column(Text)
     short_description = Column(String(300))  # Descripción corta para cards
-    product_type = Column(String(50), default="otro")  # ebook, curso, servicio, membresia, plantilla, otro
+    # Taxonomía: category + product_type
+    category = Column(String(20), default="product")  # product, service, resource
+    product_type = Column(String(50), default="otro")  # Depende de category:
+    # product: ebook, curso, plantilla, membership, otro
+    # service: coaching, mentoria, consultoria, call, sesion, otro
+    # resource: podcast, blog, youtube, newsletter, free_guide, otro
     price = Column(Float)
     currency = Column(String(10), default="EUR")
-    payment_link = Column(String(500), default="")  # Stripe/PayPal payment link
+    is_free = Column(Boolean, default=False)  # True para discovery calls gratuitas
+    payment_link = Column(String(500), default="")  # Stripe/PayPal/Calendly link
     is_active = Column(Boolean, default=True)
     # Anti-hallucination fields: source tracking
     source_url = Column(Text)  # URL where product info was found

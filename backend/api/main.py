@@ -675,13 +675,14 @@ async def debug_products(creator_name: str):
                 if creator_row:
                     result["creator_found"] = True
                     result["creator_id"] = str(creator_row[0])
-                    # Get products
+                    # Get products with new taxonomy fields
                     products_result = db.execute(text(
-                        "SELECT id, name, price, currency, product_type, short_description, payment_link, is_active FROM products WHERE creator_id = :cid"
+                        "SELECT id, name, price, currency, category, product_type, is_free, short_description, payment_link, is_active FROM products WHERE creator_id = :cid"
                     ), {"cid": creator_row[0]})
                     result["products"] = [
                         {"id": str(row[0]), "name": row[1], "price": row[2], "currency": row[3],
-                         "product_type": row[4], "short_description": row[5], "payment_link": row[6], "is_active": row[7]}
+                         "category": row[4], "product_type": row[5], "is_free": row[6],
+                         "short_description": row[7], "payment_link": row[8], "is_active": row[9]}
                         for row in products_result.fetchall()
                     ]
                     result["count"] = len(result["products"])

@@ -538,5 +538,1085 @@
     "metadata": {
       "product_name": ""
     }
+  },
+  {
+    "id": "fitpack_global_2251413795360010_re_engagement_0_1768555108",
+    "creator_id": "fitpack_global",
+    "follower_id": "2251413795360010",
+    "sequence_type": "re_engagement",
+    "step": 0,
+    "scheduled_at": "2026-01-16T10:18:28.274824",
+    "message_template": "¡Hola! Hace tiempo que no hablamos. ¿Cómo va todo? Si necesitas algo, aquí estoy.",
+    "status": "sent",
+    "created_at": "2026-01-16T10:18:28.274847",
+    "sent_at": "2026-01-16T10:18:28.306903",
+    "metadata": {
+      "product_name": ""
+    }
+  },
+  {
+    "id": "fitpack_global_24195338743475319_re_engagement_0_1768555108",
+    "creator_id": "fitpack_global",
+    "follower_id": "24195338743475319",
+    "sequence_type": "re_engagement",
+    "step": 0,
+    "scheduled_at": "2026-01-16T10:18:28.276266",
+    "message_template": "¡Hola! Hace tiempo que no hablamos. ¿Cómo va todo? Si necesitas algo, aquí estoy.",
+    "status": "sent",
+    "created_at": "2026-01-16T10:18:28.276282",
+    "sent_at": "2026-01-16T10:18:28.307760",
+    "metadata": {
+      "product_name": ""
+    }
+  },
+  {
+    "id": "fitpack_global_2685013705180307_re_engagement_0_1768555108",
+    "creator_id": "fitpack_global",
+    "follower_id": "2685013705180307",
+    "sequence_type": "re_engagement",
+    "step": 0,
+    "scheduled_at": "2026-01-16T10:18:28.276926",
+    "message_template": "¡Hola! Hace tiempo que no hablamos. ¿Cómo va todo? Si necesitas algo, aquí estoy.",
+    "status": "sent",
+    "created_at": "2026-01-16T10:18:28.276939",
+    "sent_at": "2026-01-16T10:18:28.308555",
+    "metadata": {
+      "product_name": ""
+    }
+  },
+  {
+    "id": "fitpack_global_1376551044090333_re_engagement_0_1768555108",
+    "creator_id": "fitpack_global",
+    "follower_id": "1376551044090333",
+    "sequence_type": "re_engagement",
+    "step": 0,
+    "scheduled_at": "2026-01-16T10:18:28.277541",
+    "message_template": "¡Hola! Hace tiempo que no hablamos. ¿Cómo va todo? Si necesitas algo, aquí estoy.",
+    "status": "sent",
+    "created_at": "2026-01-16T10:18:28.277554",
+    "sent_at": "2026-01-16T10:18:28.309286",
+    "metadata": {
+      "product_name": ""
+    }
+  },
+  {
+    "id": "fitpack_global_2251413795360010_re_engagement_0_1768560090",
+    "creator_id": "fitpack_global",
+    "follower_id": "2251413795360010",
+    "sequence_type": "re_engagement",
+    "step": 0,
+    "scheduled_at": "2026-01-16T11:41:30.966803",
+    "message_template": "¡Hola! Hace tiempo que no hablamos. ¿Cómo va todo? Si necesitas algo, aquí estoy.",
+    "status": "sent",
+    "created_at": "2026-01-16T11:41:30.966953",
+    "sent_at": "2026-01-16T11:41:31.009597",
+    "metadata": {
+      "product_name": ""
+    }
+  },
+  {
+    "id": "fitpack_global_24195338743475319_re_engagement_0_1768560090",
+    "creator_id": "fitpack_global",
+    "follower_id": "24195338743475319",
+    "sequence_type": "re_engagement",
+    "step": 0,
+    "scheduled_at": "2026-01-16T11:41:30.971650",
+    "message_template": "¡Hola! Hace tiempo que no hablamos. ¿Cómo va todo? Si necesitas algo, aquí estoy.",
+    "status": "sent",
+    "created_at": "2026-01-16T11:41:30.971746",
+    "sent_at": "2026-01-16T11:41:31.011583",
+    "metadata": {
+      "product_name": ""
+    }
+  },
+  {
+    "id": "fitpack_global_2685013705180307_re_engagement_0_1768560090",
+    "creator_id": "fitpack_global",
+    "follower_id": "2685013705180307",
+    "sequence_type": "re_engagement",
+    "step": 0,
+    "scheduled_at": "2026-01-16T11:41:30.976023",
+    "message_template": "¡Hola! Hace tiempo que no hablamos. ¿Cómo va todo? Si necesitas algo, aquí estoy.",
+    "status": "sent",
+    "created_at": "2026-01-16T11:41:30.976082",
+    "sent_at": "2026-01-16T11:41:31.013274",
+    "metadata": {
+      "product_name": ""
+    }
+  },
+  {
+    "id": "fitpack_global_1376551044090333_re_engagement_0_1768560090",
+    "creator_id": "fitpack_global",
+    "follower_id": "1376551044090333",
+    "sequence_type": "re_engagement",
+    "step": 0,
+    "scheduled_at": "2026-01-16T11:41:30.978311",
+    "message_template": "¡Hola! Hace tiempo que no hablamos. ¿Cómo va todo? Si necesitas algo, aquí estoy.",
+    "status": "sent",
+    "created_at": "2026-01-16T11:41:30.978353",
+    "sent_at": "2026-01-16T11:41:31.014977",
+    "metadata": {
+      "product_name": ""
+    }
+  },
+  {
+    "id": "fitpack_global_2251413795360010_re_engagement_0_1768560128",
+    "creator_id": "fitpack_global",
+    "follower_id": "2251413795360010",
+    "sequence_type": "re_engagement",
+    "step": 0,
+    "scheduled_at": "2026-01-16T11:42:08.941381",
+    "message_template": "¡Hola! Hace tiempo que no hablamos. ¿Cómo va todo? Si necesitas algo, aquí estoy.",
+    "status": "sent",
+    "created_at": "2026-01-16T11:42:08.941561",
+    "sent_at": "2026-01-16T11:42:08.984547",
+    "metadata": {
+      "product_name": ""
+    }
+  },
+  {
+    "id": "fitpack_global_24195338743475319_re_engagement_0_1768560128",
+    "creator_id": "fitpack_global",
+    "follower_id": "24195338743475319",
+    "sequence_type": "re_engagement",
+    "step": 0,
+    "scheduled_at": "2026-01-16T11:42:08.945799",
+    "message_template": "¡Hola! Hace tiempo que no hablamos. ¿Cómo va todo? Si necesitas algo, aquí estoy.",
+    "status": "sent",
+    "created_at": "2026-01-16T11:42:08.945911",
+    "sent_at": "2026-01-16T11:42:08.985800",
+    "metadata": {
+      "product_name": ""
+    }
+  },
+  {
+    "id": "fitpack_global_2685013705180307_re_engagement_0_1768560128",
+    "creator_id": "fitpack_global",
+    "follower_id": "2685013705180307",
+    "sequence_type": "re_engagement",
+    "step": 0,
+    "scheduled_at": "2026-01-16T11:42:08.948933",
+    "message_template": "¡Hola! Hace tiempo que no hablamos. ¿Cómo va todo? Si necesitas algo, aquí estoy.",
+    "status": "sent",
+    "created_at": "2026-01-16T11:42:08.949013",
+    "sent_at": "2026-01-16T11:42:08.986911",
+    "metadata": {
+      "product_name": ""
+    }
+  },
+  {
+    "id": "fitpack_global_1376551044090333_re_engagement_0_1768560128",
+    "creator_id": "fitpack_global",
+    "follower_id": "1376551044090333",
+    "sequence_type": "re_engagement",
+    "step": 0,
+    "scheduled_at": "2026-01-16T11:42:08.951729",
+    "message_template": "¡Hola! Hace tiempo que no hablamos. ¿Cómo va todo? Si necesitas algo, aquí estoy.",
+    "status": "sent",
+    "created_at": "2026-01-16T11:42:08.951781",
+    "sent_at": "2026-01-16T11:42:08.987992",
+    "metadata": {
+      "product_name": ""
+    }
+  },
+  {
+    "id": "fitpack_global_2251413795360010_re_engagement_0_1768560206",
+    "creator_id": "fitpack_global",
+    "follower_id": "2251413795360010",
+    "sequence_type": "re_engagement",
+    "step": 0,
+    "scheduled_at": "2026-01-16T11:43:26.862582",
+    "message_template": "¡Hola! Hace tiempo que no hablamos. ¿Cómo va todo? Si necesitas algo, aquí estoy.",
+    "status": "sent",
+    "created_at": "2026-01-16T11:43:26.862602",
+    "sent_at": "2026-01-16T11:43:26.893467",
+    "metadata": {
+      "product_name": ""
+    }
+  },
+  {
+    "id": "fitpack_global_24195338743475319_re_engagement_0_1768560206",
+    "creator_id": "fitpack_global",
+    "follower_id": "24195338743475319",
+    "sequence_type": "re_engagement",
+    "step": 0,
+    "scheduled_at": "2026-01-16T11:43:26.863369",
+    "message_template": "¡Hola! Hace tiempo que no hablamos. ¿Cómo va todo? Si necesitas algo, aquí estoy.",
+    "status": "sent",
+    "created_at": "2026-01-16T11:43:26.863382",
+    "sent_at": "2026-01-16T11:43:26.894199",
+    "metadata": {
+      "product_name": ""
+    }
+  },
+  {
+    "id": "fitpack_global_2685013705180307_re_engagement_0_1768560206",
+    "creator_id": "fitpack_global",
+    "follower_id": "2685013705180307",
+    "sequence_type": "re_engagement",
+    "step": 0,
+    "scheduled_at": "2026-01-16T11:43:26.864051",
+    "message_template": "¡Hola! Hace tiempo que no hablamos. ¿Cómo va todo? Si necesitas algo, aquí estoy.",
+    "status": "sent",
+    "created_at": "2026-01-16T11:43:26.864062",
+    "sent_at": "2026-01-16T11:43:26.894902",
+    "metadata": {
+      "product_name": ""
+    }
+  },
+  {
+    "id": "fitpack_global_1376551044090333_re_engagement_0_1768560206",
+    "creator_id": "fitpack_global",
+    "follower_id": "1376551044090333",
+    "sequence_type": "re_engagement",
+    "step": 0,
+    "scheduled_at": "2026-01-16T11:43:26.864752",
+    "message_template": "¡Hola! Hace tiempo que no hablamos. ¿Cómo va todo? Si necesitas algo, aquí estoy.",
+    "status": "sent",
+    "created_at": "2026-01-16T11:43:26.864762",
+    "sent_at": "2026-01-16T11:43:26.895596",
+    "metadata": {
+      "product_name": ""
+    }
+  },
+  {
+    "id": "fitpack_global_2251413795360010_re_engagement_0_1768560227",
+    "creator_id": "fitpack_global",
+    "follower_id": "2251413795360010",
+    "sequence_type": "re_engagement",
+    "step": 0,
+    "scheduled_at": "2026-01-16T11:43:47.648467",
+    "message_template": "¡Hola! Hace tiempo que no hablamos. ¿Cómo va todo? Si necesitas algo, aquí estoy.",
+    "status": "sent",
+    "created_at": "2026-01-16T11:43:47.648488",
+    "sent_at": "2026-01-16T11:43:47.681511",
+    "metadata": {
+      "product_name": ""
+    }
+  },
+  {
+    "id": "fitpack_global_24195338743475319_re_engagement_0_1768560227",
+    "creator_id": "fitpack_global",
+    "follower_id": "24195338743475319",
+    "sequence_type": "re_engagement",
+    "step": 0,
+    "scheduled_at": "2026-01-16T11:43:47.649389",
+    "message_template": "¡Hola! Hace tiempo que no hablamos. ¿Cómo va todo? Si necesitas algo, aquí estoy.",
+    "status": "sent",
+    "created_at": "2026-01-16T11:43:47.649402",
+    "sent_at": "2026-01-16T11:43:47.682289",
+    "metadata": {
+      "product_name": ""
+    }
+  },
+  {
+    "id": "fitpack_global_2685013705180307_re_engagement_0_1768560227",
+    "creator_id": "fitpack_global",
+    "follower_id": "2685013705180307",
+    "sequence_type": "re_engagement",
+    "step": 0,
+    "scheduled_at": "2026-01-16T11:43:47.650313",
+    "message_template": "¡Hola! Hace tiempo que no hablamos. ¿Cómo va todo? Si necesitas algo, aquí estoy.",
+    "status": "sent",
+    "created_at": "2026-01-16T11:43:47.650325",
+    "sent_at": "2026-01-16T11:43:47.682983",
+    "metadata": {
+      "product_name": ""
+    }
+  },
+  {
+    "id": "fitpack_global_1376551044090333_re_engagement_0_1768560227",
+    "creator_id": "fitpack_global",
+    "follower_id": "1376551044090333",
+    "sequence_type": "re_engagement",
+    "step": 0,
+    "scheduled_at": "2026-01-16T11:43:47.651091",
+    "message_template": "¡Hola! Hace tiempo que no hablamos. ¿Cómo va todo? Si necesitas algo, aquí estoy.",
+    "status": "sent",
+    "created_at": "2026-01-16T11:43:47.651103",
+    "sent_at": "2026-01-16T11:43:47.683686",
+    "metadata": {
+      "product_name": ""
+    }
+  },
+  {
+    "id": "fitpack_global_2251413795360010_re_engagement_0_1768560238",
+    "creator_id": "fitpack_global",
+    "follower_id": "2251413795360010",
+    "sequence_type": "re_engagement",
+    "step": 0,
+    "scheduled_at": "2026-01-16T11:43:58.152020",
+    "message_template": "¡Hola! Hace tiempo que no hablamos. ¿Cómo va todo? Si necesitas algo, aquí estoy.",
+    "status": "sent",
+    "created_at": "2026-01-16T11:43:58.152046",
+    "sent_at": "2026-01-16T11:43:58.184643",
+    "metadata": {
+      "product_name": ""
+    }
+  },
+  {
+    "id": "fitpack_global_24195338743475319_re_engagement_0_1768560238",
+    "creator_id": "fitpack_global",
+    "follower_id": "24195338743475319",
+    "sequence_type": "re_engagement",
+    "step": 0,
+    "scheduled_at": "2026-01-16T11:43:58.152978",
+    "message_template": "¡Hola! Hace tiempo que no hablamos. ¿Cómo va todo? Si necesitas algo, aquí estoy.",
+    "status": "sent",
+    "created_at": "2026-01-16T11:43:58.152991",
+    "sent_at": "2026-01-16T11:43:58.185609",
+    "metadata": {
+      "product_name": ""
+    }
+  },
+  {
+    "id": "fitpack_global_2685013705180307_re_engagement_0_1768560238",
+    "creator_id": "fitpack_global",
+    "follower_id": "2685013705180307",
+    "sequence_type": "re_engagement",
+    "step": 0,
+    "scheduled_at": "2026-01-16T11:43:58.153825",
+    "message_template": "¡Hola! Hace tiempo que no hablamos. ¿Cómo va todo? Si necesitas algo, aquí estoy.",
+    "status": "sent",
+    "created_at": "2026-01-16T11:43:58.153836",
+    "sent_at": "2026-01-16T11:43:58.186498",
+    "metadata": {
+      "product_name": ""
+    }
+  },
+  {
+    "id": "fitpack_global_1376551044090333_re_engagement_0_1768560238",
+    "creator_id": "fitpack_global",
+    "follower_id": "1376551044090333",
+    "sequence_type": "re_engagement",
+    "step": 0,
+    "scheduled_at": "2026-01-16T11:43:58.154687",
+    "message_template": "¡Hola! Hace tiempo que no hablamos. ¿Cómo va todo? Si necesitas algo, aquí estoy.",
+    "status": "sent",
+    "created_at": "2026-01-16T11:43:58.154699",
+    "sent_at": "2026-01-16T11:43:58.187403",
+    "metadata": {
+      "product_name": ""
+    }
+  },
+  {
+    "id": "fitpack_global_2251413795360010_re_engagement_0_1768560256",
+    "creator_id": "fitpack_global",
+    "follower_id": "2251413795360010",
+    "sequence_type": "re_engagement",
+    "step": 0,
+    "scheduled_at": "2026-01-16T11:44:16.037497",
+    "message_template": "¡Hola! Hace tiempo que no hablamos. ¿Cómo va todo? Si necesitas algo, aquí estoy.",
+    "status": "sent",
+    "created_at": "2026-01-16T11:44:16.037531",
+    "sent_at": "2026-01-16T11:44:16.071846",
+    "metadata": {
+      "product_name": ""
+    }
+  },
+  {
+    "id": "fitpack_global_24195338743475319_re_engagement_0_1768560256",
+    "creator_id": "fitpack_global",
+    "follower_id": "24195338743475319",
+    "sequence_type": "re_engagement",
+    "step": 0,
+    "scheduled_at": "2026-01-16T11:44:16.038985",
+    "message_template": "¡Hola! Hace tiempo que no hablamos. ¿Cómo va todo? Si necesitas algo, aquí estoy.",
+    "status": "sent",
+    "created_at": "2026-01-16T11:44:16.039006",
+    "sent_at": "2026-01-16T11:44:16.072727",
+    "metadata": {
+      "product_name": ""
+    }
+  },
+  {
+    "id": "fitpack_global_2685013705180307_re_engagement_0_1768560256",
+    "creator_id": "fitpack_global",
+    "follower_id": "2685013705180307",
+    "sequence_type": "re_engagement",
+    "step": 0,
+    "scheduled_at": "2026-01-16T11:44:16.040391",
+    "message_template": "¡Hola! Hace tiempo que no hablamos. ¿Cómo va todo? Si necesitas algo, aquí estoy.",
+    "status": "sent",
+    "created_at": "2026-01-16T11:44:16.040411",
+    "sent_at": "2026-01-16T11:44:16.073558",
+    "metadata": {
+      "product_name": ""
+    }
+  },
+  {
+    "id": "fitpack_global_1376551044090333_re_engagement_0_1768560256",
+    "creator_id": "fitpack_global",
+    "follower_id": "1376551044090333",
+    "sequence_type": "re_engagement",
+    "step": 0,
+    "scheduled_at": "2026-01-16T11:44:16.041695",
+    "message_template": "¡Hola! Hace tiempo que no hablamos. ¿Cómo va todo? Si necesitas algo, aquí estoy.",
+    "status": "sent",
+    "created_at": "2026-01-16T11:44:16.041713",
+    "sent_at": "2026-01-16T11:44:16.074411",
+    "metadata": {
+      "product_name": ""
+    }
+  },
+  {
+    "id": "fitpack_global_2251413795360010_re_engagement_0_1768560511",
+    "creator_id": "fitpack_global",
+    "follower_id": "2251413795360010",
+    "sequence_type": "re_engagement",
+    "step": 0,
+    "scheduled_at": "2026-01-16T11:48:31.259654",
+    "message_template": "¡Hola! Hace tiempo que no hablamos. ¿Cómo va todo? Si necesitas algo, aquí estoy.",
+    "status": "sent",
+    "created_at": "2026-01-16T11:48:31.259685",
+    "sent_at": "2026-01-16T11:48:31.292727",
+    "metadata": {
+      "product_name": ""
+    }
+  },
+  {
+    "id": "fitpack_global_24195338743475319_re_engagement_0_1768560511",
+    "creator_id": "fitpack_global",
+    "follower_id": "24195338743475319",
+    "sequence_type": "re_engagement",
+    "step": 0,
+    "scheduled_at": "2026-01-16T11:48:31.260756",
+    "message_template": "¡Hola! Hace tiempo que no hablamos. ¿Cómo va todo? Si necesitas algo, aquí estoy.",
+    "status": "sent",
+    "created_at": "2026-01-16T11:48:31.260770",
+    "sent_at": "2026-01-16T11:48:31.293769",
+    "metadata": {
+      "product_name": ""
+    }
+  },
+  {
+    "id": "fitpack_global_2685013705180307_re_engagement_0_1768560511",
+    "creator_id": "fitpack_global",
+    "follower_id": "2685013705180307",
+    "sequence_type": "re_engagement",
+    "step": 0,
+    "scheduled_at": "2026-01-16T11:48:31.261686",
+    "message_template": "¡Hola! Hace tiempo que no hablamos. ¿Cómo va todo? Si necesitas algo, aquí estoy.",
+    "status": "sent",
+    "created_at": "2026-01-16T11:48:31.261698",
+    "sent_at": "2026-01-16T11:48:31.294680",
+    "metadata": {
+      "product_name": ""
+    }
+  },
+  {
+    "id": "fitpack_global_1376551044090333_re_engagement_0_1768560511",
+    "creator_id": "fitpack_global",
+    "follower_id": "1376551044090333",
+    "sequence_type": "re_engagement",
+    "step": 0,
+    "scheduled_at": "2026-01-16T11:48:31.262595",
+    "message_template": "¡Hola! Hace tiempo que no hablamos. ¿Cómo va todo? Si necesitas algo, aquí estoy.",
+    "status": "sent",
+    "created_at": "2026-01-16T11:48:31.262607",
+    "sent_at": "2026-01-16T11:48:31.295596",
+    "metadata": {
+      "product_name": ""
+    }
+  },
+  {
+    "id": "fitpack_global_2251413795360010_re_engagement_0_1768560725",
+    "creator_id": "fitpack_global",
+    "follower_id": "2251413795360010",
+    "sequence_type": "re_engagement",
+    "step": 0,
+    "scheduled_at": "2026-01-16T11:52:05.682057",
+    "message_template": "¡Hola! Hace tiempo que no hablamos. ¿Cómo va todo? Si necesitas algo, aquí estoy.",
+    "status": "sent",
+    "created_at": "2026-01-16T11:52:05.682086",
+    "sent_at": "2026-01-16T11:52:05.716509",
+    "metadata": {
+      "product_name": ""
+    }
+  },
+  {
+    "id": "fitpack_global_24195338743475319_re_engagement_0_1768560725",
+    "creator_id": "fitpack_global",
+    "follower_id": "24195338743475319",
+    "sequence_type": "re_engagement",
+    "step": 0,
+    "scheduled_at": "2026-01-16T11:52:05.683542",
+    "message_template": "¡Hola! Hace tiempo que no hablamos. ¿Cómo va todo? Si necesitas algo, aquí estoy.",
+    "status": "sent",
+    "created_at": "2026-01-16T11:52:05.683559",
+    "sent_at": "2026-01-16T11:52:05.717985",
+    "metadata": {
+      "product_name": ""
+    }
+  },
+  {
+    "id": "fitpack_global_2685013705180307_re_engagement_0_1768560725",
+    "creator_id": "fitpack_global",
+    "follower_id": "2685013705180307",
+    "sequence_type": "re_engagement",
+    "step": 0,
+    "scheduled_at": "2026-01-16T11:52:05.684838",
+    "message_template": "¡Hola! Hace tiempo que no hablamos. ¿Cómo va todo? Si necesitas algo, aquí estoy.",
+    "status": "sent",
+    "created_at": "2026-01-16T11:52:05.684854",
+    "sent_at": "2026-01-16T11:52:05.719400",
+    "metadata": {
+      "product_name": ""
+    }
+  },
+  {
+    "id": "fitpack_global_1376551044090333_re_engagement_0_1768560725",
+    "creator_id": "fitpack_global",
+    "follower_id": "1376551044090333",
+    "sequence_type": "re_engagement",
+    "step": 0,
+    "scheduled_at": "2026-01-16T11:52:05.686119",
+    "message_template": "¡Hola! Hace tiempo que no hablamos. ¿Cómo va todo? Si necesitas algo, aquí estoy.",
+    "status": "sent",
+    "created_at": "2026-01-16T11:52:05.686136",
+    "sent_at": "2026-01-16T11:52:05.720779",
+    "metadata": {
+      "product_name": ""
+    }
+  },
+  {
+    "id": "fitpack_global_2251413795360010_re_engagement_0_1768560809",
+    "creator_id": "fitpack_global",
+    "follower_id": "2251413795360010",
+    "sequence_type": "re_engagement",
+    "step": 0,
+    "scheduled_at": "2026-01-16T11:53:29.171747",
+    "message_template": "¡Hola! Hace tiempo que no hablamos. ¿Cómo va todo? Si necesitas algo, aquí estoy.",
+    "status": "sent",
+    "created_at": "2026-01-16T11:53:29.171779",
+    "sent_at": "2026-01-16T11:53:29.203955",
+    "metadata": {
+      "product_name": ""
+    }
+  },
+  {
+    "id": "fitpack_global_24195338743475319_re_engagement_0_1768560809",
+    "creator_id": "fitpack_global",
+    "follower_id": "24195338743475319",
+    "sequence_type": "re_engagement",
+    "step": 0,
+    "scheduled_at": "2026-01-16T11:53:29.172964",
+    "message_template": "¡Hola! Hace tiempo que no hablamos. ¿Cómo va todo? Si necesitas algo, aquí estoy.",
+    "status": "sent",
+    "created_at": "2026-01-16T11:53:29.172981",
+    "sent_at": "2026-01-16T11:53:29.205073",
+    "metadata": {
+      "product_name": ""
+    }
+  },
+  {
+    "id": "fitpack_global_2685013705180307_re_engagement_0_1768560809",
+    "creator_id": "fitpack_global",
+    "follower_id": "2685013705180307",
+    "sequence_type": "re_engagement",
+    "step": 0,
+    "scheduled_at": "2026-01-16T11:53:29.174076",
+    "message_template": "¡Hola! Hace tiempo que no hablamos. ¿Cómo va todo? Si necesitas algo, aquí estoy.",
+    "status": "sent",
+    "created_at": "2026-01-16T11:53:29.174088",
+    "sent_at": "2026-01-16T11:53:29.206066",
+    "metadata": {
+      "product_name": ""
+    }
+  },
+  {
+    "id": "fitpack_global_1376551044090333_re_engagement_0_1768560809",
+    "creator_id": "fitpack_global",
+    "follower_id": "1376551044090333",
+    "sequence_type": "re_engagement",
+    "step": 0,
+    "scheduled_at": "2026-01-16T11:53:29.175234",
+    "message_template": "¡Hola! Hace tiempo que no hablamos. ¿Cómo va todo? Si necesitas algo, aquí estoy.",
+    "status": "sent",
+    "created_at": "2026-01-16T11:53:29.175249",
+    "sent_at": "2026-01-16T11:53:29.207014",
+    "metadata": {
+      "product_name": ""
+    }
+  },
+  {
+    "id": "fitpack_global_2251413795360010_re_engagement_0_1768561255",
+    "creator_id": "fitpack_global",
+    "follower_id": "2251413795360010",
+    "sequence_type": "re_engagement",
+    "step": 0,
+    "scheduled_at": "2026-01-16T12:00:55.678958",
+    "message_template": "¡Hola! Hace tiempo que no hablamos. ¿Cómo va todo? Si necesitas algo, aquí estoy.",
+    "status": "sent",
+    "created_at": "2026-01-16T12:00:55.678984",
+    "sent_at": "2026-01-16T12:00:55.731553",
+    "metadata": {
+      "product_name": ""
+    }
+  },
+  {
+    "id": "fitpack_global_24195338743475319_re_engagement_0_1768561255",
+    "creator_id": "fitpack_global",
+    "follower_id": "24195338743475319",
+    "sequence_type": "re_engagement",
+    "step": 0,
+    "scheduled_at": "2026-01-16T12:00:55.680413",
+    "message_template": "¡Hola! Hace tiempo que no hablamos. ¿Cómo va todo? Si necesitas algo, aquí estoy.",
+    "status": "sent",
+    "created_at": "2026-01-16T12:00:55.680439",
+    "sent_at": "2026-01-16T12:00:55.732555",
+    "metadata": {
+      "product_name": ""
+    }
+  },
+  {
+    "id": "fitpack_global_2685013705180307_re_engagement_0_1768561255",
+    "creator_id": "fitpack_global",
+    "follower_id": "2685013705180307",
+    "sequence_type": "re_engagement",
+    "step": 0,
+    "scheduled_at": "2026-01-16T12:00:55.681653",
+    "message_template": "¡Hola! Hace tiempo que no hablamos. ¿Cómo va todo? Si necesitas algo, aquí estoy.",
+    "status": "sent",
+    "created_at": "2026-01-16T12:00:55.681667",
+    "sent_at": "2026-01-16T12:00:55.733501",
+    "metadata": {
+      "product_name": ""
+    }
+  },
+  {
+    "id": "fitpack_global_1376551044090333_re_engagement_0_1768561255",
+    "creator_id": "fitpack_global",
+    "follower_id": "1376551044090333",
+    "sequence_type": "re_engagement",
+    "step": 0,
+    "scheduled_at": "2026-01-16T12:00:55.682904",
+    "message_template": "¡Hola! Hace tiempo que no hablamos. ¿Cómo va todo? Si necesitas algo, aquí estoy.",
+    "status": "sent",
+    "created_at": "2026-01-16T12:00:55.682918",
+    "sent_at": "2026-01-16T12:00:55.734436",
+    "metadata": {
+      "product_name": ""
+    }
+  },
+  {
+    "id": "fitpack_global_2251413795360010_re_engagement_0_1768561262",
+    "creator_id": "fitpack_global",
+    "follower_id": "2251413795360010",
+    "sequence_type": "re_engagement",
+    "step": 0,
+    "scheduled_at": "2026-01-16T12:01:02.035807",
+    "message_template": "¡Hola! Hace tiempo que no hablamos. ¿Cómo va todo? Si necesitas algo, aquí estoy.",
+    "status": "sent",
+    "created_at": "2026-01-16T12:01:02.035837",
+    "sent_at": "2026-01-16T12:01:02.073499",
+    "metadata": {
+      "product_name": ""
+    }
+  },
+  {
+    "id": "fitpack_global_24195338743475319_re_engagement_0_1768561262",
+    "creator_id": "fitpack_global",
+    "follower_id": "24195338743475319",
+    "sequence_type": "re_engagement",
+    "step": 0,
+    "scheduled_at": "2026-01-16T12:01:02.037929",
+    "message_template": "¡Hola! Hace tiempo que no hablamos. ¿Cómo va todo? Si necesitas algo, aquí estoy.",
+    "status": "sent",
+    "created_at": "2026-01-16T12:01:02.037954",
+    "sent_at": "2026-01-16T12:01:02.075528",
+    "metadata": {
+      "product_name": ""
+    }
+  },
+  {
+    "id": "fitpack_global_2685013705180307_re_engagement_0_1768561262",
+    "creator_id": "fitpack_global",
+    "follower_id": "2685013705180307",
+    "sequence_type": "re_engagement",
+    "step": 0,
+    "scheduled_at": "2026-01-16T12:01:02.040110",
+    "message_template": "¡Hola! Hace tiempo que no hablamos. ¿Cómo va todo? Si necesitas algo, aquí estoy.",
+    "status": "sent",
+    "created_at": "2026-01-16T12:01:02.040148",
+    "sent_at": "2026-01-16T12:01:02.077517",
+    "metadata": {
+      "product_name": ""
+    }
+  },
+  {
+    "id": "fitpack_global_1376551044090333_re_engagement_0_1768561262",
+    "creator_id": "fitpack_global",
+    "follower_id": "1376551044090333",
+    "sequence_type": "re_engagement",
+    "step": 0,
+    "scheduled_at": "2026-01-16T12:01:02.042125",
+    "message_template": "¡Hola! Hace tiempo que no hablamos. ¿Cómo va todo? Si necesitas algo, aquí estoy.",
+    "status": "sent",
+    "created_at": "2026-01-16T12:01:02.042143",
+    "sent_at": "2026-01-16T12:01:02.079391",
+    "metadata": {
+      "product_name": ""
+    }
+  },
+  {
+    "id": "fitpack_global_2251413795360010_re_engagement_0_1768561287",
+    "creator_id": "fitpack_global",
+    "follower_id": "2251413795360010",
+    "sequence_type": "re_engagement",
+    "step": 0,
+    "scheduled_at": "2026-01-16T12:01:27.380190",
+    "message_template": "¡Hola! Hace tiempo que no hablamos. ¿Cómo va todo? Si necesitas algo, aquí estoy.",
+    "status": "sent",
+    "created_at": "2026-01-16T12:01:27.380215",
+    "sent_at": "2026-01-16T12:01:27.416807",
+    "metadata": {
+      "product_name": ""
+    }
+  },
+  {
+    "id": "fitpack_global_24195338743475319_re_engagement_0_1768561287",
+    "creator_id": "fitpack_global",
+    "follower_id": "24195338743475319",
+    "sequence_type": "re_engagement",
+    "step": 0,
+    "scheduled_at": "2026-01-16T12:01:27.381830",
+    "message_template": "¡Hola! Hace tiempo que no hablamos. ¿Cómo va todo? Si necesitas algo, aquí estoy.",
+    "status": "sent",
+    "created_at": "2026-01-16T12:01:27.381847",
+    "sent_at": "2026-01-16T12:01:27.419269",
+    "metadata": {
+      "product_name": ""
+    }
+  },
+  {
+    "id": "fitpack_global_2685013705180307_re_engagement_0_1768561287",
+    "creator_id": "fitpack_global",
+    "follower_id": "2685013705180307",
+    "sequence_type": "re_engagement",
+    "step": 0,
+    "scheduled_at": "2026-01-16T12:01:27.383737",
+    "message_template": "¡Hola! Hace tiempo que no hablamos. ¿Cómo va todo? Si necesitas algo, aquí estoy.",
+    "status": "sent",
+    "created_at": "2026-01-16T12:01:27.383756",
+    "sent_at": "2026-01-16T12:01:27.421688",
+    "metadata": {
+      "product_name": ""
+    }
+  },
+  {
+    "id": "fitpack_global_1376551044090333_re_engagement_0_1768561287",
+    "creator_id": "fitpack_global",
+    "follower_id": "1376551044090333",
+    "sequence_type": "re_engagement",
+    "step": 0,
+    "scheduled_at": "2026-01-16T12:01:27.385463",
+    "message_template": "¡Hola! Hace tiempo que no hablamos. ¿Cómo va todo? Si necesitas algo, aquí estoy.",
+    "status": "sent",
+    "created_at": "2026-01-16T12:01:27.385481",
+    "sent_at": "2026-01-16T12:01:27.424097",
+    "metadata": {
+      "product_name": ""
+    }
+  },
+  {
+    "id": "fitpack_global_2251413795360010_re_engagement_0_1768561312",
+    "creator_id": "fitpack_global",
+    "follower_id": "2251413795360010",
+    "sequence_type": "re_engagement",
+    "step": 0,
+    "scheduled_at": "2026-01-16T12:01:52.539268",
+    "message_template": "¡Hola! Hace tiempo que no hablamos. ¿Cómo va todo? Si necesitas algo, aquí estoy.",
+    "status": "sent",
+    "created_at": "2026-01-16T12:01:52.539289",
+    "sent_at": "2026-01-16T12:01:52.574261",
+    "metadata": {
+      "product_name": ""
+    }
+  },
+  {
+    "id": "fitpack_global_24195338743475319_re_engagement_0_1768561312",
+    "creator_id": "fitpack_global",
+    "follower_id": "24195338743475319",
+    "sequence_type": "re_engagement",
+    "step": 0,
+    "scheduled_at": "2026-01-16T12:01:52.540588",
+    "message_template": "¡Hola! Hace tiempo que no hablamos. ¿Cómo va todo? Si necesitas algo, aquí estoy.",
+    "status": "sent",
+    "created_at": "2026-01-16T12:01:52.540601",
+    "sent_at": "2026-01-16T12:01:52.575470",
+    "metadata": {
+      "product_name": ""
+    }
+  },
+  {
+    "id": "fitpack_global_2685013705180307_re_engagement_0_1768561312",
+    "creator_id": "fitpack_global",
+    "follower_id": "2685013705180307",
+    "sequence_type": "re_engagement",
+    "step": 0,
+    "scheduled_at": "2026-01-16T12:01:52.541956",
+    "message_template": "¡Hola! Hace tiempo que no hablamos. ¿Cómo va todo? Si necesitas algo, aquí estoy.",
+    "status": "sent",
+    "created_at": "2026-01-16T12:01:52.541969",
+    "sent_at": "2026-01-16T12:01:52.576579",
+    "metadata": {
+      "product_name": ""
+    }
+  },
+  {
+    "id": "fitpack_global_1376551044090333_re_engagement_0_1768561312",
+    "creator_id": "fitpack_global",
+    "follower_id": "1376551044090333",
+    "sequence_type": "re_engagement",
+    "step": 0,
+    "scheduled_at": "2026-01-16T12:01:52.543089",
+    "message_template": "¡Hola! Hace tiempo que no hablamos. ¿Cómo va todo? Si necesitas algo, aquí estoy.",
+    "status": "sent",
+    "created_at": "2026-01-16T12:01:52.543100",
+    "sent_at": "2026-01-16T12:01:52.577731",
+    "metadata": {
+      "product_name": ""
+    }
+  },
+  {
+    "id": "fitpack_global_2251413795360010_re_engagement_0_1768561331",
+    "creator_id": "fitpack_global",
+    "follower_id": "2251413795360010",
+    "sequence_type": "re_engagement",
+    "step": 0,
+    "scheduled_at": "2026-01-16T12:02:11.280388",
+    "message_template": "¡Hola! Hace tiempo que no hablamos. ¿Cómo va todo? Si necesitas algo, aquí estoy.",
+    "status": "sent",
+    "created_at": "2026-01-16T12:02:11.280413",
+    "sent_at": "2026-01-16T12:02:11.315651",
+    "metadata": {
+      "product_name": ""
+    }
+  },
+  {
+    "id": "fitpack_global_24195338743475319_re_engagement_0_1768561331",
+    "creator_id": "fitpack_global",
+    "follower_id": "24195338743475319",
+    "sequence_type": "re_engagement",
+    "step": 0,
+    "scheduled_at": "2026-01-16T12:02:11.281672",
+    "message_template": "¡Hola! Hace tiempo que no hablamos. ¿Cómo va todo? Si necesitas algo, aquí estoy.",
+    "status": "sent",
+    "created_at": "2026-01-16T12:02:11.281684",
+    "sent_at": "2026-01-16T12:02:11.316818",
+    "metadata": {
+      "product_name": ""
+    }
+  },
+  {
+    "id": "fitpack_global_2685013705180307_re_engagement_0_1768561331",
+    "creator_id": "fitpack_global",
+    "follower_id": "2685013705180307",
+    "sequence_type": "re_engagement",
+    "step": 0,
+    "scheduled_at": "2026-01-16T12:02:11.282857",
+    "message_template": "¡Hola! Hace tiempo que no hablamos. ¿Cómo va todo? Si necesitas algo, aquí estoy.",
+    "status": "sent",
+    "created_at": "2026-01-16T12:02:11.282868",
+    "sent_at": "2026-01-16T12:02:11.317958",
+    "metadata": {
+      "product_name": ""
+    }
+  },
+  {
+    "id": "fitpack_global_1376551044090333_re_engagement_0_1768561331",
+    "creator_id": "fitpack_global",
+    "follower_id": "1376551044090333",
+    "sequence_type": "re_engagement",
+    "step": 0,
+    "scheduled_at": "2026-01-16T12:02:11.284033",
+    "message_template": "¡Hola! Hace tiempo que no hablamos. ¿Cómo va todo? Si necesitas algo, aquí estoy.",
+    "status": "sent",
+    "created_at": "2026-01-16T12:02:11.284044",
+    "sent_at": "2026-01-16T12:02:11.319131",
+    "metadata": {
+      "product_name": ""
+    }
+  },
+  {
+    "id": "fitpack_global_2251413795360010_re_engagement_0_1768561347",
+    "creator_id": "fitpack_global",
+    "follower_id": "2251413795360010",
+    "sequence_type": "re_engagement",
+    "step": 0,
+    "scheduled_at": "2026-01-16T12:02:27.868628",
+    "message_template": "¡Hola! Hace tiempo que no hablamos. ¿Cómo va todo? Si necesitas algo, aquí estoy.",
+    "status": "sent",
+    "created_at": "2026-01-16T12:02:27.868658",
+    "sent_at": "2026-01-16T12:02:27.904043",
+    "metadata": {
+      "product_name": ""
+    }
+  },
+  {
+    "id": "fitpack_global_24195338743475319_re_engagement_0_1768561347",
+    "creator_id": "fitpack_global",
+    "follower_id": "24195338743475319",
+    "sequence_type": "re_engagement",
+    "step": 0,
+    "scheduled_at": "2026-01-16T12:02:27.870358",
+    "message_template": "¡Hola! Hace tiempo que no hablamos. ¿Cómo va todo? Si necesitas algo, aquí estoy.",
+    "status": "sent",
+    "created_at": "2026-01-16T12:02:27.870375",
+    "sent_at": "2026-01-16T12:02:27.905627",
+    "metadata": {
+      "product_name": ""
+    }
+  },
+  {
+    "id": "fitpack_global_2685013705180307_re_engagement_0_1768561347",
+    "creator_id": "fitpack_global",
+    "follower_id": "2685013705180307",
+    "sequence_type": "re_engagement",
+    "step": 0,
+    "scheduled_at": "2026-01-16T12:02:27.871975",
+    "message_template": "¡Hola! Hace tiempo que no hablamos. ¿Cómo va todo? Si necesitas algo, aquí estoy.",
+    "status": "sent",
+    "created_at": "2026-01-16T12:02:27.871990",
+    "sent_at": "2026-01-16T12:02:27.906997",
+    "metadata": {
+      "product_name": ""
+    }
+  },
+  {
+    "id": "fitpack_global_1376551044090333_re_engagement_0_1768561347",
+    "creator_id": "fitpack_global",
+    "follower_id": "1376551044090333",
+    "sequence_type": "re_engagement",
+    "step": 0,
+    "scheduled_at": "2026-01-16T12:02:27.873564",
+    "message_template": "¡Hola! Hace tiempo que no hablamos. ¿Cómo va todo? Si necesitas algo, aquí estoy.",
+    "status": "sent",
+    "created_at": "2026-01-16T12:02:27.873579",
+    "sent_at": "2026-01-16T12:02:27.908300",
+    "metadata": {
+      "product_name": ""
+    }
+  },
+  {
+    "id": "fitpack_global_2251413795360010_re_engagement_0_1768561362",
+    "creator_id": "fitpack_global",
+    "follower_id": "2251413795360010",
+    "sequence_type": "re_engagement",
+    "step": 0,
+    "scheduled_at": "2026-01-16T12:02:42.194171",
+    "message_template": "¡Hola! Hace tiempo que no hablamos. ¿Cómo va todo? Si necesitas algo, aquí estoy.",
+    "status": "sent",
+    "created_at": "2026-01-16T12:02:42.194250",
+    "sent_at": "2026-01-16T12:02:42.236156",
+    "metadata": {
+      "product_name": ""
+    }
+  },
+  {
+    "id": "fitpack_global_24195338743475319_re_engagement_0_1768561362",
+    "creator_id": "fitpack_global",
+    "follower_id": "24195338743475319",
+    "sequence_type": "re_engagement",
+    "step": 0,
+    "scheduled_at": "2026-01-16T12:02:42.197659",
+    "message_template": "¡Hola! Hace tiempo que no hablamos. ¿Cómo va todo? Si necesitas algo, aquí estoy.",
+    "status": "sent",
+    "created_at": "2026-01-16T12:02:42.197700",
+    "sent_at": "2026-01-16T12:02:42.238027",
+    "metadata": {
+      "product_name": ""
+    }
+  },
+  {
+    "id": "fitpack_global_2685013705180307_re_engagement_0_1768561362",
+    "creator_id": "fitpack_global",
+    "follower_id": "2685013705180307",
+    "sequence_type": "re_engagement",
+    "step": 0,
+    "scheduled_at": "2026-01-16T12:02:42.200826",
+    "message_template": "¡Hola! Hace tiempo que no hablamos. ¿Cómo va todo? Si necesitas algo, aquí estoy.",
+    "status": "sent",
+    "created_at": "2026-01-16T12:02:42.200862",
+    "sent_at": "2026-01-16T12:02:42.239568",
+    "metadata": {
+      "product_name": ""
+    }
+  },
+  {
+    "id": "fitpack_global_1376551044090333_re_engagement_0_1768561362",
+    "creator_id": "fitpack_global",
+    "follower_id": "1376551044090333",
+    "sequence_type": "re_engagement",
+    "step": 0,
+    "scheduled_at": "2026-01-16T12:02:42.203530",
+    "message_template": "¡Hola! Hace tiempo que no hablamos. ¿Cómo va todo? Si necesitas algo, aquí estoy.",
+    "status": "sent",
+    "created_at": "2026-01-16T12:02:42.203555",
+    "sent_at": "2026-01-16T12:02:42.241048",
+    "metadata": {
+      "product_name": ""
+    }
+  },
+  {
+    "id": "fitpack_global_2251413795360010_re_engagement_0_1768561373",
+    "creator_id": "fitpack_global",
+    "follower_id": "2251413795360010",
+    "sequence_type": "re_engagement",
+    "step": 0,
+    "scheduled_at": "2026-01-16T12:02:53.718333",
+    "message_template": "¡Hola! Hace tiempo que no hablamos. ¿Cómo va todo? Si necesitas algo, aquí estoy.",
+    "status": "sent",
+    "created_at": "2026-01-16T12:02:53.718407",
+    "sent_at": "2026-01-16T12:02:53.763052",
+    "metadata": {
+      "product_name": ""
+    }
+  },
+  {
+    "id": "fitpack_global_24195338743475319_re_engagement_0_1768561373",
+    "creator_id": "fitpack_global",
+    "follower_id": "24195338743475319",
+    "sequence_type": "re_engagement",
+    "step": 0,
+    "scheduled_at": "2026-01-16T12:02:53.724088",
+    "message_template": "¡Hola! Hace tiempo que no hablamos. ¿Cómo va todo? Si necesitas algo, aquí estoy.",
+    "status": "sent",
+    "created_at": "2026-01-16T12:02:53.724138",
+    "sent_at": "2026-01-16T12:02:53.767089",
+    "metadata": {
+      "product_name": ""
+    }
+  },
+  {
+    "id": "fitpack_global_2685013705180307_re_engagement_0_1768561373",
+    "creator_id": "fitpack_global",
+    "follower_id": "2685013705180307",
+    "sequence_type": "re_engagement",
+    "step": 0,
+    "scheduled_at": "2026-01-16T12:02:53.728191",
+    "message_template": "¡Hola! Hace tiempo que no hablamos. ¿Cómo va todo? Si necesitas algo, aquí estoy.",
+    "status": "sent",
+    "created_at": "2026-01-16T12:02:53.728227",
+    "sent_at": "2026-01-16T12:02:53.770685",
+    "metadata": {
+      "product_name": ""
+    }
+  },
+  {
+    "id": "fitpack_global_1376551044090333_re_engagement_0_1768561373",
+    "creator_id": "fitpack_global",
+    "follower_id": "1376551044090333",
+    "sequence_type": "re_engagement",
+    "step": 0,
+    "scheduled_at": "2026-01-16T12:02:53.732115",
+    "message_template": "¡Hola! Hace tiempo que no hablamos. ¿Cómo va todo? Si necesitas algo, aquí estoy.",
+    "status": "sent",
+    "created_at": "2026-01-16T12:02:53.732274",
+    "sent_at": "2026-01-16T12:02:53.773290",
+    "metadata": {
+      "product_name": ""
+    }
   }
 ]

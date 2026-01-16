@@ -67,6 +67,9 @@ def run_migrations(engine):
         # Product auto-detection fields
         ("products", "product_type", "VARCHAR(50) DEFAULT 'otro'"),
         ("products", "short_description", "VARCHAR(300)"),
+        # Taxonomía: category + is_free
+        ("products", "category", "VARCHAR(20) DEFAULT 'product'"),
+        ("products", "is_free", "BOOLEAN DEFAULT FALSE"),
     ]
 
     with engine.connect() as conn:

@@ -320,7 +320,9 @@ class IngestionV2Pipeline:
                     name=product.name,
                     description=product.description,
                     short_description=product.short_description,
+                    category=product.category,
                     product_type=product.product_type,
+                    is_free=product.is_free,
                     price=product.price,
                     currency=product.currency,
                     source_url=product.source_url,
@@ -331,7 +333,7 @@ class IngestionV2Pipeline:
                 )
                 self.db.add(new_product)
                 saved += 1
-                logger.info(f"Guardado: {product.name} (tipo={product.product_type}, moneda={product.currency})")
+                logger.info(f"Guardado [{product.category.upper()}]: {product.name} (tipo={product.product_type}, gratis={product.is_free})")
 
             self.db.commit()
 
