@@ -111,7 +111,7 @@ class Message(Base):
     approved_at = Column(DateTime(timezone=True))
     approved_by = Column(String(50))  # "creator" or "auto"
     platform_message_id = Column(String(255))  # ID del mensaje en Instagram/Telegram
-    metadata = Column(JSON, default=dict)  # {type: "story_mention", url: "...", emoji_type: "camera"}
+    msg_metadata = Column(JSON, default=dict)  # {type: "story_mention", url: "...", emoji_type: "camera"}
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
 class Product(Base):

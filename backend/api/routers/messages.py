@@ -82,7 +82,7 @@ async def get_follower_detail(creator_id: str, follower_id: str):
                                     "role": m.role,
                                     "content": m.content,
                                     "timestamp": m.created_at.isoformat() if m.created_at else None,
-                                    "metadata": m.metadata if hasattr(m, 'metadata') and m.metadata else {}
+                                    "metadata": m.msg_metadata if hasattr(m, 'msg_metadata') and m.msg_metadata else {}
                                 }
                                 for m in messages[-50:]  # Last 50 messages
                             ]

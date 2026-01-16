@@ -1341,7 +1341,7 @@ async def simple_dm_sync(creator_id: str, max_convs: int = 20):
                                 role=role,
                                 content=msg_text,
                                 platform_message_id=msg_id,
-                                metadata=msg_metadata if msg_metadata else {}
+                                msg_metadata=msg_metadata if msg_metadata else {}
                             )
 
                             # Parse timestamp
