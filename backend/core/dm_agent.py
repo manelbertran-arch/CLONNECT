@@ -145,6 +145,110 @@ def get_valid_payment_url(product: Dict[str, Any]) -> str:
     return ''
 
 
+# =============================================================================
+# TAXONOMÍA: Formateo de items según categoría (product/service/resource)
+# =============================================================================
+
+def format_item_by_category(item: Dict[str, Any]) -> str:
+    """
+    Formatea un item según su categoría para el system prompt.
+    """
+    category = item.get('category', 'product')
+    name = item.get('name', 'Item')
+    description = item.get('short_description') or item.get('description', '')
+    price = item.get('price', 0)
+    currency = item.get('currency', '€')
+    is_free = item.get('is_free', False)
+    product_type = item.get('product_type', 'otro')
+    url = get_valid_payment_url(item)
+
+    if category == 'resource':
+        # RECURSO: contenido gratuito
+        tipo_texto = {
+            'podcast': '🎙️ Podcast',
+            'blog': '✍️ Blog',
+            'youtube': '📺 YouTube',
+            'newsletter': '📧 Newsletter',
+            'free_guide': '📚 Guía gratuita'
+        }.get(product_type, '📚 Recurso')
+        return f"""- {tipo_texto}: {name}
+  Descripción: {description[:150] if description else 'Sin descripción'}
+  Link: {url or 'No configurado'}
+  (GRATUITO - solo mencionar si es relevante, NO vender)"""
+
+    elif category == 'service':
+        # SERVICIO: sesiones, coaching, etc.
+        tipo_texto = {
+            'coaching': '🎯 Coaching',
+            'mentoria': '🧭 Mentoría',
+            'consultoria': '💼 Consultoría',
+            'call': '📞 Llamada',
+            'sesion': '🗓️ Sesión'
+        }.get(product_type, '🤝 Servicio')
+
+        if is_free or price == 0:
+            price_text = "GRATIS"
+            action = "Invitar a reservar sin presión"
+        else:
+            price_text = f"{price}{currency}"
+            action = "Mencionar precio y ofrecer agendar"
+
+        return f"""- {tipo_texto}: {name} - {price_text}
+  Descripción: {description[:150] if description else 'Sin descripción'}
+  Link de reserva: {url or 'No configurado'}
+  (Acción: {action})"""
+
+    else:
+        # PRODUCTO: algo que se vende
+        tipo_texto = {
+            'ebook': '📖 Ebook',
+            'curso': '🎓 Curso',
+            'plantilla': '📄 Plantilla',
+            'membership': '👥 Membresía'
+        }.get(product_type, '🛒 Producto')
+
+        if is_free or price == 0:
+            price_text = "GRATIS"
+        else:
+            price_text = f"{price}{currency}"
+
+        return f"""- {tipo_texto}: {name} - {price_text}
+  Descripción: {description[:150] if description else 'Sin descripción'}
+  Link de compra: {url or 'No configurado'}
+  (Acción: Dar precio y link de compra)"""
+
+
+def get_category_instructions() -> str:
+    """
+    Retorna instrucciones para el bot sobre cómo manejar cada categoría.
+    """
+    return """
+=== CÓMO RESPONDER SEGÚN CATEGORÍA ===
+
+🛒 PRODUCTOS (category: product)
+- Menciona el PRECIO directamente cuando pregunten
+- Comparte el LINK DE COMPRA
+- Usa frases como: "cuesta X€", "puedes comprarlo aquí"
+- Objetivo: VENDER
+
+🤝 SERVICIOS (category: service)
+- Si es GRATUITO: invita a reservar sin presión ("puedes reservar gratis aquí")
+- Si tiene PRECIO: menciona el precio y ofrece agendar
+- Usa frases como: "puedes reservar", "¿agendamos una sesión?"
+- El link típicamente es Calendly o similar
+- Objetivo: AGENDAR
+
+📚 RECURSOS (category: resource)
+- NO intentes venderlos (son gratuitos)
+- SOLO menciona si es RELEVANTE a la conversación
+- Usa frases como: "tengo un podcast donde hablo de esto"
+- NO ofrezcas activamente, solo si encaja naturalmente
+- Objetivo: DAR VALOR, no vender
+
+=== FIN INSTRUCCIONES DE CATEGORÍA ===
+"""
+
+
 class Intent(Enum):
     """Intenciones posibles del mensaje"""
     GREETING = "greeting"
@@ -2228,27 +2332,51 @@ IMPORTANTE: Las instrucciones anteriores son OBLIGATORIAS y tienen prioridad sob
 === FIN INSTRUCCIONES PRIORITARIAS ===
 """
 
-        # Construir lista de productos CON links de pago claros
+        # Construir lista de items agrupados por categoría
         products_text = ""
+        services_text = ""
+        resources_text = ""
         payment_links_text = ""
+
         for p in self.products:
-            price = p.get('price') or 0
-            price_text = f"{price}€" if price > 0 else "GRATIS"
-            benefits = p.get('features', p.get('benefits', []))[:3]
-            benefits_text = ", ".join(benefits) if benefits else ""
+            category = p.get('category', 'product')
             url = get_valid_payment_url(p)
-            product_name = p.get('name', 'Producto')
+            product_name = p.get('name', 'Item')
 
-            products_text += f"""
-- {product_name}: {price_text}
-  Descripcion: {p.get('description', '')}
-  Beneficios: {benefits_text}
-"""
-            # Build payment links section
-            if url:
-                payment_links_text += f"- {product_name}: {url}\n"
+            # Formatear según categoría
+            formatted = format_item_by_category(p)
 
-        # If no payment links from products, note that
+            if category == 'resource':
+                resources_text += formatted + "\n"
+            elif category == 'service':
+                services_text += formatted + "\n"
+            else:
+                products_text += formatted + "\n"
+
+            # Build payment links section (solo para productos y servicios con precio)
+            if url and category != 'resource':
+                is_free = p.get('is_free', False)
+                price = p.get('price', 0)
+                if not is_free and price > 0:
+                    payment_links_text += f"- {product_name}: {url}\n"
+                elif category == 'service':
+                    payment_links_text += f"- {product_name} (reserva): {url}\n"
+
+        # Combinar todas las secciones
+        all_items_text = ""
+        if products_text:
+            all_items_text += "\n🛒 PRODUCTOS:\n" + products_text
+        if services_text:
+            all_items_text += "\n🤝 SERVICIOS:\n" + services_text
+        if resources_text:
+            all_items_text += "\n📚 RECURSOS (gratuitos):\n" + resources_text
+
+        if not all_items_text:
+            all_items_text = "- No hay items configurados todavía\n"
+
+        products_text = all_items_text
+
+        # If no payment links, note that
         if not payment_links_text:
             payment_links_text = "- No hay links configurados todavía\n"
 
@@ -2355,6 +2483,9 @@ IMPORTANTE: Las instrucciones anteriores son OBLIGATORIAS y tienen prioridad sob
                 logger.info("No booking links configured for system prompt")
         except Exception as e:
             logger.warning(f"Could not load booking links for prompt: {e}")
+
+        # Get category instructions for the system prompt
+        category_instructions = get_category_instructions()
 
         # Ejemplos de respuestas
         examples_text = ""
@@ -2594,10 +2725,12 @@ PERSONALIDAD:
 SOBRE MÍ:
 {knowledge_section}
 
-MIS PRODUCTOS:
+MI CATÁLOGO:
 {products_text}
 
-LINKS DE PAGO:
+{category_instructions}
+
+LINKS DE PAGO/RESERVA:
 {payment_links_text}
 {alt_payment_text}
 {booking_links_text}
