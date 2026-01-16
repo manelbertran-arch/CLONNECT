@@ -822,13 +822,16 @@ async def rescore_leads(creator_id: str):
                 es_cliente = getattr(lead, 'has_purchased', False) if hasattr(lead, 'has_purchased') else False
 
                 # Calcular categoría
+                # IMPORTANTE: NO usar lead.last_contact_at como fallback porque
+                # puede estar mal seteada (fecha de hoy por el sync).
+                # Si no hay mensajes, ultima_interaccion=None y se usará lead_created_at
                 resultado = calcular_categoria(
                     mensajes=mensajes_dict,
                     es_cliente=es_cliente,
                     ultimo_mensaje_lead=ultimo_msg_lead,
                     dias_fantasma=7,
                     lead_created_at=lead.first_contact_at,
-                    ultima_interaccion=ultima_interaccion or lead.last_contact_at
+                    ultima_interaccion=ultima_interaccion
                 )
 
                 # Convertir a status legacy para compatibilidad con frontend actual
