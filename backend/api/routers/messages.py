@@ -345,8 +345,25 @@ async def update_follower_status(creator_id: str, follower_id: str, data: dict =
 
 @router.get("/conversations/{creator_id}")
 async def get_conversations(creator_id: str, limit: int = 50):
+    product_price = 97.0  # Default price
+
     # Try PostgreSQL with OPTIMIZED query (single query with JOIN instead of N+1)
     if USE_DB:
+        try:
+            # Get product_price from creator settings
+            from api.models import Creator
+            from api.services.db_service import get_session
+            session = get_session()
+            if session:
+                try:
+                    creator = session.query(Creator).filter_by(name=creator_id).first()
+                    if creator and creator.product_price:
+                        product_price = creator.product_price
+                finally:
+                    session.close()
+        except Exception as e:
+            logger.warning(f"Get product_price failed: {e}")
+
         try:
             # Use optimized function that does a single query with subquery join
             conversations_data = db_service.get_conversations_with_counts(creator_id, limit=limit)
@@ -373,7 +390,7 @@ async def get_conversations(creator_id: str, limit: int = 50):
                         "phone": "",
                         "notes": "",
                     })
-                return {"status": "ok", "conversations": conversations, "count": len(conversations)}
+                return {"status": "ok", "conversations": conversations, "count": len(conversations), "product_price": product_price}
         except Exception as e:
             logger.warning(f"Get conversations (PostgreSQL optimized) failed: {e}")
 
@@ -411,8 +428,8 @@ async def get_conversations(creator_id: str, limit: int = 50):
                             "phone": json_data.get("phone") or "",
                             "notes": json_data.get("notes") or "",
                         })
-        return {"status": "ok", "conversations": conversations, "count": len(conversations)}
+        return {"status": "ok", "conversations": conversations, "count": len(conversations), "product_price": product_price}
     except Exception as e:
         logger.warning(f"Get conversations (JSON) failed: {e}")
 
-    return {"status": "ok", "conversations": [], "count": 0}
+    return {"status": "ok", "conversations": [], "count": 0, "product_price": product_price}

@@ -1,6 +1,6 @@
 import { useState, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
-import { Instagram, MoreHorizontal, Plus, Loader2, AlertCircle, MessageCircle, Send, Eye, Pencil, Trash2, Users, Flame, Star, CheckCircle, Ghost, Clock, ExternalLink } from "lucide-react";
+import { Instagram, MoreHorizontal, Plus, Loader2, AlertCircle, MessageCircle, Send, Eye, Pencil, Trash2, Users, Flame, Star, CheckCircle, Ghost, Clock, ExternalLink, Settings } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -36,6 +36,11 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
 import { useConversations, useUpdateLeadStatus, useCreateManualLead, useUpdateLead, useDeleteLead } from "@/hooks/useApi";
 import { useToast } from "@/hooks/use-toast";
@@ -44,6 +49,27 @@ import { getPurchaseIntent, detectPlatform, getDisplayName } from "@/types/api";
 
 // Sistema de Embudo Estándar
 type LeadStatus = "nuevo" | "interesado" | "caliente" | "cliente" | "fantasma";
+
+// Scoring por etapa del funnel
+const STAGE_SCORING: Record<LeadStatus, number> = {
+  fantasma: 0,
+  nuevo: 25,
+  interesado: 50,
+  caliente: 75,
+  cliente: 100,
+};
+
+// Default product price (will be fetched from backend)
+const DEFAULT_PRODUCT_PRICE = 97;
+
+// Colors for each status (for value display)
+const STATUS_COLORS: Record<LeadStatus, string> = {
+  fantasma: "text-gray-500",
+  nuevo: "text-blue-400",
+  interesado: "text-amber-400",
+  caliente: "text-red-400",
+  cliente: "text-emerald-400",
+};
 
 interface LeadDisplay {
   id: string;
@@ -149,14 +175,13 @@ function getLeadStatus(convo: Conversation): LeadStatus {
   return "nuevo";
 }
 
-function estimateValue(convo: Conversation): number {
-  const baseValue = 97;
-  const intent = getPurchaseIntent(convo);
-  if (convo.is_customer) return 0; // Already converted
-  if (intent >= 0.75) return 497;
-  if (intent >= 0.50) return 297;
-  if (intent >= 0.25) return 197;
-  return baseValue;
+/**
+ * Calculate lead value based on stage scoring
+ * Value = product_price × (scoring / 100)
+ */
+function calculateLeadValue(status: LeadStatus, productPrice: number): number {
+  const scoring = STAGE_SCORING[status];
+  return Math.round(productPrice * (scoring / 100));
 }
 
 // Mapeo de status UI a status backend (nuevo embudo)
@@ -197,6 +222,14 @@ export default function Leads() {
   const [selectedLead, setSelectedLead] = useState<LeadDisplay | null>(null);
   const [formData, setFormData] = useState(initialFormState);
 
+  // Product price from backend
+  const backendPrice = data?.product_price ?? DEFAULT_PRODUCT_PRICE;
+  const [editingPrice, setEditingPrice] = useState<number | null>(null);
+  const [isPricePopoverOpen, setIsPricePopoverOpen] = useState(false);
+
+  // Initialize editingPrice when backend data arrives
+  const productPrice = editingPrice ?? backendPrice;
+
   const leads = useMemo(() => {
     if (!data?.conversations) return [];
 
@@ -211,28 +244,22 @@ export default function Leads() {
       // 2. Mapped from backend status (getLeadStatus handles English→Spanish mapping)
       const status = localStatusOverrides[leadId] || getLeadStatus(convo);
 
-      // Pipeline score: derive from status (nuevo embudo)
-      // nuevo=10, interesado=35, caliente=70, cliente=100, fantasma=5
-      const pipelineScoreMap: Record<LeadStatus, number> = {
-        nuevo: 10,
-        interesado: 35,
-        caliente: 70,
-        cliente: 100,
-        fantasma: 5,
-      };
-      const pipelineScore = convo.pipeline_score ?? pipelineScoreMap[status] ?? 10;
+      // Stage-based scoring (0-100%)
+      const score = STAGE_SCORING[status];
 
       // AI Intent score: 0-100 from purchase_intent
-      const intentScore = convo.purchase_intent_score
-        ?? Math.round(intent * 100);
+      const intentScore = convo.purchase_intent_score ?? Math.round(intent * 100);
+
+      // Value = product_price × (scoring / 100)
+      const value = calculateLeadValue(status, productPrice);
 
       return {
         id: leadId, // Prefer UUID id for reliable DB lookups
         name: convo.name || "",
         username: displayName,
-        score: pipelineScore,      // Stage-based score (main display)
-        intentScore: intentScore,  // AI intent score (secondary)
-        value: estimateValue(convo),
+        score,              // Stage-based scoring (0-100%)
+        intentScore,        // AI intent score (secondary)
+        value,              // Calculated value in €
         status,
         avatar: getInitials(convo.name, convo.username, convo.follower_id),
         profilePicUrl: convo.profile_pic_url || "",
@@ -245,7 +272,7 @@ export default function Leads() {
         followerId: convo.follower_id,
       };
     });
-  }, [data?.conversations, localStatusOverrides]);
+  }, [data?.conversations, localStatusOverrides, productPrice]);
 
   const handleDragStart = (lead: LeadDisplay) => {
     setDraggedLead(lead);
@@ -437,9 +464,41 @@ export default function Leads() {
       <div className="flex items-start justify-between">
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">Pipeline</h1>
-          <p className="text-sm text-muted-foreground">
-            {leads.length} leads · €{totalPipelineValue.toLocaleString()} potencial
-          </p>
+          <div className="flex items-center gap-2 text-sm text-muted-foreground">
+            <span>{leads.length} leads · €{totalPipelineValue.toLocaleString()} potencial</span>
+            <Popover open={isPricePopoverOpen} onOpenChange={setIsPricePopoverOpen}>
+              <PopoverTrigger asChild>
+                <button className="text-muted-foreground/50 hover:text-muted-foreground transition-colors">
+                  <Settings className="w-3.5 h-3.5" />
+                </button>
+              </PopoverTrigger>
+              <PopoverContent className="w-64" align="start">
+                <div className="space-y-3">
+                  <div>
+                    <Label className="text-xs">Precio del producto</Label>
+                    <p className="text-[10px] text-muted-foreground">Se usa para calcular el valor de cada lead</p>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm">€</span>
+                    <Input
+                      type="number"
+                      value={productPrice}
+                      onChange={(e) => setEditingPrice(Number(e.target.value))}
+                      className="h-8"
+                      min={0}
+                    />
+                  </div>
+                  <div className="text-[10px] text-muted-foreground space-y-1">
+                    <p>Fantasma: €0 (0%)</p>
+                    <p>Nuevo: €{Math.round(productPrice * 0.25)} (25%)</p>
+                    <p>Interesado: €{Math.round(productPrice * 0.50)} (50%)</p>
+                    <p>Caliente: €{Math.round(productPrice * 0.75)} (75%)</p>
+                    <p>Cliente: €{productPrice} (100%)</p>
+                  </div>
+                </div>
+              </PopoverContent>
+            </Popover>
+          </div>
         </div>
         <Button onClick={handleOpenAddModal} size="sm" className="h-9 px-4">
           <Plus className="w-4 h-4 mr-2" />
@@ -549,6 +608,16 @@ export default function Leads() {
                               </span>
                             )}
                           </div>
+                        </div>
+
+                        {/* Value & Score */}
+                        <div className="flex flex-col items-end shrink-0">
+                          <span className={cn("text-sm font-semibold", STATUS_COLORS[lead.status])}>
+                            €{lead.value}
+                          </span>
+                          <span className="text-[10px] text-muted-foreground">
+                            {lead.score}%
+                          </span>
                         </div>
 
                         {/* Menu */}

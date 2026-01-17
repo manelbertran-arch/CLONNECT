@@ -37,6 +37,78 @@ async def update_creator_config(creator_id: str, updates: dict = Body(...)):
 
 
 # =============================================================================
+# PRODUCT PRICE CONFIG (for lead scoring)
+# =============================================================================
+
+@router.get("/{creator_id}/product-price")
+async def get_product_price(creator_id: str):
+    """
+    Get product price configuration for lead scoring.
+
+    Returns:
+        product_price: float (default 97.0)
+    """
+    if USE_DB:
+        try:
+            from api.database import SessionLocal
+            from api.models import Creator
+
+            session = SessionLocal()
+            try:
+                creator = session.query(Creator).filter_by(name=creator_id).first()
+                if creator:
+                    return {
+                        "status": "ok",
+                        "product_price": creator.product_price or 97.0
+                    }
+            finally:
+                session.close()
+        except Exception as e:
+            logger.warning(f"Get product price failed: {e}")
+    raise HTTPException(status_code=404, detail="Creator not found")
+
+
+@router.post("/{creator_id}/product-price")
+async def update_product_price(creator_id: str, data: dict = Body(...)):
+    """
+    Update product price for lead scoring.
+
+    Body:
+        product_price: float (e.g., 97.0, 200.0, 497.0)
+    """
+    if USE_DB:
+        try:
+            from api.database import SessionLocal
+            from api.models import Creator
+
+            session = SessionLocal()
+            try:
+                creator = session.query(Creator).filter_by(name=creator_id).first()
+                if creator:
+                    price = data.get("product_price", 97.0)
+                    if price < 0:
+                        raise HTTPException(status_code=400, detail="Product price must be positive")
+
+                    creator.product_price = float(price)
+                    session.commit()
+
+                    logger.info(f"Updated product price for {creator_id}: €{price}")
+                    return {
+                        "status": "ok",
+                        "message": "Product price updated",
+                        "product_price": creator.product_price
+                    }
+            finally:
+                session.close()
+        except HTTPException:
+            raise
+        except Exception as e:
+            logger.error(f"Update product price failed: {e}")
+            raise HTTPException(status_code=500, detail=str(e))
+    raise HTTPException(status_code=404, detail="Creator not found")
+
+
+# =============================================================================
 # EMAIL CAPTURE CONFIG
 # =============================================================================
 

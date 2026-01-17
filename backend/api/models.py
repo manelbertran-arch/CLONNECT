@@ -81,6 +81,8 @@ class Creator(Base):
     copilot_mode = Column(Boolean, default=True)
     # Email capture configuration (JSON with messages per level, discount codes, etc.)
     email_capture_config = Column(JSON, default=dict)
+    # Product price for lead scoring (default €97)
+    product_price = Column(Float, default=97.0)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
 class Lead(Base):
