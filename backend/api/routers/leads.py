@@ -355,7 +355,7 @@ async def get_lead_activities(creator_id: str, lead_id: str, limit: int = 50):
                             "description": a.description,
                             "old_value": a.old_value,
                             "new_value": a.new_value,
-                            "metadata": a.metadata or {},
+                            "metadata": a.extra_data or {},
                             "created_by": a.created_by,
                             "created_at": a.created_at.isoformat() if a.created_at else None
                         }
@@ -408,7 +408,7 @@ async def create_lead_activity(creator_id: str, lead_id: str, data: dict = Body(
                     creator_id=creator.id,
                     activity_type=data.get("activity_type", "note"),
                     description=data.get("description"),
-                    metadata=data.get("metadata", {}),
+                    extra_data=data.get("metadata", {}),
                     created_by=data.get("created_by", "creator")
                 )
                 session.add(activity)

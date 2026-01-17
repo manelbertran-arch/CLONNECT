@@ -126,7 +126,7 @@ class LeadActivity(Base):
     description = Column(Text)  # Human readable description
     old_value = Column(String(255))  # For status_change: previous status
     new_value = Column(String(255))  # For status_change: new status
-    metadata = Column(JSON, default=dict)  # Extra data: {tag: "vip"}, {meeting_type: "discovery"}
+    extra_data = Column(JSON, default=dict)  # Extra data: {tag: "vip"}, {meeting_type: "discovery"}
     created_by = Column(String(255))  # "system", "creator", user email
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
