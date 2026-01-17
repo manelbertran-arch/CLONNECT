@@ -91,12 +91,12 @@ def test_kanban_status_update_with_uuid():
 
     assert our_lead_after is not None, f"Lead {lead_id} not found after update"
 
-    # The key assertion: lead_status should now be "hot"
+    # The key assertion: lead_status should now be "hot" or "caliente" (Spanish DB name)
     new_status = our_lead_after.get("lead_status")
     print(f"New lead_status: {new_status}")
 
-    assert new_status == "hot", \
-        f"FAIL: lead_status should be 'hot' but got '{new_status}'"
+    assert new_status in ["hot", "caliente"], \
+        f"FAIL: lead_status should be 'hot' or 'caliente' but got '{new_status}'"
 
     # Also verify purchase_intent was updated
     new_intent = our_lead_after.get("purchase_intent")

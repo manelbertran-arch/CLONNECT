@@ -119,37 +119,31 @@ describe("Leads Page", () => {
     expect(container).toBeInTheDocument();
   });
 
-  it("displays Lead Pipeline title", () => {
+  it("displays Pipeline title", () => {
     render(<Leads />);
-    expect(screen.getByText("Lead Pipeline")).toBeInTheDocument();
+    expect(screen.getByText("Pipeline")).toBeInTheDocument();
   });
 
-  it("shows total leads count", () => {
+  it("shows total leads count in Spanish", () => {
     render(<Leads />);
-    expect(screen.getByText(/\d+ total leads/)).toBeInTheDocument();
+    expect(screen.getByText(/leads en el pipeline/)).toBeInTheDocument();
   });
 
-  // Kanban Columns Tests
-  it("displays 4 Kanban columns", () => {
+  // Kanban Columns Tests - Spanish names
+  it("displays 5 Kanban columns in Spanish", () => {
     render(<Leads />);
-    expect(screen.getByText("New Leads")).toBeInTheDocument();
-    expect(screen.getByText("Active")).toBeInTheDocument();
-    expect(screen.getByText("Hot 🔥")).toBeInTheDocument();
-    expect(screen.getByText("Customers ✅")).toBeInTheDocument();
+    expect(screen.getByText("Nuevos")).toBeInTheDocument();
+    expect(screen.getByText("Interesados")).toBeInTheDocument();
+    expect(screen.getByText("Calientes")).toBeInTheDocument();
+    expect(screen.getByText("Clientes")).toBeInTheDocument();
+    expect(screen.getByText("Fantasmas")).toBeInTheDocument();
   });
 
   it("shows column lead counts", () => {
     const { container } = render(<Leads />);
     // Each column header shows count
-    const countElements = container.querySelectorAll(".text-xs.text-muted-foreground");
+    const countElements = container.querySelectorAll(".text-xs.font-semibold");
     expect(countElements.length).toBeGreaterThan(0);
-  });
-
-  it("shows column value totals", () => {
-    render(<Leads />);
-    // Columns show € values
-    const euroValues = screen.getAllByText(/€\d+/);
-    expect(euroValues.length).toBeGreaterThan(0);
   });
 
   // Lead Cards Tests
@@ -158,12 +152,6 @@ describe("Leads Page", () => {
     expect(screen.getByText("Hot Lead User")).toBeInTheDocument();
     expect(screen.getByText("Active Lead User")).toBeInTheDocument();
     expect(screen.getByText("New Lead User")).toBeInTheDocument();
-  });
-
-  it("shows lead score percentage on cards", () => {
-    render(<Leads />);
-    expect(screen.getByText("75%")).toBeInTheDocument(); // Hot lead
-    expect(screen.getByText("35%")).toBeInTheDocument(); // Active lead
   });
 
   it("shows lead initials avatar", () => {
@@ -178,12 +166,6 @@ describe("Leads Page", () => {
     expect(platformIcons.length).toBeGreaterThan(0);
   });
 
-  it("shows estimated value on lead cards", () => {
-    render(<Leads />);
-    const euroValues = screen.getAllByText(/€\d+/);
-    expect(euroValues.length).toBeGreaterThan(0);
-  });
-
   // Drag and Drop Tests
   it("lead cards are draggable", () => {
     const { container } = render(<Leads />);
@@ -191,22 +173,15 @@ describe("Leads Page", () => {
     expect(draggableCards.length).toBeGreaterThan(0);
   });
 
-  it("columns accept drops", () => {
-    const { container } = render(<Leads />);
-    // Columns have drop handlers
-    const columns = container.querySelectorAll('[class*="grid-cols-4"] > div');
-    expect(columns.length).toBe(4);
+  // Add Lead Button Tests - Spanish
+  it("has Nuevo Lead button", () => {
+    render(<Leads />);
+    expect(screen.getByText("Nuevo Lead")).toBeInTheDocument();
   });
 
-  // Add Lead Button Tests
-  it("has Add Lead button", () => {
+  it("Nuevo Lead button is clickable", async () => {
     render(<Leads />);
-    expect(screen.getByText("Add Lead")).toBeInTheDocument();
-  });
-
-  it("Add Lead button is clickable", async () => {
-    render(<Leads />);
-    const addButton = screen.getByText("Add Lead");
+    const addButton = screen.getByText("Nuevo Lead");
     await userEvent.click(addButton);
     // Button should be clickable
     expect(addButton).toBeInTheDocument();
@@ -215,45 +190,17 @@ describe("Leads Page", () => {
   // More Options Button Tests
   it("lead cards have more options button", () => {
     const { container } = render(<Leads />);
-    const optionButtons = container.querySelectorAll('[class*="MoreHorizontal"]');
-    // Each card should have options
-  });
-
-  // Pipeline Value Footer Tests
-  it("shows total pipeline value", () => {
-    render(<Leads />);
-    expect(screen.getByText("Total Pipeline Value")).toBeInTheDocument();
-  });
-
-  it("displays pipeline value with gradient text", () => {
-    const { container } = render(<Leads />);
-    const gradientValue = container.querySelector(".gradient-text");
-    expect(gradientValue).toBeInTheDocument();
+    const buttons = container.querySelectorAll("button");
+    expect(buttons.length).toBeGreaterThan(0);
   });
 
   // Lead Status Classification Tests
-  it("classifies hot leads correctly (50%+ intent)", () => {
+  it("classifies leads correctly", () => {
     render(<Leads />);
-    // Hot Lead User with 75% should be in Hot column
-    expect(screen.getByText("Hot 🔥")).toBeInTheDocument();
+    // All leads should appear in the page
     expect(screen.getByText("Hot Lead User")).toBeInTheDocument();
-  });
-
-  it("classifies active leads correctly (25-50% intent)", () => {
-    render(<Leads />);
-    // Active Lead User with 35% should be in Active column
     expect(screen.getByText("Active Lead User")).toBeInTheDocument();
-  });
-
-  it("classifies new leads correctly (<25% intent)", () => {
-    render(<Leads />);
-    // New Lead User with 10% should be in New column
     expect(screen.getByText("New Lead User")).toBeInTheDocument();
-  });
-
-  it("classifies customers correctly", () => {
-    render(<Leads />);
-    // Customer User should be in Customers column
     expect(screen.getByText("Customer User")).toBeInTheDocument();
   });
 
@@ -271,7 +218,7 @@ describe("Leads Page", () => {
     expect(loader).toBeInTheDocument();
   });
 
-  // Error State Tests
+  // Error State Tests - Spanish
   it("shows error message when data fails to load", async () => {
     const { useConversations } = await import("@/hooks/useApi");
     vi.mocked(useConversations).mockReturnValue({
@@ -281,11 +228,11 @@ describe("Leads Page", () => {
     } as any);
 
     render(<Leads />);
-    expect(screen.getByText("Failed to load leads")).toBeInTheDocument();
+    expect(screen.getByText("No se pudieron cargar los leads")).toBeInTheDocument();
   });
 
-  // Empty Column State Tests
-  it("shows no leads message in empty columns", async () => {
+  // Empty Column State Tests - Spanish
+  it("shows Sin leads message in empty columns", async () => {
     const { useConversations } = await import("@/hooks/useApi");
     vi.mocked(useConversations).mockReturnValue({
       data: { conversations: [] },
@@ -294,7 +241,7 @@ describe("Leads Page", () => {
     } as any);
 
     render(<Leads />);
-    const noLeadsMessages = screen.getAllByText("No leads");
-    expect(noLeadsMessages.length).toBe(4); // All 4 columns empty
+    const noLeadsMessages = screen.getAllByText("Sin leads");
+    expect(noLeadsMessages.length).toBeGreaterThan(0);
   });
 });

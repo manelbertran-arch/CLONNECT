@@ -772,11 +772,11 @@ export function useArchiveConversation(creatorId: string = getCreatorId()) {
     onMutate: async (conversationId: string) => {
       await queryClient.cancelQueries({ queryKey: apiKeys.conversations(creatorId) });
       const previousData = queryClient.getQueryData(apiKeys.conversations(creatorId));
-      queryClient.setQueryData(apiKeys.conversations(creatorId), (old: any) => {
+      queryClient.setQueryData(apiKeys.conversations(creatorId), (old: ConversationsResponse | undefined) => {
         if (!old) return old;
         return {
           ...old,
-          conversations: old.conversations.filter((c: any) => c.follower_id !== conversationId),
+          conversations: old.conversations.filter((c) => c.follower_id !== conversationId),
           count: old.count - 1
         };
       });
@@ -803,11 +803,11 @@ export function useMarkConversationSpam(creatorId: string = getCreatorId()) {
     onMutate: async (conversationId: string) => {
       await queryClient.cancelQueries({ queryKey: apiKeys.conversations(creatorId) });
       const previousData = queryClient.getQueryData(apiKeys.conversations(creatorId));
-      queryClient.setQueryData(apiKeys.conversations(creatorId), (old: any) => {
+      queryClient.setQueryData(apiKeys.conversations(creatorId), (old: ConversationsResponse | undefined) => {
         if (!old) return old;
         return {
           ...old,
-          conversations: old.conversations.filter((c: any) => c.follower_id !== conversationId),
+          conversations: old.conversations.filter((c) => c.follower_id !== conversationId),
           count: old.count - 1
         };
       });
@@ -1015,7 +1015,7 @@ export function useToggleCopilotMode(creatorId: string = getCreatorId()) {
       const previousStatus = queryClient.getQueryData(apiKeys.copilotStatus(creatorId));
 
       // Optimistically update the cache
-      queryClient.setQueryData(apiKeys.copilotStatus(creatorId), (old: any) => ({
+      queryClient.setQueryData(apiKeys.copilotStatus(creatorId), (old: { copilot_enabled?: boolean } | undefined) => ({
         ...old,
         copilot_enabled: enabled,
       }));

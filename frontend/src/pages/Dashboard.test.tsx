@@ -32,13 +32,8 @@ const mockDashboardData = {
 const mockToggleBot = vi.fn();
 
 const mockRevenueData = {
-  metrics: {
-    total_revenue: 15000,
-    pending_revenue: 2500,
-    monthly_growth: 12.5,
-    total_customers: 150,
-  },
-  transactions: [],
+  total_revenue: 15000,
+  bot_attributed_revenue: 2500,
 };
 
 // Mock the API hooks
@@ -75,74 +70,81 @@ describe("Dashboard Page", () => {
     expect(screen.getByText(/TestCreator/)).toBeInTheDocument();
   });
 
-  it("shows correct time-based greeting", () => {
+  it("shows correct time-based greeting in Spanish", () => {
     render(<Dashboard />);
-    const greeting = screen.getByText(/Good (morning|afternoon|evening)/);
+    // Spanish greetings based on time of day
+    const greeting = screen.getByText(/Buenos días|Buenas tardes|Buenas noches/);
     expect(greeting).toBeInTheDocument();
   });
 
-  // Bot Status Tests
-  it("shows bot status badge as Online when active", () => {
+  // Bot Status Tests - Spanish
+  it("shows bot status as Activo or Pausado", () => {
     render(<Dashboard />);
-    expect(screen.getByText(/Bot Online/i)).toBeInTheDocument();
+    // UI shows "Activo" or "Pausado" in button
+    expect(screen.getByText(/Activo|Pausado/)).toBeInTheDocument();
   });
 
   it("bot toggle button is visible and clickable", async () => {
     render(<Dashboard />);
-    const toggleButton = screen.getByRole("button", { name: /bot/i });
+    // Button contains the status text
+    const toggleButton = screen.getByText(/Activo|Pausado/);
     expect(toggleButton).toBeInTheDocument();
 
     await userEvent.click(toggleButton);
     expect(mockToggleBot).toHaveBeenCalled();
   });
 
-  // Metrics Cards Tests
-  it("displays Total Messages card with correct value", () => {
+  // Metrics Cards Tests - Spanish labels
+  it("displays Mensajes card with correct value", () => {
     render(<Dashboard />);
-    expect(screen.getByText("Total Messages")).toBeInTheDocument();
-    expect(screen.getByText("1,250")).toBeInTheDocument();
+    expect(screen.getByText("Mensajes")).toBeInTheDocument();
+    // Number might be formatted with locale, check for the value itself
+    expect(screen.getByText(/1[,.]?250/)).toBeInTheDocument();
   });
 
-  it("displays Hot Leads card with count", () => {
+  it("displays Contactos card with count", () => {
     render(<Dashboard />);
-    expect(screen.getByText("Hot Leads")).toBeInTheDocument();
-    expect(screen.getByText("8")).toBeInTheDocument();
-  });
-
-  it("displays Total Followers card", () => {
-    render(<Dashboard />);
-    expect(screen.getByText("Total Followers")).toBeInTheDocument();
+    expect(screen.getByText("Contactos")).toBeInTheDocument();
     expect(screen.getByText("450")).toBeInTheDocument();
   });
 
-  it("displays Conversion Rate card with percentage", () => {
+  it("displays Leads card", () => {
     render(<Dashboard />);
-    expect(screen.getByText("Conversion Rate")).toBeInTheDocument();
+    expect(screen.getByText("Leads")).toBeInTheDocument();
+  });
+
+  it("displays Clientes card", () => {
+    render(<Dashboard />);
+    expect(screen.getByText("Clientes")).toBeInTheDocument();
+  });
+
+  it("displays Conversión percentage", () => {
+    render(<Dashboard />);
+    expect(screen.getByText("Conversión")).toBeInTheDocument();
     expect(screen.getByText("15%")).toBeInTheDocument();
   });
 
-  // Progress Bar Tests
-  it("shows progress bar towards leads goal", () => {
+  // Revenue Section
+  it("displays Ingresos 30d section", () => {
     render(<Dashboard />);
-    expect(screen.getByText(/Progress to 50 leads goal/)).toBeInTheDocument();
-    expect(screen.getByText("70%")).toBeInTheDocument();
+    expect(screen.getByText(/Ingresos 30d/)).toBeInTheDocument();
   });
 
-  // Action Required Section Tests
-  it("displays Action Required section", () => {
+  // Activity Chart Tests - Spanish
+  it("displays Actividad semanal chart section", () => {
     render(<Dashboard />);
-    expect(screen.getByText("Action Required")).toBeInTheDocument();
+    expect(screen.getByText("Actividad semanal")).toBeInTheDocument();
   });
 
-  it("shows hot lead action items", () => {
+  // Hot Leads Section - Spanish
+  it("displays Leads calientes section", () => {
     render(<Dashboard />);
-    expect(screen.getByText(/Hot Lead is a hot lead/)).toBeInTheDocument();
+    expect(screen.getByText("Leads calientes")).toBeInTheDocument();
   });
 
-  // Message Activity Chart Tests
-  it("displays Message Activity chart section", () => {
+  it("shows hot lead names", () => {
     render(<Dashboard />);
-    expect(screen.getByText("Message Activity")).toBeInTheDocument();
+    expect(screen.getByText("Hot Lead")).toBeInTheDocument();
   });
 
   // Loading State Tests
@@ -159,7 +161,7 @@ describe("Dashboard Page", () => {
     expect(loader).toBeInTheDocument();
   });
 
-  // Error State Tests
+  // Error State Tests - Spanish
   it("shows error message when data fails to load", async () => {
     const { useDashboard } = await import("@/hooks/useApi");
     vi.mocked(useDashboard).mockReturnValue({
@@ -169,11 +171,11 @@ describe("Dashboard Page", () => {
     } as any);
 
     render(<Dashboard />);
-    expect(screen.getByText("Failed to load dashboard data")).toBeInTheDocument();
+    expect(screen.getByText("Error al cargar datos")).toBeInTheDocument();
   });
 
-  // Bot Paused State Tests
-  it("shows Bot Paused when clone is inactive", async () => {
+  // Bot Paused State Tests - Spanish
+  it("shows Pausado when clone is inactive", async () => {
     const { useDashboard } = await import("@/hooks/useApi");
     vi.mocked(useDashboard).mockReturnValue({
       data: { ...mockDashboardData, clone_active: false },
@@ -182,11 +184,11 @@ describe("Dashboard Page", () => {
     } as any);
 
     render(<Dashboard />);
-    expect(screen.getByText(/Bot Paused/i)).toBeInTheDocument();
+    expect(screen.getByText(/Pausado/)).toBeInTheDocument();
   });
 
-  // Empty State Tests
-  it("shows no actions message when no hot leads", async () => {
+  // Empty State Tests - Spanish
+  it("shows no hot leads message when empty", async () => {
     const { useDashboard } = await import("@/hooks/useApi");
     vi.mocked(useDashboard).mockReturnValue({
       data: {
@@ -199,6 +201,6 @@ describe("Dashboard Page", () => {
     } as any);
 
     render(<Dashboard />);
-    expect(screen.getByText("No actions required")).toBeInTheDocument();
+    expect(screen.getByText("Sin leads calientes")).toBeInTheDocument();
   });
 });

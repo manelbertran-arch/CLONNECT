@@ -8,7 +8,7 @@ const mockConfigData = {
   config: {
     clone_name: "Test Bot",
     clone_tone: "friendly",
-    clone_vocabulary: "Use casual language, be helpful",
+    clone_vocabulary: "- Tutea siempre al usuario\n- Usa emojis",
     clone_active: true,
   },
 };
@@ -50,12 +50,10 @@ const mockDisconnectPlatform = vi.fn().mockResolvedValue({ success: true });
 
 const mockKnowledgeData = {
   faqs: [],
-  about: "",
+  about: {},
 };
 
-const mockConnectionsData = {
-  connections: [],
-};
+const mockConnectionsData = {};
 
 // Mock the API hooks
 vi.mock("@/hooks/useApi", () => ({
@@ -129,6 +127,12 @@ vi.mock("@/hooks/useApi", () => ({
   })),
 }));
 
+// Mock startOAuth
+vi.mock("@/services/api", () => ({
+  startOAuth: vi.fn().mockResolvedValue({ auth_url: "https://example.com/oauth" }),
+  API_URL: "http://localhost:8000",
+}));
+
 describe("Settings Page", () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -140,105 +144,83 @@ describe("Settings Page", () => {
     expect(container).toBeInTheDocument();
   });
 
-  it("displays Settings title", () => {
+  it("displays Ajustes title", () => {
     render(<Settings />);
-    expect(screen.getByText("Settings")).toBeInTheDocument();
+    expect(screen.getByText("Ajustes")).toBeInTheDocument();
   });
 
-  it("displays subtitle", () => {
+  it("displays subtitle in Spanish", () => {
     render(<Settings />);
-    expect(screen.getByText(/Configure your bot personality/)).toBeInTheDocument();
+    expect(screen.getByText("Configuración del bot")).toBeInTheDocument();
   });
 
-  // Tabs Tests
+  // Tabs Tests - 3 tabs (Personalidad, Conexiones, Conocimiento)
   it("displays all tabs", () => {
     render(<Settings />);
-    expect(screen.getByText("Personality")).toBeInTheDocument();
-    expect(screen.getByText("Connections")).toBeInTheDocument();
-    expect(screen.getByText("Bot Config")).toBeInTheDocument();
-    expect(screen.getByText("Products")).toBeInTheDocument();
-    expect(screen.getByText("Knowledge")).toBeInTheDocument();
+    expect(screen.getByText("Personalidad")).toBeInTheDocument();
+    expect(screen.getByText("Conexiones")).toBeInTheDocument();
+    expect(screen.getByText("Conocimiento")).toBeInTheDocument();
   });
 
-  it("Personality tab is default active", () => {
+  it("Personalidad tab is default active", () => {
     render(<Settings />);
-    // Bot Name input should be visible by default
-    expect(screen.getByLabelText("Bot Name")).toBeInTheDocument();
+    // Bot Name input should be visible by default (label is "Nombre del bot")
+    expect(screen.getByText("Nombre del bot")).toBeInTheDocument();
   });
 
-  it("can switch to Connections tab", async () => {
+  it("can switch to Conexiones tab", async () => {
     render(<Settings />);
-    await userEvent.click(screen.getByText("Connections"));
+    await userEvent.click(screen.getByText("Conexiones"));
     expect(screen.getByText("Instagram")).toBeInTheDocument();
   });
 
-  it("can switch to Products tab", async () => {
+  it("can switch to Conocimiento tab", async () => {
     render(<Settings />);
-    await userEvent.click(screen.getByText("Products"));
-    expect(screen.getByText("Your Products")).toBeInTheDocument();
+    await userEvent.click(screen.getByText("Conocimiento"));
+    expect(screen.getByText("Preguntas Frecuentes")).toBeInTheDocument();
   });
 
-  // Personality Tab Tests
+  // Personality Tab Tests - Spanish
   it("displays Bot Name input with value", () => {
     render(<Settings />);
-    const input = screen.getByLabelText("Bot Name") as HTMLInputElement;
+    const input = screen.getByPlaceholderText("Tu nombre o marca") as HTMLInputElement;
     expect(input.value).toBe("Test Bot");
   });
 
   it("can update Bot Name", async () => {
     render(<Settings />);
-    const input = screen.getByLabelText("Bot Name");
+    const input = screen.getByPlaceholderText("Tu nombre o marca");
     await userEvent.clear(input);
     await userEvent.type(input, "New Bot Name");
     expect(input).toHaveValue("New Bot Name");
   });
 
-  it("displays Communication Tone selector", () => {
+  it("displays communication style selector", () => {
     render(<Settings />);
-    expect(screen.getByText("Communication Tone")).toBeInTheDocument();
+    expect(screen.getByText("Estilo de comunicación")).toBeInTheDocument();
   });
 
-  it("tone selector has 3 options", () => {
+  it("has 4 personality presets", () => {
     render(<Settings />);
-    // Just verify the combobox exists - clicking causes jsdom issues with Radix
-    const trigger = screen.getByRole("combobox");
-    expect(trigger).toBeInTheDocument();
+    expect(screen.getByText("Amigo")).toBeInTheDocument();
+    expect(screen.getByText("Mentor")).toBeInTheDocument();
+    expect(screen.getByText("Vendedor")).toBeInTheDocument();
+    expect(screen.getByText("Profesional")).toBeInTheDocument();
   });
 
-  it("displays Custom Vocabulary textarea", () => {
+  it("displays Instrucciones del bot section", () => {
     render(<Settings />);
-    expect(screen.getByLabelText(/Custom Vocabulary/)).toBeInTheDocument();
+    expect(screen.getByText("Instrucciones del bot")).toBeInTheDocument();
   });
 
-  it("vocabulary textarea has initial value", () => {
+  it("has Guardar cambios button", () => {
     render(<Settings />);
-    const textarea = screen.getByLabelText(/Custom Vocabulary/) as HTMLTextAreaElement;
-    expect(textarea.value).toBe("Use casual language, be helpful");
+    expect(screen.getByText("Guardar cambios")).toBeInTheDocument();
   });
 
-  it("has Generate Preview button", () => {
+  it("clicking Guardar cambios calls update mutation", async () => {
     render(<Settings />);
-    expect(screen.getByText("Generate Preview")).toBeInTheDocument();
-  });
-
-  it("clicking Generate Preview shows preview message", async () => {
-    render(<Settings />);
-    await userEvent.click(screen.getByText("Generate Preview"));
-    // Should show a preview message
-    await waitFor(() => {
-      const preview = screen.getByText(/Hey there|Hello|Yo/);
-      expect(preview).toBeInTheDocument();
-    });
-  });
-
-  it("has Save Changes button", () => {
-    render(<Settings />);
-    expect(screen.getByText("Save Changes")).toBeInTheDocument();
-  });
-
-  it("clicking Save Changes calls update mutation", async () => {
-    render(<Settings />);
-    await userEvent.click(screen.getByText("Save Changes"));
+    await userEvent.click(screen.getByText("Guardar cambios"));
 
     await waitFor(() => {
       expect(mockUpdateConfig).toHaveBeenCalled();
@@ -248,172 +230,58 @@ describe("Settings Page", () => {
   // Connections Tab Tests
   it("shows connection status for each platform", async () => {
     render(<Settings />);
-    await userEvent.click(screen.getByText("Connections"));
+    await userEvent.click(screen.getByText("Conexiones"));
 
     expect(screen.getByText("Instagram")).toBeInTheDocument();
+    expect(screen.getByText("Telegram")).toBeInTheDocument();
+    expect(screen.getByText("WhatsApp")).toBeInTheDocument();
     expect(screen.getByText("Stripe")).toBeInTheDocument();
-    expect(screen.getByText("Hotmart")).toBeInTheDocument();
-    expect(screen.getByText("Calendly")).toBeInTheDocument();
-  });
-
-  it("shows Connected button for connected platforms", async () => {
-    render(<Settings />);
-    await userEvent.click(screen.getByText("Connections"));
-
-    const connectedButtons = screen.getAllByText("Connected");
-    expect(connectedButtons.length).toBeGreaterThan(0);
   });
 
   it("shows Connect button for disconnected platforms", async () => {
     render(<Settings />);
-    await userEvent.click(screen.getByText("Connections"));
+    await userEvent.click(screen.getByText("Conexiones"));
 
-    expect(screen.getByText("Connect")).toBeInTheDocument();
+    const connectButtons = screen.getAllByText("Connect");
+    expect(connectButtons.length).toBeGreaterThan(0);
   });
 
-  // Bot Config Tab Tests
-  it("shows Auto-Reply toggle", async () => {
+  // Knowledge Tab Tests - Spanish
+  it("shows Sobre ti section", async () => {
     render(<Settings />);
-    await userEvent.click(screen.getByText("Bot Config"));
+    await userEvent.click(screen.getByText("Conocimiento"));
 
-    expect(screen.getByText("Auto-Reply")).toBeInTheDocument();
+    expect(screen.getByText("Sobre ti")).toBeInTheDocument();
   });
 
-  it("shows Lead Scoring toggle", async () => {
+  it("shows Preguntas Frecuentes section", async () => {
     render(<Settings />);
-    await userEvent.click(screen.getByText("Bot Config"));
+    await userEvent.click(screen.getByText("Conocimiento"));
 
-    expect(screen.getByText("Lead Scoring")).toBeInTheDocument();
+    expect(screen.getByText("Preguntas Frecuentes")).toBeInTheDocument();
   });
 
-  it("shows Auto-Qualify toggle", async () => {
+  it("has AI generator textarea", async () => {
     render(<Settings />);
-    await userEvent.click(screen.getByText("Bot Config"));
+    await userEvent.click(screen.getByText("Conocimiento"));
 
-    expect(screen.getByText("Auto-Qualify")).toBeInTheDocument();
-  });
-
-  it("shows After-Hours Mode toggle", async () => {
-    render(<Settings />);
-    await userEvent.click(screen.getByText("Bot Config"));
-
-    expect(screen.getByText("After-Hours Mode")).toBeInTheDocument();
-  });
-
-  it("shows Human Takeover Alerts toggle", async () => {
-    render(<Settings />);
-    await userEvent.click(screen.getByText("Bot Config"));
-
-    expect(screen.getByText("Human Takeover Alerts")).toBeInTheDocument();
-  });
-
-  it("all bot config toggles are switches", async () => {
-    render(<Settings />);
-    await userEvent.click(screen.getByText("Bot Config"));
-
-    const switches = screen.getAllByRole("switch");
-    expect(switches.length).toBe(5);
-  });
-
-  // Products Tab Tests
-  it("shows Your Products section", async () => {
-    render(<Settings />);
-    await userEvent.click(screen.getByText("Products"));
-
-    expect(screen.getByText("Your Products")).toBeInTheDocument();
-  });
-
-  it("has Add Product button", async () => {
-    render(<Settings />);
-    await userEvent.click(screen.getByText("Products"));
-
-    expect(screen.getByText("Add Product")).toBeInTheDocument();
-  });
-
-  it("shows product cards", async () => {
-    render(<Settings />);
-    await userEvent.click(screen.getByText("Products"));
-
-    expect(screen.getByText("Premium Course")).toBeInTheDocument();
-    expect(screen.getByText("Ebook Bundle")).toBeInTheDocument();
-  });
-
-  it("shows product prices", async () => {
-    render(<Settings />);
-    await userEvent.click(screen.getByText("Products"));
-
-    expect(screen.getByText(/€497/)).toBeInTheDocument();
-    expect(screen.getByText(/€47/)).toBeInTheDocument();
-  });
-
-  it("shows Active/Draft status badges", async () => {
-    render(<Settings />);
-    await userEvent.click(screen.getByText("Products"));
-
-    expect(screen.getByText("Active")).toBeInTheDocument();
-    expect(screen.getByText("Draft")).toBeInTheDocument();
-  });
-
-  it("has edit button for each product", async () => {
-    const { container } = render(<Settings />);
-    await userEvent.click(screen.getByText("Products"));
-
-    // Pencil icon has lucide-pencil class
-    const editButtons = container.querySelectorAll('svg.lucide-pencil');
-    expect(editButtons.length).toBeGreaterThan(0);
-  });
-
-  it("has delete button for each product", async () => {
-    const { container } = render(<Settings />);
-    await userEvent.click(screen.getByText("Products"));
-
-    // Products tab should have action buttons
-    const buttons = container.querySelectorAll('button');
-    expect(buttons.length).toBeGreaterThan(0);
-  });
-
-  it("clicking Add Product opens modal", async () => {
-    render(<Settings />);
-    await userEvent.click(screen.getByText("Products"));
-    await userEvent.click(screen.getByText("Add Product"));
-
-    await waitFor(() => {
-      expect(screen.getByText("Add New Product")).toBeInTheDocument();
-    });
-  });
-
-  // Knowledge Tab Tests
-  it("shows Add to Knowledge Base section", async () => {
-    render(<Settings />);
-    await userEvent.click(screen.getByText("Knowledge"));
-
-    // The Knowledge tab should have a button with this text
-    await waitFor(() => {
-      const button = screen.getByRole("button", { name: /Add to Knowledge Base/ });
-      expect(button).toBeInTheDocument();
-    });
-  });
-
-  it("has FAQ textarea", async () => {
-    render(<Settings />);
-    await userEvent.click(screen.getByText("Knowledge"));
-
-    const textarea = screen.getByPlaceholderText(/Example: Q:/);
+    const textarea = screen.getByPlaceholderText(/Soy Manel/);
     expect(textarea).toBeInTheDocument();
   });
 
-  it("has Add to Knowledge Base button", async () => {
+  it("has Generar FAQs + Perfil button", async () => {
     render(<Settings />);
-    await userEvent.click(screen.getByText("Knowledge"));
+    await userEvent.click(screen.getByText("Conocimiento"));
 
-    expect(screen.getByRole("button", { name: /Add to Knowledge Base/ })).toBeInTheDocument();
+    expect(screen.getByText("Generar FAQs + Perfil")).toBeInTheDocument();
   });
 
-  it("shows Tips for Good FAQs section", async () => {
+  it("shows FAQ templates", async () => {
     render(<Settings />);
-    await userEvent.click(screen.getByText("Knowledge"));
+    await userEvent.click(screen.getByText("Conocimiento"));
 
-    expect(screen.getByText("Tips for Good FAQs")).toBeInTheDocument();
+    expect(screen.getByText("¿Cuánto cuesta?")).toBeInTheDocument();
+    expect(screen.getByText("¿Qué incluye?")).toBeInTheDocument();
   });
 
   // Loading State Tests
@@ -430,7 +298,7 @@ describe("Settings Page", () => {
     expect(loader).toBeInTheDocument();
   });
 
-  // Error State Tests
+  // Error State Tests - Spanish
   it("shows error message when config fails to load", async () => {
     const { useCreatorConfig } = await import("@/hooks/useApi");
     vi.mocked(useCreatorConfig).mockReturnValue({
@@ -440,13 +308,6 @@ describe("Settings Page", () => {
     } as any);
 
     render(<Settings />);
-    expect(screen.getByText("Failed to load settings")).toBeInTheDocument();
-  });
-
-  // Empty Products State Tests
-  it("shows empty state when no products", () => {
-    // The component shows "No products configured" when products array is empty
-    const { container } = render(<Settings />);
-    expect(container).toBeInTheDocument();
+    expect(screen.getByText("Error al cargar ajustes")).toBeInTheDocument();
   });
 });
