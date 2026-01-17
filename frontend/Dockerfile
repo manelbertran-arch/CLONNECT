@@ -2,8 +2,8 @@
 FROM node:20-alpine AS builder
 WORKDIR /app
 
-# Cache bust: 2026-01-17-v2
-ENV BUILD_VERSION="2026-01-17-v2"
+# Cache bust: 2026-01-17-v3
+ENV BUILD_VERSION="2026-01-17-v3"
 
 COPY package*.json ./
 RUN npm ci

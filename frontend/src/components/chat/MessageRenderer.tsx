@@ -33,9 +33,9 @@ interface MessageRendererProps {
   isLastInGroup?: boolean;
 }
 
-// Instagram gradient for outgoing messages
-const IG_GRADIENT = 'bg-gradient-to-br from-[#405DE6] via-[#833AB4] to-[#E1306C]';
-const IG_GRADIENT_STORY = 'bg-gradient-to-tr from-[#FCAF45] via-[#E1306C] to-[#833AB4]';
+// Violet gradient for outgoing messages (matches UI theme)
+const IG_GRADIENT = 'bg-gradient-to-br from-violet-600 to-purple-600';
+const IG_GRADIENT_STORY = 'bg-gradient-to-tr from-violet-500 via-purple-500 to-violet-600';
 
 export function MessageRenderer({ message, isLastInGroup = true }: MessageRendererProps) {
   const isOutgoing = message.role === 'user';
@@ -147,7 +147,7 @@ function StoryMessage({ message, isOutgoing, isLastInGroup }: { message: Message
                   {/* Fallback if image fails */}
                   {imageError && (
                     <div className="p-3 flex items-center gap-3">
-                      <div className="w-12 h-12 rounded-lg bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center">
+                      <div className="w-12 h-12 rounded-lg bg-gradient-to-br from-violet-600 to-purple-600 flex items-center justify-center">
                         <Film className="w-6 h-6 text-white" />
                       </div>
                       <div className="flex-1 min-w-0">
@@ -336,7 +336,7 @@ function SharedPostMessage({ message, isOutgoing, isLastInGroup }: { message: Me
           {/* Post Info */}
           <div className="p-3 border-t border-[#363636]">
             <div className="flex items-center gap-2">
-              <div className="w-6 h-6 rounded-full bg-gradient-to-br from-purple-500 to-pink-500"></div>
+              <div className="w-6 h-6 rounded-full bg-gradient-to-br from-violet-600 to-purple-600"></div>
               <span className="text-white text-sm font-medium">
                 {authorUsername || platformLabel}
               </span>
