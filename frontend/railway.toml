@@ -2,5 +2,6 @@
 builder = "dockerfile"
 
 [deploy]
+startCommand = "nginx -g 'daemon off;'"
 healthcheckPath = "/"
 healthcheckTimeout = 30
