@@ -18,8 +18,8 @@ depends_on = None
 
 
 def upgrade():
-    """Add profile_pic_url column to leads table"""
-    op.add_column('leads', sa.Column('profile_pic_url', sa.String(500)))
+    """Add profile_pic_url column to leads table (as TEXT for long CDN URLs)"""
+    op.add_column('leads', sa.Column('profile_pic_url', sa.Text))
 
 
 def downgrade():

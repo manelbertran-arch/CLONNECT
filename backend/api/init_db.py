@@ -70,8 +70,14 @@ def run_migrations(engine):
         # Taxonomía: category + is_free
         ("products", "category", "VARCHAR(20) DEFAULT 'product'"),
         ("products", "is_free", "BOOLEAN DEFAULT FALSE"),
-        # Profile picture URL for leads (Instagram)
-        ("leads", "profile_pic_url", "VARCHAR(500)"),
+        # Profile picture URL for leads (Instagram) - TEXT for long CDN URLs
+        ("leads", "profile_pic_url", "TEXT"),
+    ]
+
+    # Column type alterations (for existing columns that need to be changed)
+    alterations = [
+        # profile_pic_url: VARCHAR(500) -> TEXT (Instagram CDN URLs are long)
+        ("leads", "profile_pic_url", "TEXT"),
     ]
 
     with engine.connect() as conn:
@@ -89,6 +95,23 @@ def run_migrations(engine):
                     print(f"Added column {column} to {table}")
             except Exception as e:
                 print(f"Migration error for {table}.{column}: {e}")
+
+        # Apply column type alterations
+        for table, column, new_type in alterations:
+            try:
+                # Check current column type
+                result = conn.execute(text(f"""
+                    SELECT data_type FROM information_schema.columns
+                    WHERE table_name = '{table}' AND column_name = '{column}'
+                """))
+                row = result.fetchone()
+                if row and row[0] != 'text':
+                    # Alter column type to TEXT
+                    conn.execute(text(f"ALTER TABLE {table} ALTER COLUMN {column} TYPE {new_type}"))
+                    conn.commit()
+                    print(f"Altered column {table}.{column} to {new_type}")
+            except Exception as e:
+                print(f"Alteration error for {table}.{column}: {e}")
 
 def init_database():
     DATABASE_URL = os.getenv("DATABASE_URL", "")

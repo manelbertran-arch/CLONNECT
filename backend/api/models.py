@@ -91,7 +91,7 @@ class Lead(Base):
     platform_user_id = Column(String(255), nullable=False, index=True)  # FIX P1: Added index for lookups
     username = Column(String(255))
     full_name = Column(String(255))
-    profile_pic_url = Column(String(500))  # Instagram/platform profile picture URL
+    profile_pic_url = Column(Text)  # Instagram/platform profile picture URL (long CDN URLs)
     status = Column(String(50), default="new")
     score = Column(Integer, default=0)
     purchase_intent = Column(Float, default=0.0)
