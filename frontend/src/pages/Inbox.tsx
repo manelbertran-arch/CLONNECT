@@ -27,14 +27,14 @@ import type { Conversation, Message } from "@/types/api";
 import { getPurchaseIntent, detectPlatform, getFriendlyName, extractNameFromMessages, getMessages } from "@/types/api";
 
 // Status colors matching backend lead categorization system
-// Categories: nuevo, interesado, caliente, cliente, fantasma
+// Backend categories: nuevo→new, interesado→active, caliente→hot, cliente→customer, fantasma→ghost
 const statusColors: Record<string, string> = {
-  // Backend categories (mapped from categoria_a_status_legacy)
-  hot: "bg-orange-500/10 text-orange-400 border-orange-500/20",      // caliente
-  active: "bg-amber-500/10 text-amber-400 border-amber-500/20",      // interesado
-  new: "bg-slate-500/10 text-slate-400 border-slate-500/20",         // nuevo
-  // Additional statuses
-  customer: "bg-emerald-500/10 text-emerald-400 border-emerald-500/20", // cliente
+  hot: "bg-orange-500/10 text-orange-400 border-orange-500/20",      // caliente - quiere comprar
+  active: "bg-amber-500/10 text-amber-400 border-amber-500/20",      // interesado - hace preguntas
+  new: "bg-slate-500/10 text-slate-400 border-slate-500/20",         // nuevo - recién llegado
+  customer: "bg-emerald-500/10 text-emerald-400 border-emerald-500/20", // cliente - ya compró
+  ghost: "bg-gray-600/10 text-gray-500 border-gray-600/20",          // fantasma - 7+ días sin respuesta
+  // Legacy statuses
   replied: "bg-success/10 text-success border-success/20",
   nurturing: "bg-primary/10 text-primary border-primary/20",
   archived: "bg-muted/10 text-muted-foreground border-muted/20",
@@ -66,22 +66,19 @@ function getInitials(name?: string, username?: string, id?: string): string {
 
 function getStatus(convo: Conversation): string {
   // Priority 1: Use backend status if available
-  // Backend uses: new, active, hot (mapped from nuevo, interesado, caliente)
-  // Check both 'status' field and 'lead_status' for compatibility
+  // Backend categories: nuevo→new, interesado→active, caliente→hot, cliente→customer, fantasma→ghost
   const backendStatus = (convo as { status?: string }).status || convo.lead_status;
-  if (backendStatus && ["hot", "active", "new", "archived", "spam", "customer"].includes(backendStatus)) {
+  if (backendStatus && ["hot", "active", "new", "customer", "ghost", "archived", "spam"].includes(backendStatus)) {
     return backendStatus;
   }
 
   // Priority 2: Check if customer
   if (convo.is_customer) return "customer";
 
-  // Priority 3: Fallback to score-based calculation
+  // Priority 3: Fallback to score-based calculation (only if no backend status)
   const score = getPurchaseIntent(convo);
-  // Ranges: 0-25% (new) | 25-50% (active) | 50%+ (hot)
   if (score >= 0.50) return "hot";
   if (score >= 0.25) return "active";
-  if (convo.is_lead) return "nurturing";
   return "new";
 }
 

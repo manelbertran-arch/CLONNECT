@@ -222,15 +222,15 @@ def categoria_a_status_legacy(categoria: str) -> str:
     nuevo -> new
     interesado -> active
     caliente -> hot
-    cliente -> hot (o nuevo campo)
-    fantasma -> new
+    cliente -> customer
+    fantasma -> ghost (was incorrectly mapped to 'new')
     """
     mapping = {
         "nuevo": "new",
         "interesado": "active",
         "caliente": "hot",
-        "cliente": "hot",
-        "fantasma": "new"
+        "cliente": "customer",
+        "fantasma": "ghost"
     }
     return mapping.get(categoria, "new")
 
@@ -242,11 +242,15 @@ def status_legacy_a_categoria(status: str) -> str:
     new -> nuevo
     active -> interesado
     hot -> caliente
+    customer -> cliente
+    ghost -> fantasma
     """
     mapping = {
         "new": "nuevo",
         "active": "interesado",
-        "hot": "caliente"
+        "hot": "caliente",
+        "customer": "cliente",
+        "ghost": "fantasma"
     }
     return mapping.get(status, "nuevo")
 
