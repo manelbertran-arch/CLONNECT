@@ -59,11 +59,11 @@ interface LeadDisplay {
   notes: string;
 }
 
-// Configuración de columnas con diseño limpio
+// Configuración de columnas del Pipeline
 const columns: { status: LeadStatus; title: string; icon: React.ReactNode; color: string; gradient: string }[] = [
-  { status: "nuevo", title: "Nuevos", icon: <Users className="w-4 h-4" />, color: "text-slate-400", gradient: "from-slate-500/20 to-slate-600/10" },
+  { status: "nuevo", title: "Nuevos", icon: <Users className="w-4 h-4" />, color: "text-blue-400", gradient: "from-blue-500/20 to-blue-600/10" },
   { status: "interesado", title: "Interesados", icon: <Star className="w-4 h-4" />, color: "text-amber-400", gradient: "from-amber-500/20 to-amber-600/10" },
-  { status: "caliente", title: "Calientes", icon: <Flame className="w-4 h-4" />, color: "text-rose-400", gradient: "from-rose-500/20 to-rose-600/10" },
+  { status: "caliente", title: "Calientes", icon: <Flame className="w-4 h-4" />, color: "text-orange-400", gradient: "from-orange-500/20 to-orange-600/10" },
   { status: "cliente", title: "Clientes", icon: <CheckCircle className="w-4 h-4" />, color: "text-emerald-400", gradient: "from-emerald-500/20 to-emerald-600/10" },
   { status: "fantasma", title: "Fantasmas", icon: <Ghost className="w-4 h-4" />, color: "text-gray-500", gradient: "from-gray-500/20 to-gray-600/10" },
 ];
@@ -93,16 +93,29 @@ function getInitials(name?: string, username?: string, id?: string): string {
 
 /**
  * Clasificar lead según embudo estándar
- * - cliente: is_customer = true
- * - caliente: intent >= 0.50 (quiere comprar)
- * - interesado: intent >= 0.20 (hace preguntas)
- * - fantasma: sin respuesta +7 días (detectado en backend)
- * - nuevo: por defecto
+ * Backend returns: new, active, hot, customer, ghost
+ * Frontend uses: nuevo, interesado, caliente, cliente, fantasma
  */
 function getLeadStatus(convo: Conversation): LeadStatus {
+  // Map backend status (English) to frontend status (Spanish)
+  const statusMap: Record<string, LeadStatus> = {
+    "new": "nuevo",
+    "active": "interesado",
+    "hot": "caliente",
+    "customer": "cliente",
+    "ghost": "fantasma",
+  };
+
+  // Priority 1: Use backend status if available
+  const backendStatus = convo.lead_status || (convo as { status?: string }).status;
+  if (backendStatus && statusMap[backendStatus]) {
+    return statusMap[backendStatus];
+  }
+
+  // Priority 2: Check if customer
   if (convo.is_customer) return "cliente";
-  // Si el backend ya clasifica como fantasma, respetar
-  if (convo.lead_status === "fantasma") return "fantasma";
+
+  // Priority 3: Fallback to intent-based calculation
   const intent = getPurchaseIntent(convo);
   if (intent >= 0.50) return "caliente";
   if (intent >= 0.20) return "interesado";
