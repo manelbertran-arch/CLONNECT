@@ -34,44 +34,52 @@ async def get_screenshot(
     mobile: bool = Query(False, description="Use mobile viewport")
 ):
     """
-    Capture a screenshot of any URL and return base64.
+    Capture a screenshot of any URL.
+    Uses Playwright if available, otherwise Microlink API.
 
     - **url**: Full URL to capture (https://...)
-    - **width**: Viewport width (100-1920)
-    - **height**: Viewport height (100-1080)
-    - **mobile**: Use mobile user agent and viewport
+    - **width**: Viewport width (100-1920) - only used with Playwright
+    - **height**: Viewport height (100-1080) - only used with Playwright
+    - **mobile**: Use mobile user agent and viewport - only used with Playwright
 
-    Returns thumbnail_base64 (JPEG) or error message.
+    Returns thumbnail_base64 (JPEG) or thumbnail_url (Microlink).
     """
-    if not PLAYWRIGHT_AVAILABLE:
-        raise HTTPException(
-            status_code=503,
-            detail="Screenshot service not available. Playwright not installed."
-        )
-
     if not url.startswith(('http://', 'https://')):
         raise HTTPException(status_code=400, detail="URL must start with http:// or https://")
 
     try:
-        result = await ScreenshotService.capture(
-            url=url,
-            width=width,
-            height=height,
-            mobile=mobile
-        )
+        # Try Playwright first
+        if PLAYWRIGHT_AVAILABLE:
+            result = await ScreenshotService.capture(
+                url=url,
+                width=width,
+                height=height,
+                mobile=mobile
+            )
+            if result:
+                return {
+                    "success": True,
+                    "url": url,
+                    "thumbnail_base64": result,
+                    "width": width,
+                    "height": height
+                }
 
-        if result:
+        # Fallback to Microlink
+        from api.services.screenshot_service import get_microlink_preview
+        microlink_result = await get_microlink_preview(url)
+        if microlink_result and microlink_result.get("thumbnail_url"):
             return {
                 "success": True,
                 "url": url,
-                "thumbnail_base64": result,
-                "width": width,
-                "height": height
+                "thumbnail_url": microlink_result["thumbnail_url"],
+                "title": microlink_result.get("title"),
+                "source": "microlink"
             }
-        else:
-            return JSONResponse(
-                status_code=500,
-                content={"success": False, "error": "Failed to capture screenshot", "url": url}
+
+        return JSONResponse(
+            status_code=500,
+            content={"success": False, "error": "Failed to capture screenshot", "url": url}
             )
     except Exception as e:
         logger.error(f"Screenshot error for {url}: {e}")
@@ -126,15 +134,8 @@ async def get_instagram_preview(
 ):
     """
     Get preview of an Instagram post or reel.
-
-    Note: Instagram may show login walls for some content.
+    Uses Playwright if available, otherwise Microlink API.
     """
-    if not PLAYWRIGHT_AVAILABLE:
-        raise HTTPException(
-            status_code=503,
-            detail="Screenshot service not available. Playwright not installed."
-        )
-
     # Validate Instagram URL
     if not detect_instagram_url(url):
         raise HTTPException(
@@ -143,6 +144,7 @@ async def get_instagram_preview(
         )
 
     try:
+        # capture_instagram_post now uses Microlink as fallback
         result = await ScreenshotService.capture_instagram_post(url)
 
         if result:
