@@ -69,7 +69,7 @@ export interface LoginResponse {
 }
 
 // P1 FIX: Dynamic creator ID from localStorage/auth
-const DEFAULT_CREATOR_ID = "stefano_bonanno";  // Fallback for demo/unauthenticated
+const DEFAULT_CREATOR_ID = import.meta.env.VITE_CREATOR_ID || "fitpack_global";  // From env or fallback
 const CREATOR_ID_KEY = "clonnect_selected_creator";  // Must match AuthContext
 const LEGACY_CREATOR_ID_KEY = "creator_id";  // Legacy key for backwards compatibility
 
