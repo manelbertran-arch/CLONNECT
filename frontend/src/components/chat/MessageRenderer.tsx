@@ -4,6 +4,75 @@
 import { useState } from 'react';
 import { ExternalLink, Play, Image as ImageIcon, Film, Mic, Share2 } from 'lucide-react';
 
+// Emoticon to Emoji conversion map
+const emoticonToEmoji: Record<string, string> = {
+  ':)': '😊',
+  ':-)': '😊',
+  '(:': '😊',
+  ':(': '😞',
+  ':-(': '😞',
+  ':D': '😄',
+  ':-D': '😄',
+  ';)': '😉',
+  ';-)': '😉',
+  ':P': '😛',
+  ':-P': '😛',
+  ':p': '😛',
+  ':-p': '😛',
+  '<3': '❤️',
+  ':O': '😮',
+  ':-O': '😮',
+  ':o': '😮',
+  ':-o': '😮',
+  'XD': '😆',
+  'xD': '😆',
+  'xd': '😆',
+  ":'(": '😢',
+  ":*(": '😢',
+  ':S': '😕',
+  ':s': '😕',
+  ':/': '😕',
+  ':-/': '😕',
+  ':\\': '😕',
+  ':*': '😘',
+  ':-*': '😘',
+  'B)': '😎',
+  '8)': '😎',
+  '>:(': '😠',
+  ':@': '😠',
+  '^_^': '😊',
+  '-_-': '😑',
+  'o_o': '😳',
+  'O_O': '😳',
+  ':3': '😺',
+  '</3': '💔',
+  ':$': '😳',
+  ':X': '🤐',
+  ':x': '🤐',
+};
+
+/**
+ * Convert text emoticons to emoji
+ * Handles emoticons at word boundaries to avoid false matches
+ */
+function convertEmoticonsToEmoji(text: string): string {
+  let result = text;
+
+  // Sort by length (longest first) to match multi-char emoticons before shorter ones
+  const sortedEmoticons = Object.entries(emoticonToEmoji)
+    .sort((a, b) => b[0].length - a[0].length);
+
+  for (const [emoticon, emoji] of sortedEmoticons) {
+    // Escape special regex characters
+    const escaped = emoticon.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    // Match emoticon with word boundaries or at start/end of string
+    const regex = new RegExp(`(^|\\s|[^\\w])${escaped}($|\\s|[^\\w])`, 'g');
+    result = result.replace(regex, (match, before, after) => `${before}${emoji}${after}`);
+  }
+
+  return result;
+}
+
 interface LinkPreview {
   url: string;
   title?: string;
@@ -100,9 +169,12 @@ function TextMessage({ message, isOutgoing, isLastInGroup }: { message: Message;
 
   // If there's a link preview, remove the URL from displayed text
   // This makes the message cleaner - the URL is shown in the preview card
-  const displayContent = linkPreview
+  const rawContent = linkPreview
     ? message.content.replace(/https?:\/\/[^\s]+/g, '').trim()
     : message.content;
+
+  // Convert text emoticons to emojis
+  const displayContent = convertEmoticonsToEmoji(rawContent);
 
   return (
     <div className={`flex ${isOutgoing ? 'justify-end' : 'justify-start'}`}>
@@ -249,7 +321,7 @@ function StoryMessage({ message, isOutgoing, isLastInGroup }: { message: Message
         {/* Message text if any */}
         {message.content && !message.content.includes('story') && (
           <div className="px-4 py-2">
-            <p className="text-[15px]">{message.content}</p>
+            <p className="text-[15px]">{convertEmoticonsToEmoji(message.content)}</p>
           </div>
         )}
 
