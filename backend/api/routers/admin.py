@@ -2062,3 +2062,131 @@ async def get_ghost_config():
         return {"status": "success", "config": REACTIVATION_CONFIG}
     except Exception as e:
         return {"status": "error", "error": str(e)}
+
+
+@router.post("/update-profile-pics/{creator_id}")
+async def update_profile_pics(creator_id: str, limit: int = 20):
+    """
+    Endpoint ligero para actualizar SOLO fotos de perfil de Instagram.
+
+    No hace sync de mensajes, solo obtiene profile_pic para leads existentes.
+    Procesa en batches pequeños para evitar timeout.
+
+    Args:
+        creator_id: ID del creator
+        limit: Máximo leads a procesar (default: 20)
+
+    Returns:
+        {"updated": 15, "failed": 2, "total": 17, "remaining": 5}
+    """
+    import asyncio
+    import httpx
+    from api.database import SessionLocal
+    from api.models import Creator, Lead
+
+    session = SessionLocal()
+    try:
+        # Get creator
+        creator = session.query(Creator).filter_by(name=creator_id).first()
+        if not creator:
+            from sqlalchemy import text
+            creator = session.query(Creator).filter(
+                text("id::text = :cid")
+            ).params(cid=creator_id).first()
+
+        if not creator:
+            return {"status": "error", "error": f"Creator not found: {creator_id}"}
+
+        # Check Instagram connection
+        if not creator.instagram_page_id or not creator.meta_access_token:
+            return {"status": "error", "error": "Instagram not connected for this creator"}
+
+        access_token = creator.meta_access_token
+        api_base = "https://graph.instagram.com/v21.0"
+
+        # Get leads without profile pic
+        leads_without_pic = session.query(Lead).filter(
+            Lead.creator_id == creator.id,
+            Lead.platform == "instagram",
+            Lead.platform_user_id.isnot(None),
+            Lead.profile_pic_url.is_(None)
+        ).limit(limit).all()
+
+        # Count total remaining
+        total_remaining = session.query(Lead).filter(
+            Lead.creator_id == creator.id,
+            Lead.platform == "instagram",
+            Lead.platform_user_id.isnot(None),
+            Lead.profile_pic_url.is_(None)
+        ).count()
+
+        results = {
+            "updated": 0,
+            "failed": 0,
+            "total": len(leads_without_pic),
+            "remaining": total_remaining - len(leads_without_pic),
+            "details": []
+        }
+
+        if not leads_without_pic:
+            return {"status": "ok", "message": "All leads already have profile pics", **results}
+
+        async with httpx.AsyncClient(timeout=10.0) as client:
+            for lead in leads_without_pic:
+                try:
+                    # Fetch profile from Instagram API
+                    resp = await client.get(
+                        f"{api_base}/{lead.platform_user_id}",
+                        params={
+                            "fields": "id,username,name,profile_pic",
+                            "access_token": access_token
+                        }
+                    )
+
+                    if resp.status_code == 200:
+                        data = resp.json()
+                        profile_pic = data.get("profile_pic")
+
+                        if profile_pic:
+                            lead.profile_pic_url = profile_pic
+                            # Also update username if we got better data
+                            if data.get("username") and not lead.username:
+                                lead.username = data.get("username")
+                            if data.get("name") and not lead.full_name:
+                                lead.full_name = data.get("name")
+                            session.commit()
+                            results["updated"] += 1
+                            results["details"].append({
+                                "username": lead.username,
+                                "status": "updated"
+                            })
+                        else:
+                            results["failed"] += 1
+                            results["details"].append({
+                                "username": lead.username,
+                                "status": "no_pic_in_response"
+                            })
+                    else:
+                        results["failed"] += 1
+                        results["details"].append({
+                            "username": lead.username,
+                            "status": f"api_error_{resp.status_code}"
+                        })
+
+                    # Rate limiting: 500ms between requests
+                    await asyncio.sleep(0.5)
+
+                except Exception as e:
+                    results["failed"] += 1
+                    results["details"].append({
+                        "username": lead.username,
+                        "status": f"error: {str(e)[:50]}"
+                    })
+
+        return {"status": "ok", **results}
+
+    except Exception as e:
+        logger.error(f"update_profile_pics error: {e}")
+        return {"status": "error", "error": str(e)}
+    finally:
+        session.close()
