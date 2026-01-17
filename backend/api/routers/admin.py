@@ -2,13 +2,63 @@
 Admin endpoints for demo/testing purposes
 """
 import os
+import re
 import json
 import shutil
 import logging
 from pathlib import Path
+from typing import Optional, Dict
 from fastapi import APIRouter, HTTPException, BackgroundTasks
 
 logger = logging.getLogger(__name__)
+
+# URL patterns for link preview detection
+INSTAGRAM_URL_REGEX = re.compile(r'https?://(?:www\.)?instagram\.com/(?:p|reel|tv)/([A-Za-z0-9_-]+)')
+YOUTUBE_URL_REGEX = re.compile(r'https?://(?:www\.|m\.)?(?:youtube\.com/watch\?v=|youtu\.be/)([A-Za-z0-9_-]+)')
+
+
+async def generate_link_preview(url: str, msg_metadata: Dict) -> Dict:
+    """
+    Generate preview for a URL and add to metadata.
+    For YouTube: uses official thumbnail API (instant)
+    For Instagram: marks for later processing (screenshots are slow)
+    """
+    try:
+        # YouTube - use official thumbnail (instant, no browser needed)
+        youtube_match = YOUTUBE_URL_REGEX.search(url)
+        if youtube_match:
+            video_id = youtube_match.group(1)
+            return {
+                **msg_metadata,
+                "type": "shared_video",
+                "platform": "youtube",
+                "url": url,
+                "thumbnail_url": f"https://img.youtube.com/vi/{video_id}/maxresdefault.jpg",
+                "video_id": video_id
+            }
+
+        # Instagram - mark for later processing (screenshots are slow)
+        instagram_match = INSTAGRAM_URL_REGEX.search(url)
+        if instagram_match:
+            return {
+                **msg_metadata,
+                "type": "shared_post",
+                "platform": "instagram",
+                "url": url,
+                "needs_thumbnail": True  # Flag for background processing
+            }
+    except Exception as e:
+        logger.warning(f"Error generating link preview for {url}: {e}")
+
+    return msg_metadata
+
+
+def detect_url_in_metadata(msg_metadata: Dict) -> Optional[str]:
+    """Extract URL from message metadata if present"""
+    url = msg_metadata.get("url", "")
+    if url and url.startswith("http"):
+        return url
+    return None
 
 router = APIRouter(prefix="/admin", tags=["admin"])
 
@@ -1383,6 +1433,11 @@ async def simple_dm_sync(creator_id: str, max_convs: int = 20):
                             is_from_creator = from_data.get("id") in creator_ids
                             role = "assistant" if is_from_creator else "user"
 
+                            # LINK PREVIEW: Enhance metadata with thumbnails for shared content
+                            url_to_preview = detect_url_in_metadata(msg_metadata)
+                            if url_to_preview:
+                                msg_metadata = await generate_link_preview(url_to_preview, msg_metadata)
+
                             new_msg = Message(
                                 lead_id=lead.id,
                                 role=role,
@@ -1420,6 +1475,108 @@ async def simple_dm_sync(creator_id: str, max_convs: int = 20):
         import traceback
         traceback.print_exc()
         return {"error": str(e), **results}
+
+
+@router.post("/generate-thumbnails/{creator_id}")
+async def generate_thumbnails(creator_id: str, limit: int = 10):
+    """
+    Generate thumbnails for messages with needs_thumbnail=true.
+    Processes Instagram posts/reels using Playwright screenshots.
+
+    Args:
+        creator_id: Creator name
+        limit: Max number of thumbnails to generate (default 10)
+
+    Returns:
+        Count of thumbnails generated
+    """
+    try:
+        from api.database import DATABASE_URL, SessionLocal
+        from api.models import Creator, Lead, Message
+        from sqlalchemy import and_
+
+        if not DATABASE_URL or not SessionLocal:
+            return {"error": "Database not configured"}
+
+        # Try to import screenshot service
+        try:
+            from api.services.screenshot_service import ScreenshotService, PLAYWRIGHT_AVAILABLE
+        except ImportError:
+            return {"error": "Screenshot service not available", "playwright_available": False}
+
+        if not PLAYWRIGHT_AVAILABLE:
+            return {"error": "Playwright not installed", "playwright_available": False}
+
+        session = SessionLocal()
+        results = {
+            "thumbnails_generated": 0,
+            "thumbnails_failed": 0,
+            "messages_processed": 0
+        }
+
+        try:
+            # Get creator
+            creator = session.query(Creator).filter_by(name=creator_id).first()
+            if not creator:
+                return {"error": f"Creator {creator_id} not found"}
+
+            # Find messages with needs_thumbnail flag
+            leads = session.query(Lead).filter_by(creator_id=creator.id).all()
+            lead_ids = [l.id for l in leads]
+
+            if not lead_ids:
+                return {"error": "No leads found for creator"}
+
+            # Query messages that need thumbnails
+            messages = session.query(Message).filter(
+                Message.lead_id.in_(lead_ids)
+            ).all()
+
+            processed = 0
+            for msg in messages:
+                if processed >= limit:
+                    break
+
+                metadata = msg.msg_metadata or {}
+
+                # Check if needs thumbnail
+                if not metadata.get("needs_thumbnail"):
+                    continue
+
+                url = metadata.get("url")
+                if not url:
+                    continue
+
+                results["messages_processed"] += 1
+                processed += 1
+
+                try:
+                    # Generate screenshot
+                    preview = await ScreenshotService.capture_instagram_post(url)
+
+                    if preview and preview.get("thumbnail_base64"):
+                        # Update metadata with thumbnail
+                        metadata["thumbnail_base64"] = preview["thumbnail_base64"]
+                        metadata["needs_thumbnail"] = False  # Mark as processed
+                        msg.msg_metadata = metadata
+                        results["thumbnails_generated"] += 1
+                    else:
+                        results["thumbnails_failed"] += 1
+
+                except Exception as e:
+                    logger.warning(f"Failed to generate thumbnail for {url}: {e}")
+                    results["thumbnails_failed"] += 1
+
+            session.commit()
+            return {"status": "success", **results}
+
+        finally:
+            session.close()
+
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return {"error": str(e)}
 
 
 # =============================================================================
