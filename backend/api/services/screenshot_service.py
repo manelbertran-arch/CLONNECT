@@ -1,10 +1,13 @@
 """
 Screenshot Service - Captura screenshots de URLs con Playwright
 Para generar previews de links compartidos (Instagram, YouTube, webs)
+
+Fallback a Microlink API cuando Playwright no está disponible.
 """
 import asyncio
 import base64
 import re
+import httpx
 from typing import Optional, Dict
 from contextlib import asynccontextmanager
 
@@ -14,7 +17,55 @@ try:
     PLAYWRIGHT_AVAILABLE = True
 except ImportError:
     PLAYWRIGHT_AVAILABLE = False
-    print("WARNING: Playwright not installed. Screenshot service disabled.")
+    print("INFO: Playwright not installed. Using Microlink API fallback.")
+
+# Microlink API for fallback
+MICROLINK_API = "https://api.microlink.io"
+
+
+async def get_microlink_preview(url: str) -> Optional[Dict]:
+    """
+    Get preview using Microlink API (free tier: 50 req/day).
+    Returns thumbnail_url and metadata.
+    """
+    if not url:
+        return None
+
+    try:
+        async with httpx.AsyncClient(timeout=15.0) as client:
+            # Microlink with screenshot option for better thumbnails
+            response = await client.get(
+                MICROLINK_API,
+                params={
+                    "url": url,
+                    "screenshot": "true",  # Get screenshot if available
+                    "meta": "true"
+                }
+            )
+
+            if response.status_code == 200:
+                data = response.json()
+                if data.get("status") == "success":
+                    result = data.get("data", {})
+
+                    # Prefer screenshot, fallback to image
+                    screenshot = result.get("screenshot", {})
+                    image = result.get("image", {})
+
+                    thumbnail_url = screenshot.get("url") or image.get("url")
+
+                    if thumbnail_url:
+                        return {
+                            "thumbnail_url": thumbnail_url,
+                            "title": result.get("title"),
+                            "description": result.get("description"),
+                            "author": result.get("author") or result.get("publisher"),
+                            "url": url
+                        }
+    except Exception as e:
+        print(f"Microlink preview error for {url}: {e}")
+
+    return None
 
 
 # URL patterns para detectar tipo de contenido
@@ -160,26 +211,42 @@ class ScreenshotService:
     @staticmethod
     async def capture_instagram_post(url: str) -> Optional[Dict]:
         """
-        Captura específica para posts/reels de Instagram
-        Returns dict con thumbnail_base64 y metadata
+        Captura específica para posts/reels de Instagram.
+        Intenta Playwright primero, fallback a Microlink API.
+        Returns dict con thumbnail y metadata.
         """
-        # Instagram necesita viewport móvil para mejor render
-        screenshot = await ScreenshotService.capture(
-            url,
-            width=400,
-            height=500,
-            mobile=True,
-            wait_for_selector='article',
-            timeout=25000
-        )
+        post_type = "shared_post" if "/p/" in url else "shared_reel"
 
-        if screenshot:
+        # Try Playwright first if available
+        if PLAYWRIGHT_AVAILABLE:
+            screenshot = await ScreenshotService.capture(
+                url,
+                width=400,
+                height=500,
+                mobile=True,
+                wait_for_selector='article',
+                timeout=25000
+            )
+            if screenshot:
+                return {
+                    "thumbnail_base64": screenshot,
+                    "type": post_type,
+                    "url": url,
+                    "platform": "instagram"
+                }
+
+        # Fallback to Microlink API (free, no browser needed)
+        microlink_result = await get_microlink_preview(url)
+        if microlink_result and microlink_result.get("thumbnail_url"):
             return {
-                "thumbnail_base64": screenshot,
-                "type": "shared_post" if "/p/" in url else "shared_reel",
+                "thumbnail_url": microlink_result["thumbnail_url"],
+                "type": post_type,
                 "url": url,
-                "platform": "instagram"
+                "platform": "instagram",
+                "title": microlink_result.get("title"),
+                "author": microlink_result.get("author")
             }
+
         return None
 
     @staticmethod
@@ -223,28 +290,44 @@ class ScreenshotService:
     @staticmethod
     async def capture_generic(url: str) -> Optional[Dict]:
         """
-        Captura genérica para cualquier URL
+        Captura genérica para cualquier URL.
+        Intenta Playwright primero, fallback a Microlink API.
         """
-        screenshot = await ScreenshotService.capture(
-            url,
-            width=600,
-            height=400,
-            timeout=15000
-        )
+        # Try Playwright first if available
+        if PLAYWRIGHT_AVAILABLE:
+            screenshot = await ScreenshotService.capture(
+                url,
+                width=600,
+                height=400,
+                timeout=15000
+            )
+            if screenshot:
+                return {
+                    "thumbnail_base64": screenshot,
+                    "type": "link_preview",
+                    "url": url,
+                    "platform": "web"
+                }
 
-        if screenshot:
+        # Fallback to Microlink API
+        microlink_result = await get_microlink_preview(url)
+        if microlink_result and microlink_result.get("thumbnail_url"):
             return {
-                "thumbnail_base64": screenshot,
+                "thumbnail_url": microlink_result["thumbnail_url"],
                 "type": "link_preview",
                 "url": url,
-                "platform": "web"
+                "platform": "web",
+                "title": microlink_result.get("title"),
+                "description": microlink_result.get("description")
             }
+
         return None
 
     @staticmethod
     async def get_preview(url: str) -> Optional[Dict]:
         """
-        Auto-detecta el tipo de URL y captura el preview apropiado
+        Auto-detecta el tipo de URL y captura el preview apropiado.
+        Uses Playwright when available, otherwise Microlink API.
         """
         if not url:
             return None
@@ -253,21 +336,33 @@ class ScreenshotService:
         if INSTAGRAM_POST_REGEX.search(url):
             return await ScreenshotService.capture_instagram_post(url)
 
-        # YouTube video
+        # YouTube video (uses official thumbnail API, no browser needed)
         if YOUTUBE_VIDEO_REGEX.search(url):
             return await ScreenshotService.capture_youtube_video(url)
 
-        # TikTok (requiere mobile viewport)
+        # TikTok (try Playwright, fallback to Microlink)
         if TIKTOK_VIDEO_REGEX.search(url):
-            screenshot = await ScreenshotService.capture(
-                url, width=400, height=700, mobile=True
-            )
-            if screenshot:
+            if PLAYWRIGHT_AVAILABLE:
+                screenshot = await ScreenshotService.capture(
+                    url, width=400, height=700, mobile=True
+                )
+                if screenshot:
+                    return {
+                        "thumbnail_base64": screenshot,
+                        "type": "shared_video",
+                        "url": url,
+                        "platform": "tiktok"
+                    }
+
+            # Fallback to Microlink for TikTok
+            microlink_result = await get_microlink_preview(url)
+            if microlink_result and microlink_result.get("thumbnail_url"):
                 return {
-                    "thumbnail_base64": screenshot,
+                    "thumbnail_url": microlink_result["thumbnail_url"],
                     "type": "shared_video",
                     "url": url,
-                    "platform": "tiktok"
+                    "platform": "tiktok",
+                    "title": microlink_result.get("title")
                 }
 
         # URL genérica

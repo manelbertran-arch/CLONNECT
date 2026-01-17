@@ -21,7 +21,7 @@ async def generate_link_preview(url: str, msg_metadata: Dict) -> Dict:
     """
     Generate preview for a URL and add to metadata.
     For YouTube: uses official thumbnail API (instant)
-    For Instagram: marks for later processing (screenshots are slow)
+    For Instagram: uses Microlink API for thumbnail
     """
     try:
         # YouTube - use official thumbnail (instant, no browser needed)
@@ -37,15 +37,32 @@ async def generate_link_preview(url: str, msg_metadata: Dict) -> Dict:
                 "video_id": video_id
             }
 
-        # Instagram - mark for later processing (screenshots are slow)
+        # Instagram - use Microlink API for thumbnail
         instagram_match = INSTAGRAM_URL_REGEX.search(url)
         if instagram_match:
+            try:
+                from api.services.screenshot_service import get_microlink_preview
+                microlink_result = await get_microlink_preview(url)
+                if microlink_result and microlink_result.get("thumbnail_url"):
+                    return {
+                        **msg_metadata,
+                        "type": "shared_post",
+                        "platform": "instagram",
+                        "url": url,
+                        "thumbnail_url": microlink_result["thumbnail_url"],
+                        "title": microlink_result.get("title"),
+                        "author": microlink_result.get("author")
+                    }
+            except Exception as e:
+                logger.warning(f"Microlink error for {url}: {e}")
+
+            # Fallback: mark for later processing if Microlink fails
             return {
                 **msg_metadata,
                 "type": "shared_post",
                 "platform": "instagram",
                 "url": url,
-                "needs_thumbnail": True  # Flag for background processing
+                "needs_thumbnail": True
             }
     except Exception as e:
         logger.warning(f"Error generating link preview for {url}: {e}")
