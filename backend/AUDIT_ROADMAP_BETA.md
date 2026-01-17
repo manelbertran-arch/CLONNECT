@@ -447,15 +447,15 @@ if not allowed:
 - [x] Rate limiter integrado (dm_agent.py:3294-3312) ✅ 2026-01-17
 - [x] Cache activado (signals.py con TTL 5min) ✅ 2026-01-17
 - [x] Notificaciones escalación (Telegram/webhook/email) ✅ 2026-01-17
-- [ ] Backups configurados
+- [x] Backups configurados (`POST /admin/backup`, `scripts/backup_db.py`) ✅ 2026-01-17
 
 ## Seguridad
 
-- [ ] API keys por creador
+- [x] API keys por creador (`POST /auth/keys`, `GET /auth/keys/{creator_id}`) ✅ Ya existía
 - [ ] .env.example completo
 - [x] GDPR compliance
 - [x] Signature verification webhooks
-- [ ] Pause/resume bot disponible
+- [x] Pause/resume bot disponible (`POST /bot/{creator_id}/pause|resume`) ✅ Ya existía
 
 ## UX Creador
 
