@@ -750,17 +750,15 @@ async def delete_lead_task(creator_id: str, lead_id: str, task_id: str):
 @router.get("/{creator_id}/{lead_id}/stats")
 async def get_lead_stats(creator_id: str, lead_id: str):
     """
-    Get REAL monitoring stats for a lead calculated from conversation data:
-    - Purchase intent (0-100%) based on keywords
-    - Engagement level (Alto/Medio/Bajo)
-    - Bot action/status
-    - Detected signals
+    Get INTELLIGENT monitoring stats for a lead using the signals system.
+    Analyzes conversation to predict sale probability, detect product interest, and suggest next steps.
     """
     if USE_DB:
         try:
             from api.database import SessionLocal
             from api.models import Lead, Message, Creator
-            from datetime import datetime, timezone, timedelta
+            from api.services.signals import analyze_conversation_signals
+            from datetime import datetime, timezone
 
             session = SessionLocal()
             try:
@@ -768,7 +766,7 @@ async def get_lead_stats(creator_id: str, lead_id: str):
                 if not creator:
                     raise HTTPException(status_code=404, detail="Creator not found")
 
-                # Find lead
+                # Find lead by platform_user_id or UUID
                 lead = session.query(Lead).filter_by(
                     creator_id=creator.id,
                     platform_user_id=lead_id
@@ -789,103 +787,15 @@ async def get_lead_stats(creator_id: str, lead_id: str):
                     lead_id=lead.id
                 ).order_by(Message.created_at.asc()).all()
 
-                # Separate user and bot messages
-                user_messages = [m for m in messages if m.role == "user"]
-                bot_messages = [m for m in messages if m.role == "assistant"]
+                # Use the intelligent signals analyzer
+                analysis = analyze_conversation_signals(messages, lead.status)
 
-                lead_msg_count = len(user_messages)
-                bot_msg_count = len(bot_messages)
-                total_messages = len(messages)
+                # Calculate engagement level
+                metrics = analysis["metricas_comportamiento"]
+                lead_msg_count = metrics["total_mensajes_lead"]
 
-                # Get all user text for keyword analysis
-                all_user_text = " ".join([m.content or "" for m in user_messages]).lower()
-
-                # ============================================================
-                # 1. CALCULATE PURCHASE INTENT (0-100%)
-                # ============================================================
-                intencion = 0
-                intencion_razones = []
-                senales = []
-
-                # +30% if asked price
-                price_keywords = ["precio", "cuesta", "coste", "cuánto", "cuanto", "vale", "euros", "€"]
-                asked_price = any(kw in all_user_text for kw in price_keywords)
-                if asked_price:
-                    intencion += 30
-                    intencion_razones.append("preguntó precio")
-                    senales.append({"tipo": "positiva", "texto": "Preguntó precio"})
-
-                # +20% if showed interest
-                interest_keywords = ["interesa", "quiero", "información", "info", "detalles", "cómo funciona", "como funciona", "me gustaría", "me gustaria", "cuenta", "explica"]
-                showed_interest = any(kw in all_user_text for kw in interest_keywords)
-                if showed_interest:
-                    intencion += 20
-                    intencion_razones.append("mostró interés")
-                    senales.append({"tipo": "positiva", "texto": "Mostró interés"})
-
-                # +20% if >5 messages
-                if lead_msg_count > 5:
-                    intencion += 20
-                    intencion_razones.append(f"{lead_msg_count} mensajes")
-                    senales.append({"tipo": "positiva", "texto": f"Conversación activa ({lead_msg_count} msgs)"})
-
-                # +15% if mentioned buying
-                buy_keywords = ["comprar", "pagar", "link", "inscribir", "apuntar", "reservar", "contratar"]
-                wants_to_buy = any(kw in all_user_text for kw in buy_keywords)
-                if wants_to_buy:
-                    intencion += 15
-                    intencion_razones.append("mencionó compra")
-                    senales.append({"tipo": "positiva", "texto": "Mencionó intención de compra"})
-
-                # +15% if responds fast (calculate average response time)
-                avg_response_minutes = None
-                if len(user_messages) >= 2:
-                    response_times = []
-                    for i in range(1, len(user_messages)):
-                        if user_messages[i].created_at and user_messages[i-1].created_at:
-                            diff = (user_messages[i].created_at - user_messages[i-1].created_at).total_seconds() / 60
-                            if diff < 1440:  # Only count if <24h between messages
-                                response_times.append(diff)
-                    if response_times:
-                        avg_response_minutes = sum(response_times) / len(response_times)
-                        if avg_response_minutes < 60:
-                            intencion += 15
-                            intencion_razones.append("responde rápido")
-                            senales.append({"tipo": "positiva", "texto": f"Responde rápido (<1h promedio)"})
-
-                # -20% if showed objection
-                objection_keywords = ["caro", "no puedo", "después", "despues", "lo pienso", "no tengo", "muy caro", "no me interesa"]
-                showed_objection = None
-                for kw in objection_keywords:
-                    if kw in all_user_text:
-                        showed_objection = kw
-                        break
-                if showed_objection:
-                    intencion -= 20
-                    senales.append({"tipo": "negativa", "texto": f"Mostró objeción: '{showed_objection}'"})
-
-                # -30% if ghost (>7 days no response)
-                days_since_response = None
-                if lead.last_contact_at:
-                    lc = lead.last_contact_at
-                    if lc.tzinfo is None:
-                        lc = lc.replace(tzinfo=timezone.utc)
-                    days_since_response = (datetime.now(timezone.utc) - lc).days
-                    if days_since_response > 7:
-                        intencion -= 30
-                        senales.append({"tipo": "negativa", "texto": f"Sin respuesta en {days_since_response} días"})
-
-                # Clamp to 0-100
-                intencion = max(0, min(100, intencion))
-                intencion_detalle = ", ".join(intencion_razones) if intencion_razones else "Sin señales claras"
-
-                # ============================================================
-                # 2. CALCULATE ENGAGEMENT (Alto/Medio/Bajo)
-                # ============================================================
                 hours_since_response = None
-                if days_since_response is not None:
-                    hours_since_response = days_since_response * 24
-                elif lead.last_contact_at:
+                if lead.last_contact_at:
                     lc = lead.last_contact_at
                     if lc.tzinfo is None:
                         lc = lc.replace(tzinfo=timezone.utc)
@@ -909,46 +819,36 @@ async def get_lead_stats(creator_id: str, lead_id: str):
                     else:
                         engagement_detalle = f"{lead_msg_count} mensajes"
 
-                # ============================================================
-                # 3. SUGGESTED ACTION (based on state)
-                # ============================================================
-                if days_since_response and days_since_response > 7:
-                    accion_sugerida = f"💤 Considera archivar - sin respuesta en {days_since_response} días"
-                elif days_since_response and days_since_response > 3:
-                    accion_sugerida = "⏰ El bot enviará follow-up automático"
-                elif asked_price:
-                    accion_sugerida = "🔥 Lead caliente - el bot está cerrando la venta"
-                elif showed_interest:
-                    accion_sugerida = "📋 El bot está enviando info del producto"
-                elif lead_msg_count > 0:
-                    accion_sugerida = "🎯 El bot está cualificando al lead"
-                else:
-                    accion_sugerida = "⏳ Esperando primera respuesta del lead"
-
-                # ============================================================
-                # 4. FORMAT RESPONSE TIME
-                # ============================================================
-                tiempo_respuesta = None
-                if avg_response_minutes:
-                    if avg_response_minutes < 60:
-                        tiempo_respuesta = f"{int(avg_response_minutes)} minutos"
-                    else:
-                        tiempo_respuesta = f"{int(avg_response_minutes / 60)} horas"
-
+                # Build response with all the intelligent analysis
                 return {
                     "status": "ok",
                     "stats": {
-                        "intencion_compra": intencion,
-                        "intencion_detalle": intencion_detalle.capitalize(),
+                        # Core prediction
+                        "probabilidad_venta": analysis["probabilidad_venta"],
+                        "confianza_prediccion": analysis["confianza_prediccion"],
+                        "producto_detectado": analysis["producto_detectado"],
+                        "valor_estimado": analysis["valor_estimado"],
+
+                        # Signals
+                        "senales_detectadas": analysis["senales_detectadas"],
+                        "senales_por_categoria": analysis["senales_por_categoria"],
+                        "total_senales": analysis["total_senales"],
+
+                        # Next step
+                        "siguiente_paso": analysis["siguiente_paso"],
+
+                        # Engagement
                         "engagement": engagement,
                         "engagement_detalle": engagement_detalle,
-                        "accion_sugerida": accion_sugerida,
-                        "senales": senales,
-                        "mensajes_lead": lead_msg_count,
-                        "mensajes_bot": bot_msg_count,
+
+                        # Metrics
+                        "metricas": metrics,
+                        "mensajes_lead": metrics["total_mensajes_lead"],
+                        "mensajes_bot": metrics["total_mensajes_bot"],
+
+                        # Timeline
                         "primer_contacto": lead.first_contact_at.isoformat() if lead.first_contact_at else None,
                         "ultimo_contacto": lead.last_contact_at.isoformat() if lead.last_contact_at else None,
-                        "tiempo_respuesta_promedio": tiempo_respuesta,
                         "current_stage": lead.status
                     }
                 }
@@ -964,17 +864,21 @@ async def get_lead_stats(creator_id: str, lead_id: str):
     return {
         "status": "ok",
         "stats": {
-            "intencion_compra": 0,
-            "intencion_detalle": "Sin datos",
+            "probabilidad_venta": 0,
+            "confianza_prediccion": "Baja",
+            "producto_detectado": None,
+            "valor_estimado": 0,
+            "senales_detectadas": [],
+            "senales_por_categoria": {"compra": [], "interes": [], "objecion": [], "comportamiento": []},
+            "total_senales": 0,
+            "siguiente_paso": {"accion": "esperar", "emoji": "⏳", "texto": "Esperando datos", "prioridad": "baja"},
             "engagement": "Bajo",
             "engagement_detalle": "Sin mensajes",
-            "accion_sugerida": "⏳ Esperando primera respuesta",
-            "senales": [],
+            "metricas": {},
             "mensajes_lead": 0,
             "mensajes_bot": 0,
             "primer_contacto": None,
             "ultimo_contacto": None,
-            "tiempo_respuesta_promedio": None,
             "current_stage": "nuevo"
         }
     }

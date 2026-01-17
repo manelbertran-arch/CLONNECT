@@ -1012,7 +1012,7 @@ export default function Leads() {
                   </div>
                 </TabsContent>
 
-                {/* Activity Tab - REAL Monitoring Stats */}
+                {/* Activity Tab - INTELLIGENT Prediction */}
                 <TabsContent value="activity" className="flex-1 overflow-auto mt-3 space-y-3">
                   {statsLoading ? (
                     <div className="flex items-center justify-center py-8">
@@ -1020,38 +1020,94 @@ export default function Leads() {
                     </div>
                   ) : statsData?.stats ? (
                     <>
-                      {/* 1. PURCHASE INTENT BAR */}
+                      {/* 1. SALE PREDICTION BAR */}
                       <div className="p-3 rounded-lg border bg-card">
                         <div className="flex items-center justify-between mb-2">
-                          <span className="text-xs text-muted-foreground uppercase tracking-wide flex items-center gap-1.5">
-                            🎯 Intención de compra
+                          <span className="text-xs text-muted-foreground uppercase tracking-wide">
+                            🎯 Predicción de venta
                           </span>
-                          <span className={cn(
-                            "text-lg font-bold",
-                            statsData.stats.intencion_compra >= 61 && "text-emerald-500",
-                            statsData.stats.intencion_compra >= 31 && statsData.stats.intencion_compra < 61 && "text-amber-500",
-                            statsData.stats.intencion_compra < 31 && "text-red-500"
-                          )}>
-                            {statsData.stats.intencion_compra}%
-                          </span>
+                          <div className="flex items-center gap-2">
+                            <span className={cn(
+                              "text-lg font-bold",
+                              statsData.stats.probabilidad_venta >= 61 && "text-emerald-500",
+                              statsData.stats.probabilidad_venta >= 31 && statsData.stats.probabilidad_venta < 61 && "text-amber-500",
+                              statsData.stats.probabilidad_venta < 31 && "text-red-500"
+                            )}>
+                              {statsData.stats.probabilidad_venta}%
+                            </span>
+                            <span className={cn(
+                              "text-[10px] px-1.5 py-0.5 rounded",
+                              statsData.stats.confianza_prediccion === "Alta" && "bg-emerald-500/20 text-emerald-400",
+                              statsData.stats.confianza_prediccion === "Media" && "bg-amber-500/20 text-amber-400",
+                              statsData.stats.confianza_prediccion === "Baja" && "bg-muted text-muted-foreground"
+                            )}>
+                              {statsData.stats.confianza_prediccion}
+                            </span>
+                          </div>
                         </div>
                         <div className="w-full h-2.5 bg-muted rounded-full overflow-hidden">
                           <div
                             className={cn(
                               "h-full rounded-full transition-all duration-500",
-                              statsData.stats.intencion_compra >= 61 && "bg-emerald-500",
-                              statsData.stats.intencion_compra >= 31 && statsData.stats.intencion_compra < 61 && "bg-amber-500",
-                              statsData.stats.intencion_compra < 31 && "bg-red-500"
+                              statsData.stats.probabilidad_venta >= 61 && "bg-emerald-500",
+                              statsData.stats.probabilidad_venta >= 31 && statsData.stats.probabilidad_venta < 61 && "bg-amber-500",
+                              statsData.stats.probabilidad_venta < 31 && "bg-red-500"
                             )}
-                            style={{ width: `${statsData.stats.intencion_compra}%` }}
+                            style={{ width: `${statsData.stats.probabilidad_venta}%` }}
                           />
                         </div>
-                        <p className="text-xs text-muted-foreground mt-1.5">
-                          {statsData.stats.intencion_detalle}
+                      </div>
+
+                      {/* 2. DETECTED PRODUCT */}
+                      {statsData.stats.producto_detectado && (
+                        <div className="p-3 rounded-lg border bg-card">
+                          <span className="text-xs text-muted-foreground uppercase tracking-wide">
+                            📦 Producto detectado
+                          </span>
+                          <div className="flex items-center justify-between mt-1">
+                            <span className="text-sm font-medium">
+                              {statsData.stats.producto_detectado.emoji} {statsData.stats.producto_detectado.name}
+                            </span>
+                            <span className="text-sm text-muted-foreground">
+                              €{statsData.stats.producto_detectado.estimated_price}
+                            </span>
+                          </div>
+                          {statsData.stats.valor_estimado > 0 && (
+                            <p className="text-xs text-emerald-400 mt-1">
+                              Valor estimado: €{statsData.stats.valor_estimado.toFixed(0)}
+                            </p>
+                          )}
+                        </div>
+                      )}
+
+                      {/* 3. NEXT STEP */}
+                      <div className={cn(
+                        "p-3 rounded-lg border",
+                        statsData.stats.siguiente_paso?.prioridad === "urgente" && "bg-red-500/10 border-red-500/30",
+                        statsData.stats.siguiente_paso?.prioridad === "alta" && "bg-amber-500/10 border-amber-500/30",
+                        statsData.stats.siguiente_paso?.prioridad === "media" && "bg-blue-500/10 border-blue-500/30",
+                        statsData.stats.siguiente_paso?.prioridad === "baja" && "bg-muted/30 border-border"
+                      )}>
+                        <div className="flex items-center justify-between">
+                          <span className="text-xs text-muted-foreground uppercase tracking-wide">
+                            💡 Siguiente paso
+                          </span>
+                          <span className={cn(
+                            "text-[10px] px-1.5 py-0.5 rounded uppercase",
+                            statsData.stats.siguiente_paso?.prioridad === "urgente" && "bg-red-500/20 text-red-400",
+                            statsData.stats.siguiente_paso?.prioridad === "alta" && "bg-amber-500/20 text-amber-400",
+                            statsData.stats.siguiente_paso?.prioridad === "media" && "bg-blue-500/20 text-blue-400",
+                            statsData.stats.siguiente_paso?.prioridad === "baja" && "bg-muted text-muted-foreground"
+                          )}>
+                            {statsData.stats.siguiente_paso?.prioridad}
+                          </span>
+                        </div>
+                        <p className="text-sm font-medium mt-1">
+                          {statsData.stats.siguiente_paso?.emoji} {statsData.stats.siguiente_paso?.texto}
                         </p>
                       </div>
 
-                      {/* 2. ENGAGEMENT */}
+                      {/* 4. ENGAGEMENT */}
                       <div className="p-3 rounded-lg border bg-card">
                         <div className="flex items-center justify-between">
                           <span className="text-xs text-muted-foreground uppercase tracking-wide">
@@ -1071,41 +1127,72 @@ export default function Leads() {
                         </p>
                       </div>
 
-                      {/* 3. BOT STATUS / ACTION */}
-                      <div className="p-3 rounded-lg border bg-card">
-                        <span className="text-xs text-muted-foreground uppercase tracking-wide">
-                          ⚡ Estado del bot
-                        </span>
-                        <p className="text-sm font-medium mt-1">
-                          {statsData.stats.accion_sugerida}
-                        </p>
-                      </div>
-
-                      {/* 4. DETECTED SIGNALS */}
-                      {statsData.stats.senales?.length > 0 && (
+                      {/* 5. DETECTED SIGNALS BY CATEGORY */}
+                      {statsData.stats.total_senales > 0 && (
                         <div className="p-3 rounded-lg border bg-card">
                           <span className="text-xs text-muted-foreground uppercase tracking-wide">
-                            📊 Señales detectadas
+                            📊 Señales detectadas ({statsData.stats.total_senales})
                           </span>
-                          <div className="space-y-1.5 mt-2">
-                            {statsData.stats.senales.map((senal: { tipo: string; texto: string }, i: number) => (
-                              <div
-                                key={i}
-                                className={cn(
-                                  "flex items-center gap-2 text-sm",
-                                  senal.tipo === "positiva" && "text-emerald-400",
-                                  senal.tipo === "negativa" && "text-amber-400"
-                                )}
-                              >
-                                <span>{senal.tipo === "positiva" ? "✅" : "⚠️"}</span>
-                                <span>{senal.texto}</span>
-                              </div>
-                            ))}
-                          </div>
+
+                          {/* Purchase signals */}
+                          {statsData.stats.senales_por_categoria?.compra?.length > 0 && (
+                            <div className="mt-2">
+                              <p className="text-[10px] text-emerald-400 uppercase tracking-wide mb-1">🟢 Compra</p>
+                              {statsData.stats.senales_por_categoria.compra.map((s: { emoji: string; description: string; weight: number }, i: number) => (
+                                <div key={i} className="flex items-center gap-2 text-sm text-emerald-400">
+                                  <span>{s.emoji}</span>
+                                  <span>{s.description}</span>
+                                  <span className="text-[10px] text-muted-foreground">(+{s.weight}%)</span>
+                                </div>
+                              ))}
+                            </div>
+                          )}
+
+                          {/* Interest signals */}
+                          {statsData.stats.senales_por_categoria?.interes?.length > 0 && (
+                            <div className="mt-2">
+                              <p className="text-[10px] text-blue-400 uppercase tracking-wide mb-1">🔵 Interés</p>
+                              {statsData.stats.senales_por_categoria.interes.map((s: { emoji: string; description: string; weight: number }, i: number) => (
+                                <div key={i} className="flex items-center gap-2 text-sm text-blue-400">
+                                  <span>{s.emoji}</span>
+                                  <span>{s.description}</span>
+                                  <span className="text-[10px] text-muted-foreground">(+{s.weight}%)</span>
+                                </div>
+                              ))}
+                            </div>
+                          )}
+
+                          {/* Objection signals */}
+                          {statsData.stats.senales_por_categoria?.objecion?.length > 0 && (
+                            <div className="mt-2">
+                              <p className="text-[10px] text-red-400 uppercase tracking-wide mb-1">🔴 Objeciones</p>
+                              {statsData.stats.senales_por_categoria.objecion.map((s: { emoji: string; description: string; weight: number }, i: number) => (
+                                <div key={i} className="flex items-center gap-2 text-sm text-red-400">
+                                  <span>{s.emoji}</span>
+                                  <span>{s.description}</span>
+                                  <span className="text-[10px] text-muted-foreground">({s.weight}%)</span>
+                                </div>
+                              ))}
+                            </div>
+                          )}
+
+                          {/* Behavior signals */}
+                          {statsData.stats.senales_por_categoria?.comportamiento?.length > 0 && (
+                            <div className="mt-2">
+                              <p className="text-[10px] text-violet-400 uppercase tracking-wide mb-1">⚡ Comportamiento</p>
+                              {statsData.stats.senales_por_categoria.comportamiento.map((s: { emoji: string; description: string; weight: number; detail?: string }, i: number) => (
+                                <div key={i} className="flex items-center gap-2 text-sm text-violet-400">
+                                  <span>{s.emoji}</span>
+                                  <span>{s.description}</span>
+                                  {s.detail && <span className="text-[10px] text-muted-foreground">({s.detail})</span>}
+                                </div>
+                              ))}
+                            </div>
+                          )}
                         </div>
                       )}
 
-                      {/* 5. QUICK STATS */}
+                      {/* 6. QUICK STATS */}
                       <div className="grid grid-cols-2 gap-2">
                         <div className="p-2.5 rounded-lg bg-muted/30 text-center">
                           <p className="text-lg font-semibold">{statsData.stats.mensajes_lead}</p>
@@ -1117,11 +1204,11 @@ export default function Leads() {
                         </div>
                       </div>
 
-                      {/* 6. RESPONSE TIME */}
-                      {statsData.stats.tiempo_respuesta_promedio && (
+                      {/* 7. RESPONSE TIME */}
+                      {statsData.stats.metricas?.tiempo_respuesta_promedio && (
                         <div className="p-2.5 rounded-lg bg-muted/20 text-center">
                           <p className="text-xs text-muted-foreground">Tiempo de respuesta promedio</p>
-                          <p className="text-sm font-semibold">{statsData.stats.tiempo_respuesta_promedio}</p>
+                          <p className="text-sm font-semibold">{statsData.stats.metricas.tiempo_respuesta_promedio}</p>
                         </div>
                       )}
                     </>

@@ -515,20 +515,87 @@ export async function deleteLeadActivity(
 }
 
 /**
- * Lead stats for REAL monitoring/analytics
+ * Detected signal from conversation analysis
+ */
+export interface DetectedSignal {
+  signal: string;
+  keyword_found?: string;
+  weight: number;
+  category: "compra" | "interes" | "objecion" | "comportamiento";
+  emoji: string;
+  description: string;
+  detail?: string;
+}
+
+/**
+ * Detected product from conversation
+ */
+export interface DetectedProduct {
+  id: string;
+  name: string;
+  keyword_found: string;
+  estimated_price: number;
+  emoji: string;
+}
+
+/**
+ * Next step suggestion
+ */
+export interface NextStep {
+  accion: string;
+  emoji: string;
+  texto: string;
+  prioridad: "urgente" | "alta" | "media" | "baja";
+}
+
+/**
+ * Behavior metrics
+ */
+export interface BehaviorMetrics {
+  tiempo_respuesta_promedio: string | null;
+  tiempo_respuesta_segundos: number | null;
+  longitud_mensaje_promedio: number;
+  cantidad_preguntas: number;
+  total_mensajes_lead: number;
+  total_mensajes_bot: number;
+  ratio_participacion: number;
+}
+
+/**
+ * Lead stats for INTELLIGENT monitoring/analytics with prediction
  */
 export interface LeadStats {
-  intencion_compra: number;
-  intencion_detalle: string;
+  // Core prediction
+  probabilidad_venta: number;
+  confianza_prediccion: "Alta" | "Media" | "Baja";
+  producto_detectado: DetectedProduct | null;
+  valor_estimado: number;
+
+  // Signals
+  senales_detectadas: DetectedSignal[];
+  senales_por_categoria: {
+    compra: DetectedSignal[];
+    interes: DetectedSignal[];
+    objecion: DetectedSignal[];
+    comportamiento: DetectedSignal[];
+  };
+  total_senales: number;
+
+  // Next step
+  siguiente_paso: NextStep;
+
+  // Engagement
   engagement: "Alto" | "Medio" | "Bajo";
   engagement_detalle: string;
-  accion_sugerida: string;
-  senales: Array<{ tipo: "positiva" | "negativa"; texto: string }>;
+
+  // Metrics
+  metricas: BehaviorMetrics;
   mensajes_lead: number;
   mensajes_bot: number;
+
+  // Timeline
   primer_contacto: string | null;
   ultimo_contacto: string | null;
-  tiempo_respuesta_promedio: string | null;
   current_stage: string;
 }
 
