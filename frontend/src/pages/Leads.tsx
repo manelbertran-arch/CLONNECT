@@ -39,7 +39,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { cn } from "@/lib/utils";
-import { useConversations, useUpdateLeadStatus, useCreateManualLead, useUpdateLead, useDeleteLead, useLeadActivities, useLeadTasks, useCreateLeadTask, useUpdateLeadTask, useDeleteLeadTask, useLeadStats } from "@/hooks/useApi";
+import { useConversations, useUpdateLeadStatus, useCreateManualLead, useUpdateLead, useDeleteLead, useLeadActivities, useLeadTasks, useCreateLeadTask, useUpdateLeadTask, useDeleteLeadTask, useDeleteLeadActivity, useLeadStats } from "@/hooks/useApi";
 import { useToast } from "@/hooks/use-toast";
 import type { Conversation } from "@/types/api";
 import { getPurchaseIntent, detectPlatform, getDisplayName } from "@/types/api";
@@ -214,6 +214,7 @@ export default function Leads() {
   const createTaskMutation = useCreateLeadTask();
   const updateTaskMutation = useUpdateLeadTask();
   const deleteTaskMutation = useDeleteLeadTask();
+  const deleteActivityMutation = useDeleteLeadActivity();
 
   // Modal states
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
@@ -230,6 +231,7 @@ export default function Leads() {
   const [editNotes, setEditNotes] = useState("");
   const [editingTaskId, setEditingTaskId] = useState<string | null>(null);
   const [editingTaskTitle, setEditingTaskTitle] = useState("");
+  const [completingTaskId, setCompletingTaskId] = useState<string | null>(null);
 
   // Fetch activities, tasks, and stats for selected lead
   const { data: activitiesData } = useLeadActivities(selectedLead?.followerId || null);
@@ -423,21 +425,50 @@ export default function Leads() {
     if (!selectedLead) return;
 
     const newStatus = currentStatus === "completed" ? "pending" : "completed";
+
+    // If completing (not uncompleting), show animation first
+    if (newStatus === "completed") {
+      setCompletingTaskId(taskId);
+      // Wait for animation before actually completing
+      setTimeout(async () => {
+        try {
+          await updateTaskMutation.mutateAsync({
+            leadId: selectedLead.followerId,
+            taskId,
+            data: { status: newStatus },
+          });
+          toast({ title: "Tarea completada" });
+        } catch {
+          toast({ title: "Error", description: "No se pudo completar la tarea", variant: "destructive" });
+        } finally {
+          setCompletingTaskId(null);
+        }
+      }, 800);
+    } else {
+      // Uncompleting - do immediately
+      try {
+        await updateTaskMutation.mutateAsync({
+          leadId: selectedLead.followerId,
+          taskId,
+          data: { status: newStatus },
+        });
+        toast({ title: "Tarea reabierta" });
+      } catch {
+        toast({ title: "Error", description: "No se pudo actualizar la tarea", variant: "destructive" });
+      }
+    }
+  };
+
+  const handleDeleteActivity = async (activityId: string) => {
+    if (!selectedLead) return;
     try {
-      await updateTaskMutation.mutateAsync({
+      await deleteActivityMutation.mutateAsync({
         leadId: selectedLead.followerId,
-        taskId,
-        data: { status: newStatus },
+        activityId,
       });
-      toast({
-        title: newStatus === "completed" ? "Tarea completada" : "Tarea reabierta",
-      });
+      toast({ title: "Entrada eliminada" });
     } catch {
-      toast({
-        title: "Error",
-        description: "No se pudo actualizar la tarea",
-        variant: "destructive",
-      });
+      toast({ title: "Error", description: "No se pudo eliminar", variant: "destructive" });
     }
   };
 
@@ -1175,13 +1206,23 @@ export default function Leads() {
                     {tasksData?.tasks?.filter((t: { status: string }) => t.status !== "completed").map((task: { id: string; title: string; status: string; priority: string; due_date?: string }) => (
                       <div
                         key={task.id}
-                        className="flex items-start gap-2 p-2 rounded-lg border bg-card border-border hover:border-violet-500/30 transition-colors"
+                        className={cn(
+                          "flex items-start gap-2 p-2 rounded-lg border bg-card transition-all duration-300",
+                          completingTaskId === task.id
+                            ? "border-emerald-500/50 bg-emerald-500/10 opacity-60"
+                            : "border-border hover:border-violet-500/30"
+                        )}
                       >
                         <button
                           onClick={() => handleToggleTask(task.id, task.status)}
                           className="mt-0.5"
+                          disabled={completingTaskId === task.id}
                         >
-                          <Square className="w-4 h-4 text-muted-foreground hover:text-violet-500" />
+                          {completingTaskId === task.id ? (
+                            <CheckSquare className="w-4 h-4 text-emerald-500 animate-pulse" />
+                          ) : (
+                            <Square className="w-4 h-4 text-muted-foreground hover:text-violet-500" />
+                          )}
                         </button>
                         <div className="flex-1 min-w-0">
                           {editingTaskId === task.id ? (
@@ -1201,7 +1242,12 @@ export default function Leads() {
                               </Button>
                             </div>
                           ) : (
-                            <p className="text-sm">{task.title}</p>
+                            <p className={cn(
+                              "text-sm transition-all duration-300",
+                              completingTaskId === task.id && "line-through text-muted-foreground"
+                            )}>
+                              {task.title}
+                            </p>
                           )}
                           {task.due_date && (
                             <p className="text-[10px] text-muted-foreground flex items-center gap-1 mt-0.5">
@@ -1215,7 +1261,7 @@ export default function Leads() {
                             {task.priority === "urgent" ? "Urgente" : "Alta"}
                           </span>
                         ) : null}
-                        {editingTaskId !== task.id && (
+                        {editingTaskId !== task.id && completingTaskId !== task.id && (
                           <div className="flex gap-1">
                             <button
                               onClick={() => { setEditingTaskId(task.id); setEditingTaskTitle(task.title); }}
@@ -1277,7 +1323,7 @@ export default function Leads() {
                     {activitiesData?.activities?.map((activity: { id: string; activity_type: string; description: string; created_at: string }) => (
                       <div
                         key={activity.id}
-                        className="flex items-start gap-2 p-2 rounded-lg bg-muted/20"
+                        className="group flex items-start gap-2 p-2 rounded-lg bg-muted/20 hover:bg-muted/30 transition-colors"
                       >
                         <div className={cn(
                           "w-6 h-6 rounded-full flex items-center justify-center shrink-0 mt-0.5",
@@ -1297,6 +1343,14 @@ export default function Leads() {
                             {new Date(activity.created_at).toLocaleString()}
                           </p>
                         </div>
+                        <button
+                          onClick={() => handleDeleteActivity(activity.id)}
+                          className="p-1.5 text-muted-foreground/50 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-all shrink-0"
+                          title="Eliminar"
+                          disabled={deleteActivityMutation.isPending}
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
                       </div>
                     ))}
                   </div>

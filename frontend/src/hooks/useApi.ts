@@ -78,6 +78,7 @@ import {
   createLeadTask,
   updateLeadTask,
   deleteLeadTask,
+  deleteLeadActivity,
   getLeadStats,
   apiKeys,
 } from "@/services/api";
@@ -1133,6 +1134,20 @@ export function useDeleteLeadTask(creatorId: string = getCreatorId()) {
       deleteLeadTask(creatorId, leadId, taskId),
     onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: ["leadTasks", creatorId, variables.leadId] });
+    },
+  });
+}
+
+/**
+ * Hook to delete a lead activity from history
+ */
+export function useDeleteLeadActivity(creatorId: string = getCreatorId()) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ leadId, activityId }: { leadId: string; activityId: string }) =>
+      deleteLeadActivity(creatorId, leadId, activityId),
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: ["leadActivities", creatorId, variables.leadId] });
     },
   });
 }

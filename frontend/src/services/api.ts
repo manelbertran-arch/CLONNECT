@@ -502,6 +502,19 @@ export async function deleteLeadTask(
 }
 
 /**
+ * Delete a lead activity from history
+ */
+export async function deleteLeadActivity(
+  creatorId: string = CREATOR_ID,
+  leadId: string,
+  activityId: string
+): Promise<{ status: string; message: string }> {
+  return apiFetch(`/dm/leads/${creatorId}/${leadId}/activities/${activityId}`, {
+    method: "DELETE",
+  });
+}
+
+/**
  * Lead stats for monitoring/analytics
  */
 export interface LeadStats {

@@ -443,6 +443,37 @@ async def create_lead_activity(creator_id: str, lead_id: str, data: dict = Body(
     raise HTTPException(status_code=500, detail="Database not configured")
 
 
+@router.delete("/{creator_id}/{lead_id}/activities/{activity_id}")
+async def delete_lead_activity(creator_id: str, lead_id: str, activity_id: str):
+    """Delete an activity from lead history"""
+    if USE_DB:
+        try:
+            from api.database import SessionLocal
+            from api.models import LeadActivity
+            from uuid import UUID
+
+            session = SessionLocal()
+            try:
+                activity = session.query(LeadActivity).filter_by(id=UUID(activity_id)).first()
+                if not activity:
+                    raise HTTPException(status_code=404, detail="Activity not found")
+
+                session.delete(activity)
+                session.commit()
+
+                logger.info(f"Deleted activity {activity_id}")
+                return {"status": "ok", "message": "Activity deleted"}
+            finally:
+                session.close()
+        except HTTPException:
+            raise
+        except Exception as e:
+            logger.error(f"Delete activity failed: {e}")
+            raise HTTPException(status_code=500, detail=str(e))
+
+    raise HTTPException(status_code=500, detail="Database not configured")
+
+
 # =============================================================================
 # LEAD TASKS
 # =============================================================================
