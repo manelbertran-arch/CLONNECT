@@ -1,0 +1,66 @@
+name: PR Quality Checks
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+jobs:
+  check-pr:
+    name: PR Quality Checks
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Check commit messages format
+        run: |
+          echo "Checking commit message format..."
+          git log --oneline origin/main..HEAD | while read line; do
+            # Allow conventional commits or merge commits
+            if ! echo "$line" | grep -qE "^[a-f0-9]+ (feat|fix|docs|style|refactor|test|chore|perf|ci|build|revert)(\(.+\))?: .+|^[a-f0-9]+ Merge "; then
+              echo "⚠️ Non-conventional commit: $line"
+            fi
+          done
+          echo "✅ Commit messages checked"
+
+      - name: Check for debug statements
+        run: |
+          echo "Checking for debug statements..."
+          # Check for console.log in TypeScript/JavaScript
+          if grep -r "console\.log" --include="*.ts" --include="*.tsx" --include="*.js" frontend/src/ 2>/dev/null | grep -v ".test." | grep -v "node_modules"; then
+            echo "⚠️ Found console.log statements in frontend/src/"
+          fi
+          # Check for print() in Python (excluding tests)
+          if grep -r "^[^#]*print(" --include="*.py" backend/ 2>/dev/null | grep -v "test_" | grep -v "__pycache__"; then
+            echo "⚠️ Found print statements in backend/"
+          fi
+          echo "✅ Debug statement check complete"
+
+      - name: Count TODO/FIXME comments
+        run: |
+          echo "Counting TODO/FIXME comments..."
+          ts_count=$(grep -r "TODO\|FIXME\|HACK" --include="*.ts" --include="*.tsx" frontend/src/ 2>/dev/null | wc -l || echo "0")
+          py_count=$(grep -r "TODO\|FIXME\|HACK" --include="*.py" backend/ 2>/dev/null | wc -l || echo "0")
+          total=$((ts_count + py_count))
+          echo "📝 Found $total TODO/FIXME/HACK comments (Frontend: $ts_count, Backend: $py_count)"
+
+      - name: Check file sizes
+        run: |
+          echo "Checking for large files..."
+          find . -type f -size +1M ! -path "./.git/*" ! -path "./node_modules/*" ! -path "./__pycache__/*" | while read file; do
+            size=$(du -h "$file" | cut -f1)
+            echo "⚠️ Large file: $file ($size)"
+          done
+          echo "✅ File size check complete"
+
+      - name: PR Summary
+        run: |
+          echo "## 📋 PR Quality Check Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "- ✅ Commit messages checked" >> $GITHUB_STEP_SUMMARY
+          echo "- ✅ Debug statements scanned" >> $GITHUB_STEP_SUMMARY
+          echo "- ✅ TODO comments counted" >> $GITHUB_STEP_SUMMARY
+          echo "- ✅ Large files checked" >> $GITHUB_STEP_SUMMARY
