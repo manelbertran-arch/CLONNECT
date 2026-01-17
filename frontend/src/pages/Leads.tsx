@@ -418,33 +418,32 @@ export default function Leads() {
         </Button>
       </div>
 
-      {/* Leyenda de Categorías */}
-      <div className="flex flex-wrap items-center gap-6 p-4 rounded-xl bg-card/50 border border-border/30 text-sm">
-        <span className="text-muted-foreground font-medium">Leyenda:</span>
-        <div className="flex items-center gap-2">
+      {/* Leyenda alineada con columnas */}
+      <div className="hidden md:grid md:grid-cols-5 gap-3 text-sm">
+        <div className="flex items-center gap-2 px-4">
           <span className="w-3 h-3 rounded-full bg-blue-400"></span>
           <span className="text-blue-400 font-medium">New</span>
-          <span className="text-muted-foreground/60">- Bot saluda</span>
+          <span className="text-muted-foreground/60 text-xs">- Bot saluda</span>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 px-4">
           <span className="w-3 h-3 rounded-full bg-amber-400"></span>
           <span className="text-amber-400 font-medium">Interesado</span>
-          <span className="text-muted-foreground/60">- Bot educa</span>
+          <span className="text-muted-foreground/60 text-xs">- Bot educa</span>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 px-4">
           <span className="w-3 h-3 rounded-full bg-red-400 animate-pulse"></span>
           <span className="text-red-400 font-semibold">Hot</span>
-          <span className="text-muted-foreground/60">- ¡Contactar YA!</span>
+          <span className="text-muted-foreground/60 text-xs">- ¡Contactar YA!</span>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 px-4">
           <span className="w-3 h-3 rounded-full bg-emerald-400"></span>
           <span className="text-emerald-400 font-medium">Cliente</span>
-          <span className="text-muted-foreground/60">- Ya compró</span>
+          <span className="text-muted-foreground/60 text-xs">- Ya compró</span>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 px-4">
           <span className="w-3 h-3 rounded-full bg-gray-500"></span>
           <span className="text-gray-500 font-medium">Fantasma</span>
-          <span className="text-muted-foreground/60">- Bot reactiva</span>
+          <span className="text-muted-foreground/60 text-xs">- Bot reactiva</span>
         </div>
       </div>
 
