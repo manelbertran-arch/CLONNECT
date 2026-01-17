@@ -11,11 +11,6 @@ import Login from "./pages/Login";
 import Register from "./pages/Register";
 import Welcome from "./pages/Welcome";
 
-// Debug logging
-console.log("[CLONNECT DEBUG] App.tsx module loading");
-console.log("[CLONNECT DEBUG] Current URL:", window.location.href);
-console.log("[CLONNECT DEBUG] Pathname:", window.location.pathname);
-
 // Normal imports (no lazy loading)
 import Dashboard from "./pages/Dashboard";
 import Inbox from "./pages/Inbox";
@@ -54,7 +49,6 @@ const queryClient = new QueryClient({
 });
 
 const AppRoutes = () => {
-  console.log("[CLONNECT DEBUG] AppRoutes rendering, pathname:", window.location.pathname);
   return (
     <Routes>
       {/* Auth routes */}

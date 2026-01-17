@@ -4,8 +4,6 @@
 import { Outlet } from "react-router-dom";
 
 export function DashboardLayoutClean() {
-  console.log('[CLEAN LAYOUT] Rendering - no Sidebar/MobileNav');
-
   return (
     <div className="min-h-screen bg-background">
       <div className="p-4 bg-yellow-500/20 text-center text-sm">
