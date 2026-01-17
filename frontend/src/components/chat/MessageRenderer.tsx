@@ -93,8 +93,10 @@ function TextMessage({ message, isOutgoing, isLastInGroup }: { message: Message;
   );
 }
 
-// Story Message - With gradient border preview
+// Story Message - With gradient border and thumbnail preview
 function StoryMessage({ message, isOutgoing, isLastInGroup }: { message: Message; isOutgoing: boolean; isLastInGroup: boolean }) {
+  const [imageLoaded, setImageLoaded] = useState(false);
+  const [imageError, setImageError] = useState(false);
   const metadata = message.metadata || {};
   const hasLink = !!metadata.url;
   const storyType = metadata.type === 'story_reply' ? 'Respuesta a story'
@@ -108,21 +110,50 @@ function StoryMessage({ message, isOutgoing, isLastInGroup }: { message: Message
   return (
     <div className={`flex ${isOutgoing ? 'justify-end' : 'justify-start'}`}>
       <div className={`max-w-[75%] ${bubbleClass} rounded-2xl ${isLastInGroup ? (isOutgoing ? 'rounded-br-md' : 'rounded-bl-md') : ''} overflow-hidden`}>
-        {/* Story Preview with gradient border */}
+        {/* Story Preview with gradient border and thumbnail */}
         {hasLink && (
           <a href={metadata.url} target="_blank" rel="noopener noreferrer" className="block">
             <div className="p-2">
               <div className={`${IG_GRADIENT_STORY} p-[2px] rounded-xl`}>
-                <div className="bg-black rounded-xl p-3 flex items-center gap-3">
-                  <div className="w-12 h-12 rounded-lg bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center">
-                    <Film className="w-6 h-6 text-white" />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-white text-sm font-medium">{storyType}</p>
-                    <p className="text-gray-400 text-xs flex items-center gap-1">
-                      Toca para ver <ExternalLink className="w-3 h-3" />
-                    </p>
-                  </div>
+                <div className="bg-black rounded-xl overflow-hidden">
+                  {/* Show actual thumbnail if available */}
+                  {!imageError && (
+                    <div className="relative">
+                      {!imageLoaded && (
+                        <div className="w-full h-32 bg-[#1a1a1a] flex items-center justify-center">
+                          <Film className="w-8 h-8 text-gray-600 animate-pulse" />
+                        </div>
+                      )}
+                      <img
+                        src={metadata.url}
+                        alt={storyType}
+                        className={`w-full max-h-48 object-cover ${imageLoaded ? '' : 'hidden'}`}
+                        onLoad={() => setImageLoaded(true)}
+                        onError={() => setImageError(true)}
+                      />
+                      {/* Overlay with story type */}
+                      <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent p-3">
+                        <p className="text-white text-sm font-medium">{storyType}</p>
+                        <p className="text-gray-300 text-xs flex items-center gap-1">
+                          Toca para ver <ExternalLink className="w-3 h-3" />
+                        </p>
+                      </div>
+                    </div>
+                  )}
+                  {/* Fallback if image fails */}
+                  {imageError && (
+                    <div className="p-3 flex items-center gap-3">
+                      <div className="w-12 h-12 rounded-lg bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center">
+                        <Film className="w-6 h-6 text-white" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-white text-sm font-medium">{storyType}</p>
+                        <p className="text-gray-400 text-xs flex items-center gap-1">
+                          Toca para ver <ExternalLink className="w-3 h-3" />
+                        </p>
+                      </div>
+                    </div>
+                  )}
                 </div>
               </div>
             </div>
