@@ -59,13 +59,13 @@ interface LeadDisplay {
   notes: string;
 }
 
-// Configuración de columnas del Pipeline
-const columns: { status: LeadStatus; title: string; icon: React.ReactNode; color: string; gradient: string }[] = [
-  { status: "nuevo", title: "New", icon: <Users className="w-4 h-4" />, color: "text-blue-400", gradient: "from-blue-500/20 to-blue-600/10" },
-  { status: "interesado", title: "Interesados", icon: <Star className="w-4 h-4" />, color: "text-amber-400", gradient: "from-amber-500/20 to-amber-600/10" },
-  { status: "caliente", title: "Hot", icon: <Flame className="w-4 h-4" />, color: "text-red-400", gradient: "from-red-500/20 to-red-600/10" },
-  { status: "cliente", title: "Clientes", icon: <CheckCircle className="w-4 h-4" />, color: "text-emerald-400", gradient: "from-emerald-500/20 to-emerald-600/10" },
-  { status: "fantasma", title: "Fantasmas", icon: <Ghost className="w-4 h-4" />, color: "text-gray-500", gradient: "from-gray-500/20 to-gray-600/10" },
+// Configuración de columnas del Pipeline (todo en español)
+const columns: { status: LeadStatus; title: string; description: string; icon: React.ReactNode; color: string; gradient: string }[] = [
+  { status: "nuevo", title: "Nuevos", description: "Primer contacto", icon: <Users className="w-4 h-4" />, color: "text-blue-400", gradient: "from-blue-500/20 to-blue-600/10" },
+  { status: "interesado", title: "Interesados", description: "Mostró interés", icon: <Star className="w-4 h-4" />, color: "text-amber-400", gradient: "from-amber-500/20 to-amber-600/10" },
+  { status: "caliente", title: "Calientes", description: "Listo para comprar", icon: <Flame className="w-4 h-4" />, color: "text-red-400", gradient: "from-red-500/20 to-red-600/10" },
+  { status: "cliente", title: "Clientes", description: "Ya compró", icon: <CheckCircle className="w-4 h-4" />, color: "text-emerald-400", gradient: "from-emerald-500/20 to-emerald-600/10" },
+  { status: "fantasma", title: "Fantasmas", description: "+7 días sin respuesta", icon: <Ghost className="w-4 h-4" />, color: "text-gray-500", gradient: "from-gray-500/20 to-gray-600/10" },
 ];
 
 const platformIcons: Record<string, React.ReactNode> = {
@@ -180,11 +180,8 @@ export default function Leads() {
 
       // Status priority:
       // 1. Local override (from optimistic update during drag & drop)
-      // 2. Backend lead_status (persisted pipeline status)
-      // 3. Derived from purchase_intent (legacy fallback)
-      const status = localStatusOverrides[leadId]
-        || (convo.lead_status as LeadStatus)
-        || getLeadStatus(convo);
+      // 2. Mapped from backend status (getLeadStatus handles English→Spanish mapping)
+      const status = localStatusOverrides[leadId] || getLeadStatus(convo);
 
       // Pipeline score: derive from status (nuevo embudo)
       // nuevo=10, interesado=35, caliente=70, cliente=100, fantasma=5
@@ -418,30 +415,6 @@ export default function Leads() {
         </Button>
       </div>
 
-      {/* Leyenda alineada con columnas */}
-      <div className="hidden md:grid md:grid-cols-5 gap-3 text-sm">
-        <div className="px-4">
-          <span className="text-blue-400 font-medium">New</span>
-          <span className="text-muted-foreground/60 text-xs ml-1">- Bot saluda</span>
-        </div>
-        <div className="px-4">
-          <span className="text-amber-400 font-medium">Interesado</span>
-          <span className="text-muted-foreground/60 text-xs ml-1">- Bot educa</span>
-        </div>
-        <div className="px-4">
-          <span className="text-red-400 font-semibold">Hot</span>
-          <span className="text-muted-foreground/60 text-xs ml-1">- ¡Contactar YA!</span>
-        </div>
-        <div className="px-4">
-          <span className="text-emerald-400 font-medium">Cliente</span>
-          <span className="text-muted-foreground/60 text-xs ml-1">- Ya compró</span>
-        </div>
-        <div className="px-4">
-          <span className="text-gray-500 font-medium">Fantasma</span>
-          <span className="text-muted-foreground/60 text-xs ml-1">- Bot reactiva</span>
-        </div>
-      </div>
-
       {/* Kanban Board */}
       <div className="overflow-x-auto pb-4 -mx-4 px-4 md:mx-0 md:px-0">
         <div className="flex md:grid md:grid-cols-5 gap-3 h-[calc(100vh-12rem)] min-w-max md:min-w-0">
@@ -456,12 +429,15 @@ export default function Leads() {
               onDrop={() => handleDrop(column.status)}
             >
               {/* Column Header */}
-              <div className="px-4 py-3 flex items-center gap-2 border-b border-border/30">
-                <span className={cn("opacity-80", column.color)}>{column.icon}</span>
-                <span className="font-medium text-sm">{column.title}</span>
-                <span className="text-xs bg-muted/50 px-2 py-0.5 rounded-full text-muted-foreground ml-auto">
-                  {columnLeads.length}
-                </span>
+              <div className="px-4 py-3 border-b border-border/30">
+                <div className="flex items-center gap-2">
+                  <span className={cn("opacity-80", column.color)}>{column.icon}</span>
+                  <span className={cn("font-semibold text-sm", column.color)}>{column.title}</span>
+                  <span className="text-xs bg-muted/50 px-2 py-0.5 rounded-full text-muted-foreground ml-auto">
+                    {columnLeads.length}
+                  </span>
+                </div>
+                <p className="text-xs text-muted-foreground mt-1">{column.description}</p>
               </div>
 
               {/* Cards */}
