@@ -40,6 +40,22 @@ const mockAddProduct = vi.fn().mockResolvedValue({ success: true });
 const mockUpdateProduct = vi.fn().mockResolvedValue({ success: true });
 const mockDeleteProduct = vi.fn().mockResolvedValue({ success: true });
 const mockAddContent = vi.fn().mockResolvedValue({ success: true });
+const mockAddFAQ = vi.fn().mockResolvedValue({ success: true });
+const mockDeleteFAQ = vi.fn().mockResolvedValue({ success: true });
+const mockUpdateFAQ = vi.fn().mockResolvedValue({ success: true });
+const mockGenerateKnowledge = vi.fn().mockResolvedValue({ success: true });
+const mockUpdateAbout = vi.fn().mockResolvedValue({ success: true });
+const mockUpdateConnection = vi.fn().mockResolvedValue({ success: true });
+const mockDisconnectPlatform = vi.fn().mockResolvedValue({ success: true });
+
+const mockKnowledgeData = {
+  faqs: [],
+  about: "",
+};
+
+const mockConnectionsData = {
+  connections: [],
+};
 
 // Mock the API hooks
 vi.mock("@/hooks/useApi", () => ({
@@ -71,6 +87,44 @@ vi.mock("@/hooks/useApi", () => ({
   })),
   useAddContent: vi.fn(() => ({
     mutateAsync: mockAddContent,
+    isPending: false,
+  })),
+  useKnowledge: vi.fn(() => ({
+    data: mockKnowledgeData,
+    isLoading: false,
+    error: null,
+  })),
+  useAddFAQ: vi.fn(() => ({
+    mutateAsync: mockAddFAQ,
+    isPending: false,
+  })),
+  useDeleteFAQ: vi.fn(() => ({
+    mutateAsync: mockDeleteFAQ,
+    isPending: false,
+  })),
+  useUpdateFAQ: vi.fn(() => ({
+    mutateAsync: mockUpdateFAQ,
+    isPending: false,
+  })),
+  useGenerateKnowledge: vi.fn(() => ({
+    mutateAsync: mockGenerateKnowledge,
+    isPending: false,
+  })),
+  useUpdateAbout: vi.fn(() => ({
+    mutateAsync: mockUpdateAbout,
+    isPending: false,
+  })),
+  useConnections: vi.fn(() => ({
+    data: mockConnectionsData,
+    isLoading: false,
+    error: null,
+  })),
+  useUpdateConnection: vi.fn(() => ({
+    mutateAsync: mockUpdateConnection,
+    isPending: false,
+  })),
+  useDisconnectPlatform: vi.fn(() => ({
+    mutateAsync: mockDisconnectPlatform,
     isPending: false,
   })),
 }));

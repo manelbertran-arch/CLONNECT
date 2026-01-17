@@ -31,6 +31,16 @@ const mockDashboardData = {
 
 const mockToggleBot = vi.fn();
 
+const mockRevenueData = {
+  metrics: {
+    total_revenue: 15000,
+    pending_revenue: 2500,
+    monthly_growth: 12.5,
+    total_customers: 150,
+  },
+  transactions: [],
+};
+
 // Mock the API hooks
 vi.mock("@/hooks/useApi", () => ({
   useDashboard: vi.fn(() => ({
@@ -41,6 +51,11 @@ vi.mock("@/hooks/useApi", () => ({
   useToggleBot: vi.fn(() => ({
     mutate: mockToggleBot,
     isPending: false,
+  })),
+  useRevenue: vi.fn(() => ({
+    data: mockRevenueData,
+    isLoading: false,
+    error: null,
   })),
 }));
 

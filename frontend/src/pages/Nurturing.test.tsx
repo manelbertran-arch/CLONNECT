@@ -68,17 +68,21 @@ const mockToggleSequence = vi.fn().mockResolvedValue({ success: true });
 const mockUpdateSequence = vi.fn().mockResolvedValue({ success: true });
 const mockCancelNurturing = vi.fn().mockResolvedValue({ success: true });
 
+const mockRunNurturing = vi.fn().mockResolvedValue({ success: true });
+
 // Mock the API hooks
 vi.mock("@/hooks/useApi", () => ({
   useNurturingSequences: vi.fn(() => ({
     data: { sequences: mockSequences },
     isLoading: false,
     error: null,
+    refetch: vi.fn(),
   })),
   useNurturingStats: vi.fn(() => ({
     data: { total: 100, pending: 48, sent: 134, cancelled: 5 },
     isLoading: false,
     error: null,
+    refetch: vi.fn(),
   })),
   useToggleNurturingSequence: vi.fn(() => ({
     mutateAsync: mockToggleSequence,
@@ -90,6 +94,10 @@ vi.mock("@/hooks/useApi", () => ({
   })),
   useCancelNurturing: vi.fn(() => ({
     mutateAsync: mockCancelNurturing,
+    isPending: false,
+  })),
+  useRunNurturing: vi.fn(() => ({
+    mutateAsync: mockRunNurturing,
     isPending: false,
   })),
 }));

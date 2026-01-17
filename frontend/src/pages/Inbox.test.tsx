@@ -54,6 +54,10 @@ const mockMessages = [
 ];
 
 const mockSendMessage = vi.fn().mockResolvedValue({ sent: true, platform: "instagram" });
+const mockArchiveConversation = vi.fn().mockResolvedValue({ success: true });
+const mockMarkConversationSpam = vi.fn().mockResolvedValue({ success: true });
+const mockDeleteConversation = vi.fn().mockResolvedValue({ success: true });
+const mockRestoreConversation = vi.fn().mockResolvedValue({ success: true });
 
 // Mock the API hooks
 vi.mock("@/hooks/useApi", () => ({
@@ -61,6 +65,7 @@ vi.mock("@/hooks/useApi", () => ({
     data: { conversations: mockConversations },
     isLoading: false,
     error: null,
+    isSuccess: true,
   })),
   useFollowerDetail: vi.fn(() => ({
     data: {
@@ -74,6 +79,27 @@ vi.mock("@/hooks/useApi", () => ({
   useSendMessage: vi.fn(() => ({
     mutateAsync: mockSendMessage,
     isPending: false,
+  })),
+  useArchiveConversation: vi.fn(() => ({
+    mutateAsync: mockArchiveConversation,
+    isPending: false,
+  })),
+  useMarkConversationSpam: vi.fn(() => ({
+    mutateAsync: mockMarkConversationSpam,
+    isPending: false,
+  })),
+  useDeleteConversation: vi.fn(() => ({
+    mutateAsync: mockDeleteConversation,
+    isPending: false,
+  })),
+  useRestoreConversation: vi.fn(() => ({
+    mutateAsync: mockRestoreConversation,
+    isPending: false,
+  })),
+  useArchivedConversations: vi.fn(() => ({
+    data: { conversations: [] },
+    isLoading: false,
+    error: null,
   })),
 }));
 

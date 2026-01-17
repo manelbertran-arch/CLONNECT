@@ -44,6 +44,13 @@ const mockConversations = [
 ];
 
 const mockUpdateStatus = vi.fn().mockResolvedValue({ success: true });
+const mockCreateLead = vi.fn().mockResolvedValue({ success: true });
+const mockUpdateLead = vi.fn().mockResolvedValue({ success: true });
+const mockDeleteLead = vi.fn().mockResolvedValue({ success: true });
+const mockCreateTask = vi.fn().mockResolvedValue({ success: true });
+const mockUpdateTask = vi.fn().mockResolvedValue({ success: true });
+const mockDeleteTask = vi.fn().mockResolvedValue({ success: true });
+const mockDeleteActivity = vi.fn().mockResolvedValue({ success: true });
 
 // Mock the API hooks
 vi.mock("@/hooks/useApi", () => ({
@@ -55,6 +62,49 @@ vi.mock("@/hooks/useApi", () => ({
   useUpdateLeadStatus: vi.fn(() => ({
     mutateAsync: mockUpdateStatus,
     isPending: false,
+  })),
+  useCreateManualLead: vi.fn(() => ({
+    mutateAsync: mockCreateLead,
+    isPending: false,
+  })),
+  useUpdateLead: vi.fn(() => ({
+    mutateAsync: mockUpdateLead,
+    isPending: false,
+  })),
+  useDeleteLead: vi.fn(() => ({
+    mutateAsync: mockDeleteLead,
+    isPending: false,
+  })),
+  useCreateLeadTask: vi.fn(() => ({
+    mutateAsync: mockCreateTask,
+    isPending: false,
+  })),
+  useUpdateLeadTask: vi.fn(() => ({
+    mutateAsync: mockUpdateTask,
+    isPending: false,
+  })),
+  useDeleteLeadTask: vi.fn(() => ({
+    mutateAsync: mockDeleteTask,
+    isPending: false,
+  })),
+  useDeleteLeadActivity: vi.fn(() => ({
+    mutateAsync: mockDeleteActivity,
+    isPending: false,
+  })),
+  useLeadActivities: vi.fn(() => ({
+    data: { activities: [] },
+    isLoading: false,
+    error: null,
+  })),
+  useLeadTasks: vi.fn(() => ({
+    data: { tasks: [] },
+    isLoading: false,
+    error: null,
+  })),
+  useLeadStats: vi.fn(() => ({
+    data: { total: 0, nuevo: 0, contactado: 0, activo: 0, caliente: 0, cliente: 0 },
+    isLoading: false,
+    error: null,
   })),
 }));
 
