@@ -418,10 +418,25 @@ export default function Inbox() {
                         )}>
                           {statusNames[status] || status}
                         </span>
-                        <span className="text-[10px] text-muted-foreground flex items-center gap-1">
-                          {platformIcons[platform]}
-                          {platform}
-                        </span>
+                        {platform === "instagram" ? (
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              const username = (convo.username || convo.follower_id).replace(/^@/, "").replace(/^ig_/, "");
+                              window.open(`https://instagram.com/${username}`, "_blank");
+                            }}
+                            className="text-[10px] text-muted-foreground flex items-center gap-1 hover:text-violet-400 transition-colors"
+                            title={`Abrir @${(convo.username || "").replace(/^@/, "")}`}
+                          >
+                            <Instagram className="w-3 h-3" />
+                            {platform}
+                          </button>
+                        ) : (
+                          <span className="text-[10px] text-muted-foreground flex items-center gap-1">
+                            {platformIcons[platform]}
+                            {platform}
+                          </span>
+                        )}
                       </div>
                     </button>
                     {isArchived && (
@@ -490,10 +505,27 @@ export default function Inbox() {
                   <p className="font-semibold">
                     {displayName}
                   </p>
-                  <p className="text-xs text-muted-foreground flex items-center gap-1">
-                    {platformIcons[selectedConversation.platform || detectPlatform(selectedConversation.follower_id)]}
-                    {selectedConversation.platform || detectPlatform(selectedConversation.follower_id)} • Score: {Math.round(getPurchaseIntent(followerData || selectedConversation) * 100)}%
-                  </p>
+                  <div className="text-xs text-muted-foreground flex items-center gap-1">
+                    {(selectedConversation.platform || detectPlatform(selectedConversation.follower_id)) === "instagram" ? (
+                      <button
+                        onClick={() => {
+                          const username = (selectedConversation.username || selectedConversation.follower_id).replace(/^@/, "").replace(/^ig_/, "");
+                          window.open(`https://instagram.com/${username}`, "_blank");
+                        }}
+                        className="flex items-center gap-1 hover:text-violet-400 transition-colors"
+                        title={`Abrir @${(selectedConversation.username || "").replace(/^@/, "")}`}
+                      >
+                        <Instagram className="w-3 h-3" />
+                        instagram
+                      </button>
+                    ) : (
+                      <>
+                        {platformIcons[selectedConversation.platform || detectPlatform(selectedConversation.follower_id)]}
+                        {selectedConversation.platform || detectPlatform(selectedConversation.follower_id)}
+                      </>
+                    )}
+                    <span>• Score: {Math.round(getPurchaseIntent(followerData || selectedConversation) * 100)}%</span>
+                  </div>
                 </div>
               </div>
               <DropdownMenu>
