@@ -1,10 +1,28 @@
 """
 Sistema Inteligente de Señales y Predicción de Venta
 Analiza conversaciones para detectar intención de compra, producto de interés y predecir ventas.
+
+Features:
+- Caching con TTL para evitar recalcular en cada request
+- Error handling robusto con graceful degradation
+- Logging para debugging
 """
 
 from typing import List, Dict, Any, Optional
 from datetime import datetime, timezone
+from functools import lru_cache
+import hashlib
+import logging
+import time
+
+logger = logging.getLogger(__name__)
+
+# =============================================================================
+# CACHE CONFIGURATION
+# =============================================================================
+# Simple in-memory cache with TTL
+_signals_cache: Dict[str, Dict[str, Any]] = {}
+CACHE_TTL_SECONDS = 300  # 5 minutes
 
 # =============================================================================
 # SEÑALES DE INTENCIÓN DE COMPRA
@@ -202,12 +220,71 @@ PRODUCT_SIGNALS = {
 }
 
 # =============================================================================
+# CACHE HELPERS
+# =============================================================================
+
+def _generate_cache_key(messages: List[Any], lead_status: str) -> str:
+    """Generate a unique cache key based on message content and count"""
+    try:
+        # Create hash from message count + last message content + status
+        msg_count = len(messages)
+        last_content = messages[-1].content[:100] if messages and hasattr(messages[-1], 'content') and messages[-1].content else ""
+        key_data = f"{msg_count}:{lead_status}:{last_content}"
+        return hashlib.md5(key_data.encode()).hexdigest()
+    except Exception:
+        return ""
+
+
+def _get_cached_analysis(cache_key: str) -> Optional[Dict[str, Any]]:
+    """Get cached analysis if valid"""
+    if not cache_key or cache_key not in _signals_cache:
+        return None
+
+    cached = _signals_cache[cache_key]
+    if time.time() - cached["timestamp"] > CACHE_TTL_SECONDS:
+        del _signals_cache[cache_key]
+        return None
+
+    logger.debug(f"[SIGNALS] Cache HIT for key {cache_key[:8]}...")
+    return cached["data"]
+
+
+def _store_in_cache(cache_key: str, data: Dict[str, Any]):
+    """Store analysis result in cache"""
+    if not cache_key:
+        return
+
+    # Limit cache size (LRU-like: remove oldest if > 1000 entries)
+    if len(_signals_cache) > 1000:
+        oldest_key = min(_signals_cache.keys(), key=lambda k: _signals_cache[k]["timestamp"])
+        del _signals_cache[oldest_key]
+
+    _signals_cache[cache_key] = {
+        "data": data,
+        "timestamp": time.time()
+    }
+    logger.debug(f"[SIGNALS] Cache STORE for key {cache_key[:8]}...")
+
+
+def invalidate_cache_for_lead(lead_id: str):
+    """Invalidate all cache entries (called when new message arrives)"""
+    # For now, we don't track by lead_id, so this is a no-op
+    # The TTL handles cache invalidation naturally
+    pass
+
+
+# =============================================================================
 # FUNCIÓN DE ANÁLISIS INTELIGENTE
 # =============================================================================
 
 def analyze_conversation_signals(messages: List[Any], lead_status: str = "nuevo") -> Dict[str, Any]:
     """
     Analiza todos los mensajes de una conversación y extrae señales inteligentes.
+
+    Features:
+    - Caching con TTL de 5 minutos
+    - Error handling con graceful degradation
+    - Logging para debugging
 
     Args:
         messages: Lista de objetos Message con 'role', 'content', 'created_at'
@@ -216,16 +293,34 @@ def analyze_conversation_signals(messages: List[Any], lead_status: str = "nuevo"
     Returns:
         Diccionario con predicción de venta, señales detectadas, métricas
     """
+    # Check cache first
+    cache_key = _generate_cache_key(messages, lead_status)
+    cached = _get_cached_analysis(cache_key)
+    if cached:
+        return cached
 
-    # Filtrar mensajes del usuario (lead)
-    user_messages = [m for m in messages if m.role == "user"]
-    bot_messages = [m for m in messages if m.role == "assistant"]
+    try:
+        result = _analyze_conversation_signals_internal(messages, lead_status)
+        _store_in_cache(cache_key, result)
+        return result
+    except Exception as e:
+        logger.error(f"[SIGNALS] Analysis failed: {e}", exc_info=True)
+        # Graceful degradation: return empty analysis instead of crashing
+        return _empty_analysis()
+
+
+def _analyze_conversation_signals_internal(messages: List[Any], lead_status: str) -> Dict[str, Any]:
+    """Internal analysis function - does the actual work"""
+
+    # Filtrar mensajes del usuario (lead) - with safe attribute access
+    user_messages = [m for m in messages if getattr(m, 'role', None) == "user"]
+    bot_messages = [m for m in messages if getattr(m, 'role', None) == "assistant"]
 
     if not user_messages:
         return _empty_analysis()
 
-    # Concatenar todo el texto del lead para búsqueda de keywords
-    all_text = " ".join([m.content.lower() if m.content else "" for m in user_messages])
+    # Concatenar todo el texto del lead para búsqueda de keywords - with None safety
+    all_text = " ".join([(getattr(m, 'content', '') or '').lower() for m in user_messages])
 
     detected_signals = []
     total_score = 0
@@ -373,9 +468,9 @@ def _analyze_behavior(user_messages: List, bot_messages: List, all_messages: Lis
                 "detail": f"{int(avg_response_seconds/3600)} horas promedio"
             })
 
-    # 2. Longitud de mensajes
-    total_chars = sum(len(m.content or "") for m in user_messages)
-    avg_length = total_chars / len(user_messages)
+    # 2. Longitud de mensajes - with safe attribute access
+    total_chars = sum(len(getattr(m, 'content', '') or "") for m in user_messages)
+    avg_length = total_chars / len(user_messages) if user_messages else 0
 
     if avg_length > 50:
         signals.append({
@@ -396,8 +491,8 @@ def _analyze_behavior(user_messages: List, bot_messages: List, all_messages: Lis
             "detail": f"{int(avg_length)} chars promedio"
         })
 
-    # 3. Cantidad de preguntas
-    question_count = sum(1 for m in user_messages if m.content and "?" in m.content)
+    # 3. Cantidad de preguntas - with safe attribute access
+    question_count = sum(1 for m in user_messages if getattr(m, 'content', None) and "?" in m.content)
     if question_count > 3:
         signals.append({
             "signal": "muchas_preguntas",
@@ -408,8 +503,8 @@ def _analyze_behavior(user_messages: List, bot_messages: List, all_messages: Lis
             "detail": f"{question_count} preguntas"
         })
 
-    # 4. Si inició la conversación
-    if all_messages and all_messages[0].role == "user":
+    # 4. Si inició la conversación - with safe attribute access
+    if all_messages and getattr(all_messages[0], 'role', None) == "user":
         signals.append({
             "signal": "inicio_conversacion",
             "weight": 10,
@@ -445,13 +540,21 @@ def _calculate_avg_response_time(messages: List) -> Optional[float]:
         current = messages[i]
         previous = messages[i-1]
 
-        # Solo medir cuando el lead responde al bot
-        if current.role == "user" and previous.role == "assistant":
-            if current.created_at and previous.created_at:
-                diff = (current.created_at - previous.created_at).total_seconds()
-                # Solo contar si es razonable (< 7 días)
-                if 0 < diff < 604800:
-                    response_times.append(diff)
+        # Solo medir cuando el lead responde al bot - with safe attribute access
+        current_role = getattr(current, 'role', None)
+        previous_role = getattr(previous, 'role', None)
+        current_time = getattr(current, 'created_at', None)
+        previous_time = getattr(previous, 'created_at', None)
+
+        if current_role == "user" and previous_role == "assistant":
+            if current_time and previous_time:
+                try:
+                    diff = (current_time - previous_time).total_seconds()
+                    # Solo contar si es razonable (< 7 días)
+                    if 0 < diff < 604800:
+                        response_times.append(diff)
+                except Exception:
+                    pass  # Skip if datetime math fails
 
     if response_times:
         return sum(response_times) / len(response_times)
@@ -462,8 +565,9 @@ def _calculate_behavior_metrics(user_messages: List, bot_messages: List, all_mes
     """Calcula métricas detalladas de comportamiento"""
 
     avg_response = _calculate_avg_response_time(all_messages)
-    avg_length = sum(len(m.content or "") for m in user_messages) / len(user_messages) if user_messages else 0
-    question_count = sum(1 for m in user_messages if m.content and "?" in m.content)
+    # Safe attribute access for content
+    avg_length = sum(len(getattr(m, 'content', '') or "") for m in user_messages) / len(user_messages) if user_messages else 0
+    question_count = sum(1 for m in user_messages if getattr(m, 'content', None) and "?" in m.content)
 
     # Formatear tiempo de respuesta
     tiempo_respuesta = None
