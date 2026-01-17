@@ -2304,3 +2304,173 @@ async def generate_link_previews(creator_id: str, limit: int = 50):
         return {"status": "error", "error": str(e)}
     finally:
         session.close()
+
+
+# =============================================================================
+# LEAD SYNC: Categorize and score leads based on their conversations
+# =============================================================================
+
+@router.post("/sync-leads/{creator_id}")
+async def sync_leads_from_conversations(
+    creator_id: str,
+    recategorize: bool = False,
+    limit: int = 100
+):
+    """
+    Sync and categorize leads from their conversations.
+
+    This endpoint:
+    1. Gets all leads for a creator
+    2. Analyzes their messages for purchase intent signals
+    3. Updates status (nuevo/interesado/caliente/fantasma) and purchase_intent score
+    4. Returns statistics about the sync
+
+    Args:
+        creator_id: Creator name or UUID
+        recategorize: If True, re-categorize all leads. If False, only process leads with status 'new'
+        limit: Maximum number of leads to process
+
+    Returns:
+        {
+            "total_leads": 50,
+            "categorized": {"nuevo": 10, "interesado": 25, "caliente": 5, "fantasma": 8, "cliente": 2},
+            "updated": 40,
+            "skipped": 10,
+            "details": [...]
+        }
+    """
+    from api.database import SessionLocal
+    from api.models import Creator, Lead, Message
+    from core.lead_categorization import calcular_categoria, categoria_a_status_legacy
+    from sqlalchemy import func, text
+    from datetime import timezone
+
+    session = SessionLocal()
+    try:
+        # Get creator
+        creator = session.query(Creator).filter_by(name=creator_id).first()
+        if not creator:
+            creator = session.query(Creator).filter(
+                text("id::text = :cid")
+            ).params(cid=creator_id).first()
+
+        if not creator:
+            raise HTTPException(status_code=404, detail=f"Creator not found: {creator_id}")
+
+        # Get leads to process
+        query = session.query(Lead).filter(Lead.creator_id == creator.id)
+
+        # If not recategorizing, only process new leads
+        if not recategorize:
+            query = query.filter(Lead.status == "new")
+
+        leads = query.order_by(Lead.last_contact_at.desc()).limit(limit).all()
+
+        if not leads:
+            return {
+                "status": "ok",
+                "message": "No leads to process",
+                "total_leads": 0,
+                "updated": 0
+            }
+
+        # Get all messages for these leads in single query (avoid N+1)
+        lead_ids = [lead.id for lead in leads]
+        messages_query = session.query(Message).filter(
+            Message.lead_id.in_(lead_ids)
+        ).order_by(Message.lead_id, Message.created_at).all()
+
+        # Group messages by lead_id
+        messages_by_lead = {}
+        for msg in messages_query:
+            if msg.lead_id not in messages_by_lead:
+                messages_by_lead[msg.lead_id] = []
+            messages_by_lead[msg.lead_id].append({
+                "role": msg.role,
+                "content": msg.content or "",
+                "created_at": msg.created_at
+            })
+
+        results = {
+            "total_leads": len(leads),
+            "updated": 0,
+            "skipped": 0,
+            "categorized": {
+                "nuevo": 0,
+                "interesado": 0,
+                "caliente": 0,
+                "cliente": 0,
+                "fantasma": 0
+            },
+            "details": []
+        }
+
+        for lead in leads:
+            try:
+                msgs = messages_by_lead.get(lead.id, [])
+
+                # Get last message from user for fantasma detection
+                user_msgs = [m for m in msgs if m["role"] == "user"]
+                last_user_msg_time = user_msgs[-1]["created_at"] if user_msgs else None
+
+                # Check if is_customer from context
+                ctx = lead.context or {}
+                is_cliente = ctx.get("is_customer", False)
+
+                # Calculate category
+                result = calcular_categoria(
+                    mensajes=msgs,
+                    es_cliente=is_cliente,
+                    ultimo_mensaje_lead=last_user_msg_time,
+                    dias_fantasma=7,
+                    lead_created_at=lead.first_contact_at
+                )
+
+                # Map category to legacy status for compatibility
+                new_status = categoria_a_status_legacy(result.categoria)
+
+                # Check if update needed
+                if lead.status == new_status and abs((lead.purchase_intent or 0) - result.intent_score) < 0.01:
+                    results["skipped"] += 1
+                    continue
+
+                # Update lead
+                old_status = lead.status
+                lead.status = new_status
+                lead.purchase_intent = result.intent_score
+
+                results["updated"] += 1
+                results["categorized"][result.categoria] += 1
+                results["details"].append({
+                    "lead_id": str(lead.id),
+                    "username": lead.username,
+                    "old_status": old_status,
+                    "new_status": new_status,
+                    "categoria": result.categoria,
+                    "intent_score": round(result.intent_score, 2),
+                    "razones": result.razones[:2],
+                    "total_messages": len(msgs)
+                })
+
+                # Batch commit every 20 updates
+                if results["updated"] % 20 == 0:
+                    session.commit()
+
+            except Exception as e:
+                logger.warning(f"Error categorizing lead {lead.id}: {e}")
+                results["skipped"] += 1
+
+        # Final commit
+        session.commit()
+
+        logger.info(f"Sync leads for {creator_id}: {results['updated']} updated, {results['skipped']} skipped")
+        return {"status": "ok", **results}
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"sync_leads error: {e}")
+        session.rollback()
+        return {"status": "error", "error": str(e)}
+    finally:
+        session.close()

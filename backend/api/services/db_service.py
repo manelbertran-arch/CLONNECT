@@ -919,6 +919,106 @@ async def create_lead_async(creator_id: str, data: dict) -> dict:
         session.close()
 
 
+def get_or_create_lead(creator_name: str, platform_user_id: str, platform: str = "instagram",
+                       username: str = None, full_name: str = None, profile_pic_url: str = None) -> dict:
+    """
+    Get existing lead or create new one. Used by Instagram webhook handlers.
+
+    This is the primary function for ensuring a lead exists when processing
+    incoming messages or interactions.
+
+    Args:
+        creator_name: Creator name (e.g., 'fitpack_global')
+        platform_user_id: Platform-specific user ID (e.g., 'ig_123456')
+        platform: Platform name ('instagram', 'telegram')
+        username: Optional @username
+        full_name: Optional display name
+        profile_pic_url: Optional profile picture URL
+
+    Returns:
+        Dict with lead info: {id, creator_id, platform_user_id, username, status}
+        or None if failed
+    """
+    session = get_session()
+    if not session:
+        logger.warning("get_or_create_lead: no database session available")
+        return None
+
+    try:
+        from api.models import Creator, Lead
+        from datetime import timezone
+
+        # Get creator by name
+        creator = session.query(Creator).filter_by(name=creator_name).first()
+        if not creator:
+            logger.warning(f"get_or_create_lead: creator '{creator_name}' not found")
+            return None
+
+        # Check if lead already exists
+        lead = session.query(Lead).filter_by(
+            creator_id=creator.id,
+            platform_user_id=platform_user_id
+        ).first()
+
+        if lead:
+            # Update profile info if provided and changed
+            if username and lead.username != username:
+                lead.username = username
+            if full_name and lead.full_name != full_name:
+                lead.full_name = full_name
+            if profile_pic_url and lead.profile_pic_url != profile_pic_url:
+                lead.profile_pic_url = profile_pic_url
+
+            # Always update last_contact_at
+            lead.last_contact_at = datetime.now(timezone.utc)
+            session.commit()
+
+            return {
+                "id": str(lead.id),
+                "creator_id": str(creator.id),
+                "platform_user_id": lead.platform_user_id,
+                "username": lead.username,
+                "full_name": lead.full_name,
+                "status": lead.status
+            }
+
+        # Create new lead
+        now = datetime.now(timezone.utc)
+        lead = Lead(
+            creator_id=creator.id,
+            platform=platform,
+            platform_user_id=platform_user_id,
+            username=username or platform_user_id,
+            full_name=full_name or username or "",
+            profile_pic_url=profile_pic_url,
+            status="new",
+            score=0,
+            purchase_intent=0.0,
+            first_contact_at=now,
+            last_contact_at=now
+        )
+        session.add(lead)
+        session.commit()
+
+        logger.info(f"get_or_create_lead: created new lead {lead.id} for {platform_user_id}")
+
+        return {
+            "id": str(lead.id),
+            "creator_id": str(creator.id),
+            "platform_user_id": lead.platform_user_id,
+            "username": lead.username,
+            "full_name": lead.full_name,
+            "status": lead.status
+        }
+
+    except Exception as e:
+        logger.error(f"get_or_create_lead error: {e}")
+        session.rollback()
+        return None
+    finally:
+        session.close()
+
+
 async def save_message(
     lead_id: str,
     role: str,
