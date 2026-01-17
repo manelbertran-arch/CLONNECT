@@ -9,6 +9,7 @@ interface MessageMetadata {
   url?: string;
   emoji?: string;
   thumbnail_url?: string;
+  thumbnail_base64?: string;  // Screenshot base64 for link previews
   preview_url?: string;
   animated_gif_url?: string;
   width?: number;
@@ -17,6 +18,7 @@ interface MessageMetadata {
   author_username?: string;
   permalink?: string;
   caption?: string;
+  platform?: string;  // instagram, youtube, tiktok, web
 }
 
 interface Message {
@@ -64,6 +66,8 @@ export function MessageRenderer({ message, isLastInGroup = true }: MessageRender
     case 'share':
     case 'shared_post':
     case 'shared_reel':
+    case 'shared_video':
+    case 'link_preview':
       return <SharedPostMessage message={message} isOutgoing={isOutgoing} isLastInGroup={isLastInGroup} />;
 
     default:
@@ -270,21 +274,54 @@ function AudioMessage({ message, isOutgoing, isLastInGroup }: { message: Message
 
 // Shared Post/Reel Message
 function SharedPostMessage({ message, isOutgoing, isLastInGroup }: { message: Message; isOutgoing: boolean; isLastInGroup: boolean }) {
+  const [imageLoaded, setImageLoaded] = useState(false);
+  const [imageError, setImageError] = useState(false);
   const metadata = message.metadata || {};
+
+  // Support both URL and base64 thumbnails
+  const thumbnailBase64 = metadata.thumbnail_base64;
   const thumbnailUrl = metadata.thumbnail_url || metadata.preview_url;
+  const thumbnailSrc = thumbnailBase64
+    ? `data:image/jpeg;base64,${thumbnailBase64}`
+    : thumbnailUrl;
+
   const permalink = metadata.permalink || metadata.url;
   const authorUsername = metadata.author_username;
   const isReel = metadata.type === 'shared_reel';
+  const isVideo = metadata.type === 'shared_video' || isReel;
+
+  // Platform-specific label
+  const platformLabel = metadata.platform === 'youtube' ? 'YouTube'
+    : metadata.platform === 'tiktok' ? 'TikTok'
+    : 'Instagram';
 
   return (
     <div className={`flex ${isOutgoing ? 'justify-end' : 'justify-start'}`}>
       <div className={`max-w-[75%] bg-[#262626] rounded-2xl ${isLastInGroup ? (isOutgoing ? 'rounded-br-md' : 'rounded-bl-md') : ''} overflow-hidden`}>
         {/* Post Preview */}
         <a href={permalink} target="_blank" rel="noopener noreferrer" className="block">
-          {thumbnailUrl ? (
+          {thumbnailSrc && !imageError ? (
             <div className="relative">
-              <img src={thumbnailUrl} alt="Post" className="w-full max-h-64 object-cover" />
-              {isReel && (
+              {!imageLoaded && (
+                <div className="w-full h-48 bg-[#363636] flex items-center justify-center">
+                  <Share2 className="w-8 h-8 text-gray-500 animate-pulse" />
+                </div>
+              )}
+              <img
+                src={thumbnailSrc}
+                alt="Post preview"
+                className={`w-full max-h-64 object-cover ${imageLoaded ? '' : 'hidden'}`}
+                onLoad={() => setImageLoaded(true)}
+                onError={() => setImageError(true)}
+              />
+              {isVideo && imageLoaded && (
+                <div className="absolute inset-0 flex items-center justify-center bg-black/20">
+                  <div className="w-12 h-12 rounded-full bg-black/60 flex items-center justify-center">
+                    <Play className="w-6 h-6 text-white ml-1" />
+                  </div>
+                </div>
+              )}
+              {isReel && !isVideo && (
                 <div className="absolute top-2 right-2 bg-black/60 rounded px-2 py-1">
                   <Film className="w-4 h-4 text-white" />
                 </div>
@@ -301,14 +338,14 @@ function SharedPostMessage({ message, isOutgoing, isLastInGroup }: { message: Me
             <div className="flex items-center gap-2">
               <div className="w-6 h-6 rounded-full bg-gradient-to-br from-purple-500 to-pink-500"></div>
               <span className="text-white text-sm font-medium">
-                {authorUsername || 'Instagram'}
+                {authorUsername || platformLabel}
               </span>
             </div>
             {metadata.caption && (
               <p className="text-gray-400 text-xs mt-2 line-clamp-2">{metadata.caption}</p>
             )}
             <p className="text-blue-400 text-xs mt-2 flex items-center gap-1">
-              Ver en Instagram <ExternalLink className="w-3 h-3" />
+              Ver en {platformLabel} <ExternalLink className="w-3 h-3" />
             </p>
           </div>
         </a>

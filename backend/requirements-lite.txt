@@ -55,3 +55,6 @@ email-validator>=2.0.0
 sentry-sdk[fastapi]>=1.39.0
 prometheus_client>=0.19.0
 gunicorn>=21.0.0
+
+# Screenshot service for link previews
+playwright>=1.40.0

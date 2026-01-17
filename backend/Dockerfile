@@ -1,7 +1,7 @@
 # Clonnect Creators - Production Dockerfile
-# Multi-stage build for optimized image size
+# Using Playwright image for screenshot service support
 
-# Stage 1: Builder
+# Stage 1: Builder (using slim image for faster builds)
 FROM python:3.11-slim as builder
 
 WORKDIR /app
@@ -15,7 +15,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 COPY requirements-lite.txt .
 
 # Force rebuild - change this value to invalidate pip cache
-ENV FORCE_REBUILD="2026-01-11-v6-conversation-memory"
+ENV FORCE_REBUILD="2026-01-17-v7-playwright-screenshots"
 
 # Create virtual environment and install dependencies
 RUN python -m venv /opt/venv
@@ -23,8 +23,8 @@ ENV PATH="/opt/venv/bin:$PATH"
 RUN pip install --no-cache-dir --upgrade pip && \
     pip install --no-cache-dir -r requirements-lite.txt
 
-# Stage 2: Runtime
-FROM python:3.11-slim as runtime
+# Stage 2: Runtime with Playwright/Chromium support
+FROM mcr.microsoft.com/playwright/python:v1.40.0-jammy as runtime
 
 WORKDIR /app
 
@@ -34,6 +34,9 @@ RUN groupadd -r clonnect && useradd -r -g clonnect clonnect
 # Copy virtual environment from builder
 COPY --from=builder /opt/venv /opt/venv
 ENV PATH="/opt/venv/bin:$PATH"
+
+# Install playwright browsers (Chromium only for smaller image)
+RUN playwright install chromium
 
 # Copy application code
 COPY --chown=clonnect:clonnect . .
@@ -59,10 +62,8 @@ RUN mkdir -p /app/initial_data && \
 
 # Environment variables
 ENV PYTHONUNBUFFERED=1 \
-    PYTHONDONTWRITEBYTECODE=1
-
-# Switch to non-root user
-#USER clonnect  # Removed - start.sh handles user switch
+    PYTHONDONTWRITEBYTECODE=1 \
+    PLAYWRIGHT_BROWSERS_PATH=/ms-playwright
 
 # Expose port (default, Railway will override with PORT env var)
 EXPOSE 8000

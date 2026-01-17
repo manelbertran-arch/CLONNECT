@@ -236,6 +236,10 @@ app.include_router(ingestion_v2.router)
 from api.routers import instagram as instagram_router
 app.include_router(instagram_router.router)
 
+# Preview router (link previews with screenshots)
+from api.routers import preview as preview_router
+app.include_router(preview_router.router)
+
 # Authentication router
 from api.auth import router as auth_router
 app.include_router(auth_router)
