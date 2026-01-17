@@ -8,8 +8,10 @@ RUN npm run build
 
 # Production stage with nginx
 FROM nginx:alpine
+# Remove default nginx config
+RUN rm /etc/nginx/conf.d/default.conf
+# Copy our config and built files
+COPY nginx.conf /etc/nginx/conf.d/default.conf
 COPY --from=builder /app/dist /usr/share/nginx/html
-COPY nginx.conf /etc/nginx/nginx.conf.template
-ENV PORT=80
-EXPOSE 80
-CMD envsubst '${PORT}' < /etc/nginx/nginx.conf.template > /etc/nginx/conf.d/default.conf && nginx -g 'daemon off;'
+EXPOSE 8080
+CMD ["nginx", "-g", "daemon off;"]
