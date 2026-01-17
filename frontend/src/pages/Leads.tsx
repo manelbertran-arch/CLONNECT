@@ -74,7 +74,8 @@ const STATUS_COLORS: Record<LeadStatus, string> = {
 interface LeadDisplay {
   id: string;
   name: string;
-  username: string;
+  username: string;        // Display name (name or username)
+  instagramUsername: string; // Actual Instagram username for URL
   score: number;         // Pipeline score (20/40/60/80/100) - main display
   intentScore: number;   // AI intent score (0-100) - secondary display
   value: number;
@@ -253,10 +254,15 @@ export default function Leads() {
       // Value = product_price × (scoring / 100)
       const value = calculateLeadValue(status, productPrice);
 
+      // Get Instagram username (without ig_ prefix if present)
+      const rawUsername = convo.username || convo.follower_id;
+      const instagramUsername = rawUsername.replace(/^ig_/, "").replace(/^@/, "");
+
       return {
         id: leadId, // Prefer UUID id for reliable DB lookups
         name: convo.name || "",
         username: displayName,
+        instagramUsername,  // Actual username for Instagram URL
         score,              // Stage-based scoring (0-100%)
         intentScore,        // AI intent score (secondary)
         value,              // Calculated value in €
@@ -553,13 +559,18 @@ export default function Leads() {
                       <div className="flex items-start gap-3">
                         {/* Avatar - Clickable for Instagram */}
                         <button
-                          onClick={(e) => lead.platform === "instagram" && openInstagramProfile(lead.username, e)}
+                          onClick={(e) => {
+                            e.stopPropagation(); // Always stop propagation
+                            if (lead.platform === "instagram" && lead.instagramUsername) {
+                              window.open(`https://instagram.com/${lead.instagramUsername}`, "_blank");
+                            }
+                          }}
                           className={cn(
                             "w-10 h-10 rounded-full shrink-0 overflow-hidden",
-                            lead.platform === "instagram" && "hover:ring-2 hover:ring-primary/50 cursor-pointer",
+                            lead.platform === "instagram" && "hover:ring-2 hover:ring-violet-500 cursor-pointer",
                             lead.platform !== "instagram" && "cursor-default"
                           )}
-                          title={lead.platform === "instagram" ? "Abrir Instagram" : undefined}
+                          title={lead.platform === "instagram" ? `Abrir @${lead.instagramUsername}` : undefined}
                         >
                           {lead.profilePicUrl ? (
                             <img
