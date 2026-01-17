@@ -70,6 +70,8 @@ def run_migrations(engine):
         # Taxonomía: category + is_free
         ("products", "category", "VARCHAR(20) DEFAULT 'product'"),
         ("products", "is_free", "BOOLEAN DEFAULT FALSE"),
+        # Profile picture URL for leads (Instagram)
+        ("leads", "profile_pic_url", "VARCHAR(500)"),
     ]
 
     with engine.connect() as conn:
