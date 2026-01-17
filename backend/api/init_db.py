@@ -60,6 +60,10 @@ def run_migrations(engine):
         ("messages", "platform_message_id", "VARCHAR(255)"),
         # Copilot mode setting for creators
         ("creators", "copilot_mode", "BOOLEAN DEFAULT TRUE"),
+        # Product price for lead scoring
+        ("creators", "product_price", "FLOAT DEFAULT 97.0"),
+        # Email capture configuration
+        ("creators", "email_capture_config", "JSON"),
         # Anti-hallucination: Product source tracking
         ("products", "source_url", "TEXT"),
         ("products", "price_verified", "BOOLEAN DEFAULT FALSE"),
