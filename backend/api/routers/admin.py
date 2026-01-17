@@ -1596,6 +1596,63 @@ async def generate_thumbnails(creator_id: str, limit: int = 10):
         return {"error": str(e)}
 
 
+@router.delete("/clear-messages/{creator_id}")
+async def clear_messages(creator_id: str):
+    """
+    Delete all messages for a creator to allow re-import with new features.
+
+    WARNING: This permanently deletes all messages. Use with caution.
+
+    Args:
+        creator_id: Creator name (e.g., 'fitpack_global')
+
+    Returns:
+        Count of deleted messages
+    """
+    try:
+        from api.database import DATABASE_URL, SessionLocal
+        from api.models import Creator, Lead, Message
+
+        if not DATABASE_URL or not SessionLocal:
+            return {"error": "Database not configured"}
+
+        session = SessionLocal()
+        try:
+            # Get creator
+            creator = session.query(Creator).filter_by(name=creator_id).first()
+            if not creator:
+                return {"error": f"Creator {creator_id} not found"}
+
+            # Get all leads for this creator
+            leads = session.query(Lead).filter_by(creator_id=creator.id).all()
+            lead_ids = [l.id for l in leads]
+
+            if not lead_ids:
+                return {"status": "ok", "messages_deleted": 0, "message": "No leads found"}
+
+            # Delete all messages for these leads
+            deleted_count = session.query(Message).filter(
+                Message.lead_id.in_(lead_ids)
+            ).delete(synchronize_session=False)
+
+            session.commit()
+
+            return {
+                "status": "success",
+                "messages_deleted": deleted_count,
+                "leads_count": len(lead_ids),
+                "creator": creator_id
+            }
+
+        finally:
+            session.close()
+
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return {"error": str(e)}
+
+
 # =============================================================================
 # SYNC QUEUE SYSTEM - Sincronización inteligente con rate limiting
 # =============================================================================
