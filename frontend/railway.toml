@@ -1,7 +1,8 @@
 [build]
-builder = "dockerfile"
+builder = "nixpacks"
+buildCommand = "npm install && npm run build"
 
 [deploy]
+startCommand = "npx serve dist -s -l $PORT"
 healthcheckPath = "/"
 healthcheckTimeout = 30
-numReplicas = 1
