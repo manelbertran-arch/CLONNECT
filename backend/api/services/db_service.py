@@ -699,33 +699,21 @@ def update_lead(creator_name: str, lead_id: str, data: dict):
             lead = session.query(Lead).filter_by(creator_id=creator.id, platform_user_id=lead_id).first()
 
         if lead:
-            from sqlalchemy.orm.attributes import flag_modified
+            logger.info(f"update_lead: lead {lead_id} found")
 
-            # Handle special fields that go into context JSON
-            # IMPORTANT: Create a NEW dict to ensure SQLAlchemy detects the change
-            context_fields = ['email', 'phone', 'notes']
-            old_context = lead.context
-            new_context = dict(old_context) if old_context else {}
-
-            logger.info(f"update_lead: lead {lead_id} found. old_context={old_context}, type={type(old_context)}")
+            # CRM fields are now direct columns on Lead model
+            crm_fields = ['email', 'phone', 'notes', 'tags', 'deal_value', 'source', 'assigned_to']
 
             for key, value in data.items():
-                if key in context_fields:
-                    new_context[key] = value
-                    logger.info(f"update_lead: setting context[{key}] = {value}")
-                elif hasattr(lead, key):
+                if hasattr(lead, key):
                     setattr(lead, key, value)
+                    logger.info(f"update_lead: setting {key} = {value}")
 
             # Also update name fields if provided
             if 'name' in data:
                 lead.full_name = data['name']
                 if not lead.username:
                     lead.username = data['name']
-
-            # Assign the new context dict AND flag as modified (belt and suspenders)
-            lead.context = new_context
-            flag_modified(lead, 'context')
-            logger.info(f"update_lead: assigned new context={new_context}, flagged as modified")
 
             session.commit()
             logger.info(f"update_lead: committed lead {lead_id}")
@@ -738,9 +726,11 @@ def update_lead(creator_name: str, lead_id: str, data: dict):
                 "status": lead.status,
                 "score": lead.score,
                 "purchase_intent": lead.purchase_intent,
-                "email": new_context.get("email"),
-                "phone": new_context.get("phone"),
-                "notes": new_context.get("notes"),
+                "email": lead.email,
+                "phone": lead.phone,
+                "notes": lead.notes,
+                "tags": lead.tags,
+                "deal_value": lead.deal_value,
             }
         logger.warning(f"update_lead: lead '{lead_id}' not found")
         return None

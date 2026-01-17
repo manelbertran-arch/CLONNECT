@@ -44,7 +44,7 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
-import { useConversations, useUpdateLeadStatus, useCreateManualLead, useUpdateLead, useDeleteLead, useLeadActivities, useCreateLeadActivity, useLeadTasks, useCreateLeadTask, useUpdateLeadTask } from "@/hooks/useApi";
+import { useConversations, useUpdateLeadStatus, useCreateManualLead, useUpdateLead, useDeleteLead, useLeadActivities, useCreateLeadActivity, useLeadTasks, useCreateLeadTask, useUpdateLeadTask, useDeleteLeadTask } from "@/hooks/useApi";
 import { useToast } from "@/hooks/use-toast";
 import type { Conversation } from "@/types/api";
 import { getPurchaseIntent, detectPlatform, getDisplayName } from "@/types/api";
@@ -219,19 +219,24 @@ export default function Leads() {
   const createActivityMutation = useCreateLeadActivity();
   const createTaskMutation = useCreateLeadTask();
   const updateTaskMutation = useUpdateLeadTask();
+  const deleteTaskMutation = useDeleteLeadTask();
 
   // Modal states
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [isViewModalOpen, setIsViewModalOpen] = useState(false);
-  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [selectedLead, setSelectedLead] = useState<LeadDisplay | null>(null);
   const [formData, setFormData] = useState(initialFormState);
 
-  // CRM modal state
+  // CRM modal state - editable fields
   const [newNote, setNewNote] = useState("");
   const [newTaskTitle, setNewTaskTitle] = useState("");
   const [modalTab, setModalTab] = useState("info");
+  const [editEmail, setEditEmail] = useState("");
+  const [editPhone, setEditPhone] = useState("");
+  const [editNotes, setEditNotes] = useState("");
+  const [editingTaskId, setEditingTaskId] = useState<string | null>(null);
+  const [editingTaskTitle, setEditingTaskTitle] = useState("");
 
   // Fetch activities and tasks for selected lead
   const { data: activitiesData } = useLeadActivities(selectedLead?.followerId || null);
@@ -393,6 +398,12 @@ export default function Leads() {
     setModalTab("info"); // Reset to info tab
     setNewNote("");
     setNewTaskTitle("");
+    // Initialize editable fields with current values
+    setEditEmail(lead.email || "");
+    setEditPhone(lead.phone || "");
+    setEditNotes(lead.notes || "");
+    setEditingTaskId(null);
+    setEditingTaskTitle("");
     setIsViewModalOpen(true);
   };
 
@@ -459,6 +470,87 @@ export default function Leads() {
         leadId: selectedLead.followerId,
         taskId,
         data: { status: newStatus },
+      });
+      toast({
+        title: newStatus === "completed" ? "Tarea completada" : "Tarea reabierta",
+      });
+    } catch {
+      toast({
+        title: "Error",
+        description: "No se pudo actualizar la tarea",
+        variant: "destructive",
+      });
+    }
+  };
+
+  // Handler for saving lead info (email, phone, notes)
+  const handleSaveLeadInfo = async () => {
+    if (!selectedLead) return;
+
+    try {
+      await updateLeadMutation.mutateAsync({
+        leadId: selectedLead.followerId,
+        data: {
+          email: editEmail,
+          phone: editPhone,
+          notes: editNotes,
+        },
+      });
+      // Update local state
+      setSelectedLead({
+        ...selectedLead,
+        email: editEmail,
+        phone: editPhone,
+        notes: editNotes,
+      });
+      toast({
+        title: "Guardado",
+        description: "Datos del lead actualizados",
+      });
+    } catch {
+      toast({
+        title: "Error",
+        description: "No se pudo guardar los cambios",
+        variant: "destructive",
+      });
+    }
+  };
+
+  // Handler for deleting a task
+  const handleDeleteTask = async (taskId: string) => {
+    if (!selectedLead) return;
+
+    try {
+      await deleteTaskMutation.mutateAsync({
+        leadId: selectedLead.followerId,
+        taskId,
+      });
+      toast({
+        title: "Tarea eliminada",
+      });
+    } catch {
+      toast({
+        title: "Error",
+        description: "No se pudo eliminar la tarea",
+        variant: "destructive",
+      });
+    }
+  };
+
+  // Handler for saving task edit
+  const handleSaveTaskEdit = async () => {
+    if (!selectedLead || !editingTaskId || !editingTaskTitle.trim()) return;
+
+    try {
+      await updateTaskMutation.mutateAsync({
+        leadId: selectedLead.followerId,
+        taskId: editingTaskId,
+        data: { title: editingTaskTitle.trim() },
+      });
+      setEditingTaskId(null);
+      setEditingTaskTitle("");
+      toast({
+        title: "Tarea actualizada",
       });
     } catch {
       toast({
@@ -736,11 +828,11 @@ export default function Leads() {
                           <DropdownMenuContent align="end" className="w-36">
                             <DropdownMenuItem onClick={(e) => { e.stopPropagation(); handleViewLead(lead); }}>
                               <Eye className="w-4 h-4 mr-2" />
-                              Ver
+                              Ver detalles
                             </DropdownMenuItem>
-                            <DropdownMenuItem onClick={(e) => { e.stopPropagation(); handleOpenEditModal(lead); }}>
-                              <Pencil className="w-4 h-4 mr-2" />
-                              Editar
+                            <DropdownMenuItem onClick={(e) => { e.stopPropagation(); navigate(`/inbox?id=${lead.followerId}`); }}>
+                              <MessageCircle className="w-4 h-4 mr-2" />
+                              Ir al chat
                             </DropdownMenuItem>
                             <DropdownMenuSeparator />
                             <DropdownMenuItem
@@ -914,7 +1006,7 @@ export default function Leads() {
                   </TabsTrigger>
                 </TabsList>
 
-                {/* Info Tab */}
+                {/* Info Tab - Editable */}
                 <TabsContent value="info" className="flex-1 overflow-auto mt-3 space-y-4">
                   {/* Stats Grid */}
                   <div className="grid grid-cols-3 gap-2">
@@ -932,53 +1024,84 @@ export default function Leads() {
                     </div>
                   </div>
 
-                  {/* Contact Info */}
-                  <div className="space-y-2">
-                    <p className="text-xs text-muted-foreground uppercase tracking-wide">Contacto</p>
-                    <div className="space-y-1.5 text-sm">
-                      {selectedLead.email ? (
-                        <p className="flex items-center gap-2 text-muted-foreground">
-                          <Mail className="w-4 h-4" /> {selectedLead.email}
-                        </p>
-                      ) : (
-                        <p className="text-muted-foreground/50 text-xs">Sin email</p>
-                      )}
-                      {selectedLead.phone ? (
-                        <p className="flex items-center gap-2 text-muted-foreground">
-                          <Phone className="w-4 h-4" /> {selectedLead.phone}
-                        </p>
-                      ) : (
-                        <p className="text-muted-foreground/50 text-xs">Sin teléfono</p>
-                      )}
+                  {/* Editable Contact Info */}
+                  <div className="space-y-3">
+                    <p className="text-xs text-muted-foreground uppercase tracking-wide">Datos de contacto</p>
+                    <div className="space-y-2">
+                      <div className="flex items-center gap-2">
+                        <Mail className="w-4 h-4 text-muted-foreground shrink-0" />
+                        <Input
+                          placeholder="email@ejemplo.com"
+                          value={editEmail}
+                          onChange={(e) => setEditEmail(e.target.value)}
+                          className="h-8 text-sm"
+                        />
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Phone className="w-4 h-4 text-muted-foreground shrink-0" />
+                        <Input
+                          placeholder="+34 600 000 000"
+                          value={editPhone}
+                          onChange={(e) => setEditPhone(e.target.value)}
+                          className="h-8 text-sm"
+                        />
+                      </div>
                     </div>
                   </div>
 
-                  {/* Quick Note */}
+                  {/* Editable Notes */}
                   <div className="space-y-2">
-                    <p className="text-xs text-muted-foreground uppercase tracking-wide">Añadir nota</p>
+                    <p className="text-xs text-muted-foreground uppercase tracking-wide">Notas</p>
+                    <Textarea
+                      placeholder="Notas sobre este lead..."
+                      value={editNotes}
+                      onChange={(e) => setEditNotes(e.target.value)}
+                      className="h-24 text-sm resize-none"
+                    />
+                  </div>
+
+                  {/* Save Button */}
+                  {(editEmail !== (selectedLead.email || "") ||
+                    editPhone !== (selectedLead.phone || "") ||
+                    editNotes !== (selectedLead.notes || "")) && (
+                    <Button
+                      onClick={handleSaveLeadInfo}
+                      disabled={updateLeadMutation.isPending}
+                      className="w-full bg-violet-600 hover:bg-violet-700"
+                    >
+                      {updateLeadMutation.isPending ? (
+                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                      ) : (
+                        <CheckCircle className="w-4 h-4 mr-2" />
+                      )}
+                      Guardar cambios
+                    </Button>
+                  )}
+
+                  {/* Quick Note to History */}
+                  <div className="space-y-2 pt-2 border-t">
+                    <p className="text-xs text-muted-foreground uppercase tracking-wide">Añadir al historial</p>
                     <div className="flex gap-2">
-                      <Textarea
-                        placeholder="Escribe una nota..."
+                      <Input
+                        placeholder="Nota rápida para historial..."
                         value={newNote}
                         onChange={(e) => setNewNote(e.target.value)}
-                        className="h-20 text-sm resize-none"
+                        className="h-8 text-sm"
+                        onKeyDown={(e) => e.key === "Enter" && newNote.trim() && handleAddNote()}
                       />
-                    </div>
-                    {newNote.trim() && (
                       <Button
                         size="sm"
                         onClick={handleAddNote}
-                        disabled={createActivityMutation.isPending}
-                        className="w-full"
+                        disabled={createActivityMutation.isPending || !newNote.trim()}
+                        className="shrink-0"
                       >
                         {createActivityMutation.isPending ? (
-                          <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" />
+                          <Loader2 className="w-4 h-4 animate-spin" />
                         ) : (
-                          <StickyNote className="w-3.5 h-3.5 mr-1.5" />
+                          <Plus className="w-4 h-4" />
                         )}
-                        Guardar nota
                       </Button>
-                    )}
+                    </div>
                   </div>
 
                   {/* Action Buttons */}
@@ -1031,38 +1154,44 @@ export default function Leads() {
                     </Button>
                   </div>
 
-                  {/* Task List */}
+                  {/* Pending Tasks */}
                   <div className="space-y-2">
-                    {tasksData?.tasks?.length === 0 && (
-                      <p className="text-center text-sm text-muted-foreground py-8">
+                    {tasksData?.tasks?.filter((t: { status: string }) => t.status !== "completed").length === 0 && (
+                      <p className="text-center text-sm text-muted-foreground py-4">
                         No hay tareas pendientes
                       </p>
                     )}
-                    {tasksData?.tasks?.map((task: { id: string; title: string; status: string; priority: string; due_date?: string }) => (
+                    {tasksData?.tasks?.filter((t: { status: string }) => t.status !== "completed").map((task: { id: string; title: string; status: string; priority: string; due_date?: string }) => (
                       <div
                         key={task.id}
-                        className={cn(
-                          "flex items-start gap-2 p-2 rounded-lg border transition-colors",
-                          task.status === "completed" ? "bg-muted/30 border-muted" : "bg-card border-border hover:border-violet-500/30"
-                        )}
+                        className="flex items-start gap-2 p-2 rounded-lg border bg-card border-border hover:border-violet-500/30 transition-colors"
                       >
                         <button
                           onClick={() => handleToggleTask(task.id, task.status)}
                           className="mt-0.5"
                         >
-                          {task.status === "completed" ? (
-                            <CheckSquare className="w-4 h-4 text-emerald-500" />
-                          ) : (
-                            <Square className="w-4 h-4 text-muted-foreground hover:text-violet-500" />
-                          )}
+                          <Square className="w-4 h-4 text-muted-foreground hover:text-violet-500" />
                         </button>
                         <div className="flex-1 min-w-0">
-                          <p className={cn(
-                            "text-sm",
-                            task.status === "completed" && "line-through text-muted-foreground"
-                          )}>
-                            {task.title}
-                          </p>
+                          {editingTaskId === task.id ? (
+                            <div className="flex gap-1">
+                              <Input
+                                value={editingTaskTitle}
+                                onChange={(e) => setEditingTaskTitle(e.target.value)}
+                                className="h-7 text-sm"
+                                onKeyDown={(e) => {
+                                  if (e.key === "Enter") handleSaveTaskEdit();
+                                  if (e.key === "Escape") { setEditingTaskId(null); setEditingTaskTitle(""); }
+                                }}
+                                autoFocus
+                              />
+                              <Button size="sm" variant="ghost" className="h-7 px-2" onClick={handleSaveTaskEdit}>
+                                <CheckCircle className="w-3.5 h-3.5" />
+                              </Button>
+                            </div>
+                          ) : (
+                            <p className="text-sm">{task.title}</p>
+                          )}
                           {task.due_date && (
                             <p className="text-[10px] text-muted-foreground flex items-center gap-1 mt-0.5">
                               <Calendar className="w-3 h-3" />
@@ -1075,9 +1204,55 @@ export default function Leads() {
                             {task.priority === "urgent" ? "Urgente" : "Alta"}
                           </span>
                         ) : null}
+                        {editingTaskId !== task.id && (
+                          <div className="flex gap-1">
+                            <button
+                              onClick={() => { setEditingTaskId(task.id); setEditingTaskTitle(task.title); }}
+                              className="p-1 text-muted-foreground hover:text-violet-500 transition-colors"
+                              title="Editar"
+                            >
+                              <Pencil className="w-3.5 h-3.5" />
+                            </button>
+                            <button
+                              onClick={() => handleDeleteTask(task.id)}
+                              className="p-1 text-muted-foreground hover:text-red-500 transition-colors"
+                              title="Eliminar"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
+                        )}
                       </div>
                     ))}
                   </div>
+
+                  {/* Completed Tasks */}
+                  {tasksData?.tasks?.filter((t: { status: string }) => t.status === "completed").length > 0 && (
+                    <div className="space-y-2 pt-2 border-t">
+                      <p className="text-[10px] text-muted-foreground uppercase tracking-wide">Completadas</p>
+                      {tasksData?.tasks?.filter((t: { status: string }) => t.status === "completed").map((task: { id: string; title: string; status: string }) => (
+                        <div
+                          key={task.id}
+                          className="flex items-center gap-2 p-2 rounded-lg bg-muted/20 border border-muted"
+                        >
+                          <button
+                            onClick={() => handleToggleTask(task.id, task.status)}
+                            className="shrink-0"
+                          >
+                            <CheckSquare className="w-4 h-4 text-emerald-500" />
+                          </button>
+                          <p className="text-sm line-through text-muted-foreground flex-1">{task.title}</p>
+                          <button
+                            onClick={() => handleDeleteTask(task.id)}
+                            className="p-1 text-muted-foreground hover:text-red-500 transition-colors"
+                            title="Eliminar"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </TabsContent>
 
                 {/* History Tab */}
@@ -1118,107 +1293,25 @@ export default function Leads() {
               </Tabs>
 
               {/* Footer Actions */}
-              <div className="flex justify-between pt-3 border-t mt-3">
-                <div className="flex gap-2">
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => {
-                      setIsViewModalOpen(false);
-                      if (selectedLead) handleOpenEditModal(selectedLead);
-                    }}
-                  >
-                    <Pencil className="w-3.5 h-3.5 mr-1.5" />
-                    Editar
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="text-destructive hover:text-destructive"
-                    onClick={() => {
-                      setIsViewModalOpen(false);
-                      if (selectedLead) handleOpenDeleteDialog(selectedLead);
-                    }}
-                  >
-                    <Trash2 className="w-3.5 h-3.5 mr-1.5" />
-                    Eliminar
-                  </Button>
-                </div>
+              <div className="flex justify-end pt-3 border-t mt-3">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="text-destructive hover:text-destructive"
+                  onClick={() => {
+                    setIsViewModalOpen(false);
+                    if (selectedLead) handleOpenDeleteDialog(selectedLead);
+                  }}
+                >
+                  <Trash2 className="w-3.5 h-3.5 mr-1.5" />
+                  Eliminar lead
+                </Button>
               </div>
             </>
           )}
         </DialogContent>
       </Dialog>
 
-      {/* Edit Lead Modal */}
-      <Dialog open={isEditModalOpen} onOpenChange={setIsEditModalOpen}>
-        <DialogContent className="sm:max-w-[360px]">
-          <DialogHeader>
-            <DialogTitle className="text-base">Editar Lead</DialogTitle>
-          </DialogHeader>
-          <div className="grid gap-3 py-3">
-            <div className="grid gap-1.5">
-              <Label htmlFor="edit-name" className="text-xs">Nombre</Label>
-              <Input
-                id="edit-name"
-                value={formData.name}
-                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                className="h-9"
-              />
-            </div>
-            <div className="grid grid-cols-2 gap-3">
-              <div className="grid gap-1.5">
-                <Label htmlFor="edit-email" className="text-xs">Email</Label>
-                <Input
-                  id="edit-email"
-                  type="email"
-                  value={formData.email}
-                  onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                  placeholder="email@ejemplo.com"
-                  className="h-9"
-                />
-              </div>
-              <div className="grid gap-1.5">
-                <Label htmlFor="edit-phone" className="text-xs">Teléfono</Label>
-                <Input
-                  id="edit-phone"
-                  value={formData.phone}
-                  onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                  placeholder="+34 600..."
-                  className="h-9"
-                />
-              </div>
-            </div>
-            <div className="grid gap-1.5">
-              <Label htmlFor="edit-notes" className="text-xs">Notas</Label>
-              <Input
-                id="edit-notes"
-                value={formData.notes}
-                onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
-                placeholder="Notas adicionales..."
-                className="h-9"
-              />
-            </div>
-          </div>
-          <DialogFooter className="gap-2">
-            <Button variant="ghost" size="sm" onClick={() => setIsEditModalOpen(false)}>
-              Cancelar
-            </Button>
-            <Button
-              onClick={handleEditLead}
-              disabled={updateLeadMutation.isPending}
-              size="sm"
-            >
-              {updateLeadMutation.isPending ? (
-                <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" />
-              ) : (
-                <CheckCircle className="w-3.5 h-3.5 mr-1.5" />
-              )}
-              Guardar
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
 
       {/* Delete Confirmation Dialog */}
       <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
