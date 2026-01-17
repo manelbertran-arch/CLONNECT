@@ -360,6 +360,7 @@ async def get_conversations(creator_id: str, limit: int = 50):
                         "id": c.get("id"),
                         "username": c.get("username"),
                         "name": c.get("name"),
+                        "profile_pic_url": c.get("profile_pic_url"),
                         "platform": c.get("platform", "instagram"),
                         "total_messages": c.get("total_messages", 0),
                         "purchase_intent": intent,

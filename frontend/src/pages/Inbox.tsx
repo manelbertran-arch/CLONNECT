@@ -187,10 +187,10 @@ export default function Inbox() {
           description: `Sent via ${result.platform}`,
         });
       } else {
+        // Pending delivery is normal - not an error
         toast({
-          title: "Message saved",
-          description: "Message saved but delivery pending (platform not connected)",
-          variant: "destructive",
+          title: "Enviando...",
+          description: "Tu mensaje se está enviando. Esto puede tardar unos segundos.",
         });
       }
       setMessage(""); // Clear input on success
@@ -357,9 +357,25 @@ export default function Inbox() {
                   <div className="flex items-start gap-3">
                     <button
                       onClick={() => setSelectedId(convo.follower_id)}
-                      className="w-10 h-10 rounded-full bg-gradient-to-br from-primary/60 to-accent/60 flex items-center justify-center text-xs font-semibold shrink-0"
+                      className="shrink-0"
                     >
-                      {initials}
+                      {convo.profile_pic_url ? (
+                        <img
+                          src={convo.profile_pic_url}
+                          alt={convo.username || ""}
+                          className="w-10 h-10 rounded-full object-cover"
+                          onError={(e) => {
+                            e.currentTarget.style.display = "none";
+                            e.currentTarget.nextElementSibling?.classList.remove("hidden");
+                          }}
+                        />
+                      ) : null}
+                      <div className={cn(
+                        "w-10 h-10 rounded-full bg-gradient-to-br from-primary/60 to-accent/60 flex items-center justify-center text-xs font-semibold",
+                        convo.profile_pic_url && "hidden"
+                      )}>
+                        {initials}
+                      </div>
                     </button>
                     <button
                       onClick={() => setSelectedId(convo.follower_id)}
@@ -432,7 +448,21 @@ export default function Inbox() {
                 >
                   <ArrowLeft className="w-5 h-5" />
                 </Button>
-                <div className="w-10 h-10 rounded-full bg-gradient-to-br from-primary/60 to-accent/60 flex items-center justify-center text-sm font-semibold">
+                {selectedConversation.profile_pic_url ? (
+                  <img
+                    src={selectedConversation.profile_pic_url}
+                    alt={selectedConversation.username || ""}
+                    className="w-10 h-10 rounded-full object-cover"
+                    onError={(e) => {
+                      e.currentTarget.style.display = "none";
+                      e.currentTarget.nextElementSibling?.classList.remove("hidden");
+                    }}
+                  />
+                ) : null}
+                <div className={cn(
+                  "w-10 h-10 rounded-full bg-gradient-to-br from-primary/60 to-accent/60 flex items-center justify-center text-sm font-semibold",
+                  selectedConversation.profile_pic_url && "hidden"
+                )}>
                   {getInitials(displayName, undefined, selectedConversation.follower_id)}
                 </div>
                 <div>

@@ -28,6 +28,7 @@ export interface Conversation {
   id?: string; // UUID primary key from Lead.id - use this for updates
   username?: string;
   name?: string;
+  profile_pic_url?: string; // Instagram profile picture URL
   platform?: string;
   last_contact?: string;
   total_messages: number;

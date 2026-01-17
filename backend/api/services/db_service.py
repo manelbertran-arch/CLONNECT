@@ -331,6 +331,7 @@ def get_conversations_with_counts(creator_name: str, limit: int = 50, include_ar
                 "platform": lead.platform,
                 "username": lead.username or lead.platform_user_id,
                 "name": lead.full_name or lead.username or "",
+                "profile_pic_url": lead.profile_pic_url,
                 "status": lead.status,
                 "purchase_intent_score": lead.purchase_intent or 0.0,
                 "is_lead": lead.status not in ["archived", "spam"],

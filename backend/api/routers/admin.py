@@ -1232,6 +1232,25 @@ async def simple_dm_sync(creator_id: str, max_convs: int = 20):
                         if not follower_id:
                             continue
 
+                        # Fetch profile picture from Instagram API
+                        follower_profile_pic = None
+                        try:
+                            profile_resp = await client.get(
+                                f"{api_base}/{follower_id}",
+                                params={
+                                    "fields": "id,username,name,profile_pic",
+                                    "access_token": access_token
+                                }
+                            )
+                            if profile_resp.status_code == 200:
+                                profile_data = profile_resp.json()
+                                follower_profile_pic = profile_data.get("profile_pic")
+                                # Also update username/name if we got better data
+                                if profile_data.get("username"):
+                                    follower_username = profile_data.get("username")
+                        except Exception as e:
+                            logger.warning(f"Could not fetch profile for {follower_id}: {e}")
+
                         # Get or create lead
                         lead = session.query(Lead).filter_by(
                             creator_id=creator.id,
@@ -1276,6 +1295,7 @@ async def simple_dm_sync(creator_id: str, max_convs: int = 20):
                                 platform="instagram",
                                 platform_user_id=follower_id,
                                 username=follower_username,
+                                profile_pic_url=follower_profile_pic,
                                 status="new",
                                 first_contact_at=first_msg_time,
                                 # IMPORTANTE: usar último mensaje del USUARIO para fantasma
@@ -1291,6 +1311,9 @@ async def simple_dm_sync(creator_id: str, max_convs: int = 20):
                             # IMPORTANTE: solo actualizar si hay mensaje del USUARIO más reciente
                             if last_user_msg_time and (not lead.last_contact_at or last_user_msg_time > lead.last_contact_at):
                                 lead.last_contact_at = last_user_msg_time
+                            # Update profile pic if we got one and lead doesn't have it
+                            if follower_profile_pic and not lead.profile_pic_url:
+                                lead.profile_pic_url = follower_profile_pic
                             session.commit()
 
                         # REGLA 2: Calcular límite de 90 días
