@@ -419,31 +419,31 @@ export default function Leads() {
       </div>
 
       {/* Leyenda de Categorías */}
-      <div className="flex flex-wrap items-center gap-4 p-3 rounded-xl bg-card/50 border border-border/30 text-xs">
+      <div className="flex flex-wrap items-center gap-6 p-4 rounded-xl bg-card/50 border border-border/30 text-sm">
         <span className="text-muted-foreground font-medium">Leyenda:</span>
-        <div className="flex items-center gap-1.5">
-          <span className="w-2 h-2 rounded-full bg-slate-400"></span>
-          <span className="text-slate-400">Nuevo</span>
+        <div className="flex items-center gap-2">
+          <span className="w-3 h-3 rounded-full bg-blue-400"></span>
+          <span className="text-blue-400 font-medium">New</span>
           <span className="text-muted-foreground/60">- Bot saluda</span>
         </div>
-        <div className="flex items-center gap-1.5">
-          <span className="w-2 h-2 rounded-full bg-amber-400"></span>
-          <span className="text-amber-400">Interesado</span>
+        <div className="flex items-center gap-2">
+          <span className="w-3 h-3 rounded-full bg-amber-400"></span>
+          <span className="text-amber-400 font-medium">Interesado</span>
           <span className="text-muted-foreground/60">- Bot educa</span>
         </div>
-        <div className="flex items-center gap-1.5">
-          <span className="w-2 h-2 rounded-full bg-rose-400 animate-pulse"></span>
-          <span className="text-rose-400 font-semibold">Caliente</span>
+        <div className="flex items-center gap-2">
+          <span className="w-3 h-3 rounded-full bg-red-400 animate-pulse"></span>
+          <span className="text-red-400 font-semibold">Hot</span>
           <span className="text-muted-foreground/60">- ¡Contactar YA!</span>
         </div>
-        <div className="flex items-center gap-1.5">
-          <span className="w-2 h-2 rounded-full bg-emerald-400"></span>
-          <span className="text-emerald-400">Cliente</span>
+        <div className="flex items-center gap-2">
+          <span className="w-3 h-3 rounded-full bg-emerald-400"></span>
+          <span className="text-emerald-400 font-medium">Cliente</span>
           <span className="text-muted-foreground/60">- Ya compró</span>
         </div>
-        <div className="flex items-center gap-1.5">
-          <span className="w-2 h-2 rounded-full bg-gray-500"></span>
-          <span className="text-gray-500">Fantasma</span>
+        <div className="flex items-center gap-2">
+          <span className="w-3 h-3 rounded-full bg-gray-500"></span>
+          <span className="text-gray-500 font-medium">Fantasma</span>
           <span className="text-muted-foreground/60">- Bot reactiva</span>
         </div>
       </div>
