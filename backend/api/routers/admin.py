@@ -2190,3 +2190,111 @@ async def update_profile_pics(creator_id: str, limit: int = 20):
         return {"status": "error", "error": str(e)}
     finally:
         session.close()
+
+
+@router.post("/generate-link-previews/{creator_id}")
+async def generate_link_previews(creator_id: str, limit: int = 50):
+    """
+    Generate link previews for existing messages that have URLs but no preview.
+
+    Finds messages containing URLs, extracts Open Graph metadata, and updates
+    the msg_metadata field with link_preview data.
+
+    Args:
+        creator_id: ID del creator
+        limit: Max messages to process (default: 50)
+
+    Returns:
+        {"updated": 10, "failed": 2, "no_urls": 38, "total": 50}
+    """
+    import asyncio
+    import re
+    from api.database import SessionLocal
+    from api.models import Creator, Lead, Message
+    from core.link_preview import extract_urls, extract_link_preview
+
+    session = SessionLocal()
+    try:
+        # Get creator
+        creator = session.query(Creator).filter_by(name=creator_id).first()
+        if not creator:
+            from sqlalchemy import text
+            creator = session.query(Creator).filter(
+                text("id::text = :cid")
+            ).params(cid=creator_id).first()
+
+        if not creator:
+            return {"status": "error", "error": f"Creator not found: {creator_id}"}
+
+        # Get leads for this creator
+        lead_ids = [lead.id for lead in session.query(Lead).filter_by(creator_id=creator.id).all()]
+
+        if not lead_ids:
+            return {"status": "ok", "message": "No leads found", "updated": 0, "total": 0}
+
+        # Find messages without link_preview in metadata
+        # We check for messages that might have URLs (contain http)
+        messages = session.query(Message).filter(
+            Message.lead_id.in_(lead_ids),
+            Message.content.ilike('%http%')
+        ).order_by(Message.created_at.desc()).limit(limit).all()
+
+        results = {
+            "updated": 0,
+            "failed": 0,
+            "no_urls": 0,
+            "already_has_preview": 0,
+            "total": len(messages),
+            "details": []
+        }
+
+        for msg in messages:
+            try:
+                # Skip if already has link preview
+                if msg.msg_metadata and msg.msg_metadata.get("link_preview"):
+                    results["already_has_preview"] += 1
+                    continue
+
+                # Extract URLs
+                urls = extract_urls(msg.content)
+                if not urls:
+                    results["no_urls"] += 1
+                    continue
+
+                # Get preview for first URL
+                preview = await extract_link_preview(urls[0])
+
+                if preview:
+                    # Update message metadata
+                    current_metadata = msg.msg_metadata or {}
+                    current_metadata["link_preview"] = preview
+                    msg.msg_metadata = current_metadata
+                    session.commit()
+
+                    results["updated"] += 1
+                    results["details"].append({
+                        "url": urls[0][:50],
+                        "title": preview.get("title", "")[:30] if preview.get("title") else None,
+                        "status": "updated"
+                    })
+                else:
+                    results["failed"] += 1
+                    results["details"].append({
+                        "url": urls[0][:50],
+                        "status": "no_preview_data"
+                    })
+
+                # Rate limiting
+                await asyncio.sleep(0.3)
+
+            except Exception as e:
+                results["failed"] += 1
+                logger.debug(f"Link preview error: {e}")
+
+        return {"status": "ok", **results}
+
+    except Exception as e:
+        logger.error(f"generate_link_previews error: {e}")
+        return {"status": "error", "error": str(e)}
+    finally:
+        session.close()

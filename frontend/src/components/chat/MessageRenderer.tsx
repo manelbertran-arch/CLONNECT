@@ -4,6 +4,15 @@
 import { useState } from 'react';
 import { ExternalLink, Play, Image as ImageIcon, Film, Mic, Share2 } from 'lucide-react';
 
+interface LinkPreview {
+  url: string;
+  title?: string;
+  description?: string;
+  image?: string;
+  site_name?: string;
+  platform?: string;
+}
+
 interface MessageMetadata {
   type?: string;
   url?: string;
@@ -19,6 +28,7 @@ interface MessageMetadata {
   permalink?: string;
   caption?: string;
   platform?: string;  // instagram, youtube, tiktok, web
+  link_preview?: LinkPreview;  // Open Graph link preview data
 }
 
 interface Message {
@@ -77,6 +87,9 @@ export function MessageRenderer({ message, isLastInGroup = true }: MessageRender
 
 // Text Message - Instagram style bubble
 function TextMessage({ message, isOutgoing, isLastInGroup }: { message: Message; isOutgoing: boolean; isLastInGroup: boolean }) {
+  const metadata = message.metadata || {};
+  const linkPreview = metadata.link_preview;
+
   const bubbleClass = isOutgoing
     ? `${IG_GRADIENT} text-white`
     : 'bg-[#262626] text-white';
@@ -87,13 +100,69 @@ function TextMessage({ message, isOutgoing, isLastInGroup }: { message: Message;
 
   return (
     <div className={`flex ${isOutgoing ? 'justify-end' : 'justify-start'}`}>
-      <div className={`max-w-[75%] px-4 py-2.5 ${bubbleClass} ${radiusClass}`}>
-        <p className="text-[15px] leading-relaxed whitespace-pre-wrap break-words">
-          {message.content}
-        </p>
-        <Timestamp timestamp={message.timestamp} isOutgoing={isOutgoing} />
+      <div className={`max-w-[75%] ${bubbleClass} ${radiusClass} overflow-hidden`}>
+        <div className="px-4 py-2.5">
+          <p className="text-[15px] leading-relaxed whitespace-pre-wrap break-words">
+            {message.content}
+          </p>
+        </div>
+        {linkPreview && <LinkPreviewCard preview={linkPreview} />}
+        <Timestamp timestamp={message.timestamp} isOutgoing={isOutgoing} className="px-4 pb-2" />
       </div>
     </div>
+  );
+}
+
+// Link Preview Card - Shows Open Graph metadata
+function LinkPreviewCard({ preview }: { preview: LinkPreview }) {
+  const [imageLoaded, setImageLoaded] = useState(false);
+  const [imageError, setImageError] = useState(false);
+
+  // Extract domain from URL
+  const domain = (() => {
+    try {
+      return new URL(preview.url).hostname.replace('www.', '');
+    } catch {
+      return preview.site_name || 'Link';
+    }
+  })();
+
+  return (
+    <a
+      href={preview.url}
+      target="_blank"
+      rel="noopener noreferrer"
+      className="block border-t border-white/10 bg-black/20 hover:bg-black/30 transition-colors"
+    >
+      {preview.image && !imageError && (
+        <div className="relative">
+          {!imageLoaded && (
+            <div className="w-full h-32 bg-[#1a1a1a] flex items-center justify-center">
+              <ExternalLink className="w-6 h-6 text-gray-600 animate-pulse" />
+            </div>
+          )}
+          <img
+            src={preview.image}
+            alt={preview.title || 'Preview'}
+            className={`w-full h-32 object-cover ${imageLoaded ? '' : 'hidden'}`}
+            onLoad={() => setImageLoaded(true)}
+            onError={() => setImageError(true)}
+          />
+        </div>
+      )}
+      <div className="p-3">
+        {preview.title && (
+          <p className="text-sm font-medium text-white line-clamp-2">{preview.title}</p>
+        )}
+        {preview.description && (
+          <p className="text-xs text-gray-400 mt-1 line-clamp-2">{preview.description}</p>
+        )}
+        <p className="text-xs text-violet-400 mt-2 flex items-center gap-1">
+          {domain}
+          <ExternalLink className="w-3 h-3" />
+        </p>
+      </div>
+    </a>
   );
 }
 
