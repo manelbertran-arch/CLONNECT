@@ -1,5 +1,6 @@
 import { useState, useMemo, useEffect } from "react";
-import { Search, Send, MoreHorizontal, Bot, User, Loader2, AlertCircle, Instagram, MessageCircle, Archive, Trash2, AlertTriangle, RotateCcw, ArrowLeft } from "lucide-react";
+import { Search, Send, MoreHorizontal, Loader2, AlertCircle, Instagram, MessageCircle, Archive, Trash2, AlertTriangle, RotateCcw, ArrowLeft } from "lucide-react";
+import { MessageRenderer } from "@/components/chat/MessageRenderer";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import {
@@ -479,53 +480,11 @@ export default function Inbox() {
                 </div>
               ) : messages.length > 0 ? (
                 messages.map((msg, idx) => (
-                  <div
+                  <MessageRenderer
                     key={idx}
-                    className={cn(
-                      "flex gap-3",
-                      msg.role === "assistant" ? "justify-start" : "justify-end"
-                    )}
-                  >
-                    {msg.role === "assistant" && (
-                      <div className="w-8 h-8 rounded-full bg-gradient-to-br from-primary to-accent flex items-center justify-center shrink-0">
-                        <Bot className="w-4 h-4 text-white" />
-                      </div>
-                    )}
-                    <div
-                      className={cn(
-                        "max-w-[85%] md:max-w-[70%] p-3 rounded-2xl text-sm break-words overflow-hidden",
-                        msg.role === "assistant"
-                          ? "bg-secondary rounded-tl-md"
-                          : "bg-gradient-to-br from-primary to-accent text-white rounded-tr-md"
-                      )}
-                    >
-                      {/* Render message content - clickable if has metadata.url */}
-                      {msg.metadata?.url ? (
-                        <a
-                          href={msg.metadata.url}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="whitespace-pre-wrap break-all hover:underline cursor-pointer inline-flex items-center gap-1"
-                        >
-                          <span>{msg.content}</span>
-                          <span className="text-xs opacity-70">↗</span>
-                        </a>
-                      ) : (
-                        <p className="whitespace-pre-wrap break-all">{msg.content}</p>
-                      )}
-                      <p className={cn(
-                        "text-[10px] mt-1",
-                        msg.role === "assistant" ? "text-muted-foreground" : "text-white/70"
-                      )}>
-                        {msg.timestamp ? new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : ''}
-                      </p>
-                    </div>
-                    {msg.role === "user" && (
-                      <div className="w-8 h-8 rounded-full bg-secondary flex items-center justify-center shrink-0">
-                        <User className="w-4 h-4" />
-                      </div>
-                    )}
-                  </div>
+                    message={msg}
+                    isLastInGroup={idx === messages.length - 1 || messages[idx + 1]?.role !== msg.role}
+                  />
                 ))
               ) : (
                 <div className="text-center py-8 text-muted-foreground">
