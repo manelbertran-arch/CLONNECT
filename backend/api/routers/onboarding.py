@@ -1017,6 +1017,9 @@ Sesiones: Semanales (12 sesiones totales)""",
             "currency": "EUR",
             "duration": "3 meses",
             "type": "program",
+            "category": "service",
+            "product_type": "mentoria",
+            "is_free": False,
             "includes": ["12 sesiones semanales", "3 sesiones de hipnosis", "Soporte WhatsApp", "Dashboard personalizado", "Recursos exclusivos"]
         },
         {
@@ -1035,6 +1038,9 @@ Duración: 90 minutos""",
             "currency": "EUR",
             "duration": "90 minutos",
             "type": "session",
+            "category": "service",
+            "product_type": "coaching",
+            "is_free": False,
             "includes": ["Sesión de 90 min", "Técnicas de reprogramación", "Plan de acción", "Seguimiento por mensaje"]
         },
         {
@@ -1049,6 +1055,9 @@ Reserva tu sesión y empecemos a transformar tu realidad.""",
             "currency": "EUR",
             "duration": "30 minutos",
             "type": "call",
+            "category": "service",
+            "product_type": "call",
+            "is_free": True,
             "includes": ["Llamada de 30 min", "Análisis de situación", "Recomendación personalizada"]
         },
         {
@@ -1070,6 +1079,9 @@ Próxima edición: Consultar fechas""",
             "currency": "EUR",
             "duration": "11 días",
             "type": "challenge",
+            "category": "product",
+            "product_type": "curso",
+            "is_free": False,
             "includes": ["11 entrenamientos", "Sesiones breathwork", "Comunidad privada", "Material de apoyo"]
         },
         {
@@ -1091,7 +1103,24 @@ Ubicación: Barcelona""",
             "currency": "EUR",
             "duration": "3 horas",
             "type": "workshop",
+            "category": "service",
+            "product_type": "sesion",
+            "is_free": False,
             "includes": ["Sesión breathwork", "Meditación guiada", "Baño de hielo", "Comunidad"]
+        },
+        {
+            "id": "podcast-sabios",
+            "name": "Podcast Sabios y Salvajes",
+            "description": """Episodios semanales donde comparto reflexiones, entrevistas y herramientas prácticas sobre desarrollo personal, bienestar y transformación consciente.
+
+Disponible en Spotify y Apple Podcasts.""",
+            "price": 0.0,
+            "currency": "EUR",
+            "type": "podcast",
+            "category": "resource",
+            "product_type": "podcast",
+            "is_free": True,
+            "includes": ["Episodios semanales", "Reflexiones prácticas", "Entrevistas exclusivas"]
         }
     ],
     "testimonials": [
@@ -1406,8 +1435,13 @@ async def inject_stefano_data():
                     id=uuid_module.uuid4(),
                     creator_id=creator_uuid,
                     name=prod_data["name"],
-                    price=prod_data["price"],
                     description=prod_data["description"],
+                    price=prod_data["price"],
+                    currency=prod_data.get("currency", "EUR"),
+                    # Taxonomy fields
+                    category=prod_data.get("category", "product"),
+                    product_type=prod_data.get("product_type", "otro"),
+                    is_free=prod_data.get("is_free", False),
                     is_active=True
                 )
                 session.add(new_product)

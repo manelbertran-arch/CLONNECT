@@ -1,0 +1,54 @@
+[
+  {
+    "event_id": "evt_347bea20c78d",
+    "event_type": "conversion",
+    "creator_id": "test_creator",
+    "follower_id": "follower_456",
+    "timestamp": "2026-01-16T13:15:41.152545+00:00",
+    "platform": "paypal",
+    "intent": "",
+    "product_id": "prod_123",
+    "amount": 99.99,
+    "score": 0.0,
+    "metadata": {}
+  },
+  {
+    "event_id": "evt_62c35bc283fa",
+    "event_type": "conversion",
+    "creator_id": "test_creator",
+    "follower_id": "unknown",
+    "timestamp": "2026-01-16T13:15:41.153843+00:00",
+    "platform": "paypal",
+    "intent": "",
+    "product_id": "course_001",
+    "amount": 49.99,
+    "score": 0.0,
+    "metadata": {}
+  },
+  {
+    "event_id": "evt_a710c687eccd",
+    "event_type": "conversion",
+    "creator_id": "test_creator",
+    "follower_id": "unknown",
+    "timestamp": "2026-01-16T13:15:41.154913+00:00",
+    "platform": "paypal",
+    "intent": "",
+    "product_id": "",
+    "amount": 50.0,
+    "score": 0.0,
+    "metadata": {}
+  },
+  {
+    "event_id": "evt_e4be67dd7f22",
+    "event_type": "conversion",
+    "creator_id": "test_creator",
+    "follower_id": "unknown",
+    "timestamp": "2026-01-16T13:15:41.158934+00:00",
+    "platform": "paypal",
+    "intent": "",
+    "product_id": "tracked_product",
+    "amount": 75.0,
+    "score": 0.0,
+    "metadata": {}
+  }
+]

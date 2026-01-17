@@ -100,11 +100,15 @@ async def process_single_conversation(
     job,
     creator,
     access_token: str,
-    ig_user_id: str
+    creator_ids: set
 ) -> Dict[str, Any]:
     """
     Procesa una única conversación.
     Returns dict con resultado.
+
+    Args:
+        creator_ids: Set of creator's Instagram IDs (both page_id and user_id)
+                    to correctly identify messages from the creator
     """
     import httpx
     from datetime import datetime
@@ -154,7 +158,8 @@ async def process_single_conversation(
             for msg in messages:
                 from_data = msg.get("from", {})
                 from_id = from_data.get("id")
-                if from_id and from_id != ig_user_id:
+                # Follower is someone whose ID is NOT in creator_ids
+                if from_id and from_id not in creator_ids:
                     follower_id = from_id
                     follower_username = from_data.get("username", "unknown")
                     break
@@ -163,7 +168,7 @@ async def process_single_conversation(
                 for msg in messages:
                     to_data = msg.get("to", {}).get("data", [])
                     for recipient in to_data:
-                        if recipient.get("id") != ig_user_id:
+                        if recipient.get("id") not in creator_ids:
                             follower_id = recipient.get("id")
                             follower_username = recipient.get("username", "unknown")
                             break
@@ -186,7 +191,7 @@ async def process_single_conversation(
 
                         # Solo contar mensajes del follower (no del creator)
                         from_id = msg.get("from", {}).get("id")
-                        if from_id and from_id != ig_user_id:
+                        if from_id and from_id not in creator_ids:
                             user_msg_timestamps.append(ts)
                     except:
                         pass
@@ -241,7 +246,8 @@ async def process_single_conversation(
                     continue
 
                 from_data = msg.get("from", {})
-                is_from_creator = from_data.get("id") == ig_user_id
+                # Check if sender is the creator (could be user_id OR page_id)
+                is_from_creator = from_data.get("id") in creator_ids
                 role = "assistant" if is_from_creator else "user"
 
                 new_msg = Message(
@@ -316,7 +322,13 @@ async def run_sync_worker_iteration(session, creator_id: str) -> Dict[str, Any]:
         result["error"] = "Creator or token not found"
         return result
 
+    # IMPORTANT: Instagram has TWO IDs for the same account:
+    # - page_id: appears in message from.id
+    # - user_id: used for API calls
+    # We need both to correctly identify creator's messages
     ig_user_id = creator.instagram_user_id or creator.instagram_page_id
+    ig_page_id = creator.instagram_page_id
+    creator_ids = {ig_user_id, ig_page_id} - {None}  # Set of all creator IDs
     access_token = creator.instagram_token
 
     # Process jobs in batches
@@ -343,7 +355,7 @@ async def run_sync_worker_iteration(session, creator_id: str) -> Dict[str, Any]:
         try:
             # Process the conversation
             conv_result = await process_single_conversation(
-                session, job, creator, access_token, ig_user_id
+                session, job, creator, access_token, creator_ids
             )
 
             if conv_result["success"]:

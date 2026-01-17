@@ -146,7 +146,10 @@ def get_valid_payment_url(product: Dict[str, Any]) -> str:
 
 
 # =============================================================================
-# TAXONOMÍA: Formateo de items según categoría (product/service/resource)
+# PROTECTED BLOCK: Category-Based Item Formatting
+# Modified: 2026-01-16
+# Reason: Taxonomía de catálogo (product/service/resource) con respuestas diferenciadas
+# Do not modify without testing bot responses for each category type
 # =============================================================================
 
 def format_item_by_category(item: Dict[str, Any]) -> str:

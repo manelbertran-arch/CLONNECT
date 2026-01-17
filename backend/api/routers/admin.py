@@ -1653,6 +1653,72 @@ async def clear_messages(creator_id: str):
         return {"error": str(e)}
 
 
+@router.post("/test-shared-post/{creator_id}/{lead_id}")
+async def insert_test_shared_post(creator_id: str, lead_id: str):
+    """
+    Insert a test shared_post message with thumbnail for frontend testing.
+    """
+    try:
+        from api.database import DATABASE_URL, SessionLocal
+        from api.models import Creator, Lead, Message
+        from datetime import datetime, timezone
+        import uuid
+
+        if not DATABASE_URL or not SessionLocal:
+            return {"error": "Database not configured"}
+
+        # Get a real Instagram preview
+        from api.services.screenshot_service import get_microlink_preview
+        test_url = "https://www.instagram.com/p/C3xK7ZmOQVz/"
+        preview = await get_microlink_preview(test_url)
+
+        session = SessionLocal()
+        try:
+            # Verify creator and lead exist
+            creator = session.query(Creator).filter_by(name=creator_id).first()
+            if not creator:
+                return {"error": f"Creator {creator_id} not found"}
+
+            lead = session.query(Lead).filter_by(id=uuid.UUID(lead_id)).first()
+            if not lead:
+                return {"error": f"Lead {lead_id} not found"}
+
+            # Create test message with shared_post
+            msg_metadata = {
+                "type": "shared_post",
+                "platform": "instagram",
+                "url": test_url,
+                "thumbnail_url": preview.get("thumbnail_url") if preview else None,
+                "title": preview.get("title") if preview else "Instagram Post",
+                "author": preview.get("author") if preview else None
+            }
+
+            test_msg = Message(
+                lead_id=lead.id,
+                role="user",
+                content="Mira este post! 👀",
+                msg_metadata=msg_metadata,
+                created_at=datetime.now(timezone.utc)
+            )
+            session.add(test_msg)
+            session.commit()
+
+            return {
+                "status": "success",
+                "message_id": str(test_msg.id),
+                "metadata": msg_metadata,
+                "lead_username": lead.username
+            }
+
+        finally:
+            session.close()
+
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return {"error": str(e)}
+
+
 # =============================================================================
 # SYNC QUEUE SYSTEM - Sincronización inteligente con rate limiting
 # =============================================================================

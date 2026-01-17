@@ -17,7 +17,12 @@ logger = logging.getLogger(__name__)
 # Tracking de leads ya reactivados (evitar spam)
 _reactivated_leads: Dict[str, datetime] = {}
 
-# Configuración
+# =============================================================================
+# PROTECTED BLOCK: Ghost Reactivation Configuration
+# Modified: 2026-01-16
+# Reason: Configuración anti-spam para reactivación automática de leads fantasma
+# Do not modify without considering rate limits and user experience
+# =============================================================================
 REACTIVATION_CONFIG = {
     "min_days_ghost": 7,           # Mínimo días sin respuesta para ser fantasma
     "max_days_ghost": 90,          # Máximo días (muy viejo = no molestar)

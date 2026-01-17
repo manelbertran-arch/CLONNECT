@@ -69,3 +69,5 @@ creator-s-connect-hub/
 api-completa/
 clonnect-memory/
 clonnect-memory-core/
+.vercel
+.env*.local

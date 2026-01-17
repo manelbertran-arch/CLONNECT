@@ -1,0 +1,44 @@
+{
+  "follower_id": "test_producto_2",
+  "creator_id": "stefano_auto",
+  "username": "",
+  "name": "",
+  "first_contact": "2026-01-16T14:34:44.179253",
+  "last_contact": "2026-01-16T13:34:44.179708+00:00",
+  "total_messages": 1,
+  "interests": [],
+  "products_discussed": [
+    "88eb0ea0-000b-4875-9b87-d47030bac250"
+  ],
+  "objections_raised": [],
+  "purchase_intent_score": 0.25,
+  "is_lead": false,
+  "is_customer": false,
+  "status": "active",
+  "preferred_language": "es",
+  "last_messages": [
+    {
+      "role": "user",
+      "content": "Cuanto cuesta el Fitpack Challenge?",
+      "timestamp": "2026-01-16T13:34:44.179708+00:00"
+    },
+    {
+      "role": "assistant",
+      "content": "¡Fitpack Challenge 11 Días tiene un precio de 97€! 🎯 Programa intensivo de 11 días diseñado para transformar tu energía, movimiento y mentalidad.\n\nIncluy",
+      "timestamp": "2026-01-16T13:34:44.179708+00:00"
+    }
+  ],
+  "links_sent_count": 0,
+  "last_link_message_num": 0,
+  "objections_handled": [],
+  "arguments_used": [],
+  "greeting_variant_index": 0,
+  "last_greeting_style": "",
+  "last_emojis_used": [
+    "🎯"
+  ],
+  "messages_since_name_used": 1,
+  "alternative_contact": "",
+  "alternative_contact_type": "",
+  "contact_requested": false
+}

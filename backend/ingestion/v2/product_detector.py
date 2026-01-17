@@ -160,6 +160,12 @@ def detectar_tipo_producto(name: str, description: str, url: str) -> str:
     return 'otro'
 
 
+# =============================================================================
+# PROTECTED BLOCK: Content Taxonomy Classification
+# Modified: 2026-01-16
+# Reason: Sistema de taxonomía (product/service/resource) para catálogo
+# Do not modify without running full test suite and verifying bot responses
+# =============================================================================
 def clasificar_contenido(name: str, description: str, url: str, tiene_precio: bool, es_gratis: bool) -> Dict:
     """
     Clasifica contenido en la taxonomía: product, service, resource.

@@ -1,0 +1,42 @@
+{
+  "follower_id": "test_servicio_1",
+  "creator_id": "stefano_auto",
+  "username": "",
+  "name": "",
+  "first_contact": "2026-01-16T14:34:14.082633",
+  "last_contact": "2026-01-16T13:34:18.968982+00:00",
+  "total_messages": 1,
+  "interests": [],
+  "products_discussed": [
+    "569b30e8-ad9e-440f-9452-a6b6d6be60d2"
+  ],
+  "objections_raised": [],
+  "purchase_intent_score": 0.5,
+  "is_lead": true,
+  "is_customer": false,
+  "status": "active",
+  "preferred_language": "en",
+  "last_messages": [
+    {
+      "role": "user",
+      "content": "Me interesa el coaching, cuanto cuesta?",
+      "timestamp": "2026-01-16T13:34:18.968982+00:00"
+    },
+    {
+      "role": "assistant",
+      "content": "El precio de la sesión de Coaching Cuántico es de 150€. ¿Le gustaría que le cuente más sobre los beneficios de esta sesión o prefiere agendar una cita?",
+      "timestamp": "2026-01-16T13:34:18.968982+00:00"
+    }
+  ],
+  "links_sent_count": 0,
+  "last_link_message_num": 0,
+  "objections_handled": [],
+  "arguments_used": [],
+  "greeting_variant_index": 0,
+  "last_greeting_style": "",
+  "last_emojis_used": [],
+  "messages_since_name_used": 1,
+  "alternative_contact": "",
+  "alternative_contact_type": "",
+  "contact_requested": false
+}

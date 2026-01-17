@@ -1,0 +1,42 @@
+{
+  "follower_id": "test_gratis_1",
+  "creator_id": "stefano_auto",
+  "username": "",
+  "name": "",
+  "first_contact": "2026-01-16T14:34:20.876192",
+  "last_contact": "2026-01-16T13:34:22.654635+00:00",
+  "total_messages": 1,
+  "interests": [],
+  "products_discussed": [
+    "337448e7-c432-4d5f-8ef2-b03c88f296e0"
+  ],
+  "objections_raised": [],
+  "purchase_intent_score": 0.0,
+  "is_lead": false,
+  "is_customer": false,
+  "status": "new",
+  "preferred_language": "es",
+  "last_messages": [
+    {
+      "role": "user",
+      "content": "Tienes alguna sesion gratuita para conocerte?",
+      "timestamp": "2026-01-16T13:34:22.654635+00:00"
+    },
+    {
+      "role": "assistant",
+      "content": "Sí, tengo una sesión Discovery gratuita de 30 minutos. Es un espacio donde podemos conocernos, entender tu situación actual y ver si podemos trabajar juntos.",
+      "timestamp": "2026-01-16T13:34:22.654635+00:00"
+    }
+  ],
+  "links_sent_count": 0,
+  "last_link_message_num": 0,
+  "objections_handled": [],
+  "arguments_used": [],
+  "greeting_variant_index": 0,
+  "last_greeting_style": "",
+  "last_emojis_used": [],
+  "messages_since_name_used": 1,
+  "alternative_contact": "",
+  "alternative_contact_type": "",
+  "contact_requested": false
+}

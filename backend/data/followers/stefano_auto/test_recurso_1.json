@@ -1,0 +1,42 @@
+{
+  "follower_id": "test_recurso_1",
+  "creator_id": "stefano_auto",
+  "username": "",
+  "name": "",
+  "first_contact": "2026-01-16T14:34:24.477210",
+  "last_contact": "2026-01-16T13:34:26.341907+00:00",
+  "total_messages": 1,
+  "interests": [],
+  "products_discussed": [
+    "ad4273e9-5055-4b3c-8b47-a61b8203e32e"
+  ],
+  "objections_raised": [],
+  "purchase_intent_score": 0.0,
+  "is_lead": false,
+  "is_customer": false,
+  "status": "new",
+  "preferred_language": "es",
+  "last_messages": [
+    {
+      "role": "user",
+      "content": "Tienes podcast o algo que pueda escuchar?",
+      "timestamp": "2026-01-16T13:34:26.341907+00:00"
+    },
+    {
+      "role": "assistant",
+      "content": "Sí, tengo un podcast llamado \"Sabios y Salvajes\", donde comparto reflexiones, entrevistas y herramientas prácticas sobre desarrollo personal y transformación consciente. Es un recurso gratuito que puede ofrecerte bastante valor.",
+      "timestamp": "2026-01-16T13:34:26.341907+00:00"
+    }
+  ],
+  "links_sent_count": 0,
+  "last_link_message_num": 0,
+  "objections_handled": [],
+  "arguments_used": [],
+  "greeting_variant_index": 0,
+  "last_greeting_style": "",
+  "last_emojis_used": [],
+  "messages_since_name_used": 1,
+  "alternative_contact": "",
+  "alternative_contact_type": "",
+  "contact_requested": false
+}
