@@ -549,10 +549,10 @@ export default function Leads() {
                       key={lead.id}
                       draggable
                       onDragStart={() => handleDragStart(lead)}
-                      onClick={() => navigate(`/new/mensajes/${lead.followerId}`)}
+                      onClick={() => handleViewLead(lead)}
                       className={cn(
                         "group p-3 rounded-xl bg-card border border-border/30 cursor-pointer transition-all",
-                        "hover:border-border hover:shadow-sm hover:bg-card/80",
+                        "hover:border-violet-500/50 hover:shadow-md hover:shadow-violet-500/10 hover:bg-card/80",
                         draggedLead?.id === lead.id && "opacity-50 scale-95"
                       )}
                     >
@@ -766,78 +766,125 @@ export default function Leads() {
 
       {/* View Lead Modal */}
       <Dialog open={isViewModalOpen} onOpenChange={setIsViewModalOpen}>
-        <DialogContent className="sm:max-w-[360px]">
-          <DialogHeader>
-            <DialogTitle className="text-base">Detalles</DialogTitle>
-          </DialogHeader>
+        <DialogContent className="sm:max-w-[400px]">
           {selectedLead && (
-            <div className="space-y-4 py-2">
-              {/* Profile Header */}
-              <div className="flex items-center gap-3">
-                <div className="w-12 h-12 rounded-full bg-gradient-to-br from-primary/50 to-accent/50 flex items-center justify-center text-sm font-medium">
-                  {selectedLead.avatar}
+            <div className="space-y-4">
+              {/* Profile Header with Large Photo */}
+              <div className="flex flex-col items-center text-center pt-2">
+                {/* Large Avatar */}
+                <div className="w-24 h-24 rounded-full overflow-hidden ring-4 ring-violet-500/30 mb-3">
+                  {selectedLead.profilePicUrl ? (
+                    <img
+                      src={selectedLead.profilePicUrl}
+                      alt={selectedLead.username}
+                      className="w-full h-full object-cover"
+                      onError={(e) => {
+                        (e.target as HTMLImageElement).style.display = "none";
+                        (e.target as HTMLImageElement).nextElementSibling?.classList.remove("hidden");
+                      }}
+                    />
+                  ) : null}
+                  <div className={cn(
+                    "w-full h-full bg-gradient-to-br from-violet-600 to-purple-600 flex items-center justify-center text-white text-2xl font-medium",
+                    selectedLead.profilePicUrl && "hidden"
+                  )}>
+                    {selectedLead.avatar}
+                  </div>
                 </div>
-                <div>
-                  <h3 className="font-medium">{selectedLead.name || selectedLead.username}</h3>
-                  <p className="text-xs text-muted-foreground flex items-center gap-1">
-                    {platformIcons[selectedLead.platform] || platformIcons.instagram}
-                    {selectedLead.username}
-                  </p>
+
+                {/* Name & Username */}
+                <h3 className="font-semibold text-lg">{selectedLead.name || selectedLead.username}</h3>
+                <p className="text-sm text-muted-foreground flex items-center gap-1">
+                  {platformIcons[selectedLead.platform] || platformIcons.instagram}
+                  @{selectedLead.instagramUsername || selectedLead.username}
+                </p>
+
+                {/* Value Badge */}
+                <div className={cn("mt-2 px-3 py-1 rounded-full text-sm font-semibold", STATUS_COLORS[selectedLead.status])}>
+                  €{selectedLead.value} · {selectedLead.score}%
                 </div>
-                <span className="ml-auto text-sm font-medium text-emerald-400">€{selectedLead.value}</span>
               </div>
 
               {/* Stats Grid */}
-              <div className="grid grid-cols-2 gap-2">
-                <div className="p-2.5 rounded-lg bg-muted/30 text-center">
-                  <p className="text-[10px] text-muted-foreground uppercase tracking-wide">Score</p>
-                  <p className="text-lg font-semibold">{selectedLead.score}%</p>
-                </div>
+              <div className="grid grid-cols-3 gap-2">
                 <div className="p-2.5 rounded-lg bg-muted/30 text-center">
                   <p className="text-[10px] text-muted-foreground uppercase tracking-wide">Estado</p>
                   <p className="text-sm font-medium capitalize">{selectedLead.status}</p>
+                </div>
+                <div className="p-2.5 rounded-lg bg-muted/30 text-center">
+                  <p className="text-[10px] text-muted-foreground uppercase tracking-wide">Mensajes</p>
+                  <p className="text-sm font-medium">{selectedLead.totalMessages}</p>
+                </div>
+                <div className="p-2.5 rounded-lg bg-muted/30 text-center">
+                  <p className="text-[10px] text-muted-foreground uppercase tracking-wide">Último</p>
+                  <p className="text-sm font-medium">{formatTimeAgo(selectedLead.lastContact) || "-"}</p>
                 </div>
               </div>
 
               {/* Contact Info */}
               {(selectedLead.email || selectedLead.phone) && (
-                <div className="space-y-1.5">
+                <div className="space-y-1.5 text-sm">
                   {selectedLead.email && (
-                    <p className="text-xs text-muted-foreground">
-                      <span className="text-foreground">{selectedLead.email}</span>
-                    </p>
+                    <p className="text-muted-foreground">📧 {selectedLead.email}</p>
                   )}
                   {selectedLead.phone && (
-                    <p className="text-xs text-muted-foreground">
-                      <span className="text-foreground">{selectedLead.phone}</span>
-                    </p>
+                    <p className="text-muted-foreground">📱 {selectedLead.phone}</p>
                   )}
                 </div>
               )}
 
-              {/* Notes */}
-              {selectedLead.notes && (
-                <p className="text-xs text-muted-foreground bg-muted/20 p-2 rounded">
-                  {selectedLead.notes}
-                </p>
-              )}
+              {/* Action Buttons */}
+              <div className="grid grid-cols-2 gap-2 pt-2">
+                {selectedLead.platform === "instagram" && (
+                  <Button
+                    variant="outline"
+                    className="w-full"
+                    onClick={() => window.open(`https://instagram.com/${selectedLead.instagramUsername}`, "_blank")}
+                  >
+                    <Instagram className="w-4 h-4 mr-2" />
+                    Ver Instagram
+                  </Button>
+                )}
+                <Button
+                  className="w-full bg-violet-600 hover:bg-violet-700"
+                  onClick={() => {
+                    setIsViewModalOpen(false);
+                    navigate(`/new/mensajes/${selectedLead.followerId}`);
+                  }}
+                >
+                  <MessageCircle className="w-4 h-4 mr-2" />
+                  Ir al Chat
+                </Button>
+              </div>
+
+              {/* Secondary Actions */}
+              <div className="flex justify-center gap-2 pt-1">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => {
+                    setIsViewModalOpen(false);
+                    if (selectedLead) handleOpenEditModal(selectedLead);
+                  }}
+                >
+                  <Pencil className="w-3.5 h-3.5 mr-1.5" />
+                  Editar
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="text-destructive hover:text-destructive"
+                  onClick={() => {
+                    setIsViewModalOpen(false);
+                    if (selectedLead) handleOpenDeleteDialog(selectedLead);
+                  }}
+                >
+                  <Trash2 className="w-3.5 h-3.5 mr-1.5" />
+                  Eliminar
+                </Button>
+              </div>
             </div>
           )}
-          <DialogFooter className="gap-2">
-            <Button variant="ghost" size="sm" onClick={() => setIsViewModalOpen(false)}>
-              Cerrar
-            </Button>
-            <Button
-              size="sm"
-              onClick={() => {
-                setIsViewModalOpen(false);
-                if (selectedLead) handleOpenEditModal(selectedLead);
-              }}
-            >
-              <Pencil className="w-3.5 h-3.5 mr-1.5" />
-              Editar
-            </Button>
-          </DialogFooter>
         </DialogContent>
       </Dialog>
 
