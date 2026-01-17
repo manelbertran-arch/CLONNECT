@@ -515,21 +515,21 @@ export async function deleteLeadActivity(
 }
 
 /**
- * Lead stats for monitoring/analytics
+ * Lead stats for REAL monitoring/analytics
  */
 export interface LeadStats {
-  total_messages: number;
-  lead_messages: number;
-  bot_messages: number;
-  first_contact: string | null;
-  last_contact: string | null;
+  intencion_compra: number;
+  intencion_detalle: string;
+  engagement: "Alto" | "Medio" | "Bajo";
+  engagement_detalle: string;
+  accion_sugerida: string;
+  senales: Array<{ tipo: "positiva" | "negativa"; texto: string }>;
+  mensajes_lead: number;
+  mensajes_bot: number;
+  primer_contacto: string | null;
+  ultimo_contacto: string | null;
+  tiempo_respuesta_promedio: string | null;
   current_stage: string;
-  days_in_current_stage: number;
-  detected_keywords: string[];
-  asked_price: boolean;
-  showed_interest: boolean;
-  status_history: Array<{ from: string; to: string; date: string }>;
-  purchases: Array<{ product: string; amount: number; date: string }>;
 }
 
 /**

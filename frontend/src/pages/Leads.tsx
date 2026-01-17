@@ -1012,155 +1012,116 @@ export default function Leads() {
                   </div>
                 </TabsContent>
 
-                {/* Activity Tab - Monitoring Stats */}
-                <TabsContent value="activity" className="flex-1 overflow-auto mt-3 space-y-4">
+                {/* Activity Tab - REAL Monitoring Stats */}
+                <TabsContent value="activity" className="flex-1 overflow-auto mt-3 space-y-3">
                   {statsLoading ? (
                     <div className="flex items-center justify-center py-8">
                       <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
                     </div>
                   ) : statsData?.stats ? (
                     <>
-                      {/* Message Stats */}
-                      <div className="space-y-2">
-                        <p className="text-xs text-muted-foreground uppercase tracking-wide flex items-center gap-1.5">
-                          <MessageCircle className="w-3.5 h-3.5" />
-                          Mensajes
-                        </p>
-                        <div className="grid grid-cols-3 gap-2">
-                          <div className="p-2.5 rounded-lg bg-muted/30 text-center">
-                            <p className="text-lg font-semibold">{statsData.stats.total_messages}</p>
-                            <p className="text-[10px] text-muted-foreground">Total</p>
-                          </div>
-                          <div className="p-2.5 rounded-lg bg-blue-500/10 text-center">
-                            <p className="text-lg font-semibold text-blue-400">{statsData.stats.lead_messages}</p>
-                            <p className="text-[10px] text-muted-foreground">Del lead</p>
-                          </div>
-                          <div className="p-2.5 rounded-lg bg-violet-500/10 text-center">
-                            <p className="text-lg font-semibold text-violet-400">{statsData.stats.bot_messages}</p>
-                            <p className="text-[10px] text-muted-foreground">Del bot</p>
-                          </div>
+                      {/* 1. PURCHASE INTENT BAR */}
+                      <div className="p-3 rounded-lg border bg-card">
+                        <div className="flex items-center justify-between mb-2">
+                          <span className="text-xs text-muted-foreground uppercase tracking-wide flex items-center gap-1.5">
+                            🎯 Intención de compra
+                          </span>
+                          <span className={cn(
+                            "text-lg font-bold",
+                            statsData.stats.intencion_compra >= 61 && "text-emerald-500",
+                            statsData.stats.intencion_compra >= 31 && statsData.stats.intencion_compra < 61 && "text-amber-500",
+                            statsData.stats.intencion_compra < 31 && "text-red-500"
+                          )}>
+                            {statsData.stats.intencion_compra}%
+                          </span>
                         </div>
-                      </div>
-
-                      {/* Timeline */}
-                      <div className="space-y-2">
-                        <p className="text-xs text-muted-foreground uppercase tracking-wide flex items-center gap-1.5">
-                          <Clock className="w-3.5 h-3.5" />
-                          Timeline
-                        </p>
-                        <div className="space-y-1.5 text-sm">
-                          <div className="flex items-center justify-between p-2 rounded-lg bg-muted/20">
-                            <span className="text-muted-foreground">Primer contacto</span>
-                            <span className="font-medium">
-                              {statsData.stats.first_contact
-                                ? new Date(statsData.stats.first_contact).toLocaleDateString()
-                                : "-"}
-                            </span>
-                          </div>
-                          <div className="flex items-center justify-between p-2 rounded-lg bg-muted/20">
-                            <span className="text-muted-foreground">Último contacto</span>
-                            <span className="font-medium">
-                              {statsData.stats.last_contact
-                                ? formatTimeAgo(statsData.stats.last_contact)
-                                : "-"}
-                            </span>
-                          </div>
-                          <div className="flex items-center justify-between p-2 rounded-lg bg-muted/20">
-                            <span className="text-muted-foreground">Días en etapa actual</span>
-                            <span className="font-medium">{statsData.stats.days_in_current_stage} días</span>
-                          </div>
-                        </div>
-                      </div>
-
-                      {/* Detected Signals */}
-                      <div className="space-y-2">
-                        <p className="text-xs text-muted-foreground uppercase tracking-wide flex items-center gap-1.5">
-                          <TrendingUp className="w-3.5 h-3.5" />
-                          Señales detectadas
-                        </p>
-                        <div className="space-y-1.5">
-                          <div className="flex items-center gap-2 p-2 rounded-lg bg-muted/20">
-                            <span className={cn(
-                              "w-2 h-2 rounded-full",
-                              statsData.stats.asked_price ? "bg-emerald-500" : "bg-muted-foreground/30"
-                            )} />
-                            <span className="text-sm">Preguntó precio</span>
-                            {statsData.stats.asked_price && (
-                              <CheckCircle className="w-3.5 h-3.5 text-emerald-500 ml-auto" />
+                        <div className="w-full h-2.5 bg-muted rounded-full overflow-hidden">
+                          <div
+                            className={cn(
+                              "h-full rounded-full transition-all duration-500",
+                              statsData.stats.intencion_compra >= 61 && "bg-emerald-500",
+                              statsData.stats.intencion_compra >= 31 && statsData.stats.intencion_compra < 61 && "bg-amber-500",
+                              statsData.stats.intencion_compra < 31 && "bg-red-500"
                             )}
-                          </div>
-                          <div className="flex items-center gap-2 p-2 rounded-lg bg-muted/20">
-                            <span className={cn(
-                              "w-2 h-2 rounded-full",
-                              statsData.stats.showed_interest ? "bg-emerald-500" : "bg-muted-foreground/30"
-                            )} />
-                            <span className="text-sm">Mostró interés</span>
-                            {statsData.stats.showed_interest && (
-                              <CheckCircle className="w-3.5 h-3.5 text-emerald-500 ml-auto" />
-                            )}
-                          </div>
-                          {statsData.stats.detected_keywords?.length > 0 && (
-                            <div className="p-2 rounded-lg bg-muted/20">
-                              <p className="text-xs text-muted-foreground mb-1.5 flex items-center gap-1">
-                                <Tag className="w-3 h-3" />
-                                Keywords detectadas
-                              </p>
-                              <div className="flex flex-wrap gap-1">
-                                {statsData.stats.detected_keywords.map((keyword: string, i: number) => (
-                                  <span
-                                    key={i}
-                                    className="text-[10px] px-1.5 py-0.5 rounded bg-violet-500/20 text-violet-400"
-                                  >
-                                    {keyword}
-                                  </span>
-                                ))}
-                              </div>
-                            </div>
-                          )}
+                            style={{ width: `${statsData.stats.intencion_compra}%` }}
+                          />
                         </div>
+                        <p className="text-xs text-muted-foreground mt-1.5">
+                          {statsData.stats.intencion_detalle}
+                        </p>
                       </div>
 
-                      {/* Status History */}
-                      {statsData.stats.status_history?.length > 0 && (
-                        <div className="space-y-2">
-                          <p className="text-xs text-muted-foreground uppercase tracking-wide flex items-center gap-1.5">
-                            <Users className="w-3.5 h-3.5" />
-                            Historial de estados
-                          </p>
-                          <div className="space-y-1">
-                            {statsData.stats.status_history.map((change: { from: string; to: string; date: string }, i: number) => (
-                              <div key={i} className="flex items-center gap-2 text-sm p-2 rounded-lg bg-muted/20">
-                                <span className="text-muted-foreground capitalize">{change.from}</span>
-                                <span className="text-muted-foreground">→</span>
-                                <span className="font-medium capitalize">{change.to}</span>
-                                <span className="text-[10px] text-muted-foreground ml-auto">
-                                  {new Date(change.date).toLocaleDateString()}
-                                </span>
+                      {/* 2. ENGAGEMENT */}
+                      <div className="p-3 rounded-lg border bg-card">
+                        <div className="flex items-center justify-between">
+                          <span className="text-xs text-muted-foreground uppercase tracking-wide">
+                            💬 Engagement
+                          </span>
+                          <span className={cn(
+                            "px-2 py-0.5 rounded-full text-xs font-semibold",
+                            statsData.stats.engagement === "Alto" && "bg-emerald-500/20 text-emerald-400",
+                            statsData.stats.engagement === "Medio" && "bg-amber-500/20 text-amber-400",
+                            statsData.stats.engagement === "Bajo" && "bg-red-500/20 text-red-400"
+                          )}>
+                            {statsData.stats.engagement}
+                          </span>
+                        </div>
+                        <p className="text-sm mt-1">
+                          {statsData.stats.engagement_detalle}
+                        </p>
+                      </div>
+
+                      {/* 3. BOT STATUS / ACTION */}
+                      <div className="p-3 rounded-lg border bg-card">
+                        <span className="text-xs text-muted-foreground uppercase tracking-wide">
+                          ⚡ Estado del bot
+                        </span>
+                        <p className="text-sm font-medium mt-1">
+                          {statsData.stats.accion_sugerida}
+                        </p>
+                      </div>
+
+                      {/* 4. DETECTED SIGNALS */}
+                      {statsData.stats.senales?.length > 0 && (
+                        <div className="p-3 rounded-lg border bg-card">
+                          <span className="text-xs text-muted-foreground uppercase tracking-wide">
+                            📊 Señales detectadas
+                          </span>
+                          <div className="space-y-1.5 mt-2">
+                            {statsData.stats.senales.map((senal: { tipo: string; texto: string }, i: number) => (
+                              <div
+                                key={i}
+                                className={cn(
+                                  "flex items-center gap-2 text-sm",
+                                  senal.tipo === "positiva" && "text-emerald-400",
+                                  senal.tipo === "negativa" && "text-amber-400"
+                                )}
+                              >
+                                <span>{senal.tipo === "positiva" ? "✅" : "⚠️"}</span>
+                                <span>{senal.texto}</span>
                               </div>
                             ))}
                           </div>
                         </div>
                       )}
 
-                      {/* Purchases */}
-                      {statsData.stats.purchases?.length > 0 && (
-                        <div className="space-y-2">
-                          <p className="text-xs text-muted-foreground uppercase tracking-wide flex items-center gap-1.5">
-                            <ShoppingBag className="w-3.5 h-3.5" />
-                            Compras
-                          </p>
-                          <div className="space-y-1">
-                            {statsData.stats.purchases.map((purchase: { product: string; amount: number; date: string }, i: number) => (
-                              <div key={i} className="flex items-center gap-2 text-sm p-2 rounded-lg bg-emerald-500/10">
-                                <ShoppingBag className="w-4 h-4 text-emerald-500" />
-                                <span className="flex-1">{purchase.product}</span>
-                                <span className="font-semibold text-emerald-400">€{purchase.amount}</span>
-                                <span className="text-[10px] text-muted-foreground">
-                                  {new Date(purchase.date).toLocaleDateString()}
-                                </span>
-                              </div>
-                            ))}
-                          </div>
+                      {/* 5. QUICK STATS */}
+                      <div className="grid grid-cols-2 gap-2">
+                        <div className="p-2.5 rounded-lg bg-muted/30 text-center">
+                          <p className="text-lg font-semibold">{statsData.stats.mensajes_lead}</p>
+                          <p className="text-[10px] text-muted-foreground">Msgs del lead</p>
+                        </div>
+                        <div className="p-2.5 rounded-lg bg-muted/30 text-center">
+                          <p className="text-lg font-semibold">{statsData.stats.mensajes_bot}</p>
+                          <p className="text-[10px] text-muted-foreground">Msgs del bot</p>
+                        </div>
+                      </div>
+
+                      {/* 6. RESPONSE TIME */}
+                      {statsData.stats.tiempo_respuesta_promedio && (
+                        <div className="p-2.5 rounded-lg bg-muted/20 text-center">
+                          <p className="text-xs text-muted-foreground">Tiempo de respuesta promedio</p>
+                          <p className="text-sm font-semibold">{statsData.stats.tiempo_respuesta_promedio}</p>
                         </div>
                       )}
                     </>

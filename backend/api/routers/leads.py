@@ -750,17 +750,17 @@ async def delete_lead_task(creator_id: str, lead_id: str, task_id: str):
 @router.get("/{creator_id}/{lead_id}/stats")
 async def get_lead_stats(creator_id: str, lead_id: str):
     """
-    Get monitoring stats for a lead:
-    - Message counts (total, from lead, from bot)
-    - Timeline (first contact, last contact, days in stage)
-    - Detected signals (keywords, asked price, showed interest)
-    - Purchase history
+    Get REAL monitoring stats for a lead calculated from conversation data:
+    - Purchase intent (0-100%) based on keywords
+    - Engagement level (Alto/Medio/Bajo)
+    - Bot action/status
+    - Detected signals
     """
     if USE_DB:
         try:
             from api.database import SessionLocal
-            from api.models import Lead, LeadActivity, Message, Creator
-            from datetime import datetime, timezone
+            from api.models import Lead, Message, Creator
+            from datetime import datetime, timezone, timedelta
 
             session = SessionLocal()
             try:
@@ -784,90 +784,172 @@ async def get_lead_stats(creator_id: str, lead_id: str):
                 if not lead:
                     raise HTTPException(status_code=404, detail="Lead not found")
 
-                # Get message stats - Message uses 'role' column, not 'direction'
+                # Get all messages ordered by time
                 messages = session.query(Message).filter_by(
                     lead_id=lead.id
-                ).all()
+                ).order_by(Message.created_at.asc()).all()
 
+                # Separate user and bot messages
+                user_messages = [m for m in messages if m.role == "user"]
+                bot_messages = [m for m in messages if m.role == "assistant"]
+
+                lead_msg_count = len(user_messages)
+                bot_msg_count = len(bot_messages)
                 total_messages = len(messages)
-                lead_messages = sum(1 for m in messages if m.role == "user")
-                bot_messages = sum(1 for m in messages if m.role == "assistant")
 
-                # Get timeline
-                first_contact = lead.first_contact_at
-                last_contact = lead.last_contact_at
+                # Get all user text for keyword analysis
+                all_user_text = " ".join([m.content or "" for m in user_messages]).lower()
 
-                # Calculate days in current stage
-                days_in_stage = 0
-                stage_activity = session.query(LeadActivity).filter_by(
-                    lead_id=lead.id,
-                    activity_type="status_change"
-                ).order_by(LeadActivity.created_at.desc()).first()
+                # ============================================================
+                # 1. CALCULATE PURCHASE INTENT (0-100%)
+                # ============================================================
+                intencion = 0
+                intencion_razones = []
+                senales = []
 
-                if stage_activity and stage_activity.created_at:
-                    stage_start = stage_activity.created_at
-                    if stage_start.tzinfo is None:
-                        stage_start = stage_start.replace(tzinfo=timezone.utc)
-                    days_in_stage = (datetime.now(timezone.utc) - stage_start).days
-                elif first_contact:
-                    fc = first_contact
-                    if fc.tzinfo is None:
-                        fc = fc.replace(tzinfo=timezone.utc)
-                    days_in_stage = (datetime.now(timezone.utc) - fc).days
+                # +30% if asked price
+                price_keywords = ["precio", "cuesta", "coste", "cuánto", "cuanto", "vale", "euros", "€"]
+                asked_price = any(kw in all_user_text for kw in price_keywords)
+                if asked_price:
+                    intencion += 30
+                    intencion_razones.append("preguntó precio")
+                    senales.append({"tipo": "positiva", "texto": "Preguntó precio"})
 
-                # Detect signals from messages (user messages only)
-                all_text = " ".join([m.content or "" for m in messages if m.role == "user"]).lower()
+                # +20% if showed interest
+                interest_keywords = ["interesa", "quiero", "información", "info", "detalles", "cómo funciona", "como funciona", "me gustaría", "me gustaria", "cuenta", "explica"]
+                showed_interest = any(kw in all_user_text for kw in interest_keywords)
+                if showed_interest:
+                    intencion += 20
+                    intencion_razones.append("mostró interés")
+                    senales.append({"tipo": "positiva", "texto": "Mostró interés"})
 
-                # Price-related keywords
-                price_keywords = ["precio", "cuesta", "coste", "cuánto", "cuanto", "vale", "pagar", "euros", "dolares"]
-                asked_price = any(kw in all_text for kw in price_keywords)
+                # +20% if >5 messages
+                if lead_msg_count > 5:
+                    intencion += 20
+                    intencion_razones.append(f"{lead_msg_count} mensajes")
+                    senales.append({"tipo": "positiva", "texto": f"Conversación activa ({lead_msg_count} msgs)"})
 
-                # Interest keywords
-                interest_keywords = ["interesa", "quiero", "información", "info", "detalles", "cómo funciona", "como funciona", "me gustaría", "me gustaria"]
-                showed_interest = any(kw in all_text for kw in interest_keywords)
+                # +15% if mentioned buying
+                buy_keywords = ["comprar", "pagar", "link", "inscribir", "apuntar", "reservar", "contratar"]
+                wants_to_buy = any(kw in all_user_text for kw in buy_keywords)
+                if wants_to_buy:
+                    intencion += 15
+                    intencion_razones.append("mencionó compra")
+                    senales.append({"tipo": "positiva", "texto": "Mencionó intención de compra"})
 
-                # Extract common keywords from messages
-                common_words = ["hola", "buenas", "gracias", "ok", "vale", "bien", "si", "no", "que", "el", "la", "de", "en", "un", "una", "es", "y", "a", "por", "los", "las", "tu", "mi", "me", "te"]
-                words = all_text.split()
-                word_freq = {}
-                for word in words:
-                    clean_word = ''.join(c for c in word if c.isalnum())
-                    if clean_word and len(clean_word) > 2 and clean_word not in common_words:
-                        word_freq[clean_word] = word_freq.get(clean_word, 0) + 1
+                # +15% if responds fast (calculate average response time)
+                avg_response_minutes = None
+                if len(user_messages) >= 2:
+                    response_times = []
+                    for i in range(1, len(user_messages)):
+                        if user_messages[i].created_at and user_messages[i-1].created_at:
+                            diff = (user_messages[i].created_at - user_messages[i-1].created_at).total_seconds() / 60
+                            if diff < 1440:  # Only count if <24h between messages
+                                response_times.append(diff)
+                    if response_times:
+                        avg_response_minutes = sum(response_times) / len(response_times)
+                        if avg_response_minutes < 60:
+                            intencion += 15
+                            intencion_razones.append("responde rápido")
+                            senales.append({"tipo": "positiva", "texto": f"Responde rápido (<1h promedio)"})
 
-                # Top 5 keywords
-                sorted_keywords = sorted(word_freq.items(), key=lambda x: x[1], reverse=True)[:5]
-                detected_keywords = [kw for kw, _ in sorted_keywords]
+                # -20% if showed objection
+                objection_keywords = ["caro", "no puedo", "después", "despues", "lo pienso", "no tengo", "muy caro", "no me interesa"]
+                showed_objection = None
+                for kw in objection_keywords:
+                    if kw in all_user_text:
+                        showed_objection = kw
+                        break
+                if showed_objection:
+                    intencion -= 20
+                    senales.append({"tipo": "negativa", "texto": f"Mostró objeción: '{showed_objection}'"})
 
-                # Get status history
-                status_history = []
-                activities = session.query(LeadActivity).filter_by(
-                    lead_id=lead.id,
-                    activity_type="status_change"
-                ).order_by(LeadActivity.created_at.asc()).all()
+                # -30% if ghost (>7 days no response)
+                days_since_response = None
+                if lead.last_contact_at:
+                    lc = lead.last_contact_at
+                    if lc.tzinfo is None:
+                        lc = lc.replace(tzinfo=timezone.utc)
+                    days_since_response = (datetime.now(timezone.utc) - lc).days
+                    if days_since_response > 7:
+                        intencion -= 30
+                        senales.append({"tipo": "negativa", "texto": f"Sin respuesta en {days_since_response} días"})
 
-                for act in activities:
-                    status_history.append({
-                        "from": act.old_value,
-                        "to": act.new_value,
-                        "date": act.created_at.isoformat() if act.created_at else None
-                    })
+                # Clamp to 0-100
+                intencion = max(0, min(100, intencion))
+                intencion_detalle = ", ".join(intencion_razones) if intencion_razones else "Sin señales claras"
+
+                # ============================================================
+                # 2. CALCULATE ENGAGEMENT (Alto/Medio/Bajo)
+                # ============================================================
+                hours_since_response = None
+                if days_since_response is not None:
+                    hours_since_response = days_since_response * 24
+                elif lead.last_contact_at:
+                    lc = lead.last_contact_at
+                    if lc.tzinfo is None:
+                        lc = lc.replace(tzinfo=timezone.utc)
+                    hours_since_response = (datetime.now(timezone.utc) - lc).total_seconds() / 3600
+
+                if lead_msg_count > 10 and hours_since_response is not None and hours_since_response < 24:
+                    engagement = "Alto"
+                    engagement_detalle = f"{lead_msg_count} mensajes · última respuesta hace {int(hours_since_response)}h"
+                elif lead_msg_count >= 3 or (hours_since_response is not None and 24 <= hours_since_response <= 168):
+                    engagement = "Medio"
+                    if hours_since_response and hours_since_response >= 24:
+                        days = int(hours_since_response / 24)
+                        engagement_detalle = f"{lead_msg_count} mensajes · última respuesta hace {days} días"
+                    else:
+                        engagement_detalle = f"{lead_msg_count} mensajes"
+                else:
+                    engagement = "Bajo"
+                    if hours_since_response and hours_since_response > 168:
+                        days = int(hours_since_response / 24)
+                        engagement_detalle = f"{lead_msg_count} mensajes · última respuesta hace {days} días"
+                    else:
+                        engagement_detalle = f"{lead_msg_count} mensajes"
+
+                # ============================================================
+                # 3. SUGGESTED ACTION (based on state)
+                # ============================================================
+                if days_since_response and days_since_response > 7:
+                    accion_sugerida = f"💤 Considera archivar - sin respuesta en {days_since_response} días"
+                elif days_since_response and days_since_response > 3:
+                    accion_sugerida = "⏰ El bot enviará follow-up automático"
+                elif asked_price:
+                    accion_sugerida = "🔥 Lead caliente - el bot está cerrando la venta"
+                elif showed_interest:
+                    accion_sugerida = "📋 El bot está enviando info del producto"
+                elif lead_msg_count > 0:
+                    accion_sugerida = "🎯 El bot está cualificando al lead"
+                else:
+                    accion_sugerida = "⏳ Esperando primera respuesta del lead"
+
+                # ============================================================
+                # 4. FORMAT RESPONSE TIME
+                # ============================================================
+                tiempo_respuesta = None
+                if avg_response_minutes:
+                    if avg_response_minutes < 60:
+                        tiempo_respuesta = f"{int(avg_response_minutes)} minutos"
+                    else:
+                        tiempo_respuesta = f"{int(avg_response_minutes / 60)} horas"
 
                 return {
                     "status": "ok",
                     "stats": {
-                        "total_messages": total_messages,
-                        "lead_messages": lead_messages,
-                        "bot_messages": bot_messages,
-                        "first_contact": first_contact.isoformat() if first_contact else None,
-                        "last_contact": last_contact.isoformat() if last_contact else None,
-                        "current_stage": lead.status,
-                        "days_in_current_stage": days_in_stage,
-                        "detected_keywords": detected_keywords,
-                        "asked_price": asked_price,
-                        "showed_interest": showed_interest,
-                        "status_history": status_history,
-                        "purchases": []  # TODO: Integrate with payment system
+                        "intencion_compra": intencion,
+                        "intencion_detalle": intencion_detalle.capitalize(),
+                        "engagement": engagement,
+                        "engagement_detalle": engagement_detalle,
+                        "accion_sugerida": accion_sugerida,
+                        "senales": senales,
+                        "mensajes_lead": lead_msg_count,
+                        "mensajes_bot": bot_msg_count,
+                        "primer_contacto": lead.first_contact_at.isoformat() if lead.first_contact_at else None,
+                        "ultimo_contacto": lead.last_contact_at.isoformat() if lead.last_contact_at else None,
+                        "tiempo_respuesta_promedio": tiempo_respuesta,
+                        "current_stage": lead.status
                     }
                 }
             finally:
@@ -882,17 +964,17 @@ async def get_lead_stats(creator_id: str, lead_id: str):
     return {
         "status": "ok",
         "stats": {
-            "total_messages": 0,
-            "lead_messages": 0,
-            "bot_messages": 0,
-            "first_contact": None,
-            "last_contact": None,
-            "current_stage": "nuevo",
-            "days_in_current_stage": 0,
-            "detected_keywords": [],
-            "asked_price": False,
-            "showed_interest": False,
-            "status_history": [],
-            "purchases": []
+            "intencion_compra": 0,
+            "intencion_detalle": "Sin datos",
+            "engagement": "Bajo",
+            "engagement_detalle": "Sin mensajes",
+            "accion_sugerida": "⏳ Esperando primera respuesta",
+            "senales": [],
+            "mensajes_lead": 0,
+            "mensajes_bot": 0,
+            "primer_contacto": None,
+            "ultimo_contacto": None,
+            "tiempo_respuesta_promedio": None,
+            "current_stage": "nuevo"
         }
     }
