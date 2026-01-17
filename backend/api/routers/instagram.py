@@ -612,12 +612,22 @@ async def _handle_story_mention(
 ) -> Dict[str, Any]:
     """
     Handle when someone mentions the creator in their story.
-    Auto-sends a thank you DM.
+    Auto-sends a thank you DM and saves story thumbnail before it expires.
     """
     creator_id = creator_info["creator_id"]
 
     # Get handler
     handler = get_handler_for_creator(creator_info)
+
+    # CRITICAL: Download story thumbnail IMMEDIATELY before it expires (24h)
+    saved_thumbnail = None
+    try:
+        from core.story_thumbnail import download_story_thumbnail
+        saved_thumbnail = await download_story_thumbnail(story_url)
+        if saved_thumbnail:
+            logger.info(f"Saved story thumbnail for mention from {sender_id}")
+    except Exception as e:
+        logger.warning(f"Could not save story thumbnail: {e}")
 
     # Default thank you message for story mentions
     thank_you_message = os.getenv(
@@ -629,19 +639,21 @@ async def _handle_story_mention(
         # Send response
         success = await handler.send_response(sender_id, thank_you_message)
 
-        # Register interaction
+        # Register interaction with saved thumbnail
         await _register_story_interaction(
             creator_id=creator_id,
             sender_id=sender_id,
             interaction_type="mention",
-            story_url=story_url
+            story_url=story_url,
+            saved_thumbnail=saved_thumbnail
         )
 
         return {
             "type": "story_mention",
             "sender_id": sender_id,
             "response_sent": success,
-            "creator_id": creator_id
+            "creator_id": creator_id,
+            "thumbnail_saved": bool(saved_thumbnail)
         }
 
     except Exception as e:
@@ -728,10 +740,12 @@ async def _register_story_interaction(
     creator_id: str,
     sender_id: str,
     interaction_type: str,
-    story_url: str = ""
+    story_url: str = "",
+    saved_thumbnail: str = None
 ):
     """
     Register a story interaction as a lead touchpoint.
+    Saves the story thumbnail if provided (before Instagram CDN URL expires).
     """
     try:
         from core.memory import MemoryStore, FollowerMemory
@@ -760,6 +774,36 @@ async def _register_story_interaction(
         })
 
         await memory_store.save(follower)
+
+        # Save message with story metadata to database
+        try:
+            from api.services import db_service
+
+            # Get or create lead
+            lead = db_service.get_or_create_lead(creator_id, follower_id, "instagram")
+            if lead:
+                # Build metadata with saved thumbnail
+                msg_metadata = {
+                    "type": f"story_{interaction_type}",
+                    "url": story_url,
+                }
+                # Use saved thumbnail (base64) if available, otherwise use CDN URL
+                if saved_thumbnail:
+                    msg_metadata["thumbnail_base64"] = saved_thumbnail
+                else:
+                    msg_metadata["thumbnail_url"] = story_url
+
+                # Save message
+                await db_service.save_message(
+                    lead_id=str(lead["id"]),
+                    role="user",
+                    content=f"Story {interaction_type}",
+                    metadata=msg_metadata
+                )
+                logger.info(f"Saved story {interaction_type} message for {follower_id}")
+        except Exception as e:
+            logger.warning(f"Could not save story message to DB: {e}")
+
         logger.info(f"Registered story {interaction_type} from {sender_id}")
 
     except Exception as e:

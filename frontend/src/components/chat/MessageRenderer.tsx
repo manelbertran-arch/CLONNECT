@@ -176,6 +176,10 @@ function StoryMessage({ message, isOutgoing, isLastInGroup }: { message: Message
     : metadata.type === 'story_mention' ? 'Mención en story'
     : 'Reacción a story';
 
+  // Prefer saved base64 thumbnail (never expires), fallback to CDN URL (may expire)
+  const thumbnailSrc = metadata.thumbnail_base64 || metadata.thumbnail_url || metadata.url;
+  const hasSavedThumbnail = !!metadata.thumbnail_base64;
+
   const bubbleClass = isOutgoing
     ? `${IG_GRADIENT} text-white`
     : 'bg-[#262626] text-white';
@@ -189,8 +193,8 @@ function StoryMessage({ message, isOutgoing, isLastInGroup }: { message: Message
             <div className="p-2">
               <div className={`${IG_GRADIENT_STORY} p-[2px] rounded-xl`}>
                 <div className="bg-black rounded-xl overflow-hidden">
-                  {/* Show actual thumbnail if available */}
-                  {!imageError && (
+                  {/* Show thumbnail if available and not errored */}
+                  {thumbnailSrc && !imageError && (
                     <div className="relative">
                       {!imageLoaded && (
                         <div className="w-full h-32 bg-[#1a1a1a] flex items-center justify-center">
@@ -198,7 +202,7 @@ function StoryMessage({ message, isOutgoing, isLastInGroup }: { message: Message
                         </div>
                       )}
                       <img
-                        src={metadata.url}
+                        src={thumbnailSrc}
                         alt={storyType}
                         className={`w-full max-h-48 object-cover ${imageLoaded ? '' : 'hidden'}`}
                         onLoad={() => setImageLoaded(true)}
@@ -213,8 +217,8 @@ function StoryMessage({ message, isOutgoing, isLastInGroup }: { message: Message
                       </div>
                     </div>
                   )}
-                  {/* Fallback if image fails */}
-                  {imageError && (
+                  {/* Fallback if image fails or no thumbnail - Story expired */}
+                  {(imageError || !thumbnailSrc) && (
                     <div className="p-3 flex items-center gap-3">
                       <div className="w-12 h-12 rounded-lg bg-gradient-to-br from-violet-600 to-purple-600 flex items-center justify-center">
                         <Film className="w-6 h-6 text-white" />
@@ -222,7 +226,8 @@ function StoryMessage({ message, isOutgoing, isLastInGroup }: { message: Message
                       <div className="flex-1 min-w-0">
                         <p className="text-white text-sm font-medium">{storyType}</p>
                         <p className="text-gray-400 text-xs flex items-center gap-1">
-                          Toca para ver <ExternalLink className="w-3 h-3" />
+                          {hasSavedThumbnail ? 'Toca para ver' : 'Story expirada'}
+                          <ExternalLink className="w-3 h-3" />
                         </p>
                       </div>
                     </div>
