@@ -420,30 +420,25 @@ export default function Leads() {
 
       {/* Leyenda alineada con columnas */}
       <div className="hidden md:grid md:grid-cols-5 gap-3 text-sm">
-        <div className="flex items-center gap-2 px-4">
-          <span className="w-3 h-3 rounded-full bg-blue-400"></span>
+        <div className="px-4">
           <span className="text-blue-400 font-medium">New</span>
-          <span className="text-muted-foreground/60 text-xs">- Bot saluda</span>
+          <span className="text-muted-foreground/60 text-xs ml-1">- Bot saluda</span>
         </div>
-        <div className="flex items-center gap-2 px-4">
-          <span className="w-3 h-3 rounded-full bg-amber-400"></span>
+        <div className="px-4">
           <span className="text-amber-400 font-medium">Interesado</span>
-          <span className="text-muted-foreground/60 text-xs">- Bot educa</span>
+          <span className="text-muted-foreground/60 text-xs ml-1">- Bot educa</span>
         </div>
-        <div className="flex items-center gap-2 px-4">
-          <span className="w-3 h-3 rounded-full bg-red-400 animate-pulse"></span>
+        <div className="px-4">
           <span className="text-red-400 font-semibold">Hot</span>
-          <span className="text-muted-foreground/60 text-xs">- ¡Contactar YA!</span>
+          <span className="text-muted-foreground/60 text-xs ml-1">- ¡Contactar YA!</span>
         </div>
-        <div className="flex items-center gap-2 px-4">
-          <span className="w-3 h-3 rounded-full bg-emerald-400"></span>
+        <div className="px-4">
           <span className="text-emerald-400 font-medium">Cliente</span>
-          <span className="text-muted-foreground/60 text-xs">- Ya compró</span>
+          <span className="text-muted-foreground/60 text-xs ml-1">- Ya compró</span>
         </div>
-        <div className="flex items-center gap-2 px-4">
-          <span className="w-3 h-3 rounded-full bg-gray-500"></span>
+        <div className="px-4">
           <span className="text-gray-500 font-medium">Fantasma</span>
-          <span className="text-muted-foreground/60 text-xs">- Bot reactiva</span>
+          <span className="text-muted-foreground/60 text-xs ml-1">- Bot reactiva</span>
         </div>
       </div>
 
