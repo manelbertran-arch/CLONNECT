@@ -26,19 +26,26 @@ import { useToast } from "@/hooks/use-toast";
 import type { Conversation, Message } from "@/types/api";
 import { getPurchaseIntent, detectPlatform, getFriendlyName, extractNameFromMessages, getMessages } from "@/types/api";
 
-// Status colors matching backend lead categorization system
-// Backend categories: nuevo→new, interesado→active, caliente→hot, cliente→customer, fantasma→ghost
+// Status colors matching Pipeline (same as Leads.tsx)
 const statusColors: Record<string, string> = {
-  new: "bg-blue-500/10 text-blue-400 border-blue-500/20",            // nuevo - recién llegado
-  active: "bg-amber-500/10 text-amber-400 border-amber-500/20",      // interesado - hace preguntas
-  hot: "bg-red-500/10 text-red-400 border-red-500/20",               // caliente - quiere comprar
-  customer: "bg-emerald-500/10 text-emerald-400 border-emerald-500/20", // cliente - ya compró
-  ghost: "bg-gray-600/10 text-gray-500 border-gray-600/20",          // fantasma - 7+ días sin respuesta
-  // Legacy statuses
-  replied: "bg-success/10 text-success border-success/20",
-  nurturing: "bg-primary/10 text-primary border-primary/20",
+  new: "bg-blue-500/10 text-blue-400 border-blue-500/20",
+  active: "bg-amber-500/10 text-amber-400 border-amber-500/20",
+  hot: "bg-red-500/10 text-red-400 border-red-500/20",
+  customer: "bg-emerald-500/10 text-emerald-400 border-emerald-500/20",
+  ghost: "bg-gray-600/10 text-gray-500 border-gray-600/20",
   archived: "bg-muted/10 text-muted-foreground border-muted/20",
   spam: "bg-destructive/10 text-destructive border-destructive/20",
+};
+
+// Status names in Spanish (matching Pipeline)
+const statusNames: Record<string, string> = {
+  new: "Nuevo",
+  active: "Interesado",
+  hot: "Caliente",
+  customer: "Cliente",
+  ghost: "Fantasma",
+  archived: "Archivado",
+  spam: "Spam",
 };
 
 const platformIcons: Record<string, React.ReactNode> = {
@@ -409,7 +416,7 @@ export default function Inbox() {
                             ? status === "spam" ? "bg-destructive/10 text-destructive border-destructive/20" : "bg-muted/10 text-muted-foreground border-muted/20"
                             : statusColors[status]
                         )}>
-                          {status}
+                          {statusNames[status] || status}
                         </span>
                         <span className="text-[10px] text-muted-foreground flex items-center gap-1">
                           {platformIcons[platform]}
