@@ -129,10 +129,10 @@ export default function Mensajes() {
                 ${conversationId === conv.follower_id ? 'bg-[#121212]' : ''}
               `}
               >
-                {/* Avatar with optional story ring */}
-                <div className={`p-[2px] rounded-full ${(conv.purchase_intent ?? 0) > 0.7 ? 'bg-gradient-to-tr from-[#FCAF45] via-[#E1306C] to-[#833AB4]' : ''}`}>
-                  <div className={`${(conv.purchase_intent ?? 0) > 0.7 ? 'p-[2px] bg-black rounded-full' : ''}`}>
-                    <div className="w-14 h-14 rounded-full bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center text-white font-semibold text-lg">
+                {/* Avatar with optional hot lead ring */}
+                <div className={`p-[2px] rounded-full ${(conv.purchase_intent ?? 0) > 0.5 ? 'bg-gradient-to-tr from-violet-500 via-purple-500 to-violet-600' : ''}`}>
+                  <div className={`${(conv.purchase_intent ?? 0) > 0.5 ? 'p-[2px] bg-black rounded-full' : ''}`}>
+                    <div className="w-14 h-14 rounded-full bg-gradient-to-br from-violet-600 to-purple-600 flex items-center justify-center text-white font-semibold text-lg">
                       {(conv.username || conv.name)?.[0]?.toUpperCase() || '?'}
                     </div>
                   </div>
@@ -170,10 +170,10 @@ export default function Mensajes() {
             <Link to="/new/mensajes" className="md:hidden">
               <ArrowLeft className="text-white" size={24} />
             </Link>
-            {/* Instagram gradient ring for avatar */}
-            <div className="p-[2px] rounded-full bg-gradient-to-tr from-[#FCAF45] via-[#E1306C] to-[#833AB4]">
+            {/* Violet gradient ring for avatar */}
+            <div className="p-[2px] rounded-full bg-gradient-to-tr from-violet-500 via-purple-500 to-violet-600">
               <div className="w-10 h-10 rounded-full bg-black p-[2px]">
-                <div className="w-full h-full rounded-full bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center text-white font-semibold text-sm">
+                <div className="w-full h-full rounded-full bg-gradient-to-br from-violet-600 to-purple-600 flex items-center justify-center text-white font-semibold text-sm">
                   {(
                     selectedConversation?.username ||
                     selectedConversation?.name ||

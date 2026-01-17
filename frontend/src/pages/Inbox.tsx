@@ -26,13 +26,19 @@ import { useToast } from "@/hooks/use-toast";
 import type { Conversation, Message } from "@/types/api";
 import { getPurchaseIntent, detectPlatform, getFriendlyName, extractNameFromMessages, getMessages } from "@/types/api";
 
+// Status colors matching backend lead categorization system
+// Categories: nuevo, interesado, caliente, cliente, fantasma
 const statusColors: Record<string, string> = {
-  hot: "bg-destructive/10 text-destructive border-destructive/20",
-  active: "bg-accent/10 text-accent border-accent/20",
+  // Backend categories (mapped from categoria_a_status_legacy)
+  hot: "bg-orange-500/10 text-orange-400 border-orange-500/20",      // caliente
+  active: "bg-amber-500/10 text-amber-400 border-amber-500/20",      // interesado
+  new: "bg-slate-500/10 text-slate-400 border-slate-500/20",         // nuevo
+  // Additional statuses
+  customer: "bg-emerald-500/10 text-emerald-400 border-emerald-500/20", // cliente
   replied: "bg-success/10 text-success border-success/20",
   nurturing: "bg-primary/10 text-primary border-primary/20",
-  customer: "bg-success/10 text-success border-success/20",
-  new: "bg-muted/10 text-muted-foreground border-muted/20",
+  archived: "bg-muted/10 text-muted-foreground border-muted/20",
+  spam: "bg-destructive/10 text-destructive border-destructive/20",
 };
 
 const platformIcons: Record<string, React.ReactNode> = {
@@ -59,7 +65,18 @@ function getInitials(name?: string, username?: string, id?: string): string {
 }
 
 function getStatus(convo: Conversation): string {
+  // Priority 1: Use backend status if available
+  // Backend uses: new, active, hot (mapped from nuevo, interesado, caliente)
+  // Check both 'status' field and 'lead_status' for compatibility
+  const backendStatus = (convo as { status?: string }).status || convo.lead_status;
+  if (backendStatus && ["hot", "active", "new", "archived", "spam", "customer"].includes(backendStatus)) {
+    return backendStatus;
+  }
+
+  // Priority 2: Check if customer
   if (convo.is_customer) return "customer";
+
+  // Priority 3: Fallback to score-based calculation
   const score = getPurchaseIntent(convo);
   // Ranges: 0-25% (new) | 25-50% (active) | 50%+ (hot)
   if (score >= 0.50) return "hot";

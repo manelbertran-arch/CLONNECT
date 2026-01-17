@@ -98,14 +98,22 @@ function TextMessage({ message, isOutgoing, isLastInGroup }: { message: Message;
     ? `rounded-2xl ${isLastInGroup ? 'rounded-br-md' : ''}`
     : `rounded-2xl ${isLastInGroup ? 'rounded-bl-md' : ''}`;
 
+  // If there's a link preview, remove the URL from displayed text
+  // This makes the message cleaner - the URL is shown in the preview card
+  const displayContent = linkPreview
+    ? message.content.replace(/https?:\/\/[^\s]+/g, '').trim()
+    : message.content;
+
   return (
     <div className={`flex ${isOutgoing ? 'justify-end' : 'justify-start'}`}>
       <div className={`max-w-[75%] ${bubbleClass} ${radiusClass} overflow-hidden`}>
-        <div className="px-4 py-2.5">
-          <p className="text-[15px] leading-relaxed whitespace-pre-wrap break-words">
-            {message.content}
-          </p>
-        </div>
+        {displayContent && (
+          <div className="px-4 py-2.5">
+            <p className="text-[15px] leading-relaxed whitespace-pre-wrap break-words">
+              {displayContent}
+            </p>
+          </div>
+        )}
         {linkPreview && <LinkPreviewCard preview={linkPreview} />}
         <Timestamp timestamp={message.timestamp} isOutgoing={isOutgoing} className="px-4 pb-2" />
       </div>
