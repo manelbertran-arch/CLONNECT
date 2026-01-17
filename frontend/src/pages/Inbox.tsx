@@ -26,15 +26,15 @@ import { useToast } from "@/hooks/use-toast";
 import type { Conversation, Message } from "@/types/api";
 import { getPurchaseIntent, detectPlatform, getFriendlyName, extractNameFromMessages, getMessages } from "@/types/api";
 
-// Status colors matching Pipeline (same as Leads.tsx)
+// Status colors matching Pipeline (solid colors for visibility)
 const statusColors: Record<string, string> = {
-  new: "bg-blue-500/10 text-blue-400 border-blue-500/20",
-  active: "bg-amber-500/10 text-amber-400 border-amber-500/20",
-  hot: "bg-red-500/10 text-red-400 border-red-500/20",
-  customer: "bg-emerald-500/10 text-emerald-400 border-emerald-500/20",
-  ghost: "bg-gray-600/10 text-gray-500 border-gray-600/20",
-  archived: "bg-muted/10 text-muted-foreground border-muted/20",
-  spam: "bg-destructive/10 text-destructive border-destructive/20",
+  new: "bg-blue-500/20 text-blue-400 border-blue-400/30",
+  active: "bg-amber-500/20 text-amber-400 border-amber-400/30",
+  hot: "bg-red-500/20 text-red-400 border-red-400/30",
+  customer: "bg-emerald-500/20 text-emerald-400 border-emerald-400/30",
+  ghost: "bg-gray-500/20 text-gray-400 border-gray-400/30",
+  archived: "bg-gray-500/20 text-gray-400 border-gray-400/30",
+  spam: "bg-red-500/20 text-red-400 border-red-400/30",
 };
 
 // Status names in Spanish (matching Pipeline)
