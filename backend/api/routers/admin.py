@@ -2098,10 +2098,10 @@ async def update_profile_pics(creator_id: str, limit: int = 20):
             return {"status": "error", "error": f"Creator not found: {creator_id}"}
 
         # Check Instagram connection
-        if not creator.instagram_page_id or not creator.meta_access_token:
+        if not creator.instagram_page_id or not creator.instagram_token:
             return {"status": "error", "error": "Instagram not connected for this creator"}
 
-        access_token = creator.meta_access_token
+        access_token = creator.instagram_token
         api_base = "https://graph.instagram.com/v21.0"
 
         # Get leads without profile pic
