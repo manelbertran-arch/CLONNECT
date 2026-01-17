@@ -10648,5 +10648,35 @@
     "metadata": {
       "product_name": ""
     }
+  },
+  {
+    "id": "fitpack_global_1376551044090333_re_engagement_0_1768663567",
+    "creator_id": "fitpack_global",
+    "follower_id": "1376551044090333",
+    "sequence_type": "re_engagement",
+    "step": 0,
+    "scheduled_at": "2026-01-17T16:26:07.303952",
+    "message_template": "¡Hola! Hace tiempo que no hablamos. ¿Cómo va todo? Si necesitas algo, aquí estoy.",
+    "status": "sent",
+    "created_at": "2026-01-17T16:26:07.304086",
+    "sent_at": "2026-01-17T16:26:07.354730",
+    "metadata": {
+      "product_name": ""
+    }
+  },
+  {
+    "id": "fitpack_global_725747036694542_re_engagement_0_1768663567",
+    "creator_id": "fitpack_global",
+    "follower_id": "725747036694542",
+    "sequence_type": "re_engagement",
+    "step": 0,
+    "scheduled_at": "2026-01-17T16:26:07.315723",
+    "message_template": "¡Hola! Hace tiempo que no hablamos. ¿Cómo va todo? Si necesitas algo, aquí estoy.",
+    "status": "sent",
+    "created_at": "2026-01-17T16:26:07.315744",
+    "sent_at": "2026-01-17T16:26:07.362361",
+    "metadata": {
+      "product_name": ""
+    }
   }
 ]

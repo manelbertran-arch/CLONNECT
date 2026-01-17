@@ -849,7 +849,7 @@ export default function Leads() {
                   className="w-full bg-violet-600 hover:bg-violet-700"
                   onClick={() => {
                     setIsViewModalOpen(false);
-                    navigate(`/new/mensajes/${selectedLead.followerId}`);
+                    navigate(`/inbox?id=${selectedLead.followerId}`);
                   }}
                 >
                   <MessageCircle className="w-4 h-4 mr-2" />

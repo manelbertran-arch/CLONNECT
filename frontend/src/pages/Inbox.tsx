@@ -1,4 +1,5 @@
 import { useState, useMemo, useEffect } from "react";
+import { useSearchParams } from "react-router-dom";
 import { Search, Send, MoreHorizontal, Loader2, AlertCircle, Instagram, MessageCircle, Archive, Trash2, AlertTriangle, RotateCcw, ArrowLeft } from "lucide-react";
 import { MessageRenderer } from "@/components/chat/MessageRenderer";
 import { Input } from "@/components/ui/input";
@@ -122,12 +123,16 @@ function getSmartDisplayName(
 }
 
 export default function Inbox() {
+  // Read conversation ID from URL query param (?id=xxx)
+  const [searchParams, setSearchParams] = useSearchParams();
+  const urlConversationId = searchParams.get("id");
+
   // SEQUENTIAL LOADING: Load conversations first, then archived (prevents backend blocking)
   const { data, isLoading, error, isSuccess } = useConversations();
   const { data: archivedData, isLoading: archivedLoading } = useArchivedConversations(undefined, {
     enabled: isSuccess // Only load AFTER conversations finishes
   });
-  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [selectedId, setSelectedId] = useState<string | null>(urlConversationId);
 
   const [message, setMessage] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
@@ -255,14 +260,25 @@ export default function Inbox() {
 
   const archivedCount = archivedData?.length || 0;
 
+  // Handle URL query param for direct navigation (from Pipeline)
+  useEffect(() => {
+    if (urlConversationId && urlConversationId !== selectedId) {
+      setSelectedId(urlConversationId);
+      // Clear the URL param to keep URL clean
+      setSearchParams({}, { replace: true });
+    }
+  }, [urlConversationId, selectedId, setSearchParams]);
+
   // Auto-select first conversation if none selected (desktop only)
   useEffect(() => {
+    // Skip if we have a URL param (will be handled by above effect)
+    if (urlConversationId) return;
     // Only auto-select on desktop (md breakpoint = 768px)
     const isDesktop = window.innerWidth >= 768;
     if (isDesktop && !selectedId && conversations.length > 0) {
       setSelectedId(conversations[0].follower_id);
     }
-  }, [conversations, selectedId]);
+  }, [conversations, selectedId, urlConversationId]);
 
   const selectedConversation = useMemo(() => {
     return conversations.find(c => c.follower_id === selectedId) || null;
