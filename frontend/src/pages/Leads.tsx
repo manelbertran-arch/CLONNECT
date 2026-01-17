@@ -1,6 +1,6 @@
 import { useState, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
-import { Instagram, MoreHorizontal, Plus, Loader2, AlertCircle, MessageCircle, Send, Eye, Pencil, Trash2, Users, Flame, Star, CheckCircle, Ghost, Clock, ExternalLink, Settings, ListTodo, History, StickyNote, CheckSquare, Square, Phone, Mail, Calendar } from "lucide-react";
+import { Instagram, MoreHorizontal, Plus, Loader2, AlertCircle, MessageCircle, Send, Eye, Pencil, Trash2, Users, Flame, Star, CheckCircle, Ghost, Clock, ExternalLink, ListTodo, History, StickyNote, CheckSquare, Square, Phone, Mail, Calendar, Activity, TrendingUp, Tag, ShoppingBag } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -38,13 +38,8 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
-import { useConversations, useUpdateLeadStatus, useCreateManualLead, useUpdateLead, useDeleteLead, useLeadActivities, useCreateLeadActivity, useLeadTasks, useCreateLeadTask, useUpdateLeadTask, useDeleteLeadTask } from "@/hooks/useApi";
+import { useConversations, useUpdateLeadStatus, useCreateManualLead, useUpdateLead, useDeleteLead, useLeadActivities, useLeadTasks, useCreateLeadTask, useUpdateLeadTask, useDeleteLeadTask, useLeadStats } from "@/hooks/useApi";
 import { useToast } from "@/hooks/use-toast";
 import type { Conversation } from "@/types/api";
 import { getPurchaseIntent, detectPlatform, getDisplayName } from "@/types/api";
@@ -216,7 +211,6 @@ export default function Leads() {
   const createLeadMutation = useCreateManualLead();
   const updateLeadMutation = useUpdateLead();
   const deleteLeadMutation = useDeleteLead();
-  const createActivityMutation = useCreateLeadActivity();
   const createTaskMutation = useCreateLeadTask();
   const updateTaskMutation = useUpdateLeadTask();
   const deleteTaskMutation = useDeleteLeadTask();
@@ -229,7 +223,6 @@ export default function Leads() {
   const [formData, setFormData] = useState(initialFormState);
 
   // CRM modal state - editable fields
-  const [newNote, setNewNote] = useState("");
   const [newTaskTitle, setNewTaskTitle] = useState("");
   const [modalTab, setModalTab] = useState("info");
   const [editEmail, setEditEmail] = useState("");
@@ -238,17 +231,11 @@ export default function Leads() {
   const [editingTaskId, setEditingTaskId] = useState<string | null>(null);
   const [editingTaskTitle, setEditingTaskTitle] = useState("");
 
-  // Fetch activities and tasks for selected lead
+  // Fetch activities, tasks, and stats for selected lead
   const { data: activitiesData } = useLeadActivities(selectedLead?.followerId || null);
   const { data: tasksData } = useLeadTasks(selectedLead?.followerId || null);
+  const { data: statsData, isLoading: statsLoading } = useLeadStats(selectedLead?.followerId || null);
 
-  // Product price from backend
-  const backendPrice = data?.product_price ?? DEFAULT_PRODUCT_PRICE;
-  const [editingPrice, setEditingPrice] = useState<number | null>(null);
-  const [isPricePopoverOpen, setIsPricePopoverOpen] = useState(false);
-
-  // Initialize editingPrice when backend data arrives
-  const productPrice = editingPrice ?? backendPrice;
 
   const leads = useMemo(() => {
     if (!data?.conversations) return [];
@@ -270,8 +257,8 @@ export default function Leads() {
       // AI Intent score: 0-100 from purchase_intent
       const intentScore = convo.purchase_intent_score ?? Math.round(intent * 100);
 
-      // Value = product_price × (scoring / 100)
-      const value = calculateLeadValue(status, productPrice);
+      // Value no longer displayed, kept for internal use
+      const value = 0;
 
       // Get Instagram username (without ig_ prefix if present)
       const rawUsername = convo.username || convo.follower_id;
@@ -297,7 +284,7 @@ export default function Leads() {
         followerId: convo.follower_id,
       };
     });
-  }, [data?.conversations, localStatusOverrides, productPrice]);
+  }, [data?.conversations, localStatusOverrides]);
 
   const handleDragStart = (lead: LeadDisplay) => {
     setDraggedLead(lead);
@@ -351,8 +338,6 @@ export default function Leads() {
 
   const getLeadsByStatus = (status: LeadStatus) => leads.filter(lead => lead.status === status);
 
-  const totalPipelineValue = leads.reduce((sum, lead) => sum + lead.value, 0);
-
   // Handlers for Add Lead modal
   const handleOpenAddModal = () => {
     setFormData(initialFormState);
@@ -396,7 +381,6 @@ export default function Leads() {
   const handleViewLead = (lead: LeadDisplay) => {
     setSelectedLead(lead);
     setModalTab("info"); // Reset to info tab
-    setNewNote("");
     setNewTaskTitle("");
     // Initialize editable fields with current values
     setEditEmail(lead.email || "");
@@ -405,32 +389,6 @@ export default function Leads() {
     setEditingTaskId(null);
     setEditingTaskTitle("");
     setIsViewModalOpen(true);
-  };
-
-  // Handler for adding a note
-  const handleAddNote = async () => {
-    if (!selectedLead || !newNote.trim()) return;
-
-    try {
-      await createActivityMutation.mutateAsync({
-        leadId: selectedLead.followerId,
-        data: {
-          activity_type: "note",
-          description: newNote.trim(),
-        },
-      });
-      setNewNote("");
-      toast({
-        title: "Nota añadida",
-        description: "Se ha guardado la nota",
-      });
-    } catch {
-      toast({
-        title: "Error",
-        description: "No se pudo guardar la nota",
-        variant: "destructive",
-      });
-    }
   };
 
   // Handler for adding a task
@@ -561,46 +519,6 @@ export default function Leads() {
     }
   };
 
-  const handleOpenEditModal = (lead: LeadDisplay) => {
-    setSelectedLead(lead);
-    setFormData({
-      name: lead.name || lead.username,
-      platform: lead.platform,
-      email: lead.email || "",
-      phone: lead.phone || "",
-      notes: lead.notes || "",
-    });
-    setIsEditModalOpen(true);
-  };
-
-  const handleEditLead = async () => {
-    if (!selectedLead) return;
-
-    try {
-      await updateLeadMutation.mutateAsync({
-        leadId: selectedLead.id,
-        data: {
-          name: formData.name || undefined,
-          email: formData.email || undefined,
-          phone: formData.phone || undefined,
-          notes: formData.notes || undefined,
-        },
-      });
-      toast({
-        title: "Lead actualizado",
-        description: `${formData.name} guardado`,
-      });
-      setIsEditModalOpen(false);
-      setSelectedLead(null);
-    } catch (err) {
-      toast({
-        title: "Error",
-        description: err instanceof Error ? err.message : "No se pudo actualizar",
-        variant: "destructive",
-      });
-    }
-  };
-
   const handleOpenDeleteDialog = (lead: LeadDisplay) => {
     setSelectedLead(lead);
     setIsDeleteDialogOpen(true);
@@ -652,41 +570,7 @@ export default function Leads() {
       <div className="flex items-start justify-between">
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">Pipeline</h1>
-          <div className="flex items-center gap-2 text-sm text-muted-foreground">
-            <span>{leads.length} leads · €{totalPipelineValue.toLocaleString()} potencial</span>
-            <Popover open={isPricePopoverOpen} onOpenChange={setIsPricePopoverOpen}>
-              <PopoverTrigger asChild>
-                <button className="text-muted-foreground/50 hover:text-muted-foreground transition-colors">
-                  <Settings className="w-3.5 h-3.5" />
-                </button>
-              </PopoverTrigger>
-              <PopoverContent className="w-64" align="start">
-                <div className="space-y-3">
-                  <div>
-                    <Label className="text-xs">Precio del producto</Label>
-                    <p className="text-[10px] text-muted-foreground">Se usa para calcular el valor de cada lead</p>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <span className="text-sm">€</span>
-                    <Input
-                      type="number"
-                      value={productPrice}
-                      onChange={(e) => setEditingPrice(Number(e.target.value))}
-                      className="h-8"
-                      min={0}
-                    />
-                  </div>
-                  <div className="text-[10px] text-muted-foreground space-y-1">
-                    <p>Fantasma: €0 (0%)</p>
-                    <p>Nuevo: €{Math.round(productPrice * 0.25)} (25%)</p>
-                    <p>Interesado: €{Math.round(productPrice * 0.50)} (50%)</p>
-                    <p>Caliente: €{Math.round(productPrice * 0.75)} (75%)</p>
-                    <p>Cliente: €{productPrice} (100%)</p>
-                  </div>
-                </div>
-              </PopoverContent>
-            </Popover>
-          </div>
+          <p className="text-sm text-muted-foreground">{leads.length} leads en el pipeline</p>
         </div>
         <Button onClick={handleOpenAddModal} size="sm" className="h-9 px-4">
           <Plus className="w-4 h-4 mr-2" />
@@ -786,31 +670,21 @@ export default function Leads() {
                             {platformIcons[lead.platform] || platformIcons.instagram}
                             <span className="truncate">@{lead.username.replace(/^@/, "")}</span>
                           </p>
-                          {/* Last contact & message count */}
-                          <div className="flex items-center gap-2 mt-1 text-[10px] text-muted-foreground/70">
-                            {lead.totalMessages > 0 && (
-                              <span className="flex items-center gap-0.5">
-                                <MessageCircle className="w-3 h-3" />
-                                {lead.totalMessages}
-                              </span>
-                            )}
-                            {lead.lastContact && (
-                              <span className="flex items-center gap-0.5">
-                                <Clock className="w-3 h-3" />
-                                {formatTimeAgo(lead.lastContact)}
-                              </span>
-                            )}
-                          </div>
                         </div>
 
-                        {/* Value & Score */}
-                        <div className="flex flex-col items-end shrink-0">
-                          <span className={cn("text-sm font-semibold", STATUS_COLORS[lead.status])}>
-                            €{lead.value}
-                          </span>
-                          <span className="text-[10px] text-muted-foreground">
-                            {lead.score}%
-                          </span>
+                        {/* Messages & Time (instead of € values) */}
+                        <div className="flex flex-col items-end shrink-0 text-muted-foreground">
+                          {lead.totalMessages > 0 && (
+                            <span className="flex items-center gap-1 text-xs">
+                              <MessageCircle className="w-3 h-3" />
+                              {lead.totalMessages}
+                            </span>
+                          )}
+                          {lead.lastContact && (
+                            <span className="text-[10px]">
+                              {formatTimeAgo(lead.lastContact)}
+                            </span>
+                          )}
                         </div>
 
                         {/* Menu */}
@@ -979,24 +853,28 @@ export default function Leads() {
                     @{selectedLead.instagramUsername || selectedLead.username}
                   </p>
                 </div>
-                <div className={cn("px-3 py-1 rounded-full text-sm font-semibold", STATUS_COLORS[selectedLead.status])}>
-                  €{selectedLead.value}
+                <div className={cn("px-3 py-1 rounded-full text-xs font-semibold bg-current/10 capitalize", STATUS_COLORS[selectedLead.status])}>
+                  {selectedLead.status}
                 </div>
               </div>
 
               {/* Tabs */}
               <Tabs value={modalTab} onValueChange={setModalTab} className="flex-1 flex flex-col overflow-hidden">
-                <TabsList className="grid w-full grid-cols-3">
+                <TabsList className="grid w-full grid-cols-4">
                   <TabsTrigger value="info" className="text-xs">
                     <Eye className="w-3.5 h-3.5 mr-1.5" />
                     Info
                   </TabsTrigger>
+                  <TabsTrigger value="activity" className="text-xs">
+                    <Activity className="w-3.5 h-3.5 mr-1.5" />
+                    Actividad
+                  </TabsTrigger>
                   <TabsTrigger value="tasks" className="text-xs">
                     <ListTodo className="w-3.5 h-3.5 mr-1.5" />
                     Tareas
-                    {tasksData?.tasks?.length ? (
+                    {tasksData?.tasks?.filter((t: { status: string }) => t.status !== "completed")?.length ? (
                       <span className="ml-1 text-[10px] bg-violet-500/20 text-violet-400 px-1.5 rounded-full">
-                        {tasksData.tasks.length}
+                        {tasksData.tasks.filter((t: { status: string }) => t.status !== "completed").length}
                       </span>
                     ) : null}
                   </TabsTrigger>
@@ -1078,32 +956,6 @@ export default function Leads() {
                     </Button>
                   )}
 
-                  {/* Quick Note to History */}
-                  <div className="space-y-2 pt-2 border-t">
-                    <p className="text-xs text-muted-foreground uppercase tracking-wide">Añadir al historial</p>
-                    <div className="flex gap-2">
-                      <Input
-                        placeholder="Nota rápida para historial..."
-                        value={newNote}
-                        onChange={(e) => setNewNote(e.target.value)}
-                        className="h-8 text-sm"
-                        onKeyDown={(e) => e.key === "Enter" && newNote.trim() && handleAddNote()}
-                      />
-                      <Button
-                        size="sm"
-                        onClick={handleAddNote}
-                        disabled={createActivityMutation.isPending || !newNote.trim()}
-                        className="shrink-0"
-                      >
-                        {createActivityMutation.isPending ? (
-                          <Loader2 className="w-4 h-4 animate-spin" />
-                        ) : (
-                          <Plus className="w-4 h-4" />
-                        )}
-                      </Button>
-                    </div>
-                  </div>
-
                   {/* Action Buttons */}
                   <div className="grid grid-cols-2 gap-2 pt-2">
                     {selectedLead.platform === "instagram" && (
@@ -1127,6 +979,165 @@ export default function Leads() {
                       Ir al Chat
                     </Button>
                   </div>
+                </TabsContent>
+
+                {/* Activity Tab - Monitoring Stats */}
+                <TabsContent value="activity" className="flex-1 overflow-auto mt-3 space-y-4">
+                  {statsLoading ? (
+                    <div className="flex items-center justify-center py-8">
+                      <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
+                    </div>
+                  ) : statsData?.stats ? (
+                    <>
+                      {/* Message Stats */}
+                      <div className="space-y-2">
+                        <p className="text-xs text-muted-foreground uppercase tracking-wide flex items-center gap-1.5">
+                          <MessageCircle className="w-3.5 h-3.5" />
+                          Mensajes
+                        </p>
+                        <div className="grid grid-cols-3 gap-2">
+                          <div className="p-2.5 rounded-lg bg-muted/30 text-center">
+                            <p className="text-lg font-semibold">{statsData.stats.total_messages}</p>
+                            <p className="text-[10px] text-muted-foreground">Total</p>
+                          </div>
+                          <div className="p-2.5 rounded-lg bg-blue-500/10 text-center">
+                            <p className="text-lg font-semibold text-blue-400">{statsData.stats.lead_messages}</p>
+                            <p className="text-[10px] text-muted-foreground">Del lead</p>
+                          </div>
+                          <div className="p-2.5 rounded-lg bg-violet-500/10 text-center">
+                            <p className="text-lg font-semibold text-violet-400">{statsData.stats.bot_messages}</p>
+                            <p className="text-[10px] text-muted-foreground">Del bot</p>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Timeline */}
+                      <div className="space-y-2">
+                        <p className="text-xs text-muted-foreground uppercase tracking-wide flex items-center gap-1.5">
+                          <Clock className="w-3.5 h-3.5" />
+                          Timeline
+                        </p>
+                        <div className="space-y-1.5 text-sm">
+                          <div className="flex items-center justify-between p-2 rounded-lg bg-muted/20">
+                            <span className="text-muted-foreground">Primer contacto</span>
+                            <span className="font-medium">
+                              {statsData.stats.first_contact
+                                ? new Date(statsData.stats.first_contact).toLocaleDateString()
+                                : "-"}
+                            </span>
+                          </div>
+                          <div className="flex items-center justify-between p-2 rounded-lg bg-muted/20">
+                            <span className="text-muted-foreground">Último contacto</span>
+                            <span className="font-medium">
+                              {statsData.stats.last_contact
+                                ? formatTimeAgo(statsData.stats.last_contact)
+                                : "-"}
+                            </span>
+                          </div>
+                          <div className="flex items-center justify-between p-2 rounded-lg bg-muted/20">
+                            <span className="text-muted-foreground">Días en etapa actual</span>
+                            <span className="font-medium">{statsData.stats.days_in_current_stage} días</span>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Detected Signals */}
+                      <div className="space-y-2">
+                        <p className="text-xs text-muted-foreground uppercase tracking-wide flex items-center gap-1.5">
+                          <TrendingUp className="w-3.5 h-3.5" />
+                          Señales detectadas
+                        </p>
+                        <div className="space-y-1.5">
+                          <div className="flex items-center gap-2 p-2 rounded-lg bg-muted/20">
+                            <span className={cn(
+                              "w-2 h-2 rounded-full",
+                              statsData.stats.asked_price ? "bg-emerald-500" : "bg-muted-foreground/30"
+                            )} />
+                            <span className="text-sm">Preguntó precio</span>
+                            {statsData.stats.asked_price && (
+                              <CheckCircle className="w-3.5 h-3.5 text-emerald-500 ml-auto" />
+                            )}
+                          </div>
+                          <div className="flex items-center gap-2 p-2 rounded-lg bg-muted/20">
+                            <span className={cn(
+                              "w-2 h-2 rounded-full",
+                              statsData.stats.showed_interest ? "bg-emerald-500" : "bg-muted-foreground/30"
+                            )} />
+                            <span className="text-sm">Mostró interés</span>
+                            {statsData.stats.showed_interest && (
+                              <CheckCircle className="w-3.5 h-3.5 text-emerald-500 ml-auto" />
+                            )}
+                          </div>
+                          {statsData.stats.detected_keywords?.length > 0 && (
+                            <div className="p-2 rounded-lg bg-muted/20">
+                              <p className="text-xs text-muted-foreground mb-1.5 flex items-center gap-1">
+                                <Tag className="w-3 h-3" />
+                                Keywords detectadas
+                              </p>
+                              <div className="flex flex-wrap gap-1">
+                                {statsData.stats.detected_keywords.map((keyword: string, i: number) => (
+                                  <span
+                                    key={i}
+                                    className="text-[10px] px-1.5 py-0.5 rounded bg-violet-500/20 text-violet-400"
+                                  >
+                                    {keyword}
+                                  </span>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Status History */}
+                      {statsData.stats.status_history?.length > 0 && (
+                        <div className="space-y-2">
+                          <p className="text-xs text-muted-foreground uppercase tracking-wide flex items-center gap-1.5">
+                            <Users className="w-3.5 h-3.5" />
+                            Historial de estados
+                          </p>
+                          <div className="space-y-1">
+                            {statsData.stats.status_history.map((change: { from: string; to: string; date: string }, i: number) => (
+                              <div key={i} className="flex items-center gap-2 text-sm p-2 rounded-lg bg-muted/20">
+                                <span className="text-muted-foreground capitalize">{change.from}</span>
+                                <span className="text-muted-foreground">→</span>
+                                <span className="font-medium capitalize">{change.to}</span>
+                                <span className="text-[10px] text-muted-foreground ml-auto">
+                                  {new Date(change.date).toLocaleDateString()}
+                                </span>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Purchases */}
+                      {statsData.stats.purchases?.length > 0 && (
+                        <div className="space-y-2">
+                          <p className="text-xs text-muted-foreground uppercase tracking-wide flex items-center gap-1.5">
+                            <ShoppingBag className="w-3.5 h-3.5" />
+                            Compras
+                          </p>
+                          <div className="space-y-1">
+                            {statsData.stats.purchases.map((purchase: { product: string; amount: number; date: string }, i: number) => (
+                              <div key={i} className="flex items-center gap-2 text-sm p-2 rounded-lg bg-emerald-500/10">
+                                <ShoppingBag className="w-4 h-4 text-emerald-500" />
+                                <span className="flex-1">{purchase.product}</span>
+                                <span className="font-semibold text-emerald-400">€{purchase.amount}</span>
+                                <span className="text-[10px] text-muted-foreground">
+                                  {new Date(purchase.date).toLocaleDateString()}
+                                </span>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                    </>
+                  ) : (
+                    <div className="text-center py-8 text-muted-foreground text-sm">
+                      No hay datos de actividad disponibles
+                    </div>
+                  )}
                 </TabsContent>
 
                 {/* Tasks Tab */}

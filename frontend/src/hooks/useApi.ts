@@ -78,6 +78,7 @@ import {
   createLeadTask,
   updateLeadTask,
   deleteLeadTask,
+  getLeadStats,
   apiKeys,
 } from "@/services/api";
 import type { LeadActivity, LeadTask } from "@/services/api";
@@ -1133,5 +1134,17 @@ export function useDeleteLeadTask(creatorId: string = getCreatorId()) {
     onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: ["leadTasks", creatorId, variables.leadId] });
     },
+  });
+}
+
+/**
+ * Hook to fetch lead stats for monitoring
+ */
+export function useLeadStats(leadId: string | null, creatorId: string = getCreatorId()) {
+  return useQuery({
+    queryKey: ["leadStats", creatorId, leadId],
+    queryFn: () => getLeadStats(creatorId, leadId!),
+    enabled: !!leadId,
+    staleTime: 30000,
   });
 }

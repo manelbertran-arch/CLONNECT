@@ -501,6 +501,34 @@ export async function deleteLeadTask(
   });
 }
 
+/**
+ * Lead stats for monitoring/analytics
+ */
+export interface LeadStats {
+  total_messages: number;
+  lead_messages: number;
+  bot_messages: number;
+  first_contact: string | null;
+  last_contact: string | null;
+  current_stage: string;
+  days_in_current_stage: number;
+  detected_keywords: string[];
+  asked_price: boolean;
+  showed_interest: boolean;
+  status_history: Array<{ from: string; to: string; date: string }>;
+  purchases: Array<{ product: string; amount: number; date: string }>;
+}
+
+/**
+ * Get lead stats for monitoring
+ */
+export async function getLeadStats(
+  creatorId: string = CREATOR_ID,
+  leadId: string
+): Promise<{ status: string; stats: LeadStats }> {
+  return apiFetch(`/dm/leads/${creatorId}/${leadId}/stats`);
+}
+
 // =============================================================================
 // CREATOR CONFIG
 // =============================================================================

@@ -710,3 +710,159 @@ async def delete_lead_task(creator_id: str, lead_id: str, task_id: str):
             raise HTTPException(status_code=500, detail=str(e))
 
     raise HTTPException(status_code=500, detail="Database not configured")
+
+
+# =============================================================================
+# LEAD STATS (Monitoring/Analytics)
+# =============================================================================
+
+@router.get("/{creator_id}/{lead_id}/stats")
+async def get_lead_stats(creator_id: str, lead_id: str):
+    """
+    Get monitoring stats for a lead:
+    - Message counts (total, from lead, from bot)
+    - Timeline (first contact, last contact, days in stage)
+    - Detected signals (keywords, asked price, showed interest)
+    - Purchase history
+    """
+    if USE_DB:
+        try:
+            from api.database import SessionLocal
+            from api.models import Lead, LeadActivity, Message, Creator
+            from datetime import datetime, timezone
+
+            session = SessionLocal()
+            try:
+                creator = session.query(Creator).filter_by(name=creator_id).first()
+                if not creator:
+                    raise HTTPException(status_code=404, detail="Creator not found")
+
+                # Find lead
+                lead = session.query(Lead).filter_by(
+                    creator_id=creator.id,
+                    platform_user_id=lead_id
+                ).first()
+
+                if not lead:
+                    try:
+                        from uuid import UUID
+                        lead = session.query(Lead).filter_by(id=UUID(lead_id)).first()
+                    except:
+                        pass
+
+                if not lead:
+                    raise HTTPException(status_code=404, detail="Lead not found")
+
+                # Get message stats
+                messages = session.query(Message).filter_by(
+                    creator_id=creator.id,
+                    lead_id=lead.id
+                ).all()
+
+                total_messages = len(messages)
+                lead_messages = sum(1 for m in messages if m.direction == "inbound")
+                bot_messages = sum(1 for m in messages if m.direction == "outbound")
+
+                # Get timeline
+                first_contact = lead.first_contact_at
+                last_contact = lead.last_contact_at
+
+                # Calculate days in current stage
+                days_in_stage = 0
+                stage_activity = session.query(LeadActivity).filter_by(
+                    lead_id=lead.id,
+                    activity_type="status_change"
+                ).order_by(LeadActivity.created_at.desc()).first()
+
+                if stage_activity and stage_activity.created_at:
+                    stage_start = stage_activity.created_at
+                    if stage_start.tzinfo is None:
+                        stage_start = stage_start.replace(tzinfo=timezone.utc)
+                    days_in_stage = (datetime.now(timezone.utc) - stage_start).days
+                elif first_contact:
+                    fc = first_contact
+                    if fc.tzinfo is None:
+                        fc = fc.replace(tzinfo=timezone.utc)
+                    days_in_stage = (datetime.now(timezone.utc) - fc).days
+
+                # Detect signals from messages
+                all_text = " ".join([m.content or "" for m in messages if m.direction == "inbound"]).lower()
+
+                # Price-related keywords
+                price_keywords = ["precio", "cuesta", "coste", "cuánto", "cuanto", "vale", "pagar", "euros", "dolares"]
+                asked_price = any(kw in all_text for kw in price_keywords)
+
+                # Interest keywords
+                interest_keywords = ["interesa", "quiero", "información", "info", "detalles", "cómo funciona", "como funciona", "me gustaría", "me gustaria"]
+                showed_interest = any(kw in all_text for kw in interest_keywords)
+
+                # Extract common keywords from messages
+                common_words = ["hola", "buenas", "gracias", "ok", "vale", "bien", "si", "no", "que", "el", "la", "de", "en", "un", "una", "es", "y", "a", "por", "los", "las", "tu", "mi", "me", "te"]
+                words = all_text.split()
+                word_freq = {}
+                for word in words:
+                    clean_word = ''.join(c for c in word if c.isalnum())
+                    if clean_word and len(clean_word) > 2 and clean_word not in common_words:
+                        word_freq[clean_word] = word_freq.get(clean_word, 0) + 1
+
+                # Top 5 keywords
+                sorted_keywords = sorted(word_freq.items(), key=lambda x: x[1], reverse=True)[:5]
+                detected_keywords = [kw for kw, _ in sorted_keywords]
+
+                # Get status history
+                status_history = []
+                activities = session.query(LeadActivity).filter_by(
+                    lead_id=lead.id,
+                    activity_type="status_change"
+                ).order_by(LeadActivity.created_at.asc()).all()
+
+                for act in activities:
+                    status_history.append({
+                        "from": act.old_value,
+                        "to": act.new_value,
+                        "date": act.created_at.isoformat() if act.created_at else None
+                    })
+
+                return {
+                    "status": "ok",
+                    "stats": {
+                        "total_messages": total_messages,
+                        "lead_messages": lead_messages,
+                        "bot_messages": bot_messages,
+                        "first_contact": first_contact.isoformat() if first_contact else None,
+                        "last_contact": last_contact.isoformat() if last_contact else None,
+                        "current_stage": lead.status,
+                        "days_in_current_stage": days_in_stage,
+                        "detected_keywords": detected_keywords,
+                        "asked_price": asked_price,
+                        "showed_interest": showed_interest,
+                        "status_history": status_history,
+                        "purchases": []  # TODO: Integrate with payment system
+                    }
+                }
+            finally:
+                session.close()
+        except HTTPException:
+            raise
+        except Exception as e:
+            logger.error(f"Get lead stats failed: {e}")
+            raise HTTPException(status_code=500, detail=str(e))
+
+    # Fallback for no DB
+    return {
+        "status": "ok",
+        "stats": {
+            "total_messages": 0,
+            "lead_messages": 0,
+            "bot_messages": 0,
+            "first_contact": None,
+            "last_contact": None,
+            "current_stage": "nuevo",
+            "days_in_current_stage": 0,
+            "detected_keywords": [],
+            "asked_price": False,
+            "showed_interest": False,
+            "status_history": [],
+            "purchases": []
+        }
+    }
