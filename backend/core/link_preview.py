@@ -1,6 +1,11 @@
 """
 Link Preview Service
 Extracts Open Graph metadata from URLs for message previews.
+
+Follows Clonnect methodology:
+- Exponential backoff for retries
+- Background processing (fire-and-forget)
+- Graceful degradation on errors
 """
 
 import re
@@ -10,6 +15,13 @@ from typing import Optional, Dict, List
 from urllib.parse import urlparse
 
 logger = logging.getLogger(__name__)
+
+# Try to import Sentry for error tracking
+try:
+    import sentry_sdk
+    SENTRY_AVAILABLE = True
+except ImportError:
+    SENTRY_AVAILABLE = False
 
 # URL regex pattern
 URL_PATTERN = re.compile(
@@ -53,17 +65,41 @@ def detect_platform(url: str) -> str:
     return "web"
 
 
-async def extract_link_preview(url: str, timeout: float = 5.0) -> Optional[Dict]:
+async def extract_link_preview(url: str, timeout: float = 5.0, max_retries: int = 2) -> Optional[Dict]:
     """
-    Extract Open Graph metadata from a URL.
+    Extract Open Graph metadata from a URL with exponential backoff.
 
     Args:
         url: The URL to extract metadata from
         timeout: Request timeout in seconds
+        max_retries: Maximum number of retries on failure
 
     Returns:
         Dict with preview data or None if extraction failed
     """
+    import asyncio
+
+    for attempt in range(max_retries + 1):
+        try:
+            result = await _fetch_og_metadata(url, timeout)
+            return result
+        except httpx.TimeoutException:
+            if attempt < max_retries:
+                wait_time = (2 ** attempt) * 0.5  # 0.5s, 1s, 2s...
+                logger.debug(f"Link preview timeout for {url}, retrying in {wait_time}s")
+                await asyncio.sleep(wait_time)
+            else:
+                logger.debug(f"Link preview timeout for {url} after {max_retries} retries")
+                return None
+        except Exception as e:
+            logger.debug(f"Link preview error for {url}: {e}")
+            return None
+
+    return None
+
+
+async def _fetch_og_metadata(url: str, timeout: float) -> Optional[Dict]:
+    """Internal function to fetch OG metadata from URL."""
     try:
         # Skip Instagram CDN URLs (already media, not pages)
         if 'cdninstagram.com' in url or 'fbcdn.net' in url:
@@ -159,8 +195,8 @@ async def extract_link_preview(url: str, timeout: float = 5.0) -> Optional[Dict]
             return None
 
     except httpx.TimeoutException:
-        logger.debug(f"Link preview timeout for {url}")
-        return None
+        # Re-raise for retry logic in extract_link_preview
+        raise
     except Exception as e:
         logger.debug(f"Link preview error for {url}: {e}")
         return None
@@ -194,3 +230,74 @@ def has_link_preview(metadata: Optional[Dict]) -> bool:
     if not metadata:
         return False
     return bool(metadata.get("link_preview") or metadata.get("link_previews"))
+
+
+async def extract_and_save_preview(message_id: str, content: str):
+    """
+    Background task to extract link preview and update message metadata.
+
+    This runs asynchronously after the message is saved to avoid blocking
+    the webhook processing.
+
+    Args:
+        message_id: UUID of the message to update
+        content: Message content to extract URLs from
+    """
+    import asyncio
+
+    try:
+        urls = extract_urls(content)
+        if not urls:
+            return
+
+        # Small delay to not overload the system
+        await asyncio.sleep(0.5)
+
+        preview = await extract_link_preview(urls[0])
+        if not preview:
+            return
+
+        # Update message in database
+        from api.database import SessionLocal
+        from api.models import Message
+        import uuid
+
+        session = SessionLocal()
+        try:
+            msg = session.query(Message).filter_by(id=uuid.UUID(message_id)).first()
+            if msg:
+                current_metadata = msg.msg_metadata or {}
+                if not current_metadata.get("link_preview"):
+                    current_metadata["link_preview"] = preview
+                    msg.msg_metadata = current_metadata
+                    session.commit()
+                    logger.info(f"Added link preview for message {message_id}")
+        finally:
+            session.close()
+
+    except Exception as e:
+        logger.warning(f"Background link preview extraction failed: {e}")
+        if SENTRY_AVAILABLE:
+            sentry_sdk.capture_exception(e)
+
+
+def schedule_link_preview_extraction(message_id: str, content: str):
+    """
+    Schedule link preview extraction as a fire-and-forget background task.
+
+    Safe to call from sync code - creates task in current event loop if available,
+    otherwise logs and skips (preview can be generated later via admin endpoint).
+    """
+    import asyncio
+
+    # Check if content has URLs before scheduling
+    if not content or 'http' not in content.lower():
+        return
+
+    try:
+        loop = asyncio.get_running_loop()
+        loop.create_task(extract_and_save_preview(message_id, content))
+        logger.debug(f"Scheduled link preview extraction for message {message_id}")
+    except RuntimeError:
+        # No running event loop - that's fine, admin endpoint can fill it in later
+        logger.debug(f"No event loop for link preview, message {message_id} will be processed later")

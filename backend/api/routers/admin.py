@@ -2226,18 +2226,17 @@ async def generate_link_previews(creator_id: str, limit: int = 50):
         if not creator:
             return {"status": "error", "error": f"Creator not found: {creator_id}"}
 
-        # Get leads for this creator
-        lead_ids = [lead.id for lead in session.query(Lead).filter_by(creator_id=creator.id).all()]
-
-        if not lead_ids:
-            return {"status": "ok", "message": "No leads found", "updated": 0, "total": 0}
-
-        # Find messages without link_preview in metadata
-        # We check for messages that might have URLs (contain http)
-        messages = session.query(Message).filter(
-            Message.lead_id.in_(lead_ids),
+        # Find messages with URLs using JOIN (avoids N+1)
+        # Single query: messages -> leads -> creator
+        messages = session.query(Message).join(
+            Lead, Message.lead_id == Lead.id
+        ).filter(
+            Lead.creator_id == creator.id,
             Message.content.ilike('%http%')
         ).order_by(Message.created_at.desc()).limit(limit).all()
+
+        if not messages:
+            return {"status": "ok", "message": "No messages with URLs found", "updated": 0, "total": 0}
 
         results = {
             "updated": 0,
@@ -2265,11 +2264,10 @@ async def generate_link_previews(creator_id: str, limit: int = 50):
                 preview = await extract_link_preview(urls[0])
 
                 if preview:
-                    # Update message metadata
+                    # Update message metadata (commit batched below)
                     current_metadata = msg.msg_metadata or {}
                     current_metadata["link_preview"] = preview
                     msg.msg_metadata = current_metadata
-                    session.commit()
 
                     results["updated"] += 1
                     results["details"].append({
@@ -2277,6 +2275,10 @@ async def generate_link_previews(creator_id: str, limit: int = 50):
                         "title": preview.get("title", "")[:30] if preview.get("title") else None,
                         "status": "updated"
                     })
+
+                    # Batch commit every 10 updates for efficiency
+                    if results["updated"] % 10 == 0:
+                        session.commit()
                 else:
                     results["failed"] += 1
                     results["details"].append({
@@ -2284,12 +2286,16 @@ async def generate_link_previews(creator_id: str, limit: int = 50):
                         "status": "no_preview_data"
                     })
 
-                # Rate limiting
+                # Rate limiting - don't saturate external services
                 await asyncio.sleep(0.3)
 
             except Exception as e:
                 results["failed"] += 1
                 logger.debug(f"Link preview error: {e}")
+
+        # Final commit for remaining updates
+        if results["updated"] % 10 != 0:
+            session.commit()
 
         return {"status": "ok", **results}
 

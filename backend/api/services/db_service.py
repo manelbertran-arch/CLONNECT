@@ -925,13 +925,15 @@ async def save_message(
     content: str,
     intent: str = None,
     platform_message_id: str = None,
-    metadata: dict = None,
-    extract_link_preview: bool = True
+    metadata: dict = None
 ) -> dict:
     """Save a message to the database for dm_agent integration.
 
     FIX: Added duplicate detection to prevent webhook message duplication.
     Checks for existing message with same content+lead within last 5 minutes.
+
+    NOTE: Link preview extraction is done asynchronously via background job,
+    not during save_message, to avoid blocking the webhook.
 
     Args:
         lead_id: UUID of the lead
@@ -940,7 +942,6 @@ async def save_message(
         intent: Optional intent classification
         platform_message_id: Optional platform-specific message ID
         metadata: Optional dict with type, url, emoji, link_preview, etc.
-        extract_link_preview: If True, auto-extract link previews from URLs in content
     """
     if not USE_POSTGRES:
         return None
@@ -978,23 +979,8 @@ async def save_message(
                 logger.info(f"Duplicate message by platform_message_id: {platform_message_id}")
                 return {"id": str(existing_by_id.id), "status": "duplicate_skipped"}
 
-        # Build metadata with optional link preview
+        # Build metadata (link preview extraction moved to background job)
         msg_metadata = metadata.copy() if metadata else {}
-
-        # Extract link previews if enabled and not already present
-        if extract_link_preview and content and not msg_metadata.get("link_preview"):
-            try:
-                from core.link_preview import extract_urls, extract_link_preview as get_preview
-                import asyncio
-
-                urls = extract_urls(content)
-                if urls:
-                    # Get preview for first URL only (to avoid delay)
-                    preview = asyncio.get_event_loop().run_until_complete(get_preview(urls[0]))
-                    if preview:
-                        msg_metadata["link_preview"] = preview
-            except Exception as e:
-                logger.debug(f"Link preview extraction failed: {e}")
 
         # Create new message
         message = Message(
@@ -1008,8 +994,18 @@ async def save_message(
         )
         session.add(message)
         session.commit()
+        message_id = str(message.id)
         logger.info(f"Saved message for lead {lead_id}: role={role}")
-        return {"id": str(message.id), "status": "saved", "has_preview": bool(msg_metadata.get("link_preview"))}
+
+        # Schedule background link preview extraction (fire-and-forget)
+        if content and 'http' in content.lower():
+            try:
+                from core.link_preview import schedule_link_preview_extraction
+                schedule_link_preview_extraction(message_id, content)
+            except Exception as e:
+                logger.debug(f"Could not schedule link preview: {e}")
+
+        return {"id": message_id, "status": "saved"}
     except Exception as e:
         logger.error(f"save_message error: {e}")
         session.rollback()
