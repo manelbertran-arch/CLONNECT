@@ -31,7 +31,7 @@ import { getPurchaseIntent, detectPlatform, getFriendlyName, extractNameFromMess
 const statusColors: Record<string, string> = {
   new: "bg-blue-500/10 text-blue-400 border-blue-500/20",            // nuevo - recién llegado
   active: "bg-amber-500/10 text-amber-400 border-amber-500/20",      // interesado - hace preguntas
-  hot: "bg-orange-500/10 text-orange-400 border-orange-500/20",      // caliente - quiere comprar
+  hot: "bg-red-500/10 text-red-400 border-red-500/20",               // caliente - quiere comprar
   customer: "bg-emerald-500/10 text-emerald-400 border-emerald-500/20", // cliente - ya compró
   ghost: "bg-gray-600/10 text-gray-500 border-gray-600/20",          // fantasma - 7+ días sin respuesta
   // Legacy statuses

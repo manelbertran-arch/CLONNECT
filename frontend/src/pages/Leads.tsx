@@ -63,7 +63,7 @@ interface LeadDisplay {
 const columns: { status: LeadStatus; title: string; icon: React.ReactNode; color: string; gradient: string }[] = [
   { status: "nuevo", title: "Nuevos", icon: <Users className="w-4 h-4" />, color: "text-blue-400", gradient: "from-blue-500/20 to-blue-600/10" },
   { status: "interesado", title: "Interesados", icon: <Star className="w-4 h-4" />, color: "text-amber-400", gradient: "from-amber-500/20 to-amber-600/10" },
-  { status: "caliente", title: "Calientes", icon: <Flame className="w-4 h-4" />, color: "text-orange-400", gradient: "from-orange-500/20 to-orange-600/10" },
+  { status: "caliente", title: "Calientes", icon: <Flame className="w-4 h-4" />, color: "text-red-400", gradient: "from-red-500/20 to-red-600/10" },
   { status: "cliente", title: "Clientes", icon: <CheckCircle className="w-4 h-4" />, color: "text-emerald-400", gradient: "from-emerald-500/20 to-emerald-600/10" },
   { status: "fantasma", title: "Fantasmas", icon: <Ghost className="w-4 h-4" />, color: "text-gray-500", gradient: "from-gray-500/20 to-gray-600/10" },
 ];
