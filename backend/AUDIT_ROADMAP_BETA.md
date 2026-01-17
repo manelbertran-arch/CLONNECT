@@ -440,13 +440,13 @@ if not allowed:
 
 ## Técnico
 
-- [x] Tests 100% pasando
+- [x] Tests 100% pasando (+ 27 tests signals.py - 2026-01-17)
 - [x] Entorno limpio configurado
 - [ ] Docker funcionando
-- [ ] Health checks activos
-- [ ] Rate limiter integrado
-- [ ] Cache activado
-- [ ] Notificaciones escalación
+- [x] Health checks activos (endpoint /health/live) ✅ 2026-01-17
+- [x] Rate limiter integrado (dm_agent.py:3294-3312) ✅ 2026-01-17
+- [x] Cache activado (signals.py con TTL 5min) ✅ 2026-01-17
+- [x] Notificaciones escalación (Telegram/webhook/email) ✅ 2026-01-17
 - [ ] Backups configurados
 
 ## Seguridad
@@ -460,9 +460,11 @@ if not allowed:
 ## UX Creador
 
 - [ ] Onboarding documentado
-- [ ] Dashboard con métricas básicas
-- [ ] Alertas Telegram configurables
+- [x] Dashboard con métricas básicas ✅ 2026-01-17
+- [x] Alertas Telegram configurables ✅ 2026-01-17
 - [x] Multi-idioma (ES/EN/PT/CA)
+- [x] Sistema inteligente de señales y predicción ✅ 2026-01-17
+- [x] CRM con actividades y tareas ✅ 2026-01-16
 
 ## UX Seguidor
 
@@ -473,9 +475,9 @@ if not allowed:
 
 ## Operativo (Clonnect)
 
-- [ ] Monitoreo 24/7 básico
+- [x] Monitoreo 24/7 básico (Railway + health checks) ✅ 2026-01-17
 - [ ] Runbook de incidentes
-- [ ] Acceso a logs
+- [x] Acceso a logs (Railway logs + /admin/alerts)
 - [ ] Proceso rollback
 
 ## Legal
@@ -484,6 +486,31 @@ if not allowed:
 - [ ] Terms of Service draft
 - [ ] Beta agreement
 - [ ] Privacy policy
+
+---
+
+## ACTUALIZACIONES 2026-01-17
+
+### Completado hoy:
+1. **Sistema Inteligente de Señales** (`api/services/signals.py`)
+   - 30+ señales de compra/interés/objeciones
+   - Detección de productos
+   - Predicción de probabilidad de venta
+   - Caching con TTL 5 minutos
+
+2. **Quick Wins del Roadmap**
+   - Rate limiter verificado e integrado
+   - Notificaciones de escalación funcionando
+   - Cache en análisis de señales
+
+3. **Testing**
+   - 27 tests nuevos para signals.py
+   - Cobertura: keywords, probabilidad, productos, cache, edge cases
+
+4. **Estabilización**
+   - CHANGELOG actualizado (v1.1.0 - v1.3.0)
+   - Limpieza de console.logs
+   - CI/CD verificado funcionando
 
 ---
 
