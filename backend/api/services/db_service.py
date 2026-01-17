@@ -273,7 +273,6 @@ def get_leads(creator_name: str, include_archived: bool = False):
         leads = query.order_by(Lead.last_contact_at.desc()).all()
         result = []
         for lead in leads:
-            ctx = lead.context or {}
             result.append({
                 "id": str(lead.id),
                 "follower_id": str(lead.id),
@@ -285,9 +284,12 @@ def get_leads(creator_name: str, include_archived: bool = False):
                 "score": lead.score,
                 "purchase_intent": lead.purchase_intent,
                 "last_contact_at": lead.last_contact_at.isoformat() if lead.last_contact_at else None,
-                "email": ctx.get("email"),
-                "phone": ctx.get("phone"),
-                "notes": ctx.get("notes"),
+                # CRM fields from direct columns (not context JSON)
+                "email": lead.email,
+                "phone": lead.phone,
+                "notes": lead.notes,
+                "tags": lead.tags,
+                "deal_value": lead.deal_value,
             })
         return result
     finally:
@@ -336,9 +338,16 @@ def get_conversations_with_counts(creator_name: str, limit: int = 50, include_ar
                 "purchase_intent_score": lead.purchase_intent or 0.0,
                 "is_lead": lead.status not in ["archived", "spam"],
                 "last_contact": lead.last_contact_at.isoformat() if lead.last_contact_at else None,
+                "first_contact": lead.first_contact_at.isoformat() if lead.first_contact_at else None,
                 "total_messages": msg_count,
                 "archived": lead.status == "archived",
                 "spam": lead.status == "spam",
+                # CRM fields from direct columns
+                "email": lead.email,
+                "phone": lead.phone,
+                "notes": lead.notes,
+                "tags": lead.tags,
+                "deal_value": lead.deal_value,
             })
 
         return conversations
@@ -799,7 +808,6 @@ def get_lead_by_id(creator_name: str, lead_id: str):
             lead = session.query(Lead).filter_by(creator_id=creator.id, platform_user_id=lead_id).first()
 
         if lead:
-            ctx = lead.context or {}
             return {
                 "id": str(lead.id),
                 "platform_user_id": lead.platform_user_id,
@@ -809,10 +817,13 @@ def get_lead_by_id(creator_name: str, lead_id: str):
                 "status": lead.status,
                 "score": lead.score,
                 "purchase_intent": lead.purchase_intent,
-                "email": ctx.get("email"),
-                "phone": ctx.get("phone"),
-                "notes": ctx.get("notes"),
-                "context": ctx
+                # CRM fields from direct columns
+                "email": lead.email,
+                "phone": lead.phone,
+                "notes": lead.notes,
+                "tags": lead.tags,
+                "deal_value": lead.deal_value,
+                "context": lead.context or {}
             }
         return None
     finally:

@@ -407,9 +407,13 @@ async def get_conversations(creator_id: str, limit: int = 50):
                         "pipeline_score": get_pipeline_score(lead_status),
                         "last_messages": [],  # Skip for performance - fetch on detail view
                         "last_contact": c.get("last_contact"),
-                        "email": "",
-                        "phone": "",
-                        "notes": "",
+                        "first_contact": c.get("first_contact"),
+                        # CRM fields from database (not hardcoded!)
+                        "email": c.get("email") or "",
+                        "phone": c.get("phone") or "",
+                        "notes": c.get("notes") or "",
+                        "tags": c.get("tags") or [],
+                        "deal_value": c.get("deal_value"),
                     })
                 return {"status": "ok", "conversations": conversations, "count": len(conversations), "product_price": product_price}
         except Exception as e:

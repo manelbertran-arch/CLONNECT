@@ -753,15 +753,14 @@ async def get_lead_stats(creator_id: str, lead_id: str):
                 if not lead:
                     raise HTTPException(status_code=404, detail="Lead not found")
 
-                # Get message stats
+                # Get message stats - Message uses 'role' column, not 'direction'
                 messages = session.query(Message).filter_by(
-                    creator_id=creator.id,
                     lead_id=lead.id
                 ).all()
 
                 total_messages = len(messages)
-                lead_messages = sum(1 for m in messages if m.direction == "inbound")
-                bot_messages = sum(1 for m in messages if m.direction == "outbound")
+                lead_messages = sum(1 for m in messages if m.role == "user")
+                bot_messages = sum(1 for m in messages if m.role == "assistant")
 
                 # Get timeline
                 first_contact = lead.first_contact_at
@@ -785,8 +784,8 @@ async def get_lead_stats(creator_id: str, lead_id: str):
                         fc = fc.replace(tzinfo=timezone.utc)
                     days_in_stage = (datetime.now(timezone.utc) - fc).days
 
-                # Detect signals from messages
-                all_text = " ".join([m.content or "" for m in messages if m.direction == "inbound"]).lower()
+                # Detect signals from messages (user messages only)
+                all_text = " ".join([m.content or "" for m in messages if m.role == "user"]).lower()
 
                 # Price-related keywords
                 price_keywords = ["precio", "cuesta", "coste", "cuánto", "cuanto", "vale", "pagar", "euros", "dolares"]
