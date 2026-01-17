@@ -288,6 +288,9 @@ async def update_follower_status(creator_id: str, follower_id: str, data: dict =
                             lead = session.query(Lead).filter_by(creator_id=creator.id, platform_user_id=follower_id).first()
 
                         if lead:
+                            # Track old status for activity log
+                            old_status = lead.status
+
                             # Update both status column AND purchase_intent
                             lead.status = db_status
                             lead.purchase_intent = new_intent
@@ -295,6 +298,24 @@ async def update_follower_status(creator_id: str, follower_id: str, data: dict =
                                 if not lead.context:
                                     lead.context = {}
                                 lead.context["is_customer"] = True
+
+                            # Create activity log entry for status change
+                            try:
+                                from api.models import LeadActivity
+                                if old_status != db_status:
+                                    activity = LeadActivity(
+                                        lead_id=lead.id,
+                                        creator_id=creator.id,
+                                        activity_type="status_change",
+                                        description=f"Status: {old_status} → {db_status}",
+                                        old_value=old_status,
+                                        new_value=db_status,
+                                        created_by="creator"
+                                    )
+                                    session.add(activity)
+                            except Exception as act_err:
+                                logger.warning(f"Could not log activity: {act_err}")
+
                             session.commit()
                             logger.info(f"Updated lead {follower_id} status to {db_status} (intent: {new_intent})")
                             return {

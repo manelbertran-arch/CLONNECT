@@ -71,8 +71,16 @@ import {
   toggleCopilotMode,
   getCopilotNotifications,
   approveAllCopilot,
+  // CRM Activities & Tasks
+  getLeadActivities,
+  createLeadActivity,
+  getLeadTasks,
+  createLeadTask,
+  updateLeadTask,
+  deleteLeadTask,
   apiKeys,
 } from "@/services/api";
+import type { LeadActivity, LeadTask } from "@/services/api";
 import type { UpdateConnectionData } from "@/services/api";
 import type { RunNurturingParams, CreateBookingLinkData, RecordPurchaseData } from "@/services/api";
 import type { CreateLeadData, UpdateLeadData } from "@/services/api";
@@ -1036,6 +1044,94 @@ export function useApproveAllCopilot(creatorId: string = getCreatorId()) {
       queryClient.invalidateQueries({ queryKey: apiKeys.copilotPending(creatorId) });
       queryClient.invalidateQueries({ queryKey: apiKeys.copilotStatus(creatorId) });
       queryClient.invalidateQueries({ queryKey: apiKeys.conversations(creatorId) });
+    },
+  });
+}
+
+// =============================================================================
+// CRM HOOKS - Activities & Tasks
+// =============================================================================
+
+/**
+ * Hook to fetch lead activities
+ */
+export function useLeadActivities(leadId: string | null, creatorId: string = getCreatorId()) {
+  return useQuery({
+    queryKey: ["leadActivities", creatorId, leadId],
+    queryFn: () => getLeadActivities(creatorId, leadId!),
+    enabled: !!leadId,
+    staleTime: 30000,
+  });
+}
+
+/**
+ * Hook to create a lead activity
+ */
+export function useCreateLeadActivity(creatorId: string = getCreatorId()) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ leadId, data }: { leadId: string; data: { activity_type: string; description: string } }) =>
+      createLeadActivity(creatorId, leadId, data),
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: ["leadActivities", creatorId, variables.leadId] });
+      queryClient.invalidateQueries({ queryKey: apiKeys.leads(creatorId) });
+      queryClient.invalidateQueries({ queryKey: apiKeys.conversations(creatorId) });
+    },
+  });
+}
+
+/**
+ * Hook to fetch lead tasks
+ */
+export function useLeadTasks(leadId: string | null, creatorId: string = getCreatorId(), includeCompleted: boolean = false) {
+  return useQuery({
+    queryKey: ["leadTasks", creatorId, leadId, includeCompleted],
+    queryFn: () => getLeadTasks(creatorId, leadId!, includeCompleted),
+    enabled: !!leadId,
+    staleTime: 30000,
+  });
+}
+
+/**
+ * Hook to create a lead task
+ */
+export function useCreateLeadTask(creatorId: string = getCreatorId()) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ leadId, data }: { leadId: string; data: { title: string; description?: string; task_type?: string; priority?: string; due_date?: string } }) =>
+      createLeadTask(creatorId, leadId, data),
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: ["leadTasks", creatorId, variables.leadId] });
+      queryClient.invalidateQueries({ queryKey: ["leadActivities", creatorId, variables.leadId] });
+    },
+  });
+}
+
+/**
+ * Hook to update a lead task
+ */
+export function useUpdateLeadTask(creatorId: string = getCreatorId()) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ leadId, taskId, data }: { leadId: string; taskId: string; data: Partial<LeadTask> }) =>
+      updateLeadTask(creatorId, leadId, taskId, data),
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: ["leadTasks", creatorId, variables.leadId] });
+      queryClient.invalidateQueries({ queryKey: ["leadActivities", creatorId, variables.leadId] });
+    },
+  });
+}
+
+/**
+ * Hook to delete a lead task
+ */
+export function useDeleteLeadTask(creatorId: string = getCreatorId()) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ leadId, taskId }: { leadId: string; taskId: string }) =>
+      deleteLeadTask(creatorId, leadId, taskId),
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: ["leadTasks", creatorId, variables.leadId] });
     },
   });
 }

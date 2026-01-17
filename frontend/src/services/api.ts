@@ -396,6 +396,112 @@ export async function deleteLead(
 }
 
 // =============================================================================
+// LEAD ACTIVITIES & TASKS (CRM)
+// =============================================================================
+
+export interface LeadActivity {
+  id: string;
+  activity_type: string;
+  description: string;
+  old_value?: string;
+  new_value?: string;
+  metadata?: Record<string, any>;
+  created_by?: string;
+  created_at: string;
+}
+
+export interface LeadTask {
+  id: string;
+  title: string;
+  description?: string;
+  task_type: string;
+  priority: string;
+  status: string;
+  due_date?: string;
+  completed_at?: string;
+  assigned_to?: string;
+  created_at: string;
+}
+
+/**
+ * Get activities for a lead
+ */
+export async function getLeadActivities(
+  creatorId: string = CREATOR_ID,
+  leadId: string,
+  limit: number = 50
+): Promise<{ status: string; activities: LeadActivity[] }> {
+  return apiFetch(`/dm/leads/${creatorId}/${leadId}/activities?limit=${limit}`);
+}
+
+/**
+ * Create an activity for a lead (note, call, etc.)
+ */
+export async function createLeadActivity(
+  creatorId: string = CREATOR_ID,
+  leadId: string,
+  data: { activity_type: string; description: string; metadata?: Record<string, any> }
+): Promise<{ status: string; activity: LeadActivity }> {
+  return apiFetch(`/dm/leads/${creatorId}/${leadId}/activities`, {
+    method: "POST",
+    body: JSON.stringify(data),
+  });
+}
+
+/**
+ * Get tasks for a lead
+ */
+export async function getLeadTasks(
+  creatorId: string = CREATOR_ID,
+  leadId: string,
+  includeCompleted: boolean = false
+): Promise<{ status: string; tasks: LeadTask[] }> {
+  return apiFetch(`/dm/leads/${creatorId}/${leadId}/tasks?include_completed=${includeCompleted}`);
+}
+
+/**
+ * Create a task for a lead
+ */
+export async function createLeadTask(
+  creatorId: string = CREATOR_ID,
+  leadId: string,
+  data: { title: string; description?: string; task_type?: string; priority?: string; due_date?: string }
+): Promise<{ status: string; task: LeadTask }> {
+  return apiFetch(`/dm/leads/${creatorId}/${leadId}/tasks`, {
+    method: "POST",
+    body: JSON.stringify(data),
+  });
+}
+
+/**
+ * Update a task
+ */
+export async function updateLeadTask(
+  creatorId: string = CREATOR_ID,
+  leadId: string,
+  taskId: string,
+  data: Partial<LeadTask>
+): Promise<{ status: string; task: LeadTask }> {
+  return apiFetch(`/dm/leads/${creatorId}/${leadId}/tasks/${taskId}`, {
+    method: "PUT",
+    body: JSON.stringify(data),
+  });
+}
+
+/**
+ * Delete a task
+ */
+export async function deleteLeadTask(
+  creatorId: string = CREATOR_ID,
+  leadId: string,
+  taskId: string
+): Promise<{ status: string; message: string }> {
+  return apiFetch(`/dm/leads/${creatorId}/${leadId}/tasks/${taskId}`, {
+    method: "DELETE",
+  });
+}
+
+// =============================================================================
 // CREATOR CONFIG
 // =============================================================================
 

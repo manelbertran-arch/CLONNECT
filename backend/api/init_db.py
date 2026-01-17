@@ -76,6 +76,15 @@ def run_migrations(engine):
         ("products", "is_free", "BOOLEAN DEFAULT FALSE"),
         # Profile picture URL for leads (Instagram) - TEXT for long CDN URLs
         ("leads", "profile_pic_url", "TEXT"),
+        # CRM fields for leads
+        ("leads", "notes", "TEXT"),
+        ("leads", "tags", "JSON DEFAULT '[]'"),
+        ("leads", "email", "VARCHAR(255)"),
+        ("leads", "phone", "VARCHAR(50)"),
+        ("leads", "deal_value", "FLOAT"),
+        ("leads", "source", "VARCHAR(100)"),
+        ("leads", "assigned_to", "VARCHAR(255)"),
+        ("leads", "updated_at", "TIMESTAMPTZ DEFAULT NOW()"),
     ]
 
     # Column type alterations (for existing columns that need to be changed)
@@ -131,7 +140,7 @@ def init_database():
     try:
         from api.database import Base
         from api.models import (
-            User, UserCreator, Creator, Lead, Message, Product,
+            User, UserCreator, Creator, Lead, LeadActivity, LeadTask, Message, Product,
             NurturingSequence, KnowledgeBase, BookingLink, CalendarBooking,
             CreatorAvailability, BookingSlot, UnifiedProfile, PlatformIdentity,
             EmailAskTracking, RAGDocument, ToneProfile, ContentChunk, InstagramPost
@@ -139,7 +148,7 @@ def init_database():
     except:
         from database import Base
         from models import (
-            User, UserCreator, Creator, Lead, Message, Product,
+            User, UserCreator, Creator, Lead, LeadActivity, LeadTask, Message, Product,
             NurturingSequence, KnowledgeBase, BookingLink, CalendarBooking,
             CreatorAvailability, BookingSlot, UnifiedProfile, PlatformIdentity,
             EmailAskTracking, RAGDocument, ToneProfile, ContentChunk, InstagramPost

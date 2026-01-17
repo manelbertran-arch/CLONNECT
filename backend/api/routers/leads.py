@@ -222,3 +222,491 @@ async def delete_lead(creator_id: str, lead_id: str):
         return {"status": "ok", "message": "Lead deleted", "deleted": lead_id}
 
     raise HTTPException(status_code=404, detail="Lead not found")
+
+
+# =============================================================================
+# STATUS UPDATE (for drag & drop)
+# =============================================================================
+
+@router.put("/{creator_id}/{lead_id}/status")
+async def update_lead_status(creator_id: str, lead_id: str, data: dict = Body(...)):
+    """
+    Quick status update for drag & drop in Pipeline.
+    Also creates an activity log entry.
+    """
+    new_status = data.get("status")
+    if not new_status:
+        raise HTTPException(status_code=400, detail="status is required")
+
+    valid_statuses = ["nuevo", "interesado", "caliente", "cliente", "fantasma"]
+    if new_status not in valid_statuses:
+        raise HTTPException(status_code=400, detail=f"Invalid status. Must be one of: {valid_statuses}")
+
+    if USE_DB:
+        try:
+            from api.database import SessionLocal
+            from api.models import Lead, LeadActivity, Creator
+
+            session = SessionLocal()
+            try:
+                # Get creator
+                creator = session.query(Creator).filter_by(name=creator_id).first()
+                if not creator:
+                    raise HTTPException(status_code=404, detail="Creator not found")
+
+                # Get lead by platform_user_id or UUID
+                lead = session.query(Lead).filter_by(
+                    creator_id=creator.id,
+                    platform_user_id=lead_id
+                ).first()
+
+                if not lead:
+                    # Try by UUID
+                    try:
+                        from uuid import UUID
+                        lead = session.query(Lead).filter_by(id=UUID(lead_id)).first()
+                    except:
+                        pass
+
+                if not lead:
+                    raise HTTPException(status_code=404, detail="Lead not found in database")
+
+                old_status = lead.status
+                lead.status = new_status
+
+                # Create activity log
+                activity = LeadActivity(
+                    lead_id=lead.id,
+                    creator_id=creator.id,
+                    activity_type="status_change",
+                    description=f"Status changed from {old_status} to {new_status}",
+                    old_value=old_status,
+                    new_value=new_status,
+                    created_by="creator"
+                )
+                session.add(activity)
+                session.commit()
+
+                logger.info(f"Updated lead {lead_id} status: {old_status} -> {new_status}")
+                return {
+                    "status": "ok",
+                    "message": "Status updated",
+                    "lead": {
+                        "id": str(lead.id),
+                        "platform_user_id": lead.platform_user_id,
+                        "status": lead.status
+                    }
+                }
+            finally:
+                session.close()
+        except HTTPException:
+            raise
+        except Exception as e:
+            logger.error(f"DB update lead status failed: {e}")
+            raise HTTPException(status_code=500, detail=str(e))
+
+    raise HTTPException(status_code=500, detail="Database not configured")
+
+
+# =============================================================================
+# LEAD ACTIVITIES
+# =============================================================================
+
+@router.get("/{creator_id}/{lead_id}/activities")
+async def get_lead_activities(creator_id: str, lead_id: str, limit: int = 50):
+    """Get activity history for a lead"""
+    if USE_DB:
+        try:
+            from api.database import SessionLocal
+            from api.models import Lead, LeadActivity, Creator
+
+            session = SessionLocal()
+            try:
+                creator = session.query(Creator).filter_by(name=creator_id).first()
+                if not creator:
+                    raise HTTPException(status_code=404, detail="Creator not found")
+
+                # Find lead
+                lead = session.query(Lead).filter_by(
+                    creator_id=creator.id,
+                    platform_user_id=lead_id
+                ).first()
+
+                if not lead:
+                    try:
+                        from uuid import UUID
+                        lead = session.query(Lead).filter_by(id=UUID(lead_id)).first()
+                    except:
+                        pass
+
+                if not lead:
+                    raise HTTPException(status_code=404, detail="Lead not found for activities")
+
+                activities = session.query(LeadActivity).filter_by(
+                    lead_id=lead.id
+                ).order_by(LeadActivity.created_at.desc()).limit(limit).all()
+
+                return {
+                    "status": "ok",
+                    "activities": [
+                        {
+                            "id": str(a.id),
+                            "activity_type": a.activity_type,
+                            "description": a.description,
+                            "old_value": a.old_value,
+                            "new_value": a.new_value,
+                            "metadata": a.metadata or {},
+                            "created_by": a.created_by,
+                            "created_at": a.created_at.isoformat() if a.created_at else None
+                        }
+                        for a in activities
+                    ]
+                }
+            finally:
+                session.close()
+        except HTTPException:
+            raise
+        except Exception as e:
+            logger.error(f"Get activities failed: {e}")
+            raise HTTPException(status_code=500, detail=str(e))
+
+    return {"status": "ok", "activities": []}
+
+
+@router.post("/{creator_id}/{lead_id}/activities")
+async def create_lead_activity(creator_id: str, lead_id: str, data: dict = Body(...)):
+    """Create a new activity for a lead (note, call, email, etc.)"""
+    if USE_DB:
+        try:
+            from api.database import SessionLocal
+            from api.models import Lead, LeadActivity, Creator
+
+            session = SessionLocal()
+            try:
+                creator = session.query(Creator).filter_by(name=creator_id).first()
+                if not creator:
+                    raise HTTPException(status_code=404, detail="Creator not found")
+
+                # Find lead
+                lead = session.query(Lead).filter_by(
+                    creator_id=creator.id,
+                    platform_user_id=lead_id
+                ).first()
+
+                if not lead:
+                    try:
+                        from uuid import UUID
+                        lead = session.query(Lead).filter_by(id=UUID(lead_id)).first()
+                    except:
+                        pass
+
+                if not lead:
+                    raise HTTPException(status_code=404, detail="Lead not found for activity creation")
+
+                activity = LeadActivity(
+                    lead_id=lead.id,
+                    creator_id=creator.id,
+                    activity_type=data.get("activity_type", "note"),
+                    description=data.get("description"),
+                    metadata=data.get("metadata", {}),
+                    created_by=data.get("created_by", "creator")
+                )
+                session.add(activity)
+
+                # If it's a note, also update the lead's notes field
+                if data.get("activity_type") == "note" and data.get("description"):
+                    existing_notes = lead.notes or ""
+                    timestamp = datetime.now().strftime("%Y-%m-%d %H:%M")
+                    new_note = f"[{timestamp}] {data['description']}"
+                    lead.notes = f"{new_note}\n\n{existing_notes}".strip() if existing_notes else new_note
+
+                session.commit()
+
+                logger.info(f"Created activity for lead {lead_id}: {data.get('activity_type')}")
+                return {
+                    "status": "ok",
+                    "activity": {
+                        "id": str(activity.id),
+                        "activity_type": activity.activity_type,
+                        "description": activity.description,
+                        "created_at": activity.created_at.isoformat() if activity.created_at else None
+                    }
+                }
+            finally:
+                session.close()
+        except HTTPException:
+            raise
+        except Exception as e:
+            logger.error(f"Create activity failed: {e}")
+            raise HTTPException(status_code=500, detail=str(e))
+
+    raise HTTPException(status_code=500, detail="Database not configured")
+
+
+# =============================================================================
+# LEAD TASKS
+# =============================================================================
+
+@router.get("/{creator_id}/{lead_id}/tasks")
+async def get_lead_tasks(creator_id: str, lead_id: str, include_completed: bool = False):
+    """Get tasks for a lead"""
+    if USE_DB:
+        try:
+            from api.database import SessionLocal
+            from api.models import Lead, LeadTask, Creator
+
+            session = SessionLocal()
+            try:
+                creator = session.query(Creator).filter_by(name=creator_id).first()
+                if not creator:
+                    raise HTTPException(status_code=404, detail="Creator not found")
+
+                # Find lead
+                lead = session.query(Lead).filter_by(
+                    creator_id=creator.id,
+                    platform_user_id=lead_id
+                ).first()
+
+                if not lead:
+                    try:
+                        from uuid import UUID
+                        lead = session.query(Lead).filter_by(id=UUID(lead_id)).first()
+                    except:
+                        pass
+
+                if not lead:
+                    raise HTTPException(status_code=404, detail="Lead not found for tasks")
+
+                query = session.query(LeadTask).filter_by(lead_id=lead.id)
+                if not include_completed:
+                    query = query.filter(LeadTask.status != "completed")
+
+                tasks = query.order_by(LeadTask.due_date.asc().nullslast()).all()
+
+                return {
+                    "status": "ok",
+                    "tasks": [
+                        {
+                            "id": str(t.id),
+                            "title": t.title,
+                            "description": t.description,
+                            "task_type": t.task_type,
+                            "priority": t.priority,
+                            "status": t.status,
+                            "due_date": t.due_date.isoformat() if t.due_date else None,
+                            "completed_at": t.completed_at.isoformat() if t.completed_at else None,
+                            "assigned_to": t.assigned_to,
+                            "created_at": t.created_at.isoformat() if t.created_at else None
+                        }
+                        for t in tasks
+                    ]
+                }
+            finally:
+                session.close()
+        except HTTPException:
+            raise
+        except Exception as e:
+            logger.error(f"Get tasks failed: {e}")
+            raise HTTPException(status_code=500, detail=str(e))
+
+    return {"status": "ok", "tasks": []}
+
+
+@router.post("/{creator_id}/{lead_id}/tasks")
+async def create_lead_task(creator_id: str, lead_id: str, data: dict = Body(...)):
+    """Create a new task for a lead"""
+    if not data.get("title"):
+        raise HTTPException(status_code=400, detail="title is required")
+
+    if USE_DB:
+        try:
+            from api.database import SessionLocal
+            from api.models import Lead, LeadTask, LeadActivity, Creator
+            from datetime import datetime as dt
+
+            session = SessionLocal()
+            try:
+                creator = session.query(Creator).filter_by(name=creator_id).first()
+                if not creator:
+                    raise HTTPException(status_code=404, detail="Creator not found")
+
+                # Find lead
+                lead = session.query(Lead).filter_by(
+                    creator_id=creator.id,
+                    platform_user_id=lead_id
+                ).first()
+
+                if not lead:
+                    try:
+                        from uuid import UUID
+                        lead = session.query(Lead).filter_by(id=UUID(lead_id)).first()
+                    except:
+                        pass
+
+                if not lead:
+                    raise HTTPException(status_code=404, detail="Lead not found for task creation")
+
+                # Parse due_date if provided
+                due_date = None
+                if data.get("due_date"):
+                    try:
+                        due_date = dt.fromisoformat(data["due_date"].replace("Z", "+00:00"))
+                    except:
+                        pass
+
+                task = LeadTask(
+                    lead_id=lead.id,
+                    creator_id=creator.id,
+                    title=data["title"],
+                    description=data.get("description"),
+                    task_type=data.get("task_type", "follow_up"),
+                    priority=data.get("priority", "medium"),
+                    due_date=due_date,
+                    assigned_to=data.get("assigned_to"),
+                    created_by=data.get("created_by", "creator")
+                )
+                session.add(task)
+
+                # Log activity
+                activity = LeadActivity(
+                    lead_id=lead.id,
+                    creator_id=creator.id,
+                    activity_type="task_created",
+                    description=f"Task created: {data['title']}",
+                    created_by="creator"
+                )
+                session.add(activity)
+
+                session.commit()
+
+                logger.info(f"Created task for lead {lead_id}: {data['title']}")
+                return {
+                    "status": "ok",
+                    "task": {
+                        "id": str(task.id),
+                        "title": task.title,
+                        "description": task.description,
+                        "task_type": task.task_type,
+                        "priority": task.priority,
+                        "status": task.status,
+                        "due_date": task.due_date.isoformat() if task.due_date else None,
+                        "created_at": task.created_at.isoformat() if task.created_at else None
+                    }
+                }
+            finally:
+                session.close()
+        except HTTPException:
+            raise
+        except Exception as e:
+            logger.error(f"Create task failed: {e}")
+            raise HTTPException(status_code=500, detail=str(e))
+
+    raise HTTPException(status_code=500, detail="Database not configured")
+
+
+@router.put("/{creator_id}/{lead_id}/tasks/{task_id}")
+async def update_lead_task(creator_id: str, lead_id: str, task_id: str, data: dict = Body(...)):
+    """Update a task"""
+    if USE_DB:
+        try:
+            from api.database import SessionLocal
+            from api.models import LeadTask, LeadActivity, Creator
+            from uuid import UUID
+            from datetime import datetime as dt
+
+            session = SessionLocal()
+            try:
+                creator = session.query(Creator).filter_by(name=creator_id).first()
+                if not creator:
+                    raise HTTPException(status_code=404, detail="Creator not found")
+
+                task = session.query(LeadTask).filter_by(id=UUID(task_id)).first()
+                if not task:
+                    raise HTTPException(status_code=404, detail="Task not found")
+
+                # Update fields
+                if "title" in data:
+                    task.title = data["title"]
+                if "description" in data:
+                    task.description = data["description"]
+                if "task_type" in data:
+                    task.task_type = data["task_type"]
+                if "priority" in data:
+                    task.priority = data["priority"]
+                if "status" in data:
+                    old_status = task.status
+                    task.status = data["status"]
+                    if data["status"] == "completed" and old_status != "completed":
+                        task.completed_at = dt.now()
+                        # Log completion
+                        activity = LeadActivity(
+                            lead_id=task.lead_id,
+                            creator_id=creator.id,
+                            activity_type="task_completed",
+                            description=f"Task completed: {task.title}",
+                            created_by="creator"
+                        )
+                        session.add(activity)
+                if "due_date" in data:
+                    if data["due_date"]:
+                        try:
+                            task.due_date = dt.fromisoformat(data["due_date"].replace("Z", "+00:00"))
+                        except:
+                            pass
+                    else:
+                        task.due_date = None
+                if "assigned_to" in data:
+                    task.assigned_to = data["assigned_to"]
+
+                session.commit()
+
+                logger.info(f"Updated task {task_id}")
+                return {
+                    "status": "ok",
+                    "task": {
+                        "id": str(task.id),
+                        "title": task.title,
+                        "status": task.status,
+                        "due_date": task.due_date.isoformat() if task.due_date else None
+                    }
+                }
+            finally:
+                session.close()
+        except HTTPException:
+            raise
+        except Exception as e:
+            logger.error(f"Update task failed: {e}")
+            raise HTTPException(status_code=500, detail=str(e))
+
+    raise HTTPException(status_code=500, detail="Database not configured")
+
+
+@router.delete("/{creator_id}/{lead_id}/tasks/{task_id}")
+async def delete_lead_task(creator_id: str, lead_id: str, task_id: str):
+    """Delete a task"""
+    if USE_DB:
+        try:
+            from api.database import SessionLocal
+            from api.models import LeadTask
+            from uuid import UUID
+
+            session = SessionLocal()
+            try:
+                task = session.query(LeadTask).filter_by(id=UUID(task_id)).first()
+                if not task:
+                    raise HTTPException(status_code=404, detail="Task not found")
+
+                session.delete(task)
+                session.commit()
+
+                logger.info(f"Deleted task {task_id}")
+                return {"status": "ok", "message": "Task deleted"}
+            finally:
+                session.close()
+        except HTTPException:
+            raise
+        except Exception as e:
+            logger.error(f"Delete task failed: {e}")
+            raise HTTPException(status_code=500, detail=str(e))
+
+    raise HTTPException(status_code=500, detail="Database not configured")

@@ -1,9 +1,11 @@
 import { useState, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
-import { Instagram, MoreHorizontal, Plus, Loader2, AlertCircle, MessageCircle, Send, Eye, Pencil, Trash2, Users, Flame, Star, CheckCircle, Ghost, Clock, ExternalLink, Settings } from "lucide-react";
+import { Instagram, MoreHorizontal, Plus, Loader2, AlertCircle, MessageCircle, Send, Eye, Pencil, Trash2, Users, Flame, Star, CheckCircle, Ghost, Clock, ExternalLink, Settings, ListTodo, History, StickyNote, CheckSquare, Square, Phone, Mail, Calendar } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Dialog,
   DialogContent,
@@ -42,7 +44,7 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
-import { useConversations, useUpdateLeadStatus, useCreateManualLead, useUpdateLead, useDeleteLead } from "@/hooks/useApi";
+import { useConversations, useUpdateLeadStatus, useCreateManualLead, useUpdateLead, useDeleteLead, useLeadActivities, useCreateLeadActivity, useLeadTasks, useCreateLeadTask, useUpdateLeadTask } from "@/hooks/useApi";
 import { useToast } from "@/hooks/use-toast";
 import type { Conversation } from "@/types/api";
 import { getPurchaseIntent, detectPlatform, getDisplayName } from "@/types/api";
@@ -214,6 +216,9 @@ export default function Leads() {
   const createLeadMutation = useCreateManualLead();
   const updateLeadMutation = useUpdateLead();
   const deleteLeadMutation = useDeleteLead();
+  const createActivityMutation = useCreateLeadActivity();
+  const createTaskMutation = useCreateLeadTask();
+  const updateTaskMutation = useUpdateLeadTask();
 
   // Modal states
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
@@ -222,6 +227,15 @@ export default function Leads() {
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [selectedLead, setSelectedLead] = useState<LeadDisplay | null>(null);
   const [formData, setFormData] = useState(initialFormState);
+
+  // CRM modal state
+  const [newNote, setNewNote] = useState("");
+  const [newTaskTitle, setNewTaskTitle] = useState("");
+  const [modalTab, setModalTab] = useState("info");
+
+  // Fetch activities and tasks for selected lead
+  const { data: activitiesData } = useLeadActivities(selectedLead?.followerId || null);
+  const { data: tasksData } = useLeadTasks(selectedLead?.followerId || null);
 
   // Product price from backend
   const backendPrice = data?.product_price ?? DEFAULT_PRODUCT_PRICE;
@@ -376,7 +390,83 @@ export default function Leads() {
   // Handlers for View/Edit/Delete
   const handleViewLead = (lead: LeadDisplay) => {
     setSelectedLead(lead);
+    setModalTab("info"); // Reset to info tab
+    setNewNote("");
+    setNewTaskTitle("");
     setIsViewModalOpen(true);
+  };
+
+  // Handler for adding a note
+  const handleAddNote = async () => {
+    if (!selectedLead || !newNote.trim()) return;
+
+    try {
+      await createActivityMutation.mutateAsync({
+        leadId: selectedLead.followerId,
+        data: {
+          activity_type: "note",
+          description: newNote.trim(),
+        },
+      });
+      setNewNote("");
+      toast({
+        title: "Nota añadida",
+        description: "Se ha guardado la nota",
+      });
+    } catch {
+      toast({
+        title: "Error",
+        description: "No se pudo guardar la nota",
+        variant: "destructive",
+      });
+    }
+  };
+
+  // Handler for adding a task
+  const handleAddTask = async () => {
+    if (!selectedLead || !newTaskTitle.trim()) return;
+
+    try {
+      await createTaskMutation.mutateAsync({
+        leadId: selectedLead.followerId,
+        data: {
+          title: newTaskTitle.trim(),
+          task_type: "follow_up",
+          priority: "medium",
+        },
+      });
+      setNewTaskTitle("");
+      toast({
+        title: "Tarea creada",
+        description: "Se ha añadido la tarea",
+      });
+    } catch {
+      toast({
+        title: "Error",
+        description: "No se pudo crear la tarea",
+        variant: "destructive",
+      });
+    }
+  };
+
+  // Handler for completing a task
+  const handleToggleTask = async (taskId: string, currentStatus: string) => {
+    if (!selectedLead) return;
+
+    const newStatus = currentStatus === "completed" ? "pending" : "completed";
+    try {
+      await updateTaskMutation.mutateAsync({
+        leadId: selectedLead.followerId,
+        taskId,
+        data: { status: newStatus },
+      });
+    } catch {
+      toast({
+        title: "Error",
+        description: "No se pudo actualizar la tarea",
+        variant: "destructive",
+      });
+    }
   };
 
   const handleOpenEditModal = (lead: LeadDisplay) => {
@@ -764,15 +854,14 @@ export default function Leads() {
         </DialogContent>
       </Dialog>
 
-      {/* View Lead Modal */}
+      {/* View Lead Modal - CRM Enhanced */}
       <Dialog open={isViewModalOpen} onOpenChange={setIsViewModalOpen}>
-        <DialogContent className="sm:max-w-[400px]">
+        <DialogContent className="sm:max-w-[500px] max-h-[90vh] overflow-hidden flex flex-col">
           {selectedLead && (
-            <div className="space-y-4">
-              {/* Profile Header with Large Photo */}
-              <div className="flex flex-col items-center text-center pt-2">
-                {/* Large Avatar */}
-                <div className="w-24 h-24 rounded-full overflow-hidden ring-4 ring-violet-500/30 mb-3">
+            <>
+              {/* Compact Header */}
+              <div className="flex items-center gap-3 pb-3 border-b">
+                <div className="w-14 h-14 rounded-full overflow-hidden ring-2 ring-violet-500/30 shrink-0">
                   {selectedLead.profilePicUrl ? (
                     <img
                       src={selectedLead.profilePicUrl}
@@ -785,105 +874,278 @@ export default function Leads() {
                     />
                   ) : null}
                   <div className={cn(
-                    "w-full h-full bg-gradient-to-br from-violet-600 to-purple-600 flex items-center justify-center text-white text-2xl font-medium",
+                    "w-full h-full bg-gradient-to-br from-violet-600 to-purple-600 flex items-center justify-center text-white text-lg font-medium",
                     selectedLead.profilePicUrl && "hidden"
                   )}>
                     {selectedLead.avatar}
                   </div>
                 </div>
-
-                {/* Name & Username */}
-                <h3 className="font-semibold text-lg">{selectedLead.name || selectedLead.username}</h3>
-                <p className="text-sm text-muted-foreground flex items-center gap-1">
-                  {platformIcons[selectedLead.platform] || platformIcons.instagram}
-                  @{selectedLead.instagramUsername || selectedLead.username}
-                </p>
-
-                {/* Value Badge */}
-                <div className={cn("mt-2 px-3 py-1 rounded-full text-sm font-semibold", STATUS_COLORS[selectedLead.status])}>
-                  €{selectedLead.value} · {selectedLead.score}%
+                <div className="flex-1 min-w-0">
+                  <h3 className="font-semibold text-lg truncate">{selectedLead.name || selectedLead.username}</h3>
+                  <p className="text-sm text-muted-foreground flex items-center gap-1">
+                    {platformIcons[selectedLead.platform] || platformIcons.instagram}
+                    @{selectedLead.instagramUsername || selectedLead.username}
+                  </p>
+                </div>
+                <div className={cn("px-3 py-1 rounded-full text-sm font-semibold", STATUS_COLORS[selectedLead.status])}>
+                  €{selectedLead.value}
                 </div>
               </div>
 
-              {/* Stats Grid */}
-              <div className="grid grid-cols-3 gap-2">
-                <div className="p-2.5 rounded-lg bg-muted/30 text-center">
-                  <p className="text-[10px] text-muted-foreground uppercase tracking-wide">Estado</p>
-                  <p className="text-sm font-medium capitalize">{selectedLead.status}</p>
-                </div>
-                <div className="p-2.5 rounded-lg bg-muted/30 text-center">
-                  <p className="text-[10px] text-muted-foreground uppercase tracking-wide">Mensajes</p>
-                  <p className="text-sm font-medium">{selectedLead.totalMessages}</p>
-                </div>
-                <div className="p-2.5 rounded-lg bg-muted/30 text-center">
-                  <p className="text-[10px] text-muted-foreground uppercase tracking-wide">Último</p>
-                  <p className="text-sm font-medium">{formatTimeAgo(selectedLead.lastContact) || "-"}</p>
-                </div>
-              </div>
+              {/* Tabs */}
+              <Tabs value={modalTab} onValueChange={setModalTab} className="flex-1 flex flex-col overflow-hidden">
+                <TabsList className="grid w-full grid-cols-3">
+                  <TabsTrigger value="info" className="text-xs">
+                    <Eye className="w-3.5 h-3.5 mr-1.5" />
+                    Info
+                  </TabsTrigger>
+                  <TabsTrigger value="tasks" className="text-xs">
+                    <ListTodo className="w-3.5 h-3.5 mr-1.5" />
+                    Tareas
+                    {tasksData?.tasks?.length ? (
+                      <span className="ml-1 text-[10px] bg-violet-500/20 text-violet-400 px-1.5 rounded-full">
+                        {tasksData.tasks.length}
+                      </span>
+                    ) : null}
+                  </TabsTrigger>
+                  <TabsTrigger value="history" className="text-xs">
+                    <History className="w-3.5 h-3.5 mr-1.5" />
+                    Historial
+                  </TabsTrigger>
+                </TabsList>
 
-              {/* Contact Info */}
-              {(selectedLead.email || selectedLead.phone) && (
-                <div className="space-y-1.5 text-sm">
-                  {selectedLead.email && (
-                    <p className="text-muted-foreground">📧 {selectedLead.email}</p>
-                  )}
-                  {selectedLead.phone && (
-                    <p className="text-muted-foreground">📱 {selectedLead.phone}</p>
-                  )}
-                </div>
-              )}
+                {/* Info Tab */}
+                <TabsContent value="info" className="flex-1 overflow-auto mt-3 space-y-4">
+                  {/* Stats Grid */}
+                  <div className="grid grid-cols-3 gap-2">
+                    <div className="p-2.5 rounded-lg bg-muted/30 text-center">
+                      <p className="text-[10px] text-muted-foreground uppercase tracking-wide">Estado</p>
+                      <p className="text-sm font-medium capitalize">{selectedLead.status}</p>
+                    </div>
+                    <div className="p-2.5 rounded-lg bg-muted/30 text-center">
+                      <p className="text-[10px] text-muted-foreground uppercase tracking-wide">Mensajes</p>
+                      <p className="text-sm font-medium">{selectedLead.totalMessages}</p>
+                    </div>
+                    <div className="p-2.5 rounded-lg bg-muted/30 text-center">
+                      <p className="text-[10px] text-muted-foreground uppercase tracking-wide">Último</p>
+                      <p className="text-sm font-medium">{formatTimeAgo(selectedLead.lastContact) || "-"}</p>
+                    </div>
+                  </div>
 
-              {/* Action Buttons */}
-              <div className="grid grid-cols-2 gap-2 pt-2">
-                {selectedLead.platform === "instagram" && (
+                  {/* Contact Info */}
+                  <div className="space-y-2">
+                    <p className="text-xs text-muted-foreground uppercase tracking-wide">Contacto</p>
+                    <div className="space-y-1.5 text-sm">
+                      {selectedLead.email ? (
+                        <p className="flex items-center gap-2 text-muted-foreground">
+                          <Mail className="w-4 h-4" /> {selectedLead.email}
+                        </p>
+                      ) : (
+                        <p className="text-muted-foreground/50 text-xs">Sin email</p>
+                      )}
+                      {selectedLead.phone ? (
+                        <p className="flex items-center gap-2 text-muted-foreground">
+                          <Phone className="w-4 h-4" /> {selectedLead.phone}
+                        </p>
+                      ) : (
+                        <p className="text-muted-foreground/50 text-xs">Sin teléfono</p>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Quick Note */}
+                  <div className="space-y-2">
+                    <p className="text-xs text-muted-foreground uppercase tracking-wide">Añadir nota</p>
+                    <div className="flex gap-2">
+                      <Textarea
+                        placeholder="Escribe una nota..."
+                        value={newNote}
+                        onChange={(e) => setNewNote(e.target.value)}
+                        className="h-20 text-sm resize-none"
+                      />
+                    </div>
+                    {newNote.trim() && (
+                      <Button
+                        size="sm"
+                        onClick={handleAddNote}
+                        disabled={createActivityMutation.isPending}
+                        className="w-full"
+                      >
+                        {createActivityMutation.isPending ? (
+                          <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" />
+                        ) : (
+                          <StickyNote className="w-3.5 h-3.5 mr-1.5" />
+                        )}
+                        Guardar nota
+                      </Button>
+                    )}
+                  </div>
+
+                  {/* Action Buttons */}
+                  <div className="grid grid-cols-2 gap-2 pt-2">
+                    {selectedLead.platform === "instagram" && (
+                      <Button
+                        variant="outline"
+                        className="w-full"
+                        onClick={() => window.open(`https://instagram.com/${selectedLead.instagramUsername}`, "_blank")}
+                      >
+                        <Instagram className="w-4 h-4 mr-2" />
+                        Instagram
+                      </Button>
+                    )}
+                    <Button
+                      className="w-full bg-violet-600 hover:bg-violet-700"
+                      onClick={() => {
+                        setIsViewModalOpen(false);
+                        navigate(`/inbox?id=${selectedLead.followerId}`);
+                      }}
+                    >
+                      <MessageCircle className="w-4 h-4 mr-2" />
+                      Ir al Chat
+                    </Button>
+                  </div>
+                </TabsContent>
+
+                {/* Tasks Tab */}
+                <TabsContent value="tasks" className="flex-1 overflow-auto mt-3 space-y-3">
+                  {/* Add Task */}
+                  <div className="flex gap-2">
+                    <Input
+                      placeholder="Nueva tarea..."
+                      value={newTaskTitle}
+                      onChange={(e) => setNewTaskTitle(e.target.value)}
+                      className="h-9 text-sm"
+                      onKeyDown={(e) => e.key === "Enter" && handleAddTask()}
+                    />
+                    <Button
+                      size="sm"
+                      onClick={handleAddTask}
+                      disabled={createTaskMutation.isPending || !newTaskTitle.trim()}
+                      className="shrink-0"
+                    >
+                      {createTaskMutation.isPending ? (
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                      ) : (
+                        <Plus className="w-4 h-4" />
+                      )}
+                    </Button>
+                  </div>
+
+                  {/* Task List */}
+                  <div className="space-y-2">
+                    {tasksData?.tasks?.length === 0 && (
+                      <p className="text-center text-sm text-muted-foreground py-8">
+                        No hay tareas pendientes
+                      </p>
+                    )}
+                    {tasksData?.tasks?.map((task: { id: string; title: string; status: string; priority: string; due_date?: string }) => (
+                      <div
+                        key={task.id}
+                        className={cn(
+                          "flex items-start gap-2 p-2 rounded-lg border transition-colors",
+                          task.status === "completed" ? "bg-muted/30 border-muted" : "bg-card border-border hover:border-violet-500/30"
+                        )}
+                      >
+                        <button
+                          onClick={() => handleToggleTask(task.id, task.status)}
+                          className="mt-0.5"
+                        >
+                          {task.status === "completed" ? (
+                            <CheckSquare className="w-4 h-4 text-emerald-500" />
+                          ) : (
+                            <Square className="w-4 h-4 text-muted-foreground hover:text-violet-500" />
+                          )}
+                        </button>
+                        <div className="flex-1 min-w-0">
+                          <p className={cn(
+                            "text-sm",
+                            task.status === "completed" && "line-through text-muted-foreground"
+                          )}>
+                            {task.title}
+                          </p>
+                          {task.due_date && (
+                            <p className="text-[10px] text-muted-foreground flex items-center gap-1 mt-0.5">
+                              <Calendar className="w-3 h-3" />
+                              {new Date(task.due_date).toLocaleDateString()}
+                            </p>
+                          )}
+                        </div>
+                        {task.priority === "high" || task.priority === "urgent" ? (
+                          <span className="text-[10px] px-1.5 py-0.5 rounded bg-red-500/20 text-red-400">
+                            {task.priority === "urgent" ? "Urgente" : "Alta"}
+                          </span>
+                        ) : null}
+                      </div>
+                    ))}
+                  </div>
+                </TabsContent>
+
+                {/* History Tab */}
+                <TabsContent value="history" className="flex-1 overflow-auto mt-3">
+                  <div className="space-y-2">
+                    {activitiesData?.activities?.length === 0 && (
+                      <p className="text-center text-sm text-muted-foreground py-8">
+                        Sin actividad registrada
+                      </p>
+                    )}
+                    {activitiesData?.activities?.map((activity: { id: string; activity_type: string; description: string; created_at: string }) => (
+                      <div
+                        key={activity.id}
+                        className="flex items-start gap-2 p-2 rounded-lg bg-muted/20"
+                      >
+                        <div className={cn(
+                          "w-6 h-6 rounded-full flex items-center justify-center shrink-0 mt-0.5",
+                          activity.activity_type === "note" && "bg-blue-500/20 text-blue-400",
+                          activity.activity_type === "status_change" && "bg-amber-500/20 text-amber-400",
+                          activity.activity_type === "task_created" && "bg-violet-500/20 text-violet-400",
+                          activity.activity_type === "task_completed" && "bg-emerald-500/20 text-emerald-400"
+                        )}>
+                          {activity.activity_type === "note" && <StickyNote className="w-3 h-3" />}
+                          {activity.activity_type === "status_change" && <Users className="w-3 h-3" />}
+                          {activity.activity_type === "task_created" && <ListTodo className="w-3 h-3" />}
+                          {activity.activity_type === "task_completed" && <CheckCircle className="w-3 h-3" />}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm">{activity.description}</p>
+                          <p className="text-[10px] text-muted-foreground mt-0.5">
+                            {new Date(activity.created_at).toLocaleString()}
+                          </p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </TabsContent>
+              </Tabs>
+
+              {/* Footer Actions */}
+              <div className="flex justify-between pt-3 border-t mt-3">
+                <div className="flex gap-2">
                   <Button
-                    variant="outline"
-                    className="w-full"
-                    onClick={() => window.open(`https://instagram.com/${selectedLead.instagramUsername}`, "_blank")}
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => {
+                      setIsViewModalOpen(false);
+                      if (selectedLead) handleOpenEditModal(selectedLead);
+                    }}
                   >
-                    <Instagram className="w-4 h-4 mr-2" />
-                    Ver Instagram
+                    <Pencil className="w-3.5 h-3.5 mr-1.5" />
+                    Editar
                   </Button>
-                )}
-                <Button
-                  className="w-full bg-violet-600 hover:bg-violet-700"
-                  onClick={() => {
-                    setIsViewModalOpen(false);
-                    navigate(`/inbox?id=${selectedLead.followerId}`);
-                  }}
-                >
-                  <MessageCircle className="w-4 h-4 mr-2" />
-                  Ir al Chat
-                </Button>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="text-destructive hover:text-destructive"
+                    onClick={() => {
+                      setIsViewModalOpen(false);
+                      if (selectedLead) handleOpenDeleteDialog(selectedLead);
+                    }}
+                  >
+                    <Trash2 className="w-3.5 h-3.5 mr-1.5" />
+                    Eliminar
+                  </Button>
+                </div>
               </div>
-
-              {/* Secondary Actions */}
-              <div className="flex justify-center gap-2 pt-1">
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => {
-                    setIsViewModalOpen(false);
-                    if (selectedLead) handleOpenEditModal(selectedLead);
-                  }}
-                >
-                  <Pencil className="w-3.5 h-3.5 mr-1.5" />
-                  Editar
-                </Button>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="text-destructive hover:text-destructive"
-                  onClick={() => {
-                    setIsViewModalOpen(false);
-                    if (selectedLead) handleOpenDeleteDialog(selectedLead);
-                  }}
-                >
-                  <Trash2 className="w-3.5 h-3.5 mr-1.5" />
-                  Eliminar
-                </Button>
-              </div>
-            </div>
+            </>
           )}
         </DialogContent>
       </Dialog>

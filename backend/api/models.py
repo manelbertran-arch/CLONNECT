@@ -87,6 +87,7 @@ class Creator(Base):
 
 class Lead(Base):
     __tablename__ = "leads"
+    __table_args__ = {'extend_existing': True}
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     creator_id = Column(UUID(as_uuid=True), ForeignKey("creators.id"), index=True)  # FIX P1: Added index
     platform = Column(String(20), nullable=False)
@@ -94,12 +95,63 @@ class Lead(Base):
     username = Column(String(255))
     full_name = Column(String(255))
     profile_pic_url = Column(Text)  # Instagram/platform profile picture URL (long CDN URLs)
-    status = Column(String(50), default="new")
+    status = Column(String(50), default="nuevo")  # nuevo, interesado, caliente, cliente, fantasma
     score = Column(Integer, default=0)
     purchase_intent = Column(Float, default=0.0)
     context = Column(JSON, default=dict)
     first_contact_at = Column(DateTime(timezone=True), server_default=func.now())
     last_contact_at = Column(DateTime(timezone=True), server_default=func.now())
+    # CRM fields
+    notes = Column(Text)  # Free-form notes about the lead
+    tags = Column(JSON, default=list)  # Array of tags: ["vip", "interested", "price_sensitive"]
+    email = Column(String(255))  # Captured email
+    phone = Column(String(50))  # Captured phone
+    deal_value = Column(Float)  # Potential deal value in euros
+    source = Column(String(100))  # Where they came from: "instagram_dm", "story_reply", "ad_click"
+    assigned_to = Column(String(255))  # Team member assignment
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+
+
+class LeadActivity(Base):
+    """
+    Activity log for leads - tracks all interactions and changes.
+    Creates a timeline of the relationship with each lead.
+    """
+    __tablename__ = "lead_activities"
+    __table_args__ = {'extend_existing': True}
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    lead_id = Column(UUID(as_uuid=True), ForeignKey("leads.id"), nullable=False, index=True)
+    creator_id = Column(UUID(as_uuid=True), ForeignKey("creators.id"), index=True)
+    activity_type = Column(String(50), nullable=False)  # note, status_change, email, call, meeting, tag_added, task_completed
+    description = Column(Text)  # Human readable description
+    old_value = Column(String(255))  # For status_change: previous status
+    new_value = Column(String(255))  # For status_change: new status
+    metadata = Column(JSON, default=dict)  # Extra data: {tag: "vip"}, {meeting_type: "discovery"}
+    created_by = Column(String(255))  # "system", "creator", user email
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+
+class LeadTask(Base):
+    """
+    Tasks and reminders for leads - follow-ups, calls, etc.
+    """
+    __tablename__ = "lead_tasks"
+    __table_args__ = {'extend_existing': True}
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    lead_id = Column(UUID(as_uuid=True), ForeignKey("leads.id"), nullable=False, index=True)
+    creator_id = Column(UUID(as_uuid=True), ForeignKey("creators.id"), index=True)
+    title = Column(String(255), nullable=False)
+    description = Column(Text)
+    task_type = Column(String(50), default="follow_up")  # follow_up, call, email, meeting, other
+    priority = Column(String(20), default="medium")  # low, medium, high, urgent
+    status = Column(String(20), default="pending")  # pending, in_progress, completed, cancelled
+    due_date = Column(DateTime(timezone=True))
+    completed_at = Column(DateTime(timezone=True))
+    assigned_to = Column(String(255))  # User email or name
+    created_by = Column(String(255))
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+
 
 class Message(Base):
     __tablename__ = "messages"
