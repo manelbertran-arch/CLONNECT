@@ -1,5 +1,6 @@
 import { useState, useMemo } from "react";
-import { Instagram, MoreHorizontal, Plus, Loader2, AlertCircle, MessageCircle, Send, Eye, Pencil, Trash2, Users, Flame, Star, CheckCircle, Ghost } from "lucide-react";
+import { useNavigate } from "react-router-dom";
+import { Instagram, MoreHorizontal, Plus, Loader2, AlertCircle, MessageCircle, Send, Eye, Pencil, Trash2, Users, Flame, Star, CheckCircle, Ghost, Clock, ExternalLink } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -53,10 +54,14 @@ interface LeadDisplay {
   value: number;
   status: LeadStatus;
   avatar: string;
+  profilePicUrl: string; // Instagram profile picture
   platform: string;
   email: string;
   phone: string;
   notes: string;
+  lastContact: string;   // Last contact timestamp
+  totalMessages: number; // Total messages in conversation
+  followerId: string;    // For navigation to inbox
 }
 
 // Configuración de columnas del Pipeline (todo en español)
@@ -89,6 +94,28 @@ function getInitials(name?: string, username?: string, id?: string): string {
     return id.slice(0, 2).toUpperCase();
   }
   return "??";
+}
+
+function formatTimeAgo(dateStr?: string): string {
+  if (!dateStr) return "";
+  const date = new Date(dateStr);
+  const now = new Date();
+  const diffMs = now.getTime() - date.getTime();
+  const diffMins = Math.floor(diffMs / 60000);
+  const diffHours = Math.floor(diffMs / 3600000);
+  const diffDays = Math.floor(diffMs / 86400000);
+
+  if (diffMins < 60) return `${diffMins}m`;
+  if (diffHours < 24) return `${diffHours}h`;
+  if (diffDays < 7) return `${diffDays}d`;
+  return `${Math.floor(diffDays / 7)}sem`;
+}
+
+function openInstagramProfile(username: string, e: React.MouseEvent) {
+  e.stopPropagation(); // Prevent card click
+  // Remove @ prefix if present and clean the username
+  const cleanUsername = username.replace(/^@/, "").split(" ")[0];
+  window.open(`https://instagram.com/${cleanUsername}`, "_blank");
 }
 
 /**
@@ -156,6 +183,7 @@ export default function Leads() {
   const [draggedLead, setDraggedLead] = useState<LeadDisplay | null>(null);
   const [localStatusOverrides, setLocalStatusOverrides] = useState<Record<string, LeadStatus>>({});
   const { toast } = useToast();
+  const navigate = useNavigate();
   const updateStatusMutation = useUpdateLeadStatus();
   const createLeadMutation = useCreateManualLead();
   const updateLeadMutation = useUpdateLead();
@@ -207,10 +235,14 @@ export default function Leads() {
         value: estimateValue(convo),
         status,
         avatar: getInitials(convo.name, convo.username, convo.follower_id),
+        profilePicUrl: convo.profile_pic_url || "",
         platform,
         email: convo.email || "",
         phone: convo.phone || "",
         notes: convo.notes || "",
+        lastContact: convo.last_contact || "",
+        totalMessages: convo.total_messages || 0,
+        followerId: convo.follower_id,
       };
     });
   }, [data?.conversations, localStatusOverrides]);
@@ -433,7 +465,7 @@ export default function Leads() {
                 <div className="flex items-center gap-2">
                   <span className={cn("opacity-80", column.color)}>{column.icon}</span>
                   <span className={cn("font-semibold text-sm", column.color)}>{column.title}</span>
-                  <span className="text-xs bg-muted/50 px-2 py-0.5 rounded-full text-muted-foreground ml-auto">
+                  <span className={cn("text-xs font-semibold px-2 py-0.5 rounded-full ml-auto", column.color, "bg-current/10")}>
                     {columnLeads.length}
                   </span>
                 </div>
@@ -452,33 +484,72 @@ export default function Leads() {
                       key={lead.id}
                       draggable
                       onDragStart={() => handleDragStart(lead)}
+                      onClick={() => navigate(`/new/mensajes/${lead.followerId}`)}
                       className={cn(
-                        "group p-3 rounded-xl bg-card border border-border/30 cursor-grab active:cursor-grabbing transition-all",
-                        "hover:border-border hover:shadow-sm",
+                        "group p-3 rounded-xl bg-card border border-border/30 cursor-pointer transition-all",
+                        "hover:border-border hover:shadow-sm hover:bg-card/80",
                         draggedLead?.id === lead.id && "opacity-50 scale-95"
                       )}
                     >
-                      <div className="flex items-center gap-3">
-                        {/* Avatar */}
-                        <div className="w-9 h-9 rounded-full bg-muted/50 flex items-center justify-center text-xs font-medium shrink-0">
-                          {lead.avatar}
-                        </div>
+                      <div className="flex items-start gap-3">
+                        {/* Avatar - Clickable for Instagram */}
+                        <button
+                          onClick={(e) => lead.platform === "instagram" && openInstagramProfile(lead.username, e)}
+                          className={cn(
+                            "w-10 h-10 rounded-full shrink-0 overflow-hidden",
+                            lead.platform === "instagram" && "hover:ring-2 hover:ring-primary/50 cursor-pointer",
+                            lead.platform !== "instagram" && "cursor-default"
+                          )}
+                          title={lead.platform === "instagram" ? "Abrir Instagram" : undefined}
+                        >
+                          {lead.profilePicUrl ? (
+                            <img
+                              src={lead.profilePicUrl}
+                              alt={lead.username}
+                              className="w-full h-full object-cover"
+                              onError={(e) => {
+                                // Fallback to initials on error
+                                (e.target as HTMLImageElement).style.display = "none";
+                                (e.target as HTMLImageElement).nextElementSibling?.classList.remove("hidden");
+                              }}
+                            />
+                          ) : null}
+                          <div className={cn(
+                            "w-full h-full bg-gradient-to-br from-violet-600 to-purple-600 flex items-center justify-center text-white text-xs font-medium",
+                            lead.profilePicUrl && "hidden"
+                          )}>
+                            {lead.avatar}
+                          </div>
+                        </button>
 
-                        {/* Name & Platform */}
+                        {/* Name, Username & Time */}
                         <div className="flex-1 min-w-0">
-                          <p className="font-medium text-sm truncate">{lead.name || lead.username}</p>
+                          <div className="flex items-center gap-2">
+                            <p className="font-medium text-sm truncate">{lead.name || lead.username}</p>
+                            {lead.platform === "instagram" && (
+                              <ExternalLink className="w-3 h-3 text-muted-foreground/50 opacity-0 group-hover:opacity-100" />
+                            )}
+                          </div>
                           <p className="text-xs text-muted-foreground flex items-center gap-1">
                             {platformIcons[lead.platform] || platformIcons.instagram}
-                            <span className="truncate">{lead.username}</span>
+                            <span className="truncate">@{lead.username.replace(/^@/, "")}</span>
                           </p>
+                          {/* Last contact & message count */}
+                          <div className="flex items-center gap-2 mt-1 text-[10px] text-muted-foreground/70">
+                            {lead.totalMessages > 0 && (
+                              <span className="flex items-center gap-0.5">
+                                <MessageCircle className="w-3 h-3" />
+                                {lead.totalMessages}
+                              </span>
+                            )}
+                            {lead.lastContact && (
+                              <span className="flex items-center gap-0.5">
+                                <Clock className="w-3 h-3" />
+                                {formatTimeAgo(lead.lastContact)}
+                              </span>
+                            )}
+                          </div>
                         </div>
-
-                        {/* Value */}
-                        {lead.value > 0 && (
-                          <span className="text-xs font-medium text-emerald-500 shrink-0">
-                            €{lead.value}
-                          </span>
-                        )}
 
                         {/* Menu */}
                         <DropdownMenu>
@@ -487,22 +558,23 @@ export default function Leads() {
                               variant="ghost"
                               size="icon"
                               className="h-7 w-7 opacity-0 group-hover:opacity-100 transition-opacity shrink-0"
+                              onClick={(e) => e.stopPropagation()}
                             >
                               <MoreHorizontal className="w-4 h-4" />
                             </Button>
                           </DropdownMenuTrigger>
                           <DropdownMenuContent align="end" className="w-36">
-                            <DropdownMenuItem onClick={() => handleViewLead(lead)}>
+                            <DropdownMenuItem onClick={(e) => { e.stopPropagation(); handleViewLead(lead); }}>
                               <Eye className="w-4 h-4 mr-2" />
                               Ver
                             </DropdownMenuItem>
-                            <DropdownMenuItem onClick={() => handleOpenEditModal(lead)}>
+                            <DropdownMenuItem onClick={(e) => { e.stopPropagation(); handleOpenEditModal(lead); }}>
                               <Pencil className="w-4 h-4 mr-2" />
                               Editar
                             </DropdownMenuItem>
                             <DropdownMenuSeparator />
                             <DropdownMenuItem
-                              onClick={() => handleOpenDeleteDialog(lead)}
+                              onClick={(e) => { e.stopPropagation(); handleOpenDeleteDialog(lead); }}
                               className="text-destructive focus:text-destructive"
                             >
                               <Trash2 className="w-4 h-4 mr-2" />
