@@ -7,45 +7,55 @@ export default function Welcome() {
   return (
     <div className="min-h-screen flex items-center justify-center bg-black">
       <div className="text-center px-6">
-        {/* Logo - más grande */}
+        {/* Logo (incluye CLONNECT + FROM FOLLOW TO HELLO) */}
         <img
           src="/clonnect-logo.png"
           alt="Clonnect"
-          className="w-72 md:w-96 h-auto mx-auto"
+          className="w-72 md:w-96 h-auto mx-auto mb-3"
         />
 
-        {/* Subtitle - más pequeño */}
-        <p className="text-lg md:text-xl text-gray-400 -mt-2 mb-10">
+        {/* Subtitle - espaciado uniforme */}
+        <p className="text-xl md:text-2xl text-gray-400 mb-10">
           Automatiza tus DMs con IA
         </p>
 
-        {/* CTA Button - blanco con glow púrpura */}
+        {/* CTA Button - estilo outline púrpura con pulse glow */}
         <button
           onClick={() => navigate('/login')}
-          className="group relative px-10 py-4 text-lg font-semibold bg-white text-gray-900 rounded-xl transition-all duration-300 hover:scale-105 flex items-center gap-2 mx-auto border border-purple-500/20"
+          className="group px-10 py-4 text-lg font-semibold rounded-full transition-all duration-300 hover:scale-105 flex items-center gap-2 mx-auto animate-pulse-glow"
           style={{
-            boxShadow: '0 4px 24px rgba(168, 85, 247, 0.3), 0 0 0 1px rgba(168, 85, 247, 0.1)'
+            background: 'rgba(168, 85, 247, 0.1)',
+            border: '2px solid rgba(168, 85, 247, 0.5)',
+            color: '#a855f7'
           }}
           onMouseEnter={(e) => {
-            e.currentTarget.style.boxShadow = '0 8px 40px rgba(168, 85, 247, 0.5), 0 0 0 1px rgba(168, 85, 247, 0.3)';
+            e.currentTarget.style.borderColor = 'rgba(168, 85, 247, 0.8)';
+            e.currentTarget.style.background = 'rgba(168, 85, 247, 0.15)';
           }}
           onMouseLeave={(e) => {
-            e.currentTarget.style.boxShadow = '0 4px 24px rgba(168, 85, 247, 0.3), 0 0 0 1px rgba(168, 85, 247, 0.1)';
+            e.currentTarget.style.borderColor = 'rgba(168, 85, 247, 0.5)';
+            e.currentTarget.style.background = 'rgba(168, 85, 247, 0.1)';
           }}
         >
-          {/* Shimmer effect */}
-          <div className="absolute inset-0 rounded-xl overflow-hidden pointer-events-none">
-            <div
-              className="absolute inset-0 -translate-x-full group-hover:translate-x-full transition-transform duration-1000"
-              style={{
-                background: 'linear-gradient(90deg, transparent, rgba(168, 85, 247, 0.1), transparent)'
-              }}
-            />
-          </div>
-          <span className="relative z-10">Empezar</span>
-          <ArrowRight className="w-5 h-5 relative z-10 transition-transform group-hover:translate-x-1" />
+          Empezar
+          <ArrowRight className="w-5 h-5 transition-transform group-hover:translate-x-1" />
         </button>
       </div>
+
+      {/* CSS Animation for pulse glow */}
+      <style>{`
+        @keyframes pulse-glow {
+          0%, 100% {
+            box-shadow: 0 0 15px rgba(168, 85, 247, 0.3);
+          }
+          50% {
+            box-shadow: 0 0 30px rgba(168, 85, 247, 0.6);
+          }
+        }
+        .animate-pulse-glow {
+          animation: pulse-glow 2s ease-in-out infinite;
+        }
+      `}</style>
     </div>
   );
 }
