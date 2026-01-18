@@ -14,12 +14,12 @@ export default function Welcome() {
           className="w-72 md:w-96 h-auto mx-auto"
         />
 
-        {/* Subtitle - pegado al logo con margin negativo */}
+        {/* Subtitle - pegado al logo */}
         <p
-          className="text-xl md:text-2xl text-gray-400 mb-10"
-          style={{ marginTop: '-25px' }}
+          className="text-2xl md:text-3xl text-gray-400 mb-10"
+          style={{ marginTop: '-40px' }}
         >
-          Automatiza tus DMs con IA
+          Tu clon AI que vende por ti
         </p>
 
         {/* CTA Button - estilo outline púrpura con pulse glow */}
