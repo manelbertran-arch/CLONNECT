@@ -11,18 +11,10 @@ export default function Welcome() {
         <img
           src="/clonnect-logo.png"
           alt="Clonnect"
-          className="w-72 md:w-96 h-auto mx-auto"
+          className="w-72 md:w-96 h-auto mx-auto mb-8"
         />
 
-        {/* Subtitle - pegado al logo */}
-        <p
-          className="text-xl md:text-2xl text-gray-400 mb-10"
-          style={{ marginTop: '-40px' }}
-        >
-          Tu clon AI que vende por ti
-        </p>
-
-        {/* CTA Button - estilo outline púrpura con pulse glow */}
+        {/* CTA Button */}
         <button
           onClick={() => navigate('/login')}
           className="group px-10 py-4 text-lg font-semibold rounded-full transition-all duration-300 hover:scale-105 flex items-center gap-2 mx-auto animate-pulse-glow"
@@ -45,19 +37,12 @@ export default function Welcome() {
         </button>
       </div>
 
-      {/* CSS Animation for pulse glow */}
       <style>{`
         @keyframes pulse-glow {
-          0%, 100% {
-            box-shadow: 0 0 15px rgba(168, 85, 247, 0.3);
-          }
-          50% {
-            box-shadow: 0 0 30px rgba(168, 85, 247, 0.6);
-          }
+          0%, 100% { box-shadow: 0 0 15px rgba(168, 85, 247, 0.3); }
+          50% { box-shadow: 0 0 30px rgba(168, 85, 247, 0.6); }
         }
-        .animate-pulse-glow {
-          animation: pulse-glow 2s ease-in-out infinite;
-        }
+        .animate-pulse-glow { animation: pulse-glow 2s ease-in-out infinite; }
       `}</style>
     </div>
   );
