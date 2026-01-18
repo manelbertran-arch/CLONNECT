@@ -6,32 +6,29 @@ export default function Welcome() {
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-black">
-      <div className="text-center px-6">
-        {/* Logo con contenedor recortado */}
-        <div className="overflow-hidden mx-auto w-72 md:w-96" style={{ marginBottom: '-30px' }}>
-          <img
-            src="/clonnect-logo.png"
-            alt="Clonnect"
-            className="w-full h-auto"
-            style={{ marginBottom: '-40px' }}
-          />
-        </div>
+      <div className="text-center px-6 flex flex-col items-center gap-8">
+        {/* Logo - tamaño proporcionado */}
+        <img
+          src="/clonnect-logo.png"
+          alt="Clonnect"
+          className="w-48 md:w-56 h-auto"
+        />
 
-        {/* CTA Button - subido para compensar */}
+        {/* CTA Button - prominente y visible */}
         <button
           onClick={() => navigate('/login')}
-          className="group px-10 py-4 text-lg font-semibold rounded-full transition-all duration-300 hover:scale-105 flex items-center gap-2 mx-auto animate-pulse-glow"
+          className="group px-8 py-4 text-lg font-semibold rounded-full transition-all duration-300 hover:scale-105 flex items-center gap-3 animate-pulse-glow"
           style={{
             background: 'rgba(168, 85, 247, 0.1)',
-            border: '2px solid rgba(168, 85, 247, 0.5)',
-            color: '#a855f7'
+            border: '2px solid rgba(168, 85, 247, 0.6)',
+            color: '#c084fc'
           }}
           onMouseEnter={(e) => {
-            e.currentTarget.style.borderColor = 'rgba(168, 85, 247, 0.8)';
-            e.currentTarget.style.background = 'rgba(168, 85, 247, 0.15)';
+            e.currentTarget.style.borderColor = '#a855f7';
+            e.currentTarget.style.background = 'rgba(168, 85, 247, 0.2)';
           }}
           onMouseLeave={(e) => {
-            e.currentTarget.style.borderColor = 'rgba(168, 85, 247, 0.5)';
+            e.currentTarget.style.borderColor = 'rgba(168, 85, 247, 0.6)';
             e.currentTarget.style.background = 'rgba(168, 85, 247, 0.1)';
           }}
         >
@@ -42,8 +39,8 @@ export default function Welcome() {
 
       <style>{`
         @keyframes pulse-glow {
-          0%, 100% { box-shadow: 0 0 15px rgba(168, 85, 247, 0.3); }
-          50% { box-shadow: 0 0 30px rgba(168, 85, 247, 0.6); }
+          0%, 100% { box-shadow: 0 0 20px rgba(168, 85, 247, 0.4); }
+          50% { box-shadow: 0 0 35px rgba(168, 85, 247, 0.7); }
         }
         .animate-pulse-glow { animation: pulse-glow 2s ease-in-out infinite; }
       `}</style>
