@@ -188,8 +188,8 @@ export default function Onboarding() {
 
           {/* Optional Website */}
           <div className="pt-4" style={{ borderTop: '1px solid rgba(255, 255, 255, 0.08)' }}>
-            <p className="text-sm text-center mb-3" style={{ color: 'rgba(255, 255, 255, 0.4)' }}>
-              Opcional: añade tu website
+            <p className="text-sm text-center mb-3" style={{ color: 'rgba(255, 255, 255, 0.5)' }}>
+              Añade tu website (opcional)
             </p>
             <div className="relative">
               <Globe className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4" style={{ color: 'rgba(255, 255, 255, 0.3)' }} />
@@ -202,8 +202,8 @@ export default function Onboarding() {
                 style={{ background: 'rgba(255, 255, 255, 0.05)', border: '1px solid rgba(255, 255, 255, 0.08)' }}
               />
             </div>
-            <p className="text-xs text-center mt-2" style={{ color: 'rgba(255, 255, 255, 0.3)' }}>
-              Se indexará automáticamente en tu base de conocimiento
+            <p className="text-xs text-center mt-2" style={{ color: 'rgba(255, 255, 255, 0.4)' }}>
+              Tu clon podrá hablar de tus productos, servicios y contenido web. Cuanto más contenido, más se parecerá a ti.
             </p>
           </div>
         </div>
