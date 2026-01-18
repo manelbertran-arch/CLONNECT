@@ -115,23 +115,21 @@ async def _auto_onboard_after_instagram_oauth(
         except Exception as nurturing_error:
             logger.warning(f"[AutoOnboard] Could not activate nurturing: {nurturing_error}")
 
-        # STEP 5: Load DM history
-        if page_id:
-            logger.info(f"[AutoOnboard] Loading DM history for {creator_id}...")
-            try:
-                dm_service = get_dm_history_service()
-                dm_stats = await dm_service.load_dm_history(
-                    creator_id=creator_id,
-                    access_token=access_token,
-                    page_id=page_id,
-                    ig_user_id=instagram_user_id,
-                    limit=30
-                )
-                logger.info(f"[AutoOnboard] DM history loaded: {dm_stats}")
-            except Exception as dm_error:
-                logger.warning(f"[AutoOnboard] Could not load DM history: {dm_error}")
-        else:
-            logger.warning(f"[AutoOnboard] No page_id, skipping DM history load")
+        # STEP 5: Load DM history using simple sync (proven to work)
+        logger.info(f"[AutoOnboard] Loading DM history for {creator_id}...")
+        try:
+            dm_stats = await _simple_dm_sync_internal(
+                creator_id=creator_id,
+                access_token=access_token,
+                ig_user_id=instagram_user_id,
+                ig_page_id=page_id,
+                max_convs=30
+            )
+            logger.info(f"[AutoOnboard] DM history loaded: {dm_stats.get('messages_saved', 0)} messages, {dm_stats.get('leads_created', 0)} leads")
+        except Exception as dm_error:
+            logger.warning(f"[AutoOnboard] Could not load DM history: {dm_error}")
+            import traceback
+            logger.warning(traceback.format_exc())
 
         # STEP 6: Scrape website from Instagram bio (if available)
         try:
@@ -195,6 +193,205 @@ def _activate_bot_default(creator_id: str):
             session.close()
     except Exception as e:
         logger.error(f"[AutoOnboard] Error activating bot: {e}")
+
+
+async def _simple_dm_sync_internal(
+    creator_id: str,
+    access_token: str,
+    ig_user_id: str,
+    ig_page_id: str = None,
+    max_convs: int = 30
+) -> dict:
+    """
+    Internal DM sync function that works with credentials passed directly.
+    Simplified version of admin.simple_dm_sync for use during auto-onboarding.
+    """
+    import httpx
+    from datetime import datetime, timedelta
+    from api.database import SessionLocal
+    from api.models import Creator, Lead, Message
+
+    results = {
+        "conversations_processed": 0,
+        "messages_saved": 0,
+        "leads_created": 0,
+        "errors": []
+    }
+
+    # Build set of creator IDs for identification
+    creator_ids = {ig_user_id, ig_page_id} - {None}
+
+    session = SessionLocal()
+    try:
+        creator = session.query(Creator).filter_by(name=creator_id).first()
+        if not creator:
+            results["errors"].append(f"Creator {creator_id} not found")
+            return results
+
+        api_base = "https://graph.instagram.com/v21.0"
+
+        async with httpx.AsyncClient(timeout=60.0) as client:
+            # Get conversations
+            conv_resp = await client.get(
+                f"{api_base}/{ig_user_id}/conversations",
+                params={"access_token": access_token, "limit": max_convs, "fields": "id,updated_time"}
+            )
+
+            if conv_resp.status_code != 200:
+                results["errors"].append(f"Conversations API error: {conv_resp.status_code}")
+                return results
+
+            conversations = conv_resp.json().get("data", [])
+            conversations.sort(key=lambda c: c.get("updated_time", ""), reverse=True)
+
+            days_limit_ago = datetime.now().astimezone() - timedelta(days=180)
+
+            for conv in conversations:
+                conv_id = conv.get("id")
+                if not conv_id:
+                    continue
+
+                try:
+                    # Get messages
+                    msg_resp = await client.get(
+                        f"{api_base}/{conv_id}/messages",
+                        params={
+                            "fields": "id,message,from,to,created_time",
+                            "access_token": access_token,
+                            "limit": 50
+                        }
+                    )
+
+                    if msg_resp.status_code != 200:
+                        continue
+
+                    messages = msg_resp.json().get("data", [])
+                    if not messages:
+                        continue
+
+                    # Find follower (non-creator participant)
+                    follower_id = None
+                    follower_username = None
+
+                    for msg in messages:
+                        from_data = msg.get("from", {})
+                        from_id = from_data.get("id")
+                        if from_id and from_id not in creator_ids:
+                            follower_id = from_id
+                            follower_username = from_data.get("username", "unknown")
+                            break
+
+                    if not follower_id:
+                        for msg in messages:
+                            to_data = msg.get("to", {}).get("data", [])
+                            for recipient in to_data:
+                                if recipient.get("id") not in creator_ids:
+                                    follower_id = recipient.get("id")
+                                    follower_username = recipient.get("username", "unknown")
+                                    break
+                            if follower_id:
+                                break
+
+                    if not follower_id:
+                        continue
+
+                    # Parse timestamps
+                    all_timestamps = []
+                    user_timestamps = []
+                    for msg in messages:
+                        if msg.get("created_time"):
+                            try:
+                                ts = datetime.fromisoformat(msg["created_time"].replace("+0000", "+00:00"))
+                                all_timestamps.append(ts)
+                                if msg.get("from", {}).get("id") not in creator_ids:
+                                    user_timestamps.append(ts)
+                            except:
+                                pass
+
+                    first_contact = min(all_timestamps) if all_timestamps else None
+                    last_contact = max(user_timestamps) if user_timestamps else first_contact
+
+                    # Get or create lead
+                    lead = session.query(Lead).filter_by(
+                        creator_id=creator.id,
+                        platform="instagram",
+                        platform_user_id=follower_id
+                    ).first()
+
+                    if not lead:
+                        lead = Lead(
+                            creator_id=creator.id,
+                            platform="instagram",
+                            platform_user_id=follower_id,
+                            username=follower_username,
+                            status="new",
+                            first_contact_at=first_contact,
+                            last_contact_at=last_contact
+                        )
+                        session.add(lead)
+                        session.commit()
+                        results["leads_created"] += 1
+                    else:
+                        if first_contact and (not lead.first_contact_at or first_contact < lead.first_contact_at):
+                            lead.first_contact_at = first_contact
+                        if last_contact and (not lead.last_contact_at or last_contact > lead.last_contact_at):
+                            lead.last_contact_at = last_contact
+                        session.commit()
+
+                    # Save messages
+                    for msg in messages:
+                        msg_id = msg.get("id")
+                        msg_text = msg.get("message", "")
+
+                        if not msg_text or not msg_id:
+                            continue
+
+                        # Check timestamp within limit
+                        msg_time = None
+                        if msg.get("created_time"):
+                            try:
+                                msg_time = datetime.fromisoformat(msg["created_time"].replace("+0000", "+00:00"))
+                                if msg_time < days_limit_ago:
+                                    continue
+                            except:
+                                pass
+
+                        # Check for duplicate
+                        existing = session.query(Message).filter_by(platform_message_id=msg_id).first()
+                        if existing:
+                            continue
+
+                        # Determine direction
+                        from_id = msg.get("from", {}).get("id")
+                        direction = "outbound" if from_id in creator_ids else "inbound"
+
+                        new_msg = Message(
+                            lead_id=lead.id,
+                            platform="instagram",
+                            platform_message_id=msg_id,
+                            direction=direction,
+                            content=msg_text,
+                            timestamp=msg_time,
+                            raw_payload=msg
+                        )
+                        session.add(new_msg)
+                        results["messages_saved"] += 1
+
+                    session.commit()
+                    results["conversations_processed"] += 1
+
+                except Exception as conv_error:
+                    logger.warning(f"[DM Sync] Error processing conversation: {conv_error}")
+                    continue
+
+        return results
+
+    except Exception as e:
+        logger.error(f"[DM Sync] Error: {e}")
+        results["errors"].append(str(e))
+        return results
+    finally:
+        session.close()
 
 
 router = APIRouter(prefix="/oauth", tags=["oauth"])
