@@ -45,6 +45,14 @@ from core.metrics import (
     DM_PROCESSING_TIME
 )
 
+# =============================================================================
+# Personalization Modules (Memory Engine Migration)
+# =============================================================================
+from core.rag.reranker import rerank, ENABLE_RERANKING
+from core.user_profiles import get_user_profile
+from core.personalized_ranking import personalize_results, adapt_system_prompt
+from core.semantic_memory import get_conversation_memory, ENABLE_SEMANTIC_MEMORY
+
 
 # PostgreSQL integration
 USE_POSTGRES = bool(os.getenv("DATABASE_URL"))
@@ -3321,6 +3329,22 @@ USA ESTA RESPUESTA PARA LA OBJECION (adaptala a tu tono):
         )
         logger.info(f"⏱️ memory_store.get_or_create took {time.time() - _t_mem:.2f}s")
 
+        # =============================================================================
+        # PERSONALIZATION: User Profile + Semantic Memory (Memory Engine Migration)
+        # =============================================================================
+        user_profile = None
+        semantic_memory = None
+        semantic_context = ""
+        try:
+            user_profile = get_user_profile(sender_id, self.creator_id)
+            if ENABLE_SEMANTIC_MEMORY:
+                semantic_memory = get_conversation_memory(sender_id, self.creator_id)
+                semantic_context = semantic_memory.get_context_for_query(message_text, recent_n=3, semantic_k=2)
+                if semantic_context:
+                    logger.debug(f"Semantic memory context retrieved ({len(semantic_context)} chars)")
+        except Exception as e:
+            logger.warning(f"Personalization modules failed to load: {e}")
+
         # Extraer nombre del mensaje si el usuario se presenta
         # Patrones: "soy [nombre]", "me llamo [nombre]", "I'm [name]", etc.
         extracted_name = extract_name_from_message(message_text)
@@ -3794,6 +3818,21 @@ USA ESTA RESPUESTA PARA LA OBJECION (adaptala a tu tono):
         _t0 = time.time()
         system_prompt = self._build_system_prompt(message=message_text)
         logger.info(f"⏱️ _build_system_prompt took {time.time() - _t0:.2f}s")
+
+        # =============================================================================
+        # PERSONALIZATION: Adapt system prompt based on user profile
+        # =============================================================================
+        if user_profile:
+            try:
+                system_prompt = adapt_system_prompt(system_prompt, user_profile)
+                logger.debug("System prompt personalized based on user profile")
+            except Exception as e:
+                logger.warning(f"Failed to personalize system prompt: {e}")
+
+        # Add semantic memory context if available
+        if semantic_context:
+            system_prompt += f"\n\n{semantic_context}"
+            logger.debug("Added semantic memory context to prompt")
         _t1 = time.time()
         user_prompt = self._build_user_prompt(
             message=message_text,
@@ -4101,6 +4140,36 @@ USA ESTA RESPUESTA PARA LA OBJECION (adaptala a tu tono):
 
         # Actualizar memoria
         await self._update_memory(follower, message_text, response_text, intent)
+
+        # =============================================================================
+        # PERSONALIZATION: Update user profile and semantic memory
+        # =============================================================================
+        try:
+            if user_profile:
+                user_profile.record_interaction()
+                # Auto-detect interests from message (simple keyword matching)
+                interest_keywords = {
+                    "fitness": ["fitness", "ejercicio", "gym", "entrenamiento", "workout"],
+                    "nutricion": ["nutrición", "dieta", "alimentación", "comida", "nutrition"],
+                    "salud": ["salud", "health", "bienestar", "wellness"],
+                    "negocio": ["negocio", "business", "emprender", "ventas", "marketing"],
+                    "finanzas": ["dinero", "inversión", "finanzas", "ahorro", "money"],
+                }
+                msg_lower = message_text.lower()
+                for interest, keywords in interest_keywords.items():
+                    if any(kw in msg_lower for kw in keywords):
+                        user_profile.add_interest(interest, weight=1.0)
+
+                # Track product interest if applicable
+                if product and product.get("id"):
+                    user_profile.add_interested_product(product["id"], product.get("name"))
+
+            if semantic_memory and ENABLE_SEMANTIC_MEMORY:
+                semantic_memory.add_message("user", message_text)
+                semantic_memory.add_message("assistant", response_text)
+                logger.debug("Messages saved to semantic memory")
+        except Exception as e:
+            logger.warning(f"Failed to update personalization data: {e}")
 
         # Programar nurturing si aplica
         nurturing_scheduled = await self._schedule_nurturing_if_needed(
