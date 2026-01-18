@@ -429,9 +429,16 @@ async def oauth_debug():
 # =============================================================================
 # INSTAGRAM / META
 # =============================================================================
+# Facebook App credentials (for Facebook Login API - legacy)
 META_APP_ID = os.getenv("META_APP_ID", "")
 META_APP_SECRET = os.getenv("META_APP_SECRET", "")
 META_REDIRECT_URI = os.getenv("META_REDIRECT_URI", f"{API_URL}/oauth/instagram/callback")
+
+# Instagram App credentials (for Instagram API with Instagram Login - NEW)
+# These are DIFFERENT from the Facebook App credentials!
+# In Meta Developer Portal: Your App > App Settings > Basic > Instagram App ID
+INSTAGRAM_APP_ID = os.getenv("INSTAGRAM_APP_ID", "")
+INSTAGRAM_APP_SECRET = os.getenv("INSTAGRAM_APP_SECRET", "")
 
 @router.get("/instagram/start")
 async def instagram_oauth_start(creator_id: str):
@@ -440,6 +447,10 @@ async def instagram_oauth_start(creator_id: str):
 
     This uses the NEW Instagram API (2024) that allows direct Instagram login
     without requiring a Facebook Page connection.
+
+    IMPORTANT: This endpoint requires the INSTAGRAM App ID (not Facebook App ID)!
+    - Facebook App ID: 1530601841354092 (for Facebook Login)
+    - Instagram App ID: 1399381338234814 (for Instagram Login) <- USE THIS ONE
 
     Flow:
     1. User clicks "Connect Instagram"
@@ -454,8 +465,12 @@ async def instagram_oauth_start(creator_id: str):
     - instagram_business_manage_messages: Send/receive DMs
     - instagram_manage_comments: Manage comments
     """
-    if not META_APP_ID:
-        raise HTTPException(status_code=500, detail="META_APP_ID not configured")
+    # Use Instagram App ID for instagram.com/oauth/authorize
+    # Falls back to META_APP_ID if INSTAGRAM_APP_ID not set
+    app_id = INSTAGRAM_APP_ID or META_APP_ID
+
+    if not app_id:
+        raise HTTPException(status_code=500, detail="INSTAGRAM_APP_ID not configured")
 
     # Store state for CSRF protection
     state = f"{creator_id}:{secrets.token_urlsafe(16)}"
@@ -469,7 +484,7 @@ async def instagram_oauth_start(creator_id: str):
 
     # Use Instagram OAuth URL (NOT Facebook) for instagram_business_* permissions
     params = {
-        "client_id": META_APP_ID,
+        "client_id": app_id,  # Must be Instagram App ID, NOT Facebook App ID
         "redirect_uri": META_REDIRECT_URI,
         "scope": ",".join(scopes),
         "response_type": "code",
@@ -479,12 +494,13 @@ async def instagram_oauth_start(creator_id: str):
     # NEW Instagram API uses Instagram's authorize endpoint
     auth_url = f"https://www.instagram.com/oauth/authorize?{urlencode(params)}"
 
-    logger.info(f"Instagram OAuth start for {creator_id} with scopes: {scopes}")
+    logger.info(f"Instagram OAuth start for {creator_id} with app_id={app_id[:6]}... scopes: {scopes}")
 
     return {
         "auth_url": auth_url,
         "state": state,
         "scopes_requested": scopes,
+        "app_id_used": f"{app_id[:6]}...",
         "note": "User will login directly with their Instagram account"
     }
 
@@ -505,6 +521,8 @@ async def instagram_oauth_callback(
 
     Uses the NEW Instagram API with Instagram Login (2024).
     Token exchange uses Instagram's API endpoints, not Facebook's.
+
+    IMPORTANT: Must use INSTAGRAM App ID/Secret, not Facebook App credentials!
     """
     import httpx
 
@@ -518,8 +536,12 @@ async def instagram_oauth_callback(
         logger.error("Instagram OAuth: No code received")
         return RedirectResponse(f"{FRONTEND_URL}/onboarding?error=instagram_no_code")
 
-    if not META_APP_ID or not META_APP_SECRET:
-        logger.error("Instagram OAuth: META_APP_SECRET not configured")
+    # Use Instagram App credentials (fall back to META_* if not set)
+    app_id = INSTAGRAM_APP_ID or META_APP_ID
+    app_secret = INSTAGRAM_APP_SECRET or META_APP_SECRET
+
+    if not app_id or not app_secret:
+        logger.error("Instagram OAuth: INSTAGRAM_APP_ID or INSTAGRAM_APP_SECRET not configured")
         return RedirectResponse(f"{FRONTEND_URL}/onboarding?error=instagram_not_configured")
 
     # Extract creator_id from state
@@ -530,11 +552,12 @@ async def instagram_oauth_callback(
         async with httpx.AsyncClient(timeout=30.0) as client:
             # Step 1: Exchange code for short-lived access token
             # NEW Instagram API uses POST to api.instagram.com
+            logger.info(f"Exchanging code with app_id={app_id[:6]}...")
             token_response = await client.post(
                 "https://api.instagram.com/oauth/access_token",
                 data={
-                    "client_id": META_APP_ID,
-                    "client_secret": META_APP_SECRET,
+                    "client_id": app_id,  # Instagram App ID
+                    "client_secret": app_secret,  # Instagram App Secret
                     "grant_type": "authorization_code",
                     "redirect_uri": META_REDIRECT_URI,
                     "code": code,
@@ -557,7 +580,7 @@ async def instagram_oauth_callback(
                 "https://graph.instagram.com/access_token",
                 params={
                     "grant_type": "ig_exchange_token",
-                    "client_secret": META_APP_SECRET,
+                    "client_secret": app_secret,  # Instagram App Secret
                     "access_token": short_lived_token,
                 }
             )
