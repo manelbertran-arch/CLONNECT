@@ -1,7 +1,10 @@
 import { useState, useEffect, useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { api, getCreatorId } from '../services/api';
-import { ArrowRight, Check, Instagram, Globe, Brain, BarChart3, Database, Sparkles, Loader2, MessageCircle, User, HelpCircle } from 'lucide-react';
+import { ArrowRight, Check, Instagram, Globe, Brain, BarChart3, Database, Sparkles, Loader2, MessageCircle, User, HelpCircle, Link2 } from 'lucide-react';
+
+// OAuth URL for Instagram connection
+const API_URL = import.meta.env.VITE_API_URL || 'https://api-clonnect.up.railway.app';
 
 // Processing steps mapped to backend steps
 const processingSteps = [
@@ -35,11 +38,16 @@ interface SetupStatus {
 }
 
 export default function Onboarding() {
+  const [searchParams] = useSearchParams();
   const [instagram, setInstagram] = useState('');
   const [website, setWebsite] = useState('');
   const [loading, setLoading] = useState(false);
   const [step, setStep] = useState<'form' | 'loading' | 'success'>('form');
   const [error, setError] = useState('');
+
+  // Instagram OAuth connection state
+  const [instagramConnected, setInstagramConnected] = useState(false);
+  const [igUsername, setIgUsername] = useState('');
 
   // Real-time progress from backend
   const [progress, setProgress] = useState(0);
@@ -59,6 +67,28 @@ export default function Onboarding() {
   const statsRef = useRef<SetupStatus['result']>({});
   const navigate = useNavigate();
   const creatorId = getCreatorId();
+
+  // Check URL params for OAuth callback result
+  useEffect(() => {
+    const igConnected = searchParams.get('instagram');
+    const username = searchParams.get('ig_username');
+    const oauthError = searchParams.get('error');
+
+    if (igConnected === 'connected') {
+      setInstagramConnected(true);
+      if (username) {
+        setIgUsername(username);
+        setInstagram(username);
+      }
+      // Clear URL params without reload
+      window.history.replaceState({}, '', '/onboarding');
+    }
+
+    if (oauthError) {
+      setError(`Error conectando Instagram: ${oauthError}`);
+      window.history.replaceState({}, '', '/onboarding');
+    }
+  }, [searchParams]);
 
   // Keep refs in sync with state
   useEffect(() => {
@@ -303,8 +333,8 @@ export default function Onboarding() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (!instagram) {
-      setError('Instagram es requerido');
+    if (!instagramConnected || !instagram) {
+      setError('Debes conectar tu Instagram primero');
       return;
     }
 
@@ -413,16 +443,41 @@ export default function Onboarding() {
           )}
 
           <form onSubmit={handleSubmit}>
+            {/* Instagram OAuth Connection */}
             <label className="block mb-2" style={{ color: 'rgba(255, 255, 255, 0.7)' }}>Tu Instagram *</label>
-            <input
-              type="text"
-              placeholder="@usuario"
-              value={instagram}
-              onChange={(e) => setInstagram(e.target.value)}
-              className="w-full p-4 mb-4 rounded-xl text-white outline-none"
-              style={{ background: 'rgba(255, 255, 255, 0.05)', border: '1px solid rgba(255, 255, 255, 0.08)' }}
-              required
-            />
+
+            {instagramConnected ? (
+              // Connected state - show username
+              <div
+                className="w-full p-4 mb-4 rounded-xl flex items-center justify-between"
+                style={{ background: 'rgba(34, 197, 94, 0.1)', border: '1px solid rgba(34, 197, 94, 0.3)' }}
+              >
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-full flex items-center justify-center" style={{ background: 'linear-gradient(135deg, #f09433, #e6683c, #dc2743, #cc2366, #bc1888)' }}>
+                    <Instagram className="w-5 h-5 text-white" />
+                  </div>
+                  <div>
+                    <p className="text-white font-medium">@{igUsername || instagram}</p>
+                    <p className="text-xs" style={{ color: 'rgba(34, 197, 94, 0.8)' }}>Conectado</p>
+                  </div>
+                </div>
+                <Check className="w-6 h-6" style={{ color: '#22c55e' }} />
+              </div>
+            ) : (
+              // Not connected - show OAuth button
+              <a
+                href={`${API_URL}/oauth/instagram/start?creator_id=${creatorId}`}
+                className="w-full p-4 mb-4 rounded-xl flex items-center justify-center gap-3 transition-all hover:scale-[1.02]"
+                style={{
+                  background: 'linear-gradient(135deg, #f09433, #e6683c, #dc2743, #cc2366, #bc1888)',
+                  boxShadow: '0 4px 20px rgba(220, 39, 67, 0.3)'
+                }}
+              >
+                <Instagram className="w-5 h-5 text-white" />
+                <span className="text-white font-semibold">Conectar Instagram</span>
+                <Link2 className="w-4 h-4 text-white opacity-70" />
+              </a>
+            )}
 
             <label className="block mb-2" style={{ color: 'rgba(255, 255, 255, 0.7)' }}>Tu website (opcional)</label>
             <input
@@ -436,13 +491,24 @@ export default function Onboarding() {
 
             <button
               type="submit"
-              disabled={loading}
-              className="w-full p-4 text-white font-semibold rounded-xl flex items-center justify-center gap-2"
-              style={{ background: 'linear-gradient(135deg, #a855f7, #6366f1)', boxShadow: '0 4px 20px rgba(168, 85, 247, 0.3)' }}
+              disabled={loading || !instagramConnected}
+              className="w-full p-4 text-white font-semibold rounded-xl flex items-center justify-center gap-2 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+              style={{
+                background: instagramConnected
+                  ? 'linear-gradient(135deg, #a855f7, #6366f1)'
+                  : 'rgba(255, 255, 255, 0.1)',
+                boxShadow: instagramConnected ? '0 4px 20px rgba(168, 85, 247, 0.3)' : 'none'
+              }}
             >
-              Crear mi clon
+              {instagramConnected ? 'Crear mi clon' : 'Conecta Instagram primero'}
               <ArrowRight className="w-5 h-5" />
             </button>
+
+            {!instagramConnected && (
+              <p className="mt-3 text-center text-xs" style={{ color: 'rgba(255, 255, 255, 0.4)' }}>
+                Necesitas conectar tu cuenta de Instagram Business para continuar
+              </p>
+            )}
           </form>
         </div>
       </div>

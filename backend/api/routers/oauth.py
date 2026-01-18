@@ -426,8 +426,11 @@ async def instagram_oauth_callback(
                     page_id=page_id or ""
                 )
 
-            success_msg = f"instagram&ig_user_id={instagram_user_id}&onboarding=started" if instagram_user_id else "instagram"
-            return RedirectResponse(f"{FRONTEND_URL}/settings?tab=connections&success={success_msg}")
+            # Redirect to onboarding page with connection status
+            if instagram_user_id:
+                return RedirectResponse(f"{FRONTEND_URL}/onboarding?instagram=connected&ig_username={ig_username}")
+            else:
+                return RedirectResponse(f"{FRONTEND_URL}/onboarding?instagram=connected")
 
     except Exception as e:
         logger.error(f"Instagram OAuth error: {e}")
