@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { Instagram, Youtube, Globe, CheckCircle, Loader2, Edit3 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { API_URL, CREATOR_ID } from '@/services/api';
+import { API_URL, setCreatorId, getCreatorId } from '@/services/api';
 
 type OnboardingStep = 'splash' | 'connect' | 'loading' | 'complete';
 type SetupMode = 'oauth' | 'manual';
@@ -69,7 +69,11 @@ export default function Onboarding() {
 
   const navigate = useNavigate();
   const pollingRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  const creatorId = CREATOR_ID;
+
+  // Helper to clean instagram username and create creator_id
+  const cleanUsername = (username: string): string => {
+    return username.trim().replace(/^@/, '').toLowerCase().replace(/[^a-z0-9_]/g, '_');
+  };
 
   // Auto-advance from splash after 4 seconds
   useEffect(() => {
@@ -90,12 +94,22 @@ export default function Onboarding() {
     };
   }, []);
 
+  // State to track creator_id for OAuth mode
+  const [oauthCreatorId, setOauthCreatorId] = useState<string>(() => getCreatorId());
+
   const handleConnectInstagram = async () => {
+    // For OAuth mode, we need the user to be authenticated first
+    // Use existing creator_id from auth or prompt to create one
+    const currentCreatorId = getCreatorId();
+    setOauthCreatorId(currentCreatorId);
+
+    console.log('[Onboarding] Starting OAuth setup for:', currentCreatorId);
+
     setStep('loading');
     setError(null);
 
     try {
-      const response = await fetch(`${API_URL}/onboarding/full-setup/${creatorId}`, {
+      const response = await fetch(`${API_URL}/onboarding/full-setup/${currentCreatorId}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
       });
@@ -104,7 +118,7 @@ export default function Onboarding() {
         throw new Error('Failed to start setup');
       }
 
-      startPolling();
+      startPolling(currentCreatorId);
     } catch (err) {
       console.error('Setup error:', err);
       setError('Error al iniciar el setup. Inténtalo de nuevo.');
@@ -112,7 +126,7 @@ export default function Onboarding() {
     }
   };
 
-  const startPolling = () => {
+  const startPolling = (creatorId: string) => {
     pollingRef.current = setInterval(async () => {
       try {
         const response = await fetch(`${API_URL}/onboarding/full-setup/${creatorId}/progress`);
@@ -124,6 +138,8 @@ export default function Onboarding() {
           if (pollingRef.current) {
             clearInterval(pollingRef.current);
           }
+          // Save creator_id on successful completion
+          setCreatorId(creatorId);
           setStep('complete');
         } else if (data.status === 'error') {
           if (pollingRef.current) {
@@ -144,8 +160,15 @@ export default function Onboarding() {
       return;
     }
 
-    // Clean username (remove @ if present)
-    const cleanUsername = instagramUsername.trim().replace(/^@/, '');
+    // Clean username and use as creator_id
+    const igUsername = instagramUsername.trim().replace(/^@/, '');
+    const newCreatorId = cleanUsername(instagramUsername);
+
+    console.log('[Onboarding] Starting manual setup:', {
+      instagram_username: igUsername,
+      creator_id: newCreatorId,
+      api_url: API_URL
+    });
 
     setStep('loading');
     setIsLoading(true);
@@ -156,17 +179,23 @@ export default function Onboarding() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          creator_id: creatorId,
-          instagram_username: cleanUsername,
+          creator_id: newCreatorId,  // Use instagram username as creator_id
+          instagram_username: igUsername,
           website_url: websiteUrl.trim() || null,
           max_posts: 50
         })
       });
 
+      console.log('[Onboarding] Response status:', response.status);
       const data: ManualSetupStatus = await response.json();
+      console.log('[Onboarding] Response data:', data);
+
       setManualStatus(data);
 
       if (data.success) {
+        // Save the new creator_id for the rest of the app
+        setCreatorId(newCreatorId);
+        console.log('[Onboarding] Saved creator_id:', newCreatorId);
         setStep('complete');
       } else {
         setError(data.errors?.[0] || 'Error durante el setup manual');
