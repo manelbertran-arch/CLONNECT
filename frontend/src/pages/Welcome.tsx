@@ -16,7 +16,7 @@ export default function Welcome() {
 
         {/* Subtitle - pegado al logo */}
         <p
-          className="text-2xl md:text-3xl text-gray-400 mb-10"
+          className="text-xl md:text-2xl text-gray-400 mb-10"
           style={{ marginTop: '-40px' }}
         >
           Tu clon AI que vende por ti
