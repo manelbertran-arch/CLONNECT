@@ -58,10 +58,10 @@ export default function Welcome() {
           Automatiza tus DMs con IA
         </p>
 
-        {/* Buttons */}
-        <div className="flex flex-col sm:flex-row gap-4 justify-center">
+        {/* Button */}
+        <div className="flex justify-center">
           <button
-            onClick={() => navigate('/onboarding-intro')}
+            onClick={() => navigate('/login')}
             className="px-10 py-5 text-xl font-semibold rounded-xl transition-all hover:opacity-90 flex items-center justify-center gap-2"
             style={{
               background: 'linear-gradient(135deg, #a855f7, #6366f1)',
@@ -71,18 +71,6 @@ export default function Welcome() {
           >
             Empezar
             <ArrowRight className="w-6 h-6" />
-          </button>
-
-          <button
-            onClick={() => navigate('/login')}
-            className="px-10 py-5 text-xl font-semibold rounded-xl transition-all hover:opacity-80"
-            style={{
-              background: 'rgba(255, 255, 255, 0.05)',
-              border: '1px solid rgba(255, 255, 255, 0.15)',
-              color: 'rgba(255, 255, 255, 0.85)'
-            }}
-          >
-            Ya tengo cuenta
           </button>
         </div>
       </div>
