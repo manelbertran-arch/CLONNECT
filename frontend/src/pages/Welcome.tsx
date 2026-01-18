@@ -1,5 +1,5 @@
 import { useNavigate } from 'react-router-dom';
-import { ArrowRight, MessageSquare, Sparkles } from 'lucide-react';
+import { ArrowRight } from 'lucide-react';
 
 export default function Welcome() {
   const navigate = useNavigate();
@@ -7,18 +7,17 @@ export default function Welcome() {
   return (
     <div
       className="min-h-screen flex items-center justify-center overflow-hidden"
-      style={{ background: '#09090b' }}
+      style={{ background: '#000000' }}
     >
       {/* Animated background gradient orbs */}
       <div
-        className="animate-pulse"
         style={{
           position: 'fixed',
           top: '10%',
           left: '0%',
           width: '600px',
           height: '600px',
-          background: 'radial-gradient(circle, rgba(168, 85, 247, 0.15) 0%, transparent 70%)',
+          background: 'radial-gradient(circle, rgba(168, 85, 247, 0.12) 0%, transparent 70%)',
           borderRadius: '50%',
           filter: 'blur(100px)',
           pointerEvents: 'none',
@@ -26,44 +25,18 @@ export default function Welcome() {
         }}
       />
       <div
-        className="animate-pulse"
         style={{
           position: 'fixed',
           bottom: '10%',
           right: '0%',
           width: '500px',
           height: '500px',
-          background: 'radial-gradient(circle, rgba(236, 72, 153, 0.12) 0%, transparent 70%)',
+          background: 'radial-gradient(circle, rgba(45, 212, 191, 0.10) 0%, transparent 70%)',
           borderRadius: '50%',
           filter: 'blur(100px)',
           pointerEvents: 'none',
           animation: 'pulse 5s ease-in-out infinite',
           animationDelay: '1s'
-        }}
-      />
-      <div
-        style={{
-          position: 'fixed',
-          top: '50%',
-          left: '50%',
-          transform: 'translate(-50%, -50%)',
-          width: '800px',
-          height: '800px',
-          background: 'radial-gradient(circle, rgba(99, 102, 241, 0.08) 0%, transparent 60%)',
-          borderRadius: '50%',
-          filter: 'blur(120px)',
-          pointerEvents: 'none'
-        }}
-      />
-
-      {/* Grid pattern overlay */}
-      <div
-        style={{
-          position: 'fixed',
-          inset: 0,
-          backgroundImage: `radial-gradient(rgba(255, 255, 255, 0.03) 1px, transparent 1px)`,
-          backgroundSize: '50px 50px',
-          pointerEvents: 'none'
         }}
       />
 
@@ -73,44 +46,17 @@ export default function Welcome() {
           animation: 'fadeInUp 0.8s ease-out'
         }}
       >
-        {/* Icon */}
+        {/* Logo */}
         <div
-          className="flex justify-center mb-8"
+          className="flex justify-center mb-10"
           style={{ animation: 'fadeInUp 0.6s ease-out' }}
         >
-          <div
-            className="relative"
-            style={{
-              padding: '20px',
-              borderRadius: '24px',
-              background: 'linear-gradient(135deg, rgba(168, 85, 247, 0.1), rgba(236, 72, 153, 0.1))',
-              border: '1px solid rgba(168, 85, 247, 0.2)'
-            }}
-          >
-            <MessageSquare
-              className="w-12 h-12"
-              style={{ color: '#a855f7' }}
-            />
-            <Sparkles
-              className="w-5 h-5 absolute -top-1 -right-1"
-              style={{ color: '#ec4899' }}
-            />
-          </div>
+          <img
+            src="/clonnect-logo.png"
+            alt="Clonnect"
+            className="w-64 md:w-80 h-auto"
+          />
         </div>
-
-        {/* Title with glow effect */}
-        <h1
-          className="text-6xl md:text-8xl font-bold mb-6 tracking-tight"
-          style={{
-            background: 'linear-gradient(135deg, #a855f7 0%, #ec4899 50%, #6366f1 100%)',
-            WebkitBackgroundClip: 'text',
-            WebkitTextFillColor: 'transparent',
-            filter: 'drop-shadow(0 0 30px rgba(168, 85, 247, 0.3))',
-            animation: 'fadeInUp 0.7s ease-out'
-          }}
-        >
-          Clonnect
-        </h1>
 
         {/* Main subtitle */}
         <p
@@ -143,7 +89,7 @@ export default function Welcome() {
             onClick={() => navigate('/login')}
             className="group relative px-12 py-5 text-xl font-semibold rounded-2xl transition-all duration-300 flex items-center justify-center gap-3 hover:scale-105"
             style={{
-              background: 'linear-gradient(135deg, #a855f7, #ec4899)',
+              background: 'linear-gradient(135deg, #a855f7, #2dd4bf)',
               boxShadow: '0 8px 32px rgba(168, 85, 247, 0.4), 0 0 0 1px rgba(255, 255, 255, 0.1) inset',
               color: 'white'
             }}
@@ -190,13 +136,13 @@ export default function Welcome() {
           >
             {/* Avatar stack */}
             <div className="flex -space-x-2">
-              {['#a855f7', '#ec4899', '#6366f1'].map((color, i) => (
+              {['#a855f7', '#c026d3', '#2dd4bf'].map((color, i) => (
                 <div
                   key={i}
                   className="w-7 h-7 rounded-full flex items-center justify-center text-xs font-medium"
                   style={{
                     background: color,
-                    border: '2px solid #09090b',
+                    border: '2px solid #000000',
                     color: 'white'
                   }}
                 >
