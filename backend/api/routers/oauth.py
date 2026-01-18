@@ -304,15 +304,15 @@ async def instagram_oauth_callback(
     # Handle OAuth errors (like invalid scopes)
     if error_code or error_message:
         logger.error(f"Instagram OAuth error: {error_code} - {error_message}")
-        return RedirectResponse(f"{FRONTEND_URL}/settings?tab=connections&error=instagram_scope_error&message={error_message}")
+        return RedirectResponse(f"{FRONTEND_URL}/onboarding?error=instagram_scope_error&message={error_message}")
 
     if not code:
         logger.error("Instagram OAuth: No code received")
-        return RedirectResponse(f"{FRONTEND_URL}/settings?tab=connections&error=instagram_no_code")
+        return RedirectResponse(f"{FRONTEND_URL}/onboarding?error=instagram_no_code")
 
     if not META_APP_ID or not META_APP_SECRET:
         logger.error("Instagram OAuth: META_APP_SECRET not configured")
-        return RedirectResponse(f"{FRONTEND_URL}/settings?tab=connections&error=instagram_not_configured")
+        return RedirectResponse(f"{FRONTEND_URL}/onboarding?error=instagram_not_configured")
 
     # Extract creator_id from state
     creator_id = state.split(":")[0] if ":" in state else "manel"
@@ -334,7 +334,7 @@ async def instagram_oauth_callback(
 
             if "error" in token_data:
                 logger.error(f"Meta token error: {token_data}")
-                return RedirectResponse(f"{FRONTEND_URL}/settings?tab=connections&error=instagram_auth_failed")
+                return RedirectResponse(f"{FRONTEND_URL}/onboarding?error=instagram_auth_failed")
 
             short_lived_token = token_data.get("access_token")
             logger.info("Got short-lived token from Meta")
@@ -426,14 +426,16 @@ async def instagram_oauth_callback(
                     page_id=page_id or ""
                 )
 
+            # Redirect to onboarding page for new users (with success params)
+            # The onboarding page will show the completion screen
             success_msg = f"instagram&ig_user_id={instagram_user_id}&onboarding=started" if instagram_user_id else "instagram"
-            return RedirectResponse(f"{FRONTEND_URL}/settings?tab=connections&success={success_msg}")
+            return RedirectResponse(f"{FRONTEND_URL}/onboarding?success={success_msg}")
 
     except Exception as e:
         logger.error(f"Instagram OAuth error: {e}")
         import traceback
         logger.error(traceback.format_exc())
-        return RedirectResponse(f"{FRONTEND_URL}/settings?tab=connections&error=instagram_failed")
+        return RedirectResponse(f"{FRONTEND_URL}/onboarding?error=instagram_failed")
 
 
 # =============================================================================
