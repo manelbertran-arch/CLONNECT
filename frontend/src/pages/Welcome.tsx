@@ -11,11 +11,14 @@ export default function Welcome() {
         <img
           src="/clonnect-logo.png"
           alt="Clonnect"
-          className="w-72 md:w-96 h-auto mx-auto mb-3"
+          className="w-72 md:w-96 h-auto mx-auto"
         />
 
-        {/* Subtitle - espaciado uniforme */}
-        <p className="text-xl md:text-2xl text-gray-400 mb-10">
+        {/* Subtitle - pegado al logo con margin negativo */}
+        <p
+          className="text-xl md:text-2xl text-gray-400 mb-10"
+          style={{ marginTop: '-25px' }}
+        >
           Automatiza tus DMs con IA
         </p>
 
