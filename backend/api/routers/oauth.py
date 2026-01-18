@@ -451,15 +451,14 @@ async def instagram_oauth_start(creator_id: str):
     # Store state for CSRF protection
     state = f"{creator_id}:{secrets.token_urlsafe(16)}"
 
-    # Full scopes for Instagram DM automation
-    # Note: These must be approved in Meta App Review first
+    # Minimal scopes for Instagram DM automation
+    # Only request what's actually approved in Meta App Review
+    # instagram_manage_messages requires App Review but is essential for DMs
     scopes = [
-        "instagram_manage_messages",  # Required for DMs
         "instagram_basic",            # Basic Instagram account info
-        "pages_messaging",            # Page messaging capability
+        "instagram_manage_messages",  # Required for DMs (needs App Review)
         "pages_show_list",            # List connected pages
         "pages_read_engagement",      # Read engagement data
-        "pages_manage_metadata",      # Manage page metadata
     ]
 
     params = {
