@@ -7,14 +7,17 @@ export default function Welcome() {
   return (
     <div className="min-h-screen flex items-center justify-center bg-black">
       <div className="text-center px-6">
-        {/* Logo (incluye CLONNECT + FROM FOLLOW TO HELLO) */}
-        <img
-          src="/clonnect-logo.png"
-          alt="Clonnect"
-          className="w-72 md:w-96 h-auto mx-auto mb-8"
-        />
+        {/* Logo con contenedor recortado */}
+        <div className="overflow-hidden mx-auto w-72 md:w-96" style={{ marginBottom: '-30px' }}>
+          <img
+            src="/clonnect-logo.png"
+            alt="Clonnect"
+            className="w-full h-auto"
+            style={{ marginBottom: '-40px' }}
+          />
+        </div>
 
-        {/* CTA Button */}
+        {/* CTA Button - subido para compensar */}
         <button
           onClick={() => navigate('/login')}
           className="group px-10 py-4 text-lg font-semibold rounded-full transition-all duration-300 hover:scale-105 flex items-center gap-2 mx-auto animate-pulse-glow"
