@@ -768,6 +768,64 @@ async def exchange_short_lived_token(creator_id: str, short_lived_token: str):
         }
 
 
+@router.post("/set-token/{creator_id}")
+async def set_creator_token(creator_id: str, token: str, instagram_user_id: str = None):
+    """
+    Set Instagram token directly for a creator.
+
+    Use this when you already have a valid long-lived token
+    (e.g., from Meta Developer Portal or manual OAuth).
+
+    Args:
+        creator_id: Nombre del creator
+        token: Token de Instagram válido
+        instagram_user_id: ID de usuario de Instagram (opcional)
+    """
+    try:
+        from api.database import SessionLocal
+        from sqlalchemy import text
+
+        session = SessionLocal()
+        try:
+            # Build update query
+            if instagram_user_id:
+                session.execute(
+                    text("""
+                        UPDATE creators
+                        SET instagram_token = :token,
+                            instagram_user_id = :ig_user_id
+                        WHERE name = :cid
+                    """),
+                    {"token": token, "ig_user_id": instagram_user_id, "cid": creator_id}
+                )
+            else:
+                session.execute(
+                    text("""
+                        UPDATE creators
+                        SET instagram_token = :token
+                        WHERE name = :cid
+                    """),
+                    {"token": token, "cid": creator_id}
+                )
+            session.commit()
+
+            return {
+                "status": "success",
+                "creator_id": creator_id,
+                "token_prefix": token[:20] + "...",
+                "instagram_user_id": instagram_user_id
+            }
+        finally:
+            session.close()
+
+    except Exception as e:
+        logger.error(f"Set token failed for {creator_id}: {e}")
+        return {
+            "status": "error",
+            "error": str(e)
+        }
+
+
 @router.get("/demo-status")
 async def get_demo_status():
     """Check if demo reset is enabled and get current data counts"""
