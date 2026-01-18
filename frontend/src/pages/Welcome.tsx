@@ -6,12 +6,12 @@ export default function Welcome() {
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-black">
-      <div className="text-center px-6 flex flex-col items-center gap-8">
-        {/* Logo - tamaño proporcionado */}
+      <div className="text-center px-6 flex flex-col items-center gap-6" style={{ marginTop: '-80px' }}>
+        {/* Logo - tamaño grande como antes */}
         <img
           src="/clonnect-logo.png"
           alt="Clonnect"
-          className="w-48 md:w-56 h-auto"
+          className="w-72 md:w-96 h-auto"
         />
 
         {/* CTA Button - prominente y visible */}
