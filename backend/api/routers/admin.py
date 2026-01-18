@@ -294,6 +294,21 @@ async def reset_creator(creator_id: str):
                         ).delete(synchronize_session='fetch')
                         results["deleted"]["messages"] = msg_count
 
+                        # Delete lead_activities and lead_tasks first (FK constraint)
+                        try:
+                            from api.models import LeadActivity, LeadTask
+                            activity_count = session.query(LeadActivity).filter(
+                                LeadActivity.lead_id.in_(lead_ids)
+                            ).delete(synchronize_session='fetch')
+                            results["deleted"]["lead_activities"] = activity_count
+
+                            task_count = session.query(LeadTask).filter(
+                                LeadTask.lead_id.in_(lead_ids)
+                            ).delete(synchronize_session='fetch')
+                            results["deleted"]["lead_tasks"] = task_count
+                        except Exception as e:
+                            logger.warning(f"Could not delete lead activities/tasks: {e}")
+
                     # Delete leads
                     lead_count = session.query(Lead).filter_by(creator_id=creator_uuid).delete()
                     results["deleted"]["leads"] = lead_count
