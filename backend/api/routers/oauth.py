@@ -451,14 +451,12 @@ async def instagram_oauth_start(creator_id: str):
     # Store state for CSRF protection
     state = f"{creator_id}:{secrets.token_urlsafe(16)}"
 
-    # Minimal scopes for Instagram DM automation
-    # Only request what's actually approved in Meta App Review
-    # instagram_manage_messages requires App Review but is essential for DMs
+    # Instagram Business API scopes - EXACT names from Meta App Dashboard
+    # These are the ONLY permissions enabled in Clonnect's Meta app
     scopes = [
-        "instagram_basic",            # Basic Instagram account info
-        "instagram_manage_messages",  # Required for DMs (needs App Review)
-        "pages_show_list",            # List connected pages
-        "pages_read_engagement",      # Read engagement data
+        "instagram_business_basic",            # Basic Instagram Business account info
+        "instagram_business_manage_messages",  # Required for DMs
+        "instagram_manage_comments",           # Manage comments
     ]
 
     params = {
