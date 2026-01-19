@@ -1,14 +1,12 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { Instagram, Loader2, Check, AlertCircle, Sparkles } from 'lucide-react';
+import { Instagram, Globe, Loader2, Check, AlertCircle, Sparkles } from 'lucide-react';
 import { API_URL, setCreatorId, getCreatorId } from '../services/api';
 
-type PageState = 'form' | 'redirecting' | 'connected';
-
 export default function CrearClon() {
-  const [state, setState] = useState<PageState>('form');
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [websiteUrl, setWebsiteUrl] = useState('');
   const [instagramConnected, setInstagramConnected] = useState(false);
 
   const navigate = useNavigate();
@@ -48,7 +46,6 @@ export default function CrearClon() {
     if (success?.includes('instagram') || instagramParam === 'connected') {
       console.log('[CrearClon] Instagram connected successfully!');
       setInstagramConnected(true);
-      setState('connected');
     }
   }, [searchParams]);
 
@@ -75,7 +72,6 @@ export default function CrearClon() {
       if (data.auth_url) {
         // Save creator_id before redirecting
         setCreatorId(creatorId);
-        setState('redirecting');
 
         // Redirect to Meta OAuth
         console.log('[CrearClon] Redirecting to:', data.auth_url);
@@ -111,6 +107,7 @@ export default function CrearClon() {
         },
         body: JSON.stringify({
           creator_id: creatorId,
+          website_url: websiteUrl || null,
         }),
       });
 
@@ -128,10 +125,13 @@ export default function CrearClon() {
     }
   };
 
-  // REDIRECTING SCREEN
-  if (state === 'redirecting') {
+  // =========================================================================
+  // VIEW 1: BEFORE OAuth - Only "Conectar Instagram" button
+  // =========================================================================
+  if (!instagramConnected) {
     return (
       <div className="min-h-screen flex items-center justify-center" style={{ background: '#09090b' }}>
+        {/* Background glow */}
         <div
           style={{
             position: 'fixed', top: '10%', left: '10%', width: '400px', height: '400px',
@@ -139,16 +139,82 @@ export default function CrearClon() {
             borderRadius: '50%', filter: 'blur(60px)', pointerEvents: 'none'
           }}
         />
-        <div className="text-center relative z-10">
-          <Loader2 className="w-12 h-12 animate-spin mx-auto mb-4" style={{ color: '#a855f7' }} />
-          <h2 className="text-xl font-semibold text-white mb-2">Redirigiendo a Instagram...</h2>
-          <p style={{ color: 'rgba(255, 255, 255, 0.5)' }}>Autoriza el acceso para continuar</p>
+
+        <div
+          className="p-8 rounded-2xl w-full max-w-md relative z-10"
+          style={{ background: '#0f0f14', border: '1px solid rgba(255, 255, 255, 0.08)' }}
+        >
+          {/* Title */}
+          <h1
+            className="text-2xl font-bold text-center mb-2"
+            style={{
+              background: 'linear-gradient(135deg, #a855f7, #6366f1)',
+              WebkitBackgroundClip: 'text',
+              WebkitTextFillColor: 'transparent'
+            }}
+          >
+            Crea tu clon
+          </h1>
+          <p className="text-center mb-8" style={{ color: 'rgba(255, 255, 255, 0.5)' }}>
+            Conecta tu Instagram para empezar
+          </p>
+
+          {/* Error message */}
+          {error && (
+            <div
+              className="p-4 rounded-xl mb-6 flex items-start gap-3"
+              style={{ background: 'rgba(239, 68, 68, 0.1)', border: '1px solid rgba(239, 68, 68, 0.3)' }}
+            >
+              <AlertCircle className="w-5 h-5 flex-shrink-0 mt-0.5" style={{ color: '#ef4444' }} />
+              <span style={{ color: '#ef4444' }}>{error}</span>
+            </div>
+          )}
+
+          {/* Instagram Connect Button */}
+          <button
+            onClick={handleConnectInstagram}
+            disabled={isLoading}
+            className="w-full p-4 text-white font-semibold rounded-xl flex items-center justify-center gap-3 mb-4 transition-all hover:scale-[1.02] disabled:opacity-50 disabled:hover:scale-100"
+            style={{
+              background: 'linear-gradient(135deg, #E4405F, #833AB4)',
+              boxShadow: '0 4px 20px rgba(228, 64, 95, 0.3)'
+            }}
+          >
+            {isLoading ? (
+              <>
+                <Loader2 className="w-5 h-5 animate-spin" />
+                Conectando...
+              </>
+            ) : (
+              <>
+                <Instagram className="w-5 h-5" />
+                Conectar con Instagram
+              </>
+            )}
+          </button>
+
+          <p className="text-center text-sm" style={{ color: 'rgba(255, 255, 255, 0.4)' }}>
+            Cuenta Business/Creator requerida
+          </p>
+
+          {/* Info box */}
+          <div
+            className="p-4 rounded-xl mt-6"
+            style={{ background: 'rgba(168, 85, 247, 0.05)', border: '1px solid rgba(168, 85, 247, 0.1)' }}
+          >
+            <p className="text-sm" style={{ color: 'rgba(255, 255, 255, 0.6)' }}>
+              <Sparkles className="w-4 h-4 inline mr-2" style={{ color: '#a855f7' }} />
+              Tu clon analizará tu contenido de Instagram para aprender tu estilo y responder como tú.
+            </p>
+          </div>
         </div>
       </div>
     );
   }
 
-  // MAIN FORM (with or without Instagram connected)
+  // =========================================================================
+  // VIEW 2: AFTER OAuth - Website field + "Crear mi clon" button
+  // =========================================================================
   return (
     <div className="min-h-screen flex items-center justify-center" style={{ background: '#09090b' }}>
       {/* Background glow */}
@@ -173,10 +239,10 @@ export default function CrearClon() {
             WebkitTextFillColor: 'transparent'
           }}
         >
-          Crea tu clon
+          ¡Instagram conectado!
         </h1>
         <p className="text-center mb-6" style={{ color: 'rgba(255, 255, 255, 0.5)' }}>
-          Conecta tu Instagram para entrenar tu clon de IA
+          Añade tu web (opcional) y crea tu clon
         </p>
 
         {/* Error message */}
@@ -190,73 +256,52 @@ export default function CrearClon() {
           </div>
         )}
 
-        {/* Instagram Connection */}
-        {instagramConnected ? (
-          <div
-            className="p-4 rounded-xl mb-6 flex items-center gap-3"
-            style={{ background: 'rgba(34, 197, 94, 0.1)', border: '1px solid rgba(34, 197, 94, 0.3)' }}
-          >
-            <div className="p-2 rounded-lg" style={{ background: 'rgba(34, 197, 94, 0.2)' }}>
-              <Check className="w-5 h-5" style={{ color: '#22c55e' }} />
-            </div>
-            <div className="flex-1">
-              <p className="text-white font-medium">Instagram conectado</p>
-              <p className="text-sm" style={{ color: 'rgba(255, 255, 255, 0.5)' }}>
-                Tu cuenta está lista
-              </p>
-            </div>
-            <Instagram className="w-5 h-5" style={{ color: '#E4405F' }} />
-          </div>
-        ) : (
-          <>
-            <button
-              onClick={handleConnectInstagram}
-              disabled={isLoading}
-              className="w-full p-4 text-white font-semibold rounded-xl flex items-center justify-center gap-3 mb-2 transition-all hover:scale-[1.02] disabled:opacity-50 disabled:hover:scale-100"
-              style={{
-                background: 'linear-gradient(135deg, #E4405F, #833AB4)',
-                boxShadow: '0 4px 20px rgba(228, 64, 95, 0.3)'
-              }}
-            >
-              {isLoading ? (
-                <>
-                  <Loader2 className="w-5 h-5 animate-spin" />
-                  Conectando...
-                </>
-              ) : (
-                <>
-                  <Instagram className="w-5 h-5" />
-                  Conectar con Instagram
-                </>
-              )}
-            </button>
-            <p className="text-center text-sm mb-6" style={{ color: 'rgba(255, 255, 255, 0.4)' }}>
-              Cuenta Business/Creator requerida
-            </p>
-          </>
-        )}
-
-        {/* Info box */}
+        {/* Instagram Connected Badge */}
         <div
-          className="p-4 rounded-xl mb-6"
-          style={{ background: 'rgba(168, 85, 247, 0.05)', border: '1px solid rgba(168, 85, 247, 0.1)' }}
+          className="p-4 rounded-xl mb-6 flex items-center gap-3"
+          style={{ background: 'rgba(34, 197, 94, 0.1)', border: '1px solid rgba(34, 197, 94, 0.3)' }}
         >
-          <p className="text-sm" style={{ color: 'rgba(255, 255, 255, 0.6)' }}>
-            <Sparkles className="w-4 h-4 inline mr-2" style={{ color: '#a855f7' }} />
-            Tu clon analizará tu contenido de Instagram para aprender tu estilo y responder como tú.
+          <div className="p-2 rounded-lg" style={{ background: 'rgba(34, 197, 94, 0.2)' }}>
+            <Check className="w-5 h-5" style={{ color: '#22c55e' }} />
+          </div>
+          <div className="flex-1">
+            <p className="text-white font-medium">Instagram conectado</p>
+            <p className="text-sm" style={{ color: 'rgba(255, 255, 255, 0.5)' }}>
+              Tu cuenta está lista
+            </p>
+          </div>
+          <Instagram className="w-5 h-5" style={{ color: '#E4405F' }} />
+        </div>
+
+        {/* Website URL (optional) */}
+        <div className="mb-6">
+          <p className="text-sm mb-3" style={{ color: 'rgba(255, 255, 255, 0.6)' }}>
+            Tu website (opcional)
+          </p>
+          <div className="relative">
+            <Globe className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4" style={{ color: 'rgba(255, 255, 255, 0.3)' }} />
+            <input
+              type="url"
+              placeholder="https://tuwebsite.com"
+              value={websiteUrl}
+              onChange={(e) => setWebsiteUrl(e.target.value)}
+              className="w-full p-4 pl-11 rounded-xl text-white outline-none focus:ring-2 focus:ring-purple-500"
+              style={{ background: 'rgba(255, 255, 255, 0.05)', border: '1px solid rgba(255, 255, 255, 0.08)' }}
+            />
+          </div>
+          <p className="text-xs mt-2" style={{ color: 'rgba(255, 255, 255, 0.4)' }}>
+            Tu clon también aprenderá de tus productos y servicios web
           </p>
         </div>
 
         {/* Create Clone Button */}
         <button
           onClick={handleCreateClon}
-          disabled={!instagramConnected || isLoading}
-          className="w-full p-4 text-white font-semibold rounded-xl flex items-center justify-center gap-3 transition-all hover:scale-[1.02] disabled:opacity-50 disabled:hover:scale-100 disabled:cursor-not-allowed"
+          disabled={isLoading}
+          className="w-full p-4 text-white font-semibold rounded-xl flex items-center justify-center gap-3 transition-all hover:scale-[1.02] disabled:opacity-50 disabled:hover:scale-100"
           style={{
-            background: instagramConnected
-              ? 'linear-gradient(135deg, #a855f7, #6366f1)'
-              : 'rgba(255, 255, 255, 0.1)',
-            boxShadow: instagramConnected ? '0 4px 20px rgba(168, 85, 247, 0.3)' : 'none'
+            background: 'linear-gradient(135deg, #a855f7, #6366f1)',
+            boxShadow: '0 4px 20px rgba(168, 85, 247, 0.3)'
           }}
         >
           {isLoading ? (
@@ -271,12 +316,6 @@ export default function CrearClon() {
             </>
           )}
         </button>
-
-        {!instagramConnected && (
-          <p className="text-center text-sm mt-4" style={{ color: 'rgba(255, 255, 255, 0.4)' }}>
-            Conecta Instagram para continuar
-          </p>
-        )}
       </div>
     </div>
   );
