@@ -815,10 +815,11 @@ async def test_full_sync_conversation(creator_id: str, username: str):
                 raise HTTPException(status_code=404, detail=f"Conversation with {username} not found")
 
             # Step 2: Fetch ALL messages with pagination
+            # Request extended fields to capture media, stories, reactions, etc.
             all_messages = []
             msg_url = f"{api_base}/{target_conv_id}/messages"
             msg_params = {
-                "fields": "id,message,from,to,created_time",
+                "fields": "id,message,from,to,created_time,attachments,story,shares,reactions,sticker",
                 "access_token": access_token,
                 "limit": 50
             }
@@ -871,19 +872,98 @@ async def test_full_sync_conversation(creator_id: str, username: str):
                 session.add(lead)
                 session.commit()
 
-            # Step 4: Save all messages
+            # Step 4: Save all messages (including media, reactions, stories)
             saved_count = 0
             skipped_duplicate = 0
             skipped_old = 0
-            skipped_empty = 0
+            skipped_no_id = 0
+            content_types = {"text": 0, "attachment": 0, "story": 0, "share": 0, "reaction": 0, "sticker": 0, "unknown": 0}
 
             for msg in all_messages:
                 msg_id = msg.get("id")
-                msg_text = msg.get("message", "")
-
-                if not msg_text or not msg_id:
-                    skipped_empty += 1
+                if not msg_id:
+                    skipped_no_id += 1
                     continue
+
+                # Detect content type and build message text
+                msg_text = msg.get("message", "")
+                metadata = {}
+
+                if msg_text:
+                    content_types["text"] += 1
+                elif msg.get("attachments"):
+                    # Media attachment (image, video, file)
+                    attachments = msg.get("attachments", {}).get("data", [])
+                    if attachments:
+                        att = attachments[0]
+                        att_type = att.get("type", "file")
+                        if att_type == "image":
+                            msg_text = "[Imagen]"
+                            metadata["type"] = "image"
+                            metadata["url"] = att.get("image_data", {}).get("url", "")
+                        elif att_type == "video":
+                            msg_text = "[Video]"
+                            metadata["type"] = "video"
+                            metadata["url"] = att.get("video_data", {}).get("url", "")
+                        elif att_type == "audio":
+                            msg_text = "[Audio]"
+                            metadata["type"] = "audio"
+                        elif att_type == "file":
+                            msg_text = "[Archivo]"
+                            metadata["type"] = "file"
+                        else:
+                            msg_text = f"[{att_type.title()}]"
+                            metadata["type"] = att_type
+                    else:
+                        msg_text = "[Adjunto]"
+                        metadata["type"] = "attachment"
+                    content_types["attachment"] += 1
+                elif msg.get("story"):
+                    # Story mention or reply
+                    story = msg.get("story", {})
+                    if story.get("mention"):
+                        msg_text = "[Te mencionó en su story]"
+                        metadata["type"] = "story_mention"
+                    else:
+                        msg_text = "[Respuesta a story]"
+                        metadata["type"] = "story_reply"
+                    metadata["story_id"] = story.get("id", "")
+                    content_types["story"] += 1
+                elif msg.get("shares"):
+                    # Shared content (post, reel, profile)
+                    shares = msg.get("shares", {}).get("data", [])
+                    if shares:
+                        share = shares[0]
+                        share_link = share.get("link", "")
+                        msg_text = f"[Compartido: {share_link}]" if share_link else "[Contenido compartido]"
+                        metadata["type"] = "share"
+                        metadata["url"] = share_link
+                    else:
+                        msg_text = "[Contenido compartido]"
+                        metadata["type"] = "share"
+                    content_types["share"] += 1
+                elif msg.get("reactions"):
+                    # Reaction to a message
+                    reactions = msg.get("reactions", {}).get("data", [])
+                    if reactions:
+                        emoji = reactions[0].get("reaction", "❤️")
+                        msg_text = f"[Reacción: {emoji}]"
+                    else:
+                        msg_text = "[Reacción]"
+                    metadata["type"] = "reaction"
+                    content_types["reaction"] += 1
+                elif msg.get("sticker"):
+                    # Sticker
+                    msg_text = "[Sticker]"
+                    metadata["type"] = "sticker"
+                    metadata["sticker_id"] = msg.get("sticker", "")
+                    content_types["sticker"] += 1
+                else:
+                    # Unknown type - still save it
+                    msg_text = "[Media]"
+                    metadata["type"] = "unknown"
+                    metadata["raw_keys"] = list(msg.keys())
+                    content_types["unknown"] += 1
 
                 # Check timestamp
                 msg_time = None
@@ -936,7 +1016,8 @@ async def test_full_sync_conversation(creator_id: str, username: str):
                 "messages_saved": saved_count,
                 "skipped_duplicate": skipped_duplicate,
                 "skipped_old": skipped_old,
-                "skipped_empty": skipped_empty,
+                "skipped_no_id": skipped_no_id,
+                "content_types": content_types,
                 "lead_id": str(lead.id)
             }
 

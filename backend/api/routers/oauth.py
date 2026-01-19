@@ -263,11 +263,11 @@ async def _simple_dm_sync_internal(
                     continue
 
                 try:
-                    # Get messages
+                    # Get messages with extended fields for media, stories, etc.
                     msg_resp = await client.get(
                         f"{api_base}/{conv_id}/messages",
                         params={
-                            "fields": "id,message,from,to,created_time",
+                            "fields": "id,message,from,to,created_time,attachments,story,shares,reactions,sticker",
                             "access_token": access_token,
                             "limit": 50
                         }
@@ -371,13 +371,56 @@ async def _simple_dm_sync_internal(
                             lead.profile_pic_url = follower_profile_pic
                         session.commit()
 
-                    # Save messages
+                    # Save ALL messages (including media, reactions, stories)
                     for msg in messages:
                         msg_id = msg.get("id")
+                        if not msg_id:
+                            continue
+
+                        # Detect content type and build message text
                         msg_text = msg.get("message", "")
 
-                        if not msg_text or not msg_id:
-                            continue
+                        if not msg_text:
+                            # No text - detect content type
+                            if msg.get("attachments"):
+                                attachments = msg.get("attachments", {}).get("data", [])
+                                if attachments:
+                                    att = attachments[0]
+                                    att_type = att.get("type", "file")
+                                    if att_type == "image":
+                                        msg_text = "[Imagen]"
+                                    elif att_type == "video":
+                                        msg_text = "[Video]"
+                                    elif att_type == "audio":
+                                        msg_text = "[Audio]"
+                                    else:
+                                        msg_text = f"[{att_type.title()}]"
+                                else:
+                                    msg_text = "[Adjunto]"
+                            elif msg.get("story"):
+                                story = msg.get("story", {})
+                                if story.get("mention"):
+                                    msg_text = "[Te mencionó en su story]"
+                                else:
+                                    msg_text = "[Respuesta a story]"
+                            elif msg.get("shares"):
+                                shares = msg.get("shares", {}).get("data", [])
+                                if shares:
+                                    share_link = shares[0].get("link", "")
+                                    msg_text = f"[Compartido: {share_link}]" if share_link else "[Contenido compartido]"
+                                else:
+                                    msg_text = "[Contenido compartido]"
+                            elif msg.get("reactions"):
+                                reactions = msg.get("reactions", {}).get("data", [])
+                                if reactions:
+                                    emoji = reactions[0].get("reaction", "❤️")
+                                    msg_text = f"[Reacción: {emoji}]"
+                                else:
+                                    msg_text = "[Reacción]"
+                            elif msg.get("sticker"):
+                                msg_text = "[Sticker]"
+                            else:
+                                msg_text = "[Media]"
 
                         # Check timestamp within limit
                         msg_time = None
