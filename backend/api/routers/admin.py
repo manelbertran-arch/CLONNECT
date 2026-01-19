@@ -1033,6 +1033,128 @@ async def test_full_sync_conversation(creator_id: str, username: str):
         session.close()
 
 
+@router.get("/debug-raw-messages/{creator_id}/{username}")
+async def debug_raw_messages(creator_id: str, username: str):
+    """
+    DEBUG: Get raw Instagram API response for messages to see what fields are actually returned.
+    This helps debug why media rendering isn't working.
+    """
+    import httpx
+    from api.database import SessionLocal
+    from api.models import Creator
+
+    session = SessionLocal()
+    try:
+        creator = session.query(Creator).filter_by(name=creator_id).first()
+        if not creator:
+            raise HTTPException(status_code=404, detail=f"Creator {creator_id} not found")
+
+        access_token = creator.instagram_token
+        ig_user_id = creator.instagram_user_id
+        ig_page_id = creator.instagram_page_id
+
+        if not access_token:
+            raise HTTPException(status_code=400, detail="Creator has no Instagram token")
+
+        # Dual API strategy
+        if ig_page_id:
+            api_base = "https://graph.facebook.com/v21.0"
+            conv_id_for_api = ig_page_id
+            conv_extra_params = {"platform": "instagram"}
+        else:
+            api_base = "https://graph.instagram.com/v21.0"
+            conv_id_for_api = ig_user_id
+            conv_extra_params = {}
+
+        async with httpx.AsyncClient(timeout=60.0) as client:
+            # Get conversations
+            conv_resp = await client.get(
+                f"{api_base}/{conv_id_for_api}/conversations",
+                params={**conv_extra_params, "access_token": access_token, "limit": 20, "fields": "id,updated_time"}
+            )
+
+            if conv_resp.status_code != 200:
+                return {"error": f"Conversations API error: {conv_resp.status_code}", "response": conv_resp.text}
+
+            conversations = conv_resp.json().get("data", [])
+
+            # Find conversation with target username
+            target_conv_id = None
+            for conv in conversations:
+                conv_id = conv.get("id")
+                if not conv_id:
+                    continue
+
+                msg_resp = await client.get(
+                    f"{api_base}/{conv_id}/messages",
+                    params={
+                        "fields": "id,message,from,to,created_time",
+                        "access_token": access_token,
+                        "limit": 3
+                    }
+                )
+                if msg_resp.status_code == 200:
+                    for msg in msg_resp.json().get("data", []):
+                        if msg.get("from", {}).get("username") == username:
+                            target_conv_id = conv_id
+                            break
+                        for recipient in msg.get("to", {}).get("data", []):
+                            if recipient.get("username") == username:
+                                target_conv_id = conv_id
+                                break
+                if target_conv_id:
+                    break
+
+            if not target_conv_id:
+                return {"error": f"Conversation with {username} not found"}
+
+            # Get messages with ALL possible fields
+            msg_resp = await client.get(
+                f"{api_base}/{target_conv_id}/messages",
+                params={
+                    "fields": "id,message,from,to,created_time,attachments,story,shares,reactions,sticker,is_unsupported",
+                    "access_token": access_token,
+                    "limit": 20
+                }
+            )
+
+            raw_messages = msg_resp.json() if msg_resp.status_code == 200 else {"error": msg_resp.text}
+
+            # Analyze what fields are present in each message
+            field_analysis = []
+            for msg in raw_messages.get("data", []):
+                analysis = {
+                    "id": msg.get("id", "")[:20] + "...",
+                    "has_message_text": bool(msg.get("message")),
+                    "message_preview": (msg.get("message", "")[:50] + "...") if msg.get("message") else None,
+                    "has_attachments": bool(msg.get("attachments")),
+                    "has_story": bool(msg.get("story")),
+                    "has_shares": bool(msg.get("shares")),
+                    "has_reactions": bool(msg.get("reactions")),
+                    "has_sticker": bool(msg.get("sticker")),
+                    "is_unsupported": msg.get("is_unsupported"),
+                    "all_keys": list(msg.keys())
+                }
+                if msg.get("attachments"):
+                    analysis["attachments_data"] = msg.get("attachments")
+                if msg.get("story"):
+                    analysis["story_data"] = msg.get("story")
+                if msg.get("shares"):
+                    analysis["shares_data"] = msg.get("shares")
+                field_analysis.append(analysis)
+
+            return {
+                "conversation_id": target_conv_id,
+                "username": username,
+                "total_messages": len(raw_messages.get("data", [])),
+                "field_analysis": field_analysis,
+                "raw_messages": raw_messages.get("data", [])[:5]  # First 5 raw messages
+            }
+
+    finally:
+        session.close()
+
+
 @router.post("/run-migration/email-capture")
 async def run_email_capture_migration():
     """
