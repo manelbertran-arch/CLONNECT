@@ -737,12 +737,12 @@ async def test_full_sync_conversation(creator_id: str, username: str):
         if not creator:
             raise HTTPException(status_code=404, detail=f"Creator {creator_id} not found")
 
-        access_token = creator.instagram_access_token
+        access_token = creator.instagram_token
         ig_user_id = creator.instagram_user_id
         ig_page_id = creator.instagram_page_id
 
         if not access_token:
-            raise HTTPException(status_code=400, detail="Creator has no Instagram access token")
+            raise HTTPException(status_code=400, detail="Creator has no Instagram token")
 
         # Dual API strategy
         if ig_page_id:
