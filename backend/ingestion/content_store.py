@@ -81,6 +81,13 @@ class ContentStore:
                 return stats
 
             for product in products:
+                # ANTI-HALLUCINATION: Only store products with verified prices
+                # This prevents testimonials, about sections, etc. from being stored as products
+                if not product.price_verified:
+                    logger.debug(f"Skipping product without verified price: {product.name[:50]}")
+                    stats["skipped"] += 1
+                    continue
+
                 # Check if product exists by name
                 existing = self.db.query(Product).filter(
                     Product.creator_id == creator.id,
