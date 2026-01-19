@@ -677,10 +677,12 @@ async def run_website_pipeline(request: RunWebsitePipelineRequest):
                 first_about = extracted.about_sections[0]
                 bio_content = first_about.get('content', '')[:1000]  # Limit to 1000 chars
                 if bio_content:
+                    from sqlalchemy.orm.attributes import flag_modified
                     if not creator.knowledge_about:
                         creator.knowledge_about = {}
                     creator.knowledge_about['bio'] = bio_content
                     creator.knowledge_about['bio_source_url'] = first_about.get('source_url', '')
+                    flag_modified(creator, 'knowledge_about')  # Tell SQLAlchemy JSON field changed
                     session.commit()
                     print(f"[WebsitePipeline] Updated creator knowledge_about.bio ({len(bio_content)} chars)", flush=True)
                 print(f"[WebsitePipeline] About sections stored: {about_stored}", flush=True)
