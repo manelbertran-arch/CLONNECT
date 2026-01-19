@@ -593,62 +593,88 @@ async def run_website_pipeline(request: RunWebsitePipelineRequest):
     Extracts products, FAQs, about sections, and indexes all content in RAG.
     """
     import asyncio
+    import time
 
-    print(f"[WebsitePipeline] Starting for {request.creator_id} with URL: {request.website_url}", flush=True)
+    print(f"[WebsitePipeline] ====== STARTING for {request.creator_id} ======", flush=True)
+    print(f"[WebsitePipeline] URL: {request.website_url}", flush=True)
+    start_time = time.time()
 
     try:
+        print(f"[WebsitePipeline] Step 1: Importing modules...", flush=True)
         from api.database import SessionLocal
         from api.models import Creator
-        from ingestion.pipeline import IngestionPipeline
+        from ingestion.deterministic_scraper import DeterministicScraper
+        from ingestion.structured_extractor import get_structured_extractor
+        from ingestion.content_store import ContentStore
+        print(f"[WebsitePipeline] Imports done", flush=True)
 
         session = SessionLocal()
+        print(f"[WebsitePipeline] DB session created", flush=True)
         try:
             # Verify creator exists
             creator = session.query(Creator).filter_by(name=request.creator_id).first()
             if not creator:
                 raise HTTPException(status_code=404, detail=f"Creator {request.creator_id} not found")
+            print(f"[WebsitePipeline] Creator found: {creator.id}", flush=True)
 
             # Save website_url to creator's knowledge_about
             if not creator.knowledge_about:
                 creator.knowledge_about = {}
             creator.knowledge_about['website_url'] = request.website_url
             session.commit()
-            print(f"[WebsitePipeline] Saved website_url to creator.knowledge_about", flush=True)
+            print(f"[WebsitePipeline] Saved website_url to knowledge_about", flush=True)
 
-            # Run the pipeline
-            pipeline = IngestionPipeline(db_session=session, max_pages=10)
+            # Step 1: Scrape website
+            print(f"[WebsitePipeline] Step 2: Scraping website...", flush=True)
+            scraper = DeterministicScraper(timeout=15.0, max_pages=5)
+            pages = await scraper.scrape_website(request.website_url)
+            print(f"[WebsitePipeline] Scraped {len(pages)} pages", flush=True)
 
-            print(f"[WebsitePipeline] Running IngestionPipeline...", flush=True)
-            result = await asyncio.wait_for(
-                pipeline.run(
-                    creator_id=request.creator_id,
-                    website_url=request.website_url,
-                    clear_existing=False  # Don't clear existing data
-                ),
-                timeout=120
-            )
+            if not pages:
+                return {
+                    "status": "success",
+                    "creator_id": request.creator_id,
+                    "results": {"pages_scraped": 0, "error": "No content found"}
+                }
 
-            print(f"[WebsitePipeline] Completed!", flush=True)
-            print(f"  - Pages scraped: {result.pages_scraped}", flush=True)
-            print(f"  - Products found: {result.products_found} ({result.products_with_price} with price)", flush=True)
-            print(f"  - FAQs found: {result.faqs_found}", flush=True)
-            print(f"  - About sections: {result.about_sections_found}", flush=True)
-            print(f"  - RAG documents: {result.rag_documents_indexed}", flush=True)
+            # Step 2: Extract structured content
+            print(f"[WebsitePipeline] Step 3: Extracting structured content...", flush=True)
+            extractor = get_structured_extractor()
+            extracted = extractor.extract_all(pages)
+            print(f"[WebsitePipeline] Extracted: {len(extracted.products)} products, {len(extracted.faqs)} FAQs, {len(extracted.about_sections)} about, {len(extracted.raw_chunks)} chunks", flush=True)
+
+            # Step 3: Store products
+            print(f"[WebsitePipeline] Step 4: Storing products...", flush=True)
+            store = ContentStore(db_session=session)
+            products_stats = {"created": 0, "updated": 0}
+            if extracted.products:
+                products_stats = store.store_products(request.creator_id, extracted.products)
+            print(f"[WebsitePipeline] Products stored: {products_stats}", flush=True)
+
+            # Step 4: Store RAG documents (skip to avoid N+1 issue for now)
+            print(f"[WebsitePipeline] Step 5: Storing RAG documents (limited)...", flush=True)
+            rag_stats = {"indexed": 0, "persisted": 0}
+            # Only store first 20 chunks to avoid timeout
+            limited_chunks = extracted.raw_chunks[:20] if len(extracted.raw_chunks) > 20 else extracted.raw_chunks
+            if limited_chunks:
+                rag_stats = store.store_rag_documents(request.creator_id, limited_chunks)
+            print(f"[WebsitePipeline] RAG stored: {rag_stats}", flush=True)
+
+            duration = time.time() - start_time
+            print(f"[WebsitePipeline] ====== COMPLETED in {duration:.1f}s ======", flush=True)
 
             return {
                 "status": "success",
                 "creator_id": request.creator_id,
                 "website_url": request.website_url,
                 "results": {
-                    "pages_scraped": result.pages_scraped,
-                    "products_found": result.products_found,
-                    "products_with_price": result.products_with_price,
-                    "products_created": result.products_created,
-                    "faqs_found": result.faqs_found,
-                    "about_sections_found": result.about_sections_found,
-                    "rag_documents_indexed": result.rag_documents_indexed,
-                    "duration_seconds": result.duration_seconds,
-                    "errors": result.errors
+                    "pages_scraped": len(pages),
+                    "products_found": len(extracted.products),
+                    "products_created": products_stats.get("created", 0),
+                    "faqs_found": len(extracted.faqs),
+                    "about_sections_found": len(extracted.about_sections),
+                    "rag_documents_indexed": rag_stats.get("indexed", 0),
+                    "duration_seconds": duration
                 }
             }
 
