@@ -37,6 +37,7 @@ import Inicio from "./pages/new/Inicio";
 import Mensajes from "./pages/new/Mensajes";
 import Clientes from "./pages/new/Clientes";
 import Ajustes from "./pages/new/Ajustes";
+import NewOnboarding from "./pages/new/Onboarding";
 
 // Configure QueryClient with optimized settings
 const queryClient = new QueryClient({
@@ -61,6 +62,7 @@ const AppRoutes = () => {
       <Route path="/onboarding" element={<Onboarding />} />
       <Route path="/crear-clon" element={<CrearClon />} />
       <Route path="/creando-clon" element={<CreandoClon />} />
+      <Route path="/new/onboarding" element={<NewOnboarding />} />
       <Route path="/felicidades" element={<Felicidades />} />
 
       {/* Minimal test route to isolate Inbox slowness */}
