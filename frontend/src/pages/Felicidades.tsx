@@ -139,7 +139,7 @@ export default function Felicidades() {
 
         {/* CTA Button */}
         <button
-          onClick={() => navigate('/dashboard')}
+          onClick={() => navigate('/dashboard', { replace: true })}
           className="w-full p-4 text-white font-semibold rounded-xl flex items-center justify-center gap-3 transition-all hover:scale-[1.02]"
           style={{
             background: 'linear-gradient(135deg, #22c55e, #16a34a)',

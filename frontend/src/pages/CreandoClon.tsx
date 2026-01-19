@@ -223,7 +223,9 @@ export default function CreandoClon() {
         addLog('✓ ¡Tu clon está listo!');
 
         setTimeout(() => {
-          navigate('/felicidades');
+          // Use replace to avoid /creando-clon in browser history
+          // This prevents back button from going back to progress screen
+          navigate('/felicidades', { replace: true });
         }, 1500);
       } else if (data.status === 'error') {
         if (pollingRef.current) {
