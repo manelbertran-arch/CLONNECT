@@ -1324,6 +1324,124 @@ async def debug_sync_logic(creator_id: str):
         return {"error": str(e), "traceback": traceback.format_exc()}
 
 
+@router.get("/debug-orphaned-messages/{creator_id}")
+async def debug_orphaned_messages(creator_id: str):
+    """
+    Diagnóstico: Buscar mensajes huérfanos o duplicados que impiden el sync.
+    """
+    try:
+        from api.database import SessionLocal
+        from api.models import Creator, Lead, Message
+        from sqlalchemy import text
+
+        session = SessionLocal()
+        try:
+            creator = session.query(Creator).filter_by(name=creator_id).first()
+            if not creator:
+                return {"error": f"Creator '{creator_id}' not found"}
+
+            # 1. Contar mensajes totales en la BD
+            total_messages = session.query(Message).count()
+
+            # 2. Leads actuales del creator
+            leads = session.query(Lead).filter_by(creator_id=creator.id).all()
+            lead_ids = [str(l.id) for l in leads]
+            lead_count = len(leads)
+
+            # 3. Mensajes vinculados a leads de este creator
+            if lead_ids:
+                creator_messages = session.query(Message).filter(
+                    Message.lead_id.in_([l.id for l in leads])
+                ).count()
+            else:
+                creator_messages = 0
+
+            # 4. Mensajes con platform_message_id de Instagram (posibles duplicados)
+            ig_messages = session.query(Message).filter(
+                Message.platform_message_id.like('aWdf%')  # Instagram message IDs start with aWdf
+            ).all()
+
+            # Analizar a qué leads pertenecen
+            orphaned = []
+            for msg in ig_messages[:20]:  # Limitar para no sobrecargar
+                lead = session.query(Lead).filter_by(id=msg.lead_id).first()
+                orphaned.append({
+                    "msg_id": str(msg.id)[:8],
+                    "platform_msg_id": msg.platform_message_id[:30] + "...",
+                    "lead_id": str(msg.lead_id)[:8] if msg.lead_id else None,
+                    "lead_exists": lead is not None,
+                    "lead_creator": lead.creator_id == creator.id if lead else False,
+                    "content_preview": msg.content[:30] if msg.content else "(empty)"
+                })
+
+            return {
+                "creator_id": creator_id,
+                "creator_uuid": str(creator.id),
+                "total_messages_in_db": total_messages,
+                "leads_for_creator": lead_count,
+                "messages_for_creator": creator_messages,
+                "instagram_messages_sample": orphaned,
+                "diagnosis": (
+                    "Messages exist but not linked to current creator's leads"
+                    if len(ig_messages) > 0 and creator_messages == 0
+                    else "OK" if creator_messages > 0
+                    else "No messages found"
+                )
+            }
+
+        finally:
+            session.close()
+
+    except Exception as e:
+        import traceback
+        return {"error": str(e), "traceback": traceback.format_exc()}
+
+
+@router.post("/clean-and-sync/{creator_id}")
+async def clean_and_sync(creator_id: str, max_convs: int = 10):
+    """
+    Limpia mensajes huérfanos y hace sync limpio.
+
+    1. Elimina TODOS los mensajes con platform_message_id de Instagram
+    2. Ejecuta un sync fresco
+    """
+    try:
+        from api.database import SessionLocal
+        from api.models import Creator, Lead, Message
+
+        session = SessionLocal()
+        results = {
+            "cleaned": {"orphaned_messages": 0},
+            "sync": {}
+        }
+
+        try:
+            creator = session.query(Creator).filter_by(name=creator_id).first()
+            if not creator:
+                return {"error": f"Creator '{creator_id}' not found"}
+
+            # 1. Eliminar TODOS los mensajes de Instagram (empezar fresco)
+            deleted = session.query(Message).filter(
+                Message.platform_message_id.like('aWdf%')
+            ).delete(synchronize_session='fetch')
+            results["cleaned"]["orphaned_messages"] = deleted
+            session.commit()
+            logger.info(f"Deleted {deleted} Instagram messages for clean sync")
+
+        finally:
+            session.close()
+
+        # 2. Ejecutar sync
+        sync_result = await simple_dm_sync(creator_id, max_convs)
+        results["sync"] = sync_result
+
+        return results
+
+    except Exception as e:
+        import traceback
+        return {"error": str(e), "traceback": traceback.format_exc()}
+
+
 @router.post("/simple-dm-sync/{creator_id}")
 async def simple_dm_sync(creator_id: str, max_convs: int = 20):
     """
