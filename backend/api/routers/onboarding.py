@@ -13,10 +13,63 @@ logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/onboarding", tags=["onboarding"])
 
 # =============================================================================
-# IN-MEMORY SETUP STATUS (Use Redis in production)
+# SETUP STATUS - Now persisted in DB (with memory cache for fast access)
 # =============================================================================
 
-setup_status: Dict[str, Dict] = {}
+setup_status: Dict[str, Dict] = {}  # Memory cache, also persisted to DB
+
+
+def _update_clone_status_db(creator_id: str, status_data: Dict):
+    """Persist clone setup status to database (survives deploys)."""
+    try:
+        from api.database import SessionLocal
+        from api.models import Creator
+        from datetime import datetime, timezone
+
+        session = SessionLocal()
+        try:
+            creator = session.query(Creator).filter_by(name=creator_id).first()
+            if creator:
+                creator.clone_status = status_data.get("status", "in_progress")
+                creator.clone_progress = status_data
+                if status_data.get("status") == "in_progress" and not creator.clone_started_at:
+                    creator.clone_started_at = datetime.now(timezone.utc)
+                if status_data.get("status") in ["completed", "failed"]:
+                    creator.clone_completed_at = datetime.now(timezone.utc)
+                session.commit()
+                logger.debug(f"[CloneStatus] Saved to DB: {creator_id} -> {status_data.get('status')}")
+        finally:
+            session.close()
+    except Exception as e:
+        logger.warning(f"[CloneStatus] Failed to save to DB: {e}")
+
+
+def _get_clone_status_db(creator_id: str) -> Optional[Dict]:
+    """Get clone setup status from database."""
+    try:
+        from api.database import SessionLocal
+        from api.models import Creator
+
+        session = SessionLocal()
+        try:
+            creator = session.query(Creator).filter_by(name=creator_id).first()
+            if creator and creator.clone_progress:
+                return creator.clone_progress
+            elif creator:
+                return {
+                    "status": creator.clone_status or "pending",
+                    "progress": 0 if creator.clone_status == "pending" else 100 if creator.clone_status == "completed" else 0,
+                    "current_step": "completed" if creator.clone_status == "completed" else "pending",
+                    "steps_completed": [],
+                    "errors": [],
+                    "warnings": [],
+                    "result": {}
+                }
+        finally:
+            session.close()
+    except Exception as e:
+        logger.warning(f"[CloneStatus] Failed to read from DB: {e}")
+    return None
 
 
 # =============================================================================
@@ -1900,8 +1953,8 @@ async def full_auto_setup_background(
     Inicia el proceso y retorna inmediatamente.
     Usar /full-auto-setup/{creator_id}/status para ver progreso.
     """
-    # Initialize status
-    setup_status[request.creator_id] = {
+    # Initialize status (memory + DB for persistence)
+    initial_status = {
         "status": "in_progress",
         "progress": 0,
         "current_step": "starting",
@@ -1910,6 +1963,8 @@ async def full_auto_setup_background(
         "warnings": [],
         "result": {}
     }
+    setup_status[request.creator_id] = initial_status
+    _update_clone_status_db(request.creator_id, initial_status)
 
     # Run in background
     background_tasks.add_task(
@@ -1933,15 +1988,31 @@ async def full_auto_setup_background(
 async def get_full_auto_setup_status(creator_id: str):
     """
     Obtiene el estado de la auto-configuración en background.
+    Now reads from DB to survive deploys (with memory cache for speed).
     """
-    if creator_id not in setup_status:
-        return {
-            "status": "not_found",
-            "creator_id": creator_id,
-            "message": "No setup in progress for this creator"
-        }
+    # First check memory cache (fast, but lost on deploy)
+    if creator_id in setup_status:
+        return setup_status[creator_id]
 
-    return setup_status[creator_id]
+    # Fallback to DB (survives deploys)
+    db_status = _get_clone_status_db(creator_id)
+    if db_status:
+        # Cache it in memory for next poll
+        setup_status[creator_id] = db_status
+        return db_status
+
+    # No status found - return pending instead of not_found
+    return {
+        "status": "pending",
+        "progress": 0,
+        "creator_id": creator_id,
+        "current_step": "waiting",
+        "steps_completed": [],
+        "errors": [],
+        "warnings": [],
+        "result": {},
+        "message": "Setup not started yet"
+    }
 
 
 async def _run_full_auto_setup_background(
@@ -1954,6 +2025,10 @@ async def _run_full_auto_setup_background(
     """Ejecuta auto-setup en background actualizando status en tiempo real."""
     status = setup_status[creator_id]
 
+    def save_progress():
+        """Helper to save progress to both memory and DB."""
+        _update_clone_status_db(creator_id, status)
+
     try:
         from core.auto_configurator import AutoConfigurator
 
@@ -1962,6 +2037,7 @@ async def _run_full_auto_setup_background(
         # Step 1: Instagram scraping
         status["current_step"] = "instagram_scraping"
         status["progress"] = 10
+        save_progress()
         logger.info(f"[FullAutoSetup-BG] Step 1: Instagram scraping for {creator_id}")
 
         try:
@@ -1977,15 +2053,18 @@ async def _run_full_auto_setup_background(
             status["result"] = {
                 "instagram": {"posts_scraped": posts_scraped, "sanity_passed": posts_passed}
             }
+            save_progress()
             logger.info(f"[FullAutoSetup-BG] Instagram: {posts_scraped} posts scraped")
         except Exception as e:
             logger.warning(f"[FullAutoSetup-BG] Instagram error: {e}")
             status["errors"].append(f"Instagram: {str(e)}")
+            save_progress()
 
         # Step 2: Website scraping + Product detection
         if website_url:
             status["current_step"] = "website_scraping"
             status["progress"] = 40
+            save_progress()
             logger.info(f"[FullAutoSetup-BG] Step 2: Website scraping for {creator_id}")
 
             try:
@@ -2000,18 +2079,22 @@ async def _run_full_auto_setup_background(
                 if "result" not in status:
                     status["result"] = {}
                 status["result"]["website"] = {"products_detected": products_detected}
+                save_progress()
                 logger.info(f"[FullAutoSetup-BG] Website: {products_detected} products detected")
             except Exception as e:
                 logger.warning(f"[FullAutoSetup-BG] Website error: {e}")
                 status["errors"].append(f"Website: {str(e)}")
+                save_progress()
         else:
             status["steps_completed"].append("website_scraping")
             status["steps_completed"].append("product_detection")
             status["progress"] = 55
+            save_progress()
 
         # Step 3: ToneProfile generation
         status["current_step"] = "tone_profile"
         status["progress"] = 65
+        save_progress()
         logger.info(f"[FullAutoSetup-BG] Step 3: ToneProfile for {creator_id}")
 
         try:
@@ -2117,6 +2200,7 @@ async def _run_full_auto_setup_background(
         status["status"] = "completed"
         status["progress"] = 100
         status["current_step"] = "completed"
+        save_progress()
 
         logger.info(f"[FullAutoSetup-BG] Completed for {creator_id}: steps={status['steps_completed']}")
 
@@ -2126,6 +2210,7 @@ async def _run_full_auto_setup_background(
         traceback.print_exc()
         status["status"] = "failed"
         status["errors"].append(str(e))
+        save_progress()
 
 
 @router.post("/manual-setup", response_model=ManualSetupResponse)

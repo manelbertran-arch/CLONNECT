@@ -77,6 +77,11 @@ class Creator(Base):
     knowledge_about = Column(JSON, default=dict)
     # Onboarding status
     onboarding_completed = Column(Boolean, default=False)
+    # Clone setup progress (persisted for polling across deploys)
+    clone_status = Column(String(20), default="pending")  # pending, in_progress, completed, failed
+    clone_progress = Column(JSON, default=dict)  # Full progress data for frontend polling
+    clone_started_at = Column(DateTime(timezone=True))
+    clone_completed_at = Column(DateTime(timezone=True))
     # Copilot mode: if True, bot suggestions require approval before sending
     copilot_mode = Column(Boolean, default=True)
     # Email capture configuration (JSON with messages per level, discount codes, etc.)
