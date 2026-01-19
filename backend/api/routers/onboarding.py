@@ -673,13 +673,16 @@ async def run_website_pipeline(request: RunWebsitePipelineRequest):
                 print(f"[WebsitePipeline] Step 7: Storing {len(extracted.about_sections)} about sections...", flush=True)
                 about_stored = store.store_about_sections_as_rag(request.creator_id, extracted.about_sections)
 
-                # Also update Creator's bio with the first about section
+                # Also update Creator's knowledge_about with the bio from about section
                 first_about = extracted.about_sections[0]
                 bio_content = first_about.get('content', '')[:1000]  # Limit to 1000 chars
                 if bio_content:
-                    creator.bio = bio_content
+                    if not creator.knowledge_about:
+                        creator.knowledge_about = {}
+                    creator.knowledge_about['bio'] = bio_content
+                    creator.knowledge_about['bio_source_url'] = first_about.get('source_url', '')
                     session.commit()
-                    print(f"[WebsitePipeline] Updated creator bio ({len(bio_content)} chars)", flush=True)
+                    print(f"[WebsitePipeline] Updated creator knowledge_about.bio ({len(bio_content)} chars)", flush=True)
                 print(f"[WebsitePipeline] About sections stored: {about_stored}", flush=True)
 
             duration = time.time() - start_time
