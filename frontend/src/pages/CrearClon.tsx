@@ -52,6 +52,15 @@ export default function CrearClon() {
     // Handle OAuth success (redirected back from Instagram)
     if (success?.includes('instagram') || instagramParam === 'connected') {
       console.log('[CrearClon] Instagram connected successfully!');
+
+      // IMPORTANT: Read creator_id from URL and save to localStorage
+      // This ensures we use the SAME creator_id that was used during OAuth
+      const urlCreatorId = searchParams.get('creator_id');
+      if (urlCreatorId) {
+        console.log('[CrearClon] Saving creator_id from URL:', urlCreatorId);
+        setCreatorId(urlCreatorId);
+      }
+
       setInstagramConnected(true);
     }
   }, [searchParams]);
