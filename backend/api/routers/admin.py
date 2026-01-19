@@ -646,6 +646,78 @@ async def force_delete_creator(creator_name: str):
         raise HTTPException(status_code=500, detail=str(e))
 
 
+@router.post("/nuclear-reset")
+async def nuclear_reset(confirm: str = ""):
+    """
+    NUCLEAR OPTION: Delete absolutely everything from the database.
+    Requires confirm=DELETE_EVERYTHING to execute.
+    """
+    if confirm != "DELETE_EVERYTHING":
+        return {
+            "error": "Safety check failed",
+            "usage": "POST /admin/nuclear-reset?confirm=DELETE_EVERYTHING",
+            "warning": "This will DELETE ALL DATA including creators, leads, messages, products, etc."
+        }
+
+    if not DEMO_RESET_ENABLED:
+        raise HTTPException(status_code=403, detail="Demo reset is disabled")
+
+    try:
+        from api.database import SessionLocal
+        from sqlalchemy import text
+
+        session = SessionLocal()
+        deleted = {}
+
+        try:
+            # Order matters due to foreign key constraints
+            tables = [
+                "messages",
+                "lead_activities",
+                "lead_tasks",
+                "leads",
+                "sync_queue",
+                "sync_state",
+                "products",
+                "nurturing_sequences",
+                "knowledge_base",
+                "email_ask_tracking",
+                "platform_identities",
+                "unified_profiles",
+                "user_creators",
+                "rag_documents",
+                "creators",
+                "users"
+            ]
+
+            for table in tables:
+                try:
+                    result = session.execute(text(f"DELETE FROM {table}"))
+                    deleted[table] = result.rowcount
+                except Exception as e:
+                    deleted[table] = f"error: {str(e)[:50]}"
+
+            session.commit()
+            logger.warning("NUCLEAR RESET: All data deleted!")
+
+            return {
+                "status": "success",
+                "message": "All data has been deleted",
+                "deleted": deleted
+            }
+
+        except Exception as e:
+            session.rollback()
+            raise HTTPException(status_code=500, detail=str(e))
+        finally:
+            session.close()
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 @router.post("/run-migration/email-capture")
 async def run_email_capture_migration():
     """
