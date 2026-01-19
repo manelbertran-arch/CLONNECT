@@ -718,6 +718,239 @@ async def nuclear_reset(confirm: str = ""):
         raise HTTPException(status_code=500, detail=str(e))
 
 
+@router.post("/test-full-sync/{creator_id}/{username}")
+async def test_full_sync_conversation(creator_id: str, username: str):
+    """
+    TEST ENDPOINT: Sincronizar TODOS los mensajes de una conversación específica
+    usando paginación completa.
+
+    Ejemplo: POST /admin/test-full-sync/manel_bertran_luque/stefanobonanno
+    """
+    import httpx
+    from datetime import datetime, timedelta
+    from api.database import SessionLocal
+    from api.models import Creator, Lead, Message
+
+    session = SessionLocal()
+    try:
+        creator = session.query(Creator).filter_by(name=creator_id).first()
+        if not creator:
+            raise HTTPException(status_code=404, detail=f"Creator {creator_id} not found")
+
+        access_token = creator.instagram_access_token
+        ig_user_id = creator.instagram_user_id
+        ig_page_id = creator.instagram_page_id
+
+        if not access_token:
+            raise HTTPException(status_code=400, detail="Creator has no Instagram access token")
+
+        # Dual API strategy
+        if ig_page_id:
+            api_base = "https://graph.facebook.com/v21.0"
+            conv_id_for_api = ig_page_id
+            conv_extra_params = {"platform": "instagram"}
+        else:
+            api_base = "https://graph.instagram.com/v21.0"
+            conv_id_for_api = ig_user_id
+            conv_extra_params = {}
+
+        creator_ids = {ig_user_id, ig_page_id} - {None}
+
+        async with httpx.AsyncClient(timeout=60.0) as client:
+            # Step 1: Get all conversations to find the one with the target username
+            conv_resp = await client.get(
+                f"{api_base}/{conv_id_for_api}/conversations",
+                params={**conv_extra_params, "access_token": access_token, "limit": 50, "fields": "id,updated_time"}
+            )
+
+            if conv_resp.status_code != 200:
+                raise HTTPException(status_code=500, detail=f"Conversations API error: {conv_resp.status_code}")
+
+            conversations = conv_resp.json().get("data", [])
+
+            # Find the conversation with the target username
+            target_conv_id = None
+            target_follower_id = None
+
+            for conv in conversations:
+                conv_id = conv.get("id")
+                if not conv_id:
+                    continue
+
+                # Fetch messages to identify participant
+                msg_resp = await client.get(
+                    f"{api_base}/{conv_id}/messages",
+                    params={
+                        "fields": "id,message,from,to,created_time",
+                        "access_token": access_token,
+                        "limit": 5
+                    }
+                )
+
+                if msg_resp.status_code != 200:
+                    continue
+
+                messages = msg_resp.json().get("data", [])
+                for msg in messages:
+                    from_data = msg.get("from", {})
+                    if from_data.get("username") == username:
+                        target_conv_id = conv_id
+                        target_follower_id = from_data.get("id")
+                        break
+
+                    to_data = msg.get("to", {}).get("data", [])
+                    for recipient in to_data:
+                        if recipient.get("username") == username:
+                            target_conv_id = conv_id
+                            target_follower_id = recipient.get("id")
+                            break
+
+                    if target_conv_id:
+                        break
+
+                if target_conv_id:
+                    break
+
+            if not target_conv_id:
+                raise HTTPException(status_code=404, detail=f"Conversation with {username} not found")
+
+            # Step 2: Fetch ALL messages with pagination
+            all_messages = []
+            msg_url = f"{api_base}/{target_conv_id}/messages"
+            msg_params = {
+                "fields": "id,message,from,to,created_time",
+                "access_token": access_token,
+                "limit": 50
+            }
+
+            pages_fetched = 0
+            max_pages = 20  # Safety limit: 50 * 20 = 1000 messages max
+
+            while msg_url and pages_fetched < max_pages:
+                msg_resp = await client.get(msg_url, params=msg_params)
+
+                if msg_resp.status_code != 200:
+                    logger.warning(f"Messages API error {msg_resp.status_code} on page {pages_fetched}")
+                    break
+
+                msg_data = msg_resp.json()
+                page_messages = msg_data.get("data", [])
+                all_messages.extend(page_messages)
+
+                # Check for next page
+                paging = msg_data.get("paging", {})
+                next_url = paging.get("next")
+
+                if next_url:
+                    msg_url = next_url
+                    msg_params = {}  # Next URL includes params
+                    pages_fetched += 1
+                    logger.info(f"[FullSync] Fetched page {pages_fetched}, total messages: {len(all_messages)}")
+                else:
+                    break
+
+            logger.info(f"[FullSync] Total pages: {pages_fetched + 1}, total messages: {len(all_messages)}")
+
+            # Step 3: Get or create lead
+            days_limit_ago = datetime.now().astimezone() - timedelta(days=180)
+
+            lead = session.query(Lead).filter_by(
+                creator_id=creator.id,
+                platform="instagram",
+                platform_user_id=target_follower_id
+            ).first()
+
+            if not lead:
+                lead = Lead(
+                    creator_id=creator.id,
+                    platform="instagram",
+                    platform_user_id=target_follower_id,
+                    username=username,
+                    status="new"
+                )
+                session.add(lead)
+                session.commit()
+
+            # Step 4: Save all messages
+            saved_count = 0
+            skipped_duplicate = 0
+            skipped_old = 0
+            skipped_empty = 0
+
+            for msg in all_messages:
+                msg_id = msg.get("id")
+                msg_text = msg.get("message", "")
+
+                if not msg_text or not msg_id:
+                    skipped_empty += 1
+                    continue
+
+                # Check timestamp
+                msg_time = None
+                if msg.get("created_time"):
+                    try:
+                        msg_time = datetime.fromisoformat(msg["created_time"].replace("+0000", "+00:00"))
+                        if msg_time < days_limit_ago:
+                            skipped_old += 1
+                            continue
+                    except:
+                        pass
+
+                # Check for duplicate
+                existing = session.query(Message).filter_by(platform_message_id=msg_id).first()
+                if existing:
+                    skipped_duplicate += 1
+                    continue
+
+                # Determine role
+                from_id = msg.get("from", {}).get("id")
+                role = "assistant" if from_id in creator_ids else "user"
+
+                new_msg = Message(
+                    lead_id=lead.id,
+                    role=role,
+                    content=msg_text,
+                    platform_message_id=msg_id
+                )
+                if msg_time:
+                    new_msg.created_at = msg_time
+                session.add(new_msg)
+                saved_count += 1
+
+            session.commit()
+
+            # Update lead timestamps
+            lead_messages = session.query(Message).filter_by(lead_id=lead.id).order_by(Message.created_at).all()
+            if lead_messages:
+                lead.first_contact_at = lead_messages[0].created_at
+                lead.last_contact_at = lead_messages[-1].created_at
+                session.commit()
+
+            return {
+                "status": "success",
+                "username": username,
+                "conversation_id": target_conv_id,
+                "follower_id": target_follower_id,
+                "pages_fetched": pages_fetched + 1,
+                "total_api_messages": len(all_messages),
+                "messages_saved": saved_count,
+                "skipped_duplicate": skipped_duplicate,
+                "skipped_old": skipped_old,
+                "skipped_empty": skipped_empty,
+                "lead_id": str(lead.id)
+            }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"[FullSync] Error: {e}")
+        import traceback
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=str(e))
+    finally:
+        session.close()
+
+
 @router.post("/run-migration/email-capture")
 async def run_email_capture_migration():
     """
