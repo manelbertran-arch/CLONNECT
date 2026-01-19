@@ -293,6 +293,110 @@ async def complete_visual_onboarding(creator_id: str):
 
 
 # =============================================================================
+# WIZARD ONBOARDING ENDPOINTS (New multi-step flow)
+# =============================================================================
+
+class WizardProfileData(BaseModel):
+    """Profile data from wizard onboarding."""
+    business_name: str
+    description: str
+    tone: str  # 'formal', 'casual', 'friendly'
+
+
+class WizardProductData(BaseModel):
+    """Product data from wizard onboarding."""
+    name: str
+    description: str
+    price: Optional[float] = None
+
+
+class WizardCompleteRequest(BaseModel):
+    """Request for completing wizard onboarding."""
+    creator_id: str
+    profile: WizardProfileData
+    products: List[WizardProductData] = []
+    bot_active: bool = True
+
+
+@router.post("/complete")
+async def complete_wizard_onboarding(request: WizardCompleteRequest):
+    """
+    Complete the wizard onboarding process.
+    Saves profile, products, and activates the bot.
+
+    This is called from the new multi-step onboarding wizard.
+    """
+    try:
+        from api.database import SessionLocal
+        from api.models import Creator, Product
+
+        session = SessionLocal()
+        try:
+            # Find or create creator
+            creator = session.query(Creator).filter_by(name=request.creator_id).first()
+
+            if not creator:
+                import uuid
+                logger.warning(f"Creator {request.creator_id} not found, creating...")
+                creator = Creator(
+                    id=uuid.uuid4(),
+                    name=request.creator_id,
+                    email=f"{request.creator_id}@clonnect.com",
+                )
+                session.add(creator)
+                session.flush()
+
+            # Update profile - use existing fields
+            creator.clone_name = request.profile.business_name
+            creator.clone_tone = request.profile.tone
+            # Store description in knowledge_about JSON
+            if not creator.knowledge_about:
+                creator.knowledge_about = {}
+            creator.knowledge_about['business_description'] = request.profile.description
+            creator.knowledge_about['business_name'] = request.profile.business_name
+
+            # Update bot status
+            creator.bot_active = request.bot_active
+            creator.onboarding_completed = True
+            creator.copilot_mode = True  # Enable copilot mode by default
+
+            # Add products
+            for prod in request.products:
+                product = Product(
+                    creator_id=creator.id,
+                    name=prod.name,
+                    description=prod.description,
+                    price=prod.price,
+                    active=True,
+                )
+                session.add(product)
+
+            session.commit()
+
+            logger.info(f"Wizard onboarding completed for {request.creator_id}: "
+                       f"profile={request.profile.business_name}, "
+                       f"products={len(request.products)}, "
+                       f"bot_active={request.bot_active}")
+
+            return {
+                "status": "success",
+                "creator_id": request.creator_id,
+                "profile_saved": True,
+                "products_added": len(request.products),
+                "bot_active": request.bot_active,
+            }
+
+        finally:
+            session.close()
+
+    except Exception as e:
+        logger.error(f"Error completing wizard onboarding: {e}")
+        import traceback
+        logger.error(traceback.format_exc())
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+# =============================================================================
 # MAGIC SLICE ONBOARDING ENDPOINTS
 # =============================================================================
 
