@@ -259,7 +259,6 @@ async def process_single_conversation(
                     lead_id=lead.id,
                     role=role,
                     content=msg_text,
-                    platform="instagram",
                     platform_message_id=msg_id
                 )
 

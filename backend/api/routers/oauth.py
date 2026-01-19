@@ -369,19 +369,18 @@ async def _simple_dm_sync_internal(
                         if existing:
                             continue
 
-                        # Determine direction
+                        # Determine role (assistant = creator, user = follower)
                         from_id = msg.get("from", {}).get("id")
-                        direction = "outbound" if from_id in creator_ids else "inbound"
+                        role = "assistant" if from_id in creator_ids else "user"
 
                         new_msg = Message(
                             lead_id=lead.id,
-                            platform="instagram",
-                            platform_message_id=msg_id,
-                            direction=direction,
+                            role=role,
                             content=msg_text,
-                            timestamp=msg_time,
-                            raw_payload=msg
+                            platform_message_id=msg_id
                         )
+                        if msg_time:
+                            new_msg.created_at = msg_time
                         session.add(new_msg)
                         results["messages_saved"] += 1
 

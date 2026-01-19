@@ -3814,10 +3814,9 @@ async def _background_dm_sync(
                                 if not existing and msg_content:
                                     new_msg = Message(
                                         lead_id=lead.id,
-                                        platform="instagram",
-                                        platform_message_id=msg_id,
+                                        role=role,
                                         content=msg_content,
-                                        role=role
+                                        platform_message_id=msg_id
                                     )
                                     if msg.get("created_time"):
                                         try:
