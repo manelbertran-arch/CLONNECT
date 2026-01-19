@@ -94,16 +94,19 @@ async def _auto_onboard_after_instagram_oauth(
 
             logger.info(f"[AutoOnboard] Onboarding result: posts={result.posts_processed}, tone={result.tone_profile_generated}, indexed={result.content_indexed}")
 
-        # STEP 4: Activate bot
+        # STEP 4: Pre-configure bot settings (but DON'T mark onboarding_completed!)
+        # The /start-clone → _run_clone_creation flow will set onboarding_completed=True
+        # after the user explicitly clicks "Crear mi clon" and the progress tracking completes.
         session = SessionLocal()
         try:
             creator = session.query(Creator).filter_by(name=creator_id).first()
             if creator:
                 creator.bot_active = True
-                creator.onboarding_completed = True
                 creator.copilot_mode = True  # Enable copilot mode by default
+                # NOTE: onboarding_completed is intentionally NOT set here!
+                # It will be set by _run_clone_creation after the user clicks "Crear mi clon"
                 session.commit()
-                logger.info(f"[AutoOnboard] ✅ Bot activated for {creator_id}")
+                logger.info(f"[AutoOnboard] ✅ Bot pre-configured for {creator_id} (awaiting manual clone creation)")
         finally:
             session.close()
 
@@ -673,22 +676,11 @@ async def instagram_oauth_callback(
                 instagram_user_id=instagram_user_id
             )
 
-            # Step 4b: IMMEDIATELY mark onboarding as completed to prevent race condition
-            # The background task will do the heavy lifting (tone analysis, RAG, etc.)
-            # but the basic state should be set now so frontend doesn't redirect back
-            from api.database import SessionLocal
-            from api.models import Creator
-            session = SessionLocal()
-            try:
-                creator = session.query(Creator).filter_by(name=creator_id).first()
-                if creator:
-                    creator.onboarding_completed = True
-                    creator.bot_active = True
-                    creator.copilot_mode = True
-                    session.commit()
-                    logger.info(f"✅ Onboarding marked complete for {creator_id} (background task will continue)")
-            finally:
-                session.close()
+            # NOTE: DO NOT set onboarding_completed=True here!
+            # The /onboarding/start-clone endpoint and _run_clone_creation will handle that
+            # after the user clicks "Crear mi clon" and the actual clone creation completes.
+            # Setting it here causes a race condition where the progress endpoint
+            # returns "complete" immediately before the clone creation even starts.
 
             # Step 5: AUTO-ONBOARDING - Trigger scraping, tone analysis, and bot activation IN BACKGROUND
             # This does the heavy lifting but doesn't block the redirect
