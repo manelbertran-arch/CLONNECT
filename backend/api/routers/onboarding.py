@@ -660,6 +660,28 @@ async def run_website_pipeline(request: RunWebsitePipelineRequest):
                 rag_stats = store.store_rag_documents(request.creator_id, limited_chunks)
             print(f"[WebsitePipeline] RAG stored: {rag_stats}", flush=True)
 
+            # Step 5: Store FAQs as RAG
+            faqs_stored = 0
+            if extracted.faqs:
+                print(f"[WebsitePipeline] Step 6: Storing {len(extracted.faqs)} FAQs...", flush=True)
+                faqs_stored = store.store_faqs_as_rag(request.creator_id, extracted.faqs)
+                print(f"[WebsitePipeline] FAQs stored: {faqs_stored}", flush=True)
+
+            # Step 6: Store about sections as RAG AND update Creator bio
+            about_stored = 0
+            if extracted.about_sections:
+                print(f"[WebsitePipeline] Step 7: Storing {len(extracted.about_sections)} about sections...", flush=True)
+                about_stored = store.store_about_sections_as_rag(request.creator_id, extracted.about_sections)
+
+                # Also update Creator's bio with the first about section
+                first_about = extracted.about_sections[0]
+                bio_content = first_about.get('content', '')[:1000]  # Limit to 1000 chars
+                if bio_content:
+                    creator.bio = bio_content
+                    session.commit()
+                    print(f"[WebsitePipeline] Updated creator bio ({len(bio_content)} chars)", flush=True)
+                print(f"[WebsitePipeline] About sections stored: {about_stored}", flush=True)
+
             duration = time.time() - start_time
             print(f"[WebsitePipeline] ====== COMPLETED in {duration:.1f}s ======", flush=True)
 

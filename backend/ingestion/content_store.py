@@ -81,12 +81,19 @@ class ContentStore:
                 return stats
 
             for product in products:
-                # ANTI-HALLUCINATION: Only store products with verified prices
+                # ANTI-HALLUCINATION: Only store products with verified prices OR explicitly free
                 # This prevents testimonials, about sections, etc. from being stored as products
-                if not product.price_verified:
+                full_text = f"{product.name} {product.description}".lower()
+                is_explicitly_free = any(word in full_text for word in ['gratis', 'free', 'gratuito', 'gratuita', '0€', '€0'])
+
+                if not product.price_verified and not is_explicitly_free:
                     logger.debug(f"Skipping product without verified price: {product.name[:50]}")
                     stats["skipped"] += 1
                     continue
+
+                # For free products, set price to 0
+                if is_explicitly_free and not product.price:
+                    product.price = 0.0
 
                 # Check if product exists by name
                 existing = self.db.query(Product).filter(
@@ -115,7 +122,8 @@ class ContentStore:
                         source_url=product.source_url,
                         price_verified=product.price_verified,
                         confidence=product.confidence,
-                        is_active=True
+                        is_active=True,
+                        is_free=is_explicitly_free
                     )
                     self.db.add(new_product)
                     stats["created"] += 1
