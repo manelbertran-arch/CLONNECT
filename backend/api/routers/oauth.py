@@ -531,11 +531,11 @@ async def instagram_oauth_callback(
     if error or error_code or error_message:
         error_msg = error_description or error_message or error_reason or error or "Unknown error"
         logger.error(f"Instagram OAuth error: {error_code or error} - {error_msg}")
-        return RedirectResponse(f"{FRONTEND_URL}/crear-clon?error=instagram_scope_error&message={error_msg}")
+        return RedirectResponse(f"{API_URL}/crear-clon?error=instagram_scope_error&message={error_msg}")
 
     if not code:
         logger.error("Instagram OAuth: No code received")
-        return RedirectResponse(f"{FRONTEND_URL}/crear-clon?error=instagram_no_code")
+        return RedirectResponse(f"{API_URL}/crear-clon?error=instagram_no_code")
 
     # Use Instagram App credentials (fall back to META_* if not set)
     app_id = INSTAGRAM_APP_ID or META_APP_ID
@@ -543,7 +543,7 @@ async def instagram_oauth_callback(
 
     if not app_id or not app_secret:
         logger.error("Instagram OAuth: INSTAGRAM_APP_ID or INSTAGRAM_APP_SECRET not configured")
-        return RedirectResponse(f"{FRONTEND_URL}/crear-clon?error=instagram_not_configured")
+        return RedirectResponse(f"{API_URL}/crear-clon?error=instagram_not_configured")
 
     # Extract creator_id from state
     creator_id = state.split(":")[0] if ":" in state else "manel"
@@ -569,7 +569,7 @@ async def instagram_oauth_callback(
 
             if "error_type" in token_data or "error" in token_data:
                 logger.error(f"Instagram token error: {token_data}")
-                return RedirectResponse(f"{FRONTEND_URL}/crear-clon?error=instagram_auth_failed")
+                return RedirectResponse(f"{API_URL}/crear-clon?error=instagram_auth_failed")
 
             short_lived_token = token_data.get("access_token")
             instagram_user_id = str(token_data.get("user_id", ""))
@@ -631,13 +631,13 @@ async def instagram_oauth_callback(
             )
 
             # Redirect to crear-clon page with success
-            return RedirectResponse(f"{FRONTEND_URL}/crear-clon?instagram=connected&ig_user_id={instagram_user_id}&ig_username={ig_username}")
+            return RedirectResponse(f"{API_URL}/crear-clon?instagram=connected&ig_user_id={instagram_user_id}&ig_username={ig_username}")
 
     except Exception as e:
         logger.error(f"Instagram OAuth error: {e}")
         import traceback
         logger.error(traceback.format_exc())
-        return RedirectResponse(f"{FRONTEND_URL}/crear-clon?error=instagram_failed")
+        return RedirectResponse(f"{API_URL}/crear-clon?error=instagram_failed")
 
 
 # =============================================================================
