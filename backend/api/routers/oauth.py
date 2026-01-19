@@ -377,50 +377,91 @@ async def _simple_dm_sync_internal(
                         if not msg_id:
                             continue
 
-                        # Detect content type and build message text
+                        # Detect content type and build message text + metadata for frontend rendering
                         msg_text = msg.get("message", "")
+                        msg_metadata = {}
 
                         if not msg_text:
-                            # No text - detect content type
+                            # No text - detect content type and extract URLs for frontend
                             if msg.get("attachments"):
                                 attachments = msg.get("attachments", {}).get("data", [])
                                 if attachments:
                                     att = attachments[0]
                                     att_type = att.get("type", "file")
+                                    # Extract media URL
                                     if att_type == "image":
                                         msg_text = "[Imagen]"
+                                        msg_metadata = {
+                                            "type": "image",
+                                            "url": att.get("image_data", {}).get("url", ""),
+                                            "preview_url": att.get("image_data", {}).get("preview_url", "")
+                                        }
                                     elif att_type == "video":
                                         msg_text = "[Video]"
+                                        msg_metadata = {
+                                            "type": "video",
+                                            "url": att.get("video_data", {}).get("url", ""),
+                                            "preview_url": att.get("video_data", {}).get("preview_url", "")
+                                        }
                                     elif att_type == "audio":
                                         msg_text = "[Audio]"
+                                        msg_metadata = {"type": "audio", "url": att.get("audio_data", {}).get("url", "")}
+                                    elif att_type == "share":
+                                        # Shared post/reel
+                                        msg_text = "[Contenido compartido]"
+                                        msg_metadata = {
+                                            "type": "share",
+                                            "url": att.get("url", ""),
+                                            "title": att.get("title", ""),
+                                            "description": att.get("description", "")
+                                        }
                                     else:
                                         msg_text = f"[{att_type.title()}]"
+                                        msg_metadata = {"type": att_type}
                                 else:
                                     msg_text = "[Adjunto]"
+                                    msg_metadata = {"type": "attachment"}
                             elif msg.get("story"):
+                                # Story mention or reply - extract story URL/thumbnail
                                 story = msg.get("story", {})
+                                story_url = story.get("url", "")
                                 if story.get("mention"):
                                     msg_text = "[Te mencionó en su story]"
+                                    msg_metadata = {"type": "story_mention", "url": story_url}
                                 else:
                                     msg_text = "[Respuesta a story]"
+                                    msg_metadata = {"type": "story_reply", "url": story_url}
                             elif msg.get("shares"):
                                 shares = msg.get("shares", {}).get("data", [])
                                 if shares:
-                                    share_link = shares[0].get("link", "")
-                                    msg_text = f"[Compartido: {share_link}]" if share_link else "[Contenido compartido]"
+                                    share = shares[0]
+                                    share_link = share.get("link", "")
+                                    msg_text = "[Contenido compartido]"
+                                    msg_metadata = {
+                                        "type": "share",
+                                        "url": share_link,
+                                        "title": share.get("title", ""),
+                                        "description": share.get("description", "")
+                                    }
                                 else:
                                     msg_text = "[Contenido compartido]"
+                                    msg_metadata = {"type": "share"}
                             elif msg.get("reactions"):
                                 reactions = msg.get("reactions", {}).get("data", [])
                                 if reactions:
                                     emoji = reactions[0].get("reaction", "❤️")
                                     msg_text = f"[Reacción: {emoji}]"
+                                    msg_metadata = {"type": "reaction", "emoji": emoji}
                                 else:
                                     msg_text = "[Reacción]"
+                                    msg_metadata = {"type": "reaction", "emoji": "❤️"}
                             elif msg.get("sticker"):
                                 msg_text = "[Sticker]"
+                                sticker_url = msg.get("sticker", "")
+                                msg_metadata = {"type": "sticker", "url": sticker_url if isinstance(sticker_url, str) else ""}
                             else:
                                 msg_text = "[Media]"
+                                msg_metadata = {"type": "unknown"}
 
                         # Check timestamp within limit
                         msg_time = None
@@ -445,7 +486,8 @@ async def _simple_dm_sync_internal(
                             lead_id=lead.id,
                             role=role,
                             content=msg_text,
-                            platform_message_id=msg_id
+                            platform_message_id=msg_id,
+                            msg_metadata=msg_metadata if msg_metadata else {}
                         )
                         if msg_time:
                             new_msg.created_at = msg_time

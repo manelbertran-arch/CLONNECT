@@ -990,7 +990,8 @@ async def test_full_sync_conversation(creator_id: str, username: str):
                     lead_id=lead.id,
                     role=role,
                     content=msg_text,
-                    platform_message_id=msg_id
+                    platform_message_id=msg_id,
+                    msg_metadata=metadata if metadata else {}
                 )
                 if msg_time:
                     new_msg.created_at = msg_time
