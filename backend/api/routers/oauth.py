@@ -479,7 +479,7 @@ async def instagram_oauth_start(creator_id: str):
     scopes = [
         "instagram_business_basic",
         "instagram_business_manage_messages",
-        "instagram_manage_comments",
+        "instagram_business_manage_comments",
     ]
 
     # Use Instagram OAuth URL (NOT Facebook) for instagram_business_* permissions
@@ -489,6 +489,7 @@ async def instagram_oauth_start(creator_id: str):
         "scope": ",".join(scopes),
         "response_type": "code",
         "state": state,
+        "force_reauth": "true",  # Force re-authentication to avoid "Invalid platform app" errors
     }
 
     # NEW Instagram API uses Instagram's authorize endpoint

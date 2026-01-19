@@ -192,57 +192,10 @@ export default function CrearClon() {
           </div>
         )}
 
-        {/* Instagram Connection */}
-        {instagramConnected ? (
-          <div
-            className="p-4 rounded-xl mb-4 flex items-center gap-3"
-            style={{ background: 'rgba(34, 197, 94, 0.1)', border: '1px solid rgba(34, 197, 94, 0.3)' }}
-          >
-            <div className="p-2 rounded-lg" style={{ background: 'rgba(34, 197, 94, 0.2)' }}>
-              <Check className="w-5 h-5" style={{ color: '#22c55e' }} />
-            </div>
-            <div className="flex-1">
-              <p className="text-white font-medium">Instagram conectado</p>
-              <p className="text-sm" style={{ color: 'rgba(255, 255, 255, 0.5)' }}>
-                Tu cuenta está lista
-              </p>
-            </div>
-            <Instagram className="w-5 h-5" style={{ color: '#E4405F' }} />
-          </div>
-        ) : (
-          <button
-            onClick={handleConnectInstagram}
-            disabled={isLoading}
-            className="w-full p-4 text-white font-semibold rounded-xl flex items-center justify-center gap-3 mb-4 transition-all hover:scale-[1.02] disabled:opacity-50 disabled:hover:scale-100"
-            style={{
-              background: 'linear-gradient(135deg, #E4405F, #833AB4)',
-              boxShadow: '0 4px 20px rgba(228, 64, 95, 0.3)'
-            }}
-          >
-            {isLoading ? (
-              <>
-                <Loader2 className="w-5 h-5 animate-spin" />
-                Conectando...
-              </>
-            ) : (
-              <>
-                <Instagram className="w-5 h-5" />
-                Conectar con Instagram
-              </>
-            )}
-          </button>
-        )}
-
-        {!instagramConnected && (
-          <p className="text-center text-sm mb-6" style={{ color: 'rgba(255, 255, 255, 0.4)' }}>
-            Necesitas cuenta Business/Creator conectada a Facebook
-          </p>
-        )}
-
-        {/* Website URL */}
+        {/* Website URL - FIRST (optional) */}
         <div className="mb-6">
           <p className="text-sm mb-3" style={{ color: 'rgba(255, 255, 255, 0.6)' }}>
-            Añade tu website (opcional)
+            Tu website (opcional)
           </p>
           <div className="relative">
             <Globe className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4" style={{ color: 'rgba(255, 255, 255, 0.3)' }} />
@@ -259,6 +212,52 @@ export default function CrearClon() {
             Tu clon aprenderá de tus productos, servicios y contenido web
           </p>
         </div>
+
+        {/* Instagram Connection - SECOND (required) */}
+        {instagramConnected ? (
+          <div
+            className="p-4 rounded-xl mb-6 flex items-center gap-3"
+            style={{ background: 'rgba(34, 197, 94, 0.1)', border: '1px solid rgba(34, 197, 94, 0.3)' }}
+          >
+            <div className="p-2 rounded-lg" style={{ background: 'rgba(34, 197, 94, 0.2)' }}>
+              <Check className="w-5 h-5" style={{ color: '#22c55e' }} />
+            </div>
+            <div className="flex-1">
+              <p className="text-white font-medium">Instagram conectado</p>
+              <p className="text-sm" style={{ color: 'rgba(255, 255, 255, 0.5)' }}>
+                Tu cuenta está lista
+              </p>
+            </div>
+            <Instagram className="w-5 h-5" style={{ color: '#E4405F' }} />
+          </div>
+        ) : (
+          <>
+            <button
+              onClick={handleConnectInstagram}
+              disabled={isLoading}
+              className="w-full p-4 text-white font-semibold rounded-xl flex items-center justify-center gap-3 mb-2 transition-all hover:scale-[1.02] disabled:opacity-50 disabled:hover:scale-100"
+              style={{
+                background: 'linear-gradient(135deg, #E4405F, #833AB4)',
+                boxShadow: '0 4px 20px rgba(228, 64, 95, 0.3)'
+              }}
+            >
+              {isLoading ? (
+                <>
+                  <Loader2 className="w-5 h-5 animate-spin" />
+                  Conectando...
+                </>
+              ) : (
+                <>
+                  <Instagram className="w-5 h-5" />
+                  Conectar con Instagram
+                </>
+              )}
+            </button>
+            <p className="text-center text-sm mb-6" style={{ color: 'rgba(255, 255, 255, 0.4)' }}>
+              Cuenta Business/Creator requerida
+            </p>
+          </>
+        )}
 
         {/* Info box */}
         <div
