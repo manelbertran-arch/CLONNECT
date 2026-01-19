@@ -82,6 +82,11 @@ class OnboardingService:
         2. Analizar tono -> ToneProfile
         3. Indexar contenido -> CitationIndex
         """
+        print(f"[OnboardCreator] ======= ENTERING onboard_creator =======", flush=True)
+        print(f"[OnboardCreator] creator_id={request.creator_id}", flush=True)
+        print(f"[OnboardCreator] manual_posts count: {len(request.manual_posts) if request.manual_posts else 0}", flush=True)
+        print(f"[OnboardCreator] instagram_username: {request.instagram_username}", flush=True)
+
         start_time = datetime.now()
         errors: List[str] = []
         posts: List[Dict] = []
@@ -90,41 +95,56 @@ class OnboardingService:
 
         try:
             # PASO 1: Obtener posts
+            print(f"[OnboardCreator] STEP 1: Getting posts...", flush=True)
             logger.info(f"[Onboarding] Starting for creator_id={request.creator_id}")
 
             if request.manual_posts:
                 # Posts proporcionados manualmente
+                print(f"[OnboardCreator] Parsing {len(request.manual_posts)} manual posts...", flush=True)
                 posts = self._parse_manual_posts(request.manual_posts)
+                print(f"[OnboardCreator] Parsed {len(posts)} valid posts from manual input", flush=True)
                 logger.info(f"[Onboarding] {len(posts)} manual posts received")
             elif request.instagram_username:
                 # Scraping de Instagram
+                print(f"[OnboardCreator] Scraping Instagram for {request.instagram_username}...", flush=True)
                 posts = await self._scrape_instagram(request)
+                print(f"[OnboardCreator] Scraped {len(posts)} posts from Instagram", flush=True)
                 logger.info(f"[Onboarding] {len(posts)} posts scraped from Instagram")
             else:
+                print(f"[OnboardCreator] ERROR: No posts source provided!", flush=True)
                 errors.append("Se requiere instagram_username o manual_posts")
                 return self._build_result(request, False, 0, errors, start_time)
 
             if not posts:
+                print(f"[OnboardCreator] ERROR: No posts to process!", flush=True)
                 errors.append("No se obtuvieron posts para procesar")
                 return self._build_result(request, False, 0, errors, start_time)
 
             # PASO 2: Analizar tono
+            print(f"[OnboardCreator] STEP 2: Analyzing tone from {len(posts)} posts...", flush=True)
             logger.info(f"[Onboarding] Analyzing tone from {len(posts)} posts...")
             tone_profile = await self._analyze_tone(request.creator_id, posts)
+            print(f"[OnboardCreator] Tone analysis complete. Profile generated: {tone_profile is not None}", flush=True)
 
             if tone_profile:
                 # Guardar ToneProfile
+                print(f"[OnboardCreator] Saving ToneProfile...", flush=True)
                 await save_tone_profile(tone_profile)
+                print(f"[OnboardCreator] ToneProfile saved successfully", flush=True)
                 logger.info(f"[Onboarding] ToneProfile saved for {request.creator_id}")
             else:
+                print(f"[OnboardCreator] WARNING: No ToneProfile generated", flush=True)
                 errors.append("No se pudo generar ToneProfile")
 
             # PASO 3: Indexar contenido para citaciones
+            print(f"[OnboardCreator] STEP 3: Indexing content for citations...", flush=True)
             logger.info(f"[Onboarding] Indexing content for citations...")
             citation_stats = await self._index_content(request.creator_id, posts)
+            print(f"[OnboardCreator] Content indexing complete: {citation_stats}", flush=True)
 
             # Construir resultado
-            return self._build_result(
+            print(f"[OnboardCreator] Building final result...", flush=True)
+            result = self._build_result(
                 request=request,
                 success=True,
                 posts_count=len(posts),
@@ -133,8 +153,13 @@ class OnboardingService:
                 tone_profile=tone_profile,
                 citation_stats=citation_stats
             )
+            print(f"[OnboardCreator] ======= EXITING onboard_creator SUCCESS =======", flush=True)
+            return result
 
         except Exception as e:
+            print(f"[OnboardCreator] ======= EXCEPTION in onboard_creator: {e} =======", flush=True)
+            import traceback
+            traceback.print_exc()
             logger.error(f"[Onboarding] Error: {e}")
             errors.append(str(e))
             return self._build_result(request, False, len(posts), errors, start_time)
@@ -203,18 +228,25 @@ class OnboardingService:
         posts: List[Dict]
     ) -> Optional[ToneProfile]:
         """Analiza el tono de los posts y genera ToneProfile."""
+        print(f"[_analyze_tone] Entering with {len(posts)} posts for {creator_id}", flush=True)
         try:
             if not posts:
+                print(f"[_analyze_tone] No posts provided, returning None", flush=True)
                 return None
 
             # Analizar con ToneAnalyzer
+            print(f"[_analyze_tone] Calling ToneAnalyzer.analyze()...", flush=True)
             profile = await self.tone_analyzer.analyze(
                 creator_id=creator_id,
                 posts=posts,
                 max_posts=30
             )
+            print(f"[_analyze_tone] ToneAnalyzer.analyze() returned: {profile is not None}", flush=True)
             return profile
         except Exception as e:
+            print(f"[_analyze_tone] EXCEPTION: {e}", flush=True)
+            import traceback
+            traceback.print_exc()
             logger.error(f"[Onboarding] Error in tone analysis: {e}")
             return None
 
@@ -224,13 +256,16 @@ class OnboardingService:
         posts: List[Dict]
     ) -> Dict:
         """Indexa posts para el sistema de citaciones."""
+        print(f"[_index_content] Entering with {len(posts)} posts for {creator_id}", flush=True)
         try:
             # Indexar usando citation_service
+            print(f"[_index_content] Calling index_creator_posts()...", flush=True)
             result = await index_creator_posts(
                 creator_id=creator_id,
                 posts=posts,
                 save=True
             )
+            print(f"[_index_content] index_creator_posts() returned: {result}", flush=True)
 
             return {
                 "posts_indexed": result.get("posts_indexed", 0),
@@ -238,6 +273,9 @@ class OnboardingService:
                 "indexed_at": datetime.now().isoformat()
             }
         except Exception as e:
+            print(f"[_index_content] EXCEPTION: {e}", flush=True)
+            import traceback
+            traceback.print_exc()
             logger.error(f"[Onboarding] Error indexing content: {e}")
             return {"error": str(e)}
 

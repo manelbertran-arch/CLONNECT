@@ -325,27 +325,40 @@ IMPORTANTE:
         Returns:
             ToneProfile del creador
         """
+        print(f"[ToneAnalyzer.analyze] Entering with {len(posts)} posts for {creator_id}", flush=True)
+
         # Filtrar posts con contenido
         valid_posts = [p for p in posts if p.get('caption') and len(p['caption']) > 20]
+        print(f"[ToneAnalyzer.analyze] Valid posts after filtering: {len(valid_posts)}", flush=True)
 
         if not valid_posts:
+            print(f"[ToneAnalyzer.analyze] No valid posts, returning default profile", flush=True)
             logger.warning(f"No hay posts validos para analizar para creator {creator_id}")
             return self._create_default_profile(creator_id)
 
         # Limitar cantidad
         posts_to_analyze = valid_posts[:max_posts]
+        print(f"[ToneAnalyzer.analyze] Posts to analyze (limited): {len(posts_to_analyze)}", flush=True)
 
         # Preparar texto para analisis
+        print(f"[ToneAnalyzer.analyze] Preparing posts text...", flush=True)
         posts_text = self._prepare_posts_text(posts_to_analyze)
+        print(f"[ToneAnalyzer.analyze] Posts text length: {len(posts_text)} chars", flush=True)
 
         # Analisis estadistico basico (no necesita LLM)
+        print(f"[ToneAnalyzer.analyze] Running statistical analysis...", flush=True)
         stats = self._analyze_statistics(posts_to_analyze)
+        print(f"[ToneAnalyzer.analyze] Stats complete: emoji_count={len(stats.get('emojis', []))}", flush=True)
 
         # Analisis con LLM
+        print(f"[ToneAnalyzer.analyze] Starting LLM analysis (THIS MAY HANG)...", flush=True)
         llm_analysis = await self._analyze_with_llm(posts_text)
+        print(f"[ToneAnalyzer.analyze] LLM analysis complete: {bool(llm_analysis)}", flush=True)
 
         # Combinar analisis
+        print(f"[ToneAnalyzer.analyze] Merging analyses...", flush=True)
         profile = self._merge_analyses(creator_id, stats, llm_analysis, len(posts_to_analyze))
+        print(f"[ToneAnalyzer.analyze] Profile created, confidence={profile.confidence_score}", flush=True)
 
         logger.info(f"ToneProfile generado para creator {creator_id} con {len(posts_to_analyze)} posts")
         return profile
@@ -429,39 +442,55 @@ IMPORTANTE:
 
     async def _analyze_with_llm(self, posts_text: str) -> Dict:
         """Analiza con LLM para extraer patrones de lenguaje."""
+        print(f"[_analyze_with_llm] Entering, posts_text length: {len(posts_text)}", flush=True)
         prompt = self.ANALYSIS_PROMPT.format(posts_text=posts_text)
+        print(f"[_analyze_with_llm] Prompt created, length: {len(prompt)}", flush=True)
 
         try:
             if self.llm_client:
                 # Usar cliente proporcionado
+                print(f"[_analyze_with_llm] Using provided LLM client: {type(self.llm_client)}", flush=True)
                 response = await self.llm_client.chat(
                     messages=[{"role": "user", "content": prompt}],
                     temperature=0.3
                 )
                 response_text = response.get('content', '{}')
+                print(f"[_analyze_with_llm] Got response from provided client", flush=True)
             else:
                 # Fallback: intentar importar cliente default de Clonnect
+                print(f"[_analyze_with_llm] No LLM client, trying to import default...", flush=True)
                 try:
-                    from core.llm_client import get_llm_client
+                    from core.llm import get_llm_client
+                    print(f"[_analyze_with_llm] Imported get_llm_client from core.llm, calling it...", flush=True)
                     client = get_llm_client()
+                    print(f"[_analyze_with_llm] Got client: {type(client)}, calling generate()...", flush=True)
                     response_text = await client.generate(prompt, temperature=0.3)
-                except ImportError:
+                    print(f"[_analyze_with_llm] generate() returned, response length: {len(response_text) if response_text else 0}", flush=True)
+                except ImportError as ie:
+                    print(f"[_analyze_with_llm] ImportError: {ie}", flush=True)
                     logger.warning("No LLM client available, using defaults")
                     return {}
 
             # Parsear JSON de respuesta
             # Limpiar posible markdown
+            print(f"[_analyze_with_llm] Parsing response...", flush=True)
             response_text = response_text.strip()
             if response_text.startswith('```'):
                 response_text = re.sub(r'^```json?\n?', '', response_text)
                 response_text = re.sub(r'\n?```$', '', response_text)
 
-            return json.loads(response_text)
+            result = json.loads(response_text)
+            print(f"[_analyze_with_llm] Parsed successfully, keys: {list(result.keys()) if result else []}", flush=True)
+            return result
 
         except json.JSONDecodeError as e:
+            print(f"[_analyze_with_llm] JSON decode error: {e}", flush=True)
             logger.error(f"Error parseando respuesta LLM: {e}")
             return {}
         except Exception as e:
+            print(f"[_analyze_with_llm] EXCEPTION: {e}", flush=True)
+            import traceback
+            traceback.print_exc()
             logger.error(f"Error en analisis LLM: {e}")
             return {}
 

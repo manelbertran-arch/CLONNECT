@@ -769,14 +769,18 @@ async def _run_clone_creation(creator_id: str, website_url: str = None):
                             })
 
                     print(f"[CloneCreation] Created {len(posts_data)} posts for training", flush=True)
+                    print(f"[CloneCreation] Getting onboarding service...", flush=True)
                     service = get_onboarding_service()
+                    print(f"[CloneCreation] Got service: {type(service)}", flush=True)
                     request = OnboardingRequest(
                         creator_id=creator_id,
                         manual_posts=posts_data,
                         scraping_method="manual"
                     )
-                    print(f"[CloneCreation] Starting onboard_creator...", flush=True)
+                    print(f"[CloneCreation] Created request with {len(posts_data)} posts", flush=True)
+                    print(f"[CloneCreation] About to call service.onboard_creator()...", flush=True)
                     result = await service.onboard_creator(request)
+                    print(f"[CloneCreation] onboard_creator() returned!", flush=True)
                     print(f"[CloneCreation] Training complete: {result}", flush=True)
                     logger.info(f"[CloneCreation] Training complete: {result}")
                 except Exception as e:
