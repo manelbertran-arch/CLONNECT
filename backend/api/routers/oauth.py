@@ -303,6 +303,24 @@ async def _simple_dm_sync_internal(
                     if not follower_id:
                         continue
 
+                    # Fetch profile picture for follower
+                    follower_profile_pic = None
+                    try:
+                        profile_resp = await client.get(
+                            f"{api_base}/{follower_id}",
+                            params={
+                                "fields": "id,username,name,profile_pic",
+                                "access_token": access_token
+                            }
+                        )
+                        if profile_resp.status_code == 200:
+                            profile_data = profile_resp.json()
+                            follower_profile_pic = profile_data.get("profile_pic")
+                            if profile_data.get("username"):
+                                follower_username = profile_data.get("username")
+                    except Exception as profile_error:
+                        logger.debug(f"Could not fetch profile for {follower_id}: {profile_error}")
+
                     # Parse timestamps
                     all_timestamps = []
                     user_timestamps = []
@@ -332,6 +350,7 @@ async def _simple_dm_sync_internal(
                             platform="instagram",
                             platform_user_id=follower_id,
                             username=follower_username,
+                            profile_pic_url=follower_profile_pic,
                             status="new",
                             first_contact_at=first_contact,
                             last_contact_at=last_contact
@@ -344,6 +363,9 @@ async def _simple_dm_sync_internal(
                             lead.first_contact_at = first_contact
                         if last_contact and (not lead.last_contact_at or last_contact > lead.last_contact_at):
                             lead.last_contact_at = last_contact
+                        # Update profile pic if we got one and lead doesn't have it
+                        if follower_profile_pic and not lead.profile_pic_url:
+                            lead.profile_pic_url = follower_profile_pic
                         session.commit()
 
                     # Save messages
@@ -386,6 +408,30 @@ async def _simple_dm_sync_internal(
 
                     session.commit()
                     results["conversations_processed"] += 1
+
+                    # Auto-categorize lead after saving messages
+                    if results["messages_saved"] > 0:
+                        try:
+                            from core.lead_categorization import calcular_categoria, categoria_a_status_legacy
+
+                            lead_messages = session.query(Message).filter_by(lead_id=lead.id).order_by(Message.created_at).all()
+                            mensajes_para_cat = [{"role": m.role, "content": m.content or ""} for m in lead_messages]
+
+                            cat_result = calcular_categoria(
+                                mensajes=mensajes_para_cat,
+                                es_cliente=lead.status == "customer",
+                                ultimo_mensaje_lead=lead.last_contact_at,
+                                lead_created_at=lead.first_contact_at
+                            )
+
+                            new_status = categoria_a_status_legacy(cat_result.categoria)
+                            if lead.status != new_status:
+                                lead.status = new_status
+                                lead.purchase_intent = cat_result.intent_score
+                                session.commit()
+                                logger.info(f"Lead {lead.username} auto-categorizado: {cat_result.categoria}")
+                        except Exception as cat_error:
+                            logger.warning(f"Error en auto-categorización: {cat_error}")
 
                 except Exception as conv_error:
                     logger.warning(f"[DM Sync] Error processing conversation: {conv_error}")
@@ -538,11 +584,11 @@ async def instagram_oauth_callback(
     if error or error_code or error_message:
         error_msg = error_description or error_message or error_reason or error or "Unknown error"
         logger.error(f"Instagram OAuth error: {error_code or error} - {error_msg}")
-        return RedirectResponse(f"{API_URL}/crear-clon?error=instagram_scope_error&message={error_msg}")
+        return RedirectResponse(f"{FRONTEND_URL}/crear-clon?error=instagram_scope_error&message={error_msg}")
 
     if not code:
         logger.error("Instagram OAuth: No code received")
-        return RedirectResponse(f"{API_URL}/crear-clon?error=instagram_no_code")
+        return RedirectResponse(f"{FRONTEND_URL}/crear-clon?error=instagram_no_code")
 
     # Use Instagram App credentials (fall back to META_* if not set)
     app_id = INSTAGRAM_APP_ID or META_APP_ID
@@ -550,7 +596,7 @@ async def instagram_oauth_callback(
 
     if not app_id or not app_secret:
         logger.error("Instagram OAuth: INSTAGRAM_APP_ID or INSTAGRAM_APP_SECRET not configured")
-        return RedirectResponse(f"{API_URL}/crear-clon?error=instagram_not_configured")
+        return RedirectResponse(f"{FRONTEND_URL}/crear-clon?error=instagram_not_configured")
 
     # Extract creator_id from state
     creator_id = state.split(":")[0] if ":" in state else "manel"
@@ -627,7 +673,25 @@ async def instagram_oauth_callback(
                 instagram_user_id=instagram_user_id
             )
 
-            # Step 5: AUTO-ONBOARDING - Trigger scraping, tone analysis, and bot activation
+            # Step 4b: IMMEDIATELY mark onboarding as completed to prevent race condition
+            # The background task will do the heavy lifting (tone analysis, RAG, etc.)
+            # but the basic state should be set now so frontend doesn't redirect back
+            from api.database import SessionLocal
+            from api.models import Creator
+            session = SessionLocal()
+            try:
+                creator = session.query(Creator).filter_by(name=creator_id).first()
+                if creator:
+                    creator.onboarding_completed = True
+                    creator.bot_active = True
+                    creator.copilot_mode = True
+                    session.commit()
+                    logger.info(f"✅ Onboarding marked complete for {creator_id} (background task will continue)")
+            finally:
+                session.close()
+
+            # Step 5: AUTO-ONBOARDING - Trigger scraping, tone analysis, and bot activation IN BACKGROUND
+            # This does the heavy lifting but doesn't block the redirect
             logger.info(f"🚀 Starting auto-onboarding for {creator_id} in background...")
             background_tasks.add_task(
                 _auto_onboard_after_instagram_oauth,
@@ -638,13 +702,13 @@ async def instagram_oauth_callback(
             )
 
             # Redirect to crear-clon page with success
-            return RedirectResponse(f"{API_URL}/crear-clon?instagram=connected&ig_user_id={instagram_user_id}&ig_username={ig_username}")
+            return RedirectResponse(f"{FRONTEND_URL}/crear-clon?instagram=connected&ig_user_id={instagram_user_id}&ig_username={ig_username}")
 
     except Exception as e:
         logger.error(f"Instagram OAuth error: {e}")
         import traceback
         logger.error(traceback.format_exc())
-        return RedirectResponse(f"{API_URL}/crear-clon?error=instagram_failed")
+        return RedirectResponse(f"{FRONTEND_URL}/crear-clon?error=instagram_failed")
 
 
 # =============================================================================
