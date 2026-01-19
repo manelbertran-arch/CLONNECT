@@ -263,20 +263,45 @@ async def _simple_dm_sync_internal(
                     continue
 
                 try:
-                    # Get messages
-                    msg_resp = await client.get(
-                        f"{api_base}/{conv_id}/messages",
-                        params={
-                            "fields": "id,message,from,to,created_time",
-                            "access_token": access_token,
-                            "limit": 50
-                        }
-                    )
+                    # Get messages WITH PAGINATION (follow next cursor to get ALL messages)
+                    messages = []
+                    msg_url = f"{api_base}/{conv_id}/messages"
+                    msg_params = {
+                        "fields": "id,message,from,to,created_time",
+                        "access_token": access_token,
+                        "limit": 50
+                    }
 
-                    if msg_resp.status_code != 200:
-                        continue
+                    # Pagination loop - fetch all messages for this conversation
+                    max_pages = 10  # Safety limit: 50 * 10 = 500 messages max per conversation
+                    page_count = 0
 
-                    messages = msg_resp.json().get("data", [])
+                    while msg_url and page_count < max_pages:
+                        msg_resp = await client.get(msg_url, params=msg_params)
+
+                        if msg_resp.status_code != 200:
+                            logger.debug(f"[DM Sync] Messages API error {msg_resp.status_code} for conv {conv_id}")
+                            break
+
+                        msg_data = msg_resp.json()
+                        page_messages = msg_data.get("data", [])
+                        messages.extend(page_messages)
+
+                        # Check for next page (pagination)
+                        paging = msg_data.get("paging", {})
+                        next_url = paging.get("next")
+
+                        if next_url:
+                            # Next URL already includes all params, so clear params for subsequent requests
+                            msg_url = next_url
+                            msg_params = {}
+                            page_count += 1
+                        else:
+                            break
+
+                    if page_count > 0:
+                        logger.info(f"[DM Sync] Fetched {len(messages)} messages from {page_count + 1} pages for conv {conv_id}")
+
                     if not messages:
                         continue
 

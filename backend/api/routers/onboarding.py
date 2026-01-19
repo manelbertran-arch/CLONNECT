@@ -406,8 +406,86 @@ class StartCloneRequest(BaseModel):
     website_url: Optional[str] = None
 
 
-# In-memory progress tracking (use Redis in production)
-clone_progress: Dict[str, Dict] = {}
+# Helper function to update clone progress in database (persistent across workers)
+def _update_clone_progress(creator_id: str, status: str = None, step: str = None, step_status: str = None,
+                           percent: int = None, error: str = None, extra: dict = None):
+    """
+    Update clone progress in database. This persists across workers/restarts.
+
+    Args:
+        creator_id: Creator's name/ID
+        status: Overall status (in_progress, complete, error)
+        step: Current step name (instagram, website, training, activating)
+        step_status: Step status (pending, active, completed)
+        percent: Progress percentage (0-100)
+        error: Error message if status is "error"
+        extra: Extra data to merge into progress JSON
+    """
+    from api.database import SessionLocal
+    from api.models import Creator
+    from datetime import datetime, timezone
+
+    session = SessionLocal()
+    try:
+        creator = session.query(Creator).filter_by(name=creator_id).first()
+        if not creator:
+            logger.warning(f"[Progress] Creator {creator_id} not found")
+            return
+
+        # Initialize progress dict if empty
+        if not creator.clone_progress:
+            creator.clone_progress = {
+                "steps": {
+                    "instagram": "pending",
+                    "website": "pending",
+                    "training": "pending",
+                    "activating": "pending",
+                },
+                "percent": 0,
+                "messages_synced": 0,
+                "leads_created": 0,
+            }
+
+        # Update status
+        if status:
+            creator.clone_status = status
+            if status == "in_progress" and not creator.clone_started_at:
+                creator.clone_started_at = datetime.now(timezone.utc)
+            elif status == "complete":
+                creator.clone_completed_at = datetime.now(timezone.utc)
+
+        # Update step status
+        if step and step_status:
+            progress = dict(creator.clone_progress)  # Make mutable copy
+            if "steps" not in progress:
+                progress["steps"] = {}
+            progress["steps"][step] = step_status
+            creator.clone_progress = progress
+
+        # Update percent
+        if percent is not None:
+            progress = dict(creator.clone_progress)
+            progress["percent"] = percent
+            creator.clone_progress = progress
+
+        # Update error
+        if error:
+            creator.clone_error = error
+
+        # Merge extra data
+        if extra:
+            progress = dict(creator.clone_progress)
+            progress.update(extra)
+            creator.clone_progress = progress
+
+        session.commit()
+        logger.debug(f"[Progress] Updated {creator_id}: status={status}, step={step}={step_status}, percent={percent}")
+
+    except Exception as e:
+        logger.error(f"[Progress] Error updating progress: {e}")
+        session.rollback()
+    finally:
+        session.close()
 
 
 @router.post("/start-clone")
@@ -420,7 +498,11 @@ async def start_clone_creation(request: StartCloneRequest, background_tasks: Bac
     3. Generate tone profile (Magic Slice)
     4. Index content in RAG
     5. Activate the bot
+
+    Progress is persisted in database (not in-memory) for reliability.
     """
+    from datetime import datetime, timezone
+
     try:
         from api.database import SessionLocal
         from api.models import Creator
@@ -435,15 +517,21 @@ async def start_clone_creation(request: StartCloneRequest, background_tasks: Bac
             if not creator.instagram_token:
                 raise HTTPException(status_code=400, detail="Instagram not connected")
 
-            # Initialize progress tracking
-            clone_progress[request.creator_id] = {
-                "status": "in_progress",
+            # Initialize progress tracking IN DATABASE (persists across workers)
+            creator.clone_status = "in_progress"
+            creator.clone_started_at = datetime.now(timezone.utc)
+            creator.clone_completed_at = None
+            creator.clone_error = None
+            creator.clone_progress = {
                 "steps": {
                     "instagram": "active",
                     "website": "pending",
                     "training": "pending",
                     "activating": "pending",
-                }
+                },
+                "percent": 0,
+                "messages_synced": 0,
+                "leads_created": 0,
             }
 
             # Store website URL if provided
@@ -451,7 +539,9 @@ async def start_clone_creation(request: StartCloneRequest, background_tasks: Bac
                 if not creator.knowledge_about:
                     creator.knowledge_about = {}
                 creator.knowledge_about['website_url'] = request.website_url
-                session.commit()
+
+            session.commit()
+            logger.info(f"[CloneCreation] Started for {request.creator_id}, progress saved to DB")
 
             # Start background clone creation
             background_tasks.add_task(
@@ -459,8 +549,6 @@ async def start_clone_creation(request: StartCloneRequest, background_tasks: Bac
                 creator_id=request.creator_id,
                 website_url=request.website_url,
             )
-
-            logger.info(f"Started clone creation for {request.creator_id}")
 
             return {
                 "status": "started",
@@ -485,12 +573,9 @@ async def get_clone_progress(creator_id: str):
     """
     Get the progress of clone creation.
     Returns current step status for polling from frontend.
-    """
-    # Check if we have progress in memory
-    if creator_id in clone_progress:
-        return clone_progress[creator_id]
 
-    # If not in memory, check database for completion status
+    Progress is read from database (persistent, works across workers).
+    """
     try:
         from api.database import SessionLocal
         from api.models import Creator
@@ -502,26 +587,42 @@ async def get_clone_progress(creator_id: str):
             if not creator:
                 raise HTTPException(status_code=404, detail=f"Creator {creator_id} not found")
 
-            if creator.onboarding_completed:
-                return {
-                    "status": "complete",
-                    "steps": {
-                        "instagram": "completed",
-                        "website": "completed",
-                        "training": "completed",
-                        "activating": "completed",
-                    }
+            # Read progress from database (persistent across workers)
+            clone_status = creator.clone_status or "pending"
+            clone_progress_data = creator.clone_progress or {}
+
+            # Build response from DB fields
+            steps = clone_progress_data.get("steps", {
+                "instagram": "pending",
+                "website": "pending",
+                "training": "pending",
+                "activating": "pending",
+            })
+
+            response = {
+                "status": clone_status,
+                "steps": steps,
+                "percent": clone_progress_data.get("percent", 0),
+                "messages_synced": clone_progress_data.get("messages_synced", 0),
+                "leads_created": clone_progress_data.get("leads_created", 0),
+            }
+
+            # Include error if present
+            if creator.clone_error:
+                response["error"] = creator.clone_error
+
+            # If onboarding is completed but status wasn't updated, fix it
+            if creator.onboarding_completed and clone_status != "complete":
+                response["status"] = "complete"
+                response["steps"] = {
+                    "instagram": "completed",
+                    "website": "completed",
+                    "training": "completed",
+                    "activating": "completed",
                 }
-            else:
-                return {
-                    "status": "unknown",
-                    "steps": {
-                        "instagram": "pending",
-                        "website": "pending",
-                        "training": "pending",
-                        "activating": "pending",
-                    }
-                }
+
+            logger.debug(f"[Progress] {creator_id}: status={response['status']}, steps={steps}")
+            return response
 
         finally:
             session.close()
@@ -536,7 +637,7 @@ async def get_clone_progress(creator_id: str):
 async def _run_clone_creation(creator_id: str, website_url: str = None):
     """
     Background task to run the full clone creation pipeline.
-    Updates progress as each step completes.
+    Updates progress IN DATABASE as each step completes (persistent across workers).
     """
     try:
         from api.database import SessionLocal
@@ -547,14 +648,16 @@ async def _run_clone_creation(creator_id: str, website_url: str = None):
             creator = session.query(Creator).filter_by(name=creator_id).first()
             if not creator or not creator.instagram_token:
                 logger.error(f"Creator {creator_id} not found or no Instagram token")
+                _update_clone_progress(creator_id, status="error", error="Creator not found or no Instagram token")
                 return
 
             access_token = creator.instagram_token
             instagram_user_id = creator.instagram_user_id or ""
+            page_id = creator.instagram_page_id or ""
 
-            # Step 1: Scrape Instagram
+            # Step 1: Scrape Instagram posts
             logger.info(f"[CloneCreation] Step 1: Scraping Instagram for {creator_id}")
-            clone_progress[creator_id]["steps"]["instagram"] = "active"
+            _update_clone_progress(creator_id, step="instagram", step_status="active", percent=10)
 
             try:
                 from ingestion import MetaGraphAPIScraper
@@ -568,10 +671,10 @@ async def _run_clone_creation(creator_id: str, website_url: str = None):
                 logger.warning(f"[CloneCreation] Instagram scraping failed: {e}")
                 posts = []
 
-            clone_progress[creator_id]["steps"]["instagram"] = "completed"
+            _update_clone_progress(creator_id, step="instagram", step_status="completed", percent=25)
 
             # Step 2: Scrape website (if provided)
-            clone_progress[creator_id]["steps"]["website"] = "active"
+            _update_clone_progress(creator_id, step="website", step_status="active", percent=30)
 
             if website_url:
                 logger.info(f"[CloneCreation] Step 2: Scraping website {website_url}")
@@ -588,10 +691,10 @@ async def _run_clone_creation(creator_id: str, website_url: str = None):
             else:
                 logger.info(f"[CloneCreation] Step 2: No website provided, skipping")
 
-            clone_progress[creator_id]["steps"]["website"] = "completed"
+            _update_clone_progress(creator_id, step="website", step_status="completed", percent=45)
 
             # Step 3: Generate tone profile (Magic Slice)
-            clone_progress[creator_id]["steps"]["training"] = "active"
+            _update_clone_progress(creator_id, step="training", step_status="active", percent=50)
             logger.info(f"[CloneCreation] Step 3: Training clone with {len(posts)} posts")
 
             if posts:
@@ -618,19 +721,47 @@ async def _run_clone_creation(creator_id: str, website_url: str = None):
                 except Exception as e:
                     logger.warning(f"[CloneCreation] Training failed: {e}")
 
-            clone_progress[creator_id]["steps"]["training"] = "completed"
+            _update_clone_progress(creator_id, step="training", step_status="completed", percent=70)
 
-            # Step 4: Activate bot
-            clone_progress[creator_id]["steps"]["activating"] = "active"
-            logger.info(f"[CloneCreation] Step 4: Activating bot")
+            # Step 4: Sync DM history (with pagination)
+            _update_clone_progress(creator_id, step="activating", step_status="active", percent=75)
+            logger.info(f"[CloneCreation] Step 4: Syncing DM history")
+
+            try:
+                from api.routers.oauth import _simple_dm_sync_internal
+                dm_stats = await _simple_dm_sync_internal(
+                    creator_id=creator_id,
+                    access_token=access_token,
+                    ig_user_id=instagram_user_id,
+                    ig_page_id=page_id,
+                    max_convs=50  # Increased from 30
+                )
+                logger.info(f"[CloneCreation] DM sync complete: {dm_stats}")
+                _update_clone_progress(creator_id, extra={
+                    "messages_synced": dm_stats.get("messages_saved", 0),
+                    "leads_created": dm_stats.get("leads_created", 0),
+                })
+            except Exception as e:
+                logger.warning(f"[CloneCreation] DM sync failed: {e}")
+                import traceback
+                logger.warning(traceback.format_exc())
+
+            _update_clone_progress(creator_id, percent=90)
+
+            # Step 5: Activate bot and mark complete
+            logger.info(f"[CloneCreation] Step 5: Activating bot")
+
+            # Refresh creator from DB
+            session.expire(creator)
+            creator = session.query(Creator).filter_by(name=creator_id).first()
 
             creator.bot_active = True
             creator.onboarding_completed = True
             creator.copilot_mode = True
+            creator.clone_status = "complete"
             session.commit()
 
-            clone_progress[creator_id]["steps"]["activating"] = "completed"
-            clone_progress[creator_id]["status"] = "complete"
+            _update_clone_progress(creator_id, status="complete", step="activating", step_status="completed", percent=100)
 
             logger.info(f"[CloneCreation] ✅ Clone creation complete for {creator_id}")
 
@@ -641,10 +772,7 @@ async def _run_clone_creation(creator_id: str, website_url: str = None):
         logger.error(f"[CloneCreation] Error: {e}")
         import traceback
         logger.error(traceback.format_exc())
-
-        if creator_id in clone_progress:
-            clone_progress[creator_id]["status"] = "error"
-            clone_progress[creator_id]["error"] = str(e)
+        _update_clone_progress(creator_id, status="error", error=str(e))
 
 
 # =============================================================================
