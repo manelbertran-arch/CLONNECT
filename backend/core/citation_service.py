@@ -651,9 +651,11 @@ async def index_creator_posts(
     print(f"[index_creator_posts] Processed {posts_processed} posts, {total_chunks} chunks", flush=True)
 
     if save:
-        print(f"[index_creator_posts] Saving index...", flush=True)
-        index.save()  # Saves to DB + JSON
-        print(f"[index_creator_posts] Index saved", flush=True)
+        # TEMPORARY: Skip save to avoid N+1 query timeout (1000+ chunks = 2000+ DB queries)
+        # TODO: Fix _save_chunks_to_db to use bulk operations
+        print(f"[index_creator_posts] SKIPPING index.save() - N+1 query issue causes timeout", flush=True)
+        print(f"[index_creator_posts] Would save {len(index.chunks)} chunks", flush=True)
+        # index.save()  # DISABLED - causes worker timeout
 
     result = {
         'creator_id': creator_id,
