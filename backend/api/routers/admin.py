@@ -1128,19 +1128,23 @@ async def debug_instagram_api(creator_id: str):
             return {"error": creds["error"]}
 
         ig_user_id = creds["user_id"] or creds["page_id"]
+        page_id = creds["page_id"]  # Necesario para conversations API
         access_token = creds["token"]
-        api_base = "https://graph.instagram.com/v21.0"
+        # IMPORTANTE: Usar graph.facebook.com para conversations/messages
+        api_base = "https://graph.facebook.com/v21.0"
 
         results = {
             "ig_user_id": ig_user_id,
+            "page_id": page_id,
             "conversations": [],
             "sample_messages": []
         }
 
         async with httpx.AsyncClient(timeout=30.0) as client:
-            # Get conversations
-            conv_url = f"{api_base}/{ig_user_id}/conversations"
+            # Get conversations - usar page_id con platform=instagram
+            conv_url = f"{api_base}/{page_id}/conversations"
             conv_resp = await client.get(conv_url, params={
+                "platform": "instagram",
                 "access_token": access_token,
                 "limit": 5
             })
@@ -1228,13 +1232,14 @@ async def simple_dm_sync(creator_id: str, max_convs: int = 20):
         try:
             # Get creator for UUID (needed for FK relationships)
             creator = session.query(Creator).filter_by(name=creator_id).first()
-            api_base = "https://graph.instagram.com/v21.0"
+            # IMPORTANTE: Usar graph.facebook.com para conversations/messages
+            api_base = "https://graph.facebook.com/v21.0"
 
             async with httpx.AsyncClient(timeout=60.0) as client:
-                # Get conversations with updated_time
+                # Get conversations with updated_time - usar page_id con platform=instagram
                 conv_resp = await client.get(
-                    f"{api_base}/{ig_user_id}/conversations",
-                    params={"access_token": access_token, "limit": max_convs, "fields": "id,updated_time"}
+                    f"{api_base}/{ig_page_id}/conversations",
+                    params={"platform": "instagram", "access_token": access_token, "limit": max_convs, "fields": "id,updated_time"}
                 )
 
                 if conv_resp.status_code != 200:
@@ -2175,7 +2180,8 @@ async def update_profile_pics(creator_id: str, limit: int = 20):
             return {"status": "error", "error": "Instagram not connected for this creator"}
 
         access_token = creator.instagram_token
-        api_base = "https://graph.instagram.com/v21.0"
+        # IMPORTANTE: Usar graph.facebook.com para user profiles también
+        api_base = "https://graph.facebook.com/v21.0"
 
         # Get leads without profile pic
         leads_without_pic = session.query(Lead).filter(

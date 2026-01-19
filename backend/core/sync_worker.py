@@ -121,7 +121,9 @@ async def process_single_conversation(
         "error": None
     }
 
-    api_base = "https://graph.instagram.com/v21.0"
+    # IMPORTANTE: Usar graph.facebook.com para conversations/messages
+    # graph.instagram.com es solo para media/contenido
+    api_base = "https://graph.facebook.com/v21.0"
 
     try:
         async with httpx.AsyncClient(timeout=30.0) as client:
@@ -449,15 +451,18 @@ async def start_sync_for_creator(creator_id: str) -> Dict[str, Any]:
             return result
 
         ig_user_id = creator.instagram_user_id or creator.instagram_page_id
+        page_id = creator.instagram_page_id  # Necesario para conversations
         access_token = creator.instagram_token
 
         # Fetch conversation list (single API call)
-        api_base = "https://graph.instagram.com/v21.0"
+        # IMPORTANTE: Usar graph.facebook.com con page_id para conversations
+        api_base = "https://graph.facebook.com/v21.0"
 
         async with httpx.AsyncClient(timeout=30.0) as client:
             conv_resp = await client.get(
-                f"{api_base}/{ig_user_id}/conversations",
+                f"{api_base}/{page_id}/conversations",
                 params={
+                    "platform": "instagram",  # Requerido para filtrar solo Instagram
                     "access_token": access_token,
                     "limit": 50,
                     "fields": "id,updated_time"

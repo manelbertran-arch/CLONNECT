@@ -3311,11 +3311,13 @@ async def sync_instagram_dms(request: InstagramDMSyncRequest):
                 raise HTTPException(status_code=400, detail="Instagram token not configured")
 
             ig_user_id = creator.instagram_user_id or creator.instagram_page_id
+            page_id = creator.instagram_page_id  # Necesario para conversations API
             if not ig_user_id:
                 raise HTTPException(status_code=400, detail="Instagram user ID not configured")
 
             access_token = creator.instagram_token
-            api_base = "https://graph.instagram.com/v21.0"
+            # IMPORTANTE: Usar graph.facebook.com para conversations/messages
+            api_base = "https://graph.facebook.com/v21.0"
 
             logger.info(f"[DMSync] Starting sync for {request.creator_id} with rate limiting")
 
@@ -3351,8 +3353,10 @@ async def sync_instagram_dms(request: InstagramDMSyncRequest):
                     return {"error": {"message": "Max retries exceeded"}, "data": []}
 
                 # 1. Fetch conversations (1 llamada)
-                conv_url = f"{api_base}/{ig_user_id}/conversations"
+                # Usar page_id con platform=instagram para obtener conversaciones de IG
+                conv_url = f"{api_base}/{page_id}/conversations"
                 conv_data = await fetch_with_retry(conv_url, {
+                    "platform": "instagram",
                     "access_token": access_token,
                     "limit": min(request.max_conversations, 50)
                 })
@@ -3659,8 +3663,10 @@ async def _background_dm_sync(
                 return
 
             ig_user_id = creator.instagram_user_id or creator.instagram_page_id
+            page_id = creator.instagram_page_id  # Necesario para conversations API
             access_token = creator.instagram_token
-            api_base = "https://graph.instagram.com/v21.0"
+            # IMPORTANTE: Usar graph.facebook.com para conversations/messages
+            api_base = "https://graph.facebook.com/v21.0"
 
             logger.info(f"[BGSync] Starting background sync for {creator_id}")
 
@@ -3684,8 +3690,10 @@ async def _background_dm_sync(
                     return {"error": {"message": "Max retries"}, "data": []}
 
                 # Fetch conversations
-                conv_url = f"{api_base}/{ig_user_id}/conversations"
+                # Usar page_id con platform=instagram para obtener conversaciones de IG
+                conv_url = f"{api_base}/{page_id}/conversations"
                 conv_data = await fetch_with_retry(conv_url, {
+                    "platform": "instagram",
                     "access_token": access_token,
                     "limit": min(max_conversations, 50)
                 })

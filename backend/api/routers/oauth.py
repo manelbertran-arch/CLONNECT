@@ -228,13 +228,16 @@ async def _simple_dm_sync_internal(
             results["errors"].append(f"Creator {creator_id} not found")
             return results
 
-        api_base = "https://graph.instagram.com/v21.0"
+        # IMPORTANTE: Usar graph.facebook.com para conversations/messages
+        api_base = "https://graph.facebook.com/v21.0"
+        # Usar page_id para conversations API (no ig_user_id)
+        page_id = ig_page_id or ig_user_id
 
         async with httpx.AsyncClient(timeout=60.0) as client:
-            # Get conversations
+            # Get conversations - usar page_id con platform=instagram
             conv_resp = await client.get(
-                f"{api_base}/{ig_user_id}/conversations",
-                params={"access_token": access_token, "limit": max_convs, "fields": "id,updated_time"}
+                f"{api_base}/{page_id}/conversations",
+                params={"platform": "instagram", "access_token": access_token, "limit": max_convs, "fields": "id,updated_time"}
             )
 
             if conv_resp.status_code != 200:
