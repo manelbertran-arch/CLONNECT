@@ -782,12 +782,14 @@ async def _run_clone_creation(creator_id: str, website_url: str = None):
 
             try:
                 from api.routers.oauth import _simple_dm_sync_internal
+                # QUALITY STRATEGY: 15 conversations with ALL their messages
+                # Better than 50 empty conversations - we need messages for categorization
                 dm_stats = await _simple_dm_sync_internal(
                     creator_id=creator_id,
                     access_token=access_token,
                     ig_user_id=instagram_user_id,
                     ig_page_id=page_id,
-                    max_convs=50  # Increased from 30
+                    max_convs=15  # Quality over quantity
                 )
                 logger.info(f"[CloneCreation] DM sync complete: {dm_stats}")
                 _update_clone_progress(creator_id, extra={

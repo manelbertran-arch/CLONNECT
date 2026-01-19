@@ -203,16 +203,17 @@ async def _simple_dm_sync_internal(
     access_token: str,
     ig_user_id: str,
     ig_page_id: str = None,
-    max_convs: int = 30
+    max_convs: int = 15
 ) -> dict:
     """
     Internal DM sync function that works with credentials passed directly.
     Simplified version of admin.simple_dm_sync for use during auto-onboarding.
 
-    Optimized for speed:
-    - 15s timeout per request (fail fast)
-    - Skip 403 conversations immediately
-    - Batch database commits
+    STRATEGY: Quality over quantity
+    - Fetch fewer conversations (15) but with ALL their messages
+    - Skip conversations that return 403 (no access)
+    - Only create leads that have at least 1 message
+    - This ensures we have context for categorization and responses
     """
     import httpx
     from datetime import datetime, timedelta
@@ -299,10 +300,11 @@ async def _simple_dm_sync_internal(
                         msg_resp = await client.get(msg_url, params=msg_params)
 
                         if msg_resp.status_code == 403:
-                            # 403 = Instagram doesn't allow reading this conversation (old, deleted user, etc.)
-                            # Still create lead using participant info, but mark as 403
+                            # 403 = Instagram doesn't allow reading this conversation
+                            # SKIP this conversation entirely - no point creating a lead without messages
                             results["skipped_403"] += 1
                             got_403 = True
+                            logger.debug(f"[DM Sync] Skipping conv {conv_id} - 403 Forbidden")
                             break
                         elif msg_resp.status_code != 200:
                             logger.debug(f"[DM Sync] Messages API error {msg_resp.status_code} for conv {conv_id}")
@@ -355,9 +357,14 @@ async def _simple_dm_sync_internal(
                     if not follower_id and conv_follower_id:
                         follower_id = conv_follower_id
                         follower_username = conv_follower_username
-                        logger.debug(f"[DM Sync] Using participant info for conv {conv_id} (403 or no messages)")
 
                     if not follower_id:
+                        continue
+
+                    # QUALITY STRATEGY: Skip leads without messages
+                    # We need messages for categorization and bot context
+                    if got_403 or not messages:
+                        logger.debug(f"[DM Sync] Skipping lead creation for {follower_username} - no messages available")
                         continue
 
                     # Fetch profile picture for follower (with short timeout, skip if slow)
