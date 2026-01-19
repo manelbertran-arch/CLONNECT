@@ -200,19 +200,23 @@ class StructuredExtractor:
                 heading = section.get('heading', '')
                 content = section.get('content', '')
 
-                # Skip if too short
-                if len(content) < 20:
-                    continue
-
                 # Check if this looks like a service/product
                 full_text = f"{heading} {content}"
+
+                # Try to extract price FIRST (check heading AND content)
+                price, verified = self._extract_price_from_text(full_text)
+
+                # Skip if content too short AND no verified price
+                # This allows products with price in heading but little content
+                if len(content) < 20 and not verified:
+                    continue
+
                 is_service = is_service_page or any(
                     re.search(p, full_text, re.I) for p in self.SERVICE_PATTERNS
                 )
 
-                if is_service and heading and heading.lower() not in seen_names:
-                    # Try to extract price
-                    price, verified = self._extract_price_from_text(full_text)
+                # Also consider it a product if it has a verified price
+                if (is_service or verified) and heading and heading.lower() not in seen_names:
                     currency = self._detect_currency(full_text)
 
                     # Calculate confidence
