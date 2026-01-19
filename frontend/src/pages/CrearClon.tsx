@@ -14,6 +14,13 @@ export default function CrearClon() {
 
   // Generate or get creator_id for OAuth state
   const getOrCreateCreatorId = (): string => {
+    // Check URL param first (for testing)
+    const urlCreatorId = searchParams.get('creator_id');
+    if (urlCreatorId) {
+      setCreatorId(urlCreatorId); // Save to localStorage
+      return urlCreatorId;
+    }
+
     const existing = getCreatorId();
     if (existing && existing !== 'demo_creator') {
       return existing;
