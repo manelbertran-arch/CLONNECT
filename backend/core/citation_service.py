@@ -617,9 +617,12 @@ async def index_creator_posts(
     Returns:
         Estadisticas de indexacion
     """
+    print(f"[index_creator_posts] Starting for {creator_id} with {len(posts)} posts", flush=True)
     index = get_content_index(creator_id)
+    print(f"[index_creator_posts] Got content index", flush=True)
 
     total_chunks = 0
+    posts_processed = 0
     for post in posts:
         caption = post.get('caption', '')
         if len(caption) < 20:  # Ignorar posts muy cortos
@@ -643,16 +646,23 @@ async def index_creator_posts(
             comments=post.get('comments_count')
         )
         total_chunks += len(chunks)
+        posts_processed += 1
+
+    print(f"[index_creator_posts] Processed {posts_processed} posts, {total_chunks} chunks", flush=True)
 
     if save:
+        print(f"[index_creator_posts] Saving index...", flush=True)
         index.save()  # Saves to DB + JSON
+        print(f"[index_creator_posts] Index saved", flush=True)
 
-    return {
+    result = {
         'creator_id': creator_id,
-        'posts_indexed': len([p for p in posts if len(p.get('caption', '')) >= 20]),
+        'posts_indexed': posts_processed,
         'total_chunks': total_chunks,
         'index_stats': index.stats
     }
+    print(f"[index_creator_posts] Done: {result}", flush=True)
+    return result
 
 
 def delete_content_index(creator_id: str) -> bool:

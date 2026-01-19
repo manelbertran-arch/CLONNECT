@@ -111,28 +111,37 @@ async def save_tone_profile(profile: ToneProfile) -> bool:
     Returns:
         True si se guardo correctamente
     """
+    print(f"[save_tone_profile] Starting for {profile.creator_id}", flush=True)
     creator_id = profile.creator_id
     profile_data = profile.to_dict()
+    print(f"[save_tone_profile] Converted to dict", flush=True)
 
     db_success = False
     json_success = False
 
     # 1. Intentar guardar en PostgreSQL
     try:
+        print(f"[save_tone_profile] Importing save_tone_profile_db...", flush=True)
         from core.tone_profile_db import save_tone_profile_db
+        print(f"[save_tone_profile] Saving to PostgreSQL...", flush=True)
         db_success = await save_tone_profile_db(creator_id, profile_data)
+        print(f"[save_tone_profile] PostgreSQL save result: {db_success}", flush=True)
         if db_success:
             logger.info(f"ToneProfile for {creator_id} saved to PostgreSQL")
     except Exception as e:
+        print(f"[save_tone_profile] PostgreSQL error: {e}", flush=True)
         logger.error(f"Error saving to PostgreSQL: {e}")
 
     # 2. También guardar en JSON como backup
+    print(f"[save_tone_profile] Saving to JSON...", flush=True)
     json_success = _save_to_json(creator_id, profile_data)
+    print(f"[save_tone_profile] JSON save result: {json_success}", flush=True)
     if json_success:
         logger.info(f"ToneProfile for {creator_id} saved to JSON (backup)")
 
     # 3. Actualizar cache
     _tone_cache[creator_id] = profile
+    print(f"[save_tone_profile] Done, db={db_success}, json={json_success}", flush=True)
 
     return db_success or json_success
 

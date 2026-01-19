@@ -442,17 +442,25 @@ IMPORTANTE:
 
     async def _analyze_with_llm(self, posts_text: str) -> Dict:
         """Analiza con LLM para extraer patrones de lenguaje."""
+        import asyncio
+
         print(f"[_analyze_with_llm] Entering, posts_text length: {len(posts_text)}", flush=True)
         prompt = self.ANALYSIS_PROMPT.format(posts_text=posts_text)
         print(f"[_analyze_with_llm] Prompt created, length: {len(prompt)}", flush=True)
+
+        # Timeout de 30 segundos para evitar que el proceso se cuelgue
+        LLM_TIMEOUT = 30
 
         try:
             if self.llm_client:
                 # Usar cliente proporcionado
                 print(f"[_analyze_with_llm] Using provided LLM client: {type(self.llm_client)}", flush=True)
-                response = await self.llm_client.chat(
-                    messages=[{"role": "user", "content": prompt}],
-                    temperature=0.3
+                response = await asyncio.wait_for(
+                    self.llm_client.chat(
+                        messages=[{"role": "user", "content": prompt}],
+                        temperature=0.3
+                    ),
+                    timeout=LLM_TIMEOUT
                 )
                 response_text = response.get('content', '{}')
                 print(f"[_analyze_with_llm] Got response from provided client", flush=True)
@@ -463,8 +471,11 @@ IMPORTANTE:
                     from core.llm import get_llm_client
                     print(f"[_analyze_with_llm] Imported get_llm_client from core.llm, calling it...", flush=True)
                     client = get_llm_client()
-                    print(f"[_analyze_with_llm] Got client: {type(client)}, calling generate()...", flush=True)
-                    response_text = await client.generate(prompt, temperature=0.3)
+                    print(f"[_analyze_with_llm] Got client: {type(client)}, calling generate() with {LLM_TIMEOUT}s timeout...", flush=True)
+                    response_text = await asyncio.wait_for(
+                        client.generate(prompt, temperature=0.3),
+                        timeout=LLM_TIMEOUT
+                    )
                     print(f"[_analyze_with_llm] generate() returned, response length: {len(response_text) if response_text else 0}", flush=True)
                 except ImportError as ie:
                     print(f"[_analyze_with_llm] ImportError: {ie}", flush=True)
@@ -483,6 +494,10 @@ IMPORTANTE:
             print(f"[_analyze_with_llm] Parsed successfully, keys: {list(result.keys()) if result else []}", flush=True)
             return result
 
+        except asyncio.TimeoutError:
+            print(f"[_analyze_with_llm] TIMEOUT after {LLM_TIMEOUT}s - using defaults", flush=True)
+            logger.warning(f"LLM analysis timeout after {LLM_TIMEOUT}s, using defaults")
+            return {}
         except json.JSONDecodeError as e:
             print(f"[_analyze_with_llm] JSON decode error: {e}", flush=True)
             logger.error(f"Error parseando respuesta LLM: {e}")
