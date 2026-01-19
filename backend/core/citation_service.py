@@ -309,7 +309,7 @@ class CreatorContentIndex:
                 'content': c.content,
                 'chunk_index': c.chunk_index,
                 'total_chunks': c.total_chunks,
-                'metadata': c.extra_data,  # SQLAlchemy column renamed from metadata
+                'metadata': c.metadata,  # Use dataclass attribute (not SQLAlchemy extra_data)
                 'created_at': c.created_at.isoformat() if c.created_at else None
             }
             for c in self.chunks
