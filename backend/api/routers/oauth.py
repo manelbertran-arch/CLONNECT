@@ -378,90 +378,92 @@ async def _simple_dm_sync_internal(
                             continue
 
                         # Detect content type and build message text + metadata for frontend rendering
+                        # Logic from commit 37ac7a7f that was working correctly
                         msg_text = msg.get("message", "")
                         msg_metadata = {}
 
+                        # STEP 1: Check for story data and reactions FIRST
+                        story_data = msg.get("story", {})
+                        reactions_data = msg.get("reactions", {}).get("data", [])
+
+                        # Get reaction emoji if exists
+                        reaction_emoji = None
+                        if reactions_data:
+                            reaction_emoji = reactions_data[0].get("emoji", "❤")
+
+                        # Get story link if exists (check both reply_to and mention)
+                        story_link = None
+                        story_type = None
+                        if story_data.get("reply_to"):
+                            story_link = story_data["reply_to"].get("link", "")
+                            story_type = "reply_to"
+                        elif story_data.get("mention"):
+                            story_link = story_data["mention"].get("link", "")
+                            story_type = "mention"
+
+                        # STEP 2: Build message based on combination (if no text)
                         if not msg_text:
-                            # No text - detect content type and extract URLs for frontend
-                            if msg.get("attachments"):
-                                attachments = msg.get("attachments", {}).get("data", [])
-                                if attachments:
-                                    att = attachments[0]
-                                    att_type = att.get("type", "file")
-                                    # Extract media URL
-                                    if att_type == "image":
-                                        msg_text = "[Imagen]"
-                                        msg_metadata = {
-                                            "type": "image",
-                                            "url": att.get("image_data", {}).get("url", ""),
-                                            "preview_url": att.get("image_data", {}).get("preview_url", "")
-                                        }
-                                    elif att_type == "video":
-                                        msg_text = "[Video]"
-                                        msg_metadata = {
-                                            "type": "video",
-                                            "url": att.get("video_data", {}).get("url", ""),
-                                            "preview_url": att.get("video_data", {}).get("preview_url", "")
-                                        }
-                                    elif att_type == "audio":
-                                        msg_text = "[Audio]"
-                                        msg_metadata = {"type": "audio", "url": att.get("audio_data", {}).get("url", "")}
-                                    elif att_type == "share":
-                                        # Shared post/reel
-                                        msg_text = "[Contenido compartido]"
-                                        msg_metadata = {
-                                            "type": "share",
-                                            "url": att.get("url", ""),
-                                            "title": att.get("title", ""),
-                                            "description": att.get("description", "")
-                                        }
+                            if story_type and reaction_emoji:
+                                msg_text = f"Reacción {reaction_emoji} a story"
+                                msg_metadata = {"type": "story_reaction", "url": story_link, "emoji": reaction_emoji}
+                            elif story_type == "reply_to":
+                                msg_text = "Respuesta a story"
+                                msg_metadata = {"type": "story_reply", "url": story_link}
+                            elif story_type == "mention":
+                                msg_text = "Mención en story"
+                                msg_metadata = {"type": "story_mention", "url": story_link}
+                            elif reaction_emoji:
+                                msg_text = f"Reacción {reaction_emoji}"
+                                msg_metadata = {"type": "reaction", "emoji": reaction_emoji}
+
+                        # STEP 3: If still no text, process attachments
+                        if not msg_text:
+                            attachments = msg.get("attachments", {}).get("data", [])
+                            if attachments:
+                                for att in attachments:
+                                    att_type = att.get("type", "").lower()
+                                    # Extract URL with multiple fallbacks
+                                    att_url = att.get("url") or att.get("video_data", {}).get("url") or att.get("image_data", {}).get("url")
+
+                                    if "video" in att_type:
+                                        msg_text = "Video"
+                                        msg_metadata = {"type": "video", "url": att_url}
+                                    elif "image" in att_type or "photo" in att_type:
+                                        msg_text = "Imagen"
+                                        msg_metadata = {"type": "image", "url": att_url}
+                                    elif "share" in att_type or "post" in att_type:
+                                        msg_text = "Post compartido"
+                                        msg_metadata = {"type": "share", "url": att_url}
+                                    elif "link" in att_type:
+                                        msg_text = "Link"
+                                        msg_metadata = {"type": "link", "url": att_url}
+                                    elif "audio" in att_type:
+                                        msg_text = "Audio"
+                                        msg_metadata = {"type": "audio", "url": att_url}
                                     else:
-                                        msg_text = f"[{att_type.title()}]"
-                                        msg_metadata = {"type": att_type}
-                                else:
-                                    msg_text = "[Adjunto]"
-                                    msg_metadata = {"type": "attachment"}
-                            elif msg.get("story"):
-                                # Story mention or reply - extract story URL/thumbnail
-                                story = msg.get("story", {})
-                                story_url = story.get("url", "")
-                                if story.get("mention"):
-                                    msg_text = "[Te mencionó en su story]"
-                                    msg_metadata = {"type": "story_mention", "url": story_url}
-                                else:
-                                    msg_text = "[Respuesta a story]"
-                                    msg_metadata = {"type": "story_reply", "url": story_url}
-                            elif msg.get("shares"):
-                                shares = msg.get("shares", {}).get("data", [])
-                                if shares:
-                                    share = shares[0]
-                                    share_link = share.get("link", "")
-                                    msg_text = "[Contenido compartido]"
-                                    msg_metadata = {
-                                        "type": "share",
-                                        "url": share_link,
-                                        "title": share.get("title", ""),
-                                        "description": share.get("description", "")
-                                    }
-                                else:
-                                    msg_text = "[Contenido compartido]"
-                                    msg_metadata = {"type": "share"}
-                            elif msg.get("reactions"):
-                                reactions = msg.get("reactions", {}).get("data", [])
-                                if reactions:
-                                    emoji = reactions[0].get("reaction", "❤️")
-                                    msg_text = f"[Reacción: {emoji}]"
-                                    msg_metadata = {"type": "reaction", "emoji": emoji}
-                                else:
-                                    msg_text = "[Reacción]"
-                                    msg_metadata = {"type": "reaction", "emoji": "❤️"}
-                            elif msg.get("sticker"):
-                                msg_text = "[Sticker]"
-                                sticker_url = msg.get("sticker", "")
-                                msg_metadata = {"type": "sticker", "url": sticker_url if isinstance(sticker_url, str) else ""}
-                            else:
-                                msg_text = "[Media]"
-                                msg_metadata = {"type": "unknown"}
+                                        msg_text = "Archivo"
+                                        msg_metadata = {"type": "file", "url": att_url}
+                                    break  # Only use first attachment
+
+                        # STEP 4: Check shares if still no text
+                        if not msg_text and msg.get("shares"):
+                            shares = msg.get("shares", {}).get("data", [])
+                            if shares:
+                                share = shares[0]
+                                share_link = share.get("link", "")
+                                msg_text = "Contenido compartido"
+                                msg_metadata = {"type": "share", "url": share_link}
+
+                        # STEP 5: Check sticker if still no text
+                        if not msg_text and msg.get("sticker"):
+                            msg_text = "Sticker"
+                            sticker_url = msg.get("sticker", "")
+                            msg_metadata = {"type": "sticker", "url": sticker_url if isinstance(sticker_url, str) else ""}
+
+                        # STEP 6: Default to [Media] for unknown
+                        if not msg_text:
+                            msg_text = "[Media]"
+                            msg_metadata = {"type": "unknown"}
 
                         # Check timestamp within limit
                         msg_time = None
