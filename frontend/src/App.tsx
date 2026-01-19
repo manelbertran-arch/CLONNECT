@@ -25,7 +25,9 @@ import Terms from "./pages/Terms";
 import Privacy from "./pages/Privacy";
 import BookService from "./pages/BookService";
 import Onboarding from "./pages/Onboarding";
-import OnboardingIntro from "./pages/OnboardingIntro";
+import CrearClon from "./pages/CrearClon";
+import CreandoClon from "./pages/CreandoClon";
+import Felicidades from "./pages/Felicidades";
 import InboxTest from "./pages/InboxTest";
 import HomeWithConversations from "./pages/HomeWithConversations";
 
@@ -56,8 +58,10 @@ const AppRoutes = () => {
       <Route path="/register" element={<Register />} />
 
       {/* Onboarding routes */}
-      <Route path="/onboarding-intro" element={<OnboardingIntro />} />
       <Route path="/onboarding" element={<Onboarding />} />
+      <Route path="/crear-clon" element={<CrearClon />} />
+      <Route path="/creando-clon" element={<CreandoClon />} />
+      <Route path="/felicidades" element={<Felicidades />} />
 
       {/* Minimal test route to isolate Inbox slowness */}
       <Route path="/inbox-test" element={<InboxTest />} />

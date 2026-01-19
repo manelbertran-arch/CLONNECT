@@ -397,6 +397,257 @@ async def complete_wizard_onboarding(request: WizardCompleteRequest):
 
 
 # =============================================================================
+# CLONE CREATION ENDPOINTS (New Flow)
+# =============================================================================
+
+class StartCloneRequest(BaseModel):
+    """Request to start clone creation process."""
+    creator_id: str
+    website_url: Optional[str] = None
+
+
+# In-memory progress tracking (use Redis in production)
+clone_progress: Dict[str, Dict] = {}
+
+
+@router.post("/start-clone")
+async def start_clone_creation(request: StartCloneRequest, background_tasks: BackgroundTasks):
+    """
+    Start the clone creation process.
+    This triggers background tasks to:
+    1. Scrape Instagram posts
+    2. Scrape website (if provided)
+    3. Generate tone profile (Magic Slice)
+    4. Index content in RAG
+    5. Activate the bot
+    """
+    try:
+        from api.database import SessionLocal
+        from api.models import Creator
+
+        session = SessionLocal()
+        try:
+            creator = session.query(Creator).filter_by(name=request.creator_id).first()
+
+            if not creator:
+                raise HTTPException(status_code=404, detail=f"Creator {request.creator_id} not found")
+
+            if not creator.instagram_token:
+                raise HTTPException(status_code=400, detail="Instagram not connected")
+
+            # Initialize progress tracking
+            clone_progress[request.creator_id] = {
+                "status": "in_progress",
+                "steps": {
+                    "instagram": "active",
+                    "website": "pending",
+                    "training": "pending",
+                    "activating": "pending",
+                }
+            }
+
+            # Store website URL if provided
+            if request.website_url:
+                if not creator.knowledge_about:
+                    creator.knowledge_about = {}
+                creator.knowledge_about['website_url'] = request.website_url
+                session.commit()
+
+            # Start background clone creation
+            background_tasks.add_task(
+                _run_clone_creation,
+                creator_id=request.creator_id,
+                website_url=request.website_url,
+            )
+
+            logger.info(f"Started clone creation for {request.creator_id}")
+
+            return {
+                "status": "started",
+                "creator_id": request.creator_id,
+                "message": "Clone creation started in background",
+            }
+
+        finally:
+            session.close()
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error starting clone creation: {e}")
+        import traceback
+        logger.error(traceback.format_exc())
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/progress/{creator_id}")
+async def get_clone_progress(creator_id: str):
+    """
+    Get the progress of clone creation.
+    Returns current step status for polling from frontend.
+    """
+    # Check if we have progress in memory
+    if creator_id in clone_progress:
+        return clone_progress[creator_id]
+
+    # If not in memory, check database for completion status
+    try:
+        from api.database import SessionLocal
+        from api.models import Creator
+
+        session = SessionLocal()
+        try:
+            creator = session.query(Creator).filter_by(name=creator_id).first()
+
+            if not creator:
+                raise HTTPException(status_code=404, detail=f"Creator {creator_id} not found")
+
+            if creator.onboarding_completed:
+                return {
+                    "status": "complete",
+                    "steps": {
+                        "instagram": "completed",
+                        "website": "completed",
+                        "training": "completed",
+                        "activating": "completed",
+                    }
+                }
+            else:
+                return {
+                    "status": "unknown",
+                    "steps": {
+                        "instagram": "pending",
+                        "website": "pending",
+                        "training": "pending",
+                        "activating": "pending",
+                    }
+                }
+
+        finally:
+            session.close()
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error getting clone progress: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+async def _run_clone_creation(creator_id: str, website_url: str = None):
+    """
+    Background task to run the full clone creation pipeline.
+    Updates progress as each step completes.
+    """
+    try:
+        from api.database import SessionLocal
+        from api.models import Creator
+
+        session = SessionLocal()
+        try:
+            creator = session.query(Creator).filter_by(name=creator_id).first()
+            if not creator or not creator.instagram_token:
+                logger.error(f"Creator {creator_id} not found or no Instagram token")
+                return
+
+            access_token = creator.instagram_token
+            instagram_user_id = creator.instagram_user_id or ""
+
+            # Step 1: Scrape Instagram
+            logger.info(f"[CloneCreation] Step 1: Scraping Instagram for {creator_id}")
+            clone_progress[creator_id]["steps"]["instagram"] = "active"
+
+            try:
+                from ingestion import MetaGraphAPIScraper
+                scraper = MetaGraphAPIScraper(
+                    access_token=access_token,
+                    instagram_business_id=instagram_user_id
+                )
+                posts = await scraper.get_posts(limit=50)
+                logger.info(f"[CloneCreation] Scraped {len(posts)} posts")
+            except Exception as e:
+                logger.warning(f"[CloneCreation] Instagram scraping failed: {e}")
+                posts = []
+
+            clone_progress[creator_id]["steps"]["instagram"] = "completed"
+
+            # Step 2: Scrape website (if provided)
+            clone_progress[creator_id]["steps"]["website"] = "active"
+
+            if website_url:
+                logger.info(f"[CloneCreation] Step 2: Scraping website {website_url}")
+                try:
+                    from core.website_scraper import scrape_and_index_website
+                    web_stats = await scrape_and_index_website(
+                        creator_id=creator_id,
+                        url=website_url,
+                        max_pages=5
+                    )
+                    logger.info(f"[CloneCreation] Website scraped: {web_stats}")
+                except Exception as e:
+                    logger.warning(f"[CloneCreation] Website scraping failed: {e}")
+            else:
+                logger.info(f"[CloneCreation] Step 2: No website provided, skipping")
+
+            clone_progress[creator_id]["steps"]["website"] = "completed"
+
+            # Step 3: Generate tone profile (Magic Slice)
+            clone_progress[creator_id]["steps"]["training"] = "active"
+            logger.info(f"[CloneCreation] Step 3: Training clone with {len(posts)} posts")
+
+            if posts:
+                try:
+                    from core.onboarding_service import OnboardingRequest, get_onboarding_service
+
+                    posts_data = []
+                    for p in posts:
+                        if p.caption and len(p.caption.strip()) > 10:
+                            posts_data.append({
+                                "post_id": p.post_id,
+                                "caption": p.caption,
+                                "post_type": p.post_type,
+                            })
+
+                    service = get_onboarding_service()
+                    request = OnboardingRequest(
+                        creator_id=creator_id,
+                        manual_posts=posts_data,
+                        scraping_method="manual"
+                    )
+                    result = await service.onboard_creator(request)
+                    logger.info(f"[CloneCreation] Training complete: {result}")
+                except Exception as e:
+                    logger.warning(f"[CloneCreation] Training failed: {e}")
+
+            clone_progress[creator_id]["steps"]["training"] = "completed"
+
+            # Step 4: Activate bot
+            clone_progress[creator_id]["steps"]["activating"] = "active"
+            logger.info(f"[CloneCreation] Step 4: Activating bot")
+
+            creator.bot_active = True
+            creator.onboarding_completed = True
+            creator.copilot_mode = True
+            session.commit()
+
+            clone_progress[creator_id]["steps"]["activating"] = "completed"
+            clone_progress[creator_id]["status"] = "complete"
+
+            logger.info(f"[CloneCreation] ✅ Clone creation complete for {creator_id}")
+
+        finally:
+            session.close()
+
+    except Exception as e:
+        logger.error(f"[CloneCreation] Error: {e}")
+        import traceback
+        logger.error(traceback.format_exc())
+
+        if creator_id in clone_progress:
+            clone_progress[creator_id]["status"] = "error"
+            clone_progress[creator_id]["error"] = str(e)
+
+
+# =============================================================================
 # MAGIC SLICE ONBOARDING ENDPOINTS
 # =============================================================================
 
