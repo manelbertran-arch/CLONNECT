@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { Instagram, Globe, Loader2, Check, AlertCircle, Sparkles } from 'lucide-react';
+import { Instagram, Loader2, Check, AlertCircle, Sparkles } from 'lucide-react';
 import { API_URL, setCreatorId, getCreatorId } from '../services/api';
 
 type PageState = 'form' | 'redirecting' | 'connected';
@@ -9,7 +9,6 @@ export default function CrearClon() {
   const [state, setState] = useState<PageState>('form');
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const [websiteUrl, setWebsiteUrl] = useState('');
   const [instagramConnected, setInstagramConnected] = useState(false);
 
   const navigate = useNavigate();
@@ -112,7 +111,6 @@ export default function CrearClon() {
         },
         body: JSON.stringify({
           creator_id: creatorId,
-          website_url: websiteUrl || null,
         }),
       });
 
@@ -178,7 +176,7 @@ export default function CrearClon() {
           Crea tu clon
         </h1>
         <p className="text-center mb-6" style={{ color: 'rgba(255, 255, 255, 0.5)' }}>
-          Conecta tu Instagram y añade tu web para entrenar tu clon
+          Conecta tu Instagram para entrenar tu clon de IA
         </p>
 
         {/* Error message */}
@@ -192,28 +190,7 @@ export default function CrearClon() {
           </div>
         )}
 
-        {/* Website URL - FIRST (optional) */}
-        <div className="mb-6">
-          <p className="text-sm mb-3" style={{ color: 'rgba(255, 255, 255, 0.6)' }}>
-            Tu website (opcional)
-          </p>
-          <div className="relative">
-            <Globe className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4" style={{ color: 'rgba(255, 255, 255, 0.3)' }} />
-            <input
-              type="url"
-              placeholder="https://tuwebsite.com"
-              value={websiteUrl}
-              onChange={(e) => setWebsiteUrl(e.target.value)}
-              className="w-full p-4 pl-11 rounded-xl text-white outline-none focus:ring-2 focus:ring-purple-500"
-              style={{ background: 'rgba(255, 255, 255, 0.05)', border: '1px solid rgba(255, 255, 255, 0.08)' }}
-            />
-          </div>
-          <p className="text-xs mt-2" style={{ color: 'rgba(255, 255, 255, 0.4)' }}>
-            Tu clon aprenderá de tus productos, servicios y contenido web
-          </p>
-        </div>
-
-        {/* Instagram Connection - SECOND (required) */}
+        {/* Instagram Connection */}
         {instagramConnected ? (
           <div
             className="p-4 rounded-xl mb-6 flex items-center gap-3"
@@ -266,7 +243,7 @@ export default function CrearClon() {
         >
           <p className="text-sm" style={{ color: 'rgba(255, 255, 255, 0.6)' }}>
             <Sparkles className="w-4 h-4 inline mr-2" style={{ color: '#a855f7' }} />
-            Tu clon analizará tu contenido de Instagram y web para aprender tu estilo y responder como tú.
+            Tu clon analizará tu contenido de Instagram para aprender tu estilo y responder como tú.
           </p>
         </div>
 
