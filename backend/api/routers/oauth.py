@@ -822,7 +822,8 @@ async def instagram_oauth_callback(
             )
 
             # Redirect to crear-clon page with success
-            return RedirectResponse(f"{FRONTEND_URL}/crear-clon?instagram=connected&ig_user_id={instagram_user_id}&ig_username={ig_username}")
+            # IMPORTANT: Include creator_id so frontend uses the SAME value for /complete and /start-clone
+            return RedirectResponse(f"{FRONTEND_URL}/crear-clon?instagram=connected&creator_id={creator_id}&ig_user_id={instagram_user_id}&ig_username={ig_username}")
 
     except Exception as e:
         logger.error(f"Instagram OAuth error: {e}")

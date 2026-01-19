@@ -854,10 +854,15 @@ async def _run_clone_creation(creator_id: str, website_url: str = None):
             creator = session.query(Creator).filter_by(name=creator_id).first()
             if not creator or not creator.instagram_token:
                 print(f"[CloneCreation] ERROR: Creator {creator_id} not found or no Instagram token", flush=True)
+                print(f"[CloneCreation] Creator exists: {creator is not None}", flush=True)
+                if creator:
+                    print(f"[CloneCreation] Creator.id: {creator.id}, has_token: {bool(creator.instagram_token)}", flush=True)
                 logger.error(f"Creator {creator_id} not found or no Instagram token")
                 _update_clone_progress(creator_id, status="error", error="Creator not found or no Instagram token")
                 return
 
+            # Log creator details for debugging
+            print(f"[CloneCreation] Creator found: id={creator.id}, name={creator.name}", flush=True)
             access_token = creator.instagram_token
             instagram_user_id = creator.instagram_user_id or ""
             page_id = creator.instagram_page_id or ""
