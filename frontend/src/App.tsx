@@ -28,6 +28,7 @@ import Onboarding from "./pages/Onboarding";
 import CrearClon from "./pages/CrearClon";
 import CreandoClon from "./pages/CreandoClon";
 import Felicidades from "./pages/Felicidades";
+import SwitchUser from "./pages/SwitchUser";
 import InboxTest from "./pages/InboxTest";
 import HomeWithConversations from "./pages/HomeWithConversations";
 
@@ -64,6 +65,7 @@ const AppRoutes = () => {
       <Route path="/creando-clon" element={<CreandoClon />} />
       <Route path="/new/onboarding" element={<NewOnboarding />} />
       <Route path="/felicidades" element={<Felicidades />} />
+      <Route path="/switch-user/:creatorId" element={<SwitchUser />} />
 
       {/* Minimal test route to isolate Inbox slowness */}
       <Route path="/inbox-test" element={<InboxTest />} />
