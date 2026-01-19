@@ -547,6 +547,45 @@ class RunWebsitePipelineRequest(BaseModel):
     website_url: str
 
 
+@router.get("/test-scrape")
+async def test_scrape(url: str):
+    """
+    Test endpoint to scrape a URL and return results without storing.
+    For debugging the scraper.
+    """
+    print(f"[TestScrape] Testing scrape of: {url}", flush=True)
+
+    try:
+        from ingestion.deterministic_scraper import DeterministicScraper
+
+        scraper = DeterministicScraper(timeout=10.0, max_pages=3)
+        print(f"[TestScrape] Created scraper, starting scrape...", flush=True)
+
+        pages = await scraper.scrape_website(url)
+        print(f"[TestScrape] Scraped {len(pages)} pages", flush=True)
+
+        return {
+            "status": "success",
+            "url": url,
+            "pages_count": len(pages),
+            "pages": [
+                {
+                    "url": p.url,
+                    "title": p.title,
+                    "content_length": len(p.main_content),
+                    "sections_count": len(p.sections),
+                    "has_content": p.has_content
+                }
+                for p in pages
+            ]
+        }
+    except Exception as e:
+        print(f"[TestScrape] ERROR: {e}", flush=True)
+        import traceback
+        traceback.print_exc()
+        return {"status": "error", "error": str(e)}
+
+
 @router.post("/run-website-pipeline")
 async def run_website_pipeline(request: RunWebsitePipelineRequest):
     """
