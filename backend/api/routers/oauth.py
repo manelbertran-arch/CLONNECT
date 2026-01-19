@@ -450,7 +450,7 @@ async def _simple_dm_sync_internal(
 router = APIRouter(prefix="/oauth", tags=["oauth"])
 
 # Frontend URL for redirects after OAuth
-FRONTEND_URL = os.getenv("FRONTEND_URL", "https://clonnect.vercel.app")
+FRONTEND_URL = os.getenv("FRONTEND_URL", "https://clonnect-production.up.railway.app")
 # Backend API URL for OAuth callbacks
 API_URL = os.getenv("API_URL", "https://api-clonnect.up.railway.app")
 
