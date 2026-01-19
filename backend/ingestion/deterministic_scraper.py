@@ -95,6 +95,9 @@ class DeterministicScraper:
         """Extract sections with headings."""
         sections = []
 
+        # Price patterns to detect price in heading
+        price_pattern = re.compile(r'€\s*\d+|\d+\s*€|\$\s*\d+|\d+\s*\$', re.I)
+
         # Find all heading elements
         for heading in soup.find_all(['h1', 'h2', 'h3', 'h4']):
             heading_text = heading.get_text(strip=True)
@@ -110,10 +113,23 @@ class DeterministicScraper:
                 if text:
                     content_parts.append(text)
 
-            if content_parts:
+            # Also check parent container for content
+            parent = heading.parent
+            if parent and not content_parts:
+                parent_text = parent.get_text(strip=True)
+                # Remove the heading text from parent to get remaining content
+                remaining = parent_text.replace(heading_text, '').strip()
+                if remaining and len(remaining) > 10:
+                    content_parts.append(remaining)
+
+            # Include section if it has content OR if heading contains a price
+            # (products with prices in heading should be captured)
+            has_price_in_heading = bool(price_pattern.search(heading_text))
+
+            if content_parts or has_price_in_heading:
                 sections.append({
                     'heading': heading_text,
-                    'content': ' '.join(content_parts),
+                    'content': ' '.join(content_parts) if content_parts else heading_text,
                     'level': heading.name
                 })
 
