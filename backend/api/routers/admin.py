@@ -568,6 +568,84 @@ async def delete_creator(creator_name: str):
     return {"status": "success", **results}
 
 
+@router.delete("/force-delete-creator/{creator_name}")
+async def force_delete_creator(creator_name: str):
+    """
+    Force delete a creator using raw SQL with proper transaction handling.
+    Use this when normal delete fails due to transaction issues.
+    """
+    if not DEMO_RESET_ENABLED:
+        raise HTTPException(status_code=403, detail="Demo reset is disabled")
+
+    try:
+        from api.database import SessionLocal
+        from sqlalchemy import text
+
+        session = SessionLocal()
+        try:
+            # Get creator ID first
+            result = session.execute(
+                text("SELECT id FROM creators WHERE name = :name"),
+                {"name": creator_name}
+            )
+            row = result.fetchone()
+            if not row:
+                raise HTTPException(status_code=404, detail=f"Creator '{creator_name}' not found")
+
+            creator_id = str(row[0])
+
+            # Delete in order of FK dependencies
+            tables_to_clean = [
+                ("messages", "lead_id", f"SELECT id FROM leads WHERE creator_id = '{creator_id}'::uuid"),
+                ("lead_activities", "lead_id", f"SELECT id FROM leads WHERE creator_id = '{creator_id}'::uuid"),
+                ("lead_tasks", "lead_id", f"SELECT id FROM leads WHERE creator_id = '{creator_id}'::uuid"),
+                ("leads", "creator_id", None),
+                ("products", "creator_id", None),
+                ("nurturing_sequences", "creator_id", None),
+                ("knowledge_base", "creator_id", None),
+                ("email_ask_tracking", "creator_id", None),
+                ("platform_identities", "creator_id", None),
+                ("user_creators", "creator_id", None),
+                ("rag_documents", "creator_id", None),
+                ("sync_queue", "creator_id", None),
+                ("sync_state", "creator_id", None),
+            ]
+
+            deleted = {}
+            for table, fk_col, subquery in tables_to_clean:
+                try:
+                    if subquery:
+                        sql = text(f"DELETE FROM {table} WHERE {fk_col} IN ({subquery})")
+                    else:
+                        sql = text(f"DELETE FROM {table} WHERE {fk_col} = '{creator_id}'::uuid")
+                    result = session.execute(sql)
+                    deleted[table] = result.rowcount
+                except Exception as e:
+                    logger.warning(f"Could not delete from {table}: {e}")
+                    deleted[table] = f"error: {str(e)[:50]}"
+
+            # Delete creator
+            session.execute(text(f"DELETE FROM creators WHERE id = '{creator_id}'::uuid"))
+            deleted["creators"] = 1
+
+            session.commit()
+            return {"status": "success", "creator": creator_name, "deleted": deleted}
+
+        except HTTPException:
+            session.rollback()
+            raise
+        except Exception as e:
+            session.rollback()
+            raise HTTPException(status_code=500, detail=str(e))
+        finally:
+            session.close()
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 @router.post("/run-migration/email-capture")
 async def run_email_capture_migration():
     """
