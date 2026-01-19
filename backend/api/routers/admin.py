@@ -1194,6 +1194,136 @@ async def debug_instagram_api(creator_id: str):
         return {"error": str(e)}
 
 
+@router.get("/debug-sync-logic/{creator_id}")
+async def debug_sync_logic(creator_id: str):
+    """
+    Debug: Simular exactamente lo que hace sync_worker para identificar
+    por qué los mensajes no se guardan.
+    """
+    import httpx
+    from api.services import db_service
+
+    try:
+        creds = db_service.get_instagram_credentials(creator_id)
+        if not creds["success"]:
+            return {"error": creds["error"]}
+
+        ig_user_id = creds["user_id"] or creds["page_id"]
+        ig_page_id = creds["page_id"]
+        creator_ids = {ig_user_id, ig_page_id} - {None}
+        access_token = creds["token"]
+
+        # Usar la misma lógica que sync_worker
+        if ig_page_id:
+            api_base = "https://graph.facebook.com/v21.0"
+            conv_id_for_api = ig_page_id
+            conv_extra_params = {"platform": "instagram"}
+        else:
+            api_base = "https://graph.instagram.com/v21.0"
+            conv_id_for_api = ig_user_id
+            conv_extra_params = {}
+
+        results = {
+            "creator_ids": list(creator_ids),
+            "api_base": api_base,
+            "conversations_analysis": []
+        }
+
+        async with httpx.AsyncClient(timeout=30.0) as client:
+            # Get conversations
+            conv_resp = await client.get(
+                f"{api_base}/{conv_id_for_api}/conversations",
+                params={**conv_extra_params, "access_token": access_token, "limit": 3}
+            )
+
+            if conv_resp.status_code != 200:
+                return {"error": f"Conversations API error: {conv_resp.json()}"}
+
+            conversations = conv_resp.json().get("data", [])
+
+            for conv in conversations[:3]:
+                conv_id = conv.get("id")
+                conv_analysis = {
+                    "conv_id": conv_id,
+                    "messages_raw": [],
+                    "follower_detection": {},
+                    "messages_would_save": []
+                }
+
+                # Get messages
+                msg_resp = await client.get(
+                    f"{api_base}/{conv_id}/messages",
+                    params={
+                        "fields": "id,message,from,to,created_time",
+                        "access_token": access_token,
+                        "limit": 10
+                    }
+                )
+
+                if msg_resp.status_code != 200:
+                    conv_analysis["messages_error"] = msg_resp.json()
+                    results["conversations_analysis"].append(conv_analysis)
+                    continue
+
+                messages = msg_resp.json().get("data", [])
+                conv_analysis["total_messages"] = len(messages)
+
+                # Simular lógica de identificación de follower
+                follower_id = None
+                follower_username = None
+
+                for msg in messages:
+                    from_data = msg.get("from", {})
+                    from_id = from_data.get("id")
+                    from_username = from_data.get("username", "unknown")
+                    msg_text = msg.get("message", "")
+
+                    conv_analysis["messages_raw"].append({
+                        "id": msg.get("id"),
+                        "from_id": from_id,
+                        "from_username": from_username,
+                        "is_creator": from_id in creator_ids if from_id else "no_from_id",
+                        "has_text": bool(msg_text),
+                        "text_preview": msg_text[:50] if msg_text else "(empty)"
+                    })
+
+                    # Lógica de sync_worker para encontrar follower
+                    if from_id and from_id not in creator_ids and not follower_id:
+                        follower_id = from_id
+                        follower_username = from_username
+
+                conv_analysis["follower_detection"] = {
+                    "found": bool(follower_id),
+                    "follower_id": follower_id,
+                    "follower_username": follower_username,
+                    "reason": "Found non-creator sender" if follower_id else "All senders are in creator_ids or no from.id"
+                }
+
+                # Simular qué mensajes se guardarían
+                for msg in messages:
+                    msg_id = msg.get("id")
+                    msg_text = msg.get("message", "")
+                    from_id = msg.get("from", {}).get("id")
+
+                    would_save = bool(msg_text) and bool(msg_id)
+                    role = "assistant" if from_id in creator_ids else "user"
+
+                    conv_analysis["messages_would_save"].append({
+                        "id": msg_id,
+                        "would_save": would_save,
+                        "skip_reason": None if would_save else ("no_text" if not msg_text else "no_id"),
+                        "role": role
+                    })
+
+                results["conversations_analysis"].append(conv_analysis)
+
+        return results
+
+    except Exception as e:
+        import traceback
+        return {"error": str(e), "traceback": traceback.format_exc()}
+
+
 @router.post("/simple-dm-sync/{creator_id}")
 async def simple_dm_sync(creator_id: str, max_convs: int = 20):
     """
