@@ -692,14 +692,17 @@ async def _run_clone_creation(creator_id: str, website_url: str = None):
     Background task to run the full clone creation pipeline.
     Updates progress IN DATABASE as each step completes (persistent across workers).
     """
+    print(f"[CloneCreation] ======= STARTING _run_clone_creation for {creator_id} =======", flush=True)
     try:
         from api.database import SessionLocal
         from api.models import Creator
 
+        print(f"[CloneCreation] Opening database session...", flush=True)
         session = SessionLocal()
         try:
             creator = session.query(Creator).filter_by(name=creator_id).first()
             if not creator or not creator.instagram_token:
+                print(f"[CloneCreation] ERROR: Creator {creator_id} not found or no Instagram token", flush=True)
                 logger.error(f"Creator {creator_id} not found or no Instagram token")
                 _update_clone_progress(creator_id, status="error", error="Creator not found or no Instagram token")
                 return
@@ -748,10 +751,12 @@ async def _run_clone_creation(creator_id: str, website_url: str = None):
 
             # Step 3: Generate tone profile (Magic Slice)
             _update_clone_progress(creator_id, step="training", step_status="active", percent=50)
+            print(f"[CloneCreation] Step 3: Training clone with {len(posts)} posts", flush=True)
             logger.info(f"[CloneCreation] Step 3: Training clone with {len(posts)} posts")
 
             if posts:
                 try:
+                    print(f"[CloneCreation] Importing onboarding service...", flush=True)
                     from core.onboarding_service import OnboardingRequest, get_onboarding_service
 
                     posts_data = []
@@ -763,25 +768,37 @@ async def _run_clone_creation(creator_id: str, website_url: str = None):
                                 "post_type": p.post_type,
                             })
 
+                    print(f"[CloneCreation] Created {len(posts_data)} posts for training", flush=True)
                     service = get_onboarding_service()
                     request = OnboardingRequest(
                         creator_id=creator_id,
                         manual_posts=posts_data,
                         scraping_method="manual"
                     )
+                    print(f"[CloneCreation] Starting onboard_creator...", flush=True)
                     result = await service.onboard_creator(request)
+                    print(f"[CloneCreation] Training complete: {result}", flush=True)
                     logger.info(f"[CloneCreation] Training complete: {result}")
                 except Exception as e:
+                    print(f"[CloneCreation] Training failed: {e}", flush=True)
                     logger.warning(f"[CloneCreation] Training failed: {e}")
+                    import traceback
+                    print(traceback.format_exc(), flush=True)
+            else:
+                print(f"[CloneCreation] No posts to train with, skipping", flush=True)
 
             _update_clone_progress(creator_id, step="training", step_status="completed", percent=70)
+            print(f"[CloneCreation] Training step completed, moving to DM sync", flush=True)
 
             # Step 4: Sync DM history (with pagination)
             _update_clone_progress(creator_id, step="activating", step_status="active", percent=75)
+            print(f"[CloneCreation] Step 4: Syncing DM history", flush=True)
             logger.info(f"[CloneCreation] Step 4: Syncing DM history")
 
             try:
+                print(f"[CloneCreation] Importing _simple_dm_sync_internal...", flush=True)
                 from api.routers.oauth import _simple_dm_sync_internal
+                print(f"[CloneCreation] Calling _simple_dm_sync_internal with max_convs=15", flush=True)
                 # QUALITY STRATEGY: 15 conversations with ALL their messages
                 # Better than 50 empty conversations - we need messages for categorization
                 dm_stats = await _simple_dm_sync_internal(
@@ -791,14 +808,17 @@ async def _run_clone_creation(creator_id: str, website_url: str = None):
                     ig_page_id=page_id,
                     max_convs=15  # Quality over quantity
                 )
+                print(f"[CloneCreation] DM sync complete: {dm_stats}", flush=True)
                 logger.info(f"[CloneCreation] DM sync complete: {dm_stats}")
                 _update_clone_progress(creator_id, extra={
                     "messages_synced": dm_stats.get("messages_saved", 0),
                     "leads_created": dm_stats.get("leads_created", 0),
                 })
             except Exception as e:
+                print(f"[CloneCreation] DM sync failed: {e}", flush=True)
                 logger.warning(f"[CloneCreation] DM sync failed: {e}")
                 import traceback
+                print(traceback.format_exc(), flush=True)
                 logger.warning(traceback.format_exc())
 
             _update_clone_progress(creator_id, percent=90)
