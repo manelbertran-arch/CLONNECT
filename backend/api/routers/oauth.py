@@ -203,17 +203,11 @@ async def _simple_dm_sync_internal(
     access_token: str,
     ig_user_id: str,
     ig_page_id: str = None,
-    max_convs: int = 15
+    max_convs: int = 30
 ) -> dict:
     """
     Internal DM sync function that works with credentials passed directly.
     Simplified version of admin.simple_dm_sync for use during auto-onboarding.
-
-    STRATEGY: Quality over quantity
-    - Fetch fewer conversations (15) but with ALL their messages
-    - Skip conversations that return 403 (no access)
-    - Only create leads that have at least 1 message
-    - This ensures we have context for categorization and responses
     """
     import httpx
     from datetime import datetime, timedelta
@@ -224,7 +218,6 @@ async def _simple_dm_sync_internal(
         "conversations_processed": 0,
         "messages_saved": 0,
         "leads_created": 0,
-        "skipped_403": 0,
         "errors": []
     }
 
@@ -248,12 +241,11 @@ async def _simple_dm_sync_internal(
             conv_id_for_api = ig_user_id
             conv_extra_params = {}
 
-        # Shorter timeout for faster sync (15s instead of 60s)
-        async with httpx.AsyncClient(timeout=15.0) as client:
-            # Get conversations with participants info (to create leads even if messages fail)
+        async with httpx.AsyncClient(timeout=60.0) as client:
+            # Get conversations
             conv_resp = await client.get(
                 f"{api_base}/{conv_id_for_api}/conversations",
-                params={**conv_extra_params, "access_token": access_token, "limit": max_convs, "fields": "id,updated_time,participants"}
+                params={**conv_extra_params, "access_token": access_token, "limit": max_convs, "fields": "id,updated_time"}
             )
 
             if conv_resp.status_code != 200:
@@ -270,70 +262,28 @@ async def _simple_dm_sync_internal(
                 if not conv_id:
                     continue
 
-                # Extract participant info from conversation (for creating leads even if messages fail)
-                conv_participants = conv.get("participants", {}).get("data", [])
-                conv_follower_id = None
-                conv_follower_username = None
-                for participant in conv_participants:
-                    p_id = participant.get("id")
-                    if p_id and p_id not in creator_ids:
-                        conv_follower_id = p_id
-                        conv_follower_username = participant.get("username", "unknown")
-                        break
-
                 try:
-                    # Get messages WITH PAGINATION (follow next cursor to get ALL messages)
-                    messages = []
-                    msg_url = f"{api_base}/{conv_id}/messages"
-                    msg_params = {
-                        "fields": "id,message,from,to,created_time",
-                        "access_token": access_token,
-                        "limit": 50
-                    }
+                    # Get messages
+                    msg_resp = await client.get(
+                        f"{api_base}/{conv_id}/messages",
+                        params={
+                            "fields": "id,message,from,to,created_time",
+                            "access_token": access_token,
+                            "limit": 50
+                        }
+                    )
 
-                    # Pagination loop - fetch all messages for this conversation
-                    max_pages = 10  # Safety limit: 50 * 10 = 500 messages max per conversation
-                    page_count = 0
-                    got_403 = False
+                    if msg_resp.status_code != 200:
+                        continue
 
-                    while msg_url and page_count < max_pages:
-                        msg_resp = await client.get(msg_url, params=msg_params)
+                    messages = msg_resp.json().get("data", [])
+                    if not messages:
+                        continue
 
-                        if msg_resp.status_code == 403:
-                            # 403 = Instagram doesn't allow reading this conversation
-                            # SKIP this conversation entirely - no point creating a lead without messages
-                            results["skipped_403"] += 1
-                            got_403 = True
-                            logger.debug(f"[DM Sync] Skipping conv {conv_id} - 403 Forbidden")
-                            break
-                        elif msg_resp.status_code != 200:
-                            logger.debug(f"[DM Sync] Messages API error {msg_resp.status_code} for conv {conv_id}")
-                            break
-
-                        msg_data = msg_resp.json()
-                        page_messages = msg_data.get("data", [])
-                        messages.extend(page_messages)
-
-                        # Check for next page (pagination)
-                        paging = msg_data.get("paging", {})
-                        next_url = paging.get("next")
-
-                        if next_url:
-                            # Next URL already includes all params, so clear params for subsequent requests
-                            msg_url = next_url
-                            msg_params = {}
-                            page_count += 1
-                        else:
-                            break
-
-                    if page_count > 0:
-                        logger.info(f"[DM Sync] Fetched {len(messages)} messages from {page_count + 1} pages for conv {conv_id}")
-
-                    # Find follower from messages (more reliable) or fall back to conversation participants
+                    # Find follower (non-creator participant)
                     follower_id = None
                     follower_username = None
 
-                    # Try to get from messages first
                     for msg in messages:
                         from_data = msg.get("from", {})
                         from_id = from_data.get("id")
@@ -353,31 +303,18 @@ async def _simple_dm_sync_internal(
                             if follower_id:
                                 break
 
-                    # Fall back to conversation participants if no messages (403 case)
-                    if not follower_id and conv_follower_id:
-                        follower_id = conv_follower_id
-                        follower_username = conv_follower_username
-
                     if not follower_id:
                         continue
 
-                    # QUALITY STRATEGY: Skip leads without messages
-                    # We need messages for categorization and bot context
-                    if got_403 or not messages:
-                        logger.debug(f"[DM Sync] Skipping lead creation for {follower_username} - no messages available")
-                        continue
-
-                    # Fetch profile picture for follower (with short timeout, skip if slow)
+                    # Fetch profile picture for follower
                     follower_profile_pic = None
                     try:
-                        # Use shorter timeout for profile pics (3s) - not critical
                         profile_resp = await client.get(
                             f"{api_base}/{follower_id}",
                             params={
                                 "fields": "id,username,name,profile_pic",
                                 "access_token": access_token
-                            },
-                            timeout=3.0  # Short timeout - profile pic is nice to have, not essential
+                            }
                         )
                         if profile_resp.status_code == 200:
                             profile_data = profile_resp.json()
@@ -385,8 +322,7 @@ async def _simple_dm_sync_internal(
                             if profile_data.get("username"):
                                 follower_username = profile_data.get("username")
                     except Exception as profile_error:
-                        # Timeout or error - just skip profile pic, not critical
-                        pass
+                        logger.debug(f"Could not fetch profile for {follower_id}: {profile_error}")
 
                     # Parse timestamps
                     all_timestamps = []
