@@ -810,16 +810,11 @@ async def instagram_oauth_callback(
             # Setting it here causes a race condition where the progress endpoint
             # returns "complete" immediately before the clone creation even starts.
 
-            # Step 5: AUTO-ONBOARDING - Trigger scraping, tone analysis, and bot activation IN BACKGROUND
-            # This does the heavy lifting but doesn't block the redirect
-            logger.info(f"🚀 Starting auto-onboarding for {creator_id} in background...")
-            background_tasks.add_task(
-                _auto_onboard_after_instagram_oauth,
-                creator_id=creator_id,
-                access_token=access_token,
-                instagram_user_id=instagram_user_id,
-                page_id=""  # Not used in new API
-            )
+            # Step 5: AUTO-ONBOARDING - DISABLED
+            # This was causing conflicts with _run_clone_creation which does the same work
+            # The user will click "Crear mi clon" which triggers the proper pipeline with progress tracking
+            # Keeping the function but not calling it - user explicitly starts clone creation
+            logger.info(f"[OAuth] Skipping auto-onboard - user will click 'Crear mi clon' to start pipeline")
 
             # Redirect to crear-clon page with success
             # IMPORTANT: Include creator_id so frontend uses the SAME value for /complete and /start-clone
