@@ -208,6 +208,11 @@ async def _simple_dm_sync_internal(
     """
     Internal DM sync function that works with credentials passed directly.
     Simplified version of admin.simple_dm_sync for use during auto-onboarding.
+
+    Optimized for speed:
+    - 15s timeout per request (fail fast)
+    - Skip 403 conversations immediately
+    - Batch database commits
     """
     import httpx
     from datetime import datetime, timedelta
@@ -218,6 +223,7 @@ async def _simple_dm_sync_internal(
         "conversations_processed": 0,
         "messages_saved": 0,
         "leads_created": 0,
+        "skipped_403": 0,
         "errors": []
     }
 
@@ -241,7 +247,8 @@ async def _simple_dm_sync_internal(
             conv_id_for_api = ig_user_id
             conv_extra_params = {}
 
-        async with httpx.AsyncClient(timeout=60.0) as client:
+        # Shorter timeout for faster sync (15s instead of 60s)
+        async with httpx.AsyncClient(timeout=15.0) as client:
             # Get conversations
             conv_resp = await client.get(
                 f"{api_base}/{conv_id_for_api}/conversations",
@@ -279,7 +286,12 @@ async def _simple_dm_sync_internal(
                     while msg_url and page_count < max_pages:
                         msg_resp = await client.get(msg_url, params=msg_params)
 
-                        if msg_resp.status_code != 200:
+                        if msg_resp.status_code == 403:
+                            # 403 = Instagram doesn't allow reading this conversation (old, deleted user, etc.)
+                            # Skip immediately without retry
+                            results["skipped_403"] += 1
+                            break
+                        elif msg_resp.status_code != 200:
                             logger.debug(f"[DM Sync] Messages API error {msg_resp.status_code} for conv {conv_id}")
                             break
 
@@ -331,15 +343,17 @@ async def _simple_dm_sync_internal(
                     if not follower_id:
                         continue
 
-                    # Fetch profile picture for follower
+                    # Fetch profile picture for follower (with short timeout, skip if slow)
                     follower_profile_pic = None
                     try:
+                        # Use shorter timeout for profile pics (3s) - not critical
                         profile_resp = await client.get(
                             f"{api_base}/{follower_id}",
                             params={
                                 "fields": "id,username,name,profile_pic",
                                 "access_token": access_token
-                            }
+                            },
+                            timeout=3.0  # Short timeout - profile pic is nice to have, not essential
                         )
                         if profile_resp.status_code == 200:
                             profile_data = profile_resp.json()
@@ -347,7 +361,8 @@ async def _simple_dm_sync_internal(
                             if profile_data.get("username"):
                                 follower_username = profile_data.get("username")
                     except Exception as profile_error:
-                        logger.debug(f"Could not fetch profile for {follower_id}: {profile_error}")
+                        # Timeout or error - just skip profile pic, not critical
+                        pass
 
                     # Parse timestamps
                     all_timestamps = []
