@@ -541,6 +541,91 @@ def _update_clone_progress(creator_id: str, status: str = None, step: str = None
         session.close()
 
 
+class RunWebsitePipelineRequest(BaseModel):
+    """Request to run website pipeline for existing creator."""
+    creator_id: str
+    website_url: str
+
+
+@router.post("/run-website-pipeline")
+async def run_website_pipeline(request: RunWebsitePipelineRequest):
+    """
+    Manually run the website ingestion pipeline for an existing creator.
+    Extracts products, FAQs, about sections, and indexes all content in RAG.
+    """
+    import asyncio
+
+    print(f"[WebsitePipeline] Starting for {request.creator_id} with URL: {request.website_url}", flush=True)
+
+    try:
+        from api.database import SessionLocal
+        from api.models import Creator
+        from ingestion.pipeline import IngestionPipeline
+
+        session = SessionLocal()
+        try:
+            # Verify creator exists
+            creator = session.query(Creator).filter_by(name=request.creator_id).first()
+            if not creator:
+                raise HTTPException(status_code=404, detail=f"Creator {request.creator_id} not found")
+
+            # Save website_url to creator's knowledge_about
+            if not creator.knowledge_about:
+                creator.knowledge_about = {}
+            creator.knowledge_about['website_url'] = request.website_url
+            session.commit()
+            print(f"[WebsitePipeline] Saved website_url to creator.knowledge_about", flush=True)
+
+            # Run the pipeline
+            pipeline = IngestionPipeline(db_session=session, max_pages=10)
+
+            print(f"[WebsitePipeline] Running IngestionPipeline...", flush=True)
+            result = await asyncio.wait_for(
+                pipeline.run(
+                    creator_id=request.creator_id,
+                    website_url=request.website_url,
+                    clear_existing=False  # Don't clear existing data
+                ),
+                timeout=120
+            )
+
+            print(f"[WebsitePipeline] Completed!", flush=True)
+            print(f"  - Pages scraped: {result.pages_scraped}", flush=True)
+            print(f"  - Products found: {result.products_found} ({result.products_with_price} with price)", flush=True)
+            print(f"  - FAQs found: {result.faqs_found}", flush=True)
+            print(f"  - About sections: {result.about_sections_found}", flush=True)
+            print(f"  - RAG documents: {result.rag_documents_indexed}", flush=True)
+
+            return {
+                "status": "success",
+                "creator_id": request.creator_id,
+                "website_url": request.website_url,
+                "results": {
+                    "pages_scraped": result.pages_scraped,
+                    "products_found": result.products_found,
+                    "products_with_price": result.products_with_price,
+                    "products_created": result.products_created,
+                    "faqs_found": result.faqs_found,
+                    "about_sections_found": result.about_sections_found,
+                    "rag_documents_indexed": result.rag_documents_indexed,
+                    "duration_seconds": result.duration_seconds,
+                    "errors": result.errors
+                }
+            }
+
+        finally:
+            session.close()
+
+    except asyncio.TimeoutError:
+        print(f"[WebsitePipeline] TIMEOUT after 120s", flush=True)
+        raise HTTPException(status_code=504, detail="Website pipeline timeout after 120s")
+    except Exception as e:
+        print(f"[WebsitePipeline] ERROR: {e}", flush=True)
+        import traceback
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 @router.post("/start-clone")
 async def start_clone_creation(request: StartCloneRequest, background_tasks: BackgroundTasks):
     """
@@ -693,6 +778,7 @@ async def _run_clone_creation(creator_id: str, website_url: str = None):
     Updates progress IN DATABASE as each step completes (persistent across workers).
     """
     print(f"[CloneCreation] ======= STARTING _run_clone_creation for {creator_id} =======", flush=True)
+    print(f"[CloneCreation] Received website_url parameter: {website_url}", flush=True)
     try:
         from api.database import SessionLocal
         from api.models import Creator
@@ -710,6 +796,13 @@ async def _run_clone_creation(creator_id: str, website_url: str = None):
             access_token = creator.instagram_token
             instagram_user_id = creator.instagram_user_id or ""
             page_id = creator.instagram_page_id or ""
+
+            # If website_url not passed as parameter, try to get from creator.knowledge_about
+            if not website_url and creator.knowledge_about:
+                website_url = creator.knowledge_about.get('website_url')
+                print(f"[CloneCreation] Got website_url from knowledge_about: {website_url}", flush=True)
+
+            print(f"[CloneCreation] Final website_url to use: {website_url}", flush=True)
 
             # Step 1: Scrape Instagram posts
             logger.info(f"[CloneCreation] Step 1: Scraping Instagram for {creator_id}")
