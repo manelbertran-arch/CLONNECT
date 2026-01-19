@@ -276,6 +276,35 @@ async def process_single_conversation(
                 result["messages_saved"] += 1
 
             session.commit()
+
+            # Auto-categorizar lead después de guardar mensajes
+            if result["messages_saved"] > 0:
+                try:
+                    from core.lead_categorization import calcular_categoria, categoria_a_status_legacy
+
+                    # Obtener mensajes del lead para categorización
+                    lead_messages = session.query(Message).filter_by(lead_id=lead.id).order_by(Message.created_at).all()
+                    mensajes_para_cat = [{"role": m.role, "content": m.content or ""} for m in lead_messages]
+
+                    # Calcular categoría
+                    cat_result = calcular_categoria(
+                        mensajes=mensajes_para_cat,
+                        es_cliente=lead.status == "customer",
+                        ultimo_mensaje_lead=lead.last_contact_at,
+                        lead_created_at=lead.first_contact_at
+                    )
+
+                    # Actualizar lead
+                    new_status = categoria_a_status_legacy(cat_result.categoria)
+                    if lead.status != new_status:
+                        lead.status = new_status
+                        lead.purchase_intent = cat_result.intent_score
+                        session.commit()
+                        logger.info(f"Lead {lead.username} auto-categorizado: {cat_result.categoria} (intent: {cat_result.intent_score:.2f})")
+
+                except Exception as cat_error:
+                    logger.warning(f"Error en auto-categorización: {cat_error}")
+
             result["success"] = True
             return result
 

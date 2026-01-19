@@ -1841,9 +1841,38 @@ async def simple_dm_sync(creator_id: str, max_convs: int = 20):
 
                             session.add(new_msg)
                             results["messages_saved"] += 1
+                            messages_saved_this_conv += 1
 
                         session.commit()
                         results["conversations_processed"] += 1
+
+                        # Auto-categorizar lead después de guardar mensajes
+                        if messages_saved_this_conv > 0:
+                            try:
+                                from core.lead_categorization import calcular_categoria, categoria_a_status_legacy
+
+                                # Obtener mensajes del lead para categorización
+                                lead_messages = session.query(Message).filter_by(lead_id=lead.id).order_by(Message.created_at).all()
+                                mensajes_para_cat = [{"role": m.role, "content": m.content or ""} for m in lead_messages]
+
+                                # Calcular categoría
+                                cat_result = calcular_categoria(
+                                    mensajes=mensajes_para_cat,
+                                    es_cliente=lead.status == "customer",
+                                    ultimo_mensaje_lead=lead.last_contact_at,
+                                    lead_created_at=lead.first_contact_at
+                                )
+
+                                # Actualizar lead
+                                new_status = categoria_a_status_legacy(cat_result.categoria)
+                                if lead.status != new_status or lead.purchase_intent != cat_result.intent_score:
+                                    lead.status = new_status
+                                    lead.purchase_intent = cat_result.intent_score
+                                    session.commit()
+                                    logger.info(f"Lead {lead.username} auto-categorizado: {cat_result.categoria} (intent: {cat_result.intent_score:.2f})")
+
+                            except Exception as cat_error:
+                                logger.warning(f"Error en auto-categorización: {cat_error}")
 
                     except Exception as e:
                         results["errors"].append(f"Conv error: {str(e)}")
