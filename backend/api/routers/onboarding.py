@@ -729,22 +729,62 @@ async def _run_clone_creation(creator_id: str, website_url: str = None):
 
             _update_clone_progress(creator_id, step="instagram", step_status="completed", percent=25)
 
-            # Step 2: Scrape website (if provided)
+            # Step 2: Scrape website with FULL pipeline (products, FAQs, about, RAG)
             _update_clone_progress(creator_id, step="website", step_status="active", percent=30)
 
             if website_url:
+                print(f"[CloneCreation] Step 2: Starting FULL website pipeline for {website_url}", flush=True)
                 logger.info(f"[CloneCreation] Step 2: Scraping website {website_url}")
                 try:
-                    from core.website_scraper import scrape_and_index_website
-                    web_stats = await scrape_and_index_website(
-                        creator_id=creator_id,
-                        url=website_url,
-                        max_pages=5
-                    )
-                    logger.info(f"[CloneCreation] Website scraped: {web_stats}")
+                    import asyncio
+                    from api.database import SessionLocal
+                    from ingestion.pipeline import IngestionPipeline
+
+                    # Get DB session for pipeline
+                    pipeline_session = SessionLocal()
+                    try:
+                        pipeline = IngestionPipeline(db_session=pipeline_session, max_pages=10)
+
+                        # Run with 120s timeout
+                        print(f"[CloneCreation] Running IngestionPipeline with 120s timeout...", flush=True)
+                        result = await asyncio.wait_for(
+                            pipeline.run(
+                                creator_id=creator_id,
+                                website_url=website_url,
+                                clear_existing=True  # Fresh start for new creator
+                            ),
+                            timeout=120
+                        )
+
+                        print(f"[CloneCreation] Website pipeline completed:", flush=True)
+                        print(f"  - Pages scraped: {result.pages_scraped}", flush=True)
+                        print(f"  - Products found: {result.products_found} ({result.products_with_price} with price)", flush=True)
+                        print(f"  - FAQs found: {result.faqs_found}", flush=True)
+                        print(f"  - About sections: {result.about_sections_found}", flush=True)
+                        print(f"  - RAG documents: {result.rag_documents_indexed}", flush=True)
+                        print(f"  - Duration: {result.duration_seconds:.1f}s", flush=True)
+
+                        logger.info(
+                            f"[CloneCreation] Website pipeline: {result.products_found} products, "
+                            f"{result.faqs_found} FAQs, {result.rag_documents_indexed} RAG docs"
+                        )
+
+                        if result.errors:
+                            print(f"[CloneCreation] Pipeline warnings: {result.errors}", flush=True)
+
+                    finally:
+                        pipeline_session.close()
+
+                except asyncio.TimeoutError:
+                    print(f"[CloneCreation] Website pipeline TIMEOUT after 120s - continuing anyway", flush=True)
+                    logger.warning(f"[CloneCreation] Website pipeline timeout after 120s")
                 except Exception as e:
-                    logger.warning(f"[CloneCreation] Website scraping failed: {e}")
+                    print(f"[CloneCreation] Website pipeline FAILED: {e}", flush=True)
+                    logger.warning(f"[CloneCreation] Website pipeline failed: {e}")
+                    import traceback
+                    traceback.print_exc()
             else:
+                print(f"[CloneCreation] Step 2: No website provided, skipping", flush=True)
                 logger.info(f"[CloneCreation] Step 2: No website provided, skipping")
 
             _update_clone_progress(creator_id, step="website", step_status="completed", percent=45)
