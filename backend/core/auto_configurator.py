@@ -681,7 +681,9 @@ class AutoConfigurator:
                 page_id = creator.instagram_page_id
                 ig_user_id = creator.instagram_user_id
 
-            if not access_token or not page_id or not ig_user_id:
+            # Solo necesitamos access_token y al menos uno de page_id o ig_user_id
+            # Instagram Login API solo proporciona ig_user_id, no page_id
+            if not access_token or (not page_id and not ig_user_id):
                 result['reason'] = 'Instagram OAuth credentials not configured'
                 logger.info(f"[AutoConfig] DM history skipped: no OAuth credentials for {creator_id}")
                 return result
@@ -691,7 +693,7 @@ class AutoConfigurator:
             stats = await dm_service.load_dm_history(
                 creator_id=creator_id,
                 access_token=access_token,
-                page_id=page_id,
+                page_id=page_id,  # Puede ser None si usamos Instagram Login API
                 ig_user_id=ig_user_id,
                 limit=50  # Últimos 50 DMs
             )
