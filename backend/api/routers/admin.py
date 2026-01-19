@@ -512,6 +512,23 @@ async def delete_creator(creator_name: str):
             except Exception as e:
                 logger.warning(f"Could not delete user_creators: {e}")
 
+            # Delete RAG documents (FK constraint)
+            try:
+                from api.models import RAGDocument
+                rag_count = session.query(RAGDocument).filter_by(creator_id=creator_uuid).delete()
+                results["deleted"]["rag_documents"] = rag_count
+            except Exception as e:
+                logger.warning(f"Could not delete rag_documents: {e}")
+
+            # Delete sync queue and state (FK constraint)
+            try:
+                from api.models import SyncQueue, SyncState
+                session.query(SyncQueue).filter_by(creator_id=creator_uuid).delete()
+                session.query(SyncState).filter_by(creator_id=creator_uuid).delete()
+                results["deleted"]["sync_data"] = True
+            except Exception as e:
+                logger.warning(f"Could not delete sync data: {e}")
+
             # Delete the creator itself
             session.delete(creator)
             results["deleted"]["creator"] = True
