@@ -504,6 +504,14 @@ async def delete_creator(creator_name: str):
             except Exception as e:
                 logger.warning(f"Could not delete email tracking: {e}")
 
+            # Delete user_creators associations (FK constraint)
+            try:
+                from api.models import UserCreator
+                session.query(UserCreator).filter_by(creator_id=creator_uuid).delete()
+                results["deleted"]["user_creators"] = True
+            except Exception as e:
+                logger.warning(f"Could not delete user_creators: {e}")
+
             # Delete the creator itself
             session.delete(creator)
             results["deleted"]["creator"] = True
