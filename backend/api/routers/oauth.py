@@ -249,10 +249,10 @@ async def _simple_dm_sync_internal(
 
         # Shorter timeout for faster sync (15s instead of 60s)
         async with httpx.AsyncClient(timeout=15.0) as client:
-            # Get conversations
+            # Get conversations with participants info (to create leads even if messages fail)
             conv_resp = await client.get(
                 f"{api_base}/{conv_id_for_api}/conversations",
-                params={**conv_extra_params, "access_token": access_token, "limit": max_convs, "fields": "id,updated_time"}
+                params={**conv_extra_params, "access_token": access_token, "limit": max_convs, "fields": "id,updated_time,participants"}
             )
 
             if conv_resp.status_code != 200:
@@ -269,6 +269,17 @@ async def _simple_dm_sync_internal(
                 if not conv_id:
                     continue
 
+                # Extract participant info from conversation (for creating leads even if messages fail)
+                conv_participants = conv.get("participants", {}).get("data", [])
+                conv_follower_id = None
+                conv_follower_username = None
+                for participant in conv_participants:
+                    p_id = participant.get("id")
+                    if p_id and p_id not in creator_ids:
+                        conv_follower_id = p_id
+                        conv_follower_username = participant.get("username", "unknown")
+                        break
+
                 try:
                     # Get messages WITH PAGINATION (follow next cursor to get ALL messages)
                     messages = []
@@ -282,14 +293,16 @@ async def _simple_dm_sync_internal(
                     # Pagination loop - fetch all messages for this conversation
                     max_pages = 10  # Safety limit: 50 * 10 = 500 messages max per conversation
                     page_count = 0
+                    got_403 = False
 
                     while msg_url and page_count < max_pages:
                         msg_resp = await client.get(msg_url, params=msg_params)
 
                         if msg_resp.status_code == 403:
                             # 403 = Instagram doesn't allow reading this conversation (old, deleted user, etc.)
-                            # Skip immediately without retry
+                            # Still create lead using participant info, but mark as 403
                             results["skipped_403"] += 1
+                            got_403 = True
                             break
                         elif msg_resp.status_code != 200:
                             logger.debug(f"[DM Sync] Messages API error {msg_resp.status_code} for conv {conv_id}")
@@ -314,13 +327,11 @@ async def _simple_dm_sync_internal(
                     if page_count > 0:
                         logger.info(f"[DM Sync] Fetched {len(messages)} messages from {page_count + 1} pages for conv {conv_id}")
 
-                    if not messages:
-                        continue
-
-                    # Find follower (non-creator participant)
+                    # Find follower from messages (more reliable) or fall back to conversation participants
                     follower_id = None
                     follower_username = None
 
+                    # Try to get from messages first
                     for msg in messages:
                         from_data = msg.get("from", {})
                         from_id = from_data.get("id")
@@ -339,6 +350,12 @@ async def _simple_dm_sync_internal(
                                     break
                             if follower_id:
                                 break
+
+                    # Fall back to conversation participants if no messages (403 case)
+                    if not follower_id and conv_follower_id:
+                        follower_id = conv_follower_id
+                        follower_username = conv_follower_username
+                        logger.debug(f"[DM Sync] Using participant info for conv {conv_id} (403 or no messages)")
 
                     if not follower_id:
                         continue

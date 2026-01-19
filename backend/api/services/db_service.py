@@ -296,7 +296,7 @@ def get_leads(creator_name: str, include_archived: bool = False):
         session.close()
 
 
-def get_conversations_with_counts(creator_name: str, limit: int = 50, include_archived: bool = False, min_messages: int = 1):
+def get_conversations_with_counts(creator_name: str, limit: int = 50, include_archived: bool = False, min_messages: int = 0):
     """Get conversations with accurate message counts from PostgreSQL
 
     Args:
