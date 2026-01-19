@@ -1128,23 +1128,32 @@ async def debug_instagram_api(creator_id: str):
             return {"error": creds["error"]}
 
         ig_user_id = creds["user_id"] or creds["page_id"]
-        page_id = creds["page_id"]  # Necesario para conversations API
+        page_id = creds["page_id"]
         access_token = creds["token"]
-        # IMPORTANTE: Usar graph.facebook.com para conversations/messages
-        api_base = "https://graph.facebook.com/v21.0"
+
+        # Estrategia dual: usar Facebook API con page_id si existe, sino Instagram API
+        if page_id:
+            api_base = "https://graph.facebook.com/v21.0"
+            conv_id_for_api = page_id
+            conv_extra_params = {"platform": "instagram"}
+        else:
+            api_base = "https://graph.instagram.com/v21.0"
+            conv_id_for_api = ig_user_id
+            conv_extra_params = {}
 
         results = {
             "ig_user_id": ig_user_id,
             "page_id": page_id,
+            "api_used": "Facebook" if page_id else "Instagram",
             "conversations": [],
             "sample_messages": []
         }
 
         async with httpx.AsyncClient(timeout=30.0) as client:
-            # Get conversations - usar page_id con platform=instagram
-            conv_url = f"{api_base}/{page_id}/conversations"
+            # Get conversations
+            conv_url = f"{api_base}/{conv_id_for_api}/conversations"
             conv_resp = await client.get(conv_url, params={
-                "platform": "instagram",
+                **conv_extra_params,
                 "access_token": access_token,
                 "limit": 5
             })
@@ -1232,14 +1241,22 @@ async def simple_dm_sync(creator_id: str, max_convs: int = 20):
         try:
             # Get creator for UUID (needed for FK relationships)
             creator = session.query(Creator).filter_by(name=creator_id).first()
-            # IMPORTANTE: Usar graph.facebook.com para conversations/messages
-            api_base = "https://graph.facebook.com/v21.0"
+
+            # Estrategia dual: usar Facebook API con page_id si existe, sino Instagram API
+            if ig_page_id:
+                api_base = "https://graph.facebook.com/v21.0"
+                conv_id_for_api = ig_page_id
+                conv_extra_params = {"platform": "instagram"}
+            else:
+                api_base = "https://graph.instagram.com/v21.0"
+                conv_id_for_api = ig_user_id
+                conv_extra_params = {}
 
             async with httpx.AsyncClient(timeout=60.0) as client:
-                # Get conversations with updated_time - usar page_id con platform=instagram
+                # Get conversations with updated_time
                 conv_resp = await client.get(
-                    f"{api_base}/{ig_page_id}/conversations",
-                    params={"platform": "instagram", "access_token": access_token, "limit": max_convs, "fields": "id,updated_time"}
+                    f"{api_base}/{conv_id_for_api}/conversations",
+                    params={**conv_extra_params, "access_token": access_token, "limit": max_convs, "fields": "id,updated_time"}
                 )
 
                 if conv_resp.status_code != 200:

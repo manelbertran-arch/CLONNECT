@@ -3311,15 +3311,23 @@ async def sync_instagram_dms(request: InstagramDMSyncRequest):
                 raise HTTPException(status_code=400, detail="Instagram token not configured")
 
             ig_user_id = creator.instagram_user_id or creator.instagram_page_id
-            page_id = creator.instagram_page_id  # Necesario para conversations API
+            page_id = creator.instagram_page_id
             if not ig_user_id:
                 raise HTTPException(status_code=400, detail="Instagram user ID not configured")
 
             access_token = creator.instagram_token
-            # IMPORTANTE: Usar graph.facebook.com para conversations/messages
-            api_base = "https://graph.facebook.com/v21.0"
 
-            logger.info(f"[DMSync] Starting sync for {request.creator_id} with rate limiting")
+            # Estrategia dual: usar Facebook API con page_id si existe, sino Instagram API
+            if page_id:
+                api_base = "https://graph.facebook.com/v21.0"
+                conv_id_for_api = page_id
+                conv_extra_params = {"platform": "instagram"}
+            else:
+                api_base = "https://graph.instagram.com/v21.0"
+                conv_id_for_api = ig_user_id
+                conv_extra_params = {}
+
+            logger.info(f"[DMSync] Starting sync for {request.creator_id} using {'Facebook' if page_id else 'Instagram'} API")
 
             async with httpx.AsyncClient(timeout=60.0) as client:
 
@@ -3353,13 +3361,13 @@ async def sync_instagram_dms(request: InstagramDMSyncRequest):
                     return {"error": {"message": "Max retries exceeded"}, "data": []}
 
                 # 1. Fetch conversations (1 llamada)
-                # Usar page_id con platform=instagram para obtener conversaciones de IG
-                conv_url = f"{api_base}/{page_id}/conversations"
-                conv_data = await fetch_with_retry(conv_url, {
-                    "platform": "instagram",
+                conv_url = f"{api_base}/{conv_id_for_api}/conversations"
+                conv_params = {
+                    **conv_extra_params,
                     "access_token": access_token,
                     "limit": min(request.max_conversations, 50)
-                })
+                }
+                conv_data = await fetch_with_retry(conv_url, conv_params)
 
                 if "error" in conv_data and conv_data["error"]:
                     error_msg = conv_data["error"].get("message", "Unknown error")
@@ -3663,12 +3671,20 @@ async def _background_dm_sync(
                 return
 
             ig_user_id = creator.instagram_user_id or creator.instagram_page_id
-            page_id = creator.instagram_page_id  # Necesario para conversations API
+            page_id = creator.instagram_page_id
             access_token = creator.instagram_token
-            # IMPORTANTE: Usar graph.facebook.com para conversations/messages
-            api_base = "https://graph.facebook.com/v21.0"
 
-            logger.info(f"[BGSync] Starting background sync for {creator_id}")
+            # Estrategia dual: usar Facebook API con page_id si existe, sino Instagram API
+            if page_id:
+                api_base = "https://graph.facebook.com/v21.0"
+                conv_id_for_api = page_id
+                conv_extra_params = {"platform": "instagram"}
+            else:
+                api_base = "https://graph.instagram.com/v21.0"
+                conv_id_for_api = ig_user_id
+                conv_extra_params = {}
+
+            logger.info(f"[BGSync] Starting background sync for {creator_id} using {'Facebook' if page_id else 'Instagram'} API")
 
             async with httpx.AsyncClient(timeout=60.0) as client:
                 async def fetch_with_retry(url: str, params: dict, max_retries: int = 5) -> dict:
@@ -3690,13 +3706,13 @@ async def _background_dm_sync(
                     return {"error": {"message": "Max retries"}, "data": []}
 
                 # Fetch conversations
-                # Usar page_id con platform=instagram para obtener conversaciones de IG
-                conv_url = f"{api_base}/{page_id}/conversations"
-                conv_data = await fetch_with_retry(conv_url, {
-                    "platform": "instagram",
+                conv_url = f"{api_base}/{conv_id_for_api}/conversations"
+                conv_params = {
+                    **conv_extra_params,
                     "access_token": access_token,
                     "limit": min(max_conversations, 50)
-                })
+                }
+                conv_data = await fetch_with_retry(conv_url, conv_params)
 
                 if "error" in conv_data and conv_data["error"]:
                     dm_sync_status[job_id]["status"] = "failed"

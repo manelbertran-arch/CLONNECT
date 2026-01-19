@@ -121,9 +121,12 @@ async def process_single_conversation(
         "error": None
     }
 
-    # IMPORTANTE: Usar graph.facebook.com para conversations/messages
-    # graph.instagram.com es solo para media/contenido
-    api_base = "https://graph.facebook.com/v21.0"
+    # Elegir API según si tenemos page_id o no
+    # Facebook API requiere page_id, Instagram API usa ig_user_id
+    if creator.instagram_page_id:
+        api_base = "https://graph.facebook.com/v21.0"
+    else:
+        api_base = "https://graph.instagram.com/v21.0"
 
     try:
         async with httpx.AsyncClient(timeout=30.0) as client:
@@ -451,23 +454,36 @@ async def start_sync_for_creator(creator_id: str) -> Dict[str, Any]:
             return result
 
         ig_user_id = creator.instagram_user_id or creator.instagram_page_id
-        page_id = creator.instagram_page_id  # Necesario para conversations
+        page_id = creator.instagram_page_id
         access_token = creator.instagram_token
 
         # Fetch conversation list (single API call)
-        # IMPORTANTE: Usar graph.facebook.com con page_id para conversations
-        api_base = "https://graph.facebook.com/v21.0"
-
+        # Estrategia dual: usar page_id con Facebook API si existe,
+        # sino usar ig_user_id con Instagram API
         async with httpx.AsyncClient(timeout=30.0) as client:
-            conv_resp = await client.get(
-                f"{api_base}/{page_id}/conversations",
-                params={
-                    "platform": "instagram",  # Requerido para filtrar solo Instagram
-                    "access_token": access_token,
-                    "limit": 50,
-                    "fields": "id,updated_time"
-                }
-            )
+            if page_id:
+                # Facebook Pages API - requiere page_id
+                api_base = "https://graph.facebook.com/v21.0"
+                conv_resp = await client.get(
+                    f"{api_base}/{page_id}/conversations",
+                    params={
+                        "platform": "instagram",
+                        "access_token": access_token,
+                        "limit": 50,
+                        "fields": "id,updated_time"
+                    }
+                )
+            else:
+                # Instagram API - usa ig_user_id directamente
+                api_base = "https://graph.instagram.com/v21.0"
+                conv_resp = await client.get(
+                    f"{api_base}/{ig_user_id}/conversations",
+                    params={
+                        "access_token": access_token,
+                        "limit": 50,
+                        "fields": "id,updated_time"
+                    }
+                )
 
             if conv_resp.status_code != 200:
                 error_data = conv_resp.json().get("error", {})
