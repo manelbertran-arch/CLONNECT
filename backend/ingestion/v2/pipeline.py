@@ -12,8 +12,14 @@ Pipeline:
 import logging
 import time
 from dataclasses import dataclass, field
-from datetime import datetime
-from typing import Any, Dict, List, Optional
+from typing import TYPE_CHECKING, Dict, List, Optional
+
+if TYPE_CHECKING:
+    from ..deterministic_scraper import ScrapedPage
+    from .bio_extractor import ExtractedBio
+    from .faq_extractor import ExtractedFAQ
+    from .product_detector import DetectedProduct
+    from .tone_detector import DetectedTone
 
 logger = logging.getLogger(__name__)
 
@@ -51,6 +57,12 @@ class IngestionV2Result:
     products_saved: int = 0
     rag_docs_saved: int = 0
 
+    # Creator knowledge (bio, FAQs, tone) - extracted from website
+    bio: Optional[Dict] = None
+    faqs: List[Dict] = field(default_factory=list)
+    tone: Optional[Dict] = None
+    knowledge_saved: bool = False
+
     # Timing
     duration_seconds: float = 0.0
 
@@ -82,6 +94,12 @@ class IngestionV2Result:
             "storage": {
                 "products_saved": self.products_saved,
                 "rag_docs_saved": self.rag_docs_saved,
+            },
+            "creator_knowledge": {
+                "bio": self.bio,
+                "faqs": self.faqs,
+                "tone": self.tone,
+                "saved": self.knowledge_saved,
             },
             "duration_seconds": self.duration_seconds,
             "errors": self.errors,
@@ -211,6 +229,46 @@ class IngestionV2Pipeline:
             # Preparar productos para resultado
             result.products = [p.to_dict() for p in verified_products]
 
+            # PASO 4.5: EXTRAER conocimiento del creador (bio, FAQs, tono)
+            logger.info("Extrayendo conocimiento del creador (bio, FAQs, tono)...")
+            bio = None
+            faqs_result = None
+            tone = None
+
+            try:
+                from .bio_extractor import BioExtractor
+                from .faq_extractor import FAQExtractor
+                from .tone_detector import ToneDetector
+
+                # Extract bio
+                bio_extractor = BioExtractor()
+                bio = await bio_extractor.extract(pages)
+                if bio:
+                    result.bio = bio_extractor.to_dict(bio)
+                    logger.info(
+                        f"Bio extraído: {len(bio.description)} chars, confidence={bio.confidence:.2f}"
+                    )
+
+                # Extract FAQs
+                faq_extractor = FAQExtractor()
+                faqs_result = await faq_extractor.extract(pages, verified_products, bio)
+                if faqs_result and faqs_result.faqs:
+                    result.faqs = [faq_extractor.to_dict(f) for f in faqs_result.faqs]
+                    logger.info(f"FAQs extraídos: {len(faqs_result.faqs)}")
+
+                # Detect tone
+                tone_detector = ToneDetector()
+                tone = await tone_detector.detect(pages, bio)
+                if tone:
+                    result.tone = tone_detector.to_dict(tone)
+                    logger.info(f"Tono detectado: {tone.style} (formality={tone.formality})")
+
+            except Exception as e:
+                logger.warning(f"Error extrayendo conocimiento del creador: {e}")
+                import traceback
+
+                traceback.print_exc()
+
             # PASO 5: GUARDAR (solo si sanity checks pasaron)
             if verification.status == "success" and self.db:
                 logger.info("Guardando productos verificados...")
@@ -220,6 +278,17 @@ class IngestionV2Pipeline:
                 # También crear RAG docs básicos para los productos
                 rag_saved = self._save_product_rag_docs(creator_id, verified_products, pages)
                 result.rag_docs_saved = rag_saved
+
+                # DUAL-SAVE: Guardar conocimiento del creador en RAG + tablas UI
+                if bio or (faqs_result and faqs_result.faqs) or tone:
+                    knowledge_saved = self._save_creator_knowledge(
+                        creator_id=creator_id,
+                        bio=bio,
+                        faqs=faqs_result.faqs if faqs_result else [],
+                        tone=tone,
+                    )
+                    result.knowledge_saved = knowledge_saved
+                    logger.info(f"Conocimiento del creador guardado: {knowledge_saved}")
 
                 result.success = True
             elif not self.db:
@@ -300,19 +369,17 @@ class IngestionV2Pipeline:
 
     def _save_products(self, creator_id: str, products: List["DetectedProduct"]) -> int:
         """Guarda productos verificados."""
-        from .product_detector import DetectedProduct
-
         # CRITICAL: Log why we might not save
         logger.info(
             f"[_save_products] db={self.db}, products_count={len(products) if products else 0}, creator_id={creator_id}"
         )
 
         if not self.db:
-            logger.warning(f"[_save_products] SKIPPING: db is None!")
+            logger.warning("[_save_products] SKIPPING: db is None!")
             return 0
 
         if not products:
-            logger.warning(f"[_save_products] SKIPPING: No products to save!")
+            logger.warning("[_save_products] SKIPPING: No products to save!")
             return 0
 
         saved = 0
@@ -377,9 +444,6 @@ class IngestionV2Pipeline:
         self, creator_id: str, products: List["DetectedProduct"], pages: List["ScrapedPage"]
     ) -> int:
         """Guarda RAG docs para productos y páginas scrapeadas."""
-        from ..deterministic_scraper import ScrapedPage
-        from .product_detector import DetectedProduct
-
         if not self.db:
             return 0
 
@@ -460,6 +524,143 @@ class IngestionV2Pipeline:
             self.db.rollback()
 
         return saved
+
+    def _save_creator_knowledge(
+        self,
+        creator_id: str,
+        bio: Optional["ExtractedBio"],
+        faqs: List["ExtractedFAQ"],
+        tone: Optional["DetectedTone"],
+    ) -> bool:
+        """
+        DUAL-SAVE: Guarda conocimiento del creador en AMBOS lugares:
+        1. RAG documents (para el chatbot)
+        2. Tablas UI (KnowledgeBase para FAQs, knowledge_about para bio)
+
+        Esto asegura que tanto el chatbot como el Settings UI muestren los datos.
+        """
+        if not self.db:
+            logger.warning("[_save_creator_knowledge] No DB session, skipping")
+            return False
+
+        try:
+            import hashlib
+
+            from api.models import Creator, KnowledgeBase, RAGDocument
+            from sqlalchemy import or_
+            from sqlalchemy.orm.attributes import flag_modified
+
+            # Get creator
+            creator = (
+                self.db.query(Creator)
+                .filter(
+                    or_(
+                        Creator.id == creator_id if len(str(creator_id)) > 20 else False,
+                        Creator.name == creator_id,
+                    )
+                )
+                .first()
+            )
+
+            if not creator:
+                logger.warning(f"[_save_creator_knowledge] Creator not found: {creator_id}")
+                return False
+
+            logger.info(f"[_save_creator_knowledge] Saving knowledge for creator: {creator.name}")
+
+            # ============================================================
+            # SAVE BIO to knowledge_about (UI) + RAG
+            # ============================================================
+            if bio:
+                # 1. Save to creator.knowledge_about (for Settings UI)
+                about_data = creator.knowledge_about or {}
+                about_data["bio"] = bio.description
+                about_data["bio_source_url"] = bio.source_url
+                about_data["bio_confidence"] = bio.confidence
+                creator.knowledge_about = about_data
+
+                # CRITICAL: flag_modified tells SQLAlchemy the JSON field changed
+                flag_modified(creator, "knowledge_about")
+                logger.info(
+                    f"[_save_creator_knowledge] Bio saved to knowledge_about: {len(bio.description)} chars"
+                )
+
+                # 2. Save to RAG documents (for chatbot)
+                bio_doc_id = hashlib.sha256(f"bio:{creator.id}".encode()).hexdigest()[:32]
+                bio_rag = RAGDocument(
+                    creator_id=creator.id,
+                    doc_id=bio_doc_id,
+                    content=f"Sobre mí:\n\n{bio.description}",
+                    source_url=bio.source_url,
+                    source_type="website",
+                    content_type="bio",
+                    title="Bio del creador",
+                )
+                self.db.merge(bio_rag)  # merge to update if exists
+
+            # ============================================================
+            # SAVE FAQs to KnowledgeBase (UI) + RAG
+            # ============================================================
+            if faqs:
+                # First, clear existing FAQs from KnowledgeBase for this creator
+                self.db.query(KnowledgeBase).filter(KnowledgeBase.creator_id == creator.id).delete(
+                    synchronize_session=False
+                )
+
+                for faq in faqs:
+                    # 1. Save to KnowledgeBase table (for Settings UI)
+                    kb_item = KnowledgeBase(
+                        creator_id=creator.id,
+                        question=faq.question,
+                        answer=faq.answer,
+                    )
+                    self.db.add(kb_item)
+
+                    # 2. Save to RAG documents (for chatbot)
+                    faq_doc_id = hashlib.sha256(
+                        f"faq:{creator.id}:{faq.question}".encode()
+                    ).hexdigest()[:32]
+                    faq_rag = RAGDocument(
+                        creator_id=creator.id,
+                        doc_id=faq_doc_id,
+                        content=f"Pregunta: {faq.question}\n\nRespuesta: {faq.answer}",
+                        source_url=faq.source_url,
+                        source_type="website",
+                        content_type="faq",
+                        title=faq.question[:100],
+                    )
+                    self.db.merge(faq_rag)
+
+                logger.info(
+                    f"[_save_creator_knowledge] {len(faqs)} FAQs saved to KnowledgeBase + RAG"
+                )
+
+            # ============================================================
+            # SAVE TONE to knowledge_about (UI)
+            # ============================================================
+            if tone:
+                about_data = creator.knowledge_about or {}
+                about_data["tone"] = {
+                    "style": tone.style,
+                    "formality": tone.formality,
+                    "energy": tone.energy,
+                    "confidence": tone.confidence,
+                }
+                creator.knowledge_about = about_data
+                flag_modified(creator, "knowledge_about")
+                logger.info(f"[_save_creator_knowledge] Tone saved: {tone.style}")
+
+            self.db.commit()
+            logger.info("[_save_creator_knowledge] All knowledge saved successfully")
+            return True
+
+        except Exception as e:
+            logger.error(f"[_save_creator_knowledge] Error: {e}")
+            import traceback
+
+            traceback.print_exc()
+            self.db.rollback()
+            return False
 
 
 async def ingest_website_v2(
