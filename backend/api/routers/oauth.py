@@ -20,7 +20,8 @@ async def _auto_onboard_after_instagram_oauth(
     creator_id: str,
     access_token: str,
     instagram_user_id: str,
-    page_id: str = ""
+    page_id: str = "",
+    website_url: str = None
 ):
     """
     Ejecuta onboarding completo automáticamente después de OAuth.
@@ -31,7 +32,8 @@ async def _auto_onboard_after_instagram_oauth(
     3. Indexar contenido en RAG
     4. Activar bot automáticamente
     5. Cargar historial de DMs existentes y categorizar leads
-    6. Scrapear website de la bio e indexar en RAG
+    6. Scrapear website (from param or bio) e indexar en RAG
+    7. Detectar productos con ProductDetector
     """
     logger.info(f"[AutoOnboard] Starting automatic onboarding for {creator_id}...")
 
@@ -134,41 +136,77 @@ async def _auto_onboard_after_instagram_oauth(
             import traceback
             logger.warning(traceback.format_exc())
 
-        # STEP 6: Scrape website from Instagram bio (if available)
+        # STEP 6: Scrape website (from param or Instagram bio)
+        url_to_scrape = website_url  # Use provided URL first
         try:
-            logger.info(f"[AutoOnboard] Checking for website in Instagram bio...")
-            import httpx
-            from core.website_scraper import extract_url_from_text, scrape_and_index_website
+            if not url_to_scrape:
+                logger.info(f"[AutoOnboard] No website_url provided, checking Instagram bio...")
+                import httpx
+                from core.website_scraper import extract_url_from_text
 
-            # Get Instagram profile bio
-            async with httpx.AsyncClient(timeout=10.0) as client:
-                profile_response = await client.get(
-                    f"https://graph.facebook.com/v21.0/{instagram_user_id}",
-                    params={
-                        "fields": "biography,website",
-                        "access_token": access_token
-                    }
+                # Get Instagram profile bio
+                async with httpx.AsyncClient(timeout=10.0) as client:
+                    profile_response = await client.get(
+                        f"https://graph.facebook.com/v21.0/{instagram_user_id}",
+                        params={
+                            "fields": "biography,website",
+                            "access_token": access_token
+                        }
+                    )
+                    if profile_response.status_code == 200:
+                        profile_data = profile_response.json()
+                        bio = profile_data.get("biography", "")
+                        website = profile_data.get("website", "")
+                        url_to_scrape = website or extract_url_from_text(bio)
+
+            if url_to_scrape:
+                logger.info(f"[AutoOnboard] Scraping website: {url_to_scrape}")
+                from core.website_scraper import scrape_and_index_website
+                web_stats = await scrape_and_index_website(
+                    creator_id=creator_id,
+                    url=url_to_scrape,
+                    max_pages=5
                 )
-                if profile_response.status_code == 200:
-                    profile_data = profile_response.json()
-                    bio = profile_data.get("biography", "")
-                    website = profile_data.get("website", "")
+                logger.info(f"[AutoOnboard] Website indexed: {web_stats['pages_scraped']} pages, {web_stats['chunks_indexed']} chunks")
 
-                    # Try to extract URL from bio or use website field
-                    url_to_scrape = website or extract_url_from_text(bio)
-
-                    if url_to_scrape:
-                        logger.info(f"[AutoOnboard] Found website: {url_to_scrape}")
-                        web_stats = await scrape_and_index_website(
-                            creator_id=creator_id,
-                            url=url_to_scrape,
-                            max_pages=5
-                        )
-                        logger.info(f"[AutoOnboard] Website indexed: {web_stats['pages_scraped']} pages, {web_stats['chunks_indexed']} chunks")
-                    else:
-                        logger.info(f"[AutoOnboard] No website found in bio")
+                # Save website_url to creator's knowledge_about
+                session = SessionLocal()
+                try:
+                    creator = session.query(Creator).filter_by(name=creator_id).first()
+                    if creator:
+                        if not creator.knowledge_about:
+                            creator.knowledge_about = {}
+                        creator.knowledge_about['website_url'] = url_to_scrape
+                        from sqlalchemy.orm.attributes import flag_modified
+                        flag_modified(creator, 'knowledge_about')
+                        session.commit()
+                        logger.info(f"[AutoOnboard] Saved website_url to creator: {url_to_scrape}")
+                finally:
+                    session.close()
+            else:
+                logger.info(f"[AutoOnboard] No website found")
         except Exception as web_error:
             logger.warning(f"[AutoOnboard] Could not scrape website: {web_error}")
+
+        # STEP 7: Detect and save products using ProductDetector (IngestionV2Pipeline)
+        if url_to_scrape:
+            try:
+                logger.info(f"[AutoOnboard] Detecting products from {url_to_scrape}...")
+                from ingestion.v2.pipeline import IngestionV2Pipeline
+                session = SessionLocal()
+                try:
+                    pipeline = IngestionV2Pipeline(db_session=session, max_pages=10)
+                    product_result = await pipeline.run(
+                        creator_id=creator_id,
+                        website_url=url_to_scrape,
+                        clean_before=False,  # Don't clean - keep RAG from previous step
+                        re_verify=True
+                    )
+                    logger.info(f"[AutoOnboard] Products: detected={product_result.products_detected}, saved={product_result.products_saved}")
+                finally:
+                    session.close()
+            except Exception as product_error:
+                logger.warning(f"[AutoOnboard] Could not detect products: {product_error}")
 
         logger.info(f"[AutoOnboard] ✅ Complete! {creator_id} is ready to receive DMs")
 
@@ -625,7 +663,7 @@ INSTAGRAM_APP_ID = os.getenv("INSTAGRAM_APP_ID", "")
 INSTAGRAM_APP_SECRET = os.getenv("INSTAGRAM_APP_SECRET", "")
 
 @router.get("/instagram/start")
-async def instagram_oauth_start(creator_id: str):
+async def instagram_oauth_start(creator_id: str, website_url: str = None):
     """
     Start Instagram OAuth flow using Instagram API with Instagram Login.
 
@@ -656,8 +694,14 @@ async def instagram_oauth_start(creator_id: str):
     if not app_id:
         raise HTTPException(status_code=500, detail="INSTAGRAM_APP_ID not configured")
 
-    # Store state for CSRF protection
-    state = f"{creator_id}:{secrets.token_urlsafe(16)}"
+    # Store state for CSRF protection - include website_url if provided
+    # Format: creator_id:random_token:website_url_base64 (or empty if no website)
+    import base64
+    website_encoded = ""
+    if website_url:
+        website_encoded = base64.urlsafe_b64encode(website_url.encode()).decode()
+    state = f"{creator_id}:{secrets.token_urlsafe(16)}:{website_encoded}"
+    logger.info(f"[OAuth] State with website_url: {website_url}")
 
     # Instagram Business API scopes - EXACT names from Meta App Dashboard
     scopes = [
@@ -729,9 +773,19 @@ async def instagram_oauth_callback(
         logger.error("Instagram OAuth: INSTAGRAM_APP_ID or INSTAGRAM_APP_SECRET not configured")
         return RedirectResponse(f"{FRONTEND_URL}/crear-clon?error=instagram_not_configured")
 
-    # Extract creator_id from state
-    creator_id = state.split(":")[0] if ":" in state else "manel"
-    logger.info(f"Instagram OAuth callback for creator: {creator_id}")
+    # Extract creator_id and website_url from state
+    # Format: creator_id:random_token:website_url_base64
+    import base64
+    state_parts = state.split(":")
+    creator_id = state_parts[0] if len(state_parts) > 0 else "manel"
+    website_url = None
+    if len(state_parts) >= 3 and state_parts[2]:
+        try:
+            website_url = base64.urlsafe_b64decode(state_parts[2]).decode()
+            logger.info(f"[OAuth] Extracted website_url from state: {website_url}")
+        except Exception as e:
+            logger.warning(f"[OAuth] Could not decode website_url from state: {e}")
+    logger.info(f"Instagram OAuth callback for creator: {creator_id}, website: {website_url}")
 
     try:
         async with httpx.AsyncClient(timeout=30.0) as client:
@@ -812,13 +866,14 @@ async def instagram_oauth_callback(
 
             # Step 5: AUTO-ONBOARDING - Trigger scraping, tone analysis, and bot activation IN BACKGROUND
             # This does the heavy lifting but doesn't block the redirect
-            logger.info(f"🚀 Starting auto-onboarding for {creator_id} in background...")
+            logger.info(f"🚀 Starting auto-onboarding for {creator_id} in background... website_url={website_url}")
             background_tasks.add_task(
                 _auto_onboard_after_instagram_oauth,
                 creator_id=creator_id,
                 access_token=access_token,
                 instagram_user_id=instagram_user_id,
-                page_id=""  # Not used in new API
+                page_id="",  # Not used in new API
+                website_url=website_url  # Pass website_url for product detection
             )
 
             # Redirect to crear-clon page with success

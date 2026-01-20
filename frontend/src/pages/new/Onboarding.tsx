@@ -87,8 +87,14 @@ export default function Onboarding() {
     setError(null);
 
     try {
+      // Build OAuth start URL with optional website_url
+      let oauthUrl = `${API_URL}/oauth/instagram/start?creator_id=${encodeURIComponent(creatorId)}`;
+      if (websiteUrl && websiteUrl.trim()) {
+        oauthUrl += `&website_url=${encodeURIComponent(websiteUrl.trim())}`;
+      }
+
       // Call OAuth start endpoint to get the auth URL
-      const response = await fetch(`${API_URL}/oauth/instagram/start?creator_id=${encodeURIComponent(creatorId)}`);
+      const response = await fetch(oauthUrl);
 
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));

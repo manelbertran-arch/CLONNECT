@@ -592,6 +592,10 @@ async def start_clone_creation(request: StartCloneRequest, background_tasks: Bac
                 if not creator.knowledge_about:
                     creator.knowledge_about = {}
                 creator.knowledge_about['website_url'] = request.website_url
+                # CRITICAL: flag_modified required for SQLAlchemy to detect JSON field changes
+                from sqlalchemy.orm.attributes import flag_modified
+                flag_modified(creator, 'knowledge_about')
+                logger.info(f"[CloneCreation] Saved website_url: {request.website_url}")
 
             session.commit()
             logger.info(f"[CloneCreation] Started for {request.creator_id}, progress saved to DB")
