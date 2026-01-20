@@ -780,8 +780,12 @@ async def _run_clone_creation(creator_id: str, website_url: str = None):
             if not website_url and creator.knowledge_about:
                 website_url = creator.knowledge_about.get("website_url")
                 if website_url:
-                    logger.info(f"[CloneCreation] FALLBACK: Using website_url from knowledge_about: {website_url}")
-                    print(f"[CloneCreation] FALLBACK: website_url from DB = {website_url}", flush=True)
+                    logger.info(
+                        f"[CloneCreation] FALLBACK: Using website_url from knowledge_about: {website_url}"
+                    )
+                    print(
+                        f"[CloneCreation] FALLBACK: website_url from DB = {website_url}", flush=True
+                    )
 
             # Step 1: Scrape Instagram posts
             logger.info(f"[CloneCreation] Step 1: Scraping Instagram for {creator_id}")
@@ -821,31 +825,33 @@ async def _run_clone_creation(creator_id: str, website_url: str = None):
                 # Step 2b: Detect products from website using IngestionV2Pipeline
                 logger.info(f"[CloneCreation] Step 2b: Detecting products from {website_url}")
                 try:
-                    from api.database import SessionLocal
                     from ingestion.v2.pipeline import IngestionV2Pipeline
 
-                    # Create a fresh DB session for product detection
-                    product_db = SessionLocal()
-                    try:
-                        pipeline = IngestionV2Pipeline(db_session=product_db, max_pages=100)
-                        product_result = await pipeline.run(
-                            creator_id=creator_id,
-                            website_url=website_url,
-                            clean_before=False,  # Don't clean - keep RAG from previous step
-                            re_verify=True,
-                        )
-                        logger.info(
-                            f"[CloneCreation] Products detected: {product_result.products_detected}, saved: {product_result.products_saved}"
-                        )
-                        print(
-                            f"[CloneCreation] Products: detected={product_result.products_detected}, saved={product_result.products_saved}",
-                            flush=True,
-                        )
-                    finally:
-                        product_db.close()
+                    # CRITICAL: Use the existing session instead of creating a new one
+                    # This ensures db_session is valid and not None
+                    logger.info(
+                        f"[CloneCreation] Using existing DB session for product detection: {session}"
+                    )
+                    pipeline = IngestionV2Pipeline(db_session=session, max_pages=100)
+                    product_result = await pipeline.run(
+                        creator_id=creator_id,
+                        website_url=website_url,
+                        clean_before=False,  # Don't clean - keep RAG from previous step
+                        re_verify=True,
+                    )
+                    logger.info(
+                        f"[CloneCreation] Products detected: {product_result.products_detected}, saved: {product_result.products_saved}"
+                    )
+                    print(
+                        f"[CloneCreation] Products: detected={product_result.products_detected}, saved={product_result.products_saved}",
+                        flush=True,
+                    )
                 except Exception as e:
                     logger.warning(f"[CloneCreation] Product detection failed: {e}")
                     print(f"[CloneCreation] Product detection error: {e}", flush=True)
+                    import traceback
+
+                    traceback.print_exc()
             else:
                 logger.info(f"[CloneCreation] Step 2: No website provided, skipping")
 

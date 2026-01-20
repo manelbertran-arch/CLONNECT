@@ -10,10 +10,10 @@ Pipeline:
 """
 
 import logging
-from typing import List, Dict, Any, Optional
+import time
 from dataclasses import dataclass, field
 from datetime import datetime
-import time
+from typing import Any, Dict, List, Optional
 
 logger = logging.getLogger(__name__)
 
@@ -21,6 +21,7 @@ logger = logging.getLogger(__name__)
 @dataclass
 class IngestionV2Result:
     """Resultado de ingestion V2 con todas las pruebas."""
+
     success: bool
     status: str  # 'success', 'failed', 'needs_review'
     creator_id: str
@@ -65,25 +66,25 @@ class IngestionV2Result:
             "scraping": {
                 "pages_scraped": self.pages_scraped,
                 "total_chars": self.total_chars,
-                "pages": self.pages_details
+                "pages": self.pages_details,
             },
             "detection": {
                 "service_pages_found": self.service_pages_found,
                 "products_detected": self.products_detected,
-                "products_verified": self.products_verified
+                "products_verified": self.products_verified,
             },
             "products": self.products,
             "sanity_checks": self.sanity_checks,
             "cleanup": {
                 "products_deleted": self.products_deleted,
-                "rag_docs_deleted": self.rag_docs_deleted
+                "rag_docs_deleted": self.rag_docs_deleted,
             },
             "storage": {
                 "products_saved": self.products_saved,
-                "rag_docs_saved": self.rag_docs_saved
+                "rag_docs_saved": self.rag_docs_saved,
             },
             "duration_seconds": self.duration_seconds,
-            "errors": self.errors
+            "errors": self.errors,
         }
 
 
@@ -103,11 +104,7 @@ class IngestionV2Pipeline:
         self.max_pages = max_pages
 
     async def run(
-        self,
-        creator_id: str,
-        website_url: str,
-        clean_before: bool = True,
-        re_verify: bool = True
+        self, creator_id: str, website_url: str, clean_before: bool = True, re_verify: bool = True
     ) -> IngestionV2Result:
         """
         Ejecuta pipeline completo.
@@ -124,10 +121,7 @@ class IngestionV2Pipeline:
         start_time = time.time()
 
         result = IngestionV2Result(
-            success=False,
-            status='failed',
-            creator_id=creator_id,
-            website_url=website_url
+            success=False, status="failed", creator_id=creator_id, website_url=website_url
         )
 
         try:
@@ -140,9 +134,11 @@ class IngestionV2Pipeline:
             if clean_before and self.db:
                 logger.info(f"Limpiando datos anteriores de {creator_id}")
                 cleanup_stats = self._clean_creator_data(creator_id)
-                result.products_deleted = cleanup_stats.get('products_deleted', 0)
-                result.rag_docs_deleted = cleanup_stats.get('rag_docs_deleted', 0)
-                logger.info(f"Eliminados: {result.products_deleted} productos, {result.rag_docs_deleted} RAG docs")
+                result.products_deleted = cleanup_stats.get("products_deleted", 0)
+                result.rag_docs_deleted = cleanup_stats.get("rag_docs_deleted", 0)
+                logger.info(
+                    f"Eliminados: {result.products_deleted} productos, {result.rag_docs_deleted} RAG docs"
+                )
 
             # PASO 2: SCRAPEAR website
             logger.info(f"Scrapeando {website_url}")
@@ -152,8 +148,7 @@ class IngestionV2Pipeline:
             result.pages_scraped = len(pages)
             result.total_chars = sum(len(p.main_content) for p in pages)
             result.pages_details = [
-                {"url": p.url, "title": p.title, "chars": len(p.main_content)}
-                for p in pages
+                {"url": p.url, "title": p.title, "chars": len(p.main_content)} for p in pages
             ]
 
             if not pages:
@@ -171,7 +166,7 @@ class IngestionV2Pipeline:
                 detected_products = detector.detect_products(pages)
             except SuspiciousExtractionError as e:
                 result.errors.append(str(e))
-                result.status = 'failed'
+                result.status = "failed"
                 result.duration_seconds = time.time() - start_time
                 return result
 
@@ -182,9 +177,7 @@ class IngestionV2Pipeline:
             logger.info("Ejecutando sanity checks...")
             checker = SanityChecker()
             verification = checker.verify(
-                products=detected_products,
-                website_url=website_url,
-                re_verify_urls=re_verify
+                products=detected_products, website_url=website_url, re_verify_urls=re_verify
             )
 
             result.sanity_checks = [
@@ -196,20 +189,30 @@ class IngestionV2Pipeline:
 
             # Filtrar productos que pasaron verificación
             verified_products = [
-                p for p in detected_products
-                if p.name in [c.details.get('verified', []) for c in verification.checks
-                              if c.name == 're_verification'] or verification.passed
+                p
+                for p in detected_products
+                if p.name
+                in [
+                    c.details.get("verified", [])
+                    for c in verification.checks
+                    if c.name == "re_verification"
+                ]
+                or verification.passed
             ]
 
             # Si la verificación pasó, usar todos los productos detectados que pasaron los checks
             if verification.passed:
-                verified_products = detected_products[:verification.products_verified] if verification.products_verified else detected_products
+                verified_products = (
+                    detected_products[: verification.products_verified]
+                    if verification.products_verified
+                    else detected_products
+                )
 
             # Preparar productos para resultado
             result.products = [p.to_dict() for p in verified_products]
 
             # PASO 5: GUARDAR (solo si sanity checks pasaron)
-            if verification.status == 'success' and self.db:
+            if verification.status == "success" and self.db:
                 logger.info("Guardando productos verificados...")
                 saved = self._save_products(creator_id, verified_products)
                 result.products_saved = saved
@@ -237,6 +240,7 @@ class IngestionV2Pipeline:
         except Exception as e:
             logger.error(f"Error en pipeline: {e}")
             import traceback
+
             traceback.print_exc()
             result.errors.append(str(e))
             result.duration_seconds = time.time() - start_time
@@ -245,7 +249,7 @@ class IngestionV2Pipeline:
 
     def _clean_creator_data(self, creator_id: str) -> Dict[str, int]:
         """Limpia TODOS los productos del creator (no solo auto-creados)."""
-        stats = {'products_deleted': 0, 'rag_docs_deleted': 0}
+        stats = {"products_deleted": 0, "rag_docs_deleted": 0}
 
         if not self.db:
             return stats
@@ -255,27 +259,35 @@ class IngestionV2Pipeline:
             from sqlalchemy import or_
 
             # Get creator
-            creator = self.db.query(Creator).filter(
-                or_(
-                    Creator.id == creator_id if len(str(creator_id)) > 20 else False,
-                    Creator.name == creator_id
+            creator = (
+                self.db.query(Creator)
+                .filter(
+                    or_(
+                        Creator.id == creator_id if len(str(creator_id)) > 20 else False,
+                        Creator.name == creator_id,
+                    )
                 )
-            ).first()
+                .first()
+            )
 
             if not creator:
                 return stats
 
             # DELETE ALL products for this creator
-            products_deleted = self.db.query(Product).filter(
-                Product.creator_id == creator.id
-            ).delete(synchronize_session=False)
-            stats['products_deleted'] = products_deleted
+            products_deleted = (
+                self.db.query(Product)
+                .filter(Product.creator_id == creator.id)
+                .delete(synchronize_session=False)
+            )
+            stats["products_deleted"] = products_deleted
 
             # DELETE ALL RAG documents
-            rag_deleted = self.db.query(RAGDocument).filter(
-                RAGDocument.creator_id == creator.id
-            ).delete(synchronize_session=False)
-            stats['rag_docs_deleted'] = rag_deleted
+            rag_deleted = (
+                self.db.query(RAGDocument)
+                .filter(RAGDocument.creator_id == creator.id)
+                .delete(synchronize_session=False)
+            )
+            stats["rag_docs_deleted"] = rag_deleted
 
             self.db.commit()
             logger.info(f"Limpieza: {products_deleted} productos, {rag_deleted} RAG docs")
@@ -286,15 +298,21 @@ class IngestionV2Pipeline:
 
         return stats
 
-    def _save_products(
-        self,
-        creator_id: str,
-        products: List['DetectedProduct']
-    ) -> int:
+    def _save_products(self, creator_id: str, products: List["DetectedProduct"]) -> int:
         """Guarda productos verificados."""
         from .product_detector import DetectedProduct
 
-        if not self.db or not products:
+        # CRITICAL: Log why we might not save
+        logger.info(
+            f"[_save_products] db={self.db}, products_count={len(products) if products else 0}, creator_id={creator_id}"
+        )
+
+        if not self.db:
+            logger.warning(f"[_save_products] SKIPPING: db is None!")
+            return 0
+
+        if not products:
+            logger.warning(f"[_save_products] SKIPPING: No products to save!")
             return 0
 
         saved = 0
@@ -304,15 +322,25 @@ class IngestionV2Pipeline:
             from sqlalchemy import or_
 
             # Get creator
-            creator = self.db.query(Creator).filter(
-                or_(
-                    Creator.id == creator_id if len(str(creator_id)) > 20 else False,
-                    Creator.name == creator_id
+            logger.info(f"[_save_products] Querying for creator: {creator_id}")
+            creator = (
+                self.db.query(Creator)
+                .filter(
+                    or_(
+                        Creator.id == creator_id if len(str(creator_id)) > 20 else False,
+                        Creator.name == creator_id,
+                    )
                 )
-            ).first()
+                .first()
+            )
 
             if not creator:
+                logger.warning(
+                    f"[_save_products] SKIPPING: Creator '{creator_id}' NOT FOUND in database!"
+                )
                 return 0
+
+            logger.info(f"[_save_products] Found creator: id={creator.id}, name={creator.name}")
 
             for product in products:
                 new_product = Product(
@@ -329,11 +357,13 @@ class IngestionV2Pipeline:
                     payment_link=product.payment_link,
                     price_verified=product.price is not None,
                     confidence=product.confidence,
-                    is_active=True
+                    is_active=True,
                 )
                 self.db.add(new_product)
                 saved += 1
-                logger.info(f"Guardado [{product.category.upper()}]: {product.name} (tipo={product.product_type}, gratis={product.is_free})")
+                logger.info(
+                    f"Guardado [{product.category.upper()}]: {product.name} (tipo={product.product_type}, gratis={product.is_free})"
+                )
 
             self.db.commit()
 
@@ -344,14 +374,11 @@ class IngestionV2Pipeline:
         return saved
 
     def _save_product_rag_docs(
-        self,
-        creator_id: str,
-        products: List['DetectedProduct'],
-        pages: List['ScrapedPage']
+        self, creator_id: str, products: List["DetectedProduct"], pages: List["ScrapedPage"]
     ) -> int:
         """Guarda RAG docs para productos y páginas scrapeadas."""
-        from .product_detector import DetectedProduct
         from ..deterministic_scraper import ScrapedPage
+        from .product_detector import DetectedProduct
 
         if not self.db:
             return 0
@@ -359,17 +386,22 @@ class IngestionV2Pipeline:
         saved = 0
 
         try:
-            from api.models import Creator, RAGDocument
-            from sqlalchemy import or_
             import hashlib
 
+            from api.models import Creator, RAGDocument
+            from sqlalchemy import or_
+
             # Get creator
-            creator = self.db.query(Creator).filter(
-                or_(
-                    Creator.id == creator_id if len(str(creator_id)) > 20 else False,
-                    Creator.name == creator_id
+            creator = (
+                self.db.query(Creator)
+                .filter(
+                    or_(
+                        Creator.id == creator_id if len(str(creator_id)) > 20 else False,
+                        Creator.name == creator_id,
+                    )
                 )
-            ).first()
+                .first()
+            )
 
             if not creator:
                 return 0
@@ -389,9 +421,9 @@ class IngestionV2Pipeline:
                     doc_id=doc_id,
                     content=content,
                     source_url=product.source_url,
-                    source_type='website',
-                    content_type='product',
-                    title=product.name
+                    source_type="website",
+                    content_type="product",
+                    title=product.name,
                 )
                 self.db.add(rag_doc)
                 saved += 1
@@ -402,23 +434,21 @@ class IngestionV2Pipeline:
                 content = page.main_content
                 chunk_size = 500
                 for i in range(0, len(content), chunk_size - 50):
-                    chunk = content[i:i + chunk_size]
+                    chunk = content[i : i + chunk_size]
                     if len(chunk.strip()) < 50:
                         continue
 
-                    doc_id = hashlib.sha256(
-                        f"{page.url}:{i}".encode()
-                    ).hexdigest()[:32]
+                    doc_id = hashlib.sha256(f"{page.url}:{i}".encode()).hexdigest()[:32]
 
                     rag_doc = RAGDocument(
                         creator_id=creator.id,
                         doc_id=doc_id,
                         content=chunk,
                         source_url=page.url,
-                        source_type='website',
-                        content_type='page_content',
+                        source_type="website",
+                        content_type="page_content",
                         title=page.title,
-                        chunk_index=i // chunk_size
+                        chunk_index=i // chunk_size,
                     )
                     self.db.add(rag_doc)
                     saved += 1
@@ -438,7 +468,7 @@ async def ingest_website_v2(
     db_session=None,
     max_pages: int = 100,
     clean_before: bool = True,
-    re_verify: bool = True
+    re_verify: bool = True,
 ) -> IngestionV2Result:
     """
     Función de conveniencia para ejecutar ingestion V2.
