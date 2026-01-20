@@ -1,13 +1,15 @@
 """
-Bio Extractor - Extracts creator bio from website pages.
+Bio Extractor - Intelligent extraction using LLM.
 
-Focuses on /about, /sobre-mi, /who-am-i pages.
-Returns structured bio data for knowledge_about field.
+Extracts structured creator information from /about pages.
+Works for any type of creator: coaches, traders, photographers, etc.
 """
 
+import asyncio
+import json
 import logging
 import re
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, List, Optional
 
 if TYPE_CHECKING:
@@ -15,15 +17,32 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger(__name__)
 
+# Timeout for LLM calls
+LLM_TIMEOUT = 30
+
 
 @dataclass
 class ExtractedBio:
-    """Extracted bio information."""
+    """Extracted creator information."""
 
-    description: str  # Main bio text
-    source_url: str  # Where it was found
-    confidence: float  # 0-1 confidence score
-    raw_text: str  # Original text before cleanup
+    # Core info
+    name: Optional[str] = None  # Creator's name
+    bio_summary: str = ""  # 1-2 sentence summary of what they do
+    source_url: str = ""  # Where it was found
+
+    # Additional structured info
+    specialties: List[str] = field(default_factory=list)  # Keywords/expertise
+    years_experience: Optional[int] = None  # Years of experience if mentioned
+    target_audience: Optional[str] = None  # Who they help
+
+    # Metadata
+    confidence: float = 0.0
+    raw_text: str = ""  # Original text for reference
+
+    @property
+    def description(self) -> str:
+        """Alias for bio_summary for backwards compatibility."""
+        return self.bio_summary
 
 
 # Patterns to identify about pages
@@ -35,26 +54,54 @@ ABOUT_URL_PATTERNS = [
     r"/bio",
     r"/me$",
     r"/yo$",
+    r"/conoceme",
+    r"/mi-historia",
 ]
 
-# Patterns to identify bio content in page
-BIO_SECTION_PATTERNS = [
-    r"(?:sobre\s+m[ií]|about\s+me|who\s+i\s+am|mi\s+historia)",
-    r"(?:soy\s+\w+|my\s+name\s+is|i(?:'m|\s+am)\s+\w+)",
-    r"(?:hola[,!]?\s+soy|hey[,!]?\s+i(?:'m|\s+am))",
-]
+# LLM prompt for extraction
+EXTRACTION_PROMPT = """Analiza esta página /about de un creador de contenido y extrae información estructurada.
+
+TEXTO DE LA PÁGINA:
+{page_content}
+
+---
+
+Extrae la siguiente información y responde SOLO con JSON válido:
+
+{{
+    "name": "Nombre del creador (si se menciona, sino null)",
+    "bio_summary": "Resumen de 1-2 frases de QUÉ HACE y PARA QUIÉN. Máximo 250 caracteres. No copies el texto, RESUME.",
+    "specialties": ["keyword1", "keyword2", ...],
+    "years_experience": número o null si no se menciona,
+    "target_audience": "A quién ayuda/para quién trabaja (1 frase corta)"
+}}
+
+REGLAS:
+- bio_summary debe ser CORTO (máx 250 chars) - solo qué hace y para quién
+- specialties: máximo 5 keywords relevantes
+- Si no puedes extraer algo con certeza, pon null
+- NO inventes información que no esté en el texto
+- Responde SOLO con el JSON, sin explicaciones"""
 
 
 class BioExtractor:
-    """Extracts bio from scraped website pages."""
+    """Extracts creator bio using LLM for intelligent parsing."""
 
-    def __init__(self, min_bio_length: int = 100, max_bio_length: int = 2000):
-        self.min_bio_length = min_bio_length
-        self.max_bio_length = max_bio_length
+    def __init__(self, max_content_chars: int = 4000):
+        self.max_content_chars = max_content_chars
+        self._llm_client = None
+
+    def _get_llm_client(self):
+        """Lazy load LLM client."""
+        if self._llm_client is None:
+            from core.llm import get_llm_client
+
+            self._llm_client = get_llm_client()
+        return self._llm_client
 
     async def extract(self, pages: List["ScrapedPage"]) -> Optional[ExtractedBio]:
         """
-        Extract bio from list of scraped pages.
+        Extract bio from list of scraped pages using LLM.
 
         Args:
             pages: List of ScrapedPage objects from scraper
@@ -62,22 +109,23 @@ class BioExtractor:
         Returns:
             ExtractedBio if found, None otherwise
         """
-        # First, look for dedicated about pages
+        # First, find about pages
         about_pages = self._find_about_pages(pages)
 
         if about_pages:
             logger.info(f"Found {len(about_pages)} about pages")
             for page in about_pages:
-                bio = self._extract_bio_from_page(page)
-                if bio:
+                bio = await self._extract_with_llm(page)
+                if bio and bio.bio_summary:
                     return bio
 
-        # Fallback: look for bio sections in homepage or other pages
-        logger.info("No about page found, searching in other pages...")
-        for page in pages:
-            bio = self._extract_bio_from_page(page, strict=False)
-            if bio:
-                return bio
+        # Fallback: try homepage or other pages
+        logger.info("No about page found, trying other pages...")
+        for page in pages[:3]:  # Try first 3 pages
+            if page not in about_pages:
+                bio = await self._extract_with_llm(page)
+                if bio and bio.bio_summary:
+                    return bio
 
         logger.warning("No bio found in any page")
         return None
@@ -97,128 +145,105 @@ class BioExtractor:
         about_pages.sort(key=lambda p: len(p.url))
         return about_pages
 
-    def _extract_bio_from_page(
-        self, page: "ScrapedPage", strict: bool = True
-    ) -> Optional[ExtractedBio]:
-        """Extract bio text from a single page."""
+    async def _extract_with_llm(self, page: "ScrapedPage") -> Optional[ExtractedBio]:
+        """Extract bio from a single page using LLM."""
         content = page.main_content
 
-        if not content or len(content) < self.min_bio_length:
+        if not content or len(content.strip()) < 100:
             return None
+
+        # Truncate content if too long
+        if len(content) > self.max_content_chars:
+            content = content[: self.max_content_chars] + "..."
 
         # Clean content
-        cleaned = self._clean_text(content)
+        content = self._clean_content(content)
 
-        # For about pages, use more of the content
-        if not strict:
-            # Look for bio section markers
-            bio_text = self._find_bio_section(cleaned)
-            if not bio_text:
+        try:
+            llm = self._get_llm_client()
+            prompt = EXTRACTION_PROMPT.format(page_content=content)
+
+            logger.info(f"Extracting bio from {page.url} using LLM...")
+
+            # Call LLM with timeout
+            response = await asyncio.wait_for(
+                llm.generate(prompt, temperature=0.3, max_tokens=500),
+                timeout=LLM_TIMEOUT,
+            )
+
+            # Parse JSON response
+            bio_data = self._parse_llm_response(response)
+
+            if not bio_data:
                 return None
-        else:
-            # For about pages, use most of the content (it's likely all relevant)
-            bio_text = cleaned
 
-        # Truncate if too long
-        if len(bio_text) > self.max_bio_length:
-            # Try to cut at sentence boundary
-            bio_text = self._truncate_at_sentence(bio_text, self.max_bio_length)
+            # Create ExtractedBio
+            bio = ExtractedBio(
+                name=bio_data.get("name"),
+                bio_summary=bio_data.get("bio_summary", "")[:250],  # Ensure max length
+                source_url=page.url,
+                specialties=bio_data.get("specialties", [])[:5],  # Max 5
+                years_experience=bio_data.get("years_experience"),
+                target_audience=bio_data.get("target_audience"),
+                confidence=0.85 if bio_data.get("bio_summary") else 0.3,
+                raw_text=content[:500],
+            )
 
-        # Validate minimum length
-        if len(bio_text) < self.min_bio_length:
+            logger.info(
+                f"Bio extracted: name={bio.name}, summary={len(bio.bio_summary)} chars"
+            )
+            return bio
+
+        except asyncio.TimeoutError:
+            logger.warning(f"LLM timeout extracting bio from {page.url}")
+            return None
+        except Exception as e:
+            logger.error(f"Error extracting bio: {e}")
             return None
 
-        # Calculate confidence
-        confidence = self._calculate_confidence(page, bio_text, strict)
-
-        return ExtractedBio(
-            description=bio_text,
-            source_url=page.url,
-            confidence=confidence,
-            raw_text=content[:500],  # Keep first 500 chars of raw
-        )
-
-    def _clean_text(self, text: str) -> str:
-        """Clean text for bio extraction."""
+    def _clean_content(self, content: str) -> str:
+        """Clean page content for LLM processing."""
         # Remove excessive whitespace
-        text = re.sub(r"\s+", " ", text)
-        # Remove common navigation text
-        text = re.sub(
-            r"(menu|nav|footer|header|copyright|all rights reserved).*?(?=\.|$)",
+        content = re.sub(r"\s+", " ", content)
+        # Remove common navigation/footer text
+        content = re.sub(
+            r"(copyright|all rights reserved|privacy policy|terms of service).*",
             "",
-            text,
+            content,
             flags=re.IGNORECASE,
         )
-        # Remove email addresses (will be extracted separately)
-        text = re.sub(r"\S+@\S+\.\S+", "", text)
-        # Remove URLs
-        text = re.sub(r"https?://\S+", "", text)
+        return content.strip()
 
-        return text.strip()
+    def _parse_llm_response(self, response: str) -> Optional[dict]:
+        """Parse JSON from LLM response."""
+        try:
+            # Clean markdown code blocks if present
+            response = response.strip()
+            if response.startswith("```"):
+                response = re.sub(r"^```json?\n?", "", response)
+                response = re.sub(r"\n?```$", "", response)
 
-    def _find_bio_section(self, text: str) -> Optional[str]:
-        """Find the bio section in a larger text."""
-        text_lower = text.lower()
-
-        for pattern in BIO_SECTION_PATTERNS:
-            match = re.search(pattern, text_lower)
-            if match:
-                # Get text from match position
-                start = match.start()
-                # Get about 1000 chars or until end
-                end = min(start + 1000, len(text))
-                # Try to end at sentence boundary
-                section = text[start:end]
-                return self._truncate_at_sentence(section, 1000)
-
-        return None
-
-    def _truncate_at_sentence(self, text: str, max_length: int) -> str:
-        """Truncate text at a sentence boundary."""
-        if len(text) <= max_length:
-            return text
-
-        # Find last sentence end before max_length
-        truncated = text[:max_length]
-        last_period = truncated.rfind(".")
-        last_exclaim = truncated.rfind("!")
-        last_question = truncated.rfind("?")
-
-        last_sentence_end = max(last_period, last_exclaim, last_question)
-
-        if last_sentence_end > max_length * 0.5:  # At least 50% of max
-            return text[: last_sentence_end + 1]
-
-        return truncated + "..."
-
-    def _calculate_confidence(
-        self, page: "ScrapedPage", bio_text: str, from_about_page: bool
-    ) -> float:
-        """Calculate confidence score for extracted bio."""
-        score = 0.5  # Base score
-
-        # Higher confidence for about pages
-        if from_about_page:
-            score += 0.2
-
-        # Higher confidence for longer bios
-        if len(bio_text) > 300:
-            score += 0.1
-        if len(bio_text) > 500:
-            score += 0.1
-
-        # Lower confidence if contains too many special characters
-        special_ratio = len(re.findall(r"[^\w\s.,!?]", bio_text)) / max(len(bio_text), 1)
-        if special_ratio > 0.1:
-            score -= 0.2
-
-        # Cap at 0.95
-        return min(0.95, max(0.1, score))
+            return json.loads(response)
+        except json.JSONDecodeError as e:
+            logger.warning(f"Failed to parse LLM response as JSON: {e}")
+            # Try to extract JSON from response
+            json_match = re.search(r"\{[\s\S]*\}", response)
+            if json_match:
+                try:
+                    return json.loads(json_match.group())
+                except json.JSONDecodeError:
+                    pass
+            return None
 
     def to_dict(self, bio: ExtractedBio) -> dict:
         """Convert ExtractedBio to dictionary for storage."""
         return {
-            "description": bio.description,
+            "name": bio.name,
+            "description": bio.bio_summary,  # Keep 'description' for compatibility
+            "bio_summary": bio.bio_summary,
             "source_url": bio.source_url,
+            "specialties": bio.specialties,
+            "years_experience": bio.years_experience,
+            "target_audience": bio.target_audience,
             "confidence": bio.confidence,
         }

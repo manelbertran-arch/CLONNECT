@@ -6,18 +6,30 @@ Verifies that data is saved to BOTH:
 2. UI tables (KnowledgeBase, knowledge_about)
 """
 
-from dataclasses import dataclass
-from unittest.mock import MagicMock
+from dataclasses import dataclass, field
+from typing import List, Optional
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
 
 @dataclass
 class MockExtractedBio:
-    description: str = "I'm a test creator who helps people."
+    """Mock bio matching the new LLM-based ExtractedBio interface."""
+
+    name: Optional[str] = "María García"
+    bio_summary: str = "Coach de negocios que ayuda a emprendedores a escalar."
     source_url: str = "https://example.com/about"
-    confidence: float = 0.9
+    specialties: List[str] = field(default_factory=lambda: ["coaching", "negocios"])
+    years_experience: Optional[int] = 10
+    target_audience: Optional[str] = "Emprendedores"
+    confidence: float = 0.85
     raw_text: str = "raw"
+
+    @property
+    def description(self) -> str:
+        """Backwards compatibility alias."""
+        return self.bio_summary
 
 
 @dataclass
@@ -181,8 +193,8 @@ class TestBioExtractor:
     """Test bio extraction from pages."""
 
     @pytest.mark.asyncio
-    async def test_extracts_from_about_page(self):
-        """Should extract bio from /about page."""
+    async def test_extracts_from_about_page_with_llm(self):
+        """Should extract bio from /about page using LLM."""
         from ingestion.v2.bio_extractor import BioExtractor
 
         # Mock page
@@ -196,12 +208,56 @@ class TestBioExtractor:
         Mi metodología combina estrategia, mentalidad y sistemas probados.
         """
 
-        extractor = BioExtractor()
-        bio = await extractor.extract([mock_page])
+        # Mock LLM response
+        mock_llm_response = """{
+            "name": "María",
+            "bio_summary": "Coach de negocios con 10 años de experiencia que ayuda a emprendedores a escalar sus negocios.",
+            "specialties": ["coaching", "negocios", "estrategia"],
+            "years_experience": 10,
+            "target_audience": "Emprendedores"
+        }"""
 
-        assert bio is not None
-        assert len(bio.description) > 50
-        assert "example.com/about" in bio.source_url
+        with patch("ingestion.v2.bio_extractor.BioExtractor._get_llm_client") as mock_get_llm:
+            mock_llm = MagicMock()
+            mock_llm.generate = AsyncMock(return_value=mock_llm_response)
+            mock_get_llm.return_value = mock_llm
+
+            extractor = BioExtractor()
+            bio = await extractor.extract([mock_page])
+
+            assert bio is not None
+            assert bio.name == "María"
+            assert len(bio.bio_summary) > 20
+            assert "example.com/about" in bio.source_url
+            assert "coaching" in bio.specialties
+            assert bio.years_experience == 10
+
+    @pytest.mark.asyncio
+    async def test_finds_about_pages(self):
+        """Should correctly identify about pages by URL pattern."""
+        from ingestion.v2.bio_extractor import BioExtractor
+
+        # Create mock pages
+        home_page = MagicMock()
+        home_page.url = "https://example.com/"
+
+        about_page = MagicMock()
+        about_page.url = "https://example.com/about"
+
+        sobre_page = MagicMock()
+        sobre_page.url = "https://example.com/sobre-mi"
+
+        faq_page = MagicMock()
+        faq_page.url = "https://example.com/faq"
+
+        extractor = BioExtractor()
+        about_pages = extractor._find_about_pages([home_page, about_page, sobre_page, faq_page])
+
+        assert len(about_pages) == 2
+        assert about_page in about_pages
+        assert sobre_page in about_pages
+        assert home_page not in about_pages
+        assert faq_page not in about_pages
 
 
 class TestFAQExtractor:
