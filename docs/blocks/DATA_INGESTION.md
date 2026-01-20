@@ -39,3 +39,12 @@ pueda responder con información real.
 ## ⚠️ NO RE-INDEXAR SIN MOTIVO
 El RAG de fitpack_global tiene 108 docs funcionando.
 Re-indexar podría romper el contenido actual.
+
+## Fix 2026-01-20: Productos no se guardaban en DB
+
+**Problema**: AutoConfigurator se instanciaba sin db_session
+**Causa**: `configurator = AutoConfigurator()` → self.db = None
+**Efecto**: Productos detectados pero nunca guardados (self.db check fallaba)
+**Solución**: Pasar db_session al constructor: `AutoConfigurator(db_session=db)`
+**Archivos modificados**: backend/api/routers/onboarding.py
+**Fecha**: 2026-01-20
