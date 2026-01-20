@@ -16,9 +16,9 @@ Anti-hallucination guarantees:
 """
 
 import logging
-from typing import Dict, Any, Optional
 from dataclasses import dataclass, field
 from datetime import datetime
+from typing import Any, Dict, Optional
 
 logger = logging.getLogger(__name__)
 
@@ -26,6 +26,7 @@ logger = logging.getLogger(__name__)
 @dataclass
 class IngestionResult:
     """Result of a content ingestion pipeline run."""
+
     success: bool
     creator_id: str
     source_url: str
@@ -65,10 +66,7 @@ class IngestionPipeline:
         self.max_pages = max_pages
 
     async def run(
-        self,
-        creator_id: str,
-        website_url: str,
-        clear_existing: bool = False
+        self, creator_id: str, website_url: str, clear_existing: bool = False
     ) -> IngestionResult:
         """
         Run the full ingestion pipeline.
@@ -82,19 +80,16 @@ class IngestionPipeline:
             IngestionResult with all stats
         """
         import time
+
         start_time = time.time()
 
-        result = IngestionResult(
-            success=False,
-            creator_id=creator_id,
-            source_url=website_url
-        )
+        result = IngestionResult(success=False, creator_id=creator_id, source_url=website_url)
 
         try:
             # Import modules
+            from .content_store import get_content_store
             from .deterministic_scraper import get_deterministic_scraper
             from .structured_extractor import get_structured_extractor
-            from .content_store import get_content_store
 
             # Initialize components
             scraper = get_deterministic_scraper(max_pages=self.max_pages)
@@ -152,7 +147,9 @@ class IngestionPipeline:
 
             # Step 5: Store testimonials as RAG
             if extracted.testimonials:
-                testimonial_count = store.store_testimonials_as_rag(creator_id, extracted.testimonials)
+                testimonial_count = store.store_testimonials_as_rag(
+                    creator_id, extracted.testimonials
+                )
                 result.rag_documents_indexed += testimonial_count
 
             # Step 6: Store FAQs as RAG
@@ -162,7 +159,9 @@ class IngestionPipeline:
 
             # Step 7: Store about sections as RAG
             if extracted.about_sections:
-                about_count = store.store_about_sections_as_rag(creator_id, extracted.about_sections)
+                about_count = store.store_about_sections_as_rag(
+                    creator_id, extracted.about_sections
+                )
                 result.rag_documents_indexed += about_count
 
             result.success = True
@@ -178,16 +177,14 @@ class IngestionPipeline:
         except Exception as e:
             logger.error(f"Pipeline error: {e}")
             import traceback
+
             traceback.print_exc()
             result.errors.append(str(e))
             result.duration_seconds = time.time() - start_time
 
         return result
 
-    async def run_quick_scrape(
-        self,
-        website_url: str
-    ) -> Dict[str, Any]:
+    async def run_quick_scrape(self, website_url: str) -> Dict[str, Any]:
         """
         Quick scrape without storage - for preview/testing.
 
@@ -196,7 +193,7 @@ class IngestionPipeline:
         from .deterministic_scraper import get_deterministic_scraper
         from .structured_extractor import get_structured_extractor
 
-        scraper = get_deterministic_scraper(max_pages=5)
+        scraper = get_deterministic_scraper(max_pages=100)
         extractor = get_structured_extractor()
 
         pages = await scraper.scrape_website(website_url)
@@ -213,7 +210,7 @@ class IngestionPipeline:
                     "url": p.url,
                     "title": p.title,
                     "content_length": len(p.main_content),
-                    "sections": len(p.sections)
+                    "sections": len(p.sections),
                 }
                 for p in pages
             ],
@@ -225,28 +222,20 @@ class IngestionPipeline:
                     "currency": p.currency,
                     "price_verified": p.price_verified,
                     "confidence": p.confidence,
-                    "source_url": p.source_url
+                    "source_url": p.source_url,
                 }
                 for p in extracted.products
             ],
             "testimonials": [
-                {
-                    "content": t.content[:200],
-                    "author": t.author,
-                    "source_url": t.source_url
-                }
+                {"content": t.content[:200], "author": t.author, "source_url": t.source_url}
                 for t in extracted.testimonials
             ],
             "faqs": [
-                {
-                    "question": f.question,
-                    "answer": f.answer[:200],
-                    "source_url": f.source_url
-                }
+                {"question": f.question, "answer": f.answer[:200], "source_url": f.source_url}
                 for f in extracted.faqs
             ],
             "contact_info": extracted.contact_info,
-            "rag_chunks_count": len(extracted.raw_chunks)
+            "rag_chunks_count": len(extracted.raw_chunks),
         }
 
 
@@ -260,7 +249,7 @@ async def ingest_website(
     website_url: str,
     db_session=None,
     max_pages: int = 10,
-    clear_existing: bool = False
+    clear_existing: bool = False,
 ) -> IngestionResult:
     """
     Convenience function to run ingestion.

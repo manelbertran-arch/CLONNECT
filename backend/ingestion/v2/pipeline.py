@@ -98,7 +98,7 @@ class IngestionV2Pipeline:
     5. Guarda solo si todo pasa
     """
 
-    def __init__(self, db_session=None, max_pages: int = 10):
+    def __init__(self, db_session=None, max_pages: int = 100):
         self.db = db_session
         self.max_pages = max_pages
 
@@ -436,7 +436,7 @@ async def ingest_website_v2(
     creator_id: str,
     website_url: str,
     db_session=None,
-    max_pages: int = 10,
+    max_pages: int = 100,
     clean_before: bool = True,
     re_verify: bool = True
 ) -> IngestionV2Result:

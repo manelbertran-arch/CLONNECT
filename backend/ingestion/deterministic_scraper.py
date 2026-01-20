@@ -62,7 +62,7 @@ class DeterministicScraper:
         '[id*="cookie"]', '[id*="popup"]', '[id*="modal"]'
     ]
 
-    def __init__(self, timeout: float = 15.0, max_pages: int = 10):
+    def __init__(self, timeout: float = 15.0, max_pages: int = 100):
         self.timeout = timeout
         self.max_pages = max_pages
         self._visited: set = set()
@@ -274,7 +274,7 @@ class DeterministicScraper:
 # Singleton
 _scraper: Optional[DeterministicScraper] = None
 
-def get_deterministic_scraper(max_pages: int = 10) -> DeterministicScraper:
+def get_deterministic_scraper(max_pages: int = 100) -> DeterministicScraper:
     """Get or create scraper instance."""
     global _scraper
     if _scraper is None:
