@@ -549,15 +549,22 @@ class IngestionV2Pipeline:
 
             # Update creator with bio info if available
             if bio and bio.is_valid():
-                # Check if Creator has these fields
-                if hasattr(creator, "bio_description"):
-                    creator.bio_description = bio.description
-                if hasattr(creator, "specialties"):
-                    creator.specialties = bio.specialties
-                if hasattr(creator, "experience_years"):
-                    creator.experience_years = bio.experience_years
-                if hasattr(creator, "target_audience"):
-                    creator.target_audience = bio.target_audience
+                # Save to creator.knowledge_about (for Settings page)
+                if hasattr(creator, "knowledge_about"):
+                    about_data = creator.knowledge_about or {}
+                    about_data["bio"] = bio.description
+                    about_data["specialties"] = (
+                        ", ".join(bio.specialties) if bio.specialties else ""
+                    )
+                    about_data["experience"] = (
+                        f"{bio.experience_years} años" if bio.experience_years else ""
+                    )
+                    about_data["target_audience"] = bio.target_audience or ""
+                    about_data["name"] = bio.name or ""
+                    creator.knowledge_about = about_data
+                    logger.info(
+                        f"[_save_creator_knowledge] Bio saved to knowledge_about for {creator_id}"
+                    )
 
                 # Save bio as RAG document for search
                 bio_doc_id = hashlib.sha256(f"{creator_id}:bio".encode()).hexdigest()[:32]
@@ -607,27 +614,40 @@ class IngestionV2Pipeline:
                 self.db.merge(tone_rag)
                 logger.info(f"[_save_creator_knowledge] Tone config saved for {creator_id}")
 
-            # Save FAQs as RAG documents
-            for i, faq in enumerate(faqs):
-                faq_doc_id = hashlib.sha256(
-                    f"{creator_id}:faq:{faq.question[:50]}".encode()
-                ).hexdigest()[:32]
-
-                faq_content = f"Pregunta: {faq.question}\n\nRespuesta: {faq.answer}"
-                faq_rag = RAGDocument(
-                    creator_id=creator.id,
-                    doc_id=faq_doc_id,
-                    content=faq_content,
-                    source_url="",
-                    source_type="extracted",
-                    content_type="faq",
-                    title=f"FAQ: {faq.question[:50]}...",
-                    metadata=json.dumps({"category": faq.category}),
-                )
-                self.db.merge(faq_rag)
-
+            # Save FAQs to RAG documents AND KnowledgeBase table
             if faqs:
-                logger.info(f"[_save_creator_knowledge] {len(faqs)} FAQs saved for {creator_id}")
+                from api.models import KnowledgeBase
+
+                for faq in faqs:
+                    # 1. Save to RAG documents (for chatbot context)
+                    faq_doc_id = hashlib.sha256(
+                        f"{creator_id}:faq:{faq.question[:50]}".encode()
+                    ).hexdigest()[:32]
+
+                    faq_content = f"Pregunta: {faq.question}\n\nRespuesta: {faq.answer}"
+                    faq_rag = RAGDocument(
+                        creator_id=creator.id,
+                        doc_id=faq_doc_id,
+                        content=faq_content,
+                        source_url="",
+                        source_type="extracted",
+                        content_type="faq",
+                        title=f"FAQ: {faq.question[:50]}...",
+                        metadata=json.dumps({"category": faq.category}),
+                    )
+                    self.db.merge(faq_rag)
+
+                    # 2. Save to KnowledgeBase table (for Settings page)
+                    kb_item = KnowledgeBase(
+                        creator_id=creator.id,
+                        question=faq.question,
+                        answer=faq.answer,
+                    )
+                    self.db.add(kb_item)
+
+                logger.info(
+                    f"[_save_creator_knowledge] {len(faqs)} FAQs saved to RAG + KnowledgeBase for {creator_id}"
+                )
 
             self.db.commit()
             return True
