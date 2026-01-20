@@ -12,8 +12,14 @@ Pipeline:
 import logging
 import time
 from dataclasses import dataclass, field
-from datetime import datetime
-from typing import Any, Dict, List, Optional
+from typing import TYPE_CHECKING, Dict, List, Optional
+
+if TYPE_CHECKING:
+    from ..deterministic_scraper import ScrapedPage
+    from .bio_extractor import CreatorBio
+    from .faq_extractor import FAQ
+    from .product_detector import DetectedProduct
+    from .tone_detector import ToneConfig
 
 logger = logging.getLogger(__name__)
 
@@ -43,6 +49,11 @@ class IngestionV2Result:
     # Sanity checks
     sanity_checks: List[Dict] = field(default_factory=list)
 
+    # Creator knowledge (bio, FAQs, tone)
+    bio: Optional[Dict] = None
+    faqs: List[Dict] = field(default_factory=list)
+    tone: Optional[Dict] = None
+
     # Cleanup
     products_deleted: int = 0
     rag_docs_deleted: int = 0
@@ -50,6 +61,7 @@ class IngestionV2Result:
     # Storage
     products_saved: int = 0
     rag_docs_saved: int = 0
+    knowledge_saved: bool = False
 
     # Timing
     duration_seconds: float = 0.0
@@ -75,6 +87,11 @@ class IngestionV2Result:
             },
             "products": self.products,
             "sanity_checks": self.sanity_checks,
+            "creator_knowledge": {
+                "bio": self.bio,
+                "faqs": self.faqs,
+                "tone": self.tone,
+            },
             "cleanup": {
                 "products_deleted": self.products_deleted,
                 "rag_docs_deleted": self.rag_docs_deleted,
@@ -82,6 +99,7 @@ class IngestionV2Result:
             "storage": {
                 "products_saved": self.products_saved,
                 "rag_docs_saved": self.rag_docs_saved,
+                "knowledge_saved": self.knowledge_saved,
             },
             "duration_seconds": self.duration_seconds,
             "errors": self.errors,
@@ -211,6 +229,40 @@ class IngestionV2Pipeline:
             # Preparar productos para resultado
             result.products = [p.to_dict() for p in verified_products]
 
+            # PASO 4.5: EXTRAER conocimiento del creador (bio, FAQs, tono)
+            bio = None
+            faqs = []
+            tone = None
+
+            try:
+                from .bio_extractor import BioExtractor
+                from .faq_extractor import FAQExtractor
+                from .tone_detector import ToneDetector
+
+                logger.info("Extrayendo conocimiento del creador (bio, FAQs, tono)...")
+
+                # Extract bio
+                bio_extractor = BioExtractor()
+                bio = await bio_extractor.extract(pages)
+                result.bio = bio.to_dict() if bio and bio.is_valid() else None
+                logger.info(f"Bio extraída: {len(bio.description) if bio else 0} chars")
+
+                # Extract FAQs
+                faq_extractor = FAQExtractor()
+                faqs = await faq_extractor.extract(pages, result.products, bio)
+                result.faqs = [f.to_dict() for f in faqs]
+                logger.info(f"FAQs extraídas: {len(faqs)}")
+
+                # Detect tone
+                tone_detector = ToneDetector()
+                tone = await tone_detector.detect(pages, bio)
+                result.tone = tone.to_dict() if tone else None
+                logger.info(f"Tono detectado: {tone.tone if tone else 'N/A'}")
+
+            except Exception as e:
+                logger.warning(f"Error extrayendo conocimiento del creador: {e}")
+                # No falla el pipeline por esto
+
             # PASO 5: GUARDAR (solo si sanity checks pasaron)
             if verification.status == "success" and self.db:
                 logger.info("Guardando productos verificados...")
@@ -220,6 +272,11 @@ class IngestionV2Pipeline:
                 # También crear RAG docs básicos para los productos
                 rag_saved = self._save_product_rag_docs(creator_id, verified_products, pages)
                 result.rag_docs_saved = rag_saved
+
+                # Guardar conocimiento del creador (bio, FAQs, tono)
+                if bio or faqs or tone:
+                    knowledge_saved = self._save_creator_knowledge(creator_id, bio, faqs, tone)
+                    result.knowledge_saved = knowledge_saved
 
                 result.success = True
             elif not self.db:
@@ -300,19 +357,17 @@ class IngestionV2Pipeline:
 
     def _save_products(self, creator_id: str, products: List["DetectedProduct"]) -> int:
         """Guarda productos verificados."""
-        from .product_detector import DetectedProduct
-
         # CRITICAL: Log why we might not save
         logger.info(
             f"[_save_products] db={self.db}, products_count={len(products) if products else 0}, creator_id={creator_id}"
         )
 
         if not self.db:
-            logger.warning(f"[_save_products] SKIPPING: db is None!")
+            logger.warning("[_save_products] SKIPPING: db is None!")
             return 0
 
         if not products:
-            logger.warning(f"[_save_products] SKIPPING: No products to save!")
+            logger.warning("[_save_products] SKIPPING: No products to save!")
             return 0
 
         saved = 0
@@ -377,9 +432,6 @@ class IngestionV2Pipeline:
         self, creator_id: str, products: List["DetectedProduct"], pages: List["ScrapedPage"]
     ) -> int:
         """Guarda RAG docs para productos y páginas scrapeadas."""
-        from ..deterministic_scraper import ScrapedPage
-        from .product_detector import DetectedProduct
-
         if not self.db:
             return 0
 
@@ -460,6 +512,130 @@ class IngestionV2Pipeline:
             self.db.rollback()
 
         return saved
+
+    def _save_creator_knowledge(
+        self,
+        creator_id: str,
+        bio: Optional["CreatorBio"],
+        faqs: List["FAQ"],
+        tone: Optional["ToneConfig"],
+    ) -> bool:
+        """Guarda conocimiento del creador: bio, FAQs, tone."""
+        if not self.db:
+            return False
+
+        try:
+            import hashlib
+            import json
+
+            from api.models import Creator, RAGDocument
+            from sqlalchemy import or_
+
+            # Get creator
+            creator = (
+                self.db.query(Creator)
+                .filter(
+                    or_(
+                        Creator.id == creator_id if len(str(creator_id)) > 20 else False,
+                        Creator.name == creator_id,
+                    )
+                )
+                .first()
+            )
+
+            if not creator:
+                logger.warning(f"[_save_creator_knowledge] Creator '{creator_id}' not found")
+                return False
+
+            # Update creator with bio info if available
+            if bio and bio.is_valid():
+                # Check if Creator has these fields
+                if hasattr(creator, "bio_description"):
+                    creator.bio_description = bio.description
+                if hasattr(creator, "specialties"):
+                    creator.specialties = bio.specialties
+                if hasattr(creator, "experience_years"):
+                    creator.experience_years = bio.experience_years
+                if hasattr(creator, "target_audience"):
+                    creator.target_audience = bio.target_audience
+
+                # Save bio as RAG document for search
+                bio_doc_id = hashlib.sha256(f"{creator_id}:bio".encode()).hexdigest()[:32]
+                bio_content = f"Sobre {bio.name or 'el creador'}:\n\n{bio.description}"
+                if bio.specialties:
+                    bio_content += f"\n\nEspecialidades: {', '.join(bio.specialties)}"
+                if bio.experience_years:
+                    bio_content += f"\n\nExperiencia: {bio.experience_years} años"
+
+                bio_rag = RAGDocument(
+                    creator_id=creator.id,
+                    doc_id=bio_doc_id,
+                    content=bio_content,
+                    source_url="",
+                    source_type="extracted",
+                    content_type="bio",
+                    title="Sobre el creador",
+                )
+                self.db.merge(bio_rag)
+                logger.info(f"[_save_creator_knowledge] Bio saved for {creator_id}")
+
+            # Save tone config if available
+            if tone:
+                if hasattr(creator, "tone_config"):
+                    creator.tone_config = tone.to_dict()
+                if hasattr(creator, "bot_instructions"):
+                    creator.bot_instructions = tone.instructions
+
+                # Save tone as RAG document (for reference)
+                tone_doc_id = hashlib.sha256(f"{creator_id}:tone".encode()).hexdigest()[:32]
+                tone_content = (
+                    f"Configuración de tono del creador:\n"
+                    f"- Estilo: {tone.tone}\n"
+                    f"- Formalidad: {tone.formality}\n"
+                    f"- Usa emojis: {'Sí' if tone.emoji_usage else 'No'}\n"
+                    f"\nInstrucciones: {tone.instructions}"
+                )
+                tone_rag = RAGDocument(
+                    creator_id=creator.id,
+                    doc_id=tone_doc_id,
+                    content=tone_content,
+                    source_url="",
+                    source_type="extracted",
+                    content_type="tone",
+                    title="Configuración de tono",
+                )
+                self.db.merge(tone_rag)
+                logger.info(f"[_save_creator_knowledge] Tone config saved for {creator_id}")
+
+            # Save FAQs as RAG documents
+            for i, faq in enumerate(faqs):
+                faq_doc_id = hashlib.sha256(
+                    f"{creator_id}:faq:{faq.question[:50]}".encode()
+                ).hexdigest()[:32]
+
+                faq_content = f"Pregunta: {faq.question}\n\nRespuesta: {faq.answer}"
+                faq_rag = RAGDocument(
+                    creator_id=creator.id,
+                    doc_id=faq_doc_id,
+                    content=faq_content,
+                    source_url="",
+                    source_type="extracted",
+                    content_type="faq",
+                    title=f"FAQ: {faq.question[:50]}...",
+                    metadata=json.dumps({"category": faq.category}),
+                )
+                self.db.merge(faq_rag)
+
+            if faqs:
+                logger.info(f"[_save_creator_knowledge] {len(faqs)} FAQs saved for {creator_id}")
+
+            self.db.commit()
+            return True
+
+        except Exception as e:
+            logger.error(f"Error saving creator knowledge: {e}")
+            self.db.rollback()
+            return False
 
 
 async def ingest_website_v2(
