@@ -208,6 +208,31 @@ async def _auto_onboard_after_instagram_oauth(
             except Exception as product_error:
                 logger.warning(f"[AutoOnboard] Could not detect products: {product_error}")
 
+        # FINAL: Update clone_progress to 100% complete
+        session = SessionLocal()
+        try:
+            creator = session.query(Creator).filter_by(name=creator_id).first()
+            if creator:
+                creator.clone_status = "complete"
+                creator.clone_progress = {
+                    "steps": {
+                        "instagram": "completed",
+                        "website": "completed",
+                        "training": "completed",
+                        "activating": "completed",
+                    },
+                    "percent": 100,
+                    "messages_synced": 0,
+                    "leads_created": 0,
+                }
+                creator.onboarding_completed = True
+                from sqlalchemy.orm.attributes import flag_modified
+                flag_modified(creator, 'clone_progress')
+                session.commit()
+                logger.info(f"[AutoOnboard] Progress updated to 100%")
+        finally:
+            session.close()
+
         logger.info(f"[AutoOnboard] ✅ Complete! {creator_id} is ready to receive DMs")
 
     except Exception as e:
