@@ -807,50 +807,45 @@ async def _run_clone_creation(creator_id: str, website_url: str = None):
                 creator_id, step="instagram", step_status="completed", percent=25
             )
 
-            # Step 2: Scrape website (if provided)
+            # Step 2: Website ingestion (RAG + Products) - Using ONLY IngestionV2Pipeline
             _update_clone_progress(creator_id, step="website", step_status="active", percent=30)
 
             if website_url:
-                logger.info(f"[CloneCreation] Step 2: Scraping website {website_url}")
-                try:
-                    from core.website_scraper import scrape_and_index_website
-
-                    web_stats = await scrape_and_index_website(
-                        creator_id=creator_id, url=website_url, max_pages=100
-                    )
-                    logger.info(f"[CloneCreation] Website scraped: {web_stats}")
-                except Exception as e:
-                    logger.warning(f"[CloneCreation] Website scraping failed: {e}")
-
-                # Step 2b: Detect products from website using IngestionV2Pipeline
-                logger.info(f"[CloneCreation] Step 2b: Detecting products from {website_url}")
+                logger.info(f"[CloneCreation] Step 2: Website ingestion (RAG + Products) from {website_url}")
                 try:
                     from ingestion.v2.pipeline import IngestionV2Pipeline
 
-                    # CRITICAL: Use the existing session instead of creating a new one
-                    # This ensures db_session is valid and not None
-                    logger.info(
-                        f"[CloneCreation] Using existing DB session for product detection: {session}"
-                    )
+                    # Use existing db session - guaranteed valid at this point
+                    logger.info(f"[CloneCreation] Using db_session={session} for IngestionV2Pipeline")
                     pipeline = IngestionV2Pipeline(db_session=session, max_pages=100)
-                    product_result = await pipeline.run(
+                    result = await pipeline.run(
                         creator_id=creator_id,
                         website_url=website_url,
-                        clean_before=False,  # Don't clean - keep RAG from previous step
+                        clean_before=True,  # Clean old data before ingesting
                         re_verify=True,
                     )
+
+                    # Log results
                     logger.info(
-                        f"[CloneCreation] Products detected: {product_result.products_detected}, saved: {product_result.products_saved}"
+                        f"[CloneCreation] Website ingestion complete: "
+                        f"pages={result.pages_scraped}, "
+                        f"products_detected={result.products_detected}, "
+                        f"products_saved={result.products_saved}, "
+                        f"rag_docs={result.rag_docs_saved}"
                     )
                     print(
-                        f"[CloneCreation] Products: detected={product_result.products_detected}, saved={product_result.products_saved}",
+                        f"[CloneCreation] Results: products={result.products_saved}, rag_docs={result.rag_docs_saved}",
                         flush=True,
                     )
-                except Exception as e:
-                    logger.warning(f"[CloneCreation] Product detection failed: {e}")
-                    print(f"[CloneCreation] Product detection error: {e}", flush=True)
-                    import traceback
 
+                    if result.products_saved == 0 and result.products_detected > 0:
+                        logger.warning(
+                            f"[CloneCreation] WARNING: {result.products_detected} products detected but 0 saved!"
+                        )
+                except Exception as e:
+                    logger.error(f"[CloneCreation] Website ingestion failed: {e}")
+                    print(f"[CloneCreation] Website ingestion error: {e}", flush=True)
+                    import traceback
                     traceback.print_exc()
             else:
                 logger.info(f"[CloneCreation] Step 2: No website provided, skipping")
