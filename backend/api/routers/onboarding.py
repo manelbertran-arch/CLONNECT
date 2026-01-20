@@ -2029,10 +2029,14 @@ async def _run_full_auto_setup_background(
         """Helper to save progress to both memory and DB."""
         _update_clone_status_db(creator_id, status)
 
+    db_session = None
     try:
         from core.auto_configurator import AutoConfigurator
+        from api.database import SessionLocal
 
-        configurator = AutoConfigurator()
+        # CRITICAL: Pass db_session so products get saved to database
+        db_session = SessionLocal()
+        configurator = AutoConfigurator(db_session=db_session)
 
         # Step 1: Instagram scraping
         status["current_step"] = "instagram_scraping"
@@ -2211,6 +2215,10 @@ async def _run_full_auto_setup_background(
         status["status"] = "failed"
         status["errors"].append(str(e))
         save_progress()
+    finally:
+        # Always close db session to prevent connection leaks
+        if db_session:
+            db_session.close()
 
 
 @router.post("/manual-setup", response_model=ManualSetupResponse)
