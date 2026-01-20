@@ -193,7 +193,7 @@ class IngestionPipeline:
         from .deterministic_scraper import get_deterministic_scraper
         from .structured_extractor import get_structured_extractor
 
-        scraper = get_deterministic_scraper(max_pages=15)
+        scraper = get_deterministic_scraper(max_pages=100)
         extractor = get_structured_extractor()
 
         pages = await scraper.scrape_website(website_url)

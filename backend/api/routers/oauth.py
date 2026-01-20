@@ -177,7 +177,7 @@ async def _auto_onboard_after_instagram_oauth(
                 from core.website_scraper import scrape_and_index_website
 
                 web_stats = await scrape_and_index_website(
-                    creator_id=creator_id, url=url_to_scrape, max_pages=15
+                    creator_id=creator_id, url=url_to_scrape, max_pages=100
                 )
                 logger.info(
                     f"[AutoOnboard] Website indexed: {web_stats['pages_scraped']} pages, {web_stats['chunks_indexed']} chunks"
@@ -211,7 +211,7 @@ async def _auto_onboard_after_instagram_oauth(
 
                 session = SessionLocal()
                 try:
-                    pipeline = IngestionV2Pipeline(db_session=session, max_pages=15)
+                    pipeline = IngestionV2Pipeline(db_session=session, max_pages=100)
                     product_result = await pipeline.run(
                         creator_id=creator_id,
                         website_url=url_to_scrape,
