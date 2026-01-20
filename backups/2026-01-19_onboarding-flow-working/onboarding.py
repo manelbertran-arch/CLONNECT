@@ -592,10 +592,6 @@ async def start_clone_creation(request: StartCloneRequest, background_tasks: Bac
                 if not creator.knowledge_about:
                     creator.knowledge_about = {}
                 creator.knowledge_about['website_url'] = request.website_url
-                # CRITICAL: flag_modified required for SQLAlchemy to detect JSON field changes
-                from sqlalchemy.orm.attributes import flag_modified
-                flag_modified(creator, 'knowledge_about')
-                logger.info(f"[CloneCreation] Saved website_url: {request.website_url}")
 
             session.commit()
             logger.info(f"[CloneCreation] Started for {request.creator_id}, progress saved to DB")
@@ -748,30 +744,6 @@ async def _run_clone_creation(creator_id: str, website_url: str = None):
                     logger.info(f"[CloneCreation] Website scraped: {web_stats}")
                 except Exception as e:
                     logger.warning(f"[CloneCreation] Website scraping failed: {e}")
-
-                # Step 2b: Detect products from website using IngestionV2Pipeline
-                logger.info(f"[CloneCreation] Step 2b: Detecting products from {website_url}")
-                try:
-                    from ingestion.v2.pipeline import IngestionV2Pipeline
-                    from api.database import SessionLocal
-
-                    # Create a fresh DB session for product detection
-                    product_db = SessionLocal()
-                    try:
-                        pipeline = IngestionV2Pipeline(db_session=product_db, max_pages=10)
-                        product_result = await pipeline.run(
-                            creator_id=creator_id,
-                            website_url=website_url,
-                            clean_before=False,  # Don't clean - keep RAG from previous step
-                            re_verify=True
-                        )
-                        logger.info(f"[CloneCreation] Products detected: {product_result.products_detected}, saved: {product_result.products_saved}")
-                        print(f"[CloneCreation] Products: detected={product_result.products_detected}, saved={product_result.products_saved}", flush=True)
-                    finally:
-                        product_db.close()
-                except Exception as e:
-                    logger.warning(f"[CloneCreation] Product detection failed: {e}")
-                    print(f"[CloneCreation] Product detection error: {e}", flush=True)
             else:
                 logger.info(f"[CloneCreation] Step 2: No website provided, skipping")
 
@@ -2566,14 +2538,10 @@ async def _run_full_auto_setup_background(
         """Helper to save progress to both memory and DB."""
         _update_clone_status_db(creator_id, status)
 
-    db_session = None
     try:
         from core.auto_configurator import AutoConfigurator
-        from api.database import SessionLocal
 
-        # CRITICAL: Pass db_session so products get saved to database
-        db_session = SessionLocal()
-        configurator = AutoConfigurator(db_session=db_session)
+        configurator = AutoConfigurator()
 
         # Step 1: Instagram scraping
         status["current_step"] = "instagram_scraping"
@@ -2752,10 +2720,6 @@ async def _run_full_auto_setup_background(
         status["status"] = "failed"
         status["errors"].append(str(e))
         save_progress()
-    finally:
-        # Always close db session to prevent connection leaks
-        if db_session:
-            db_session.close()
 
 
 @router.post("/manual-setup", response_model=ManualSetupResponse)

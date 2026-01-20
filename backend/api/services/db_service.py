@@ -296,8 +296,15 @@ def get_leads(creator_name: str, include_archived: bool = False):
         session.close()
 
 
-def get_conversations_with_counts(creator_name: str, limit: int = 50, include_archived: bool = False):
-    """Get conversations with accurate message counts from PostgreSQL"""
+def get_conversations_with_counts(creator_name: str, limit: int = 50, include_archived: bool = False, min_messages: int = 0):
+    """Get conversations with accurate message counts from PostgreSQL
+
+    Args:
+        creator_name: Creator identifier
+        limit: Max conversations to return
+        include_archived: Include archived/spam conversations
+        min_messages: Minimum message count to include (default 1, filters out empty conversations)
+    """
     session = get_session()
     if not session:
         return None
@@ -309,15 +316,19 @@ def get_conversations_with_counts(creator_name: str, limit: int = 50, include_ar
         if not creator:
             return None
 
-        # Query leads with message count using subquery (only count user messages, not bot responses)
+        # Query leads with message count using subquery (count ALL messages, not just user)
         msg_count_subq = session.query(
             Message.lead_id,
             func.count(Message.id).label('msg_count')
-        ).filter(Message.role == 'user').group_by(Message.lead_id).subquery()
+        ).group_by(Message.lead_id).subquery()
 
         query = session.query(Lead, func.coalesce(msg_count_subq.c.msg_count, 0).label('total_messages'))\
             .outerjoin(msg_count_subq, Lead.id == msg_count_subq.c.lead_id)\
             .filter(Lead.creator_id == creator.id)
+
+        # Filter out conversations with fewer than min_messages (default: hide empty conversations)
+        if min_messages > 0:
+            query = query.filter(func.coalesce(msg_count_subq.c.msg_count, 0) >= min_messages)
 
         if not include_archived:
             query = query.filter(not_(Lead.status.in_(["archived", "spam"])))

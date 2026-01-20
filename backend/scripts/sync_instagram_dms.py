@@ -22,8 +22,9 @@ logger = logging.getLogger(__name__)
 # Config
 CREATOR_ID = "stefano_bonanno"
 ACCESS_TOKEN = "IGAAT4utuSH75BZAGE0SFNwU0lfc2oxQ2hhZADNoQkJxR0hrNGc5ZAzZAScjd0dHNHYmJyQXBTODViQlFpOUdlSDlQSHE5Y2c1WjJ3MUluX2xLazdZAWUlHcC1xOE81R2tHRXJZARnM2U2xlYkk0Vk9tblRsSTBfS3VVQm1sLWllSElkUQZDZD"
-IG_USER_ID = "17841407135263418"
-API_BASE = "https://graph.instagram.com/v21.0"
+IG_USER_ID = "17841407135263418"  # This is the page_id (used for conversations)
+# IMPORTANTE: Usar graph.facebook.com para conversations/messages
+API_BASE = "https://graph.facebook.com/v21.0"
 MAX_CONVERSATIONS = 50
 MAX_MESSAGES_PER_CONV = 50
 
@@ -64,11 +65,11 @@ async def sync_dms():
         insights = []
 
         async with httpx.AsyncClient(timeout=30.0) as client:
-            # Get conversations
+            # Get conversations - usar platform=instagram
             logger.info("Fetching conversations...")
             conv_resp = await client.get(
                 f"{API_BASE}/{IG_USER_ID}/conversations",
-                params={"access_token": ACCESS_TOKEN, "limit": MAX_CONVERSATIONS}
+                params={"platform": "instagram", "access_token": ACCESS_TOKEN, "limit": MAX_CONVERSATIONS}
             )
 
             if conv_resp.status_code != 200:

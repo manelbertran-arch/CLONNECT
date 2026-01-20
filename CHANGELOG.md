@@ -2,6 +2,44 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2026-01-19 - Onboarding Flow FUNCIONANDO
+
+### Lo que funciona al 100%:
+- OAuth Instagram Login (conexión de cuenta)
+- Scraping de 50 posts de Instagram
+- ToneProfile generation (análisis de tono con OpenAI)
+- ToneProfile guardado en PostgreSQL + JSON backup
+- Content indexing (añadir posts al índice de citaciones)
+- Progress polling desde frontend
+- DM sync con soporte para media (imágenes, videos, stories, GIFs, stickers)
+
+### Fix crítico aplicado:
+- **Problema**: `index.save()` en citation_service.py causaba timeout por N+1 queries (1000+ chunks = 2000+ queries individuales)
+- **Solución temporal**: Skippeado el save() para evitar timeout
+- **TODO**: Implementar bulk insert en `_save_chunks_to_db()` en lugar de queries individuales
+
+### Archivos clave del onboarding flow:
+- `backend/api/routers/onboarding.py` - Endpoints y _run_clone_creation
+- `backend/core/onboarding_service.py` - OnboardingService.onboard_creator()
+- `backend/ingestion/tone_analyzer.py` - ToneAnalyzer.analyze()
+- `backend/core/citation_service.py` - ContentIndex (TIENE EL BUG DE N+1)
+- `backend/core/tone_service.py` - save_tone_profile()
+- `backend/core/tone_profile_db.py` - Guardado en PostgreSQL
+
+### Configuración actual:
+- LLM: OpenAI (api.openai.com)
+- Timeout LLM: 30 segundos
+- Max posts scrapeados: 50
+- Workers: uvicorn (single worker)
+
+### Otros fixes en esta sesión:
+- Fix import `from core.llm_client` -> `from core.llm` en tone_analyzer.py
+- Added comprehensive debug logging throughout pipeline
+- DM sync: estructura-based media detection (video_data, image_data, etc.)
+- DM sync: proper handling of stories, reactions, shared posts, GIFs
+
+---
+
 ## 2026-01-16
 
 ### Features

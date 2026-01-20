@@ -77,11 +77,12 @@ class Creator(Base):
     knowledge_about = Column(JSON, default=dict)
     # Onboarding status
     onboarding_completed = Column(Boolean, default=False)
-    # Clone setup progress (persisted for polling across deploys)
-    clone_status = Column(String(20), default="pending")  # pending, in_progress, completed, failed
-    clone_progress = Column(JSON, default=dict)  # Full progress data for frontend polling
+    # Clone creation progress (persisted in DB, not in-memory)
+    clone_status = Column(String(20), default="pending")  # pending, in_progress, complete, error
+    clone_progress = Column(JSON, default=dict)  # {"step": "syncing", "percent": 50, "messages_synced": 100}
     clone_started_at = Column(DateTime(timezone=True))
     clone_completed_at = Column(DateTime(timezone=True))
+    clone_error = Column(Text)  # Error message if clone_status is "error"
     # Copilot mode: if True, bot suggestions require approval before sending
     copilot_mode = Column(Boolean, default=True)
     # Email capture configuration (JSON with messages per level, discount codes, etc.)

@@ -294,6 +294,21 @@ async def reset_creator(creator_id: str):
                         ).delete(synchronize_session='fetch')
                         results["deleted"]["messages"] = msg_count
 
+                        # Delete lead_activities and lead_tasks first (FK constraint)
+                        try:
+                            from api.models import LeadActivity, LeadTask
+                            activity_count = session.query(LeadActivity).filter(
+                                LeadActivity.lead_id.in_(lead_ids)
+                            ).delete(synchronize_session='fetch')
+                            results["deleted"]["lead_activities"] = activity_count
+
+                            task_count = session.query(LeadTask).filter(
+                                LeadTask.lead_id.in_(lead_ids)
+                            ).delete(synchronize_session='fetch')
+                            results["deleted"]["lead_tasks"] = task_count
+                        except Exception as e:
+                            logger.warning(f"Could not delete lead activities/tasks: {e}")
+
                     # Delete leads
                     lead_count = session.query(Lead).filter_by(creator_id=creator_uuid).delete()
                     results["deleted"]["leads"] = lead_count
@@ -489,6 +504,31 @@ async def delete_creator(creator_name: str):
             except Exception as e:
                 logger.warning(f"Could not delete email tracking: {e}")
 
+            # Delete user_creators associations (FK constraint)
+            try:
+                from api.models import UserCreator
+                session.query(UserCreator).filter_by(creator_id=creator_uuid).delete()
+                results["deleted"]["user_creators"] = True
+            except Exception as e:
+                logger.warning(f"Could not delete user_creators: {e}")
+
+            # Delete RAG documents (FK constraint)
+            try:
+                from api.models import RAGDocument
+                rag_count = session.query(RAGDocument).filter_by(creator_id=creator_uuid).delete()
+                results["deleted"]["rag_documents"] = rag_count
+            except Exception as e:
+                logger.warning(f"Could not delete rag_documents: {e}")
+
+            # Delete sync queue and state (FK constraint)
+            try:
+                from api.models import SyncQueue, SyncState
+                session.query(SyncQueue).filter_by(creator_id=creator_uuid).delete()
+                session.query(SyncState).filter_by(creator_id=creator_uuid).delete()
+                results["deleted"]["sync_data"] = True
+            except Exception as e:
+                logger.warning(f"Could not delete sync data: {e}")
+
             # Delete the creator itself
             session.delete(creator)
             results["deleted"]["creator"] = True
@@ -526,6 +566,593 @@ async def delete_creator(creator_name: str):
         pass
 
     return {"status": "success", **results}
+
+
+@router.delete("/force-delete-creator/{creator_name}")
+async def force_delete_creator(creator_name: str):
+    """
+    Force delete a creator using raw SQL with proper transaction handling.
+    Use this when normal delete fails due to transaction issues.
+    """
+    if not DEMO_RESET_ENABLED:
+        raise HTTPException(status_code=403, detail="Demo reset is disabled")
+
+    try:
+        from api.database import SessionLocal
+        from sqlalchemy import text
+
+        session = SessionLocal()
+        try:
+            # Get creator ID first
+            result = session.execute(
+                text("SELECT id FROM creators WHERE name = :name"),
+                {"name": creator_name}
+            )
+            row = result.fetchone()
+            if not row:
+                raise HTTPException(status_code=404, detail=f"Creator '{creator_name}' not found")
+
+            creator_id = str(row[0])
+
+            # Delete in order of FK dependencies
+            tables_to_clean = [
+                ("messages", "lead_id", f"SELECT id FROM leads WHERE creator_id = '{creator_id}'::uuid"),
+                ("lead_activities", "lead_id", f"SELECT id FROM leads WHERE creator_id = '{creator_id}'::uuid"),
+                ("lead_tasks", "lead_id", f"SELECT id FROM leads WHERE creator_id = '{creator_id}'::uuid"),
+                ("leads", "creator_id", None),
+                ("products", "creator_id", None),
+                ("nurturing_sequences", "creator_id", None),
+                ("knowledge_base", "creator_id", None),
+                ("email_ask_tracking", "creator_id", None),
+                ("platform_identities", "creator_id", None),
+                ("user_creators", "creator_id", None),
+                ("rag_documents", "creator_id", None),
+                ("sync_queue", "creator_id", None),
+                ("sync_state", "creator_id", None),
+            ]
+
+            deleted = {}
+            for table, fk_col, subquery in tables_to_clean:
+                try:
+                    if subquery:
+                        sql = text(f"DELETE FROM {table} WHERE {fk_col} IN ({subquery})")
+                    else:
+                        sql = text(f"DELETE FROM {table} WHERE {fk_col} = '{creator_id}'::uuid")
+                    result = session.execute(sql)
+                    deleted[table] = result.rowcount
+                except Exception as e:
+                    logger.warning(f"Could not delete from {table}: {e}")
+                    deleted[table] = f"error: {str(e)[:50]}"
+
+            # Delete creator
+            session.execute(text(f"DELETE FROM creators WHERE id = '{creator_id}'::uuid"))
+            deleted["creators"] = 1
+
+            session.commit()
+            return {"status": "success", "creator": creator_name, "deleted": deleted}
+
+        except HTTPException:
+            session.rollback()
+            raise
+        except Exception as e:
+            session.rollback()
+            raise HTTPException(status_code=500, detail=str(e))
+        finally:
+            session.close()
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/nuclear-reset")
+async def nuclear_reset(confirm: str = ""):
+    """
+    NUCLEAR OPTION: Delete absolutely everything from the database.
+    Requires confirm=DELETE_EVERYTHING to execute.
+    """
+    if confirm != "DELETE_EVERYTHING":
+        return {
+            "error": "Safety check failed",
+            "usage": "POST /admin/nuclear-reset?confirm=DELETE_EVERYTHING",
+            "warning": "This will DELETE ALL DATA including creators, leads, messages, products, etc."
+        }
+
+    if not DEMO_RESET_ENABLED:
+        raise HTTPException(status_code=403, detail="Demo reset is disabled")
+
+    try:
+        from api.database import SessionLocal
+        from sqlalchemy import text
+
+        session = SessionLocal()
+        deleted = {}
+
+        try:
+            # Order matters due to foreign key constraints
+            tables = [
+                "messages",
+                "lead_activities",
+                "lead_tasks",
+                "leads",
+                "sync_queue",
+                "sync_state",
+                "products",
+                "nurturing_sequences",
+                "knowledge_base",
+                "email_ask_tracking",
+                "platform_identities",
+                "unified_profiles",
+                "user_creators",
+                "rag_documents",
+                "creators",
+                "users"
+            ]
+
+            for table in tables:
+                try:
+                    result = session.execute(text(f"DELETE FROM {table}"))
+                    deleted[table] = result.rowcount
+                except Exception as e:
+                    deleted[table] = f"error: {str(e)[:50]}"
+
+            session.commit()
+            logger.warning("NUCLEAR RESET: All data deleted!")
+
+            return {
+                "status": "success",
+                "message": "All data has been deleted",
+                "deleted": deleted
+            }
+
+        except Exception as e:
+            session.rollback()
+            raise HTTPException(status_code=500, detail=str(e))
+        finally:
+            session.close()
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/test-full-sync/{creator_id}/{username}")
+async def test_full_sync_conversation(creator_id: str, username: str):
+    """
+    TEST ENDPOINT: Sincronizar TODOS los mensajes de una conversación específica
+    usando paginación completa.
+
+    Ejemplo: POST /admin/test-full-sync/manel_bertran_luque/stefanobonanno
+    """
+    import httpx
+    from datetime import datetime, timedelta
+    from api.database import SessionLocal
+    from api.models import Creator, Lead, Message
+
+    session = SessionLocal()
+    try:
+        creator = session.query(Creator).filter_by(name=creator_id).first()
+        if not creator:
+            raise HTTPException(status_code=404, detail=f"Creator {creator_id} not found")
+
+        access_token = creator.instagram_token
+        ig_user_id = creator.instagram_user_id
+        ig_page_id = creator.instagram_page_id
+
+        if not access_token:
+            raise HTTPException(status_code=400, detail="Creator has no Instagram token")
+
+        # Dual API strategy
+        if ig_page_id:
+            api_base = "https://graph.facebook.com/v21.0"
+            conv_id_for_api = ig_page_id
+            conv_extra_params = {"platform": "instagram"}
+        else:
+            api_base = "https://graph.instagram.com/v21.0"
+            conv_id_for_api = ig_user_id
+            conv_extra_params = {}
+
+        creator_ids = {ig_user_id, ig_page_id} - {None}
+
+        async with httpx.AsyncClient(timeout=60.0) as client:
+            # Step 1: Get all conversations to find the one with the target username
+            conv_resp = await client.get(
+                f"{api_base}/{conv_id_for_api}/conversations",
+                params={**conv_extra_params, "access_token": access_token, "limit": 50, "fields": "id,updated_time"}
+            )
+
+            if conv_resp.status_code != 200:
+                raise HTTPException(status_code=500, detail=f"Conversations API error: {conv_resp.status_code}")
+
+            conversations = conv_resp.json().get("data", [])
+
+            # Find the conversation with the target username
+            target_conv_id = None
+            target_follower_id = None
+
+            for conv in conversations:
+                conv_id = conv.get("id")
+                if not conv_id:
+                    continue
+
+                # Fetch messages to identify participant
+                msg_resp = await client.get(
+                    f"{api_base}/{conv_id}/messages",
+                    params={
+                        "fields": "id,message,from,to,created_time",
+                        "access_token": access_token,
+                        "limit": 5
+                    }
+                )
+
+                if msg_resp.status_code != 200:
+                    continue
+
+                messages = msg_resp.json().get("data", [])
+                for msg in messages:
+                    from_data = msg.get("from", {})
+                    if from_data.get("username") == username:
+                        target_conv_id = conv_id
+                        target_follower_id = from_data.get("id")
+                        break
+
+                    to_data = msg.get("to", {}).get("data", [])
+                    for recipient in to_data:
+                        if recipient.get("username") == username:
+                            target_conv_id = conv_id
+                            target_follower_id = recipient.get("id")
+                            break
+
+                    if target_conv_id:
+                        break
+
+                if target_conv_id:
+                    break
+
+            if not target_conv_id:
+                raise HTTPException(status_code=404, detail=f"Conversation with {username} not found")
+
+            # Step 2: Fetch ALL messages with pagination
+            # Request extended fields to capture media, stories, reactions, etc.
+            all_messages = []
+            msg_url = f"{api_base}/{target_conv_id}/messages"
+            msg_params = {
+                "fields": "id,message,from,to,created_time,attachments,story,shares,reactions,sticker",
+                "access_token": access_token,
+                "limit": 50
+            }
+
+            pages_fetched = 0
+            max_pages = 20  # Safety limit: 50 * 20 = 1000 messages max
+
+            while msg_url and pages_fetched < max_pages:
+                msg_resp = await client.get(msg_url, params=msg_params)
+
+                if msg_resp.status_code != 200:
+                    logger.warning(f"Messages API error {msg_resp.status_code} on page {pages_fetched}")
+                    break
+
+                msg_data = msg_resp.json()
+                page_messages = msg_data.get("data", [])
+                all_messages.extend(page_messages)
+
+                # Check for next page
+                paging = msg_data.get("paging", {})
+                next_url = paging.get("next")
+
+                if next_url:
+                    msg_url = next_url
+                    msg_params = {}  # Next URL includes params
+                    pages_fetched += 1
+                    logger.info(f"[FullSync] Fetched page {pages_fetched}, total messages: {len(all_messages)}")
+                else:
+                    break
+
+            logger.info(f"[FullSync] Total pages: {pages_fetched + 1}, total messages: {len(all_messages)}")
+
+            # Step 3: Get or create lead
+            days_limit_ago = datetime.now().astimezone() - timedelta(days=180)
+
+            lead = session.query(Lead).filter_by(
+                creator_id=creator.id,
+                platform="instagram",
+                platform_user_id=target_follower_id
+            ).first()
+
+            if not lead:
+                lead = Lead(
+                    creator_id=creator.id,
+                    platform="instagram",
+                    platform_user_id=target_follower_id,
+                    username=username,
+                    status="new"
+                )
+                session.add(lead)
+                session.commit()
+
+            # Step 4: Save all messages (including media, reactions, stories)
+            saved_count = 0
+            skipped_duplicate = 0
+            skipped_old = 0
+            skipped_no_id = 0
+            content_types = {"text": 0, "attachment": 0, "story": 0, "share": 0, "reaction": 0, "sticker": 0, "unknown": 0}
+
+            for msg in all_messages:
+                msg_id = msg.get("id")
+                if not msg_id:
+                    skipped_no_id += 1
+                    continue
+
+                # Detect content type and build message text
+                msg_text = msg.get("message", "")
+                metadata = {}
+
+                if msg_text:
+                    content_types["text"] += 1
+                elif msg.get("attachments"):
+                    # Media attachment (image, video, file)
+                    attachments = msg.get("attachments", {}).get("data", [])
+                    if attachments:
+                        att = attachments[0]
+                        att_type = att.get("type", "file")
+                        if att_type == "image":
+                            msg_text = "[Imagen]"
+                            metadata["type"] = "image"
+                            metadata["url"] = att.get("image_data", {}).get("url", "")
+                        elif att_type == "video":
+                            msg_text = "[Video]"
+                            metadata["type"] = "video"
+                            metadata["url"] = att.get("video_data", {}).get("url", "")
+                        elif att_type == "audio":
+                            msg_text = "[Audio]"
+                            metadata["type"] = "audio"
+                        elif att_type == "file":
+                            msg_text = "[Archivo]"
+                            metadata["type"] = "file"
+                        else:
+                            msg_text = f"[{att_type.title()}]"
+                            metadata["type"] = att_type
+                    else:
+                        msg_text = "[Adjunto]"
+                        metadata["type"] = "attachment"
+                    content_types["attachment"] += 1
+                elif msg.get("story"):
+                    # Story mention or reply
+                    story = msg.get("story", {})
+                    if story.get("mention"):
+                        msg_text = "[Te mencionó en su story]"
+                        metadata["type"] = "story_mention"
+                    else:
+                        msg_text = "[Respuesta a story]"
+                        metadata["type"] = "story_reply"
+                    metadata["story_id"] = story.get("id", "")
+                    content_types["story"] += 1
+                elif msg.get("shares"):
+                    # Shared content (post, reel, profile)
+                    shares = msg.get("shares", {}).get("data", [])
+                    if shares:
+                        share = shares[0]
+                        share_link = share.get("link", "")
+                        msg_text = f"[Compartido: {share_link}]" if share_link else "[Contenido compartido]"
+                        metadata["type"] = "share"
+                        metadata["url"] = share_link
+                    else:
+                        msg_text = "[Contenido compartido]"
+                        metadata["type"] = "share"
+                    content_types["share"] += 1
+                elif msg.get("reactions"):
+                    # Reaction to a message
+                    reactions = msg.get("reactions", {}).get("data", [])
+                    if reactions:
+                        emoji = reactions[0].get("reaction", "❤️")
+                        msg_text = f"[Reacción: {emoji}]"
+                    else:
+                        msg_text = "[Reacción]"
+                    metadata["type"] = "reaction"
+                    content_types["reaction"] += 1
+                elif msg.get("sticker"):
+                    # Sticker
+                    msg_text = "[Sticker]"
+                    metadata["type"] = "sticker"
+                    metadata["sticker_id"] = msg.get("sticker", "")
+                    content_types["sticker"] += 1
+                else:
+                    # Unknown type - still save it
+                    msg_text = "[Media]"
+                    metadata["type"] = "unknown"
+                    metadata["raw_keys"] = list(msg.keys())
+                    content_types["unknown"] += 1
+
+                # Check timestamp
+                msg_time = None
+                if msg.get("created_time"):
+                    try:
+                        msg_time = datetime.fromisoformat(msg["created_time"].replace("+0000", "+00:00"))
+                        if msg_time < days_limit_ago:
+                            skipped_old += 1
+                            continue
+                    except:
+                        pass
+
+                # Check for duplicate
+                existing = session.query(Message).filter_by(platform_message_id=msg_id).first()
+                if existing:
+                    skipped_duplicate += 1
+                    continue
+
+                # Determine role
+                from_id = msg.get("from", {}).get("id")
+                role = "assistant" if from_id in creator_ids else "user"
+
+                new_msg = Message(
+                    lead_id=lead.id,
+                    role=role,
+                    content=msg_text,
+                    platform_message_id=msg_id,
+                    msg_metadata=metadata if metadata else {}
+                )
+                if msg_time:
+                    new_msg.created_at = msg_time
+                session.add(new_msg)
+                saved_count += 1
+
+            session.commit()
+
+            # Update lead timestamps
+            lead_messages = session.query(Message).filter_by(lead_id=lead.id).order_by(Message.created_at).all()
+            if lead_messages:
+                lead.first_contact_at = lead_messages[0].created_at
+                lead.last_contact_at = lead_messages[-1].created_at
+                session.commit()
+
+            return {
+                "status": "success",
+                "username": username,
+                "conversation_id": target_conv_id,
+                "follower_id": target_follower_id,
+                "pages_fetched": pages_fetched + 1,
+                "total_api_messages": len(all_messages),
+                "messages_saved": saved_count,
+                "skipped_duplicate": skipped_duplicate,
+                "skipped_old": skipped_old,
+                "skipped_no_id": skipped_no_id,
+                "content_types": content_types,
+                "lead_id": str(lead.id)
+            }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"[FullSync] Error: {e}")
+        import traceback
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=str(e))
+    finally:
+        session.close()
+
+
+@router.get("/debug-raw-messages/{creator_id}/{username}")
+async def debug_raw_messages(creator_id: str, username: str):
+    """
+    DEBUG: Get raw Instagram API response for messages to see what fields are actually returned.
+    This helps debug why media rendering isn't working.
+    """
+    import httpx
+    from api.database import SessionLocal
+    from api.models import Creator
+
+    session = SessionLocal()
+    try:
+        creator = session.query(Creator).filter_by(name=creator_id).first()
+        if not creator:
+            raise HTTPException(status_code=404, detail=f"Creator {creator_id} not found")
+
+        access_token = creator.instagram_token
+        ig_user_id = creator.instagram_user_id
+        ig_page_id = creator.instagram_page_id
+
+        if not access_token:
+            raise HTTPException(status_code=400, detail="Creator has no Instagram token")
+
+        # Dual API strategy
+        if ig_page_id:
+            api_base = "https://graph.facebook.com/v21.0"
+            conv_id_for_api = ig_page_id
+            conv_extra_params = {"platform": "instagram"}
+        else:
+            api_base = "https://graph.instagram.com/v21.0"
+            conv_id_for_api = ig_user_id
+            conv_extra_params = {}
+
+        async with httpx.AsyncClient(timeout=60.0) as client:
+            # Get conversations
+            conv_resp = await client.get(
+                f"{api_base}/{conv_id_for_api}/conversations",
+                params={**conv_extra_params, "access_token": access_token, "limit": 20, "fields": "id,updated_time"}
+            )
+
+            if conv_resp.status_code != 200:
+                return {"error": f"Conversations API error: {conv_resp.status_code}", "response": conv_resp.text}
+
+            conversations = conv_resp.json().get("data", [])
+
+            # Find conversation with target username
+            target_conv_id = None
+            for conv in conversations:
+                conv_id = conv.get("id")
+                if not conv_id:
+                    continue
+
+                msg_resp = await client.get(
+                    f"{api_base}/{conv_id}/messages",
+                    params={
+                        "fields": "id,message,from,to,created_time",
+                        "access_token": access_token,
+                        "limit": 3
+                    }
+                )
+                if msg_resp.status_code == 200:
+                    for msg in msg_resp.json().get("data", []):
+                        if msg.get("from", {}).get("username") == username:
+                            target_conv_id = conv_id
+                            break
+                        for recipient in msg.get("to", {}).get("data", []):
+                            if recipient.get("username") == username:
+                                target_conv_id = conv_id
+                                break
+                if target_conv_id:
+                    break
+
+            if not target_conv_id:
+                return {"error": f"Conversation with {username} not found"}
+
+            # Get messages with ALL possible fields
+            msg_resp = await client.get(
+                f"{api_base}/{target_conv_id}/messages",
+                params={
+                    "fields": "id,message,from,to,created_time,attachments,story,shares,reactions,sticker,is_unsupported",
+                    "access_token": access_token,
+                    "limit": 20
+                }
+            )
+
+            raw_messages = msg_resp.json() if msg_resp.status_code == 200 else {"error": msg_resp.text}
+
+            # Analyze what fields are present in each message
+            field_analysis = []
+            for msg in raw_messages.get("data", []):
+                analysis = {
+                    "id": msg.get("id", "")[:20] + "...",
+                    "has_message_text": bool(msg.get("message")),
+                    "message_preview": (msg.get("message", "")[:50] + "...") if msg.get("message") else None,
+                    "has_attachments": bool(msg.get("attachments")),
+                    "has_story": bool(msg.get("story")),
+                    "has_shares": bool(msg.get("shares")),
+                    "has_reactions": bool(msg.get("reactions")),
+                    "has_sticker": bool(msg.get("sticker")),
+                    "is_unsupported": msg.get("is_unsupported"),
+                    "all_keys": list(msg.keys())
+                }
+                if msg.get("attachments"):
+                    analysis["attachments_data"] = msg.get("attachments")
+                if msg.get("story"):
+                    analysis["story_data"] = msg.get("story")
+                if msg.get("shares"):
+                    analysis["shares_data"] = msg.get("shares")
+                field_analysis.append(analysis)
+
+            return {
+                "conversation_id": target_conv_id,
+                "username": username,
+                "total_messages": len(raw_messages.get("data", [])),
+                "field_analysis": field_analysis,
+                "raw_messages": raw_messages.get("data", [])[:5]  # First 5 raw messages
+            }
+
+    finally:
+        session.close()
 
 
 @router.post("/run-migration/email-capture")
@@ -747,6 +1374,64 @@ async def exchange_short_lived_token(creator_id: str, short_lived_token: str):
 
     except Exception as e:
         logger.error(f"Token exchange failed for {creator_id}: {e}")
+        return {
+            "status": "error",
+            "error": str(e)
+        }
+
+
+@router.post("/set-token/{creator_id}")
+async def set_creator_token(creator_id: str, token: str, instagram_user_id: str = None):
+    """
+    Set Instagram token directly for a creator.
+
+    Use this when you already have a valid long-lived token
+    (e.g., from Meta Developer Portal or manual OAuth).
+
+    Args:
+        creator_id: Nombre del creator
+        token: Token de Instagram válido
+        instagram_user_id: ID de usuario de Instagram (opcional)
+    """
+    try:
+        from api.database import SessionLocal
+        from sqlalchemy import text
+
+        session = SessionLocal()
+        try:
+            # Build update query
+            if instagram_user_id:
+                session.execute(
+                    text("""
+                        UPDATE creators
+                        SET instagram_token = :token,
+                            instagram_user_id = :ig_user_id
+                        WHERE name = :cid
+                    """),
+                    {"token": token, "ig_user_id": instagram_user_id, "cid": creator_id}
+                )
+            else:
+                session.execute(
+                    text("""
+                        UPDATE creators
+                        SET instagram_token = :token
+                        WHERE name = :cid
+                    """),
+                    {"token": token, "cid": creator_id}
+                )
+            session.commit()
+
+            return {
+                "status": "success",
+                "creator_id": creator_id,
+                "token_prefix": token[:20] + "...",
+                "instagram_user_id": instagram_user_id
+            }
+        finally:
+            session.close()
+
+    except Exception as e:
+        logger.error(f"Set token failed for {creator_id}: {e}")
         return {
             "status": "error",
             "error": str(e)
@@ -1055,19 +1740,32 @@ async def debug_instagram_api(creator_id: str):
             return {"error": creds["error"]}
 
         ig_user_id = creds["user_id"] or creds["page_id"]
+        page_id = creds["page_id"]
         access_token = creds["token"]
-        api_base = "https://graph.instagram.com/v21.0"
+
+        # Estrategia dual: usar Facebook API con page_id si existe, sino Instagram API
+        if page_id:
+            api_base = "https://graph.facebook.com/v21.0"
+            conv_id_for_api = page_id
+            conv_extra_params = {"platform": "instagram"}
+        else:
+            api_base = "https://graph.instagram.com/v21.0"
+            conv_id_for_api = ig_user_id
+            conv_extra_params = {}
 
         results = {
             "ig_user_id": ig_user_id,
+            "page_id": page_id,
+            "api_used": "Facebook" if page_id else "Instagram",
             "conversations": [],
             "sample_messages": []
         }
 
         async with httpx.AsyncClient(timeout=30.0) as client:
             # Get conversations
-            conv_url = f"{api_base}/{ig_user_id}/conversations"
+            conv_url = f"{api_base}/{conv_id_for_api}/conversations"
             conv_resp = await client.get(conv_url, params={
+                **conv_extra_params,
                 "access_token": access_token,
                 "limit": 5
             })
@@ -1106,6 +1804,254 @@ async def debug_instagram_api(creator_id: str):
 
     except Exception as e:
         return {"error": str(e)}
+
+
+@router.get("/debug-sync-logic/{creator_id}")
+async def debug_sync_logic(creator_id: str):
+    """
+    Debug: Simular exactamente lo que hace sync_worker para identificar
+    por qué los mensajes no se guardan.
+    """
+    import httpx
+    from api.services import db_service
+
+    try:
+        creds = db_service.get_instagram_credentials(creator_id)
+        if not creds["success"]:
+            return {"error": creds["error"]}
+
+        ig_user_id = creds["user_id"] or creds["page_id"]
+        ig_page_id = creds["page_id"]
+        creator_ids = {ig_user_id, ig_page_id} - {None}
+        access_token = creds["token"]
+
+        # Usar la misma lógica que sync_worker
+        if ig_page_id:
+            api_base = "https://graph.facebook.com/v21.0"
+            conv_id_for_api = ig_page_id
+            conv_extra_params = {"platform": "instagram"}
+        else:
+            api_base = "https://graph.instagram.com/v21.0"
+            conv_id_for_api = ig_user_id
+            conv_extra_params = {}
+
+        results = {
+            "creator_ids": list(creator_ids),
+            "api_base": api_base,
+            "conversations_analysis": []
+        }
+
+        async with httpx.AsyncClient(timeout=30.0) as client:
+            # Get conversations
+            conv_resp = await client.get(
+                f"{api_base}/{conv_id_for_api}/conversations",
+                params={**conv_extra_params, "access_token": access_token, "limit": 3}
+            )
+
+            if conv_resp.status_code != 200:
+                return {"error": f"Conversations API error: {conv_resp.json()}"}
+
+            conversations = conv_resp.json().get("data", [])
+
+            for conv in conversations[:3]:
+                conv_id = conv.get("id")
+                conv_analysis = {
+                    "conv_id": conv_id,
+                    "messages_raw": [],
+                    "follower_detection": {},
+                    "messages_would_save": []
+                }
+
+                # Get messages
+                msg_resp = await client.get(
+                    f"{api_base}/{conv_id}/messages",
+                    params={
+                        "fields": "id,message,from,to,created_time",
+                        "access_token": access_token,
+                        "limit": 10
+                    }
+                )
+
+                if msg_resp.status_code != 200:
+                    conv_analysis["messages_error"] = msg_resp.json()
+                    results["conversations_analysis"].append(conv_analysis)
+                    continue
+
+                messages = msg_resp.json().get("data", [])
+                conv_analysis["total_messages"] = len(messages)
+
+                # Simular lógica de identificación de follower
+                follower_id = None
+                follower_username = None
+
+                for msg in messages:
+                    from_data = msg.get("from", {})
+                    from_id = from_data.get("id")
+                    from_username = from_data.get("username", "unknown")
+                    msg_text = msg.get("message", "")
+
+                    conv_analysis["messages_raw"].append({
+                        "id": msg.get("id"),
+                        "from_id": from_id,
+                        "from_username": from_username,
+                        "is_creator": from_id in creator_ids if from_id else "no_from_id",
+                        "has_text": bool(msg_text),
+                        "text_preview": msg_text[:50] if msg_text else "(empty)"
+                    })
+
+                    # Lógica de sync_worker para encontrar follower
+                    if from_id and from_id not in creator_ids and not follower_id:
+                        follower_id = from_id
+                        follower_username = from_username
+
+                conv_analysis["follower_detection"] = {
+                    "found": bool(follower_id),
+                    "follower_id": follower_id,
+                    "follower_username": follower_username,
+                    "reason": "Found non-creator sender" if follower_id else "All senders are in creator_ids or no from.id"
+                }
+
+                # Simular qué mensajes se guardarían
+                for msg in messages:
+                    msg_id = msg.get("id")
+                    msg_text = msg.get("message", "")
+                    from_id = msg.get("from", {}).get("id")
+
+                    would_save = bool(msg_text) and bool(msg_id)
+                    role = "assistant" if from_id in creator_ids else "user"
+
+                    conv_analysis["messages_would_save"].append({
+                        "id": msg_id,
+                        "would_save": would_save,
+                        "skip_reason": None if would_save else ("no_text" if not msg_text else "no_id"),
+                        "role": role
+                    })
+
+                results["conversations_analysis"].append(conv_analysis)
+
+        return results
+
+    except Exception as e:
+        import traceback
+        return {"error": str(e), "traceback": traceback.format_exc()}
+
+
+@router.get("/debug-orphaned-messages/{creator_id}")
+async def debug_orphaned_messages(creator_id: str):
+    """
+    Diagnóstico: Buscar mensajes huérfanos o duplicados que impiden el sync.
+    """
+    try:
+        from api.database import SessionLocal
+        from api.models import Creator, Lead, Message
+        from sqlalchemy import text
+
+        session = SessionLocal()
+        try:
+            creator = session.query(Creator).filter_by(name=creator_id).first()
+            if not creator:
+                return {"error": f"Creator '{creator_id}' not found"}
+
+            # 1. Contar mensajes totales en la BD
+            total_messages = session.query(Message).count()
+
+            # 2. Leads actuales del creator
+            leads = session.query(Lead).filter_by(creator_id=creator.id).all()
+            lead_ids = [str(l.id) for l in leads]
+            lead_count = len(leads)
+
+            # 3. Mensajes vinculados a leads de este creator
+            if lead_ids:
+                creator_messages = session.query(Message).filter(
+                    Message.lead_id.in_([l.id for l in leads])
+                ).count()
+            else:
+                creator_messages = 0
+
+            # 4. Mensajes con platform_message_id de Instagram (posibles duplicados)
+            ig_messages = session.query(Message).filter(
+                Message.platform_message_id.like('aWdf%')  # Instagram message IDs start with aWdf
+            ).all()
+
+            # Analizar a qué leads pertenecen
+            orphaned = []
+            for msg in ig_messages[:20]:  # Limitar para no sobrecargar
+                lead = session.query(Lead).filter_by(id=msg.lead_id).first()
+                orphaned.append({
+                    "msg_id": str(msg.id)[:8],
+                    "platform_msg_id": msg.platform_message_id[:30] + "...",
+                    "lead_id": str(msg.lead_id)[:8] if msg.lead_id else None,
+                    "lead_exists": lead is not None,
+                    "lead_creator": lead.creator_id == creator.id if lead else False,
+                    "content_preview": msg.content[:30] if msg.content else "(empty)"
+                })
+
+            return {
+                "creator_id": creator_id,
+                "creator_uuid": str(creator.id),
+                "total_messages_in_db": total_messages,
+                "leads_for_creator": lead_count,
+                "messages_for_creator": creator_messages,
+                "instagram_messages_sample": orphaned,
+                "diagnosis": (
+                    "Messages exist but not linked to current creator's leads"
+                    if len(ig_messages) > 0 and creator_messages == 0
+                    else "OK" if creator_messages > 0
+                    else "No messages found"
+                )
+            }
+
+        finally:
+            session.close()
+
+    except Exception as e:
+        import traceback
+        return {"error": str(e), "traceback": traceback.format_exc()}
+
+
+@router.post("/clean-and-sync/{creator_id}")
+async def clean_and_sync(creator_id: str, max_convs: int = 10):
+    """
+    Limpia mensajes huérfanos y hace sync limpio.
+
+    1. Elimina TODOS los mensajes con platform_message_id de Instagram
+    2. Ejecuta un sync fresco
+    """
+    try:
+        from api.database import SessionLocal
+        from api.models import Creator, Lead, Message
+
+        session = SessionLocal()
+        results = {
+            "cleaned": {"orphaned_messages": 0},
+            "sync": {}
+        }
+
+        try:
+            creator = session.query(Creator).filter_by(name=creator_id).first()
+            if not creator:
+                return {"error": f"Creator '{creator_id}' not found"}
+
+            # 1. Eliminar TODOS los mensajes de Instagram (empezar fresco)
+            deleted = session.query(Message).filter(
+                Message.platform_message_id.like('aWdf%')
+            ).delete(synchronize_session='fetch')
+            results["cleaned"]["orphaned_messages"] = deleted
+            session.commit()
+            logger.info(f"Deleted {deleted} Instagram messages for clean sync")
+
+        finally:
+            session.close()
+
+        # 2. Ejecutar sync
+        sync_result = await simple_dm_sync(creator_id, max_convs)
+        results["sync"] = sync_result
+
+        return results
+
+    except Exception as e:
+        import traceback
+        return {"error": str(e), "traceback": traceback.format_exc()}
 
 
 @router.post("/simple-dm-sync/{creator_id}")
@@ -1155,13 +2101,22 @@ async def simple_dm_sync(creator_id: str, max_convs: int = 20):
         try:
             # Get creator for UUID (needed for FK relationships)
             creator = session.query(Creator).filter_by(name=creator_id).first()
-            api_base = "https://graph.instagram.com/v21.0"
+
+            # Estrategia dual: usar Facebook API con page_id si existe, sino Instagram API
+            if ig_page_id:
+                api_base = "https://graph.facebook.com/v21.0"
+                conv_id_for_api = ig_page_id
+                conv_extra_params = {"platform": "instagram"}
+            else:
+                api_base = "https://graph.instagram.com/v21.0"
+                conv_id_for_api = ig_user_id
+                conv_extra_params = {}
 
             async with httpx.AsyncClient(timeout=60.0) as client:
                 # Get conversations with updated_time
                 conv_resp = await client.get(
-                    f"{api_base}/{ig_user_id}/conversations",
-                    params={"access_token": access_token, "limit": max_convs, "fields": "id,updated_time"}
+                    f"{api_base}/{conv_id_for_api}/conversations",
+                    params={**conv_extra_params, "access_token": access_token, "limit": max_convs, "fields": "id,updated_time"}
                 )
 
                 if conv_resp.status_code != 200:
@@ -1498,9 +2453,38 @@ async def simple_dm_sync(creator_id: str, max_convs: int = 20):
 
                             session.add(new_msg)
                             results["messages_saved"] += 1
+                            messages_saved_this_conv += 1
 
                         session.commit()
                         results["conversations_processed"] += 1
+
+                        # Auto-categorizar lead después de guardar mensajes
+                        if messages_saved_this_conv > 0:
+                            try:
+                                from core.lead_categorization import calcular_categoria, categoria_a_status_legacy
+
+                                # Obtener mensajes del lead para categorización
+                                lead_messages = session.query(Message).filter_by(lead_id=lead.id).order_by(Message.created_at).all()
+                                mensajes_para_cat = [{"role": m.role, "content": m.content or ""} for m in lead_messages]
+
+                                # Calcular categoría
+                                cat_result = calcular_categoria(
+                                    mensajes=mensajes_para_cat,
+                                    es_cliente=lead.status == "customer",
+                                    ultimo_mensaje_lead=lead.last_contact_at,
+                                    lead_created_at=lead.first_contact_at
+                                )
+
+                                # Actualizar lead
+                                new_status = categoria_a_status_legacy(cat_result.categoria)
+                                if lead.status != new_status or lead.purchase_intent != cat_result.intent_score:
+                                    lead.status = new_status
+                                    lead.purchase_intent = cat_result.intent_score
+                                    session.commit()
+                                    logger.info(f"Lead {lead.username} auto-categorizado: {cat_result.categoria} (intent: {cat_result.intent_score:.2f})")
+
+                            except Exception as cat_error:
+                                logger.warning(f"Error en auto-categorización: {cat_error}")
 
                     except Exception as e:
                         results["errors"].append(f"Conv error: {str(e)}")
@@ -2102,7 +3086,8 @@ async def update_profile_pics(creator_id: str, limit: int = 20):
             return {"status": "error", "error": "Instagram not connected for this creator"}
 
         access_token = creator.instagram_token
-        api_base = "https://graph.instagram.com/v21.0"
+        # IMPORTANTE: Usar graph.facebook.com para user profiles también
+        api_base = "https://graph.facebook.com/v21.0"
 
         # Get leads without profile pic
         leads_without_pic = session.query(Lead).filter(
