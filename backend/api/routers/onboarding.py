@@ -744,6 +744,30 @@ async def _run_clone_creation(creator_id: str, website_url: str = None):
                     logger.info(f"[CloneCreation] Website scraped: {web_stats}")
                 except Exception as e:
                     logger.warning(f"[CloneCreation] Website scraping failed: {e}")
+
+                # Step 2b: Detect products from website using IngestionV2Pipeline
+                logger.info(f"[CloneCreation] Step 2b: Detecting products from {website_url}")
+                try:
+                    from ingestion.v2.pipeline import IngestionV2Pipeline
+                    from api.database import SessionLocal
+
+                    # Create a fresh DB session for product detection
+                    product_db = SessionLocal()
+                    try:
+                        pipeline = IngestionV2Pipeline(db_session=product_db, max_pages=10)
+                        product_result = await pipeline.run(
+                            creator_id=creator_id,
+                            website_url=website_url,
+                            clean_before=False,  # Don't clean - keep RAG from previous step
+                            re_verify=True
+                        )
+                        logger.info(f"[CloneCreation] Products detected: {product_result.products_detected}, saved: {product_result.products_saved}")
+                        print(f"[CloneCreation] Products: detected={product_result.products_detected}, saved={product_result.products_saved}", flush=True)
+                    finally:
+                        product_db.close()
+                except Exception as e:
+                    logger.warning(f"[CloneCreation] Product detection failed: {e}")
+                    print(f"[CloneCreation] Product detection error: {e}", flush=True)
             else:
                 logger.info(f"[CloneCreation] Step 2: No website provided, skipping")
 
