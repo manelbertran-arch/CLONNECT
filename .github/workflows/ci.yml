@@ -77,7 +77,7 @@ jobs:
       - name: Type check
         run: |
           cd frontend
-          npm run type-check || true
+          npm run type-check
 
       - name: Build
         run: |
@@ -104,8 +104,8 @@ jobs:
       - name: Check Python formatting
         run: |
           cd backend
-          black --check --diff . || true
-          isort --check-only --diff . || true
+          black --check --diff .
+          isort --check-only --diff .
 
       - name: Set up Node.js
         uses: actions/setup-node@v4
@@ -116,7 +116,7 @@ jobs:
         run: |
           cd frontend
           npm ci
-          npm run lint || true
+          npm run lint
 
   # Deploy (only on main branch)
   deploy:
