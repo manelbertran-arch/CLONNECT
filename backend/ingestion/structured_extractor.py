@@ -288,35 +288,110 @@ class StructuredExtractor:
         logger.info(f"Extracted {len(testimonials)} testimonials")
         return testimonials
 
+    # Patterns to identify FAQ sections
+    FAQ_SECTION_PATTERNS = [
+        r'preguntas?\s+frecuentes?',
+        r'faq',
+        r'preguntas?\s+y\s+respuestas?',
+        r'dudas?\s+frecuentes?',
+        r'frequently\s+asked',
+        r'common\s+questions?',
+        r'q\s*&\s*a',
+    ]
+
+    # Patterns for CTAs and rhetorical questions (NOT real FAQs)
+    CTA_PATTERNS = [
+        r'^\s*¿te\s+(?:gustar[ií]a|animas?|atreves?|interesa)',  # ¿Te gustaría...?
+        r'^\s*¿quieres?\s+(?:saber|conocer|descubrir|empezar|comenzar)',  # ¿Quieres saber...?
+        r'^\s*¿(?:list[oa]|preparad[oa])\s+para',  # ¿Listo para...?
+        r'^\s*¿(?:qué|qu[eé])\s+(?:esperas?|tal\s+si)',  # ¿Qué esperas?
+        r'^\s*¿(?:empezamos?|comenzamos?|hablamos?)\??',  # ¿Empezamos?
+        r'^\s*¿(?:quién|quien)\s+soy\??',  # ¿Quién soy? (título de sección)
+        r'^\s*¿(?:qué|que)\s+(?:hago|ofrezco|puedo\s+hacer)\??',  # ¿Qué hago? (título)
+        r'^\s*¿(?:qué|que)\s+(?:deseo|quiero)\s+compartir',  # ¿Qué deseo compartir? (título)
+        r'^\s*¿(?:por\s+qué|porque)\s+(?:yo|elegirme|trabajar\s+conmigo)',  # ¿Por qué yo?
+        r'dar\s+el\s+salto',  # ...dar el salto?
+        r'únete|suscr[ií]bete|reg[ií]strate|reserva|agenda',  # CTA verbs
+    ]
+
+    def _is_faq_section(self, text: str) -> bool:
+        """Check if text indicates a FAQ section."""
+        text_lower = text.lower()
+        return any(re.search(p, text_lower, re.I) for p in self.FAQ_SECTION_PATTERNS)
+
+    def _is_cta_or_rhetorical(self, question: str) -> bool:
+        """Check if question is a CTA or rhetorical (not a real FAQ)."""
+        question_lower = question.lower().strip()
+        return any(re.search(p, question_lower, re.I) for p in self.CTA_PATTERNS)
+
+    def _has_structured_answer(self, answer: str) -> bool:
+        """Check if answer looks like a real FAQ answer (not just a fragment)."""
+        if not answer:
+            return False
+        # Real answers typically have multiple sentences or substantial content
+        word_count = len(answer.split())
+        has_period = '.' in answer
+        return word_count >= 10 and (has_period or word_count >= 20)
+
     def extract_faqs(self, pages: List['ScrapedPage']) -> List[ExtractedFAQ]:
         """
         Extract FAQ pairs from scraped pages.
+
+        IMPROVED: Only extracts from real FAQ sections, filters CTAs and rhetorical questions.
         """
         faqs = []
         seen_questions = set()
 
         for page in pages:
-            # Check sections for FAQ-like content
+            # First, check if this page or any section is a FAQ section
+            page_is_faq = self._is_faq_section(page.title) or self._is_faq_section(page.url)
+
+            in_faq_section = page_is_faq
+
             for i, section in enumerate(page.sections):
                 heading = section.get('heading', '')
                 content = section.get('content', '')
 
-                # Is this a question?
-                is_question = (
-                    heading.endswith('?') or
-                    heading.lower().startswith(('how', 'what', 'why', 'when', 'who', 'where', 'can', 'do', 'is', 'are')) or
-                    heading.lower().startswith(('cómo', 'qué', 'por qué', 'cuándo', 'quién', 'dónde', 'puedo', 'es', 'son'))
-                )
+                # Check if we're entering a FAQ section
+                if self._is_faq_section(heading):
+                    in_faq_section = True
+                    continue  # This heading is the section title, not a question
 
-                if is_question and content and heading.lower() not in seen_questions:
-                    faqs.append(ExtractedFAQ(
-                        question=heading.strip(),
-                        answer=content[:500].strip(),
-                        source_url=page.url
-                    ))
-                    seen_questions.add(heading.lower())
+                # Only process if we're in a FAQ section OR this is a FAQ-style page
+                if not in_faq_section:
+                    continue
 
-        logger.info(f"Extracted {len(faqs)} FAQs")
+                # Is this a question? (must end with ? for FAQs)
+                if not heading.endswith('?'):
+                    # Check if this heading resets the FAQ section (new non-FAQ section)
+                    if heading and not heading[0].isdigit() and len(heading) > 3:
+                        # Might be a new section - check next headings
+                        pass
+                    continue
+
+                # Filter out CTAs and rhetorical questions
+                if self._is_cta_or_rhetorical(heading):
+                    logger.debug(f"Filtered CTA/rhetorical: {heading[:50]}")
+                    continue
+
+                # Check if answer is substantial
+                if not self._has_structured_answer(content):
+                    logger.debug(f"Filtered (no structured answer): {heading[:50]}")
+                    continue
+
+                # Avoid duplicates
+                question_normalized = heading.lower().strip()
+                if question_normalized in seen_questions:
+                    continue
+
+                faqs.append(ExtractedFAQ(
+                    question=heading.strip(),
+                    answer=content[:500].strip(),
+                    source_url=page.url
+                ))
+                seen_questions.add(question_normalized)
+
+        logger.info(f"Extracted {len(faqs)} FAQs (filtered from FAQ sections only)")
         return faqs
 
     def extract_about_sections(self, pages: List['ScrapedPage']) -> List[Dict[str, str]]:
