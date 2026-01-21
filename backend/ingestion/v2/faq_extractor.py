@@ -5,8 +5,9 @@ FILOSOFÍA CLONNECT: El sistema debe ser FIEL al contenido del creador.
 
 APPROACH:
 1. REGEX: Extrae FAQs literalmente (patrones ¿...?)
-2. FILTROS: Excluye ruido (blog, CTAs, retóricas)
-3. LLM: Solo categoriza las FAQs ya extraídas, NO reformula
+2. FILTROS REGEX: Excluye ruido obvio (blog URLs, CTAs, retóricas)
+3. FILTRO LLM: Clasifica REAL vs SKIP para eliminar ruido de blog
+4. LLM CATEGORIZACIÓN: Categoriza las FAQs reales, NO reformula
 """
 
 import asyncio
@@ -134,6 +135,34 @@ Responde SOLO con JSON:
 
 REGLA CRÍTICA: Las preguntas y respuestas deben ser IDÉNTICAS a las originales."""
 
+# LLM prompt for CLASSIFICATION (REAL vs SKIP)
+FAQ_CLASSIFICATION_PROMPT = """Analiza estas preguntas extraídas de un sitio web de un creador/coach.
+
+Tu tarea es clasificar CADA pregunta como "REAL" o "SKIP".
+
+CLASIFICAR COMO "REAL" (FAQs de producto/servicio):
+- Preguntas sobre precio, costo, inversión
+- Preguntas sobre qué incluye un programa/servicio
+- Preguntas sobre cómo funciona, metodología, duración
+- Preguntas sobre requisitos, para quién es
+- Preguntas sobre horarios, acceso, formato
+- Dudas frecuentes de clientes potenciales
+
+CLASIFICAR COMO "SKIP" (NO son FAQs reales):
+- Preguntas retóricas de blog ("¿Y si tu dolor fuera un mensaje?")
+- Títulos de artículos en forma de pregunta
+- Preguntas filosóficas/reflexivas sin respuesta concreta
+- Preguntas sobre temas generales (IA, vida, consciencia)
+- CTAs disfrazados de pregunta
+
+PREGUNTAS A CLASIFICAR:
+{questions_list}
+
+Responde SOLO con JSON válido:
+{{"results": [{{"id": 1, "class": "REAL"}}, {{"id": 2, "class": "SKIP"}}, ...]}}
+
+IMPORTANTE: Solo incluye el JSON, sin explicaciones."""
+
 
 class FAQExtractor:
     """
@@ -163,21 +192,42 @@ class FAQExtractor:
     ) -> FAQExtractionResult:
         """
         Extract FAQs using hybrid approach (Regex + LLM).
+
+        Pipeline:
+        1. Regex extraction → all questions with ¿...? pattern
+        2. Regex filters → exclude obvious noise (blog URLs, CTAs)
+        3. LLM classification → REAL vs SKIP to filter blog questions
+        4. LLM categorization → add category and context
         """
         result = FAQExtractionResult()
 
-        # PASO 1: Extracción LITERAL con regex
+        # PASO 1: Extracción LITERAL con regex + filtros básicos
         raw_faqs = self._extract_faqs_with_regex(pages)
 
         if not raw_faqs:
             logger.info("No FAQs found with regex extraction")
             return result
 
-        logger.info(f"Regex extracted {len(raw_faqs)} literal FAQs")
+        logger.info(f"Regex extracted {len(raw_faqs)} literal FAQs (after basic filters)")
 
-        # PASO 2: Categorización con LLM (sin reformular)
+        # PASO 2: Clasificación con LLM (REAL vs SKIP)
         try:
-            categorized_faqs = await self._categorize_with_llm(raw_faqs, products)
+            classified_faqs = await self._classify_faqs_with_llm(raw_faqs)
+            logger.info(
+                f"LLM classification: {len(classified_faqs)} REAL FAQs "
+                f"(filtered {len(raw_faqs) - len(classified_faqs)} noise)"
+            )
+        except Exception as e:
+            logger.warning(f"LLM classification failed, using all FAQs: {e}")
+            classified_faqs = raw_faqs
+
+        if not classified_faqs:
+            logger.info("No FAQs passed LLM classification")
+            return result
+
+        # PASO 3: Categorización con LLM (sin reformular)
+        try:
+            categorized_faqs = await self._categorize_with_llm(classified_faqs, products)
             result.faqs = categorized_faqs[: self.max_faqs]
             result.source_urls = list(set(faq.source_url for faq in result.faqs))
 
@@ -199,7 +249,7 @@ class FAQExtractor:
                     context="General",
                     confidence=0.9,
                 )
-                for faq in raw_faqs
+                for faq in classified_faqs
             ]
             result.source_urls = list(set(faq.source_url for faq in result.faqs))
 
@@ -291,6 +341,70 @@ class FAQExtractor:
                 unique_faqs.append(faq)
 
         return unique_faqs
+
+    async def _classify_faqs_with_llm(self, raw_faqs: List[dict]) -> List[dict]:
+        """
+        PASO 2: Use LLM to classify FAQs as REAL (product/service) or SKIP (blog/noise).
+
+        Processes in batches of 30 to handle large numbers of FAQs.
+        Returns only FAQs classified as REAL.
+        """
+        if not raw_faqs:
+            return []
+
+        llm = self._get_llm_client()
+        real_faqs = []
+        batch_size = 30
+
+        # Process in batches
+        for batch_start in range(0, len(raw_faqs), batch_size):
+            batch = raw_faqs[batch_start : batch_start + batch_size]
+
+            # Format questions for prompt
+            questions_list = "\n".join(
+                f"{i + 1}. {faq['question']}" for i, faq in enumerate(batch)
+            )
+
+            prompt = FAQ_CLASSIFICATION_PROMPT.format(questions_list=questions_list)
+
+            try:
+                response = await asyncio.wait_for(
+                    llm.generate(prompt, temperature=0.1, max_tokens=1000),
+                    timeout=LLM_TIMEOUT,
+                )
+
+                # Parse response
+                classification = self._parse_llm_response(response)
+
+                if classification and "results" in classification:
+                    for item in classification["results"]:
+                        faq_id = item.get("id", 0) - 1  # Convert to 0-indexed
+                        faq_class = item.get("class", "SKIP").upper()
+
+                        if 0 <= faq_id < len(batch) and faq_class == "REAL":
+                            real_faqs.append(batch[faq_id])
+                else:
+                    # If parsing fails, include all from this batch as fallback
+                    logger.warning(
+                        f"Could not parse LLM classification for batch {batch_start}, "
+                        "including all as fallback"
+                    )
+                    real_faqs.extend(batch)
+
+            except asyncio.TimeoutError:
+                logger.warning(
+                    f"LLM classification timeout for batch {batch_start}, "
+                    "including all as fallback"
+                )
+                real_faqs.extend(batch)
+            except Exception as e:
+                logger.warning(
+                    f"LLM classification error for batch {batch_start}: {e}, "
+                    "including all as fallback"
+                )
+                real_faqs.extend(batch)
+
+        return real_faqs
 
     def _clean_answer(self, answer: str) -> str:
         """Clean extracted answer text."""
