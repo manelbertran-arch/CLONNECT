@@ -54,9 +54,10 @@ class DeterministicScraper:
     ]
 
     # Elements to remove (noise)
+    # NOTE: Don't remove 'button' - accordion FAQs often use buttons for titles
     NOISE_ELEMENTS = [
         'script', 'style', 'noscript', 'iframe', 'nav', 'footer',
-        'header', 'aside', 'form', 'button', 'input', 'select',
+        'header', 'aside', 'form', 'input', 'select',
         '[class*="cookie"]', '[class*="popup"]', '[class*="modal"]',
         '[class*="sidebar"]', '[class*="menu"]', '[class*="nav"]',
         '[id*="cookie"]', '[id*="popup"]', '[id*="modal"]'
