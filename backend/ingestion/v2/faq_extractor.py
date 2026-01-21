@@ -434,18 +434,41 @@ class FAQExtractor:
 
         # Stop patterns - cut text at common section markers
         # PROTECCIÓN: solo cortar si match.start() > 10 (evita bug de string vacío)
+        # UNIVERSAL PATTERNS - funcionan para cualquier web
         stop_patterns = [
+            # ═══ SECCIONES COMUNES ═══
             r"MÁS PREGUNTAS",
-            r"CONOCE A TU",
-            r"INSTRUCTOR:",
             r"PREGUNTAS FRECUENTES",
             r"SOBRE EL AUTOR",
             r"SOBRE NOSOTROS",
+            r"CONOCE A TU",
+            r"INSTRUCTOR:",
             r"TENGO OTRA PREGUNTA",
+            r"NUESTRO EQUIPO",
+            r"CONT[AÁ]CTANOS",
+            # ═══ TESTIMONIOS / SOCIAL PROOF ═══
+            r"\d+\s*(personas|usuarios|clientes|alumnos)\s+(que\s+)?(ya\s+)?(han|ya)\b",
+            r"(personas|usuarios|clientes|alumnos)\s+que\s+(han|ya|aceptaron|probaron|completaron|eligieron|confiaron)",
+            r"\b(testimonios?|opiniones|reseñas|reviews)\b",
+            r"casos?\s+de\s+[eé]xito",
+            r"lo\s+que\s+dicen",
+            r"★{3,}",
+            # ═══ CTAs GENÉRICOS ═══
+            r"(inscr[íi]bete|reg[íi]strate|reserva\s+tu|únete)\s*(ahora|ya|hoy)?",
+            r"(empieza|comienza|inicia)\s+(ahora|ya|hoy|tu)",
+            r"(solicita|pide|agenda)\s+(tu|una)\s+(demo|prueba|cita|llamada|sesión)",
+            # ═══ NAVEGACIÓN ═══
+            r"(siguiente|anterior)\s*(pregunta|sección)",
+            r"(mostrar|ocultar)\s*(más|menos)",
             r"\(\s*ejemplo\s*\)",
-            r"PERSONAS QUE ACEPTARON",
-            r"\w{3}\s+\d{1,2},\s+\d{4}",
-            r"Este taller es una experiencia",
+            # ═══ FECHAS / TIMESTAMPS ═══
+            r"\b\d{1,2}[/-]\d{1,2}[/-]\d{2,4}\b",
+            r"\b\w{3}\s+\d{1,2},\s+\d{4}\b",
+            r"(publicado|actualizado)\s*(el|en)?",
+            # ═══ PROMOCIONAL ═══
+            r"(oferta|descuento|promoción)\s+(especial|limitada)",
+            r"(solo|últimas)\s+\d+\s+(plazas|lugares|cupos)",
+            r"por\s+(solo|sólo)\s+[€$£]\d+",
         ]
         for pattern in stop_patterns:
             match = re.search(pattern, answer, re.IGNORECASE)
