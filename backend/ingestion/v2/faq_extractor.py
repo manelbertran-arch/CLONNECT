@@ -5,7 +5,8 @@ FILOSOFÍA CLONNECT: El sistema debe ser FIEL al contenido del creador.
 
 APPROACH:
 1. REGEX: Extrae FAQs literalmente (patrones ¿...?)
-2. LLM: Solo categoriza las FAQs ya extraídas, NO reformula
+2. FILTROS: Excluye ruido (blog, CTAs, retóricas)
+3. LLM: Solo categoriza las FAQs ya extraídas, NO reformula
 """
 
 import asyncio
@@ -24,6 +25,50 @@ logger = logging.getLogger(__name__)
 
 # Timeout for LLM calls
 LLM_TIMEOUT = 60
+
+# =============================================================================
+# NOISE FILTERS - Exclude blog posts, CTAs, and rhetorical questions
+# =============================================================================
+
+# URLs to EXCLUDE (blog posts, articles - not product/service pages)
+EXCLUDE_URL_PATTERNS = [
+    r"/blog/",
+    r"/post/",
+    r"/posts/",
+    r"/articulo/",
+    r"/articulos/",
+    r"/article/",
+    r"/articles/",
+    r"/noticias/",
+    r"/news/",
+]
+
+# Question patterns to EXCLUDE (CTAs and rhetorical)
+EXCLUDE_QUESTION_PATTERNS = [
+    # CTAs - calls to action disguised as questions
+    r"^¿te gustaría\b",
+    r"^¿listo para\b",
+    r"^¿quieres\b",
+    r"^¿te animas\b",
+    r"^¿preparado para\b",
+    r"^¿estás listo\b",
+    r"^¿te atreves\b",
+    # Rhetorical / About section
+    r"^¿quién soy\b",
+    r"^¿quiénes somos\b",
+    r"^¿por qué\?$",  # Just "¿Por qué?" alone
+    r"^¿y tú\b",
+    r"^¿qué tal\b",
+    r"^¿sabías que\b",
+    # Blog-style reflective questions
+    r"^¿y si\b",  # "¿Y si tu dolor fuera un mensaje?"
+    r"^¿alguna vez\b",  # "¿Alguna vez te sentiste..."
+    r"^¿cuántas veces\b",
+    r"^¿qué pasaría si\b",
+    r"^¿qué pasa cuando\b",
+    r"^¿cómo sería\b",
+    r"^¿te has preguntado\b",
+]
 
 
 @dataclass
@@ -163,6 +208,7 @@ class FAQExtractor:
     def _extract_faqs_with_regex(self, pages: List["ScrapedPage"]) -> List[dict]:
         """
         PASO 1: Extract FAQs literally using regex.
+        PASO 1.5: Filter out noise (blog posts, CTAs, rhetorical questions).
 
         Finds patterns like:
         - ¿Pregunta aquí?
@@ -173,6 +219,13 @@ class FAQExtractor:
         for page in pages:
             content = page.main_content
             if not content:
+                continue
+
+            # FILTRO 1: Excluir páginas de blog/artículos
+            url_lower = page.url.lower()
+            is_blog_page = any(re.search(pattern, url_lower) for pattern in EXCLUDE_URL_PATTERNS)
+            if is_blog_page:
+                logger.debug(f"Skipping blog/article page: {page.url}")
                 continue
 
             # Find all questions (¿...?)
@@ -195,18 +248,12 @@ class FAQExtractor:
                 if len(q["question"]) < 10:
                     continue
 
-                # Skip common non-FAQ questions (be conservative - don't filter legit FAQs)
-                skip_patterns = [
-                    r"^¿(y tú|qué tal|sabías que)\b",  # Greetings/rhetorical only
-                    # NOTE: Don't filter "¿Cómo...?" - common FAQ pattern
-                    # NOTE: Don't filter short questions - "¿Es para mi?" is valid
-                ]
-                should_skip = False
-                for pattern in skip_patterns:
-                    if re.match(pattern, q["question"], re.I):
-                        should_skip = True
-                        break
+                # FILTRO 2: Excluir CTAs y preguntas retóricas
+                should_skip = any(
+                    re.match(pattern, q["question"], re.I) for pattern in EXCLUDE_QUESTION_PATTERNS
+                )
                 if should_skip:
+                    logger.debug(f"Skipping CTA/rhetorical: {q['question'][:50]}...")
                     continue
 
                 # Get answer: text from end of question to start of next question (or +1000 chars)
