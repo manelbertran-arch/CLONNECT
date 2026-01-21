@@ -251,7 +251,10 @@ async def delete_user_by_email(email: str):
 
                 # Delete associated creators and their data
                 for creator_id in creator_ids:
-                    session.query(Message).filter(Message.creator_id == creator_id).delete()
+                    # Delete messages via leads (Message has lead_id, not creator_id)
+                    leads = session.query(Lead).filter(Lead.creator_id == creator_id).all()
+                    for lead in leads:
+                        session.query(Message).filter(Message.lead_id == lead.id).delete()
                     session.query(Lead).filter(Lead.creator_id == creator_id).delete()
                     session.query(Product).filter(Product.creator_id == creator_id).delete()
                     session.query(KnowledgeBase).filter(KnowledgeBase.creator_id == creator_id).delete()
@@ -261,7 +264,10 @@ async def delete_user_by_email(email: str):
             # Also delete any creator with this email (in case orphaned)
             orphan_creator = session.query(Creator).filter(Creator.email == email).first()
             if orphan_creator:
-                session.query(Message).filter(Message.creator_id == orphan_creator.id).delete()
+                # Delete messages via leads
+                leads = session.query(Lead).filter(Lead.creator_id == orphan_creator.id).all()
+                for lead in leads:
+                    session.query(Message).filter(Message.lead_id == lead.id).delete()
                 session.query(Lead).filter(Lead.creator_id == orphan_creator.id).delete()
                 session.query(Product).filter(Product.creator_id == orphan_creator.id).delete()
                 session.query(KnowledgeBase).filter(KnowledgeBase.creator_id == orphan_creator.id).delete()
