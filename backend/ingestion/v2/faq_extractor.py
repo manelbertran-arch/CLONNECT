@@ -443,6 +443,9 @@ class FAQExtractor:
             r"SOBRE NOSOTROS",
             r"TENGO OTRA PREGUNTA",
             r"\(\s*ejemplo\s*\)",
+            r"PERSONAS QUE ACEPTARON",
+            r"\w{3}\s+\d{1,2},\s+\d{4}",
+            r"Este taller es una experiencia",
         ]
         for pattern in stop_patterns:
             match = re.search(pattern, answer, re.IGNORECASE)
