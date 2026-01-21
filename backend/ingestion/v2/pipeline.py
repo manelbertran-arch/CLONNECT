@@ -586,7 +586,8 @@ class IngestionV2Pipeline:
                 if bio.specialties:
                     about_data["specialties"] = bio.specialties
                 if bio.years_experience:
-                    about_data["years_experience"] = bio.years_experience
+                    # Frontend expects "experience" as string "X años", not "years_experience" as int
+                    about_data["experience"] = f"{bio.years_experience} años"
                 if bio.target_audience:
                     about_data["target_audience"] = bio.target_audience
 
@@ -602,7 +603,7 @@ class IngestionV2Pipeline:
                 if bio.specialties:
                     saved_fields.append(f"specialties({len(bio.specialties)})")
                 if bio.years_experience:
-                    saved_fields.append(f"years_experience({bio.years_experience})")
+                    saved_fields.append(f"experience({bio.years_experience} años)")
                 if bio.target_audience:
                     saved_fields.append("target_audience")
                 logger.info(
