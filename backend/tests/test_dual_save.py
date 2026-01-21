@@ -98,7 +98,8 @@ class TestDualSave:
         mock_db.merge.assert_called()
 
         # Verify commit was called
-        mock_db.commit.assert_called_once()
+        # Commit may be called multiple times (main save + auto-configure)
+        assert mock_db.commit.call_count >= 1
 
     def test_faqs_saved_to_knowledgebase_and_rag(self):
         """FAQs should be saved to KnowledgeBase table AND RAGDocument."""

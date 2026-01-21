@@ -525,6 +525,65 @@ class IngestionV2Pipeline:
 
         return saved
 
+    def _auto_configure_clone(
+        self,
+        creator,
+        bio: Optional["ExtractedBio"],
+        tone: Optional["DetectedTone"],
+    ) -> bool:
+        """
+        Auto-configura la personalidad del bot con datos extraídos del website.
+        NON-BLOCKING: Si falla, no afecta el guardado de productos/FAQs.
+
+        1. clone_name = nombre del creador (de bio)
+        2. clone_tone = preset UI mapeado desde tone.style
+        3. clone_vocabulary = suggested_bot_tone (instrucciones del bot)
+        """
+        changes = []
+
+        try:
+            # 1. Nombre del bot = nombre del creador
+            if bio and bio.name:
+                creator.clone_name = bio.name
+                changes.append(f"clone_name={bio.name}")
+
+            # 2. Mapear tone.style → preset UI
+            TONE_TO_PRESET = {
+                "inspirador": "mentor",
+                "cercano": "amigo",
+                "directo": "vendedor",
+                "motivacional": "mentor",
+                "técnico": "profesional",
+                "empático": "amigo",
+                "formal": "profesional",
+                "informal": "amigo",
+                "transformador": "mentor",
+                "reflexivo": "mentor",
+                "enérgico": "vendedor",
+                "serio": "profesional",
+            }
+
+            if tone and hasattr(tone, "style") and tone.style:
+                style_lower = tone.style.lower()
+                preset = TONE_TO_PRESET.get(style_lower, "amigo")
+                creator.clone_tone = preset
+                changes.append(f"clone_tone={preset}")
+
+            # 3. Guardar suggested_bot_tone como clone_vocabulary
+            if tone and hasattr(tone, "suggested_bot_tone") and tone.suggested_bot_tone:
+                creator.clone_vocabulary = tone.suggested_bot_tone
+                changes.append("clone_vocabulary set")
+
+            if changes:
+                logger.info(f"[_auto_configure_clone] {', '.join(changes)}")
+                return True
+
+            return False
+
+        except Exception as e:
+            logger.warning(f"[_auto_configure_clone] Failed (non-critical): {e}")
+            return False
+
     def _save_creator_knowledge(
         self,
         creator_id: str,
@@ -681,6 +740,17 @@ class IngestionV2Pipeline:
 
             self.db.commit()
             logger.info("[_save_creator_knowledge] All knowledge saved successfully")
+
+            # AUTO-CONFIGURAR personalidad del bot (NON-BLOCKING)
+            # Si falla, productos y FAQs ya están guardados
+            try:
+                if self._auto_configure_clone(creator, bio, tone):
+                    self.db.commit()
+                    logger.info("[_save_creator_knowledge] Bot personality auto-configured")
+            except Exception as auto_err:
+                logger.warning(f"[_save_creator_knowledge] Auto-configure skipped: {auto_err}")
+                # No rollback - data principal ya guardada
+
             return True
 
         except Exception as e:
