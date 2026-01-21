@@ -441,6 +441,8 @@ class FAQExtractor:
             r"PREGUNTAS FRECUENTES",
             r"SOBRE EL AUTOR",
             r"SOBRE NOSOTROS",
+            r"TENGO OTRA PREGUNTA",
+            r"\(\s*ejemplo\s*\)",
         ]
         for pattern in stop_patterns:
             match = re.search(pattern, answer, re.IGNORECASE)
