@@ -776,6 +776,13 @@ async def _run_clone_creation(creator_id: str, website_url: str = None):
             instagram_user_id = creator.instagram_user_id or ""
             page_id = creator.instagram_page_id or ""
 
+            # FALLBACK: Get website_url from knowledge_about if not provided as parameter
+            if not website_url and creator.knowledge_about:
+                website_url = creator.knowledge_about.get("website_url")
+                if website_url:
+                    logger.info(f"[CloneCreation] FALLBACK: Using website_url from knowledge_about: {website_url}")
+                    print(f"[CloneCreation] FALLBACK: website_url from DB = {website_url}", flush=True)
+
             # Step 1: Scrape Instagram posts
             logger.info(f"[CloneCreation] Step 1: Scraping Instagram for {creator_id}")
             _update_clone_progress(creator_id, step="instagram", step_status="active", percent=10)
