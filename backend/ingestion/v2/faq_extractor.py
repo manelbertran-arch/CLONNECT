@@ -195,10 +195,11 @@ class FAQExtractor:
                 if len(q["question"]) < 10:
                     continue
 
-                # Skip common non-FAQ questions
+                # Skip common non-FAQ questions (be conservative - don't filter legit FAQs)
                 skip_patterns = [
-                    r"^¿(te|quién|cómo|qué tal|y tú|sabías)",  # Greetings/rhetorical
-                    r"^¿[^?]{0,15}\?$",  # Too short
+                    r"^¿(y tú|qué tal|sabías que)\b",  # Greetings/rhetorical only
+                    # NOTE: Don't filter "¿Cómo...?" - common FAQ pattern
+                    # NOTE: Don't filter short questions - "¿Es para mi?" is valid
                 ]
                 should_skip = False
                 for pattern in skip_patterns:
