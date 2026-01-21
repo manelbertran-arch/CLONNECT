@@ -3484,11 +3484,14 @@ async def test_ingestion_v2(creator_id: str, website_url: str):
             
             return {
                 "status": result.status,
+                "success": result.success,
+                "products_saved": result.products_saved,
+                "knowledge_saved": result.knowledge_saved,
                 "products_count": len(result.products),
                 "products": result.products[:5] if result.products else [],
                 "bio": result.bio,
                 "faqs_count": len(result.faqs) if result.faqs else 0,
-                "faqs": result.faqs[:5] if result.faqs else [],
+                "faqs": result.faqs[:3] if result.faqs else [],
                 "tone": result.tone,
                 "errors": result.errors
             }
