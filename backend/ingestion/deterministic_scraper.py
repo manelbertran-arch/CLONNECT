@@ -88,8 +88,21 @@ class DeterministicScraper:
             for element in soup.select(selector):
                 element.decompose()
 
+        # PRE-PROCESO: Añadir marcador a elementos de lista para preservar separación
+        for li in soup.find_all('li'):
+            li_text = li.get_text(strip=True)
+            if li_text:
+                # Añadir marcador temporal al final
+                li.append(' ◆')
+
         # Get text
         text = soup.get_text(separator=' ', strip=True)
+
+        # POST-PROCESO: Convertir marcador a coma antes de mayúscula
+        text = re.sub(r' ◆(?=\s*[A-ZÁÉÍÓÚÑ])', ',', text)
+        # Limpiar marcadores residuales (al final o antes de minúscula)
+        text = re.sub(r' ◆', '', text)
+
         return self._clean_text(text)
 
     def _extract_sections(self, soup) -> List[Dict[str, str]]:
