@@ -54,9 +54,10 @@ class DeterministicScraper:
     ]
 
     # Elements to remove (noise)
+    # NOTE: Don't remove 'button' - accordion FAQs often use buttons for titles
     NOISE_ELEMENTS = [
         'script', 'style', 'noscript', 'iframe', 'nav', 'footer',
-        'header', 'aside', 'form', 'button', 'input', 'select',
+        'header', 'aside', 'form', 'input', 'select',
         '[class*="cookie"]', '[class*="popup"]', '[class*="modal"]',
         '[class*="sidebar"]', '[class*="menu"]', '[class*="nav"]',
         '[id*="cookie"]', '[id*="popup"]', '[id*="modal"]'
@@ -199,15 +200,18 @@ class DeterministicScraper:
                 elif soup.h1:
                     title = soup.h1.get_text(strip=True)
 
+                # IMPORTANTE: Extraer links ANTES de modificar el soup
+                # (decompose() destruye elementos permanentemente)
+                links = self._extract_links(soup, url)
+
                 # Find main content area
                 main_soup = soup.find('main') or soup.find('article') or soup.find('body')
                 if not main_soup:
                     main_soup = soup
 
-                # Extract content
+                # Extract content (esto modifica el soup con decompose())
                 main_content = self._extract_text_from_soup(main_soup)
                 sections = self._extract_sections(main_soup)
-                links = self._extract_links(soup, url)
 
                 # Extract metadata
                 metadata = {}

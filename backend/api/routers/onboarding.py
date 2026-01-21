@@ -780,8 +780,12 @@ async def _run_clone_creation(creator_id: str, website_url: str = None):
             if not website_url and creator.knowledge_about:
                 website_url = creator.knowledge_about.get("website_url")
                 if website_url:
-                    logger.info(f"[CloneCreation] FALLBACK: Using website_url from knowledge_about: {website_url}")
-                    print(f"[CloneCreation] FALLBACK: website_url from DB = {website_url}", flush=True)
+                    logger.info(
+                        f"[CloneCreation] FALLBACK: Using website_url from knowledge_about: {website_url}"
+                    )
+                    print(
+                        f"[CloneCreation] FALLBACK: website_url from DB = {website_url}", flush=True
+                    )
 
             # Step 1: Scrape Instagram posts
             logger.info(f"[CloneCreation] Step 1: Scraping Instagram for {creator_id}")
@@ -803,90 +807,46 @@ async def _run_clone_creation(creator_id: str, website_url: str = None):
                 creator_id, step="instagram", step_status="completed", percent=25
             )
 
-            # Step 2: Scrape website (if provided or from fallback)
+            # Step 2: Website ingestion (RAG + Products) - Using ONLY IngestionV2Pipeline
             _update_clone_progress(creator_id, step="website", step_status="active", percent=30)
 
-            # FALLBACK: Get website_url if not provided
-            if not website_url:
-                logger.info(f"[CloneCreation] No website_url provided, checking fallbacks...")
-
-                # 1. Try from creator's knowledge_about (saved during OAuth)
-                if creator.knowledge_about and creator.knowledge_about.get('website_url'):
-                    website_url = creator.knowledge_about.get('website_url')
-                    logger.info(f"[CloneCreation] Found website_url in knowledge_about: {website_url}")
-
-                # 2. Try from Instagram bio (if still no URL)
-                if not website_url and access_token and instagram_user_id:
-                    try:
-                        import httpx
-                        from core.website_scraper import extract_url_from_text
-
-                        logger.info(f"[CloneCreation] Fetching website from Instagram bio...")
-                        async with httpx.AsyncClient(timeout=10.0) as client:
-                            profile_response = await client.get(
-                                f"https://graph.facebook.com/v21.0/{instagram_user_id}",
-                                params={
-                                    "fields": "biography,website",
-                                    "access_token": access_token
-                                }
-                            )
-                            if profile_response.status_code == 200:
-                                profile_data = profile_response.json()
-                                bio = profile_data.get("biography", "")
-                                website = profile_data.get("website", "")
-                                website_url = website or extract_url_from_text(bio)
-                                if website_url:
-                                    logger.info(f"[CloneCreation] Found website_url from Instagram bio: {website_url}")
-                                    # Save to knowledge_about for future use
-                                    if not creator.knowledge_about:
-                                        creator.knowledge_about = {}
-                                    creator.knowledge_about['website_url'] = website_url
-                                    from sqlalchemy.orm.attributes import flag_modified
-                                    flag_modified(creator, 'knowledge_about')
-                                    session.commit()
-                    except Exception as e:
-                        logger.warning(f"[CloneCreation] Could not get website from Instagram bio: {e}")
-
             if website_url:
-                logger.info(f"[CloneCreation] Step 2: Scraping website {website_url}")
+                logger.info(f"[CloneCreation] Step 2: Website ingestion (RAG + Products) from {website_url}")
                 try:
-                    from core.website_scraper import scrape_and_index_website
-
-                    web_stats = await scrape_and_index_website(
-                        creator_id=creator_id, url=website_url, max_pages=100
-                    )
-                    logger.info(f"[CloneCreation] Website scraped: {web_stats}")
-                except Exception as e:
-                    logger.warning(f"[CloneCreation] Website scraping failed: {e}")
-
-                # Step 2b: Detect products from website using IngestionV2Pipeline
-                logger.info(f"[CloneCreation] Step 2b: Detecting products from {website_url}")
-                try:
-                    from api.database import SessionLocal
                     from ingestion.v2.pipeline import IngestionV2Pipeline
 
-                    # Create a fresh DB session for product detection
-                    product_db = SessionLocal()
-                    try:
-                        pipeline = IngestionV2Pipeline(db_session=product_db, max_pages=100)
-                        product_result = await pipeline.run(
-                            creator_id=creator_id,
-                            website_url=website_url,
-                            clean_before=False,  # Don't clean - keep RAG from previous step
-                            re_verify=True,
+                    # Use existing db session - guaranteed valid at this point
+                    logger.info(f"[CloneCreation] Using db_session={session} for IngestionV2Pipeline")
+                    pipeline = IngestionV2Pipeline(db_session=session, max_pages=100)
+                    result = await pipeline.run(
+                        creator_id=creator_id,
+                        website_url=website_url,
+                        clean_before=True,  # Clean old data before ingesting
+                        re_verify=True,
+                    )
+
+                    # Log results
+                    logger.info(
+                        f"[CloneCreation] Website ingestion complete: "
+                        f"pages={result.pages_scraped}, "
+                        f"products_detected={result.products_detected}, "
+                        f"products_saved={result.products_saved}, "
+                        f"rag_docs={result.rag_docs_saved}"
+                    )
+                    print(
+                        f"[CloneCreation] Results: products={result.products_saved}, rag_docs={result.rag_docs_saved}",
+                        flush=True,
+                    )
+
+                    if result.products_saved == 0 and result.products_detected > 0:
+                        logger.warning(
+                            f"[CloneCreation] WARNING: {result.products_detected} products detected but 0 saved!"
                         )
-                        logger.info(
-                            f"[CloneCreation] Products detected: {product_result.products_detected}, saved: {product_result.products_saved}"
-                        )
-                        print(
-                            f"[CloneCreation] Products: detected={product_result.products_detected}, saved={product_result.products_saved}",
-                            flush=True,
-                        )
-                    finally:
-                        product_db.close()
                 except Exception as e:
-                    logger.warning(f"[CloneCreation] Product detection failed: {e}")
-                    print(f"[CloneCreation] Product detection error: {e}", flush=True)
+                    logger.error(f"[CloneCreation] Website ingestion failed: {e}")
+                    print(f"[CloneCreation] Website ingestion error: {e}", flush=True)
+                    import traceback
+                    traceback.print_exc()
             else:
                 logger.info(f"[CloneCreation] Step 2: No website provided, skipping")
 

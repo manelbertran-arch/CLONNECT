@@ -10,7 +10,8 @@ Endpoint que garantiza:
 
 import logging
 from typing import Optional
-from fastapi import APIRouter, HTTPException, Depends
+
+from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 
 logger = logging.getLogger(__name__)
@@ -22,8 +23,10 @@ router = APIRouter(prefix="/ingestion/v2", tags=["ingestion-v2"])
 # Request/Response Models
 # =============================================================================
 
+
 class IngestV2Request(BaseModel):
     """Request para ingestion V2."""
+
     creator_id: str
     url: str
     max_pages: int = 10
@@ -33,6 +36,7 @@ class IngestV2Request(BaseModel):
 
 class InstagramV2Request(BaseModel):
     """Request para ingestion Instagram V2."""
+
     creator_id: str
     instagram_username: str
     max_posts: int = 20  # Reduced from 50 to avoid rate limits
@@ -41,6 +45,7 @@ class InstagramV2Request(BaseModel):
 
 class InstagramV2Response(BaseModel):
     """Response de ingestion Instagram V2."""
+
     success: bool
     creator_id: str
     instagram_username: str
@@ -55,6 +60,7 @@ class InstagramV2Response(BaseModel):
 
 class ProductV2Response(BaseModel):
     """Producto verificado con todas sus pruebas."""
+
     name: str
     description: str
     price: Optional[float]  # NULL si no encontrado
@@ -67,6 +73,7 @@ class ProductV2Response(BaseModel):
 
 class IngestV2Response(BaseModel):
     """Response completa de ingestion V2."""
+
     success: bool
     status: str  # 'success', 'failed', 'needs_review'
     creator_id: str
@@ -104,10 +111,12 @@ class IngestV2Response(BaseModel):
 # Database Dependency
 # =============================================================================
 
+
 def get_db():
     """Get database session."""
     try:
         from api.database import SessionLocal
+
         if SessionLocal is None:
             return None
         db = SessionLocal()
@@ -123,6 +132,7 @@ def get_db():
 # =============================================================================
 # Endpoints
 # =============================================================================
+
 
 @router.post("/website", response_model=IngestV2Response)
 async def ingest_website_v2(request: IngestV2Request, db=Depends(get_db)):
@@ -153,12 +163,19 @@ async def ingest_website_v2(request: IngestV2Request, db=Depends(get_db)):
     try:
         from ingestion.v2 import IngestionV2Pipeline
 
-        pipeline = IngestionV2Pipeline(db, request.max_pages)
+        # CRITICAL: Log db session status for debugging
+        logger.info(
+            f"[IngestionV2] db_session={db}, type={type(db)}, creator_id={request.creator_id}"
+        )
+        if db is None:
+            logger.warning("[IngestionV2] WARNING: db is None - products will NOT be saved!")
+
+        pipeline = IngestionV2Pipeline(db_session=db, max_pages=request.max_pages)
         result = await pipeline.run(
             creator_id=request.creator_id,
             website_url=request.url,
             clean_before=request.clean_before,
-            re_verify=request.re_verify
+            re_verify=request.re_verify,
         )
 
         return IngestV2Response(
@@ -176,12 +193,13 @@ async def ingest_website_v2(request: IngestV2Request, db=Depends(get_db)):
             rag_docs_saved=result.rag_docs_saved,
             products_deleted=result.products_deleted,
             duration_seconds=result.duration_seconds,
-            errors=result.errors
+            errors=result.errors,
         )
 
     except Exception as e:
         logger.error(f"Ingestion V2 error: {e}")
         import traceback
+
         traceback.print_exc()
         raise HTTPException(status_code=500, detail=str(e))
 
@@ -203,7 +221,7 @@ async def preview_detection(request: IngestV2Request):
             creator_id=request.creator_id,
             website_url=request.url,
             clean_before=False,  # No limpiar en preview
-            re_verify=request.re_verify
+            re_verify=request.re_verify,
         )
 
         return {
@@ -215,7 +233,7 @@ async def preview_detection(request: IngestV2Request):
             "products_verified": result.products_verified,
             "products": result.products,
             "sanity_checks": result.sanity_checks,
-            "errors": result.errors
+            "errors": result.errors,
         }
 
     except Exception as e:
@@ -241,12 +259,16 @@ async def verify_stored_products(creator_id: str, db=Depends(get_db)):
         from sqlalchemy import or_
 
         # Get creator
-        creator = db.query(Creator).filter(
-            or_(
-                Creator.id == creator_id if len(creator_id) > 20 else False,
-                Creator.name == creator_id
+        creator = (
+            db.query(Creator)
+            .filter(
+                or_(
+                    Creator.id == creator_id if len(creator_id) > 20 else False,
+                    Creator.name == creator_id,
+                )
             )
-        ).first()
+            .first()
+        )
 
         if not creator:
             raise HTTPException(status_code=404, detail="Creator not found")
@@ -273,10 +295,10 @@ async def verify_stored_products(creator_id: str, db=Depends(get_db)):
                     "price_verified": p.price_verified,
                     "confidence": p.confidence,
                     "source_url": p.source_url,
-                    "has_proof": bool(p.source_url)
+                    "has_proof": bool(p.source_url),
                 }
                 for p in products
-            ]
+            ],
         }
 
     except HTTPException:
@@ -289,6 +311,7 @@ async def verify_stored_products(creator_id: str, db=Depends(get_db)):
 # =============================================================================
 # Instagram V2 Endpoints
 # =============================================================================
+
 
 @router.post("/instagram", response_model=InstagramV2Response)
 async def ingest_instagram_v2_endpoint(request: InstagramV2Request):
@@ -329,7 +352,7 @@ async def ingest_instagram_v2_endpoint(request: InstagramV2Request):
             creator_id=request.creator_id,
             instagram_username=request.instagram_username,
             max_posts=request.max_posts,
-            clean_before=request.clean_before
+            clean_before=request.clean_before,
         )
 
         return InstagramV2Response(
@@ -342,12 +365,13 @@ async def ingest_instagram_v2_endpoint(request: InstagramV2Request):
             rejection_reasons=result.rejection_reasons[:10],  # Limit output
             posts_saved_db=result.posts_saved_db,
             rag_chunks_created=result.rag_chunks_created,
-            errors=result.errors
+            errors=result.errors,
         )
 
     except Exception as e:
         logger.error(f"Instagram V2 ingestion error: {e}")
         import traceback
+
         traceback.print_exc()
         raise HTTPException(status_code=500, detail=str(e))
 
@@ -363,26 +387,20 @@ async def get_instagram_ingestion_status(creator_id: str):
     - Último post indexado
     """
     try:
-        from core.tone_profile_db import (
-            get_instagram_posts_count_db,
-            get_content_chunks_db
-        )
+        from core.tone_profile_db import get_content_chunks_db, get_instagram_posts_count_db
 
         posts_count = get_instagram_posts_count_db(creator_id)
         chunks = await get_content_chunks_db(creator_id)
 
         # Count only instagram chunks
-        instagram_chunks = [
-            c for c in chunks
-            if c.get('source_type') == 'instagram_post'
-        ]
+        instagram_chunks = [c for c in chunks if c.get("source_type") == "instagram_post"]
 
         return {
             "creator_id": creator_id,
             "instagram_posts_in_db": posts_count,
             "instagram_chunks_in_db": len(instagram_chunks),
             "total_chunks_in_db": len(chunks),
-            "status": "ready" if posts_count > 0 else "empty"
+            "status": "ready" if posts_count > 0 else "empty",
         }
 
     except Exception as e:

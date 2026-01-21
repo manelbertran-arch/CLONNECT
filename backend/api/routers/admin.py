@@ -221,6 +221,74 @@ async def reset_all_data():
     return results
 
 
+@router.delete("/delete-user/{email}")
+async def delete_user_by_email(email: str):
+    """Delete a user AND associated creator by email (for testing/reset purposes)"""
+    if not DEMO_RESET_ENABLED:
+        raise HTTPException(status_code=403, detail="Demo reset is disabled")
+
+    try:
+        from api.database import SessionLocal
+        from api.models import User, UserCreator, Creator, Lead, Message, Product, KnowledgeBase
+
+        session = SessionLocal()
+        try:
+            deleted = {"user": None, "creator": None}
+
+            # Find and delete user
+            user = session.query(User).filter(User.email == email).first()
+            if user:
+                # Get associated creator IDs before deleting associations
+                user_creators = session.query(UserCreator).filter(UserCreator.user_id == user.id).all()
+                creator_ids = [uc.creator_id for uc in user_creators]
+
+                # Delete user-creator associations
+                session.query(UserCreator).filter(UserCreator.user_id == user.id).delete()
+
+                # Delete user
+                session.delete(user)
+                deleted["user"] = email
+
+                # Delete associated creators and their data
+                for creator_id in creator_ids:
+                    # Delete messages via leads (Message has lead_id, not creator_id)
+                    leads = session.query(Lead).filter(Lead.creator_id == creator_id).all()
+                    for lead in leads:
+                        session.query(Message).filter(Message.lead_id == lead.id).delete()
+                    session.query(Lead).filter(Lead.creator_id == creator_id).delete()
+                    session.query(Product).filter(Product.creator_id == creator_id).delete()
+                    session.query(KnowledgeBase).filter(KnowledgeBase.creator_id == creator_id).delete()
+                    session.query(Creator).filter(Creator.id == creator_id).delete()
+                    deleted["creator"] = str(creator_id)
+
+            # Also delete any creator with this email (in case orphaned)
+            orphan_creator = session.query(Creator).filter(Creator.email == email).first()
+            if orphan_creator:
+                # Delete messages via leads
+                leads = session.query(Lead).filter(Lead.creator_id == orphan_creator.id).all()
+                for lead in leads:
+                    session.query(Message).filter(Message.lead_id == lead.id).delete()
+                session.query(Lead).filter(Lead.creator_id == orphan_creator.id).delete()
+                session.query(Product).filter(Product.creator_id == orphan_creator.id).delete()
+                session.query(KnowledgeBase).filter(KnowledgeBase.creator_id == orphan_creator.id).delete()
+                session.delete(orphan_creator)
+                deleted["orphan_creator"] = str(orphan_creator.id)
+
+            session.commit()
+
+            if not deleted["user"] and not deleted.get("orphan_creator"):
+                raise HTTPException(status_code=404, detail=f"User/Creator {email} not found")
+
+            return {"status": "ok", "deleted": deleted}
+        finally:
+            session.close()
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error deleting user: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 @router.post("/reset-creator/{creator_id}")
 async def reset_creator(creator_id: str):
     """
@@ -3459,3 +3527,50 @@ async def sync_leads_from_conversations(
         return {"status": "error", "error": str(e)}
     finally:
         session.close()
+
+
+@router.post("/test-ingestion-v2/{creator_id}")
+async def test_ingestion_v2(creator_id: str, website_url: str):
+    """
+    Test endpoint to run IngestionV2Pipeline directly.
+    
+    Usage: POST /admin/test-ingestion-v2/stefano?website_url=https://stefanobonanno.com
+    """
+    try:
+        from api.database import SessionLocal
+        from ingestion.v2.pipeline import IngestionV2Pipeline
+        
+        session = SessionLocal()
+        try:
+            pipeline = IngestionV2Pipeline(db_session=session)
+            result = await pipeline.run(
+                creator_id=creator_id,
+                website_url=website_url,
+                clean_before=True,
+                re_verify=True
+            )
+
+            # Ensure commit is done
+            session.commit()
+
+            return {
+                "status": result.status,
+                "success": result.success,
+                "products_saved": result.products_saved,
+                "knowledge_saved": result.knowledge_saved,
+                "products_count": len(result.products),
+                "products": result.products[:5] if result.products else [],
+                "bio": result.bio,
+                "faqs_count": len(result.faqs) if result.faqs else 0,
+                "faqs": result.faqs[:3] if result.faqs else [],
+                "tone": result.tone,
+                "errors": result.errors
+            }
+        finally:
+            session.close()
+            
+    except Exception as e:
+        logger.error(f"test_ingestion_v2 error: {e}")
+        import traceback
+        traceback.print_exc()
+        return {"status": "error", "error": str(e)}
