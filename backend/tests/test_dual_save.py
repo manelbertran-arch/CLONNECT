@@ -44,15 +44,18 @@ class MockExtractedFAQ:
 
 @dataclass
 class MockDetectedTone:
-    style: str = "mentor"
+    style: str = "cercano y motivador"
     formality: str = "informal"
-    energy: str = "alta"
+    language: str = "es"
+    emoji_usage: str = "light"
+    personality_traits: list = None
+    communication_summary: str = "Se comunica de forma cercana y motivadora con su audiencia"
+    suggested_bot_tone: str = "Tutea al usuario, usa tono motivador, incluye algún emoji ocasional"
     confidence: float = 0.85
-    indicators: list = None
 
     def __post_init__(self):
-        if self.indicators is None:
-            self.indicators = ["descubre", "aprende"]
+        if self.personality_traits is None:
+            self.personality_traits = ["motivador", "cercano", "experto"]
 
 
 class TestDualSave:
@@ -153,8 +156,12 @@ class TestDualSave:
 
         # Verify tone was added to knowledge_about
         assert "tone" in mock_creator.knowledge_about
-        assert mock_creator.knowledge_about["tone"]["style"] == "mentor"
+        assert mock_creator.knowledge_about["tone"]["style"] == "cercano y motivador"
         assert mock_creator.knowledge_about["tone"]["formality"] == "informal"
+        assert mock_creator.knowledge_about["tone"]["language"] == "es"
+        assert mock_creator.knowledge_about["tone"]["emoji_usage"] == "light"
+        assert "personality_traits" in mock_creator.knowledge_about["tone"]
+        assert "suggested_bot_tone" in mock_creator.knowledge_about["tone"]
 
     def test_no_db_returns_false(self):
         """Without DB session, should return False."""
@@ -319,22 +326,48 @@ class TestToneDetector:
 
     @pytest.mark.asyncio
     async def test_detects_mentor_tone(self):
-        """Should detect mentor tone from teaching content."""
+        """Should detect mentor tone from teaching content using LLM."""
         from ingestion.v2.tone_detector import ToneDetector
 
         mock_page = MagicMock()
         mock_page.url = "https://example.com"
         mock_page.main_content = """
-        Te enseño paso a paso cómo construir tu negocio online.
-        Descubre mi metodología probada. Te guío en cada etapa.
-        Mi experiencia de 10 años te ayudará a evitar errores comunes.
+        Te enseño paso a paso cómo construir tu negocio online desde cero.
+        Descubre mi metodología probada que ha ayudado a cientos de emprendedores.
+        Te guío en cada etapa del camino hacia el éxito empresarial.
+        Mi experiencia de 10 años te ayudará a evitar los errores más comunes.
+        Aprende las estrategias que realmente funcionan en el mundo digital.
+        Transforma tu pasión en un negocio rentable con mi sistema comprobado.
         """
 
-        detector = ToneDetector()
-        tone = await detector.detect([mock_page])
+        # Mock LLM response
+        mock_llm_response = """{
+            "style": "mentor cercano",
+            "formality": "informal",
+            "language": "es",
+            "emoji_usage": "none",
+            "personality_traits": ["motivador", "experto", "cercano"],
+            "communication_summary": "Se comunica como un mentor cercano que guía paso a paso",
+            "suggested_bot_tone": "Tutea al usuario, usa tono motivador y cercano, menciona experiencia"
+        }"""
 
-        assert tone is not None
-        assert tone.style in ["mentor", "profesional"]
+        with patch("ingestion.v2.tone_detector.ToneDetector._get_llm_client") as mock_get_llm:
+            mock_llm = MagicMock()
+            mock_llm.generate = AsyncMock(return_value=mock_llm_response)
+            mock_get_llm.return_value = mock_llm
+
+            detector = ToneDetector()
+            tone = await detector.detect([mock_page])
+
+            assert tone is not None
+            assert tone.style == "mentor cercano"
+            assert tone.formality == "informal"
+            assert tone.language == "es"
+            assert tone.emoji_usage == "none"
+            assert len(tone.personality_traits) == 3
+            assert "motivador" in tone.personality_traits
+            assert len(tone.communication_summary) > 10
+            assert len(tone.suggested_bot_tone) > 10
 
 
 if __name__ == "__main__":

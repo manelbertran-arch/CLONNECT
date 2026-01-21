@@ -1,13 +1,16 @@
 """
-Tone Detector - Detects communication tone from website content.
+Tone Detector - Intelligent tone detection using LLM.
 
-Analyzes website text to determine the creator's communication style.
-Complements tone_analyzer.py which analyzes Instagram posts.
+Analyzes website content to understand the creator's unique communication style.
+Works for ANY type of creator in ANY language.
+No fixed categories - each creator is unique.
 """
 
+import asyncio
+import json
 import logging
 import re
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, List, Optional
 
 if TYPE_CHECKING:
@@ -16,90 +19,82 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger(__name__)
 
+# Timeout for LLM calls
+LLM_TIMEOUT = 30
+
 
 @dataclass
 class DetectedTone:
-    """Detected tone profile from website."""
+    """Detected tone profile from website - flexible, not fixed categories."""
 
-    style: str  # "amigo", "mentor", "vendedor", "profesional"
-    formality: str  # "formal", "informal", "neutral"
-    energy: str  # "alta", "media", "baja"
-    confidence: float
-    indicators: List[str]  # Phrases/patterns that led to detection
+    # Core tone (open-ended, not limited to fixed options)
+    style: str  # e.g., "cercano", "inspirador", "técnico", "divertido", "motivacional"
+    formality: str  # "formal", "informal", "mixto"
+
+    # Language detection
+    language: str  # Detected primary language (e.g., "es", "en", "pt")
+
+    # Communication patterns
+    emoji_usage: str  # "none", "light", "heavy"
+    personality_traits: List[str] = field(default_factory=list)  # 3-5 traits
+
+    # Summaries for chatbot
+    communication_summary: str = ""  # 1 sentence describing how they communicate
+    suggested_bot_tone: str = ""  # Instructions for chatbot to mimic (max 200 chars)
+
+    # Metadata
+    confidence: float = 0.0
 
 
-# Tone indicators
-TONE_INDICATORS = {
-    "amigo": {
-        "patterns": [
-            r"(?:hey|hola)[!,]",
-            r"(?:amig[oa]s?|colega|compa)",
-            r"(?:genial|increible|super|wow)",
-            r"(?:vamos|dale|va)",
-            r"[!]{2,}",  # Multiple exclamations
-        ],
-        "words": ["crack", "mola", "guay", "brutal", "pasada", "currar", "curro"],
-        "formality": "informal",
-        "energy": "alta",
-    },
-    "mentor": {
-        "patterns": [
-            r"(?:te ense[ñn]o|aprende|descubre)",
-            r"(?:paso a paso|te guio|te muestro)",
-            r"(?:mi experiencia|aprendido|errores)",
-            r"(?:consejos?|tips?|estrategia)",
-        ],
-        "words": ["transformar", "crecer", "potencial", "metodologia", "sistema"],
-        "formality": "neutral",
-        "energy": "media",
-    },
-    "vendedor": {
-        "patterns": [
-            r"(?:oferta|descuento|promocion)",
-            r"(?:compra|adquiere|consigue) (?:ahora|ya|hoy)",
-            r"(?:limitad[oa]|exclusiv[oa]|unic[oa])",
-            r"(?:garantia|devolucion)",
-            r"(?:\d+%|€\d+|\$\d+)",  # Prices and percentages
-        ],
-        "words": ["invertir", "valor", "resultados", "garantizado", "bonus"],
-        "formality": "neutral",
-        "energy": "alta",
-    },
-    "profesional": {
-        "patterns": [
-            r"(?:servicio|consultoria|asesoria)",
-            r"(?:empresa|profesional|corporativ)",
-            r"(?:experiencia|trayectoria|especializad)",
-            r"(?:contacte|solicite|agende)",
-        ],
-        "words": ["soluciones", "optimizar", "implementar", "analisis", "estrategia"],
-        "formality": "formal",
-        "energy": "baja",
-    },
-}
+# LLM prompt for tone detection - multi-language, flexible output
+TONE_DETECTION_PROMPT = """Analyze this creator's communication tone based on their website content.
 
-# Formality indicators
-FORMALITY_INDICATORS = {
-    "formal": [
-        r"(?:usted|ustedes)",
-        r"(?:atentamente|cordialmente)",
-        r"(?:le invitamos|le ofrecemos)",
-        r"(?:nuestra empresa|nuestros servicios)",
-    ],
-    "informal": [
-        r"(?:tu |tus |te )",
-        r"(?:oye|mira|fijate)",
-        r"(?:curro|currar|mola)",
-        r"[!]{2,}",
-    ],
-}
+CREATOR'S CONTENT:
+{content}
+
+---
+
+Detect the UNIQUE tone and personality of this creator. DO NOT limit to fixed categories.
+
+Respond ONLY with valid JSON:
+
+{{
+    "style": "How they communicate in 1-2 words (e.g., 'cercano', 'inspirador', 'técnico', 'divertido', 'serio', 'motivacional', 'empático', 'directo', 'poético', 'enérgico')",
+    "formality": "formal" | "informal" | "mixto",
+    "language": "Primary language code (es/en/pt/fr/de/it/etc.)",
+    "emoji_usage": "none" | "light" | "heavy",
+    "personality_traits": ["trait1", "trait2", "trait3"],
+    "communication_summary": "One sentence describing how this creator communicates with their audience",
+    "suggested_bot_tone": "Brief instructions for a chatbot to mimic this creator's tone (max 200 chars)"
+}}
+
+GUIDELINES:
+- style: Describe THEIR unique style, don't force into generic categories
+- personality_traits: 3-5 traits that define their communicative personality
+- communication_summary: Be specific to THIS creator, not generic
+- suggested_bot_tone: Actionable instructions (what TO do, not what to avoid)
+- Detect the actual language used, don't assume Spanish
+
+IMPORTANT:
+- Each creator is unique - describe their actual tone
+- Be specific, not generic
+- Respond ONLY with JSON"""
 
 
 class ToneDetector:
-    """Detects communication tone from website content."""
+    """Detects communication tone using LLM for intelligent analysis."""
 
-    def __init__(self):
-        self.min_text_length = 200
+    def __init__(self, max_content_chars: int = 4000):
+        self.max_content_chars = max_content_chars
+        self._llm_client = None
+
+    def _get_llm_client(self):
+        """Lazy load LLM client."""
+        if self._llm_client is None:
+            from core.llm import get_llm_client
+
+            self._llm_client = get_llm_client()
+        return self._llm_client
 
     async def detect(
         self,
@@ -107,7 +102,7 @@ class ToneDetector:
         bio: Optional["ExtractedBio"] = None,
     ) -> Optional[DetectedTone]:
         """
-        Detect tone from website pages.
+        Detect tone from website pages using LLM.
 
         Args:
             pages: Scraped website pages
@@ -116,130 +111,125 @@ class ToneDetector:
         Returns:
             DetectedTone or None if not enough content
         """
-        # Combine all text for analysis
-        all_text = ""
-        for page in pages:
-            all_text += " " + page.main_content
+        # Combine content for analysis
+        combined_content = self._prepare_content(pages, bio)
 
-        if bio:
-            all_text += " " + bio.description
-
-        all_text = all_text.lower()
-
-        if len(all_text) < self.min_text_length:
-            logger.warning("Not enough text for tone detection")
+        if not combined_content or len(combined_content.strip()) < 200:
+            logger.warning("Not enough content for tone detection")
             return None
 
-        # Count indicators for each style
-        style_scores = {}
-        style_indicators = {}
+        try:
+            tone = await self._detect_with_llm(combined_content)
+            if tone:
+                logger.info(
+                    f"Detected tone: style='{tone.style}', formality={tone.formality}, "
+                    f"language={tone.language}, confidence={tone.confidence:.2f}"
+                )
+            return tone
+        except Exception as e:
+            logger.error(f"Error detecting tone: {e}")
+            return None
 
-        for style, data in TONE_INDICATORS.items():
-            score = 0
-            indicators = []
+    def _prepare_content(
+        self,
+        pages: List["ScrapedPage"],
+        bio: Optional["ExtractedBio"],
+    ) -> str:
+        """Prepare content for LLM analysis."""
+        parts = []
 
-            # Check patterns
-            for pattern in data["patterns"]:
-                matches = re.findall(pattern, all_text, re.IGNORECASE)
-                if matches:
-                    score += len(matches)
-                    indicators.extend(matches[:3])  # Keep first 3 as examples
+        # Add page content
+        for page in pages[:5]:  # Limit to 5 pages
+            content = page.main_content
+            if content and len(content.strip()) > 100:
+                parts.append(content[:1500])
 
-            # Check words
-            for word in data["words"]:
-                count = all_text.count(word.lower())
-                if count:
-                    score += count
-                    indicators.append(word)
+        # Add bio if available
+        if bio and bio.description:
+            parts.append(f"\n[ABOUT THE CREATOR]\n{bio.description}")
 
-            style_scores[style] = score
-            style_indicators[style] = indicators
+        combined = "\n\n".join(parts)
 
-        # Determine dominant style
-        if not any(style_scores.values()):
-            # Default to profesional if no strong indicators
-            dominant_style = "profesional"
-            confidence = 0.3
-            indicators = []
-        else:
-            dominant_style = max(style_scores, key=style_scores.get)
-            max_score = style_scores[dominant_style]
-            total_score = sum(style_scores.values()) or 1
-            confidence = min(0.95, 0.5 + (max_score / total_score) * 0.5)
-            indicators = style_indicators[dominant_style][:5]
+        # Truncate if too long
+        if len(combined) > self.max_content_chars:
+            combined = combined[: self.max_content_chars] + "..."
 
-        # Detect formality
-        formality = self._detect_formality(all_text)
+        return combined
 
-        # Use default from style if formality unclear
-        if not formality:
-            formality = TONE_INDICATORS[dominant_style].get("formality", "neutral")
+    async def _detect_with_llm(self, content: str) -> Optional[DetectedTone]:
+        """Detect tone using LLM."""
+        llm = self._get_llm_client()
+        prompt = TONE_DETECTION_PROMPT.format(content=content)
 
-        # Detect energy level
-        energy = self._detect_energy(all_text)
-        if not energy:
-            energy = TONE_INDICATORS[dominant_style].get("energy", "media")
+        logger.info("Detecting tone using LLM...")
 
-        logger.info(
-            f"Detected tone: {dominant_style} (formality={formality}, energy={energy}, confidence={confidence:.2f})"
+        # Call LLM with timeout
+        response = await asyncio.wait_for(
+            llm.generate(prompt, temperature=0.3, max_tokens=800),
+            timeout=LLM_TIMEOUT,
         )
 
-        return DetectedTone(
-            style=dominant_style,
-            formality=formality,
-            energy=energy,
-            confidence=confidence,
-            indicators=indicators,
+        # Parse response
+        tone_data = self._parse_llm_response(response)
+
+        if not tone_data:
+            logger.warning("Failed to parse tone from LLM response")
+            return None
+
+        # Create DetectedTone
+        tone = DetectedTone(
+            style=tone_data.get("style", "neutral")[:50],
+            formality=self._validate_formality(tone_data.get("formality", "neutral")),
+            language=tone_data.get("language", "es")[:10],
+            emoji_usage=self._validate_emoji_usage(tone_data.get("emoji_usage", "none")),
+            personality_traits=tone_data.get("personality_traits", [])[:5],
+            communication_summary=tone_data.get("communication_summary", "")[:300],
+            suggested_bot_tone=tone_data.get("suggested_bot_tone", "")[:200],
+            confidence=0.85 if tone_data.get("style") else 0.5,
         )
 
-    def _detect_formality(self, text: str) -> Optional[str]:
-        """Detect formality level from text."""
-        formal_count = 0
-        informal_count = 0
+        return tone
 
-        for pattern in FORMALITY_INDICATORS["formal"]:
-            formal_count += len(re.findall(pattern, text, re.IGNORECASE))
+    def _parse_llm_response(self, response: str) -> Optional[dict]:
+        """Parse JSON from LLM response."""
+        try:
+            # Clean markdown code blocks if present
+            response = response.strip()
+            if response.startswith("```"):
+                response = re.sub(r"^```json?\n?", "", response)
+                response = re.sub(r"\n?```$", "", response)
 
-        for pattern in FORMALITY_INDICATORS["informal"]:
-            informal_count += len(re.findall(pattern, text, re.IGNORECASE))
+            return json.loads(response)
+        except json.JSONDecodeError as e:
+            logger.warning(f"Failed to parse LLM response as JSON: {e}")
+            # Try to extract JSON from response
+            json_match = re.search(r"\{[\s\S]*\}", response)
+            if json_match:
+                try:
+                    return json.loads(json_match.group())
+                except json.JSONDecodeError:
+                    pass
+            return None
 
-        if formal_count > informal_count * 2:
-            return "formal"
-        elif informal_count > formal_count * 2:
-            return "informal"
-        elif formal_count > 0 or informal_count > 0:
-            return "neutral"
+    def _validate_formality(self, value: str) -> str:
+        """Validate formality value."""
+        valid = ["formal", "informal", "mixto"]
+        return value.lower() if value.lower() in valid else "informal"
 
-        return None
-
-    def _detect_energy(self, text: str) -> Optional[str]:
-        """Detect energy level from text."""
-        # Count exclamation marks
-        exclamations = text.count("!")
-
-        # Count energy words
-        high_energy_words = ["increible", "genial", "wow", "brutal", "amazing", "super"]
-        low_energy_words = ["tranquilo", "calma", "serenidad", "pausado"]
-
-        high_count = sum(text.count(word) for word in high_energy_words)
-        low_count = sum(text.count(word) for word in low_energy_words)
-
-        # Normalize by text length
-        text_factor = len(text) / 1000
-
-        if exclamations > text_factor * 5 or high_count > text_factor * 3:
-            return "alta"
-        elif low_count > high_count or exclamations < text_factor:
-            return "baja"
-
-        return "media"
+    def _validate_emoji_usage(self, value: str) -> str:
+        """Validate emoji_usage value."""
+        valid = ["none", "light", "heavy"]
+        return value.lower() if value.lower() in valid else "none"
 
     def to_dict(self, tone: DetectedTone) -> dict:
         """Convert DetectedTone to dictionary."""
         return {
             "style": tone.style,
             "formality": tone.formality,
-            "energy": tone.energy,
+            "language": tone.language,
+            "emoji_usage": tone.emoji_usage,
+            "personality_traits": tone.personality_traits,
+            "communication_summary": tone.communication_summary,
+            "suggested_bot_tone": tone.suggested_bot_tone,
             "confidence": tone.confidence,
-            "indicators": tone.indicators,
         }

@@ -643,7 +643,11 @@ class IngestionV2Pipeline:
                 about_data["tone"] = {
                     "style": tone.style,
                     "formality": tone.formality,
-                    "energy": tone.energy,
+                    "language": getattr(tone, "language", "es"),
+                    "emoji_usage": getattr(tone, "emoji_usage", "none"),
+                    "personality_traits": getattr(tone, "personality_traits", []),
+                    "communication_summary": getattr(tone, "communication_summary", ""),
+                    "suggested_bot_tone": getattr(tone, "suggested_bot_tone", ""),
                     "confidence": tone.confidence,
                 }
                 creator.knowledge_about = about_data
