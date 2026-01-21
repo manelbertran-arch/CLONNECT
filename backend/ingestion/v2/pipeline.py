@@ -574,15 +574,39 @@ class IngestionV2Pipeline:
             if bio:
                 # 1. Save to creator.knowledge_about (for Settings UI)
                 about_data = creator.knowledge_about or {}
+
+                # Bio básica (existente)
                 about_data["bio"] = bio.description
                 about_data["bio_source_url"] = bio.source_url
                 about_data["bio_confidence"] = bio.confidence
+
+                # AUTO-COMPLETAR: Campos adicionales extraídos del website
+                if bio.name:
+                    about_data["creator_name"] = bio.name
+                if bio.specialties:
+                    about_data["specialties"] = bio.specialties
+                if bio.years_experience:
+                    about_data["years_experience"] = bio.years_experience
+                if bio.target_audience:
+                    about_data["target_audience"] = bio.target_audience
+
                 creator.knowledge_about = about_data
 
                 # CRITICAL: flag_modified tells SQLAlchemy the JSON field changed
                 flag_modified(creator, "knowledge_about")
+
+                # Log con detalle de campos guardados
+                saved_fields = ["bio"]
+                if bio.name:
+                    saved_fields.append("creator_name")
+                if bio.specialties:
+                    saved_fields.append(f"specialties({len(bio.specialties)})")
+                if bio.years_experience:
+                    saved_fields.append(f"years_experience({bio.years_experience})")
+                if bio.target_audience:
+                    saved_fields.append("target_audience")
                 logger.info(
-                    f"[_save_creator_knowledge] Bio saved to knowledge_about: {len(bio.description)} chars"
+                    f"[_save_creator_knowledge] Bio saved to knowledge_about: {', '.join(saved_fields)}"
                 )
 
                 # 2. Save to RAG documents (for chatbot)
