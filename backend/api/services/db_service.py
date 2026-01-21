@@ -42,6 +42,7 @@ def get_creator_by_name(name: str):
                 "clone_vocabulary": creator.clone_vocabulary or "",
                 "welcome_message": creator.welcome_message or "",
                 "other_payment_methods": creator.other_payment_methods or {},
+                "knowledge_about": creator.knowledge_about or {},
             }
         return None
     finally:
