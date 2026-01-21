@@ -794,10 +794,9 @@ class AutoConfigurator:
     async def _generate_faqs(self, creator_id: str) -> dict:
         """
         Genera FAQs automáticas basadas en el contenido scrapeado.
-        Extrae preguntas frecuentes de:
-        1. Posts de Instagram con formato Q&A
-        2. Website scrapeado (secciones FAQ)
-        3. Genera FAQs genéricas basadas en productos
+
+        IMPORTANTE: Si ya existen FAQs en KnowledgeBase (del V2 pipeline),
+        NO genera nuevas para evitar duplicados/parafraseados.
         """
         result = {
             'faqs_created': 0,
@@ -820,6 +819,19 @@ class AutoConfigurator:
                 ).first()
 
                 if not creator:
+                    return result
+
+                # SKIP if FAQs already exist from V2 pipeline (literal extraction)
+                existing_faq_count = db.query(KnowledgeBase).filter(
+                    KnowledgeBase.creator_id == creator.id
+                ).count()
+
+                if existing_faq_count >= 10:
+                    logger.info(
+                        f"[AutoConfig] Skipping FAQ generation - {existing_faq_count} FAQs already exist from V2 pipeline"
+                    )
+                    result['faqs_created'] = existing_faq_count
+                    result['source'] = ['v2_pipeline_existing']
                     return result
 
                 creator_uuid = creator.id
