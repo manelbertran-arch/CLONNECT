@@ -146,14 +146,26 @@ CLASIFICAR COMO "REAL" (FAQs de producto/servicio):
 - Preguntas sobre cómo funciona, metodología, duración
 - Preguntas sobre requisitos, para quién es
 - Preguntas sobre horarios, acceso, formato
+- Preguntas sobre cómo empezar, primer paso, inscripción
+- Preguntas sobre por qué participar/unirse (beneficios)
+- Preguntas sobre qué pasa si no puedo, cancelaciones, políticas
 - Dudas frecuentes de clientes potenciales
 
+EJEMPLOS DE "REAL" (NO son CTAs ni retóricas):
+- "¿Cómo puedo dar mi primer paso?" → REAL (getting started)
+- "¿Por qué participar en este taller?" → REAL (beneficios)
+- "¿Qué sucede si no puedo completar?" → REAL (política)
+- "¿Para quién está dirigido?" → REAL (elegibilidad)
+- "¿Qué equipo necesito?" → REAL (requisitos)
+
 CLASIFICAR COMO "SKIP" (NO son FAQs reales):
-- Preguntas retóricas de blog ("¿Y si tu dolor fuera un mensaje?")
-- Títulos de artículos en forma de pregunta
-- Preguntas filosóficas/reflexivas sin respuesta concreta
-- Preguntas sobre temas generales (IA, vida, consciencia)
-- CTAs disfrazados de pregunta
+- Preguntas retóricas de blog SIN respuesta concreta ("¿Y si tu dolor fuera un mensaje?")
+- Títulos de artículos en forma de pregunta ("¿Cómo la IA está transformando el mundo?")
+- Preguntas filosóficas abstractas ("¿Qué es la consciencia?")
+- Preguntas sobre temas generales NO relacionados con el servicio
+
+REGLA CLAVE: Si la pregunta tiene una respuesta práctica sobre el producto/servicio → REAL.
+ANTE LA DUDA: Clasificar como REAL (mejor incluir de más que perder FAQs importantes).
 
 PREGUNTAS A CLASIFICAR:
 {questions_list}
