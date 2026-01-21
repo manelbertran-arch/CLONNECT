@@ -221,6 +221,39 @@ async def reset_all_data():
     return results
 
 
+@router.delete("/delete-user/{email}")
+async def delete_user_by_email(email: str):
+    """Delete a user by email (for testing/reset purposes)"""
+    if not DEMO_RESET_ENABLED:
+        raise HTTPException(status_code=403, detail="Demo reset is disabled")
+
+    try:
+        from api.database import SessionLocal
+        from api.models import User, UserCreator
+
+        session = SessionLocal()
+        try:
+            user = session.query(User).filter(User.email == email).first()
+            if not user:
+                raise HTTPException(status_code=404, detail=f"User {email} not found")
+
+            # Delete user-creator associations first
+            session.query(UserCreator).filter(UserCreator.user_id == user.id).delete()
+
+            # Delete user
+            session.delete(user)
+            session.commit()
+
+            return {"status": "ok", "deleted": email}
+        finally:
+            session.close()
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error deleting user: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 @router.post("/reset-creator/{creator_id}")
 async def reset_creator(creator_id: str):
     """
