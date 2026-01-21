@@ -110,6 +110,54 @@ class FAQExtractor:
             self._llm_client = get_llm_client()
         return self._llm_client
 
+    # Patterns to identify FAQ sections
+    FAQ_SECTION_PATTERNS = [
+        r'preguntas?\s+frecuentes?',
+        r'\bfaq\b',
+        r'preguntas?\s+y\s+respuestas?',
+        r'dudas?\s+frecuentes?',
+        r'frequently\s+asked',
+        r'common\s+questions?',
+        r'\bq\s*&\s*a\b',
+    ]
+
+    # Patterns for CTAs and rhetorical questions (NOT real FAQs)
+    CTA_RHETORICAL_PATTERNS = [
+        r'^¿te\s+(?:gustar[ií]a|animas?|atreves?|interesa)',
+        r'^¿quieres?\s+(?:saber|conocer|descubrir|empezar|comenzar)',
+        r'^¿(?:list[oa]|preparad[oa])\s+para',
+        r'^¿(?:qué|qu[eé])\s+(?:esperas?|tal\s+si)',
+        r'^¿(?:empezamos?|comenzamos?|hablamos?)\?*$',
+        r'^¿(?:quién|quien)\s+soy\?*$',
+        r'^¿(?:qué|que)\s+(?:hago|ofrezco|puedo\s+hacer)\?*$',
+        r'^¿(?:qué|que)\s+(?:deseo|quiero)\s+compartir',
+        r'^¿(?:por\s+qué|porque)\s+(?:yo|elegirme|trabajar\s+conmigo)',
+        r'dar\s+el\s+salto',
+        r'únete|suscr[ií]bete|reg[ií]strate|reserva\s+tu|agenda\s+tu',
+    ]
+
+    def _is_faq_section(self, text: str) -> bool:
+        """Check if text indicates we're in a FAQ section."""
+        if not text:
+            return False
+        text_lower = text.lower()
+        return any(re.search(p, text_lower, re.I) for p in self.FAQ_SECTION_PATTERNS)
+
+    def _is_cta_or_rhetorical(self, question: str) -> bool:
+        """Check if question is a CTA or rhetorical (not a real FAQ)."""
+        if not question:
+            return True
+        q_lower = question.lower().strip()
+        return any(re.search(p, q_lower, re.I) for p in self.CTA_RHETORICAL_PATTERNS)
+
+    def _has_valid_answer(self, answer: str) -> bool:
+        """Check if answer is substantial enough to be a real FAQ answer."""
+        if not answer:
+            return False
+        word_count = len(answer.split())
+        # Real FAQ answers have at least 10 words
+        return word_count >= 10
+
     async def extract(
         self,
         pages: List["ScrapedPage"],
@@ -164,6 +212,8 @@ class FAQExtractor:
         """
         PASO 1: Extract FAQs literally using regex.
 
+        IMPROVED: Only extracts from FAQ sections, filters CTAs and rhetorical questions.
+
         Finds patterns like:
         - ¿Pregunta aquí?
         - Followed by answer text until next question or section
@@ -175,8 +225,18 @@ class FAQExtractor:
             if not content:
                 continue
 
+            # Check if this page is a FAQ section (by URL or title)
+            page_is_faq = self._is_faq_section(page.url) or self._is_faq_section(page.title)
+
+            # Also check if content contains FAQ section markers
+            content_has_faq_section = self._is_faq_section(content[:2000])
+
+            # If neither page nor content indicates FAQ section, skip this page
+            if not page_is_faq and not content_has_faq_section:
+                logger.debug(f"Skipping non-FAQ page: {page.url}")
+                continue
+
             # Find all questions (¿...?)
-            # Pattern: ¿ followed by text until ?
             question_pattern = r"¿([^?]+)\?"
 
             # Find all question positions
@@ -189,27 +249,20 @@ class FAQExtractor:
                     {"question": question, "start": start_pos, "end": end_pos}
                 )
 
-            # Extract answer for each question (text until next question or limit)
+            # Extract answer for each question
             for i, q in enumerate(questions_with_pos):
-                # Skip very short questions (likely not real FAQs)
-                if len(q["question"]) < 10:
+                question = q["question"]
+
+                # Skip very short questions
+                if len(question) < 10:
                     continue
 
-                # Skip common non-FAQ questions (be conservative - don't filter legit FAQs)
-                skip_patterns = [
-                    r"^¿(y tú|qué tal|sabías que)\b",  # Greetings/rhetorical only
-                    # NOTE: Don't filter "¿Cómo...?" - common FAQ pattern
-                    # NOTE: Don't filter short questions - "¿Es para mi?" is valid
-                ]
-                should_skip = False
-                for pattern in skip_patterns:
-                    if re.match(pattern, q["question"], re.I):
-                        should_skip = True
-                        break
-                if should_skip:
+                # FILTER 1: Skip CTAs and rhetorical questions
+                if self._is_cta_or_rhetorical(question):
+                    logger.debug(f"Filtered CTA/rhetorical: {question[:50]}")
                     continue
 
-                # Get answer: text from end of question to start of next question (or +1000 chars)
+                # Get answer: text from end of question to start of next question
                 answer_start = q["end"]
                 if i + 1 < len(questions_with_pos):
                     answer_end = questions_with_pos[i + 1]["start"]
@@ -217,17 +270,16 @@ class FAQExtractor:
                     answer_end = min(answer_start + 1000, len(content))
 
                 answer = content[answer_start:answer_end].strip()
-
-                # Clean answer
                 answer = self._clean_answer(answer)
 
-                # Skip if answer is too short or empty
-                if len(answer) < 20:
+                # FILTER 2: Skip if answer is not substantial
+                if not self._has_valid_answer(answer):
+                    logger.debug(f"Filtered (invalid answer): {question[:50]}")
                     continue
 
                 all_faqs.append(
                     {
-                        "question": q["question"],
+                        "question": question,
                         "answer": answer[:500] if len(answer) > 500 else answer,
                         "source_url": page.url,
                         "was_truncated": len(answer) > 500,
@@ -243,6 +295,7 @@ class FAQExtractor:
                 seen_questions.add(q_normalized)
                 unique_faqs.append(faq)
 
+        logger.info(f"FAQ extraction: {len(unique_faqs)} FAQs from FAQ sections (filtered)")
         return unique_faqs
 
     def _clean_answer(self, answer: str) -> str:
