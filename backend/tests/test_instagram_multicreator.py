@@ -5,9 +5,9 @@ BLOQUE 6: Tests for the new Instagram router with multi-creator routing.
 Tests webhook routing, Ice Breakers, Stories handling, and creator management.
 """
 
+from unittest.mock import AsyncMock, Mock, patch
+
 import pytest
-from unittest.mock import Mock, patch, AsyncMock
-from datetime import datetime, timezone
 
 
 class TestPayloadExtraction:
@@ -19,11 +19,7 @@ class TestPayloadExtraction:
 
         payload = {
             "object": "instagram",
-            "entry": [{
-                "id": "page-123",
-                "time": 1700000000000,
-                "messaging": []
-            }]
+            "entry": [{"id": "page-123", "time": 1700000000000, "messaging": []}],
         }
 
         result = extract_page_id_from_payload(payload)
@@ -35,12 +31,9 @@ class TestPayloadExtraction:
 
         payload = {
             "object": "instagram",
-            "entry": [{
-                "messaging": [{
-                    "sender": {"id": "user-123"},
-                    "recipient": {"id": "page-456"}
-                }]
-            }]
+            "entry": [
+                {"messaging": [{"sender": {"id": "user-123"}, "recipient": {"id": "page-456"}}]}
+            ],
         }
 
         result = extract_page_id_from_payload(payload)
@@ -64,8 +57,8 @@ class TestWebhookEndpoints:
     @pytest.mark.asyncio
     async def test_webhook_verify_success(self):
         """Test successful webhook verification"""
-        from fastapi.testclient import TestClient
         from api.main import app
+        from fastapi.testclient import TestClient
 
         client = TestClient(app)
 
@@ -74,8 +67,8 @@ class TestWebhookEndpoints:
             params={
                 "hub.mode": "subscribe",
                 "hub.verify_token": "clonnect_verify_2024",
-                "hub.challenge": "test_challenge_123"
-            }
+                "hub.challenge": "test_challenge_123",
+            },
         )
 
         assert response.status_code == 200
@@ -84,8 +77,8 @@ class TestWebhookEndpoints:
     @pytest.mark.asyncio
     async def test_webhook_verify_failure(self):
         """Test failed webhook verification"""
-        from fastapi.testclient import TestClient
         from api.main import app
+        from fastapi.testclient import TestClient
 
         client = TestClient(app)
 
@@ -94,8 +87,8 @@ class TestWebhookEndpoints:
             params={
                 "hub.mode": "subscribe",
                 "hub.verify_token": "wrong_token",
-                "hub.challenge": "test_challenge"
-            }
+                "hub.challenge": "test_challenge",
+            },
         )
 
         assert response.status_code == 403
@@ -103,30 +96,31 @@ class TestWebhookEndpoints:
     @pytest.mark.asyncio
     async def test_webhook_receive_unknown_creator(self):
         """Test receiving webhook for unknown creator"""
-        from fastapi.testclient import TestClient
         from api.main import app
+        from fastapi.testclient import TestClient
 
         client = TestClient(app)
 
         payload = {
             "object": "instagram",
-            "entry": [{
-                "id": "unknown-page-id",
-                "time": 1700000000000,
-                "messaging": [{
-                    "sender": {"id": "user-123"},
-                    "recipient": {"id": "unknown-page-id"},
-                    "timestamp": 1700000000000,
-                    "message": {
-                        "mid": "msg-123",
-                        "text": "Hello"
-                    }
-                }]
-            }]
+            "entry": [
+                {
+                    "id": "unknown-page-id",
+                    "time": 1700000000000,
+                    "messaging": [
+                        {
+                            "sender": {"id": "user-123"},
+                            "recipient": {"id": "unknown-page-id"},
+                            "timestamp": 1700000000000,
+                            "message": {"mid": "msg-123", "text": "Hello"},
+                        }
+                    ],
+                }
+            ],
         }
 
-        with patch('api.routers.instagram.get_creator_by_page_id', return_value=None):
-            with patch('api.routers.instagram.get_creator_by_ig_user_id', return_value=None):
+        with patch("api.routers.instagram.get_creator_by_page_id", return_value=None):
+            with patch("api.routers.instagram.get_creator_by_ig_user_id", return_value=None):
                 response = client.post("/instagram/webhook", json=payload)
 
         assert response.status_code == 200
@@ -147,20 +141,20 @@ class TestStoriesHandler:
             "instagram_token": "token-123",
             "instagram_page_id": "page-456",
             "instagram_user_id": "ig-789",
-            "copilot_mode": False
+            "copilot_mode": False,
         }
 
-        with patch('api.routers.instagram.get_handler_for_creator') as mock_get_handler:
+        with patch("api.routers.instagram.get_handler_for_creator") as mock_get_handler:
             mock_handler = Mock()
             mock_handler.send_response = AsyncMock(return_value=True)
             mock_get_handler.return_value = mock_handler
 
-            with patch('api.routers.instagram._register_story_interaction', new_callable=AsyncMock):
+            with patch("api.routers.instagram._register_story_interaction", new_callable=AsyncMock):
                 result = await _handle_story_mention(
                     creator_info=creator_info,
                     sender_id="user-123",
                     story_url="https://instagram.com/story/123",
-                    message_text=""
+                    message_text="",
                 )
 
         assert result["type"] == "story_mention"
@@ -171,37 +165,32 @@ class TestStoriesHandler:
 class TestEchoMessageFiltering:
     """Tests for filtering echo messages (bot's own messages)"""
 
-    def test_skip_echo_messages(self):
+    @pytest.mark.asyncio
+    async def test_skip_echo_messages(self):
         """Test that echo messages are skipped"""
         from core.instagram_handler import InstagramHandler
-        import asyncio
 
         handler = InstagramHandler(
-            access_token="test",
-            page_id="page-123",
-            ig_user_id="ig-456",
-            creator_id="test_creator"
+            access_token="test", page_id="page-123", ig_user_id="ig-456", creator_id="test_creator"
         )
 
         # Payload with echo message (is_echo=true)
         payload = {
-            "entry": [{
-                "messaging": [{
-                    "sender": {"id": "page-123"},
-                    "recipient": {"id": "user-789"},
-                    "message": {
-                        "mid": "msg-123",
-                        "text": "Bot response",
-                        "is_echo": True
-                    }
-                }]
-            }]
+            "entry": [
+                {
+                    "messaging": [
+                        {
+                            "sender": {"id": "page-123"},
+                            "recipient": {"id": "user-789"},
+                            "message": {"mid": "msg-123", "text": "Bot response", "is_echo": True},
+                        }
+                    ]
+                }
+            ]
         }
 
         # Extract messages should skip echo
-        messages = asyncio.get_event_loop().run_until_complete(
-            handler._extract_messages(payload)
-        )
+        messages = await handler._extract_messages(payload)
 
         assert len(messages) == 0
 
@@ -212,27 +201,28 @@ class TestMultiCreatorIntegration:
     @pytest.mark.asyncio
     async def test_full_webhook_flow(self):
         """Test complete webhook flow with multi-creator routing"""
-        from fastapi.testclient import TestClient
         from api.main import app
+        from fastapi.testclient import TestClient
 
         client = TestClient(app)
 
         # Create payload from "page-creator1"
         payload = {
             "object": "instagram",
-            "entry": [{
-                "id": "page-creator1",
-                "time": 1700000000000,
-                "messaging": [{
-                    "sender": {"id": "user-123"},
-                    "recipient": {"id": "page-creator1"},
-                    "timestamp": 1700000000000,
-                    "message": {
-                        "mid": "msg-123",
-                        "text": "Hello!"
-                    }
-                }]
-            }]
+            "entry": [
+                {
+                    "id": "page-creator1",
+                    "time": 1700000000000,
+                    "messaging": [
+                        {
+                            "sender": {"id": "user-123"},
+                            "recipient": {"id": "page-creator1"},
+                            "timestamp": 1700000000000,
+                            "message": {"mid": "msg-123", "text": "Hello!"},
+                        }
+                    ],
+                }
+            ],
         }
 
         creator_info = {
@@ -242,17 +232,15 @@ class TestMultiCreatorIntegration:
             "instagram_page_id": "page-creator1",
             "instagram_user_id": "ig-123",
             "bot_active": True,
-            "copilot_mode": True
+            "copilot_mode": True,
         }
 
-        with patch('api.routers.instagram.get_creator_by_page_id', return_value=creator_info):
-            with patch('api.routers.instagram.get_handler_for_creator') as mock_get_handler:
+        with patch("api.routers.instagram.get_creator_by_page_id", return_value=creator_info):
+            with patch("api.routers.instagram.get_handler_for_creator") as mock_get_handler:
                 mock_handler = Mock()
-                mock_handler.handle_webhook = AsyncMock(return_value={
-                    "status": "ok",
-                    "messages_processed": 1,
-                    "results": []
-                })
+                mock_handler.handle_webhook = AsyncMock(
+                    return_value={"status": "ok", "messages_processed": 1, "results": []}
+                )
                 mock_get_handler.return_value = mock_handler
 
                 response = client.post("/instagram/webhook", json=payload)
@@ -269,31 +257,35 @@ class TestBotPausedBehavior:
     @pytest.mark.asyncio
     async def test_skip_when_bot_paused(self):
         """Test that messages are skipped when bot_active=False"""
-        from fastapi.testclient import TestClient
         from api.main import app
+        from fastapi.testclient import TestClient
 
         client = TestClient(app)
 
         payload = {
             "object": "instagram",
-            "entry": [{
-                "id": "page-paused",
-                "messaging": [{
-                    "sender": {"id": "user-123"},
-                    "recipient": {"id": "page-paused"},
-                    "message": {"mid": "msg-123", "text": "Hello"}
-                }]
-            }]
+            "entry": [
+                {
+                    "id": "page-paused",
+                    "messaging": [
+                        {
+                            "sender": {"id": "user-123"},
+                            "recipient": {"id": "page-paused"},
+                            "message": {"mid": "msg-123", "text": "Hello"},
+                        }
+                    ],
+                }
+            ],
         }
 
         creator_info = {
             "creator_id": "paused_creator",
             "instagram_page_id": "page-paused",
             "bot_active": False,  # Bot is paused
-            "copilot_mode": False
+            "copilot_mode": False,
         }
 
-        with patch('api.routers.instagram.get_creator_by_page_id', return_value=creator_info):
+        with patch("api.routers.instagram.get_creator_by_page_id", return_value=creator_info):
             response = client.post("/instagram/webhook", json=payload)
 
         assert response.status_code == 200
@@ -307,6 +299,7 @@ class TestMultiCreatorRouterImport:
     def test_router_exists(self):
         """Test that the router is importable"""
         from api.routers.instagram import router
+
         assert router is not None
 
     def test_endpoints_registered(self):
@@ -327,10 +320,10 @@ class TestMultiCreatorRouterImport:
     def test_helper_functions_exist(self):
         """Test that helper functions exist"""
         from api.routers.instagram import (
-            get_creator_by_page_id,
+            extract_page_id_from_payload,
             get_creator_by_ig_user_id,
+            get_creator_by_page_id,
             get_handler_for_creator,
-            extract_page_id_from_payload
         )
 
         assert callable(get_creator_by_page_id)
@@ -369,7 +362,7 @@ class TestIceBreakersValidation:
         # This is a logical test - just validating the expected format
         ice_breakers = [
             {"question": "What services?", "payload": "SERVICES"},
-            {"question": "How much?", "payload": "PRICING"}
+            {"question": "How much?", "payload": "PRICING"},
         ]
 
         formatted = [
