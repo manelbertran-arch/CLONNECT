@@ -37,7 +37,8 @@ class MockExtractedFAQ:
     question: str = "What services do you offer?"
     answer: str = "I offer consulting and coaching."
     source_url: str = "https://example.com/faq"
-    source_type: str = "explicit"
+    source_type: str = "extracted"
+    category: str = "other"
     confidence: float = 0.9
 
 
@@ -265,7 +266,7 @@ class TestFAQExtractor:
 
     @pytest.mark.asyncio
     async def test_extracts_explicit_faqs(self):
-        """Should extract FAQs from FAQ page."""
+        """Should extract FAQs from FAQ page using LLM."""
         from ingestion.v2.faq_extractor import FAQExtractor
 
         mock_page = MagicMock()
@@ -280,11 +281,37 @@ class TestFAQExtractor:
         El programa dura 12 semanas con sesiones semanales de 90 minutos.
         """
 
-        extractor = FAQExtractor()
-        result = await extractor.extract([mock_page])
+        # Mock LLM response
+        mock_llm_response = """{
+            "faqs": [
+                {
+                    "source": "extracted",
+                    "question": "¿Cuánto cuesta el programa?",
+                    "answer": "El programa tiene un precio de €497 con opción de pago fraccionado.",
+                    "category": "pricing"
+                },
+                {
+                    "source": "extracted",
+                    "question": "¿Cuánto dura el programa?",
+                    "answer": "El programa dura 12 semanas con sesiones semanales de 90 minutos.",
+                    "category": "process"
+                }
+            ]
+        }"""
 
-        assert result is not None
-        assert len(result.faqs) >= 1
+        with patch("ingestion.v2.faq_extractor.FAQExtractor._get_llm_client") as mock_get_llm:
+            mock_llm = MagicMock()
+            mock_llm.generate = AsyncMock(return_value=mock_llm_response)
+            mock_get_llm.return_value = mock_llm
+
+            extractor = FAQExtractor()
+            result = await extractor.extract([mock_page])
+
+            assert result is not None
+            assert len(result.faqs) == 2
+            assert result.faqs[0].question == "¿Cuánto cuesta el programa?"
+            assert result.faqs[0].category == "pricing"
+            assert result.faqs[1].category == "process"
 
 
 class TestToneDetector:

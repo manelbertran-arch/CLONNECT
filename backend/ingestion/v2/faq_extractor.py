@@ -1,10 +1,14 @@
 """
-FAQ Extractor - Extracts FAQs from website pages.
+FAQ Extractor - Intelligent FAQ extraction using LLM.
 
-Looks for explicit FAQ sections and generates common FAQs from products/bio.
-Saves to both RAG documents AND KnowledgeBase table.
+Detects ANY FAQ-like content regardless of how it's labeled:
+- "FAQ", "Preguntas frecuentes", "Preguntas y respuestas", "Dudas", etc.
+- Question-answer patterns anywhere in the content
+- Generates useful FAQs if none found explicitly
 """
 
+import asyncio
+import json
 import logging
 import re
 from dataclasses import dataclass, field
@@ -17,6 +21,9 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger(__name__)
 
+# Timeout for LLM calls
+LLM_TIMEOUT = 45  # Longer timeout for FAQ extraction
+
 
 @dataclass
 class ExtractedFAQ:
@@ -25,7 +32,8 @@ class ExtractedFAQ:
     question: str
     answer: str
     source_url: str
-    source_type: str  # "explicit" (from page) or "generated" (from products/bio)
+    source_type: str  # "extracted" (found in web) or "generated" (created by LLM)
+    category: str  # pricing|process|benefits|eligibility|getting_started|other
     confidence: float
 
 
@@ -37,32 +45,66 @@ class FAQExtractionResult:
     source_urls: List[str] = field(default_factory=list)
 
 
-# Patterns for FAQ page detection
-FAQ_URL_PATTERNS = [
-    r"/faq",
-    r"/preguntas",
-    r"/dudas",
-    r"/ayuda",
-    r"/help",
-    r"/support",
-]
+# LLM prompt for FAQ extraction
+FAQ_EXTRACTION_PROMPT = """Analiza este contenido web y extrae TODAS las preguntas y respuestas que encuentres.
 
-# Patterns to identify Q&A structure
-QA_PATTERNS = [
-    # Spanish patterns
-    r"\?[\s\n]+([A-Z][^?]+)",  # Question mark followed by answer
-    r"(?:P|Pregunta)[:\.]?\s*([^?]+\?)\s*(?:R|Respuesta)[:\.]?\s*([^P]+?)(?=(?:P|Pregunta)|$)",
-    # English patterns
-    r"(?:Q|Question)[:\.]?\s*([^?]+\?)\s*(?:A|Answer)[:\.]?\s*([^Q]+?)(?=(?:Q|Question)|$)",
-]
+CONTENIDO WEB:
+{page_content}
+
+---
+
+BUSCA:
+- Secciones de FAQ/Preguntas frecuentes (cualquier nombre: "Dudas", "Q&A", "Lo que debes saber", etc.)
+- Patrones de pregunta-respuesta (¿...? seguido de explicación)
+- Acordeones o listas con formato pregunta + respuesta
+- Cualquier contenido estructurado como duda + solución
+
+Si NO encuentras FAQs explícitas, genera 5-8 FAQs ÚTILES basadas en el contenido.
+
+Responde SOLO con JSON válido:
+
+{{
+    "faqs": [
+        {{
+            "source": "extracted" o "generated",
+            "question": "La pregunta (máx 150 chars)",
+            "answer": "La respuesta (máx 500 chars, resumir si es muy larga)",
+            "category": "pricing|process|benefits|eligibility|getting_started|other"
+        }}
+    ]
+}}
+
+CATEGORÍAS:
+- pricing: precios, costos, pagos, descuentos
+- process: cómo funciona, pasos, metodología
+- benefits: resultados, beneficios, qué obtengo
+- eligibility: para quién es, requisitos
+- getting_started: cómo empezar, primeros pasos
+- other: otras preguntas
+
+REGLAS:
+- Máximo 15 FAQs
+- Respuestas concisas (máx 500 chars)
+- NO inventes información que no esté en el contenido
+- Si generas FAQs, básalas en lo que el creador ofrece
+- Responde SOLO con el JSON"""
 
 
 class FAQExtractor:
-    """Extracts FAQs from website and generates common ones."""
+    """Extracts FAQs using LLM for intelligent detection."""
 
-    def __init__(self, max_faqs: int = 20, min_answer_length: int = 20):
+    def __init__(self, max_faqs: int = 15, max_content_chars: int = 6000):
         self.max_faqs = max_faqs
-        self.min_answer_length = min_answer_length
+        self.max_content_chars = max_content_chars
+        self._llm_client = None
+
+    def _get_llm_client(self):
+        """Lazy load LLM client."""
+        if self._llm_client is None:
+            from core.llm import get_llm_client
+
+            self._llm_client = get_llm_client()
+        return self._llm_client
 
     async def extract(
         self,
@@ -71,11 +113,11 @@ class FAQExtractor:
         bio: Optional["ExtractedBio"] = None,
     ) -> FAQExtractionResult:
         """
-        Extract FAQs from pages and generate common ones.
+        Extract FAQs from pages using LLM.
 
         Args:
             pages: Scraped website pages
-            products: Detected products (for generating FAQs)
+            products: Detected products (for context)
             bio: Extracted bio (for context)
 
         Returns:
@@ -83,172 +125,123 @@ class FAQExtractor:
         """
         result = FAQExtractionResult()
 
-        # Step 1: Extract explicit FAQs from FAQ pages
-        faq_pages = self._find_faq_pages(pages)
-        for page in faq_pages:
-            explicit_faqs = self._extract_faqs_from_page(page)
-            result.faqs.extend(explicit_faqs)
-            if explicit_faqs:
-                result.source_urls.append(page.url)
+        # Combine relevant page content
+        combined_content = self._prepare_content(pages, products, bio)
 
-        logger.info(f"Extracted {len(result.faqs)} explicit FAQs from {len(faq_pages)} pages")
+        if not combined_content or len(combined_content.strip()) < 100:
+            logger.warning("Not enough content for FAQ extraction")
+            return result
 
-        # Step 2: Generate common FAQs from products if we don't have enough
-        if len(result.faqs) < 5 and products:
-            generated = self._generate_product_faqs(products)
-            result.faqs.extend(generated)
-            logger.info(f"Generated {len(generated)} FAQs from products")
-
-        # Step 3: Deduplicate and limit
-        result.faqs = self._deduplicate_faqs(result.faqs)
-        result.faqs = result.faqs[: self.max_faqs]
+        # Extract FAQs using LLM
+        try:
+            faqs = await self._extract_with_llm(combined_content, pages[0].url if pages else "")
+            result.faqs = faqs[: self.max_faqs]
+            result.source_urls = list(set(faq.source_url for faq in result.faqs))
+            logger.info(f"Extracted {len(result.faqs)} FAQs using LLM")
+        except Exception as e:
+            logger.error(f"Error extracting FAQs: {e}")
 
         return result
 
-    def _find_faq_pages(self, pages: List["ScrapedPage"]) -> List["ScrapedPage"]:
-        """Find pages that are likely FAQ pages."""
-        faq_pages = []
+    def _prepare_content(
+        self,
+        pages: List["ScrapedPage"],
+        products: Optional[List["DetectedProduct"]],
+        bio: Optional["ExtractedBio"],
+    ) -> str:
+        """Prepare combined content for LLM analysis."""
+        parts = []
 
-        for page in pages:
-            url_lower = page.url.lower()
+        # Add page content (prioritize pages that might have FAQs)
+        for page in pages[:5]:  # Limit to 5 pages
+            content = page.main_content
+            if content:
+                # Add page with URL context
+                parts.append(f"[Página: {page.url}]\n{content[:2000]}")
 
-            # Check URL patterns
-            for pattern in FAQ_URL_PATTERNS:
-                if re.search(pattern, url_lower):
-                    faq_pages.append(page)
-                    break
-
-            # Check if content has FAQ-like structure
-            if page not in faq_pages:
-                content_lower = page.main_content.lower()
-                if "preguntas frecuentes" in content_lower or "faq" in content_lower:
-                    faq_pages.append(page)
-
-        return faq_pages
-
-    def _extract_faqs_from_page(self, page: "ScrapedPage") -> List[ExtractedFAQ]:
-        """Extract Q&A pairs from a page."""
-        faqs = []
-        content = page.main_content
-
-        # Try different patterns
-        for pattern in QA_PATTERNS:
-            matches = re.findall(pattern, content, re.IGNORECASE | re.MULTILINE)
-            for match in matches:
-                if isinstance(match, tuple) and len(match) >= 2:
-                    question = match[0].strip()
-                    answer = match[1].strip()
-                elif isinstance(match, str):
-                    # Single group match (answer after question mark)
-                    continue  # Skip, need both Q and A
-
-                if self._is_valid_faq(question, answer):
-                    faqs.append(
-                        ExtractedFAQ(
-                            question=self._clean_question(question),
-                            answer=self._clean_answer(answer),
-                            source_url=page.url,
-                            source_type="explicit",
-                            confidence=0.9,
-                        )
-                    )
-
-        # Also try to find question marks followed by content
-        lines = content.split("\n")
-        i = 0
-        while i < len(lines) - 1:
-            line = lines[i].strip()
-            if line.endswith("?") and len(line) > 15:
-                # Next non-empty lines might be the answer
-                answer_lines = []
-                j = i + 1
-                while j < len(lines) and len(answer_lines) < 5:
-                    next_line = lines[j].strip()
-                    if next_line.endswith("?"):
-                        break  # Next question
-                    if next_line:
-                        answer_lines.append(next_line)
-                    j += 1
-
-                if answer_lines:
-                    answer = " ".join(answer_lines)
-                    if self._is_valid_faq(line, answer):
-                        faqs.append(
-                            ExtractedFAQ(
-                                question=self._clean_question(line),
-                                answer=self._clean_answer(answer),
-                                source_url=page.url,
-                                source_type="explicit",
-                                confidence=0.8,
-                            )
-                        )
-                i = j
-            else:
-                i += 1
-
-        return faqs
-
-    def _generate_product_faqs(self, products: List["DetectedProduct"]) -> List[ExtractedFAQ]:
-        """Generate common FAQs from product information."""
-        faqs = []
-
-        # Get products with prices
-        priced_products = [p for p in products if p.price and p.price > 0]
-
-        if priced_products:
-            # FAQ about pricing
-            if len(priced_products) == 1:
-                p = priced_products[0]
-                faqs.append(
-                    ExtractedFAQ(
-                        question=f"What is the price of {p.name}?",
-                        answer=f"The price of {p.name} is {p.currency}{p.price}.",
-                        source_url=p.source_url,
-                        source_type="generated",
-                        confidence=0.95,
-                    )
-                )
-            else:
-                price_range = f"{min(p.price for p in priced_products)}-{max(p.price for p in priced_products)}"
-                currency = priced_products[0].currency or "EUR"
-                faqs.append(
-                    ExtractedFAQ(
-                        question="What are the prices?",
-                        answer=f"Prices range from {currency}{price_range} depending on the product/service.",
-                        source_url=priced_products[0].source_url,
-                        source_type="generated",
-                        confidence=0.85,
-                    )
-                )
-
-        # FAQ about what services are offered
+        # Add product context
         if products:
-            services = [p.name for p in products[:5]]
-            faqs.append(
-                ExtractedFAQ(
-                    question="What services do you offer?",
-                    answer=f"I offer: {', '.join(services)}.",
-                    source_url=products[0].source_url,
-                    source_type="generated",
-                    confidence=0.9,
-                )
-            )
+            product_info = "\n[PRODUCTOS/SERVICIOS OFRECIDOS]\n"
+            for p in products[:5]:
+                price_str = f" - {p.currency}{p.price}" if p.price else ""
+                product_info += f"- {p.name}{price_str}\n"
+            parts.append(product_info)
 
+        # Add bio context
+        if bio and bio.description:
+            parts.append(f"\n[SOBRE EL CREADOR]\n{bio.description}")
+
+        combined = "\n\n".join(parts)
+
+        # Truncate if too long
+        if len(combined) > self.max_content_chars:
+            combined = combined[: self.max_content_chars] + "..."
+
+        return combined
+
+    async def _extract_with_llm(self, content: str, default_url: str) -> List[ExtractedFAQ]:
+        """Extract FAQs using LLM."""
+        llm = self._get_llm_client()
+        prompt = FAQ_EXTRACTION_PROMPT.format(page_content=content)
+
+        logger.info("Extracting FAQs using LLM...")
+
+        # Call LLM with timeout
+        response = await asyncio.wait_for(
+            llm.generate(prompt, temperature=0.3, max_tokens=2000),
+            timeout=LLM_TIMEOUT,
+        )
+
+        # Parse response
+        faq_data = self._parse_llm_response(response)
+
+        if not faq_data or "faqs" not in faq_data:
+            logger.warning("No FAQs found in LLM response")
+            return []
+
+        # Convert to ExtractedFAQ objects
+        faqs = []
+        for item in faq_data["faqs"]:
+            if not item.get("question") or not item.get("answer"):
+                continue
+
+            faq = ExtractedFAQ(
+                question=self._clean_question(item["question"][:150]),
+                answer=self._clean_answer(item["answer"][:500]),
+                source_url=default_url,
+                source_type=item.get("source", "extracted"),
+                category=item.get("category", "other"),
+                confidence=0.9 if item.get("source") == "extracted" else 0.75,
+            )
+            faqs.append(faq)
+
+        logger.info(f"Parsed {len(faqs)} FAQs from LLM response")
         return faqs
 
-    def _is_valid_faq(self, question: str, answer: str) -> bool:
-        """Check if Q&A pair is valid."""
-        if not question or not answer:
-            return False
-        if len(question) < 10 or len(answer) < self.min_answer_length:
-            return False
-        if len(question) > 300 or len(answer) > 1000:
-            return False
-        return True
+    def _parse_llm_response(self, response: str) -> Optional[dict]:
+        """Parse JSON from LLM response."""
+        try:
+            # Clean markdown code blocks if present
+            response = response.strip()
+            if response.startswith("```"):
+                response = re.sub(r"^```json?\n?", "", response)
+                response = re.sub(r"\n?```$", "", response)
+
+            return json.loads(response)
+        except json.JSONDecodeError as e:
+            logger.warning(f"Failed to parse LLM response as JSON: {e}")
+            # Try to extract JSON from response
+            json_match = re.search(r"\{[\s\S]*\}", response)
+            if json_match:
+                try:
+                    return json.loads(json_match.group())
+                except json.JSONDecodeError:
+                    pass
+            return None
 
     def _clean_question(self, question: str) -> str:
         """Clean question text."""
-        question = question.strip()
+        question = re.sub(r"\s+", " ", question).strip()
         if not question.endswith("?"):
             question += "?"
         return question
@@ -258,22 +251,6 @@ class FAQExtractor:
         answer = re.sub(r"\s+", " ", answer)
         return answer.strip()
 
-    def _deduplicate_faqs(self, faqs: List[ExtractedFAQ]) -> List[ExtractedFAQ]:
-        """Remove duplicate FAQs based on question similarity."""
-        seen_questions = set()
-        unique_faqs = []
-
-        for faq in faqs:
-            # Normalize question for comparison
-            normalized = re.sub(r"[^\w\s]", "", faq.question.lower())
-            normalized = " ".join(normalized.split())
-
-            if normalized not in seen_questions:
-                seen_questions.add(normalized)
-                unique_faqs.append(faq)
-
-        return unique_faqs
-
     def to_dict(self, faq: ExtractedFAQ) -> dict:
         """Convert FAQ to dictionary."""
         return {
@@ -281,5 +258,6 @@ class FAQExtractor:
             "answer": faq.answer,
             "source_url": faq.source_url,
             "source_type": faq.source_type,
+            "category": faq.category,
             "confidence": faq.confidence,
         }
