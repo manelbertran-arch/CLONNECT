@@ -465,10 +465,11 @@ class FAQExtractor:
             r"\b\d{1,2}[/-]\d{1,2}[/-]\d{2,4}\b",
             r"\b\w{3}\s+\d{1,2},\s+\d{4}\b",
             r"(publicado|actualizado)\s*(el|en)?",
-            # ═══ PROMOCIONAL ═══
+            # ═══ PROMOCIONAL / INTRO ═══
             r"(oferta|descuento|promoción)\s+(especial|limitada)",
             r"(solo|últimas)\s+\d+\s+(plazas|lugares|cupos)",
             r"por\s+(solo|sólo)\s+[€$£]\d+",
+            r"(este|esta)\s+(taller|curso|programa|retiro)\s+es\s+una?\s+(experiencia|oportunidad)",
         ]
         for pattern in stop_patterns:
             match = re.search(pattern, answer, re.IGNORECASE)
