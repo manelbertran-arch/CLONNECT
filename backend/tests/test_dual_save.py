@@ -37,9 +37,10 @@ class MockExtractedFAQ:
     question: str = "What services do you offer?"
     answer: str = "I offer consulting and coaching."
     source_url: str = "https://example.com/faq"
-    source_type: str = "extracted"
+    source_type: str = "extracted_literal"
     category: str = "other"
-    confidence: float = 0.9
+    context: str = "General"
+    confidence: float = 0.95
 
 
 @dataclass
@@ -288,20 +289,22 @@ class TestFAQExtractor:
         El programa dura 12 semanas con sesiones semanales de 90 minutos.
         """
 
-        # Mock LLM response
+        # Mock LLM response with new source_type values and context
         mock_llm_response = """{
             "faqs": [
                 {
-                    "source": "extracted",
+                    "source": "extracted_literal",
                     "question": "¿Cuánto cuesta el programa?",
                     "answer": "El programa tiene un precio de €497 con opción de pago fraccionado.",
-                    "category": "pricing"
+                    "category": "pricing",
+                    "context": "Programa principal"
                 },
                 {
-                    "source": "extracted",
+                    "source": "extracted_literal",
                     "question": "¿Cuánto dura el programa?",
                     "answer": "El programa dura 12 semanas con sesiones semanales de 90 minutos.",
-                    "category": "process"
+                    "category": "process",
+                    "context": "Programa principal"
                 }
             ]
         }"""
