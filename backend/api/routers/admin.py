@@ -3481,7 +3481,10 @@ async def test_ingestion_v2(creator_id: str, website_url: str):
                 clean_before=True,
                 re_verify=True
             )
-            
+
+            # Ensure commit is done
+            session.commit()
+
             return {
                 "status": result.status,
                 "success": result.success,
