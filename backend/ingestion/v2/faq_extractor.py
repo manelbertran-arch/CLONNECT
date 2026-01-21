@@ -1,10 +1,11 @@
 """
-FAQ Extractor - LITERAL FAQ extraction using LLM.
+FAQ Extractor - HYBRID extraction (Regex + LLM)
 
 FILOSOFÍA CLONNECT: El sistema debe ser FIEL al contenido del creador.
-NO parafrasear, NO reformular, NO inventar.
 
-Extrae FAQs LITERALMENTE como aparecen en la web del creador.
+APPROACH:
+1. REGEX: Extrae FAQs literalmente (patrones ¿...?)
+2. LLM: Solo categoriza las FAQs ya extraídas, NO reformula
 """
 
 import asyncio
@@ -22,7 +23,7 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 # Timeout for LLM calls
-LLM_TIMEOUT = 60  # Longer timeout for multiple pages
+LLM_TIMEOUT = 60
 
 
 @dataclass
@@ -46,46 +47,24 @@ class FAQExtractionResult:
     source_urls: List[str] = field(default_factory=list)
 
 
-# LLM prompt for LITERAL FAQ extraction
-FAQ_EXTRACTION_PROMPT = """Extrae LITERALMENTE todas las preguntas y respuestas de este contenido web.
+# LLM prompt for CATEGORIZATION ONLY (not extraction)
+FAQ_CATEGORIZATION_PROMPT = """Categoriza las siguientes FAQs que ya fueron extraídas de una web.
 
-CONTENIDO WEB:
-{page_content}
+IMPORTANTE: NO cambies las preguntas ni respuestas. Solo añade categoría y contexto.
+
+FAQs A CATEGORIZAR:
+{faqs_json}
 
 ---
 
-INSTRUCCIONES CRÍTICAS - LEE CON ATENCIÓN:
+PRODUCTOS/SERVICIOS DEL CREADOR (para identificar contexto):
+{products_info}
 
-1. EXTRACCIÓN LITERAL:
-   - Copia la pregunta EXACTAMENTE como aparece en la web
-   - Copia la respuesta EXACTAMENTE como aparece
-   - NO parafrasees, NO reformules, NO cambies palabras
-   - Si la respuesta es muy larga (>500 chars), resume MANTENIENDO la información clave
+---
 
-2. IDENTIFICA EL CONTEXTO:
-   - Determina a qué producto/servicio pertenece cada FAQ
-   - Usa el título de la sección o el nombre del producto
-   - Si es FAQ general, usa "General"
-
-3. BUSCA EN TODO EL CONTENIDO:
-   - Secciones FAQ/Preguntas frecuentes
-   - Patrones ¿...? seguido de explicación
-   - Acordeones o listas pregunta-respuesta
-   - Cualquier formato de duda + solución
-
-Responde SOLO con JSON válido:
-
-{{
-    "faqs": [
-        {{
-            "source": "extracted_literal" | "extracted_summarized" | "generated",
-            "question": "COPIA EXACTA de la pregunta",
-            "answer": "COPIA EXACTA de la respuesta (o resumen si >500 chars)",
-            "context": "Nombre del producto/servicio al que pertenece",
-            "category": "pricing|process|benefits|eligibility|getting_started|other"
-        }}
-    ]
-}}
+Para cada FAQ, determina:
+1. category: pricing|process|benefits|eligibility|getting_started|other
+2. context: nombre del producto/servicio al que pertenece (o "General" si aplica a todo)
 
 CATEGORÍAS:
 - pricing: precios, costos, pagos, descuentos
@@ -95,20 +74,30 @@ CATEGORÍAS:
 - getting_started: cómo empezar, primeros pasos
 - other: otras preguntas
 
-REGLAS IMPORTANTES:
-- Extrae TODAS las FAQs que encuentres (sin límite arbitrario)
-- PRIORIZA "extracted_literal" sobre "generated"
-- Solo genera FAQs si NO encuentras ninguna explícita
-- Las FAQs generadas deben basarse SOLO en información del contenido
-- Responde ÚNICAMENTE con el JSON, sin texto adicional"""
+Responde SOLO con JSON:
+
+{{
+    "categorized_faqs": [
+        {{
+            "question": "COPIA EXACTA de la pregunta original",
+            "answer": "COPIA EXACTA de la respuesta original",
+            "category": "pricing|process|benefits|etc",
+            "context": "Nombre del producto o General"
+        }}
+    ]
+}}
+
+REGLA CRÍTICA: Las preguntas y respuestas deben ser IDÉNTICAS a las originales."""
 
 
 class FAQExtractor:
-    """Extracts FAQs LITERALLY using LLM - faithful to creator's content."""
+    """
+    Extracts FAQs using HYBRID approach:
+    1. Regex for literal extraction
+    2. LLM for categorization only
+    """
 
     def __init__(self, max_faqs: int = 100, max_content_chars: int = 12000):
-        # max_faqs alto (100) - el límite real es el contexto del LLM, no un número arbitrario
-        # Si el creador tiene 50 FAQs, extraemos 50
         self.max_faqs = max_faqs
         self.max_content_chars = max_content_chars
         self._llm_client = None
@@ -128,215 +117,249 @@ class FAQExtractor:
         bio: Optional["ExtractedBio"] = None,
     ) -> FAQExtractionResult:
         """
-        Extract FAQs LITERALLY from ALL pages using LLM.
-
-        Args:
-            pages: Scraped website pages
-            products: Detected products (for context)
-            bio: Extracted bio (for context)
-
-        Returns:
-            FAQExtractionResult with list of FAQs
+        Extract FAQs using hybrid approach (Regex + LLM).
         """
         result = FAQExtractionResult()
 
-        # Prepare content from ALL pages with FAQs
-        combined_content, page_urls = self._prepare_content(pages, products, bio)
+        # PASO 1: Extracción LITERAL con regex
+        raw_faqs = self._extract_faqs_with_regex(pages)
 
-        if not combined_content or len(combined_content.strip()) < 100:
-            logger.warning("Not enough content for FAQ extraction")
+        if not raw_faqs:
+            logger.info("No FAQs found with regex extraction")
             return result
 
-        # Extract FAQs using LLM
+        logger.info(f"Regex extracted {len(raw_faqs)} literal FAQs")
+
+        # PASO 2: Categorización con LLM (sin reformular)
         try:
-            faqs = await self._extract_with_llm(combined_content, page_urls)
-            result.faqs = faqs[: self.max_faqs]
+            categorized_faqs = await self._categorize_with_llm(raw_faqs, products)
+            result.faqs = categorized_faqs[: self.max_faqs]
             result.source_urls = list(set(faq.source_url for faq in result.faqs))
 
-            # Log extraction stats
-            literal_count = sum(1 for f in result.faqs if f.source_type == "extracted_literal")
-            summarized_count = sum(1 for f in result.faqs if f.source_type == "extracted_summarized")
-            generated_count = sum(1 for f in result.faqs if f.source_type == "generated")
+            # Log stats
             logger.info(
-                f"Extracted {len(result.faqs)} FAQs: "
-                f"{literal_count} literal, {summarized_count} summarized, {generated_count} generated"
+                f"Final: {len(result.faqs)} FAQs categorized "
+                f"(categories: {set(f.category for f in result.faqs)})"
             )
         except Exception as e:
-            logger.error(f"Error extracting FAQs: {e}")
+            logger.error(f"Error categorizing FAQs: {e}")
+            # Fallback: return uncategorized FAQs
+            result.faqs = [
+                ExtractedFAQ(
+                    question=faq["question"],
+                    answer=faq["answer"],
+                    source_url=faq["source_url"],
+                    source_type="extracted_literal",
+                    category="other",
+                    context="General",
+                    confidence=0.9,
+                )
+                for faq in raw_faqs
+            ]
+            result.source_urls = list(set(faq.source_url for faq in result.faqs))
 
         return result
 
-    def _prepare_content(
-        self,
-        pages: List["ScrapedPage"],
-        products: Optional[List["DetectedProduct"]],
-        bio: Optional["ExtractedBio"],
-    ) -> tuple[str, dict]:
+    def _extract_faqs_with_regex(self, pages: List["ScrapedPage"]) -> List[dict]:
         """
-        Prepare combined content for LLM analysis.
+        PASO 1: Extract FAQs literally using regex.
 
-        Returns:
-            Tuple of (combined_content, {page_index: url} mapping)
+        Finds patterns like:
+        - ¿Pregunta aquí?
+        - Followed by answer text until next question or section
         """
-        parts = []
-        page_urls = {}
-        page_index = 0
+        all_faqs = []
 
-        # FAQ section keywords to search for
-        faq_keywords = [
-            "preguntas frecuentes",
-            "preguntas y respuestas",
-            "faq",
-            "dudas",
-            "lo que debes saber",
-            "frequently asked",
-            "q&a",
-            "preguntas",
-            "respuestas",
-        ]
-
-        # Process ALL pages - no arbitrary limit
         for page in pages:
             content = page.main_content
             if not content:
                 continue
 
-            content_lower = content.lower()
-            has_faq_section = False
-            page_content_parts = []
+            # Find all questions (¿...?)
+            # Pattern: ¿ followed by text until ?
+            question_pattern = r"¿([^?]+)\?"
 
-            # Search for ALL FAQ sections in this page
-            for keyword in faq_keywords:
-                # Find all occurrences of this keyword
-                start_pos = 0
-                while True:
-                    kw_pos = content_lower.find(keyword, start_pos)
-                    if kw_pos < 0:
+            # Find all question positions
+            questions_with_pos = []
+            for match in re.finditer(question_pattern, content):
+                question = f"¿{match.group(1)}?"
+                start_pos = match.start()
+                end_pos = match.end()
+                questions_with_pos.append(
+                    {"question": question, "start": start_pos, "end": end_pos}
+                )
+
+            # Extract answer for each question (text until next question or limit)
+            for i, q in enumerate(questions_with_pos):
+                # Skip very short questions (likely not real FAQs)
+                if len(q["question"]) < 10:
+                    continue
+
+                # Skip common non-FAQ questions
+                skip_patterns = [
+                    r"^¿(te|quién|cómo|qué tal|y tú|sabías)",  # Greetings/rhetorical
+                    r"^¿[^?]{0,15}\?$",  # Too short
+                ]
+                should_skip = False
+                for pattern in skip_patterns:
+                    if re.match(pattern, q["question"], re.I):
+                        should_skip = True
                         break
+                if should_skip:
+                    continue
 
-                    has_faq_section = True
-                    # Extract FAQ section (3000 chars from that point for more complete extraction)
-                    faq_section = content[kw_pos : kw_pos + 3000]
+                # Get answer: text from end of question to start of next question (or +1000 chars)
+                answer_start = q["end"]
+                if i + 1 < len(questions_with_pos):
+                    answer_end = questions_with_pos[i + 1]["start"]
+                else:
+                    answer_end = min(answer_start + 1000, len(content))
 
-                    # Avoid duplicates
-                    if faq_section not in "".join(page_content_parts):
-                        page_content_parts.append(f"\n[SECCIÓN FAQ: {keyword.upper()}]\n{faq_section}")
+                answer = content[answer_start:answer_end].strip()
 
-                    start_pos = kw_pos + len(keyword) + 500  # Move past this section
+                # Clean answer
+                answer = self._clean_answer(answer)
 
-            # If page has FAQ sections, include it with context
-            if has_faq_section:
-                page_header = f"\n{'='*50}\n[PÁGINA {page_index + 1}: {page.url}]\n{'='*50}\n"
+                # Skip if answer is too short or empty
+                if len(answer) < 20:
+                    continue
 
-                # Add page title/beginning for context (500 chars)
-                context_intro = content[:500]
-                page_content = page_header + f"[CONTEXTO DE PÁGINA]\n{context_intro}\n"
-                page_content += "\n".join(page_content_parts)
+                all_faqs.append(
+                    {
+                        "question": q["question"],
+                        "answer": answer[:500] if len(answer) > 500 else answer,
+                        "source_url": page.url,
+                        "was_truncated": len(answer) > 500,
+                    }
+                )
 
-                parts.append(page_content)
-                page_urls[page_index] = page.url
-                page_index += 1
+        # Deduplicate by question
+        seen_questions = set()
+        unique_faqs = []
+        for faq in all_faqs:
+            q_normalized = faq["question"].lower().strip()
+            if q_normalized not in seen_questions:
+                seen_questions.add(q_normalized)
+                unique_faqs.append(faq)
 
-        # If no FAQ sections found, include first 3 pages for general extraction
-        if not parts:
-            logger.info("No explicit FAQ sections found, using general content")
-            for i, page in enumerate(pages[:3]):
-                if page.main_content:
-                    parts.append(f"\n[PÁGINA {i + 1}: {page.url}]\n{page.main_content[:2000]}")
-                    page_urls[i] = page.url
+        return unique_faqs
 
-        # Add product context for better FAQ grouping
-        if products:
-            product_info = "\n\n[PRODUCTOS/SERVICIOS DEL CREADOR - usar para contexto de FAQs]\n"
-            for p in products:
-                price_str = f" - {p.currency}{p.price}" if p.price else ""
-                product_info += f"• {p.name}{price_str}\n"
-            parts.append(product_info)
+    def _clean_answer(self, answer: str) -> str:
+        """Clean extracted answer text."""
+        # Normalize whitespace
+        answer = re.sub(r"\s+", " ", answer)
 
-        # Add bio context
-        if bio and bio.description:
-            parts.append(f"\n[SOBRE EL CREADOR]\n{bio.description}")
+        # Remove common noise at start
+        answer = re.sub(r"^[\s\-:]+", "", answer)
 
-        combined = "\n".join(parts)
+        # Remove common CTAs at end
+        cta_patterns = [
+            r"\s*(Leer más|Ver más|Más información|Click aquí|Haz click).*$",
+            r"\s*(QUIERO|RESERVAR|COMPRAR|APÚNTATE).*$",
+        ]
+        for pattern in cta_patterns:
+            answer = re.sub(pattern, "", answer, flags=re.I)
 
-        # Truncate if too long (increased limit for more complete extraction)
-        if len(combined) > self.max_content_chars:
-            combined = combined[: self.max_content_chars] + "\n...[contenido truncado]"
+        return answer.strip()
 
-        logger.info(f"Prepared {len(parts)} content sections for FAQ extraction ({len(combined)} chars)")
-        return combined, page_urls
-
-    async def _extract_with_llm(self, content: str, page_urls: dict) -> List[ExtractedFAQ]:
-        """Extract FAQs using LLM with LITERAL extraction."""
+    async def _categorize_with_llm(
+        self, raw_faqs: List[dict], products: Optional[List["DetectedProduct"]]
+    ) -> List[ExtractedFAQ]:
+        """
+        PASO 2: Use LLM to categorize pre-extracted FAQs.
+        Does NOT modify questions or answers.
+        """
         llm = self._get_llm_client()
-        prompt = FAQ_EXTRACTION_PROMPT.format(page_content=content)
 
-        logger.info("Extracting FAQs LITERALLY using LLM...")
+        # Prepare FAQs for LLM
+        faqs_for_llm = [{"question": f["question"], "answer": f["answer"]} for f in raw_faqs]
 
-        # Call LLM with timeout
+        # Prepare products info
+        products_info = "No hay productos específicos identificados."
+        if products:
+            products_info = "\n".join(
+                f"• {p.name}" + (f" ({p.currency}{p.price})" if p.price else "") for p in products
+            )
+
+        prompt = FAQ_CATEGORIZATION_PROMPT.format(
+            faqs_json=json.dumps(faqs_for_llm, ensure_ascii=False, indent=2),
+            products_info=products_info,
+        )
+
+        logger.info(f"Categorizing {len(raw_faqs)} FAQs with LLM...")
+
+        # Call LLM
         response = await asyncio.wait_for(
-            llm.generate(prompt, temperature=0.1, max_tokens=3000),  # Lower temp for more faithful extraction
+            llm.generate(prompt, temperature=0.1, max_tokens=3000),
             timeout=LLM_TIMEOUT,
         )
 
         # Parse response
-        faq_data = self._parse_llm_response(response)
+        categorized_data = self._parse_llm_response(response)
 
-        if not faq_data or "faqs" not in faq_data:
-            logger.warning("No FAQs found in LLM response")
-            return []
+        if not categorized_data or "categorized_faqs" not in categorized_data:
+            logger.warning("LLM categorization failed, using defaults")
+            # Return with default categories
+            return [
+                ExtractedFAQ(
+                    question=faq["question"],
+                    answer=faq["answer"],
+                    source_url=faq["source_url"],
+                    source_type=(
+                        "extracted_literal"
+                        if not faq.get("was_truncated")
+                        else "extracted_summarized"
+                    ),
+                    category="other",
+                    context="General",
+                    confidence=0.9,
+                )
+                for faq in raw_faqs
+            ]
 
-        # Convert to ExtractedFAQ objects - preserve literal text
-        faqs = []
-        default_url = page_urls.get(0, "")
+        # Build FAQ objects with categorization
+        # Create lookup for original FAQ data
+        original_lookup = {f["question"].lower().strip(): f for f in raw_faqs}
 
-        for item in faq_data["faqs"]:
-            if not item.get("question") or not item.get("answer"):
-                continue
+        categorized_faqs = []
+        for item in categorized_data["categorized_faqs"]:
+            question = item.get("question", "")
 
-            # Determine source type
-            source_type = item.get("source", "extracted_literal")
-            if source_type not in ["extracted_literal", "extracted_summarized", "generated"]:
-                source_type = "extracted_literal"
+            # Find original FAQ data
+            q_key = question.lower().strip()
+            original = original_lookup.get(q_key)
 
-            # Preserve question exactly - only normalize whitespace
-            question = " ".join(item["question"].split())
+            if not original:
+                # LLM might have slightly modified - try fuzzy match
+                for orig_q, orig_data in original_lookup.items():
+                    if orig_q in q_key or q_key in orig_q:
+                        original = orig_data
+                        break
 
-            # Preserve answer exactly - only normalize whitespace
-            answer = " ".join(item["answer"].split())
+            if original:
+                # Use ORIGINAL question/answer, only take category/context from LLM
+                faq = ExtractedFAQ(
+                    question=original["question"],  # LITERAL from regex
+                    answer=original["answer"],  # LITERAL from regex
+                    source_url=original["source_url"],
+                    source_type=(
+                        "extracted_literal"
+                        if not original.get("was_truncated")
+                        else "extracted_summarized"
+                    ),
+                    category=item.get("category", "other"),
+                    context=item.get("context", "General"),
+                    confidence=0.95,
+                )
+                categorized_faqs.append(faq)
+            else:
+                logger.warning(f"Could not match LLM FAQ to original: {question[:50]}...")
 
-            # Get context
-            context = item.get("context", "General")
-            if not context:
-                context = "General"
-
-            faq = ExtractedFAQ(
-                question=question,
-                answer=answer[:500] if len(answer) > 500 else answer,
-                source_url=default_url,
-                source_type=source_type,
-                category=item.get("category", "other"),
-                context=context,
-                confidence=self._calculate_confidence(source_type),
-            )
-            faqs.append(faq)
-
-        logger.info(f"Parsed {len(faqs)} FAQs from LLM response")
-        return faqs
-
-    def _calculate_confidence(self, source_type: str) -> float:
-        """Calculate confidence based on source type."""
-        confidence_map = {
-            "extracted_literal": 0.95,
-            "extracted_summarized": 0.85,
-            "generated": 0.70,
-        }
-        return confidence_map.get(source_type, 0.75)
+        return categorized_faqs
 
     def _parse_llm_response(self, response: str) -> Optional[dict]:
         """Parse JSON from LLM response."""
         try:
-            # Clean markdown code blocks if present
             response = response.strip()
             if response.startswith("```"):
                 response = re.sub(r"^```json?\n?", "", response)
@@ -345,7 +368,6 @@ class FAQExtractor:
             return json.loads(response)
         except json.JSONDecodeError as e:
             logger.warning(f"Failed to parse LLM response as JSON: {e}")
-            # Try to extract JSON from response
             json_match = re.search(r"\{[\s\S]*\}", response)
             if json_match:
                 try:

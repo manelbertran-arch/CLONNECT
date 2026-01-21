@@ -289,18 +289,17 @@ class TestFAQExtractor:
         El programa dura 12 semanas con sesiones semanales de 90 minutos.
         """
 
-        # Mock LLM response with new source_type values and context
+        # Mock LLM response for CATEGORIZATION (hybrid approach)
+        # LLM only categorizes, doesn't modify questions/answers
         mock_llm_response = """{
-            "faqs": [
+            "categorized_faqs": [
                 {
-                    "source": "extracted_literal",
                     "question": "¿Cuánto cuesta el programa?",
                     "answer": "El programa tiene un precio de €497 con opción de pago fraccionado.",
                     "category": "pricing",
                     "context": "Programa principal"
                 },
                 {
-                    "source": "extracted_literal",
                     "question": "¿Cuánto dura el programa?",
                     "answer": "El programa dura 12 semanas con sesiones semanales de 90 minutos.",
                     "category": "process",
