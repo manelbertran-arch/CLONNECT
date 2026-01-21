@@ -96,7 +96,7 @@ CATEGORÍAS:
 - other: otras preguntas
 
 REGLAS IMPORTANTES:
-- Máximo 20 FAQs en total
+- Extrae TODAS las FAQs que encuentres (sin límite arbitrario)
 - PRIORIZA "extracted_literal" sobre "generated"
 - Solo genera FAQs si NO encuentras ninguna explícita
 - Las FAQs generadas deben basarse SOLO en información del contenido
@@ -106,7 +106,9 @@ REGLAS IMPORTANTES:
 class FAQExtractor:
     """Extracts FAQs LITERALLY using LLM - faithful to creator's content."""
 
-    def __init__(self, max_faqs: int = 20, max_content_chars: int = 12000):
+    def __init__(self, max_faqs: int = 100, max_content_chars: int = 12000):
+        # max_faqs alto (100) - el límite real es el contexto del LLM, no un número arbitrario
+        # Si el creador tiene 50 FAQs, extraemos 50
         self.max_faqs = max_faqs
         self.max_content_chars = max_content_chars
         self._llm_client = None
