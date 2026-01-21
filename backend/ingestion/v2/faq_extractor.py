@@ -152,12 +152,38 @@ class FAQExtractor:
         """Prepare combined content for LLM analysis."""
         parts = []
 
-        # Add page content (prioritize pages that might have FAQs)
+        # FAQ section keywords to search for
+        faq_keywords = [
+            "preguntas frecuentes",
+            "preguntas y respuestas",
+            "faq",
+            "dudas",
+            "lo que debes saber",
+            "frequently asked",
+            "q&a",
+        ]
+
+        # Add page content - SMART extraction for FAQs
         for page in pages[:5]:  # Limit to 5 pages
             content = page.main_content
             if content:
-                # Add page with URL context
-                parts.append(f"[Página: {page.url}]\n{content[:2000]}")
+                page_content = ""
+                content_lower = content.lower()
+
+                # First, add beginning of page for context (1000 chars)
+                page_content = content[:1000]
+
+                # Then, search for FAQ sections and include them
+                for keyword in faq_keywords:
+                    kw_pos = content_lower.find(keyword)
+                    if kw_pos >= 0:
+                        # Found FAQ section - extract it (2000 chars from that point)
+                        faq_section = content[kw_pos : kw_pos + 2000]
+                        if faq_section not in page_content:
+                            page_content += f"\n\n[SECCIÓN FAQ ENCONTRADA]\n{faq_section}"
+                        break  # Only include first FAQ section found
+
+                parts.append(f"[Página: {page.url}]\n{page_content}")
 
         # Add product context
         if products:
