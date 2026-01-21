@@ -323,7 +323,7 @@ class FAQExtractor:
                 if i + 1 < len(questions_with_pos):
                     answer_end = questions_with_pos[i + 1]["start"]
                 else:
-                    answer_end = min(answer_start + 1000, len(content))
+                    answer_end = min(answer_start + 2000, len(content))
 
                 answer = content[answer_start:answer_end].strip()
 
@@ -337,9 +337,9 @@ class FAQExtractor:
                 all_faqs.append(
                     {
                         "question": q["question"],
-                        "answer": answer[:500] if len(answer) > 500 else answer,
+                        "answer": answer[:1000] if len(answer) > 1000 else answer,
                         "source_url": page.url,
-                        "was_truncated": len(answer) > 500,
+                        "was_truncated": len(answer) > 1000,
                     }
                 )
 
@@ -373,9 +373,7 @@ class FAQExtractor:
             batch = raw_faqs[batch_start : batch_start + batch_size]
 
             # Format questions for prompt
-            questions_list = "\n".join(
-                f"{i + 1}. {faq['question']}" for i, faq in enumerate(batch)
-            )
+            questions_list = "\n".join(f"{i + 1}. {faq['question']}" for i, faq in enumerate(batch))
 
             prompt = FAQ_CLASSIFICATION_PROMPT.format(questions_list=questions_list)
 
@@ -433,6 +431,25 @@ class FAQExtractor:
         ]
         for pattern in cta_patterns:
             answer = re.sub(pattern, "", answer, flags=re.I)
+
+        # Stop patterns - cut text at common section markers
+        # PROTECCIÓN: solo cortar si match.start() > 10 (evita bug de string vacío)
+        stop_patterns = [
+            r"MÁS PREGUNTAS",
+            r"CONOCE A TU",
+            r"INSTRUCTOR:",
+            r"PREGUNTAS FRECUENTES",
+            r"SOBRE EL AUTOR",
+            r"SOBRE NOSOTROS",
+        ]
+        for pattern in stop_patterns:
+            match = re.search(pattern, answer, re.IGNORECASE)
+            if match and match.start() > 10:
+                answer = answer[: match.start()].strip()
+
+        # Clean numeric noise at start/end (post-extraction cleanup)
+        answer = re.sub(r"^\s*\d+\.\s*", "", answer)  # "4. texto" → "texto"
+        answer = re.sub(r"\s+\d+\.\s*$", "", answer)  # "texto 2." → "texto"
 
         return answer.strip()
 
