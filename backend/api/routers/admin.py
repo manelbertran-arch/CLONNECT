@@ -223,28 +223,57 @@ async def reset_all_data():
 
 @router.delete("/delete-user/{email}")
 async def delete_user_by_email(email: str):
-    """Delete a user by email (for testing/reset purposes)"""
+    """Delete a user AND associated creator by email (for testing/reset purposes)"""
     if not DEMO_RESET_ENABLED:
         raise HTTPException(status_code=403, detail="Demo reset is disabled")
 
     try:
         from api.database import SessionLocal
-        from api.models import User, UserCreator
+        from api.models import User, UserCreator, Creator, Lead, Message, Product, KnowledgeBase
 
         session = SessionLocal()
         try:
+            deleted = {"user": None, "creator": None}
+
+            # Find and delete user
             user = session.query(User).filter(User.email == email).first()
-            if not user:
-                raise HTTPException(status_code=404, detail=f"User {email} not found")
+            if user:
+                # Get associated creator IDs before deleting associations
+                user_creators = session.query(UserCreator).filter(UserCreator.user_id == user.id).all()
+                creator_ids = [uc.creator_id for uc in user_creators]
 
-            # Delete user-creator associations first
-            session.query(UserCreator).filter(UserCreator.user_id == user.id).delete()
+                # Delete user-creator associations
+                session.query(UserCreator).filter(UserCreator.user_id == user.id).delete()
 
-            # Delete user
-            session.delete(user)
+                # Delete user
+                session.delete(user)
+                deleted["user"] = email
+
+                # Delete associated creators and their data
+                for creator_id in creator_ids:
+                    session.query(Message).filter(Message.creator_id == creator_id).delete()
+                    session.query(Lead).filter(Lead.creator_id == creator_id).delete()
+                    session.query(Product).filter(Product.creator_id == creator_id).delete()
+                    session.query(KnowledgeBase).filter(KnowledgeBase.creator_id == creator_id).delete()
+                    session.query(Creator).filter(Creator.id == creator_id).delete()
+                    deleted["creator"] = str(creator_id)
+
+            # Also delete any creator with this email (in case orphaned)
+            orphan_creator = session.query(Creator).filter(Creator.email == email).first()
+            if orphan_creator:
+                session.query(Message).filter(Message.creator_id == orphan_creator.id).delete()
+                session.query(Lead).filter(Lead.creator_id == orphan_creator.id).delete()
+                session.query(Product).filter(Product.creator_id == orphan_creator.id).delete()
+                session.query(KnowledgeBase).filter(KnowledgeBase.creator_id == orphan_creator.id).delete()
+                session.delete(orphan_creator)
+                deleted["orphan_creator"] = str(orphan_creator.id)
+
             session.commit()
 
-            return {"status": "ok", "deleted": email}
+            if not deleted["user"] and not deleted.get("orphan_creator"):
+                raise HTTPException(status_code=404, detail=f"User/Creator {email} not found")
+
+            return {"status": "ok", "deleted": deleted}
         finally:
             session.close()
     except HTTPException:
