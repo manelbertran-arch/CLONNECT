@@ -2123,15 +2123,22 @@ async def clean_and_sync(creator_id: str, max_convs: int = 10):
 
 
 @router.post("/simple-dm-sync/{creator_id}")
-async def simple_dm_sync(creator_id: str, max_convs: int = 20):
+async def simple_dm_sync(creator_id: str, max_convs: int = 10):
     """
-    Simple DM sync without complex rate limiting.
-    Fetches messages and saves them directly.
-    Uses centralized get_instagram_credentials() for consistent token lookup.
+    [DEPRECATED] Use /onboarding/sync-instagram-dms-background instead.
+
+    Simple DM sync with rate limiting (2s delay between conversations).
     """
+    import asyncio
     import httpx
+    import logging
     from datetime import datetime
     from api.services import db_service
+
+    _logger = logging.getLogger(__name__)
+    _logger.warning(f"[DEPRECATED] /admin/simple-dm-sync called for {creator_id}")
+
+    DELAY_BETWEEN_CONVS = 2.0
 
     results = {
         "conversations_processed": 0,
@@ -2141,7 +2148,8 @@ async def simple_dm_sync(creator_id: str, max_convs: int = 20):
         "messages_filtered_180days": 0,
         "messages_with_attachments": 0,
         "leads_created": 0,
-        "errors": []
+        "errors": [],
+        "rate_limited": False
     }
 
     # First check Instagram credentials using centralized function
@@ -2198,10 +2206,15 @@ async def simple_dm_sync(creator_id: str, max_convs: int = 20):
                     reverse=True
                 )
 
-                for conv in conversations:
+                for conv_idx, conv in enumerate(conversations):
                     conv_id = conv.get("id")
                     if not conv_id:
                         continue
+
+                    # Rate limiting: delay between conversations
+                    if conv_idx > 0:
+                        _logger.info(f"[DMSync] Rate limit delay: {DELAY_BETWEEN_CONVS}s before conv {conv_idx + 1}/{len(conversations)}")
+                        await asyncio.sleep(DELAY_BETWEEN_CONVS)
 
                     try:
                         # Get messages for this conversation (REGLA 3+4: attachments, stories, reactions)

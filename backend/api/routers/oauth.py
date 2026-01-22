@@ -282,19 +282,24 @@ def _activate_bot_default(creator_id: str):
 
 
 async def _simple_dm_sync_internal(
-    creator_id: str, access_token: str, ig_user_id: str, ig_page_id: str = None, max_convs: int = 30
+    creator_id: str, access_token: str, ig_user_id: str, ig_page_id: str = None, max_convs: int = 10
 ) -> dict:
     """
     Internal DM sync function that works with credentials passed directly.
     Simplified version of admin.simple_dm_sync for use during auto-onboarding.
+    Rate limited: 2s delay between conversations to prevent Meta API blocks.
     """
+    import asyncio
     from datetime import datetime, timedelta
 
     import httpx
     from api.database import SessionLocal
     from api.models import Creator, Lead, Message
 
-    results = {"conversations_processed": 0, "messages_saved": 0, "leads_created": 0, "errors": []}
+    # Rate limiting constant
+    DELAY_BETWEEN_CONVS = 2.0
+
+    results = {"conversations_processed": 0, "messages_saved": 0, "leads_created": 0, "errors": [], "rate_limited": False}
 
     # Build set of creator IDs for identification
     creator_ids = {ig_user_id, ig_page_id} - {None}
@@ -337,10 +342,15 @@ async def _simple_dm_sync_internal(
 
             days_limit_ago = datetime.now().astimezone() - timedelta(days=180)
 
-            for conv in conversations:
+            for conv_idx, conv in enumerate(conversations):
                 conv_id = conv.get("id")
                 if not conv_id:
                     continue
+
+                # Rate limiting: delay between conversations
+                if conv_idx > 0:
+                    logger.info(f"[DMSync] Rate limit delay: {DELAY_BETWEEN_CONVS}s before conv {conv_idx + 1}/{len(conversations)}")
+                    await asyncio.sleep(DELAY_BETWEEN_CONVS)
 
                 try:
                     # Get messages with extended fields for media, stories, etc.
@@ -353,7 +363,14 @@ async def _simple_dm_sync_internal(
                         },
                     )
 
+                    # Check for rate limit error
                     if msg_resp.status_code != 200:
+                        error_data = msg_resp.json().get("error", {})
+                        if error_data.get("code") in [4, 17]:
+                            logger.warning(f"[DMSync] Rate limit hit at conv {conv_idx + 1}, stopping")
+                            results["rate_limited"] = True
+                            results["errors"].append(f"Rate limit at conv {conv_idx + 1}")
+                            break
                         continue
 
                     messages = msg_resp.json().get("data", [])
