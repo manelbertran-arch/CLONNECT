@@ -18,6 +18,7 @@ from datetime import datetime, timezone
 logger = logging.getLogger("clonnect.semantic_memory")
 
 # Feature flag
+# Feature flag - default true but model is pre-loaded during startup to avoid blocking
 ENABLE_SEMANTIC_MEMORY = os.getenv("ENABLE_SEMANTIC_MEMORY", "true").lower() == "true"
 
 # Lazy loading

@@ -6554,6 +6554,16 @@ async def startup_event():
                 f"Pre-warming caches for {len(active_creators)} creators: {active_creators}"
             )
 
+            # Pre-load embedding model for semantic memory (takes 2-10s on first load)
+            try:
+                from core.semantic_memory import ENABLE_SEMANTIC_MEMORY, _get_embeddings
+                if ENABLE_SEMANTIC_MEMORY:
+                    _t_emb = time.time()
+                    _get_embeddings()  # Force load the model
+                    logger.info(f"⏱️ Pre-loaded embedding model in {time.time() - _t_emb:.2f}s")
+            except Exception as e:
+                logger.warning(f"Could not pre-load embedding model: {e}")
+
             # Pre-load ToneProfile cache
             from core.tone_service import get_tone_prompt_section
 
