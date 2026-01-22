@@ -4504,6 +4504,8 @@ USA ESTA RESPUESTA PARA LA OBJECION (adaptala a tu tono):
 
         logger.info(f"⏱️ _build_user_prompt took {time.time() - _t1:.2f}s")
 
+        _t_pre_llm = time.time()  # Start timing pre-LLM section
+
         # Agregar instruccion de idioma al prompt
         # PRIORIDAD: ToneProfile.primary_language > follower.preferred_language
         # Esto asegura que el bot responde en el idioma del creador, no del usuario
@@ -4554,8 +4556,11 @@ USA ESTA RESPUESTA PARA LA OBJECION (adaptala a tu tono):
         else:
             logger.info(f"Cache BYPASSED for debugging")
 
+        logger.info(f"⏱️ cache_check took {time.time() - _t_pre_llm:.2f}s")
+
         # Generar respuesta con LLM solo si no hay cache
         if not cached_response:
+            _t_llm_prep = time.time()
             try:
                 # === CHAIN OF THOUGHT FOR COMPLEX QUERIES ===
                 # Use CoT reasoning for complex/health-related queries
@@ -4675,6 +4680,7 @@ USA ESTA RESPUESTA PARA LA OBJECION (adaptala a tu tono):
                     logger.info(
                         f"Multi-turn LLM call: {len(messages)} messages ({len(messages)-1} history + system)"
                     )
+                    logger.info(f"⏱️ llm_prep (CoT+prompts) took {time.time() - _t_llm_prep:.2f}s")
                     logger.info(f"=== DEBUG: Calling LLM ===")
                     logger.info(f"Message: {message_text[:100]}")
                     logger.info(f"Intent: {intent.value} ({confidence:.2f})")
@@ -4692,6 +4698,7 @@ USA ESTA RESPUESTA PARA LA OBJECION (adaptala a tu tono):
                         f"LLM Response: {response_text[:150] if response_text else 'EMPTY'}"
                     )
 
+                _t_post_llm = time.time()
                 # Validate response with guardrails
                 try:
                     guardrail = get_response_guardrail()
@@ -4811,6 +4818,8 @@ USA ESTA RESPUESTA PARA LA OBJECION (adaptala a tu tono):
                     normalized_msg = message_text.lower().strip()
                     response_cache.set(normalized_msg, response_text, **cache_key_params)
                     logger.debug(f"Cached response for intent {intent.value}")
+
+                logger.info(f"⏱️ post_llm (guardrails+cache) took {time.time() - _t_post_llm:.2f}s")
 
             except Exception as e:
                 import traceback
