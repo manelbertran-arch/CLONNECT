@@ -50,7 +50,12 @@ def get_creator_by_page_id(page_id: str) -> Optional[Dict[str, Any]]:
 
         session = SessionLocal()
         try:
+            # Try by instagram_page_id first
             creator = session.query(Creator).filter_by(instagram_page_id=page_id).first()
+
+            # If not found, also try by instagram_user_id (for new Instagram API without Facebook Page)
+            if not creator:
+                creator = session.query(Creator).filter_by(instagram_user_id=page_id).first()
 
             if not creator:
                 logger.warning(f"No creator found for page_id: {page_id}")
