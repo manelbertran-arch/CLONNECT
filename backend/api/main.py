@@ -6531,8 +6531,10 @@ async def startup_event():
 
             _t_start = time.time()
 
-            # Get active creators from database
-            active_creators = []
+            # Get active creators from database AND Telegram registry
+            active_creators = set()
+
+            # 1. Get from database
             if SessionLocal:
                 try:
                     from api.models import Creator
@@ -6540,15 +6542,30 @@ async def startup_event():
                     session = SessionLocal()
                     try:
                         creators = session.query(Creator).filter_by(bot_active=True).all()
-                        active_creators = [c.name for c in creators if c.name]
+                        for c in creators:
+                            if c.name:
+                                active_creators.add(c.name)
                     finally:
                         session.close()
                 except Exception as e:
                     logger.warning(f"Could not get creators from DB: {e}")
 
+            # 2. Get from Telegram registry (may not be in DB)
+            try:
+                from core.telegram_registry import get_telegram_registry
+
+                registry = get_telegram_registry()
+                for bot in registry.list_bots():
+                    if bot.get("is_active") and bot.get("creator_id"):
+                        active_creators.add(bot["creator_id"])
+            except Exception:
+                pass
+
             # Fallback: at minimum, pre-warm stefano_auto
             if not active_creators:
-                active_creators = ["stefano_auto"]
+                active_creators = {"stefano_auto"}
+
+            active_creators = list(active_creators)
 
             logger.info(
                 f"Pre-warming caches for {len(active_creators)} creators: {active_creators}"
@@ -6557,6 +6574,7 @@ async def startup_event():
             # Pre-load embedding model for semantic memory (takes 2-10s on first load)
             try:
                 from core.semantic_memory import ENABLE_SEMANTIC_MEMORY, _get_embeddings
+
                 if ENABLE_SEMANTIC_MEMORY:
                     _t_emb = time.time()
                     _get_embeddings()  # Force load the model
@@ -6601,30 +6619,51 @@ async def startup_event():
 
         # Wait briefly for startup to complete
         await asyncio.sleep(3)
-        logger.warning(f"[KEEP-ALIVE] ===== STARTED - will ping every {KEEP_ALIVE_INTERVAL}s (4 min) =====")
+        logger.warning(
+            f"[KEEP-ALIVE] ===== STARTED - will ping every {KEEP_ALIVE_INTERVAL}s (4 min) ====="
+        )
 
         while True:
             try:
                 _t_start = time.time()
 
                 # Get ALL active creators to warm up
-                active_creators = ["stefano_auto", "stefano_bonanno"]  # Defaults
+                active_creators = set(["stefano_auto", "stefano_bonanno"])  # Defaults
+
+                # 1. Get creators from database with bot_active=True
                 if SessionLocal:
                     try:
                         from api.models import Creator
+
                         session = SessionLocal()
                         try:
                             creators = session.query(Creator).filter_by(bot_active=True).all()
                             if creators:
-                                active_creators = [c.name for c in creators if c.name]
+                                for c in creators:
+                                    if c.name:
+                                        active_creators.add(c.name)
                         finally:
                             session.close()
                     except Exception:
                         pass
 
+                # 2. Get creators from Telegram registry (may not be in DB)
+                try:
+                    from core.telegram_registry import get_telegram_registry
+
+                    registry = get_telegram_registry()
+                    for bot in registry.list_bots():
+                        if bot.get("is_active") and bot.get("creator_id"):
+                            active_creators.add(bot["creator_id"])
+                except Exception:
+                    pass
+
+                active_creators = list(active_creators)
+
                 # 1. Pre-load DM agents for ALL active creators
                 # This keeps config/products cache warm (5-min TTL) and agent cache warm (10-min TTL)
                 from core.dm_agent import _dm_agent_cache_timestamp
+
                 for creator_id in active_creators:
                     try:
                         agent = get_dm_agent(creator_id)
@@ -6632,13 +6671,16 @@ async def startup_event():
                         # Touch the system prompt cache to keep it warm
                         if hasattr(agent, "_build_system_prompt"):
                             _ = agent._build_system_prompt("")
-                        logger.info(f"[KEEP-ALIVE] Agent for {creator_id} kept warm (cache age: {cache_age:.1f}s)")
+                        logger.info(
+                            f"[KEEP-ALIVE] Agent for {creator_id} kept warm (cache age: {cache_age:.1f}s)"
+                        )
                     except Exception as e:
                         logger.warning(f"[KEEP-ALIVE] DM agent warm failed for {creator_id}: {e}")
 
                 # 2. Keep embedding model warm (for semantic memory)
                 try:
                     from core.semantic_memory import ENABLE_SEMANTIC_MEMORY, _get_embeddings
+
                     if ENABLE_SEMANTIC_MEMORY:
                         _get_embeddings()  # Just touch it to keep in memory
                         logger.debug("[KEEP-ALIVE] Embedding model kept warm")
@@ -6647,8 +6689,9 @@ async def startup_event():
 
                 # 3. Refresh ToneProfile and CitationIndex cache for all creators
                 try:
-                    from core.tone_service import get_tone_prompt_section
                     from core.citation_service import get_content_index
+                    from core.tone_service import get_tone_prompt_section
+
                     for creator_id in active_creators:
                         try:
                             get_tone_prompt_section(creator_id)
@@ -6662,6 +6705,7 @@ async def startup_event():
                 if SessionLocal:
                     try:
                         from sqlalchemy import text
+
                         session = SessionLocal()
                         session.execute(text("SELECT 1"))
                         session.close()

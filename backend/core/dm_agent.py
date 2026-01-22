@@ -4838,7 +4838,9 @@ USA ESTA RESPUESTA PARA LA OBJECION (adaptala a tu tono):
                     logger.debug(f"Could not send alert: {alert_error}")
 
         # Actualizar memoria
+        _t_mem = time.time()
         await self._update_memory(follower, message_text, response_text, intent)
+        logger.info(f"⏱️ _update_memory took {time.time() - _t_mem:.2f}s")
 
         # =============================================================================
         # PERSONALIZATION: Update user profile and semantic memory
@@ -4871,9 +4873,11 @@ USA ESTA RESPUESTA PARA LA OBJECION (adaptala a tu tono):
             logger.warning(f"Failed to update personalization data: {e}")
 
         # Programar nurturing si aplica
+        _t_nurt = time.time()
         nurturing_scheduled = await self._schedule_nurturing_if_needed(
             follower_id=sender_id, intent=intent, product=product, is_customer=follower.is_customer
         )
+        logger.info(f"⏱️ _schedule_nurturing took {time.time() - _t_nurt:.2f}s")
 
         # Add AI transparency disclosure for first message if enabled
         transparency_enabled = os.getenv("TRANSPARENCY_ENABLED", "false").lower() == "true"
@@ -4909,12 +4913,14 @@ USA ESTA RESPUESTA PARA LA OBJECION (adaptala a tu tono):
                 logger.warning(f"Failed to track click: {e}")
 
         # Track analytics
+        _t_analytics = time.time()
         await self._track_analytics(
             sender_id=sender_id,
             intent=intent,
             is_lead=follower.is_lead,
             score=follower.purchase_intent_score,
         )
+        logger.info(f"⏱️ _track_analytics took {time.time() - _t_analytics:.2f}s")
 
         # Registrar mensaje procesado en metricas Prometheus
         record_message_processed(
