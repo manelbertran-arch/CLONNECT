@@ -6591,53 +6591,62 @@ async def startup_event():
     asyncio.create_task(prewarm_creator_caches())
     logger.info("Cache pre-warming scheduled (background task)")
 
-    # KEEP-ALIVE: Ping every 15 minutes to prevent cold starts
+    # KEEP-ALIVE: Ping every 4 minutes to prevent cold starts and keep caches warm
     # Railway puts containers to sleep after extended inactivity
-    # Reduced from 4 min to 15 min to avoid blocking workers
+    # CRITICAL: 4 min interval keeps all caches warm (config TTL=5min, agent TTL=10min)
     async def keep_alive_task():
         import time
 
-        KEEP_ALIVE_INTERVAL = 900  # 15 minutes (was 240)
+        KEEP_ALIVE_INTERVAL = 240  # 4 minutes - keeps all caches warm
 
         # Wait briefly for startup to complete
         await asyncio.sleep(3)
-        logger.warning(f"[KEEP-ALIVE] ===== STARTED - will ping every {KEEP_ALIVE_INTERVAL}s =====")
+        logger.warning(f"[KEEP-ALIVE] ===== STARTED - will ping every {KEEP_ALIVE_INTERVAL}s (4 min) =====")
 
         while True:
             try:
                 _t_start = time.time()
 
                 # 1. Pre-load DM agent for stefano_auto (most active creator)
+                # This keeps config/products cache warm (5-min TTL) and agent cache warm (10-min TTL)
                 try:
+                    from core.dm_agent import _dm_agent_cache_timestamp
                     agent = get_dm_agent("stefano_auto")
+                    cache_age = time.time() - _dm_agent_cache_timestamp.get("stefano_auto", 0)
                     # Touch the system prompt cache to keep it warm
                     if hasattr(agent, "_build_system_prompt"):
                         _ = agent._build_system_prompt("")
-                    logger.debug(f"[KEEP-ALIVE] DM agent for stefano_auto warmed")
+                    logger.info(f"[KEEP-ALIVE] Agent for stefano_auto kept warm (cache age: {cache_age:.1f}s)")
                 except Exception as e:
                     logger.warning(f"[KEEP-ALIVE] DM agent warm failed: {e}")
 
-                # 2. Refresh ToneProfile cache
+                # 2. Keep embedding model warm (for semantic memory)
+                try:
+                    from core.semantic_memory import ENABLE_SEMANTIC_MEMORY, _get_embeddings
+                    if ENABLE_SEMANTIC_MEMORY:
+                        _get_embeddings()  # Just touch it to keep in memory
+                        logger.debug("[KEEP-ALIVE] Embedding model kept warm")
+                except Exception:
+                    pass
+
+                # 3. Refresh ToneProfile cache
                 try:
                     from core.tone_service import get_tone_prompt_section
-
                     get_tone_prompt_section("stefano_auto")
                 except Exception:
                     pass
 
-                # 3. Refresh CitationIndex cache
+                # 4. Refresh CitationIndex cache
                 try:
                     from core.citation_service import get_content_index
-
                     get_content_index("stefano_auto")
                 except Exception:
                     pass
 
-                # 4. Light DB ping to keep connection pool alive
+                # 5. Light DB ping to keep connection pool alive
                 if SessionLocal:
                     try:
                         from sqlalchemy import text
-
                         session = SessionLocal()
                         session.execute(text("SELECT 1"))
                         session.close()
@@ -6655,7 +6664,7 @@ async def startup_event():
             await asyncio.sleep(KEEP_ALIVE_INTERVAL)
 
     asyncio.create_task(keep_alive_task())
-    logger.info("Keep-alive task scheduled (every 15 minutes)")
+    logger.info("Keep-alive task scheduled (every 4 minutes)")
 
     logger.info("Ready to receive requests!")
 
