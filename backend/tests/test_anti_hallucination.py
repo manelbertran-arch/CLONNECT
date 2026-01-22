@@ -12,8 +12,10 @@ Esto previene que el bot invente informacion.
 - OBJECTION_WORKS, OBJECTION_NOT_FOR_ME, OBJECTION_COMPLICATED, OBJECTION_ALREADY_HAVE
 - SUPPORT, LEAD_MAGNET
 """
+
+from unittest.mock import AsyncMock, MagicMock, patch
+
 import pytest
-from unittest.mock import AsyncMock, patch, MagicMock
 
 
 class TestAntiHallucinationConfig:
@@ -88,7 +90,7 @@ class TestCitationServiceIntegration:
         result = get_citation_prompt_section(
             creator_id="nonexistent_creator_xyz",
             query="blockchain crypto nft web3 metaverse",
-            min_relevance=0.25
+            min_relevance=0.25,
         )
 
         assert result == ""
@@ -99,9 +101,7 @@ class TestCitationServiceIntegration:
 
         # Este test depende de tener datos en RAG para fitpack_global
         result = get_citation_prompt_section(
-            creator_id="fitpack_global",
-            query="coaching programa",
-            min_relevance=0.25
+            creator_id="fitpack_global", query="coaching programa", min_relevance=0.25
         )
 
         # Retorna string (puede ser vacio si no hay datos)
@@ -114,31 +114,32 @@ class TestAntiHallucinationBehavior:
     @pytest.fixture
     def mock_agent_no_rag(self):
         """Agent sin contenido RAG"""
-        with patch('core.dm_agent.USE_POSTGRES', False):
-            with patch('core.dm_agent.db_service', None):
-                with patch('core.dm_agent.get_citation_prompt_section', return_value=""):
+        with patch("core.dm_agent.USE_POSTGRES", False):
+            with patch("core.dm_agent.db_service", None):
+                with patch("core.dm_agent.get_citation_prompt_section", return_value=""):
                     from core.dm_agent import DMResponderAgent
 
-                    with patch.object(DMResponderAgent, '_load_creator_config', return_value={
-                        'name': 'Test',
-                        'bot_active': True
-                    }):
-                        with patch.object(DMResponderAgent, '_load_products', return_value=[]):
+                    with patch.object(
+                        DMResponderAgent,
+                        "_load_creator_config",
+                        return_value={"name": "Test", "bot_active": True},
+                    ):
+                        with patch.object(DMResponderAgent, "_load_products", return_value=[]):
                             agent = DMResponderAgent(creator_id="empty_creator")
                             return agent
 
     def test_escalation_response_exists(self):
         """El agent tiene metodo para generar respuesta de escalacion"""
-        with patch('core.dm_agent.USE_POSTGRES', False):
-            with patch('core.dm_agent.db_service', None):
+        with patch("core.dm_agent.USE_POSTGRES", False):
+            with patch("core.dm_agent.db_service", None):
                 from core.dm_agent import DMResponderAgent
 
-                with patch.object(DMResponderAgent, '_load_creator_config', return_value={
-                    'name': 'Test'
-                }):
-                    with patch.object(DMResponderAgent, '_load_products', return_value=[]):
+                with patch.object(
+                    DMResponderAgent, "_load_creator_config", return_value={"name": "Test"}
+                ):
+                    with patch.object(DMResponderAgent, "_load_products", return_value=[]):
                         agent = DMResponderAgent(creator_id="test")
-                        assert hasattr(agent, '_get_escalation_response')
+                        assert hasattr(agent, "_get_escalation_response")
 
 
 class TestPriceHallucination:
@@ -146,30 +147,39 @@ class TestPriceHallucination:
 
     def test_products_loaded_from_db_or_json(self):
         """Productos se cargan de DB/JSON, no se inventan"""
-        with patch('core.dm_agent.USE_POSTGRES', False):
-            with patch('core.dm_agent.db_service', None):
-                from core.dm_agent import DMResponderAgent
+        with patch("core.dm_agent.USE_POSTGRES", False):
+            with patch("core.dm_agent.db_service", None):
+                from core.dm_agent import DMResponderAgent, invalidate_dm_agent_cache
 
-                with patch.object(DMResponderAgent, '_load_creator_config', return_value={'name': 'Test'}):
-                    with patch.object(DMResponderAgent, '_load_products', return_value=[
-                        {'id': '1', 'name': 'Producto Test', 'price': 297}
-                    ]) as mock_load:
+                # Clear cache before test to ensure mocks are used
+                invalidate_dm_agent_cache("test")
+
+                with patch.object(
+                    DMResponderAgent, "_load_creator_config", return_value={"name": "Test"}
+                ):
+                    with patch.object(
+                        DMResponderAgent,
+                        "_load_products",
+                        return_value=[{"id": "1", "name": "Producto Test", "price": 297}],
+                    ) as mock_load:
                         agent = DMResponderAgent(creator_id="test")
 
                         # Verificar que productos vienen del mock
                         assert len(agent.products) == 1
-                        assert agent.products[0]['price'] == 297
+                        assert agent.products[0]["price"] == 297
 
     def test_get_relevant_product_method_exists(self):
         """Agent tiene metodo para buscar producto relevante"""
-        with patch('core.dm_agent.USE_POSTGRES', False):
-            with patch('core.dm_agent.db_service', None):
+        with patch("core.dm_agent.USE_POSTGRES", False):
+            with patch("core.dm_agent.db_service", None):
                 from core.dm_agent import DMResponderAgent
 
-                with patch.object(DMResponderAgent, '_load_creator_config', return_value={'name': 'Test'}):
-                    with patch.object(DMResponderAgent, '_load_products', return_value=[]):
+                with patch.object(
+                    DMResponderAgent, "_load_creator_config", return_value={"name": "Test"}
+                ):
+                    with patch.object(DMResponderAgent, "_load_products", return_value=[]):
                         agent = DMResponderAgent(creator_id="test")
-                        assert hasattr(agent, '_get_relevant_product')
+                        assert hasattr(agent, "_get_relevant_product")
 
 
 class TestRAGSearchBehavior:
@@ -180,7 +190,7 @@ class TestRAGSearchBehavior:
         from core.citation_service import CreatorContentIndex
 
         index = CreatorContentIndex("test_creator")
-        assert hasattr(index, 'search')
+        assert hasattr(index, "search")
 
     def test_search_returns_list(self):
         """search() retorna lista de resultados"""
@@ -198,11 +208,7 @@ class TestRAGSearchBehavior:
         index = CreatorContentIndex("test_creator")
 
         # Con min_relevance alto, no deberia encontrar nada para query rara
-        results = index.search(
-            "xyznonexistent123abc",
-            max_results=5,
-            min_relevance=0.99
-        )
+        results = index.search("xyznonexistent123abc", max_results=5, min_relevance=0.99)
 
         assert len(results) == 0
 
@@ -219,8 +225,8 @@ class TestRAGSearchBehavior:
             if results:
                 result = results[0]
                 # Campos requeridos para citacion
-                assert 'content' in result
-                assert 'relevance_score' in result
+                assert "content" in result
+                assert "relevance_score" in result
 
 
 class TestEscalationOnNoRAG:
@@ -230,13 +236,9 @@ class TestEscalationOnNoRAG:
         """DMResponse tiene campo escalate_to_human"""
         from core.dm_agent import DMResponse, Intent
 
-        response = DMResponse(
-            response_text="Test",
-            intent=Intent.OTHER,
-            escalate_to_human=False
-        )
+        response = DMResponse(response_text="Test", intent=Intent.OTHER, escalate_to_human=False)
 
-        assert hasattr(response, 'escalate_to_human')
+        assert hasattr(response, "escalate_to_human")
 
     def test_escalation_notification_on_escalate(self):
         """Notificacion se envia cuando hay escalacion"""
@@ -253,7 +255,7 @@ class TestEscalationOnNoRAG:
             conversation_summary="Test summary",
             purchase_intent_score=0.5,
             total_messages=10,
-            products_discussed=["product1"]
+            products_discussed=["product1"],
         )
 
         assert notification.creator_id == "test"

@@ -5,54 +5,48 @@ Genera respuestas personalizadas usando Groq/LLM
 """
 
 import json
-import os
-import time
 import logging
+import os
 import random
-from pathlib import Path
-from typing import Optional, Dict, Any, List
+import time
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from enum import Enum
+from pathlib import Path
+from typing import Any, Dict, List, Optional
 
-from core.llm import get_llm_client
-from core.nurturing import get_nurturing_manager, should_schedule_nurturing
-from core.i18n import (
-    detect_language,
-    get_i18n_manager,
-    translate_response,
-    DEFAULT_LANGUAGE
-)
-from core.analytics import get_analytics_manager, detect_platform
-from core.gdpr import get_gdpr_manager, ConsentType
-from core.rate_limiter import get_rate_limiter
-from core.notifications import get_notification_service, EscalationNotification
-from core.cache import get_response_cache
 from core.alerts import get_alert_manager
-from core.creator_config import CreatorConfigManager
-from core.sales_tracker import get_sales_tracker
-from core.guardrails import get_response_guardrail
-from core.reasoning import get_self_consistency_validator, get_chain_of_thought_reasoner
-from core.tone_service import get_tone_prompt_section, get_tone_language, get_tone_dialect
+from core.analytics import detect_platform, get_analytics_manager
+from core.bot_question_analyzer import QuestionType, get_bot_question_analyzer, is_short_affirmation
+from core.cache import get_response_cache
 from core.citation_service import get_citation_prompt_section
-from core.bot_question_analyzer import get_bot_question_analyzer, QuestionType, is_short_affirmation
+from core.creator_config import CreatorConfigManager
+from core.gdpr import ConsentType, get_gdpr_manager
+from core.guardrails import get_response_guardrail
+from core.i18n import DEFAULT_LANGUAGE, detect_language, get_i18n_manager, translate_response
+from core.llm import get_llm_client
 from core.metrics import (
-    record_message_processed,
-    record_llm_error,
-    record_escalation,
+    DM_PROCESSING_TIME,
     record_cache_hit,
     record_cache_miss,
-    DM_PROCESSING_TIME
+    record_escalation,
+    record_llm_error,
+    record_message_processed,
 )
+from core.notifications import EscalationNotification, get_notification_service
+from core.nurturing import get_nurturing_manager, should_schedule_nurturing
+from core.personalized_ranking import adapt_system_prompt, personalize_results
 
 # =============================================================================
 # Personalization Modules (Memory Engine Migration)
 # =============================================================================
-from core.rag.reranker import rerank, ENABLE_RERANKING
+from core.rag.reranker import ENABLE_RERANKING, rerank
+from core.rate_limiter import get_rate_limiter
+from core.reasoning import get_chain_of_thought_reasoner, get_self_consistency_validator
+from core.sales_tracker import get_sales_tracker
+from core.semantic_memory import ENABLE_SEMANTIC_MEMORY, get_conversation_memory
+from core.tone_service import get_tone_dialect, get_tone_language, get_tone_prompt_section
 from core.user_profiles import get_user_profile
-from core.personalized_ranking import personalize_results, adapt_system_prompt
-from core.semantic_memory import get_conversation_memory, ENABLE_SEMANTIC_MEMORY
-
 
 # PostgreSQL integration
 USE_POSTGRES = bool(os.getenv("DATABASE_URL"))
@@ -72,6 +66,7 @@ logger = logging.getLogger(__name__)
 # =============================================================================
 # P0 FIX: Retry decorator for DB operations
 # =============================================================================
+
 
 def retry_db_operation(max_retries: int = 3, delay: float = 0.5, operation_name: str = "DB"):
     """
@@ -94,14 +89,16 @@ def retry_db_operation(max_retries: int = 3, delay: float = 0.5, operation_name:
                     return func(*args, **kwargs)
                 except Exception as e:
                     last_error = e
-                    wait_time = delay * (2 ** attempt)
+                    wait_time = delay * (2**attempt)
                     logger.warning(
                         f"[P0-RETRY] {operation_name} failed (attempt {attempt + 1}/{max_retries}): {e}. "
                         f"Retrying in {wait_time:.1f}s..."
                     )
                     if attempt < max_retries - 1:
                         time.sleep(wait_time)
-            logger.error(f"[P0-RETRY] {operation_name} FAILED after {max_retries} attempts: {last_error}")
+            logger.error(
+                f"[P0-RETRY] {operation_name} FAILED after {max_retries} attempts: {last_error}"
+            )
             return None
 
         @wraps(func)
@@ -112,14 +109,16 @@ def retry_db_operation(max_retries: int = 3, delay: float = 0.5, operation_name:
                     return await func(*args, **kwargs)
                 except Exception as e:
                     last_error = e
-                    wait_time = delay * (2 ** attempt)
+                    wait_time = delay * (2**attempt)
                     logger.warning(
                         f"[P0-RETRY] {operation_name} failed (attempt {attempt + 1}/{max_retries}): {e}. "
                         f"Retrying in {wait_time:.1f}s..."
                     )
                     if attempt < max_retries - 1:
                         await asyncio.sleep(wait_time)
-            logger.error(f"[P0-RETRY] {operation_name} FAILED after {max_retries} attempts: {last_error}")
+            logger.error(
+                f"[P0-RETRY] {operation_name} FAILED after {max_retries} attempts: {last_error}"
+            )
             return None
 
         # Return appropriate wrapper based on function type
@@ -139,18 +138,18 @@ def get_valid_payment_url(product: Dict[str, Any]) -> str:
     Get a valid payment URL from a product.
     Checks payment_link first, falls back to url if payment_link is not a valid URL.
     """
-    payment_link = product.get('payment_link', '')
-    url = product.get('url', '')
+    payment_link = product.get("payment_link", "")
+    url = product.get("url", "")
 
     # Check if payment_link is a valid URL
-    if payment_link and isinstance(payment_link, str) and payment_link.startswith('http'):
+    if payment_link and isinstance(payment_link, str) and payment_link.startswith("http"):
         return payment_link
 
     # Fall back to url
-    if url and isinstance(url, str) and url.startswith('http'):
+    if url and isinstance(url, str) and url.startswith("http"):
         return url
 
-    return ''
+    return ""
 
 
 # =============================================================================
@@ -160,42 +159,43 @@ def get_valid_payment_url(product: Dict[str, Any]) -> str:
 # Do not modify without testing bot responses for each category type
 # =============================================================================
 
+
 def format_item_by_category(item: Dict[str, Any]) -> str:
     """
     Formatea un item según su categoría para el system prompt.
     """
-    category = item.get('category', 'product')
-    name = item.get('name', 'Item')
-    description = item.get('short_description') or item.get('description', '')
-    price = item.get('price', 0)
-    currency = item.get('currency', '€')
-    is_free = item.get('is_free', False)
-    product_type = item.get('product_type', 'otro')
+    category = item.get("category", "product")
+    name = item.get("name", "Item")
+    description = item.get("short_description") or item.get("description", "")
+    price = item.get("price", 0)
+    currency = item.get("currency", "€")
+    is_free = item.get("is_free", False)
+    product_type = item.get("product_type", "otro")
     url = get_valid_payment_url(item)
 
-    if category == 'resource':
+    if category == "resource":
         # RECURSO: contenido gratuito
         tipo_texto = {
-            'podcast': '🎙️ Podcast',
-            'blog': '✍️ Blog',
-            'youtube': '📺 YouTube',
-            'newsletter': '📧 Newsletter',
-            'free_guide': '📚 Guía gratuita'
-        }.get(product_type, '📚 Recurso')
+            "podcast": "🎙️ Podcast",
+            "blog": "✍️ Blog",
+            "youtube": "📺 YouTube",
+            "newsletter": "📧 Newsletter",
+            "free_guide": "📚 Guía gratuita",
+        }.get(product_type, "📚 Recurso")
         return f"""- {tipo_texto}: {name}
   Descripción: {description[:150] if description else 'Sin descripción'}
   Link: {url or 'No configurado'}
   (GRATUITO - solo mencionar si es relevante, NO vender)"""
 
-    elif category == 'service':
+    elif category == "service":
         # SERVICIO: sesiones, coaching, etc.
         tipo_texto = {
-            'coaching': '🎯 Coaching',
-            'mentoria': '🧭 Mentoría',
-            'consultoria': '💼 Consultoría',
-            'call': '📞 Llamada',
-            'sesion': '🗓️ Sesión'
-        }.get(product_type, '🤝 Servicio')
+            "coaching": "🎯 Coaching",
+            "mentoria": "🧭 Mentoría",
+            "consultoria": "💼 Consultoría",
+            "call": "📞 Llamada",
+            "sesion": "🗓️ Sesión",
+        }.get(product_type, "🤝 Servicio")
 
         if is_free or price == 0:
             price_text = "GRATIS"
@@ -212,11 +212,11 @@ def format_item_by_category(item: Dict[str, Any]) -> str:
     else:
         # PRODUCTO: algo que se vende
         tipo_texto = {
-            'ebook': '📖 Ebook',
-            'curso': '🎓 Curso',
-            'plantilla': '📄 Plantilla',
-            'membership': '👥 Membresía'
-        }.get(product_type, '🛒 Producto')
+            "ebook": "📖 Ebook",
+            "curso": "🎓 Curso",
+            "plantilla": "📄 Plantilla",
+            "membership": "👥 Membresía",
+        }.get(product_type, "🛒 Producto")
 
         if is_free or price == 0:
             price_text = "GRATIS"
@@ -262,6 +262,7 @@ def get_category_instructions() -> str:
 
 class Intent(Enum):
     """Intenciones posibles del mensaje"""
+
     GREETING = "greeting"
     INTEREST_SOFT = "interest_soft"
     INTEREST_STRONG = "interest_strong"
@@ -387,10 +388,26 @@ Ejemplos de CTAs suaves:
 
 # Keywords that indicate strong interest (for proactive close detection)
 STRONG_INTEREST_KEYWORDS = [
-    "me interesa", "cuánto cuesta", "cuanto cuesta", "cómo me apunto", "como me apunto",
-    "quiero saber más", "quiero saber mas", "cómo funciona", "como funciona",
-    "qué incluye", "que incluye", "dónde compro", "donde compro", "cómo pago", "como pago",
-    "precio", "comprar", "apuntarme", "inscribirme", "reservar"
+    "me interesa",
+    "cuánto cuesta",
+    "cuanto cuesta",
+    "cómo me apunto",
+    "como me apunto",
+    "quiero saber más",
+    "quiero saber mas",
+    "cómo funciona",
+    "como funciona",
+    "qué incluye",
+    "que incluye",
+    "dónde compro",
+    "donde compro",
+    "cómo pago",
+    "como pago",
+    "precio",
+    "comprar",
+    "apuntarme",
+    "inscribirme",
+    "reservar",
 ]
 
 
@@ -404,52 +421,49 @@ def apply_voseo(text: str) -> str:
     # Diccionario de conversiones tuteo -> voseo
     conversions = [
         # Pronombres
-        (r'\btú\b', 'vos'),
-        (r'\bTú\b', 'Vos'),
-
+        (r"\btú\b", "vos"),
+        (r"\bTú\b", "Vos"),
         # Verbos comunes en presente (2da persona singular)
-        (r'\btienes\b', 'tenés'),
-        (r'\bTienes\b', 'Tenés'),
-        (r'\bpuedes\b', 'podés'),
-        (r'\bPuedes\b', 'Podés'),
-        (r'\bquieres\b', 'querés'),
-        (r'\bQuieres\b', 'Querés'),
-        (r'\bsabes\b', 'sabés'),
-        (r'\bSabes\b', 'Sabés'),
-        (r'\beres\b', 'sos'),
-        (r'\bEres\b', 'Sos'),
-        (r'\bvienes\b', 'venís'),
-        (r'\bpiensas\b', 'pensás'),
-        (r'\bsientes\b', 'sentís'),
-        (r'\bprefieres\b', 'preferís'),
-        (r'\bnecesitas\b', 'necesitás'),
-        (r'\bestás\b', 'estás'),  # igual en voseo
-        (r'\bvas\b', 'vas'),  # igual en voseo
-
+        (r"\btienes\b", "tenés"),
+        (r"\bTienes\b", "Tenés"),
+        (r"\bpuedes\b", "podés"),
+        (r"\bPuedes\b", "Podés"),
+        (r"\bquieres\b", "querés"),
+        (r"\bQuieres\b", "Querés"),
+        (r"\bsabes\b", "sabés"),
+        (r"\bSabes\b", "Sabés"),
+        (r"\beres\b", "sos"),
+        (r"\bEres\b", "Sos"),
+        (r"\bvienes\b", "venís"),
+        (r"\bpiensas\b", "pensás"),
+        (r"\bsientes\b", "sentís"),
+        (r"\bprefieres\b", "preferís"),
+        (r"\bnecesitas\b", "necesitás"),
+        (r"\bestás\b", "estás"),  # igual en voseo
+        (r"\bvas\b", "vas"),  # igual en voseo
         # Imperativos
-        (r'\bcuéntame\b', 'contame'),
-        (r'\bCuéntame\b', 'Contame'),
-        (r'\bescríbeme\b', 'escribime'),
-        (r'\bEscríbeme\b', 'Escribime'),
-        (r'\bdime\b', 'decime'),
-        (r'\bDime\b', 'Decime'),
-        (r'\bmira\b', 'mirá'),
-        (r'\bMira\b', 'Mirá'),
-        (r'\bpiensa\b', 'pensá'),
-        (r'\bPiensa\b', 'Pensá'),
-        (r'\bespera\b', 'esperá'),
-        (r'\bEspera\b', 'Esperá'),
-        (r'\bescucha\b', 'escuchá'),
-        (r'\bEscucha\b', 'Escuchá'),
-        (r'\bfíjate\b', 'fijate'),
-        (r'\bFíjate\b', 'Fijate'),
-        (r'\bpregunta\b', 'preguntá'),
-
+        (r"\bcuéntame\b", "contame"),
+        (r"\bCuéntame\b", "Contame"),
+        (r"\bescríbeme\b", "escribime"),
+        (r"\bEscríbeme\b", "Escribime"),
+        (r"\bdime\b", "decime"),
+        (r"\bDime\b", "Decime"),
+        (r"\bmira\b", "mirá"),
+        (r"\bMira\b", "Mirá"),
+        (r"\bpiensa\b", "pensá"),
+        (r"\bPiensa\b", "Pensá"),
+        (r"\bespera\b", "esperá"),
+        (r"\bEspera\b", "Esperá"),
+        (r"\bescucha\b", "escuchá"),
+        (r"\bEscucha\b", "Escuchá"),
+        (r"\bfíjate\b", "fijate"),
+        (r"\bFíjate\b", "Fijate"),
+        (r"\bpregunta\b", "preguntá"),
         # Frases comunes
-        (r'\bte respondo\b', 'te respondo'),  # igual
-        (r'\bte cuento\b', 'te cuento'),  # igual
-        (r'\bte paso\b', 'te paso'),  # igual
-        (r'\bte gustaría\b', 'te gustaría'),  # igual
+        (r"\bte respondo\b", "te respondo"),  # igual
+        (r"\bte cuento\b", "te cuento"),  # igual
+        (r"\bte paso\b", "te paso"),  # igual
+        (r"\bte gustaría\b", "te gustaría"),  # igual
     ]
 
     result = text
@@ -471,16 +485,16 @@ def truncate_response(response: str, max_sentences: int = 2) -> str:
 
     # Split by sentence endings (. ! ? followed by space or end)
     # Also handle cases like "297€." or "30 días."
-    sentences = re.split(r'(?<=[.!?])\s+', response)
+    sentences = re.split(r"(?<=[.!?])\s+", response)
     sentences = [s.strip() for s in sentences if s.strip()]
 
     original_count = len(sentences)
 
     if original_count > max_sentences:
-        truncated = ' '.join(sentences[:max_sentences])
+        truncated = " ".join(sentences[:max_sentences])
         # Ensure it ends with punctuation
-        if truncated and truncated[-1] not in '.!?':
-            truncated += '.'
+        if truncated and truncated[-1] not in ".!?":
+            truncated += "."
         logger.info(f"TRUNCATED response from {original_count} to {max_sentences} sentences")
         return truncated
 
@@ -492,14 +506,21 @@ def _contains_alternative_payment(response: str) -> bool:
     response_lower = response.lower()
     # Check for specific indicators of alternative payment methods
     indicators = [
-        'bizum', 'transferencia', 'iban', 'revolut', 'wise', 'paypal',
-        '639', '6[0-9]{8}',  # Spanish mobile numbers
-        'es[0-9]{2}',  # IBAN prefix
-        '@'  # Revolut handle
+        "bizum",
+        "transferencia",
+        "iban",
+        "revolut",
+        "wise",
+        "paypal",
+        "639",
+        "6[0-9]{8}",  # Spanish mobile numbers
+        "es[0-9]{2}",  # IBAN prefix
+        "@",  # Revolut handle
     ]
     import re
+
     for ind in indicators:
-        if ind.startswith('[') or ind.startswith('('):
+        if ind.startswith("[") or ind.startswith("("):
             # It's a regex pattern
             if re.search(ind, response_lower):
                 return True
@@ -521,8 +542,9 @@ def truncate_payment_response(response: str) -> str:
 
     # Split by sentence-ending punctuation
     import re
+
     # Match period, exclamation, or question mark followed by space or end
-    sentences = re.split(r'(?<=[.!?])\s+', response)
+    sentences = re.split(r"(?<=[.!?])\s+", response)
 
     if not sentences:
         return response
@@ -531,11 +553,18 @@ def truncate_payment_response(response: str) -> str:
     first_sentence = sentences[0].strip()
 
     # Ensure it ends with punctuation
-    if first_sentence and first_sentence[-1] not in '.!?':
-        first_sentence += '.'
+    if first_sentence and first_sentence[-1] not in ".!?":
+        first_sentence += "."
 
     # Add friendly CTA if not present
-    cta_indicators = ['avísame', 'avisame', 'confirma', 'cuando lo hagas', 'me avisas', 'házmelo saber']
+    cta_indicators = [
+        "avísame",
+        "avisame",
+        "confirma",
+        "cuando lo hagas",
+        "me avisas",
+        "házmelo saber",
+    ]
     if not any(cta in first_sentence.lower() for cta in cta_indicators):
         first_sentence += " Avísame cuando lo hagas 👍"
 
@@ -566,10 +595,21 @@ def clean_response_placeholders(response: str, payment_links: list) -> str:
 
     # Replace common placeholders (payment + booking links)
     placeholders = [
-        "[LINK_REAL]", "[link de pago]", "[link]", "[LINK]",
-        "(link de pago)", "(link)", "[payment link]", "[pago]",
-        "[tu enlace de reserva]", "[enlace de reserva]", "[booking link]",
-        "[enlace]", "[tu enlace]", "[link de reserva]", "(enlace de reserva)"
+        "[LINK_REAL]",
+        "[link de pago]",
+        "[link]",
+        "[LINK]",
+        "(link de pago)",
+        "(link)",
+        "[payment link]",
+        "[pago]",
+        "[tu enlace de reserva]",
+        "[enlace de reserva]",
+        "[booking link]",
+        "[enlace]",
+        "[tu enlace]",
+        "[link de reserva]",
+        "(enlace de reserva)",
     ]
 
     for placeholder in placeholders:
@@ -583,9 +623,16 @@ def clean_response_placeholders(response: str, payment_links: list) -> str:
 
     # If response mentions giving a link but no URL present, add it
     # BUT ONLY if not using alternative payment method
-    link_phrases = ['aquí tienes', 'here you go', 'aquí está', 'here is', 'este enlace', 'this link']
+    link_phrases = [
+        "aquí tienes",
+        "here you go",
+        "aquí está",
+        "here is",
+        "este enlace",
+        "this link",
+    ]
     has_link_phrase = any(phrase in response.lower() for phrase in link_phrases)
-    has_url = 'http' in response.lower()
+    has_url = "http" in response.lower()
 
     if has_link_phrase and not has_url and real_link and not has_alternative_payment:
         logger.info(f"Response mentions link but has no URL, appending: {real_link}")
@@ -593,11 +640,11 @@ def clean_response_placeholders(response: str, payment_links: list) -> str:
 
     # Clean up empty link patterns like "enlace: ." or "link: ."
     # Remove patterns like "siguiente enlace: ." or "aquí: ." when link was empty
-    response = re.sub(r'(enlace|link|aquí|here):\s*\.', '', response, flags=re.IGNORECASE)
+    response = re.sub(r"(enlace|link|aquí|here):\s*\.", "", response, flags=re.IGNORECASE)
     # Remove double spaces
-    response = re.sub(r'\s+', ' ', response)
+    response = re.sub(r"\s+", " ", response)
     # Remove orphaned punctuation
-    response = re.sub(r'\s+([.!?])', r'\1', response)
+    response = re.sub(r"\s+([.!?])", r"\1", response)
 
     return response.strip()
 
@@ -642,15 +689,82 @@ EMOJI_POOLS = {
 
 # === KEYWORDS PARA DETECCIÓN DE IDIOMA ROBUSTA ===
 LANG_KEYWORDS = {
-    "es": ['hola', 'qué', 'cómo', 'tengo', 'quiero', 'puedo', 'gracias', 'precio',
-           'caro', 'tiempo', 'buenas', 'vale', 'claro', 'genial', 'estoy', 'soy',
-           'necesito', 'dudas', 'funciona', 'cuánto', 'dónde', 'cuándo', 'ahora'],
-    "en": ['hello', 'hi', 'how', 'what', 'want', 'can', 'thanks', 'price',
-           'expensive', 'time', 'okay', 'sure', 'great', "i'm", "i am", 'need',
-           'doubt', 'works', 'much', 'where', 'when', 'now', 'please', 'the'],
-    "pt": ['olá', 'oi', 'como', 'quero', 'posso', 'obrigado', 'obrigada', 'preço',
-           'caro', 'tempo', 'tudo', 'bem', 'você', 'voce', 'muito', 'também',
-           'preciso', 'dúvida', 'funciona', 'quanto', 'onde', 'quando', 'agora'],
+    "es": [
+        "hola",
+        "qué",
+        "cómo",
+        "tengo",
+        "quiero",
+        "puedo",
+        "gracias",
+        "precio",
+        "caro",
+        "tiempo",
+        "buenas",
+        "vale",
+        "claro",
+        "genial",
+        "estoy",
+        "soy",
+        "necesito",
+        "dudas",
+        "funciona",
+        "cuánto",
+        "dónde",
+        "cuándo",
+        "ahora",
+    ],
+    "en": [
+        "hello",
+        "hi",
+        "how",
+        "what",
+        "want",
+        "can",
+        "thanks",
+        "price",
+        "expensive",
+        "time",
+        "okay",
+        "sure",
+        "great",
+        "i'm",
+        "i am",
+        "need",
+        "doubt",
+        "works",
+        "much",
+        "where",
+        "when",
+        "now",
+        "please",
+        "the",
+    ],
+    "pt": [
+        "olá",
+        "oi",
+        "como",
+        "quero",
+        "posso",
+        "obrigado",
+        "obrigada",
+        "preço",
+        "caro",
+        "tempo",
+        "tudo",
+        "bem",
+        "você",
+        "voce",
+        "muito",
+        "também",
+        "preciso",
+        "dúvida",
+        "funciona",
+        "quanto",
+        "onde",
+        "quando",
+        "agora",
+    ],
 }
 
 
@@ -760,13 +874,14 @@ def get_first_name(full_name: str) -> str:
     first_name = parts[0] if parts else "amigo"
 
     # Si el primer nombre es muy corto o parece un username, usar completo
-    if len(first_name) < 2 or first_name.startswith('@'):
+    if len(first_name) < 2 or first_name.startswith("@"):
         return full_name.strip()
 
     return first_name
 
 
 import re
+
 
 def extract_name_from_message(message: str) -> Optional[str]:
     """
@@ -810,9 +925,35 @@ def extract_name_from_message(message: str) -> Optional[str]:
         if match:
             name = match.group(1).strip()
             # Validar que parece un nombre real (no una palabra común)
-            common_words = {'el', 'la', 'un', 'una', 'de', 'que', 'a', 'the', 'an', 'of',
-                          'interested', 'looking', 'here', 'nuevo', 'nueva', 'good', 'fine',
-                          'ok', 'okay', 'bien', 'mal', 'not', 'no', 'yes', 'si', 'tu', 'your'}
+            common_words = {
+                "el",
+                "la",
+                "un",
+                "una",
+                "de",
+                "que",
+                "a",
+                "the",
+                "an",
+                "of",
+                "interested",
+                "looking",
+                "here",
+                "nuevo",
+                "nueva",
+                "good",
+                "fine",
+                "ok",
+                "okay",
+                "bien",
+                "mal",
+                "not",
+                "no",
+                "yes",
+                "si",
+                "tu",
+                "your",
+            }
             if name.lower() not in common_words and len(name) >= 2:
                 # Capitalizar correctamente
                 return name.title()
@@ -897,12 +1038,31 @@ def is_direct_purchase_intent(message: str) -> bool:
     # EXCLUSIÓN: Si contiene frases de objeción/duda, NO es compra directa
     # Esto evita que "no sé si es para mí" active el link por contener "si"
     objection_phrases = [
-        'no sé si', 'no se si', 'no estoy seguro', 'no estoy segura',
-        'no es para mi', 'no es para mí', 'tengo dudas', 'no creo',
-        'me lo pienso', 'lo pienso', 'lo tengo que pensar',
-        'es muy caro', 'es caro', 'no tengo', 'no puedo',
-        'más adelante', 'mas adelante', 'luego', 'después', 'despues',
-        'ya veré', 'ya vere', 'ya te digo', 'no sé', 'no se'
+        "no sé si",
+        "no se si",
+        "no estoy seguro",
+        "no estoy segura",
+        "no es para mi",
+        "no es para mí",
+        "tengo dudas",
+        "no creo",
+        "me lo pienso",
+        "lo pienso",
+        "lo tengo que pensar",
+        "es muy caro",
+        "es caro",
+        "no tengo",
+        "no puedo",
+        "más adelante",
+        "mas adelante",
+        "luego",
+        "después",
+        "despues",
+        "ya veré",
+        "ya vere",
+        "ya te digo",
+        "no sé",
+        "no se",
     ]
     for phrase in objection_phrases:
         if phrase in msg_lower:
@@ -912,14 +1072,14 @@ def is_direct_purchase_intent(message: str) -> bool:
     # Solo deben activar compra si hay contexto adicional
     # Ejemplo: "sí, quiero comprarlo" = compra directa
     # Ejemplo: "sí" (solo) = confirmación genérica, NO compra directa
-    ambiguous_confirmations = {'sí', 'si', 'ok', 'ya', 'vale', 'dale', 'claro', 'bueno'}
+    ambiguous_confirmations = {"sí", "si", "ok", "ya", "vale", "dale", "claro", "bueno"}
 
     words = msg_lower.split()
 
     # Si el mensaje es SOLO una confirmación simple (1-2 palabras), NO es compra directa
     # Estas confirmaciones deben pasar por el LLM para que use el contexto
     if len(words) <= 2:
-        is_only_confirmation = all(w.rstrip('!.?') in ambiguous_confirmations for w in words)
+        is_only_confirmation = all(w.rstrip("!.?") in ambiguous_confirmations for w in words)
         if is_only_confirmation:
             return False  # No es compra directa, dejar que el LLM use el contexto
 
@@ -962,6 +1122,7 @@ def get_transparency_disclosure(creator_name: str, language: str = "es") -> str:
 @dataclass
 class DMResponse:
     """Respuesta generada por el agent"""
+
     response_text: str
     intent: Intent
     action_taken: str = ""
@@ -975,6 +1136,7 @@ class DMResponse:
 @dataclass
 class FollowerMemory:
     """Memoria simplificada del seguidor"""
+
     follower_id: str
     creator_id: str
     username: str = ""
@@ -1089,9 +1251,15 @@ class MemoryStore:
         file_path = self._get_file_path(creator_id, follower_id)
         if os.path.exists(file_path):
             try:
-                with open(file_path, 'r', encoding='utf-8') as f:
+                with open(file_path, "r", encoding="utf-8") as f:
                     data = json.load(f)
-                    memory = FollowerMemory(**{k: v for k, v in data.items() if k in FollowerMemory.__dataclass_fields__})
+                    memory = FollowerMemory(
+                        **{
+                            k: v
+                            for k, v in data.items()
+                            if k in FollowerMemory.__dataclass_fields__
+                        }
+                    )
                     self._cache[cache_key] = memory
                     return memory
             except Exception as e:
@@ -1134,19 +1302,15 @@ class MemoryStore:
                 # Campos para contacto alternativo
                 "alternative_contact": memory.alternative_contact,
                 "alternative_contact_type": memory.alternative_contact_type,
-                "contact_requested": memory.contact_requested
+                "contact_requested": memory.contact_requested,
             }
-            with open(file_path, 'w', encoding='utf-8') as f:
+            with open(file_path, "w", encoding="utf-8") as f:
                 json.dump(data, f, indent=2, ensure_ascii=False)
         except Exception as e:
             logger.error(f"Error saving memory: {e}")
 
     async def get_or_create(
-        self,
-        creator_id: str,
-        follower_id: str,
-        name: str = "",
-        username: str = ""
+        self, creator_id: str, follower_id: str, name: str = "", username: str = ""
     ) -> FollowerMemory:
         memory = await self.get(creator_id, follower_id)
         if memory is None:
@@ -1156,7 +1320,7 @@ class MemoryStore:
                 name=name,
                 username=username,
                 first_contact=datetime.now().isoformat(),
-                last_contact=datetime.now().isoformat()
+                last_contact=datetime.now().isoformat(),
             )
             await self.save(memory)
             logger.info(f"Created new follower: {follower_id} (name={name}, username={username})")
@@ -1166,36 +1330,52 @@ class MemoryStore:
 class DMResponderAgent:
     """Agent principal que procesa DMs y genera respuestas personalizadas"""
 
-    async def _save_message_to_db(self, follower_id: str, role: str, content: str, intent: str = None):
+    async def _save_message_to_db(
+        self, follower_id: str, role: str, content: str, intent: str = None
+    ):
         """Save message to PostgreSQL if available - with timing"""
         import time
+
         _t_start = time.time()
 
         if not USE_POSTGRES or not db_service:
-            logger.debug(f"PostgreSQL disabled: USE_POSTGRES={USE_POSTGRES}, db_service={db_service}")
+            logger.debug(
+                f"PostgreSQL disabled: USE_POSTGRES={USE_POSTGRES}, db_service={db_service}"
+            )
             return
         try:
             lead = await db_service.get_lead_by_platform_id(self.creator_id, follower_id)
             if not lead:
                 logger.info(f"Creating new lead for {follower_id}")
-                lead = await db_service.create_lead_async(self.creator_id, {"platform_user_id": follower_id, "platform": "telegram" if follower_id.startswith("tg_") else "instagram", "username": follower_id})
+                lead = await db_service.create_lead_async(
+                    self.creator_id,
+                    {
+                        "platform_user_id": follower_id,
+                        "platform": "telegram" if follower_id.startswith("tg_") else "instagram",
+                        "username": follower_id,
+                    },
+                )
             if lead and "id" in lead:
                 result = await db_service.save_message(lead["id"], role, content, intent)
-                logger.info(f"⏱️ DB save ({role}) took {time.time() - _t_start:.2f}s - lead={lead['id']}")
+                logger.info(
+                    f"⏱️ DB save ({role}) took {time.time() - _t_start:.2f}s - lead={lead['id']}"
+                )
             else:
                 logger.warning(f"Could not get/create lead for {follower_id}: lead={lead}")
         except Exception as e:
             logger.error(f"PostgreSQL save failed for {follower_id}: {e}", exc_info=True)
 
-    def _save_message_to_db_fire_and_forget(self, follower_id: str, role: str, content: str, intent: str = None):
+    def _save_message_to_db_fire_and_forget(
+        self, follower_id: str, role: str, content: str, intent: str = None
+    ):
         """
         Fire-and-forget DB save - uses thread pool to truly not block.
         asyncio.create_task runs during next await, blocking the response.
         Threading ensures DB saves happen completely in background.
         FIX P0: Added retry logic and proper error logging.
         """
-        import threading
         import asyncio
+        import threading
         import time
 
         MAX_RETRIES = 3
@@ -1209,9 +1389,13 @@ class DMResponderAgent:
                     loop = asyncio.new_event_loop()
                     asyncio.set_event_loop(loop)
                     try:
-                        loop.run_until_complete(self._save_message_to_db(follower_id, role, content, intent))
+                        loop.run_until_complete(
+                            self._save_message_to_db(follower_id, role, content, intent)
+                        )
                         if attempt > 0:
-                            logger.info(f"DB save succeeded on retry {attempt + 1} for {follower_id}/{role}")
+                            logger.info(
+                                f"DB save succeeded on retry {attempt + 1} for {follower_id}/{role}"
+                            )
                         return  # Success - exit
                     finally:
                         loop.close()
@@ -1219,17 +1403,28 @@ class DMResponderAgent:
                     last_error = e
                     if attempt < MAX_RETRIES - 1:
                         delay = RETRY_DELAYS[attempt]
-                        logger.warning(f"DB save attempt {attempt + 1} failed for {follower_id}/{role}, retrying in {delay}s: {e}")
+                        logger.warning(
+                            f"DB save attempt {attempt + 1} failed for {follower_id}/{role}, retrying in {delay}s: {e}"
+                        )
                         time.sleep(delay)
                     else:
-                        logger.error(f"DB save FAILED after {MAX_RETRIES} attempts for {follower_id}/{role}: {e}", exc_info=True)
+                        logger.error(
+                            f"DB save FAILED after {MAX_RETRIES} attempts for {follower_id}/{role}: {e}",
+                            exc_info=True,
+                        )
 
         # Start in background thread - truly non-blocking
         thread = threading.Thread(target=run_in_thread, daemon=True)
         thread.start()
         logger.debug(f"DB save started in background thread for {role}")
 
-    def _sync_lead_to_postgres_fire_and_forget(self, creator_id: str, follower_id: str, purchase_intent_score: float = 0.0, status: str = None):
+    def _sync_lead_to_postgres_fire_and_forget(
+        self,
+        creator_id: str,
+        follower_id: str,
+        purchase_intent_score: float = 0.0,
+        status: str = None,
+    ):
         """
         Fire-and-forget lead sync - uses thread pool to truly not block.
         P0 FIX: Now includes retry logic and direct DB update as backup.
@@ -1252,24 +1447,35 @@ class DMResponderAgent:
 
                     # Method 2 (P0 FIX): Also do direct update to ensure score persists
                     if purchase_intent_score > 0:
-                        update_lead_score_direct(creator_id, follower_id, purchase_intent_score, status)
+                        update_lead_score_direct(
+                            creator_id, follower_id, purchase_intent_score, status
+                        )
 
                     _t_end = time.time()
                     if result:
-                        logger.info(f"⏱️ [P0-SYNC] Lead sync completed in {_t_end - _t_start:.2f}s: {follower_id} (score={purchase_intent_score:.2f}, status={status})")
+                        logger.info(
+                            f"⏱️ [P0-SYNC] Lead sync completed in {_t_end - _t_start:.2f}s: {follower_id} (score={purchase_intent_score:.2f}, status={status})"
+                        )
                     else:
-                        logger.debug(f"[P0-SYNC] Lead sync returned None for {follower_id} ({_t_end - _t_start:.2f}s)")
+                        logger.debug(
+                            f"[P0-SYNC] Lead sync returned None for {follower_id} ({_t_end - _t_start:.2f}s)"
+                        )
 
                     # Success - exit retry loop
                     return
 
                 except Exception as e:
-                    wait_time = RETRY_DELAY * (2 ** attempt)
-                    logger.warning(f"[P0-RETRY] Lead sync failed (attempt {attempt + 1}/{MAX_RETRIES}): {follower_id} - {e}")
+                    wait_time = RETRY_DELAY * (2**attempt)
+                    logger.warning(
+                        f"[P0-RETRY] Lead sync failed (attempt {attempt + 1}/{MAX_RETRIES}): {follower_id} - {e}"
+                    )
                     if attempt < MAX_RETRIES - 1:
                         time.sleep(wait_time)
                     else:
-                        logger.error(f"[P0-RETRY] Lead sync FAILED after {MAX_RETRIES} attempts for {follower_id}: {e}", exc_info=True)
+                        logger.error(
+                            f"[P0-RETRY] Lead sync FAILED after {MAX_RETRIES} attempts for {follower_id}: {e}",
+                            exc_info=True,
+                        )
 
         # Start in background thread - truly non-blocking
         thread = threading.Thread(target=run_in_thread, daemon=True)
@@ -1281,10 +1487,11 @@ class DMResponderAgent:
     _config_cache: Dict[str, dict] = {}
     _products_cache: Dict[str, list] = {}
     _cache_timestamp: Dict[str, float] = {}
-    _CACHE_TTL = 0  # NO CACHE - siempre leer productos frescos de DB
+    _CACHE_TTL = 300  # 5-minute cache for config/products (CRITICAL for performance)
 
     def __init__(self, creator_id: str = "manel"):
         import time
+
         self.creator_id = creator_id
 
         # Use cached config/products if available and fresh
@@ -1321,7 +1528,9 @@ class DMResponderAgent:
             try:
                 creator = db_service.get_creator_by_name(self.creator_id)
                 if creator:
-                    logger.info(f"Loaded creator config from DB: {creator.get('name')}, tone={creator.get('clone_tone')}")
+                    logger.info(
+                        f"Loaded creator config from DB: {creator.get('name')}, tone={creator.get('clone_tone')}"
+                    )
                     # Map DB fields to config format expected by _build_system_prompt
                     return {
                         "name": creator.get("name", "Asistente"),
@@ -1339,7 +1548,7 @@ class DMResponderAgent:
                         "greeting_style": "Hola! Que tal?",
                         "emoji_usage": "moderado",
                         "response_length": "conciso, maximo 2-3 frases",
-                        "escalation_keywords": ["urgente", "reembolso", "hablar con humano"]
+                        "escalation_keywords": ["urgente", "reembolso", "hablar con humano"],
                     }
             except Exception as e:
                 logger.warning(f"Failed to load config from PostgreSQL: {e}")
@@ -1348,7 +1557,7 @@ class DMResponderAgent:
         config_path = Path(f"data/creators/{self.creator_id}_config.json")
         if config_path.exists():
             try:
-                with open(config_path, 'r', encoding='utf-8') as f:
+                with open(config_path, "r", encoding="utf-8") as f:
                     config = json.load(f)
                     logger.info(f"Loaded creator config from JSON: {config.get('name')}")
                     return config
@@ -1370,8 +1579,10 @@ class DMResponderAgent:
                 all_products = db_service.get_products(self.creator_id)
                 if all_products:
                     # Filter only active products
-                    products = [p for p in all_products if p.get('is_active', True)]
-                    logger.info(f"Loaded {len(products)} active products from PostgreSQL (filtered from {len(all_products)} total)")
+                    products = [p for p in all_products if p.get("is_active", True)]
+                    logger.info(
+                        f"Loaded {len(products)} active products from PostgreSQL (filtered from {len(all_products)} total)"
+                    )
                     return products
             except Exception as e:
                 logger.warning(f"Error loading products from DB: {e}")
@@ -1380,14 +1591,16 @@ class DMResponderAgent:
         products_path = Path(f"data/products/{self.creator_id}_products.json")
         if products_path.exists():
             try:
-                with open(products_path, 'r', encoding='utf-8') as f:
+                with open(products_path, "r", encoding="utf-8") as f:
                     all_products = json.load(f)
                     # Handle both list and dict with 'products' key
                     if isinstance(all_products, dict):
-                        all_products = all_products.get('products', [])
+                        all_products = all_products.get("products", [])
                     # Filter only active products
-                    products = [p for p in all_products if p.get('is_active', True)]
-                    logger.info(f"Loaded {len(products)} active products from JSON (filtered from {len(all_products)} total)")
+                    products = [p for p in all_products if p.get("is_active", True)]
+                    logger.info(
+                        f"Loaded {len(products)} active products from JSON (filtered from {len(all_products)} total)"
+                    )
                     return products
             except Exception as e:
                 logger.error(f"Error loading products from JSON: {e}")
@@ -1405,7 +1618,7 @@ class DMResponderAgent:
             "greeting_style": "Hola! Que tal?",
             "emoji_usage": "moderado",
             "response_length": "conciso, maximo 2-3 frases",
-            "escalation_keywords": ["urgente", "reembolso", "hablar con humano"]
+            "escalation_keywords": ["urgente", "reembolso", "hablar con humano"],
         }
 
     def _load_booking_links(self) -> list:
@@ -1419,10 +1632,13 @@ class DMResponderAgent:
                 return []
 
             with SessionLocal() as db:
-                links = db.query(BookingLink).filter(
-                    BookingLink.creator_id == self.creator_id,
-                    BookingLink.is_active == True
-                ).all()
+                links = (
+                    db.query(BookingLink)
+                    .filter(
+                        BookingLink.creator_id == self.creator_id, BookingLink.is_active == True
+                    )
+                    .all()
+                )
 
                 return [
                     {
@@ -1432,8 +1648,8 @@ class DMResponderAgent:
                         "duration_minutes": link.duration_minutes,
                         "platform": link.platform,
                         "url": link.url,
-                        "price": getattr(link, 'price', 0) or 0,
-                        "meeting_type": link.meeting_type
+                        "price": getattr(link, "price", 0) or 0,
+                        "meeting_type": link.meeting_type,
                     }
                     for link in links
                 ]
@@ -1456,7 +1672,9 @@ class DMResponderAgent:
             return "❓"
         return emoji_map.get(meeting_type, "📞")
 
-    def _format_booking_response(self, links: list, language: str = "es", platform: str = "instagram") -> dict:
+    def _format_booking_response(
+        self, links: list, language: str = "es", platform: str = "instagram"
+    ) -> dict:
         """
         Format booking links as a friendly message with internal Clonnect URLs.
         Returns dict with 'text' and optionally 'telegram_keyboard' for inline buttons.
@@ -1482,11 +1700,11 @@ class DMResponderAgent:
         formatted_links = []
 
         for link in links:
-            service_id = link.get('id', '')
-            duration = link.get('duration_minutes', 30)
-            price = link.get('price') or 0
-            title = link.get('title', 'Llamada')
-            meeting_type = link.get('meeting_type', 'call')
+            service_id = link.get("id", "")
+            duration = link.get("duration_minutes", 30)
+            price = link.get("price") or 0
+            title = link.get("title", "Llamada")
+            meeting_type = link.get("meeting_type", "call")
 
             emoji = self._get_service_emoji(meeting_type)
 
@@ -1505,13 +1723,14 @@ class DMResponderAgent:
             # For Telegram: create URL button with shortened text
             # Format: "🎯 Coaching (60m) Gratis" - much shorter to avoid truncation
             button_text = f"{emoji} {short_title} ({duration}m) {price_text}"
-            telegram_keyboard.append({
-                "text": button_text,
-                "url": booking_url  # Direct URL to booking page
-            })
+            telegram_keyboard.append(
+                {"text": button_text, "url": booking_url}  # Direct URL to booking page
+            )
 
             # For Instagram/other: text with URL
-            formatted_links.append(f"{emoji} {title} - {duration} min - {price_text}\n   ➜ {booking_url}")
+            formatted_links.append(
+                f"{emoji} {title} - {duration} min - {price_text}\n   ➜ {booking_url}"
+            )
 
         # Build response based on platform
         if platform == "telegram":
@@ -1521,10 +1740,7 @@ class DMResponderAgent:
             else:
                 text = "📅 Book a call with me!\n\nChoose a service:"
 
-            return {
-                "text": text,
-                "telegram_keyboard": telegram_keyboard
-            }
+            return {"text": text, "telegram_keyboard": telegram_keyboard}
         else:
             # Instagram/other gets full text with URLs
             if language == "es":
@@ -1562,6 +1778,7 @@ class DMResponderAgent:
             Lista de strings con la información conocida
         """
         import re
+
         known = []
         seen = set()  # Evitar duplicados
 
@@ -1571,13 +1788,13 @@ class DMResponderAgent:
             content = msg.get("content", "").lower()
 
             # Detectar nombre
-            match = re.search(r'(?:soy|me llamo|mi nombre es)\s+(\w+)', content)
+            match = re.search(r"(?:soy|me llamo|mi nombre es)\s+(\w+)", content)
             if match and "nombre" not in seen:
                 known.append(f"Nombre: {match.group(1).title()}")
                 seen.add("nombre")
 
             # Detectar profesión
-            match = re.search(r'(?:trabajo como|soy|trabajo de)\s+([\w\s]+?)(?:\.|,|$)', content)
+            match = re.search(r"(?:trabajo como|soy|trabajo de)\s+([\w\s]+?)(?:\.|,|$)", content)
             if match and "profesion" not in seen:
                 prof = match.group(1).strip()
                 if len(prof) > 2 and len(prof) < 30:
@@ -1585,32 +1802,32 @@ class DMResponderAgent:
                     seen.add("profesion")
 
             # Detectar presupuesto
-            match = re.search(r'(?:presupuesto|gastar|pagar)[^0-9]*(\d+)\s*[€$]?', content)
+            match = re.search(r"(?:presupuesto|gastar|pagar)[^0-9]*(\d+)\s*[€$]?", content)
             if match and "presupuesto" not in seen:
                 known.append(f"Presupuesto: {match.group(1)}€")
                 seen.add("presupuesto")
 
             # Detectar interés específico
-            interests = ['ansiedad', 'estrés', 'meditación', 'yoga', 'coaching', 'curso']
+            interests = ["ansiedad", "estrés", "meditación", "yoga", "coaching", "curso"]
             for interest in interests:
                 if interest in content and f"interes_{interest}" not in seen:
                     known.append(f"Interés: {interest}")
                     seen.add(f"interes_{interest}")
 
             # Detectar objeción de precio
-            if any(kw in content for kw in ['caro', 'muy caro', 'precio alto', 'no puedo pagar']):
+            if any(kw in content for kw in ["caro", "muy caro", "precio alto", "no puedo pagar"]):
                 if "objecion_precio" not in seen:
                     known.append("Objeción mencionada: precio")
                     seen.add("objecion_precio")
 
             # Detectar objeción de tiempo
-            if any(kw in content for kw in ['no tengo tiempo', 'ocupado', 'sin tiempo']):
+            if any(kw in content for kw in ["no tengo tiempo", "ocupado", "sin tiempo"]):
                 if "objecion_tiempo" not in seen:
                     known.append("Objeción mencionada: tiempo")
                     seen.add("objecion_tiempo")
 
             # Detectar situación personal
-            if 'hijo' in content and "hijos" not in seen:
+            if "hijo" in content and "hijos" not in seen:
                 known.append("Situación: tiene hijos")
                 seen.add("hijos")
 
@@ -1625,13 +1842,13 @@ class DMResponderAgent:
         topics_mentioned = []
 
         topic_keywords = {
-            'ansiedad': ['ansiedad', 'ansioso', 'nervios', 'estrés', 'estres'],
-            'meditación': ['meditación', 'meditacion', 'meditar', 'mindfulness', 'respiración'],
-            'coaching': ['coaching', 'coach', 'sesión', 'sesion', 'acompañamiento'],
-            'curso': ['curso', 'programa', 'formación', 'formacion', 'módulos', 'modulos'],
-            'yoga': ['yoga', 'posturas', 'asanas'],
-            'precio': ['precio', 'cuesta', 'vale', 'pagar', 'euros', '€'],
-            'llamada': ['llamada', 'agendar', 'videollamada', 'reunión', 'reunion'],
+            "ansiedad": ["ansiedad", "ansioso", "nervios", "estrés", "estres"],
+            "meditación": ["meditación", "meditacion", "meditar", "mindfulness", "respiración"],
+            "coaching": ["coaching", "coach", "sesión", "sesion", "acompañamiento"],
+            "curso": ["curso", "programa", "formación", "formacion", "módulos", "modulos"],
+            "yoga": ["yoga", "posturas", "asanas"],
+            "precio": ["precio", "cuesta", "vale", "pagar", "euros", "€"],
+            "llamada": ["llamada", "agendar", "videollamada", "reunión", "reunion"],
         }
 
         for msg in history:
@@ -1643,10 +1860,11 @@ class DMResponderAgent:
         if topics_mentioned:
             # Retornar el tema más frecuente (excluir 'precio' si hay otro)
             from collections import Counter
+
             counts = Counter(topics_mentioned)
             # Si el tema más común es 'precio' y hay otros, preferir los otros
             most_common = counts.most_common()
-            if most_common[0][0] == 'precio' and len(most_common) > 1:
+            if most_common[0][0] == "precio" and len(most_common) > 1:
                 return most_common[1][0]
             return most_common[0][0]
 
@@ -1671,13 +1889,24 @@ class DMResponderAgent:
 
         # === PATRONES: "Revisa lo que dije" ===
         review_patterns = [
-            "ya te lo dije", "te lo dije", "ya te dije",
-            "revisa el chat", "lee el chat", "mira el chat",
-            "te lo acabo de decir", "lo acabo de decir",
-            "ya te lo he dicho", "te lo he dicho",
-            "lee arriba", "mira arriba", "scroll up",
-            "ya lo mencioné", "ya lo mencione", "te lo comenté",
-            "como te dije antes", "como ya te dije"
+            "ya te lo dije",
+            "te lo dije",
+            "ya te dije",
+            "revisa el chat",
+            "lee el chat",
+            "mira el chat",
+            "te lo acabo de decir",
+            "lo acabo de decir",
+            "ya te lo he dicho",
+            "te lo he dicho",
+            "lee arriba",
+            "mira arriba",
+            "scroll up",
+            "ya lo mencioné",
+            "ya lo mencione",
+            "te lo comenté",
+            "como te dije antes",
+            "como ya te dije",
         ]
 
         if any(p in msg_lower for p in review_patterns):
@@ -1685,31 +1914,45 @@ class DMResponderAgent:
             user_messages = [m for m in history if m.get("role") == "user"]
             if len(user_messages) >= 1:
                 # Retornar el penúltimo mensaje del usuario si existe
-                previous_msg = user_messages[-1].get("content", "") if len(user_messages) >= 1 else ""
+                previous_msg = (
+                    user_messages[-1].get("content", "") if len(user_messages) >= 1 else ""
+                )
                 return {
                     "action": "REVIEW_HISTORY",
                     "context": previous_msg,
-                    "instruction": f"El usuario me pide que recuerde lo que dijo antes: '{previous_msg[:100]}'"
+                    "instruction": f"El usuario me pide que recuerde lo que dijo antes: '{previous_msg[:100]}'",
                 }
 
         # === PATRONES: Frustración ===
         frustration_patterns = [
-            "no me entiendes", "no entiendes", "no me escuchas",
-            "eres un bot", "habla con alguien", "persona real",
-            "no sirves", "inútil", "no ayudas", "qué malo"
+            "no me entiendes",
+            "no entiendes",
+            "no me escuchas",
+            "eres un bot",
+            "habla con alguien",
+            "persona real",
+            "no sirves",
+            "inútil",
+            "no ayudas",
+            "qué malo",
         ]
 
         if any(p in msg_lower for p in frustration_patterns):
             return {
                 "action": "USER_FRUSTRATED",
                 "context": message,
-                "instruction": "Usuario frustrado - responder con empatía y ofrecer ayuda clara"
+                "instruction": "Usuario frustrado - responder con empatía y ofrecer ayuda clara",
             }
 
         # === PATRONES: Repetición pedida ===
         repeat_patterns = [
-            "repite", "otra vez", "no entendí", "no entendi",
-            "puedes repetir", "me lo repites", "dilo de nuevo"
+            "repite",
+            "otra vez",
+            "no entendí",
+            "no entendi",
+            "puedes repetir",
+            "me lo repites",
+            "dilo de nuevo",
         ]
 
         if any(p in msg_lower for p in repeat_patterns):
@@ -1720,17 +1963,25 @@ class DMResponderAgent:
                 return {
                     "action": "REPEAT_REQUESTED",
                     "context": last_bot,
-                    "instruction": f"Usuario pide repetición. Mi último mensaje fue: '{last_bot[:100]}'"
+                    "instruction": f"Usuario pide repetición. Mi último mensaje fue: '{last_bot[:100]}'",
                 }
 
         # === FIX MEMORIA: Referencias implícitas al contexto ===
         # "Por eso necesito flexibilidad" → conectar con lo que dijo antes
         import re
+
         implicit_patterns = [
-            r'^por eso\b', r'^por esa raz[oó]n', r'^debido a eso',
-            r'^entonces\b', r'^es por eso', r'^por lo que te',
-            r'^como te dec[íi]a', r'^lo que pasa es',
-            r'^el tema es', r'^la cosa es', r'^el problema es',
+            r"^por eso\b",
+            r"^por esa raz[oó]n",
+            r"^debido a eso",
+            r"^entonces\b",
+            r"^es por eso",
+            r"^por lo que te",
+            r"^como te dec[íi]a",
+            r"^lo que pasa es",
+            r"^el tema es",
+            r"^la cosa es",
+            r"^el problema es",
         ]
 
         for pattern in implicit_patterns:
@@ -1743,16 +1994,22 @@ class DMResponderAgent:
                     return {
                         "action": "IMPLICIT_REFERENCE",
                         "context": previous_context,
-                        "instruction": f"Usuario hace referencia implícita a lo que dijo antes: '{previous_context[:100]}'"
+                        "instruction": f"Usuario hace referencia implícita a lo que dijo antes: '{previous_context[:100]}'",
                     }
 
         # === FIX FRUSTRACIÓN: Detección de sarcasmo ===
         sarcasm_patterns = [
-            r'como si', r'seguro que s[íi]', r'ya ver[áa]s',
-            r'aj[áa]', r'ya ya', r'qu[ée] gracioso',
-            r's[íi].*(?:claro|seguro).*no', r'claro.*como si',
-            r'obvio.*que no', r'seguro.*(?:vas|puedes|sabes)',
-            r'otra vez.*(?:igual|lo mismo)',
+            r"como si",
+            r"seguro que s[íi]",
+            r"ya ver[áa]s",
+            r"aj[áa]",
+            r"ya ya",
+            r"qu[ée] gracioso",
+            r"s[íi].*(?:claro|seguro).*no",
+            r"claro.*como si",
+            r"obvio.*que no",
+            r"seguro.*(?:vas|puedes|sabes)",
+            r"otra vez.*(?:igual|lo mismo)",
         ]
 
         for pattern in sarcasm_patterns:
@@ -1760,12 +2017,14 @@ class DMResponderAgent:
                 return {
                     "action": "SARCASM_DETECTED",
                     "context": message,
-                    "instruction": "Usuario usando sarcasmo/ironía - responder con empatía, no literal"
+                    "instruction": "Usuario usando sarcasmo/ironía - responder con empatía, no literal",
                 }
 
         return None
 
-    def _classify_intent(self, message: str, conversation_history: Optional[List[dict]] = None) -> tuple:
+    def _classify_intent(
+        self, message: str, conversation_history: Optional[List[dict]] = None
+    ) -> tuple:
         """Clasificar intención del mensaje por keywords.
 
         Args:
@@ -1778,18 +2037,47 @@ class DMResponderAgent:
         # Cuando el usuario corrige un malentendido O pide que revise el historial
         correction_patterns = [
             # Correcciones de malentendido
-            'no te he dicho', 'no he dicho', 'no quiero comprar', 'no quiero pagar',
-            'me has entendido mal', 'no es eso', 'no me refiero', 'no era eso',
-            'no te estoy diciendo', 'no estoy diciendo', 'malentendido',
-            'no he pedido', 'no te pedi', 'no te pedí', 'yo no dije',
-            'no dije eso', 'no es lo que dije', 'no quise decir',
+            "no te he dicho",
+            "no he dicho",
+            "no quiero comprar",
+            "no quiero pagar",
+            "me has entendido mal",
+            "no es eso",
+            "no me refiero",
+            "no era eso",
+            "no te estoy diciendo",
+            "no estoy diciendo",
+            "malentendido",
+            "no he pedido",
+            "no te pedi",
+            "no te pedí",
+            "yo no dije",
+            "no dije eso",
+            "no es lo que dije",
+            "no quise decir",
             # Meta-mensajes: usuario pide que revise el historial
-            'ya te lo dije', 'te lo dije', 'ya te dije', 'te lo acabo de decir',
-            'ya te lo he dicho', 'te lo he dicho', 'como te dije', 'como te comenté',
-            'revisa el chat', 'mira el chat', 'lee el chat', 'lee arriba',
-            'mira arriba', 'scroll up', 'lo que te dije', 'ya lo dije',
-            'ya te expliqué', 'ya te explique', 'te acabo de decir',
-            'no me escuchas', 'no lees', 'no prestas atención'
+            "ya te lo dije",
+            "te lo dije",
+            "ya te dije",
+            "te lo acabo de decir",
+            "ya te lo he dicho",
+            "te lo he dicho",
+            "como te dije",
+            "como te comenté",
+            "revisa el chat",
+            "mira el chat",
+            "lee el chat",
+            "lee arriba",
+            "mira arriba",
+            "scroll up",
+            "lo que te dije",
+            "ya lo dije",
+            "ya te expliqué",
+            "ya te explique",
+            "te acabo de decir",
+            "no me escuchas",
+            "no lees",
+            "no prestas atención",
         ]
         if any(p in msg for p in correction_patterns):
             return Intent.CORRECTION, 0.95
@@ -1809,7 +2097,9 @@ class DMResponderAgent:
                     analyzer = get_bot_question_analyzer()
                     question_type, q_confidence = analyzer.analyze_with_confidence(last_bot_msg)
 
-                    logger.info(f"Context-aware: '{message}' after bot question type={question_type.value}")
+                    logger.info(
+                        f"Context-aware: '{message}' after bot question type={question_type.value}"
+                    )
 
                     # Mapear tipo de pregunta del bot → intent del usuario
                     if question_type == QuestionType.INTEREST:
@@ -1845,15 +2135,30 @@ class DMResponderAgent:
         # Escalación (prioridad máxima después de corrections)
         # Patrones por defecto para detectar solicitud de humano
         default_escalation = [
-            "hablar con persona", "hablar con humano", "persona real",
-            "agente humano", "agente real", "quiero hablar con alguien",
-            "pasame con", "pásame con", "hablar con un humano",
-            "contactar persona", "necesito hablar con", "prefiero hablar con",
-            "quiero un humano", "eres un bot", "eres robot", "no eres real",
-            "hablar con soporte", "hablar con atención", "operador",
-            "quiero hablar con una persona", "conectame con", "conéctame con"
+            "hablar con persona",
+            "hablar con humano",
+            "persona real",
+            "agente humano",
+            "agente real",
+            "quiero hablar con alguien",
+            "pasame con",
+            "pásame con",
+            "hablar con un humano",
+            "contactar persona",
+            "necesito hablar con",
+            "prefiero hablar con",
+            "quiero un humano",
+            "eres un bot",
+            "eres robot",
+            "no eres real",
+            "hablar con soporte",
+            "hablar con atención",
+            "operador",
+            "quiero hablar con una persona",
+            "conectame con",
+            "conéctame con",
         ]
-        escalation_kw = self.creator_config.get('escalation_keywords', []) + default_escalation
+        escalation_kw = self.creator_config.get("escalation_keywords", []) + default_escalation
         if any(kw.lower() in msg for kw in escalation_kw):
             return Intent.ESCALATION, 0.95
 
@@ -1862,21 +2167,58 @@ class DMResponderAgent:
 
         # Interés fuerte (quiere comprar)
         # NOTA: "pagar" solo si es positivo (quiero pagar), no negativo (no puedo pagar)
-        interest_strong_kw = ['comprar', 'quiero comprar', 'adquirir', 'donde compro', 'link de pago',
-                              'apuntarme', 'me apunto', 'lo quiero', 'lo compro', 'quiero pagar']
+        interest_strong_kw = [
+            "comprar",
+            "quiero comprar",
+            "adquirir",
+            "donde compro",
+            "link de pago",
+            "apuntarme",
+            "me apunto",
+            "lo quiero",
+            "lo compro",
+            "quiero pagar",
+        ]
         if any(w in msg for w in interest_strong_kw):
             # Excluir si contiene negación
-            if not any(neg in msg for neg in ['no puedo', 'no tengo', 'no quiero']):
+            if not any(neg in msg for neg in ["no puedo", "no tengo", "no quiero"]):
                 return Intent.INTEREST_STRONG, 0.90
 
         # Interés soft - ANTES de saludos para que "hola, me interesa" sea INTEREST_SOFT
-        if any(w in msg for w in ['interesa', 'cuentame', 'cuéntame', 'info', 'información', 'saber mas', 'saber más', 'como funciona', 'cómo funciona']):
+        if any(
+            w in msg
+            for w in [
+                "interesa",
+                "cuentame",
+                "cuéntame",
+                "info",
+                "información",
+                "saber mas",
+                "saber más",
+                "como funciona",
+                "cómo funciona",
+            ]
+        ):
             return Intent.INTEREST_SOFT, 0.85
 
         # PRECIO - ANTES de booking para que "cuanto cuesta la mentoria" sea QUESTION_PRODUCT
-        price_keywords = ['cuanto cuesta', 'cuánto cuesta', 'precio', 'cuanto vale', 'cuánto vale',
-                          'que cuesta', 'qué cuesta', 'cuanto es', 'cuánto es', 'inversion', 'inversión',
-                          'cuanto sale', 'cuánto sale', 'que precio', 'qué precio']
+        price_keywords = [
+            "cuanto cuesta",
+            "cuánto cuesta",
+            "precio",
+            "cuanto vale",
+            "cuánto vale",
+            "que cuesta",
+            "qué cuesta",
+            "cuanto es",
+            "cuánto es",
+            "inversion",
+            "inversión",
+            "cuanto sale",
+            "cuánto sale",
+            "que precio",
+            "qué precio",
+        ]
         if any(w in msg for w in price_keywords):
             logger.info(f"=== PRICE QUESTION detected === msg='{msg}'")
             return Intent.QUESTION_PRODUCT, 0.95  # Alta prioridad
@@ -1884,14 +2226,37 @@ class DMResponderAgent:
         # PREGUNTAS SOBRE CONTENIDO/METODOLOGÍA - ANTES de booking
         # Para que "cual es tu filosofia de coaching" sea QUESTION_PRODUCT, no BOOKING
         content_question_kw = [
-            'que es', 'qué es', 'en que consiste', 'en qué consiste',
-            'como trabajas', 'cómo trabajas', 'tu metodologia', 'tu metodología',
-            'filosofia', 'filosofía', 'enfoque', 'tu programa', 'tus programas',
-            'de que trata', 'de qué trata', 'como funciona tu', 'cómo funciona tu',
-            'sintoma', 'síntoma', 'plenitud', 'sanacion', 'sanación',
-            'transformacion', 'transformación', 'autoconocimiento',
-            'programa de', 'acompañamiento', 'acompanamiento',
-            'resultados de tus', 'testimonios de', 'clientes han'
+            "que es",
+            "qué es",
+            "en que consiste",
+            "en qué consiste",
+            "como trabajas",
+            "cómo trabajas",
+            "tu metodologia",
+            "tu metodología",
+            "filosofia",
+            "filosofía",
+            "enfoque",
+            "tu programa",
+            "tus programas",
+            "de que trata",
+            "de qué trata",
+            "como funciona tu",
+            "cómo funciona tu",
+            "sintoma",
+            "síntoma",
+            "plenitud",
+            "sanacion",
+            "sanación",
+            "transformacion",
+            "transformación",
+            "autoconocimiento",
+            "programa de",
+            "acompañamiento",
+            "acompanamiento",
+            "resultados de tus",
+            "testimonios de",
+            "clientes han",
         ]
         if any(w in msg for w in content_question_kw):
             logger.info(f"=== QUESTION_PRODUCT (content) detected === msg='{msg}'")
@@ -1899,87 +2264,230 @@ class DMResponderAgent:
 
         # Booking / Agendar llamada - DESPUÉS de preguntas sobre contenido
         # NOTA: "coaching" solo si quiere AGENDAR, no si pregunta sobre él
-        if any(w in msg for w in [
-            'agendar', 'reservar', 'llamada', 'reunion', 'reunión', 'cita',
-            'agenda', 'book', 'booking', 'appointment', 'schedule',
-            'videollamada', 'zoom', 'meet', 'calendly', 'hablar contigo',
-            'cuando podemos hablar', 'podemos hablar', 'disponibilidad',
-            'sesion de coaching', 'sesión de coaching', 'consulta', 'consultoria', 'consultoría',
-            'quiero coaching', 'contratar coaching', 'discovery',
-            'call', 'una call', 'quiero call', 'hacer call', 'tener call'
-        ]):
+        if any(
+            w in msg
+            for w in [
+                "agendar",
+                "reservar",
+                "llamada",
+                "reunion",
+                "reunión",
+                "cita",
+                "agenda",
+                "book",
+                "booking",
+                "appointment",
+                "schedule",
+                "videollamada",
+                "zoom",
+                "meet",
+                "calendly",
+                "hablar contigo",
+                "cuando podemos hablar",
+                "podemos hablar",
+                "disponibilidad",
+                "sesion de coaching",
+                "sesión de coaching",
+                "consulta",
+                "consultoria",
+                "consultoría",
+                "quiero coaching",
+                "contratar coaching",
+                "discovery",
+                "call",
+                "una call",
+                "quiero call",
+                "hacer call",
+                "tener call",
+            ]
+        ):
             return Intent.BOOKING, 0.90
 
         # Saludos (solo si NO hay interés ni booking)
         # Incluye ES + EN básico
-        if any(w in msg for w in ['hola', 'hey', 'ey', 'buenas', 'buenos dias', 'que tal', 'hi', 'hello']):
+        if any(
+            w in msg
+            for w in ["hola", "hey", "ey", "buenas", "buenos dias", "que tal", "hi", "hello"]
+        ):
             return Intent.GREETING, 0.90
 
         # Objeción precio
-        if any(w in msg for w in ['caro', 'costoso', 'mucho dinero', 'no puedo pagar', 'precio alto', 'barato', 'no tengo dinero', 'no tengo plata']):
+        if any(
+            w in msg
+            for w in [
+                "caro",
+                "costoso",
+                "mucho dinero",
+                "no puedo pagar",
+                "precio alto",
+                "barato",
+                "no tengo dinero",
+                "no tengo plata",
+            ]
+        ):
             return Intent.OBJECTION_PRICE, 0.90
 
         # Objeción tiempo - incluye "ahora no puedo" (específico)
-        if any(w in msg for w in ['no tengo tiempo', 'ocupado', 'sin tiempo', 'no puedo ahora', 'ahora no puedo']):
+        if any(
+            w in msg
+            for w in [
+                "no tengo tiempo",
+                "ocupado",
+                "sin tiempo",
+                "no puedo ahora",
+                "ahora no puedo",
+            ]
+        ):
             return Intent.OBJECTION_TIME, 0.90
 
         # Objeción duda
-        if any(w in msg for w in ['pensarlo', 'pensar', 'no se', 'no estoy seguro', 'dudas']):
+        if any(w in msg for w in ["pensarlo", "pensar", "no se", "no estoy seguro", "dudas"]):
             return Intent.OBJECTION_DOUBT, 0.85
 
         # Despedida - ANTES de OBJECTION_LATER para que "hasta luego" no matchee "luego"
-        if any(w in msg for w in ['adios', 'adiós', 'hasta luego', 'chao', 'nos vemos', 'bye', 'goodbye']):
+        if any(
+            w in msg
+            for w in ["adios", "adiós", "hasta luego", "chao", "nos vemos", "bye", "goodbye"]
+        ):
             return Intent.GOODBYE, 0.85
 
         # Objeción "luego" / "después" - DESPUÉS de GOODBYE
         # Excluye "hasta luego" que ya fue capturado arriba
-        if any(w in msg for w in ['luego', 'despues', 'después', 'otro dia', 'ahora no', 'mas adelante', 'más adelante', 'en otro momento']):
+        if any(
+            w in msg
+            for w in [
+                "luego",
+                "despues",
+                "después",
+                "otro dia",
+                "ahora no",
+                "mas adelante",
+                "más adelante",
+                "en otro momento",
+            ]
+        ):
             # Doble check: no es despedida
-            if 'hasta luego' not in msg:
+            if "hasta luego" not in msg:
                 return Intent.OBJECTION_LATER, 0.85
 
         # Objeción "¿funciona?" / resultados
-        if any(w in msg for w in ['funciona', 'resultados', 'garantia', 'pruebas', 'testimonios', 'casos de exito']):
+        if any(
+            w in msg
+            for w in [
+                "funciona",
+                "resultados",
+                "garantia",
+                "pruebas",
+                "testimonios",
+                "casos de exito",
+            ]
+        ):
             return Intent.OBJECTION_WORKS, 0.85
 
         # Objeción "no es para mí"
-        if any(w in msg for w in ['no es para mi', 'no es para mí', 'no se si', 'no sé si',
-                                   'principiante', 'no tengo experiencia', 'soy nuevo', 'soy nueva',
-                                   'no estoy seguro', 'no estoy segura', 'tengo dudas', 'no creo que']):
+        if any(
+            w in msg
+            for w in [
+                "no es para mi",
+                "no es para mí",
+                "no se si",
+                "no sé si",
+                "principiante",
+                "no tengo experiencia",
+                "soy nuevo",
+                "soy nueva",
+                "no estoy seguro",
+                "no estoy segura",
+                "tengo dudas",
+                "no creo que",
+            ]
+        ):
             return Intent.OBJECTION_NOT_FOR_ME, 0.85
 
         # Objeción "es complicado"
-        if any(w in msg for w in ['complicado', 'dificil', 'tecnico', 'complejo', 'no entiendo']):
+        if any(w in msg for w in ["complicado", "dificil", "tecnico", "complejo", "no entiendo"]):
             return Intent.OBJECTION_COMPLICATED, 0.85
 
         # Objeción "ya tengo algo"
-        if any(w in msg for w in ['ya tengo', 'algo similar', 'parecido', 'otro curso', 'ya compre']):
+        if any(
+            w in msg for w in ["ya tengo", "algo similar", "parecido", "otro curso", "ya compre"]
+        ):
             return Intent.OBJECTION_ALREADY_HAVE, 0.85
 
         # Pregunta sobre producto/contenido - EXPANDIDO con preguntas sobre programas y metodología
         product_question_kw = [
             # Precio
-            'que incluye', 'qué incluye', 'contenido', 'modulos', 'módulos',
-            'cuanto cuesta', 'cuánto cuesta', 'precio', 'beneficios', 'vale',
-            'cuanto vale', 'cuánto vale', 'que cuesta', 'qué cuesta',
+            "que incluye",
+            "qué incluye",
+            "contenido",
+            "modulos",
+            "módulos",
+            "cuanto cuesta",
+            "cuánto cuesta",
+            "precio",
+            "beneficios",
+            "vale",
+            "cuanto vale",
+            "cuánto vale",
+            "que cuesta",
+            "qué cuesta",
             # Garantía
-            'garantia', 'garantía', 'devolucion', 'devolución', 'reembolso',
+            "garantia",
+            "garantía",
+            "devolucion",
+            "devolución",
+            "reembolso",
             # Métodos de pago
-            'como pago', 'cómo pago', 'como puedo pagar', 'cómo puedo pagar',
-            'metodos de pago', 'métodos de pago', 'formas de pago',
-            'bizum', 'paypal', 'stripe', 'transferencia', 'tarjeta',
+            "como pago",
+            "cómo pago",
+            "como puedo pagar",
+            "cómo puedo pagar",
+            "metodos de pago",
+            "métodos de pago",
+            "formas de pago",
+            "bizum",
+            "paypal",
+            "stripe",
+            "transferencia",
+            "tarjeta",
             # Acceso
-            'acceso', 'duracion', 'duración', 'cuanto dura', 'cuánto dura',
-            'que tiene', 'qué tiene',
+            "acceso",
+            "duracion",
+            "duración",
+            "cuanto dura",
+            "cuánto dura",
+            "que tiene",
+            "qué tiene",
             # Preguntas sobre programas, metodología y contenido
-            'que es', 'qué es', 'en que consiste', 'en qué consiste',
-            'como trabajas', 'cómo trabajas', 'tu metodologia', 'tu metodología',
-            'filosofia', 'filosofía', 'enfoque', 'tu programa', 'tus programas',
-            'de que trata', 'de qué trata', 'como funciona tu', 'cómo funciona tu',
+            "que es",
+            "qué es",
+            "en que consiste",
+            "en qué consiste",
+            "como trabajas",
+            "cómo trabajas",
+            "tu metodologia",
+            "tu metodología",
+            "filosofia",
+            "filosofía",
+            "enfoque",
+            "tu programa",
+            "tus programas",
+            "de que trata",
+            "de qué trata",
+            "como funciona tu",
+            "cómo funciona tu",
             # Keywords específicos de coaching/sanación
-            'sintoma', 'síntoma', 'plenitud', 'sanacion', 'sanación',
-            'transformacion', 'transformación', 'autoconocimiento',
-            'programa de', 'acompañamiento', 'acompanamiento'
+            "sintoma",
+            "síntoma",
+            "plenitud",
+            "sanacion",
+            "sanación",
+            "transformacion",
+            "transformación",
+            "autoconocimiento",
+            "programa de",
+            "acompañamiento",
+            "acompanamiento",
         ]
         matched_kw = [w for w in product_question_kw if w in msg]
         if matched_kw:
@@ -1987,21 +2495,21 @@ class DMResponderAgent:
             return Intent.QUESTION_PRODUCT, 0.90
 
         # Pregunta general
-        if any(w in msg for w in ['quien eres', 'que haces', 'a que te dedicas', 'sobre ti']):
+        if any(w in msg for w in ["quien eres", "que haces", "a que te dedicas", "sobre ti"]):
             return Intent.QUESTION_GENERAL, 0.85
 
         # Lead magnet
-        if any(w in msg for w in ['gratis', 'free', 'sin pagar', 'regalo', 'gratuito']):
+        if any(w in msg for w in ["gratis", "free", "sin pagar", "regalo", "gratuito"]):
             return Intent.LEAD_MAGNET, 0.90
 
         # Agradecimiento
-        if any(w in msg for w in ['gracias', 'genial', 'perfecto', 'guay', 'thanks']):
+        if any(w in msg for w in ["gracias", "genial", "perfecto", "guay", "thanks"]):
             return Intent.THANKS, 0.85
 
         # GOODBYE ya se detecta antes de OBJECTION_LATER (línea ~1808)
 
         # Soporte
-        if any(w in msg for w in ['problema', 'no funciona', 'error', 'ayuda', 'falla']):
+        if any(w in msg for w in ["problema", "no funciona", "error", "ayuda", "falla"]):
             return Intent.SUPPORT, 0.85
 
         # No match - log for debugging
@@ -2014,15 +2522,19 @@ class DMResponderAgent:
 
         # Buscar por keywords del producto
         for product in self.products:
-            keywords = product.get('keywords', [])
+            keywords = product.get("keywords", [])
             if any(kw.lower() in msg for kw in keywords):
                 return product
 
         # Buscar por nombre del producto (palabras clave del nombre)
         for product in self.products:
-            product_name = product.get('name', '').lower()
+            product_name = product.get("name", "").lower()
             # Extraer palabras significativas del nombre (>3 chars, no artículos)
-            name_words = [w for w in product_name.split() if len(w) > 3 and w not in ['para', 'respira', 'siente', 'conecta']]
+            name_words = [
+                w
+                for w in product_name.split()
+                if len(w) > 3 and w not in ["para", "respira", "siente", "conecta"]
+            ]
             if any(word in msg for word in name_words):
                 logger.info(f"[PRODUCT MATCH] Matched by name: {product.get('name')} (word in msg)")
                 return product
@@ -2030,17 +2542,17 @@ class DMResponderAgent:
         # Si busca gratis, devolver lead magnet
         if intent == Intent.LEAD_MAGNET:
             for product in self.products:
-                if product.get('price') or 0 == 0:
+                if product.get("price") or 0 == 0:
                     return product
 
         # Si hay interés, devolver producto destacado o principal
         if intent in [Intent.INTEREST_STRONG, Intent.INTEREST_SOFT, Intent.QUESTION_PRODUCT]:
             for product in self.products:
-                if product.get('is_featured', False):
+                if product.get("is_featured", False):
                     return product
             # Si no hay destacado, devolver el primero con precio > 0
             for product in self.products:
-                if product.get('price') or 0 > 0:
+                if product.get("price") or 0 > 0:
                     return product
 
         return None
@@ -2050,24 +2562,24 @@ class DMResponderAgent:
         if not product:
             return None
 
-        handlers = product.get('objection_handlers', {})
+        handlers = product.get("objection_handlers", {})
 
         if intent == Intent.OBJECTION_PRICE:
-            return handlers.get('precio', handlers.get('caro', None))
+            return handlers.get("precio", handlers.get("caro", None))
         if intent == Intent.OBJECTION_TIME:
-            return handlers.get('tiempo', handlers.get('no tengo tiempo', None))
+            return handlers.get("tiempo", handlers.get("no tengo tiempo", None))
         if intent == Intent.OBJECTION_DOUBT:
-            return handlers.get('pensarlo', handlers.get('dudas', None))
+            return handlers.get("pensarlo", handlers.get("dudas", None))
         if intent == Intent.OBJECTION_LATER:
-            return handlers.get('luego', handlers.get('despues', None))
+            return handlers.get("luego", handlers.get("despues", None))
         if intent == Intent.OBJECTION_WORKS:
-            return handlers.get('funciona', handlers.get('resultados', None))
+            return handlers.get("funciona", handlers.get("resultados", None))
         if intent == Intent.OBJECTION_NOT_FOR_ME:
-            return handlers.get('no_para_mi', handlers.get('principiante', None))
+            return handlers.get("no_para_mi", handlers.get("principiante", None))
         if intent == Intent.OBJECTION_COMPLICATED:
-            return handlers.get('complicado', handlers.get('dificil', None))
+            return handlers.get("complicado", handlers.get("dificil", None))
         if intent == Intent.OBJECTION_ALREADY_HAVE:
-            return handlers.get('ya_tengo', handlers.get('similar', None))
+            return handlers.get("ya_tengo", handlers.get("similar", None))
 
         return None
 
@@ -2082,32 +2594,32 @@ class DMResponderAgent:
             config = {}
 
         # Get personality settings from config
-        personality = config.get('personality', {})
+        personality = config.get("personality", {})
         if not isinstance(personality, dict):
             personality = {}
 
         # Check both clone_tone (Settings) and formality (config)
-        clone_tone = config.get('clone_tone', 'friendly')
-        formality = personality.get('formality', config.get('formality', 'informal'))
+        clone_tone = config.get("clone_tone", "friendly")
+        formality = personality.get("formality", config.get("formality", "informal"))
 
         # Map clone_tone to formality if needed
         # professional = formal, casual/friendly = informal
-        if clone_tone == 'professional':
-            formality = 'formal'
-        elif clone_tone in ['casual', 'friendly'] and formality not in ['formal', 'muy_formal']:
-            formality = 'informal'
+        if clone_tone == "professional":
+            formality = "formal"
+        elif clone_tone in ["casual", "friendly"] and formality not in ["formal", "muy_formal"]:
+            formality = "informal"
 
-        language = config.get('language', 'es')
+        language = config.get("language", "es")
 
         # Map language code to full name
         language_name = {
-            'es': 'ESPAÑOL',
-            'en': 'INGLÉS',
-            'pt': 'PORTUGUÉS',
-            'fr': 'FRANCÉS',
-            'de': 'ALEMÁN',
-            'it': 'ITALIANO'
-        }.get(language, 'ESPAÑOL')
+            "es": "ESPAÑOL",
+            "en": "INGLÉS",
+            "pt": "PORTUGUÉS",
+            "fr": "FRANCÉS",
+            "de": "ALEMÁN",
+            "it": "ITALIANO",
+        }.get(language, "ESPAÑOL")
 
         rules = []
         rules.append("🚨🚨🚨 REGLAS OBLIGATORIAS (MÁXIMA PRIORIDAD) 🚨🚨🚨")
@@ -2119,14 +2631,16 @@ class DMResponderAgent:
 
         # Formality rule based on config
         rules.append(f"\n📌 REGLA 2 - FORMALIDAD (OBLIGATORIO):")
-        if formality in ['informal', 'muy_informal', 'casual']:
+        if formality in ["informal", "muy_informal", "casual"]:
             rules.append("SIEMPRE debes TUTEAR al usuario. Esta regla es INNEGOCIABLE.")
             rules.append("✅ OBLIGATORIO: tú, te, ti, tu, tus, contigo, quieres, tienes, puedes")
-            rules.append("❌ PROHIBIDO: usted, le, su, sus, consigo, quiere, tiene, puede, desea, podría")
+            rules.append(
+                "❌ PROHIBIDO: usted, le, su, sus, consigo, quiere, tiene, puede, desea, podría"
+            )
             rules.append("Ejemplos:")
             rules.append('- ❌ "¿Le gustaría saber más?" → ✅ "¿Te gustaría saber más?"')
             rules.append('- ❌ "¿En qué puedo ayudarle?" → ✅ "¿En qué puedo ayudarte?"')
-        elif formality in ['formal', 'muy_formal', 'professional']:
+        elif formality in ["formal", "muy_formal", "professional"]:
             rules.append("SIEMPRE debes usar USTED. Esta regla es INNEGOCIABLE.")
             rules.append("✅ OBLIGATORIO: usted, le, su, sus, consigo, quiere, tiene, puede")
             rules.append("❌ PROHIBIDO: tú, te, ti, tu, tus, contigo, quieres, tienes, puedes")
@@ -2263,8 +2777,8 @@ Tú: "Pero es una oportunidad única, solo quedan 3 plazas..."  ← NUNCA
 
     def _build_system_prompt(self, message: str = "") -> str:
         """Construir system prompt con configuración, productos y citaciones relevantes"""
-        import time
         import hashlib
+        import time
 
         # Check if we have a cached base prompt (without citations)
         cache_key = self.creator_id
@@ -2291,12 +2805,14 @@ Tú: "Pero es una oportunidad única, solo quedan 3 plazas..."  ← NUNCA
 
         logger.info(f"Building new system prompt for {cache_key} (config_hash={config_hash})")
         # Use clone_name (from Settings) with fallback to name
-        name = config.get('clone_name') or config.get('name', 'Asistente')
+        name = config.get("clone_name") or config.get("name", "Asistente")
 
         # Get clone_tone from Settings (professional, casual, friendly)
-        clone_tone = config.get('clone_tone', 'friendly')
-        clone_vocabulary = config.get('clone_vocabulary', '')
-        logger.info(f"Building system prompt: name={name}, tone={clone_tone}, vocabulary_length={len(clone_vocabulary)}")
+        clone_tone = config.get("clone_tone", "friendly")
+        clone_vocabulary = config.get("clone_vocabulary", "")
+        logger.info(
+            f"Building system prompt: name={name}, tone={clone_tone}, vocabulary_length={len(clone_vocabulary)}"
+        )
 
         # IMPORTANT: If clone_vocabulary has instructions, they take PRIORITY
         # Detect preset type from vocabulary to override clone_tone
@@ -2315,7 +2831,9 @@ Tú: "Pero es una oportunidad única, solo quedan 3 plazas..."  ← NUNCA
             detected_preset = "amigo"
 
         if detected_preset:
-            logger.info(f"Detected personality preset: {detected_preset}, tone override: {clone_tone}")
+            logger.info(
+                f"Detected personality preset: {detected_preset}, tone override: {clone_tone}"
+            )
 
         # Build tone instruction based on clone_tone
         if clone_tone == "professional":
@@ -2325,7 +2843,9 @@ Tú: "Pero es una oportunidad única, solo quedan 3 plazas..."  ← NUNCA
             tone_instruction = "Responde de manera muy informal, con jerga, emojis frecuentes y como si fueras un amigo cercano."
             emoji_instruction = "- Uso de emojis: frecuente (2-3 por mensaje)"
         else:  # friendly (default)
-            tone_instruction = "Responde de manera amigable y cercana, equilibrando profesionalismo con calidez."
+            tone_instruction = (
+                "Responde de manera amigable y cercana, equilibrando profesionalismo con calidez."
+            )
             emoji_instruction = "- Uso de emojis: moderado (1-2 por mensaje, VARIADOS)"
 
         # Get custom vocabulary/instructions from Settings - BUILD PRIORITY SECTION
@@ -2350,27 +2870,27 @@ IMPORTANTE: Las instrucciones anteriores son OBLIGATORIAS y tienen prioridad sob
         payment_links_text = ""
 
         for p in self.products:
-            category = p.get('category', 'product')
+            category = p.get("category", "product")
             url = get_valid_payment_url(p)
-            product_name = p.get('name', 'Item')
+            product_name = p.get("name", "Item")
 
             # Formatear según categoría
             formatted = format_item_by_category(p)
 
-            if category == 'resource':
+            if category == "resource":
                 resources_text += formatted + "\n"
-            elif category == 'service':
+            elif category == "service":
                 services_text += formatted + "\n"
             else:
                 products_text += formatted + "\n"
 
             # Build payment links section (solo para productos y servicios con precio)
-            if url and category != 'resource':
-                is_free = p.get('is_free', False)
-                price = p.get('price', 0)
+            if url and category != "resource":
+                is_free = p.get("is_free", False)
+                price = p.get("price", 0)
                 if not is_free and price > 0:
                     payment_links_text += f"- {product_name}: {url}\n"
-                elif category == 'service':
+                elif category == "service":
                     payment_links_text += f"- {product_name} (reserva): {url}\n"
 
         # Combinar todas las secciones
@@ -2392,7 +2912,7 @@ IMPORTANTE: Las instrucciones anteriores son OBLIGATORIAS y tienen prioridad sob
             payment_links_text = "- No hay links configurados todavía\n"
 
         # Build alternative payment methods section from config
-        alt_payment_methods = config.get('other_payment_methods', {})
+        alt_payment_methods = config.get("other_payment_methods", {})
         alt_payment_text = ""
 
         # Debug logging to see what we have
@@ -2403,44 +2923,48 @@ IMPORTANTE: Las instrucciones anteriores son OBLIGATORIAS y tienen prioridad sob
         has_enabled_methods = False
         if alt_payment_methods:
             for method_name, method_data in alt_payment_methods.items():
-                if isinstance(method_data, dict) and method_data.get('enabled'):
+                if isinstance(method_data, dict) and method_data.get("enabled"):
                     has_enabled_methods = True
                     break
 
         if has_enabled_methods:
-            logger.info(f"Alternative payment methods configured: {list(alt_payment_methods.keys())}")
-            alt_payment_text = "\nMÉTODOS DE PAGO ALTERNATIVOS (usa estos datos exactos cuando pregunten):\n"
+            logger.info(
+                f"Alternative payment methods configured: {list(alt_payment_methods.keys())}"
+            )
+            alt_payment_text = (
+                "\nMÉTODOS DE PAGO ALTERNATIVOS (usa estos datos exactos cuando pregunten):\n"
+            )
 
             # Bizum - frontend uses: { enabled, phone, holder_name }
-            bizum = alt_payment_methods.get('bizum', {})
-            if isinstance(bizum, dict) and bizum.get('enabled'):
-                phone = bizum.get('phone', '')
-                holder_name = bizum.get('holder_name', '')
+            bizum = alt_payment_methods.get("bizum", {})
+            if isinstance(bizum, dict) and bizum.get("enabled"):
+                phone = bizum.get("phone", "")
+                holder_name = bizum.get("holder_name", "")
                 if phone:
                     alt_payment_text += f"- BIZUM: Enviar al {phone} (a nombre de {holder_name})\n"
                     logger.info(f"Added Bizum: {phone} - {holder_name}")
 
             # Bank transfer - frontend uses: { enabled, iban, holder_name }
-            transfer = alt_payment_methods.get('bank_transfer', {})
-            if isinstance(transfer, dict) and transfer.get('enabled'):
-                iban = transfer.get('iban', '')
-                holder_name = transfer.get('holder_name', '')
+            transfer = alt_payment_methods.get("bank_transfer", {})
+            if isinstance(transfer, dict) and transfer.get("enabled"):
+                iban = transfer.get("iban", "")
+                holder_name = transfer.get("holder_name", "")
                 if iban:
                     alt_payment_text += f"- TRANSFERENCIA: IBAN {iban} (titular: {holder_name})\n"
                     logger.info(f"Added Transfer: {iban} - {holder_name}")
 
             # Revolut/Wise - frontend uses: { enabled, link }
-            revolut = alt_payment_methods.get('revolut', {})
-            if isinstance(revolut, dict) and revolut.get('enabled'):
-                link = revolut.get('link', '')
+            revolut = alt_payment_methods.get("revolut", {})
+            if isinstance(revolut, dict) and revolut.get("enabled"):
+                link = revolut.get("link", "")
                 if link:
                     alt_payment_text += f"- REVOLUT/WISE: {link}\n"
                     logger.info(f"Added Revolut: {link}")
 
             # Other (PayPal, etc.) - frontend uses: { enabled, instructions }
-            other = alt_payment_methods.get('other', {})
-            if isinstance(other, dict) and other.get('enabled'):
-                instructions = other.get('instructions', '')
+            other = alt_payment_methods.get("other", {})
+            if isinstance(other, dict) and other.get("enabled"):
+                instructions = other.get("instructions", "")
                 if instructions:
                     alt_payment_text += f"- PAYPAL: {instructions}\n"
                     logger.info(f"Added PayPal/Other: {instructions}")
@@ -2456,8 +2980,12 @@ IMPORTANTE: Las instrucciones anteriores son OBLIGATORIAS y tienen prioridad sob
             alt_payment_text += "- Si preguntan por TRANSFERENCIA → responde SOLO con el IBAN completo, NO des link de Stripe\n"
             alt_payment_text += "- Si preguntan por REVOLUT → responde SOLO con el usuario/link de Revolut, NO des link de Stripe\n"
             alt_payment_text += "- Si preguntan por PAYPAL → responde SOLO con el email de PayPal, NO des link de Stripe\n"
-            alt_payment_text += "- SOLO usa el link de Stripe cuando pidan 'pagar con tarjeta' o 'link de pago'\n"
-            alt_payment_text += "\n📝 RESPUESTAS DE PAGO CORTAS (cuando el usuario YA pidió pagar):\n"
+            alt_payment_text += (
+                "- SOLO usa el link de Stripe cuando pidan 'pagar con tarjeta' o 'link de pago'\n"
+            )
+            alt_payment_text += (
+                "\n📝 RESPUESTAS DE PAGO CORTAS (cuando el usuario YA pidió pagar):\n"
+            )
             alt_payment_text += "- Responde en 1-2 frases CORTAS\n"
             alt_payment_text += "- NO repitas info del producto (contenido, beneficios, duración)\n"
             alt_payment_text += "- Ejemplo Bizum BUENO: '¡Sí! Envía 297€ al 639066982 a nombre de manel. Avísame cuando lo hagas 👍'\n"
@@ -2477,18 +3005,24 @@ IMPORTANTE: Las instrucciones anteriores son OBLIGATORIAS y tienen prioridad sob
                 frontend_url = os.getenv("FRONTEND_URL", "https://clonnect.vercel.app")
                 booking_links_text = "\nSERVICIOS DE RESERVA/CITAS DISPONIBLES:\n"
                 for link in booking_links:
-                    service_id = link.get('id', '')
-                    title = link.get('title', 'Llamada')
-                    duration = link.get('duration_minutes', 30)
-                    price = link.get('price', 0)
+                    service_id = link.get("id", "")
+                    title = link.get("title", "Llamada")
+                    duration = link.get("duration_minutes", 30)
+                    price = link.get("price", 0)
                     price_text = f"{price}€" if price > 0 else "GRATIS"
                     booking_url = f"{frontend_url}/book/{self.creator_id}/{service_id}"
-                    booking_links_text += f"- {title} ({duration} min) - {price_text}: {booking_url}\n"
+                    booking_links_text += (
+                        f"- {title} ({duration} min) - {price_text}: {booking_url}\n"
+                    )
 
                 booking_links_text += "\n📅 REGLA PARA RESERVAS:\n"
                 booking_links_text += "- Cuando el usuario quiera agendar/reservar/llamada → da el LINK REAL de arriba\n"
-                booking_links_text += "- NUNCA digas '[tu enlace de reserva]' o '[link]' - usa el URL completo\n"
-                booking_links_text += "- Ejemplo: 'Aquí puedes reservar: https://clonnect.vercel.app/book/...'\n"
+                booking_links_text += (
+                    "- NUNCA digas '[tu enlace de reserva]' o '[link]' - usa el URL completo\n"
+                )
+                booking_links_text += (
+                    "- Ejemplo: 'Aquí puedes reservar: https://clonnect.vercel.app/book/...'\n"
+                )
                 logger.info(f"Added {len(booking_links)} booking links to system prompt")
             else:
                 logger.info("No booking links configured for system prompt")
@@ -2500,11 +3034,13 @@ IMPORTANTE: Las instrucciones anteriores son OBLIGATORIAS y tienen prioridad sob
 
         # Ejemplos de respuestas
         examples_text = ""
-        examples = config.get('example_responses', [])
+        examples = config.get("example_responses", [])
         if examples:
             examples_text = "\nEJEMPLOS DE COMO RESPONDO:\n"
             for ex in examples[:3]:
-                examples_text += f"Usuario: {ex.get('question', '')}\nYo: {ex.get('response', '')}\n\n"
+                examples_text += (
+                    f"Usuario: {ex.get('question', '')}\nYo: {ex.get('response', '')}\n\n"
+                )
 
         # Build emoji rules section based on tone
         if clone_tone == "professional":
@@ -2548,7 +3084,9 @@ IMPORTANTE: Las instrucciones anteriores son OBLIGATORIAS y tienen prioridad sob
                 knowledge = db_service.get_full_knowledge(self.creator_id)
                 faqs = knowledge.get("faqs", [])
                 about = knowledge.get("about", {})
-                logger.info(f"Loaded knowledge: {len(faqs)} FAQs, about has {sum(1 for v in about.values() if v)} fields")
+                logger.info(
+                    f"Loaded knowledge: {len(faqs)} FAQs, about has {sum(1 for v in about.values() if v)} fields"
+                )
 
                 # Build About section
                 if about and any(about.values()):
@@ -2926,7 +3464,11 @@ RECUERDA: NO suenes como un bot corporativo. Sé natural y cercano. NO des datos
         if message:
             citation_section = get_citation_prompt_section(self.creator_id, message)
             if citation_section:
-                citation_count = citation_section.count('[1]') + citation_section.count('[2]') + citation_section.count('[3]')
+                citation_count = (
+                    citation_section.count("[1]")
+                    + citation_section.count("[2]")
+                    + citation_section.count("[3]")
+                )
                 logger.info(f"Injecting {citation_count} citations for {self.creator_id}")
                 return base_prompt.replace("{CITATION_PLACEHOLDER}", citation_section)
 
@@ -2940,7 +3482,7 @@ RECUERDA: NO suenes como un bot corporativo. Sé natural y cercano. NO des datos
         product: Optional[dict],
         objection_handler: Optional[str],
         conversation_history: List[dict],
-        follower: Optional['FollowerMemory'] = None
+        follower: Optional["FollowerMemory"] = None,
     ) -> str:
         """Construir prompt del usuario con contexto"""
 
@@ -2968,39 +3510,57 @@ RECUERDA: NO suenes como un bot corporativo. Sé natural y cercano. NO des datos
             total_msgs = follower.total_messages or 0
             if total_msgs == 0:
                 user_context += f"\n- Estado: PRIMERA CONVERSACIÓN"
-                personalization_hints.append("Es su primer mensaje, preséntate brevemente y pregunta sobre su situación")
+                personalization_hints.append(
+                    "Es su primer mensaje, preséntate brevemente y pregunta sobre su situación"
+                )
             elif total_msgs < 3:
                 user_context += f"\n- Estado: Conversación nueva ({total_msgs} mensajes previos)"
-                personalization_hints.append("Aún no lo conoces bien, haz preguntas para entender qué necesita")
+                personalization_hints.append(
+                    "Aún no lo conoces bien, haz preguntas para entender qué necesita"
+                )
             else:
                 user_context += f"\n- Estado: Conocido ({total_msgs} mensajes previos)"
-                personalization_hints.append("Ya se conocen, sé más directo y referencia conversaciones anteriores")
+                personalization_hints.append(
+                    "Ya se conocen, sé más directo y referencia conversaciones anteriores"
+                )
 
             # Intereses con hint
             if follower.interests:
-                interests_str = ', '.join(follower.interests[:3])
+                interests_str = ", ".join(follower.interests[:3])
                 user_context += f"\n- Intereses detectados: {interests_str}"
-                personalization_hints.append(f"Menciona algo sobre {follower.interests[0]} que le interesa")
+                personalization_hints.append(
+                    f"Menciona algo sobre {follower.interests[0]} que le interesa"
+                )
 
             # Productos discutidos con hint
             if follower.products_discussed:
-                products_str = ', '.join(follower.products_discussed[:3])
+                products_str = ", ".join(follower.products_discussed[:3])
                 user_context += f"\n- Productos que le interesan: {products_str}"
-                personalization_hints.append(f"Enfócate en {follower.products_discussed[0]}, ya mostró interés")
+                personalization_hints.append(
+                    f"Enfócate en {follower.products_discussed[0]}, ya mostró interés"
+                )
 
             # Status de cliente/lead con hint
             if follower.is_customer:
                 user_context += f"\n- 🌟 ES CLIENTE (ya ha comprado)"
-                personalization_hints.append("Trátalo como cliente VIP, pregunta cómo le va con lo que compró")
+                personalization_hints.append(
+                    "Trátalo como cliente VIP, pregunta cómo le va con lo que compró"
+                )
             elif follower.is_lead:
                 intent_pct = int((follower.purchase_intent_score or 0) * 100)
                 user_context += f"\n- 🔥 Es LEAD caliente (intención: {intent_pct}%)"
                 if intent_pct >= 70:
-                    personalization_hints.append("Está muy interesado, ofrece el siguiente paso concreto")
+                    personalization_hints.append(
+                        "Está muy interesado, ofrece el siguiente paso concreto"
+                    )
                 elif intent_pct >= 40:
-                    personalization_hints.append("Tiene interés, resuelve sus dudas y guíalo al siguiente paso")
+                    personalization_hints.append(
+                        "Tiene interés, resuelve sus dudas y guíalo al siguiente paso"
+                    )
                 else:
-                    personalization_hints.append("Interés inicial, haz preguntas para entender qué busca")
+                    personalization_hints.append(
+                        "Interés inicial, haz preguntas para entender qué busca"
+                    )
 
             # Información de contacto alternativo
             if follower.alternative_contact:
@@ -3009,7 +3569,9 @@ RECUERDA: NO suenes como un bot corporativo. Sé natural y cercano. NO des datos
             elif follower.contact_requested:
                 user_context += f"\n- Ya pedimos su contacto pero no lo dio, NO insistas"
             elif total_msgs >= 3 and (follower.purchase_intent_score or 0) >= 0.3:
-                user_context += f"\n- 📱 BUEN MOMENTO para pedir WhatsApp/Telegram (interés detectado)"
+                user_context += (
+                    f"\n- 📱 BUEN MOMENTO para pedir WhatsApp/Telegram (interés detectado)"
+                )
 
             # Agregar hints de personalización
             if personalization_hints:
@@ -3026,19 +3588,27 @@ RECUERDA: NO suenes como un bot corporativo. Sé natural y cercano. NO des datos
             # Requiere >= 5 mensajes desde el último uso
             msgs_since_name = follower.messages_since_name_used or 0
             if msgs_since_name >= 5:
-                naturalidad_context += f"\n✓ PUEDES usar '{first_name}' (solo primer nombre, NO '{username}')"
+                naturalidad_context += (
+                    f"\n✓ PUEDES usar '{first_name}' (solo primer nombre, NO '{username}')"
+                )
             else:
                 msgs_restantes = 5 - msgs_since_name
-                naturalidad_context += f"\n⚠️ PROHIBIDO usar el nombre (faltan {msgs_restantes} mensajes)"
+                naturalidad_context += (
+                    f"\n⚠️ PROHIBIDO usar el nombre (faltan {msgs_restantes} mensajes)"
+                )
 
             # Evitar repetir emojis
             if follower.last_emojis_used:
                 emojis_to_avoid = ", ".join(follower.last_emojis_used[-3:])
-                naturalidad_context += f"\n⚠️ NO uses estos emojis (ya los usaste): {emojis_to_avoid}"
+                naturalidad_context += (
+                    f"\n⚠️ NO uses estos emojis (ya los usaste): {emojis_to_avoid}"
+                )
 
             # Evitar repetir estilo de saludo
             if follower.last_greeting_style:
-                naturalidad_context += f"\n⚠️ NO empieces con '{follower.last_greeting_style}' (ya lo usaste)"
+                naturalidad_context += (
+                    f"\n⚠️ NO empieces con '{follower.last_greeting_style}' (ya lo usaste)"
+                )
 
         prompt = f"""CONTEXTO:
 - Usuario: {first_name} (usar SOLO este nombre, no el completo)
@@ -3061,7 +3631,10 @@ MENSAJE DEL USUARIO: "{message}"
             # 1. Es la primera vez, O
             # 2. Han pasado 3+ mensajes desde el ultimo link, O
             # 3. El usuario pregunta explicitamente "como pago", "donde compro", etc.
-            asking_for_link = any(kw in message.lower() for kw in ['pagar', 'compro', 'comprar', 'link', 'donde', 'how to pay', 'buy'])
+            asking_for_link = any(
+                kw in message.lower()
+                for kw in ["pagar", "compro", "comprar", "link", "donde", "how to pay", "buy"]
+            )
 
             if links_sent > 0 and messages_since_last_link < 3 and not asking_for_link:
                 include_link = False
@@ -3069,9 +3642,9 @@ MENSAJE DEL USUARIO: "{message}"
 
         # Añadir producto relevante
         if product:
-            price = product.get('price') or 0
+            price = product.get("price") or 0
             price_text = f"{price}€" if price > 0 else "GRATIS"
-            benefits = product.get('features', product.get('benefits', []))[:3]
+            benefits = product.get("features", product.get("benefits", []))[:3]
 
             if include_link:
                 prompt += f"""
@@ -3124,7 +3697,7 @@ USA ESTA RESPUESTA PARA LA OBJECION (adaptala a tu tono):
             Intent.THANKS: "Agradece brevemente y ofrece el siguiente paso: '¿Hay algo más en lo que pueda ayudarte o empezamos?'",
             Intent.GOODBYE: "Despídete, crea apertura futura: 'Si decides avanzar, aquí estoy. ¡Éxitos!'",
             Intent.SUPPORT: "Muestra empatía breve y resuelve. Si es sobre el producto, aprovecha para cerrar.",
-            Intent.OTHER: "Responde de forma útil y siempre ofrece el siguiente paso hacia la conversión."
+            Intent.OTHER: "Responde de forma útil y siempre ofrece el siguiente paso hacia la conversión.",
         }
 
         # High-intent boost - add conversion pressure when purchase intent is high
@@ -3132,9 +3705,13 @@ USA ESTA RESPUESTA PARA LA OBJECION (adaptala a tu tono):
         if follower:
             intent_score = follower.purchase_intent_score or 0
             if intent_score >= 0.7:
-                conversion_boost = "\n\n🔥 ALERTA - LEAD MUY CALIENTE: Tiene {:.0%} de intención de compra. CIERRA LA VENTA AHORA. Ofrece el link de pago directamente.".format(intent_score)
+                conversion_boost = "\n\n🔥 ALERTA - LEAD MUY CALIENTE: Tiene {:.0%} de intención de compra. CIERRA LA VENTA AHORA. Ofrece el link de pago directamente.".format(
+                    intent_score
+                )
             elif intent_score >= 0.4:
-                conversion_boost = "\n\n⚡ LEAD CON INTERÉS: Tiene {:.0%} de intención. Avanza hacia el cierre - no hagas preguntas abiertas, ofrece el siguiente paso concreto.".format(intent_score)
+                conversion_boost = "\n\n⚡ LEAD CON INTERÉS: Tiene {:.0%} de intención. Avanza hacia el cierre - no hagas preguntas abiertas, ofrece el siguiente paso concreto.".format(
+                    intent_score
+                )
 
         prompt += f"\nINSTRUCCION: {instructions.get(intent, instructions[Intent.OTHER])}{conversion_boost}"
         prompt += "\n\n⚠️ RECUERDA: Usa la INFORMACIÓN DEL USUARIO de arriba para personalizar. NO des respuestas genéricas. SIEMPRE ofrece el siguiente paso."
@@ -3167,7 +3744,9 @@ USA ESTA RESPUESTA PARA LA OBJECION (adaptala a tu tono):
         else:
             return f"\n\nResponde en español (máximo 2-3 frases):"
 
-    def _handle_direct_payment_question(self, message: str, other_payment_methods: dict, language: str = "es") -> Optional[str]:
+    def _handle_direct_payment_question(
+        self, message: str, other_payment_methods: dict, language: str = "es"
+    ) -> Optional[str]:
         """Handle payment method questions directly without LLM.
 
         Returns a response string if the message is a specific payment method question,
@@ -3180,36 +3759,53 @@ USA ESTA RESPUESTA PARA LA OBJECION (adaptala a tu tono):
 
         # Check for GENERIC payment questions first - "¿cómo pago?", "formas de pago", etc.
         generic_payment_triggers = [
-            'cómo pago', 'como pago', 'cómo puedo pagar', 'como puedo pagar',
-            'formas de pago', 'métodos de pago', 'metodos de pago',
-            'qué opciones', 'que opciones', 'opciones de pago',
-            'cómo te pago', 'como te pago', 'cómo lo pago', 'como lo pago',
-            'manera de pagar', 'maneras de pagar', 'how do i pay', 'how can i pay',
-            'quiero pagar', 'puedo pagar', 'para pagar'
+            "cómo pago",
+            "como pago",
+            "cómo puedo pagar",
+            "como puedo pagar",
+            "formas de pago",
+            "métodos de pago",
+            "metodos de pago",
+            "qué opciones",
+            "que opciones",
+            "opciones de pago",
+            "cómo te pago",
+            "como te pago",
+            "cómo lo pago",
+            "como lo pago",
+            "manera de pagar",
+            "maneras de pagar",
+            "how do i pay",
+            "how can i pay",
+            "quiero pagar",
+            "puedo pagar",
+            "para pagar",
         ]
 
-        is_generic_payment_question = any(trigger in msg_lower for trigger in generic_payment_triggers)
+        is_generic_payment_question = any(
+            trigger in msg_lower for trigger in generic_payment_triggers
+        )
 
         if is_generic_payment_question:
             # Build list of ALL available payment methods
             available_methods = []
 
-            bizum = other_payment_methods.get('bizum', {})
-            if isinstance(bizum, dict) and bizum.get('enabled') and bizum.get('phone'):
+            bizum = other_payment_methods.get("bizum", {})
+            if isinstance(bizum, dict) and bizum.get("enabled") and bizum.get("phone"):
                 available_methods.append(f"Bizum al {bizum['phone']}")
 
-            bank = other_payment_methods.get('bank_transfer', {})
-            if isinstance(bank, dict) and bank.get('enabled') and bank.get('iban'):
-                holder = bank.get('holder_name', '')
+            bank = other_payment_methods.get("bank_transfer", {})
+            if isinstance(bank, dict) and bank.get("enabled") and bank.get("iban"):
+                holder = bank.get("holder_name", "")
                 holder_text = f" ({holder})" if holder else ""
                 available_methods.append(f"Transferencia a {bank['iban']}{holder_text}")
 
-            revolut = other_payment_methods.get('revolut', {})
-            if isinstance(revolut, dict) and revolut.get('enabled') and revolut.get('link'):
+            revolut = other_payment_methods.get("revolut", {})
+            if isinstance(revolut, dict) and revolut.get("enabled") and revolut.get("link"):
                 available_methods.append(f"Revolut: {revolut['link']}")
 
-            other = other_payment_methods.get('other', {})
-            if isinstance(other, dict) and other.get('enabled') and other.get('instructions'):
+            other = other_payment_methods.get("other", {})
+            if isinstance(other, dict) and other.get("enabled") and other.get("instructions"):
                 available_methods.append(f"PayPal: {other['instructions']}")
 
             # Also mention card payment if there are product payment links
@@ -3224,34 +3820,34 @@ USA ESTA RESPUESTA PARA LA OBJECION (adaptala a tu tono):
                 return f"¡Genial! Puedes pagar por:\n- {methods_text}\n\n¿Cuál prefieres? 😊"
 
         # Bizum
-        if 'bizum' in msg_lower:
-            bizum = other_payment_methods.get('bizum', {})
-            if isinstance(bizum, dict) and bizum.get('enabled') and bizum.get('phone'):
-                holder = bizum.get('holder_name', '')
+        if "bizum" in msg_lower:
+            bizum = other_payment_methods.get("bizum", {})
+            if isinstance(bizum, dict) and bizum.get("enabled") and bizum.get("phone"):
+                holder = bizum.get("holder_name", "")
                 holder_text = f" a nombre de {holder}" if holder else ""
                 logger.info(f"Direct payment response: Bizum -> {bizum['phone']}")
                 return f"¡Sí! Envía el importe al {bizum['phone']}{holder_text}. Avísame cuando lo hagas 👍"
 
         # Transferencia / IBAN
-        if 'transferencia' in msg_lower or 'iban' in msg_lower or 'cuenta' in msg_lower:
-            bank = other_payment_methods.get('bank_transfer', {})
-            if isinstance(bank, dict) and bank.get('enabled') and bank.get('iban'):
-                holder = bank.get('holder_name', '')
+        if "transferencia" in msg_lower or "iban" in msg_lower or "cuenta" in msg_lower:
+            bank = other_payment_methods.get("bank_transfer", {})
+            if isinstance(bank, dict) and bank.get("enabled") and bank.get("iban"):
+                holder = bank.get("holder_name", "")
                 holder_text = f" (titular: {holder})" if holder else ""
                 logger.info(f"Direct payment response: Bank Transfer -> {bank['iban']}")
                 return f"¡Claro! Haz transferencia a IBAN {bank['iban']}{holder_text}. Avísame cuando lo hagas 👍"
 
         # Revolut / Wise
-        if 'revolut' in msg_lower or 'wise' in msg_lower:
-            revolut = other_payment_methods.get('revolut', {})
-            if isinstance(revolut, dict) and revolut.get('enabled') and revolut.get('link'):
+        if "revolut" in msg_lower or "wise" in msg_lower:
+            revolut = other_payment_methods.get("revolut", {})
+            if isinstance(revolut, dict) and revolut.get("enabled") and revolut.get("link"):
                 logger.info(f"Direct payment response: Revolut -> {revolut['link']}")
                 return f"¡Sí! Envía el pago a {revolut['link']} por Revolut. Avísame cuando lo hagas 👍"
 
         # PayPal
-        if 'paypal' in msg_lower:
-            other = other_payment_methods.get('other', {})
-            if isinstance(other, dict) and other.get('enabled') and other.get('instructions'):
+        if "paypal" in msg_lower:
+            other = other_payment_methods.get("other", {})
+            if isinstance(other, dict) and other.get("enabled") and other.get("instructions"):
                 logger.info(f"Direct payment response: PayPal -> {other['instructions']}")
                 return f"¡Sí! Envía el pago a {other['instructions']} por PayPal. Avísame cuando lo hagas 👍"
 
@@ -3263,10 +3859,11 @@ USA ESTA RESPUESTA PARA LA OBJECION (adaptala a tu tono):
         message_text: str,
         message_id: str = "",
         username: str = "amigo",
-        name: str = ""
+        name: str = "",
     ) -> DMResponse:
         """Procesar DM y generar respuesta personalizada"""
         import time
+
         _process_start = time.time()
 
         logger.info(f"Processing DM from {sender_id}: {message_text}")
@@ -3293,7 +3890,7 @@ USA ESTA RESPUESTA PARA LA OBJECION (adaptala a tu tono):
                 intent=Intent.OTHER,
                 action_taken="bot_paused",
                 confidence=1.0,
-                metadata={"status": "paused", "message": "Bot pausado por el creador"}
+                metadata={"status": "paused", "message": "Bot pausado por el creador"},
             )
 
         # Products cached in __init__ with 5-minute TTL
@@ -3308,24 +3905,25 @@ USA ESTA RESPUESTA PARA LA OBJECION (adaptala a tu tono):
             # Check dialect for voseo
             dialect = get_tone_dialect(self.creator_id)
             if dialect == "rioplatense":
-                rate_msg = "Dame un momento, estoy procesando varios mensajes. Te respondo enseguida!"
+                rate_msg = (
+                    "Dame un momento, estoy procesando varios mensajes. Te respondo enseguida!"
+                )
             else:
-                rate_msg = "Dame un momento, estoy procesando varios mensajes. Te respondo enseguida!"
+                rate_msg = (
+                    "Dame un momento, estoy procesando varios mensajes. Te respondo enseguida!"
+                )
             return DMResponse(
                 response_text=rate_msg,
                 intent=Intent.OTHER,
                 action_taken="rate_limited",
                 confidence=1.0,
-                metadata={"rate_limit_reason": reason}
+                metadata={"rate_limit_reason": reason},
             )
 
         # Obtener/crear memoria del seguidor (with name/username if available)
         _t_mem = time.time()
         follower = await self.memory_store.get_or_create(
-            self.creator_id,
-            sender_id,
-            name=name,
-            username=username if username != "amigo" else ""
+            self.creator_id, sender_id, name=name, username=username if username != "amigo" else ""
         )
         logger.info(f"⏱️ memory_store.get_or_create took {time.time() - _t_mem:.2f}s")
 
@@ -3339,9 +3937,13 @@ USA ESTA RESPUESTA PARA LA OBJECION (adaptala a tu tono):
             user_profile = get_user_profile(sender_id, self.creator_id)
             if ENABLE_SEMANTIC_MEMORY:
                 semantic_memory = get_conversation_memory(sender_id, self.creator_id)
-                semantic_context = semantic_memory.get_context_for_query(message_text, recent_n=3, semantic_k=2)
+                semantic_context = semantic_memory.get_context_for_query(
+                    message_text, recent_n=3, semantic_k=2
+                )
                 if semantic_context:
-                    logger.debug(f"Semantic memory context retrieved ({len(semantic_context)} chars)")
+                    logger.debug(
+                        f"Semantic memory context retrieved ({len(semantic_context)} chars)"
+                    )
         except Exception as e:
             logger.warning(f"Personalization modules failed to load: {e}")
 
@@ -3401,7 +4003,7 @@ USA ESTA RESPUESTA PARA LA OBJECION (adaptala a tu tono):
                     response_text=response_text,
                     intent=Intent.OTHER,
                     confidence=0.95,
-                    metadata={"meta_action": "frustrated_recovery"}
+                    metadata={"meta_action": "frustrated_recovery"},
                 )
 
             elif action == "REVIEW_HISTORY":
@@ -3428,7 +4030,7 @@ USA ESTA RESPUESTA PARA LA OBJECION (adaptala a tu tono):
                     response_text=response_text,
                     intent=Intent.OTHER,
                     confidence=0.90,
-                    metadata={"meta_action": "sarcasm_recovery"}
+                    metadata={"meta_action": "sarcasm_recovery"},
                 )
 
         # Clasificar intent con contexto conversacional
@@ -3458,7 +4060,7 @@ USA ESTA RESPUESTA PARA LA OBJECION (adaptala a tu tono):
                     conversation_summary=f"Último tema: {follower.products_discussed[-1] if follower.products_discussed else 'General'}",
                     purchase_intent_score=follower.purchase_intent_score,
                     total_messages=follower.total_messages,
-                    products_discussed=follower.products_discussed
+                    products_discussed=follower.products_discussed,
                 )
                 await notification_service.notify_escalation(escalation)
                 logger.info(f"Escalation notification sent for {sender_id}")
@@ -3470,7 +4072,7 @@ USA ESTA RESPUESTA PARA LA OBJECION (adaptala a tu tono):
                 intent=intent,
                 action_taken="escalate",
                 escalate_to_human=True,
-                confidence=confidence
+                confidence=confidence,
             )
 
         # Verificar si quiere agendar una llamada
@@ -3487,7 +4089,9 @@ USA ESTA RESPUESTA PARA LA OBJECION (adaptala a tu tono):
 
             await self._update_memory(follower, message_text, response_text, intent)
 
-            logger.info(f"Booking intent detected - found {len(booking_links)} links (platform: {platform})")
+            logger.info(
+                f"Booking intent detected - found {len(booking_links)} links (platform: {platform})"
+            )
 
             # Include telegram keyboard in metadata if present
             metadata = {}
@@ -3499,7 +4103,7 @@ USA ESTA RESPUESTA PARA LA OBJECION (adaptala a tu tono):
                 intent=intent,
                 action_taken="show_booking_links",
                 confidence=confidence,
-                metadata=metadata
+                metadata=metadata,
             )
 
         # === ACKNOWLEDGMENT: Ahora pasa por flujo normal con LLM ===
@@ -3521,15 +4125,19 @@ USA ESTA RESPUESTA PARA LA OBJECION (adaptala a tu tono):
         # Buscar producto relevante
         product = self._get_relevant_product(message_text, intent)
         if product:
-            logger.info(f"Relevant product: {product.get('name')}, payment_link={get_valid_payment_url(product) or 'NONE'}")
-            if product.get('id') and product.get('id') not in follower.products_discussed:
-                follower.products_discussed.append(product.get('id'))
+            logger.info(
+                f"Relevant product: {product.get('name')}, payment_link={get_valid_payment_url(product) or 'NONE'}"
+            )
+            if product.get("id") and product.get("id") not in follower.products_discussed:
+                follower.products_discussed.append(product.get("id"))
 
         # === FAST PATH: Pregunta específica de método de pago ===
         # Bypass LLM when user asks specifically about Bizum, Transferencia, Revolut, PayPal
         # Use cached config (5-minute TTL)
-        other_payment_methods = self.creator_config.get('other_payment_methods', {})
-        logger.info(f"Payment methods for direct handler: {list(other_payment_methods.keys()) if other_payment_methods else 'None'}")
+        other_payment_methods = self.creator_config.get("other_payment_methods", {})
+        logger.info(
+            f"Payment methods for direct handler: {list(other_payment_methods.keys()) if other_payment_methods else 'None'}"
+        )
         direct_payment_response = self._handle_direct_payment_question(
             message_text, other_payment_methods, follower.preferred_language
         )
@@ -3542,7 +4150,9 @@ USA ESTA RESPUESTA PARA LA OBJECION (adaptala a tu tono):
             follower.purchase_intent_score = max(follower.purchase_intent_score or 0.0, 0.85)
             follower.is_lead = True
 
-            await self._update_memory(follower, message_text, direct_payment_response, Intent.INTEREST_STRONG)
+            await self._update_memory(
+                follower, message_text, direct_payment_response, Intent.INTEREST_STRONG
+            )
 
             return DMResponse(
                 response_text=direct_payment_response,
@@ -3552,24 +4162,36 @@ USA ESTA RESPUESTA PARA LA OBJECION (adaptala a tu tono):
                 metadata={
                     "direct_payment": True,
                     "method_type": "alternative",
-                    "purchase_intent_score": follower.purchase_intent_score
-                }
+                    "purchase_intent_score": follower.purchase_intent_score,
+                },
             )
 
         # === FAST PATH: Pregunta de precio específica ===
         # Cuando usuario pregunta "cuánto cuesta X" y tenemos el producto, responder directamente
         if intent == Intent.QUESTION_PRODUCT and product:
             msg_lower = message_text.lower()
-            price_keywords = ['cuanto cuesta', 'cuánto cuesta', 'precio', 'cuanto vale', 'cuánto vale',
-                              'que cuesta', 'qué cuesta', 'cuanto es', 'cuánto es', 'cual es el precio',
-                              'cuál es el precio', 'cuanto sale', 'cuánto sale']
+            price_keywords = [
+                "cuanto cuesta",
+                "cuánto cuesta",
+                "precio",
+                "cuanto vale",
+                "cuánto vale",
+                "que cuesta",
+                "qué cuesta",
+                "cuanto es",
+                "cuánto es",
+                "cual es el precio",
+                "cuál es el precio",
+                "cuanto sale",
+                "cuánto sale",
+            ]
             is_price_question = any(kw in msg_lower for kw in price_keywords)
 
             if is_price_question:
                 logger.info(f"=== FAST PATH: Price question for {product.get('name')} ===")
-                price = product.get('price') or 0
-                product_name = product.get('name', 'el servicio')
-                description = product.get('description', '')[:100]
+                price = product.get("price") or 0
+                product_name = product.get("name", "el servicio")
+                description = product.get("description", "")[:100]
 
                 if price > 0:
                     price_response = f"¡{product_name} tiene un precio de {int(price)}€! 🎯"
@@ -3591,8 +4213,8 @@ USA ESTA RESPUESTA PARA LA OBJECION (adaptala a tu tono):
                     metadata={
                         "fast_path": True,
                         "product_price": price,
-                        "product_id": product.get('id')
-                    }
+                        "product_id": product.get("id"),
+                    },
                 )
 
         # === FAST PATH: Compra directa ===
@@ -3600,7 +4222,9 @@ USA ESTA RESPUESTA PARA LA OBJECION (adaptala a tu tono):
         if is_direct_purchase_intent(message_text):
             logger.info(f"=== DIRECT PURCHASE INTENT DETECTED ===")
             logger.info(f"Message: {message_text}")
-            logger.info(f"All products: {[(p.get('name'), get_valid_payment_url(p) or 'NONE') for p in self.products]}")
+            logger.info(
+                f"All products: {[(p.get('name'), get_valid_payment_url(p) or 'NONE') for p in self.products]}"
+            )
 
             # Try to find a product with a payment link
             product_url = ""
@@ -3610,9 +4234,9 @@ USA ESTA RESPUESTA PARA LA OBJECION (adaptala a tu tono):
             def is_valid_link(link: str) -> bool:
                 if not link:
                     return False
-                if link.startswith('PENDIENTE'):
+                if link.startswith("PENDIENTE"):
                     return False
-                if not link.startswith('http'):
+                if not link.startswith("http"):
                     return False
                 return True
 
@@ -3621,7 +4245,7 @@ USA ESTA RESPUESTA PARA LA OBJECION (adaptala a tu tono):
                 potential_url = get_valid_payment_url(product)
                 if is_valid_link(potential_url):
                     product_url = potential_url
-                product_name = product.get('name', 'el producto')
+                product_name = product.get("name", "el producto")
 
             # If no link, try to find ANY product with a payment link
             if not product_url:
@@ -3629,7 +4253,7 @@ USA ESTA RESPUESTA PARA LA OBJECION (adaptala a tu tono):
                     link = get_valid_payment_url(p)
                     if is_valid_link(link):
                         product_url = link
-                        product_name = p.get('name', 'el producto')
+                        product_name = p.get("name", "el producto")
                         logger.info(f"Found fallback payment link from product: {product_name}")
                         break
 
@@ -3639,7 +4263,9 @@ USA ESTA RESPUESTA PARA LA OBJECION (adaptala a tu tono):
             follower.purchase_intent_score = max(follower.purchase_intent_score or 0.0, 0.85)
             follower.is_lead = True
 
-            logger.info(f"DIRECT PURCHASE detected - giving link only, score set to {follower.purchase_intent_score}")
+            logger.info(
+                f"DIRECT PURCHASE detected - giving link only, score set to {follower.purchase_intent_score}"
+            )
 
             # Elegir emoji basado en idioma
             emoji = "🚀" if follower.preferred_language == "es" else "🎉"
@@ -3652,27 +4278,29 @@ USA ESTA RESPUESTA PARA LA OBJECION (adaptala a tu tono):
                     response_text = f"Perfect! {emoji} Here you go: {product_url}"
             else:
                 # No hay link configurado - TRY ALTERNATIVE PAYMENT METHODS FIRST
-                logger.warning(f"NO PAYMENT LINK FOUND for any product! Checking alternative methods...")
+                logger.warning(
+                    f"NO PAYMENT LINK FOUND for any product! Checking alternative methods..."
+                )
 
                 # Build list of available alternative payment methods
                 available_methods = []
 
-                bizum = other_payment_methods.get('bizum', {})
-                if isinstance(bizum, dict) and bizum.get('enabled') and bizum.get('phone'):
+                bizum = other_payment_methods.get("bizum", {})
+                if isinstance(bizum, dict) and bizum.get("enabled") and bizum.get("phone"):
                     available_methods.append(f"Bizum al {bizum['phone']}")
 
-                bank = other_payment_methods.get('bank_transfer', {})
-                if isinstance(bank, dict) and bank.get('enabled') and bank.get('iban'):
-                    holder = bank.get('holder_name', '')
+                bank = other_payment_methods.get("bank_transfer", {})
+                if isinstance(bank, dict) and bank.get("enabled") and bank.get("iban"):
+                    holder = bank.get("holder_name", "")
                     holder_text = f" ({holder})" if holder else ""
                     available_methods.append(f"Transferencia a {bank['iban']}{holder_text}")
 
-                revolut = other_payment_methods.get('revolut', {})
-                if isinstance(revolut, dict) and revolut.get('enabled') and revolut.get('link'):
+                revolut = other_payment_methods.get("revolut", {})
+                if isinstance(revolut, dict) and revolut.get("enabled") and revolut.get("link"):
                     available_methods.append(f"Revolut: {revolut['link']}")
 
-                other = other_payment_methods.get('other', {})
-                if isinstance(other, dict) and other.get('enabled') and other.get('instructions'):
+                other = other_payment_methods.get("other", {})
+                if isinstance(other, dict) and other.get("enabled") and other.get("instructions"):
                     available_methods.append(f"PayPal: {other['instructions']}")
 
                 if available_methods:
@@ -3690,7 +4318,9 @@ USA ESTA RESPUESTA PARA LA OBJECION (adaptala a tu tono):
                         response_text = f"Great! {emoji} You can pay via:\n- {methods_text}\n\nWhich do you prefer?"
                 else:
                     # No alternative methods either - natural response asking to continue DM
-                    logger.warning(f"NO ALTERNATIVE PAYMENT METHODS FOUND either - using natural DM response")
+                    logger.warning(
+                        f"NO ALTERNATIVE PAYMENT METHODS FOUND either - using natural DM response"
+                    )
                     if follower.preferred_language == "es":
                         # Check dialect for voseo
                         dialect = get_tone_dialect(self.creator_id)
@@ -3702,16 +4332,20 @@ USA ESTA RESPUESTA PARA LA OBJECION (adaptala a tu tono):
                         response_text = f"Great that you're interested! {emoji} For payments and bookings, just message me here and I'll send you the details. Which product interests you?"
 
             # Guardar en historial
-            follower.last_messages.append({
-                "role": "user",
-                "content": message_text,
-                "timestamp": datetime.now(timezone.utc).isoformat()
-            })
-            follower.last_messages.append({
-                "role": "assistant",
-                "content": response_text,
-                "timestamp": datetime.now(timezone.utc).isoformat()
-            })
+            follower.last_messages.append(
+                {
+                    "role": "user",
+                    "content": message_text,
+                    "timestamp": datetime.now(timezone.utc).isoformat(),
+                }
+            )
+            follower.last_messages.append(
+                {
+                    "role": "assistant",
+                    "content": response_text,
+                    "timestamp": datetime.now(timezone.utc).isoformat(),
+                }
+            )
             follower.total_messages += 1
             follower.last_contact = datetime.now(timezone.utc).isoformat()
 
@@ -3721,18 +4355,22 @@ USA ESTA RESPUESTA PARA LA OBJECION (adaptala a tu tono):
 
             await self.memory_store.save(follower)
             # Save BOTH messages to PostgreSQL (fire-and-forget - don't block response)
-            self._save_message_to_db_fire_and_forget(follower.follower_id, 'user', message_text, str(intent))
-            self._save_message_to_db_fire_and_forget(follower.follower_id, 'assistant', response_text, None)
+            self._save_message_to_db_fire_and_forget(
+                follower.follower_id, "user", message_text, str(intent)
+            )
+            self._save_message_to_db_fire_and_forget(
+                follower.follower_id, "assistant", response_text, None
+            )
 
             # Track product link click
             try:
                 sales_tracker = get_sales_tracker()
                 sales_tracker.record_click(
                     creator_id=self.creator_id,
-                    product_id=product.get('id', ''),
+                    product_id=product.get("id", ""),
                     follower_id=follower.follower_id,
                     product_name=product_name,
-                    link_url=product_url
+                    link_url=product_url,
                 )
             except Exception as e:
                 logger.warning(f"Failed to track click: {e}")
@@ -3746,8 +4384,8 @@ USA ESTA RESPUESTA PARA LA OBJECION (adaptala a tu tono):
                 metadata={
                     "direct_purchase": True,
                     "product_url": product_url,
-                    "purchase_intent_score": follower.purchase_intent_score
-                }
+                    "purchase_intent_score": follower.purchase_intent_score,
+                },
             )
 
         # =============================================================================
@@ -3758,14 +4396,20 @@ USA ESTA RESPUESTA PARA LA OBJECION (adaptala a tu tono):
             from core.citation_service import get_citation_prompt_section
 
             # Buscar contenido relevante en RAG
-            citation_section = get_citation_prompt_section(self.creator_id, message_text, min_relevance=0.25)
+            citation_section = get_citation_prompt_section(
+                self.creator_id, message_text, min_relevance=0.25
+            )
 
             if not citation_section:
                 # NO hay contenido relevante en RAG → Escalar al creador
-                logger.warning(f"[ANTI-HALLUCINATION] Intent {intent.value} requires RAG but NO content found. Escalating.")
+                logger.warning(
+                    f"[ANTI-HALLUCINATION] Intent {intent.value} requires RAG but NO content found. Escalating."
+                )
 
                 # Obtener nombre del creador para el mensaje
-                creator_name = self.creator_config.get('clone_name') or self.creator_config.get('name', 'el creador')
+                creator_name = self.creator_config.get("clone_name") or self.creator_config.get(
+                    "name", "el creador"
+                )
 
                 # Mensaje de escalado personalizado
                 dialect = get_tone_dialect(self.creator_id)
@@ -3783,7 +4427,7 @@ USA ESTA RESPUESTA PARA LA OBJECION (adaptala a tu tono):
                         db_service.update_lead(
                             creator_name=self.creator_id,
                             lead_id=sender_id,  # platform_user_id
-                            data={"status": "needs_human"}
+                            data={"status": "needs_human"},
                         )
                         logger.info(f"[ANTI-HALLUCINATION] Lead {sender_id} marked as needs_human")
                 except Exception as e:
@@ -3801,11 +4445,13 @@ USA ESTA RESPUESTA PARA LA OBJECION (adaptala a tu tono):
                     metadata={
                         "anti_hallucination": True,
                         "reason": "no_relevant_rag_content",
-                        "original_intent": intent.value
-                    }
+                        "original_intent": intent.value,
+                    },
                 )
             else:
-                logger.info(f"[ANTI-HALLUCINATION] Intent {intent.value} - RAG content found, proceeding with LLM")
+                logger.info(
+                    f"[ANTI-HALLUCINATION] Intent {intent.value} - RAG content found, proceeding with LLM"
+                )
 
         # Obtener handler de objeción
         objection_handler = self._get_objection_handler(intent, product)
@@ -3815,6 +4461,7 @@ USA ESTA RESPUESTA PARA LA OBJECION (adaptala a tu tono):
 
         # Construir prompts (pass message for citation lookup)
         import time
+
         _t0 = time.time()
         system_prompt = self._build_system_prompt(message=message_text)
         logger.info(f"⏱️ _build_system_prompt took {time.time() - _t0:.2f}s")
@@ -3841,7 +4488,7 @@ USA ESTA RESPUESTA PARA LA OBJECION (adaptala a tu tono):
             product=product,
             objection_handler=objection_handler,
             conversation_history=follower.last_messages,
-            follower=follower  # Para control de links y objeciones
+            follower=follower,  # Para control de links y objeciones
         )
 
         logger.info(f"⏱️ _build_user_prompt took {time.time() - _t1:.2f}s")
@@ -3852,7 +4499,9 @@ USA ESTA RESPUESTA PARA LA OBJECION (adaptala a tu tono):
         tone_language = get_tone_language(self.creator_id)
         if tone_language:
             user_language = tone_language
-            logger.info(f"Using ToneProfile language: {tone_language} (overrides follower preferred: {follower.preferred_language})")
+            logger.info(
+                f"Using ToneProfile language: {tone_language} (overrides follower preferred: {follower.preferred_language})"
+            )
         else:
             user_language = follower.preferred_language
         user_prompt += self._build_language_instruction(user_language)
@@ -3860,8 +4509,8 @@ USA ESTA RESPUESTA PARA LA OBJECION (adaptala a tu tono):
         # Check cache para respuestas frecuentes (solo intents cacheables)
         response_cache = get_response_cache()
         # Include clone_tone and clone_vocabulary hash in cache key so config changes invalidate cache
-        clone_tone = self.creator_config.get('clone_tone', 'friendly')
-        clone_vocabulary = self.creator_config.get('clone_vocabulary', '')
+        clone_tone = self.creator_config.get("clone_tone", "friendly")
+        clone_vocabulary = self.creator_config.get("clone_vocabulary", "")
         # Use hash of vocabulary to avoid long cache keys
         vocab_hash = hash(clone_vocabulary) if clone_vocabulary else 0
         cache_key_params = {
@@ -3869,7 +4518,7 @@ USA ESTA RESPUESTA PARA LA OBJECION (adaptala a tu tono):
             "intent": intent.value,
             "language": user_language,
             "tone": clone_tone,
-            "vocab": vocab_hash
+            "vocab": vocab_hash,
         }
 
         # Solo cachear intents que lo permiten
@@ -3906,14 +4555,16 @@ USA ESTA RESPUESTA PARA LA OBJECION (adaptala a tu tono):
                         logger.info("Using Chain of Thought for complex query")
                         cot_context = {
                             "creator_name": self.creator_config.get("name", "el creador"),
-                            "products": self.products
+                            "products": self.products,
                         }
                         cot_result = await cot_reasoner.generate(message_text, cot_context)
 
                         if cot_result.is_complex and cot_result.answer:
                             response_text = cot_result.answer
                             cot_used = True
-                            logger.info(f"CoT response: type={cot_result.query_type}, steps={len(cot_result.reasoning_steps)}")
+                            logger.info(
+                                f"CoT response: type={cot_result.query_type}, steps={len(cot_result.reasoning_steps)}"
+                            )
                 except Exception as cot_error:
                     logger.warning(f"Chain of Thought failed: {cot_error}")
 
@@ -3933,7 +4584,9 @@ USA ESTA RESPUESTA PARA LA OBJECION (adaptala a tu tono):
                     if topic:
                         topic_section = f"\n=== TEMA ACTUAL DE LA CONVERSACIÓN ===\n"
                         topic_section += f"Estamos hablando de: {topic.upper()}\n"
-                        topic_section += f"⚠️ MANTÉN el foco en este tema. No cambies de tema sin razón.\n"
+                        topic_section += (
+                            f"⚠️ MANTÉN el foco en este tema. No cambies de tema sin razón.\n"
+                        )
                         system_prompt += topic_section
                         logger.info(f"Conversation topic detected: {topic}")
 
@@ -3942,7 +4595,9 @@ USA ESTA RESPUESTA PARA LA OBJECION (adaptala a tu tono):
                     if total_msgs > 0 and total_msgs % 4 == 0:
                         cta_section = "\n=== MOMENTO DE AVANZAR ===\n"
                         cta_section += "Llevamos varios mensajes. Propón una ACCIÓN CONCRETA:\n"
-                        cta_section += "- Si hay interés: ofrece el link de pago o agendar llamada\n"
+                        cta_section += (
+                            "- Si hay interés: ofrece el link de pago o agendar llamada\n"
+                        )
                         cta_section += "- Si hay dudas: resuelve la duda más importante\n"
                         cta_section += "⚠️ NO hagas otra pregunta abierta. PROPÓN algo concreto.\n"
                         system_prompt += cta_section
@@ -3956,15 +4611,35 @@ USA ESTA RESPUESTA PARA LA OBJECION (adaptala a tu tono):
 
                     # Proactive close for high-intent users
                     purchase_score = follower.purchase_intent_score or 0.0
-                    has_strong_interest_keywords = any(kw in message_text.lower() for kw in STRONG_INTEREST_KEYWORDS)
-                    high_intent_intents = {Intent.INTEREST_STRONG, Intent.INTEREST_SOFT, Intent.QUESTION_PRODUCT}
+                    has_strong_interest_keywords = any(
+                        kw in message_text.lower() for kw in STRONG_INTEREST_KEYWORDS
+                    )
+                    high_intent_intents = {
+                        Intent.INTEREST_STRONG,
+                        Intent.INTEREST_SOFT,
+                        Intent.QUESTION_PRODUCT,
+                    }
 
-                    if purchase_score >= 0.70 or intent in high_intent_intents or has_strong_interest_keywords:
+                    if (
+                        purchase_score >= 0.70
+                        or intent in high_intent_intents
+                        or has_strong_interest_keywords
+                    ):
                         system_prompt += PROACTIVE_CLOSE_INSTRUCTION
-                        logger.info(f"Added PROACTIVE_CLOSE (score={purchase_score:.0%}, intent={intent.value}, keywords={has_strong_interest_keywords})")
+                        logger.info(
+                            f"Added PROACTIVE_CLOSE (score={purchase_score:.0%}, intent={intent.value}, keywords={has_strong_interest_keywords})"
+                        )
 
-                    logger.info(f"Conversion optimization injected: NO_REPEAT + COHERENCE + CONVERSION" +
-                               (f" + PROACTIVE_CLOSE" if purchase_score >= 0.70 or intent in high_intent_intents or has_strong_interest_keywords else ""))
+                    logger.info(
+                        f"Conversion optimization injected: NO_REPEAT + COHERENCE + CONVERSION"
+                        + (
+                            f" + PROACTIVE_CLOSE"
+                            if purchase_score >= 0.70
+                            or intent in high_intent_intents
+                            or has_strong_interest_keywords
+                            else ""
+                        )
+                    )
 
                     # === MULTI-TURN: Construir conversación real ===
                     # ANTES: Solo system + user_prompt (historial como texto)
@@ -3980,10 +4655,15 @@ USA ESTA RESPUESTA PARA LA OBJECION (adaptala a tu tono):
                                 messages.append({"role": role, "content": content})
 
                     # Mensaje actual del usuario (si no está ya en el historial)
-                    if not follower.last_messages or follower.last_messages[-1].get("content") != message_text:
+                    if (
+                        not follower.last_messages
+                        or follower.last_messages[-1].get("content") != message_text
+                    ):
                         messages.append({"role": "user", "content": message_text})
 
-                    logger.info(f"Multi-turn LLM call: {len(messages)} messages ({len(messages)-1} history + system)")
+                    logger.info(
+                        f"Multi-turn LLM call: {len(messages)} messages ({len(messages)-1} history + system)"
+                    )
                     logger.info(f"=== DEBUG: Calling LLM ===")
                     logger.info(f"Message: {message_text[:100]}")
                     logger.info(f"Intent: {intent.value} ({confidence:.2f})")
@@ -3993,27 +4673,33 @@ USA ESTA RESPUESTA PARA LA OBJECION (adaptala a tu tono):
                     response_text = await self.llm.chat(
                         messages,
                         max_tokens=80,  # CORTO - 1-2 frases máximo
-                        temperature=0.8  # Más natural, menos robótico
+                        temperature=0.8,  # Más natural, menos robótico
                     )
                     response_text = response_text.strip()
                     logger.info(f"⏱️ LLM call took {time.time() - _t_llm:.2f}s")
-                    logger.info(f"LLM Response: {response_text[:150] if response_text else 'EMPTY'}")
+                    logger.info(
+                        f"LLM Response: {response_text[:150] if response_text else 'EMPTY'}"
+                    )
 
                 # Validate response with guardrails
                 try:
                     guardrail = get_response_guardrail()
                     product_prices = [p.get("price") for p in self.products if p.get("price")]
-                    logger.debug(f"Guardrail context: {len(self.products)} products, prices: {product_prices}")
+                    logger.debug(
+                        f"Guardrail context: {len(self.products)} products, prices: {product_prices}"
+                    )
                     guardrail_context = {
                         "products": self.products,
-                        "allowed_urls": [p.get("payment_link", "") for p in self.products if p.get("payment_link")],
+                        "allowed_urls": [
+                            p.get("payment_link", "")
+                            for p in self.products
+                            if p.get("payment_link")
+                        ],
                         "creator_config": self.creator_config,
-                        "language": user_language
+                        "language": user_language,
                     }
                     response_text = guardrail.get_safe_response(
-                        query=message_text,
-                        response=response_text,
-                        context=guardrail_context
+                        query=message_text, response=response_text, context=guardrail_context
                     )
                 except Exception as ge:
                     logger.warning(f"Guardrail check failed: {ge}")
@@ -4042,7 +4728,9 @@ USA ESTA RESPUESTA PARA LA OBJECION (adaptala a tu tono):
                 skip_consistency = intent not in intents_needing_validation
 
                 if skip_consistency:
-                    logger.info(f"Skipping self-consistency for simple intent {intent.value} (confidence={confidence:.2f})")
+                    logger.info(
+                        f"Skipping self-consistency for simple intent {intent.value} (confidence={confidence:.2f})"
+                    )
                 else:
                     try:
                         consistency_validator = get_self_consistency_validator(self.llm)
@@ -4050,7 +4738,7 @@ USA ESTA RESPUESTA PARA LA OBJECION (adaptala a tu tono):
                             query=message_text,
                             response=response_text,
                             system_prompt=system_prompt,
-                            max_tokens=200
+                            max_tokens=200,
                         )
 
                         # Log confidence for monitoring
@@ -4061,7 +4749,9 @@ USA ESTA RESPUESTA PARA LA OBJECION (adaptala a tu tono):
 
                         if not consistency_result.is_consistent:
                             # Low confidence -> safe fallback
-                            creator_name = self.creator_config.get('clone_name') or self.creator_config.get('name', 'el creador')
+                            creator_name = self.creator_config.get(
+                                "clone_name"
+                            ) or self.creator_config.get("name", "el creador")
                             if user_language == "es":
                                 # Check dialect for voseo
                                 dialect = get_tone_dialect(self.creator_id)
@@ -4072,11 +4762,15 @@ USA ESTA RESPUESTA PARA LA OBJECION (adaptala a tu tono):
                             elif user_language == "en":
                                 response_text = f"Let me confirm this with {creator_name} and I'll get back to you shortly."
                             elif user_language == "pt":
-                                response_text = f"Deixe-me confirmar isso com {creator_name} e já te respondo."
+                                response_text = (
+                                    f"Deixe-me confirmar isso com {creator_name} e já te respondo."
+                                )
                             else:
                                 response_text = f"Déjame confirmarlo con {creator_name} y te respondo enseguida."
 
-                            logger.info(f"Low confidence ({consistency_result.confidence:.2f}) - using safe fallback")
+                            logger.info(
+                                f"Low confidence ({consistency_result.confidence:.2f}) - using safe fallback"
+                            )
 
                             # Record for analytics (optional: track escalations due to low confidence)
                             try:
@@ -4098,10 +4792,7 @@ USA ESTA RESPUESTA PARA LA OBJECION (adaptala a tu tono):
                     if response_lang != user_language:
                         logger.info(f"Translating response from {response_lang} to {user_language}")
                         response_text = await translate_response(
-                            response_text,
-                            user_language,
-                            response_lang,
-                            self.llm
+                            response_text, user_language, response_lang, self.llm
                         )
 
                 # Cachear respuesta si es cacheable
@@ -4112,6 +4803,7 @@ USA ESTA RESPUESTA PARA LA OBJECION (adaptala a tu tono):
 
             except Exception as e:
                 import traceback
+
                 logger.error(f"=== ERROR generating response ===")
                 logger.error(f"Error type: {type(e).__name__}")
                 logger.error(f"Error message: {e}")
@@ -4122,18 +4814,14 @@ USA ESTA RESPUESTA PARA LA OBJECION (adaptala a tu tono):
                 # Registrar error en metricas
                 provider = os.getenv("LLM_PROVIDER", "unknown")
                 record_llm_error(
-                    creator_id=self.creator_id,
-                    provider=provider,
-                    error_type=type(e).__name__
+                    creator_id=self.creator_id, provider=provider, error_type=type(e).__name__
                 )
 
                 # Enviar alerta de error LLM
                 try:
                     alert_manager = get_alert_manager()
                     await alert_manager.alert_llm_error(
-                        error=str(e),
-                        creator_id=self.creator_id,
-                        provider=provider
+                        error=str(e), creator_id=self.creator_id, provider=provider
                     )
                 except Exception as alert_error:
                     logger.debug(f"Could not send alert: {alert_error}")
@@ -4173,10 +4861,7 @@ USA ESTA RESPUESTA PARA LA OBJECION (adaptala a tu tono):
 
         # Programar nurturing si aplica
         nurturing_scheduled = await self._schedule_nurturing_if_needed(
-            follower_id=sender_id,
-            intent=intent,
-            product=product,
-            is_customer=follower.is_customer
+            follower_id=sender_id, intent=intent, product=product, is_customer=follower.is_customer
         )
 
         # Add AI transparency disclosure for first message if enabled
@@ -4191,18 +4876,24 @@ USA ESTA RESPUESTA PARA LA OBJECION (adaptala a tu tono):
         logger.info(f"Response: {response_text[:100]}...")
 
         # Track product link click if response contains a link and product was mentioned
-        if product and ('http' in response_text.lower() or '.com' in response_text.lower() or 'hotmart' in response_text.lower()):
+        if product and (
+            "http" in response_text.lower()
+            or ".com" in response_text.lower()
+            or "hotmart" in response_text.lower()
+        ):
             try:
                 sales_tracker = get_sales_tracker()
                 product_url = get_valid_payment_url(product)
                 sales_tracker.record_click(
                     creator_id=self.creator_id,
-                    product_id=product.get('id', ''),
+                    product_id=product.get("id", ""),
                     follower_id=sender_id,
-                    product_name=product.get('name', ''),
-                    link_url=product_url
+                    product_name=product.get("name", ""),
+                    link_url=product_url,
                 )
-                logger.info(f"Click tracked for product {product.get('name')} -> follower {sender_id}")
+                logger.info(
+                    f"Click tracked for product {product.get('name')} -> follower {sender_id}"
+                )
             except Exception as e:
                 logger.warning(f"Failed to track click: {e}")
 
@@ -4211,14 +4902,12 @@ USA ESTA RESPUESTA PARA LA OBJECION (adaptala a tu tono):
             sender_id=sender_id,
             intent=intent,
             is_lead=follower.is_lead,
-            score=follower.purchase_intent_score
+            score=follower.purchase_intent_score,
         )
 
         # Registrar mensaje procesado en metricas Prometheus
         record_message_processed(
-            creator_id=self.creator_id,
-            platform="instagram",
-            intent=intent.value
+            creator_id=self.creator_id, platform="instagram", intent=intent.value
         )
 
         # === EMAIL CAPTURE SYSTEM ===
@@ -4226,9 +4915,9 @@ USA ESTA RESPUESTA PARA LA OBJECION (adaptala a tu tono):
         try:
             from core.unified_profile_service import (
                 extract_email,
-                should_ask_email,
                 process_email_capture,
-                record_email_ask
+                record_email_ask,
+                should_ask_email,
             )
 
             # 1. Check if message contains an email
@@ -4240,14 +4929,16 @@ USA ESTA RESPUESTA PARA LA OBJECION (adaptala a tu tono):
                     platform="instagram",
                     platform_user_id=sender_id,
                     creator_id=self.creator_id,
-                    name=follower.name
+                    name=follower.name,
                 )
                 if not result.get("error"):
                     email_captured = True
                     # Use the response generated by the service
                     response_text = result.get("response", response_text)
                     is_returning = not result.get("is_new", True)
-                    logger.info(f"Email captured: {detected_email} for {sender_id} (returning={is_returning})")
+                    logger.info(
+                        f"Email captured: {detected_email} for {sender_id} (returning={is_returning})"
+                    )
 
             # 2. If no email captured, check if we should ask for one
             if not email_captured:
@@ -4256,7 +4947,7 @@ USA ESTA RESPUESTA PARA LA OBJECION (adaptala a tu tono):
                     platform_user_id=sender_id,
                     creator_id=self.creator_id,
                     intent=intent.value,
-                    message_count=follower.total_messages
+                    message_count=follower.total_messages,
                 )
                 if ask_decision.should_ask:
                     # Append email ask to response
@@ -4272,25 +4963,22 @@ USA ESTA RESPUESTA PARA LA OBJECION (adaptala a tu tono):
             response_text=response_text,
             intent=intent,
             action_taken=intent.value,
-            product_mentioned=product.get('name') if product else None,
-            follow_up_needed=intent in [Intent.INTEREST_SOFT, Intent.OBJECTION_PRICE, Intent.OBJECTION_TIME],
+            product_mentioned=product.get("name") if product else None,
+            follow_up_needed=intent
+            in [Intent.INTEREST_SOFT, Intent.OBJECTION_PRICE, Intent.OBJECTION_TIME],
             escalate_to_human=False,
             confidence=confidence,
             metadata={
-                "product_id": product.get('id') if product else None,
+                "product_id": product.get("id") if product else None,
                 "follower_messages": follower.total_messages,
                 "nurturing_scheduled": nurturing_scheduled,
                 "language": user_language,
-                "email_captured": email_captured
-            }
+                "email_captured": email_captured,
+            },
         )
 
     async def _update_memory(
-        self,
-        follower: FollowerMemory,
-        message: str,
-        response: str,
-        intent: Intent
+        self, follower: FollowerMemory, message: str, response: str, intent: Intent
     ):
         """Actualizar memoria del seguidor"""
         follower.total_messages += 1
@@ -4298,43 +4986,43 @@ USA ESTA RESPUESTA PARA LA OBJECION (adaptala a tu tono):
         follower.last_contact = timestamp
 
         # Añadir al historial con timestamps
-        follower.last_messages.append({
-            "role": "user",
-            "content": message,
-            "timestamp": timestamp
-        })
-        follower.last_messages.append({
-            "role": "assistant",
-            "content": response,
-            "timestamp": timestamp
-        })
+        follower.last_messages.append({"role": "user", "content": message, "timestamp": timestamp})
+        follower.last_messages.append(
+            {"role": "assistant", "content": response, "timestamp": timestamp}
+        )
 
         # Limitar historial
         if len(follower.last_messages) > 20:
             follower.last_messages = follower.last_messages[-20:]
 
         # Trackear links enviados (detectar si la respuesta contiene un link)
-        if 'http' in response.lower() or '.com' in response.lower() or 'hotmart' in response.lower():
+        if (
+            "http" in response.lower()
+            or ".com" in response.lower()
+            or "hotmart" in response.lower()
+        ):
             follower.links_sent_count += 1
             follower.last_link_message_num = follower.total_messages
-            logger.debug(f"Link detected in response. Total links sent: {follower.links_sent_count}")
+            logger.debug(
+                f"Link detected in response. Total links sent: {follower.links_sent_count}"
+            )
 
         # Trackear objeciones manejadas y argumentos usados
-        if intent.value.startswith('objection_'):
-            objection_type = intent.value.replace('objection_', '')
+        if intent.value.startswith("objection_"):
+            objection_type = intent.value.replace("objection_", "")
             if objection_type not in follower.objections_handled:
                 follower.objections_handled.append(objection_type)
 
             # Detectar argumentos usados en la respuesta
             argument_keywords = {
-                'garantia': ['garantía', 'garantia', '30 días', '30 dias', 'devolucion'],
-                'roi': ['recuperas', 'rentabiliza', 'primera semana', 'roi'],
-                'tiempo_corto': ['15 minutos', 'poco tiempo', 'rápido', 'flexible'],
-                'testimonios': ['alumnos', 'casos', 'testimonios', 'resultados'],
-                'soporte': ['soporte', 'ayuda', 'acompaño', 'comunidad'],
-                'niveles': ['todos los niveles', 'desde cero', 'principiante'],
-                'facil': ['fácil', 'sencillo', 'paso a paso'],
-                'unico': ['único', 'diferente', 'exclusivo'],
+                "garantia": ["garantía", "garantia", "30 días", "30 dias", "devolucion"],
+                "roi": ["recuperas", "rentabiliza", "primera semana", "roi"],
+                "tiempo_corto": ["15 minutos", "poco tiempo", "rápido", "flexible"],
+                "testimonios": ["alumnos", "casos", "testimonios", "resultados"],
+                "soporte": ["soporte", "ayuda", "acompaño", "comunidad"],
+                "niveles": ["todos los niveles", "desde cero", "principiante"],
+                "facil": ["fácil", "sencillo", "paso a paso"],
+                "unico": ["único", "diferente", "exclusivo"],
             }
             for arg_name, keywords in argument_keywords.items():
                 if any(kw in response.lower() for kw in keywords):
@@ -4348,9 +5036,34 @@ USA ESTA RESPUESTA PARA LA OBJECION (adaptala a tu tono):
         # === TRACKING DE NATURALIDAD ===
 
         # Detectar y trackear emojis usados en la respuesta
-        emoji_pattern = ['🙌', '💪', '🔥', '✨', '🚀', '👏', '💯', '⚡', '😊', '😄',
-                        '🤗', '☺️', '😉', '🙂', '👍', '🤔', '💭', '🧐', '💡', '🎉',
-                        '🎊', '🥳', '🏆', '👋', '🎯', '📈']
+        emoji_pattern = [
+            "🙌",
+            "💪",
+            "🔥",
+            "✨",
+            "🚀",
+            "👏",
+            "💯",
+            "⚡",
+            "😊",
+            "😄",
+            "🤗",
+            "☺️",
+            "😉",
+            "🙂",
+            "👍",
+            "🤔",
+            "💭",
+            "🧐",
+            "💡",
+            "🎉",
+            "🎊",
+            "🥳",
+            "🏆",
+            "👋",
+            "🎯",
+            "📈",
+        ]
         for emoji in emoji_pattern:
             if emoji in response:
                 if emoji not in follower.last_emojis_used:
@@ -4361,9 +5074,9 @@ USA ESTA RESPUESTA PARA LA OBJECION (adaptala a tu tono):
 
         # Detectar estilo de inicio del mensaje para no repetir
         response_start = response[:20].lower() if response else ""
-        greeting_styles = ['ey ', 'hey ', 'hola', 'buenas', 'genial', 'claro', 'entiendo', 'mira']
+        greeting_styles = ["ey ", "hey ", "hola", "buenas", "genial", "claro", "entiendo", "mira"]
         for style in greeting_styles:
-            if response_start.startswith(style) or f'¡{style}' in response_start:
+            if response_start.startswith(style) or f"¡{style}" in response_start:
                 follower.last_greeting_style = style.strip()
                 break
 
@@ -4385,7 +5098,14 @@ USA ESTA RESPUESTA PARA LA OBJECION (adaptala a tu tono):
 
         # === TRACKING DE CONTACTO ALTERNATIVO ===
         # Detectar si el bot pidió el contacto
-        contact_request_phrases = ['whatsapp', 'telegram', 'te paso mi', 'pasame tu', 'tu número', 'tu numero']
+        contact_request_phrases = [
+            "whatsapp",
+            "telegram",
+            "te paso mi",
+            "pasame tu",
+            "tu número",
+            "tu numero",
+        ]
         if any(phrase in response.lower() for phrase in contact_request_phrases):
             if not follower.alternative_contact:  # Solo marcar si no tenemos el contacto ya
                 follower.contact_requested = True
@@ -4394,14 +5114,15 @@ USA ESTA RESPUESTA PARA LA OBJECION (adaptala a tu tono):
         # Detectar si el usuario dio su contacto (número de teléfono o username)
         if not follower.alternative_contact:
             import re
+
             # Patrones para detectar contacto
             # Número de teléfono (varios formatos)
             phone_patterns = [
-                r'\+?\d{1,3}[-.\s]?\d{2,4}[-.\s]?\d{2,4}[-.\s]?\d{2,4}',  # +34 612 345 678
-                r'\d{9,12}',  # 612345678
+                r"\+?\d{1,3}[-.\s]?\d{2,4}[-.\s]?\d{2,4}[-.\s]?\d{2,4}",  # +34 612 345 678
+                r"\d{9,12}",  # 612345678
             ]
             # Username de Telegram (@username)
-            telegram_pattern = r'@[\w]{4,32}'
+            telegram_pattern = r"@[\w]{4,32}"
 
             message_lower = message.lower()
 
@@ -4411,7 +5132,7 @@ USA ESTA RESPUESTA PARA LA OBJECION (adaptala a tu tono):
                 if match:
                     phone = match.group()
                     # Verificar que parece un teléfono válido (no cualquier número)
-                    digits_only = re.sub(r'\D', '', phone)
+                    digits_only = re.sub(r"\D", "", phone)
                     if len(digits_only) >= 9:
                         follower.alternative_contact = phone
                         follower.alternative_contact_type = "whatsapp"
@@ -4425,7 +5146,9 @@ USA ESTA RESPUESTA PARA LA OBJECION (adaptala a tu tono):
                     username = telegram_match.group()
                     follower.alternative_contact = username
                     follower.alternative_contact_type = "telegram"
-                    logger.info(f"Telegram captured: {username} for follower {follower.follower_id}")
+                    logger.info(
+                        f"Telegram captured: {username} for follower {follower.follower_id}"
+                    )
 
         # Actualizar score de intención
         # Usamos MÍNIMOS para intenciones positivas (el score no baja de ese valor)
@@ -4437,7 +5160,9 @@ USA ESTA RESPUESTA PARA LA OBJECION (adaptala a tu tono):
         # BOOST: Si hay keywords de compra directa, subir a 75% (Hot)
         if is_direct_purchase_intent(message):
             follower.purchase_intent_score = max(follower.purchase_intent_score or 0.0, 0.75)
-            logger.info(f"Direct purchase keywords detected - score boosted to {follower.purchase_intent_score}")
+            logger.info(
+                f"Direct purchase keywords detected - score boosted to {follower.purchase_intent_score}"
+            )
         elif intent == Intent.INTEREST_STRONG:
             # Interés fuerte ("quiero comprar"): 75% → Hot
             follower.purchase_intent_score = max(follower.purchase_intent_score or 0.0, 0.75)
@@ -4503,27 +5228,30 @@ USA ESTA RESPUESTA PARA LA OBJECION (adaptala a tu tono):
             follower.status = "customer"
         # Rule: NEW → HOT (direct purchase intent or high AI score)
         elif current_status in ["new", "active", ""] and (
-            intent in hot_intents or
-            is_direct_purchase_intent(message) or
-            intent_score >= HOT_INTENT_THRESHOLD
+            intent in hot_intents
+            or is_direct_purchase_intent(message)
+            or intent_score >= HOT_INTENT_THRESHOLD
         ):
             follower.status = "hot"
-            logger.info(f"Pipeline transition: {old_status} → hot (intent={intent.value}, score={intent_score:.0%})")
+            logger.info(
+                f"Pipeline transition: {old_status} → hot (intent={intent.value}, score={intent_score:.0%})"
+            )
         # Rule: NEW → ACTIVE (engagement without clear buy intent)
         elif current_status in ["new", ""] and (
-            intent in active_intents or
-            follower_msgs >= 2  # At least one back-and-forth
+            intent in active_intents or follower_msgs >= 2  # At least one back-and-forth
         ):
             follower.status = "active"
-            logger.info(f"Pipeline transition: {old_status} → active (intent={intent.value}, messages={follower_msgs})")
+            logger.info(
+                f"Pipeline transition: {old_status} → active (intent={intent.value}, messages={follower_msgs})"
+            )
         # Keep current status if no transition rule applies
         elif not follower.status:
             follower.status = "new"
 
         await self.memory_store.save(follower)
         # Save BOTH messages to PostgreSQL for dashboard stats (fire-and-forget)
-        self._save_message_to_db_fire_and_forget(follower.follower_id, 'user', message, str(intent))
-        self._save_message_to_db_fire_and_forget(follower.follower_id, 'assistant', response, None)
+        self._save_message_to_db_fire_and_forget(follower.follower_id, "user", message, str(intent))
+        self._save_message_to_db_fire_and_forget(follower.follower_id, "assistant", response, None)
         # Sync lead data (including purchase_intent_score) to PostgreSQL (fire-and-forget)
         # P0 FIX: Now includes status and uses direct DB update as backup
         if USE_POSTGRES and db_service:
@@ -4531,15 +5259,11 @@ USA ESTA RESPUESTA PARA LA OBJECION (adaptala a tu tono):
                 self.creator_id,
                 follower.follower_id,
                 follower.purchase_intent_score,
-                follower.status
+                follower.status,
             )
 
     async def _schedule_nurturing_if_needed(
-        self,
-        follower_id: str,
-        intent: Intent,
-        product: Optional[dict],
-        is_customer: bool
+        self, follower_id: str, intent: Intent, product: Optional[dict], is_customer: bool
     ) -> bool:
         """
         Programar nurturing automático si aplica.
@@ -4555,16 +5279,14 @@ USA ESTA RESPUESTA PARA LA OBJECION (adaptala a tu tono):
         """
         try:
             sequence_type = should_schedule_nurturing(
-                intent=intent.value,
-                has_purchased=is_customer,
-                creator_id=self.creator_id
+                intent=intent.value, has_purchased=is_customer, creator_id=self.creator_id
             )
 
             if not sequence_type:
                 return False
 
             nurturing = get_nurturing_manager()
-            product_name = product.get('name', 'mi producto') if product else 'mi producto'
+            product_name = product.get("name", "mi producto") if product else "mi producto"
 
             # Cancelar nurturing existente del mismo tipo antes de programar nuevo
             nurturing.cancel_followups(self.creator_id, follower_id, sequence_type)
@@ -4574,11 +5296,13 @@ USA ESTA RESPUESTA PARA LA OBJECION (adaptala a tu tono):
                 creator_id=self.creator_id,
                 follower_id=follower_id,
                 sequence_type=sequence_type,
-                product_name=product_name
+                product_name=product_name,
             )
 
             if followups:
-                logger.info(f"Scheduled {len(followups)} nurturing followups for {follower_id} ({sequence_type})")
+                logger.info(
+                    f"Scheduled {len(followups)} nurturing followups for {follower_id} ({sequence_type})"
+                )
                 return True
 
         except Exception as e:
@@ -4586,13 +5310,7 @@ USA ESTA RESPUESTA PARA LA OBJECION (adaptala a tu tono):
 
         return False
 
-    async def _track_analytics(
-        self,
-        sender_id: str,
-        intent: Intent,
-        is_lead: bool,
-        score: float
-    ):
+    async def _track_analytics(self, sender_id: str, intent: Intent, is_lead: bool, score: float):
         """
         Track analytics for the processed message.
 
@@ -4612,7 +5330,7 @@ USA ESTA RESPUESTA PARA LA OBJECION (adaptala a tu tono):
                 follower_id=sender_id,
                 direction="received",
                 intent=intent.value,
-                platform=platform
+                platform=platform,
             )
 
             # Track sent message (response)
@@ -4620,7 +5338,7 @@ USA ESTA RESPUESTA PARA LA OBJECION (adaptala a tu tono):
                 creator_id=self.creator_id,
                 follower_id=sender_id,
                 direction="sent",
-                platform=platform
+                platform=platform,
             )
 
             # Track lead if applicable
@@ -4630,7 +5348,7 @@ USA ESTA RESPUESTA PARA LA OBJECION (adaptala a tu tono):
                     follower_id=sender_id,
                     score=score,
                     source="dm",
-                    platform=platform
+                    platform=platform,
                 )
 
             # Track objection if applicable
@@ -4639,25 +5357,20 @@ USA ESTA RESPUESTA PARA LA OBJECION (adaptala a tu tono):
                     creator_id=self.creator_id,
                     follower_id=sender_id,
                     objection_type=intent.value,
-                    platform=platform
+                    platform=platform,
                 )
 
             # Track escalation if applicable
             if intent == Intent.ESCALATION:
                 analytics.track_escalation(
-                    creator_id=self.creator_id,
-                    follower_id=sender_id,
-                    platform=platform
+                    creator_id=self.creator_id, follower_id=sender_id, platform=platform
                 )
 
         except Exception as e:
             logger.error(f"Error tracking analytics: {e}")
 
     async def _check_gdpr_consent(
-        self,
-        sender_id: str,
-        message_text: str,
-        follower
+        self, sender_id: str, message_text: str, follower
     ) -> Optional[DMResponse]:
         """
         Check GDPR consent and handle consent flow if needed.
@@ -4675,9 +5388,7 @@ USA ESTA RESPUESTA PARA LA OBJECION (adaptala a tu tono):
 
             # Check if user has data processing consent
             has_consent = gdpr.has_consent(
-                self.creator_id,
-                sender_id,
-                ConsentType.DATA_PROCESSING.value
+                self.creator_id, sender_id, ConsentType.DATA_PROCESSING.value
             )
 
             if has_consent:
@@ -4685,8 +5396,17 @@ USA ESTA RESPUESTA PARA LA OBJECION (adaptala a tu tono):
 
             # Check if user is giving consent in this message
             msg_lower = message_text.lower()
-            consent_keywords = ['acepto', 'si acepto', 'de acuerdo', 'ok', 'vale', 'accept', 'i agree', 'yes']
-            decline_keywords = ['no acepto', 'no quiero', 'rechazar', 'decline', 'no thanks']
+            consent_keywords = [
+                "acepto",
+                "si acepto",
+                "de acuerdo",
+                "ok",
+                "vale",
+                "accept",
+                "i agree",
+                "yes",
+            ]
+            decline_keywords = ["no acepto", "no quiero", "rechazar", "decline", "no thanks"]
 
             if any(kw in msg_lower for kw in consent_keywords):
                 # Record consent
@@ -4695,7 +5415,7 @@ USA ESTA RESPUESTA PARA LA OBJECION (adaptala a tu tono):
                     follower_id=sender_id,
                     consent_type=ConsentType.DATA_PROCESSING.value,
                     granted=True,
-                    source="dm"
+                    source="dm",
                 )
                 logger.info(f"Consent granted by {sender_id}")
                 return None  # Continue with normal processing
@@ -4707,7 +5427,7 @@ USA ESTA RESPUESTA PARA LA OBJECION (adaptala a tu tono):
                     follower_id=sender_id,
                     consent_type=ConsentType.DATA_PROCESSING.value,
                     granted=False,
-                    source="dm"
+                    source="dm",
                 )
                 response_text = (
                     "Entendido, respeto tu decision. Si cambias de opinion, "
@@ -4717,7 +5437,7 @@ USA ESTA RESPUESTA PARA LA OBJECION (adaptala a tu tono):
                     response_text=response_text,
                     intent=Intent.OTHER,
                     action_taken="consent_declined",
-                    confidence=1.0
+                    confidence=1.0,
                 )
 
             # First message without consent - ask for consent
@@ -4732,7 +5452,7 @@ USA ESTA RESPUESTA PARA LA OBJECION (adaptala a tu tono):
                     response_text=response_text,
                     intent=Intent.OTHER,
                     action_taken="consent_request",
-                    confidence=1.0
+                    confidence=1.0,
                 )
 
             # Subsequent message without consent - remind
@@ -4744,7 +5464,7 @@ USA ESTA RESPUESTA PARA LA OBJECION (adaptala a tu tono):
                 response_text=response_text,
                 intent=Intent.OTHER,
                 action_taken="consent_reminder",
-                confidence=1.0
+                confidence=1.0,
             )
 
         except Exception as e:
@@ -4753,8 +5473,8 @@ USA ESTA RESPUESTA PARA LA OBJECION (adaptala a tu tono):
 
     def _get_escalation_response(self) -> str:
         """Respuesta de escalación cuando el usuario pide hablar con humano"""
-        name = self.creator_config.get('clone_name') or self.creator_config.get('name', 'el equipo')
-        email = self.creator_config.get('escalation_email', '')
+        name = self.creator_config.get("clone_name") or self.creator_config.get("name", "el equipo")
+        email = self.creator_config.get("escalation_email", "")
 
         # Check dialect for voseo
         dialect = get_tone_dialect(self.creator_id)
@@ -4765,7 +5485,7 @@ USA ESTA RESPUESTA PARA LA OBJECION (adaptala a tu tono):
                 f"Entendido, le paso tu mensaje a {name} y te contacta pronto. 🙌",
                 f"Perfecto, le paso tu mensaje a {name} y se pone en contacto con vos lo antes posible.",
                 f"Sin problema, {name} te responde personalmente en breve.",
-                f"Claro, tomé nota y {name} te contacta pronto para ayudarte mejor."
+                f"Claro, tomé nota y {name} te contacta pronto para ayudarte mejor.",
             ]
             response = random.choice(responses)
             if email:
@@ -4776,7 +5496,7 @@ USA ESTA RESPUESTA PARA LA OBJECION (adaptala a tu tono):
                 f"Entendido, paso tu mensaje a {name} y te contactará pronto. 🙌",
                 f"Perfecto, le paso tu mensaje a {name} y se pondrá en contacto contigo lo antes posible.",
                 f"Sin problema, {name} te responderá personalmente en breve.",
-                f"Claro, he tomado nota y {name} te contactará pronto para ayudarte mejor."
+                f"Claro, he tomado nota y {name} te contactará pronto para ayudarte mejor.",
             ]
             response = random.choice(responses)
             if email:
@@ -4789,7 +5509,7 @@ USA ESTA RESPUESTA PARA LA OBJECION (adaptala a tu tono):
         Uses varied responses to seem more natural.
         """
         # Use clone_name (display name) with fallback to name
-        name = self.creator_config.get('clone_name') or self.creator_config.get('name', 'yo')
+        name = self.creator_config.get("clone_name") or self.creator_config.get("name", "yo")
 
         # Check dialect for voseo
         dialect = get_tone_dialect(self.creator_id)
@@ -4922,41 +5642,43 @@ USA ESTA RESPUESTA PARA LA OBJECION (adaptala a tu tono):
 
         try:
             files = sorted(
-                [f for f in os.listdir(storage_path) if f.endswith('.json')],
+                [f for f in os.listdir(storage_path) if f.endswith(".json")],
                 key=lambda x: os.path.getmtime(os.path.join(storage_path, x)),
-                reverse=True
+                reverse=True,
             )[:limit]
 
             for file in files:
                 file_path = os.path.join(storage_path, file)
                 try:
-                    with open(file_path, 'r', encoding='utf-8') as f:
+                    with open(file_path, "r", encoding="utf-8") as f:
                         data = json.load(f)
                         # Count actual user messages in last_messages (more accurate than stored counter)
                         last_messages = data.get("last_messages", [])
                         user_msg_count = len([m for m in last_messages if m.get("role") == "user"])
                         # Use the higher of stored counter or actual count
                         total_msgs = max(data.get("total_messages", 0), user_msg_count)
-                        conversations.append({
-                            "follower_id": data.get("follower_id", ""),
-                            "username": data.get("username", ""),
-                            "name": data.get("name", ""),
-                            "platform": data.get("platform", "instagram"),
-                            "total_messages": total_msgs,
-                            "last_contact": data.get("last_contact", ""),
-                            "first_contact": data.get("first_contact", ""),
-                            "is_lead": data.get("is_lead", False),
-                            "is_customer": data.get("is_customer", False),
-                            "purchase_intent": data.get("purchase_intent_score", 0),
-                            "interests": data.get("interests", []),
-                            "products_discussed": data.get("products_discussed", []),
-                            "preferred_language": data.get("preferred_language", "es"),
-                            # Contact fields from JSON storage
-                            "email": data.get("email", ""),
-                            "phone": data.get("phone", ""),
-                            "notes": data.get("notes", ""),
-                            "last_messages": last_messages[-5:] if last_messages else [],
-                        })
+                        conversations.append(
+                            {
+                                "follower_id": data.get("follower_id", ""),
+                                "username": data.get("username", ""),
+                                "name": data.get("name", ""),
+                                "platform": data.get("platform", "instagram"),
+                                "total_messages": total_msgs,
+                                "last_contact": data.get("last_contact", ""),
+                                "first_contact": data.get("first_contact", ""),
+                                "is_lead": data.get("is_lead", False),
+                                "is_customer": data.get("is_customer", False),
+                                "purchase_intent": data.get("purchase_intent_score", 0),
+                                "interests": data.get("interests", []),
+                                "products_discussed": data.get("products_discussed", []),
+                                "preferred_language": data.get("preferred_language", "es"),
+                                # Contact fields from JSON storage
+                                "email": data.get("email", ""),
+                                "phone": data.get("phone", ""),
+                                "notes": data.get("notes", ""),
+                                "last_messages": last_messages[-5:] if last_messages else [],
+                            }
+                        )
                 except Exception as e:
                     logger.error(f"Error reading conversation file {file}: {e}")
 
@@ -4990,7 +5712,7 @@ USA ESTA RESPUESTA PARA LA OBJECION (adaptala a tu tono):
             "customers": len(customers),
             "high_intent_followers": len(high_intent),
             "conversion_rate": len(customers) / total_followers if total_followers > 0 else 0,
-            "lead_rate": len(leads) / total_followers if total_followers > 0 else 0
+            "lead_rate": len(leads) / total_followers if total_followers > 0 else 0,
         }
 
     async def get_follower_detail(self, follower_id: str) -> Optional[Dict[str, Any]]:
@@ -5014,14 +5736,11 @@ USA ESTA RESPUESTA PARA LA OBJECION (adaptala a tu tono):
             "is_lead": follower.is_lead,
             "is_customer": follower.is_customer,
             "preferred_language": follower.preferred_language,
-            "last_messages": follower.last_messages[-10:]  # Últimos 10 mensajes
+            "last_messages": follower.last_messages[-10:],  # Últimos 10 mensajes
         }
 
     async def save_manual_message(
-        self,
-        follower_id: str,
-        message_text: str,
-        sent: bool = True
+        self, follower_id: str, message_text: str, sent: bool = True
     ) -> bool:
         """
         Save a manually sent message in the conversation history.
@@ -5043,13 +5762,15 @@ USA ESTA RESPUESTA PARA LA OBJECION (adaptala a tu tono):
 
             # Add the message to history
             timestamp = datetime.now(timezone.utc).isoformat()
-            follower.last_messages.append({
-                "role": "assistant",
-                "content": message_text,
-                "timestamp": timestamp,
-                "manual": True,  # Mark as manually sent
-                "sent": sent
-            })
+            follower.last_messages.append(
+                {
+                    "role": "assistant",
+                    "content": message_text,
+                    "timestamp": timestamp,
+                    "manual": True,  # Mark as manually sent
+                    "sent": sent,
+                }
+            )
 
             # Keep only last 50 messages
             if len(follower.last_messages) > 50:
@@ -5061,7 +5782,9 @@ USA ESTA RESPUESTA PARA LA OBJECION (adaptala a tu tono):
             # Save to memory store
             await self.memory_store.save(follower)
             # Save to PostgreSQL (manual message from assistant) - fire-and-forget
-            self._save_message_to_db_fire_and_forget(follower.follower_id, 'assistant', message_text, None)
+            self._save_message_to_db_fire_and_forget(
+                follower.follower_id, "assistant", message_text, None
+            )
 
             logger.info(f"Saved manual message for {follower_id}")
             return True
@@ -5071,11 +5794,7 @@ USA ESTA RESPUESTA PARA LA OBJECION (adaptala a tu tono):
             return False
 
     async def update_follower_status(
-        self,
-        follower_id: str,
-        status: str,
-        purchase_intent: float,
-        is_customer: bool = False
+        self, follower_id: str, status: str, purchase_intent: float, is_customer: bool = False
     ) -> bool:
         """
         Update the lead status for a follower.
@@ -5111,12 +5830,15 @@ USA ESTA RESPUESTA PARA LA OBJECION (adaptala a tu tono):
             # Save to memory store (no message added to history)
             await self.memory_store.save(follower)
 
-            logger.info(f"Updated status for {follower_id}: {status} (intent: {old_score:.0%} → {purchase_intent:.0%})")
+            logger.info(
+                f"Updated status for {follower_id}: {status} (intent: {old_score:.0%} → {purchase_intent:.0%})"
+            )
             return True
 
         except Exception as e:
             logger.error(f"Error updating follower status: {e}")
             return False
+
 
 # ============================================================
 # POSTGRESQL INTEGRATION (saves messages to DB for dashboard)
@@ -5134,6 +5856,7 @@ def get_dm_agent(creator_id: str) -> DMResponderAgent:
     Reuses existing agent for same creator to avoid expensive initialization.
     """
     import time
+
     _t_start = time.time()
 
     cache_key = creator_id
@@ -5142,14 +5865,18 @@ def get_dm_agent(creator_id: str) -> DMResponderAgent:
 
     if cache_age < _DM_AGENT_CACHE_TTL and cache_key in _dm_agent_cache:
         agent = _dm_agent_cache[cache_key]
-        logger.info(f"⏱️ get_dm_agent: reusing cached agent for {creator_id} (age: {cache_age:.1f}s) took {time.time() - _t_start:.3f}s")
+        logger.info(
+            f"⏱️ get_dm_agent: reusing cached agent for {creator_id} (age: {cache_age:.1f}s) took {time.time() - _t_start:.3f}s"
+        )
         return agent
 
     # Create new agent and cache it
     agent = DMResponderAgent(creator_id=creator_id)
     _dm_agent_cache[cache_key] = agent
     _dm_agent_cache_timestamp[cache_key] = now
-    logger.info(f"⏱️ get_dm_agent: created new agent for {creator_id} took {time.time() - _t_start:.2f}s")
+    logger.info(
+        f"⏱️ get_dm_agent: created new agent for {creator_id} took {time.time() - _t_start:.2f}s"
+    )
     return agent
 
 
@@ -5158,9 +5885,16 @@ def invalidate_dm_agent_cache(creator_id: str = None):
     if creator_id:
         _dm_agent_cache.pop(creator_id, None)
         _dm_agent_cache_timestamp.pop(creator_id, None)
+        # Also clear config/products cache for this creator
+        DMResponderAgent._config_cache.pop(creator_id, None)
+        DMResponderAgent._products_cache.pop(creator_id, None)
+        DMResponderAgent._cache_timestamp.pop(creator_id, None)
         logger.info(f"Invalidated DM agent cache for {creator_id}")
     else:
         _dm_agent_cache.clear()
         _dm_agent_cache_timestamp.clear()
+        # Also clear all config/products caches
+        DMResponderAgent._config_cache.clear()
+        DMResponderAgent._products_cache.clear()
+        DMResponderAgent._cache_timestamp.clear()
         logger.info("Invalidated all DM agent caches")
-
