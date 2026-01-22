@@ -6607,18 +6607,34 @@ async def startup_event():
             try:
                 _t_start = time.time()
 
-                # 1. Pre-load DM agent for stefano_auto (most active creator)
+                # Get ALL active creators to warm up
+                active_creators = ["stefano_auto", "stefano_bonanno"]  # Defaults
+                if SessionLocal:
+                    try:
+                        from api.models import Creator
+                        session = SessionLocal()
+                        try:
+                            creators = session.query(Creator).filter_by(bot_active=True).all()
+                            if creators:
+                                active_creators = [c.name for c in creators if c.name]
+                        finally:
+                            session.close()
+                    except Exception:
+                        pass
+
+                # 1. Pre-load DM agents for ALL active creators
                 # This keeps config/products cache warm (5-min TTL) and agent cache warm (10-min TTL)
-                try:
-                    from core.dm_agent import _dm_agent_cache_timestamp
-                    agent = get_dm_agent("stefano_auto")
-                    cache_age = time.time() - _dm_agent_cache_timestamp.get("stefano_auto", 0)
-                    # Touch the system prompt cache to keep it warm
-                    if hasattr(agent, "_build_system_prompt"):
-                        _ = agent._build_system_prompt("")
-                    logger.info(f"[KEEP-ALIVE] Agent for stefano_auto kept warm (cache age: {cache_age:.1f}s)")
-                except Exception as e:
-                    logger.warning(f"[KEEP-ALIVE] DM agent warm failed: {e}")
+                from core.dm_agent import _dm_agent_cache_timestamp
+                for creator_id in active_creators:
+                    try:
+                        agent = get_dm_agent(creator_id)
+                        cache_age = time.time() - _dm_agent_cache_timestamp.get(creator_id, 0)
+                        # Touch the system prompt cache to keep it warm
+                        if hasattr(agent, "_build_system_prompt"):
+                            _ = agent._build_system_prompt("")
+                        logger.info(f"[KEEP-ALIVE] Agent for {creator_id} kept warm (cache age: {cache_age:.1f}s)")
+                    except Exception as e:
+                        logger.warning(f"[KEEP-ALIVE] DM agent warm failed for {creator_id}: {e}")
 
                 # 2. Keep embedding model warm (for semantic memory)
                 try:
@@ -6629,17 +6645,16 @@ async def startup_event():
                 except Exception:
                     pass
 
-                # 3. Refresh ToneProfile cache
+                # 3. Refresh ToneProfile and CitationIndex cache for all creators
                 try:
                     from core.tone_service import get_tone_prompt_section
-                    get_tone_prompt_section("stefano_auto")
-                except Exception:
-                    pass
-
-                # 4. Refresh CitationIndex cache
-                try:
                     from core.citation_service import get_content_index
-                    get_content_index("stefano_auto")
+                    for creator_id in active_creators:
+                        try:
+                            get_tone_prompt_section(creator_id)
+                            get_content_index(creator_id)
+                        except Exception:
+                            pass
                 except Exception:
                     pass
 
