@@ -3930,22 +3930,33 @@ USA ESTA RESPUESTA PARA LA OBJECION (adaptala a tu tono):
         # =============================================================================
         # PERSONALIZATION: User Profile + Semantic Memory (Memory Engine Migration)
         # =============================================================================
+        _t_pers = time.time()
         user_profile = None
         semantic_memory = None
         semantic_context = ""
         try:
+            _t_prof = time.time()
             user_profile = get_user_profile(sender_id, self.creator_id)
+            logger.info(f"⏱️ get_user_profile took {time.time() - _t_prof:.2f}s")
+
             if ENABLE_SEMANTIC_MEMORY:
+                _t_sem = time.time()
                 semantic_memory = get_conversation_memory(sender_id, self.creator_id)
+                logger.info(f"⏱️ get_conversation_memory took {time.time() - _t_sem:.2f}s")
+
+                _t_ctx = time.time()
                 semantic_context = semantic_memory.get_context_for_query(
                     message_text, recent_n=3, semantic_k=2
                 )
+                logger.info(f"⏱️ get_context_for_query took {time.time() - _t_ctx:.2f}s")
+
                 if semantic_context:
                     logger.debug(
                         f"Semantic memory context retrieved ({len(semantic_context)} chars)"
                     )
         except Exception as e:
             logger.warning(f"Personalization modules failed to load: {e}")
+        logger.info(f"⏱️ TOTAL personalization took {time.time() - _t_pers:.2f}s")
 
         # Extraer nombre del mensaje si el usuario se presenta
         # Patrones: "soy [nombre]", "me llamo [nombre]", "I'm [name]", etc.

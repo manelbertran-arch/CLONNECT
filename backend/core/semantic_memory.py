@@ -33,13 +33,15 @@ except ImportError:
 
 def _get_embeddings():
     """Lazy load del modelo de embeddings"""
+    import time
     global _embeddings_model
     if _embeddings_model is None:
         try:
             from sentence_transformers import SentenceTransformer
-            logger.info("Loading embedding model for semantic memory...")
+            _t_start = time.time()
+            logger.info("⏱️ Loading embedding model for semantic memory...")
             _embeddings_model = SentenceTransformer('all-MiniLM-L6-v2')
-            logger.info("Embedding model loaded")
+            logger.info(f"⏱️ Embedding model loaded in {time.time() - _t_start:.2f}s")
         except ImportError:
             logger.error("sentence-transformers not installed")
     return _embeddings_model
