@@ -15,7 +15,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 COPY requirements-lite.txt .
 
 # Force rebuild - change this value to invalidate pip cache
-ENV FORCE_REBUILD="2026-01-17-v8-link-previews"
+ENV FORCE_REBUILD="2026-01-23-v9-fix-uvicorn"
 
 # Create virtual environment and install dependencies
 RUN python -m venv /opt/venv
