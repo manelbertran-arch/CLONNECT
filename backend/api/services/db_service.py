@@ -1362,6 +1362,46 @@ def get_messages_by_lead_id(lead_id: str, limit: int = 50) -> list:
         session.close()
 
 
+def get_recent_messages(creator_id: str, follower_id: str, limit: int = 4) -> list:
+    """Get recent messages for a follower (sync version for thanks detection)"""
+    if not USE_POSTGRES:
+        return []
+    session = get_session()
+    if not session:
+        return []
+    try:
+        from api.models import Creator, Lead, Message
+
+        creator = session.query(Creator).filter_by(name=creator_id).first()
+        if not creator:
+            return []
+
+        lead = (
+            session.query(Lead)
+            .filter(Lead.creator_id == creator.id, Lead.platform_user_id == follower_id)
+            .first()
+        )
+        if not lead:
+            return []
+
+        messages = (
+            session.query(Message)
+            .filter(Message.lead_id == lead.id)
+            .order_by(Message.created_at.desc())
+            .limit(limit)
+            .all()
+        )
+        return [
+            {"role": m.role, "content": m.content, "timestamp": str(m.created_at)}
+            for m in messages  # Most recent first
+        ]
+    except Exception as e:
+        logger.error(f"get_recent_messages error: {e}")
+        return []
+    finally:
+        session.close()
+
+
 def count_user_messages_by_lead_id(lead_id: str) -> int:
     """Count user messages for a specific lead by UUID (sync version)"""
     if not USE_POSTGRES:

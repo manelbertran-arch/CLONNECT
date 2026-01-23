@@ -4906,25 +4906,40 @@ USA ESTA RESPUESTA PARA LA OBJECION (adaptala a tu tono):
         # FAST PATH: THANKS después de BOOKING → Solo agradecer, no vender
         # =============================================================================
         if intent == Intent.THANKS:
-            # Check if last bot action was booking-related (use last_messages, not messages)
-            recent_msgs = follower.last_messages[-6:] if follower.last_messages and len(follower.last_messages) >= 6 else (follower.last_messages or [])
             last_bot_action = None
+            booking_keywords = [
+                "clonnect.vercel.app/book",
+                "/book/",
+                "discovery call",
+                "coaching session",
+                "elegir tu horario",
+                "servicios disponibles"
+            ]
+
+            # First try: Check follower.last_messages (in-memory)
+            recent_msgs = follower.last_messages[-6:] if follower.last_messages and len(follower.last_messages) >= 6 else (follower.last_messages or [])
             for msg in reversed(recent_msgs):
                 if msg.get("role") == "assistant":
                     content = (msg.get("content") or "").lower()
-                    # Check for booking indicators
-                    if any(kw in content for kw in [
-                        "clonnect.vercel.app/book",
-                        "/book/",
-                        "discovery call",
-                        "coaching session",
-                        "agendar",
-                        "elegir tu horario",
-                        "servicios disponibles"
-                    ]):
+                    if any(kw in content for kw in booking_keywords):
                         last_bot_action = "booking"
-                        logger.info(f"[THANKS] Detected post-booking context from message: {content[:50]}...")
+                        logger.info(f"[THANKS] Detected post-booking from memory: {content[:50]}...")
                         break
+
+            # Second try: Check PostgreSQL if not found in memory
+            if not last_bot_action and USE_POSTGRES and db_service:
+                try:
+                    recent_db_msgs = db_service.get_recent_messages(self.creator_id, sender_id, limit=4)
+                    if recent_db_msgs:
+                        for msg in recent_db_msgs:
+                            if msg.get("role") == "assistant":
+                                content = (msg.get("content") or "").lower()
+                                if any(kw in content for kw in booking_keywords):
+                                    last_bot_action = "booking"
+                                    logger.info(f"[THANKS] Detected post-booking from DB: {content[:50]}...")
+                                    break
+                except Exception as e:
+                    logger.warning(f"[THANKS] DB check failed: {e}")
 
             if last_bot_action == "booking":
                 response_text = "¡Perfecto! Ahí te espero. Si tienes alguna duda antes de la llamada, aquí estoy. 🙌"
