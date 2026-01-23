@@ -6,6 +6,7 @@ import { useDashboard, useToggleBot, useRevenue } from "@/hooks/useApi";
 import { useToast } from "@/hooks/use-toast";
 import { getPurchaseIntent } from "@/types/api";
 import { cn } from "@/lib/utils";
+import EscalationsCard from "@/components/EscalationsCard";
 
 export default function Dashboard() {
   const { data, isLoading, error } = useDashboard();
@@ -210,6 +211,9 @@ export default function Dashboard() {
           <span className="text-xl font-semibold">{((metrics.conversion_rate || 0) * 100).toFixed(0)}%</span>
         </div>
       </div>
+
+      {/* Escalations - needs attention */}
+      <EscalationsCard maxItems={5} />
 
       {/* Two columns */}
       <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">

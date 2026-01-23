@@ -71,6 +71,8 @@ import {
   toggleCopilotMode,
   getCopilotNotifications,
   approveAllCopilot,
+  // Escalations
+  getEscalations,
   // CRM Activities & Tasks
   getLeadActivities,
   createLeadActivity,
@@ -1181,6 +1183,23 @@ export function useLeadStats(leadId: string | null, creatorId: string = getCreat
     queryKey: ["leadStats", creatorId, leadId],
     queryFn: () => getLeadStats(creatorId, leadId!),
     enabled: !!leadId,
+    staleTime: 30000,
+  });
+}
+
+// =============================================================================
+// ESCALATIONS HOOKS
+// =============================================================================
+
+/**
+ * Hook to fetch escalation alerts
+ * Returns leads that need human attention
+ */
+export function useEscalations(creatorId: string = getCreatorId(), limit: number = 50) {
+  return useQuery({
+    queryKey: apiKeys.escalations(creatorId),
+    queryFn: () => getEscalations(creatorId, limit),
+    refetchInterval: 60000, // Refetch every minute
     staleTime: 30000,
   });
 }
