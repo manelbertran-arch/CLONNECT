@@ -4906,6 +4906,7 @@ USA ESTA RESPUESTA PARA LA OBJECION (adaptala a tu tono):
         # FAST PATH: THANKS después de BOOKING → Solo agradecer, no vender
         # =============================================================================
         if intent == Intent.THANKS:
+            logger.info(f"[THANKS] Checking for post-booking context. USE_POSTGRES={USE_POSTGRES}, db_service={db_service is not None}")
             last_bot_action = None
             booking_keywords = [
                 "clonnect.vercel.app/book",
@@ -4920,17 +4921,21 @@ USA ESTA RESPUESTA PARA LA OBJECION (adaptala a tu tono):
             if USE_POSTGRES and db_service:
                 try:
                     recent_db_msgs = db_service.get_recent_messages(self.creator_id, sender_id, limit=6)
-                    logger.info(f"[THANKS] DB returned {len(recent_db_msgs)} recent messages")
-                    if recent_db_msgs:
-                        for msg in recent_db_msgs:
-                            if msg.get("role") == "assistant":
-                                content = (msg.get("content") or "").lower()
-                                if any(kw in content for kw in booking_keywords):
-                                    last_bot_action = "booking"
-                                    logger.info(f"[THANKS] Detected post-booking from DB: {content[:60]}...")
-                                    break
+                    logger.info(f"[THANKS] DB returned {len(recent_db_msgs)} recent messages for {sender_id}")
+                    for i, msg in enumerate(recent_db_msgs):
+                        role = msg.get("role", "?")
+                        content_preview = (msg.get("content") or "")[:80]
+                        logger.info(f"[THANKS] DB msg[{i}]: role={role}, content={content_preview}...")
+                        if role == "assistant":
+                            content = (msg.get("content") or "").lower()
+                            if any(kw in content for kw in booking_keywords):
+                                last_bot_action = "booking"
+                                logger.info(f"[THANKS] FOUND booking keyword in DB message!")
+                                break
                 except Exception as e:
                     logger.warning(f"[THANKS] DB check failed: {e}")
+                    import traceback
+                    traceback.print_exc()
 
             # FALLBACK: Check follower.last_messages (in-memory)
             if not last_bot_action:
