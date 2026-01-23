@@ -4337,6 +4337,55 @@ USA ESTA RESPUESTA PARA LA OBJECION (adaptala a tu tono):
                 metadata=metadata,
             )
 
+        # === INTEREST_STRONG: Usuario quiere comprar - dar link de pago ===
+        if intent == Intent.INTEREST_STRONG:
+            # Get payment links from products
+            payment_products = []
+            for p in self.products:
+                url = get_valid_payment_url(p)
+                if url:
+                    payment_products.append({
+                        "name": p.get("name", "Producto"),
+                        "price": p.get("price", 0),
+                        "url": url,
+                    })
+
+            if payment_products:
+                user_language = follower.preferred_language or "es"
+                dialect = get_tone_dialect(self.creator_id)
+
+                # Format payment response
+                if len(payment_products) == 1:
+                    p = payment_products[0]
+                    price_text = f"{int(p['price'])}€" if p['price'] > 0 else "GRATIS"
+                    if dialect == "rioplatense":
+                        response_text = f"¡Genial! 🚀 Acá tenés el link para {p['name']} ({price_text}):\n\n➜ {p['url']}\n\n¿Te paso el acceso ahora?"
+                    else:
+                        response_text = f"¡Genial! 🚀 Aquí tienes el link para {p['name']} ({price_text}):\n\n➜ {p['url']}\n\n¿Te paso el acceso ahora?"
+                else:
+                    # Multiple products
+                    if dialect == "rioplatense":
+                        response_text = "¡Genial que quieras avanzar! 🚀 Estos son mis productos:\n\n"
+                    else:
+                        response_text = "¡Genial que quieras avanzar! 🚀 Estos son mis productos:\n\n"
+                    for p in payment_products:
+                        price_text = f"{int(p['price'])}€" if p['price'] > 0 else "GRATIS"
+                        response_text += f"🎯 {p['name']} - {price_text}\n   ➜ {p['url']}\n\n"
+                    response_text += "¿Cuál te interesa?"
+
+                await self._update_memory(follower, message_text, response_text, intent)
+
+                logger.info(f"INTEREST_STRONG - showing {len(payment_products)} payment links")
+
+                return DMResponse(
+                    response_text=response_text,
+                    intent=intent,
+                    action_taken="show_payment_links",
+                    confidence=confidence,
+                    metadata={"payment_links_shown": len(payment_products)},
+                )
+            # If no payment links configured, fall through to LLM
+
         # === ACKNOWLEDGMENT: Ahora pasa por flujo normal con LLM ===
         # ANTES: Fast path con respuesta hardcoded "¿En qué más puedo ayudarte?"
         # AHORA: El LLM verá el historial y responderá según el contexto
