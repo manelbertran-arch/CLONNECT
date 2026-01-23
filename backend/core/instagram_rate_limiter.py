@@ -165,8 +165,8 @@ class InstagramRateLimiter:
         day_ago = now - 86400
         self._call_history = [c for c in self._call_history if c.timestamp > day_ago]
 
-        # Manejar errores
-        if response_code in self.RATE_LIMIT_CODES or response_code >= 400:
+        # Manejar errores - ONLY rate limit codes trigger backoff, not all errors
+        if response_code in self.RATE_LIMIT_CODES:
             self._handle_error(state, response_code)
         else:
             # Reset errores consecutivos en éxito
