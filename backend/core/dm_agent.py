@@ -1100,6 +1100,20 @@ def is_direct_purchase_intent(message: str) -> bool:
         "ya te digo",
         "no sé",
         "no se",
+        # Frustration phrases - user has tried things before
+        "ya he probado",
+        "ya probe",
+        "ya probé",
+        "he probado",
+        "he intentado",
+        "ya intente",
+        "ya intenté",
+        "ninguna funciona",
+        "nada funciona",
+        "no funciona",
+        "no me funciona",
+        "no me ha funcionado",
+        "nunca funciona",
     ]
     for phrase in objection_phrases:
         if phrase in msg_lower:
