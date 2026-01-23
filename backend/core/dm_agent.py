@@ -304,8 +304,8 @@ NON_CACHEABLE_INTENTS = {
 # === ANTI-ALUCINACIÓN: Intents que REQUIEREN contenido RAG ===
 # Si el RAG no encuentra contenido relevante para estos intents → Escalar al creador
 # Intents genéricos (GREETING, THANKS, GOODBYE, OTHER) pueden responder sin RAG
+# INTEREST_SOFT y LEAD_MAGNET no requieren RAG - tienen fallbacks específicos
 INTENTS_REQUIRING_RAG = {
-    Intent.INTEREST_SOFT,
     Intent.INTEREST_STRONG,
     Intent.QUESTION_PRODUCT,
     Intent.QUESTION_GENERAL,
@@ -318,7 +318,6 @@ INTENTS_REQUIRING_RAG = {
     Intent.OBJECTION_COMPLICATED,
     Intent.OBJECTION_ALREADY_HAVE,
     Intent.SUPPORT,
-    Intent.LEAD_MAGNET,
 }
 
 
@@ -4833,6 +4832,101 @@ USA ESTA RESPUESTA PARA LA OBJECION (adaptala a tu tono):
                     "purchase_intent_score": follower.purchase_intent_score,
                 },
             )
+
+        # =============================================================================
+        # FAST PATH: INTEREST_SOFT sin RAG → Mostrar productos disponibles
+        # En lugar de escalar, dar información útil sobre los productos
+        # =============================================================================
+        if intent == Intent.INTEREST_SOFT:
+            priced_products = [p for p in self.products if (p.get("price") or 0) > 0]
+            if priced_products:
+                # Get featured or first priced product
+                featured = next((p for p in priced_products if p.get("is_featured")), priced_products[0])
+                product_name = featured.get("name", "mi servicio")
+                price = int(featured.get("price") or 0)
+                description = featured.get("short_description") or featured.get("description", "")
+                description = description[:150] if description else ""
+
+                response_text = f"¡Claro! Te cuento sobre {product_name}. "
+                if description:
+                    response_text += f"{description} "
+                if price > 0:
+                    response_text += f"Tiene un precio de {price}€. "
+                response_text += "¿Te gustaría más información o prefieres que te pase el acceso directo?"
+
+                await self._update_memory(follower, message_text, response_text, intent)
+
+                return DMResponse(
+                    response_text=response_text,
+                    intent=intent,
+                    action_taken="interest_soft_product_info",
+                    product_mentioned=product_name,
+                    confidence=0.9,
+                    metadata={"fast_path": True, "product_shown": product_name},
+                )
+
+        # =============================================================================
+        # FAST PATH: LEAD_MAGNET → Buscar contenido gratuito o informar que no hay
+        # =============================================================================
+        if intent == Intent.LEAD_MAGNET:
+            # Look for actual lead magnet products (price=0 and marked as lead_magnet)
+            lead_magnets = [
+                p for p in self.products
+                if (p.get("price") or 0) == 0 and (p.get("is_lead_magnet") or p.get("is_free"))
+            ]
+
+            if lead_magnets:
+                lm = lead_magnets[0]
+                lm_name = lm.get("name", "mi recurso gratuito")
+                lm_url = lm.get("url") or lm.get("payment_link") or ""
+                response_text = f"¡Tengo algo perfecto para ti! {lm_name}"
+                if lm_url:
+                    response_text += f"\n\n➜ {lm_url}"
+                response_text += "\n\n¿Te lo mando?"
+            else:
+                # No lead magnet available - be honest
+                priced_products = [p for p in self.products if (p.get("price") or 0) > 0]
+                if priced_products:
+                    cheapest = min(priced_products, key=lambda p: p.get("price") or 999999)
+                    response_text = f"Actualmente no tengo contenido gratuito disponible, pero tengo {cheapest.get('name')} por solo {int(cheapest.get('price'))}€. ¿Te cuento más?"
+                else:
+                    response_text = "Actualmente no tengo contenido gratuito disponible. ¿En qué más puedo ayudarte?"
+
+            await self._update_memory(follower, message_text, response_text, intent)
+
+            return DMResponse(
+                response_text=response_text,
+                intent=intent,
+                action_taken="lead_magnet_response",
+                confidence=0.85,
+                metadata={"has_lead_magnet": len(lead_magnets) > 0},
+            )
+
+        # =============================================================================
+        # FAST PATH: THANKS después de BOOKING → Solo agradecer, no vender
+        # =============================================================================
+        if intent == Intent.THANKS:
+            # Check if last bot action was booking-related
+            last_messages = follower.messages[-4:] if len(follower.messages) >= 4 else follower.messages
+            last_bot_action = None
+            for msg in reversed(last_messages):
+                if msg.get("role") == "assistant":
+                    content = msg.get("content", "").lower()
+                    if "booking" in content or "agendar" in content or "llamada" in content or "discovery" in content or "clonnect.vercel.app/book" in content:
+                        last_bot_action = "booking"
+                        break
+
+            if last_bot_action == "booking":
+                response_text = "¡Perfecto! Ahí te espero. Si tienes alguna duda antes de la llamada, aquí estoy. 🙌"
+                await self._update_memory(follower, message_text, response_text, intent)
+
+                return DMResponse(
+                    response_text=response_text,
+                    intent=intent,
+                    action_taken="thanks_after_booking",
+                    confidence=0.95,
+                    metadata={"post_booking": True},
+                )
 
         # =============================================================================
         # ANTI-ALUCINACIÓN: Verificar si el intent requiere contenido RAG
