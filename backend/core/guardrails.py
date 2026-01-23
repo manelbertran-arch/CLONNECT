@@ -225,16 +225,17 @@ class ResponseGuardrail:
         response_lower = response.lower()
 
         # Off-topic subjects the bot should NOT give opinions about
+        # Use word boundaries to avoid false positives (e.g., "adios" matching "dios")
         off_topic_subjects = [
-            "bitcoin", "crypto", "cripto", "criptomoneda", "ethereum", "nft",
-            "politica", "política", "elecciones", "gobierno",
-            "religion", "religión", "dios", "iglesia",
-            "aborto", "drogas", "armas",
-            "guerra", "conflicto bélico",
+            r"\bbitcoin\b", r"\bcrypto\b", r"\bcripto\b", r"\bcriptomoneda\b", r"\bethereum\b", r"\bnft\b",
+            r"\bpolitica\b", r"\bpolítica\b", r"\belecciones\b", r"\bgobierno\b",
+            r"\breligion\b", r"\breligión\b", r"\b(?<!a)dios\b", r"\biglesia\b",  # (?<!a)dios excludes "adios"
+            r"\baborto\b", r"\bdrogas\b", r"\barmas\b",
+            r"\bguerra\b", r"\bconflicto bélico\b",
         ]
 
-        # Check if query mentions off-topic subject
-        query_is_off_topic = any(subj in query_lower for subj in off_topic_subjects)
+        # Check if query mentions off-topic subject (using regex for word boundaries)
+        query_is_off_topic = any(re.search(subj, query_lower) for subj in off_topic_subjects)
 
         if not query_is_off_topic:
             return None
