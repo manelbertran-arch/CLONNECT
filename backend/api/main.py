@@ -6341,6 +6341,19 @@ async def admin_reset_rate_limiter(creator_id: str):
         raise HTTPException(status_code=500, detail=str(e))
 
 
+@app.get("/admin/rate-limiter-stats")
+async def admin_rate_limiter_stats(creator_id: str = None):
+    """Get Instagram rate limiter statistics."""
+    try:
+        from core.instagram_rate_limiter import get_instagram_rate_limiter
+
+        limiter = get_instagram_rate_limiter()
+        return limiter.get_stats(creator_id)
+    except Exception as e:
+        logger.error(f"Error getting rate limiter stats: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 @app.post("/admin/backup")
 async def admin_create_backup(creators_only: bool = False, admin: str = Depends(require_admin)):
     """
