@@ -114,6 +114,7 @@ export default function Dashboard() {
     const intent = (getPurchaseIntent(lead) * 100).toFixed(0);
     return {
       id: `lead-${i}`,
+      follower_id: lead.follower_id,
       name: displayName,
       intent,
     };
@@ -276,8 +277,9 @@ export default function Dashboard() {
           <div className="space-y-2">
             {actionItems.length > 0 ? (
               actionItems.map((item) => (
-                <div
+                <Link
                   key={item.id}
+                  to={`/inbox?id=${item.follower_id}`}
                   className="flex items-center justify-between p-3 rounded-lg bg-muted/30 hover:bg-muted/50 transition-colors cursor-pointer group"
                 >
                   <div className="flex items-center gap-3 min-w-0">
@@ -290,7 +292,7 @@ export default function Dashboard() {
                     <span className="text-xs text-rose-500 font-medium">{item.intent}%</span>
                     <ChevronRight className="w-4 h-4 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
                   </div>
-                </div>
+                </Link>
               ))
             ) : (
               <div className="text-center py-8 text-muted-foreground">
