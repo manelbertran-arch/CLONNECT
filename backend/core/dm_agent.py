@@ -4664,7 +4664,8 @@ USA ESTA RESPUESTA PARA LA OBJECION (adaptala a tu tono):
 
         # === FAST PATH: Compra directa ===
         # Cuando usuario QUIERE COMPRAR, solo dar el link - NO volver a vender
-        if is_direct_purchase_intent(message_text):
+        # EXCEPTION: Skip if intent is THANKS - "Perfecto gracias" should not trigger purchase
+        if is_direct_purchase_intent(message_text) and intent != Intent.THANKS:
             logger.info(f"=== DIRECT PURCHASE INTENT DETECTED ===")
             logger.info(f"Message: {message_text}")
             logger.info(
@@ -4841,7 +4842,9 @@ USA ESTA RESPUESTA PARA LA OBJECION (adaptala a tu tono):
             priced_products = [p for p in self.products if (p.get("price") or 0) > 0]
             if priced_products:
                 # Get featured or first priced product
-                featured = next((p for p in priced_products if p.get("is_featured")), priced_products[0])
+                featured = next(
+                    (p for p in priced_products if p.get("is_featured")), priced_products[0]
+                )
                 product_name = featured.get("name", "mi servicio")
                 price = int(featured.get("price") or 0)
                 description = featured.get("short_description") or featured.get("description", "")
@@ -4852,7 +4855,9 @@ USA ESTA RESPUESTA PARA LA OBJECION (adaptala a tu tono):
                     response_text += f"{description} "
                 if price > 0:
                     response_text += f"Tiene un precio de {price}€. "
-                response_text += "¿Te gustaría más información o prefieres que te pase el acceso directo?"
+                response_text += (
+                    "¿Te gustaría más información o prefieres que te pase el acceso directo?"
+                )
 
                 await self._update_memory(follower, message_text, response_text, intent)
 
@@ -4871,7 +4876,8 @@ USA ESTA RESPUESTA PARA LA OBJECION (adaptala a tu tono):
         if intent == Intent.LEAD_MAGNET:
             # Look for actual lead magnet products (price=0 and marked as lead_magnet)
             lead_magnets = [
-                p for p in self.products
+                p
+                for p in self.products
                 if (p.get("price") or 0) == 0 and (p.get("is_lead_magnet") or p.get("is_free"))
             ]
 
@@ -4906,7 +4912,9 @@ USA ESTA RESPUESTA PARA LA OBJECION (adaptala a tu tono):
         # FAST PATH: THANKS después de BOOKING → Solo agradecer, no vender
         # =============================================================================
         if intent == Intent.THANKS:
-            logger.info(f"[THANKS] Checking for post-booking context. USE_POSTGRES={USE_POSTGRES}, db_service={db_service is not None}")
+            logger.info(
+                f"[THANKS] Checking for post-booking context. USE_POSTGRES={USE_POSTGRES}, db_service={db_service is not None}"
+            )
             last_bot_action = None
             booking_keywords = [
                 "clonnect.vercel.app/book",
@@ -4914,18 +4922,24 @@ USA ESTA RESPUESTA PARA LA OBJECION (adaptala a tu tono):
                 "discovery call",
                 "coaching session",
                 "elegir tu horario",
-                "servicios disponibles"
+                "servicios disponibles",
             ]
 
             # PRIMARY: Check PostgreSQL first (most reliable in Railway)
             if USE_POSTGRES and db_service:
                 try:
-                    recent_db_msgs = db_service.get_recent_messages(self.creator_id, sender_id, limit=6)
-                    logger.info(f"[THANKS] DB returned {len(recent_db_msgs)} recent messages for {sender_id}")
+                    recent_db_msgs = db_service.get_recent_messages(
+                        self.creator_id, sender_id, limit=6
+                    )
+                    logger.info(
+                        f"[THANKS] DB returned {len(recent_db_msgs)} recent messages for {sender_id}"
+                    )
                     for i, msg in enumerate(recent_db_msgs):
                         role = msg.get("role", "?")
                         content_preview = (msg.get("content") or "")[:80]
-                        logger.info(f"[THANKS] DB msg[{i}]: role={role}, content={content_preview}...")
+                        logger.info(
+                            f"[THANKS] DB msg[{i}]: role={role}, content={content_preview}..."
+                        )
                         if role == "assistant":
                             content = (msg.get("content") or "").lower()
                             if any(kw in content for kw in booking_keywords):
@@ -4935,18 +4949,25 @@ USA ESTA RESPUESTA PARA LA OBJECION (adaptala a tu tono):
                 except Exception as e:
                     logger.warning(f"[THANKS] DB check failed: {e}")
                     import traceback
+
                     traceback.print_exc()
 
             # FALLBACK: Check follower.last_messages (in-memory)
             if not last_bot_action:
-                recent_msgs = follower.last_messages[-6:] if follower.last_messages and len(follower.last_messages) >= 6 else (follower.last_messages or [])
+                recent_msgs = (
+                    follower.last_messages[-6:]
+                    if follower.last_messages and len(follower.last_messages) >= 6
+                    else (follower.last_messages or [])
+                )
                 logger.info(f"[THANKS] Memory has {len(recent_msgs)} recent messages")
                 for msg in reversed(recent_msgs):
                     if msg.get("role") == "assistant":
                         content = (msg.get("content") or "").lower()
                         if any(kw in content for kw in booking_keywords):
                             last_bot_action = "booking"
-                            logger.info(f"[THANKS] Detected post-booking from memory: {content[:60]}...")
+                            logger.info(
+                                f"[THANKS] Detected post-booking from memory: {content[:60]}..."
+                            )
                             break
 
             if last_bot_action == "booking":
