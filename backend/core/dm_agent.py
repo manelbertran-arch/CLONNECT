@@ -4916,30 +4916,33 @@ USA ESTA RESPUESTA PARA LA OBJECION (adaptala a tu tono):
                 "servicios disponibles"
             ]
 
-            # First try: Check follower.last_messages (in-memory)
-            recent_msgs = follower.last_messages[-6:] if follower.last_messages and len(follower.last_messages) >= 6 else (follower.last_messages or [])
-            for msg in reversed(recent_msgs):
-                if msg.get("role") == "assistant":
-                    content = (msg.get("content") or "").lower()
-                    if any(kw in content for kw in booking_keywords):
-                        last_bot_action = "booking"
-                        logger.info(f"[THANKS] Detected post-booking from memory: {content[:50]}...")
-                        break
-
-            # Second try: Check PostgreSQL if not found in memory
-            if not last_bot_action and USE_POSTGRES and db_service:
+            # PRIMARY: Check PostgreSQL first (most reliable in Railway)
+            if USE_POSTGRES and db_service:
                 try:
-                    recent_db_msgs = db_service.get_recent_messages(self.creator_id, sender_id, limit=4)
+                    recent_db_msgs = db_service.get_recent_messages(self.creator_id, sender_id, limit=6)
+                    logger.info(f"[THANKS] DB returned {len(recent_db_msgs)} recent messages")
                     if recent_db_msgs:
                         for msg in recent_db_msgs:
                             if msg.get("role") == "assistant":
                                 content = (msg.get("content") or "").lower()
                                 if any(kw in content for kw in booking_keywords):
                                     last_bot_action = "booking"
-                                    logger.info(f"[THANKS] Detected post-booking from DB: {content[:50]}...")
+                                    logger.info(f"[THANKS] Detected post-booking from DB: {content[:60]}...")
                                     break
                 except Exception as e:
                     logger.warning(f"[THANKS] DB check failed: {e}")
+
+            # FALLBACK: Check follower.last_messages (in-memory)
+            if not last_bot_action:
+                recent_msgs = follower.last_messages[-6:] if follower.last_messages and len(follower.last_messages) >= 6 else (follower.last_messages or [])
+                logger.info(f"[THANKS] Memory has {len(recent_msgs)} recent messages")
+                for msg in reversed(recent_msgs):
+                    if msg.get("role") == "assistant":
+                        content = (msg.get("content") or "").lower()
+                        if any(kw in content for kw in booking_keywords):
+                            last_bot_action = "booking"
+                            logger.info(f"[THANKS] Detected post-booking from memory: {content[:60]}...")
+                            break
 
             if last_bot_action == "booking":
                 response_text = "¡Perfecto! Ahí te espero. Si tienes alguna duda antes de la llamada, aquí estoy. 🙌"
