@@ -481,29 +481,31 @@ def sanitize_llm_response(response: str) -> str:
     import re
 
     # Remove Chain of Thought tags and their content
-    response = re.sub(r'\[RAZONAMIENTO\].*?\[/RAZONAMIENTO\]', '', response, flags=re.DOTALL | re.IGNORECASE)
-    response = re.sub(r'\[RESPUESTA\]', '', response, flags=re.IGNORECASE)
-    response = re.sub(r'\[/RESPUESTA\]', '', response, flags=re.IGNORECASE)
+    response = re.sub(
+        r"\[RAZONAMIENTO\].*?\[/RAZONAMIENTO\]", "", response, flags=re.DOTALL | re.IGNORECASE
+    )
+    response = re.sub(r"\[RESPUESTA\]", "", response, flags=re.IGNORECASE)
+    response = re.sub(r"\[/RESPUESTA\]", "", response, flags=re.IGNORECASE)
 
     # Remove any remaining square bracket tags
-    response = re.sub(r'\[/?[A-Z_]+\]', '', response, flags=re.IGNORECASE)
+    response = re.sub(r"\[/?[A-Z_]+\]", "", response, flags=re.IGNORECASE)
 
     # Remove common LLM artifacts
-    response = re.sub(r'^(Assistant|Bot|AI|Asistente):\s*', '', response, flags=re.IGNORECASE)
-    response = re.sub(r'^Respuesta:\s*', '', response, flags=re.IGNORECASE)
-    response = re.sub(r'^Response:\s*', '', response, flags=re.IGNORECASE)
+    response = re.sub(r"^(Assistant|Bot|AI|Asistente):\s*", "", response, flags=re.IGNORECASE)
+    response = re.sub(r"^Respuesta:\s*", "", response, flags=re.IGNORECASE)
+    response = re.sub(r"^Response:\s*", "", response, flags=re.IGNORECASE)
 
     # Remove garbage/nonsense strings (random characters that don't form words)
     # Pattern: 4+ consecutive lowercase letters that don't form common words
     garbage_patterns = [
-        r'\*\*[a-z]{4,}\*\*',  # Bold garbage like **sddds**
-        r'\b[bcdfghjklmnpqrstvwxz]{4,}\b',  # Consonant-only strings 4+ chars
+        r"\*\*[a-z]{4,}\*\*",  # Bold garbage like **sddds**
+        r"\b[bcdfghjklmnpqrstvwxz]{4,}\b",  # Consonant-only strings 4+ chars
     ]
     for pattern in garbage_patterns:
-        response = re.sub(pattern, '', response, flags=re.IGNORECASE)
+        response = re.sub(pattern, "", response, flags=re.IGNORECASE)
 
     # Clean up whitespace
-    response = re.sub(r'\s+', ' ', response)
+    response = re.sub(r"\s+", " ", response)
     response = response.strip()
 
     return response
@@ -2199,10 +2201,24 @@ class DMResponderAgent:
             return Intent.ESCALATION, 0.95
 
         # === GOODBYE - Alta prioridad para detectar despedidas ===
+        # NOTA: Eliminamos "saludos", "un saludo", "buenas noches" porque son ambiguos
+        # (pueden ser saludo O despedida según contexto). Los tratamos como saludos por defecto.
         goodbye_keywords = [
-            "adios", "adiós", "hasta luego", "chao", "chau", "nos vemos",
-            "bye", "goodbye", "hasta pronto", "me voy", "me despido",
-            "un saludo", "saludos", "cuidate", "cuídate", "buenas noches"
+            "adios",
+            "adiós",
+            "hasta luego",
+            "chao",
+            "chau",
+            "nos vemos",
+            "bye",
+            "goodbye",
+            "hasta pronto",
+            "me voy",
+            "me despido",
+            "cuidate",
+            "cuídate",
+            "que descanses",
+            "hasta mañana",
         ]
         if any(w in msg for w in goodbye_keywords):
             logger.info(f"GOODBYE detected in message: {msg[:50]}")
@@ -2231,20 +2247,31 @@ class DMResponderAgent:
                 return Intent.INTEREST_STRONG, 0.90
 
         # Interés soft - ANTES de saludos para que "hola, me interesa" sea INTEREST_SOFT
-        if any(
-            w in msg
-            for w in [
-                "interesa",
-                "cuentame",
-                "cuéntame",
-                "info",
-                "información",
-                "saber mas",
-                "saber más",
-                "como funciona",
-                "cómo funciona",
-            ]
-        ):
+        interest_soft_kw = [
+            "interesa",
+            "tengo interes",
+            "tengo interés",  # interés
+            "cuentame",
+            "cuéntame",
+            "explicame",
+            "explícame",  # cuéntame
+            "dime mas",
+            "dime más",  # dime más
+            "info",
+            "información",  # info
+            "saber mas",
+            "saber más",
+            "quiero saber",  # saber más
+            "como funciona",
+            "cómo funciona",  # cómo funciona
+            "me gustaria saber",
+            "me gustaría saber",  # me gustaría
+            "podrias explicarme",
+            "podrías explicarme",  # podrías explicarme
+            "de que se trata",
+            "de qué se trata",  # de qué se trata
+        ]
+        if any(w in msg for w in interest_soft_kw):
             return Intent.INTEREST_SOFT, 0.85
 
         # PRECIO - ANTES de booking para que "cuanto cuesta la mentoria" sea QUESTION_PRODUCT
@@ -2350,11 +2377,32 @@ class DMResponderAgent:
             return Intent.BOOKING, 0.90
 
         # Saludos (solo si NO hay interés ni booking)
-        # Incluye ES + EN básico
-        if any(
-            w in msg
-            for w in ["hola", "hey", "ey", "buenas", "buenos dias", "que tal", "hi", "hello"]
-        ):
+        # Incluye ES + EN básico + slang común
+        greeting_keywords = [
+            "hola",
+            "hey",
+            "ey",
+            "ei",  # básicos
+            "buenas",
+            "buenos dias",
+            "buenos días",
+            "buenas tardes",
+            "buenas noches",  # formales
+            "que tal",
+            "qué tal",  # casual
+            "hi",
+            "hello",
+            "what's up",
+            "whats up",  # inglés
+            "holi",
+            "holis",
+            "wenas",
+            "wuenas",
+            "nas",  # slang
+            "saludos",
+            "un saludo",  # pueden ser saludo inicial
+        ]
+        if any(w in msg for w in greeting_keywords):
             return Intent.GREETING, 0.90
 
         # Objeción precio
@@ -4536,14 +4584,22 @@ USA ESTA RESPUESTA PARA LA OBJECION (adaptala a tu tono):
         # Add user context (name, preferences) to system prompt
         user_context_parts = []
         if follower.name:
-            user_context_parts.append(f"- NOMBRE del usuario: {follower.name} (SIEMPRE úsalo cuando le hables)")
+            user_context_parts.append(
+                f"- NOMBRE del usuario: {follower.name} (SIEMPRE úsalo cuando le hables)"
+            )
         if follower.preferred_language and follower.preferred_language != "es":
             user_context_parts.append(f"- Idioma preferido: {follower.preferred_language}")
         if follower.products_discussed:
-            user_context_parts.append(f"- Productos que le interesan: {', '.join(follower.products_discussed[-3:])}")
+            user_context_parts.append(
+                f"- Productos que le interesan: {', '.join(follower.products_discussed[-3:])}"
+            )
 
         if user_context_parts:
-            user_context = "\n\n=== CONTEXTO DEL USUARIO (IMPORTANTE) ===\n" + "\n".join(user_context_parts) + "\n=== FIN CONTEXTO ==="
+            user_context = (
+                "\n\n=== CONTEXTO DEL USUARIO (IMPORTANTE) ===\n"
+                + "\n".join(user_context_parts)
+                + "\n=== FIN CONTEXTO ==="
+            )
             system_prompt += user_context
             logger.info(f"Added user context to prompt: name={follower.name}")
 
