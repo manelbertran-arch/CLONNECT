@@ -2198,6 +2198,16 @@ class DMResponderAgent:
         if any(kw.lower() in msg for kw in escalation_kw):
             return Intent.ESCALATION, 0.95
 
+        # === GOODBYE - Alta prioridad para detectar despedidas ===
+        goodbye_keywords = [
+            "adios", "adiós", "hasta luego", "chao", "chau", "nos vemos",
+            "bye", "goodbye", "hasta pronto", "me voy", "me despido",
+            "un saludo", "saludos", "cuidate", "cuídate", "buenas noches"
+        ]
+        if any(w in msg for w in goodbye_keywords):
+            logger.info(f"GOODBYE detected in message: {msg[:50]}")
+            return Intent.GOODBYE, 0.90
+
         # === INTERÉS SE DETECTA PRIMERO (prioridad sobre saludos) ===
         # Esto permite que "Hola, me interesa el curso" se clasifique como INTEREST, no GREETING
 
@@ -4522,6 +4532,20 @@ USA ESTA RESPUESTA PARA LA OBJECION (adaptala a tu tono):
                 logger.debug("System prompt personalized based on user profile")
             except Exception as e:
                 logger.warning(f"Failed to personalize system prompt: {e}")
+
+        # Add user context (name, preferences) to system prompt
+        user_context_parts = []
+        if follower.name:
+            user_context_parts.append(f"- NOMBRE del usuario: {follower.name} (SIEMPRE úsalo cuando le hables)")
+        if follower.preferred_language and follower.preferred_language != "es":
+            user_context_parts.append(f"- Idioma preferido: {follower.preferred_language}")
+        if follower.products_discussed:
+            user_context_parts.append(f"- Productos que le interesan: {', '.join(follower.products_discussed[-3:])}")
+
+        if user_context_parts:
+            user_context = "\n\n=== CONTEXTO DEL USUARIO (IMPORTANTE) ===\n" + "\n".join(user_context_parts) + "\n=== FIN CONTEXTO ==="
+            system_prompt += user_context
+            logger.info(f"Added user context to prompt: name={follower.name}")
 
         # Add semantic memory context if available
         if semantic_context:
