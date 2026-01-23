@@ -2184,6 +2184,8 @@ class DMResponderAgent:
             "hablar con un humano",
             "contactar persona",
             "necesito hablar con",
+            "necesito una persona",
+            "necesito persona",
             "prefiero hablar con",
             "prefiero un humano",
             "quiero un humano",
@@ -2201,6 +2203,10 @@ class DMResponderAgent:
             "atención humana",
             "dame con un agente",
             "dame con",
+            "quiero al responsable",
+            "conecta con un agente",
+            "esto es automatico",
+            "esto es automático",
         ]
         escalation_kw = self.creator_config.get("escalation_keywords", []) + default_escalation
         if any(kw.lower() in msg for kw in escalation_kw):
@@ -2245,6 +2251,7 @@ class DMResponderAgent:
             "quiero comprar",
             "adquirir",
             "donde compro",
+            "dónde compro",
             "link de pago",
             "apuntarme",
             "me apunto",
@@ -2265,6 +2272,13 @@ class DMResponderAgent:
             "empezar ya",
             "quiero comenzar",
             "vamos a ello",
+            "donde pago",
+            "dónde pago",
+            "como pago",
+            "cómo pago",
+            "pagarlo",
+            "pagar ahora",
+            "quiero adquirirlo",
         ]
         if any(w in msg for w in interest_strong_kw):
             # Excluir si contiene negación
@@ -2282,6 +2296,8 @@ class DMResponderAgent:
             "cuéntame",
             "explicame",
             "explícame",
+            "puedes explicar",
+            "me puedes explicar",
             "dime mas",
             "dime más",
             "info",
@@ -2304,6 +2320,10 @@ class DMResponderAgent:
             "conocer mas",
             "conocer más",
             "quiero conocer",
+            "detalles",
+            "mas detalles",
+            "más detalles",
+            "dame detalles",
         ]
         if any(w in msg for w in interest_soft_kw):
             return Intent.INTEREST_SOFT, 0.85
@@ -2411,7 +2431,11 @@ class DMResponderAgent:
                 "tener call",
             ]
         ):
-            return Intent.BOOKING, 0.90
+            # Exclusiones: "agenda llena" es OBJECTION_TIME, "ebook" es LEAD_MAGNET, "consultarlo" es OBJECTION_DOUBT
+            if "llena" in msg or "ebook" in msg or "consultarlo" in msg:
+                pass  # No retornar BOOKING, continuar con otras clasificaciones
+            else:
+                return Intent.BOOKING, 0.90
 
         # Saludos (solo si NO hay interés ni booking)
         # Incluye ES + EN básico + slang común
@@ -2460,6 +2484,8 @@ class DMResponderAgent:
                 "no tengo tanto",
                 "no dispongo",
                 "precio me frena",
+                "excesivo",
+                "me parece excesivo",
             ]
         ):
             return Intent.OBJECTION_PRICE, 0.90
@@ -2470,14 +2496,21 @@ class DMResponderAgent:
             for w in [
                 "no tengo tiempo",
                 "ocupado",
+                "ocupada",
+                "muy ocupado",
+                "muy ocupada",
                 "sin tiempo",
                 "no puedo ahora",
                 "ahora no puedo",
                 "mucho tiempo",
                 "cuanto tiempo lleva",
                 "cuánto tiempo lleva",
+                "cuanto tiempo requiere",
+                "cuánto tiempo requiere",
                 "no tengo horas",
                 "agenda llena",
+                "agenda esta llena",
+                "agenda está llena",
                 "trabajo mucho",
                 "a tope",
                 "dedicar tiempo",
@@ -2485,6 +2518,7 @@ class DMResponderAgent:
                 "toma mucho tiempo",
                 "requiere mucho tiempo",
                 "no me da el tiempo",
+                "no tengo hueco",
             ]
         ):
             return Intent.OBJECTION_TIME, 0.90
@@ -2495,6 +2529,11 @@ class DMResponderAgent:
             for w in [
                 "pensarlo",
                 "pensar",
+                "pensarmelo",
+                "pensármelo",
+                "meditarlo",
+                "reflexionarlo",
+                "consultarlo",
                 "no se",
                 "no sé",
                 "no estoy seguro",
@@ -2511,7 +2550,19 @@ class DMResponderAgent:
         # Despedida - ANTES de OBJECTION_LATER para que "hasta luego" no matchee "luego"
         if any(
             w in msg
-            for w in ["adios", "adiós", "hasta luego", "chao", "nos vemos", "bye", "goodbye"]
+            for w in [
+                "adios",
+                "adiós",
+                "hasta luego",
+                "chao",
+                "nos vemos",
+                "bye",
+                "goodbye",
+                "hasta pronto",
+                "cuidate",
+                "cuídate",
+                "bendiciones",
+            ]
         ):
             return Intent.GOODBYE, 0.85
 
@@ -2524,6 +2575,7 @@ class DMResponderAgent:
                 "despues",
                 "después",
                 "otro dia",
+                "otro momento",
                 "ahora no",
                 "mas adelante",
                 "más adelante",
@@ -2544,21 +2596,33 @@ class DMResponderAgent:
                 return Intent.OBJECTION_LATER, 0.85
 
         # Objeción "¿funciona?" / resultados
+        # NOTA: "no funciona" es SUPPORT, no OBJECTION_WORKS
         if any(
             w in msg
             for w in [
                 "funciona",
+                "funciona de verdad",
+                "funciona realmente",
                 "resultados",
+                "tiene resultados",
+                "que resultados",
+                "qué resultados",
                 "garantia",
+                "garantía",
+                "hay garantia",
+                "hay garantía",
                 "pruebas",
                 "testimonios",
                 "casos de exito",
                 "sirve",
+                "sirve realmente",
                 "efectivo",
                 "es efectivo",
             ]
         ):
-            return Intent.OBJECTION_WORKS, 0.85
+            # Excluir "no funciona" / "no me funciona" → eso es SUPPORT
+            if "no funciona" not in msg and "no me funciona" not in msg:
+                return Intent.OBJECTION_WORKS, 0.85
 
         # Objeción "no es para mí"
         if any(
@@ -2664,6 +2728,15 @@ class DMResponderAgent:
             "programa de",
             "acompañamiento",
             "acompanamiento",
+            # Más preguntas sobre contenido
+            "que trae",
+            "qué trae",
+            "trae incluido",
+            "bonos",
+            "descuento",
+            "ofertas",
+            "que aprendo",
+            "qué aprendo",
         ]
         matched_kw = [w for w in product_question_kw if w in msg]
         if matched_kw:
@@ -2683,6 +2756,7 @@ class DMResponderAgent:
                 "sin pagar",
                 "regalo",
                 "gratuito",
+                "gratuita",
                 "pdf",
                 "ebook",
                 "freebie",
@@ -2690,6 +2764,11 @@ class DMResponderAgent:
                 "lead magnet",
                 "material gratis",
                 "recurso gratis",
+                "recurso gratuito",
+                "guia gratis",
+                "guía gratis",
+                "guia gratuita",
+                "guía gratuita",
             ]
         ):
             return Intent.LEAD_MAGNET, 0.90
@@ -2718,11 +2797,17 @@ class DMResponderAgent:
             for w in [
                 "problema",
                 "no funciona",
+                "no me funciona",
                 "error",
                 "ayuda",
                 "falla",
+                "fallo",
+                "falló",
                 "no puedo acceder",
                 "no me deja",
+                "no carga",
+                "algo esta mal",
+                "algo está mal",
                 "tecnico",
                 "técnico",
                 "bug",
@@ -4344,11 +4429,13 @@ USA ESTA RESPUESTA PARA LA OBJECION (adaptala a tu tono):
             for p in self.products:
                 url = get_valid_payment_url(p)
                 if url:
-                    payment_products.append({
-                        "name": p.get("name", "Producto"),
-                        "price": p.get("price", 0),
-                        "url": url,
-                    })
+                    payment_products.append(
+                        {
+                            "name": p.get("name", "Producto"),
+                            "price": p.get("price", 0),
+                            "url": url,
+                        }
+                    )
 
             if payment_products:
                 user_language = follower.preferred_language or "es"
@@ -4357,7 +4444,7 @@ USA ESTA RESPUESTA PARA LA OBJECION (adaptala a tu tono):
                 # Format payment response
                 if len(payment_products) == 1:
                     p = payment_products[0]
-                    price_text = f"{int(p['price'])}€" if p['price'] > 0 else "GRATIS"
+                    price_text = f"{int(p['price'])}€" if p["price"] > 0 else "GRATIS"
                     if dialect == "rioplatense":
                         response_text = f"¡Genial! 🚀 Acá tenés el link para {p['name']} ({price_text}):\n\n➜ {p['url']}\n\n¿Te paso el acceso ahora?"
                     else:
@@ -4365,11 +4452,15 @@ USA ESTA RESPUESTA PARA LA OBJECION (adaptala a tu tono):
                 else:
                     # Multiple products
                     if dialect == "rioplatense":
-                        response_text = "¡Genial que quieras avanzar! 🚀 Estos son mis productos:\n\n"
+                        response_text = (
+                            "¡Genial que quieras avanzar! 🚀 Estos son mis productos:\n\n"
+                        )
                     else:
-                        response_text = "¡Genial que quieras avanzar! 🚀 Estos son mis productos:\n\n"
+                        response_text = (
+                            "¡Genial que quieras avanzar! 🚀 Estos son mis productos:\n\n"
+                        )
                     for p in payment_products:
-                        price_text = f"{int(p['price'])}€" if p['price'] > 0 else "GRATIS"
+                        price_text = f"{int(p['price'])}€" if p["price"] > 0 else "GRATIS"
                         response_text += f"🎯 {p['name']} - {price_text}\n   ➜ {p['url']}\n\n"
                     response_text += "¿Cuál te interesa?"
 
