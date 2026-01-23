@@ -2825,16 +2825,42 @@ class DMResponderAgent:
         """Buscar producto relevante según mensaje e intent"""
         msg = message.lower()
 
-        # Buscar por keywords del producto
+        # Get products with actual prices (real products, not FAQ/content)
+        priced_products = [p for p in self.products if (p.get("price") or 0) > 0]
+
+        # Buscar por keywords del producto - prioritize priced products
+        for product in priced_products:
+            keywords = product.get("keywords", [])
+            if any(kw.lower() in msg for kw in keywords):
+                logger.info(
+                    f"[PRODUCT MATCH] Matched priced product by keyword: {product.get('name')}"
+                )
+                return product
+
+        # Then check all products by keywords
         for product in self.products:
             keywords = product.get("keywords", [])
             if any(kw.lower() in msg for kw in keywords):
                 return product
 
-        # Buscar por nombre del producto (palabras clave del nombre)
-        for product in self.products:
+        # Buscar por nombre del producto - prioritize priced products
+        for product in priced_products:
             product_name = product.get("name", "").lower()
             # Extraer palabras significativas del nombre (>3 chars, no artículos)
+            name_words = [
+                w
+                for w in product_name.split()
+                if len(w) > 3 and w not in ["para", "respira", "siente", "conecta"]
+            ]
+            if any(word in msg for word in name_words):
+                logger.info(
+                    f"[PRODUCT MATCH] Matched priced product by name: {product.get('name')} (word in msg)"
+                )
+                return product
+
+        # Then check all products by name
+        for product in self.products:
+            product_name = product.get("name", "").lower()
             name_words = [
                 w
                 for w in product_name.split()
@@ -2847,18 +2873,18 @@ class DMResponderAgent:
         # Si busca gratis, devolver lead magnet
         if intent == Intent.LEAD_MAGNET:
             for product in self.products:
-                if product.get("price") or 0 == 0:
+                if (product.get("price") or 0) == 0 and product.get("is_lead_magnet"):
                     return product
 
-        # Si hay interés, devolver producto destacado o principal
+        # Si hay interés, devolver producto destacado o principal (con precio)
         if intent in [Intent.INTEREST_STRONG, Intent.INTEREST_SOFT, Intent.QUESTION_PRODUCT]:
-            for product in self.products:
+            # First try featured product with price
+            for product in priced_products:
                 if product.get("is_featured", False):
                     return product
-            # Si no hay destacado, devolver el primero con precio > 0
-            for product in self.products:
-                if product.get("price") or 0 > 0:
-                    return product
+            # Then any priced product
+            if priced_products:
+                return priced_products[0]
 
         return None
 
@@ -4539,39 +4565,66 @@ USA ESTA RESPUESTA PARA LA OBJECION (adaptala a tu tono):
 
         # === FAST PATH: Pregunta de precio específica ===
         # Cuando usuario pregunta "cuánto cuesta X" y tenemos el producto, responder directamente
-        if intent == Intent.QUESTION_PRODUCT and product:
-            msg_lower = message_text.lower()
-            price_keywords = [
-                "cuanto cuesta",
-                "cuánto cuesta",
-                "precio",
-                "cuanto vale",
-                "cuánto vale",
-                "que cuesta",
-                "qué cuesta",
-                "cuanto es",
-                "cuánto es",
-                "cual es el precio",
-                "cuál es el precio",
-                "cuanto sale",
-                "cuánto sale",
-            ]
-            is_price_question = any(kw in msg_lower for kw in price_keywords)
+        msg_lower = message_text.lower()
+        price_keywords = [
+            "cuanto cuesta",
+            "cuánto cuesta",
+            "precio",
+            "cuanto vale",
+            "cuánto vale",
+            "que cuesta",
+            "qué cuesta",
+            "cuanto es",
+            "cuánto es",
+            "cual es el precio",
+            "cuál es el precio",
+            "cuanto sale",
+            "cuánto sale",
+        ]
+        is_price_question = any(kw in msg_lower for kw in price_keywords)
 
-            if is_price_question:
-                logger.info(f"=== FAST PATH: Price question for {product.get('name')} ===")
-                price = product.get("price") or 0
-                product_name = product.get("name", "el servicio")
-                description = product.get("description", "")[:100]
+        if is_price_question:
+            # Get products with actual prices (filter out FAQ/content items)
+            priced_products = [p for p in self.products if (p.get("price") or 0) > 0]
 
-                if price > 0:
-                    price_response = f"¡{product_name} tiene un precio de {int(price)}€! 🎯"
-                    if description:
-                        price_response += f" {description}"
-                else:
-                    price_response = f"¡{product_name} es GRATIS! 🎉"
-                    if description:
-                        price_response += f" {description}"
+            # If matched product has a price, use it; otherwise find one with price
+            effective_product = None
+            if product and (product.get("price") or 0) > 0:
+                effective_product = product
+            elif priced_products:
+                # Try to find a product matching the message
+                for p in priced_products:
+                    p_name = p.get("name", "").lower()
+                    p_keywords = [kw.lower() for kw in p.get("keywords", [])]
+                    name_words = [w for w in p_name.split() if len(w) > 3]
+                    if any(word in msg_lower for word in name_words) or any(
+                        kw in msg_lower for kw in p_keywords
+                    ):
+                        effective_product = p
+                        break
+                # If no specific match, use featured or first priced product
+                if not effective_product:
+                    for p in priced_products:
+                        if p.get("is_featured"):
+                            effective_product = p
+                            break
+                    if not effective_product:
+                        effective_product = priced_products[0]
+
+            if effective_product:
+                logger.info(
+                    f"=== FAST PATH: Price question for {effective_product.get('name')} ==="
+                )
+                price = effective_product.get("price") or 0
+                product_name = effective_product.get("name", "el servicio")
+                description = effective_product.get("short_description") or effective_product.get(
+                    "description", ""
+                )
+                description = description[:150] if description else ""
+
+                price_response = f"¡{product_name} tiene un precio de {int(price)}€! 🎯"
+                if description:
+                    price_response += f" {description}"
 
                 await self._update_memory(follower, message_text, price_response, intent)
 
@@ -4584,8 +4637,30 @@ USA ESTA RESPUESTA PARA LA OBJECION (adaptala a tu tono):
                     metadata={
                         "fast_path": True,
                         "product_price": price,
-                        "product_id": product.get("id"),
+                        "product_id": effective_product.get("id"),
                     },
+                )
+            elif priced_products:
+                # No specific product matched but we have products with prices - list them
+                logger.info(
+                    f"=== FAST PATH: Generic price question, listing {len(priced_products)} priced products ==="
+                )
+                price_response = "¡Estos son mis servicios con sus precios! 🎯\n\n"
+                for p in priced_products[:5]:  # Show max 5
+                    p_name = p.get("name", "Servicio")
+                    p_price = int(p.get("price") or 0)
+                    price_response += f"• {p_name} - {p_price}€\n"
+                price_response += "\n¿Cuál te interesa?"
+
+                await self._update_memory(follower, message_text, price_response, intent)
+
+                return DMResponse(
+                    response_text=price_response,
+                    intent=Intent.QUESTION_PRODUCT,
+                    action_taken="list_priced_products",
+                    product_mentioned=None,
+                    confidence=0.9,
+                    metadata={"fast_path": True, "products_listed": len(priced_products)},
                 )
 
         # === FAST PATH: Compra directa ===
