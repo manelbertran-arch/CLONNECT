@@ -216,6 +216,46 @@ class ResponseGuardrail:
 
         return issues
 
+    def _check_off_topic(self, query: str, response: str) -> Optional[str]:
+        """
+        Check if user asked about off-topic subjects and bot gave opinions.
+        Returns redirect response if off-topic detected, None otherwise.
+        """
+        query_lower = query.lower()
+        response_lower = response.lower()
+
+        # Off-topic subjects the bot should NOT give opinions about
+        off_topic_subjects = [
+            "bitcoin", "crypto", "cripto", "criptomoneda", "ethereum", "nft",
+            "politica", "política", "elecciones", "gobierno",
+            "religion", "religión", "dios", "iglesia",
+            "aborto", "drogas", "armas",
+            "guerra", "conflicto bélico",
+        ]
+
+        # Check if query mentions off-topic subject
+        query_is_off_topic = any(subj in query_lower for subj in off_topic_subjects)
+
+        if not query_is_off_topic:
+            return None
+
+        # If response discusses the off-topic subject (gives opinion, explains, etc.)
+        # instead of redirecting, flag it
+        redirect_phrases = [
+            "no es mi área", "no es mi especialidad", "no puedo opinar",
+            "no ofrezco", "no vendemos", "no trabajo con",
+            "mi enfoque es", "me especializo en"
+        ]
+
+        has_proper_redirect = any(phrase in response_lower for phrase in redirect_phrases)
+
+        if not has_proper_redirect:
+            # Bot gave opinion on off-topic subject - return redirect response
+            logger.warning(f"Off-topic detected: query about '{query[:50]}' got opinion instead of redirect")
+            return "Ese tema está fuera de mi área de especialidad. ¿Te cuento en qué sí puedo ayudarte? 😊"
+
+        return None
+
     def get_safe_response(
         self,
         query: str,
@@ -233,6 +273,11 @@ class ResponseGuardrail:
         Returns:
             Safe response string
         """
+        # Check for off-topic responses first
+        off_topic_redirect = self._check_off_topic(query, response)
+        if off_topic_redirect:
+            return off_topic_redirect
+
         validation = self.validate_response(query, response, context)
 
         if validation["valid"]:
