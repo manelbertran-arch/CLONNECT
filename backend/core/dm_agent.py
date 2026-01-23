@@ -473,6 +473,42 @@ def apply_voseo(text: str) -> str:
     return result
 
 
+def sanitize_llm_response(response: str) -> str:
+    """Remove LLM artifacts like [RESPUESTA], [RAZONAMIENTO], garbage text, etc."""
+    if not response:
+        return response
+
+    import re
+
+    # Remove Chain of Thought tags and their content
+    response = re.sub(r'\[RAZONAMIENTO\].*?\[/RAZONAMIENTO\]', '', response, flags=re.DOTALL | re.IGNORECASE)
+    response = re.sub(r'\[RESPUESTA\]', '', response, flags=re.IGNORECASE)
+    response = re.sub(r'\[/RESPUESTA\]', '', response, flags=re.IGNORECASE)
+
+    # Remove any remaining square bracket tags
+    response = re.sub(r'\[/?[A-Z_]+\]', '', response, flags=re.IGNORECASE)
+
+    # Remove common LLM artifacts
+    response = re.sub(r'^(Assistant|Bot|AI|Asistente):\s*', '', response, flags=re.IGNORECASE)
+    response = re.sub(r'^Respuesta:\s*', '', response, flags=re.IGNORECASE)
+    response = re.sub(r'^Response:\s*', '', response, flags=re.IGNORECASE)
+
+    # Remove garbage/nonsense strings (random characters that don't form words)
+    # Pattern: 4+ consecutive lowercase letters that don't form common words
+    garbage_patterns = [
+        r'\*\*[a-z]{4,}\*\*',  # Bold garbage like **sddds**
+        r'\b[bcdfghjklmnpqrstvwxz]{4,}\b',  # Consonant-only strings 4+ chars
+    ]
+    for pattern in garbage_patterns:
+        response = re.sub(pattern, '', response, flags=re.IGNORECASE)
+
+    # Clean up whitespace
+    response = re.sub(r'\s+', ' ', response)
+    response = response.strip()
+
+    return response
+
+
 def truncate_response(response: str, max_sentences: int = 2) -> str:
     """Trunca respuestas largas a máximo N frases - AGRESIVO"""
     if not response:
@@ -4723,6 +4759,9 @@ USA ESTA RESPUESTA PARA LA OBJECION (adaptala a tu tono):
                     logger.warning(f"Guardrail check failed: {ge}")
 
                 # === POST-PROCESSING: BREVEDAD Y LINKS ===
+                # 0. Sanitize LLM artifacts ([RESPUESTA], garbage text, etc.)
+                response_text = sanitize_llm_response(response_text)
+
                 # 1. Truncar a máximo 2 frases (AGRESIVO - el LLM ignora instrucciones)
                 response_text = truncate_response(response_text, max_sentences=2)
 
