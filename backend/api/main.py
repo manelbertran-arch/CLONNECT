@@ -6331,9 +6331,9 @@ async def admin_resume_creator(creator_id: str, admin: str = Depends(require_adm
 async def admin_reset_rate_limiter(creator_id: str):
     """Reset Instagram rate limiter backoff for a creator."""
     try:
-        from core.instagram_rate_limiter import get_rate_limiter
+        from core.instagram_rate_limiter import get_instagram_rate_limiter
 
-        limiter = get_rate_limiter()
+        limiter = get_instagram_rate_limiter()
         result = limiter.reset_backoff(creator_id)
         return {"status": "success", **result}
     except Exception as e:
