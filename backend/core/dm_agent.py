@@ -2185,6 +2185,7 @@ class DMResponderAgent:
             "contactar persona",
             "necesito hablar con",
             "prefiero hablar con",
+            "prefiero un humano",
             "quiero un humano",
             "eres un bot",
             "eres robot",
@@ -2195,6 +2196,11 @@ class DMResponderAgent:
             "quiero hablar con una persona",
             "conectame con",
             "conéctame con",
+            "no quiero hablar con un bot",
+            "atencion humana",
+            "atención humana",
+            "dame con un agente",
+            "dame con",
         ]
         escalation_kw = self.creator_config.get("escalation_keywords", []) + default_escalation
         if any(kw.lower() in msg for kw in escalation_kw):
@@ -2211,6 +2217,7 @@ class DMResponderAgent:
             "chau",
             "nos vemos",
             "bye",
+            "bye bye",
             "goodbye",
             "hasta pronto",
             "me voy",
@@ -2219,6 +2226,10 @@ class DMResponderAgent:
             "cuídate",
             "que descanses",
             "hasta mañana",
+            "hasta la proxima",
+            "hasta la próxima",
+            "nos hablamos",
+            "hablamos",
         ]
         if any(w in msg for w in goodbye_keywords):
             logger.info(f"GOODBYE detected in message: {msg[:50]}")
@@ -2240,6 +2251,20 @@ class DMResponderAgent:
             "lo quiero",
             "lo compro",
             "quiero pagar",
+            "listo para comprar",
+            "voy a comprar",
+            "lo voy a comprar",
+            "inscribo",
+            "inscribirme",
+            "pasame el link",
+            "pásame el link",
+            "dame el enlace",
+            "enviame el link",
+            "envíame el link",
+            "quiero empezar",
+            "empezar ya",
+            "quiero comenzar",
+            "vamos a ello",
         ]
         if any(w in msg for w in interest_strong_kw):
             # Excluir si contiene negación
@@ -2250,26 +2275,35 @@ class DMResponderAgent:
         interest_soft_kw = [
             "interesa",
             "tengo interes",
-            "tengo interés",  # interés
+            "tengo interés",
+            "estoy interesado",
+            "estoy interesada",
             "cuentame",
             "cuéntame",
             "explicame",
-            "explícame",  # cuéntame
+            "explícame",
             "dime mas",
-            "dime más",  # dime más
+            "dime más",
             "info",
-            "información",  # info
+            "información",
             "saber mas",
             "saber más",
-            "quiero saber",  # saber más
+            "quiero saber",
             "como funciona",
-            "cómo funciona",  # cómo funciona
+            "cómo funciona",
             "me gustaria saber",
-            "me gustaría saber",  # me gustaría
+            "me gustaría saber",
             "podrias explicarme",
-            "podrías explicarme",  # podrías explicarme
+            "podrías explicarme",
             "de que se trata",
-            "de qué se trata",  # de qué se trata
+            "de qué se trata",
+            "me llama la atencion",
+            "me llama la atención",
+            "suena interesante",
+            "parece interesante",
+            "conocer mas",
+            "conocer más",
+            "quiero conocer",
         ]
         if any(w in msg for w in interest_soft_kw):
             return Intent.INTEREST_SOFT, 0.85
@@ -2355,10 +2389,13 @@ class DMResponderAgent:
                 "zoom",
                 "meet",
                 "calendly",
+                "calendario",
                 "hablar contigo",
                 "cuando podemos hablar",
                 "podemos hablar",
                 "disponibilidad",
+                "sesion",
+                "sesión",
                 "sesion de coaching",
                 "sesión de coaching",
                 "consulta",
@@ -2417,6 +2454,12 @@ class DMResponderAgent:
                 "barato",
                 "no tengo dinero",
                 "no tengo plata",
+                "no me alcanza",
+                "presupuesto",
+                "no me lo puedo permitir",
+                "no tengo tanto",
+                "no dispongo",
+                "precio me frena",
             ]
         ):
             return Intent.OBJECTION_PRICE, 0.90
@@ -2430,12 +2473,39 @@ class DMResponderAgent:
                 "sin tiempo",
                 "no puedo ahora",
                 "ahora no puedo",
+                "mucho tiempo",
+                "cuanto tiempo lleva",
+                "cuánto tiempo lleva",
+                "no tengo horas",
+                "agenda llena",
+                "trabajo mucho",
+                "a tope",
+                "dedicar tiempo",
+                "dedicarle tiempo",
+                "toma mucho tiempo",
+                "requiere mucho tiempo",
+                "no me da el tiempo",
             ]
         ):
             return Intent.OBJECTION_TIME, 0.90
 
         # Objeción duda
-        if any(w in msg for w in ["pensarlo", "pensar", "no se", "no estoy seguro", "dudas"]):
+        if any(
+            w in msg
+            for w in [
+                "pensarlo",
+                "pensar",
+                "no se",
+                "no sé",
+                "no estoy seguro",
+                "no estoy segura",
+                "dudas",
+                "dudando",
+                "no lo tengo claro",
+                "indeciso",
+                "indecisa",
+            ]
+        ):
             return Intent.OBJECTION_DOUBT, 0.85
 
         # Despedida - ANTES de OBJECTION_LATER para que "hasta luego" no matchee "luego"
@@ -2458,6 +2528,15 @@ class DMResponderAgent:
                 "mas adelante",
                 "más adelante",
                 "en otro momento",
+                "mas tarde",
+                "más tarde",
+                "ya te digo",
+                "te aviso",
+                "cuando pueda",
+                "semana que viene",
+                "mes que viene",
+                "dame unos dias",
+                "dame unos días",
             ]
         ):
             # Doble check: no es despedida
@@ -2474,6 +2553,9 @@ class DMResponderAgent:
                 "pruebas",
                 "testimonios",
                 "casos de exito",
+                "sirve",
+                "efectivo",
+                "es efectivo",
             ]
         ):
             return Intent.OBJECTION_WORKS, 0.85
@@ -2593,17 +2675,61 @@ class DMResponderAgent:
             return Intent.QUESTION_GENERAL, 0.85
 
         # Lead magnet
-        if any(w in msg for w in ["gratis", "free", "sin pagar", "regalo", "gratuito"]):
+        if any(
+            w in msg
+            for w in [
+                "gratis",
+                "free",
+                "sin pagar",
+                "regalo",
+                "gratuito",
+                "pdf",
+                "ebook",
+                "freebie",
+                "descargable",
+                "lead magnet",
+                "material gratis",
+                "recurso gratis",
+            ]
+        ):
             return Intent.LEAD_MAGNET, 0.90
 
         # Agradecimiento
-        if any(w in msg for w in ["gracias", "genial", "perfecto", "guay", "thanks"]):
+        if any(
+            w in msg
+            for w in [
+                "gracias",
+                "genial",
+                "perfecto",
+                "guay",
+                "thanks",
+                "thank you",
+                "agradezco",
+                "mil gracias",
+            ]
+        ):
             return Intent.THANKS, 0.85
 
         # GOODBYE ya se detecta antes de OBJECTION_LATER (línea ~1808)
 
         # Soporte
-        if any(w in msg for w in ["problema", "no funciona", "error", "ayuda", "falla"]):
+        if any(
+            w in msg
+            for w in [
+                "problema",
+                "no funciona",
+                "error",
+                "ayuda",
+                "falla",
+                "no puedo acceder",
+                "no me deja",
+                "tecnico",
+                "técnico",
+                "bug",
+                "help",
+                "soporte",
+            ]
+        ):
             return Intent.SUPPORT, 0.85
 
         # No match - log for debugging
