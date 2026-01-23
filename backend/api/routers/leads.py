@@ -86,6 +86,58 @@ async def get_leads(creator_id: str):
     return {"status": "ok", "leads": [], "count": 0}
 
 
+# =============================================================================
+# ESCALATION ALERTS - MUST BE BEFORE /{creator_id}/{lead_id} ROUTES
+# =============================================================================
+
+
+@router.get("/{creator_id}/escalations")
+async def get_escalation_alerts(creator_id: str, limit: int = 50, unread_only: bool = False):
+    """
+    Get escalation alerts for a creator.
+    Returns leads that need human attention (requested escalation, high intent, etc.)
+    """
+    try:
+        alerts = []
+        log_file = Path(f"data/escalations/{creator_id}_escalations.jsonl")
+
+        if log_file.exists():
+            with open(log_file, "r", encoding="utf-8") as f:
+                lines = f.readlines()
+                for line in reversed(lines[-limit:]):
+                    try:
+                        alert = json.loads(line.strip())
+                        if unread_only and alert.get("read", False):
+                            continue
+                        alerts.append(alert)
+                    except:
+                        pass
+
+        return {
+            "status": "ok",
+            "creator_id": creator_id,
+            "alerts": alerts,
+            "total": len(alerts),
+            "unread": len([a for a in alerts if not a.get("read", False)]),
+        }
+    except Exception as e:
+        logger.error(f"Error getting escalations: {e}")
+        return {"status": "ok", "creator_id": creator_id, "alerts": [], "total": 0, "unread": 0}
+
+
+@router.put("/{creator_id}/escalations/{follower_id}/read")
+async def mark_escalation_read(creator_id: str, follower_id: str):
+    """Mark an escalation as read"""
+    # For now, just return OK - in production this would update the file/DB
+    logger.info(f"Marked escalation read: {creator_id}/{follower_id}")
+    return {"status": "ok", "message": "Escalation marked as read"}
+
+
+# =============================================================================
+# INDIVIDUAL LEAD ROUTES - /{creator_id}/{lead_id} pattern
+# =============================================================================
+
+
 @router.get("/{creator_id}/{lead_id}")
 async def get_lead(creator_id: str, lead_id: str):
     if USE_DB:
@@ -971,50 +1023,3 @@ async def get_lead_stats(creator_id: str, lead_id: str):
             "current_stage": "nuevo",
         },
     }
-
-
-# =============================================================================
-# ESCALATION ALERTS
-# =============================================================================
-
-
-@router.get("/{creator_id}/escalations")
-async def get_escalation_alerts(creator_id: str, limit: int = 50, unread_only: bool = False):
-    """
-    Get escalation alerts for a creator.
-    Returns leads that need human attention (requested escalation, high intent, etc.)
-    """
-    try:
-        import json
-        from pathlib import Path
-
-        alerts = []
-        log_file = Path(f"data/escalations/{creator_id}_escalations.jsonl")
-
-        if log_file.exists():
-            with open(log_file, "r", encoding="utf-8") as f:
-                lines = f.readlines()
-                for line in reversed(lines[-limit:]):
-                    try:
-                        alert = json.loads(line.strip())
-                        alerts.append(alert)
-                    except:
-                        pass
-
-        return {
-            "status": "ok",
-            "alerts": alerts,
-            "total": len(alerts),
-            "unread": len([a for a in alerts if not a.get("read", False)]),
-        }
-    except Exception as e:
-        logger.error(f"Error getting escalations: {e}")
-        return {"status": "ok", "alerts": [], "total": 0, "unread": 0}
-
-
-@router.put("/{creator_id}/escalations/{follower_id}/read")
-async def mark_escalation_read(creator_id: str, follower_id: str):
-    """Mark an escalation as read"""
-    # For now, just return OK - in production this would update the file/DB
-    logger.info(f"Marked escalation read: {creator_id}/{follower_id}")
-    return {"status": "ok", "message": "Escalation marked as read"}
