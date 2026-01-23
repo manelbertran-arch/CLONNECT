@@ -65,8 +65,8 @@ class InstagramRateLimiter:
     MAX_BACKOFF_SECONDS = 300  # 5 minutos máximo
     BACKOFF_MULTIPLIER = 2
 
-    # Errores que indican rate limit
-    RATE_LIMIT_CODES = {429, 503, 190, 4, 17, 32, 613}
+    # Errores que indican rate limit (NOT 190 - OAuth is token issue, not rate limit)
+    RATE_LIMIT_CODES = {429, 503, 4, 17, 32, 613}
 
     def __init__(self):
         # Estado por creator_id
