@@ -1,11 +1,13 @@
 """Leads endpoints with frontend compatibility"""
-from fastapi import APIRouter, HTTPException, Body
+
+import json
 import logging
 import os
-import json
 import time
 from datetime import datetime
 from pathlib import Path
+
+from fastapi import APIRouter, Body, HTTPException
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/dm/leads", tags=["leads"])
@@ -21,25 +23,35 @@ db_service = None
 if USE_DB:
     try:
         from api.services import db_service
+
         logger.info("leads.py: Using PostgreSQL (db_service loaded)")
     except ImportError:
         try:
             from api import db_service
+
             logger.info("leads.py: Using PostgreSQL (db_service from api)")
         except ImportError:
             logger.warning("leads.py: db_service import failed, JSON only")
             USE_DB = False
 
-def adapt_leads_response(x): return x
-def adapt_lead_response(x): return x
+
+def adapt_leads_response(x):
+    return x
+
+
+def adapt_lead_response(x):
+    return x
+
 
 try:
-    from api.utils.response_adapter import adapt_leads_response, adapt_lead_response
+    from api.utils.response_adapter import adapt_lead_response, adapt_leads_response
 except ImportError:
     pass
 
+
 def _get_json_path(creator_id: str, lead_id: str) -> Path:
     return STORAGE_PATH / creator_id / f"{lead_id}.json"
+
 
 def _load_lead_json(creator_id: str, lead_id: str) -> dict:
     path = _get_json_path(creator_id, lead_id)
@@ -48,6 +60,7 @@ def _load_lead_json(creator_id: str, lead_id: str) -> dict:
             return json.load(f)
     return None
 
+
 def _save_lead_json(creator_id: str, lead_id: str, data: dict):
     creator_dir = STORAGE_PATH / creator_id
     creator_dir.mkdir(parents=True, exist_ok=True)
@@ -55,6 +68,7 @@ def _save_lead_json(creator_id: str, lead_id: str, data: dict):
     with open(path, "w", encoding="utf-8") as f:
         json.dump(data, f, indent=2, ensure_ascii=False)
     logger.info(f"Saved lead to {path}")
+
 
 @router.get("/{creator_id}")
 async def get_leads(creator_id: str):
@@ -70,6 +84,7 @@ async def get_leads(creator_id: str):
                 raise HTTPException(status_code=500, detail=f"Database error: {e}")
             logger.warning(f"[FALLBACK] Returning empty leads for {creator_id}")
     return {"status": "ok", "leads": [], "count": 0}
+
 
 @router.get("/{creator_id}/{lead_id}")
 async def get_lead(creator_id: str, lead_id: str):
@@ -90,6 +105,7 @@ async def get_lead(creator_id: str, lead_id: str):
         if lead_data:
             return {"status": "ok", "lead": lead_data}
     raise HTTPException(status_code=404, detail="Lead not found")
+
 
 @router.post("/{creator_id}")
 async def create_lead(creator_id: str, data: dict = Body(...)):
@@ -131,6 +147,7 @@ async def create_lead(creator_id: str, data: dict = Body(...)):
         logger.error(f"JSON create lead failed: {e}")
         raise HTTPException(status_code=500, detail="Failed to create lead")
 
+
 @router.post("/{creator_id}/manual")
 async def create_manual_lead(creator_id: str, data: dict = Body(...)):
     # Try PostgreSQL first
@@ -171,6 +188,7 @@ async def create_manual_lead(creator_id: str, data: dict = Body(...)):
         logger.error(f"JSON create lead failed: {e}")
         raise HTTPException(status_code=500, detail="Failed to create lead")
 
+
 @router.put("/{creator_id}/{lead_id}")
 async def update_lead(creator_id: str, lead_id: str, data: dict = Body(...)):
     # Try PostgreSQL first
@@ -178,7 +196,11 @@ async def update_lead(creator_id: str, lead_id: str, data: dict = Body(...)):
         try:
             result = db_service.update_lead(creator_id, lead_id, data)
             if result and isinstance(result, dict):
-                return {"status": "ok", "message": "Lead updated", "lead": adapt_lead_response(result)}
+                return {
+                    "status": "ok",
+                    "message": "Lead updated",
+                    "lead": adapt_lead_response(result),
+                }
         except Exception as e:
             logger.warning(f"DB update lead failed: {e}")
 
@@ -202,6 +224,7 @@ async def update_lead(creator_id: str, lead_id: str, data: dict = Body(...)):
         return {"status": "ok", "message": "Lead updated", "lead": lead_data}
 
     raise HTTPException(status_code=404, detail="Lead not found")
+
 
 @router.delete("/{creator_id}/{lead_id}")
 async def delete_lead(creator_id: str, lead_id: str):
@@ -228,6 +251,7 @@ async def delete_lead(creator_id: str, lead_id: str):
 # STATUS UPDATE (for drag & drop)
 # =============================================================================
 
+
 @router.put("/{creator_id}/{lead_id}/status")
 async def update_lead_status(creator_id: str, lead_id: str, data: dict = Body(...)):
     """
@@ -240,12 +264,14 @@ async def update_lead_status(creator_id: str, lead_id: str, data: dict = Body(..
 
     valid_statuses = ["nuevo", "interesado", "caliente", "cliente", "fantasma"]
     if new_status not in valid_statuses:
-        raise HTTPException(status_code=400, detail=f"Invalid status. Must be one of: {valid_statuses}")
+        raise HTTPException(
+            status_code=400, detail=f"Invalid status. Must be one of: {valid_statuses}"
+        )
 
     if USE_DB:
         try:
             from api.database import SessionLocal
-            from api.models import Lead, LeadActivity, Creator
+            from api.models import Creator, Lead, LeadActivity
 
             session = SessionLocal()
             try:
@@ -255,15 +281,17 @@ async def update_lead_status(creator_id: str, lead_id: str, data: dict = Body(..
                     raise HTTPException(status_code=404, detail="Creator not found")
 
                 # Get lead by platform_user_id or UUID
-                lead = session.query(Lead).filter_by(
-                    creator_id=creator.id,
-                    platform_user_id=lead_id
-                ).first()
+                lead = (
+                    session.query(Lead)
+                    .filter_by(creator_id=creator.id, platform_user_id=lead_id)
+                    .first()
+                )
 
                 if not lead:
                     # Try by UUID
                     try:
                         from uuid import UUID
+
                         lead = session.query(Lead).filter_by(id=UUID(lead_id)).first()
                     except:
                         pass
@@ -282,7 +310,7 @@ async def update_lead_status(creator_id: str, lead_id: str, data: dict = Body(..
                     description=f"Status changed from {old_status} to {new_status}",
                     old_value=old_status,
                     new_value=new_status,
-                    created_by="creator"
+                    created_by="creator",
                 )
                 session.add(activity)
                 session.commit()
@@ -294,8 +322,8 @@ async def update_lead_status(creator_id: str, lead_id: str, data: dict = Body(..
                     "lead": {
                         "id": str(lead.id),
                         "platform_user_id": lead.platform_user_id,
-                        "status": lead.status
-                    }
+                        "status": lead.status,
+                    },
                 }
             finally:
                 session.close()
@@ -312,13 +340,14 @@ async def update_lead_status(creator_id: str, lead_id: str, data: dict = Body(..
 # LEAD ACTIVITIES
 # =============================================================================
 
+
 @router.get("/{creator_id}/{lead_id}/activities")
-async def get_lead_activities(creator_id: str, lead_id: str, limit: int = 50):
-    """Get activity history for a lead"""
+async def get_lead_activities(creator_id: str, lead_id: str, limit: int = 50, offset: int = 0):
+    """Get activity history for a lead with pagination"""
     if USE_DB:
         try:
             from api.database import SessionLocal
-            from api.models import Lead, LeadActivity, Creator
+            from api.models import Creator, Lead, LeadActivity
 
             session = SessionLocal()
             try:
@@ -327,14 +356,16 @@ async def get_lead_activities(creator_id: str, lead_id: str, limit: int = 50):
                     raise HTTPException(status_code=404, detail="Creator not found")
 
                 # Find lead
-                lead = session.query(Lead).filter_by(
-                    creator_id=creator.id,
-                    platform_user_id=lead_id
-                ).first()
+                lead = (
+                    session.query(Lead)
+                    .filter_by(creator_id=creator.id, platform_user_id=lead_id)
+                    .first()
+                )
 
                 if not lead:
                     try:
                         from uuid import UUID
+
                         lead = session.query(Lead).filter_by(id=UUID(lead_id)).first()
                     except:
                         pass
@@ -342,9 +373,18 @@ async def get_lead_activities(creator_id: str, lead_id: str, limit: int = 50):
                 if not lead:
                     raise HTTPException(status_code=404, detail="Lead not found for activities")
 
-                activities = session.query(LeadActivity).filter_by(
-                    lead_id=lead.id
-                ).order_by(LeadActivity.created_at.desc()).limit(limit).all()
+                # Get total count
+                total_count = session.query(LeadActivity).filter_by(lead_id=lead.id).count()
+
+                # Get paginated activities
+                activities = (
+                    session.query(LeadActivity)
+                    .filter_by(lead_id=lead.id)
+                    .order_by(LeadActivity.created_at.desc())
+                    .offset(offset)
+                    .limit(limit)
+                    .all()
+                )
 
                 return {
                     "status": "ok",
@@ -357,10 +397,14 @@ async def get_lead_activities(creator_id: str, lead_id: str, limit: int = 50):
                             "new_value": a.new_value,
                             "metadata": a.extra_data or {},
                             "created_by": a.created_by,
-                            "created_at": a.created_at.isoformat() if a.created_at else None
+                            "created_at": a.created_at.isoformat() if a.created_at else None,
                         }
                         for a in activities
-                    ]
+                    ],
+                    "total_count": total_count,
+                    "limit": limit,
+                    "offset": offset,
+                    "has_more": offset + len(activities) < total_count,
                 }
             finally:
                 session.close()
@@ -379,7 +423,7 @@ async def create_lead_activity(creator_id: str, lead_id: str, data: dict = Body(
     if USE_DB:
         try:
             from api.database import SessionLocal
-            from api.models import Lead, LeadActivity, Creator
+            from api.models import Creator, Lead, LeadActivity
 
             session = SessionLocal()
             try:
@@ -388,20 +432,24 @@ async def create_lead_activity(creator_id: str, lead_id: str, data: dict = Body(
                     raise HTTPException(status_code=404, detail="Creator not found")
 
                 # Find lead
-                lead = session.query(Lead).filter_by(
-                    creator_id=creator.id,
-                    platform_user_id=lead_id
-                ).first()
+                lead = (
+                    session.query(Lead)
+                    .filter_by(creator_id=creator.id, platform_user_id=lead_id)
+                    .first()
+                )
 
                 if not lead:
                     try:
                         from uuid import UUID
+
                         lead = session.query(Lead).filter_by(id=UUID(lead_id)).first()
                     except:
                         pass
 
                 if not lead:
-                    raise HTTPException(status_code=404, detail="Lead not found for activity creation")
+                    raise HTTPException(
+                        status_code=404, detail="Lead not found for activity creation"
+                    )
 
                 activity = LeadActivity(
                     lead_id=lead.id,
@@ -409,7 +457,7 @@ async def create_lead_activity(creator_id: str, lead_id: str, data: dict = Body(
                     activity_type=data.get("activity_type", "note"),
                     description=data.get("description"),
                     extra_data=data.get("metadata", {}),
-                    created_by=data.get("created_by", "creator")
+                    created_by=data.get("created_by", "creator"),
                 )
                 session.add(activity)
 
@@ -418,7 +466,9 @@ async def create_lead_activity(creator_id: str, lead_id: str, data: dict = Body(
                     existing_notes = lead.notes or ""
                     timestamp = datetime.now().strftime("%Y-%m-%d %H:%M")
                     new_note = f"[{timestamp}] {data['description']}"
-                    lead.notes = f"{new_note}\n\n{existing_notes}".strip() if existing_notes else new_note
+                    lead.notes = (
+                        f"{new_note}\n\n{existing_notes}".strip() if existing_notes else new_note
+                    )
 
                 session.commit()
 
@@ -429,8 +479,10 @@ async def create_lead_activity(creator_id: str, lead_id: str, data: dict = Body(
                         "id": str(activity.id),
                         "activity_type": activity.activity_type,
                         "description": activity.description,
-                        "created_at": activity.created_at.isoformat() if activity.created_at else None
-                    }
+                        "created_at": (
+                            activity.created_at.isoformat() if activity.created_at else None
+                        ),
+                    },
                 }
             finally:
                 session.close()
@@ -448,9 +500,10 @@ async def delete_lead_activity(creator_id: str, lead_id: str, activity_id: str):
     """Delete an activity from lead history"""
     if USE_DB:
         try:
+            from uuid import UUID
+
             from api.database import SessionLocal
             from api.models import LeadActivity
-            from uuid import UUID
 
             session = SessionLocal()
             try:
@@ -478,13 +531,14 @@ async def delete_lead_activity(creator_id: str, lead_id: str, activity_id: str):
 # LEAD TASKS
 # =============================================================================
 
+
 @router.get("/{creator_id}/{lead_id}/tasks")
 async def get_lead_tasks(creator_id: str, lead_id: str, include_completed: bool = False):
     """Get tasks for a lead"""
     if USE_DB:
         try:
             from api.database import SessionLocal
-            from api.models import Lead, LeadTask, Creator
+            from api.models import Creator, Lead, LeadTask
 
             session = SessionLocal()
             try:
@@ -493,14 +547,16 @@ async def get_lead_tasks(creator_id: str, lead_id: str, include_completed: bool 
                     raise HTTPException(status_code=404, detail="Creator not found")
 
                 # Find lead
-                lead = session.query(Lead).filter_by(
-                    creator_id=creator.id,
-                    platform_user_id=lead_id
-                ).first()
+                lead = (
+                    session.query(Lead)
+                    .filter_by(creator_id=creator.id, platform_user_id=lead_id)
+                    .first()
+                )
 
                 if not lead:
                     try:
                         from uuid import UUID
+
                         lead = session.query(Lead).filter_by(id=UUID(lead_id)).first()
                     except:
                         pass
@@ -527,10 +583,10 @@ async def get_lead_tasks(creator_id: str, lead_id: str, include_completed: bool 
                             "due_date": t.due_date.isoformat() if t.due_date else None,
                             "completed_at": t.completed_at.isoformat() if t.completed_at else None,
                             "assigned_to": t.assigned_to,
-                            "created_at": t.created_at.isoformat() if t.created_at else None
+                            "created_at": t.created_at.isoformat() if t.created_at else None,
                         }
                         for t in tasks
-                    ]
+                    ],
                 }
             finally:
                 session.close()
@@ -551,9 +607,10 @@ async def create_lead_task(creator_id: str, lead_id: str, data: dict = Body(...)
 
     if USE_DB:
         try:
-            from api.database import SessionLocal
-            from api.models import Lead, LeadTask, LeadActivity, Creator
             from datetime import datetime as dt
+
+            from api.database import SessionLocal
+            from api.models import Creator, Lead, LeadActivity, LeadTask
 
             session = SessionLocal()
             try:
@@ -562,14 +619,16 @@ async def create_lead_task(creator_id: str, lead_id: str, data: dict = Body(...)
                     raise HTTPException(status_code=404, detail="Creator not found")
 
                 # Find lead
-                lead = session.query(Lead).filter_by(
-                    creator_id=creator.id,
-                    platform_user_id=lead_id
-                ).first()
+                lead = (
+                    session.query(Lead)
+                    .filter_by(creator_id=creator.id, platform_user_id=lead_id)
+                    .first()
+                )
 
                 if not lead:
                     try:
                         from uuid import UUID
+
                         lead = session.query(Lead).filter_by(id=UUID(lead_id)).first()
                     except:
                         pass
@@ -594,7 +653,7 @@ async def create_lead_task(creator_id: str, lead_id: str, data: dict = Body(...)
                     priority=data.get("priority", "medium"),
                     due_date=due_date,
                     assigned_to=data.get("assigned_to"),
-                    created_by=data.get("created_by", "creator")
+                    created_by=data.get("created_by", "creator"),
                 )
                 session.add(task)
 
@@ -604,7 +663,7 @@ async def create_lead_task(creator_id: str, lead_id: str, data: dict = Body(...)
                     creator_id=creator.id,
                     activity_type="task_created",
                     description=f"Task created: {data['title']}",
-                    created_by="creator"
+                    created_by="creator",
                 )
                 session.add(activity)
 
@@ -621,8 +680,8 @@ async def create_lead_task(creator_id: str, lead_id: str, data: dict = Body(...)
                         "priority": task.priority,
                         "status": task.status,
                         "due_date": task.due_date.isoformat() if task.due_date else None,
-                        "created_at": task.created_at.isoformat() if task.created_at else None
-                    }
+                        "created_at": task.created_at.isoformat() if task.created_at else None,
+                    },
                 }
             finally:
                 session.close()
@@ -640,10 +699,11 @@ async def update_lead_task(creator_id: str, lead_id: str, task_id: str, data: di
     """Update a task"""
     if USE_DB:
         try:
-            from api.database import SessionLocal
-            from api.models import LeadTask, LeadActivity, Creator
-            from uuid import UUID
             from datetime import datetime as dt
+            from uuid import UUID
+
+            from api.database import SessionLocal
+            from api.models import Creator, LeadActivity, LeadTask
 
             session = SessionLocal()
             try:
@@ -675,13 +735,15 @@ async def update_lead_task(creator_id: str, lead_id: str, task_id: str, data: di
                             creator_id=creator.id,
                             activity_type="task_completed",
                             description=f"Task completed: {task.title}",
-                            created_by="creator"
+                            created_by="creator",
                         )
                         session.add(activity)
                 if "due_date" in data:
                     if data["due_date"]:
                         try:
-                            task.due_date = dt.fromisoformat(data["due_date"].replace("Z", "+00:00"))
+                            task.due_date = dt.fromisoformat(
+                                data["due_date"].replace("Z", "+00:00")
+                            )
                         except:
                             pass
                     else:
@@ -698,8 +760,8 @@ async def update_lead_task(creator_id: str, lead_id: str, task_id: str, data: di
                         "id": str(task.id),
                         "title": task.title,
                         "status": task.status,
-                        "due_date": task.due_date.isoformat() if task.due_date else None
-                    }
+                        "due_date": task.due_date.isoformat() if task.due_date else None,
+                    },
                 }
             finally:
                 session.close()
@@ -717,9 +779,10 @@ async def delete_lead_task(creator_id: str, lead_id: str, task_id: str):
     """Delete a task"""
     if USE_DB:
         try:
+            from uuid import UUID
+
             from api.database import SessionLocal
             from api.models import LeadTask
-            from uuid import UUID
 
             session = SessionLocal()
             try:
@@ -747,6 +810,7 @@ async def delete_lead_task(creator_id: str, lead_id: str, task_id: str):
 # LEAD STATS (Monitoring/Analytics)
 # =============================================================================
 
+
 @router.get("/{creator_id}/{lead_id}/stats")
 async def get_lead_stats(creator_id: str, lead_id: str):
     """
@@ -755,10 +819,11 @@ async def get_lead_stats(creator_id: str, lead_id: str):
     """
     if USE_DB:
         try:
-            from api.database import SessionLocal
-            from api.models import Lead, Message, Creator
-            from api.services.signals import analyze_conversation_signals
             from datetime import datetime, timezone
+
+            from api.database import SessionLocal
+            from api.models import Creator, Lead, Message
+            from api.services.signals import analyze_conversation_signals
 
             session = SessionLocal()
             try:
@@ -767,14 +832,16 @@ async def get_lead_stats(creator_id: str, lead_id: str):
                     raise HTTPException(status_code=404, detail="Creator not found")
 
                 # Find lead by platform_user_id or UUID
-                lead = session.query(Lead).filter_by(
-                    creator_id=creator.id,
-                    platform_user_id=lead_id
-                ).first()
+                lead = (
+                    session.query(Lead)
+                    .filter_by(creator_id=creator.id, platform_user_id=lead_id)
+                    .first()
+                )
 
                 if not lead:
                     try:
                         from uuid import UUID
+
                         lead = session.query(Lead).filter_by(id=UUID(lead_id)).first()
                     except:
                         pass
@@ -783,9 +850,12 @@ async def get_lead_stats(creator_id: str, lead_id: str):
                     raise HTTPException(status_code=404, detail="Lead not found")
 
                 # Get all messages ordered by time
-                messages = session.query(Message).filter_by(
-                    lead_id=lead.id
-                ).order_by(Message.created_at.asc()).all()
+                messages = (
+                    session.query(Message)
+                    .filter_by(lead_id=lead.id)
+                    .order_by(Message.created_at.asc())
+                    .all()
+                )
 
                 # Use the intelligent signals analyzer
                 analysis = analyze_conversation_signals(messages, lead.status)
@@ -801,21 +871,31 @@ async def get_lead_stats(creator_id: str, lead_id: str):
                         lc = lc.replace(tzinfo=timezone.utc)
                     hours_since_response = (datetime.now(timezone.utc) - lc).total_seconds() / 3600
 
-                if lead_msg_count > 10 and hours_since_response is not None and hours_since_response < 24:
+                if (
+                    lead_msg_count > 10
+                    and hours_since_response is not None
+                    and hours_since_response < 24
+                ):
                     engagement = "Alto"
                     engagement_detalle = f"{lead_msg_count} mensajes · última respuesta hace {int(hours_since_response)}h"
-                elif lead_msg_count >= 3 or (hours_since_response is not None and 24 <= hours_since_response <= 168):
+                elif lead_msg_count >= 3 or (
+                    hours_since_response is not None and 24 <= hours_since_response <= 168
+                ):
                     engagement = "Medio"
                     if hours_since_response and hours_since_response >= 24:
                         days = int(hours_since_response / 24)
-                        engagement_detalle = f"{lead_msg_count} mensajes · última respuesta hace {days} días"
+                        engagement_detalle = (
+                            f"{lead_msg_count} mensajes · última respuesta hace {days} días"
+                        )
                     else:
                         engagement_detalle = f"{lead_msg_count} mensajes"
                 else:
                     engagement = "Bajo"
                     if hours_since_response and hours_since_response > 168:
                         days = int(hours_since_response / 24)
-                        engagement_detalle = f"{lead_msg_count} mensajes · última respuesta hace {days} días"
+                        engagement_detalle = (
+                            f"{lead_msg_count} mensajes · última respuesta hace {days} días"
+                        )
                     else:
                         engagement_detalle = f"{lead_msg_count} mensajes"
 
@@ -828,29 +908,28 @@ async def get_lead_stats(creator_id: str, lead_id: str):
                         "confianza_prediccion": analysis["confianza_prediccion"],
                         "producto_detectado": analysis["producto_detectado"],
                         "valor_estimado": analysis["valor_estimado"],
-
                         # Signals
                         "senales_detectadas": analysis["senales_detectadas"],
                         "senales_por_categoria": analysis["senales_por_categoria"],
                         "total_senales": analysis["total_senales"],
-
                         # Next step
                         "siguiente_paso": analysis["siguiente_paso"],
-
                         # Engagement
                         "engagement": engagement,
                         "engagement_detalle": engagement_detalle,
-
                         # Metrics
                         "metricas": metrics,
                         "mensajes_lead": metrics["total_mensajes_lead"],
                         "mensajes_bot": metrics["total_mensajes_bot"],
-
                         # Timeline
-                        "primer_contacto": lead.first_contact_at.isoformat() if lead.first_contact_at else None,
-                        "ultimo_contacto": lead.last_contact_at.isoformat() if lead.last_contact_at else None,
-                        "current_stage": lead.status
-                    }
+                        "primer_contacto": (
+                            lead.first_contact_at.isoformat() if lead.first_contact_at else None
+                        ),
+                        "ultimo_contacto": (
+                            lead.last_contact_at.isoformat() if lead.last_contact_at else None
+                        ),
+                        "current_stage": lead.status,
+                    },
                 }
             finally:
                 session.close()
@@ -869,9 +948,19 @@ async def get_lead_stats(creator_id: str, lead_id: str):
             "producto_detectado": None,
             "valor_estimado": 0,
             "senales_detectadas": [],
-            "senales_por_categoria": {"compra": [], "interes": [], "objecion": [], "comportamiento": []},
+            "senales_por_categoria": {
+                "compra": [],
+                "interes": [],
+                "objecion": [],
+                "comportamiento": [],
+            },
             "total_senales": 0,
-            "siguiente_paso": {"accion": "esperar", "emoji": "⏳", "texto": "Esperando datos", "prioridad": "baja"},
+            "siguiente_paso": {
+                "accion": "esperar",
+                "emoji": "⏳",
+                "texto": "Esperando datos",
+                "prioridad": "baja",
+            },
             "engagement": "Bajo",
             "engagement_detalle": "Sin mensajes",
             "metricas": {},
@@ -879,14 +968,15 @@ async def get_lead_stats(creator_id: str, lead_id: str):
             "mensajes_bot": 0,
             "primer_contacto": None,
             "ultimo_contacto": None,
-            "current_stage": "nuevo"
-        }
+            "current_stage": "nuevo",
+        },
     }
 
 
 # =============================================================================
 # ESCALATION ALERTS
 # =============================================================================
+
 
 @router.get("/{creator_id}/escalations")
 async def get_escalation_alerts(creator_id: str, limit: int = 50, unread_only: bool = False):
@@ -915,7 +1005,7 @@ async def get_escalation_alerts(creator_id: str, limit: int = 50, unread_only: b
             "status": "ok",
             "alerts": alerts,
             "total": len(alerts),
-            "unread": len([a for a in alerts if not a.get("read", False)])
+            "unread": len([a for a in alerts if not a.get("read", False)]),
         }
     except Exception as e:
         logger.error(f"Error getting escalations: {e}")

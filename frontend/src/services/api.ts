@@ -272,14 +272,15 @@ export async function toggleBot(
 // =============================================================================
 
 /**
- * Get all conversations for a creator
+ * Get all conversations for a creator with pagination support
  */
 export async function getConversations(
   creatorId: string = CREATOR_ID,
-  limit: number = 50
+  limit: number = 50,
+  offset: number = 0
 ): Promise<ConversationsResponse> {
   return apiFetch<ConversationsResponse>(
-    `/dm/conversations/${creatorId}?limit=${limit}`
+    `/dm/conversations/${creatorId}?limit=${limit}&offset=${offset}`
   );
 }
 

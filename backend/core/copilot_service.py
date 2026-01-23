@@ -199,8 +199,10 @@ class CopilotService:
 
         return pending
 
-    async def get_pending_responses(self, creator_id: str, limit: int = 50) -> List[Dict]:
-        """Obtener todas las respuestas pendientes de un creador"""
+    async def get_pending_responses(
+        self, creator_id: str, limit: int = 50, offset: int = 0
+    ) -> Dict:
+        """Obtener todas las respuestas pendientes de un creador con paginación"""
         from api.database import SessionLocal
         from api.models import Creator, Lead, Message
 
@@ -208,10 +210,10 @@ class CopilotService:
         try:
             creator = session.query(Creator).filter_by(name=creator_id).first()
             if not creator:
-                return []
+                return {"pending": [], "total_count": 0, "has_more": False}
 
-            # Obtener mensajes pendientes con info del lead
-            pending_messages = (
+            # Build base query
+            base_query = (
                 session.query(Message, Lead)
                 .join(Lead, Message.lead_id == Lead.id)
                 .filter(
@@ -219,9 +221,14 @@ class CopilotService:
                     Message.status == "pending_approval",
                     Message.role == "assistant",
                 )
-                .order_by(Message.created_at.desc())
-                .limit(limit)
-                .all()
+            )
+
+            # Get total count
+            total_count = base_query.count()
+
+            # Get paginated messages
+            pending_messages = (
+                base_query.order_by(Message.created_at.desc()).offset(offset).limit(limit).all()
             )
 
             results = []
@@ -250,11 +257,15 @@ class CopilotService:
                     }
                 )
 
-            return results
+            return {
+                "pending": results,
+                "total_count": total_count,
+                "has_more": offset + len(results) < total_count,
+            }
 
         except Exception as e:
             logger.error(f"[Copilot] Error getting pending responses: {e}")
-            return []
+            return {"pending": [], "total_count": 0, "has_more": False}
         finally:
             session.close()
 
