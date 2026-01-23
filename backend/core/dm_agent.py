@@ -4906,14 +4906,24 @@ USA ESTA RESPUESTA PARA LA OBJECION (adaptala a tu tono):
         # FAST PATH: THANKS después de BOOKING → Solo agradecer, no vender
         # =============================================================================
         if intent == Intent.THANKS:
-            # Check if last bot action was booking-related
-            last_messages = follower.messages[-4:] if len(follower.messages) >= 4 else follower.messages
+            # Check if last bot action was booking-related (use last_messages, not messages)
+            recent_msgs = follower.last_messages[-6:] if follower.last_messages and len(follower.last_messages) >= 6 else (follower.last_messages or [])
             last_bot_action = None
-            for msg in reversed(last_messages):
+            for msg in reversed(recent_msgs):
                 if msg.get("role") == "assistant":
-                    content = msg.get("content", "").lower()
-                    if "booking" in content or "agendar" in content or "llamada" in content or "discovery" in content or "clonnect.vercel.app/book" in content:
+                    content = (msg.get("content") or "").lower()
+                    # Check for booking indicators
+                    if any(kw in content for kw in [
+                        "clonnect.vercel.app/book",
+                        "/book/",
+                        "discovery call",
+                        "coaching session",
+                        "agendar",
+                        "elegir tu horario",
+                        "servicios disponibles"
+                    ]):
                         last_bot_action = "booking"
+                        logger.info(f"[THANKS] Detected post-booking context from message: {content[:50]}...")
                         break
 
             if last_bot_action == "booking":
