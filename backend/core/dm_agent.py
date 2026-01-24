@@ -3324,6 +3324,13 @@ Tú: "Pero es una oportunidad única, solo quedan 3 plazas..."  ← NUNCA
         import hashlib
         import time
 
+        # DEFENSIVE: Ensure message is a string
+        if not isinstance(message, str):
+            if isinstance(message, dict):
+                message = message.get('text', '') or message.get('content', '') or str(message)
+            else:
+                message = str(message) if message else ""
+
         # Check if we have a cached base prompt (without citations)
         cache_key = self.creator_id
         config = self.creator_config
@@ -6126,6 +6133,18 @@ INSTRUCCIONES:
         self, follower: FollowerMemory, message: str, response: str, intent: Intent
     ):
         """Actualizar memoria del seguidor"""
+        # DEFENSIVE: Ensure message and response are strings
+        if not isinstance(message, str):
+            if isinstance(message, dict):
+                message = message.get('text', '') or message.get('content', '') or str(message)
+            else:
+                message = str(message) if message else ""
+        if not isinstance(response, str):
+            if isinstance(response, dict):
+                response = response.get('text', '') or response.get('content', '') or str(response)
+            else:
+                response = str(response) if response else ""
+
         follower.total_messages += 1
         timestamp = datetime.now(timezone.utc).isoformat()
         follower.last_contact = timestamp
