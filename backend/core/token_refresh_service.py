@@ -75,7 +75,9 @@ async def refresh_long_lived_token(current_token: str) -> Optional[Dict[str, Any
     IMPORTANTE: Solo funciona si el token tiene más de 24h de vida restante.
     No funciona con tokens ya expirados.
 
-    Meta API: GET /refresh_access_token?grant_type=ig_refresh_token
+    Token types:
+    - IGAAT...: Instagram Graph API token (use graph.instagram.com)
+    - EAA...: Page Access Token (use graph.facebook.com, or skip - doesn't expire often)
 
     Args:
         current_token: Token long-lived actual (no expirado)
@@ -85,11 +87,36 @@ async def refresh_long_lived_token(current_token: str) -> Optional[Dict[str, Any
     """
     import aiohttp
 
-    url = "https://graph.instagram.com/refresh_access_token"
-    params = {
-        "grant_type": "ig_refresh_token",
-        "access_token": current_token
-    }
+    # CRITICAL FIX: Page Access Tokens (EAA) should NOT be refreshed with Instagram API
+    # The Instagram refresh endpoint converts them to Instagram tokens (IGAAT),
+    # which breaks messaging functionality.
+    if current_token.startswith("EAA"):
+        logger.info("Token is a Page Access Token (EAA), using Facebook refresh endpoint")
+        # Page tokens are long-lived and rarely need refresh
+        # If they do, use Facebook endpoint
+        url = "https://graph.facebook.com/v21.0/oauth/access_token"
+        params = {
+            "grant_type": "fb_exchange_token",
+            "client_id": META_APP_ID,
+            "client_secret": META_APP_SECRET,
+            "fb_exchange_token": current_token
+        }
+
+        if not META_APP_ID or not META_APP_SECRET:
+            logger.warning("Cannot refresh Page token: META_APP_ID/SECRET not configured")
+            # Return current token as still valid (Page tokens last a long time)
+            return {
+                "token": current_token,
+                "expires_in": 5184000,
+                "expires_at": datetime.utcnow() + timedelta(days=60)
+            }
+    else:
+        # Instagram token (IGAAT) - use Instagram refresh endpoint
+        url = "https://graph.instagram.com/refresh_access_token"
+        params = {
+            "grant_type": "ig_refresh_token",
+            "access_token": current_token
+        }
 
     try:
         async with aiohttp.ClientSession() as session:
