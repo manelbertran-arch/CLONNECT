@@ -36,10 +36,11 @@ python-telegram-bot>=20.0
 # Instagram Scraping
 instaloader>=4.10.0
 
-# Semantic Search (RAG) - ENABLED with Railway Pro (32GB RAM)
-numpy>=1.24.0
-sentence-transformers>=2.2.0  # Cross-Encoder for reranking
-# faiss-cpu>=1.7.4  # Not needed, using simple cosine similarity
+# Semantic Search (RAG) - DISABLED: causes OOM on Railway free tier
+# numpy>=1.24.0
+# sentence-transformers>=2.2.0  # ~2GB with PyTorch
+# faiss-cpu>=1.7.4
+# Alternative: Use OpenAI embeddings API (lighter, no local model)
 
 # Database
 sqlalchemy==2.0.23
