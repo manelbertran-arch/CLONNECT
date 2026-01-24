@@ -839,6 +839,13 @@ def detect_language_robust(text: str, current_language: str = None) -> str:
     Returns:
         Código de idioma ("es", "en", "pt")
     """
+    # DEFENSIVE: Ensure text is a string
+    if not isinstance(text, str):
+        if isinstance(text, dict):
+            text = text.get('text', '') or text.get('content', '') or str(text)
+        else:
+            text = str(text) if text else ""
+
     if not text or len(text.strip()) < 2:
         return current_language or "es"
 
