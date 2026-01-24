@@ -52,7 +52,7 @@ class InstagramHandler:
         ig_user_id: Optional[str] = None,
         app_secret: Optional[str] = None,
         verify_token: Optional[str] = None,
-        creator_id: str = "manel"
+        creator_id: str = None  # Changed from "manel" to None for auto-detection
     ):
         """
         Initialize Instagram handler.
@@ -63,14 +63,23 @@ class InstagramHandler:
             ig_user_id: Instagram Business/Creator account ID
             app_secret: App secret for webhook signature verification
             verify_token: Token for webhook verification (GET request)
-            creator_id: Creator ID to use for DMResponderAgent
+            creator_id: Creator ID to use for DMResponderAgent (auto-detected if None)
         """
+        # Try ENV vars first
         self.access_token = access_token or os.getenv("INSTAGRAM_ACCESS_TOKEN", "")
         self.page_id = page_id or os.getenv("INSTAGRAM_PAGE_ID", "")
         self.ig_user_id = ig_user_id or os.getenv("INSTAGRAM_USER_ID", "")
         self.app_secret = app_secret or os.getenv("INSTAGRAM_APP_SECRET", "")
         self.verify_token = verify_token or os.getenv("INSTAGRAM_VERIFY_TOKEN", "clonnect_verify_2024")
         self.creator_id = creator_id
+
+        # If credentials not in ENV, try to load from database
+        if not self.access_token or not self.page_id:
+            self._load_credentials_from_db()
+
+        # If still no creator_id, use default
+        if not self.creator_id:
+            self.creator_id = os.getenv("DEFAULT_CREATOR_ID", "stefano_bonanno")
 
         # Status tracking
         self.status = InstagramHandlerStatus()
@@ -85,6 +94,91 @@ class InstagramHandler:
 
         self._init_connector()
         self._init_agent()
+
+    def _load_credentials_from_db(self):
+        """
+        Load Instagram credentials from database if not in ENV vars.
+        Finds the first creator with valid Instagram credentials.
+        """
+        try:
+            from api.database import SessionLocal
+            from api.models import Creator
+
+            if SessionLocal is None:
+                logger.warning("Database not configured, cannot load Instagram credentials from DB")
+                return
+
+            db = SessionLocal()
+            try:
+                # Find first creator with Instagram token
+                creator = db.query(Creator).filter(
+                    Creator.instagram_token.isnot(None),
+                    Creator.instagram_token != ""
+                ).first()
+
+                if creator:
+                    self.access_token = creator.instagram_token
+                    self.page_id = creator.instagram_page_id or ""
+                    self.ig_user_id = creator.instagram_user_id or ""
+                    self.creator_id = creator.name
+
+                    logger.info(f"Loaded Instagram credentials from DB for creator: {creator.name}")
+                    logger.info(f"  - page_id: {self.page_id or 'N/A'}")
+                    logger.info(f"  - ig_user_id: {self.ig_user_id or 'N/A'}")
+                    logger.info(f"  - token: {len(self.access_token)} chars")
+
+                    # If page_id missing, try to fetch from Meta API
+                    if not self.page_id and self.access_token:
+                        self._fetch_page_id_from_api(creator, db)
+                else:
+                    logger.warning("No creator with Instagram credentials found in database")
+
+            finally:
+                db.close()
+
+        except Exception as e:
+            logger.error(f"Error loading Instagram credentials from DB: {e}")
+
+    def _fetch_page_id_from_api(self, creator, db):
+        """
+        Fetch the Facebook Page ID from Meta API using the access token.
+        The Page ID is required for sending messages via Instagram.
+        """
+        import requests
+
+        try:
+            # Get pages connected to this token
+            url = f"https://graph.facebook.com/v18.0/me/accounts"
+            params = {"access_token": self.access_token}
+
+            response = requests.get(url, params=params, timeout=10)
+
+            if response.status_code == 200:
+                data = response.json()
+                pages = data.get("data", [])
+
+                if pages:
+                    # Use the first page (most users have only one)
+                    page = pages[0]
+                    self.page_id = page.get("id", "")
+
+                    logger.info(f"Fetched page_id from Meta API: {self.page_id}")
+
+                    # Save to database for future use
+                    if self.page_id:
+                        try:
+                            creator.instagram_page_id = self.page_id
+                            db.commit()
+                            logger.info(f"Saved page_id to database for {creator.name}")
+                        except Exception as save_error:
+                            logger.warning(f"Could not save page_id to DB: {save_error}")
+                else:
+                    logger.warning("No Facebook pages found for this token")
+            else:
+                logger.warning(f"Meta API error fetching pages: {response.status_code} - {response.text[:200]}")
+
+        except Exception as e:
+            logger.error(f"Error fetching page_id from Meta API: {e}")
 
     def _init_connector(self):
         """Initialize Instagram connector"""
@@ -615,11 +709,11 @@ _handler: Optional[InstagramHandler] = None
 
 
 def get_instagram_handler(
-    creator_id: str = "manel",
+    creator_id: str = None,  # Changed from "manel" to None for auto-detection
     access_token: Optional[str] = None,
     page_id: Optional[str] = None
 ) -> InstagramHandler:
-    """Get or create Instagram handler"""
+    """Get or create Instagram handler. Credentials auto-loaded from DB if not provided."""
     global _handler
     if _handler is None:
         _handler = InstagramHandler(
