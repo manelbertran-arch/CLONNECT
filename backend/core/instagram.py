@@ -78,9 +78,27 @@ class InstagramConnector:
         self.page_id = page_id
         self.ig_user_id = ig_user_id
         self.app_secret = app_secret or os.getenv("INSTAGRAM_APP_SECRET", "")
+
         self.verify_token = verify_token or os.getenv("INSTAGRAM_VERIFY_TOKEN", "clonnect_verify_2024")
         self.creator_id = creator_id or ig_user_id  # Para rate limiting
         self._session: Optional[aiohttp.ClientSession] = None
+
+        # Detect token type for correct messaging endpoint
+        self._is_page_token = access_token.startswith("EAA") if access_token else False
+        logger.info(f"Token type: {'PAGE (EAA)' if self._is_page_token else 'INSTAGRAM (IGAAT)'}")
+
+    def _get_messaging_url(self) -> str:
+        """Get correct messaging URL based on token type.
+
+        - IGAAT tokens (Instagram): use graph.instagram.com/me/messages
+        - EAA tokens (Page): use graph.facebook.com/{page_id}/messages
+        """
+        if self._is_page_token:
+            # Page Access Token → Facebook Graph API with page_id
+            return f"{self.FACEBOOK_API_URL}/{self.page_id}/messages"
+        else:
+            # Instagram token → Instagram Graph API with /me/messages
+            return f"{self.INSTAGRAM_API_URL}/me/messages"
 
     async def _rate_limited_request(
         self,
@@ -193,15 +211,14 @@ class InstagramConnector:
     async def send_message(self, recipient_id: str, text: str) -> dict:
         """Enviar mensaje directo a un usuario via Instagram Messaging API.
 
-        IMPORTANT: Instagram Messaging uses Facebook Graph API, NOT Instagram Graph API.
-        Endpoint: POST https://graph.facebook.com/{page_id}/messages
-        Token: Page Access Token with instagram_manage_messages permission
+        Endpoint depends on token type:
+        - IGAAT (Instagram token): graph.instagram.com/me/messages
+        - EAA (Page token): graph.facebook.com/{page_id}/messages
         """
         session = await self._get_session()
 
-        # CRITICAL FIX: Use Facebook Graph API with PAGE_ID, not Instagram API
-        # Instagram Messaging API requires: graph.facebook.com/{page_id}/messages
-        url = f"{self.FACEBOOK_API_URL}/{self.page_id}/messages"
+        # Use correct endpoint based on token type
+        url = self._get_messaging_url()
 
         headers = {
             "Content-Type": "application/json"
@@ -210,10 +227,10 @@ class InstagramConnector:
         payload = {
             "recipient": {"id": recipient_id},
             "message": {"text": text},
-            "access_token": self.access_token  # Token in payload for FB Graph API
+            "access_token": self.access_token
         }
 
-        logger.info(f"Sending message to {recipient_id} via {url}")
+        logger.info(f"Sending message to {recipient_id} via {url} (token_type={'PAGE' if self._is_page_token else 'IGAAT'})")
 
         async with session.post(url, json=payload, headers=headers) as resp:
             result = await resp.json()
@@ -232,8 +249,8 @@ class InstagramConnector:
         """Enviar mensaje con botones de respuesta rápida via Instagram Messaging API"""
         session = await self._get_session()
 
-        # CRITICAL FIX: Use Facebook Graph API with PAGE_ID
-        url = f"{self.FACEBOOK_API_URL}/{self.page_id}/messages"
+        # Use correct endpoint based on token type
+        url = self._get_messaging_url()
 
         headers = {
             "Content-Type": "application/json"
@@ -331,8 +348,8 @@ class InstagramConnector:
     async def mark_message_seen(self, sender_id: str) -> dict:
         """Marcar mensajes como vistos via Instagram Messaging API"""
         session = await self._get_session()
-        # CRITICAL FIX: Use Facebook Graph API with PAGE_ID
-        url = f"{self.FACEBOOK_API_URL}/{self.page_id}/messages"
+        # Use correct endpoint based on token type
+        url = self._get_messaging_url()
 
         headers = {
             "Content-Type": "application/json"
@@ -344,14 +361,15 @@ class InstagramConnector:
             "access_token": self.access_token
         }
 
+        logger.debug(f"Marking seen for {sender_id} via {url}")
         async with session.post(url, json=payload, headers=headers) as resp:
             return await resp.json()
 
     async def send_typing_indicator(self, recipient_id: str, typing_on: bool = True) -> dict:
         """Enviar indicador de 'escribiendo...' via Instagram Messaging API"""
         session = await self._get_session()
-        # CRITICAL FIX: Use Facebook Graph API with PAGE_ID
-        url = f"{self.FACEBOOK_API_URL}/{self.page_id}/messages"
+        # Use correct endpoint based on token type
+        url = self._get_messaging_url()
 
         headers = {
             "Content-Type": "application/json"
@@ -363,6 +381,7 @@ class InstagramConnector:
             "access_token": self.access_token
         }
 
+        logger.debug(f"Typing indicator for {recipient_id} via {url}")
         async with session.post(url, json=payload, headers=headers) as resp:
             return await resp.json()
 
