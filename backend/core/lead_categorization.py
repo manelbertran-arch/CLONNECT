@@ -58,6 +58,13 @@ class CategorizationResult:
 
 def detectar_keywords(texto: str, keywords: List[str]) -> List[str]:
     """Detecta qué keywords están presentes en el texto."""
+    # DEFENSIVE: Ensure texto is a string
+    if not isinstance(texto, str):
+        if isinstance(texto, dict):
+            texto = texto.get('text', '') or texto.get('content', '') or str(texto)
+        else:
+            texto = str(texto) if texto else ""
+
     texto_lower = texto.lower()
     encontrados = []
     for kw in keywords:
