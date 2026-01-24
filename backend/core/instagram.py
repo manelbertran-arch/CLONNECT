@@ -191,27 +191,36 @@ class InstagramConnector:
         return messages
 
     async def send_message(self, recipient_id: str, text: str) -> dict:
-        """Enviar mensaje directo a un usuario via Instagram API"""
+        """Enviar mensaje directo a un usuario via Instagram Messaging API.
+
+        IMPORTANT: Instagram Messaging uses Facebook Graph API, NOT Instagram Graph API.
+        Endpoint: POST https://graph.facebook.com/{page_id}/messages
+        Token: Page Access Token with instagram_manage_messages permission
+        """
         session = await self._get_session()
-        # Usar Instagram API para enviar mensajes (requiere token IGAA)
-        url = f"{self.INSTAGRAM_API_URL}/me/messages"
+
+        # CRITICAL FIX: Use Facebook Graph API with PAGE_ID, not Instagram API
+        # Instagram Messaging API requires: graph.facebook.com/{page_id}/messages
+        url = f"{self.FACEBOOK_API_URL}/{self.page_id}/messages"
 
         headers = {
-            "Authorization": f"Bearer {self.access_token}",
             "Content-Type": "application/json"
         }
 
         payload = {
             "recipient": {"id": recipient_id},
-            "message": {"text": text}
+            "message": {"text": text},
+            "access_token": self.access_token  # Token in payload for FB Graph API
         }
+
+        logger.info(f"Sending message to {recipient_id} via {url}")
 
         async with session.post(url, json=payload, headers=headers) as resp:
             result = await resp.json()
             if "error" in result:
                 logger.error(f"Error sending message: {result['error']}")
             else:
-                logger.info(f"Message sent to {recipient_id} via Instagram API")
+                logger.info(f"Message sent to {recipient_id} via Instagram Messaging API")
             return result
 
     async def send_message_with_buttons(
@@ -220,13 +229,13 @@ class InstagramConnector:
         text: str,
         buttons: List[Dict[str, str]]
     ) -> dict:
-        """Enviar mensaje con botones de respuesta rápida via Instagram API"""
+        """Enviar mensaje con botones de respuesta rápida via Instagram Messaging API"""
         session = await self._get_session()
-        # Usar Instagram API para enviar mensajes (requiere token IGAA)
-        url = f"{self.INSTAGRAM_API_URL}/me/messages"
+
+        # CRITICAL FIX: Use Facebook Graph API with PAGE_ID
+        url = f"{self.FACEBOOK_API_URL}/{self.page_id}/messages"
 
         headers = {
-            "Authorization": f"Bearer {self.access_token}",
             "Content-Type": "application/json"
         }
 
@@ -244,7 +253,8 @@ class InstagramConnector:
             "message": {
                 "text": text,
                 "quick_replies": quick_replies
-            }
+            },
+            "access_token": self.access_token
         }
 
         async with session.post(url, json=payload, headers=headers) as resp:
@@ -319,36 +329,38 @@ class InstagramConnector:
         return data.get("data", [])
 
     async def mark_message_seen(self, sender_id: str) -> dict:
-        """Marcar mensajes como vistos via Instagram API"""
+        """Marcar mensajes como vistos via Instagram Messaging API"""
         session = await self._get_session()
-        url = f"{self.INSTAGRAM_API_URL}/me/messages"
+        # CRITICAL FIX: Use Facebook Graph API with PAGE_ID
+        url = f"{self.FACEBOOK_API_URL}/{self.page_id}/messages"
 
         headers = {
-            "Authorization": f"Bearer {self.access_token}",
             "Content-Type": "application/json"
         }
 
         payload = {
             "recipient": {"id": sender_id},
-            "sender_action": "mark_seen"
+            "sender_action": "mark_seen",
+            "access_token": self.access_token
         }
 
         async with session.post(url, json=payload, headers=headers) as resp:
             return await resp.json()
 
     async def send_typing_indicator(self, recipient_id: str, typing_on: bool = True) -> dict:
-        """Enviar indicador de 'escribiendo...' via Instagram API"""
+        """Enviar indicador de 'escribiendo...' via Instagram Messaging API"""
         session = await self._get_session()
-        url = f"{self.INSTAGRAM_API_URL}/me/messages"
+        # CRITICAL FIX: Use Facebook Graph API with PAGE_ID
+        url = f"{self.FACEBOOK_API_URL}/{self.page_id}/messages"
 
         headers = {
-            "Authorization": f"Bearer {self.access_token}",
             "Content-Type": "application/json"
         }
 
         payload = {
             "recipient": {"id": recipient_id},
-            "sender_action": "typing_on" if typing_on else "typing_off"
+            "sender_action": "typing_on" if typing_on else "typing_off",
+            "access_token": self.access_token
         }
 
         async with session.post(url, json=payload, headers=headers) as resp:
