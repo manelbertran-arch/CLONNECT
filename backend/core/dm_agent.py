@@ -51,6 +51,9 @@ from core.user_profiles import get_user_profile
 # v1.5.2 Technical Fixes
 from core.response_fixes import apply_all_response_fixes, apply_product_fixes
 
+# v1.6.0 Conversation State Machine
+from core.conversation_state import get_state_manager
+
 # PostgreSQL integration
 USE_POSTGRES = bool(os.getenv("DATABASE_URL"))
 db_service = None
@@ -4277,6 +4280,13 @@ USA ESTA RESPUESTA PARA LA OBJECION (adaptala a tu tono):
         logger.info(f"⏱️ memory_store.get_or_create took {time.time() - _t_mem:.2f}s")
 
         # =============================================================================
+        # v1.6.0: CONVERSATION STATE MACHINE
+        # =============================================================================
+        state_manager = get_state_manager()
+        conversation_state = state_manager.get_state(sender_id, self.creator_id)
+        logger.info(f"[STATE] Phase: {conversation_state.phase.value}, messages: {conversation_state.message_count}")
+
+        # =============================================================================
         # PERSONALIZATION: User Profile + Semantic Memory (Memory Engine Migration)
         # =============================================================================
         _t_pers = time.time()
@@ -5115,6 +5125,12 @@ USA ESTA RESPUESTA PARA LA OBJECION (adaptala a tu tono):
         if semantic_context:
             system_prompt += f"\n\n{semantic_context}"
             logger.debug("Added semantic memory context to prompt")
+
+        # v1.6.0: Add conversation state context
+        state_context = state_manager.build_enhanced_prompt(conversation_state)
+        system_prompt += f"\n\n{state_context}"
+        logger.info(f"[STATE] Added state context for phase: {conversation_state.phase.value}")
+
         _t1 = time.time()
         user_prompt = self._build_user_prompt(
             message=message_text,
@@ -5616,6 +5632,12 @@ USA ESTA RESPUESTA PARA LA OBJECION (adaptala a tu tono):
 
         except Exception as email_error:
             logger.warning(f"Email capture error (non-fatal): {email_error}")
+
+        # v1.6.0: Update conversation state after response
+        conversation_state = state_manager.update_state(
+            conversation_state, message_text, intent.value, response_text
+        )
+        logger.info(f"[STATE] Updated to phase: {conversation_state.phase.value}")
 
         logger.info(f"⏱️ TOTAL process_dm took {time.time() - _process_start:.2f}s")
         return DMResponse(
