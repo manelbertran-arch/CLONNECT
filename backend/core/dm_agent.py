@@ -2007,7 +2007,13 @@ class DMResponderAgent:
         for msg in history:
             if msg.get("role") != "user":
                 continue
-            content = msg.get("content", "").lower()
+            raw_content = msg.get("content", "")
+            # DEFENSIVE: Ensure content is a string
+            if isinstance(raw_content, dict):
+                raw_content = raw_content.get("text", "") or raw_content.get("content", "") or str(raw_content)
+            elif not isinstance(raw_content, str):
+                raw_content = str(raw_content) if raw_content else ""
+            content = raw_content.lower()
 
             # Detectar nombre
             match = re.search(r"(?:soy|me llamo|mi nombre es)\s+(\w+)", content)
@@ -2074,7 +2080,13 @@ class DMResponderAgent:
         }
 
         for msg in history:
-            content = msg.get("content", "").lower()
+            raw_content = msg.get("content", "")
+            # DEFENSIVE: Ensure content is a string
+            if isinstance(raw_content, dict):
+                raw_content = raw_content.get("text", "") or raw_content.get("content", "") or str(raw_content)
+            elif not isinstance(raw_content, str):
+                raw_content = str(raw_content) if raw_content else ""
+            content = raw_content.lower()
             for topic, keywords in topic_keywords.items():
                 if any(kw in content for kw in keywords):
                     topics_mentioned.append(topic)
@@ -5345,7 +5357,10 @@ USA ESTA RESPUESTA PARA LA OBJECION (adaptala a tu tono):
                             f"[THANKS] DB msg[{i}]: role={role}, content={content_preview}..."
                         )
                         if role == "assistant":
-                            content = (msg.get("content") or "").lower()
+                            raw = msg.get("content") or ""
+                            if isinstance(raw, dict):
+                                raw = raw.get("text", "") or ""
+                            content = str(raw).lower()
                             if any(kw in content for kw in booking_keywords):
                                 last_bot_action = "booking"
                                 logger.info(f"[THANKS] FOUND booking keyword in DB message!")
@@ -5366,7 +5381,10 @@ USA ESTA RESPUESTA PARA LA OBJECION (adaptala a tu tono):
                 logger.info(f"[THANKS] Memory has {len(recent_msgs)} recent messages")
                 for msg in reversed(recent_msgs):
                     if msg.get("role") == "assistant":
-                        content = (msg.get("content") or "").lower()
+                        raw = msg.get("content") or ""
+                        if isinstance(raw, dict):
+                            raw = raw.get("text", "") or ""
+                        content = str(raw).lower()
                         if any(kw in content for kw in booking_keywords):
                             last_bot_action = "booking"
                             logger.info(
