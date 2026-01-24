@@ -359,11 +359,16 @@ async def instagram_oauth_callback(
                 logger.info("Got long-lived token (60 days)")
 
             # Step 3: Get Facebook Pages connected to this user
+            # IMPORTANT: Explicitly request access_token field to get Page Access Token
             pages_response = await client.get(
                 "https://graph.facebook.com/v21.0/me/accounts",
-                params={"access_token": access_token}
+                params={
+                    "access_token": access_token,
+                    "fields": "id,name,access_token"  # Explicitly request access_token!
+                }
             )
             pages_data = pages_response.json()
+            logger.info(f"Pages response: {len(pages_data.get('data', []))} pages found")
 
             page_id = None
             page_access_token = None
@@ -373,8 +378,17 @@ async def instagram_oauth_callback(
                 # Get the first page (most users have one)
                 page = pages_data["data"][0]
                 page_id = page["id"]
-                page_access_token = page.get("access_token", access_token)
-                logger.info(f"Found Facebook Page: {page_id}")
+                page_access_token = page.get("access_token")
+
+                # Log token type for debugging
+                if page_access_token:
+                    token_prefix = page_access_token[:10] if page_access_token else "NONE"
+                    logger.info(f"Got Page Access Token: {token_prefix}... (type: {'PAGE' if page_access_token.startswith('EAA') else 'OTHER'})")
+                else:
+                    logger.warning(f"No access_token in page response! Page data: {page}")
+                    page_access_token = access_token  # Fallback
+
+                logger.info(f"Found Facebook Page: {page_id} ({page.get('name', 'unknown')})")
 
                 # Step 4: Get Instagram Business Account linked to this page
                 ig_response = await client.get(
@@ -408,6 +422,15 @@ async def instagram_oauth_callback(
 
             # Step 6: Save to database
             final_access_token = page_access_token or access_token
+
+            # Log what we're saving for debugging
+            token_type = "PAGE (EAA)" if final_access_token.startswith("EAA") else "INSTAGRAM (IGAAT)" if final_access_token.startswith("IGAAT") else "UNKNOWN"
+            logger.info(f"Saving token for {creator_id}: {final_access_token[:15]}... (type: {token_type})")
+            logger.info(f"  page_id: {page_id}, ig_user_id: {instagram_user_id}")
+
+            if not final_access_token.startswith("EAA"):
+                logger.warning(f"⚠️ Token is NOT a Page token! Messaging may not work.")
+
             await _save_instagram_connection(
                 creator_id=creator_id,
                 access_token=final_access_token,

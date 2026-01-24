@@ -753,6 +753,62 @@ async def exchange_short_lived_token(creator_id: str, short_lived_token: str):
         }
 
 
+@router.post("/set-page-token/{creator_id}")
+async def set_page_access_token(creator_id: str, token: str):
+    """
+    Manually set a Page Access Token for Instagram Messaging.
+
+    Use this when the OAuth flow doesn't return a proper Page token.
+    Get the token from Graph API Explorer:
+    1. Go to https://developers.facebook.com/tools/explorer/
+    2. Select your App
+    3. Select "Page" (not User) for the token type
+    4. Add permissions: pages_messaging, instagram_manage_messages
+    5. Generate and copy the token
+
+    Args:
+        creator_id: Creator name or UUID
+        token: Page Access Token (should start with 'EAA')
+    """
+    try:
+        from api.database import SessionLocal
+        from api.models import Creator
+
+        # Validate token format
+        if not token.startswith("EAA"):
+            logger.warning(f"Token doesn't start with EAA - may not be a Page token")
+
+        session = SessionLocal()
+        try:
+            creator = session.query(Creator).filter(
+                (Creator.name == creator_id) | (Creator.id == creator_id)
+            ).first()
+
+            if not creator:
+                return {"status": "error", "error": f"Creator {creator_id} not found"}
+
+            old_prefix = creator.instagram_token[:15] if creator.instagram_token else "NONE"
+            creator.instagram_token = token
+            session.commit()
+
+            logger.info(f"Set Page token for {creator_id}: {old_prefix}... -> {token[:15]}...")
+
+            return {
+                "status": "success",
+                "creator_id": creator_id,
+                "old_token_prefix": old_prefix,
+                "new_token_prefix": token[:15] + "...",
+                "token_type": "PAGE (EAA)" if token.startswith("EAA") else "INSTAGRAM (IGAAT)" if token.startswith("IGAAT") else "UNKNOWN",
+                "valid_for_messaging": token.startswith("EAA")
+            }
+        finally:
+            session.close()
+
+    except Exception as e:
+        logger.error(f"Error setting page token: {e}")
+        return {"status": "error", "error": str(e)}
+
+
 @router.get("/demo-status")
 async def get_demo_status():
     """Check if demo reset is enabled and get current data counts"""
