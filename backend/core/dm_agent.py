@@ -58,6 +58,9 @@ from core.conversation_state import get_state_manager
 from core.frustration_detector import get_frustration_detector
 from core.reflexion_engine import get_reflexion_engine
 
+# v1.8.0 Response Variation
+from core.response_variation import get_variation_engine
+
 # PostgreSQL integration
 USE_POSTGRES = bool(os.getenv("DATABASE_URL"))
 db_service = None
@@ -5664,6 +5667,10 @@ USA ESTA RESPUESTA PARA LA OBJECION (adaptala a tu tono):
         )
         if reflexion_result.needs_revision:
             logger.warning(f"[REFLEXION] Response flagged ({reflexion_result.severity}): {reflexion_result.issues}")
+
+        # v1.8.0: Apply response variation to avoid repetition
+        variation_engine = get_variation_engine()
+        response_text = variation_engine.vary_response(response_text, f"{self.creator_id}:{sender_id}")
 
         # v1.6.0: Update conversation state after response
         conversation_state = state_manager.update_state(
