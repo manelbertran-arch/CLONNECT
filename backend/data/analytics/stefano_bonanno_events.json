@@ -1,0 +1,84 @@
+[
+  {
+    "event_id": "evt_0e79a26fbae9",
+    "event_type": "message_received",
+    "creator_id": "stefano_bonanno",
+    "follower_id": "ig_bamos_barcelona_mobility",
+    "timestamp": "2026-01-24T19:21:19.594812+00:00",
+    "platform": "instagram",
+    "intent": "interest_soft",
+    "product_id": "",
+    "amount": 0.0,
+    "score": 0.0,
+    "metadata": {}
+  },
+  {
+    "event_id": "evt_0a20a0881def",
+    "event_type": "message_sent",
+    "creator_id": "stefano_bonanno",
+    "follower_id": "ig_bamos_barcelona_mobility",
+    "timestamp": "2026-01-24T19:21:19.595302+00:00",
+    "platform": "instagram",
+    "intent": "",
+    "product_id": "",
+    "amount": 0.0,
+    "score": 0.0,
+    "metadata": {}
+  },
+  {
+    "event_id": "evt_ec5762336c86",
+    "event_type": "lead_created",
+    "creator_id": "stefano_bonanno",
+    "follower_id": "ig_bamos_barcelona_mobility",
+    "timestamp": "2026-01-24T19:21:19.595881+00:00",
+    "platform": "instagram",
+    "intent": "",
+    "product_id": "",
+    "amount": 0.0,
+    "score": 0.85,
+    "metadata": {
+      "source": "dm"
+    }
+  },
+  {
+    "event_id": "evt_edc14ba5f766",
+    "event_type": "message_received",
+    "creator_id": "stefano_bonanno",
+    "follower_id": "ig_bamos_test_1769282530",
+    "timestamp": "2026-01-24T19:22:17.917831+00:00",
+    "platform": "instagram",
+    "intent": "interest_soft",
+    "product_id": "",
+    "amount": 0.0,
+    "score": 0.0,
+    "metadata": {}
+  },
+  {
+    "event_id": "evt_0ff5ebce0bbf",
+    "event_type": "message_sent",
+    "creator_id": "stefano_bonanno",
+    "follower_id": "ig_bamos_test_1769282530",
+    "timestamp": "2026-01-24T19:22:17.918545+00:00",
+    "platform": "instagram",
+    "intent": "",
+    "product_id": "",
+    "amount": 0.0,
+    "score": 0.0,
+    "metadata": {}
+  },
+  {
+    "event_id": "evt_f3c1da663d6d",
+    "event_type": "lead_created",
+    "creator_id": "stefano_bonanno",
+    "follower_id": "ig_bamos_test_1769282530",
+    "timestamp": "2026-01-24T19:22:17.918760+00:00",
+    "platform": "instagram",
+    "intent": "",
+    "product_id": "",
+    "amount": 0.0,
+    "score": 0.75,
+    "metadata": {
+      "source": "dm"
+    }
+  }
+]

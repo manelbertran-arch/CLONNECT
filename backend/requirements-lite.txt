@@ -1,6 +1,6 @@
 # Core
 fastapi>=0.104.0
-uvicorn>=0.24.0
+uvicorn==0.32.1
 pydantic>=2.0.0
 python-dotenv>=1.0.0
 
@@ -36,11 +36,12 @@ python-telegram-bot>=20.0
 # Instagram Scraping
 instaloader>=4.10.0
 
-# Semantic Search (RAG) - DISABLED: causes OOM on Railway free tier
-# numpy>=1.24.0
-# sentence-transformers>=2.2.0  # ~2GB with PyTorch
-# faiss-cpu>=1.7.4
-# Alternative: Use OpenAI embeddings API (lighter, no local model)
+# Semantic Search (RAG) - Cross-Encoder for reranking
+# PyTorch CPU-only (lightweight ~200MB, no CUDA)
+--extra-index-url https://download.pytorch.org/whl/cpu
+torch==2.1.0+cpu
+sentence-transformers>=2.2.0
+numpy>=1.24.0
 
 # Database
 sqlalchemy==2.0.23

@@ -22,7 +22,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { cn } from "@/lib/utils";
-import { useConversations, useFollowerDetail, useSendMessage, useArchiveConversation, useMarkConversationSpam, useDeleteConversation, useArchivedConversations, useRestoreConversation } from "@/hooks/useApi";
+import { useInfiniteConversations, useFollowerDetail, useSendMessage, useArchiveConversation, useMarkConversationSpam, useDeleteConversation, useArchivedConversations, useRestoreConversation } from "@/hooks/useApi";
 import { useToast } from "@/hooks/use-toast";
 import type { Conversation, Message } from "@/types/api";
 import { getPurchaseIntent, detectPlatform, getFriendlyName, extractNameFromMessages, getMessages } from "@/types/api";
@@ -128,7 +128,15 @@ export default function Inbox() {
   const urlConversationId = searchParams.get("id");
 
   // SEQUENTIAL LOADING: Load conversations first, then archived (prevents backend blocking)
-  const { data, isLoading, error, isSuccess } = useConversations();
+  const {
+    data,
+    isLoading,
+    error,
+    isSuccess,
+    fetchNextPage,
+    hasNextPage,
+    isFetchingNextPage
+  } = useInfiniteConversations();
   const { data: archivedData, isLoading: archivedLoading } = useArchivedConversations(undefined, {
     enabled: isSuccess // Only load AFTER conversations finishes
   });
@@ -238,7 +246,9 @@ export default function Inbox() {
   };
 
   const conversations = useMemo(() => {
-    const sourceData = activeTab === "archived" ? archivedData : data?.conversations;
+    // Flatten all pages from infinite query
+    const allConversations = data?.pages?.flatMap(page => page.conversations) || [];
+    const sourceData = activeTab === "archived" ? archivedData : allConversations;
     if (!sourceData) return [];
 
     let filtered = Array.isArray(sourceData) ? sourceData : [];
@@ -256,7 +266,7 @@ export default function Inbox() {
     return filtered.sort((a, b) =>
       new Date(b.last_contact || 0).getTime() - new Date(a.last_contact || 0).getTime()
     );
-  }, [data?.conversations, archivedData, searchQuery, activeTab]);
+  }, [data?.pages, archivedData, searchQuery, activeTab]);
 
   const archivedCount = archivedData?.length || 0;
 
@@ -477,6 +487,28 @@ export default function Inbox() {
                 </div>
               );
             })
+          )}
+
+          {/* Load More Button for infinite scroll */}
+          {activeTab === "all" && hasNextPage && (
+            <div className="py-4 flex justify-center">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => fetchNextPage()}
+                disabled={isFetchingNextPage}
+                className="w-full max-w-xs"
+              >
+                {isFetchingNextPage ? (
+                  <>
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    Loading...
+                  </>
+                ) : (
+                  "Load more conversations"
+                )}
+              </Button>
+            </div>
           )}
         </div>
       </div>

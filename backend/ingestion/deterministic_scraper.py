@@ -54,15 +54,16 @@ class DeterministicScraper:
     ]
 
     # Elements to remove (noise)
+    # NOTE: Don't remove 'button' - accordion FAQs often use buttons for titles
     NOISE_ELEMENTS = [
         'script', 'style', 'noscript', 'iframe', 'nav', 'footer',
-        'header', 'aside', 'form', 'button', 'input', 'select',
+        'header', 'aside', 'form', 'input', 'select',
         '[class*="cookie"]', '[class*="popup"]', '[class*="modal"]',
         '[class*="sidebar"]', '[class*="menu"]', '[class*="nav"]',
         '[id*="cookie"]', '[id*="popup"]', '[id*="modal"]'
     ]
 
-    def __init__(self, timeout: float = 15.0, max_pages: int = 10):
+    def __init__(self, timeout: float = 15.0, max_pages: int = 100):
         self.timeout = timeout
         self.max_pages = max_pages
         self._visited: set = set()
@@ -87,8 +88,21 @@ class DeterministicScraper:
             for element in soup.select(selector):
                 element.decompose()
 
+        # PRE-PROCESO: Añadir marcador a elementos de lista para preservar separación
+        for li in soup.find_all('li'):
+            li_text = li.get_text(strip=True)
+            if li_text:
+                # Añadir marcador temporal al final
+                li.append(' ◆')
+
         # Get text
         text = soup.get_text(separator=' ', strip=True)
+
+        # POST-PROCESO: Convertir marcador a coma antes de mayúscula
+        text = re.sub(r' ◆(?=\s*[A-ZÁÉÍÓÚÑ])', ',', text)
+        # Limpiar marcadores residuales (al final o antes de minúscula)
+        text = re.sub(r' ◆', '', text)
+
         return self._clean_text(text)
 
     def _extract_sections(self, soup) -> List[Dict[str, str]]:
@@ -199,15 +213,18 @@ class DeterministicScraper:
                 elif soup.h1:
                     title = soup.h1.get_text(strip=True)
 
+                # IMPORTANTE: Extraer links ANTES de modificar el soup
+                # (decompose() destruye elementos permanentemente)
+                links = self._extract_links(soup, url)
+
                 # Find main content area
                 main_soup = soup.find('main') or soup.find('article') or soup.find('body')
                 if not main_soup:
                     main_soup = soup
 
-                # Extract content
+                # Extract content (esto modifica el soup con decompose())
                 main_content = self._extract_text_from_soup(main_soup)
                 sections = self._extract_sections(main_soup)
-                links = self._extract_links(soup, url)
 
                 # Extract metadata
                 metadata = {}
@@ -274,7 +291,7 @@ class DeterministicScraper:
 # Singleton
 _scraper: Optional[DeterministicScraper] = None
 
-def get_deterministic_scraper(max_pages: int = 10) -> DeterministicScraper:
+def get_deterministic_scraper(max_pages: int = 100) -> DeterministicScraper:
     """Get or create scraper instance."""
     global _scraper
     if _scraper is None:

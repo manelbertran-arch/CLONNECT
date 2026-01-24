@@ -1264,7 +1264,7 @@ export default function Settings() {
                     <Input
                       value={aboutData.specialties}
                       onChange={(e) => setAboutData({...aboutData, specialties: e.target.value})}
-                      placeholder="Trading, criptomonedas, análisis técnico"
+                      placeholder="Ej: coaching, nutrición, marketing..."
                       className="bg-secondary border-0"
                     />
                   </div>
@@ -1273,7 +1273,7 @@ export default function Settings() {
                     <Input
                       value={aboutData.experience}
                       onChange={(e) => setAboutData({...aboutData, experience: e.target.value})}
-                      placeholder="6 años"
+                      placeholder=""
                       className="bg-secondary border-0"
                     />
                   </div>
@@ -1284,7 +1284,7 @@ export default function Settings() {
                   <Input
                     value={aboutData.target_audience}
                     onChange={(e) => setAboutData({...aboutData, target_audience: e.target.value})}
-                    placeholder="Personas que quieren aprender a invertir"
+                    placeholder="Ej: Emprendedores, profesionales, estudiantes..."
                     className="bg-secondary border-0"
                   />
                 </div>

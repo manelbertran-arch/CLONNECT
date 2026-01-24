@@ -1,0 +1,42 @@
+{
+  "follower_id": "ig_123456789",
+  "creator_id": "stefano_bonanno",
+  "username": "",
+  "name": "Silvia",
+  "first_contact": "2026-01-24T20:43:49.731530",
+  "last_contact": "2026-01-24T19:43:49.875095+00:00",
+  "total_messages": 1,
+  "interests": [],
+  "products_discussed": [],
+  "objections_raised": [],
+  "purchase_intent_score": 0.75,
+  "is_lead": true,
+  "is_customer": false,
+  "status": "hot",
+  "preferred_language": "es",
+  "last_messages": [
+    {
+      "role": "user",
+      "content": "Hola! Les escribe Silvia de Bamos, ya habíamos trabajado antes con grupos de estudiantes Erasmus",
+      "timestamp": "2026-01-24T19:43:49.875095+00:00"
+    },
+    {
+      "role": "assistant",
+      "content": "¡Hola Silvia! 👋 Soy el asistente virtual de Stefano Bonanno.\n\nVeo que mencionas una propuesta de colaboración. ¡Genial! Le paso tu mensaje a Stefano Bonanno para que pueda atenderte personalmente.\n\n¿Hay algo específico que quieras que le comente?",
+      "timestamp": "2026-01-24T19:43:49.875095+00:00"
+    }
+  ],
+  "links_sent_count": 0,
+  "last_link_message_num": 0,
+  "objections_handled": [],
+  "arguments_used": [],
+  "greeting_variant_index": 0,
+  "last_greeting_style": "hola",
+  "last_emojis_used": [
+    "👋"
+  ],
+  "messages_since_name_used": 0,
+  "alternative_contact": "",
+  "alternative_contact_type": "",
+  "contact_requested": false
+}

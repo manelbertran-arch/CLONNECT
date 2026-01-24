@@ -16,6 +16,47 @@ from enum import Enum
 logger = logging.getLogger(__name__)
 
 
+# =============================================================================
+# v1.5.2 FIX 5: Clean raw CTAs from RAG content
+# =============================================================================
+
+def clean_rag_ctas(text: str) -> str:
+    """
+    Remove raw Call-To-Action text from RAG content before showing to user.
+    Examples: "QUIERO SER PARTE", "COMPRA AHORA", "INSCRIBETE YA"
+    """
+    if not text:
+        return text
+
+    raw_ctas = [
+        r'QUIERO\s+SER\s+PARTE',
+        r'QUIERO\s+UNIRME',
+        r'COMPRA\s+AHORA',
+        r'INSCR[ÍI]BETE\s+(?:YA|AHORA)',
+        r'APÚNTATE\s+(?:YA|AHORA)',
+        r'RESERVA\s+TU\s+PLAZA',
+        r'ÚNETE\s+(?:YA|AHORA)',
+        r'HAGA?\s+CLIC\s+AQU[ÍI]',
+        r'CLICK\s+HERE',
+        r'BUY\s+NOW',
+        r'SIGN\s+UP\s+NOW',
+        r'JOIN\s+NOW',
+        r'\[CTA\]',
+        r'\[CALL\s+TO\s+ACTION\]',
+        r'(?:LINK\s+EN\s+)?(?:MI\s+)?BIO',
+        r'SWIPE\s+UP',
+        r'DM\s+(?:ME|PARA\s+MÁS)',
+    ]
+
+    for cta_pattern in raw_ctas:
+        pattern = rf'\s*["\'\[\(]?{cta_pattern}["\'\]\)]?\s*'
+        text = re.sub(pattern, ' ', text, flags=re.IGNORECASE)
+
+    # Clean up extra spaces
+    text = re.sub(r'\s{2,}', ' ', text).strip()
+    return text
+
+
 def normalize_text(text: str) -> str:
     """
     Normaliza texto removiendo acentos y caracteres especiales.
@@ -177,7 +218,9 @@ class CitationContext:
             lines.append(f"[{i}] {citation.content_type.value.upper()}")
             if citation.title:
                 lines.append(f"    Titulo: {citation.title}")
-            lines.append(f"    Contenido: {citation.excerpt[:300]}...")
+            # v1.5.2 FIX 5: Clean raw CTAs from excerpt
+            clean_excerpt = clean_rag_ctas(citation.excerpt[:300])
+            lines.append(f"    Contenido: {clean_excerpt}...")
             if citation.source_url:
                 lines.append(f"    URL: {citation.source_url}")
             lines.append(f"    Relevancia: {citation.relevance_score:.0%}")

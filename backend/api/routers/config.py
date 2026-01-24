@@ -17,7 +17,8 @@ if USE_DB:
 async def get_creator_config(creator_id: str):
     if USE_DB:
         try:
-            config = db_service.get_creator_by_name(creator_id)
+            # Use get_or_create_creator to auto-create if not exists
+            config = db_service.get_or_create_creator(creator_id)
             if config:
                 return {"status": "ok", "config": config}
         except Exception as e:

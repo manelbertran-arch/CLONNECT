@@ -11,11 +11,13 @@ Features:
 - Stories Reply handling
 - Persistent Menu configuration
 """
-import os
+
 import logging
-from typing import Dict, Any, Optional, List
+import os
 from datetime import datetime, timezone
-from fastapi import APIRouter, HTTPException, Request, Response, Query
+from typing import Any, Dict, List, Optional
+
+from fastapi import APIRouter, HTTPException, Query, Request, Response
 from fastapi.responses import PlainTextResponse
 
 logger = logging.getLogger("clonnect-instagram")
@@ -25,14 +27,20 @@ router = APIRouter(prefix="/instagram", tags=["instagram"])
 # Cache for Instagram handlers per creator
 _creator_handlers: Dict[str, Any] = {}
 
+# Cache for creator lookups by page_id (5-minute TTL for performance)
+_creator_by_page_id_cache: Dict[str, tuple] = {}  # {page_id: (creator_info, timestamp)}
+_CREATOR_LOOKUP_CACHE_TTL = 300  # 5 minutes
+
 
 # =============================================================================
 # MULTI-CREATOR ROUTING: page_id → creator_id
 # =============================================================================
 
+
 def get_creator_by_page_id(page_id: str) -> Optional[Dict[str, Any]]:
     """
     BLOQUE 1: Lookup creator by Instagram page_id.
+    CACHED with 5-minute TTL for performance.
 
     Returns creator info including:
     - creator_id (name)
@@ -44,19 +52,40 @@ def get_creator_by_page_id(page_id: str) -> Optional[Dict[str, Any]]:
 
     Returns None if no creator found with this page_id.
     """
+    import time
+
+    current_time = time.time()
+
+    # Check cache first
+    if page_id in _creator_by_page_id_cache:
+        cached_info, cached_time = _creator_by_page_id_cache[page_id]
+        if current_time - cached_time < _CREATOR_LOOKUP_CACHE_TTL:
+            if cached_info:
+                logger.debug(
+                    f"[CREATOR-CACHE] HIT for page_id {page_id}: {cached_info.get('creator_id')}"
+                )
+            return cached_info
+
+    # Cache miss - query DB
     try:
         from api.database import SessionLocal
         from api.models import Creator
 
         session = SessionLocal()
         try:
+            # Try by instagram_page_id first
             creator = session.query(Creator).filter_by(instagram_page_id=page_id).first()
+
+            # If not found, also try by instagram_user_id (for new Instagram API without Facebook Page)
+            if not creator:
+                creator = session.query(Creator).filter_by(instagram_user_id=page_id).first()
 
             if not creator:
                 logger.warning(f"No creator found for page_id: {page_id}")
+                _creator_by_page_id_cache[page_id] = (None, current_time)
                 return None
 
-            return {
+            result = {
                 "creator_id": creator.name,
                 "creator_uuid": str(creator.id),
                 "instagram_token": creator.instagram_token,
@@ -65,6 +94,11 @@ def get_creator_by_page_id(page_id: str) -> Optional[Dict[str, Any]]:
                 "bot_active": creator.bot_active,
                 "copilot_mode": creator.copilot_mode,
             }
+            logger.info(
+                f"[CREATOR-CACHE] MISS for page_id {page_id}: loaded {result.get('creator_id')} from DB"
+            )
+            _creator_by_page_id_cache[page_id] = (result, current_time)
+            return result
         finally:
             session.close()
 
@@ -77,7 +111,23 @@ def get_creator_by_ig_user_id(ig_user_id: str) -> Optional[Dict[str, Any]]:
     """
     Alternative lookup: Find creator by instagram_user_id.
     Used when page_id is not available in webhook payload.
+    CACHED with 5-minute TTL for performance.
     """
+    import time
+
+    current_time = time.time()
+
+    # Use same cache (ig_user_id is just another type of page_id)
+    cache_key = f"ig_user:{ig_user_id}"
+    if cache_key in _creator_by_page_id_cache:
+        cached_info, cached_time = _creator_by_page_id_cache[cache_key]
+        if current_time - cached_time < _CREATOR_LOOKUP_CACHE_TTL:
+            if cached_info:
+                logger.debug(
+                    f"[CREATOR-CACHE] HIT for ig_user_id {ig_user_id}: {cached_info.get('creator_id')}"
+                )
+            return cached_info
+
     try:
         from api.database import SessionLocal
         from api.models import Creator
@@ -87,9 +137,10 @@ def get_creator_by_ig_user_id(ig_user_id: str) -> Optional[Dict[str, Any]]:
             creator = session.query(Creator).filter_by(instagram_user_id=ig_user_id).first()
 
             if not creator:
+                _creator_by_page_id_cache[cache_key] = (None, current_time)
                 return None
 
-            return {
+            result = {
                 "creator_id": creator.name,
                 "creator_uuid": str(creator.id),
                 "instagram_token": creator.instagram_token,
@@ -98,6 +149,11 @@ def get_creator_by_ig_user_id(ig_user_id: str) -> Optional[Dict[str, Any]]:
                 "bot_active": creator.bot_active,
                 "copilot_mode": creator.copilot_mode,
             }
+            logger.info(
+                f"[CREATOR-CACHE] MISS for ig_user_id {ig_user_id}: loaded {result.get('creator_id')} from DB"
+            )
+            _creator_by_page_id_cache[cache_key] = (result, current_time)
+            return result
         finally:
             session.close()
 
@@ -129,7 +185,7 @@ def get_handler_for_creator(creator_info: Dict[str, Any]):
         access_token=creator_info.get("instagram_token"),
         page_id=creator_info.get("instagram_page_id"),
         ig_user_id=creator_info.get("instagram_user_id"),
-        creator_id=creator_id
+        creator_id=creator_id,
     )
 
     _creator_handlers[creator_id] = handler
@@ -184,7 +240,9 @@ async def instagram_webhook_verify(request: Request):
         logger.info("Instagram webhook verified successfully")
         return PlainTextResponse(content=challenge)
 
-    logger.warning(f"Instagram webhook verification failed: mode={mode}, token_match={token == VERIFY_TOKEN}")
+    logger.warning(
+        f"Instagram webhook verification failed: mode={mode}, token_match={token == VERIFY_TOKEN}"
+    )
     raise HTTPException(status_code=403, detail="Verification failed")
 
 
@@ -254,17 +312,16 @@ async def instagram_webhook_receive(request: Request):
         # Process the webhook
         result = await handler.handle_webhook(payload, signature)
 
-        logger.info(f"Processed webhook for {creator_id}: {result.get('messages_processed', 0)} messages")
+        logger.info(
+            f"Processed webhook for {creator_id}: {result.get('messages_processed', 0)} messages"
+        )
 
-        return {
-            **result,
-            "creator_id": creator_id,
-            "page_id": page_id
-        }
+        return {**result, "creator_id": creator_id, "page_id": page_id}
 
     except Exception as e:
         logger.error(f"Error processing Instagram webhook: {e}")
         import traceback
+
         logger.error(traceback.format_exc())
         # Return 200 to acknowledge receipt (prevents infinite retries)
         return {"status": "error", "error": str(e)}
@@ -273,6 +330,7 @@ async def instagram_webhook_receive(request: Request):
 # =============================================================================
 # BLOQUE 3: ICE BREAKERS + PERSISTENT MENU
 # =============================================================================
+
 
 @router.post("/icebreakers/{creator_id}")
 async def set_ice_breakers(creator_id: str, ice_breakers: List[Dict[str, str]]):
@@ -291,9 +349,9 @@ async def set_ice_breakers(creator_id: str, ice_breakers: List[Dict[str, str]]):
     ]
     """
     try:
+        import httpx
         from api.database import SessionLocal
         from api.models import Creator
-        import httpx
 
         # Get creator's token
         session = SessionLocal()
@@ -325,14 +383,16 @@ async def set_ice_breakers(creator_id: str, ice_breakers: List[Dict[str, str]]):
             response = await client.post(
                 f"https://graph.facebook.com/v21.0/{page_id}/messenger_profile",
                 params={"access_token": access_token},
-                json={"ice_breakers": formatted_icebreakers}
+                json={"ice_breakers": formatted_icebreakers},
             )
 
             result = response.json()
 
             if "error" in result:
                 logger.error(f"Failed to set ice breakers: {result['error']}")
-                raise HTTPException(status_code=400, detail=result["error"].get("message", "Unknown error"))
+                raise HTTPException(
+                    status_code=400, detail=result["error"].get("message", "Unknown error")
+                )
 
             logger.info(f"Set {len(ice_breakers)} ice breakers for {creator_id}")
 
@@ -340,7 +400,7 @@ async def set_ice_breakers(creator_id: str, ice_breakers: List[Dict[str, str]]):
                 "status": "ok",
                 "creator_id": creator_id,
                 "ice_breakers_set": len(ice_breakers),
-                "ice_breakers": formatted_icebreakers
+                "ice_breakers": formatted_icebreakers,
             }
 
     except HTTPException:
@@ -356,9 +416,9 @@ async def get_ice_breakers(creator_id: str):
     Get current Ice Breakers for a creator.
     """
     try:
+        import httpx
         from api.database import SessionLocal
         from api.models import Creator
-        import httpx
 
         session = SessionLocal()
         try:
@@ -378,20 +438,13 @@ async def get_ice_breakers(creator_id: str):
         async with httpx.AsyncClient() as client:
             response = await client.get(
                 f"https://graph.facebook.com/v21.0/{page_id}/messenger_profile",
-                params={
-                    "access_token": access_token,
-                    "fields": "ice_breakers"
-                }
+                params={"access_token": access_token, "fields": "ice_breakers"},
             )
 
             result = response.json()
             ice_breakers = result.get("data", [{}])[0].get("ice_breakers", [])
 
-            return {
-                "status": "ok",
-                "creator_id": creator_id,
-                "ice_breakers": ice_breakers
-            }
+            return {"status": "ok", "creator_id": creator_id, "ice_breakers": ice_breakers}
 
     except HTTPException:
         raise
@@ -406,9 +459,9 @@ async def delete_ice_breakers(creator_id: str):
     Delete all Ice Breakers for a creator.
     """
     try:
+        import httpx
         from api.database import SessionLocal
         from api.models import Creator
-        import httpx
 
         session = SessionLocal()
         try:
@@ -428,7 +481,7 @@ async def delete_ice_breakers(creator_id: str):
             response = await client.delete(
                 f"https://graph.facebook.com/v21.0/{page_id}/messenger_profile",
                 params={"access_token": access_token},
-                json={"fields": ["ice_breakers"]}
+                json={"fields": ["ice_breakers"]},
             )
 
             result = response.json()
@@ -473,9 +526,9 @@ async def set_persistent_menu(creator_id: str, menu_items: List[Dict[str, Any]])
     ]
     """
     try:
+        import httpx
         from api.database import SessionLocal
         from api.models import Creator
-        import httpx
 
         session = SessionLocal()
         try:
@@ -492,32 +545,28 @@ async def set_persistent_menu(creator_id: str, menu_items: List[Dict[str, Any]])
             raise HTTPException(status_code=400, detail="No Instagram connection")
 
         # Format persistent menu
-        persistent_menu = [{
-            "locale": "default",
-            "composer_input_disabled": False,
-            "call_to_actions": menu_items
-        }]
+        persistent_menu = [
+            {"locale": "default", "composer_input_disabled": False, "call_to_actions": menu_items}
+        ]
 
         async with httpx.AsyncClient() as client:
             response = await client.post(
                 f"https://graph.facebook.com/v21.0/{page_id}/messenger_profile",
                 params={"access_token": access_token},
-                json={"persistent_menu": persistent_menu}
+                json={"persistent_menu": persistent_menu},
             )
 
             result = response.json()
 
             if "error" in result:
                 logger.error(f"Failed to set persistent menu: {result['error']}")
-                raise HTTPException(status_code=400, detail=result["error"].get("message", "Unknown error"))
+                raise HTTPException(
+                    status_code=400, detail=result["error"].get("message", "Unknown error")
+                )
 
             logger.info(f"Set persistent menu for {creator_id} with {len(menu_items)} items")
 
-            return {
-                "status": "ok",
-                "creator_id": creator_id,
-                "menu_items_set": len(menu_items)
-            }
+            return {"status": "ok", "creator_id": creator_id, "menu_items_set": len(menu_items)}
 
     except HTTPException:
         raise
@@ -529,6 +578,7 @@ async def set_persistent_menu(creator_id: str, menu_items: List[Dict[str, Any]])
 # =============================================================================
 # BLOQUE 4: STORIES REPLY HANDLER
 # =============================================================================
+
 
 @router.post("/webhook/stories")
 async def instagram_stories_webhook(request: Request):
@@ -575,29 +625,29 @@ async def instagram_stories_webhook(request: Request):
                                 creator_info=creator_info,
                                 sender_id=sender_id,
                                 story_url=story_url,
-                                message_text=message.get("text", "")
+                                message_text=message.get("text", ""),
                             )
                             results.append(result)
 
                         # Story reply type
-                        elif attachment.get("type") == "share" and attachment.get("payload", {}).get("is_story_reply"):
+                        elif attachment.get("type") == "share" and attachment.get(
+                            "payload", {}
+                        ).get("is_story_reply"):
                             sender_id = messaging.get("sender", {}).get("id")
                             reply_text = message.get("text", "")
 
-                            logger.info(f"Story reply from {sender_id} for {creator_id}: {reply_text[:50]}...")
+                            logger.info(
+                                f"Story reply from {sender_id} for {creator_id}: {reply_text[:50]}..."
+                            )
 
                             result = await _handle_story_reply(
                                 creator_info=creator_info,
                                 sender_id=sender_id,
-                                reply_text=reply_text
+                                reply_text=reply_text,
                             )
                             results.append(result)
 
-        return {
-            "status": "ok",
-            "stories_processed": len(results),
-            "results": results
-        }
+        return {"status": "ok", "stories_processed": len(results), "results": results}
 
     except Exception as e:
         logger.error(f"Error processing stories webhook: {e}")
@@ -605,10 +655,7 @@ async def instagram_stories_webhook(request: Request):
 
 
 async def _handle_story_mention(
-    creator_info: Dict[str, Any],
-    sender_id: str,
-    story_url: str,
-    message_text: str = ""
+    creator_info: Dict[str, Any], sender_id: str, story_url: str, message_text: str = ""
 ) -> Dict[str, Any]:
     """
     Handle when someone mentions the creator in their story.
@@ -623,6 +670,7 @@ async def _handle_story_mention(
     saved_thumbnail = None
     try:
         from core.story_thumbnail import download_story_thumbnail
+
         saved_thumbnail = await download_story_thumbnail(story_url)
         if saved_thumbnail:
             logger.info(f"Saved story thumbnail for mention from {sender_id}")
@@ -632,7 +680,7 @@ async def _handle_story_mention(
     # Default thank you message for story mentions
     thank_you_message = os.getenv(
         "STORY_MENTION_RESPONSE",
-        "¡Gracias por compartir! 🙌 Me encanta que te haya gustado. ¿En qué puedo ayudarte?"
+        "¡Gracias por compartir! 🙌 Me encanta que te haya gustado. ¿En qué puedo ayudarte?",
     )
 
     try:
@@ -645,7 +693,7 @@ async def _handle_story_mention(
             sender_id=sender_id,
             interaction_type="mention",
             story_url=story_url,
-            saved_thumbnail=saved_thumbnail
+            saved_thumbnail=saved_thumbnail,
         )
 
         return {
@@ -653,7 +701,7 @@ async def _handle_story_mention(
             "sender_id": sender_id,
             "response_sent": success,
             "creator_id": creator_id,
-            "thumbnail_saved": bool(saved_thumbnail)
+            "thumbnail_saved": bool(saved_thumbnail),
         }
 
     except Exception as e:
@@ -662,9 +710,7 @@ async def _handle_story_mention(
 
 
 async def _handle_story_reply(
-    creator_info: Dict[str, Any],
-    sender_id: str,
-    reply_text: str
+    creator_info: Dict[str, Any], sender_id: str, reply_text: str
 ) -> Dict[str, Any]:
     """
     Handle when someone replies to a creator's story.
@@ -685,7 +731,7 @@ async def _handle_story_reply(
             sender_id=sender_id,
             recipient_id=creator_info.get("instagram_page_id", ""),
             text=reply_text,
-            timestamp=datetime.now(timezone.utc)
+            timestamp=datetime.now(timezone.utc),
         )
 
         # Process through DM agent
@@ -697,6 +743,7 @@ async def _handle_story_reply(
         if copilot_enabled:
             # Save as pending approval
             from core.copilot_service import get_copilot_service
+
             copilot = get_copilot_service()
 
             pending = await copilot.create_pending_response(
@@ -707,9 +754,13 @@ async def _handle_story_reply(
                 user_message=reply_text,
                 user_message_id=message.message_id,
                 suggested_response=response.response_text,
-                intent=response.intent.value if hasattr(response.intent, 'value') else str(response.intent),
+                intent=(
+                    response.intent.value
+                    if hasattr(response.intent, "value")
+                    else str(response.intent)
+                ),
                 confidence=response.confidence,
-                source="story_reply"
+                source="story_reply",
             )
 
             return {
@@ -717,7 +768,7 @@ async def _handle_story_reply(
                 "sender_id": sender_id,
                 "copilot_mode": True,
                 "pending_id": pending.id,
-                "status": "pending_approval"
+                "status": "pending_approval",
             }
         else:
             # Send immediately
@@ -728,7 +779,7 @@ async def _handle_story_reply(
                 "sender_id": sender_id,
                 "copilot_mode": False,
                 "response": response.response_text[:50] + "...",
-                "status": "sent"
+                "status": "sent",
             }
 
     except Exception as e:
@@ -741,14 +792,14 @@ async def _register_story_interaction(
     sender_id: str,
     interaction_type: str,
     story_url: str = "",
-    saved_thumbnail: str = None
+    saved_thumbnail: str = None,
 ):
     """
     Register a story interaction as a lead touchpoint.
     Saves the story thumbnail if provided (before Instagram CDN URL expires).
     """
     try:
-        from core.memory import MemoryStore, FollowerMemory
+        from core.memory import FollowerMemory, MemoryStore
 
         memory_store = MemoryStore()
         follower_id = f"ig_{sender_id}"
@@ -756,22 +807,22 @@ async def _register_story_interaction(
         follower = await memory_store.load(creator_id, follower_id)
         if not follower:
             follower = FollowerMemory(
-                follower_id=follower_id,
-                creator_id=creator_id,
-                platform="instagram"
+                follower_id=follower_id, creator_id=creator_id, platform="instagram"
             )
 
         follower.is_lead = True
         follower.source = f"story_{interaction_type}"
 
         # Add to notes
-        if not hasattr(follower, 'notes') or not follower.notes:
+        if not hasattr(follower, "notes") or not follower.notes:
             follower.notes = []
-        follower.notes.append({
-            "type": f"story_{interaction_type}",
-            "story_url": story_url,
-            "timestamp": datetime.now(timezone.utc).isoformat()
-        })
+        follower.notes.append(
+            {
+                "type": f"story_{interaction_type}",
+                "story_url": story_url,
+                "timestamp": datetime.now(timezone.utc).isoformat(),
+            }
+        )
 
         await memory_store.save(follower)
 
@@ -798,7 +849,7 @@ async def _register_story_interaction(
                     lead_id=str(lead["id"]),
                     role="user",
                     content=f"Story {interaction_type}",
-                    metadata=msg_metadata
+                    metadata=msg_metadata,
                 )
                 logger.info(f"Saved story {interaction_type} message for {follower_id}")
         except Exception as e:
@@ -814,12 +865,13 @@ async def _register_story_interaction(
 # CONNECT ENDPOINT: Register page_id for a creator
 # =============================================================================
 
+
 @router.post("/connect")
 async def connect_instagram_page(
     creator_id: str = Query(..., description="Creator name/ID"),
     page_id: str = Query(..., description="Instagram/Facebook Page ID"),
     access_token: str = Query(None, description="Page access token (optional if already stored)"),
-    ig_user_id: str = Query(None, description="Instagram User ID (optional, defaults to page_id)")
+    ig_user_id: str = Query(None, description="Instagram User ID (optional, defaults to page_id)"),
 ):
     """
     Connect/register an Instagram page to a creator.
@@ -857,7 +909,7 @@ async def connect_instagram_page(
                 "creator_id": creator_id,
                 "instagram_page_id": page_id,
                 "instagram_user_id": creator.instagram_user_id,
-                "token_updated": bool(access_token)
+                "token_updated": bool(access_token),
             }
 
         finally:
@@ -902,7 +954,7 @@ async def get_instagram_status(creator_id: str):
                 "instagram_user_id": creator.instagram_user_id,
                 "bot_active": creator.bot_active,
                 "copilot_mode": creator.copilot_mode,
-                "handler_stats": handler_stats
+                "handler_stats": handler_stats,
             }
 
         finally:
@@ -927,9 +979,7 @@ async def list_instagram_creators():
 
         session = SessionLocal()
         try:
-            creators = session.query(Creator).filter(
-                Creator.instagram_page_id.isnot(None)
-            ).all()
+            creators = session.query(Creator).filter(Creator.instagram_page_id.isnot(None)).all()
 
             return {
                 "status": "ok",
@@ -941,10 +991,10 @@ async def list_instagram_creators():
                         "instagram_user_id": c.instagram_user_id,
                         "bot_active": c.bot_active,
                         "copilot_mode": c.copilot_mode,
-                        "has_token": bool(c.instagram_token)
+                        "has_token": bool(c.instagram_token),
                     }
                     for c in creators
-                ]
+                ],
             }
 
         finally:

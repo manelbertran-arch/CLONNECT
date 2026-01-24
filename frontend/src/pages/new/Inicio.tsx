@@ -224,13 +224,21 @@ export default function Inicio() {
       {hotLeads.length > 0 && (
         <Card className="bg-gray-900 border-gray-800">
           <CardHeader className="pb-3">
-            <CardTitle className="text-lg flex items-center gap-2">
-              <span className="text-orange-500">🔥</span>
-              Necesitan tu atención
-              <span className="ml-auto text-sm font-normal text-gray-400">
-                {hotLeads.length}
-              </span>
-            </CardTitle>
+            <div className="flex items-center justify-between">
+              <CardTitle className="text-lg flex items-center gap-2">
+                <span className="text-orange-500">🔥</span>
+                Necesitan tu atención
+                <span className="text-sm font-normal text-gray-400">
+                  ({hotLeads.length})
+                </span>
+              </CardTitle>
+              <Link
+                to="/leads"
+                className="text-sm text-purple-500 hover:text-purple-400"
+              >
+                Ver todos
+              </Link>
+            </div>
           </CardHeader>
           <CardContent className="space-y-2">
             {hotLeads.slice(0, 3).map((lead) => (

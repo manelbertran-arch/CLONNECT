@@ -39,7 +39,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { cn } from "@/lib/utils";
-import { useConversations, useUpdateLeadStatus, useCreateManualLead, useUpdateLead, useDeleteLead, useLeadActivities, useLeadTasks, useCreateLeadTask, useUpdateLeadTask, useDeleteLeadTask, useDeleteLeadActivity, useLeadStats } from "@/hooks/useApi";
+import { useInfiniteConversations, useUpdateLeadStatus, useCreateManualLead, useUpdateLead, useDeleteLead, useLeadActivities, useLeadTasks, useCreateLeadTask, useUpdateLeadTask, useDeleteLeadTask, useDeleteLeadActivity, useLeadStats } from "@/hooks/useApi";
 import { useToast } from "@/hooks/use-toast";
 import type { Conversation } from "@/types/api";
 import { getPurchaseIntent, detectPlatform, getDisplayName } from "@/types/api";
@@ -202,7 +202,7 @@ const initialFormState = {
 
 export default function Leads() {
   // Use conversations endpoint to get ALL followers (not just leads with is_lead=true)
-  const { data, isLoading, error } = useConversations();
+  const { data, isLoading, error, fetchNextPage, hasNextPage, isFetchingNextPage } = useInfiniteConversations();
   const [draggedLead, setDraggedLead] = useState<LeadDisplay | null>(null);
   const [localStatusOverrides, setLocalStatusOverrides] = useState<Record<string, LeadStatus>>({});
   const { toast } = useToast();
@@ -240,9 +240,11 @@ export default function Leads() {
 
 
   const leads = useMemo(() => {
-    if (!data?.conversations) return [];
+    // Flatten all pages from infinite query
+    const allConversations = data?.pages?.flatMap(page => page.conversations) || [];
+    if (!allConversations.length) return [];
 
-    return data.conversations.map((convo): LeadDisplay => {
+    return allConversations.map((convo): LeadDisplay => {
       const platform = convo.platform || detectPlatform(convo.follower_id);
       const displayName = getDisplayName(convo);
       const intent = getPurchaseIntent(convo);
@@ -286,7 +288,7 @@ export default function Leads() {
         followerId: convo.follower_id,
       };
     });
-  }, [data?.conversations, localStatusOverrides]);
+  }, [data?.pages, localStatusOverrides]);
 
   const handleDragStart = (lead: LeadDisplay) => {
     setDraggedLead(lead);
@@ -759,6 +761,27 @@ export default function Leads() {
         })}
         </div>
       </div>
+
+      {/* Load More Button */}
+      {hasNextPage && (
+        <div className="flex justify-center py-4">
+          <Button
+            variant="outline"
+            onClick={() => fetchNextPage()}
+            disabled={isFetchingNextPage}
+            className="w-full max-w-xs"
+          >
+            {isFetchingNextPage ? (
+              <>
+                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                Cargando...
+              </>
+            ) : (
+              "Cargar más leads"
+            )}
+          </Button>
+        </div>
+      )}
 
       {/* Add Lead Modal */}
       <Dialog open={isAddModalOpen} onOpenChange={setIsAddModalOpen}>

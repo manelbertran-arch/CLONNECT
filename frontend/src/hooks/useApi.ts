@@ -2,7 +2,7 @@
  * React Query hooks for API data fetching
  */
 
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient, useInfiniteQuery } from "@tanstack/react-query";
 import {
   getDashboardOverview,
   getConversations,
@@ -71,6 +71,8 @@ import {
   toggleCopilotMode,
   getCopilotNotifications,
   approveAllCopilot,
+  // Escalations
+  getEscalations,
   // CRM Activities & Tasks
   getLeadActivities,
   createLeadActivity,
@@ -109,9 +111,30 @@ export function useDashboard(creatorId: string = getCreatorId()) {
 export function useConversations(creatorId: string = getCreatorId(), limit = 50) {
   return useQuery({
     queryKey: apiKeys.conversations(creatorId),
-    queryFn: () => getConversations(creatorId, limit),
+    queryFn: () => getConversations(creatorId, limit, 0),
     refetchInterval: 30000, // Refetch every 30 seconds (reduced from 5s to prevent request backlog)
     staleTime: 15000, // Data is fresh for 15 seconds
+  });
+}
+
+/**
+ * Hook to fetch conversations with infinite scroll support
+ * Loads more conversations as user scrolls
+ */
+export function useInfiniteConversations(creatorId: string = getCreatorId(), pageSize = 50) {
+  return useInfiniteQuery({
+    queryKey: [...apiKeys.conversations(creatorId), "infinite"],
+    queryFn: ({ pageParam = 0 }) => getConversations(creatorId, pageSize, pageParam),
+    getNextPageParam: (lastPage) => {
+      // Return next offset if there's more data
+      if (lastPage.has_more) {
+        return (lastPage.offset || 0) + (lastPage.limit || pageSize);
+      }
+      return undefined;
+    },
+    initialPageParam: 0,
+    refetchInterval: 30000,
+    staleTime: 15000,
   });
 }
 
@@ -1160,6 +1183,23 @@ export function useLeadStats(leadId: string | null, creatorId: string = getCreat
     queryKey: ["leadStats", creatorId, leadId],
     queryFn: () => getLeadStats(creatorId, leadId!),
     enabled: !!leadId,
+    staleTime: 30000,
+  });
+}
+
+// =============================================================================
+// ESCALATIONS HOOKS
+// =============================================================================
+
+/**
+ * Hook to fetch escalation alerts
+ * Returns leads that need human attention
+ */
+export function useEscalations(creatorId: string = getCreatorId(), limit: number = 50) {
+  return useQuery({
+    queryKey: apiKeys.escalations(creatorId),
+    queryFn: () => getEscalations(creatorId, limit),
+    refetchInterval: 60000, // Refetch every minute
     staleTime: 30000,
   });
 }

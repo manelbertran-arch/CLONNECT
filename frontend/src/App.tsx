@@ -25,7 +25,10 @@ import Terms from "./pages/Terms";
 import Privacy from "./pages/Privacy";
 import BookService from "./pages/BookService";
 import Onboarding from "./pages/Onboarding";
-import OnboardingIntro from "./pages/OnboardingIntro";
+import CrearClon from "./pages/CrearClon";
+import CreandoClon from "./pages/CreandoClon";
+import Felicidades from "./pages/Felicidades";
+import SwitchUser from "./pages/SwitchUser";
 import InboxTest from "./pages/InboxTest";
 import HomeWithConversations from "./pages/HomeWithConversations";
 
@@ -35,6 +38,7 @@ import Inicio from "./pages/new/Inicio";
 import Mensajes from "./pages/new/Mensajes";
 import Clientes from "./pages/new/Clientes";
 import Ajustes from "./pages/new/Ajustes";
+import NewOnboarding from "./pages/new/Onboarding";
 
 // Configure QueryClient with optimized settings
 const queryClient = new QueryClient({
@@ -56,8 +60,12 @@ const AppRoutes = () => {
       <Route path="/register" element={<Register />} />
 
       {/* Onboarding routes */}
-      <Route path="/onboarding-intro" element={<OnboardingIntro />} />
       <Route path="/onboarding" element={<Onboarding />} />
+      <Route path="/crear-clon" element={<CrearClon />} />
+      <Route path="/creando-clon" element={<CreandoClon />} />
+      <Route path="/new/onboarding" element={<NewOnboarding />} />
+      <Route path="/felicidades" element={<Felicidades />} />
+      <Route path="/switch-user/:creatorId" element={<SwitchUser />} />
 
       {/* Minimal test route to isolate Inbox slowness */}
       <Route path="/inbox-test" element={<InboxTest />} />

@@ -5,17 +5,7 @@
 import { useConversations } from "@/hooks/useApi";
 
 export default function InboxTest() {
-  console.log('[INBOX TEST] Component rendering', Date.now());
-
   const { data, isLoading, error } = useConversations();
-
-  console.log('[INBOX TEST] Hook result:', {
-    hasData: !!data,
-    conversationCount: data?.conversations?.length || 0,
-    isLoading,
-    error: error ? String(error) : null,
-    timestamp: Date.now()
-  });
 
   if (isLoading) {
     return (

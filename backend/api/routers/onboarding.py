@@ -1,30 +1,95 @@
 """Onboarding checklist endpoints + Magic Slice pipeline + Full Auto-Setup"""
-import os
-import logging
-import asyncio
-from fastapi import APIRouter, HTTPException, BackgroundTasks
-from pydantic import BaseModel
-from typing import Optional, List, Dict
 
-from core.products import ProductManager
+import asyncio
+import logging
+import os
+from typing import Dict, List, Optional
+
 from core.creator_config import CreatorConfigManager
+from core.products import ProductManager
+from fastapi import APIRouter, BackgroundTasks, HTTPException
+from pydantic import BaseModel
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/onboarding", tags=["onboarding"])
 
 # =============================================================================
-# IN-MEMORY SETUP STATUS (Use Redis in production)
+# SETUP STATUS - Now persisted in DB (with memory cache for fast access)
 # =============================================================================
 
-setup_status: Dict[str, Dict] = {}
+setup_status: Dict[str, Dict] = {}  # Memory cache, also persisted to DB
+
+
+def _update_clone_status_db(creator_id: str, status_data: Dict):
+    """Persist clone setup status to database (survives deploys)."""
+    try:
+        from datetime import datetime, timezone
+
+        from api.database import SessionLocal
+        from api.models import Creator
+
+        session = SessionLocal()
+        try:
+            creator = session.query(Creator).filter_by(name=creator_id).first()
+            if creator:
+                creator.clone_status = status_data.get("status", "in_progress")
+                creator.clone_progress = status_data
+                if status_data.get("status") == "in_progress" and not creator.clone_started_at:
+                    creator.clone_started_at = datetime.now(timezone.utc)
+                if status_data.get("status") in ["completed", "failed"]:
+                    creator.clone_completed_at = datetime.now(timezone.utc)
+                session.commit()
+                logger.debug(
+                    f"[CloneStatus] Saved to DB: {creator_id} -> {status_data.get('status')}"
+                )
+        finally:
+            session.close()
+    except Exception as e:
+        logger.warning(f"[CloneStatus] Failed to save to DB: {e}")
+
+
+def _get_clone_status_db(creator_id: str) -> Optional[Dict]:
+    """Get clone setup status from database."""
+    try:
+        from api.database import SessionLocal
+        from api.models import Creator
+
+        session = SessionLocal()
+        try:
+            creator = session.query(Creator).filter_by(name=creator_id).first()
+            if creator and creator.clone_progress:
+                return creator.clone_progress
+            elif creator:
+                return {
+                    "status": creator.clone_status or "pending",
+                    "progress": (
+                        0
+                        if creator.clone_status == "pending"
+                        else 100 if creator.clone_status == "completed" else 0
+                    ),
+                    "current_step": (
+                        "completed" if creator.clone_status == "completed" else "pending"
+                    ),
+                    "steps_completed": [],
+                    "errors": [],
+                    "warnings": [],
+                    "result": {},
+                }
+        finally:
+            session.close()
+    except Exception as e:
+        logger.warning(f"[CloneStatus] Failed to read from DB: {e}")
+    return None
 
 
 # =============================================================================
 # PYDANTIC MODELS FOR MAGIC SLICE ONBOARDING
 # =============================================================================
 
+
 class PostInput(BaseModel):
     """Post input for onboarding."""
+
     caption: str
     post_id: Optional[str] = None
     post_type: Optional[str] = "instagram_post"
@@ -37,12 +102,14 @@ class PostInput(BaseModel):
 
 class QuickOnboardRequest(BaseModel):
     """Request simplificado para onboarding rapido."""
+
     creator_id: str
     posts: List[PostInput]
 
 
 class FullOnboardRequest(BaseModel):
     """Request completo para onboarding."""
+
     creator_id: str
     instagram_username: Optional[str] = None
     instagram_access_token: Optional[str] = None
@@ -61,10 +128,12 @@ async def check_instagram_connected(creator_id: str) -> bool:
     try:
         # Check database first
         from api.database import DATABASE_URL, SessionLocal
+
         if DATABASE_URL and SessionLocal:
             session = SessionLocal()
             try:
                 from api.models import Creator
+
                 creator = session.query(Creator).filter_by(name=creator_id).first()
                 if creator and creator.instagram_token:
                     return len(creator.instagram_token) > 10
@@ -80,10 +149,12 @@ async def check_telegram_connected(creator_id: str) -> bool:
     try:
         # Check database first
         from api.database import DATABASE_URL, SessionLocal
+
         if DATABASE_URL and SessionLocal:
             session = SessionLocal()
             try:
                 from api.models import Creator
+
                 creator = session.query(Creator).filter_by(name=creator_id).first()
                 if creator and creator.telegram_bot_token:
                     return len(creator.telegram_bot_token) > 10
@@ -99,10 +170,12 @@ async def check_whatsapp_connected(creator_id: str) -> bool:
     # First check if creator has WhatsApp configured in DB
     try:
         from api.database import DATABASE_URL, SessionLocal
+
         if DATABASE_URL and SessionLocal:
             session = SessionLocal()
             try:
                 from api.models import Creator
+
                 creator = session.query(Creator).filter_by(name=creator_id).first()
                 if creator and creator.whatsapp_token and creator.whatsapp_phone_id:
                     return True
@@ -161,18 +234,20 @@ async def get_onboarding_status(creator_id: str):
         "connect_whatsapp": await check_whatsapp_connected(creator_id),
         "add_product": await check_has_products(creator_id),
         "configure_personality": await check_personality_configured(creator_id),
-        "activate_bot": await check_bot_active(creator_id)
+        "activate_bot": await check_bot_active(creator_id),
     }
 
     # At least one messaging channel connected
-    has_channel = steps["connect_instagram"] or steps["connect_telegram"] or steps["connect_whatsapp"]
+    has_channel = (
+        steps["connect_instagram"] or steps["connect_telegram"] or steps["connect_whatsapp"]
+    )
 
     # Core steps (required for basic functionality)
     core_steps = {
         "connect_channel": has_channel,
         "add_product": steps["add_product"],
         "configure_personality": steps["configure_personality"],
-        "activate_bot": steps["activate_bot"]
+        "activate_bot": steps["activate_bot"],
     }
 
     completed = sum(1 for v in core_steps.values() if v)
@@ -186,7 +261,7 @@ async def get_onboarding_status(creator_id: str):
         "total": total,
         "percentage": int((completed / total) * 100),
         "is_complete": completed == total,
-        "next_step": _get_next_step(core_steps)
+        "next_step": _get_next_step(core_steps),
     }
 
 
@@ -196,30 +271,30 @@ def _get_next_step(steps: dict) -> dict:
         "connect_channel": {
             "label": "Conectar un canal de mensajes",
             "description": "Conecta Instagram, Telegram o WhatsApp",
-            "link": "/settings?tab=connections"
+            "link": "/settings?tab=connections",
         },
         "add_product": {
             "label": "Añadir un producto",
             "description": "Añade al menos un producto para vender",
-            "link": "/settings?tab=products"
+            "link": "/settings?tab=products",
         },
         "configure_personality": {
             "label": "Configurar personalidad",
             "description": "Define cómo habla tu clon de IA",
-            "link": "/settings?tab=personality"
+            "link": "/settings?tab=personality",
         },
         "activate_bot": {
             "label": "Activar el bot",
             "description": "Activa las respuestas automáticas",
-            "link": "/settings?tab=bot"
-        }
+            "link": "/settings?tab=bot",
+        },
     }
 
     for step_key, is_complete in steps.items():
         if not is_complete:
             return {
                 "key": step_key,
-                **step_info.get(step_key, {"label": step_key, "link": "/settings"})
+                **step_info.get(step_key, {"label": step_key, "link": "/settings"}),
             }
 
     return {"key": None, "label": "Completado", "link": "/dashboard"}
@@ -237,15 +312,17 @@ async def get_visual_onboarding_status(creator_id: str):
     """Check if the visual onboarding tour has been completed"""
     try:
         from api.database import DATABASE_URL, SessionLocal
+
         if DATABASE_URL and SessionLocal:
             session = SessionLocal()
             try:
                 from api.models import Creator
+
                 creator = session.query(Creator).filter_by(name=creator_id).first()
                 if creator:
                     return {
                         "status": "ok",
-                        "onboarding_completed": creator.onboarding_completed or False
+                        "onboarding_completed": creator.onboarding_completed or False,
                     }
             finally:
                 session.close()
@@ -260,10 +337,12 @@ async def complete_visual_onboarding(creator_id: str):
     """Mark the visual onboarding tour as completed"""
     try:
         from api.database import DATABASE_URL, SessionLocal
+
         if DATABASE_URL and SessionLocal:
             session = SessionLocal()
             try:
                 from api.models import Creator
+
                 creator = session.query(Creator).filter_by(name=creator_id).first()
                 if creator:
                     creator.onboarding_completed = True
@@ -273,11 +352,12 @@ async def complete_visual_onboarding(creator_id: str):
                 else:
                     # Creator doesn't exist in DB yet - create them
                     import uuid
+
                     new_creator = Creator(
                         id=uuid.uuid4(),
                         name=creator_id,
                         email=f"{creator_id}@clonnect.io",
-                        onboarding_completed=True
+                        onboarding_completed=True,
                     )
                     session.add(new_creator)
                     session.commit()
@@ -293,8 +373,613 @@ async def complete_visual_onboarding(creator_id: str):
 
 
 # =============================================================================
+# WIZARD ONBOARDING ENDPOINTS (New multi-step flow)
+# =============================================================================
+
+
+class WizardProfileData(BaseModel):
+    """Profile data from wizard onboarding."""
+
+    business_name: str
+    description: str
+    tone: str  # 'formal', 'casual', 'friendly'
+
+
+class WizardProductData(BaseModel):
+    """Product data from wizard onboarding."""
+
+    name: str
+    description: str
+    price: Optional[float] = None
+
+
+class WizardCompleteRequest(BaseModel):
+    """Request for completing wizard onboarding."""
+
+    creator_id: str
+    profile: WizardProfileData
+    products: List[WizardProductData] = []
+    bot_active: bool = True
+
+
+@router.post("/complete")
+async def complete_wizard_onboarding(request: WizardCompleteRequest):
+    """
+    Complete the wizard onboarding process.
+    Saves profile, products, and activates the bot.
+
+    This is called from the new multi-step onboarding wizard.
+    """
+    try:
+        from api.database import SessionLocal
+        from api.models import Creator, Product
+
+        session = SessionLocal()
+        try:
+            # Find or create creator
+            creator = session.query(Creator).filter_by(name=request.creator_id).first()
+
+            if not creator:
+                import uuid
+
+                logger.warning(f"Creator {request.creator_id} not found, creating...")
+                creator = Creator(
+                    id=uuid.uuid4(),
+                    name=request.creator_id,
+                    email=f"{request.creator_id}@clonnect.com",
+                )
+                session.add(creator)
+                session.flush()
+
+            # Update profile - use existing fields
+            creator.clone_name = request.profile.business_name
+            creator.clone_tone = request.profile.tone
+            # Store description in knowledge_about JSON
+            if not creator.knowledge_about:
+                creator.knowledge_about = {}
+            creator.knowledge_about["business_description"] = request.profile.description
+            creator.knowledge_about["business_name"] = request.profile.business_name
+
+            # Update bot status
+            creator.bot_active = request.bot_active
+            creator.onboarding_completed = True
+            creator.copilot_mode = True  # Enable copilot mode by default
+
+            # Add products
+            for prod in request.products:
+                product = Product(
+                    creator_id=creator.id,
+                    name=prod.name,
+                    description=prod.description,
+                    price=prod.price,
+                    active=True,
+                )
+                session.add(product)
+
+            session.commit()
+
+            logger.info(
+                f"Wizard onboarding completed for {request.creator_id}: "
+                f"profile={request.profile.business_name}, "
+                f"products={len(request.products)}, "
+                f"bot_active={request.bot_active}"
+            )
+
+            return {
+                "status": "success",
+                "creator_id": request.creator_id,
+                "profile_saved": True,
+                "products_added": len(request.products),
+                "bot_active": request.bot_active,
+            }
+
+        finally:
+            session.close()
+
+    except Exception as e:
+        logger.error(f"Error completing wizard onboarding: {e}")
+        import traceback
+
+        logger.error(traceback.format_exc())
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+# =============================================================================
+# CLONE CREATION ENDPOINTS (New Flow)
+# =============================================================================
+
+
+class StartCloneRequest(BaseModel):
+    """Request to start clone creation process."""
+
+    creator_id: str
+    website_url: Optional[str] = None
+
+
+# Helper function to update clone progress in database (persistent across workers)
+def _update_clone_progress(
+    creator_id: str,
+    status: str = None,
+    step: str = None,
+    step_status: str = None,
+    percent: int = None,
+    error: str = None,
+    extra: dict = None,
+):
+    """
+    Update clone progress in database. This persists across workers/restarts.
+
+    Args:
+        creator_id: Creator's name/ID
+        status: Overall status (in_progress, complete, error)
+        step: Current step name (instagram, website, training, activating)
+        step_status: Step status (pending, active, completed)
+        percent: Progress percentage (0-100)
+        error: Error message if status is "error"
+        extra: Extra data to merge into progress JSON
+    """
+    from datetime import datetime, timezone
+
+    from api.database import SessionLocal
+    from api.models import Creator
+
+    session = SessionLocal()
+    try:
+        creator = session.query(Creator).filter_by(name=creator_id).first()
+        if not creator:
+            logger.warning(f"[Progress] Creator {creator_id} not found")
+            return
+
+        # Initialize progress dict if empty
+        if not creator.clone_progress:
+            creator.clone_progress = {
+                "steps": {
+                    "instagram": "pending",
+                    "website": "pending",
+                    "training": "pending",
+                    "activating": "pending",
+                },
+                "percent": 0,
+                "messages_synced": 0,
+                "leads_created": 0,
+            }
+
+        # Update status
+        if status:
+            creator.clone_status = status
+            if status == "in_progress" and not creator.clone_started_at:
+                creator.clone_started_at = datetime.now(timezone.utc)
+            elif status == "complete":
+                creator.clone_completed_at = datetime.now(timezone.utc)
+
+        # Update step status
+        if step and step_status:
+            progress = dict(creator.clone_progress)  # Make mutable copy
+            if "steps" not in progress:
+                progress["steps"] = {}
+            progress["steps"][step] = step_status
+            creator.clone_progress = progress
+
+        # Update percent
+        if percent is not None:
+            progress = dict(creator.clone_progress)
+            progress["percent"] = percent
+            creator.clone_progress = progress
+
+        # Update error
+        if error:
+            creator.clone_error = error
+
+        # Merge extra data
+        if extra:
+            progress = dict(creator.clone_progress)
+            progress.update(extra)
+            creator.clone_progress = progress
+
+        session.commit()
+        logger.debug(
+            f"[Progress] Updated {creator_id}: status={status}, step={step}={step_status}, percent={percent}"
+        )
+
+    except Exception as e:
+        logger.error(f"[Progress] Error updating progress: {e}")
+        session.rollback()
+    finally:
+        session.close()
+
+
+@router.post("/start-clone")
+async def start_clone_creation(request: StartCloneRequest, background_tasks: BackgroundTasks):
+    """
+    Start the clone creation process.
+    This triggers background tasks to:
+    1. Scrape Instagram posts
+    2. Scrape website (if provided)
+    3. Generate tone profile (Magic Slice)
+    4. Index content in RAG
+    5. Activate the bot
+
+    Progress is persisted in database (not in-memory) for reliability.
+    """
+    from datetime import datetime, timezone
+
+    try:
+        from api.database import SessionLocal
+        from api.models import Creator
+
+        session = SessionLocal()
+        try:
+            creator = session.query(Creator).filter_by(name=request.creator_id).first()
+
+            if not creator:
+                raise HTTPException(
+                    status_code=404, detail=f"Creator {request.creator_id} not found"
+                )
+
+            if not creator.instagram_token:
+                raise HTTPException(status_code=400, detail="Instagram not connected")
+
+            # Initialize progress tracking IN DATABASE (persists across workers)
+            creator.clone_status = "in_progress"
+            creator.clone_started_at = datetime.now(timezone.utc)
+            creator.clone_completed_at = None
+            creator.clone_error = None
+            creator.clone_progress = {
+                "steps": {
+                    "instagram": "active",
+                    "website": "pending",
+                    "training": "pending",
+                    "activating": "pending",
+                },
+                "percent": 0,
+                "messages_synced": 0,
+                "leads_created": 0,
+            }
+
+            # Store website URL if provided
+            if request.website_url:
+                if not creator.knowledge_about:
+                    creator.knowledge_about = {}
+                creator.knowledge_about["website_url"] = request.website_url
+                # CRITICAL: flag_modified required for SQLAlchemy to detect JSON field changes
+                from sqlalchemy.orm.attributes import flag_modified
+
+                flag_modified(creator, "knowledge_about")
+                logger.info(f"[CloneCreation] Saved website_url: {request.website_url}")
+
+            session.commit()
+            logger.info(f"[CloneCreation] Started for {request.creator_id}, progress saved to DB")
+
+            # Start background clone creation
+            background_tasks.add_task(
+                _run_clone_creation,
+                creator_id=request.creator_id,
+                website_url=request.website_url,
+            )
+
+            return {
+                "status": "started",
+                "creator_id": request.creator_id,
+                "message": "Clone creation started in background",
+            }
+
+        finally:
+            session.close()
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error starting clone creation: {e}")
+        import traceback
+
+        logger.error(traceback.format_exc())
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/progress/{creator_id}")
+async def get_clone_progress(creator_id: str):
+    """
+    Get the progress of clone creation.
+    Returns current step status for polling from frontend.
+
+    Progress is read from database (persistent, works across workers).
+    """
+    try:
+        from api.database import SessionLocal
+        from api.models import Creator
+
+        session = SessionLocal()
+        try:
+            creator = session.query(Creator).filter_by(name=creator_id).first()
+
+            if not creator:
+                raise HTTPException(status_code=404, detail=f"Creator {creator_id} not found")
+
+            # Read progress from database (persistent across workers)
+            clone_status = creator.clone_status or "pending"
+            clone_progress_data = creator.clone_progress or {}
+
+            # Build response from DB fields
+            steps = clone_progress_data.get(
+                "steps",
+                {
+                    "instagram": "pending",
+                    "website": "pending",
+                    "training": "pending",
+                    "activating": "pending",
+                },
+            )
+
+            response = {
+                "status": clone_status,
+                "steps": steps,
+                "percent": clone_progress_data.get("percent", 0),
+                "messages_synced": clone_progress_data.get("messages_synced", 0),
+                "leads_created": clone_progress_data.get("leads_created", 0),
+            }
+
+            # Include error if present
+            if creator.clone_error:
+                response["error"] = creator.clone_error
+
+            # If onboarding is completed but status wasn't updated, fix it
+            if creator.onboarding_completed and clone_status != "complete":
+                response["status"] = "complete"
+                response["steps"] = {
+                    "instagram": "completed",
+                    "website": "completed",
+                    "training": "completed",
+                    "activating": "completed",
+                }
+
+            logger.debug(f"[Progress] {creator_id}: status={response['status']}, steps={steps}")
+            return response
+
+        finally:
+            session.close()
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error getting clone progress: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+async def _run_clone_creation(creator_id: str, website_url: str = None):
+    """
+    Background task to run the full clone creation pipeline.
+    Updates progress IN DATABASE as each step completes (persistent across workers).
+    """
+    print(
+        f"[CloneCreation] ======= STARTING _run_clone_creation for {creator_id} =======", flush=True
+    )
+    try:
+        from api.database import SessionLocal
+        from api.models import Creator
+
+        print(f"[CloneCreation] Opening database session...", flush=True)
+        session = SessionLocal()
+        try:
+            creator = session.query(Creator).filter_by(name=creator_id).first()
+            if not creator or not creator.instagram_token:
+                print(
+                    f"[CloneCreation] ERROR: Creator {creator_id} not found or no Instagram token",
+                    flush=True,
+                )
+                logger.error(f"Creator {creator_id} not found or no Instagram token")
+                _update_clone_progress(
+                    creator_id, status="error", error="Creator not found or no Instagram token"
+                )
+                return
+
+            access_token = creator.instagram_token
+            instagram_user_id = creator.instagram_user_id or ""
+            page_id = creator.instagram_page_id or ""
+
+            # FALLBACK: Get website_url from knowledge_about if not provided as parameter
+            if not website_url and creator.knowledge_about:
+                website_url = creator.knowledge_about.get("website_url")
+                if website_url:
+                    logger.info(
+                        f"[CloneCreation] FALLBACK: Using website_url from knowledge_about: {website_url}"
+                    )
+                    print(
+                        f"[CloneCreation] FALLBACK: website_url from DB = {website_url}", flush=True
+                    )
+
+            # Step 1: Scrape Instagram posts
+            logger.info(f"[CloneCreation] Step 1: Scraping Instagram for {creator_id}")
+            _update_clone_progress(creator_id, step="instagram", step_status="active", percent=10)
+
+            try:
+                from ingestion import MetaGraphAPIScraper
+
+                scraper = MetaGraphAPIScraper(
+                    access_token=access_token, instagram_business_id=instagram_user_id
+                )
+                posts = await scraper.get_posts(limit=50)
+                logger.info(f"[CloneCreation] Scraped {len(posts)} posts")
+            except Exception as e:
+                logger.warning(f"[CloneCreation] Instagram scraping failed: {e}")
+                posts = []
+
+            _update_clone_progress(
+                creator_id, step="instagram", step_status="completed", percent=25
+            )
+
+            # Step 2: Website ingestion (RAG + Products) - Using ONLY IngestionV2Pipeline
+            _update_clone_progress(creator_id, step="website", step_status="active", percent=30)
+
+            if website_url:
+                logger.info(f"[CloneCreation] Step 2: Website ingestion (RAG + Products) from {website_url}")
+                try:
+                    from ingestion.v2.pipeline import IngestionV2Pipeline
+
+                    # Use existing db session - guaranteed valid at this point
+                    logger.info(f"[CloneCreation] Using db_session={session} for IngestionV2Pipeline")
+                    pipeline = IngestionV2Pipeline(db_session=session, max_pages=100)
+                    result = await pipeline.run(
+                        creator_id=creator_id,
+                        website_url=website_url,
+                        clean_before=True,  # Clean old data before ingesting
+                        re_verify=True,
+                    )
+
+                    # Log results
+                    logger.info(
+                        f"[CloneCreation] Website ingestion complete: "
+                        f"pages={result.pages_scraped}, "
+                        f"products_detected={result.products_detected}, "
+                        f"products_saved={result.products_saved}, "
+                        f"rag_docs={result.rag_docs_saved}"
+                    )
+                    print(
+                        f"[CloneCreation] Results: products={result.products_saved}, rag_docs={result.rag_docs_saved}",
+                        flush=True,
+                    )
+
+                    if result.products_saved == 0 and result.products_detected > 0:
+                        logger.warning(
+                            f"[CloneCreation] WARNING: {result.products_detected} products detected but 0 saved!"
+                        )
+                except Exception as e:
+                    logger.error(f"[CloneCreation] Website ingestion failed: {e}")
+                    print(f"[CloneCreation] Website ingestion error: {e}", flush=True)
+                    import traceback
+                    traceback.print_exc()
+            else:
+                logger.info(f"[CloneCreation] Step 2: No website provided, skipping")
+
+            _update_clone_progress(creator_id, step="website", step_status="completed", percent=45)
+
+            # Step 3: Generate tone profile (Magic Slice)
+            _update_clone_progress(creator_id, step="training", step_status="active", percent=50)
+            print(f"[CloneCreation] Step 3: Training clone with {len(posts)} posts", flush=True)
+            logger.info(f"[CloneCreation] Step 3: Training clone with {len(posts)} posts")
+
+            if posts:
+                try:
+                    print(f"[CloneCreation] Importing onboarding service...", flush=True)
+                    from core.onboarding_service import OnboardingRequest, get_onboarding_service
+
+                    posts_data = []
+                    for p in posts:
+                        if p.caption and len(p.caption.strip()) > 10:
+                            posts_data.append(
+                                {
+                                    "post_id": p.post_id,
+                                    "caption": p.caption,
+                                    "post_type": p.post_type,
+                                }
+                            )
+
+                    print(
+                        f"[CloneCreation] Created {len(posts_data)} posts for training", flush=True
+                    )
+                    print(f"[CloneCreation] Getting onboarding service...", flush=True)
+                    service = get_onboarding_service()
+                    print(f"[CloneCreation] Got service: {type(service)}", flush=True)
+                    request = OnboardingRequest(
+                        creator_id=creator_id, manual_posts=posts_data, scraping_method="manual"
+                    )
+                    print(
+                        f"[CloneCreation] Created request with {len(posts_data)} posts", flush=True
+                    )
+                    print(f"[CloneCreation] About to call service.onboard_creator()...", flush=True)
+                    result = await service.onboard_creator(request)
+                    print(f"[CloneCreation] onboard_creator() returned!", flush=True)
+                    print(f"[CloneCreation] Training complete: {result}", flush=True)
+                    logger.info(f"[CloneCreation] Training complete: {result}")
+                except Exception as e:
+                    print(f"[CloneCreation] Training failed: {e}", flush=True)
+                    logger.warning(f"[CloneCreation] Training failed: {e}")
+                    import traceback
+
+                    print(traceback.format_exc(), flush=True)
+            else:
+                print(f"[CloneCreation] No posts to train with, skipping", flush=True)
+
+            _update_clone_progress(creator_id, step="training", step_status="completed", percent=70)
+            print(f"[CloneCreation] Training step completed, moving to DM sync", flush=True)
+
+            # Step 4: Sync DM history (with pagination)
+            _update_clone_progress(creator_id, step="activating", step_status="active", percent=75)
+            print(f"[CloneCreation] Step 4: Syncing DM history", flush=True)
+            logger.info(f"[CloneCreation] Step 4: Syncing DM history")
+
+            try:
+                print(f"[CloneCreation] Importing _simple_dm_sync_internal...", flush=True)
+                from api.routers.oauth import _simple_dm_sync_internal
+
+                print(
+                    f"[CloneCreation] Calling _simple_dm_sync_internal with max_convs=10",
+                    flush=True,
+                )
+                # Rate-limited: 10 conversations with 2s delay between each
+                dm_stats = await _simple_dm_sync_internal(
+                    creator_id=creator_id,
+                    access_token=access_token,
+                    ig_user_id=instagram_user_id,
+                    ig_page_id=page_id,
+                    max_convs=10,
+                )
+                print(f"[CloneCreation] DM sync complete: {dm_stats}", flush=True)
+                logger.info(f"[CloneCreation] DM sync complete: {dm_stats}")
+                _update_clone_progress(
+                    creator_id,
+                    extra={
+                        "messages_synced": dm_stats.get("messages_saved", 0),
+                        "leads_created": dm_stats.get("leads_created", 0),
+                    },
+                )
+            except Exception as e:
+                print(f"[CloneCreation] DM sync failed: {e}", flush=True)
+                logger.warning(f"[CloneCreation] DM sync failed: {e}")
+                import traceback
+
+                print(traceback.format_exc(), flush=True)
+                logger.warning(traceback.format_exc())
+
+            _update_clone_progress(creator_id, percent=90)
+
+            # Step 5: Activate bot and mark complete
+            logger.info(f"[CloneCreation] Step 5: Activating bot")
+
+            # Refresh creator from DB
+            session.expire(creator)
+            creator = session.query(Creator).filter_by(name=creator_id).first()
+
+            creator.bot_active = True
+            creator.onboarding_completed = True
+            creator.copilot_mode = True
+            creator.clone_status = "complete"
+            session.commit()
+
+            _update_clone_progress(
+                creator_id,
+                status="complete",
+                step="activating",
+                step_status="completed",
+                percent=100,
+            )
+
+            logger.info(f"[CloneCreation] ✅ Clone creation complete for {creator_id}")
+
+        finally:
+            session.close()
+
+    except Exception as e:
+        logger.error(f"[CloneCreation] Error: {e}")
+        import traceback
+
+        logger.error(traceback.format_exc())
+        _update_clone_progress(creator_id, status="error", error=str(e))
+
+
+# =============================================================================
 # MAGIC SLICE ONBOARDING ENDPOINTS
 # =============================================================================
+
 
 @router.post("/magic-slice/quick")
 async def quick_onboard(request: QuickOnboardRequest):
@@ -320,9 +1005,7 @@ async def quick_onboard(request: QuickOnboardRequest):
     manual_posts = [p.model_dump() for p in request.posts]
 
     full_request = OnboardingRequest(
-        creator_id=request.creator_id,
-        manual_posts=manual_posts,
-        scraping_method="manual"
+        creator_id=request.creator_id, manual_posts=manual_posts, scraping_method="manual"
     )
 
     service = get_onboarding_service()
@@ -355,7 +1038,7 @@ async def full_onboard(request: FullOnboardRequest):
         instagram_access_token=request.instagram_access_token,
         manual_posts=request.manual_posts,
         scraping_method=request.scraping_method,
-        max_posts=request.max_posts
+        max_posts=request.max_posts,
     )
 
     service = get_onboarding_service()
@@ -378,8 +1061,8 @@ async def get_magic_slice_status(creator_id: str):
         - tone_summary: dict | null
         - citation_count: int
     """
-    from core.tone_service import get_tone_profile
     from core.citation_service import get_content_index
+    from core.tone_service import get_tone_profile
 
     tone_profile = await get_tone_profile(creator_id)
     content_index = get_content_index(creator_id)
@@ -390,7 +1073,7 @@ async def get_magic_slice_status(creator_id: str):
             "formality": tone_profile.formality,
             "energy": tone_profile.energy,
             "warmth": tone_profile.warmth,
-            "main_topics": tone_profile.main_topics[:5] if tone_profile.main_topics else []
+            "main_topics": tone_profile.main_topics[:5] if tone_profile.main_topics else [],
         }
 
     return {
@@ -398,7 +1081,7 @@ async def get_magic_slice_status(creator_id: str):
         "has_tone_profile": tone_profile is not None,
         "has_content_index": content_index is not None and len(content_index.chunks) > 0,
         "tone_summary": tone_summary,
-        "citation_count": len(content_index.chunks) if content_index else 0
+        "citation_count": len(content_index.chunks) if content_index else 0,
     }
 
 
@@ -411,8 +1094,8 @@ async def reset_magic_slice_data(creator_id: str):
 
     WARNING: Elimina ToneProfile y ContentIndex del creador.
     """
-    from core.tone_service import delete_tone_profile
     from core.citation_service import delete_content_index
+    from core.tone_service import delete_tone_profile
 
     tone_deleted = delete_tone_profile(creator_id)
     index_deleted = delete_content_index(creator_id)
@@ -420,13 +1103,14 @@ async def reset_magic_slice_data(creator_id: str):
     return {
         "creator_id": creator_id,
         "tone_profile_deleted": tone_deleted,
-        "content_index_deleted": index_deleted
+        "content_index_deleted": index_deleted,
     }
 
 
 # =============================================================================
 # FULL AUTO-SETUP WITH REAL-TIME PROGRESS
 # =============================================================================
+
 
 @router.post("/full-setup/{creator_id}")
 async def start_full_setup(creator_id: str, background_tasks: BackgroundTasks):
@@ -453,19 +1137,15 @@ async def start_full_setup(creator_id: str, background_tasks: BackgroundTasks):
             "youtube_detected": False,
             "youtube_videos_imported": 0,
             "website_detected": False,
-            "website_url": None
+            "website_url": None,
         },
-        "errors": []
+        "errors": [],
     }
 
     # Run setup in background
     background_tasks.add_task(run_full_setup_pipeline, creator_id)
 
-    return {
-        "status": "started",
-        "message": "Setup started",
-        "creator_id": creator_id
-    }
+    return {"status": "started", "message": "Setup started", "creator_id": creator_id}
 
 
 @router.get("/full-setup/{creator_id}/progress")
@@ -475,12 +1155,7 @@ async def get_full_setup_progress(creator_id: str):
     El frontend hace polling cada 2 segundos.
     """
     if creator_id not in setup_status:
-        return {
-            "status": "not_started",
-            "progress": 0,
-            "steps": {},
-            "errors": []
-        }
+        return {"status": "not_started", "progress": 0, "steps": {}, "errors": []}
 
     return setup_status[creator_id]
 
@@ -506,13 +1181,17 @@ async def run_full_setup_pipeline(creator_id: str):
         status["steps"]["posts_imported"] = len(posts) if posts else 25  # Demo value
         status["current_step"] = "posts_imported"
         status["progress"] = 25
-        logger.info(f"[FullSetup] {creator_id}: Posts imported: {status['steps']['posts_imported']}")
+        logger.info(
+            f"[FullSetup] {creator_id}: Posts imported: {status['steps']['posts_imported']}"
+        )
 
         # Paso 3: Generar ToneProfile
         await asyncio.sleep(1.5)
         tone_result = await generate_tone_for_setup(creator_id, posts)
         status["steps"]["tone_profile_generated"] = tone_result.get("success", True)
-        status["steps"]["tone_summary"] = tone_result.get("summary", "Cercano, dinámico, usa emojis")
+        status["steps"]["tone_summary"] = tone_result.get(
+            "summary", "Cercano, dinámico, usa emojis"
+        )
         status["current_step"] = "tone_analyzed"
         status["progress"] = 45
         logger.info(f"[FullSetup] {creator_id}: Tone profile generated")
@@ -523,7 +1202,9 @@ async def run_full_setup_pipeline(creator_id: str):
         status["steps"]["content_indexed"] = indexed if indexed else 150  # Demo value
         status["current_step"] = "content_indexed"
         status["progress"] = 60
-        logger.info(f"[FullSetup] {creator_id}: Content indexed: {status['steps']['content_indexed']}")
+        logger.info(
+            f"[FullSetup] {creator_id}: Content indexed: {status['steps']['content_indexed']}"
+        )
 
         # Paso 5: Importar DMs (simulated)
         await asyncio.sleep(1)
@@ -573,11 +1254,13 @@ async def run_full_setup_pipeline(creator_id: str):
 # SETUP HELPER FUNCTIONS
 # =============================================================================
 
+
 async def import_instagram_posts_for_setup(creator_id: str) -> List[Dict]:
     """Import Instagram posts for the creator."""
     try:
         # Try to use real onboarding service if posts exist
         from core.tone_service import get_tone_profile
+
         profile = await get_tone_profile(creator_id)
         if profile and profile.analyzed_posts_count > 0:
             # Return mock list representing existing posts
@@ -593,6 +1276,7 @@ async def generate_tone_for_setup(creator_id: str, posts: List[Dict]) -> Dict:
     """Generate or retrieve ToneProfile for the creator."""
     try:
         from core.tone_service import get_tone_profile
+
         profile = await get_tone_profile(creator_id)
         if profile:
             # Generate human-readable summary
@@ -614,7 +1298,7 @@ async def generate_tone_for_setup(creator_id: str, posts: List[Dict]) -> Dict:
 
             return {
                 "success": True,
-                "summary": ", ".join(traits) if traits else "Personalidad analizada"
+                "summary": ", ".join(traits) if traits else "Personalidad analizada",
             }
     except Exception as e:
         logger.warning(f"[FullSetup] Could not get tone profile: {e}")
@@ -626,8 +1310,9 @@ async def index_content_for_setup(creator_id: str, posts: List[Dict]) -> int:
     """Index content for citations."""
     try:
         from core.citation_service import get_content_index
+
         index = get_content_index(creator_id)
-        if index and hasattr(index, 'chunks'):
+        if index and hasattr(index, "chunks"):
             return len(index.chunks)
     except Exception as e:
         logger.warning(f"[FullSetup] Could not get content index: {e}")
@@ -646,10 +1331,12 @@ async def convert_dms_to_leads_for_setup(creator_id: str, dms: List[Dict]) -> Li
     """Convert imported DMs to leads."""
     try:
         from api.database import DATABASE_URL, SessionLocal
+
         if DATABASE_URL and SessionLocal:
             session = SessionLocal()
             try:
                 from api.models import Lead
+
                 leads = session.query(Lead).filter_by(creator_id=creator_id).all()
                 return [{"id": str(l.id)} for l in leads]
             finally:
@@ -676,8 +1363,10 @@ async def detect_website_from_bio(creator_id: str) -> Optional[str]:
 # INSTAGRAM SCRAPER ONBOARDING - Auto-setup desde username público
 # =============================================================================
 
+
 class ScrapeInstagramRequest(BaseModel):
     """Request para scraping automatizado de Instagram."""
+
     creator_id: str
     instagram_username: str
     max_posts: int = 50
@@ -685,6 +1374,7 @@ class ScrapeInstagramRequest(BaseModel):
 
 class ScrapeInstagramResponse(BaseModel):
     """Response del scraping de Instagram."""
+
     success: bool
     creator_id: str
     instagram_username: str
@@ -720,19 +1410,22 @@ async def scrape_instagram_onboarding(request: ScrapeInstagramRequest):
 
     try:
         # Step 1: Scrape Instagram posts
-        logger.info(f"[ScrapeOnboarding] Starting for {request.creator_id} from @{request.instagram_username}")
+        logger.info(
+            f"[ScrapeOnboarding] Starting for {request.creator_id} from @{request.instagram_username}"
+        )
 
-        from ingestion.instagram_scraper import InstaloaderScraper, InstagramScraperError
+        from ingestion.instagram_scraper import InstagramScraperError, InstaloaderScraper
 
         scraper = InstaloaderScraper()
 
         try:
             posts = scraper.get_posts(
-                target_username=request.instagram_username,
-                limit=request.max_posts
+                target_username=request.instagram_username, limit=request.max_posts
             )
             posts_scraped = len(posts)
-            logger.info(f"[ScrapeOnboarding] Scraped {posts_scraped} posts from @{request.instagram_username}")
+            logger.info(
+                f"[ScrapeOnboarding] Scraped {posts_scraped} posts from @{request.instagram_username}"
+            )
         except InstagramScraperError as e:
             errors.append(f"Scraping error: {str(e)}")
             logger.error(f"[ScrapeOnboarding] Scraping failed: {e}")
@@ -743,7 +1436,7 @@ async def scrape_instagram_onboarding(request: ScrapeInstagramRequest):
                 posts_scraped=0,
                 tone_profile_generated=False,
                 content_indexed=0,
-                errors=errors
+                errors=errors,
             )
 
         if posts_scraped == 0:
@@ -755,13 +1448,13 @@ async def scrape_instagram_onboarding(request: ScrapeInstagramRequest):
                 posts_scraped=0,
                 tone_profile_generated=False,
                 content_indexed=0,
-                errors=errors
+                errors=errors,
             )
 
         # Step 2: Generate ToneProfile
         try:
-            from ingestion.tone_analyzer import ToneAnalyzer, ToneProfile
             from core.tone_service import save_tone_profile
+            from ingestion.tone_analyzer import ToneAnalyzer, ToneProfile
 
             # Convert posts to dict format for analyzer
             posts_data = [
@@ -772,7 +1465,7 @@ async def scrape_instagram_onboarding(request: ScrapeInstagramRequest):
                     "permalink": post.permalink,
                     "timestamp": post.timestamp.isoformat() if post.timestamp else None,
                     "likes_count": post.likes_count,
-                    "comments_count": post.comments_count
+                    "comments_count": post.comments_count,
                 }
                 for post in posts
             ]
@@ -792,32 +1485,42 @@ async def scrape_instagram_onboarding(request: ScrapeInstagramRequest):
                 "emoji_frequency": tone_profile.emoji_frequency,
                 "signature_phrases": tone_profile.signature_phrases[:5],
                 "analyzed_posts": tone_profile.analyzed_posts_count,
-                "primary_language": tone_profile.primary_language
+                "primary_language": tone_profile.primary_language,
             }
 
-            logger.info(f"[ScrapeOnboarding] ToneProfile generated: {tone_profile.formality}, {tone_profile.energy}, lang={tone_profile.primary_language}")
+            logger.info(
+                f"[ScrapeOnboarding] ToneProfile generated: {tone_profile.formality}, {tone_profile.energy}, lang={tone_profile.primary_language}"
+            )
 
             # Step 2b: Create basic creator_config if it doesn't exist
             try:
                 config_manager = CreatorConfigManager()
                 existing_config = config_manager.get_config(request.creator_id)
 
-                if not existing_config or not existing_config.get('name'):
+                if not existing_config or not existing_config.get("name"):
                     # Create basic config from ToneProfile
                     basic_config = {
                         "name": request.instagram_username,
                         "instagram_username": request.instagram_username,
                         "personality": {
                             "formality": tone_profile.formality,
-                            "language": tone_profile.primary_language
+                            "language": tone_profile.primary_language,
                         },
-                        "clone_tone": "friendly" if tone_profile.formality in ['informal', 'muy_informal'] else "professional",
-                        "bot_active": True
+                        "clone_tone": (
+                            "friendly"
+                            if tone_profile.formality in ["informal", "muy_informal"]
+                            else "professional"
+                        ),
+                        "bot_active": True,
                     }
                     config_manager.save_config(request.creator_id, basic_config)
-                    logger.info(f"[ScrapeOnboarding] Created basic creator_config for {request.creator_id}")
+                    logger.info(
+                        f"[ScrapeOnboarding] Created basic creator_config for {request.creator_id}"
+                    )
             except Exception as config_error:
-                logger.warning(f"[ScrapeOnboarding] Could not create creator_config: {config_error}")
+                logger.warning(
+                    f"[ScrapeOnboarding] Could not create creator_config: {config_error}"
+                )
 
         except Exception as e:
             errors.append(f"ToneProfile generation error: {str(e)}")
@@ -826,8 +1529,8 @@ async def scrape_instagram_onboarding(request: ScrapeInstagramRequest):
         # Step 3: Index content for citations
         try:
             import json
-            from pathlib import Path
             from datetime import datetime
+            from pathlib import Path
 
             # Create chunks from posts
             chunks = []
@@ -838,7 +1541,7 @@ async def scrape_instagram_onboarding(request: ScrapeInstagramRequest):
                     continue
 
                 # Create a title from first line or truncated caption
-                title_candidate = post.caption.split('\n')[0][:100]
+                title_candidate = post.caption.split("\n")[0][:100]
                 if len(title_candidate) < 10:
                     title_candidate = post.caption[:100]
 
@@ -853,7 +1556,9 @@ async def scrape_instagram_onboarding(request: ScrapeInstagramRequest):
                 chunk = {
                     "id": f"{request.creator_id}_post_{post.post_id}",
                     "creator_id": request.creator_id,
-                    "source_type": "instagram_post" if post.post_type != "reel" else "instagram_reel",
+                    "source_type": (
+                        "instagram_post" if post.post_type != "reel" else "instagram_reel"
+                    ),
                     "source_id": post.post_id,
                     "source_url": post.permalink,
                     "title": title_candidate,
@@ -865,9 +1570,13 @@ async def scrape_instagram_onboarding(request: ScrapeInstagramRequest):
                         "likes": post.likes_count,
                         "comments": post.comments_count,
                         "hashtags": post.hashtags,
-                        "keywords": list(set(keywords))[:10]
+                        "keywords": list(set(keywords))[:10],
                     },
-                    "created_at": post.timestamp.isoformat() if post.timestamp else datetime.utcnow().isoformat()
+                    "created_at": (
+                        post.timestamp.isoformat()
+                        if post.timestamp
+                        else datetime.utcnow().isoformat()
+                    ),
                 }
                 chunks.append(chunk)
 
@@ -877,7 +1586,7 @@ async def scrape_instagram_onboarding(request: ScrapeInstagramRequest):
                     "post_type": post.post_type,
                     "url": post.permalink,
                     "published_date": post.timestamp.isoformat() if post.timestamp else None,
-                    "chunk_count": 1
+                    "chunk_count": 1,
                 }
 
             content_indexed = len(chunks)
@@ -890,10 +1599,10 @@ async def scrape_instagram_onboarding(request: ScrapeInstagramRequest):
                 chunks_path = content_dir / "chunks.json"
                 posts_path = content_dir / "posts.json"
 
-                with open(chunks_path, 'w', encoding='utf-8') as f:
+                with open(chunks_path, "w", encoding="utf-8") as f:
                     json.dump(chunks, f, ensure_ascii=False, indent=2)
 
-                with open(posts_path, 'w', encoding='utf-8') as f:
+                with open(posts_path, "w", encoding="utf-8") as f:
                     json.dump(posts_index, f, ensure_ascii=False, indent=2)
 
                 logger.info(f"[ScrapeOnboarding] Indexed {content_indexed} posts to JSON")
@@ -915,27 +1624,35 @@ async def scrape_instagram_onboarding(request: ScrapeInstagramRequest):
                             "media_type": post.post_type,
                             "timestamp": post.timestamp.isoformat() if post.timestamp else None,
                             "like_count": post.likes_count,
-                            "comments_count": post.comments_count
+                            "comments_count": post.comments_count,
                         }
                         for post in posts
                     ]
                     posts_saved = await save_instagram_posts_db(request.creator_id, posts_for_db)
-                    logger.info(f"[ScrapeOnboarding] Saved {posts_saved} Instagram posts to PostgreSQL")
+                    logger.info(
+                        f"[ScrapeOnboarding] Saved {posts_saved} Instagram posts to PostgreSQL"
+                    )
 
                     # Hydrate RAG with the new chunks (critical for search)
                     try:
                         from api.main import rag
+
                         loaded = rag.load_from_db(request.creator_id)
-                        logger.info(f"[ScrapeOnboarding] Hydrated RAG with {loaded} chunks for {request.creator_id}")
+                        logger.info(
+                            f"[ScrapeOnboarding] Hydrated RAG with {loaded} chunks for {request.creator_id}"
+                        )
                     except Exception as rag_error:
                         logger.warning(f"[ScrapeOnboarding] Could not hydrate RAG: {rag_error}")
 
                 except Exception as db_error:
-                    logger.warning(f"[ScrapeOnboarding] DB save failed (JSON backup exists): {db_error}")
+                    logger.warning(
+                        f"[ScrapeOnboarding] DB save failed (JSON backup exists): {db_error}"
+                    )
 
                 # Reload citation index
                 try:
                     from core.citation_service import reload_creator_index
+
                     reload_creator_index(request.creator_id)
                 except Exception as reload_error:
                     logger.warning(f"[ScrapeOnboarding] Could not reload index: {reload_error}")
@@ -954,7 +1671,7 @@ async def scrape_instagram_onboarding(request: ScrapeInstagramRequest):
             tone_profile_generated=tone_generated,
             tone_summary=tone_summary,
             content_indexed=content_indexed,
-            errors=errors
+            errors=errors,
         )
 
     except Exception as e:
@@ -967,7 +1684,7 @@ async def scrape_instagram_onboarding(request: ScrapeInstagramRequest):
             posts_scraped=posts_scraped,
             tone_profile_generated=tone_generated,
             content_indexed=content_indexed,
-            errors=errors
+            errors=errors,
         )
 
 
@@ -996,7 +1713,7 @@ El cambio constante produce una transformación, y al aplicarlo con conocimiento
         "phone": "695112016",
         "location": "Barcelona, España",
         "instagram": "@stefanobonanno",
-        "website": "www.stefanobonanno.com"
+        "website": "www.stefanobonanno.com",
     },
     "products": [
         {
@@ -1020,7 +1737,13 @@ Sesiones: Semanales (12 sesiones totales)""",
             "category": "service",
             "product_type": "mentoria",
             "is_free": False,
-            "includes": ["12 sesiones semanales", "3 sesiones de hipnosis", "Soporte WhatsApp", "Dashboard personalizado", "Recursos exclusivos"]
+            "includes": [
+                "12 sesiones semanales",
+                "3 sesiones de hipnosis",
+                "Soporte WhatsApp",
+                "Dashboard personalizado",
+                "Recursos exclusivos",
+            ],
         },
         {
             "id": "sesion-coaching",
@@ -1041,7 +1764,12 @@ Duración: 90 minutos""",
             "category": "service",
             "product_type": "coaching",
             "is_free": False,
-            "includes": ["Sesión de 90 min", "Técnicas de reprogramación", "Plan de acción", "Seguimiento por mensaje"]
+            "includes": [
+                "Sesión de 90 min",
+                "Técnicas de reprogramación",
+                "Plan de acción",
+                "Seguimiento por mensaje",
+            ],
         },
         {
             "id": "discovery-call",
@@ -1058,7 +1786,11 @@ Reserva tu sesión y empecemos a transformar tu realidad.""",
             "category": "service",
             "product_type": "call",
             "is_free": True,
-            "includes": ["Llamada de 30 min", "Análisis de situación", "Recomendación personalizada"]
+            "includes": [
+                "Llamada de 30 min",
+                "Análisis de situación",
+                "Recomendación personalizada",
+            ],
         },
         {
             "id": "challenge-11-dias",
@@ -1082,7 +1814,12 @@ Próxima edición: Consultar fechas""",
             "category": "product",
             "product_type": "curso",
             "is_free": False,
-            "includes": ["11 entrenamientos", "Sesiones breathwork", "Comunidad privada", "Material de apoyo"]
+            "includes": [
+                "11 entrenamientos",
+                "Sesiones breathwork",
+                "Comunidad privada",
+                "Material de apoyo",
+            ],
         },
         {
             "id": "taller-respira",
@@ -1106,7 +1843,7 @@ Ubicación: Barcelona""",
             "category": "service",
             "product_type": "sesion",
             "is_free": False,
-            "includes": ["Sesión breathwork", "Meditación guiada", "Baño de hielo", "Comunidad"]
+            "includes": ["Sesión breathwork", "Meditación guiada", "Baño de hielo", "Comunidad"],
         },
         {
             "id": "podcast-sabios",
@@ -1120,73 +1857,81 @@ Disponible en Spotify y Apple Podcasts.""",
             "category": "resource",
             "product_type": "podcast",
             "is_free": True,
-            "includes": ["Episodios semanales", "Reflexiones prácticas", "Entrevistas exclusivas"]
-        }
+            "includes": ["Episodios semanales", "Reflexiones prácticas", "Entrevistas exclusivas"],
+        },
     ],
     "testimonials": [
         {
             "name": "Dafne Sandoval",
             "text": "Trabajar con Stefano transformó mi vida. Superé bloqueos, fortalecí mi relación conmigo misma y encontré claridad en momentos de confusión. Su enfoque es profundo pero accesible.",
             "program": "Proceso 1:1",
-            "result": "Transformación profunda y empoderamiento"
+            "result": "Transformación profunda y empoderamiento",
         },
         {
             "name": "Eva González",
             "text": "Stefano me ayudó a desbloquear creencias que me frenaban. Sané patrones que arrastraba desde hace años. Su profesionalismo y cercanía hacen que te sientas en un espacio seguro.",
             "program": "Coaching Cuántico",
-            "result": "Desbloqueo de creencias limitantes"
+            "result": "Desbloqueo de creencias limitantes",
         },
         {
             "name": "Rocío Vargas",
             "text": "La terapia con Stefano marcó un antes y un después. Recuperé confianza en mí misma y me abrí a recibir. Cuatro meses de sesiones semanales que cambiaron mi perspectiva de vida.",
             "program": "Proceso 1:1",
-            "result": "Recuperó confianza y apertura"
+            "result": "Recuperó confianza y apertura",
         },
         {
             "name": "Francisco Chiotta",
             "text": "Un espacio seguro y empático donde pude ser completamente auténtico. Stefano tiene un don para crear conexión genuina y guiarte hacia tu propia verdad.",
             "program": "Coaching Cuántico",
-            "result": "Espacio seguro y conexión auténtica"
+            "result": "Espacio seguro y conexión auténtica",
         },
         {
             "name": "Bianca Ioana Avram",
             "text": "Resultados rápidos y profundos. En pocas sesiones noté cambios significativos. La combinación de técnicas que usa Stefano es muy efectiva.",
             "program": "Proceso 1:1",
-            "result": "Sanación profunda y rápida"
+            "result": "Sanación profunda y rápida",
         },
         {
             "name": "Josh Feldberg",
             "text": "Llevo años trabajando con Stefano. Desde el bootcamp hasta el coaching individual, el apoyo ha sido integral. Ha sido clave en mi desarrollo personal y profesional.",
             "program": "Bootcamp + Coaching",
-            "result": "Apoyo integral multi-año"
-        }
+            "result": "Apoyo integral multi-año",
+        },
     ],
     "faqs": [
         {
             "question": "¿Qué es el coaching cuántico?",
-            "answer": "El coaching cuántico combina técnicas de coaching tradicional con principios de física cuántica y reprogramación del inconsciente. Trabajamos a nivel energético para transformar patrones limitantes y crear nuevas posibilidades en tu vida."
+            "answer": "El coaching cuántico combina técnicas de coaching tradicional con principios de física cuántica y reprogramación del inconsciente. Trabajamos a nivel energético para transformar patrones limitantes y crear nuevas posibilidades en tu vida.",
         },
         {
             "question": "¿Cuánto dura un proceso de coaching?",
-            "answer": "El proceso 'Del Síntoma a la Plenitud' tiene una duración de 3 meses con sesiones semanales. También ofrezco sesiones individuales para temas específicos."
+            "answer": "El proceso 'Del Síntoma a la Plenitud' tiene una duración de 3 meses con sesiones semanales. También ofrezco sesiones individuales para temas específicos.",
         },
         {
             "question": "¿Las sesiones son presenciales u online?",
-            "answer": "Ofrezco ambas modalidades. Las sesiones presenciales son en Barcelona y las online las hacemos por videollamada. Ambas son igual de efectivas."
+            "answer": "Ofrezco ambas modalidades. Las sesiones presenciales son en Barcelona y las online las hacemos por videollamada. Ambas son igual de efectivas.",
         },
         {
             "question": "¿Qué incluye el Challenge de 11 Días?",
-            "answer": "El Fitpack Challenge incluye 11 días de entrenamientos al aire libre, sesiones de breathwork, acceso a comunidad privada y material de apoyo. Es una experiencia transformadora para tu cuerpo y mente."
+            "answer": "El Fitpack Challenge incluye 11 días de entrenamientos al aire libre, sesiones de breathwork, acceso a comunidad privada y material de apoyo. Es una experiencia transformadora para tu cuerpo y mente.",
         },
         {
             "question": "¿Cómo puedo empezar?",
-            "answer": "El primer paso es agendar una Sesión Discovery gratuita de 30 minutos. Ahí hablamos de tu situación y vemos cuál es el mejor camino para ti. Sin compromiso."
-        }
+            "answer": "El primer paso es agendar una Sesión Discovery gratuita de 30 minutos. Ahí hablamos de tu situación y vemos cuál es el mejor camino para ti. Sin compromiso.",
+        },
     ],
     "methodology": {
         "pillars": ["Mente Consciente", "Cuerpo Saludable", "Espíritu Libre"],
         "approach": "Tres etapas: Consciencia (hacer visible lo invisible), Autenticidad (reconectar con tu ser genuino), Transformación (reprogramar patrones inconscientes)",
-        "methods": ["Coaching cuántico", "Hipnosis", "Reprogramación inconsciente", "Breathwork", "Meditación", "Baño de hielo", "Círculos de palabra"]
+        "methods": [
+            "Coaching cuántico",
+            "Hipnosis",
+            "Reprogramación inconsciente",
+            "Breathwork",
+            "Meditación",
+            "Baño de hielo",
+            "Círculos de palabra",
+        ],
     },
     "tone_profile": {
         "formality": "informal",
@@ -1201,19 +1946,20 @@ Disponible en Spotify y Apple Podcasts.""",
             "Transforma tu realidad",
             "Del síntoma a la plenitud",
             "Tu dolor es tu mayor fortaleza",
-            "Desbloquea tu poder interior"
-        ]
+            "Desbloquea tu poder interior",
+        ],
     },
     "impact_numbers": {
         "individual_clients": 100,
         "challenge_participants": 3000,
-        "workshop_participants": 1000
-    }
+        "workshop_participants": 1000,
+    },
 }
 
 
 class SeedDemoRequest(BaseModel):
     """Request para sembrar datos demo cuando Instagram está rate limited."""
+
     creator_id: str
     force: bool = False  # Si es true, crea datos aunque ya existan
 
@@ -1232,17 +1978,15 @@ async def seed_demo_data(request: SeedDemoRequest):
     Use this when manual-setup fails due to Instagram rate limiting.
     """
     errors = []
-    details = {
-        "leads_created": 0,
-        "products_created": 0
-    }
+    details = {"leads_created": 0, "products_created": 0}
 
     try:
-        from api.database import DATABASE_URL, SessionLocal
-        from api.models import Creator, Lead, Product
+        import random
         import uuid as uuid_module
         from datetime import datetime, timedelta
-        import random
+
+        from api.database import DATABASE_URL, SessionLocal
+        from api.models import Creator, Lead, Product
 
         if not DATABASE_URL or not SessionLocal:
             return {"success": False, "error": "Database not configured"}
@@ -1258,7 +2002,7 @@ async def seed_demo_data(request: SeedDemoRequest):
                     email=f"{request.creator_id}@clonnect.io",
                     bot_active=True,
                     onboarding_completed=True,
-                    copilot_mode=True
+                    copilot_mode=True,
                 )
                 session.add(creator)
                 session.commit()
@@ -1268,15 +2012,29 @@ async def seed_demo_data(request: SeedDemoRequest):
 
             # Create demo products
             demo_products = [
-                {"name": "Consultoría 1:1", "price": 150.0, "description": "Sesión de consultoría personalizada de 1 hora"},
-                {"name": "Curso Online", "price": 97.0, "description": "Acceso completo al curso con materiales"},
-                {"name": "Mentoría Grupal", "price": 49.0, "description": "Sesión grupal mensual con Q&A"},
+                {
+                    "name": "Consultoría 1:1",
+                    "price": 150.0,
+                    "description": "Sesión de consultoría personalizada de 1 hora",
+                },
+                {
+                    "name": "Curso Online",
+                    "price": 97.0,
+                    "description": "Acceso completo al curso con materiales",
+                },
+                {
+                    "name": "Mentoría Grupal",
+                    "price": 49.0,
+                    "description": "Sesión grupal mensual con Q&A",
+                },
             ]
 
             for prod in demo_products:
-                existing = session.query(Product).filter_by(
-                    creator_id=creator_uuid, name=prod["name"]
-                ).first()
+                existing = (
+                    session.query(Product)
+                    .filter_by(creator_id=creator_uuid, name=prod["name"])
+                    .first()
+                )
                 if not existing or request.force:
                     if existing and request.force:
                         session.delete(existing)
@@ -1286,7 +2044,7 @@ async def seed_demo_data(request: SeedDemoRequest):
                         name=prod["name"],
                         price=prod["price"],
                         description=prod["description"],
-                        is_active=True
+                        is_active=True,
                     )
                     session.add(new_product)
                     details["products_created"] += 1
@@ -1331,14 +2089,16 @@ async def seed_demo_data(request: SeedDemoRequest):
             creator.bot_active = True
 
             session.commit()
-            logger.info(f"[SeedDemo] Created {details['leads_created']} leads and {details['products_created']} products for {request.creator_id}")
+            logger.info(
+                f"[SeedDemo] Created {details['leads_created']} leads and {details['products_created']} products for {request.creator_id}"
+            )
 
             return {
                 "success": True,
                 "creator_id": request.creator_id,
                 "details": details,
                 "onboarding_completed": True,
-                "bot_activated": True
+                "bot_activated": True,
             }
 
         finally:
@@ -1346,11 +2106,7 @@ async def seed_demo_data(request: SeedDemoRequest):
 
     except Exception as e:
         logger.error(f"[SeedDemo] Error: {e}")
-        return {
-            "success": False,
-            "creator_id": request.creator_id,
-            "error": str(e)
-        }
+        return {"success": False, "creator_id": request.creator_id, "error": str(e)}
 
 
 @router.post("/inject-stefano-data")
@@ -1375,17 +2131,18 @@ async def inject_stefano_data():
         "leads_created": 0,
         "messages_created": 0,
         "rag_documents": 0,
-        "tone_profile": False
+        "tone_profile": False,
     }
     errors = []
 
     try:
-        from api.database import DATABASE_URL, SessionLocal
-        from api.models import Creator, Lead, Product, Message
+        import json
+        import random
         import uuid as uuid_module
         from datetime import datetime, timedelta
-        import random
-        import json
+
+        from api.database import DATABASE_URL, SessionLocal
+        from api.models import Creator, Lead, Message, Product
 
         if not DATABASE_URL or not SessionLocal:
             return {"success": False, "error": "Database not configured"}
@@ -1405,7 +2162,7 @@ async def inject_stefano_data():
                     onboarding_completed=True,
                     copilot_mode=True,
                     clone_name="Stefano Bonanno",
-                    clone_tone="inspirational"
+                    clone_tone="inspirational",
                 )
                 session.add(creator)
                 session.commit()
@@ -1442,7 +2199,7 @@ async def inject_stefano_data():
                     category=prod_data.get("category", "product"),
                     product_type=prod_data.get("product_type", "otro"),
                     is_free=prod_data.get("is_free", False),
-                    is_active=True
+                    is_active=True,
                 )
                 session.add(new_product)
                 details["products_created"] += 1
@@ -1452,66 +2209,174 @@ async def inject_stefano_data():
             # ================================================================
             demo_conversations = [
                 {
-                    "lead": {"name": "Carlos Méndez", "username": "carlos_wellness", "platform": "instagram", "intent": 0.9, "status": "hot"},
+                    "lead": {
+                        "name": "Carlos Méndez",
+                        "username": "carlos_wellness",
+                        "platform": "instagram",
+                        "intent": 0.9,
+                        "status": "hot",
+                    },
                     "messages": [
-                        {"role": "user", "content": "Hola Stefano! Vi tu contenido sobre coaching cuántico y me interesa mucho. ¿Cómo funciona el proceso 1:1?"},
-                        {"role": "assistant", "content": "¡Hola Carlos! 🙏 Qué bueno que te resuene el coaching cuántico. El proceso 'Del Síntoma a la Plenitud' es un viaje de 3 meses donde trabajamos juntos semanalmente. Combinamos coaching cuántico, hipnosis y reprogramación del inconsciente. ¿Qué te gustaría transformar en tu vida? ✨"},
-                        {"role": "user", "content": "Llevo tiempo sintiéndome estancado en mi carrera y relaciones. ¿Cuánto cuesta el programa?"},
-                        {"role": "assistant", "content": "Entiendo perfectamente ese sentimiento de estancamiento. El programa completo de 3 meses es €1497 e incluye 12 sesiones semanales, 3 sesiones de hipnosis, soporte por WhatsApp y acceso a recursos exclusivos. ¿Te gustaría agendar una sesión discovery gratuita de 30 min para conocernos? 💪"},
-                    ]
+                        {
+                            "role": "user",
+                            "content": "Hola Stefano! Vi tu contenido sobre coaching cuántico y me interesa mucho. ¿Cómo funciona el proceso 1:1?",
+                        },
+                        {
+                            "role": "assistant",
+                            "content": "¡Hola Carlos! 🙏 Qué bueno que te resuene el coaching cuántico. El proceso 'Del Síntoma a la Plenitud' es un viaje de 3 meses donde trabajamos juntos semanalmente. Combinamos coaching cuántico, hipnosis y reprogramación del inconsciente. ¿Qué te gustaría transformar en tu vida? ✨",
+                        },
+                        {
+                            "role": "user",
+                            "content": "Llevo tiempo sintiéndome estancado en mi carrera y relaciones. ¿Cuánto cuesta el programa?",
+                        },
+                        {
+                            "role": "assistant",
+                            "content": "Entiendo perfectamente ese sentimiento de estancamiento. El programa completo de 3 meses es €1497 e incluye 12 sesiones semanales, 3 sesiones de hipnosis, soporte por WhatsApp y acceso a recursos exclusivos. ¿Te gustaría agendar una sesión discovery gratuita de 30 min para conocernos? 💪",
+                        },
+                    ],
                 },
                 {
-                    "lead": {"name": "Laura Torres", "username": "laura_fit", "platform": "instagram", "intent": 0.7, "status": "hot"},
+                    "lead": {
+                        "name": "Laura Torres",
+                        "username": "laura_fit",
+                        "platform": "instagram",
+                        "intent": 0.7,
+                        "status": "hot",
+                    },
                     "messages": [
-                        {"role": "user", "content": "Hola! Me interesa el Challenge de 11 días, ¿cuándo es el próximo?"},
-                        {"role": "assistant", "content": "¡Hola Laura! 🔥 El Fitpack Challenge es una experiencia increíble. Más de 3,000 personas ya lo han vivido. Son 11 días de entrenamientos al aire libre, breathwork y comunidad. Cuesta €97 e incluye todo el material. Te escribo por privado las fechas disponibles 💪"},
-                        {"role": "user", "content": "Genial! También vi que haces talleres de respiración, ¿me cuentas más?"},
-                        {"role": "assistant", "content": "'Respira, Siente, Conecta' es una experiencia de 3 horas donde combinamos breathwork, meditación y baño de hielo 🧊 Es muy transformador. Cuesta €45 y lo hacemos en Barcelona. ¿Te apuntas a la próxima? ✨"},
-                    ]
+                        {
+                            "role": "user",
+                            "content": "Hola! Me interesa el Challenge de 11 días, ¿cuándo es el próximo?",
+                        },
+                        {
+                            "role": "assistant",
+                            "content": "¡Hola Laura! 🔥 El Fitpack Challenge es una experiencia increíble. Más de 3,000 personas ya lo han vivido. Son 11 días de entrenamientos al aire libre, breathwork y comunidad. Cuesta €97 e incluye todo el material. Te escribo por privado las fechas disponibles 💪",
+                        },
+                        {
+                            "role": "user",
+                            "content": "Genial! También vi que haces talleres de respiración, ¿me cuentas más?",
+                        },
+                        {
+                            "role": "assistant",
+                            "content": "'Respira, Siente, Conecta' es una experiencia de 3 horas donde combinamos breathwork, meditación y baño de hielo 🧊 Es muy transformador. Cuesta €45 y lo hacemos en Barcelona. ¿Te apuntas a la próxima? ✨",
+                        },
+                    ],
                 },
                 {
-                    "lead": {"name": "Ana Martínez", "username": "ana_coach", "platform": "instagram", "intent": 0.95, "status": "hot"},
+                    "lead": {
+                        "name": "Ana Martínez",
+                        "username": "ana_coach",
+                        "platform": "instagram",
+                        "intent": 0.95,
+                        "status": "hot",
+                    },
                     "messages": [
-                        {"role": "user", "content": "Stefano, necesito ayuda. Estoy pasando por un momento muy difícil y siento que necesito un cambio profundo."},
-                        {"role": "assistant", "content": "Ana, gracias por compartir esto conmigo 🙏 Los momentos difíciles muchas veces son el inicio de grandes transformaciones. Mi trabajo es acompañarte a convertir ese dolor en tu mayor fortaleza. ¿Quieres que agendemos una sesión discovery gratuita para hablar de tu situación? ❤️"},
+                        {
+                            "role": "user",
+                            "content": "Stefano, necesito ayuda. Estoy pasando por un momento muy difícil y siento que necesito un cambio profundo.",
+                        },
+                        {
+                            "role": "assistant",
+                            "content": "Ana, gracias por compartir esto conmigo 🙏 Los momentos difíciles muchas veces son el inicio de grandes transformaciones. Mi trabajo es acompañarte a convertir ese dolor en tu mayor fortaleza. ¿Quieres que agendemos una sesión discovery gratuita para hablar de tu situación? ❤️",
+                        },
                         {"role": "user", "content": "Sí, por favor. ¿Cómo puedo reservar?"},
-                        {"role": "assistant", "content": "Perfecto Ana. La sesión discovery es de 30 minutos, sin compromiso. Solo para conocernos y ver si hay conexión para trabajar juntos. Te dejo el enlace para agendar: [link]. Estoy aquí para ti ✨"},
-                    ]
+                        {
+                            "role": "assistant",
+                            "content": "Perfecto Ana. La sesión discovery es de 30 minutos, sin compromiso. Solo para conocernos y ver si hay conexión para trabajar juntos. Te dejo el enlace para agendar: [link]. Estoy aquí para ti ✨",
+                        },
+                    ],
                 },
                 {
-                    "lead": {"name": "Miguel Ángel", "username": "miguelangel_bcn", "platform": "instagram", "intent": 0.5, "status": "warm"},
+                    "lead": {
+                        "name": "Miguel Ángel",
+                        "username": "miguelangel_bcn",
+                        "platform": "instagram",
+                        "intent": 0.5,
+                        "status": "warm",
+                    },
                     "messages": [
-                        {"role": "user", "content": "Hola, ¿qué es exactamente el coaching cuántico?"},
-                        {"role": "assistant", "content": "¡Hola Miguel Ángel! 🌟 El coaching cuántico combina técnicas de coaching tradicional con principios de física cuántica y reprogramación del inconsciente. Trabajamos a nivel energético para transformar patrones limitantes. Es como reprogramar el software de tu mente para crear nuevas posibilidades. ¿Hay algo específico que te gustaría cambiar en tu vida?"},
-                    ]
+                        {
+                            "role": "user",
+                            "content": "Hola, ¿qué es exactamente el coaching cuántico?",
+                        },
+                        {
+                            "role": "assistant",
+                            "content": "¡Hola Miguel Ángel! 🌟 El coaching cuántico combina técnicas de coaching tradicional con principios de física cuántica y reprogramación del inconsciente. Trabajamos a nivel energético para transformar patrones limitantes. Es como reprogramar el software de tu mente para crear nuevas posibilidades. ¿Hay algo específico que te gustaría cambiar en tu vida?",
+                        },
+                    ],
                 },
                 {
-                    "lead": {"name": "Sofía Navarro", "username": "sofia_yoga", "platform": "instagram", "intent": 0.6, "status": "warm"},
+                    "lead": {
+                        "name": "Sofía Navarro",
+                        "username": "sofia_yoga",
+                        "platform": "instagram",
+                        "intent": 0.6,
+                        "status": "warm",
+                    },
                     "messages": [
-                        {"role": "user", "content": "Vi que haces sesiones de breathwork. ¿Qué beneficios tiene?"},
-                        {"role": "assistant", "content": "¡Hola Sofía! El breathwork es una herramienta muy poderosa 🌬️ Te ayuda a liberar tensiones acumuladas, procesar emociones y conectar con tu cuerpo de una forma profunda. En el taller 'Respira, Siente, Conecta' lo combinamos con meditación y baño de hielo. Es una experiencia que te marca. ¿Has hecho breathwork antes?"},
-                    ]
+                        {
+                            "role": "user",
+                            "content": "Vi que haces sesiones de breathwork. ¿Qué beneficios tiene?",
+                        },
+                        {
+                            "role": "assistant",
+                            "content": "¡Hola Sofía! El breathwork es una herramienta muy poderosa 🌬️ Te ayuda a liberar tensiones acumuladas, procesar emociones y conectar con tu cuerpo de una forma profunda. En el taller 'Respira, Siente, Conecta' lo combinamos con meditación y baño de hielo. Es una experiencia que te marca. ¿Has hecho breathwork antes?",
+                        },
+                    ],
                 },
                 {
-                    "lead": {"name": "Pedro García", "username": "pedro_wellness", "platform": "whatsapp", "intent": 0.4, "status": "warm"},
+                    "lead": {
+                        "name": "Pedro García",
+                        "username": "pedro_wellness",
+                        "platform": "whatsapp",
+                        "intent": 0.4,
+                        "status": "warm",
+                    },
                     "messages": [
-                        {"role": "user", "content": "Hola Stefano, un amigo me recomendó tu trabajo. ¿Podrías explicarme qué haces?"},
-                        {"role": "assistant", "content": "¡Hola Pedro! Qué bien que llegues por recomendación 🙏 Soy coach y terapeuta. Acompaño a personas a transformar su realidad trabajando con mente, cuerpo y espíritu. Uso coaching cuántico, hipnosis, breathwork y otras técnicas. Mi enfoque es convertir tu dolor en tu mayor fortaleza. ¿Qué te gustaría trabajar?"},
-                    ]
+                        {
+                            "role": "user",
+                            "content": "Hola Stefano, un amigo me recomendó tu trabajo. ¿Podrías explicarme qué haces?",
+                        },
+                        {
+                            "role": "assistant",
+                            "content": "¡Hola Pedro! Qué bien que llegues por recomendación 🙏 Soy coach y terapeuta. Acompaño a personas a transformar su realidad trabajando con mente, cuerpo y espíritu. Uso coaching cuántico, hipnosis, breathwork y otras técnicas. Mi enfoque es convertir tu dolor en tu mayor fortaleza. ¿Qué te gustaría trabajar?",
+                        },
+                    ],
                 },
                 {
-                    "lead": {"name": "Elena Ruiz", "username": "elena_mindful", "platform": "instagram", "intent": 0.3, "status": "cold"},
+                    "lead": {
+                        "name": "Elena Ruiz",
+                        "username": "elena_mindful",
+                        "platform": "instagram",
+                        "intent": 0.3,
+                        "status": "cold",
+                    },
                     "messages": [
-                        {"role": "user", "content": "Hola, ¿tienes algún recurso gratuito para empezar?"},
-                        {"role": "assistant", "content": "¡Hola Elena! 🌟 Claro que sí. Tengo el podcast 'Sabios y Salvajes' en Spotify donde comparto mucho contenido. También puedes suscribirte a mi newsletter y te envío una guía de planificación anual gratis. ¿Te interesa algún tema en particular?"},
-                    ]
+                        {
+                            "role": "user",
+                            "content": "Hola, ¿tienes algún recurso gratuito para empezar?",
+                        },
+                        {
+                            "role": "assistant",
+                            "content": "¡Hola Elena! 🌟 Claro que sí. Tengo el podcast 'Sabios y Salvajes' en Spotify donde comparto mucho contenido. También puedes suscribirte a mi newsletter y te envío una guía de planificación anual gratis. ¿Te interesa algún tema en particular?",
+                        },
+                    ],
                 },
                 {
-                    "lead": {"name": "Roberto Sánchez", "username": "roberto_coach", "platform": "instagram", "intent": 0.2, "status": "cold"},
+                    "lead": {
+                        "name": "Roberto Sánchez",
+                        "username": "roberto_coach",
+                        "platform": "instagram",
+                        "intent": 0.2,
+                        "status": "cold",
+                    },
                     "messages": [
                         {"role": "user", "content": "Interesante tu contenido 👍"},
-                        {"role": "assistant", "content": "¡Gracias Roberto! 🙏 Me alegra que resuene contigo. Si alguna vez quieres profundizar en algún tema o tienes preguntas, aquí estoy. ¡Un abrazo! ✨"},
-                    ]
+                        {
+                            "role": "assistant",
+                            "content": "¡Gracias Roberto! 🙏 Me alegra que resuene contigo. Si alguna vez quieres profundizar en algún tema o tienes preguntas, aquí estoy. ¡Un abrazo! ✨",
+                        },
+                    ],
                 },
             ]
 
@@ -1530,7 +2395,7 @@ async def inject_stefano_data():
                     status=lead_data["status"],
                     score=int(lead_data["intent"] * 100),
                     first_contact_at=datetime.utcnow() - timedelta(days=random.randint(5, 30)),
-                    last_contact_at=datetime.utcnow() - timedelta(hours=random.randint(1, 72))
+                    last_contact_at=datetime.utcnow() - timedelta(hours=random.randint(1, 72)),
                 )
                 session.add(new_lead)
                 session.flush()  # Get the ID
@@ -1544,7 +2409,7 @@ async def inject_stefano_data():
                         role=msg["role"],
                         content=msg["content"],
                         status="sent",
-                        created_at=datetime.utcnow() - timedelta(hours=len(conv["messages"]) - i)
+                        created_at=datetime.utcnow() - timedelta(hours=len(conv["messages"]) - i),
                     )
                     session.add(new_message)
                     details["messages_created"] += 1
@@ -1560,7 +2425,9 @@ async def inject_stefano_data():
             tone_data = STEFANO_DATA["tone_profile"]
 
             session.commit()
-            logger.info(f"[InjectStefano] Created {details['products_created']} products, {details['leads_created']} leads, {details['messages_created']} messages")
+            logger.info(
+                f"[InjectStefano] Created {details['products_created']} products, {details['leads_created']} leads, {details['messages_created']} messages"
+            )
 
         finally:
             session.close()
@@ -1570,6 +2437,7 @@ async def inject_stefano_data():
         # ================================================================
         try:
             from core.rag import get_hybrid_rag
+
             rag = get_hybrid_rag()
 
             # Index products
@@ -1587,8 +2455,8 @@ Incluye: {', '.join(prod['includes'])}"""
                         "creator_id": creator_id,
                         "source_type": "product",
                         "product_id": prod["id"],
-                        "price": prod["price"]
-                    }
+                        "price": prod["price"],
+                    },
                 )
                 details["rag_documents"] += 1
 
@@ -1601,10 +2469,7 @@ Resultado: {test['result']}"""
                 rag.add_document(
                     doc_id=doc_id,
                     text=content,
-                    metadata={
-                        "creator_id": creator_id,
-                        "source_type": "testimonial"
-                    }
+                    metadata={"creator_id": creator_id, "source_type": "testimonial"},
                 )
                 details["rag_documents"] += 1
 
@@ -1616,10 +2481,7 @@ Respuesta: {faq['answer']}"""
                 rag.add_document(
                     doc_id=doc_id,
                     text=content,
-                    metadata={
-                        "creator_id": creator_id,
-                        "source_type": "faq"
-                    }
+                    metadata={"creator_id": creator_id, "source_type": "faq"},
                 )
                 details["rag_documents"] += 1
 
@@ -1633,10 +2495,7 @@ Métodos: {', '.join(meth['methods'])}"""
             rag.add_document(
                 doc_id=doc_id,
                 text=content,
-                metadata={
-                    "creator_id": creator_id,
-                    "source_type": "methodology"
-                }
+                metadata={"creator_id": creator_id, "source_type": "methodology"},
             )
             details["rag_documents"] += 1
 
@@ -1655,10 +2514,7 @@ Instagram: {bio['instagram']}"""
             rag.add_document(
                 doc_id=doc_id,
                 text=content,
-                metadata={
-                    "creator_id": creator_id,
-                    "source_type": "bio"
-                }
+                metadata={"creator_id": creator_id, "source_type": "bio"},
             )
             details["rag_documents"] += 1
 
@@ -1689,7 +2545,7 @@ Instagram: {bio['instagram']}"""
                 sentence_length="medium",
                 primary_language=tone["language"],
                 main_topics=["coaching", "bienestar", "transformación", "breathwork"],
-                analyzed_posts_count=50
+                analyzed_posts_count=50,
             )
             await save_tone_profile(profile)
             details["tone_profile"] = True
@@ -1705,21 +2561,19 @@ Instagram: {bio['instagram']}"""
             "details": details,
             "errors": errors if errors else None,
             "products": [p["name"] for p in STEFANO_DATA["products"]],
-            "message": "Stefano data injected successfully! Dashboard should show real products and leads."
+            "message": "Stefano data injected successfully! Dashboard should show real products and leads.",
         }
 
     except Exception as e:
         logger.error(f"[InjectStefano] Error: {e}")
         import traceback
-        return {
-            "success": False,
-            "error": str(e),
-            "traceback": traceback.format_exc()
-        }
+
+        return {"success": False, "error": str(e), "traceback": traceback.format_exc()}
 
 
 class ManualSetupRequest(BaseModel):
     """Request para setup manual sin OAuth."""
+
     creator_id: str
     instagram_username: str
     website_url: Optional[str] = None
@@ -1728,6 +2582,7 @@ class ManualSetupRequest(BaseModel):
 
 class ManualSetupResponse(BaseModel):
     """Response del setup manual."""
+
     success: bool
     creator_id: str
     steps_completed: Dict[str, bool]
@@ -1744,9 +2599,10 @@ async def quick_setup(request: ManualSetupRequest):
     No hace scraping de Instagram ni website.
     """
     try:
+        import uuid as uuid_module
+
         from api.database import DATABASE_URL, SessionLocal
         from api.models import Creator
-        import uuid as uuid_module
 
         if not DATABASE_URL or not SessionLocal:
             return {
@@ -1754,7 +2610,7 @@ async def quick_setup(request: ManualSetupRequest):
                 "creator_id": request.creator_id,
                 "steps_completed": {"onboarding_completed": True, "bot_activated": True},
                 "details": {"mode": "no_database"},
-                "errors": []
+                "errors": [],
             }
 
         session = SessionLocal()
@@ -1768,7 +2624,7 @@ async def quick_setup(request: ManualSetupRequest):
                     email=f"{request.creator_id}@clonnect.io",
                     bot_active=True,
                     onboarding_completed=True,
-                    copilot_mode=True
+                    copilot_mode=True,
                 )
                 session.add(creator)
                 logger.info(f"[QuickSetup] Created new creator: {request.creator_id}")
@@ -1788,14 +2644,14 @@ async def quick_setup(request: ManualSetupRequest):
                     "rag_indexed": False,
                     "website_scraped": False,
                     "onboarding_completed": True,
-                    "bot_activated": True
+                    "bot_activated": True,
                 },
                 "details": {
                     "posts_count": 0,
                     "mode": "quick_setup",
-                    "instagram_username": request.instagram_username
+                    "instagram_username": request.instagram_username,
                 },
-                "errors": []
+                "errors": [],
             }
         finally:
             session.close()
@@ -1807,7 +2663,7 @@ async def quick_setup(request: ManualSetupRequest):
             "creator_id": request.creator_id,
             "steps_completed": {},
             "details": {},
-            "errors": [str(e)]
+            "errors": [str(e)],
         }
 
 
@@ -1815,8 +2671,10 @@ async def quick_setup(request: ManualSetupRequest):
 # FULL AUTO-SETUP V2 - Uses all V2 technologies for zero-hallucination
 # =============================================================================
 
+
 class FullAutoSetupRequest(BaseModel):
     """Request para auto-configuración completa."""
+
     creator_id: str
     instagram_username: str
     website_url: Optional[str] = None
@@ -1864,13 +2722,12 @@ async def full_auto_setup(request: FullAutoSetupRequest, background_tasks: Backg
             instagram_username=request.instagram_username,
             website_url=request.website_url,
             max_posts=request.max_posts,
-            transcribe_videos=request.transcribe_videos
+            transcribe_videos=request.transcribe_videos,
         )
 
         if not result.success and not result.steps_completed:
             raise HTTPException(
-                status_code=400,
-                detail=f"Auto-configuration failed: {result.errors}"
+                status_code=400, detail=f"Auto-configuration failed: {result.errors}"
             )
 
         logger.info(
@@ -1885,14 +2742,14 @@ async def full_auto_setup(request: FullAutoSetupRequest, background_tasks: Backg
     except Exception as e:
         logger.error(f"[FullAutoSetup] Error for {request.creator_id}: {e}")
         import traceback
+
         traceback.print_exc()
         raise HTTPException(status_code=500, detail=str(e))
 
 
 @router.post("/full-auto-setup-background")
 async def full_auto_setup_background(
-    request: FullAutoSetupRequest,
-    background_tasks: BackgroundTasks
+    request: FullAutoSetupRequest, background_tasks: BackgroundTasks
 ):
     """
     Versión en background de full-auto-setup.
@@ -1900,16 +2757,18 @@ async def full_auto_setup_background(
     Inicia el proceso y retorna inmediatamente.
     Usar /full-auto-setup/{creator_id}/status para ver progreso.
     """
-    # Initialize status
-    setup_status[request.creator_id] = {
+    # Initialize status (memory + DB for persistence)
+    initial_status = {
         "status": "in_progress",
         "progress": 0,
         "current_step": "starting",
         "steps_completed": [],
         "errors": [],
         "warnings": [],
-        "result": {}
+        "result": {},
     }
+    setup_status[request.creator_id] = initial_status
+    _update_clone_status_db(request.creator_id, initial_status)
 
     # Run in background
     background_tasks.add_task(
@@ -1918,14 +2777,14 @@ async def full_auto_setup_background(
         request.instagram_username,
         request.website_url,
         request.max_posts,
-        request.transcribe_videos
+        request.transcribe_videos,
     )
 
     return {
         "status": "started",
         "message": "Auto-configuration started in background",
         "creator_id": request.creator_id,
-        "check_status_at": f"/onboarding/full-auto-setup/{request.creator_id}/status"
+        "check_status_at": f"/onboarding/full-auto-setup/{request.creator_id}/status",
     }
 
 
@@ -1933,15 +2792,31 @@ async def full_auto_setup_background(
 async def get_full_auto_setup_status(creator_id: str):
     """
     Obtiene el estado de la auto-configuración en background.
+    Now reads from DB to survive deploys (with memory cache for speed).
     """
-    if creator_id not in setup_status:
-        return {
-            "status": "not_found",
-            "creator_id": creator_id,
-            "message": "No setup in progress for this creator"
-        }
+    # First check memory cache (fast, but lost on deploy)
+    if creator_id in setup_status:
+        return setup_status[creator_id]
 
-    return setup_status[creator_id]
+    # Fallback to DB (survives deploys)
+    db_status = _get_clone_status_db(creator_id)
+    if db_status:
+        # Cache it in memory for next poll
+        setup_status[creator_id] = db_status
+        return db_status
+
+    # No status found - return pending instead of not_found
+    return {
+        "status": "pending",
+        "progress": 0,
+        "creator_id": creator_id,
+        "current_step": "waiting",
+        "steps_completed": [],
+        "errors": [],
+        "warnings": [],
+        "result": {},
+        "message": "Setup not started yet",
+    }
 
 
 async def _run_full_auto_setup_background(
@@ -1949,82 +2824,95 @@ async def _run_full_auto_setup_background(
     instagram_username: str,
     website_url: Optional[str],
     max_posts: int,
-    transcribe_videos: bool
+    transcribe_videos: bool,
 ):
     """Ejecuta auto-setup en background actualizando status en tiempo real."""
     status = setup_status[creator_id]
 
+    def save_progress():
+        """Helper to save progress to both memory and DB."""
+        _update_clone_status_db(creator_id, status)
+
+    db_session = None
     try:
+        from api.database import SessionLocal
         from core.auto_configurator import AutoConfigurator
 
-        configurator = AutoConfigurator()
+        # CRITICAL: Pass db_session so products get saved to database
+        db_session = SessionLocal()
+        configurator = AutoConfigurator(db_session=db_session)
 
         # Step 1: Instagram scraping
         status["current_step"] = "instagram_scraping"
         status["progress"] = 10
+        save_progress()
         logger.info(f"[FullAutoSetup-BG] Step 1: Instagram scraping for {creator_id}")
 
         try:
             ig_result = await configurator._scrape_instagram(
-                creator_id=creator_id,
-                instagram_username=instagram_username,
-                max_posts=max_posts
+                creator_id=creator_id, instagram_username=instagram_username, max_posts=max_posts
             )
-            posts_scraped = ig_result.get('posts_scraped', 0)
-            posts_passed = ig_result.get('posts_passed_sanity', posts_scraped)
+            posts_scraped = ig_result.get("posts_scraped", 0)
+            posts_passed = ig_result.get("posts_passed_sanity", posts_scraped)
             status["steps_completed"].append("instagram_scraping")
             status["progress"] = 30
             status["result"] = {
                 "instagram": {"posts_scraped": posts_scraped, "sanity_passed": posts_passed}
             }
+            save_progress()
             logger.info(f"[FullAutoSetup-BG] Instagram: {posts_scraped} posts scraped")
         except Exception as e:
             logger.warning(f"[FullAutoSetup-BG] Instagram error: {e}")
             status["errors"].append(f"Instagram: {str(e)}")
+            save_progress()
 
         # Step 2: Website scraping + Product detection
         if website_url:
             status["current_step"] = "website_scraping"
             status["progress"] = 40
+            save_progress()
             logger.info(f"[FullAutoSetup-BG] Step 2: Website scraping for {creator_id}")
 
             try:
                 web_result = await configurator._scrape_website(
-                    creator_id=creator_id,
-                    website_url=website_url
+                    creator_id=creator_id, website_url=website_url
                 )
-                products_detected = web_result.get('products_detected', 0)
+                products_detected = web_result.get("products_detected", 0)
                 status["steps_completed"].append("website_scraping")
                 status["steps_completed"].append("product_detection")
                 status["progress"] = 55
                 if "result" not in status:
                     status["result"] = {}
                 status["result"]["website"] = {"products_detected": products_detected}
+                save_progress()
                 logger.info(f"[FullAutoSetup-BG] Website: {products_detected} products detected")
             except Exception as e:
                 logger.warning(f"[FullAutoSetup-BG] Website error: {e}")
                 status["errors"].append(f"Website: {str(e)}")
+                save_progress()
         else:
             status["steps_completed"].append("website_scraping")
             status["steps_completed"].append("product_detection")
             status["progress"] = 55
+            save_progress()
 
         # Step 3: ToneProfile generation
         status["current_step"] = "tone_profile"
         status["progress"] = 65
+        save_progress()
         logger.info(f"[FullAutoSetup-BG] Step 3: ToneProfile for {creator_id}")
 
         try:
             tone_result = await configurator._generate_tone_profile(creator_id)
-            tone_generated = tone_result.get('success', False)
-            tone_confidence = tone_result.get('confidence', 0.0)
+            tone_generated = tone_result.get("success", False)
+            tone_confidence = tone_result.get("confidence", 0.0)
             status["steps_completed"].append("tone_profile")
             status["progress"] = 80
             if "result" not in status:
                 status["result"] = {}
             status["result"]["tone_profile"] = {
                 "generated": tone_generated,
-                "confidence": tone_confidence
+                "confidence": tone_confidence,
             }
             logger.info(f"[FullAutoSetup-BG] ToneProfile generated: {tone_generated}")
         except Exception as e:
@@ -2038,18 +2926,20 @@ async def _run_full_auto_setup_background(
 
         try:
             dm_result = await configurator._load_dm_history(creator_id)
-            if dm_result.get('success'):
+            if dm_result.get("success"):
                 status["steps_completed"].append("dm_history")
                 if "result" not in status:
                     status["result"] = {}
                 status["result"]["dms"] = {
-                    "conversations": dm_result.get('conversations_found', 0),
-                    "messages": dm_result.get('messages_imported', 0),
-                    "leads_created": dm_result.get('leads_created', 0)
+                    "conversations": dm_result.get("conversations_found", 0),
+                    "messages": dm_result.get("messages_imported", 0),
+                    "leads_created": dm_result.get("leads_created", 0),
                 }
-                logger.info(f"[FullAutoSetup-BG] DM history loaded: {dm_result.get('messages_imported', 0)} messages")
+                logger.info(
+                    f"[FullAutoSetup-BG] DM history loaded: {dm_result.get('messages_imported', 0)} messages"
+                )
             else:
-                reason = dm_result.get('reason', 'Unknown')
+                reason = dm_result.get("reason", "Unknown")
                 status["warnings"].append(f"DM history: {reason}")
                 logger.info(f"[FullAutoSetup-BG] DM history skipped: {reason}")
         except Exception as e:
@@ -2063,7 +2953,7 @@ async def _run_full_auto_setup_background(
 
         try:
             bio_result = await configurator._extract_bio(creator_id, instagram_username)
-            if bio_result.get('success'):
+            if bio_result.get("success"):
                 status["steps_completed"].append("bio_extracted")
                 if "result" not in status:
                     status["result"] = {}
@@ -2082,7 +2972,7 @@ async def _run_full_auto_setup_background(
 
         try:
             faq_result = await configurator._generate_faqs(creator_id)
-            faqs_created = faq_result.get('faqs_created', 0)
+            faqs_created = faq_result.get("faqs_created", 0)
             if faqs_created > 0:
                 status["steps_completed"].append("faqs_generated")
                 if "result" not in status:
@@ -2105,7 +2995,9 @@ async def _run_full_auto_setup_background(
                 creator_id=creator_id,
                 instagram_username=instagram_username,
                 website_url=website_url,
-                tone_confidence=status.get("result", {}).get("tone_profile", {}).get("confidence", 0.0)
+                tone_confidence=status.get("result", {})
+                .get("tone_profile", {})
+                .get("confidence", 0.0),
             )
             status["steps_completed"].append("creator_updated")
             logger.info(f"[FullAutoSetup-BG] Creator updated")
@@ -2117,15 +3009,24 @@ async def _run_full_auto_setup_background(
         status["status"] = "completed"
         status["progress"] = 100
         status["current_step"] = "completed"
+        save_progress()
 
-        logger.info(f"[FullAutoSetup-BG] Completed for {creator_id}: steps={status['steps_completed']}")
+        logger.info(
+            f"[FullAutoSetup-BG] Completed for {creator_id}: steps={status['steps_completed']}"
+        )
 
     except Exception as e:
         logger.error(f"[FullAutoSetup-BG] Error for {creator_id}: {e}")
         import traceback
+
         traceback.print_exc()
         status["status"] = "failed"
         status["errors"].append(str(e))
+        save_progress()
+    finally:
+        # Always close db session to prevent connection leaks
+        if db_session:
+            db_session.close()
 
 
 @router.post("/manual-setup", response_model=ManualSetupResponse)
@@ -2159,16 +3060,13 @@ async def manual_setup(request: ManualSetupRequest):
         "rag_indexed": False,
         "website_scraped": False,
         "onboarding_completed": False,
-        "bot_activated": False
+        "bot_activated": False,
     }
-    details = {
-        "posts_count": 0,
-        "tone_summary": None,
-        "rag_documents": 0,
-        "website_pages": 0
-    }
+    details = {"posts_count": 0, "tone_summary": None, "rag_documents": 0, "website_pages": 0}
 
-    logger.info(f"[ManualSetup] Starting for {request.creator_id} from @{request.instagram_username}")
+    logger.info(
+        f"[ManualSetup] Starting for {request.creator_id} from @{request.instagram_username}"
+    )
 
     # ==========================================================================
     # STEP 1: Scrape Instagram posts (public, no OAuth)
@@ -2176,19 +3074,21 @@ async def manual_setup(request: ManualSetupRequest):
     # ==========================================================================
     posts = []
     try:
-        from ingestion.instagram_scraper import InstaloaderScraper, InstagramScraperError
+        from ingestion.instagram_scraper import InstagramScraperError, InstaloaderScraper
 
         scraper = InstaloaderScraper()
         posts = scraper.get_posts(
             target_username=request.instagram_username,
             limit=request.max_posts,
-            delay_between_posts=3.0  # 3 seconds between each post to avoid rate limits
+            delay_between_posts=3.0,  # 3 seconds between each post to avoid rate limits
         )
 
         if posts:
             steps_completed["posts_scraped"] = True
             details["posts_count"] = len(posts)
-            logger.info(f"[ManualSetup] Scraped {len(posts)} posts from @{request.instagram_username}")
+            logger.info(
+                f"[ManualSetup] Scraped {len(posts)} posts from @{request.instagram_username}"
+            )
         else:
             errors.append("No posts found or profile is private")
 
@@ -2201,8 +3101,8 @@ async def manual_setup(request: ManualSetupRequest):
     # ==========================================================================
     if posts:
         try:
-            from ingestion.tone_analyzer import ToneAnalyzer
             from core.tone_service import save_tone_profile
+            from ingestion.tone_analyzer import ToneAnalyzer
 
             # Convert posts to dict format
             posts_data = [
@@ -2213,9 +3113,10 @@ async def manual_setup(request: ManualSetupRequest):
                     "permalink": post.permalink,
                     "timestamp": post.timestamp.isoformat() if post.timestamp else None,
                     "likes_count": post.likes_count,
-                    "comments_count": post.comments_count
+                    "comments_count": post.comments_count,
                 }
-                for post in posts if post.caption
+                for post in posts
+                if post.caption
             ]
 
             if posts_data:
@@ -2230,9 +3131,11 @@ async def manual_setup(request: ManualSetupRequest):
                     "warmth": tone_profile.warmth,
                     "uses_emojis": tone_profile.uses_emojis,
                     "primary_language": tone_profile.primary_language,
-                    "signature_phrases": tone_profile.signature_phrases[:5]
+                    "signature_phrases": tone_profile.signature_phrases[:5],
                 }
-                logger.info(f"[ManualSetup] ToneProfile generated: {tone_profile.formality}, {tone_profile.energy}")
+                logger.info(
+                    f"[ManualSetup] ToneProfile generated: {tone_profile.formality}, {tone_profile.energy}"
+                )
 
         except Exception as e:
             errors.append(f"ToneProfile generation failed: {str(e)}")
@@ -2260,14 +3163,10 @@ async def manual_setup(request: ManualSetupRequest):
                     "url": post.permalink,
                     "hashtags": post.hashtags[:10] if post.hashtags else [],
                     "likes": post.likes_count,
-                    "comments": post.comments_count
+                    "comments": post.comments_count,
                 }
 
-                rag.add_document(
-                    doc_id=doc_id,
-                    text=post.caption,
-                    metadata=metadata
-                )
+                rag.add_document(doc_id=doc_id, text=post.caption, metadata=metadata)
                 indexed_count += 1
 
             if indexed_count > 0:
@@ -2287,14 +3186,15 @@ async def manual_setup(request: ManualSetupRequest):
             from core.website_scraper import scrape_and_index_website
 
             result = await scrape_and_index_website(
-                creator_id=request.creator_id,
-                url=request.website_url
+                creator_id=request.creator_id, url=request.website_url
             )
 
             if result.get("success"):
                 steps_completed["website_scraped"] = True
                 details["website_pages"] = result.get("pages_indexed", 0)
-                logger.info(f"[ManualSetup] Website scraped: {result.get('pages_indexed', 0)} pages")
+                logger.info(
+                    f"[ManualSetup] Website scraped: {result.get('pages_indexed', 0)} pages"
+                )
             else:
                 errors.append(f"Website scraping: {result.get('error', 'Unknown error')}")
 
@@ -2311,11 +3211,12 @@ async def manual_setup(request: ManualSetupRequest):
     # ==========================================================================
     if steps_completed["posts_scraped"] or steps_completed["tone_profile_generated"]:
         try:
-            from api.database import DATABASE_URL, SessionLocal
-            from api.models import Creator, Lead, Product
+            import random
             import uuid as uuid_module
             from datetime import datetime, timedelta
-            import random
+
+            from api.database import DATABASE_URL, SessionLocal
+            from api.models import Creator, Lead, Product
 
             if DATABASE_URL and SessionLocal:
                 session = SessionLocal()
@@ -2329,7 +3230,7 @@ async def manual_setup(request: ManualSetupRequest):
                             email=f"{request.creator_id}@clonnect.io",
                             bot_active=False,
                             onboarding_completed=False,
-                            copilot_mode=True
+                            copilot_mode=True,
                         )
                         session.add(creator)
                         session.commit()
@@ -2339,16 +3240,30 @@ async def manual_setup(request: ManualSetupRequest):
 
                     # Create demo products
                     demo_products = [
-                        {"name": "Consultoría 1:1", "price": 150.0, "description": "Sesión de consultoría personalizada de 1 hora"},
-                        {"name": "Curso Online", "price": 97.0, "description": "Acceso completo al curso con materiales"},
-                        {"name": "Mentoría Grupal", "price": 49.0, "description": "Sesión grupal mensual con Q&A"},
+                        {
+                            "name": "Consultoría 1:1",
+                            "price": 150.0,
+                            "description": "Sesión de consultoría personalizada de 1 hora",
+                        },
+                        {
+                            "name": "Curso Online",
+                            "price": 97.0,
+                            "description": "Acceso completo al curso con materiales",
+                        },
+                        {
+                            "name": "Mentoría Grupal",
+                            "price": 49.0,
+                            "description": "Sesión grupal mensual con Q&A",
+                        },
                     ]
 
                     products_created = 0
                     for prod in demo_products:
-                        existing = session.query(Product).filter_by(
-                            creator_id=creator_uuid, name=prod["name"]
-                        ).first()
+                        existing = (
+                            session.query(Product)
+                            .filter_by(creator_id=creator_uuid, name=prod["name"])
+                            .first()
+                        )
                         if not existing:
                             new_product = Product(
                                 id=uuid_module.uuid4(),
@@ -2356,7 +3271,7 @@ async def manual_setup(request: ManualSetupRequest):
                                 name=prod["name"],
                                 price=prod["price"],
                                 description=prod["description"],
-                                is_active=True
+                                is_active=True,
                             )
                             session.add(new_product)
                             products_created += 1
@@ -2399,7 +3314,9 @@ async def manual_setup(request: ManualSetupRequest):
                     session.commit()
                     details["demo_leads_created"] = leads_created
                     details["demo_products_created"] = products_created
-                    logger.info(f"[ManualSetup] Created {leads_created} demo leads and {products_created} demo products")
+                    logger.info(
+                        f"[ManualSetup] Created {leads_created} demo leads and {products_created} demo products"
+                    )
 
                 finally:
                     session.close()
@@ -2420,8 +3337,9 @@ async def manual_setup(request: ManualSetupRequest):
         if DATABASE_URL and SessionLocal:
             session = SessionLocal()
             try:
-                from api.models import Creator
                 import uuid as uuid_module
+
+                from api.models import Creator
 
                 creator = session.query(Creator).filter_by(name=request.creator_id).first()
 
@@ -2433,7 +3351,7 @@ async def manual_setup(request: ManualSetupRequest):
                         email=f"{request.creator_id}@clonnect.io",
                         bot_active=should_complete,
                         onboarding_completed=should_complete,
-                        copilot_mode=True
+                        copilot_mode=True,
                     )
                     session.add(creator)
                     logger.info(f"[ManualSetup] Created new creator: {request.creator_id}")
@@ -2442,10 +3360,14 @@ async def manual_setup(request: ManualSetupRequest):
                     if should_complete:
                         creator.bot_active = True
                         creator.onboarding_completed = True
-                        logger.info(f"[ManualSetup] Updated creator (completed): {request.creator_id}")
+                        logger.info(
+                            f"[ManualSetup] Updated creator (completed): {request.creator_id}"
+                        )
                     else:
                         # Keep onboarding_completed=false so user can retry
-                        logger.info(f"[ManualSetup] Setup failed, keeping onboarding incomplete: {request.creator_id}")
+                        logger.info(
+                            f"[ManualSetup] Setup failed, keeping onboarding incomplete: {request.creator_id}"
+                        )
 
                 session.commit()
                 steps_completed["onboarding_completed"] = should_complete
@@ -2462,25 +3384,28 @@ async def manual_setup(request: ManualSetupRequest):
     # RESULT
     # ==========================================================================
     success = (
-        steps_completed["posts_scraped"] and
-        steps_completed["tone_profile_generated"] and
-        steps_completed["bot_activated"]
+        steps_completed["posts_scraped"]
+        and steps_completed["tone_profile_generated"]
+        and steps_completed["bot_activated"]
     )
 
-    logger.info(f"[ManualSetup] Completed for {request.creator_id}: success={success}, steps={steps_completed}")
+    logger.info(
+        f"[ManualSetup] Completed for {request.creator_id}: success={success}, steps={steps_completed}"
+    )
 
     return ManualSetupResponse(
         success=success,
         creator_id=request.creator_id,
         steps_completed=steps_completed,
         details=details,
-        errors=errors
+        errors=errors,
     )
 
 
 # =============================================================================
 # FULL RESET - Delete ALL data for a creator (for testing)
 # =============================================================================
+
 
 @router.delete("/full-reset/{creator_id}")
 async def full_reset_creator(creator_id: str, email: Optional[str] = None):
@@ -2511,13 +3436,13 @@ async def full_reset_creator(creator_id: str, email: Optional[str] = None):
         "instagram_posts": 0,
         "content_chunks": 0,
         "tone_profile": False,
-        "content_index": False
+        "content_index": False,
     }
     errors = []
 
     try:
         from api.database import DATABASE_URL, SessionLocal
-        from api.models import Creator, Lead, Product, Message, UserCreator
+        from api.models import Creator, Lead, Message, Product, UserCreator
 
         if not DATABASE_URL or not SessionLocal:
             return {"success": False, "error": "Database not configured"}
@@ -2540,11 +3465,17 @@ async def full_reset_creator(creator_id: str, email: Optional[str] = None):
                 deleted["leads"] = session.query(Lead).filter_by(creator_id=creator_uuid).delete()
 
                 # Delete products
-                deleted["products"] = session.query(Product).filter_by(creator_id=creator_uuid).delete()
+                deleted["products"] = (
+                    session.query(Product).filter_by(creator_id=creator_uuid).delete()
+                )
 
                 # Delete user_creators relationships (MUST be before creator delete)
-                user_creators_deleted = session.query(UserCreator).filter_by(creator_id=creator_uuid).delete()
-                logger.info(f"[FullReset] Deleted {user_creators_deleted} user_creators relationships")
+                user_creators_deleted = (
+                    session.query(UserCreator).filter_by(creator_id=creator_uuid).delete()
+                )
+                logger.info(
+                    f"[FullReset] Deleted {user_creators_deleted} user_creators relationships"
+                )
 
                 # Delete creator
                 session.delete(creator)
@@ -2556,6 +3487,7 @@ async def full_reset_creator(creator_id: str, email: Optional[str] = None):
             if email:
                 try:
                     from api.models import User
+
                     user = session.query(User).filter_by(email=email).first()
                     if user:
                         session.delete(user)
@@ -2571,7 +3503,7 @@ async def full_reset_creator(creator_id: str, email: Optional[str] = None):
 
         # Delete Instagram posts from DB
         try:
-            from core.tone_profile_db import delete_instagram_posts_db, delete_content_chunks_db
+            from core.tone_profile_db import delete_content_chunks_db, delete_instagram_posts_db
 
             posts_deleted = await delete_instagram_posts_db(creator_id)
             deleted["instagram_posts"] = posts_deleted or 0
@@ -2585,6 +3517,7 @@ async def full_reset_creator(creator_id: str, email: Optional[str] = None):
         # Delete ToneProfile
         try:
             from core.tone_service import delete_tone_profile
+
             deleted["tone_profile"] = delete_tone_profile(creator_id)
         except Exception as e:
             errors.append(f"ToneProfile deletion failed: {str(e)}")
@@ -2592,14 +3525,15 @@ async def full_reset_creator(creator_id: str, email: Optional[str] = None):
         # Delete ContentIndex files
         try:
             from core.citation_service import delete_content_index
+
             deleted["content_index"] = delete_content_index(creator_id)
         except Exception as e:
             errors.append(f"ContentIndex deletion failed: {str(e)}")
 
         # Delete local data files
         try:
-            from pathlib import Path
             import shutil
+            from pathlib import Path
 
             paths_to_delete = [
                 Path(f"data/content_index/{creator_id}"),
@@ -2625,31 +3559,31 @@ async def full_reset_creator(creator_id: str, email: Optional[str] = None):
             "creator_id": creator_id,
             "email": email,
             "deleted": deleted,
-            "errors": errors if errors else None
+            "errors": errors if errors else None,
         }
 
     except Exception as e:
         logger.error(f"[FullReset] Error: {e}")
         import traceback
-        return {
-            "success": False,
-            "error": str(e),
-            "traceback": traceback.format_exc()
-        }
+
+        return {"success": False, "error": str(e), "traceback": traceback.format_exc()}
 
 
 # =============================================================================
 # INSTAGRAM API SYNC - Sync posts using Instagram Graph API
 # =============================================================================
 
+
 class InstagramAPISyncRequest(BaseModel):
     """Request para sincronizar posts desde Instagram API."""
+
     creator_id: str
     limit: int = 25
 
 
 class InstagramAPISyncResponse(BaseModel):
     """Response de sincronización de Instagram API."""
+
     success: bool
     creator_id: str
     posts_fetched: int
@@ -2690,7 +3624,9 @@ async def sync_instagram_from_api(request: InstagramAPISyncRequest):
             creator = session.query(Creator).filter_by(name=request.creator_id).first()
 
             if not creator:
-                raise HTTPException(status_code=404, detail=f"Creator {request.creator_id} not found")
+                raise HTTPException(
+                    status_code=404, detail=f"Creator {request.creator_id} not found"
+                )
 
             if not creator.instagram_token:
                 raise HTTPException(status_code=400, detail="Creator has no Instagram token")
@@ -2709,8 +3645,8 @@ async def sync_instagram_from_api(request: InstagramAPISyncRequest):
                 params={
                     "fields": "id,caption,media_type,timestamp,permalink,like_count,comments_count",
                     "limit": request.limit,
-                    "access_token": access_token
-                }
+                    "access_token": access_token,
+                },
             )
 
             data = response.json()
@@ -2725,7 +3661,7 @@ async def sync_instagram_from_api(request: InstagramAPISyncRequest):
                     posts_saved=0,
                     rag_chunks_created=0,
                     tone_profile_updated=False,
-                    errors=errors
+                    errors=errors,
                 )
 
             posts = data.get("data", [])
@@ -2742,15 +3678,13 @@ async def sync_instagram_from_api(request: InstagramAPISyncRequest):
                 posts_saved=0,
                 rag_chunks_created=0,
                 tone_profile_updated=False,
-                errors=errors
+                errors=errors,
             )
 
         # Convert to DB format and save
-        from core.tone_profile_db import (
-            save_instagram_posts_db,
-            save_content_chunks_db
-        )
         import hashlib
+
+        from core.tone_profile_db import save_content_chunks_db, save_instagram_posts_db
 
         posts_data = []
         chunks_data = []
@@ -2763,39 +3697,43 @@ async def sync_instagram_from_api(request: InstagramAPISyncRequest):
             post_id = post.get("id", "")
 
             # Format for instagram_posts table
-            posts_data.append({
-                "id": post_id,
-                "post_id": post_id,
-                "caption": caption,
-                "permalink": post.get("permalink", ""),
-                "media_type": post.get("media_type", ""),
-                "timestamp": post.get("timestamp", ""),
-                "like_count": post.get("like_count", 0),
-                "comments_count": post.get("comments_count", 0)
-            })
+            posts_data.append(
+                {
+                    "id": post_id,
+                    "post_id": post_id,
+                    "caption": caption,
+                    "permalink": post.get("permalink", ""),
+                    "media_type": post.get("media_type", ""),
+                    "timestamp": post.get("timestamp", ""),
+                    "like_count": post.get("like_count", 0),
+                    "comments_count": post.get("comments_count", 0),
+                }
+            )
 
             # Format for content_chunks (RAG)
             chunk_id = hashlib.sha256(f"{request.creator_id}:{post_id}:0".encode()).hexdigest()[:32]
-            first_line = caption.split('\n')[0][:100] if caption else ""
+            first_line = caption.split("\n")[0][:100] if caption else ""
 
-            chunks_data.append({
-                "id": chunk_id,
-                "chunk_id": chunk_id,
-                "creator_id": request.creator_id,
-                "content": caption,
-                "source_type": "instagram_post",
-                "source_id": post_id,
-                "source_url": post.get("permalink", ""),
-                "title": first_line,
-                "chunk_index": 0,
-                "total_chunks": 1,
-                "metadata": {
-                    "media_type": post.get("media_type"),
-                    "likes": post.get("like_count", 0),
-                    "comments": post.get("comments_count", 0),
-                    "timestamp": post.get("timestamp")
+            chunks_data.append(
+                {
+                    "id": chunk_id,
+                    "chunk_id": chunk_id,
+                    "creator_id": request.creator_id,
+                    "content": caption,
+                    "source_type": "instagram_post",
+                    "source_id": post_id,
+                    "source_url": post.get("permalink", ""),
+                    "title": first_line,
+                    "chunk_index": 0,
+                    "total_chunks": 1,
+                    "metadata": {
+                        "media_type": post.get("media_type"),
+                        "likes": post.get("like_count", 0),
+                        "comments": post.get("comments_count", 0),
+                        "timestamp": post.get("timestamp"),
+                    },
                 }
-            })
+            )
 
         # Save to DB
         if posts_data:
@@ -2808,8 +3746,8 @@ async def sync_instagram_from_api(request: InstagramAPISyncRequest):
 
         # Update ToneProfile
         try:
-            from ingestion.tone_analyzer import ToneAnalyzer
             from core.tone_service import save_tone_profile
+            from ingestion.tone_analyzer import ToneAnalyzer
 
             posts_for_tone = [
                 {
@@ -2819,9 +3757,10 @@ async def sync_instagram_from_api(request: InstagramAPISyncRequest):
                     "permalink": p.get("permalink"),
                     "timestamp": p.get("timestamp"),
                     "likes_count": p.get("like_count", 0),
-                    "comments_count": p.get("comments_count", 0)
+                    "comments_count": p.get("comments_count", 0),
                 }
-                for p in posts_data if p.get("caption")
+                for p in posts_data
+                if p.get("caption")
             ]
 
             if posts_for_tone:
@@ -2842,7 +3781,7 @@ async def sync_instagram_from_api(request: InstagramAPISyncRequest):
             posts_saved=posts_saved,
             rag_chunks_created=rag_chunks_created,
             tone_profile_updated=tone_profile_updated,
-            errors=errors if errors else []
+            errors=errors if errors else [],
         )
 
     except HTTPException:
@@ -2850,6 +3789,7 @@ async def sync_instagram_from_api(request: InstagramAPISyncRequest):
     except Exception as e:
         logger.error(f"[InstagramAPISync] Error: {e}")
         import traceback
+
         traceback.print_exc()
         errors.append(str(e))
         return InstagramAPISyncResponse(
@@ -2859,7 +3799,7 @@ async def sync_instagram_from_api(request: InstagramAPISyncRequest):
             posts_saved=posts_saved,
             rag_chunks_created=rag_chunks_created,
             tone_profile_updated=tone_profile_updated,
-            errors=errors
+            errors=errors,
         )
 
 
@@ -2867,8 +3807,10 @@ async def sync_instagram_from_api(request: InstagramAPISyncRequest):
 # INSTAGRAM DM HISTORY SYNC
 # =============================================================================
 
+
 class InstagramDMSyncRequest(BaseModel):
     """Request for syncing Instagram DM history"""
+
     creator_id: str
     max_conversations: int = 50
     max_messages_per_conversation: int = 50
@@ -2882,6 +3824,7 @@ dm_sync_status: Dict[str, Dict] = {}
 
 class ConversationInsight(BaseModel):
     """Insights from a conversation"""
+
     follower_id: str
     follower_username: str
     total_messages: int
@@ -2892,6 +3835,7 @@ class ConversationInsight(BaseModel):
 
 class InstagramDMSyncResponse(BaseModel):
     """Response from Instagram DM sync"""
+
     success: bool
     creator_id: str
     conversations_fetched: int = 0
@@ -2913,12 +3857,13 @@ async def sync_instagram_dms(request: InstagramDMSyncRequest):
     - Retry automático en rate limits
     """
     import asyncio
-    import httpx
     from datetime import datetime
+
+    import httpx
     from core.instagram_rate_limiter import (
         InstagramRateLimiter,
         InstagramRateLimitError,
-        RateLimitConfig
+        RateLimitConfig,
     )
 
     errors = []
@@ -2934,7 +3879,7 @@ async def sync_instagram_dms(request: InstagramDMSyncRequest):
         base_delay=30.0,
         calls_per_minute=15,  # Conservador para evitar limits
         batch_size=5,
-        batch_delay=10.0
+        batch_delay=10.0,
     )
     limiter = InstagramRateLimiter(config)
 
@@ -2950,19 +3895,33 @@ async def sync_instagram_dms(request: InstagramDMSyncRequest):
             # Get creator and token
             creator = session.query(Creator).filter_by(name=request.creator_id).first()
             if not creator:
-                raise HTTPException(status_code=404, detail=f"Creator not found: {request.creator_id}")
+                raise HTTPException(
+                    status_code=404, detail=f"Creator not found: {request.creator_id}"
+                )
 
             if not creator.instagram_token:
                 raise HTTPException(status_code=400, detail="Instagram token not configured")
 
             ig_user_id = creator.instagram_user_id or creator.instagram_page_id
+            page_id = creator.instagram_page_id
             if not ig_user_id:
                 raise HTTPException(status_code=400, detail="Instagram user ID not configured")
 
             access_token = creator.instagram_token
-            api_base = "https://graph.instagram.com/v21.0"
 
-            logger.info(f"[DMSync] Starting sync for {request.creator_id} with rate limiting")
+            # Estrategia dual: usar Facebook API con page_id si existe, sino Instagram API
+            if page_id:
+                api_base = "https://graph.facebook.com/v21.0"
+                conv_id_for_api = page_id
+                conv_extra_params = {"platform": "instagram"}
+            else:
+                api_base = "https://graph.instagram.com/v21.0"
+                conv_id_for_api = ig_user_id
+                conv_extra_params = {}
+
+            logger.info(
+                f"[DMSync] Starting sync for {request.creator_id} using {'Facebook' if page_id else 'Instagram'} API"
+            )
 
             async with httpx.AsyncClient(timeout=60.0) as client:
 
@@ -2984,7 +3943,9 @@ async def sync_instagram_dms(request: InstagramDMSyncRequest):
                                 raise InstagramRateLimitError(error.get("message", "Rate limit"))
 
                             delay = limiter.calculate_backoff(attempt)
-                            logger.warning(f"[DMSync] Rate limit hit, waiting {delay:.0f}s (attempt {attempt + 1})")
+                            logger.warning(
+                                f"[DMSync] Rate limit hit, waiting {delay:.0f}s (attempt {attempt + 1})"
+                            )
                             await asyncio.sleep(delay)
                             continue
 
@@ -2996,20 +3957,20 @@ async def sync_instagram_dms(request: InstagramDMSyncRequest):
                     return {"error": {"message": "Max retries exceeded"}, "data": []}
 
                 # 1. Fetch conversations (1 llamada)
-                conv_url = f"{api_base}/{ig_user_id}/conversations"
-                conv_data = await fetch_with_retry(conv_url, {
+                conv_url = f"{api_base}/{conv_id_for_api}/conversations"
+                conv_params = {
+                    **conv_extra_params,
                     "access_token": access_token,
-                    "limit": min(request.max_conversations, 50)
-                })
+                    "limit": min(request.max_conversations, 50),
+                }
+                conv_data = await fetch_with_retry(conv_url, conv_params)
 
                 if "error" in conv_data and conv_data["error"]:
                     error_msg = conv_data["error"].get("message", "Unknown error")
                     errors.append(f"Conversations API error: {error_msg}")
                     logger.error(f"[DMSync] Conversations error: {conv_data['error']}")
                     return InstagramDMSyncResponse(
-                        success=False,
-                        creator_id=request.creator_id,
-                        errors=errors
+                        success=False, creator_id=request.creator_id, errors=errors
                     )
 
                 conversations = conv_data.get("data", [])
@@ -3025,7 +3986,9 @@ async def sync_instagram_dms(request: InstagramDMSyncRequest):
                     batch_end = min(batch_start + batch_size, len(conversations))
                     batch = conversations[batch_start:batch_end]
 
-                    logger.info(f"[DMSync] Processing batch {batch_idx + 1}/{total_batches} ({len(batch)} conversations)")
+                    logger.info(
+                        f"[DMSync] Processing batch {batch_idx + 1}/{total_batches} ({len(batch)} conversations)"
+                    )
 
                     for conv in batch:
                         conv_id = conv.get("id")
@@ -3035,14 +3998,19 @@ async def sync_instagram_dms(request: InstagramDMSyncRequest):
                         try:
                             # Fetch messages for this conversation
                             msg_url = f"{api_base}/{conv_id}/messages"
-                            msg_data = await fetch_with_retry(msg_url, {
-                                "fields": "id,message,from,to,created_time",
-                                "access_token": access_token,
-                                "limit": min(request.max_messages_per_conversation, 50)
-                            })
+                            msg_data = await fetch_with_retry(
+                                msg_url,
+                                {
+                                    "fields": "id,message,from,to,created_time",
+                                    "access_token": access_token,
+                                    "limit": min(request.max_messages_per_conversation, 50),
+                                },
+                            )
 
                             if "error" in msg_data and msg_data["error"]:
-                                logger.warning(f"[DMSync] Messages error for conv {conv_id}: {msg_data['error']}")
+                                logger.warning(
+                                    f"[DMSync] Messages error for conv {conv_id}: {msg_data['error']}"
+                                )
                                 continue
 
                             messages = msg_data.get("data", [])
@@ -3078,11 +4046,15 @@ async def sync_instagram_dms(request: InstagramDMSyncRequest):
                                 continue
 
                             # Create or get Lead
-                            lead = session.query(Lead).filter_by(
-                                creator_id=creator.id,
-                                platform="instagram",
-                                platform_user_id=follower_id
-                            ).first()
+                            lead = (
+                                session.query(Lead)
+                                .filter_by(
+                                    creator_id=creator.id,
+                                    platform="instagram",
+                                    platform_user_id=follower_id,
+                                )
+                                .first()
+                            )
 
                             if not lead:
                                 lead = Lead(
@@ -3090,7 +4062,7 @@ async def sync_instagram_dms(request: InstagramDMSyncRequest):
                                     platform="instagram",
                                     platform_user_id=follower_id,
                                     username=follower_username,
-                                    status="active"
+                                    status="active",
                                 )
                                 session.add(lead)
                                 session.commit()
@@ -3110,9 +4082,11 @@ async def sync_instagram_dms(request: InstagramDMSyncRequest):
                                 if not msg_text:
                                     continue
 
-                                existing = session.query(Message).filter_by(
-                                    platform_message_id=msg_id
-                                ).first()
+                                existing = (
+                                    session.query(Message)
+                                    .filter_by(platform_message_id=msg_id)
+                                    .first()
+                                )
 
                                 if existing:
                                     continue
@@ -3123,7 +4097,9 @@ async def sync_instagram_dms(request: InstagramDMSyncRequest):
                                 created_at = None
                                 if msg_time:
                                     try:
-                                        created_at = datetime.fromisoformat(msg_time.replace("+0000", "+00:00"))
+                                        created_at = datetime.fromisoformat(
+                                            msg_time.replace("+0000", "+00:00")
+                                        )
                                     except:
                                         pass
 
@@ -3133,7 +4109,7 @@ async def sync_instagram_dms(request: InstagramDMSyncRequest):
                                     content=msg_text,
                                     status="sent",
                                     platform_message_id=msg_id,
-                                    approved_by="historical_sync"
+                                    approved_by="historical_sync",
                                 )
                                 if created_at:
                                     new_msg.created_at = created_at
@@ -3146,11 +4122,18 @@ async def sync_instagram_dms(request: InstagramDMSyncRequest):
                                     if "?" in msg_text:
                                         conv_questions.append(msg_text.strip())
                                     lower_text = msg_text.lower()
-                                    if any(w in lower_text for w in ["precio", "cuesta", "vale", "pagar"]):
+                                    if any(
+                                        w in lower_text
+                                        for w in ["precio", "cuesta", "vale", "pagar"]
+                                    ):
                                         conv_topics.append("precio")
-                                    if any(w in lower_text for w in ["info", "información", "detalles"]):
+                                    if any(
+                                        w in lower_text for w in ["info", "información", "detalles"]
+                                    ):
                                         conv_topics.append("información")
-                                    if any(w in lower_text for w in ["comprar", "quiero", "interesa"]):
+                                    if any(
+                                        w in lower_text for w in ["comprar", "quiero", "interesa"]
+                                    ):
                                         conv_topics.append("intención_compra")
 
                             # Calculate intent score
@@ -3176,20 +4159,26 @@ async def sync_instagram_dms(request: InstagramDMSyncRequest):
                             session.commit()
 
                             if conv_messages_saved > 0:
-                                logger.info(f"[DMSync] Saved {conv_messages_saved} msgs for {follower_username}")
+                                logger.info(
+                                    f"[DMSync] Saved {conv_messages_saved} msgs for {follower_username}"
+                                )
 
                                 if request.analyze_insights:
-                                    insights.append(ConversationInsight(
-                                        follower_id=follower_id,
-                                        follower_username=follower_username or "unknown",
-                                        total_messages=len(messages),
-                                        topics=list(set(conv_topics)),
-                                        purchase_intent_score=intent_score,
-                                        common_questions=conv_questions[:5]
-                                    ))
+                                    insights.append(
+                                        ConversationInsight(
+                                            follower_id=follower_id,
+                                            follower_username=follower_username or "unknown",
+                                            total_messages=len(messages),
+                                            topics=list(set(conv_topics)),
+                                            purchase_intent_score=intent_score,
+                                            common_questions=conv_questions[:5],
+                                        )
+                                    )
 
                         except InstagramRateLimitError as e:
-                            logger.error(f"[DMSync] Rate limit exceeded for conv {conv_id}: {e.message}")
+                            logger.error(
+                                f"[DMSync] Rate limit exceeded for conv {conv_id}: {e.message}"
+                            )
                             errors.append(f"Rate limit: {e.message}")
                             # Guardar progreso parcial
                             session.commit()
@@ -3206,7 +4195,9 @@ async def sync_instagram_dms(request: InstagramDMSyncRequest):
         finally:
             session.close()
 
-        logger.info(f"[DMSync] Complete: {conversations_fetched} convs, {messages_saved} msgs, {leads_created} leads, {rate_limit_hits} rate limits")
+        logger.info(
+            f"[DMSync] Complete: {conversations_fetched} convs, {messages_saved} msgs, {leads_created} leads, {rate_limit_hits} rate limits"
+        )
 
         return InstagramDMSyncResponse(
             success=True,
@@ -3215,7 +4206,7 @@ async def sync_instagram_dms(request: InstagramDMSyncRequest):
             messages_saved=messages_saved,
             leads_created=leads_created,
             insights=insights if insights else None,
-            errors=errors if errors else []
+            errors=errors if errors else [],
         )
 
     except HTTPException:
@@ -3223,6 +4214,7 @@ async def sync_instagram_dms(request: InstagramDMSyncRequest):
     except Exception as e:
         logger.error(f"[DMSync] Error: {e}")
         import traceback
+
         traceback.print_exc()
         errors.append(str(e))
         return InstagramDMSyncResponse(
@@ -3231,7 +4223,7 @@ async def sync_instagram_dms(request: InstagramDMSyncRequest):
             conversations_fetched=conversations_fetched,
             messages_saved=messages_saved,
             leads_created=leads_created,
-            errors=errors
+            errors=errors,
         )
 
 
@@ -3239,23 +4231,22 @@ async def sync_instagram_dms(request: InstagramDMSyncRequest):
 # BACKGROUND DM SYNC
 # =============================================================================
 
+
 async def _background_dm_sync(
-    creator_id: str,
-    max_conversations: int,
-    max_messages_per_conversation: int,
-    job_id: str
+    creator_id: str, max_conversations: int, max_messages_per_conversation: int, job_id: str
 ):
     """
     Background task for DM sync.
     Updates dm_sync_status with progress.
     """
     import asyncio
-    import httpx
     from datetime import datetime
+
+    import httpx
     from core.instagram_rate_limiter import (
         InstagramRateLimiter,
         InstagramRateLimitError,
-        RateLimitConfig
+        RateLimitConfig,
     )
 
     # Initialize status
@@ -3269,7 +4260,7 @@ async def _background_dm_sync(
         "current_batch": 0,
         "total_batches": 0,
         "errors": [],
-        "completed_at": None
+        "completed_at": None,
     }
 
     errors = []
@@ -3278,11 +4269,7 @@ async def _background_dm_sync(
     leads_created = 0
 
     config = RateLimitConfig(
-        max_retries=5,
-        base_delay=30.0,
-        calls_per_minute=15,
-        batch_size=5,
-        batch_delay=10.0
+        max_retries=5, base_delay=30.0, calls_per_minute=15, batch_size=5, batch_delay=10.0
     )
     limiter = InstagramRateLimiter(config)
 
@@ -3304,12 +4291,25 @@ async def _background_dm_sync(
                 return
 
             ig_user_id = creator.instagram_user_id or creator.instagram_page_id
+            page_id = creator.instagram_page_id
             access_token = creator.instagram_token
-            api_base = "https://graph.instagram.com/v21.0"
 
-            logger.info(f"[BGSync] Starting background sync for {creator_id}")
+            # Estrategia dual: usar Facebook API con page_id si existe, sino Instagram API
+            if page_id:
+                api_base = "https://graph.facebook.com/v21.0"
+                conv_id_for_api = page_id
+                conv_extra_params = {"platform": "instagram"}
+            else:
+                api_base = "https://graph.instagram.com/v21.0"
+                conv_id_for_api = ig_user_id
+                conv_extra_params = {}
+
+            logger.info(
+                f"[BGSync] Starting background sync for {creator_id} using {'Facebook' if page_id else 'Instagram'} API"
+            )
 
             async with httpx.AsyncClient(timeout=60.0) as client:
+
                 async def fetch_with_retry(url: str, params: dict, max_retries: int = 5) -> dict:
                     for attempt in range(max_retries):
                         await limiter.throttle()
@@ -3329,15 +4329,19 @@ async def _background_dm_sync(
                     return {"error": {"message": "Max retries"}, "data": []}
 
                 # Fetch conversations
-                conv_url = f"{api_base}/{ig_user_id}/conversations"
-                conv_data = await fetch_with_retry(conv_url, {
+                conv_url = f"{api_base}/{conv_id_for_api}/conversations"
+                conv_params = {
+                    **conv_extra_params,
                     "access_token": access_token,
-                    "limit": min(max_conversations, 50)
-                })
+                    "limit": min(max_conversations, 50),
+                }
+                conv_data = await fetch_with_retry(conv_url, conv_params)
 
                 if "error" in conv_data and conv_data["error"]:
                     dm_sync_status[job_id]["status"] = "failed"
-                    dm_sync_status[job_id]["errors"].append(f"API error: {conv_data['error'].get('message')}")
+                    dm_sync_status[job_id]["errors"].append(
+                        f"API error: {conv_data['error'].get('message')}"
+                    )
                     return
 
                 conversations = conv_data.get("data", [])
@@ -3363,11 +4367,14 @@ async def _background_dm_sync(
 
                         try:
                             msg_url = f"{api_base}/{conv_id}/messages"
-                            msg_data = await fetch_with_retry(msg_url, {
-                                "fields": "id,message,from,to,created_time",
-                                "access_token": access_token,
-                                "limit": min(max_messages_per_conversation, 50)
-                            })
+                            msg_data = await fetch_with_retry(
+                                msg_url,
+                                {
+                                    "fields": "id,message,from,to,created_time",
+                                    "access_token": access_token,
+                                    "limit": min(max_messages_per_conversation, 50),
+                                },
+                            )
 
                             if "error" in msg_data and msg_data["error"]:
                                 continue
@@ -3400,11 +4407,15 @@ async def _background_dm_sync(
                                 continue
 
                             # Get or create lead
-                            lead = session.query(Lead).filter_by(
-                                creator_id=creator.id,
-                                platform="instagram",
-                                platform_user_id=follower_id
-                            ).first()
+                            lead = (
+                                session.query(Lead)
+                                .filter_by(
+                                    creator_id=creator.id,
+                                    platform="instagram",
+                                    platform_user_id=follower_id,
+                                )
+                                .first()
+                            )
 
                             if not lead:
                                 lead = Lead(
@@ -3412,7 +4423,7 @@ async def _background_dm_sync(
                                     platform="instagram",
                                     platform_user_id=follower_id,
                                     username=follower_username,
-                                    status="active"
+                                    status="active",
                                 )
                                 session.add(lead)
                                 session.commit()
@@ -3427,18 +4438,18 @@ async def _background_dm_sync(
                                 from_id = from_data.get("id")
                                 role = "user" if from_id == follower_id else "assistant"
 
-                                existing = session.query(Message).filter_by(
-                                    lead_id=lead.id,
-                                    platform_message_id=msg_id
-                                ).first()
+                                existing = (
+                                    session.query(Message)
+                                    .filter_by(lead_id=lead.id, platform_message_id=msg_id)
+                                    .first()
+                                )
 
                                 if not existing and msg_content:
                                     new_msg = Message(
                                         lead_id=lead.id,
-                                        platform="instagram",
-                                        platform_message_id=msg_id,
+                                        role=role,
                                         content=msg_content,
-                                        role=role
+                                        platform_message_id=msg_id,
                                     )
                                     if msg.get("created_time"):
                                         try:
@@ -3483,8 +4494,7 @@ async def _background_dm_sync(
 
 @router.post("/sync-instagram-dms-background")
 async def sync_instagram_dms_background(
-    request: InstagramDMSyncRequest,
-    background_tasks: BackgroundTasks
+    request: InstagramDMSyncRequest, background_tasks: BackgroundTasks
 ):
     """
     Start a background DM sync job.
@@ -3500,7 +4510,7 @@ async def sync_instagram_dms_background(
         request.creator_id,
         request.max_conversations,
         request.max_messages_per_conversation,
-        job_id
+        job_id,
     )
 
     return {
@@ -3508,7 +4518,7 @@ async def sync_instagram_dms_background(
         "job_id": job_id,
         "creator_id": request.creator_id,
         "check_status_url": f"/onboarding/sync-instagram-dms-status/{job_id}",
-        "started_at": datetime.now().isoformat()
+        "started_at": datetime.now().isoformat(),
     }
 
 

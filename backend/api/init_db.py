@@ -48,6 +48,12 @@ def run_migrations(engine):
         ("creators", "knowledge_about", "JSON"),
         # Onboarding status
         ("creators", "onboarding_completed", "BOOLEAN DEFAULT FALSE"),
+        # Clone setup progress (persisted for polling across deploys)
+        ("creators", "clone_status", "VARCHAR(20) DEFAULT 'pending'"),
+        ("creators", "clone_progress", "JSON"),
+        ("creators", "clone_started_at", "TIMESTAMPTZ"),
+        ("creators", "clone_completed_at", "TIMESTAMPTZ"),
+        ("creators", "clone_error", "TEXT"),  # Error message if clone_status is "error"
         # Price for booking links
         ("booking_links", "price", "INTEGER DEFAULT 0"),
         # Payment link for products (Stripe/PayPal)

@@ -1,10 +1,12 @@
 import { TrendingUp, TrendingDown, MessageCircle, Users, AlertCircle, Loader2, Power, PowerOff, UserCheck, Bot, DollarSign, Zap, ArrowUpRight, ChevronRight } from "lucide-react";
 import { Area, AreaChart, ResponsiveContainer, XAxis, YAxis, Tooltip } from "recharts";
+import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { useDashboard, useToggleBot, useRevenue } from "@/hooks/useApi";
 import { useToast } from "@/hooks/use-toast";
 import { getPurchaseIntent } from "@/types/api";
 import { cn } from "@/lib/utils";
+import EscalationsCard from "@/components/EscalationsCard";
 
 export default function Dashboard() {
   const { data, isLoading, error } = useDashboard();
@@ -112,6 +114,7 @@ export default function Dashboard() {
     const intent = (getPurchaseIntent(lead) * 100).toFixed(0);
     return {
       id: `lead-${i}`,
+      follower_id: lead.follower_id,
       name: displayName,
       intent,
     };
@@ -210,6 +213,9 @@ export default function Dashboard() {
         </div>
       </div>
 
+      {/* Escalations - needs attention */}
+      <EscalationsCard maxItems={5} />
+
       {/* Two columns */}
       <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
         {/* Activity Chart */}
@@ -259,15 +265,21 @@ export default function Dashboard() {
         <div className="lg:col-span-2 p-5 rounded-2xl bg-card border border-border/50">
           <div className="flex items-center justify-between mb-4">
             <h3 className="text-sm font-medium">Leads calientes</h3>
-            {hotLeads.length > 5 && (
-              <span className="text-xs text-muted-foreground">+{hotLeads.length - 5} más</span>
-            )}
+            <Link
+              to="/leads"
+              className="text-xs text-primary hover:text-primary/80 transition-colors flex items-center gap-1"
+            >
+              Ver todos
+              {hotLeads.length > 5 && <span className="text-muted-foreground">(+{hotLeads.length - 5})</span>}
+              <ChevronRight className="w-3 h-3" />
+            </Link>
           </div>
           <div className="space-y-2">
             {actionItems.length > 0 ? (
               actionItems.map((item) => (
-                <div
+                <Link
                   key={item.id}
+                  to={`/inbox?id=${item.follower_id}`}
                   className="flex items-center justify-between p-3 rounded-lg bg-muted/30 hover:bg-muted/50 transition-colors cursor-pointer group"
                 >
                   <div className="flex items-center gap-3 min-w-0">
@@ -280,7 +292,7 @@ export default function Dashboard() {
                     <span className="text-xs text-rose-500 font-medium">{item.intent}%</span>
                     <ChevronRight className="w-4 h-4 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
                   </div>
-                </div>
+                </Link>
               ))
             ) : (
               <div className="text-center py-8 text-muted-foreground">

@@ -1,0 +1,55 @@
+{
+  "follower_id": "ig_bamos_test_1769282530",
+  "creator_id": "stefano_bonanno",
+  "username": "bamos_barcelona_mobility",
+  "name": "Silvia",
+  "first_contact": "2026-01-24T20:22:11.485954",
+  "last_contact": "2026-01-24T19:22:17.915426+00:00",
+  "total_messages": 2,
+  "interests": [],
+  "products_discussed": [
+    "69790358-60de-4066-b5bc-eab2d10a1538"
+  ],
+  "objections_raised": [],
+  "purchase_intent_score": 0.75,
+  "is_lead": true,
+  "is_customer": false,
+  "status": "hot",
+  "preferred_language": "es",
+  "last_messages": [
+    {
+      "role": "user",
+      "content": "Hola! Les escribe Silvia de Bamos, ya habíamos trabajado antes con grupos de estudiantes Erasmus",
+      "timestamp": "2026-01-24T19:22:12.072154+00:00"
+    },
+    {
+      "role": "assistant",
+      "content": "¡Hola Silvia! 👋 Soy el asistente virtual de Stefano Bonanno.\n\nVeo que mencionas una propuesta de colaboración. ¡Genial! Le paso tu mensaje a Stefano Bonanno para que pueda atenderte personalmente.\n\n¿Hay algo específico que quieras que le comente?",
+      "timestamp": "2026-01-24T19:22:12.072154+00:00"
+    },
+    {
+      "role": "user",
+      "content": "Les escribo en esta ocasión porque tenemos un grupo de estudiantes del área Sports and fitness que llegan de Irlanda en febrero, que quizás podrían interesarles",
+      "timestamp": "2026-01-24T19:22:17.915426+00:00"
+    },
+    {
+      "role": "assistant",
+      "content": "¡Qué emocionante, Silvia! 🎉 Un grupo de estudiantes de Irlanda en el área de Sports and Fitness suena genial.",
+      "timestamp": "2026-01-24T19:22:17.915426+00:00"
+    }
+  ],
+  "links_sent_count": 0,
+  "last_link_message_num": 0,
+  "objections_handled": [],
+  "arguments_used": [],
+  "greeting_variant_index": 0,
+  "last_greeting_style": "hola",
+  "last_emojis_used": [
+    "👋",
+    "🎉"
+  ],
+  "messages_since_name_used": 0,
+  "alternative_contact": "",
+  "alternative_contact_type": "",
+  "contact_requested": false
+}

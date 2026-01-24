@@ -15,17 +15,18 @@ Dependencias:
 import asyncio
 import logging
 import tempfile
-from pathlib import Path
-from datetime import datetime
-from typing import Optional, List, Dict
 from dataclasses import dataclass, field
+from datetime import datetime
 from enum import Enum
+from pathlib import Path
+from typing import Dict, List, Optional
 
 logger = logging.getLogger(__name__)
 
 
 class AudioFormat(str, Enum):
     """Formatos de audio soportados."""
+
     MP3 = "mp3"
     WAV = "wav"
     M4A = "m4a"
@@ -37,6 +38,7 @@ class AudioFormat(str, Enum):
 @dataclass
 class TranscriptSegment:
     """Segmento de transcripcion con timestamps."""
+
     text: str
     start_time: float  # segundos
     end_time: float
@@ -51,13 +53,14 @@ class TranscriptSegment:
             "text": self.text,
             "start_time": self.start_time,
             "end_time": self.end_time,
-            "confidence": self.confidence
+            "confidence": self.confidence,
         }
 
 
 @dataclass
 class Transcript:
     """Transcripcion completa de un archivo de audio/video."""
+
     source_file: str
     full_text: str
     segments: List[TranscriptSegment] = field(default_factory=list)
@@ -74,7 +77,7 @@ class Transcript:
             "language": self.language,
             "duration_seconds": self.duration_seconds,
             "transcribed_at": self.transcribed_at,
-            "model_used": self.model_used
+            "model_used": self.model_used,
         }
 
     def get_text_at_timestamp(self, timestamp: float) -> Optional[str]:
@@ -92,7 +95,7 @@ class Transcriber:
     Uso:
         transcriber = Transcriber()
         transcript = await transcriber.transcribe_file("audio.mp3")
-        print(transcript.full_text)
+        # Access result: transcript.full_text
     """
 
     SUPPORTED_FORMATS = {"mp3", "wav", "m4a", "ogg", "webm", "mp4", "mov", "avi"}
@@ -106,15 +109,13 @@ class Transcriber:
             api_key: OpenAI API key. Si no se proporciona, usa OPENAI_API_KEY env var.
         """
         import os
+
         self.api_key = api_key or os.getenv("OPENAI_API_KEY")
         if not self.api_key:
             logger.warning("No OpenAI API key provided. Transcription will fail.")
 
     async def transcribe_file(
-        self,
-        file_path: str,
-        language: str = "es",
-        include_timestamps: bool = True
+        self, file_path: str, language: str = "es", include_timestamps: bool = True
     ) -> Transcript:
         """
         Transcribe un archivo de audio/video.
@@ -134,7 +135,9 @@ class Transcriber:
 
         suffix = path.suffix.lower().lstrip(".")
         if suffix not in self.SUPPORTED_FORMATS:
-            raise ValueError(f"Formato no soportado: {suffix}. Soportados: {self.SUPPORTED_FORMATS}")
+            raise ValueError(
+                f"Formato no soportado: {suffix}. Soportados: {self.SUPPORTED_FORMATS}"
+            )
 
         # Verificar tamano
         size_mb = path.stat().st_size / (1024 * 1024)
@@ -143,16 +146,11 @@ class Transcriber:
 
         # Transcribir con Whisper
         return await self._call_whisper_api(
-            file_path=str(path),
-            language=language,
-            include_timestamps=include_timestamps
+            file_path=str(path), language=language, include_timestamps=include_timestamps
         )
 
     async def transcribe_url(
-        self,
-        url: str,
-        language: str = "es",
-        include_timestamps: bool = True
+        self, url: str, language: str = "es", include_timestamps: bool = True
     ) -> Transcript:
         """
         Descarga y transcribe audio/video desde URL.
@@ -187,10 +185,7 @@ class Transcriber:
             Path(tmp_path).unlink(missing_ok=True)
 
     async def _call_whisper_api(
-        self,
-        file_path: str,
-        language: str,
-        include_timestamps: bool
+        self, file_path: str, language: str, include_timestamps: bool
     ) -> Transcript:
         """Llama a la API de Whisper."""
         try:
@@ -206,22 +201,22 @@ class Transcriber:
                     model="whisper-1",
                     file=audio_file,
                     language=language,
-                    response_format=response_format
+                    response_format=response_format,
                 )
 
             # Parsear respuesta segun formato
-            if include_timestamps and hasattr(response, 'segments'):
+            if include_timestamps and hasattr(response, "segments"):
                 segments = [
                     TranscriptSegment(
                         text=seg.get("text", "").strip(),
                         start_time=seg.get("start", 0),
                         end_time=seg.get("end", 0),
-                        confidence=seg.get("confidence", 1.0) if "confidence" in seg else 1.0
+                        confidence=seg.get("confidence", 1.0) if "confidence" in seg else 1.0,
                     )
                     for seg in response.segments
                 ]
                 full_text = response.text
-                duration = response.duration if hasattr(response, 'duration') else 0
+                duration = response.duration if hasattr(response, "duration") else 0
             else:
                 full_text = response if isinstance(response, str) else response.text
                 segments = []
@@ -233,7 +228,7 @@ class Transcriber:
                 segments=segments,
                 language=language,
                 duration_seconds=duration,
-                model_used="whisper-1"
+                model_used="whisper-1",
             )
 
         except ImportError:

@@ -276,9 +276,10 @@ AFFIRMATION_WORDS = {
     'bueno', 'bien', 'perfecto', 'genial', 'venga', 'va',
     'de acuerdo', 'por supuesto', 'obvio', 'seguro', 'ya',
     'eso', 'exacto', 'correcto', 'así es', 'afirmativo',
+    'entendido', 'entiendo', 'comprendo', 'listo', 'hecho',
     # Variantes con signos
     'si!', 'sí!', 'ok!', 'vale!', 'dale!', 'claro!',
-    'si.', 'sí.', 'ok.', 'vale.', 'claro.',
+    'si.', 'sí.', 'ok.', 'vale.', 'claro.', 'entendido.',
 }
 
 

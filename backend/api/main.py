@@ -3,18 +3,19 @@ Clonnect Creators API
 API simplificada para el clon de IA de creadores de contenido
 """
 
-import os
+import asyncio
 import json
 import logging
-import time
+import os
 import shutil
-import asyncio
-import httpx
+import time
 from datetime import datetime, timezone
-from typing import Optional, List, Dict, Any
-from fastapi import FastAPI, HTTPException, Request, Depends, Header, Body
+from typing import Any, Dict, List, Optional
+
+import httpx
+from fastapi import Body, Depends, FastAPI, Header, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import Response, HTMLResponse, PlainTextResponse, FileResponse
+from fastapi.responses import FileResponse, HTMLResponse, PlainTextResponse, Response
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
@@ -55,9 +56,11 @@ CalendarBookingModel = None
 DATABASE_URL = None
 
 try:
-    from api.database import DATABASE_URL, get_db, SessionLocal
+    from api.database import DATABASE_URL, SessionLocal, get_db
     from api.init_db import init_database
-    from api.models import BookingLink as BookingLinkModel, CalendarBooking as CalendarBookingModel
+    from api.models import BookingLink as BookingLinkModel
+    from api.models import CalendarBooking as CalendarBookingModel
+
     if DATABASE_URL:
         init_database()
         print(f"PostgreSQL connected - SessionLocal={SessionLocal is not None}")
@@ -66,11 +69,13 @@ try:
 except Exception as e:
     print(f"PostgreSQL init failed: {e}")
     import traceback
+
     traceback.print_exc()
 
 # Database service
 try:
     from api import db_service
+
     USE_DB = True
     print("Database service loaded")
 except Exception as e:
@@ -80,26 +85,35 @@ except Exception as e:
 logging.warning("=" * 60)
 logging.warning("========== API MAIN V7 LOADED ==========")
 
-# Core imports
-from core.products import ProductManager, Product
-from core.creator_config import CreatorConfigManager, CreatorConfig
+from core.alerts import get_alert_manager
+from core.auth import get_auth_manager, is_admin_key, validate_api_key
+from core.calendar import get_calendar_manager
+from core.creator_config import CreatorConfig, CreatorConfigManager
 from core.dm_agent import DMResponderAgent
-from core.rag import SimpleRAG
+from core.gdpr import ConsentType, get_gdpr_manager
+from core.instagram_handler import InstagramHandler, get_instagram_handler
 from core.llm import get_llm_client
 from core.memory import MemoryStore
-from core.instagram_handler import InstagramHandler, get_instagram_handler
-from core.whatsapp import get_whatsapp_handler
-from core.gdpr import get_gdpr_manager, ConsentType
+from core.metrics import (
+    PROMETHEUS_AVAILABLE,
+    MetricsMiddleware,
+    get_content_type,
+    get_metrics,
+    record_message_processed,
+    update_health_status,
+)
 from core.payments import get_payment_manager
-from core.calendar import get_calendar_manager
-from core.auth import get_auth_manager, validate_api_key, is_admin_key
-from core.alerts import get_alert_manager
-from core.metrics import get_metrics, get_content_type, MetricsMiddleware, record_message_processed, update_health_status, PROMETHEUS_AVAILABLE
+
+# Core imports
+from core.products import Product, ProductManager
+from core.rag import SimpleRAG
 from core.telegram_registry import get_telegram_registry
+from core.whatsapp import get_whatsapp_handler
 
 # Optional psutil for memory health checks
 try:
     import psutil
+
     PSUTIL_AVAILABLE = True
 except ImportError:
     PSUTIL_AVAILABLE = False
@@ -119,7 +133,7 @@ rag = SimpleRAG()
 app = FastAPI(
     title="Clonnect Creators",
     description="API para el clon de IA de creadores de contenido",
-    version="1.0.0"
+    version="1.0.0",
 )
 
 # =============================================================================
@@ -160,6 +174,7 @@ RATE_LIMIT_ENABLED = os.getenv("RATE_LIMIT_ENABLED", "true").lower() == "true"
 if RATE_LIMIT_ENABLED:
     try:
         from api.middleware.rate_limit import RateLimitMiddleware
+
         app.add_middleware(
             RateLimitMiddleware,
             requests_per_minute=60,
@@ -174,6 +189,7 @@ if RATE_LIMIT_ENABLED:
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 
+
 @app.exception_handler(RequestValidationError)
 async def validation_exception_handler(request: Request, exc: RequestValidationError):
     logger = logging.getLogger("api.validation")
@@ -182,10 +198,8 @@ async def validation_exception_handler(request: Request, exc: RequestValidationE
     logger.error(f"Method: {request.method}")
     logger.error(f"Errors: {exc.errors()}")
     # Note: Don't try to read request.body() here - it may already be consumed
-    return JSONResponse(
-        status_code=422,
-        content={"detail": exc.errors()}
-    )
+    return JSONResponse(status_code=422, content={"detail": exc.errors()})
+
 
 # Metrics middleware
 if PROMETHEUS_AVAILABLE:
@@ -197,7 +211,7 @@ if PROMETHEUS_AVAILABLE:
 # ---------------------------------------------------------
 # ROUTERS (modularized endpoints)
 # ---------------------------------------------------------
-from api.routers import health, dashboard, config, leads, products
+from api.routers import config, dashboard, health, leads, products
 
 app.include_router(health.router)
 app.include_router(dashboard.router)
@@ -206,12 +220,26 @@ app.include_router(leads.router)
 app.include_router(products.router)
 
 # Additional routers
-from api.routers import messages, payments, calendar, nurturing
+from api.routers import calendar, messages, nurturing, payments
+
 app.include_router(messages.router)
 app.include_router(payments.router)
 app.include_router(calendar.router)
 app.include_router(nurturing.router)
-from api.routers import knowledge, analytics, onboarding, admin, connections, oauth, booking, tone, citations, copilot, ingestion_v2
+from api.routers import (
+    admin,
+    analytics,
+    booking,
+    citations,
+    connections,
+    copilot,
+    ingestion_v2,
+    knowledge,
+    oauth,
+    onboarding,
+    tone,
+)
+
 app.include_router(knowledge.router)
 app.include_router(analytics.router)
 app.include_router(onboarding.router)
@@ -226,25 +254,32 @@ app.include_router(ingestion_v2.router)
 
 # Ingestion router (anti-hallucination pipeline)
 from api.routers import ingestion
+
 app.include_router(ingestion.router)
 
 # Ingestion V2 router (zero-hallucination pipeline)
 from api.routers import ingestion_v2
+
 app.include_router(ingestion_v2.router)
 
 # Instagram router (multi-creator support)
 from api.routers import instagram as instagram_router
+
 app.include_router(instagram_router.router)
 
 # Preview router (link previews with screenshots)
 from api.routers import preview as preview_router
+
 app.include_router(preview_router.router)
 
 # Authentication router
 from api.auth import router as auth_router
+
 app.include_router(auth_router)
 
-logging.info("Routers loaded: health, dashboard, config, leads, products, analytics, connections, oauth, booking, tone, citations, copilot, ingestion, instagram, auth")
+logging.info(
+    "Routers loaded: health, dashboard, config, leads, products, analytics, connections, oauth, booking, tone, citations, copilot, ingestion, instagram, auth"
+)
 # AUTHENTICATION
 # ---------------------------------------------------------
 # Endpoints publicos (no requieren autenticacion)
@@ -278,13 +313,11 @@ WEBHOOK_ENDPOINTS = {
     "/webhook/calcom",
     "/webhook/telegram",
     "/instagram/webhook",  # Legacy
-    "/telegram/webhook",   # Legacy
+    "/telegram/webhook",  # Legacy
 }
 
 
-async def get_current_creator(
-    x_api_key: Optional[str] = Header(None, alias="X-API-Key")
-) -> str:
+async def get_current_creator(x_api_key: Optional[str] = Header(None, alias="X-API-Key")) -> str:
     """
     Dependency para obtener el creator_id del API key.
     Lanza HTTPException 401 si no hay key o es invalida.
@@ -293,7 +326,7 @@ async def get_current_creator(
         raise HTTPException(
             status_code=401,
             detail="API key required. Include X-API-Key header.",
-            headers={"WWW-Authenticate": "ApiKey"}
+            headers={"WWW-Authenticate": "ApiKey"},
         )
 
     creator_id = validate_api_key(x_api_key)
@@ -302,7 +335,7 @@ async def get_current_creator(
         raise HTTPException(
             status_code=401,
             detail="Invalid or expired API key.",
-            headers={"WWW-Authenticate": "ApiKey"}
+            headers={"WWW-Authenticate": "ApiKey"},
         )
 
     return creator_id
@@ -321,41 +354,31 @@ async def get_optional_creator(
     return validate_api_key(x_api_key)
 
 
-async def require_admin(
-    x_api_key: Optional[str] = Header(None, alias="X-API-Key")
-) -> str:
+async def require_admin(x_api_key: Optional[str] = Header(None, alias="X-API-Key")) -> str:
     """
     Dependency que requiere admin key.
     Lanza HTTPException 403 si no es admin.
     """
     if not x_api_key:
         raise HTTPException(
-            status_code=401,
-            detail="API key required.",
-            headers={"WWW-Authenticate": "ApiKey"}
+            status_code=401, detail="API key required.", headers={"WWW-Authenticate": "ApiKey"}
         )
 
     if is_admin_key(x_api_key):
         return "__admin__"
 
-    raise HTTPException(
-        status_code=403,
-        detail="Admin privileges required for this operation."
-    )
+    raise HTTPException(status_code=403, detail="Admin privileges required for this operation.")
 
 
 async def require_creator_or_admin(
-    creator_id: str,
-    x_api_key: Optional[str] = Header(None, alias="X-API-Key")
+    creator_id: str, x_api_key: Optional[str] = Header(None, alias="X-API-Key")
 ) -> str:
     """
     Verifica que el API key pertenece al creator_id o es admin.
     """
     if not x_api_key:
         raise HTTPException(
-            status_code=401,
-            detail="API key required.",
-            headers={"WWW-Authenticate": "ApiKey"}
+            status_code=401, detail="API key required.", headers={"WWW-Authenticate": "ApiKey"}
         )
 
     if is_admin_key(x_api_key):
@@ -364,15 +387,11 @@ async def require_creator_or_admin(
     key_creator_id = validate_api_key(x_api_key)
 
     if not key_creator_id:
-        raise HTTPException(
-            status_code=401,
-            detail="Invalid API key."
-        )
+        raise HTTPException(status_code=401, detail="Invalid API key.")
 
     if key_creator_id != creator_id:
         raise HTTPException(
-            status_code=403,
-            detail="You don't have permission to access this creator's data."
+            status_code=403, detail="You don't have permission to access this creator's data."
         )
 
     return key_creator_id
@@ -411,12 +430,14 @@ class CreateProductRequest(BaseModel):
 
 class SendMessageRequest(BaseModel):
     """Request to send a manual message to a follower"""
+
     follower_id: str
     message: str
 
 
 class UpdateLeadStatusRequest(BaseModel):
     """Request to update lead status in pipeline"""
+
     status: str  # cold, warm, hot, customer
 
 
@@ -433,24 +454,17 @@ async def check_llm_health() -> Dict[str, Any]:
         llm_client = get_llm_client()
 
         # Hacer una llamada simple de prueba
-        response = await llm_client.generate(
-            prompt="Responde solo 'ok'",
-            max_tokens=5
-        )
+        response = await llm_client.generate(prompt="Responde solo 'ok'", max_tokens=5)
 
         latency_ms = int((time.time() - start) * 1000)
 
         return {
             "status": "ok",
             "latency_ms": latency_ms,
-            "provider": os.getenv("LLM_PROVIDER", "openai")
+            "provider": os.getenv("LLM_PROVIDER", "openai"),
         }
     except Exception as e:
-        return {
-            "status": "error",
-            "error": str(e),
-            "provider": os.getenv("LLM_PROVIDER", "openai")
-        }
+        return {"status": "error", "error": str(e), "provider": os.getenv("LLM_PROVIDER", "openai")}
 
 
 def check_disk_health() -> Dict[str, Any]:
@@ -460,7 +474,7 @@ def check_disk_health() -> Dict[str, Any]:
 
         # Obtener info del disco
         total, used, free = shutil.disk_usage(data_path)
-        free_gb = round(free / (1024 ** 3), 2)
+        free_gb = round(free / (1024**3), 2)
 
         # Warning si menos de 1GB, error si menos de 100MB
         if free_gb < 0.1:
@@ -473,8 +487,8 @@ def check_disk_health() -> Dict[str, Any]:
         return {
             "status": status,
             "free_gb": free_gb,
-            "total_gb": round(total / (1024 ** 3), 2),
-            "used_percent": round((used / total) * 100, 1)
+            "total_gb": round(total / (1024**3), 2),
+            "used_percent": round((used / total) * 100, 1),
         }
     except Exception as e:
         return {"status": "error", "error": str(e)}
@@ -487,7 +501,7 @@ def check_memory_health() -> Dict[str, Any]:
             return {"status": "unknown", "error": "psutil not installed"}
 
         mem = psutil.virtual_memory()
-        free_mb = round(mem.available / (1024 ** 2), 1)
+        free_mb = round(mem.available / (1024**2), 1)
 
         # Warning si menos de 256MB, error si menos de 128MB
         if free_mb < 128:
@@ -500,8 +514,8 @@ def check_memory_health() -> Dict[str, Any]:
         return {
             "status": status,
             "free_mb": free_mb,
-            "total_mb": round(mem.total / (1024 ** 2), 1),
-            "used_percent": round(mem.percent, 1)
+            "total_mb": round(mem.total / (1024**2), 1),
+            "used_percent": round(mem.percent, 1),
         }
     except Exception as e:
         return {"status": "error", "error": str(e)}
@@ -526,11 +540,7 @@ def check_data_dir_health() -> Dict[str, Any]:
                 missing.append(subdir)
 
         if missing:
-            return {
-                "status": "warning",
-                "path": data_path,
-                "missing_subdirs": missing
-            }
+            return {"status": "warning", "path": data_path, "missing_subdirs": missing}
 
         # Verificar que es escribible
         test_file = os.path.join(data_path, ".health_check")
@@ -543,11 +553,7 @@ def check_data_dir_health() -> Dict[str, Any]:
             logger.warning(f"Data path not writable: {e}")
             writable = False
 
-        return {
-            "status": "ok" if writable else "error",
-            "path": data_path,
-            "writable": writable
-        }
+        return {"status": "ok" if writable else "error", "path": data_path, "writable": writable}
     except Exception as e:
         return {"status": "error", "error": str(e)}
 
@@ -583,7 +589,7 @@ async def health():
     checks = {
         "disk": check_disk_health(),
         "memory": check_memory_health(),
-        "data_dir": check_data_dir_health()
+        "data_dir": check_data_dir_health(),
     }
 
     # LLM check es async
@@ -597,9 +603,7 @@ async def health():
             alert_manager = get_alert_manager()
             failed_checks = {k: v for k, v in checks.items() if v.get("status") == "error"}
             await alert_manager.alert_health_check_failed(
-                check_name="system",
-                status=overall_status,
-                details=failed_checks
+                check_name="system", status=overall_status, details=failed_checks
             )
         except Exception as e:
             logger.debug(f"Could not send health alert: {e}")
@@ -609,7 +613,7 @@ async def health():
         "timestamp": datetime.now(timezone.utc).isoformat(),
         "checks": checks,
         "version": VERSION,
-        "service": "clonnect-creators"
+        "service": "clonnect-creators",
     }
 
 
@@ -625,18 +629,21 @@ async def debug_database():
         "tables": [],
         "booking_links_count": 0,
         "booking_links_sample": [],
-        "error": None
+        "error": None,
     }
 
     if SessionLocal and BookingLinkModel:
         try:
             from sqlalchemy import text
+
             db = SessionLocal()
             try:
                 # Check tables
-                tables_result = db.execute(text(
-                    "SELECT table_name FROM information_schema.tables WHERE table_schema = 'public'"
-                ))
+                tables_result = db.execute(
+                    text(
+                        "SELECT table_name FROM information_schema.tables WHERE table_schema = 'public'"
+                    )
+                )
                 result["tables"] = [row[0] for row in tables_result.fetchall()]
 
                 # Check booking_links
@@ -645,11 +652,19 @@ async def debug_database():
                     result["booking_links_count"] = count_result.scalar()
 
                     # Get sample data
-                    sample_result = db.execute(text(
-                        "SELECT id, creator_id, meeting_type, title, platform FROM booking_links LIMIT 5"
-                    ))
+                    sample_result = db.execute(
+                        text(
+                            "SELECT id, creator_id, meeting_type, title, platform FROM booking_links LIMIT 5"
+                        )
+                    )
                     result["booking_links_sample"] = [
-                        {"id": str(row[0]), "creator_id": row[1], "meeting_type": row[2], "title": row[3], "platform": row[4]}
+                        {
+                            "id": str(row[0]),
+                            "creator_id": row[1],
+                            "meeting_type": row[2],
+                            "title": row[3],
+                            "platform": row[4],
+                        }
                         for row in sample_result.fetchall()
                     ]
             finally:
@@ -657,6 +672,7 @@ async def debug_database():
         except Exception as e:
             result["error"] = str(e)
             import traceback
+
             result["traceback"] = traceback.format_exc()
     else:
         result["error"] = "Database not configured - SessionLocal or BookingLinkModel is None"
@@ -671,24 +687,37 @@ async def debug_products(creator_name: str):
     if SessionLocal:
         try:
             from sqlalchemy import text
+
             db = SessionLocal()
             try:
                 # Find creator
-                creator_result = db.execute(text(
-                    "SELECT id, name FROM creators WHERE name = :name"
-                ), {"name": creator_name})
+                creator_result = db.execute(
+                    text("SELECT id, name FROM creators WHERE name = :name"), {"name": creator_name}
+                )
                 creator_row = creator_result.fetchone()
                 if creator_row:
                     result["creator_found"] = True
                     result["creator_id"] = str(creator_row[0])
                     # Get products with new taxonomy fields
-                    products_result = db.execute(text(
-                        "SELECT id, name, price, currency, category, product_type, is_free, short_description, payment_link, is_active FROM products WHERE creator_id = :cid"
-                    ), {"cid": creator_row[0]})
+                    products_result = db.execute(
+                        text(
+                            "SELECT id, name, price, currency, category, product_type, is_free, short_description, payment_link, is_active FROM products WHERE creator_id = :cid"
+                        ),
+                        {"cid": creator_row[0]},
+                    )
                     result["products"] = [
-                        {"id": str(row[0]), "name": row[1], "price": row[2], "currency": row[3],
-                         "category": row[4], "product_type": row[5], "is_free": row[6],
-                         "short_description": row[7], "payment_link": row[8], "is_active": row[9]}
+                        {
+                            "id": str(row[0]),
+                            "name": row[1],
+                            "price": row[2],
+                            "currency": row[3],
+                            "category": row[4],
+                            "product_type": row[5],
+                            "is_free": row[6],
+                            "short_description": row[7],
+                            "payment_link": row[8],
+                            "is_active": row[9],
+                        }
                         for row in products_result.fetchall()
                     ]
                     result["count"] = len(result["products"])
@@ -697,6 +726,7 @@ async def debug_products(creator_name: str):
         except Exception as e:
             result["error"] = str(e)
             import traceback
+
             result["traceback"] = traceback.format_exc()
     return result
 
@@ -712,32 +742,38 @@ async def debug_insert_booking_link():
         "error": None,
         "link_id": None,
         "SessionLocal": SessionLocal is not None,
-        "BookingLinkModel": BookingLinkModel is not None
+        "BookingLinkModel": BookingLinkModel is not None,
     }
 
     # Try direct SQL insert first
     if SessionLocal:
         try:
-            from sqlalchemy import text
             import uuid
+
+            from sqlalchemy import text
 
             db = SessionLocal()
             try:
                 test_id = str(uuid.uuid4())
 
                 # Direct SQL INSERT
-                db.execute(text("""
+                db.execute(
+                    text(
+                        """
                     INSERT INTO booking_links (id, creator_id, meeting_type, title, duration_minutes, platform, is_active)
                     VALUES (:id, :creator_id, :meeting_type, :title, :duration, :platform, :is_active)
-                """), {
-                    "id": test_id,
-                    "creator_id": "test_debug",
-                    "meeting_type": "debug_test",
-                    "title": "Debug Test Link",
-                    "duration": 30,
-                    "platform": "manual",
-                    "is_active": True
-                })
+                """
+                    ),
+                    {
+                        "id": test_id,
+                        "creator_id": "test_debug",
+                        "meeting_type": "debug_test",
+                        "title": "Debug Test Link",
+                        "duration": 30,
+                        "platform": "manual",
+                        "is_active": True,
+                    },
+                )
                 db.commit()
 
                 result["success"] = True
@@ -745,7 +781,9 @@ async def debug_insert_booking_link():
                 result["message"] = "Direct SQL INSERT worked!"
 
                 # Verify it was inserted
-                verify = db.execute(text("SELECT COUNT(*) FROM booking_links WHERE creator_id = 'test_debug'"))
+                verify = db.execute(
+                    text("SELECT COUNT(*) FROM booking_links WHERE creator_id = 'test_debug'")
+                )
                 result["verify_count"] = verify.scalar()
 
             finally:
@@ -753,6 +791,7 @@ async def debug_insert_booking_link():
         except Exception as e:
             result["error"] = str(e)
             import traceback
+
             result["traceback"] = traceback.format_exc()
     else:
         result["error"] = "SessionLocal is None - database not configured"
@@ -776,7 +815,7 @@ async def full_diagnosis():
         "telegram": {},
         "creator_stefano_auto": {},
         "environment": {},
-        "recent_activity": {}
+        "recent_activity": {},
     }
 
     # === 1. SERVER STATUS ===
@@ -784,20 +823,20 @@ async def full_diagnosis():
         "status": "running",
         "python_version": os.popen("python --version 2>&1").read().strip(),
         "working_directory": os.getcwd(),
-        "uptime_note": "Server is responding to requests"
+        "uptime_note": "Server is responding to requests",
     }
 
     # === 2. DATABASE STATUS ===
     db_status = {
         "DATABASE_URL_configured": bool(DATABASE_URL),
         "SessionLocal_available": SessionLocal is not None,
-        "connection_test": "not_tested"
+        "connection_test": "not_tested",
     }
 
     if SessionLocal:
         try:
+            from api.models import Creator, Lead, Message
             from sqlalchemy import text
-            from api.models import Creator, Message, Lead
 
             session = SessionLocal()
             try:
@@ -806,9 +845,11 @@ async def full_diagnosis():
                 db_status["connection_test"] = "SUCCESS"
 
                 # Get tables
-                tables_result = session.execute(text(
-                    "SELECT table_name FROM information_schema.tables WHERE table_schema = 'public'"
-                ))
+                tables_result = session.execute(
+                    text(
+                        "SELECT table_name FROM information_schema.tables WHERE table_schema = 'public'"
+                    )
+                )
                 db_status["tables"] = [row[0] for row in tables_result.fetchall()]
 
                 # Count creators
@@ -816,10 +857,11 @@ async def full_diagnosis():
                 db_status["total_creators"] = creator_count
 
                 # Count pending responses (Messages with status='pending_approval')
-                pending_count = session.query(Message).filter_by(
-                    status="pending_approval",
-                    role="assistant"
-                ).count()
+                pending_count = (
+                    session.query(Message)
+                    .filter_by(status="pending_approval", role="assistant")
+                    .count()
+                )
                 db_status["total_pending_responses"] = pending_count
 
             finally:
@@ -835,45 +877,54 @@ async def full_diagnosis():
         "copilot_mode": None,
         "bot_active": None,
         "pending_responses_count": 0,
-        "last_pending_response": None
+        "last_pending_response": None,
     }
 
     if SessionLocal:
         try:
-            from api.models import Creator, Message, Lead
+            from api.models import Creator, Lead, Message
+
             session = SessionLocal()
             try:
                 creator = session.query(Creator).filter_by(name="stefano_auto").first()
                 if creator:
                     stefano_status["exists"] = True
-                    stefano_status["copilot_mode"] = getattr(creator, 'copilot_mode', None)
-                    stefano_status["bot_active"] = getattr(creator, 'bot_active', None)
+                    stefano_status["copilot_mode"] = getattr(creator, "copilot_mode", None)
+                    stefano_status["bot_active"] = getattr(creator, "bot_active", None)
 
                     # Get pending responses for stefano_auto via Lead -> Message
-                    pending = session.query(Message, Lead).join(
-                        Lead, Message.lead_id == Lead.id
-                    ).filter(
-                        Lead.creator_id == creator.id,
-                        Message.status == "pending_approval",
-                        Message.role == "assistant"
-                    ).order_by(Message.created_at.desc()).all()
+                    pending = (
+                        session.query(Message, Lead)
+                        .join(Lead, Message.lead_id == Lead.id)
+                        .filter(
+                            Lead.creator_id == creator.id,
+                            Message.status == "pending_approval",
+                            Message.role == "assistant",
+                        )
+                        .order_by(Message.created_at.desc())
+                        .all()
+                    )
 
                     stefano_status["pending_responses_count"] = len(pending)
 
                     if pending:
                         msg, lead = pending[0]
                         # Get user message for context
-                        user_msg = session.query(Message).filter(
-                            Message.lead_id == lead.id,
-                            Message.role == "user"
-                        ).order_by(Message.created_at.desc()).first()
+                        user_msg = (
+                            session.query(Message)
+                            .filter(Message.lead_id == lead.id, Message.role == "user")
+                            .order_by(Message.created_at.desc())
+                            .first()
+                        )
 
                         stefano_status["last_pending_response"] = {
                             "id": str(msg.id),
                             "created_at": msg.created_at.isoformat() if msg.created_at else None,
-                            "user_message": user_msg.content[:50] if user_msg and user_msg.content else None,
+                            "user_message": (
+                                user_msg.content[:50] if user_msg and user_msg.content else None
+                            ),
                             "suggested_response": msg.content[:50] if msg.content else None,
-                            "platform": lead.platform
+                            "platform": lead.platform,
                         }
             finally:
                 session.close()
@@ -886,11 +937,12 @@ async def full_diagnosis():
     telegram_status = {
         "bot_token_configured": bool(os.getenv("TELEGRAM_BOT_TOKEN")),
         "registered_bots": [],
-        "webhook_status": {}
+        "webhook_status": {},
     }
 
     try:
         from core.telegram_registry import get_telegram_registry
+
         registry = get_telegram_registry()
         bots = registry.list_bots()
         telegram_status["registered_bots"] = bots
@@ -902,13 +954,19 @@ async def full_diagnosis():
             if bot_token:
                 try:
                     async with httpx.AsyncClient(timeout=10.0) as client:
-                        response = await client.get(f"https://api.telegram.org/bot{bot_token}/getWebhookInfo")
+                        response = await client.get(
+                            f"https://api.telegram.org/bot{bot_token}/getWebhookInfo"
+                        )
                         webhook_info = response.json()
                         if webhook_info.get("ok"):
                             telegram_status["webhook_status"][bot_id] = {
                                 "url": webhook_info.get("result", {}).get("url", "NOT SET"),
-                                "pending_updates": webhook_info.get("result", {}).get("pending_update_count", 0),
-                                "last_error": webhook_info.get("result", {}).get("last_error_message")
+                                "pending_updates": webhook_info.get("result", {}).get(
+                                    "pending_update_count", 0
+                                ),
+                                "last_error": webhook_info.get("result", {}).get(
+                                    "last_error_message"
+                                ),
                             }
                 except Exception as e:
                     telegram_status["webhook_status"][bot_id] = {"error": str(e)}
@@ -919,15 +977,16 @@ async def full_diagnosis():
 
     # === 5. ENVIRONMENT (without sensitive values) ===
     env_vars = [
-        "DATABASE_URL", "GROQ_API_KEY", "TELEGRAM_BOT_TOKEN",
-        "RAILWAY_PUBLIC_URL", "RENDER_EXTERNAL_URL",
-        "OPENAI_API_KEY", "ANTHROPIC_API_KEY"
+        "DATABASE_URL",
+        "GROQ_API_KEY",
+        "TELEGRAM_BOT_TOKEN",
+        "RAILWAY_PUBLIC_URL",
+        "RENDER_EXTERNAL_URL",
+        "OPENAI_API_KEY",
+        "ANTHROPIC_API_KEY",
     ]
 
-    diagnosis["environment"] = {
-        var: "SET" if os.getenv(var) else "NOT SET"
-        for var in env_vars
-    }
+    diagnosis["environment"] = {var: "SET" if os.getenv(var) else "NOT SET" for var in env_vars}
 
     # === 6. QUICK SUMMARY ===
     diagnosis["summary"] = {
@@ -936,7 +995,7 @@ async def full_diagnosis():
         "copilot_mode": stefano_status.get("copilot_mode"),
         "pending_count": stefano_status.get("pending_responses_count", 0),
         "telegram_bots": len(telegram_status.get("registered_bots", [])),
-        "recommendation": ""
+        "recommendation": "",
     }
 
     # Build recommendation
@@ -944,13 +1003,21 @@ async def full_diagnosis():
         diagnosis["summary"]["recommendation"] = "Creator stefano_auto doesn't exist in DB!"
     elif stefano_status.get("copilot_mode") == True:
         if stefano_status.get("pending_responses_count", 0) > 0:
-            diagnosis["summary"]["recommendation"] = f"System working! {stefano_status['pending_responses_count']} messages waiting for approval in Copilot dashboard."
+            diagnosis["summary"][
+                "recommendation"
+            ] = f"System working! {stefano_status['pending_responses_count']} messages waiting for approval in Copilot dashboard."
         else:
-            diagnosis["summary"]["recommendation"] = "Copilot mode ON but no pending messages. Send a test message to the bot."
+            diagnosis["summary"][
+                "recommendation"
+            ] = "Copilot mode ON but no pending messages. Send a test message to the bot."
     elif stefano_status.get("copilot_mode") == False:
-        diagnosis["summary"]["recommendation"] = "Autopilot mode - bot should respond automatically."
+        diagnosis["summary"][
+            "recommendation"
+        ] = "Autopilot mode - bot should respond automatically."
     else:
-        diagnosis["summary"]["recommendation"] = "copilot_mode is NULL - defaulting to True (Copilot mode)."
+        diagnosis["summary"][
+            "recommendation"
+        ] = "copilot_mode is NULL - defaulting to True (Copilot mode)."
 
     return diagnosis
 
@@ -966,16 +1033,31 @@ async def test_telegram_flow():
     creator_id = "stefano_auto"
     try:
         from api.models import Creator
+
         session = SessionLocal()
         creator = session.query(Creator).filter_by(name=creator_id).first()
         session.close()
 
         if creator:
-            steps.append({"step": "1. Find creator", "status": "OK", "detail": f"Found {creator_id}"})
-            copilot_mode = getattr(creator, 'copilot_mode', True)
-            steps.append({"step": "2. Check copilot_mode", "status": "OK", "detail": f"copilot_mode = {copilot_mode}"})
+            steps.append(
+                {"step": "1. Find creator", "status": "OK", "detail": f"Found {creator_id}"}
+            )
+            copilot_mode = getattr(creator, "copilot_mode", True)
+            steps.append(
+                {
+                    "step": "2. Check copilot_mode",
+                    "status": "OK",
+                    "detail": f"copilot_mode = {copilot_mode}",
+                }
+            )
         else:
-            steps.append({"step": "1. Find creator", "status": "FAIL", "detail": f"Creator {creator_id} not found!"})
+            steps.append(
+                {
+                    "step": "1. Find creator",
+                    "status": "FAIL",
+                    "detail": f"Creator {creator_id} not found!",
+                }
+            )
             return {"steps": steps, "conclusion": "FAILED - Creator not found"}
     except Exception as e:
         steps.append({"step": "1. Find creator", "status": "ERROR", "detail": str(e)})
@@ -984,8 +1066,15 @@ async def test_telegram_flow():
     # Step 2: Try to generate a response
     try:
         from core.dm_agent import get_dm_agent
+
         agent = get_dm_agent(creator_id)
-        steps.append({"step": "3. Initialize DM Agent", "status": "OK", "detail": f"Agent ready for {creator_id}"})
+        steps.append(
+            {
+                "step": "3. Initialize DM Agent",
+                "status": "OK",
+                "detail": f"Agent ready for {creator_id}",
+            }
+        )
 
         # Process a test message
         response = await agent.process_dm(
@@ -993,29 +1082,34 @@ async def test_telegram_flow():
             message_text="hola, esto es una prueba de diagnóstico",
             message_id="diag_001",
             username="DiagnosticTest",
-            name="Test User"
+            name="Test User",
         )
 
-        steps.append({
-            "step": "4. Generate response",
-            "status": "OK",
-            "detail": f"Intent: {response.intent.value if hasattr(response.intent, 'value') else response.intent}, Response: {response.response_text[:80]}..."
-        })
+        steps.append(
+            {
+                "step": "4. Generate response",
+                "status": "OK",
+                "detail": f"Intent: {response.intent.value if hasattr(response.intent, 'value') else response.intent}, Response: {response.response_text[:80]}...",
+            }
+        )
     except Exception as e:
         steps.append({"step": "3-4. DM Agent", "status": "ERROR", "detail": str(e)})
         return {"steps": steps, "conclusion": f"FAILED at DM Agent - {e}"}
 
     # Step 3: Check what would happen based on copilot_mode
     if copilot_mode:
-        steps.append({
-            "step": "5. Copilot mode action",
-            "status": "INFO",
-            "detail": "Would save as pending_approval (not send immediately)"
-        })
+        steps.append(
+            {
+                "step": "5. Copilot mode action",
+                "status": "INFO",
+                "detail": "Would save as pending_approval (not send immediately)",
+            }
+        )
 
         # Try to create a pending response
         try:
             from core.copilot_service import get_copilot_service
+
             copilot = get_copilot_service()
 
             pending = await copilot.create_pending_response(
@@ -1026,31 +1120,39 @@ async def test_telegram_flow():
                 user_message="TEST - diagnostic message",
                 user_message_id="diag_001",
                 suggested_response=response.response_text,
-                intent=response.intent.value if hasattr(response.intent, 'value') else str(response.intent),
+                intent=(
+                    response.intent.value
+                    if hasattr(response.intent, "value")
+                    else str(response.intent)
+                ),
                 confidence=0.95,
                 username="DiagnosticTest",
-                full_name="Test User"
+                full_name="Test User",
             )
 
-            steps.append({
-                "step": "6. Create pending response",
-                "status": "OK",
-                "detail": f"Created pending ID: {pending.id}"
-            })
+            steps.append(
+                {
+                    "step": "6. Create pending response",
+                    "status": "OK",
+                    "detail": f"Created pending ID: {pending.id}",
+                }
+            )
         except Exception as e:
             steps.append({"step": "6. Create pending", "status": "ERROR", "detail": str(e)})
     else:
-        steps.append({
-            "step": "5. Autopilot mode action",
-            "status": "INFO",
-            "detail": "Would send response immediately via Telegram"
-        })
+        steps.append(
+            {
+                "step": "5. Autopilot mode action",
+                "status": "INFO",
+                "detail": "Would send response immediately via Telegram",
+            }
+        )
 
     return {
         "steps": steps,
         "conclusion": "SUCCESS - All steps passed",
         "copilot_mode": copilot_mode,
-        "note": "If copilot_mode=True, messages go to dashboard for approval. Check /copilot/stefano_auto/pending"
+        "note": "If copilot_mode=True, messages go to dashboard for approval. Check /copilot/stefano_auto/pending",
     }
 
 
@@ -1085,11 +1187,7 @@ async def health_ready():
         # Verificar acceso a datos
         data_check = check_data_dir_health()
         if data_check.get("status") == "error":
-            return {
-                "status": "error",
-                "ready": False,
-                "reason": "data_dir_not_accessible"
-            }
+            return {"status": "error", "ready": False, "reason": "data_dir_not_accessible"}
 
         # Verificar LLM
         llm_check = await check_llm_health()
@@ -1098,21 +1196,13 @@ async def health_ready():
                 "status": "error",
                 "ready": False,
                 "reason": "llm_not_accessible",
-                "llm_error": llm_check.get("error")
+                "llm_error": llm_check.get("error"),
             }
 
-        return {
-            "status": "ok",
-            "ready": True,
-            "llm_latency_ms": llm_check.get("latency_ms")
-        }
+        return {"status": "ok", "ready": True, "llm_latency_ms": llm_check.get("latency_ms")}
 
     except Exception as e:
-        return {
-            "status": "error",
-            "ready": False,
-            "reason": str(e)
-        }
+        return {"status": "error", "ready": False, "reason": str(e)}
 
 
 @app.get("/api")
@@ -1126,7 +1216,7 @@ def api_info():
         "health": "/health",
         "metrics": "/metrics",
         "privacy": "/privacy",
-        "terms": "/terms"
+        "terms": "/terms",
     }
 
 
@@ -1349,10 +1439,7 @@ async def metrics():
         metrics_path: '/metrics'
     ```
     """
-    return Response(
-        content=get_metrics(),
-        media_type=get_content_type()
-    )
+    return Response(content=get_metrics(), media_type=get_content_type())
 
 
 # ---------------------------------------------------------
@@ -1364,10 +1451,7 @@ class CreateAPIKeyRequest(BaseModel):
 
 
 @app.post("/auth/keys")
-async def create_api_key(
-    request: CreateAPIKeyRequest,
-    admin: str = Depends(require_admin)
-):
+async def create_api_key(request: CreateAPIKeyRequest, admin: str = Depends(require_admin)):
     """
     Crear una nueva API key para un creador.
     Requiere admin key.
@@ -1376,23 +1460,18 @@ async def create_api_key(
     Guardala de forma segura.
     """
     auth_manager = get_auth_manager()
-    api_key = auth_manager.generate_api_key(
-        creator_id=request.creator_id,
-        name=request.name
-    )
+    api_key = auth_manager.generate_api_key(creator_id=request.creator_id, name=request.name)
 
     return {
         "status": "ok",
         "api_key": api_key,
         "creator_id": request.creator_id,
-        "warning": "Save this key securely. It will not be shown again."
+        "warning": "Save this key securely. It will not be shown again.",
     }
 
 
 @app.get("/auth/keys")
-async def list_all_api_keys(
-    admin: str = Depends(require_admin)
-):
+async def list_all_api_keys(admin: str = Depends(require_admin)):
     """
     Listar todas las API keys (solo admin).
     No muestra las keys completas, solo prefijos.
@@ -1400,17 +1479,12 @@ async def list_all_api_keys(
     auth_manager = get_auth_manager()
     keys = auth_manager.list_all_keys()
 
-    return {
-        "status": "ok",
-        "keys": keys,
-        "count": len(keys)
-    }
+    return {"status": "ok", "keys": keys, "count": len(keys)}
 
 
 @app.get("/auth/keys/{creator_id}")
 async def list_creator_api_keys(
-    creator_id: str,
-    x_api_key: Optional[str] = Header(None, alias="X-API-Key")
+    creator_id: str, x_api_key: Optional[str] = Header(None, alias="X-API-Key")
 ):
     """
     Listar API keys de un creador.
@@ -1422,19 +1496,11 @@ async def list_creator_api_keys(
     auth_manager = get_auth_manager()
     keys = auth_manager.list_api_keys(creator_id)
 
-    return {
-        "status": "ok",
-        "creator_id": creator_id,
-        "keys": keys,
-        "count": len(keys)
-    }
+    return {"status": "ok", "creator_id": creator_id, "keys": keys, "count": len(keys)}
 
 
 @app.delete("/auth/keys/{key_prefix}")
-async def revoke_api_key(
-    key_prefix: str,
-    admin: str = Depends(require_admin)
-):
+async def revoke_api_key(key_prefix: str, admin: str = Depends(require_admin)):
     """
     Revocar una API key.
     Requiere admin key.
@@ -1457,14 +1523,12 @@ async def revoke_api_key(
         "status": "ok",
         "revoked": True,
         "key_prefix": key_prefix,
-        "creator_id": key_info.get("creator_id")
+        "creator_id": key_info.get("creator_id"),
     }
 
 
 @app.get("/auth/verify")
-async def verify_api_key(
-    current_creator: str = Depends(get_current_creator)
-):
+async def verify_api_key(current_creator: str = Depends(get_current_creator)):
     """
     Verificar que una API key es valida.
     Retorna el creator_id asociado.
@@ -1473,7 +1537,7 @@ async def verify_api_key(
         "status": "ok",
         "valid": True,
         "creator_id": current_creator,
-        "is_admin": current_creator == "__admin__"
+        "is_admin": current_creator == "__admin__",
     }
 
 
@@ -1488,7 +1552,7 @@ class PauseBotRequest(BaseModel):
 async def pause_bot(
     creator_id: str,
     request: PauseBotRequest = PauseBotRequest(),
-    x_api_key: Optional[str] = Header(None, alias="X-API-Key")
+    x_api_key: Optional[str] = Header(None, alias="X-API-Key"),
 ):
     """
     Pausar el bot para un creador.
@@ -1507,15 +1571,12 @@ async def pause_bot(
         "status": "ok",
         "creator_id": creator_id,
         "bot_active": False,
-        "reason": request.reason or "Pausado manualmente"
+        "reason": request.reason or "Pausado manualmente",
     }
 
 
 @app.post("/bot/{creator_id}/resume")
-async def resume_bot(
-    creator_id: str,
-    x_api_key: Optional[str] = Header(None, alias="X-API-Key")
-):
+async def resume_bot(creator_id: str, x_api_key: Optional[str] = Header(None, alias="X-API-Key")):
     """
     Reanudar el bot para un creador.
     El bot volvera a responder mensajes.
@@ -1529,17 +1590,12 @@ async def resume_bot(
 
     logger.info(f"Bot resumed for creator {creator_id}")
 
-    return {
-        "status": "ok",
-        "creator_id": creator_id,
-        "bot_active": True
-    }
+    return {"status": "ok", "creator_id": creator_id, "bot_active": True}
 
 
 @app.get("/bot/{creator_id}/status")
 async def get_bot_status(
-    creator_id: str,
-    x_api_key: Optional[str] = Header(None, alias="X-API-Key")
+    creator_id: str, x_api_key: Optional[str] = Header(None, alias="X-API-Key")
 ):
     """
     Obtener estado del bot para un creador.
@@ -1551,11 +1607,7 @@ async def get_bot_status(
     if not status.get("exists"):
         raise HTTPException(status_code=404, detail="Creator not found")
 
-    return {
-        "status": "ok",
-        "creator_id": creator_id,
-        **status
-    }
+    return {"status": "ok", "creator_id": creator_id, **status}
 
 
 # ---------------------------------------------------------
@@ -1630,7 +1682,7 @@ async def instagram_status():
         "status": "ok",
         "handler": handler.get_status(),
         "recent_messages": handler.get_recent_messages(5),
-        "recent_responses": handler.get_recent_responses(5)
+        "recent_responses": handler.get_recent_responses(5),
     }
 
 
@@ -1654,21 +1706,17 @@ async def instagram_comments_webhook(request: Request):
                     if result:
                         results.append(result)
 
-        return {
-            "status": "ok",
-            "comments_processed": len(results),
-            "results": results
-        }
+        return {"status": "ok", "comments_processed": len(results), "results": results}
 
     except Exception as e:
         logger.error(f"Error processing Instagram comments webhook: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 
-
 # ---------------------------------------------------------
 # WHATSAPP WEBHOOK
 # ---------------------------------------------------------
+
 
 @app.get("/webhook/whatsapp")
 async def whatsapp_webhook_verify(request: Request):
@@ -1679,13 +1727,13 @@ async def whatsapp_webhook_verify(request: Request):
     mode = request.query_params.get("hub.mode", "")
     token = request.query_params.get("hub.verify_token", "")
     challenge = request.query_params.get("hub.challenge", "")
-    
+
     verify_token = os.getenv("WHATSAPP_VERIFY_TOKEN", "clonnect_whatsapp_verify_2024")
-    
+
     if mode == "subscribe" and token == verify_token:
         logger.info("WhatsApp webhook verified successfully")
         return PlainTextResponse(content=challenge)
-    
+
     logger.warning(f"WhatsApp webhook verification failed: mode={mode}")
     return PlainTextResponse(content="Verification failed", status_code=403)
 
@@ -1696,17 +1744,17 @@ async def whatsapp_webhook_receive(request: Request):
     Recibir mensajes de WhatsApp via webhook de Meta.
     """
     logger.warning("========== WHATSAPP WEBHOOK HIT ==========")
-    
+
     try:
         payload = await request.json()
         signature = request.headers.get("X-Hub-Signature-256", "")
-        
+
         handler = get_whatsapp_handler()
         result = await handler.handle_webhook(payload, signature)
-        
+
         logger.info(f"WhatsApp webhook processed: {result.get('messages_processed', 0)} messages")
         return result
-    
+
     except Exception as e:
         logger.error(f"Error processing WhatsApp webhook: {e}")
         raise HTTPException(status_code=500, detail=str(e))
@@ -1719,8 +1767,9 @@ async def whatsapp_status():
     return {
         "status": handler.get_status(),
         "recent_messages": handler.get_recent_messages(5),
-        "recent_responses": handler.get_recent_responses(5)
+        "recent_responses": handler.get_recent_responses(5),
     }
+
 
 # ---------------------------------------------------------
 # TELEGRAM WEBHOOK
@@ -1735,6 +1784,56 @@ _telegram_processed_updates: Dict[int, float] = {}
 _telegram_dedup_lock = asyncio.Lock()
 TELEGRAM_DEDUP_TTL = 60  # seconds
 
+# Copilot mode cache - avoid DB query on every message
+# Stores {creator_id: (copilot_mode, timestamp)} with 5-minute TTL
+_copilot_mode_cache: Dict[str, tuple] = {}
+_COPILOT_CACHE_TTL = 300  # 5 minutes
+
+
+def _get_copilot_mode_cached(creator_id: str) -> bool:
+    """
+    Get copilot_mode for a creator with 5-minute cache.
+    Returns True (copilot mode) by default if not found.
+    """
+    import time
+
+    current_time = time.time()
+
+    # Check cache first
+    if creator_id in _copilot_mode_cache:
+        cached_value, cached_time = _copilot_mode_cache[creator_id]
+        if current_time - cached_time < _COPILOT_CACHE_TTL:
+            logger.debug(f"[COPILOT-CACHE] HIT for {creator_id}: copilot_mode={cached_value}")
+            return cached_value
+
+    # Cache miss - query DB
+    copilot_enabled = True  # Default to True
+    try:
+        from api.models import Creator
+
+        session = SessionLocal()
+        try:
+            creator = session.query(Creator).filter_by(name=creator_id).first()
+            if creator:
+                copilot_enabled = getattr(creator, "copilot_mode", True)
+                if copilot_enabled is None:
+                    copilot_enabled = True
+                logger.info(
+                    f"[COPILOT-CACHE] MISS for {creator_id}: loaded copilot_mode={copilot_enabled} from DB"
+                )
+            else:
+                logger.warning(
+                    f"[COPILOT-CACHE] Creator '{creator_id}' not found, defaulting to copilot_mode=True"
+                )
+        finally:
+            session.close()
+    except Exception as e:
+        logger.error(f"[COPILOT-CACHE] DB error: {e} - defaulting to copilot_mode=True")
+
+    # Store in cache
+    _copilot_mode_cache[creator_id] = (copilot_enabled, current_time)
+    return copilot_enabled
+
 
 async def _check_telegram_duplicate(update_id: int) -> bool:
     """
@@ -1743,12 +1842,16 @@ async def _check_telegram_duplicate(update_id: int) -> bool:
     Also cleans up old entries.
     """
     import time
+
     current_time = time.time()
 
     async with _telegram_dedup_lock:
         # Clean up old entries (older than TTL)
-        expired = [uid for uid, ts in _telegram_processed_updates.items()
-                   if current_time - ts > TELEGRAM_DEDUP_TTL]
+        expired = [
+            uid
+            for uid, ts in _telegram_processed_updates.items()
+            if current_time - ts > TELEGRAM_DEDUP_TTL
+        ]
         for uid in expired:
             del _telegram_processed_updates[uid]
 
@@ -1762,41 +1865,33 @@ async def _check_telegram_duplicate(update_id: int) -> bool:
         return False
 
 
-async def send_telegram_via_proxy(chat_id: int, text: str, bot_token: str, reply_markup: dict = None) -> dict:
+async def send_telegram_via_proxy(
+    chat_id: int, text: str, bot_token: str, reply_markup: dict = None
+) -> dict:
     """Send Telegram message via Cloudflare Worker proxy"""
     headers = {}
     if TELEGRAM_PROXY_SECRET:
         headers["X-Telegram-Proxy-Secret"] = TELEGRAM_PROXY_SECRET
 
-    params = {
-        "chat_id": chat_id,
-        "text": text,
-        "parse_mode": "HTML"
-    }
+    params = {"chat_id": chat_id, "text": text, "parse_mode": "HTML"}
     if reply_markup:
         params["reply_markup"] = reply_markup
 
     async with httpx.AsyncClient(timeout=30.0) as client:
         response = await client.post(
             TELEGRAM_PROXY_URL,
-            json={
-                "bot_token": bot_token,
-                "method": "sendMessage",
-                "params": params
-            },
-            headers=headers
+            json={"bot_token": bot_token, "method": "sendMessage", "params": params},
+            headers=headers,
         )
         return response.json()
 
 
-async def send_telegram_direct(chat_id: int, text: str, bot_token: str, reply_markup: dict = None) -> dict:
+async def send_telegram_direct(
+    chat_id: int, text: str, bot_token: str, reply_markup: dict = None
+) -> dict:
     """Send Telegram message directly (for environments without blocking)"""
     telegram_api = f"https://api.telegram.org/bot{bot_token}/sendMessage"
-    payload = {
-        "chat_id": chat_id,
-        "text": text,
-        "parse_mode": "HTML"
-    }
+    payload = {"chat_id": chat_id, "text": text, "parse_mode": "HTML"}
     if reply_markup:
         payload["reply_markup"] = reply_markup
 
@@ -1805,12 +1900,15 @@ async def send_telegram_direct(chat_id: int, text: str, bot_token: str, reply_ma
         return response.json()
 
 
-async def send_telegram_message(chat_id: int, text: str, bot_token: str, reply_markup: dict = None) -> dict:
+async def send_telegram_message(
+    chat_id: int, text: str, bot_token: str, reply_markup: dict = None
+) -> dict:
     """
     Send Telegram message - DIRECT FIRST, proxy as fallback.
     Direct is much faster (~0.5s vs 7-8s for proxy).
     """
     import time
+
     _t_start = time.time()
 
     # Try direct first (faster) - Railway doesn't block Telegram API
@@ -1855,8 +1953,12 @@ async def answer_callback_query(callback_query_id: str, text: str = None) -> dic
         async with httpx.AsyncClient(timeout=30.0) as client:
             response = await client.post(
                 TELEGRAM_PROXY_URL,
-                json={"bot_token": TELEGRAM_BOT_TOKEN, "method": "answerCallbackQuery", "params": payload},
-                headers=headers
+                json={
+                    "bot_token": TELEGRAM_BOT_TOKEN,
+                    "method": "answerCallbackQuery",
+                    "params": payload,
+                },
+                headers=headers,
             )
             return response.json()
     else:
@@ -1865,15 +1967,12 @@ async def answer_callback_query(callback_query_id: str, text: str = None) -> dic
             return response.json()
 
 
-async def edit_telegram_message(chat_id: int, message_id: int, text: str, reply_markup: dict = None) -> dict:
+async def edit_telegram_message(
+    chat_id: int, message_id: int, text: str, reply_markup: dict = None
+) -> dict:
     """Edit an existing Telegram message"""
     telegram_api = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/editMessageText"
-    payload = {
-        "chat_id": chat_id,
-        "message_id": message_id,
-        "text": text,
-        "parse_mode": "HTML"
-    }
+    payload = {"chat_id": chat_id, "message_id": message_id, "text": text, "parse_mode": "HTML"}
     if reply_markup:
         payload["reply_markup"] = reply_markup
 
@@ -1884,8 +1983,12 @@ async def edit_telegram_message(chat_id: int, message_id: int, text: str, reply_
         async with httpx.AsyncClient(timeout=30.0) as client:
             response = await client.post(
                 TELEGRAM_PROXY_URL,
-                json={"bot_token": TELEGRAM_BOT_TOKEN, "method": "editMessageText", "params": payload},
-                headers=headers
+                json={
+                    "bot_token": TELEGRAM_BOT_TOKEN,
+                    "method": "editMessageText",
+                    "params": payload,
+                },
+                headers=headers,
             )
             return response.json()
     else:
@@ -1903,8 +2006,16 @@ async def handle_telegram_booking_callback(callback_query: dict) -> dict:
     - book_time:{service_id}:{date}:{time} - User selected a time → confirm booking
     """
     from datetime import datetime, timedelta, timezone
+
     from api.database import get_db_session
-    from api.models import BookingLink, CalendarBooking, CreatorAvailability, BookingSlot, Creator, Follower
+    from api.models import (
+        BookingLink,
+        BookingSlot,
+        CalendarBooking,
+        Creator,
+        CreatorAvailability,
+        Follower,
+    )
 
     callback_id = callback_query.get("id")
     data = callback_query.get("data", "")
@@ -1912,7 +2023,9 @@ async def handle_telegram_booking_callback(callback_query: dict) -> dict:
     message_id = callback_query.get("message", {}).get("message_id")
     user = callback_query.get("from", {})
     user_id = str(user.get("id", "unknown"))
-    user_name = f"{user.get('first_name', '')} {user.get('last_name', '')}".strip() or user.get('username', 'Usuario')
+    user_name = f"{user.get('first_name', '')} {user.get('last_name', '')}".strip() or user.get(
+        "username", "Usuario"
+    )
 
     creator_id = os.getenv("DEFAULT_CREATOR_ID", "manel")
     logger.info(f"Telegram callback: {data} from {user_name} (chat {chat_id})")
@@ -1940,7 +2053,9 @@ async def handle_telegram_booking_callback(callback_query: dict) -> dict:
             service_id = parts[1]
             date_str = parts[2]
             time_str = parts[3]
-            return await confirm_telegram_booking(chat_id, message_id, service_id, date_str, time_str, user_id, user_name, creator_id)
+            return await confirm_telegram_booking(
+                chat_id, message_id, service_id, date_str, time_str, user_id, user_name, creator_id
+            )
 
         elif parts[0] == "book_back":
             # User wants to go back to service selection
@@ -1953,8 +2068,13 @@ async def handle_telegram_booking_callback(callback_query: dict) -> dict:
     except Exception as e:
         logger.error(f"Error handling booking callback: {e}")
         import traceback
+
         logger.error(traceback.format_exc())
-        await send_telegram_message(chat_id, f"❌ Error al procesar tu solicitud. Por favor, intenta de nuevo.", TELEGRAM_BOT_TOKEN)
+        await send_telegram_message(
+            chat_id,
+            f"❌ Error al procesar tu solicitud. Por favor, intenta de nuevo.",
+            TELEGRAM_BOT_TOKEN,
+        )
         return {"status": "error", "detail": str(e)}
 
 
@@ -1964,13 +2084,16 @@ async def show_service_picker(chat_id: int, message_id: int, creator_id: str) ->
     from api.models import BookingLink
 
     with get_db_session() as db:
-        links = db.query(BookingLink).filter(
-            BookingLink.creator_id == creator_id,
-            BookingLink.is_active == True
-        ).all()
+        links = (
+            db.query(BookingLink)
+            .filter(BookingLink.creator_id == creator_id, BookingLink.is_active == True)
+            .all()
+        )
 
         if not links:
-            await edit_telegram_message(chat_id, message_id, "No hay servicios disponibles actualmente.")
+            await edit_telegram_message(
+                chat_id, message_id, "No hay servicios disponibles actualmente."
+            )
             return {"status": "ok"}
 
         keyboard = []
@@ -1980,9 +2103,10 @@ async def show_service_picker(chat_id: int, message_id: int, creator_id: str) ->
             keyboard.append([{"text": btn_text, "callback_data": f"book_svc:{link.id}"}])
 
         await edit_telegram_message(
-            chat_id, message_id,
+            chat_id,
+            message_id,
             "📅 ¡Reserva tu llamada conmigo!\n\nElige el servicio que te interese:",
-            {"inline_keyboard": keyboard}
+            {"inline_keyboard": keyboard},
         )
         return {"status": "ok"}
 
@@ -1990,6 +2114,7 @@ async def show_service_picker(chat_id: int, message_id: int, creator_id: str) ->
 async def show_date_picker(chat_id: int, message_id: int, service_id: str, creator_id: str) -> dict:
     """Show available dates as inline buttons (next 7 days with availability)"""
     from datetime import datetime, timedelta, timezone
+
     from api.database import get_db_session
     from api.models import BookingLink, CreatorAvailability
 
@@ -2001,10 +2126,13 @@ async def show_date_picker(chat_id: int, message_id: int, service_id: str, creat
             return {"status": "error"}
 
         # Get creator availability
-        availability = db.query(CreatorAvailability).filter(
-            CreatorAvailability.creator_id == creator_id,
-            CreatorAvailability.is_active == True
-        ).all()
+        availability = (
+            db.query(CreatorAvailability)
+            .filter(
+                CreatorAvailability.creator_id == creator_id, CreatorAvailability.is_active == True
+            )
+            .all()
+        )
 
         # Build set of active days (0=Monday, 6=Sunday)
         active_days = {av.day_of_week for av in availability}
@@ -2016,14 +2144,18 @@ async def show_date_picker(chat_id: int, message_id: int, service_id: str, creat
 
         for _ in range(14):  # Check next 14 days to find 5-7 available
             weekday = check_date.weekday()  # 0=Monday
-            if weekday in active_days or not availability:  # If no availability set, all days available
+            if (
+                weekday in active_days or not availability
+            ):  # If no availability set, all days available
                 available_dates.append(check_date)
                 if len(available_dates) >= 5:
                     break
             check_date += timedelta(days=1)
 
         if not available_dates:
-            await edit_telegram_message(chat_id, message_id, "❌ No hay fechas disponibles en los próximos días.")
+            await edit_telegram_message(
+                chat_id, message_id, "❌ No hay fechas disponibles en los próximos días."
+            )
             return {"status": "ok"}
 
         # Build keyboard with dates
@@ -2053,12 +2185,15 @@ async def show_date_picker(chat_id: int, message_id: int, service_id: str, creat
         return {"status": "ok"}
 
 
-async def show_time_picker(chat_id: int, message_id: int, service_id: str, date_str: str, creator_id: str) -> dict:
+async def show_time_picker(
+    chat_id: int, message_id: int, service_id: str, date_str: str, creator_id: str
+) -> dict:
     """Show available time slots as inline buttons"""
-    from datetime import datetime, timedelta, timezone
-    from api.database import get_db_session
-    from api.models import BookingLink, CreatorAvailability, BookingSlot, CalendarBooking
     import uuid as uuid_module
+    from datetime import datetime, timedelta, timezone
+
+    from api.database import get_db_session
+    from api.models import BookingLink, BookingSlot, CalendarBooking, CreatorAvailability
 
     with get_db_session() as db:
         # Get service info
@@ -2082,11 +2217,15 @@ async def show_time_picker(chat_id: int, message_id: int, service_id: str, date_
 
         # Get availability for this day
         weekday = target_date.weekday()
-        availability = db.query(CreatorAvailability).filter(
-            CreatorAvailability.creator_id == creator_id,
-            CreatorAvailability.day_of_week == weekday,
-            CreatorAvailability.is_active == True
-        ).first()
+        availability = (
+            db.query(CreatorAvailability)
+            .filter(
+                CreatorAvailability.creator_id == creator_id,
+                CreatorAvailability.day_of_week == weekday,
+                CreatorAvailability.is_active == True,
+            )
+            .first()
+        )
 
         # Default hours if no availability set
         if availability:
@@ -2102,27 +2241,36 @@ async def show_time_picker(chat_id: int, message_id: int, service_id: str, date_
 
         # Get already booked slots
         booked_times = set()
-        booked_slots = db.query(BookingSlot).filter(
-            BookingSlot.creator_id == creator_id,
-            BookingSlot.date == target_date,
-            BookingSlot.status == "booked"
-        ).all()
+        booked_slots = (
+            db.query(BookingSlot)
+            .filter(
+                BookingSlot.creator_id == creator_id,
+                BookingSlot.date == target_date,
+                BookingSlot.status == "booked",
+            )
+            .all()
+        )
         for slot in booked_slots:
             booked_times.add(slot.start_time.strftime("%H:%M"))
 
         # Also check CalendarBooking
-        external_bookings = db.query(CalendarBooking).filter(
-            CalendarBooking.creator_id == creator_id,
-            CalendarBooking.status == "scheduled"
-        ).all()
+        external_bookings = (
+            db.query(CalendarBooking)
+            .filter(CalendarBooking.creator_id == creator_id, CalendarBooking.status == "scheduled")
+            .all()
+        )
         for booking in external_bookings:
             if booking.scheduled_at and booking.scheduled_at.date() == target_date:
                 booked_times.add(booking.scheduled_at.strftime("%H:%M"))
 
         # Generate available slots
         slots = []
-        current = datetime.combine(target_date, datetime.min.time().replace(hour=start_hour, minute=start_minute))
-        end = datetime.combine(target_date, datetime.min.time().replace(hour=end_hour, minute=end_minute))
+        current = datetime.combine(
+            target_date, datetime.min.time().replace(hour=start_hour, minute=start_minute)
+        )
+        end = datetime.combine(
+            target_date, datetime.min.time().replace(hour=end_hour, minute=end_minute)
+        )
         now = datetime.now(timezone.utc)
 
         while current + timedelta(minutes=duration) <= end:
@@ -2142,7 +2290,15 @@ async def show_time_picker(chat_id: int, message_id: int, service_id: str, date_
         if not slots:
             # No slots available - show message with back button
             keyboard = [[{"text": "⬅️ Elegir otro día", "callback_data": f"book_svc:{service_id}"}]]
-            day_names_es = ["Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado", "Domingo"]
+            day_names_es = [
+                "Lunes",
+                "Martes",
+                "Miércoles",
+                "Jueves",
+                "Viernes",
+                "Sábado",
+                "Domingo",
+            ]
             day_name = day_names_es[target_date.weekday()]
             text = f"📅 <b>{service.title}</b>\n📆 {day_name} {target_date.day}/{target_date.month}\n\n❌ No hay horarios disponibles para este día."
             await edit_telegram_message(chat_id, message_id, text, {"inline_keyboard": keyboard})
@@ -2171,12 +2327,22 @@ async def show_time_picker(chat_id: int, message_id: int, service_id: str, date_
         return {"status": "ok"}
 
 
-async def confirm_telegram_booking(chat_id: int, message_id: int, service_id: str, date_str: str, time_str: str, user_id: str, user_name: str, creator_id: str) -> dict:
+async def confirm_telegram_booking(
+    chat_id: int,
+    message_id: int,
+    service_id: str,
+    date_str: str,
+    time_str: str,
+    user_id: str,
+    user_name: str,
+    creator_id: str,
+) -> dict:
     """Confirm the booking and create Google Meet link"""
-    from datetime import datetime, timedelta, timezone
-    from api.database import get_db_session
-    from api.models import BookingLink, CalendarBooking, BookingSlot, Creator, Follower
     import uuid as uuid_module
+    from datetime import datetime, timedelta, timezone
+
+    from api.database import get_db_session
+    from api.models import BookingLink, BookingSlot, CalendarBooking, Creator, Follower
 
     with get_db_session() as db:
         # Get service
@@ -2205,16 +2371,32 @@ async def confirm_telegram_booking(chat_id: int, message_id: int, service_id: st
         end_time = end_datetime.time()
 
         # Check if slot is still available
-        existing_slot = db.query(BookingSlot).filter(
-            BookingSlot.creator_id == creator_id,
-            BookingSlot.date == target_date,
-            BookingSlot.start_time == start_time,
-            BookingSlot.status == "booked"
-        ).first()
+        existing_slot = (
+            db.query(BookingSlot)
+            .filter(
+                BookingSlot.creator_id == creator_id,
+                BookingSlot.date == target_date,
+                BookingSlot.start_time == start_time,
+                BookingSlot.status == "booked",
+            )
+            .first()
+        )
 
         if existing_slot:
-            keyboard = [[{"text": "⬅️ Elegir otro horario", "callback_data": f"book_date:{service_id}:{date_str}"}]]
-            await edit_telegram_message(chat_id, message_id, "❌ Este horario ya no está disponible. Por favor, elige otro.", {"inline_keyboard": keyboard})
+            keyboard = [
+                [
+                    {
+                        "text": "⬅️ Elegir otro horario",
+                        "callback_data": f"book_date:{service_id}:{date_str}",
+                    }
+                ]
+            ]
+            await edit_telegram_message(
+                chat_id,
+                message_id,
+                "❌ Este horario ya no está disponible. Por favor, elige otro.",
+                {"inline_keyboard": keyboard},
+            )
             return {"status": "ok"}
 
         # Get follower info (email if we have it)
@@ -2241,7 +2423,7 @@ async def confirm_telegram_booking(chat_id: int, message_id: int, service_id: st
                     end_time=end_datetime,
                     guest_email=guest_email,
                     guest_name=guest_name,
-                    description=f"Telegram Booking: {service.title}"
+                    description=f"Telegram Booking: {service.title}",
                 )
                 if result.get("meet_link"):
                     meeting_url = result.get("meet_link", "")
@@ -2257,7 +2439,7 @@ async def confirm_telegram_booking(chat_id: int, message_id: int, service_id: st
         extra_data = {
             "source": "telegram_booking",
             "service_id": str(service_uuid),
-            "telegram_user_id": user_id
+            "telegram_user_id": user_id,
         }
         if google_event_id:
             extra_data["google_event_id"] = google_event_id
@@ -2276,7 +2458,7 @@ async def confirm_telegram_booking(chat_id: int, message_id: int, service_id: st
             guest_email=guest_email,
             meeting_url=meeting_url,
             external_id=str(slot_id),
-            extra_data=extra_data
+            extra_data=extra_data,
         )
         db.add(calendar_booking)
         db.flush()
@@ -2293,16 +2475,32 @@ async def confirm_telegram_booking(chat_id: int, message_id: int, service_id: st
             booked_by_name=guest_name,
             booked_by_email=guest_email,
             meeting_url=meeting_url,
-            calendar_booking_id=calendar_booking_id
+            calendar_booking_id=calendar_booking_id,
         )
         db.add(slot)
         db.commit()
 
-        logger.info(f"Telegram booking confirmed: {service.title} on {date_str} at {time_str} for {guest_name}")
+        logger.info(
+            f"Telegram booking confirmed: {service.title} on {date_str} at {time_str} for {guest_name}"
+        )
 
         # Format confirmation message
         day_names_es = ["Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado", "Domingo"]
-        month_names_es = ["", "Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"]
+        month_names_es = [
+            "",
+            "Enero",
+            "Febrero",
+            "Marzo",
+            "Abril",
+            "Mayo",
+            "Junio",
+            "Julio",
+            "Agosto",
+            "Septiembre",
+            "Octubre",
+            "Noviembre",
+            "Diciembre",
+        ]
         day_name = day_names_es[target_date.weekday()]
         month_name = month_names_es[target_date.month]
         end_time_str = end_datetime.strftime("%H:%M")
@@ -2395,6 +2593,7 @@ async def telegram_webhook(request: Request):
 
         try:
             import time
+
             _t_webhook_start = time.time()
 
             agent = get_dm_agent(creator_id)
@@ -2410,7 +2609,7 @@ async def telegram_webhook(request: Request):
                 message_text=text,
                 message_id=str(message.get("message_id", "")),
                 username=sender_name,
-                name=full_name
+                name=full_name,
             )
             _t_process_done = time.time()
             logger.info(f"⏱️ process_dm completed in {_t_process_done - _t_agent_ready:.2f}s")
@@ -2418,34 +2617,22 @@ async def telegram_webhook(request: Request):
             bot_reply = response.response_text
             intent = response.intent.value if response.intent else "unknown"
 
-            logger.info(f"Telegram DM from {sender_name} ({sender_id}): '{text[:50]}' -> intent={intent}, creator={creator_id}")
+            logger.info(
+                f"Telegram DM from {sender_name} ({sender_id}): '{text[:50]}' -> intent={intent}, creator={creator_id}"
+            )
 
-            # === CHECK COPILOT MODE ===
-            # Default to TRUE (copilot mode) - safer to require approval than auto-send
-            copilot_enabled = True
-            try:
-                from api.models import Creator
-                session = SessionLocal()
-                try:
-                    creator = session.query(Creator).filter_by(name=creator_id).first()
-                    if creator:
-                        # Check if copilot_mode attribute exists and get its value
-                        copilot_enabled = getattr(creator, 'copilot_mode', True)
-                        if copilot_enabled is None:
-                            copilot_enabled = True  # Default to True if NULL
-                        logger.info(f"🔵 COPILOT CHECK: creator={creator_id}, copilot_mode={copilot_enabled}")
-                    else:
-                        logger.warning(f"🔴 COPILOT CHECK: Creator '{creator_id}' not found in DB, defaulting to copilot_mode=True")
-                finally:
-                    session.close()
-            except Exception as e:
-                logger.error(f"🔴 COPILOT CHECK ERROR: {e} - defaulting to copilot_mode=True")
-                copilot_enabled = True  # Default to True on error
+            # === CHECK COPILOT MODE (CACHED - 5min TTL) ===
+            _t_copilot_start = time.time()
+            copilot_enabled = _get_copilot_mode_cached(creator_id)
+            logger.info(f"⏱️ Copilot mode check took {time.time() - _t_copilot_start:.3f}s (cached)")
 
             if copilot_enabled:
                 # COPILOT MODE: Save as pending approval, don't send
-                logger.info(f"🟢🟢🟢 COPILOT MODE ACTIVE - NOT sending auto-reply, creating pending response 🟢🟢🟢")
+                logger.info(
+                    f"🟢🟢🟢 COPILOT MODE ACTIVE - NOT sending auto-reply, creating pending response 🟢🟢🟢"
+                )
                 from core.copilot_service import get_copilot_service
+
                 copilot = get_copilot_service()
 
                 pending = await copilot.create_pending_response(
@@ -2457,12 +2644,14 @@ async def telegram_webhook(request: Request):
                     user_message_id=str(message.get("message_id", "")),
                     suggested_response=bot_reply,
                     intent=intent,
-                    confidence=response.confidence if hasattr(response, 'confidence') else 0.9,
+                    confidence=response.confidence if hasattr(response, "confidence") else 0.9,
                     username=sender_name,
-                    full_name=full_name
+                    full_name=full_name,
                 )
 
-                logger.info(f"[Copilot] Created pending response {pending.id} for Telegram user {sender_name}")
+                logger.info(
+                    f"[Copilot] Created pending response {pending.id} for Telegram user {sender_name}"
+                )
 
                 return {
                     "status": "ok",
@@ -2472,7 +2661,7 @@ async def telegram_webhook(request: Request):
                     "bot_id": bot_id,
                     "copilot_mode": True,
                     "pending_response_id": pending.id,
-                    "response_sent": False
+                    "response_sent": False,
                 }
 
             # AUTOPILOT MODE: Send response immediately
@@ -2500,18 +2689,24 @@ async def telegram_webhook(request: Request):
             if bot_reply and bot_token:
                 try:
                     _t_tg_start = time.time()
-                    result = await send_telegram_message(chat_id, bot_reply, bot_token, reply_markup)
+                    result = await send_telegram_message(
+                        chat_id, bot_reply, bot_token, reply_markup
+                    )
                     _t_tg_end = time.time()
                     if result.get("ok"):
                         telegram_sent = True
-                        logger.info(f"⏱️ Telegram sent in {_t_tg_end - _t_tg_start:.2f}s to chat {chat_id}")
+                        logger.info(
+                            f"⏱️ Telegram sent in {_t_tg_end - _t_tg_start:.2f}s to chat {chat_id}"
+                        )
                     else:
                         logger.error(f"Telegram send failed: {result}")
                 except Exception as e:
                     logger.error(f"Telegram send error: {e}")
 
             _t_webhook_end = time.time()
-            logger.info(f"⏱️ TOTAL webhook processing: {_t_webhook_end - _t_webhook_start:.2f}s (user perceived)")
+            logger.info(
+                f"⏱️ TOTAL webhook processing: {_t_webhook_end - _t_webhook_start:.2f}s (user perceived)"
+            )
 
             return {
                 "status": "ok",
@@ -2520,12 +2715,13 @@ async def telegram_webhook(request: Request):
                 "creator_id": creator_id,
                 "bot_id": bot_id,
                 "copilot_mode": False,
-                "response_sent": telegram_sent
+                "response_sent": telegram_sent,
             }
 
         except Exception as e:
             logger.error(f"Error processing Telegram message: {type(e).__name__}: {e}")
             import traceback
+
             logger.error(f"Traceback: {traceback.format_exc()}")
             return {"status": "error", "detail": str(e)}
 
@@ -2538,7 +2734,11 @@ async def telegram_webhook(request: Request):
 async def telegram_status():
     """Obtener estado de la integración de Telegram"""
     token_configured = bool(TELEGRAM_BOT_TOKEN)
-    token_preview = f"{TELEGRAM_BOT_TOKEN[:10]}...{TELEGRAM_BOT_TOKEN[-5:]}" if token_configured and len(TELEGRAM_BOT_TOKEN) > 15 else "NOT SET"
+    token_preview = (
+        f"{TELEGRAM_BOT_TOKEN[:10]}...{TELEGRAM_BOT_TOKEN[-5:]}"
+        if token_configured and len(TELEGRAM_BOT_TOKEN) > 15
+        else "NOT SET"
+    )
 
     # Proxy configuration check - proxy is used if URL is set (secret is optional but recommended)
     proxy_url_set = bool(TELEGRAM_PROXY_URL)
@@ -2556,12 +2756,14 @@ async def telegram_status():
         "proxy_url": TELEGRAM_PROXY_URL or "NOT SET",
         "send_mode": "proxy" if proxy_will_be_used else "direct",
         "webhook_url": "/webhook/telegram",
-        "legacy_webhook_url": "/telegram/webhook"
+        "legacy_webhook_url": "/telegram/webhook",
     }
 
     # Add info about secret status
     if proxy_url_set and not proxy_secret_set:
-        status_response["proxy_note"] = "Proxy URL configured. Secret not set - will work if Worker allows unauthenticated requests."
+        status_response["proxy_note"] = (
+            "Proxy URL configured. Secret not set - will work if Worker allows unauthenticated requests."
+        )
 
     return status_response
 
@@ -2575,7 +2777,11 @@ async def telegram_diagnose():
     results = {"bots": [], "expected_webhook_url": ""}
 
     # Expected webhook URL
-    base_url = os.getenv("RAILWAY_PUBLIC_URL") or os.getenv("RENDER_EXTERNAL_URL") or "https://web-production-9f69.up.railway.app"
+    base_url = (
+        os.getenv("RAILWAY_PUBLIC_URL")
+        or os.getenv("RENDER_EXTERNAL_URL")
+        or "https://web-production-9f69.up.railway.app"
+    )
     expected_webhook = f"{base_url}/webhook/telegram"
     results["expected_webhook_url"] = expected_webhook
 
@@ -2587,56 +2793,58 @@ async def telegram_diagnose():
         bot_token = registry.get_bot_token(bot_id)
 
         if not bot_token:
-            results["bots"].append({
-                "bot_id": bot_id,
-                "creator_id": bot.get("creator_id"),
-                "error": "No token found"
-            })
+            results["bots"].append(
+                {"bot_id": bot_id, "creator_id": bot.get("creator_id"), "error": "No token found"}
+            )
             continue
 
         # Call Telegram API to get current webhook info
         try:
             async with httpx.AsyncClient(timeout=10.0) as client:
-                response = await client.get(f"https://api.telegram.org/bot{bot_token}/getWebhookInfo")
+                response = await client.get(
+                    f"https://api.telegram.org/bot{bot_token}/getWebhookInfo"
+                )
                 webhook_info = response.json()
 
                 if webhook_info.get("ok"):
                     current_webhook = webhook_info.get("result", {}).get("url", "")
                     is_correct = current_webhook == expected_webhook
 
-                    results["bots"].append({
-                        "bot_id": bot_id,
-                        "bot_username": bot.get("bot_username"),
-                        "creator_id": bot.get("creator_id"),
-                        "current_webhook": current_webhook or "NOT SET",
-                        "webhook_correct": is_correct,
-                        "pending_update_count": webhook_info.get("result", {}).get("pending_update_count", 0),
-                        "last_error": webhook_info.get("result", {}).get("last_error_message"),
-                        "last_error_date": webhook_info.get("result", {}).get("last_error_date")
-                    })
+                    results["bots"].append(
+                        {
+                            "bot_id": bot_id,
+                            "bot_username": bot.get("bot_username"),
+                            "creator_id": bot.get("creator_id"),
+                            "current_webhook": current_webhook or "NOT SET",
+                            "webhook_correct": is_correct,
+                            "pending_update_count": webhook_info.get("result", {}).get(
+                                "pending_update_count", 0
+                            ),
+                            "last_error": webhook_info.get("result", {}).get("last_error_message"),
+                            "last_error_date": webhook_info.get("result", {}).get(
+                                "last_error_date"
+                            ),
+                        }
+                    )
                 else:
-                    results["bots"].append({
-                        "bot_id": bot_id,
-                        "error": webhook_info.get("description", "Unknown error")
-                    })
+                    results["bots"].append(
+                        {
+                            "bot_id": bot_id,
+                            "error": webhook_info.get("description", "Unknown error"),
+                        }
+                    )
         except Exception as e:
-            results["bots"].append({
-                "bot_id": bot_id,
-                "error": f"Failed to check: {str(e)}"
-            })
+            results["bots"].append({"bot_id": bot_id, "error": f"Failed to check: {str(e)}"})
 
     # Also check creators in DB for copilot_mode
     try:
         from api.models import Creator
+
         session = SessionLocal()
         try:
             creators = session.query(Creator).all()
             results["creators_copilot_status"] = [
-                {
-                    "name": c.name,
-                    "copilot_mode": c.copilot_mode,
-                    "bot_active": c.bot_active
-                }
+                {"name": c.name, "copilot_mode": c.copilot_mode, "bot_active": c.bot_active}
                 for c in creators
             ]
         finally:
@@ -2660,7 +2868,11 @@ async def fix_telegram_webhook(bot_id: str):
         raise HTTPException(status_code=404, detail=f"Bot {bot_id} not found")
 
     # Build webhook URL
-    base_url = os.getenv("RAILWAY_PUBLIC_URL") or os.getenv("RENDER_EXTERNAL_URL") or "https://web-production-9f69.up.railway.app"
+    base_url = (
+        os.getenv("RAILWAY_PUBLIC_URL")
+        or os.getenv("RENDER_EXTERNAL_URL")
+        or "https://web-production-9f69.up.railway.app"
+    )
     webhook_url = f"{base_url}/webhook/telegram"
 
     try:
@@ -2670,8 +2882,7 @@ async def fix_telegram_webhook(bot_id: str):
 
             # Then set the new webhook
             response = await client.post(
-                f"https://api.telegram.org/bot{bot_token}/setWebhook",
-                json={"url": webhook_url}
+                f"https://api.telegram.org/bot{bot_token}/setWebhook", json={"url": webhook_url}
             )
             result = response.json()
 
@@ -2681,7 +2892,7 @@ async def fix_telegram_webhook(bot_id: str):
                     "status": "success",
                     "bot_id": bot_id,
                     "webhook_url": webhook_url,
-                    "telegram_response": result
+                    "telegram_response": result,
                 }
             else:
                 logger.error(f"❌ Failed to set webhook for bot {bot_id}: {result}")
@@ -2689,7 +2900,7 @@ async def fix_telegram_webhook(bot_id: str):
                     "status": "error",
                     "bot_id": bot_id,
                     "error": result.get("description"),
-                    "telegram_response": result
+                    "telegram_response": result,
                 }
     except Exception as e:
         logger.error(f"Error fixing webhook: {e}")
@@ -2698,8 +2909,10 @@ async def fix_telegram_webhook(bot_id: str):
 
 # === TELEGRAM MULTI-BOT MANAGEMENT ===
 
+
 class RegisterBotRequest(BaseModel):
     """Request to register a new Telegram bot."""
+
     creator_id: str
     bot_token: str
     bot_username: Optional[str] = None
@@ -2711,11 +2924,7 @@ async def list_telegram_bots():
     """List all registered Telegram bots."""
     registry = get_telegram_registry()
     bots = registry.list_bots()
-    return {
-        "status": "ok",
-        "bots": bots,
-        "count": len(bots)
-    }
+    return {"status": "ok", "bots": bots, "count": len(bots)}
 
 
 @app.post("/telegram/register-bot")
@@ -2734,7 +2943,7 @@ async def register_telegram_bot(request: RegisterBotRequest):
         creator_id=request.creator_id,
         bot_token=request.bot_token,
         bot_username=request.bot_username,
-        set_webhook=request.set_webhook
+        set_webhook=request.set_webhook,
     )
 
     if result.get("status") == "error":
@@ -2775,7 +2984,7 @@ async def reload_telegram_bots():
     return {
         "status": "ok",
         "message": "Bot configuration reloaded",
-        "bots_count": len(registry.list_bots())
+        "bots_count": len(registry.list_bots()),
     }
 
 
@@ -2783,6 +2992,7 @@ async def reload_telegram_bots():
 async def telegram_test_connection():
     """Test if we can connect to Telegram API"""
     import httpx
+
     bot_token = os.getenv("TELEGRAM_BOT_TOKEN")
 
     if not bot_token:
@@ -2790,13 +3000,11 @@ async def telegram_test_connection():
 
     try:
         async with httpx.AsyncClient(timeout=30.0) as client:
-            response = await client.get(
-                f"https://api.telegram.org/bot{bot_token}/getMe"
-            )
+            response = await client.get(f"https://api.telegram.org/bot{bot_token}/getMe")
             return {
                 "status": "ok",
                 "telegram_response": response.json(),
-                "connection": "successful"
+                "connection": "successful",
             }
     except httpx.ConnectTimeout:
         return {"status": "error", "error": "ConnectTimeout - cannot reach api.telegram.org"}
@@ -2809,8 +3017,9 @@ async def telegram_test_connection():
 @app.get("/telegram/network-test")
 async def telegram_network_test():
     """Test network connectivity to various endpoints"""
-    import httpx
     import socket
+
+    import httpx
 
     results = {}
 
@@ -2869,6 +3078,7 @@ def get_whatsapp_handler():
     if _whatsapp_handler is None:
         try:
             from core.whatsapp import WhatsAppHandler
+
             _whatsapp_handler = WhatsAppHandler()
         except Exception as e:
             logger.error(f"Error initializing WhatsApp handler: {e}")
@@ -2932,7 +3142,7 @@ async def whatsapp_status():
             "status": "ok",
             "handler": handler.get_status(),
             "recent_messages": handler.get_recent_messages(5),
-            "recent_responses": handler.get_recent_responses(5)
+            "recent_responses": handler.get_recent_responses(5),
         }
     except Exception as e:
         return {
@@ -2940,7 +3150,7 @@ async def whatsapp_status():
             "phone_number_id_configured": bool(os.getenv("WHATSAPP_PHONE_NUMBER_ID", "")),
             "access_token_configured": bool(os.getenv("WHATSAPP_ACCESS_TOKEN", "")),
             "webhook_url": "/webhook/whatsapp",
-            "error": str(e)
+            "error": str(e),
         }
 
 
@@ -2960,17 +3170,20 @@ async def scrape_instagram_onboarding(request: dict):
     Returns:
         Summary of what was processed
     """
-    from ingestion import InstaloaderScraper, ToneAnalyzer, InstagramScraperError
-    from core.citation_service import index_creator_posts, get_content_index
-    from core.tone_service import save_tone_profile
     import asyncio
+
+    from core.citation_service import get_content_index, index_creator_posts
+    from core.tone_service import save_tone_profile
+    from ingestion import InstagramScraperError, InstaloaderScraper, ToneAnalyzer
 
     creator_id = request.get("creator_id")
     instagram_username = request.get("instagram_username")
     max_posts = request.get("max_posts", 50)
 
     if not creator_id or not instagram_username:
-        raise HTTPException(status_code=400, detail="creator_id and instagram_username are required")
+        raise HTTPException(
+            status_code=400, detail="creator_id and instagram_username are required"
+        )
 
     result = {
         "creator_id": creator_id,
@@ -2979,7 +3192,7 @@ async def scrape_instagram_onboarding(request: dict):
         "tone_profile_generated": False,
         "content_indexed": False,
         "chunks_created": 0,
-        "errors": []
+        "errors": [],
     }
 
     # Step 1: Scrape Instagram posts
@@ -3004,9 +3217,10 @@ async def scrape_instagram_onboarding(request: dict):
                 "likes_count": p.likes_count,
                 "comments_count": p.comments_count,
                 "post_type": p.post_type,
-                "hashtags": p.hashtags
+                "hashtags": p.hashtags,
             }
-            for p in posts if p.has_content
+            for p in posts
+            if p.has_content
         ]
 
     except InstagramScraperError as e:
@@ -3031,7 +3245,9 @@ async def scrape_instagram_onboarding(request: dict):
             "energy": tone_profile.energy,
             "warmth": tone_profile.warmth,
             "emoji_frequency": tone_profile.emoji_frequency,
-            "signature_phrases": tone_profile.signature_phrases[:5] if tone_profile.signature_phrases else []
+            "signature_phrases": (
+                tone_profile.signature_phrases[:5] if tone_profile.signature_phrases else []
+            ),
         }
         logger.info(f"[Onboarding] ToneProfile generated: formality={tone_profile.formality}")
 
@@ -3063,15 +3279,15 @@ async def get_onboarding_status(creator_id: str):
     Returns:
         Status of ToneProfile and ContentIndex for the creator
     """
-    from core.tone_service import get_tone_profile
     from core.citation_service import get_content_index
+    from core.tone_service import get_tone_profile
 
     status = {
         "creator_id": creator_id,
         "tone_profile_exists": False,
         "tone_profile_summary": None,
         "content_index_exists": False,
-        "chunks_count": 0
+        "chunks_count": 0,
     }
 
     # Check ToneProfile
@@ -3082,7 +3298,7 @@ async def get_onboarding_status(creator_id: str):
             status["tone_profile_summary"] = {
                 "formality": tone_profile.formality,
                 "energy": tone_profile.energy,
-                "warmth": tone_profile.warmth
+                "warmth": tone_profile.warmth,
             }
     except Exception as e:
         logger.warning(f"Error checking ToneProfile: {e}")
@@ -3147,7 +3363,7 @@ async def get_creator_config(creator_id: str):
             "welcome_message": "",
             "other_payment_methods": {},
             "knowledge_about": {},
-        }
+        },
     }
 
 
@@ -3175,23 +3391,23 @@ async def generate_ai_rules(request: dict = Body(...)):
                 "https://api.x.ai/v1/chat/completions",
                 headers={
                     "Authorization": f"Bearer {xai_api_key}",
-                    "Content-Type": "application/json"
+                    "Content-Type": "application/json",
                 },
                 json={
                     "model": "grok-beta",
                     "messages": [
                         {
                             "role": "system",
-                            "content": "Genera 5-7 reglas claras y concisas para un chatbot de ventas. Cada regla empieza con '- '. Solo devuelve las reglas, sin explicaciones adicionales. Las reglas deben ser en español."
+                            "content": "Genera 5-7 reglas claras y concisas para un chatbot de ventas. Cada regla empieza con '- '. Solo devuelve las reglas, sin explicaciones adicionales. Las reglas deben ser en español.",
                         },
                         {
                             "role": "user",
-                            "content": f"El usuario quiere un bot con esta personalidad: {prompt}"
-                        }
+                            "content": f"El usuario quiere un bot con esta personalidad: {prompt}",
+                        },
                     ],
                     "max_tokens": 300,
-                    "temperature": 0.7
-                }
+                    "temperature": 0.7,
+                },
             )
 
             if response.status_code == 200:
@@ -3230,8 +3446,8 @@ async def generate_knowledge_full(request: dict = Body(...)):
         return {"faqs": fallback_faqs, "about": fallback_about, "source": "fallback"}
 
     try:
-        import re
         import json
+        import re
 
         async with httpx.AsyncClient(timeout=60.0) as client:
             system_prompt = """Genera FAQs PERFECTAS. Eres un experto en redacción comercial.
@@ -3285,17 +3501,17 @@ Genera el JSON con about + faqs:"""
                 "https://api.x.ai/v1/chat/completions",
                 headers={
                     "Authorization": f"Bearer {xai_api_key}",
-                    "Content-Type": "application/json"
+                    "Content-Type": "application/json",
                 },
                 json={
                     "model": "grok-beta",
                     "messages": [
                         {"role": "system", "content": system_prompt},
-                        {"role": "user", "content": user_message}
+                        {"role": "user", "content": user_message},
                     ],
                     "max_tokens": 2500,
-                    "temperature": 0.05
-                }
+                    "temperature": 0.05,
+                },
             )
 
             if response.status_code == 200:
@@ -3304,11 +3520,11 @@ Genera el JSON con about + faqs:"""
                 logger.info(f"Grok full knowledge response: {result[:500]}...")
 
                 # Clean up
-                result = re.sub(r'```json\s*', '', result)
-                result = re.sub(r'```\s*', '', result)
+                result = re.sub(r"```json\s*", "", result)
+                result = re.sub(r"```\s*", "", result)
                 result = result.strip()
 
-                json_match = re.search(r'\{[\s\S]*\}', result)
+                json_match = re.search(r"\{[\s\S]*\}", result)
                 if json_match:
                     result = json_match.group()
 
@@ -3329,7 +3545,7 @@ Genera el JSON con about + faqs:"""
                     answer = answer.replace("Atendemos de Atención:", "Atendemos")
                     answer = answer.replace("El precio es Curso", "El Curso")
                     answer = answer.replace("El precio es curso", "El curso")
-                    answer = re.sub(r'\s+', ' ', answer).strip()  # Fix double spaces
+                    answer = re.sub(r"\s+", " ", answer).strip()  # Fix double spaces
 
                     # Skip generic answers
                     generic_phrases = ["contacta para más", "contáctanos para", "escríbenos para"]
@@ -3339,17 +3555,14 @@ Genera el JSON con about + faqs:"""
                     validated_faqs.append({"question": question, "answer": answer})
 
                 logger.info(f"Generated {len(validated_faqs)} FAQs + about info")
-                return {
-                    "about": parsed.get("about", {}),
-                    "faqs": validated_faqs,
-                    "source": "grok"
-                }
+                return {"about": parsed.get("about", {}), "faqs": validated_faqs, "source": "grok"}
             else:
                 logger.warning(f"Grok API error: {response.status_code}")
 
     except Exception as e:
         logger.error(f"Error generating full knowledge: {e}")
         import traceback
+
         logger.error(traceback.format_exc())
 
     # Fallback
@@ -3361,34 +3574,39 @@ Genera el JSON con about + faqs:"""
 def generate_fallback_about(content: str) -> dict:
     """Extract about info from content when API is unavailable"""
     import re
+
     content_lower = content.lower()
 
-    about = {
-        "bio": "",
-        "specialties": "",
-        "experience": "",
-        "audience": ""
-    }
+    about = {"bio": "", "specialties": "", "experience": "", "audience": ""}
 
     # Extract bio - first sentence or "Soy..." pattern
-    soy_match = re.search(r'[Ss]oy\s+([^.]+)', content)
+    soy_match = re.search(r"[Ss]oy\s+([^.]+)", content)
     if soy_match:
         about["bio"] = f"Soy {soy_match.group(1).strip()}."
 
     # Extract experience - "desde 2018" or "X años"
-    exp_match = re.search(r'desde\s+(\d{4})', content_lower)
+    exp_match = re.search(r"desde\s+(\d{4})", content_lower)
     if exp_match:
         year = int(exp_match.group(1))
         years = 2024 - year
         about["experience"] = f"{years} años"
     else:
-        years_match = re.search(r'(\d+)\s*años', content_lower)
+        years_match = re.search(r"(\d+)\s*años", content_lower)
         if years_match:
             about["experience"] = f"{years_match.group(1)} años"
 
     # Extract specialties
     specialties = []
-    keywords = ["trading", "criptomonedas", "crypto", "fitness", "coaching", "marketing", "diseño", "programación"]
+    keywords = [
+        "trading",
+        "criptomonedas",
+        "crypto",
+        "fitness",
+        "coaching",
+        "marketing",
+        "diseño",
+        "programación",
+    ]
     for kw in keywords:
         if kw in content_lower:
             specialties.append(kw.capitalize())
@@ -3421,8 +3639,8 @@ async def generate_ai_knowledge(request: dict = Body(...)):
             return {"about": {"bio": prompt}, "source": "fallback"}
 
     try:
-        import re
         import json
+        import re
 
         async with httpx.AsyncClient(timeout=60.0) as client:
             if content_type == "faqs":
@@ -3482,17 +3700,17 @@ JSON:"""
                 "https://api.x.ai/v1/chat/completions",
                 headers={
                     "Authorization": f"Bearer {xai_api_key}",
-                    "Content-Type": "application/json"
+                    "Content-Type": "application/json",
                 },
                 json={
                     "model": "grok-beta",
                     "messages": [
                         {"role": "system", "content": system_prompt},
-                        {"role": "user", "content": user_message}
+                        {"role": "user", "content": user_message},
                     ],
                     "max_tokens": 2000,
-                    "temperature": 0.05
-                }
+                    "temperature": 0.05,
+                },
             )
 
             logger.info(f"Grok API response status: {response.status_code}")
@@ -3508,12 +3726,12 @@ JSON:"""
                 logger.info(f"Grok raw response: {content[:500]}...")
 
                 # Clean up response - remove markdown code blocks
-                content = re.sub(r'```json\s*', '', content)
-                content = re.sub(r'```\s*', '', content)
+                content = re.sub(r"```json\s*", "", content)
+                content = re.sub(r"```\s*", "", content)
                 content = content.strip()
 
                 # Try to extract JSON if there's extra text
-                json_match = re.search(r'\{[\s\S]*\}', content)
+                json_match = re.search(r"\{[\s\S]*\}", content)
                 if json_match:
                     content = json_match.group()
 
@@ -3523,7 +3741,9 @@ JSON:"""
 
                     if content_type == "faqs":
                         # Handle both {"faqs": [...]} and [...] formats
-                        faqs_list = parsed.get("faqs", parsed) if isinstance(parsed, dict) else parsed
+                        faqs_list = (
+                            parsed.get("faqs", parsed) if isinstance(parsed, dict) else parsed
+                        )
 
                         if not isinstance(faqs_list, list):
                             faqs_list = [faqs_list]
@@ -3541,7 +3761,7 @@ JSON:"""
                             answer = answer.replace("Atendemos de atención", "Atendemos")
                             answer = answer.replace("El precio es Curso", "El Curso")
                             answer = answer.replace("El precio es el Curso", "El Curso")
-                            answer = re.sub(r'\s+', ' ', answer)  # Fix double spaces
+                            answer = re.sub(r"\s+", " ", answer)  # Fix double spaces
 
                             # Skip empty or very short answers
                             if len(answer) < 15:
@@ -3549,8 +3769,14 @@ JSON:"""
                                 continue
 
                             # Skip absurd answers
-                            absurd_answers = ["tarjeta", "incluye: tarjeta", "tarjeta.", "stripe", "paypal"]
-                            if answer.lower().strip().rstrip('.') in absurd_answers:
+                            absurd_answers = [
+                                "tarjeta",
+                                "incluye: tarjeta",
+                                "tarjeta.",
+                                "stripe",
+                                "paypal",
+                            ]
+                            if answer.lower().strip().rstrip(".") in absurd_answers:
                                 logger.warning(f"Skipping absurd answer: '{answer}'")
                                 continue
 
@@ -3563,7 +3789,9 @@ JSON:"""
 
                             validated_faqs.append({"question": question, "answer": answer})
 
-                        logger.info(f"Validated {len(validated_faqs)} FAQs from Grok (filtered from {len(faqs_list)})")
+                        logger.info(
+                            f"Validated {len(validated_faqs)} FAQs from Grok (filtered from {len(faqs_list)})"
+                        )
                         return {"faqs": validated_faqs, "source": "grok"}
                     else:
                         return {"about": parsed, "source": "grok"}
@@ -3576,7 +3804,10 @@ JSON:"""
                         extracted = extract_faqs_from_text(content)
                         if extracted:
                             return {"faqs": extracted, "source": "grok-extracted"}
-                        return {"faqs": [{"question": "FAQ generado", "answer": content}], "source": "grok-text"}
+                        return {
+                            "faqs": [{"question": "FAQ generado", "answer": content}],
+                            "source": "grok-text",
+                        }
                     else:
                         return {"about": {"bio": content}, "source": "grok-text"}
             else:
@@ -3585,6 +3816,7 @@ JSON:"""
     except Exception as e:
         logger.error(f"Error calling Grok API for knowledge: {e}")
         import traceback
+
         logger.error(traceback.format_exc())
 
     # Smart fallback
@@ -3599,14 +3831,15 @@ JSON:"""
 def generate_fallback_faqs(content: str) -> list:
     """Generate FAQs locally when API is not available - extracts EXACT SPECIFIC data"""
     import re
+
     faqs = []
     content_lower = content.lower()
 
     # Extract product names with prices (e.g., "Curso Trading Pro: 297€" or "Mentoría 1:1: 500€/mes")
     product_price_patterns = [
-        r'[-•]\s*([^:]+?):\s*(\d+)[€$](?:/(\w+))?',  # "- Curso X: 297€" or "- Mentoría: 500€/mes"
-        r'([Cc]urso[^:]+?):\s*(\d+)[€$]',  # "Curso Trading Pro: 297€"
-        r'([Mm]entoría[^:]+?):\s*(\d+)[€$](?:/(\w+))?',  # "Mentoría 1:1: 500€/mes"
+        r"[-•]\s*([^:]+?):\s*(\d+)[€$](?:/(\w+))?",  # "- Curso X: 297€" or "- Mentoría: 500€/mes"
+        r"([Cc]urso[^:]+?):\s*(\d+)[€$]",  # "Curso Trading Pro: 297€"
+        r"([Mm]entoría[^:]+?):\s*(\d+)[€$](?:/(\w+))?",  # "Mentoría 1:1: 500€/mes"
     ]
 
     products = []
@@ -3633,34 +3866,35 @@ def generate_fallback_faqs(content: str) -> list:
 
     # If no structured products found, try simple price extraction
     if not products:
-        simple_prices = re.findall(r'(\d+)\s*[€$]', content)
+        simple_prices = re.findall(r"(\d+)\s*[€$]", content)
         if simple_prices:
             products = [f"{p}€" for p in simple_prices]
 
     # Build price FAQ
     if products:
         if len(products) == 1:
-            faqs.append({
-                "question": "¿Cuánto cuesta?",
-                "answer": f"El precio es {products[0]}."
-            })
+            faqs.append({"question": "¿Cuánto cuesta?", "answer": f"El precio es {products[0]}."})
         else:
-            faqs.append({
-                "question": "¿Cuánto cuesta?",
-                "answer": f"Tenemos varias opciones: {'. '.join(products)}."
-            })
+            faqs.append(
+                {
+                    "question": "¿Cuánto cuesta?",
+                    "answer": f"Tenemos varias opciones: {'. '.join(products)}.",
+                }
+            )
 
     # Extract what's included - look for parentheses after price OR after "incluye"
     # IMPORTANT: Skip small parentheses with payment words like "(tarjeta)"
     included_text = None
 
     # First, try to find parentheses that come after a price (e.g., "297€ (20h vídeo, comunidad...)")
-    price_paren_match = re.search(r'\d+[€$]\s*\(([^)]{15,})\)', content)  # Min 15 chars to avoid "(tarjeta)"
+    price_paren_match = re.search(
+        r"\d+[€$]\s*\(([^)]{15,})\)", content
+    )  # Min 15 chars to avoid "(tarjeta)"
     if price_paren_match:
         included_text = price_paren_match.group(1)
     else:
         # Try any parentheses with substantial content (not payment-related)
-        all_parens = re.findall(r'\(([^)]+)\)', content)
+        all_parens = re.findall(r"\(([^)]+)\)", content)
         for paren_content in all_parens:
             paren_lower = paren_content.lower()
             # Skip payment-related parentheses
@@ -3673,24 +3907,23 @@ def generate_fallback_faqs(content: str) -> list:
             break
 
     if included_text:
-        faqs.append({
-            "question": "¿Qué incluye?",
-            "answer": f"Incluye: {included_text}."
-        })
+        faqs.append({"question": "¿Qué incluye?", "answer": f"Incluye: {included_text}."})
     else:
         # Try "incluye:" pattern
-        incluye_match = re.search(r'[Ii]ncluye[:\s]+([^.]+)', content)
+        incluye_match = re.search(r"[Ii]ncluye[:\s]+([^.]+)", content)
         if incluye_match:
-            faqs.append({
-                "question": "¿Qué incluye?",
-                "answer": f"Incluye: {incluye_match.group(1).strip()}."
-            })
+            faqs.append(
+                {
+                    "question": "¿Qué incluye?",
+                    "answer": f"Incluye: {incluye_match.group(1).strip()}.",
+                }
+            )
 
     # Extract guarantee - multiple patterns
     guarantee_patterns = [
-        r'[Gg]arantía[:\s]+(\d+)\s*(días?|semanas?|meses?)',
-        r'(\d+)\s*(días?|semanas?|meses?)\s*(?:de\s*)?(?:garantía|devolución)',
-        r'[Gg]arantía\s*(?:de\s*)?(\d+)\s*(días?|semanas?|meses?)',
+        r"[Gg]arantía[:\s]+(\d+)\s*(días?|semanas?|meses?)",
+        r"(\d+)\s*(días?|semanas?|meses?)\s*(?:de\s*)?(?:garantía|devolución)",
+        r"[Gg]arantía\s*(?:de\s*)?(\d+)\s*(días?|semanas?|meses?)",
     ]
 
     guarantee = None
@@ -3701,10 +3934,12 @@ def generate_fallback_faqs(content: str) -> list:
             break
 
     if guarantee:
-        faqs.append({
-            "question": "¿Tienen garantía de devolución?",
-            "answer": f"Sí, {guarantee} de garantía. Si no estás satisfecho, te devolvemos el dinero."
-        })
+        faqs.append(
+            {
+                "question": "¿Tienen garantía de devolución?",
+                "answer": f"Sí, {guarantee} de garantía. Si no estás satisfecho, te devolvemos el dinero.",
+            }
+        )
 
     # Extract payment methods - be specific
     payment_methods = []
@@ -3720,45 +3955,56 @@ def generate_fallback_faqs(content: str) -> list:
         payment_methods.append("transferencia bancaria")
 
     if payment_methods:
-        faqs.append({
-            "question": "¿Cuáles son los métodos de pago?",
-            "answer": f"Puedes pagar con {', '.join(payment_methods)}."
-        })
+        faqs.append(
+            {
+                "question": "¿Cuáles son los métodos de pago?",
+                "answer": f"Puedes pagar con {', '.join(payment_methods)}.",
+            }
+        )
 
     # Extract schedule/hours
-    horario_match = re.search(r'[Hh]orario[:\s]+([^\n.]+)', content)
+    horario_match = re.search(r"[Hh]orario[:\s]+([^\n.]+)", content)
     if horario_match:
-        faqs.append({
-            "question": "¿Cuál es el horario de atención?",
-            "answer": f"Atendemos {horario_match.group(1).strip()}."
-        })
+        faqs.append(
+            {
+                "question": "¿Cuál es el horario de atención?",
+                "answer": f"Atendemos {horario_match.group(1).strip()}.",
+            }
+        )
 
     # Access duration
     if "de por vida" in content_lower or "acceso de por vida" in content_lower:
-        faqs.append({
-            "question": "¿Por cuánto tiempo tengo acceso?",
-            "answer": "Tienes acceso de por vida al contenido."
-        })
+        faqs.append(
+            {
+                "question": "¿Por cuánto tiempo tengo acceso?",
+                "answer": "Tienes acceso de por vida al contenido.",
+            }
+        )
     elif "vida" in content_lower:
-        faqs.append({
-            "question": "¿Por cuánto tiempo tengo acceso?",
-            "answer": "El acceso es de por vida."
-        })
+        faqs.append(
+            {"question": "¿Por cuánto tiempo tengo acceso?", "answer": "El acceso es de por vida."}
+        )
 
     # Extract hours of content
-    hours_match = re.search(r'(\d+)\s*h(?:oras?)?\s*(?:de\s*)?(?:vídeo|video|contenido)', content_lower)
+    hours_match = re.search(
+        r"(\d+)\s*h(?:oras?)?\s*(?:de\s*)?(?:vídeo|video|contenido)", content_lower
+    )
     if hours_match:
-        faqs.append({
-            "question": "¿Cuánto contenido incluye?",
-            "answer": f"Incluye {hours_match.group(1)} horas de vídeo."
-        })
+        faqs.append(
+            {
+                "question": "¿Cuánto contenido incluye?",
+                "answer": f"Incluye {hours_match.group(1)} horas de vídeo.",
+            }
+        )
 
     # How to start - only if we have some FAQs
     if faqs:
-        faqs.append({
-            "question": "¿Cómo puedo empezar?",
-            "answer": "Escríbeme y te cuento los pasos para comenzar."
-        })
+        faqs.append(
+            {
+                "question": "¿Cómo puedo empezar?",
+                "answer": "Escríbeme y te cuento los pasos para comenzar.",
+            }
+        )
 
     return faqs[:8]  # Return max 8 FAQs
 
@@ -3769,7 +4015,7 @@ def extract_faqs_from_text(text: str) -> list:
     import re
 
     # Try to find Q: A: patterns
-    qa_pattern = r'[¿?]([^?¿]+)\?[:\s]*([^¿?]+?)(?=[¿?]|$)'
+    qa_pattern = r"[¿?]([^?¿]+)\?[:\s]*([^¿?]+?)(?=[¿?]|$)"
     matches = re.findall(qa_pattern, text, re.DOTALL)
 
     for q, a in matches:
@@ -3819,16 +4065,21 @@ async def create_product(creator_id: str, product_data: dict = Body(...)):
     """Crear producto"""
     try:
         # Auto-generate id if not provided
-        if 'id' not in product_data or not product_data['id']:
-            product_data['id'] = product_data['name'].lower().replace(' ', '-').replace('/', '-')
+        if "id" not in product_data or not product_data["id"]:
+            product_data["id"] = product_data["name"].lower().replace(" ", "-").replace("/", "-")
         # Default description if not provided
-        if 'description' not in product_data:
-            product_data['description'] = ''
+        if "description" not in product_data:
+            product_data["description"] = ""
         product = Product(**product_data)
         product_id = product_manager.add_product(creator_id, product)
         # Get the created product to return full data
         created_product = product_manager.get_product_by_id(creator_id, product_id)
-        return {"status": "ok", "product": created_product.to_dict() if created_product else {"id": product_id, **product_data}}
+        return {
+            "status": "ok",
+            "product": (
+                created_product.to_dict() if created_product else {"id": product_id, **product_data}
+            ),
+        }
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
 
@@ -3887,9 +4138,7 @@ async def process_dm(payload: ProcessDMRequest):
         agent = get_dm_agent(payload.creator_id)
 
         result = await agent.process_dm(
-            sender_id=payload.sender_id,
-            message_text=payload.message,
-            message_id=payload.message_id
+            sender_id=payload.sender_id, message_text=payload.message, message_id=payload.message_id
         )
 
         return {
@@ -3899,7 +4148,7 @@ async def process_dm(payload: ProcessDMRequest):
             "action": result.action_taken,
             "product_mentioned": result.product_mentioned,
             "escalate": result.escalate_to_human,
-            "confidence": result.confidence
+            "confidence": result.confidence,
         }
 
     except Exception as e:
@@ -3911,13 +4160,14 @@ async def process_dm(payload: ProcessDMRequest):
 async def get_conversations(creator_id: str, limit: int = 50):
     """Listar conversaciones del creador - OPTIMIZED to avoid N+1 queries"""
     import time as _time
+
     start_time = _time.time()
 
     try:
         if USE_DB:
-            from api.services.db_service import get_session
             from api.models import Creator, Lead, Message
-            from sqlalchemy import func, not_, desc
+            from api.services.db_service import get_session
+            from sqlalchemy import desc, func, not_
 
             session = get_session()
             if session:
@@ -3927,35 +4177,50 @@ async def get_conversations(creator_id: str, limit: int = 50):
                         return {"status": "ok", "conversations": [], "count": 0}
 
                     # OPTIMIZED: Single query for leads with message counts
-                    msg_count_subq = session.query(
-                        Message.lead_id,
-                        func.count(Message.id).label('msg_count')
-                    ).filter(Message.role == 'user').group_by(Message.lead_id).subquery()
+                    msg_count_subq = (
+                        session.query(Message.lead_id, func.count(Message.id).label("msg_count"))
+                        .filter(Message.role == "user")
+                        .group_by(Message.lead_id)
+                        .subquery()
+                    )
 
-                    results = session.query(
-                        Lead,
-                        func.coalesce(msg_count_subq.c.msg_count, 0).label('total_messages')
-                    ).outerjoin(
-                        msg_count_subq, Lead.id == msg_count_subq.c.lead_id
-                    ).filter(
-                        Lead.creator_id == creator.id,
-                        not_(Lead.status.in_(["archived", "spam"]))
-                    ).order_by(Lead.last_contact_at.desc()).limit(limit).all()
+                    results = (
+                        session.query(
+                            Lead,
+                            func.coalesce(msg_count_subq.c.msg_count, 0).label("total_messages"),
+                        )
+                        .outerjoin(msg_count_subq, Lead.id == msg_count_subq.c.lead_id)
+                        .filter(
+                            Lead.creator_id == creator.id,
+                            not_(Lead.status.in_(["archived", "spam"])),
+                        )
+                        .order_by(Lead.last_contact_at.desc())
+                        .limit(limit)
+                        .all()
+                    )
 
                     # OPTIMIZED: Get last message for each lead in ONE query
                     lead_ids = [lead.id for lead, _ in results]
 
                     # Subquery to get the latest message per lead
-                    last_msg_subq = session.query(
-                        Message.lead_id,
-                        func.max(Message.created_at).label('max_date')
-                    ).filter(Message.lead_id.in_(lead_ids)).group_by(Message.lead_id).subquery()
+                    last_msg_subq = (
+                        session.query(
+                            Message.lead_id, func.max(Message.created_at).label("max_date")
+                        )
+                        .filter(Message.lead_id.in_(lead_ids))
+                        .group_by(Message.lead_id)
+                        .subquery()
+                    )
 
-                    last_messages_query = session.query(Message).join(
-                        last_msg_subq,
-                        (Message.lead_id == last_msg_subq.c.lead_id) &
-                        (Message.created_at == last_msg_subq.c.max_date)
-                    ).all()
+                    last_messages_query = (
+                        session.query(Message)
+                        .join(
+                            last_msg_subq,
+                            (Message.lead_id == last_msg_subq.c.lead_id)
+                            & (Message.created_at == last_msg_subq.c.max_date),
+                        )
+                        .all()
+                    )
 
                     # Build lookup dict for last messages
                     last_msg_by_lead = {msg.lead_id: msg for msg in last_messages_query}
@@ -3968,31 +4233,49 @@ async def get_conversations(creator_id: str, limit: int = 50):
                         last_msg = last_msg_by_lead.get(lead.id)
                         last_messages = []
                         if last_msg:
-                            last_messages = [{
-                                "role": last_msg.role,
-                                "content": last_msg.content[:200] if last_msg.content else "",
-                                "timestamp": last_msg.created_at.isoformat() if last_msg.created_at else None
-                            }]
+                            last_messages = [
+                                {
+                                    "role": last_msg.role,
+                                    "content": last_msg.content[:200] if last_msg.content else "",
+                                    "timestamp": (
+                                        last_msg.created_at.isoformat()
+                                        if last_msg.created_at
+                                        else None
+                                    ),
+                                }
+                            ]
 
-                        conversations.append({
-                            "follower_id": lead.platform_user_id,
-                            "id": str(lead.id),
-                            "username": lead.username or lead.platform_user_id,
-                            "name": lead.full_name or lead.username or "",
-                            "platform": lead.platform or "instagram",
-                            "total_messages": msg_count,
-                            "purchase_intent_score": lead.purchase_intent or 0.0,
-                            "is_lead": True,
-                            "last_contact": lead.last_contact_at.isoformat() if lead.last_contact_at else None,
-                            "last_messages": last_messages,
-                            "email": ctx.get("email") or "",
-                            "phone": ctx.get("phone") or "",
-                            "notes": ctx.get("notes") or "",
-                        })
+                        conversations.append(
+                            {
+                                "follower_id": lead.platform_user_id,
+                                "id": str(lead.id),
+                                "username": lead.username or lead.platform_user_id,
+                                "name": lead.full_name or lead.username or "",
+                                "platform": lead.platform or "instagram",
+                                "total_messages": msg_count,
+                                "purchase_intent_score": lead.purchase_intent or 0.0,
+                                "is_lead": True,
+                                "last_contact": (
+                                    lead.last_contact_at.isoformat()
+                                    if lead.last_contact_at
+                                    else None
+                                ),
+                                "last_messages": last_messages,
+                                "email": ctx.get("email") or "",
+                                "phone": ctx.get("phone") or "",
+                                "notes": ctx.get("notes") or "",
+                            }
+                        )
 
                     elapsed = _time.time() - start_time
-                    logger.info(f"[CONV] {creator_id}: {len(conversations)} conversations in {elapsed:.2f}s (optimized)")
-                    return {"status": "ok", "conversations": conversations, "count": len(conversations)}
+                    logger.info(
+                        f"[CONV] {creator_id}: {len(conversations)} conversations in {elapsed:.2f}s (optimized)"
+                    )
+                    return {
+                        "status": "ok",
+                        "conversations": conversations,
+                        "count": len(conversations),
+                    }
                 finally:
                     session.close()
 
@@ -4025,8 +4308,8 @@ async def debug_messages(creator_id: str):
         return {"status": "error", "message": "Database not available", "debug": debug_info}
 
     try:
-        from api.services.db_service import get_session
         from api.models import Creator, Lead, Message
+        from api.services.db_service import get_session
         from sqlalchemy import func
 
         session = get_session()
@@ -4060,37 +4343,50 @@ async def debug_messages(creator_id: str):
                 debug_info["total_messages_all"] = all_msg_count
 
                 # Count only user messages
-                user_msg_count = session.query(Message).filter(
-                    Message.lead_id.in_(lead_ids),
-                    Message.role == 'user'
-                ).count()
+                user_msg_count = (
+                    session.query(Message)
+                    .filter(Message.lead_id.in_(lead_ids), Message.role == "user")
+                    .count()
+                )
                 debug_info["total_messages_user"] = user_msg_count
 
                 # Get message counts per lead
                 for lead in leads[:5]:  # First 5 leads
                     lead_all = session.query(Message).filter_by(lead_id=lead.id).count()
-                    lead_user = session.query(Message).filter_by(lead_id=lead.id, role='user').count()
-                    debug_info["leads_with_messages"].append({
-                        "lead_id": str(lead.id),
-                        "platform_user_id": lead.platform_user_id,
-                        "username": lead.username,
-                        "all_messages": lead_all,
-                        "user_messages": lead_user,
-                    })
+                    lead_user = (
+                        session.query(Message).filter_by(lead_id=lead.id, role="user").count()
+                    )
+                    debug_info["leads_with_messages"].append(
+                        {
+                            "lead_id": str(lead.id),
+                            "platform_user_id": lead.platform_user_id,
+                            "username": lead.username,
+                            "all_messages": lead_all,
+                            "user_messages": lead_user,
+                        }
+                    )
 
                 # Get sample messages
-                sample_msgs = session.query(Message).filter(Message.lead_id.in_(lead_ids)).limit(5).all()
+                sample_msgs = (
+                    session.query(Message).filter(Message.lead_id.in_(lead_ids)).limit(5).all()
+                )
                 for msg in sample_msgs:
-                    debug_info["sample_messages"].append({
-                        "id": str(msg.id),
-                        "lead_id": str(msg.lead_id),
-                        "role": msg.role,
-                        "content_preview": msg.content[:50] if msg.content else "",
-                    })
+                    debug_info["sample_messages"].append(
+                        {
+                            "id": str(msg.id),
+                            "lead_id": str(msg.lead_id),
+                            "role": msg.role,
+                            "content_preview": msg.content[:50] if msg.content else "",
+                        }
+                    )
 
                 # Check for orphan messages (messages not associated with any of this creator's leads)
                 all_msgs_in_db = session.query(Message).count()
-                msgs_for_creator = session.query(Message).filter(Message.lead_id.in_(lead_ids)).count() if lead_ids else 0
+                msgs_for_creator = (
+                    session.query(Message).filter(Message.lead_id.in_(lead_ids)).count()
+                    if lead_ids
+                    else 0
+                )
                 orphan_msgs = all_msgs_in_db - msgs_for_creator
                 debug_info["orphan_messages"] = orphan_msgs
                 debug_info["all_messages_in_db"] = all_msgs_in_db
@@ -4098,13 +4394,18 @@ async def debug_messages(creator_id: str):
 
                 # Get sample orphan messages if any
                 if orphan_msgs > 0 and lead_ids:
-                    orphan_sample = session.query(Message).filter(~Message.lead_id.in_(lead_ids)).limit(5).all()
-                    debug_info["orphan_sample"] = [{
-                        "id": str(msg.id),
-                        "lead_id": str(msg.lead_id),
-                        "role": msg.role,
-                        "content_preview": msg.content[:50] if msg.content else "",
-                    } for msg in orphan_sample]
+                    orphan_sample = (
+                        session.query(Message).filter(~Message.lead_id.in_(lead_ids)).limit(5).all()
+                    )
+                    debug_info["orphan_sample"] = [
+                        {
+                            "id": str(msg.id),
+                            "lead_id": str(msg.lead_id),
+                            "role": msg.role,
+                            "content_preview": msg.content[:50] if msg.content else "",
+                        }
+                        for msg in orphan_sample
+                    ]
 
             return {"status": "ok", "debug": debug_info}
 
@@ -4120,9 +4421,10 @@ async def debug_messages(creator_id: str):
 @app.get("/citations/debug/{creator_id}")
 async def debug_citations(creator_id: str, query: str = "test"):
     """Debug endpoint to check citation content index"""
-    from core.citation_service import get_content_index, get_citation_prompt_section
-    from pathlib import Path
     import os
+    from pathlib import Path
+
+    from core.citation_service import get_citation_prompt_section, get_content_index
 
     debug_info = {
         "creator_id": creator_id,
@@ -4245,11 +4547,10 @@ async def send_manual_message(creator_id: str, request: SendMessageRequest):
             try:
                 telegram_api = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendMessage"
                 async with httpx.AsyncClient() as client:
-                    resp = await client.post(telegram_api, json={
-                        "chat_id": int(chat_id),
-                        "text": message_text,
-                        "parse_mode": "HTML"
-                    })
+                    resp = await client.post(
+                        telegram_api,
+                        json={"chat_id": int(chat_id), "text": message_text, "parse_mode": "HTML"},
+                    )
                     if resp.status_code == 200:
                         sent = True
                         logger.info(f"Manual message sent to Telegram chat {chat_id}")
@@ -4286,7 +4587,9 @@ async def send_manual_message(creator_id: str, request: SendMessageRequest):
             "sent": sent,
             "platform": platform,
             "follower_id": follower_id,
-            "message_preview": message_text[:100] + "..." if len(message_text) > 100 else message_text
+            "message_preview": (
+                message_text[:100] + "..." if len(message_text) > 100 else message_text
+            ),
         }
 
     except HTTPException:
@@ -4298,9 +4601,7 @@ async def send_manual_message(creator_id: str, request: SendMessageRequest):
 
 @app.put("/dm/follower/{creator_id}/{follower_id}/status")
 async def update_follower_status(
-    creator_id: str,
-    follower_id: str,
-    request: UpdateLeadStatusRequest
+    creator_id: str, follower_id: str, request: UpdateLeadStatusRequest
 ):
     """
     Update the lead status for a follower (for drag & drop in pipeline).
@@ -4320,8 +4621,7 @@ async def update_follower_status(
 
         if status not in valid_statuses:
             raise HTTPException(
-                status_code=400,
-                detail=f"Invalid status. Must be one of: {valid_statuses}"
+                status_code=400, detail=f"Invalid status. Must be one of: {valid_statuses}"
             )
 
         agent = get_dm_agent(creator_id)
@@ -4342,19 +4642,21 @@ async def update_follower_status(
             follower_id=follower_id,
             status=status,
             purchase_intent=current_score,  # Keep the real score!
-            is_customer=is_customer
+            is_customer=is_customer,
         )
 
         if not success:
             raise HTTPException(status_code=404, detail="Follower not found")
 
-        logger.info(f"Updated status for {follower_id} to {status} (score preserved: {current_score:.0%})")
+        logger.info(
+            f"Updated status for {follower_id} to {status} (score preserved: {current_score:.0%})"
+        )
 
         return {
             "status": "ok",
             "follower_id": follower_id,
             "new_status": status,
-            "purchase_intent": current_score  # Return the real score
+            "purchase_intent": current_score,  # Return the real score
         }
 
     except HTTPException:
@@ -4371,10 +4673,12 @@ async def update_follower_status(
 _dashboard_cache: Dict[str, tuple] = {}
 _DASHBOARD_CACHE_TTL = 30  # seconds
 
+
 @app.get("/dashboard/{creator_id}/overview")
 async def dashboard_overview(creator_id: str):
     """Datos para dashboard principal (cached for 30s)"""
     import time as _time
+
     try:
         # Check cache first
         now = _time.time()
@@ -4406,7 +4710,7 @@ async def dashboard_overview(creator_id: str):
             "leads": leads[:10],
             "config": config.to_dict() if config else None,
             "products_count": len(products),
-            "clone_active": config.is_active if config else False
+            "clone_active": config.is_active if config else False,
         }
 
     except Exception as e:
@@ -4426,11 +4730,7 @@ async def toggle_clone(creator_id: str, active: bool, reason: str = ""):
         if not success:
             raise HTTPException(status_code=404, detail="Creator not found")
 
-        return {
-            "status": "ok",
-            "active": active,
-            "reason": reason if not active else None
-        }
+        return {"status": "ok", "active": active, "reason": reason if not active else None}
 
     except HTTPException:
         raise
@@ -4452,35 +4752,34 @@ async def add_content(request: AddContentRequest):
     """Anadir contenido al RAG del creador"""
     try:
         import hashlib
+
         doc_id = f"{request.creator_id}_{request.doc_type}_{hashlib.md5(request.text.encode()).hexdigest()[:8]}"
 
         # Add to in-memory RAG
         rag.add_document(
             doc_id=doc_id,
             text=request.text,
-            metadata={
-                "creator_id": request.creator_id,
-                "type": request.doc_type
-            }
+            metadata={"creator_id": request.creator_id, "type": request.doc_type},
         )
 
         # Persist to PostgreSQL
         if DATABASE_URL and SessionLocal:
             try:
                 from api.models import ContentChunk
+
                 db = SessionLocal()
                 try:
                     # Check if already exists
-                    existing = db.query(ContentChunk).filter(
-                        ContentChunk.chunk_id == doc_id
-                    ).first()
+                    existing = (
+                        db.query(ContentChunk).filter(ContentChunk.chunk_id == doc_id).first()
+                    )
 
                     if not existing:
                         chunk = ContentChunk(
                             creator_id=request.creator_id,
                             chunk_id=doc_id,
                             content=request.text,
-                            source_type=request.doc_type
+                            source_type=request.doc_type,
                         )
                         db.add(chunk)
                         db.commit()
@@ -4515,7 +4814,9 @@ async def search_content_debug(query: str, top_k: int = 5, creator_id: str = Non
         raw_results = rag.search(query, top_k=top_k, creator_id=None)
 
         # Get filtered results
-        filtered_results = rag.search(query, top_k=top_k, creator_id=creator_id) if creator_id else raw_results
+        filtered_results = (
+            rag.search(query, top_k=top_k, creator_id=creator_id) if creator_id else raw_results
+        )
 
         return {
             "status": "ok",
@@ -4523,12 +4824,17 @@ async def search_content_debug(query: str, top_k: int = 5, creator_id: str = Non
             "creator_id_filter": creator_id,
             "raw_count": len(raw_results),
             "filtered_count": len(filtered_results),
-            "raw_results": [{"doc_id": r["doc_id"], "metadata": r["metadata"]} for r in raw_results],
-            "filtered_results": [{"doc_id": r["doc_id"], "metadata": r["metadata"]} for r in filtered_results]
+            "raw_results": [
+                {"doc_id": r["doc_id"], "metadata": r["metadata"]} for r in raw_results
+            ],
+            "filtered_results": [
+                {"doc_id": r["doc_id"], "metadata": r["metadata"]} for r in filtered_results
+            ],
         }
 
     except Exception as e:
         import traceback
+
         return {"status": "error", "detail": str(e), "traceback": traceback.format_exc()}
 
 
@@ -4540,7 +4846,7 @@ async def _do_reload(creator_id: str = None):
             "status": "ok",
             "loaded": loaded,
             "creator_id": creator_id,
-            "total_documents": rag.count()
+            "total_documents": rag.count(),
         }
     except Exception as e:
         return {"status": "error", "detail": str(e)}
@@ -4569,18 +4875,21 @@ async def content_debug():
         deps = {}
         try:
             import openai
-            deps['openai'] = openai.__version__
+
+            deps["openai"] = openai.__version__
         except ImportError as e:
-            deps['openai'] = f"NOT INSTALLED: {e}"
+            deps["openai"] = f"NOT INSTALLED: {e}"
 
         # Check if OpenAI API key is set
         import os
-        deps['openai_api_key'] = "SET" if os.getenv("OPENAI_API_KEY") else "NOT SET"
+
+        deps["openai_api_key"] = "SET" if os.getenv("OPENAI_API_KEY") else "NOT SET"
 
         # Get embedding stats from pgvector
         embedding_stats = {}
         try:
             from core.embeddings import get_embedding_stats
+
             embedding_stats = get_embedding_stats()
         except Exception as e:
             embedding_stats = {"error": str(e)}
@@ -4589,11 +4898,13 @@ async def content_debug():
         samples = []
         for doc_id in list(rag._documents.keys())[:3]:
             doc = rag._documents[doc_id]
-            samples.append({
-                "doc_id": doc_id,
-                "text_preview": doc.text[:100] if doc.text else "",
-                "metadata": doc.metadata
-            })
+            samples.append(
+                {
+                    "doc_id": doc_id,
+                    "text_preview": doc.text[:100] if doc.text else "",
+                    "metadata": doc.metadata,
+                }
+            )
 
         return {
             "status": "ok",
@@ -4603,7 +4914,7 @@ async def content_debug():
             "dependencies": deps,
             "embedding_stats": embedding_stats,
             "samples": samples,
-            "doc_list_first_5": rag._doc_list[:5] if rag._doc_list else []
+            "doc_list_first_5": rag._doc_list[:5] if rag._doc_list else [],
         }
     except Exception as e:
         return {"status": "error", "detail": str(e)}
@@ -4621,6 +4932,7 @@ async def content_stats(creator_id: str = None):
         if DATABASE_URL and SessionLocal:
             try:
                 from api.models import ContentChunk
+
                 db = SessionLocal()
                 try:
                     query = db.query(ContentChunk)
@@ -4636,6 +4948,7 @@ async def content_stats(creator_id: str = None):
         embedding_count = 0
         try:
             from core.embeddings import get_embedding_stats
+
             stats = get_embedding_stats(creator_id)
             embedding_count = stats.get("embeddings_count", 0)
         except Exception:
@@ -4647,7 +4960,7 @@ async def content_stats(creator_id: str = None):
             "db_persisted": db_count,
             "embeddings_stored": embedding_count,
             "creator_id": creator_id,
-            "synced": rag_count == db_count or (creator_id and rag_count >= db_count)
+            "synced": rag_count == db_count or (creator_id and rag_count >= db_count),
         }
 
     except Exception as e:
@@ -4666,7 +4979,7 @@ async def setup_pgvector_endpoint():
         if not SessionLocal:
             return {
                 "status": "ok",
-                "message": "Database not configured - pgvector pre-configured in Neon"
+                "message": "Database not configured - pgvector pre-configured in Neon",
             }
 
         db = SessionLocal()
@@ -4679,7 +4992,7 @@ async def setup_pgvector_endpoint():
             return {
                 "status": "ok",
                 "message": "pgvector and content_embeddings table are ready (pre-configured in Neon)",
-                "embeddings_count": count
+                "embeddings_count": count,
             }
 
         except Exception as e:
@@ -4688,7 +5001,7 @@ async def setup_pgvector_endpoint():
             return {
                 "status": "ok",
                 "message": "pgvector pre-configured in Neon (verification skipped due to pooler)",
-                "note": "Table exists, will work at runtime"
+                "note": "Table exists, will work at runtime",
             }
 
         finally:
@@ -4699,7 +5012,7 @@ async def setup_pgvector_endpoint():
         return {
             "status": "ok",
             "message": "pgvector pre-configured in Neon (verification skipped)",
-            "note": str(e)
+            "note": str(e),
         }
 
 
@@ -4711,7 +5024,9 @@ async def test_single_embedding():
     try:
         from core.embeddings import generate_embedding, store_embedding
 
-        test_text = "Este es un texto de prueba para verificar que los embeddings funcionan correctamente."
+        test_text = (
+            "Este es un texto de prueba para verificar que los embeddings funcionan correctamente."
+        )
 
         # Step 1: Generate embedding
         embedding = generate_embedding(test_text)
@@ -4719,7 +5034,7 @@ async def test_single_embedding():
             return {
                 "status": "error",
                 "step": "generate_embedding",
-                "message": "Failed to generate embedding - check OPENAI_API_KEY"
+                "message": "Failed to generate embedding - check OPENAI_API_KEY",
             }
 
         # Step 2: Store embedding
@@ -4728,38 +5043,36 @@ async def test_single_embedding():
                 chunk_id="test_embedding_001",
                 creator_id="test",
                 content=test_text,
-                embedding=embedding
+                embedding=embedding,
             )
         except Exception as store_err:
             import traceback
+
             return {
                 "status": "error",
                 "step": "store_embedding",
                 "message": str(store_err),
-                "traceback": traceback.format_exc()
+                "traceback": traceback.format_exc(),
             }
 
         if not stored:
             return {
                 "status": "error",
                 "step": "store_embedding",
-                "message": "store_embedding returned False"
+                "message": "store_embedding returned False",
             }
 
         return {
             "status": "ok",
             "message": "Embedding generated and stored successfully",
             "embedding_dimensions": len(embedding),
-            "chunk_id": "test_embedding_001"
+            "chunk_id": "test_embedding_001",
         }
 
     except Exception as e:
         import traceback
-        return {
-            "status": "error",
-            "message": str(e),
-            "traceback": traceback.format_exc()
-        }
+
+        return {"status": "error", "message": str(e), "traceback": traceback.format_exc()}
 
 
 @app.post("/content/generate-embeddings")
@@ -4789,13 +5102,18 @@ async def generate_embeddings_for_existing(creator_id: str, batch_size: int = 10
         try:
             # Get chunks that don't have embeddings yet
             # Join with content_embeddings to find missing ones
-            result = db.execute(text("""
+            result = db.execute(
+                text(
+                    """
                 SELECT c.chunk_id, c.creator_id, c.content
                 FROM content_chunks c
                 LEFT JOIN content_embeddings e ON c.chunk_id = e.chunk_id
                 WHERE c.creator_id = :creator_id AND e.chunk_id IS NULL
                 ORDER BY c.created_at
-            """), {"creator_id": creator_id})
+            """
+                ),
+                {"creator_id": creator_id},
+            )
 
             chunks_without_embeddings = result.fetchall()
 
@@ -4804,7 +5122,7 @@ async def generate_embeddings_for_existing(creator_id: str, batch_size: int = 10
                     "status": "ok",
                     "message": "All chunks already have embeddings",
                     "generated": 0,
-                    "creator_id": creator_id
+                    "creator_id": creator_id,
                 }
 
             # Process in batches
@@ -4812,7 +5130,7 @@ async def generate_embeddings_for_existing(creator_id: str, batch_size: int = 10
             failed = 0
 
             for i in range(0, len(chunks_without_embeddings), batch_size):
-                batch = chunks_without_embeddings[i:i + batch_size]
+                batch = chunks_without_embeddings[i : i + batch_size]
                 texts = [row.content for row in batch]
 
                 # Generate embeddings in batch
@@ -4835,7 +5153,7 @@ async def generate_embeddings_for_existing(creator_id: str, batch_size: int = 10
                 "generated": generated,
                 "failed": failed,
                 "total_processed": len(chunks_without_embeddings),
-                "creator_id": creator_id
+                "creator_id": creator_id,
             }
 
         finally:
@@ -4862,11 +5180,14 @@ async def clear_content(creator_id: str):
         if DATABASE_URL and SessionLocal:
             try:
                 from api.models import ContentChunk
+
                 db = SessionLocal()
                 try:
-                    deleted_db = db.query(ContentChunk).filter(
-                        ContentChunk.creator_id == creator_id
-                    ).delete()
+                    deleted_db = (
+                        db.query(ContentChunk)
+                        .filter(ContentChunk.creator_id == creator_id)
+                        .delete()
+                    )
                     db.commit()
                 finally:
                     db.close()
@@ -4875,7 +5196,8 @@ async def clear_content(creator_id: str):
 
         # Delete from in-memory RAG
         docs_to_delete = [
-            doc_id for doc_id, doc in rag._documents.items()
+            doc_id
+            for doc_id, doc in rag._documents.items()
             if doc.metadata and doc.metadata.get("creator_id") == creator_id
         ]
         for doc_id in docs_to_delete:
@@ -4883,13 +5205,15 @@ async def clear_content(creator_id: str):
                 del rag._documents[doc_id]
                 deleted_rag += 1
 
-        logger.info(f"Cleared content for {creator_id}: {deleted_db} from DB, {deleted_rag} from RAG")
+        logger.info(
+            f"Cleared content for {creator_id}: {deleted_db} from DB, {deleted_rag} from RAG"
+        )
 
         return {
             "status": "ok",
             "deleted_from_db": deleted_db,
             "deleted_from_rag": deleted_rag,
-            "creator_id": creator_id
+            "creator_id": creator_id,
         }
 
     except Exception as e:
@@ -4914,6 +5238,7 @@ async def bulk_load_content(request: BulkContentRequest):
     """
     try:
         import hashlib
+
         loaded = 0
 
         for i, chunk_data in enumerate(request.chunks):
@@ -4938,19 +5263,20 @@ async def bulk_load_content(request: BulkContentRequest):
                     "creator_id": request.creator_id,
                     "type": source_type,
                     "source_url": source_url,
-                    "title": title
-                }
+                    "title": title,
+                },
             )
 
             # Persist to PostgreSQL
             if DATABASE_URL and SessionLocal:
                 try:
                     from api.models import ContentChunk
+
                     db = SessionLocal()
                     try:
-                        existing = db.query(ContentChunk).filter(
-                            ContentChunk.chunk_id == chunk_id
-                        ).first()
+                        existing = (
+                            db.query(ContentChunk).filter(ContentChunk.chunk_id == chunk_id).first()
+                        )
 
                         if not existing:
                             db_chunk = ContentChunk(
@@ -4959,7 +5285,7 @@ async def bulk_load_content(request: BulkContentRequest):
                                 content=content,
                                 source_type=source_type,
                                 source_url=source_url,
-                                title=title
+                                title=title,
                             )
                             db.add(db_chunk)
                             db.commit()
@@ -4972,11 +5298,7 @@ async def bulk_load_content(request: BulkContentRequest):
 
         logger.info(f"Bulk loaded {loaded} real content chunks for {request.creator_id}")
 
-        return {
-            "status": "ok",
-            "chunks_loaded": loaded,
-            "creator_id": request.creator_id
-        }
+        return {"status": "ok", "chunks_loaded": loaded, "creator_id": request.creator_id}
 
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
@@ -5060,11 +5382,7 @@ async def gdpr_get_consent(creator_id: str, follower_id: str):
 
 @app.post("/gdpr/{creator_id}/consent/{follower_id}")
 async def gdpr_record_consent(
-    creator_id: str,
-    follower_id: str,
-    consent_type: str,
-    granted: bool,
-    source: str = "api"
+    creator_id: str, follower_id: str, consent_type: str, granted: bool, source: str = "api"
 ):
     """
     Record a consent decision.
@@ -5076,8 +5394,7 @@ async def gdpr_record_consent(
         valid_types = [ct.value for ct in ConsentType]
         if consent_type not in valid_types:
             raise HTTPException(
-                status_code=400,
-                detail=f"Invalid consent_type. Must be one of: {valid_types}"
+                status_code=400, detail=f"Invalid consent_type. Must be one of: {valid_types}"
             )
 
         gdpr = get_gdpr_manager()
@@ -5086,7 +5403,7 @@ async def gdpr_record_consent(
             follower_id=follower_id,
             consent_type=consent_type,
             granted=granted,
-            source=source
+            source=source,
         )
         return {"status": "ok", "consent": consent.to_dict()}
 
@@ -5149,9 +5466,7 @@ async def stripe_webhook(request: Request):
 
         payment_manager = get_payment_manager()
         result = await payment_manager.process_stripe_webhook(
-            payload=payload,
-            signature=signature,
-            raw_payload=raw_payload
+            payload=payload, signature=signature, raw_payload=raw_payload
         )
 
         logger.info(f"Stripe webhook processed: {result}")
@@ -5178,10 +5493,7 @@ async def hotmart_webhook(request: Request):
         token = request.headers.get("X-Hotmart-Hottok", "")
 
         payment_manager = get_payment_manager()
-        result = await payment_manager.process_hotmart_webhook(
-            payload=payload,
-            token=token
-        )
+        result = await payment_manager.process_hotmart_webhook(payload=payload, token=token)
 
         logger.info(f"Hotmart webhook processed: {result}")
         return result
@@ -5223,9 +5535,7 @@ async def paypal_webhook(request: Request):
 
         payment_manager = get_payment_manager()
         result = await payment_manager.process_paypal_webhook(
-            payload=payload,
-            headers=headers,
-            raw_payload=raw_payload
+            payload=payload, headers=headers, raw_payload=raw_payload
         )
 
         logger.info(f"PayPal webhook processed: {result}")
@@ -5237,11 +5547,7 @@ async def paypal_webhook(request: Request):
 
 
 @app.get("/payments/{creator_id}/purchases")
-async def get_purchases(
-    creator_id: str,
-    limit: int = 100,
-    status: Optional[str] = None
-):
+async def get_purchases(creator_id: str, limit: int = 100, status: Optional[str] = None):
     """
     Get all purchases for a creator.
 
@@ -5250,16 +5556,14 @@ async def get_purchases(
     try:
         payment_manager = get_payment_manager()
         purchases = payment_manager.get_all_purchases(
-            creator_id=creator_id,
-            limit=limit,
-            status=status
+            creator_id=creator_id, limit=limit, status=status
         )
 
         return {
             "status": "ok",
             "creator_id": creator_id,
             "purchases": purchases,
-            "count": len(purchases)
+            "count": len(purchases),
         }
 
     except Exception as e:
@@ -5273,14 +5577,10 @@ async def get_customer_purchases(creator_id: str, follower_id: str):
     try:
         payment_manager = get_payment_manager()
         purchases = payment_manager.get_customer_purchases(
-            creator_id=creator_id,
-            follower_id=follower_id
+            creator_id=creator_id, follower_id=follower_id
         )
 
-        total_spent = sum(
-            p.get("amount", 0) for p in purchases
-            if p.get("status") == "completed"
-        )
+        total_spent = sum(p.get("amount", 0) for p in purchases if p.get("status") == "completed")
 
         return {
             "status": "ok",
@@ -5288,7 +5588,7 @@ async def get_customer_purchases(creator_id: str, follower_id: str):
             "follower_id": follower_id,
             "purchases": purchases,
             "total_spent": total_spent,
-            "count": len(purchases)
+            "count": len(purchases),
         }
 
     except Exception as e:
@@ -5309,17 +5609,9 @@ async def get_revenue_stats(creator_id: str, days: int = 30):
     """
     try:
         payment_manager = get_payment_manager()
-        stats = payment_manager.get_revenue_stats(
-            creator_id=creator_id,
-            days=days
-        )
+        stats = payment_manager.get_revenue_stats(creator_id=creator_id, days=days)
 
-        return {
-            "status": "ok",
-            "creator_id": creator_id,
-            "days": days,
-            **stats.to_dict()
-        }
+        return {"status": "ok", "creator_id": creator_id, "days": days, **stats.to_dict()}
 
     except Exception as e:
         logger.error(f"Error getting revenue stats: {e}")
@@ -5327,11 +5619,7 @@ async def get_revenue_stats(creator_id: str, days: int = 30):
 
 
 @app.post("/payments/{creator_id}/attribute")
-async def attribute_sale(
-    creator_id: str,
-    purchase_id: str,
-    follower_id: str
-):
+async def attribute_sale(creator_id: str, purchase_id: str, follower_id: str):
     """
     Manually attribute a sale to the bot.
 
@@ -5340,9 +5628,7 @@ async def attribute_sale(
     try:
         payment_manager = get_payment_manager()
         success = payment_manager.attribute_sale_to_bot(
-            creator_id=creator_id,
-            follower_id=follower_id,
-            purchase_id=purchase_id
+            creator_id=creator_id, follower_id=follower_id, purchase_id=purchase_id
         )
 
         if not success:
@@ -5352,7 +5638,7 @@ async def attribute_sale(
             "status": "ok",
             "attributed": True,
             "purchase_id": purchase_id,
-            "follower_id": follower_id
+            "follower_id": follower_id,
         }
 
     except HTTPException:
@@ -5385,9 +5671,7 @@ async def calendly_webhook(request: Request):
 
         calendar_manager = get_calendar_manager()
         result = await calendar_manager.process_calendly_webhook(
-            payload=payload,
-            signature=signature,
-            raw_payload=raw_payload
+            payload=payload, signature=signature, raw_payload=raw_payload
         )
 
         logger.info(f"Calendly webhook processed: {result}")
@@ -5419,9 +5703,7 @@ async def calcom_webhook(request: Request):
 
         calendar_manager = get_calendar_manager()
         result = await calendar_manager.process_calcom_webhook(
-            payload=payload,
-            signature=signature,
-            raw_payload=raw_payload
+            payload=payload, signature=signature, raw_payload=raw_payload
         )
 
         logger.info(f"Cal.com webhook processed: {result}")
@@ -5434,10 +5716,7 @@ async def calcom_webhook(request: Request):
 
 @app.get("/calendar/{creator_id}/bookings")
 async def get_bookings(
-    creator_id: str,
-    status: Optional[str] = None,
-    upcoming: bool = False,
-    limit: int = 100
+    creator_id: str, status: Optional[str] = None, upcoming: bool = False, limit: int = 100
 ):
     """
     Get bookings for a creator.
@@ -5449,17 +5728,14 @@ async def get_bookings(
     try:
         calendar_manager = get_calendar_manager()
         bookings = calendar_manager.get_bookings(
-            creator_id=creator_id,
-            status=status,
-            upcoming_only=upcoming,
-            limit=limit
+            creator_id=creator_id, status=status, upcoming_only=upcoming, limit=limit
         )
 
         return {
             "status": "ok",
             "creator_id": creator_id,
             "bookings": bookings,
-            "count": len(bookings)
+            "count": len(bookings),
         }
 
     except Exception as e:
@@ -5480,31 +5756,38 @@ async def get_booking_link(creator_id: str, meeting_type: str):
             db = SessionLocal()
             try:
                 # First try to find exact meeting type
-                db_link = db.query(BookingLinkModel).filter(
-                    BookingLinkModel.creator_id == creator_id,
-                    BookingLinkModel.meeting_type == meeting_type,
-                    BookingLinkModel.is_active == True
-                ).first()
+                db_link = (
+                    db.query(BookingLinkModel)
+                    .filter(
+                        BookingLinkModel.creator_id == creator_id,
+                        BookingLinkModel.meeting_type == meeting_type,
+                        BookingLinkModel.is_active == True,
+                    )
+                    .first()
+                )
 
                 # If not found, try default
                 if not db_link:
-                    db_link = db.query(BookingLinkModel).filter(
-                        BookingLinkModel.creator_id == creator_id,
-                        BookingLinkModel.meeting_type == "default",
-                        BookingLinkModel.is_active == True
-                    ).first()
+                    db_link = (
+                        db.query(BookingLinkModel)
+                        .filter(
+                            BookingLinkModel.creator_id == creator_id,
+                            BookingLinkModel.meeting_type == "default",
+                            BookingLinkModel.is_active == True,
+                        )
+                        .first()
+                    )
 
                 if not db_link:
                     raise HTTPException(
-                        status_code=404,
-                        detail=f"No booking link found for type: {meeting_type}"
+                        status_code=404, detail=f"No booking link found for type: {meeting_type}"
                     )
 
                 return {
                     "status": "ok",
                     "creator_id": creator_id,
                     "meeting_type": meeting_type,
-                    "url": db_link.url
+                    "url": db_link.url,
                 }
             finally:
                 db.close()
@@ -5515,15 +5798,14 @@ async def get_booking_link(creator_id: str, meeting_type: str):
 
             if not url:
                 raise HTTPException(
-                    status_code=404,
-                    detail=f"No booking link found for type: {meeting_type}"
+                    status_code=404, detail=f"No booking link found for type: {meeting_type}"
                 )
 
             return {
                 "status": "ok",
                 "creator_id": creator_id,
                 "meeting_type": meeting_type,
-                "url": url
+                "url": url,
             }
 
     except HTTPException:
@@ -5546,45 +5828,54 @@ async def get_all_booking_links(creator_id: str):
             db = SessionLocal()
             try:
                 # Direct SQL SELECT - same approach as debug endpoint
-                result = db.execute(text("""
+                result = db.execute(
+                    text(
+                        """
                     SELECT id, creator_id, meeting_type, title, description,
                            duration_minutes, platform, url, is_active, created_at
                     FROM booking_links
                     WHERE creator_id = :creator_id AND is_active = true
                     ORDER BY created_at DESC
-                """), {"creator_id": creator_id})
+                """
+                    ),
+                    {"creator_id": creator_id},
+                )
 
                 rows = result.fetchall()
                 logger.info(f"GET - Found {len(rows)} links in PostgreSQL for {creator_id}")
 
                 links = []
                 for row in rows:
-                    links.append({
-                        "id": str(row[0]),
-                        "creator_id": row[1],
-                        "meeting_type": row[2],
-                        "title": row[3],
-                        "description": row[4] or "",
-                        "duration_minutes": row[5],
-                        "platform": row[6],
-                        "url": row[7] or "",
-                        "is_active": row[8],
-                        "metadata": {},
-                        "created_at": row[9].isoformat() if row[9] else ""
-                    })
+                    links.append(
+                        {
+                            "id": str(row[0]),
+                            "creator_id": row[1],
+                            "meeting_type": row[2],
+                            "title": row[3],
+                            "description": row[4] or "",
+                            "duration_minutes": row[5],
+                            "platform": row[6],
+                            "url": row[7] or "",
+                            "is_active": row[8],
+                            "metadata": {},
+                            "created_at": row[9].isoformat() if row[9] else "",
+                        }
+                    )
 
                 return {
                     "status": "ok",
                     "storage": "postgresql",
                     "creator_id": creator_id,
                     "links": links,
-                    "count": len(links)
+                    "count": len(links),
                 }
             finally:
                 db.close()
         else:
             # Fallback to file-based storage
-            logger.warning(f"GET /calendar/{creator_id}/links - USING FILE FALLBACK (SessionLocal={SessionLocal}, BookingLinkModel={BookingLinkModel})")
+            logger.warning(
+                f"GET /calendar/{creator_id}/links - USING FILE FALLBACK (SessionLocal={SessionLocal}, BookingLinkModel={BookingLinkModel})"
+            )
             calendar_manager = get_calendar_manager()
             links = calendar_manager.get_all_booking_links(creator_id)
             return {
@@ -5592,7 +5883,7 @@ async def get_all_booking_links(creator_id: str):
                 "creator_id": creator_id,
                 "links": links,
                 "count": len(links),
-                "storage": "file"  # Indicator for debugging
+                "storage": "file",  # Indicator for debugging
             }
 
     except Exception as e:
@@ -5608,15 +5899,21 @@ async def get_booking_links_public(creator_name: str):
             raise HTTPException(status_code=500, detail="Database not configured")
 
         from sqlalchemy import text
+
         db = SessionLocal()
         try:
-            result = db.execute(text("""
+            result = db.execute(
+                text(
+                    """
                 SELECT id, title, description, duration_minutes, platform, url,
                        COALESCE(price, 0) as price, meeting_type
                 FROM booking_links
                 WHERE creator_id = :creator_id AND is_active = true
                 ORDER BY created_at DESC
-            """), {"creator_id": creator_name})
+            """
+                ),
+                {"creator_id": creator_name},
+            )
 
             rows = result.fetchall()
             logger.info(f"GET /booking-links/{creator_name} - Found {len(rows)} links")
@@ -5633,11 +5930,11 @@ async def get_booking_links_public(creator_name: str):
                         "platform": row[4],
                         "url": row[5] or "",
                         "price": float(row[6]) if row[6] else 0,
-                        "meeting_type": row[7]
+                        "meeting_type": row[7],
                     }
                     for row in rows
                 ],
-                "count": len(rows)
+                "count": len(rows),
             }
         finally:
             db.close()
@@ -5649,16 +5946,14 @@ async def get_booking_links_public(creator_name: str):
 
 
 @app.post("/calendar/{creator_id}/links")
-async def create_booking_link(
-    creator_id: str,
-    data: dict = Body(...)
-):
+async def create_booking_link(creator_id: str, data: dict = Body(...)):
     """
     Create a new booking link - uses PostgreSQL for persistence.
     REWRITTEN to match debug endpoint exactly.
     """
-    from sqlalchemy import text
     import uuid
+
+    from sqlalchemy import text
 
     print("=== BOOKING LINK CREATE ===")
     print(f"creator_id: {creator_id}")
@@ -5671,11 +5966,7 @@ async def create_booking_link(
     title = data.get("title", "")
     platform = data.get("platform", "manual")
 
-    result = {
-        "success": False,
-        "error": None,
-        "link_id": None
-    }
+    result = {"success": False, "error": None, "link_id": None}
 
     if SessionLocal:
         db = SessionLocal()
@@ -5684,23 +5975,30 @@ async def create_booking_link(
             print(f"Inserting link_id: {link_id}")
 
             # EXACT same SQL as debug endpoint
-            db.execute(text("""
+            db.execute(
+                text(
+                    """
                 INSERT INTO booking_links (id, creator_id, meeting_type, title, duration_minutes, platform, is_active)
                 VALUES (:id, :creator_id, :meeting_type, :title, :duration, :platform, :is_active)
-            """), {
-                "id": link_id,
-                "creator_id": creator_id,
-                "meeting_type": meeting_type,
-                "title": title,
-                "duration": duration_minutes,
-                "platform": platform,
-                "is_active": True
-            })
+            """
+                ),
+                {
+                    "id": link_id,
+                    "creator_id": creator_id,
+                    "meeting_type": meeting_type,
+                    "title": title,
+                    "duration": duration_minutes,
+                    "platform": platform,
+                    "is_active": True,
+                },
+            )
             db.commit()
             print(f"INSERT + COMMIT done for {link_id}")
 
             # Verify
-            verify = db.execute(text("SELECT COUNT(*) FROM booking_links WHERE id = :id"), {"id": link_id})
+            verify = db.execute(
+                text("SELECT COUNT(*) FROM booking_links WHERE id = :id"), {"id": link_id}
+            )
             verify_count = verify.scalar()
             print(f"verify_count: {verify_count}")
 
@@ -5718,12 +6016,13 @@ async def create_booking_link(
                     "title": title,
                     "duration_minutes": duration_minutes,
                     "platform": platform,
-                    "is_active": True
+                    "is_active": True,
                 },
-                "debug": result
+                "debug": result,
             }
         except Exception as e:
             import traceback
+
             print(f"ERROR: {e}")
             print(traceback.format_exc())
             result["error"] = str(e)
@@ -5751,11 +6050,7 @@ async def get_calendar_stats(creator_id: str, days: int = 30):
         calendar_manager = get_calendar_manager()
         stats = calendar_manager.get_booking_stats(creator_id, days)
 
-        return {
-            "status": "ok",
-            "creator_id": creator_id,
-            **stats
-        }
+        return {"status": "ok", "creator_id": creator_id, **stats}
 
     except Exception as e:
         logger.error(f"Error getting calendar stats: {e}")
@@ -5804,9 +6099,7 @@ async def mark_booking_no_show(creator_id: str, booking_id: str):
 # ADMIN PANEL ENDPOINTS
 # ---------------------------------------------------------
 @app.get("/admin/creators")
-async def admin_list_creators(
-    admin: str = Depends(require_admin)
-):
+async def admin_list_creators(admin: str = Depends(require_admin)):
     """
     [ADMIN] Listar todos los creadores con estadísticas básicas.
     Requiere CLONNECT_ADMIN_KEY.
@@ -5830,23 +6123,21 @@ async def admin_list_creators(
                 logger.warning(f"Failed to get metrics for {creator_id}: {e}")
                 leads = []
 
-            creator_stats.append({
-                "creator_id": creator_id,
-                "name": config.name,
-                "instagram_handle": config.instagram_handle,
-                "is_active": config.is_active,
-                "pause_reason": config.pause_reason if not config.is_active else None,
-                "total_messages": metrics.get("total_messages", 0),
-                "total_leads": len(leads),
-                "hot_leads": len([l for l in leads if l.get("score", 0) >= 0.7]),
-                "updated_at": config.updated_at
-            })
+            creator_stats.append(
+                {
+                    "creator_id": creator_id,
+                    "name": config.name,
+                    "instagram_handle": config.instagram_handle,
+                    "is_active": config.is_active,
+                    "pause_reason": config.pause_reason if not config.is_active else None,
+                    "total_messages": metrics.get("total_messages", 0),
+                    "total_leads": len(leads),
+                    "hot_leads": len([l for l in leads if l.get("score", 0) >= 0.7]),
+                    "updated_at": config.updated_at,
+                }
+            )
 
-        return {
-            "status": "ok",
-            "creators": creator_stats,
-            "total": len(creator_stats)
-        }
+        return {"status": "ok", "creators": creator_stats, "total": len(creator_stats)}
 
     except Exception as e:
         logger.error(f"Error listing creators: {e}")
@@ -5854,9 +6145,7 @@ async def admin_list_creators(
 
 
 @app.get("/admin/stats")
-async def admin_global_stats(
-    admin: str = Depends(require_admin)
-):
+async def admin_global_stats(admin: str = Depends(require_admin)):
     """
     [ADMIN] Estadísticas globales de la plataforma.
     Requiere CLONNECT_ADMIN_KEY.
@@ -5901,8 +6190,8 @@ async def admin_global_stats(
                 "total_messages": total_messages,
                 "total_conversations": total_conversations,
                 "total_leads": total_leads,
-                "hot_leads": total_hot_leads
-            }
+                "hot_leads": total_hot_leads,
+            },
         }
 
     except Exception as e:
@@ -5912,9 +6201,7 @@ async def admin_global_stats(
 
 @app.get("/admin/conversations")
 async def admin_all_conversations(
-    admin: str = Depends(require_admin),
-    creator_id: Optional[str] = None,
-    limit: int = 100
+    admin: str = Depends(require_admin), creator_id: Optional[str] = None, limit: int = 100
 ):
     """
     [ADMIN] Listar todas las conversaciones de todos los creadores.
@@ -5941,15 +6228,12 @@ async def admin_all_conversations(
                 logger.warning(f"Failed to get conversations: {e}")
 
         # Ordenar por última actividad
-        all_conversations.sort(
-            key=lambda x: x.get("last_contact", ""),
-            reverse=True
-        )
+        all_conversations.sort(key=lambda x: x.get("last_contact", ""), reverse=True)
 
         return {
             "status": "ok",
             "conversations": all_conversations[:limit],
-            "total": len(all_conversations)
+            "total": len(all_conversations),
         }
 
     except Exception as e:
@@ -5958,10 +6242,7 @@ async def admin_all_conversations(
 
 
 @app.get("/admin/alerts")
-async def admin_recent_alerts(
-    admin: str = Depends(require_admin),
-    limit: int = 50
-):
+async def admin_recent_alerts(admin: str = Depends(require_admin), limit: int = 50):
     """
     [ADMIN] Obtener alertas recientes del sistema.
     Requiere CLONNECT_ADMIN_KEY.
@@ -5980,6 +6261,7 @@ async def admin_recent_alerts(
                 for line in lines:
                     try:
                         import json
+
                         alert = json.loads(line.strip())
                         alerts.append(alert)
                     except Exception as e:
@@ -5989,7 +6271,7 @@ async def admin_recent_alerts(
             "status": "ok",
             "alerts": alerts,
             "total": len(alerts),
-            "telegram_enabled": os.getenv("TELEGRAM_ALERTS_ENABLED", "false").lower() == "true"
+            "telegram_enabled": os.getenv("TELEGRAM_ALERTS_ENABLED", "false").lower() == "true",
         }
 
     except Exception as e:
@@ -5999,9 +6281,7 @@ async def admin_recent_alerts(
 
 @app.post("/admin/creators/{creator_id}/pause")
 async def admin_pause_creator(
-    creator_id: str,
-    reason: str = "Pausado por admin",
-    admin: str = Depends(require_admin)
+    creator_id: str, reason: str = "Pausado por admin", admin: str = Depends(require_admin)
 ):
     """
     [ADMIN] Pausar el bot de cualquier creador.
@@ -6015,12 +6295,7 @@ async def admin_pause_creator(
 
         logger.warning(f"Admin paused bot for creator {creator_id}: {reason}")
 
-        return {
-            "status": "ok",
-            "creator_id": creator_id,
-            "is_active": False,
-            "reason": reason
-        }
+        return {"status": "ok", "creator_id": creator_id, "is_active": False, "reason": reason}
 
     except HTTPException:
         raise
@@ -6030,10 +6305,7 @@ async def admin_pause_creator(
 
 
 @app.post("/admin/creators/{creator_id}/resume")
-async def admin_resume_creator(
-    creator_id: str,
-    admin: str = Depends(require_admin)
-):
+async def admin_resume_creator(creator_id: str, admin: str = Depends(require_admin)):
     """
     [ADMIN] Reanudar el bot de cualquier creador.
     Requiere CLONNECT_ADMIN_KEY.
@@ -6046,11 +6318,7 @@ async def admin_resume_creator(
 
         logger.info(f"Admin resumed bot for creator {creator_id}")
 
-        return {
-            "status": "ok",
-            "creator_id": creator_id,
-            "is_active": True
-        }
+        return {"status": "ok", "creator_id": creator_id, "is_active": True}
 
     except HTTPException:
         raise
@@ -6059,11 +6327,35 @@ async def admin_resume_creator(
         raise HTTPException(status_code=500, detail=str(e))
 
 
+@app.post("/admin/reset-rate-limiter/{creator_id}")
+async def admin_reset_rate_limiter(creator_id: str):
+    """Reset Instagram rate limiter backoff for a creator."""
+    try:
+        from core.instagram_rate_limiter import get_instagram_rate_limiter
+
+        limiter = get_instagram_rate_limiter()
+        result = limiter.reset_backoff(creator_id)
+        return {"status": "success", **result}
+    except Exception as e:
+        logger.error(f"Error resetting rate limiter: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/admin/rate-limiter-stats")
+async def admin_rate_limiter_stats(creator_id: str = None):
+    """Get Instagram rate limiter statistics."""
+    try:
+        from core.instagram_rate_limiter import get_instagram_rate_limiter
+
+        limiter = get_instagram_rate_limiter()
+        return limiter.get_stats(creator_id)
+    except Exception as e:
+        logger.error(f"Error getting rate limiter stats: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 @app.post("/admin/backup")
-async def admin_create_backup(
-    creators_only: bool = False,
-    admin: str = Depends(require_admin)
-):
+async def admin_create_backup(creators_only: bool = False, admin: str = Depends(require_admin)):
     """
     [ADMIN] Create a database backup.
     Exports critical data to JSON files.
@@ -6096,7 +6388,7 @@ async def admin_create_backup(
             "status": "ok",
             "message": "Backup created successfully",
             "output": result.stdout,
-            "creators_only": creators_only
+            "creators_only": creators_only,
         }
 
     except subprocess.TimeoutExpired:
@@ -6107,9 +6399,7 @@ async def admin_create_backup(
 
 
 @app.get("/admin/backups")
-async def admin_list_backups(
-    admin: str = Depends(require_admin)
-):
+async def admin_list_backups(admin: str = Depends(require_admin)):
     """
     [ADMIN] List available backups.
     """
@@ -6125,17 +6415,15 @@ async def admin_list_backups(
                     if os.path.exists(meta_file):
                         with open(meta_file) as f:
                             meta = json.load(f)
-                        backups.append({
-                            "name": item,
-                            "created_at": meta.get("created_at"),
-                            "tables": list(meta.get("stats", {}).get("tables", {}).keys())
-                        })
+                        backups.append(
+                            {
+                                "name": item,
+                                "created_at": meta.get("created_at"),
+                                "tables": list(meta.get("stats", {}).get("tables", {}).keys()),
+                            }
+                        )
 
-        return {
-            "status": "ok",
-            "backups": backups,
-            "total": len(backups)
-        }
+        return {"status": "ok", "backups": backups, "total": len(backups)}
 
     except Exception as e:
         logger.error(f"Error listing backups: {e}")
@@ -6144,8 +6432,7 @@ async def admin_list_backups(
 
 @app.delete("/creator/{creator_id}/reset")
 async def reset_creator_data(
-    creator_id: str,
-    x_api_key: Optional[str] = Header(None, alias="X-API-Key")
+    creator_id: str, x_api_key: Optional[str] = Header(None, alias="X-API-Key")
 ):
     """
     Reset all test/follower data for a creator.
@@ -6163,10 +6450,7 @@ async def reset_creator_data(
     await require_creator_or_admin(creator_id, x_api_key)
 
     data_path = os.getenv("DATA_PATH", "./data")
-    deleted = {
-        "followers": 0,
-        "analytics": 0
-    }
+    deleted = {"followers": 0, "analytics": 0}
     errors = []
 
     # Delete followers directory
@@ -6208,7 +6492,7 @@ async def reset_creator_data(
         "creator_id": creator_id,
         "deleted": deleted,
         "errors": errors if errors else None,
-        "note": "Config and products were preserved"
+        "note": "Config and products were preserved",
     }
 
 
@@ -6236,6 +6520,7 @@ async def startup_event():
     # Start nurturing scheduler
     try:
         from api.routers.nurturing import start_scheduler
+
         start_scheduler()
         logger.info("Nurturing scheduler started")
     except Exception as e:
@@ -6270,30 +6555,63 @@ async def startup_event():
     async def _do_prewarm():
         try:
             import time
+
             _t_start = time.time()
 
-            # Get active creators from database
-            active_creators = []
+            # Get active creators from database AND Telegram registry
+            active_creators = set()
+
+            # 1. Get from database
             if SessionLocal:
                 try:
                     from api.models import Creator
+
                     session = SessionLocal()
                     try:
                         creators = session.query(Creator).filter_by(bot_active=True).all()
-                        active_creators = [c.name for c in creators if c.name]
+                        for c in creators:
+                            if c.name:
+                                active_creators.add(c.name)
                     finally:
                         session.close()
                 except Exception as e:
                     logger.warning(f"Could not get creators from DB: {e}")
 
+            # 2. Get from Telegram registry (may not be in DB)
+            try:
+                from core.telegram_registry import get_telegram_registry
+
+                registry = get_telegram_registry()
+                for bot in registry.list_bots():
+                    if bot.get("is_active") and bot.get("creator_id"):
+                        active_creators.add(bot["creator_id"])
+            except Exception:
+                pass
+
             # Fallback: at minimum, pre-warm stefano_auto
             if not active_creators:
-                active_creators = ["stefano_auto"]
+                active_creators = {"stefano_auto"}
 
-            logger.info(f"Pre-warming caches for {len(active_creators)} creators: {active_creators}")
+            active_creators = list(active_creators)
+
+            logger.info(
+                f"Pre-warming caches for {len(active_creators)} creators: {active_creators}"
+            )
+
+            # Pre-load embedding model for semantic memory (takes 2-10s on first load)
+            try:
+                from core.semantic_memory import ENABLE_SEMANTIC_MEMORY, _get_embeddings
+
+                if ENABLE_SEMANTIC_MEMORY:
+                    _t_emb = time.time()
+                    _get_embeddings()  # Force load the model
+                    logger.info(f"⏱️ Pre-loaded embedding model in {time.time() - _t_emb:.2f}s")
+            except Exception as e:
+                logger.warning(f"Could not pre-load embedding model: {e}")
 
             # Pre-load ToneProfile cache
             from core.tone_service import get_tone_prompt_section
+
             for creator_id in active_creators:
                 try:
                     get_tone_prompt_section(creator_id)
@@ -6302,6 +6620,7 @@ async def startup_event():
 
             # Pre-load CitationIndex cache
             from core.citation_service import get_content_index
+
             for creator_id in active_creators:
                 try:
                     get_content_index(creator_id)
@@ -6317,49 +6636,103 @@ async def startup_event():
     asyncio.create_task(prewarm_creator_caches())
     logger.info("Cache pre-warming scheduled (background task)")
 
-    # KEEP-ALIVE: Ping every 15 minutes to prevent cold starts
+    # KEEP-ALIVE: Ping every 4 minutes to prevent cold starts and keep caches warm
     # Railway puts containers to sleep after extended inactivity
-    # Reduced from 4 min to 15 min to avoid blocking workers
+    # CRITICAL: 4 min interval keeps all caches warm (config TTL=5min, agent TTL=10min)
     async def keep_alive_task():
         import time
-        KEEP_ALIVE_INTERVAL = 900  # 15 minutes (was 240)
+
+        KEEP_ALIVE_INTERVAL = 240  # 4 minutes - keeps all caches warm
 
         # Wait briefly for startup to complete
         await asyncio.sleep(3)
-        logger.warning(f"[KEEP-ALIVE] ===== STARTED - will ping every {KEEP_ALIVE_INTERVAL}s =====")
+        logger.warning(
+            f"[KEEP-ALIVE] ===== STARTED - will ping every {KEEP_ALIVE_INTERVAL}s (4 min) ====="
+        )
 
         while True:
             try:
                 _t_start = time.time()
 
-                # 1. Pre-load DM agent for stefano_auto (most active creator)
-                try:
-                    agent = get_dm_agent("stefano_auto")
-                    # Touch the system prompt cache to keep it warm
-                    if hasattr(agent, '_build_system_prompt'):
-                        _ = agent._build_system_prompt("")
-                    logger.debug(f"[KEEP-ALIVE] DM agent for stefano_auto warmed")
-                except Exception as e:
-                    logger.warning(f"[KEEP-ALIVE] DM agent warm failed: {e}")
+                # Get ALL active creators to warm up
+                active_creators = set(["stefano_auto", "stefano_bonanno"])  # Defaults
 
-                # 2. Refresh ToneProfile cache
+                # 1. Get creators from database with bot_active=True
+                if SessionLocal:
+                    try:
+                        from api.models import Creator
+
+                        session = SessionLocal()
+                        try:
+                            creators = session.query(Creator).filter_by(bot_active=True).all()
+                            if creators:
+                                for c in creators:
+                                    if c.name:
+                                        active_creators.add(c.name)
+                        finally:
+                            session.close()
+                    except Exception:
+                        pass
+
+                # 2. Get creators from Telegram registry (may not be in DB)
                 try:
-                    from core.tone_service import get_tone_prompt_section
-                    get_tone_prompt_section("stefano_auto")
+                    from core.telegram_registry import get_telegram_registry
+
+                    registry = get_telegram_registry()
+                    for bot in registry.list_bots():
+                        if bot.get("is_active") and bot.get("creator_id"):
+                            active_creators.add(bot["creator_id"])
                 except Exception:
                     pass
 
-                # 3. Refresh CitationIndex cache
+                active_creators = list(active_creators)
+
+                # 1. Pre-load DM agents for ALL active creators
+                # This keeps config/products cache warm (5-min TTL) and agent cache warm (10-min TTL)
+                from core.dm_agent import _dm_agent_cache_timestamp
+
+                for creator_id in active_creators:
+                    try:
+                        agent = get_dm_agent(creator_id)
+                        cache_age = time.time() - _dm_agent_cache_timestamp.get(creator_id, 0)
+                        # Touch the system prompt cache to keep it warm
+                        if hasattr(agent, "_build_system_prompt"):
+                            _ = agent._build_system_prompt("")
+                        logger.info(
+                            f"[KEEP-ALIVE] Agent for {creator_id} kept warm (cache age: {cache_age:.1f}s)"
+                        )
+                    except Exception as e:
+                        logger.warning(f"[KEEP-ALIVE] DM agent warm failed for {creator_id}: {e}")
+
+                # 2. Keep embedding model warm (for semantic memory)
+                try:
+                    from core.semantic_memory import ENABLE_SEMANTIC_MEMORY, _get_embeddings
+
+                    if ENABLE_SEMANTIC_MEMORY:
+                        _get_embeddings()  # Just touch it to keep in memory
+                        logger.debug("[KEEP-ALIVE] Embedding model kept warm")
+                except Exception:
+                    pass
+
+                # 3. Refresh ToneProfile and CitationIndex cache for all creators
                 try:
                     from core.citation_service import get_content_index
-                    get_content_index("stefano_auto")
+                    from core.tone_service import get_tone_prompt_section
+
+                    for creator_id in active_creators:
+                        try:
+                            get_tone_prompt_section(creator_id)
+                            get_content_index(creator_id)
+                        except Exception:
+                            pass
                 except Exception:
                     pass
 
-                # 4. Light DB ping to keep connection pool alive
+                # 5. Light DB ping to keep connection pool alive
                 if SessionLocal:
                     try:
                         from sqlalchemy import text
+
                         session = SessionLocal()
                         session.execute(text("SELECT 1"))
                         session.close()
@@ -6367,7 +6740,9 @@ async def startup_event():
                         pass
 
                 _t_end = time.time()
-                logger.warning(f"[KEEP-ALIVE] ===== Ping completed in {_t_end - _t_start:.2f}s =====")
+                logger.warning(
+                    f"[KEEP-ALIVE] ===== Ping completed in {_t_end - _t_start:.2f}s ====="
+                )
 
             except Exception as e:
                 logger.error(f"[KEEP-ALIVE] Error: {e}", exc_info=True)
@@ -6375,12 +6750,13 @@ async def startup_event():
             await asyncio.sleep(KEEP_ALIVE_INTERVAL)
 
     asyncio.create_task(keep_alive_task())
-    logger.info("Keep-alive task scheduled (every 15 minutes)")
+    logger.info("Keep-alive task scheduled (every 4 minutes)")
 
     logger.info("Ready to receive requests!")
 
 
 # ============ CONVERSATION ACTIONS ============
+
 
 @app.post("/dm/conversations/{creator_id}/{conversation_id}/archive")
 async def archive_conversation_endpoint(creator_id: str, conversation_id: str):
@@ -6389,6 +6765,7 @@ async def archive_conversation_endpoint(creator_id: str, conversation_id: str):
     if USE_DB:
         try:
             from api.services import db_service
+
             success = db_service.archive_conversation(creator_id, conversation_id)
             if success:
                 return {"status": "ok", "archived": True}
@@ -6409,6 +6786,7 @@ async def archive_conversation_endpoint(creator_id: str, conversation_id: str):
     except Exception as e:
         return {"status": "error", "message": str(e)}
 
+
 @app.post("/dm/conversations/{creator_id}/{conversation_id}/spam")
 async def mark_conversation_spam_endpoint(creator_id: str, conversation_id: str):
     # Try PostgreSQL first
@@ -6416,6 +6794,7 @@ async def mark_conversation_spam_endpoint(creator_id: str, conversation_id: str)
     if USE_DB:
         try:
             from api.services import db_service
+
             success = db_service.mark_conversation_spam(creator_id, conversation_id)
             if success:
                 return {"status": "ok", "spam": True}
@@ -6441,6 +6820,7 @@ async def mark_conversation_spam_endpoint(creator_id: str, conversation_id: str)
     except Exception as e:
         return {"status": "error", "message": str(e)}
 
+
 @app.delete("/dm/conversations/{creator_id}/{conversation_id}")
 async def delete_conversation_endpoint(creator_id: str, conversation_id: str):
     # Try PostgreSQL first
@@ -6448,6 +6828,7 @@ async def delete_conversation_endpoint(creator_id: str, conversation_id: str):
     if USE_DB:
         try:
             from api.services import db_service
+
             success = db_service.delete_conversation(creator_id, conversation_id)
             if success:
                 return {"status": "ok", "deleted": conversation_id}
@@ -6463,7 +6844,9 @@ async def delete_conversation_endpoint(creator_id: str, conversation_id: str):
     except Exception as e:
         return {"status": "error", "message": str(e)}
 
+
 # ============ ARCHIVED/SPAM MANAGEMENT ============
+
 
 @app.get("/dm/conversations/{creator_id}/archived")
 async def get_archived_conversations(creator_id: str):
@@ -6471,9 +6854,9 @@ async def get_archived_conversations(creator_id: str):
     USE_DB = bool(os.getenv("DATABASE_URL"))
     if USE_DB:
         try:
+            from api.models import Creator, Lead, Message
             from api.services import db_service
             from api.services.db_service import get_session
-            from api.models import Creator, Lead, Message
 
             session = get_session()
             if not session:
@@ -6484,25 +6867,35 @@ async def get_archived_conversations(creator_id: str):
                 if not creator:
                     return {"status": "ok", "conversations": []}
 
-                leads = session.query(Lead).filter_by(creator_id=creator.id).filter(
-                    Lead.status.in_(["archived", "spam"])
-                ).order_by(Lead.last_contact_at.desc()).all()
+                leads = (
+                    session.query(Lead)
+                    .filter_by(creator_id=creator.id)
+                    .filter(Lead.status.in_(["archived", "spam"]))
+                    .order_by(Lead.last_contact_at.desc())
+                    .all()
+                )
 
                 conversations = []
                 for lead in leads:
                     # Only count user messages, not bot responses
-                    msg_count = session.query(Message).filter_by(lead_id=lead.id, role='user').count()
-                    conversations.append({
-                        "id": str(lead.id),
-                        "follower_id": lead.platform_user_id or str(lead.id),
-                        "username": lead.username,
-                        "name": lead.full_name,
-                        "platform": lead.platform or "instagram",
-                        "status": lead.status,
-                        "total_messages": msg_count,
-                        "purchase_intent": lead.purchase_intent or 0.0,
-                        "last_contact": lead.last_contact_at.isoformat() if lead.last_contact_at else None,
-                    })
+                    msg_count = (
+                        session.query(Message).filter_by(lead_id=lead.id, role="user").count()
+                    )
+                    conversations.append(
+                        {
+                            "id": str(lead.id),
+                            "follower_id": lead.platform_user_id or str(lead.id),
+                            "username": lead.username,
+                            "name": lead.full_name,
+                            "platform": lead.platform or "instagram",
+                            "status": lead.status,
+                            "total_messages": msg_count,
+                            "purchase_intent": lead.purchase_intent or 0.0,
+                            "last_contact": (
+                                lead.last_contact_at.isoformat() if lead.last_contact_at else None
+                            ),
+                        }
+                    )
 
                 return {"status": "ok", "conversations": conversations}
             finally:
@@ -6520,6 +6913,7 @@ async def restore_conversation(creator_id: str, conversation_id: str):
     if USE_DB:
         try:
             from api.services import db_service
+
             count = db_service.reset_conversation_status(creator_id, conversation_id)
             if count > 0:
                 return {"status": "ok", "restored": True}
@@ -6537,6 +6931,7 @@ async def reset_conversations(creator_id: str):
     if USE_DB:
         try:
             from api.services import db_service
+
             count = db_service.reset_conversation_status(creator_id)
             return {"status": "ok", "reset_count": count}
         except Exception as e:
@@ -6552,6 +6947,7 @@ async def sync_messages_from_json_endpoint(creator_id: str):
     if USE_DB:
         try:
             from api.services.data_sync import sync_messages_from_json
+
             stats = sync_messages_from_json(creator_id)
             return {"status": "ok", **stats}
         except Exception as e:
@@ -6562,12 +6958,15 @@ async def sync_messages_from_json_endpoint(creator_id: str):
 
 if __name__ == "__main__":
     import uvicorn
+
     uvicorn.run(app, host="0.0.0.0", port=8000)
+
 
 @app.get("/debug/agent-config/{creator_id}")
 async def debug_agent_config(creator_id: str):
     """Debug: ver qué config carga el DMAgent"""
     from core.dm_agent import DMResponderAgent
+
     agent = DMResponderAgent(creator_id=creator_id)
     vocab = agent.creator_config.get("clone_vocabulary", "")
 
@@ -6590,13 +6989,15 @@ async def debug_agent_config(creator_id: str):
         "clone_vocabulary_length": len(vocab) if vocab else 0,
         "detected_preset": detected_preset,
         "name": agent.creator_config.get("name"),
-        "config_keys": list(agent.creator_config.keys())
+        "config_keys": list(agent.creator_config.keys()),
     }
+
 
 @app.get("/debug/system-prompt/{creator_id}")
 async def debug_system_prompt(creator_id: str):
     """Debug: ver el system prompt que genera el DMAgent"""
     from core.dm_agent import DMResponderAgent
+
     agent = DMResponderAgent(creator_id=creator_id)
     prompt = agent._build_system_prompt()
     return {"prompt": prompt[:2000]}  # Primeros 2000 chars
@@ -6662,11 +7063,13 @@ if os.path.exists(_static_dir):
         if os.path.exists(_static_dir):
             for f in os.listdir(_static_dir):
                 fpath = os.path.join(_static_dir, f)
-                static_files.append({
-                    "name": f,
-                    "size": os.path.getsize(fpath) if os.path.isfile(fpath) else 0,
-                    "type": "file" if os.path.isfile(fpath) else "dir"
-                })
+                static_files.append(
+                    {
+                        "name": f,
+                        "size": os.path.getsize(fpath) if os.path.isfile(fpath) else 0,
+                        "type": "file" if os.path.isfile(fpath) else "dir",
+                    }
+                )
 
         # Check assets folder
         assets_dir = os.path.join(_static_dir, "assets")
@@ -6674,29 +7077,35 @@ if os.path.exists(_static_dir):
         if os.path.exists(assets_dir):
             for f in os.listdir(assets_dir):
                 fpath = os.path.join(assets_dir, f)
-                assets_files.append({
-                    "name": f,
-                    "size": os.path.getsize(fpath) if os.path.isfile(fpath) else 0
-                })
+                assets_files.append(
+                    {"name": f, "size": os.path.getsize(fpath) if os.path.isfile(fpath) else 0}
+                )
 
         # Check index.html
         index_path = os.path.join(_static_dir, "index.html")
         index_info = None
         if os.path.exists(index_path):
-            with open(index_path, 'r') as f:
+            with open(index_path, "r") as f:
                 content = f.read()
                 index_info = {
                     "exists": True,
                     "size": len(content),
                     "has_root_div": 'id="root"' in content,
-                    "js_files": [m.split('"')[0] for m in content.split('src="') if '.js' in m.split('"')[0]][:5],
-                    "css_files": [m.split('"')[0] for m in content.split('href="') if '.css' in m.split('"')[0]][:5]
+                    "js_files": [
+                        m.split('"')[0] for m in content.split('src="') if ".js" in m.split('"')[0]
+                    ][:5],
+                    "css_files": [
+                        m.split('"')[0]
+                        for m in content.split('href="')
+                        if ".css" in m.split('"')[0]
+                    ][:5],
                 }
 
         # Database check
         db_status = "unknown"
         try:
             from api.services.db_service import db_service
+
             with db_service._get_session() as session:
                 session.execute("SELECT 1")
                 db_status = "connected"
@@ -6714,8 +7123,8 @@ if os.path.exists(_static_dir):
             "database": db_status,
             "environment": {
                 "RAILWAY_ENVIRONMENT": os.environ.get("RAILWAY_ENVIRONMENT", "not set"),
-                "PYTHON_VERSION": os.environ.get("PYTHON_VERSION", "unknown")
-            }
+                "PYTHON_VERSION": os.environ.get("PYTHON_VERSION", "unknown"),
+            },
         }
 
     # Catch-all route for frontend SPA - must be LAST
@@ -6727,12 +7136,37 @@ if os.path.exists(_static_dir):
         # The actual API endpoints /dashboard/{id}/overview and /dashboard/{id}/toggle
         # are defined before this catch-all, so they'll match first
         api_prefixes = (
-            "api/", "dm/", "copilot/", "webhook/", "auth/",
-            "debug/", "health", "leads/", "products/", "onboarding/",
-            "creator/", "messages/", "payments/", "calendar/", "nurturing/",
-            "knowledge/", "analytics/", "admin/", "connections/", "oauth/",
-            "booking/", "tone/", "citations/", "config/", "telegram/",
-            "instagram/", "whatsapp/", "metrics", "docs", "openapi.json", "redoc"
+            "api/",
+            "dm/",
+            "copilot/",
+            "webhook/",
+            "auth/",
+            "debug/",
+            "health",
+            "leads/",
+            "products/",
+            "onboarding/",
+            "creator/",
+            "messages/",
+            "payments/",
+            "calendar/",
+            "nurturing/",
+            "knowledge/",
+            "analytics/",
+            "admin/",
+            "connections/",
+            "oauth/",
+            "booking/",
+            "tone/",
+            "citations/",
+            "config/",
+            "telegram/",
+            "instagram/",
+            "whatsapp/",
+            "metrics",
+            "docs",
+            "openapi.json",
+            "redoc",
         )
         if full_path.startswith(api_prefixes):
             raise HTTPException(status_code=404, detail="API route not found")
@@ -6742,5 +7176,6 @@ if os.path.exists(_static_dir):
             return FileResponse(index_path, media_type="text/html")
 
         raise HTTPException(status_code=404, detail="Frontend not found")
+
 else:
     logger.warning(f"Static directory not found: {_static_dir}")

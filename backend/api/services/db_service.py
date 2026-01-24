@@ -1,10 +1,11 @@
 """
 Database service for Clonnect - PostgreSQL operations
 """
-import os
-from datetime import datetime
-import uuid
+
 import logging
+import os
+import uuid
+from datetime import datetime
 
 logger = logging.getLogger(__name__)
 
@@ -12,16 +13,19 @@ DATABASE_URL = os.getenv("DATABASE_URL", "")
 USE_POSTGRES = bool(DATABASE_URL)
 pg_pool = None  # Not using asyncpg, using SQLAlchemy instead
 
+
 def get_session():
     if not DATABASE_URL:
         return None
     try:
         from sqlalchemy import create_engine
         from sqlalchemy.orm import Session
+
         engine = create_engine(DATABASE_URL)
         return Session(engine)
     except:
         return None
+
 
 def get_creator_by_name(name: str):
     session = get_session()
@@ -29,6 +33,7 @@ def get_creator_by_name(name: str):
         return None
     try:
         from api.models import Creator
+
         creator = session.query(Creator).filter_by(name=name).first()
         if creator:
             return {
@@ -42,6 +47,7 @@ def get_creator_by_name(name: str):
                 "clone_vocabulary": creator.clone_vocabulary or "",
                 "welcome_message": creator.welcome_message or "",
                 "other_payment_methods": creator.other_payment_methods or {},
+                "knowledge_about": creator.knowledge_about or {},
             }
         return None
     finally:
@@ -85,7 +91,7 @@ def get_instagram_credentials(creator_id: str):
             "error": "Database not available",
             "token": None,
             "page_id": None,
-            "user_id": None
+            "user_id": None,
         }
 
     try:
@@ -98,9 +104,12 @@ def get_instagram_credentials(creator_id: str):
         # If not found by name, try by UUID
         if not creator:
             try:
-                creator = session.query(Creator).filter(
-                    text("id::text = :cid")
-                ).params(cid=creator_id).first()
+                creator = (
+                    session.query(Creator)
+                    .filter(text("id::text = :cid"))
+                    .params(cid=creator_id)
+                    .first()
+                )
             except:
                 pass
 
@@ -110,7 +119,7 @@ def get_instagram_credentials(creator_id: str):
                 "error": f"Creator '{creator_id}' not found in database",
                 "token": None,
                 "page_id": None,
-                "user_id": None
+                "user_id": None,
             }
 
         # Creator found - check if token exists
@@ -118,17 +127,17 @@ def get_instagram_credentials(creator_id: str):
             return {
                 "success": False,
                 "error": f"Creator '{creator.name}' has no Instagram token configured. "
-                        f"Please connect Instagram via OAuth at /connect/instagram",
+                f"Please connect Instagram via OAuth at /connect/instagram",
                 "creator_name": creator.name,
                 "creator_uuid": str(creator.id),
                 "token": None,
                 "page_id": creator.instagram_page_id,
-                "user_id": creator.instagram_user_id
+                "user_id": creator.instagram_user_id,
             }
 
         # Success - return all credentials
         # Use getattr for expires_at as it may not exist in all DB schemas
-        expires_at = getattr(creator, 'instagram_token_expires_at', None)
+        expires_at = getattr(creator, "instagram_token_expires_at", None)
 
         return {
             "success": True,
@@ -138,18 +147,12 @@ def get_instagram_credentials(creator_id: str):
             "expires_at": expires_at,
             "creator_name": creator.name,
             "creator_uuid": str(creator.id),
-            "error": None
+            "error": None,
         }
 
     except Exception as e:
         logger.error(f"get_instagram_credentials error for {creator_id}: {e}")
-        return {
-            "success": False,
-            "error": str(e),
-            "token": None,
-            "page_id": None,
-            "user_id": None
-        }
+        return {"success": False, "error": str(e), "token": None, "page_id": None, "user_id": None}
     finally:
         session.close()
 
@@ -162,6 +165,7 @@ def get_or_create_creator(name: str):
         return None
     try:
         from api.models import Creator
+
         logger.info(f"get_or_create_creator: looking for creator '{name}'")
         creator = session.query(Creator).filter_by(name=name).first()
         if not creator:
@@ -190,7 +194,7 @@ def get_or_create_creator(name: str):
         except:
             result["other_payment_methods"] = {}
         try:
-            result["knowledge_about"] = getattr(creator, 'knowledge_about', None) or {}
+            result["knowledge_about"] = getattr(creator, "knowledge_about", None) or {}
         except:
             result["knowledge_about"] = {}
 
@@ -199,11 +203,13 @@ def get_or_create_creator(name: str):
     except Exception as e:
         logger.error(f"get_or_create_creator error: {e}")
         import traceback
+
         logger.error(traceback.format_exc())
         session.rollback()
         return None
     finally:
         session.close()
+
 
 def update_creator(name: str, data: dict):
     session = get_session()
@@ -211,9 +217,10 @@ def update_creator(name: str, data: dict):
         return False
     try:
         from api.models import Creator
+
         logger.info(f"=== UPDATE_CREATOR DEBUG ===")
         logger.info(f"Creator: {name}, Data keys: {list(data.keys())}")
-        if 'other_payment_methods' in data:
+        if "other_payment_methods" in data:
             logger.info(f"other_payment_methods value: {data['other_payment_methods']}")
 
         creator = session.query(Creator).filter_by(name=name).first()
@@ -241,12 +248,14 @@ def update_creator(name: str, data: dict):
     finally:
         session.close()
 
+
 def toggle_bot(name: str, active: bool = None):
     session = get_session()
     if not session:
         return None
     try:
         from api.models import Creator
+
         creator = session.query(Creator).filter_by(name=name).first()
         if creator:
             creator.bot_active = active if active is not None else not creator.bot_active
@@ -256,6 +265,7 @@ def toggle_bot(name: str, active: bool = None):
     finally:
         session.close()
 
+
 def get_leads(creator_name: str, include_archived: bool = False):
     session = get_session()
     if not session:
@@ -263,6 +273,7 @@ def get_leads(creator_name: str, include_archived: bool = False):
     try:
         from api.models import Creator, Lead
         from sqlalchemy import and_, not_
+
         creator = session.query(Creator).filter_by(name=creator_name).first()
         if not creator:
             return []
@@ -273,31 +284,52 @@ def get_leads(creator_name: str, include_archived: bool = False):
         leads = query.order_by(Lead.last_contact_at.desc()).all()
         result = []
         for lead in leads:
-            result.append({
-                "id": str(lead.id),
-                "follower_id": str(lead.id),
-                "platform_user_id": lead.platform_user_id,
-                "platform": lead.platform,
-                "username": lead.username,
-                "full_name": lead.full_name,
-                "status": lead.status,
-                "score": lead.score,
-                "purchase_intent": lead.purchase_intent,
-                "last_contact_at": lead.last_contact_at.isoformat() if lead.last_contact_at else None,
-                # CRM fields from direct columns (not context JSON)
-                "email": lead.email,
-                "phone": lead.phone,
-                "notes": lead.notes,
-                "tags": lead.tags,
-                "deal_value": lead.deal_value,
-            })
+            result.append(
+                {
+                    "id": str(lead.id),
+                    "follower_id": str(lead.id),
+                    "platform_user_id": lead.platform_user_id,
+                    "platform": lead.platform,
+                    "username": lead.username,
+                    "full_name": lead.full_name,
+                    "status": lead.status,
+                    "score": lead.score,
+                    "purchase_intent": lead.purchase_intent,
+                    "last_contact_at": (
+                        lead.last_contact_at.isoformat() if lead.last_contact_at else None
+                    ),
+                    # CRM fields from direct columns (not context JSON)
+                    "email": lead.email,
+                    "phone": lead.phone,
+                    "notes": lead.notes,
+                    "tags": lead.tags,
+                    "deal_value": lead.deal_value,
+                }
+            )
         return result
     finally:
         session.close()
 
 
-def get_conversations_with_counts(creator_name: str, limit: int = 50, include_archived: bool = False):
-    """Get conversations with accurate message counts from PostgreSQL"""
+def get_conversations_with_counts(
+    creator_name: str,
+    limit: int = 50,
+    offset: int = 0,
+    include_archived: bool = False,
+    min_messages: int = 0,
+):
+    """Get conversations with accurate message counts from PostgreSQL
+
+    Args:
+        creator_name: Creator identifier
+        limit: Max conversations to return
+        offset: Number of conversations to skip (for pagination)
+        include_archived: Include archived/spam conversations
+        min_messages: Minimum message count to include (default 1, filters out empty conversations)
+
+    Returns:
+        dict with 'conversations' list, 'total_count', 'limit', 'offset', 'has_more'
+    """
     session = get_session()
     if not session:
         return None
@@ -309,48 +341,73 @@ def get_conversations_with_counts(creator_name: str, limit: int = 50, include_ar
         if not creator:
             return None
 
-        # Query leads with message count using subquery (only count user messages, not bot responses)
-        msg_count_subq = session.query(
-            Message.lead_id,
-            func.count(Message.id).label('msg_count')
-        ).filter(Message.role == 'user').group_by(Message.lead_id).subquery()
+        # Query leads with message count using subquery (count ALL messages, not just user)
+        msg_count_subq = (
+            session.query(Message.lead_id, func.count(Message.id).label("msg_count"))
+            .group_by(Message.lead_id)
+            .subquery()
+        )
 
-        query = session.query(Lead, func.coalesce(msg_count_subq.c.msg_count, 0).label('total_messages'))\
-            .outerjoin(msg_count_subq, Lead.id == msg_count_subq.c.lead_id)\
+        query = (
+            session.query(
+                Lead, func.coalesce(msg_count_subq.c.msg_count, 0).label("total_messages")
+            )
+            .outerjoin(msg_count_subq, Lead.id == msg_count_subq.c.lead_id)
             .filter(Lead.creator_id == creator.id)
+        )
+
+        # Filter out conversations with fewer than min_messages (default: hide empty conversations)
+        if min_messages > 0:
+            query = query.filter(func.coalesce(msg_count_subq.c.msg_count, 0) >= min_messages)
 
         if not include_archived:
             query = query.filter(not_(Lead.status.in_(["archived", "spam"])))
 
-        results = query.order_by(Lead.last_contact_at.desc()).limit(limit).all()
+        # Get total count before pagination
+        total_count = query.count()
+
+        # Apply pagination
+        results = query.order_by(Lead.last_contact_at.desc()).offset(offset).limit(limit).all()
 
         conversations = []
         for lead, msg_count in results:
-            conversations.append({
-                "id": str(lead.id),
-                "follower_id": lead.platform_user_id,
-                "platform_user_id": lead.platform_user_id,
-                "platform": lead.platform,
-                "username": lead.username or lead.platform_user_id,
-                "name": lead.full_name or lead.username or "",
-                "profile_pic_url": lead.profile_pic_url,
-                "status": lead.status,
-                "purchase_intent_score": lead.purchase_intent or 0.0,
-                "is_lead": lead.status not in ["archived", "spam"],
-                "last_contact": lead.last_contact_at.isoformat() if lead.last_contact_at else None,
-                "first_contact": lead.first_contact_at.isoformat() if lead.first_contact_at else None,
-                "total_messages": msg_count,
-                "archived": lead.status == "archived",
-                "spam": lead.status == "spam",
-                # CRM fields from direct columns
-                "email": lead.email,
-                "phone": lead.phone,
-                "notes": lead.notes,
-                "tags": lead.tags,
-                "deal_value": lead.deal_value,
-            })
+            conversations.append(
+                {
+                    "id": str(lead.id),
+                    "follower_id": lead.platform_user_id,
+                    "platform_user_id": lead.platform_user_id,
+                    "platform": lead.platform,
+                    "username": lead.username or lead.platform_user_id,
+                    "name": lead.full_name or lead.username or "",
+                    "profile_pic_url": lead.profile_pic_url,
+                    "status": lead.status,
+                    "purchase_intent_score": lead.purchase_intent or 0.0,
+                    "is_lead": lead.status not in ["archived", "spam"],
+                    "last_contact": (
+                        lead.last_contact_at.isoformat() if lead.last_contact_at else None
+                    ),
+                    "first_contact": (
+                        lead.first_contact_at.isoformat() if lead.first_contact_at else None
+                    ),
+                    "total_messages": msg_count,
+                    "archived": lead.status == "archived",
+                    "spam": lead.status == "spam",
+                    # CRM fields from direct columns
+                    "email": lead.email,
+                    "phone": lead.phone,
+                    "notes": lead.notes,
+                    "tags": lead.tags,
+                    "deal_value": lead.deal_value,
+                }
+            )
 
-        return conversations
+        return {
+            "conversations": conversations,
+            "total_count": total_count,
+            "limit": limit,
+            "offset": offset,
+            "has_more": offset + len(conversations) < total_count,
+        }
     finally:
         session.close()
 
@@ -362,6 +419,7 @@ def create_lead(creator_name: str, data: dict):
         return None
     try:
         from api.models import Creator, Lead
+
         creator = session.query(Creator).filter_by(name=creator_name).first()
         if not creator:
             logger.warning(f"create_lead: creator '{creator_name}' not found, creating it")
@@ -415,6 +473,7 @@ def create_lead(creator_name: str, data: dict):
     finally:
         session.close()
 
+
 def get_products(creator_name: str):
     session = get_session()
     if not session:
@@ -422,28 +481,33 @@ def get_products(creator_name: str):
         return []
     try:
         from api.models import Creator, Product
+
         creator = session.query(Creator).filter_by(name=creator_name).first()
         if not creator:
             logger.warning(f"get_products: creator '{creator_name}' not found")
             return []
         products = session.query(Product).filter_by(creator_id=creator.id).all()
         logger.info(f"get_products: found {len(products)} products for {creator_name}")
-        return [{
-            "id": str(p.id),
-            "name": p.name,
-            "description": p.description,
-            "short_description": getattr(p, 'short_description', '') or "",
-            "category": getattr(p, 'category', 'product') or "product",
-            "product_type": getattr(p, 'product_type', 'otro') or "otro",
-            "is_free": getattr(p, 'is_free', False) or False,
-            "price": p.price,
-            "currency": p.currency,
-            "payment_link": getattr(p, 'payment_link', '') or "",
-            "source_url": getattr(p, 'source_url', '') or "",
-            "is_active": p.is_active,
-        } for p in products]
+        return [
+            {
+                "id": str(p.id),
+                "name": p.name,
+                "description": p.description,
+                "short_description": getattr(p, "short_description", "") or "",
+                "category": getattr(p, "category", "product") or "product",
+                "product_type": getattr(p, "product_type", "otro") or "otro",
+                "is_free": getattr(p, "is_free", False) or False,
+                "price": p.price,
+                "currency": p.currency,
+                "payment_link": getattr(p, "payment_link", "") or "",
+                "source_url": getattr(p, "source_url", "") or "",
+                "is_active": p.is_active,
+            }
+            for p in products
+        ]
     finally:
         session.close()
+
 
 def get_dashboard_metrics(creator_name: str):
     """Optimized dashboard metrics - uses aggregated queries instead of N+1"""
@@ -452,21 +516,27 @@ def get_dashboard_metrics(creator_name: str):
         return None
     try:
         from api.models import Creator, Lead, Message, Product
-        from sqlalchemy import not_, func, Integer
+        from sqlalchemy import Integer, func, not_
 
         creator = session.query(Creator).filter_by(name=creator_name).first()
         if not creator:
             return None
 
         # Get leads (excluding archived and spam) - SINGLE QUERY
-        leads = session.query(Lead).filter_by(creator_id=creator.id).filter(
-            not_(Lead.status.in_(["archived", "spam"]))
-        ).order_by(Lead.last_contact_at.desc()).all()
+        leads = (
+            session.query(Lead)
+            .filter_by(creator_id=creator.id)
+            .filter(not_(Lead.status.in_(["archived", "spam"])))
+            .order_by(Lead.last_contact_at.desc())
+            .all()
+        )
         total_leads = len(leads)
 
         # Categorize leads by intent (in-memory, no extra queries)
         hot_leads = len([l for l in leads if l.purchase_intent and l.purchase_intent >= 0.5])
-        warm_leads = len([l for l in leads if l.purchase_intent and 0.25 <= l.purchase_intent < 0.5])
+        warm_leads = len(
+            [l for l in leads if l.purchase_intent and 0.25 <= l.purchase_intent < 0.5]
+        )
         cold_leads = len([l for l in leads if not l.purchase_intent or l.purchase_intent < 0.25])
         customers = len([l for l in leads if l.context and l.context.get("is_customer")])
 
@@ -475,20 +545,25 @@ def get_dashboard_metrics(creator_name: str):
         message_counts = {}
         if lead_ids:
             # Single query with GROUP BY - returns (lead_id, user_count, total_count)
-            counts_query = session.query(
-                Message.lead_id,
-                func.sum(func.cast(Message.role == 'user', Integer)).label('user_count'),
-                func.count(Message.id).label('total_count')
-            ).filter(Message.lead_id.in_(lead_ids)).group_by(Message.lead_id).all()
+            counts_query = (
+                session.query(
+                    Message.lead_id,
+                    func.sum(func.cast(Message.role == "user", Integer)).label("user_count"),
+                    func.count(Message.id).label("total_count"),
+                )
+                .filter(Message.lead_id.in_(lead_ids))
+                .group_by(Message.lead_id)
+                .all()
+            )
 
             for row in counts_query:
                 message_counts[row.lead_id] = {
-                    'user': int(row.user_count or 0),
-                    'total': int(row.total_count or 0)
+                    "user": int(row.user_count or 0),
+                    "total": int(row.total_count or 0),
                 }
 
         # Calculate total user messages (sum from aggregated data)
-        total_messages = sum(c['user'] for c in message_counts.values())
+        total_messages = sum(c["user"] for c in message_counts.values())
 
         # Get products count - SINGLE QUERY
         products_count = session.query(Product).filter_by(creator_id=creator.id).count()
@@ -500,36 +575,48 @@ def get_dashboard_metrics(creator_name: str):
         # Build leads array using pre-fetched counts (NO additional queries)
         leads_data = []
         for lead in leads[:50]:
-            counts = message_counts.get(lead.id, {'user': 0, 'total': 0})
-            leads_data.append({
-                "id": str(lead.id),
-                "follower_id": lead.platform_user_id or str(lead.id),
-                "username": lead.username,
-                "name": lead.full_name,
-                "platform": lead.platform or "instagram",
-                "purchase_intent": lead.purchase_intent or 0.0,
-                "purchase_intent_score": lead.purchase_intent or 0.0,
-                "is_lead": True,
-                "is_customer": lead.context.get("is_customer", False) if lead.context else False,
-                "last_contact": lead.last_contact_at.isoformat() if lead.last_contact_at else None,
-                "total_messages": counts['user'],
-            })
+            counts = message_counts.get(lead.id, {"user": 0, "total": 0})
+            leads_data.append(
+                {
+                    "id": str(lead.id),
+                    "follower_id": lead.platform_user_id or str(lead.id),
+                    "username": lead.username,
+                    "name": lead.full_name,
+                    "platform": lead.platform or "instagram",
+                    "purchase_intent": lead.purchase_intent or 0.0,
+                    "purchase_intent_score": lead.purchase_intent or 0.0,
+                    "is_lead": True,
+                    "is_customer": (
+                        lead.context.get("is_customer", False) if lead.context else False
+                    ),
+                    "last_contact": (
+                        lead.last_contact_at.isoformat() if lead.last_contact_at else None
+                    ),
+                    "total_messages": counts["user"],
+                }
+            )
 
         # Build recent conversations using pre-fetched counts (NO additional queries)
         recent_conversations = []
         for lead in leads[:20]:
-            counts = message_counts.get(lead.id, {'user': 0, 'total': 0})
-            recent_conversations.append({
-                "follower_id": lead.platform_user_id or str(lead.id),
-                "username": lead.username,
-                "name": lead.full_name,
-                "platform": lead.platform or "instagram",
-                "total_messages": counts['user'],
-                "purchase_intent": lead.purchase_intent or 0.0,
-                "last_contact": lead.last_contact_at.isoformat() if lead.last_contact_at else None,
-            })
+            counts = message_counts.get(lead.id, {"user": 0, "total": 0})
+            recent_conversations.append(
+                {
+                    "follower_id": lead.platform_user_id or str(lead.id),
+                    "username": lead.username,
+                    "name": lead.full_name,
+                    "platform": lead.platform or "instagram",
+                    "total_messages": counts["user"],
+                    "purchase_intent": lead.purchase_intent or 0.0,
+                    "last_contact": (
+                        lead.last_contact_at.isoformat() if lead.last_contact_at else None
+                    ),
+                }
+            )
 
-        logger.info(f"[METRICS] {creator_name}: {total_leads} leads, {total_messages} messages (optimized)")
+        logger.info(
+            f"[METRICS] {creator_name}: {total_leads} leads, {total_messages} messages (optimized)"
+        )
 
         # Build config
         config = {
@@ -579,9 +666,11 @@ def get_creator_stats(creator_name: str):
         }
     return None
 
+
 # ============================================
 # CRUD COMPLETO - Phase 11
 # ============================================
+
 
 # =============================================================================
 # PROTECTED BLOCK: Product Creation with Taxonomy
@@ -595,6 +684,7 @@ def create_product(creator_name: str, data: dict):
         return None
     try:
         from api.models import Creator, Product
+
         creator = session.query(Creator).filter_by(name=creator_name).first()
         if not creator:
             return None
@@ -624,14 +714,17 @@ def create_product(creator_name: str, data: dict):
     finally:
         session.close()
 
+
 def update_product(creator_name: str, product_id: str, data: dict):
     session = get_session()
     if not session:
         logger.error("update_product: No session available")
         return False
     try:
-        from api.models import Creator, Product
         import uuid
+
+        from api.models import Creator, Product
+
         logger.info(f"update_product: creator={creator_name}, product_id={product_id}")
         logger.info(f"update_product: data received = {data}")
 
@@ -640,9 +733,15 @@ def update_product(creator_name: str, product_id: str, data: dict):
             logger.error(f"update_product: Creator '{creator_name}' not found")
             return False
 
-        product = session.query(Product).filter_by(creator_id=creator.id, id=uuid.UUID(product_id)).first()
+        product = (
+            session.query(Product)
+            .filter_by(creator_id=creator.id, id=uuid.UUID(product_id))
+            .first()
+        )
         if product:
-            logger.info(f"update_product: Found product '{product.name}', current payment_link='{product.payment_link}'")
+            logger.info(
+                f"update_product: Found product '{product.name}', current payment_link='{product.payment_link}'"
+            )
             for key, value in data.items():
                 if hasattr(product, key):
                     old_value = getattr(product, key, None)
@@ -663,17 +762,24 @@ def update_product(creator_name: str, product_id: str, data: dict):
     finally:
         session.close()
 
+
 def delete_product(creator_name: str, product_id: str):
     session = get_session()
     if not session:
         return False
     try:
-        from api.models import Creator, Product
         import uuid
+
+        from api.models import Creator, Product
+
         creator = session.query(Creator).filter_by(name=creator_name).first()
         if not creator:
             return False
-        product = session.query(Product).filter_by(creator_id=creator.id, id=uuid.UUID(product_id)).first()
+        product = (
+            session.query(Product)
+            .filter_by(creator_id=creator.id, id=uuid.UUID(product_id))
+            .first()
+        )
         if product:
             session.delete(product)
             session.commit()
@@ -685,13 +791,16 @@ def delete_product(creator_name: str, product_id: str):
     finally:
         session.close()
 
+
 def update_lead(creator_name: str, lead_id: str, data: dict):
     session = get_session()
     if not session:
         return False
     try:
-        from api.models import Creator, Lead
         import uuid
+
+        from api.models import Creator, Lead
+
         creator = session.query(Creator).filter_by(name=creator_name).first()
         if not creator:
             logger.warning(f"update_lead: creator '{creator_name}' not found")
@@ -700,18 +809,24 @@ def update_lead(creator_name: str, lead_id: str, data: dict):
         # Try to find lead by UUID first, then by platform_user_id
         lead = None
         try:
-            lead = session.query(Lead).filter_by(creator_id=creator.id, id=uuid.UUID(lead_id)).first()
+            lead = (
+                session.query(Lead).filter_by(creator_id=creator.id, id=uuid.UUID(lead_id)).first()
+            )
         except (ValueError, AttributeError):
             pass  # Not a valid UUID, try platform_user_id
 
         if not lead:
-            lead = session.query(Lead).filter_by(creator_id=creator.id, platform_user_id=lead_id).first()
+            lead = (
+                session.query(Lead)
+                .filter_by(creator_id=creator.id, platform_user_id=lead_id)
+                .first()
+            )
 
         if lead:
             logger.info(f"update_lead: lead {lead_id} found")
 
             # CRM fields are now direct columns on Lead model
-            crm_fields = ['email', 'phone', 'notes', 'tags', 'deal_value', 'source', 'assigned_to']
+            crm_fields = ["email", "phone", "notes", "tags", "deal_value", "source", "assigned_to"]
 
             for key, value in data.items():
                 if hasattr(lead, key):
@@ -719,10 +834,10 @@ def update_lead(creator_name: str, lead_id: str, data: dict):
                     logger.info(f"update_lead: setting {key} = {value}")
 
             # Also update name fields if provided
-            if 'name' in data:
-                lead.full_name = data['name']
+            if "name" in data:
+                lead.full_name = data["name"]
                 if not lead.username:
-                    lead.username = data['name']
+                    lead.username = data["name"]
 
             session.commit()
             logger.info(f"update_lead: committed lead {lead_id}")
@@ -750,13 +865,16 @@ def update_lead(creator_name: str, lead_id: str, data: dict):
     finally:
         session.close()
 
+
 def delete_lead(creator_name: str, lead_id: str):
     session = get_session()
     if not session:
         return False
     try:
-        from api.models import Creator, Lead
         import uuid
+
+        from api.models import Creator, Lead
+
         creator = session.query(Creator).filter_by(name=creator_name).first()
         if not creator:
             logger.warning(f"delete_lead: creator '{creator_name}' not found")
@@ -765,12 +883,18 @@ def delete_lead(creator_name: str, lead_id: str):
         # Try to find lead by UUID first, then by platform_user_id
         lead = None
         try:
-            lead = session.query(Lead).filter_by(creator_id=creator.id, id=uuid.UUID(lead_id)).first()
+            lead = (
+                session.query(Lead).filter_by(creator_id=creator.id, id=uuid.UUID(lead_id)).first()
+            )
         except (ValueError, AttributeError):
             pass  # Not a valid UUID, try platform_user_id
 
         if not lead:
-            lead = session.query(Lead).filter_by(creator_id=creator.id, platform_user_id=lead_id).first()
+            lead = (
+                session.query(Lead)
+                .filter_by(creator_id=creator.id, platform_user_id=lead_id)
+                .first()
+            )
 
         if lead:
             session.delete(lead)
@@ -786,13 +910,16 @@ def delete_lead(creator_name: str, lead_id: str):
     finally:
         session.close()
 
+
 def get_lead_by_id(creator_name: str, lead_id: str):
     session = get_session()
     if not session:
         return None
     try:
-        from api.models import Creator, Lead
         import uuid
+
+        from api.models import Creator, Lead
+
         creator = session.query(Creator).filter_by(name=creator_name).first()
         if not creator:
             return None
@@ -800,12 +927,18 @@ def get_lead_by_id(creator_name: str, lead_id: str):
         # Try to find lead by UUID first, then by platform_user_id
         lead = None
         try:
-            lead = session.query(Lead).filter_by(creator_id=creator.id, id=uuid.UUID(lead_id)).first()
+            lead = (
+                session.query(Lead).filter_by(creator_id=creator.id, id=uuid.UUID(lead_id)).first()
+            )
         except (ValueError, AttributeError):
             pass  # Not a valid UUID, try platform_user_id
 
         if not lead:
-            lead = session.query(Lead).filter_by(creator_id=creator.id, platform_user_id=lead_id).first()
+            lead = (
+                session.query(Lead)
+                .filter_by(creator_id=creator.id, platform_user_id=lead_id)
+                .first()
+            )
 
         if lead:
             return {
@@ -823,15 +956,17 @@ def get_lead_by_id(creator_name: str, lead_id: str):
                 "notes": lead.notes,
                 "tags": lead.tags,
                 "deal_value": lead.deal_value,
-                "context": lead.context or {}
+                "context": lead.context or {},
             }
         return None
     finally:
         session.close()
 
+
 # ============================================================
 # ASYNC FUNCTIONS FOR DM_AGENT (using SQLAlchemy)
 # ============================================================
+
 
 async def get_lead_by_platform_id(creator_id: str, platform_id: str) -> dict:
     """Get a lead by their platform-specific ID (e.g., tg_123, ig_456)"""
@@ -842,15 +977,17 @@ async def get_lead_by_platform_id(creator_id: str, platform_id: str) -> dict:
         return None
     try:
         from api.models import Creator, Lead
+
         # First get creator by name (creator_id is the name like "manel")
         creator = session.query(Creator).filter_by(name=creator_id).first()
         if not creator:
             return None
         # Find lead by platform_user_id
-        lead = session.query(Lead).filter_by(
-            creator_id=creator.id,
-            platform_user_id=platform_id
-        ).first()
+        lead = (
+            session.query(Lead)
+            .filter_by(creator_id=creator.id, platform_user_id=platform_id)
+            .first()
+        )
         if lead:
             return {
                 "id": str(lead.id),
@@ -859,7 +996,7 @@ async def get_lead_by_platform_id(creator_id: str, platform_id: str) -> dict:
                 "platform": lead.platform,
                 "username": lead.username,
                 "full_name": lead.full_name,
-                "status": lead.status
+                "status": lead.status,
             }
         return None
     except Exception as e:
@@ -881,6 +1018,7 @@ async def create_lead_async(creator_id: str, data: dict) -> dict:
         return None
     try:
         from api.models import Creator, Lead
+
         # Get creator by name
         creator = session.query(Creator).filter_by(name=creator_id).first()
         if not creator:
@@ -890,10 +1028,11 @@ async def create_lead_async(creator_id: str, data: dict) -> dict:
         platform_user_id = data.get("platform_user_id", str(uuid.uuid4()))
 
         # DUPLICATE CHECK: Prevent race condition duplicates
-        existing = session.query(Lead).filter_by(
-            creator_id=creator.id,
-            platform_user_id=platform_user_id
-        ).first()
+        existing = (
+            session.query(Lead)
+            .filter_by(creator_id=creator.id, platform_user_id=platform_user_id)
+            .first()
+        )
         if existing:
             logger.info(f"Lead already exists for {platform_user_id}, returning existing")
             return {"id": str(existing.id), "status": "existing"}
@@ -907,7 +1046,7 @@ async def create_lead_async(creator_id: str, data: dict) -> dict:
             full_name=data.get("full_name") or data.get("name", ""),
             status="new",
             score=0,
-            purchase_intent=0.0
+            purchase_intent=0.0,
         )
         session.add(lead)
         session.commit()
@@ -920,8 +1059,14 @@ async def create_lead_async(creator_id: str, data: dict) -> dict:
         session.close()
 
 
-def get_or_create_lead(creator_name: str, platform_user_id: str, platform: str = "instagram",
-                       username: str = None, full_name: str = None, profile_pic_url: str = None) -> dict:
+def get_or_create_lead(
+    creator_name: str,
+    platform_user_id: str,
+    platform: str = "instagram",
+    username: str = None,
+    full_name: str = None,
+    profile_pic_url: str = None,
+) -> dict:
     """
     Get existing lead or create new one. Used by Instagram webhook handlers.
 
@@ -946,8 +1091,9 @@ def get_or_create_lead(creator_name: str, platform_user_id: str, platform: str =
         return None
 
     try:
-        from api.models import Creator, Lead
         from datetime import timezone
+
+        from api.models import Creator, Lead
 
         # Get creator by name
         creator = session.query(Creator).filter_by(name=creator_name).first()
@@ -956,10 +1102,11 @@ def get_or_create_lead(creator_name: str, platform_user_id: str, platform: str =
             return None
 
         # Check if lead already exists
-        lead = session.query(Lead).filter_by(
-            creator_id=creator.id,
-            platform_user_id=platform_user_id
-        ).first()
+        lead = (
+            session.query(Lead)
+            .filter_by(creator_id=creator.id, platform_user_id=platform_user_id)
+            .first()
+        )
 
         if lead:
             # Update profile info if provided and changed
@@ -980,7 +1127,7 @@ def get_or_create_lead(creator_name: str, platform_user_id: str, platform: str =
                 "platform_user_id": lead.platform_user_id,
                 "username": lead.username,
                 "full_name": lead.full_name,
-                "status": lead.status
+                "status": lead.status,
             }
 
         # Create new lead
@@ -996,7 +1143,7 @@ def get_or_create_lead(creator_name: str, platform_user_id: str, platform: str =
             score=0,
             purchase_intent=0.0,
             first_contact_at=now,
-            last_contact_at=now
+            last_contact_at=now,
         )
         session.add(lead)
         session.commit()
@@ -1009,7 +1156,7 @@ def get_or_create_lead(creator_name: str, platform_user_id: str, platform: str =
             "platform_user_id": lead.platform_user_id,
             "username": lead.username,
             "full_name": lead.full_name,
-            "status": lead.status
+            "status": lead.status,
         }
 
     except Exception as e:
@@ -1026,7 +1173,7 @@ async def save_message(
     content: str,
     intent: str = None,
     platform_message_id: str = None,
-    metadata: dict = None
+    metadata: dict = None,
 ) -> dict:
     """Save a message to the database for dm_agent integration.
 
@@ -1050,9 +1197,10 @@ async def save_message(
     if not session:
         return None
     try:
-        from api.models import Message
-        from datetime import timezone, timedelta
         import uuid as uuid_module
+        from datetime import timedelta, timezone
+
+        from api.models import Message
 
         # Convert lead_id string to UUID
         lead_uuid = uuid_module.UUID(lead_id) if isinstance(lead_id, str) else lead_id
@@ -1060,12 +1208,16 @@ async def save_message(
         # DUPLICATE CHECK: Check if same message exists for this lead in last 5 minutes
         # This prevents webhook retries from creating duplicate messages
         five_minutes_ago = datetime.now(timezone.utc) - timedelta(minutes=5)
-        existing = session.query(Message).filter(
-            Message.lead_id == lead_uuid,
-            Message.role == role,
-            Message.content == content,
-            Message.created_at >= five_minutes_ago
-        ).first()
+        existing = (
+            session.query(Message)
+            .filter(
+                Message.lead_id == lead_uuid,
+                Message.role == role,
+                Message.content == content,
+                Message.created_at >= five_minutes_ago,
+            )
+            .first()
+        )
 
         if existing:
             logger.info(f"Duplicate message detected for lead {lead_id}, skipping (role={role})")
@@ -1073,9 +1225,11 @@ async def save_message(
 
         # Also check by platform_message_id if provided
         if platform_message_id:
-            existing_by_id = session.query(Message).filter(
-                Message.platform_message_id == platform_message_id
-            ).first()
+            existing_by_id = (
+                session.query(Message)
+                .filter(Message.platform_message_id == platform_message_id)
+                .first()
+            )
             if existing_by_id:
                 logger.info(f"Duplicate message by platform_message_id: {platform_message_id}")
                 return {"id": str(existing_by_id.id), "status": "duplicate_skipped"}
@@ -1091,7 +1245,7 @@ async def save_message(
             intent=intent,
             platform_message_id=platform_message_id,
             msg_metadata=msg_metadata if msg_metadata else None,
-            created_at=datetime.now(timezone.utc)
+            created_at=datetime.now(timezone.utc),
         )
         session.add(message)
         session.commit()
@@ -1099,9 +1253,10 @@ async def save_message(
         logger.info(f"Saved message for lead {lead_id}: role={role}")
 
         # Schedule background link preview extraction (fire-and-forget)
-        if content and 'http' in content.lower():
+        if content and "http" in content.lower():
             try:
                 from core.link_preview import schedule_link_preview_extraction
+
                 schedule_link_preview_extraction(message_id, content)
             except Exception as e:
                 logger.debug(f"Could not schedule link preview: {e}")
@@ -1124,6 +1279,7 @@ async def get_messages(creator_id: str, follower_id: str = None, limit: int = 50
         return []
     try:
         from api.models import Creator, Lead, Message
+
         creator = session.query(Creator).filter_by(name=creator_id).first()
         if not creator:
             return []
@@ -1131,7 +1287,16 @@ async def get_messages(creator_id: str, follower_id: str = None, limit: int = 50
         if follower_id:
             query = query.filter(Lead.platform_user_id == follower_id)
         messages = query.order_by(Message.created_at.desc()).limit(limit).all()
-        return [{"id": str(m.id), "role": m.role, "content": m.content, "intent": m.intent, "created_at": str(m.created_at)} for m in messages]
+        return [
+            {
+                "id": str(m.id),
+                "role": m.role,
+                "content": m.content,
+                "intent": m.intent,
+                "created_at": str(m.created_at),
+            }
+            for m in messages
+        ]
     except Exception as e:
         logger.error(f"get_messages error: {e}")
         return []
@@ -1148,10 +1313,16 @@ async def get_message_count(creator_id: str) -> int:
         return 0
     try:
         from api.models import Creator, Lead, Message
+
         creator = session.query(Creator).filter_by(name=creator_id).first()
         if not creator:
             return 0
-        count = session.query(Message).join(Lead).filter(Lead.creator_id == creator.id, Message.role == 'user').count()
+        count = (
+            session.query(Message)
+            .join(Lead)
+            .filter(Lead.creator_id == creator.id, Message.role == "user")
+            .count()
+        )
         return count
     except Exception as e:
         logger.error(f"get_message_count error: {e}")
@@ -1168,18 +1339,64 @@ def get_messages_by_lead_id(lead_id: str, limit: int = 50) -> list:
     if not session:
         return []
     try:
-        from api.models import Message
         import uuid as uuid_module
+
+        from api.models import Message
+
         lead_uuid = uuid_module.UUID(lead_id) if isinstance(lead_id, str) else lead_id
-        messages = session.query(Message).filter(
-            Message.lead_id == lead_uuid
-        ).order_by(Message.created_at.desc()).limit(limit).all()
+        messages = (
+            session.query(Message)
+            .filter(Message.lead_id == lead_uuid)
+            .order_by(Message.created_at.desc())
+            .limit(limit)
+            .all()
+        )
         return [
             {"role": m.role, "content": m.content, "timestamp": str(m.created_at)}
             for m in reversed(messages)  # Return in chronological order
         ]
     except Exception as e:
         logger.error(f"get_messages_by_lead_id error: {e}")
+        return []
+    finally:
+        session.close()
+
+
+def get_recent_messages(creator_id: str, follower_id: str, limit: int = 4) -> list:
+    """Get recent messages for a follower (sync version for thanks detection)"""
+    if not USE_POSTGRES:
+        return []
+    session = get_session()
+    if not session:
+        return []
+    try:
+        from api.models import Creator, Lead, Message
+
+        creator = session.query(Creator).filter_by(name=creator_id).first()
+        if not creator:
+            return []
+
+        lead = (
+            session.query(Lead)
+            .filter(Lead.creator_id == creator.id, Lead.platform_user_id == follower_id)
+            .first()
+        )
+        if not lead:
+            return []
+
+        messages = (
+            session.query(Message)
+            .filter(Message.lead_id == lead.id)
+            .order_by(Message.created_at.desc())
+            .limit(limit)
+            .all()
+        )
+        return [
+            {"role": m.role, "content": m.content, "timestamp": str(m.created_at)}
+            for m in messages  # Most recent first
+        ]
+    except Exception as e:
+        logger.error(f"get_recent_messages error: {e}")
         return []
     finally:
         session.close()
@@ -1193,13 +1410,16 @@ def count_user_messages_by_lead_id(lead_id: str) -> int:
     if not session:
         return 0
     try:
-        from api.models import Message
         import uuid as uuid_module
+
+        from api.models import Message
+
         lead_uuid = uuid_module.UUID(lead_id) if isinstance(lead_id, str) else lead_id
-        count = session.query(Message).filter(
-            Message.lead_id == lead_uuid,
-            Message.role == 'user'
-        ).count()
+        count = (
+            session.query(Message)
+            .filter(Message.lead_id == lead_uuid, Message.role == "user")
+            .count()
+        )
         return count
     except Exception as e:
         logger.error(f"count_user_messages_by_lead_id error: {e}")
@@ -1212,6 +1432,7 @@ def count_user_messages_by_lead_id(lead_id: str) -> int:
 # CONVERSATION ACTIONS (Archive, Spam, Delete)
 # ============================================================
 
+
 def archive_conversation(creator_name: str, conversation_id: str) -> bool:
     """Archive a conversation by setting lead.status = 'archived'"""
     session = get_session()
@@ -1219,15 +1440,25 @@ def archive_conversation(creator_name: str, conversation_id: str) -> bool:
         return False
     try:
         from api.models import Creator, Lead
+
         creator = session.query(Creator).filter_by(name=creator_name).first()
         if not creator:
             return False
         # Find lead by platform_user_id or id
-        lead = session.query(Lead).filter_by(creator_id=creator.id, platform_user_id=conversation_id).first()
+        lead = (
+            session.query(Lead)
+            .filter_by(creator_id=creator.id, platform_user_id=conversation_id)
+            .first()
+        )
         if not lead:
             try:
                 import uuid
-                lead = session.query(Lead).filter_by(creator_id=creator.id, id=uuid.UUID(conversation_id)).first()
+
+                lead = (
+                    session.query(Lead)
+                    .filter_by(creator_id=creator.id, id=uuid.UUID(conversation_id))
+                    .first()
+                )
             except:
                 pass
         if lead:
@@ -1236,6 +1467,7 @@ def archive_conversation(creator_name: str, conversation_id: str) -> bool:
             # Sync to JSON
             try:
                 from api.services.data_sync import sync_archive_to_json
+
                 sync_archive_to_json(creator_name, lead.platform_user_id or conversation_id)
             except Exception as sync_err:
                 logger.warning(f"JSON sync failed: {sync_err}")
@@ -1257,15 +1489,25 @@ def mark_conversation_spam(creator_name: str, conversation_id: str) -> bool:
         return False
     try:
         from api.models import Creator, Lead
+
         creator = session.query(Creator).filter_by(name=creator_name).first()
         if not creator:
             return False
         # Find lead by platform_user_id or id
-        lead = session.query(Lead).filter_by(creator_id=creator.id, platform_user_id=conversation_id).first()
+        lead = (
+            session.query(Lead)
+            .filter_by(creator_id=creator.id, platform_user_id=conversation_id)
+            .first()
+        )
         if not lead:
             try:
                 import uuid
-                lead = session.query(Lead).filter_by(creator_id=creator.id, id=uuid.UUID(conversation_id)).first()
+
+                lead = (
+                    session.query(Lead)
+                    .filter_by(creator_id=creator.id, id=uuid.UUID(conversation_id))
+                    .first()
+                )
             except:
                 pass
         if lead:
@@ -1274,6 +1516,7 @@ def mark_conversation_spam(creator_name: str, conversation_id: str) -> bool:
             # Sync to JSON
             try:
                 from api.services.data_sync import sync_spam_to_json
+
                 sync_spam_to_json(creator_name, lead.platform_user_id or conversation_id)
             except Exception as sync_err:
                 logger.warning(f"JSON sync failed: {sync_err}")
@@ -1298,17 +1541,27 @@ def reset_conversation_status(creator_name: str, conversation_id: str = None) ->
         return 0
     try:
         from api.models import Creator, Lead
+
         creator = session.query(Creator).filter_by(name=creator_name).first()
         if not creator:
             return 0
 
         if conversation_id:
             # Reset specific conversation
-            lead = session.query(Lead).filter_by(creator_id=creator.id, platform_user_id=conversation_id).first()
+            lead = (
+                session.query(Lead)
+                .filter_by(creator_id=creator.id, platform_user_id=conversation_id)
+                .first()
+            )
             if not lead:
                 try:
                     import uuid
-                    lead = session.query(Lead).filter_by(creator_id=creator.id, id=uuid.UUID(conversation_id)).first()
+
+                    lead = (
+                        session.query(Lead)
+                        .filter_by(creator_id=creator.id, id=uuid.UUID(conversation_id))
+                        .first()
+                    )
                 except:
                     pass
             if lead and lead.status in ["archived", "spam"]:
@@ -1319,9 +1572,12 @@ def reset_conversation_status(creator_name: str, conversation_id: str = None) ->
             return 0
         else:
             # Reset ALL archived/spam conversations
-            count = session.query(Lead).filter_by(creator_id=creator.id).filter(
-                Lead.status.in_(["archived", "spam"])
-            ).update({"status": "new"}, synchronize_session=False)
+            count = (
+                session.query(Lead)
+                .filter_by(creator_id=creator.id)
+                .filter(Lead.status.in_(["archived", "spam"]))
+                .update({"status": "new"}, synchronize_session=False)
+            )
             session.commit()
             logger.info(f"Reset {count} conversations to 'new' for {creator_name}")
             return count
@@ -1340,16 +1596,26 @@ def delete_conversation(creator_name: str, conversation_id: str) -> bool:
         return False
     try:
         from api.models import Creator, Lead, Message
+
         creator = session.query(Creator).filter_by(name=creator_name).first()
         if not creator:
             return False
         # Find lead by platform_user_id or id
-        lead = session.query(Lead).filter_by(creator_id=creator.id, platform_user_id=conversation_id).first()
+        lead = (
+            session.query(Lead)
+            .filter_by(creator_id=creator.id, platform_user_id=conversation_id)
+            .first()
+        )
         platform_user_id = None
         if not lead:
             try:
                 import uuid
-                lead = session.query(Lead).filter_by(creator_id=creator.id, id=uuid.UUID(conversation_id)).first()
+
+                lead = (
+                    session.query(Lead)
+                    .filter_by(creator_id=creator.id, id=uuid.UUID(conversation_id))
+                    .first()
+                )
             except:
                 pass
         if lead:
@@ -1362,6 +1628,7 @@ def delete_conversation(creator_name: str, conversation_id: str) -> bool:
             # Sync: delete JSON file too
             try:
                 from api.services.data_sync import sync_delete_json
+
                 sync_delete_json(creator_name, platform_user_id or conversation_id)
             except Exception as sync_err:
                 logger.warning(f"JSON sync failed: {sync_err}")
@@ -1380,6 +1647,7 @@ def delete_conversation(creator_name: str, conversation_id: str) -> bool:
 # KNOWLEDGE BASE FUNCTIONS
 # ============================================================
 
+
 def get_knowledge_items(creator_name: str) -> list:
     """Get all FAQ items from knowledge_base table"""
     session = get_session()
@@ -1387,16 +1655,25 @@ def get_knowledge_items(creator_name: str) -> list:
         return []
     try:
         from api.models import Creator, KnowledgeBase
+
         creator = session.query(Creator).filter_by(name=creator_name).first()
         if not creator:
             return []
-        items = session.query(KnowledgeBase).filter_by(creator_id=creator.id).order_by(KnowledgeBase.created_at.desc()).all()
-        return [{
-            "id": str(item.id),
-            "question": item.question,
-            "answer": item.answer,
-            "created_at": item.created_at.isoformat() if item.created_at else None
-        } for item in items]
+        items = (
+            session.query(KnowledgeBase)
+            .filter_by(creator_id=creator.id)
+            .order_by(KnowledgeBase.created_at.desc())
+            .all()
+        )
+        return [
+            {
+                "id": str(item.id),
+                "question": item.question,
+                "answer": item.answer,
+                "created_at": item.created_at.isoformat() if item.created_at else None,
+            }
+            for item in items
+        ]
     except Exception as e:
         logger.error(f"get_knowledge_items error: {e}")
         return []
@@ -1411,6 +1688,7 @@ def add_knowledge_item(creator_name: str, question: str, answer: str) -> dict:
         return None
     try:
         from api.models import Creator, KnowledgeBase
+
         creator = session.query(Creator).filter_by(name=creator_name).first()
         if not creator:
             # Auto-create creator if doesn't exist
@@ -1418,18 +1696,14 @@ def add_knowledge_item(creator_name: str, question: str, answer: str) -> dict:
             creator = Creator(name=creator_name, bot_active=True, clone_tone="friendly")
             session.add(creator)
             session.commit()
-        item = KnowledgeBase(
-            creator_id=creator.id,
-            question=question,
-            answer=answer
-        )
+        item = KnowledgeBase(creator_id=creator.id, question=question, answer=answer)
         session.add(item)
         session.commit()
         return {
             "id": str(item.id),
             "question": item.question,
             "answer": item.answer,
-            "created_at": item.created_at.isoformat() if item.created_at else None
+            "created_at": item.created_at.isoformat() if item.created_at else None,
         }
     except Exception as e:
         logger.error(f"add_knowledge_item error: {e}")
@@ -1445,15 +1719,18 @@ def delete_knowledge_item(creator_name: str, item_id: str) -> bool:
     if not session:
         return False
     try:
-        from api.models import Creator, KnowledgeBase
         import uuid as uuid_module
+
+        from api.models import Creator, KnowledgeBase
+
         creator = session.query(Creator).filter_by(name=creator_name).first()
         if not creator:
             return False
-        item = session.query(KnowledgeBase).filter_by(
-            creator_id=creator.id,
-            id=uuid_module.UUID(item_id)
-        ).first()
+        item = (
+            session.query(KnowledgeBase)
+            .filter_by(creator_id=creator.id, id=uuid_module.UUID(item_id))
+            .first()
+        )
         if item:
             session.delete(item)
             session.commit()
@@ -1473,15 +1750,18 @@ def update_knowledge_item(creator_name: str, item_id: str, question: str, answer
     if not session:
         return None
     try:
-        from api.models import Creator, KnowledgeBase
         import uuid as uuid_module
+
+        from api.models import Creator, KnowledgeBase
+
         creator = session.query(Creator).filter_by(name=creator_name).first()
         if not creator:
             return None
-        item = session.query(KnowledgeBase).filter_by(
-            creator_id=creator.id,
-            id=uuid_module.UUID(item_id)
-        ).first()
+        item = (
+            session.query(KnowledgeBase)
+            .filter_by(creator_id=creator.id, id=uuid_module.UUID(item_id))
+            .first()
+        )
         if item:
             item.question = question
             item.answer = answer
@@ -1490,7 +1770,7 @@ def update_knowledge_item(creator_name: str, item_id: str, question: str, answer
                 "id": str(item.id),
                 "question": item.question,
                 "answer": item.answer,
-                "created_at": item.created_at.isoformat() if item.created_at else None
+                "created_at": item.created_at.isoformat() if item.created_at else None,
             }
         return None
     except Exception as e:
@@ -1508,6 +1788,7 @@ def get_knowledge_about(creator_name: str) -> dict:
         return {}
     try:
         from api.models import Creator
+
         creator = session.query(Creator).filter_by(name=creator_name).first()
         if creator:
             return creator.knowledge_about or {}
@@ -1527,6 +1808,7 @@ def update_knowledge_about(creator_name: str, data: dict) -> bool:
     try:
         from api.models import Creator
         from sqlalchemy.orm.attributes import flag_modified
+
         creator = session.query(Creator).filter_by(name=creator_name).first()
         if not creator:
             # Auto-create creator if doesn't exist
@@ -1535,7 +1817,7 @@ def update_knowledge_about(creator_name: str, data: dict) -> bool:
             session.add(creator)
             session.commit()
         creator.knowledge_about = data
-        flag_modified(creator, 'knowledge_about')
+        flag_modified(creator, "knowledge_about")
         session.commit()
         return True
     except Exception as e:
@@ -1550,7 +1832,4 @@ def get_full_knowledge(creator_name: str) -> dict:
     """Get complete knowledge base: FAQs + About Me"""
     faqs = get_knowledge_items(creator_name)
     about = get_knowledge_about(creator_name)
-    return {
-        "faqs": faqs,
-        "about": about
-    }
+    return {"faqs": faqs, "about": about}

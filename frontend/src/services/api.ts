@@ -272,14 +272,15 @@ export async function toggleBot(
 // =============================================================================
 
 /**
- * Get all conversations for a creator
+ * Get all conversations for a creator with pagination support
  */
 export async function getConversations(
   creatorId: string = CREATOR_ID,
-  limit: number = 50
+  limit: number = 50,
+  offset: number = 0
 ): Promise<ConversationsResponse> {
   return apiFetch<ConversationsResponse>(
-    `/dm/conversations/${creatorId}?limit=${limit}`
+    `/dm/conversations/${creatorId}?limit=${limit}&offset=${offset}`
   );
 }
 
@@ -1357,6 +1358,49 @@ export async function approveAllCopilot(
   });
 }
 
+// =============================================================================
+// ESCALATIONS
+// =============================================================================
+
+export interface EscalationAlert {
+  creator_id: string;
+  follower_id: string;
+  follower_username: string;
+  follower_name: string;
+  reason: string;
+  last_message: string;
+  conversation_summary: string;
+  purchase_intent_score: number;
+  total_messages: number;
+  products_discussed: string[];
+  timestamp: string;
+  notification_type: string;
+  read?: boolean;
+}
+
+export interface EscalationsResponse {
+  status: string;
+  creator_id: string;
+  alerts: EscalationAlert[];
+  total: number;
+  unread: number;
+}
+
+/**
+ * Get escalation alerts for a creator
+ * Returns leads that need human attention (requested escalation, high intent, etc.)
+ */
+export async function getEscalations(
+  creatorId: string = CREATOR_ID,
+  limit: number = 50,
+  unreadOnly: boolean = false
+): Promise<EscalationsResponse> {
+  const params = new URLSearchParams();
+  params.append("limit", limit.toString());
+  if (unreadOnly) params.append("unread_only", "true");
+  return apiFetch(`/dm/leads/${creatorId}/escalations?${params.toString()}`);
+}
+
 export const apiKeys = {
   dashboard: (creatorId: string) => ["dashboard", creatorId] as const,
   conversations: (creatorId: string) => ["conversations", creatorId] as const,
@@ -1383,6 +1427,7 @@ export const apiKeys = {
   copilotNotifications: (creatorId: string) => ["copilotNotifications", creatorId] as const,
   toneProfile: (creatorId: string) => ["toneProfile", creatorId] as const,
   contentStats: (creatorId: string) => ["contentStats", creatorId] as const,
+  escalations: (creatorId: string) => ["escalations", creatorId] as const,
 };
 
 // =============================================================================
@@ -1658,6 +1703,8 @@ export default {
   toggleCopilotMode,
   getCopilotNotifications,
   approveAllCopilot,
+  // Escalations
+  getEscalations,
   apiKeys,
   CREATOR_ID,
   API_URL,

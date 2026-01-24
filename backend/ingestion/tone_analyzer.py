@@ -8,10 +8,10 @@ Este modulo es el corazon del WOW #2: "Es igualito a como habla"
 import json
 import logging
 import re
-from typing import List, Dict, Optional
-from dataclasses import dataclass, field, asdict
-from datetime import datetime
 from collections import Counter
+from dataclasses import asdict, dataclass, field
+from datetime import datetime
+from typing import Dict, List, Optional
 
 logger = logging.getLogger(__name__)
 
@@ -22,12 +22,13 @@ class ToneProfile:
     Perfil de tono/voz del creador.
     Se usa para que el bot replique su estilo exacto.
     """
+
     creator_id: str
 
     # Estilo general
-    formality: str = 'neutral'  # 'muy_formal', 'formal', 'neutral', 'informal', 'muy_informal'
-    energy: str = 'media'  # 'muy_alta', 'alta', 'media', 'baja', 'muy_baja'
-    warmth: str = 'calido'  # 'muy_calido', 'calido', 'neutral', 'distante', 'muy_distante'
+    formality: str = "neutral"  # 'muy_formal', 'formal', 'neutral', 'informal', 'muy_informal'
+    energy: str = "media"  # 'muy_alta', 'alta', 'media', 'baja', 'muy_baja'
+    warmth: str = "calido"  # 'muy_calido', 'calido', 'neutral', 'distante', 'muy_distante'
 
     # Vocabulario caracteristico
     signature_phrases: List[str] = field(default_factory=list)  # "vamos crack", "a tope", etc.
@@ -38,24 +39,24 @@ class ToneProfile:
     # Emojis
     uses_emojis: bool = True
     favorite_emojis: List[str] = field(default_factory=list)
-    emoji_frequency: str = 'media'  # 'ninguna', 'baja', 'media', 'alta', 'muy_alta'
+    emoji_frequency: str = "media"  # 'ninguna', 'baja', 'media', 'alta', 'muy_alta'
 
     # Formato
     uses_caps_emphasis: bool = False  # USA MAYUSCULAS para enfatizar
     uses_ellipsis: bool = False  # Usa puntos suspensivos...
-    average_message_length: str = 'media'  # 'muy_corta', 'corta', 'media', 'larga', 'muy_larga'
+    average_message_length: str = "media"  # 'muy_corta', 'corta', 'media', 'larga', 'muy_larga'
     uses_line_breaks: bool = True  # Separa ideas en lineas
 
     # Idioma
-    primary_language: str = 'es'
-    dialect: str = 'neutral'  # 'neutral', 'rioplatense' (voseo), 'mexicano', 'español'
+    primary_language: str = "es"
+    dialect: str = "neutral"  # 'neutral', 'rioplatense' (voseo), 'mexicano', 'español'
     uses_anglicisms: bool = False  # "cool", "random", "flow"
     regional_expressions: List[str] = field(default_factory=list)  # Expresiones locales
 
     # Comportamiento conversacional
     asks_questions: bool = True  # Hace preguntas al seguidor
     uses_humor: bool = False
-    directness: str = 'media'  # 'muy_directa', 'directa', 'media', 'indirecta', 'muy_indirecta'
+    directness: str = "media"  # 'muy_directa', 'directa', 'media', 'indirecta', 'muy_indirecta'
 
     # Temas y valores (detectados del contenido)
     main_topics: List[str] = field(default_factory=list)
@@ -76,32 +77,46 @@ class ToneProfile:
 
         # CRITICAL: Strong header to ensure LLM follows
         prompt_parts.append("\n🚨🚨🚨 REGLAS OBLIGATORIAS DEL CREADOR (MÁXIMA PRIORIDAD) 🚨🚨🚨")
-        prompt_parts.append("DEBES imitar EXACTAMENTE este estilo. NO suenes como un bot corporativo.")
+        prompt_parts.append(
+            "DEBES imitar EXACTAMENTE este estilo. NO suenes como un bot corporativo."
+        )
 
         # REGLA DE IDIOMA - Basado en primary_language
         language_name = {
-            'es': 'ESPAÑOL',
-            'en': 'INGLÉS',
-            'pt': 'PORTUGUÉS',
-            'fr': 'FRANCÉS',
-            'de': 'ALEMÁN',
-            'it': 'ITALIANO'
-        }.get(self.primary_language, 'ESPAÑOL')
+            "es": "ESPAÑOL",
+            "en": "INGLÉS",
+            "pt": "PORTUGUÉS",
+            "fr": "FRANCÉS",
+            "de": "ALEMÁN",
+            "it": "ITALIANO",
+        }.get(self.primary_language, "ESPAÑOL")
 
         prompt_parts.append(f"\n📌 REGLA 1 - IDIOMA (OBLIGATORIO):")
         prompt_parts.append(f"SIEMPRE responde en {language_name}. NUNCA cambies de idioma.")
-        prompt_parts.append(f"Aunque el usuario escriba en otro idioma, TÚ respondes en {language_name}.")
+        prompt_parts.append(
+            f"Aunque el usuario escriba en otro idioma, TÚ respondes en {language_name}."
+        )
 
         # REGLA DE TUTEO/VOSEO/USTED - Basado en formality y dialect
         prompt_parts.append(f"\n📌 REGLA 2 - FORMALIDAD Y DIALECTO (OBLIGATORIO):")
 
         # Primero verificar si usa VOSEO (rioplatense/argentino)
-        if self.dialect == 'rioplatense':
-            prompt_parts.append("🇦🇷 SIEMPRE debes usar VOSEO ARGENTINO. Esta regla es INNEGOCIABLE.")
-            prompt_parts.append("✅ OBLIGATORIO: vos, te, tenés, podés, querés, sentís, dejás, sabés, sos")
-            prompt_parts.append("✅ IMPERATIVOS: contame, escribime, agendá, mirá, pensá, decime, fijate")
-            prompt_parts.append("❌ PROHIBIDO TUTEO ESPAÑOL: tú, tienes, puedes, quieres, sientes, dejas, sabes, eres")
-            prompt_parts.append("❌ PROHIBIDO IMPERATIVOS ESPAÑOLES: cuéntame, escríbeme, agenda, mira, piensa, dime, fíjate")
+        if self.dialect == "rioplatense":
+            prompt_parts.append(
+                "🇦🇷 SIEMPRE debes usar VOSEO ARGENTINO. Esta regla es INNEGOCIABLE."
+            )
+            prompt_parts.append(
+                "✅ OBLIGATORIO: vos, te, tenés, podés, querés, sentís, dejás, sabés, sos"
+            )
+            prompt_parts.append(
+                "✅ IMPERATIVOS: contame, escribime, agendá, mirá, pensá, decime, fijate"
+            )
+            prompt_parts.append(
+                "❌ PROHIBIDO TUTEO ESPAÑOL: tú, tienes, puedes, quieres, sientes, dejas, sabes, eres"
+            )
+            prompt_parts.append(
+                "❌ PROHIBIDO IMPERATIVOS ESPAÑOLES: cuéntame, escríbeme, agenda, mira, piensa, dime, fíjate"
+            )
             prompt_parts.append("❌ PROHIBIDO: usted, le, su")
             prompt_parts.append("Ejemplos de VOSEO correcto:")
             prompt_parts.append('- ❌ "¿Tú tienes dudas?" → ✅ "¿Vos tenés dudas?"')
@@ -109,17 +124,23 @@ class ToneProfile:
             prompt_parts.append('- ❌ "Cuéntame qué te interesa" → ✅ "Contame qué te interesa"')
             prompt_parts.append('- ❌ "Escríbeme por privado" → ✅ "Escribime por privado"')
             prompt_parts.append('- ❌ "¿Puedes?" → ✅ "¿Podés?"')
-        elif self.formality in ['muy_informal', 'informal']:
+        elif self.formality in ["muy_informal", "informal"]:
             prompt_parts.append("SIEMPRE debes TUTEAR al usuario. Esta regla es INNEGOCIABLE.")
-            prompt_parts.append("✅ OBLIGATORIO: tú, te, ti, tu, tus, contigo, quieres, tienes, puedes")
-            prompt_parts.append("❌ PROHIBIDO: usted, le, su, sus, consigo, quiere, tiene, puede, desea, podría")
+            prompt_parts.append(
+                "✅ OBLIGATORIO: tú, te, ti, tu, tus, contigo, quieres, tienes, puedes"
+            )
+            prompt_parts.append(
+                "❌ PROHIBIDO: usted, le, su, sus, consigo, quiere, tiene, puede, desea, podría"
+            )
             prompt_parts.append("Ejemplos:")
             prompt_parts.append('- ❌ "¿Le gustaría saber más?" → ✅ "¿Te gustaría saber más?"')
             prompt_parts.append('- ❌ "¿En qué puedo ayudarle?" → ✅ "¿En qué puedo ayudarte?"')
-        elif self.formality in ['formal', 'muy_formal']:
+        elif self.formality in ["formal", "muy_formal"]:
             prompt_parts.append("SIEMPRE debes usar USTED. Esta regla es INNEGOCIABLE.")
             prompt_parts.append("✅ OBLIGATORIO: usted, le, su, sus, consigo, quiere, tiene, puede")
-            prompt_parts.append("❌ PROHIBIDO: tú, te, ti, tu, tus, contigo, quieres, tienes, puedes")
+            prompt_parts.append(
+                "❌ PROHIBIDO: tú, te, ti, tu, tus, contigo, quieres, tienes, puedes"
+            )
             prompt_parts.append("Ejemplos:")
             prompt_parts.append('- ❌ "¿Te gustaría saber más?" → ✅ "¿Le gustaría saber más?"')
             prompt_parts.append('- ❌ "¿En qué puedo ayudarte?" → ✅ "¿En qué puedo ayudarle?"')
@@ -131,9 +152,9 @@ class ToneProfile:
         prompt_parts.append("\n🚨🚨🚨 FIN REGLAS OBLIGATORIAS 🚨🚨🚨")
 
         # Energia y calidez
-        if self.energy in ['alta', 'muy_alta']:
+        if self.energy in ["alta", "muy_alta"]:
             prompt_parts.append("- Sé ENERGICO y entusiasta. Transmite pasion.")
-        if self.warmth in ['calido', 'muy_calido']:
+        if self.warmth in ["calido", "muy_calido"]:
             prompt_parts.append("- Sé CALIDO y cercano. Como hablando con un amigo.")
 
         # Frases caracteristicas - MUY IMPORTANTE
@@ -160,21 +181,21 @@ class ToneProfile:
         prompt_parts.append("\n😀 EMOJIS:")
         if self.uses_emojis and self.favorite_emojis:
             freq_text = {
-                'muy_alta': 'USA MUCHOS (2-3 por mensaje)',
-                'alta': 'USA FRECUENTEMENTE (1-2 por mensaje)',
-                'media': 'USA MODERADAMENTE (1 por mensaje)',
-                'baja': 'USA POCOS (ocasionalmente)',
-                'ninguna': 'NO USES emojis'
-            }.get(self.emoji_frequency, 'USA MODERADAMENTE')
+                "muy_alta": "USA MUCHOS (2-3 por mensaje)",
+                "alta": "USA FRECUENTEMENTE (1-2 por mensaje)",
+                "media": "USA MODERADAMENTE (1 por mensaje)",
+                "baja": "USA POCOS (ocasionalmente)",
+                "ninguna": "NO USES emojis",
+            }.get(self.emoji_frequency, "USA MODERADAMENTE")
             prompt_parts.append(f"   {freq_text}")
             prompt_parts.append(f"   Emojis favoritos: {' '.join(self.favorite_emojis[:8])}")
         else:
             prompt_parts.append("   NO USES emojis o muy raramente")
 
         # Formato
-        if self.average_message_length in ['corta', 'muy_corta']:
+        if self.average_message_length in ["corta", "muy_corta"]:
             prompt_parts.append("\n📝 MENSAJES CORTOS: 1-2 lineas maximo. Directo al grano.")
-        elif self.average_message_length in ['larga', 'muy_larga']:
+        elif self.average_message_length in ["larga", "muy_larga"]:
             prompt_parts.append("\n📝 PUEDES extenderte si es necesario explicar algo.")
 
         if self.uses_caps_emphasis:
@@ -182,17 +203,21 @@ class ToneProfile:
 
         # Comportamiento
         if self.asks_questions:
-            prompt_parts.append("\n❓ PREGUNTA al usuario para conocerle mejor y mantener la conversacion.")
+            prompt_parts.append(
+                "\n❓ PREGUNTA al usuario para conocerle mejor y mantener la conversacion."
+            )
         if self.uses_humor:
             prompt_parts.append("😄 USA HUMOR de forma natural cuando sea apropiado.")
 
         # Expresiones regionales
         if self.regional_expressions:
-            prompt_parts.append(f"\n🌍 EXPRESIONES LOCALES: {', '.join(self.regional_expressions[:5])}")
+            prompt_parts.append(
+                f"\n🌍 EXPRESIONES LOCALES: {', '.join(self.regional_expressions[:5])}"
+            )
 
         # RECORDATORIO FINAL FUERTE para voseo
-        if self.dialect == 'rioplatense':
-            prompt_parts.append("\n" + "="*50)
+        if self.dialect == "rioplatense":
+            prompt_parts.append("\n" + "=" * 50)
             prompt_parts.append("🚨 RECORDATORIO FINAL - VOSEO OBLIGATORIO 🚨")
             prompt_parts.append("ANTES de enviar tu respuesta, REVISA que:")
             prompt_parts.append("- NO uses 'tú' → USA 'vos'")
@@ -201,8 +226,10 @@ class ToneProfile:
             prompt_parts.append("- NO uses 'quieres' → USA 'querés'")
             prompt_parts.append("- NO uses 'cuéntame' → USA 'contame'")
             prompt_parts.append("- NO uses 'escríbeme' → USA 'escribime'")
-            prompt_parts.append("Si escribiste alguna de las palabras PROHIBIDAS, CORRÍGELAS ahora.")
-            prompt_parts.append("="*50)
+            prompt_parts.append(
+                "Si escribiste alguna de las palabras PROHIBIDAS, CORRÍGELAS ahora."
+            )
+            prompt_parts.append("=" * 50)
 
         prompt_parts.append("\n=== FIN ESTILO CREADOR ===\n")
 
@@ -211,11 +238,11 @@ class ToneProfile:
     def to_dict(self) -> Dict:
         """Convierte a diccionario para guardar en DB."""
         data = asdict(self)
-        data['last_updated'] = self.last_updated.isoformat()
+        data["last_updated"] = self.last_updated.isoformat()
         return data
 
     @classmethod
-    def from_dict(cls, data: Dict) -> 'ToneProfile':
+    def from_dict(cls, data: Dict) -> "ToneProfile":
         """Crea desde diccionario, filtrando campos desconocidos."""
         import dataclasses
 
@@ -226,21 +253,21 @@ class ToneProfile:
         filtered_data = {k: v for k, v in data.items() if k in valid_fields}
 
         # Handle datetime conversion
-        if 'last_updated' in filtered_data and isinstance(filtered_data['last_updated'], str):
-            filtered_data['last_updated'] = datetime.fromisoformat(filtered_data['last_updated'])
+        if "last_updated" in filtered_data and isinstance(filtered_data["last_updated"], str):
+            filtered_data["last_updated"] = datetime.fromisoformat(filtered_data["last_updated"])
 
         # Map alternative field names from different schema versions
-        if 'emoji_style' in data and 'favorite_emojis' not in filtered_data:
-            filtered_data['favorite_emojis'] = data['emoji_style']
-        if 'avg_message_length' in data and 'average_message_length' not in filtered_data:
-            filtered_data['average_message_length'] = data['avg_message_length']
-        if 'frequent_words' in data and 'filler_words' not in filtered_data:
-            filtered_data['filler_words'] = data['frequent_words']
-        if 'topics' in data and 'main_topics' not in filtered_data:
-            filtered_data['main_topics'] = data['topics']
-        if 'generated_at' in data and 'last_updated' not in filtered_data:
+        if "emoji_style" in data and "favorite_emojis" not in filtered_data:
+            filtered_data["favorite_emojis"] = data["emoji_style"]
+        if "avg_message_length" in data and "average_message_length" not in filtered_data:
+            filtered_data["average_message_length"] = data["avg_message_length"]
+        if "frequent_words" in data and "filler_words" not in filtered_data:
+            filtered_data["filler_words"] = data["frequent_words"]
+        if "topics" in data and "main_topics" not in filtered_data:
+            filtered_data["main_topics"] = data["topics"]
+        if "generated_at" in data and "last_updated" not in filtered_data:
             try:
-                filtered_data['last_updated'] = datetime.fromisoformat(data['generated_at'])
+                filtered_data["last_updated"] = datetime.fromisoformat(data["generated_at"])
             except:
                 pass
 
@@ -253,7 +280,7 @@ class ToneAnalyzer:
     """
 
     # Prompt para el analisis con LLM
-    ANALYSIS_PROMPT = '''Analiza los siguientes posts de un creador de contenido y extrae su estilo de comunicacion unico.
+    ANALYSIS_PROMPT = """Analiza los siguientes posts de un creador de contenido y extrae su estilo de comunicacion unico.
 
 POSTS DEL CREADOR:
 {posts_text}
@@ -299,7 +326,7 @@ IMPORTANTE:
 - Extrae FRASES EXACTAS que usa el creador, no las inventes
 - Los emojis deben ser los que realmente usa
 - Se especifico con las expresiones regionales
-- Solo responde con el JSON, sin explicaciones'''
+- Solo responde con el JSON, sin explicaciones"""
 
     def __init__(self, llm_client=None):
         """
@@ -312,7 +339,7 @@ IMPORTANTE:
         self,
         creator_id: str,
         posts: List[Dict],  # Lista de posts con 'caption' como minimo
-        max_posts: int = 30
+        max_posts: int = 30,
     ) -> ToneProfile:
         """
         Analiza posts del creador y genera su ToneProfile.
@@ -325,8 +352,11 @@ IMPORTANTE:
         Returns:
             ToneProfile del creador
         """
+        logger.debug(f"[ToneAnalyzer.analyze] Entering with {len(posts)} posts for {creator_id}")
+
         # Filtrar posts con contenido
-        valid_posts = [p for p in posts if p.get('caption') and len(p['caption']) > 20]
+        valid_posts = [p for p in posts if p.get("caption") and len(p["caption"]) > 20]
+        logger.debug(f"[ToneAnalyzer.analyze] Valid posts after filtering: {len(valid_posts)}")
 
         if not valid_posts:
             logger.warning(f"No hay posts validos para analizar para creator {creator_id}")
@@ -334,37 +364,44 @@ IMPORTANTE:
 
         # Limitar cantidad
         posts_to_analyze = valid_posts[:max_posts]
+        logger.debug(f"[ToneAnalyzer.analyze] Posts to analyze (limited): {len(posts_to_analyze)}")
 
         # Preparar texto para analisis
         posts_text = self._prepare_posts_text(posts_to_analyze)
+        logger.debug(f"[ToneAnalyzer.analyze] Posts text length: {len(posts_text)} chars")
 
         # Analisis estadistico basico (no necesita LLM)
         stats = self._analyze_statistics(posts_to_analyze)
+        logger.debug(
+            f"[ToneAnalyzer.analyze] Stats complete: emoji_count={len(stats.get('emojis', []))}"
+        )
 
         # Analisis con LLM
         llm_analysis = await self._analyze_with_llm(posts_text)
+        logger.debug(f"[ToneAnalyzer.analyze] LLM analysis complete: {bool(llm_analysis)}")
 
         # Combinar analisis
         profile = self._merge_analyses(creator_id, stats, llm_analysis, len(posts_to_analyze))
+        logger.debug(
+            f"[ToneAnalyzer.analyze] Profile created, confidence={profile.confidence_score}"
+        )
 
-        logger.info(f"ToneProfile generado para creator {creator_id} con {len(posts_to_analyze)} posts")
+        logger.info(
+            f"ToneProfile generado para creator {creator_id} con {len(posts_to_analyze)} posts"
+        )
         return profile
 
-    def analyze_sync(
-        self,
-        creator_id: str,
-        posts: List[Dict],
-        max_posts: int = 30
-    ) -> ToneProfile:
+    def analyze_sync(self, creator_id: str, posts: List[Dict], max_posts: int = 30) -> ToneProfile:
         """Version sincrona de analyze()."""
         import asyncio
+
         return asyncio.run(self.analyze(creator_id, posts, max_posts))
 
     def _prepare_posts_text(self, posts: List[Dict]) -> str:
         """Prepara el texto de posts para el prompt."""
         lines = []
         for i, post in enumerate(posts, 1):
-            caption = post.get('caption', '').strip()
+            caption = post.get("caption", "").strip()
             if caption:
                 lines.append(f"POST {i}:\n{caption}\n")
         return "\n---\n".join(lines)
@@ -372,15 +409,15 @@ IMPORTANTE:
     def _analyze_statistics(self, posts: List[Dict]) -> Dict:
         """Analisis estadistico que no necesita LLM."""
         stats = {
-            'total_posts': len(posts),
-            'emojis': [],
-            'hashtags': [],
-            'mentions': [],
-            'avg_length': 0,
-            'uses_caps': False,
-            'uses_ellipsis': False,
-            'uses_line_breaks': False,
-            'question_marks': 0
+            "total_posts": len(posts),
+            "emojis": [],
+            "hashtags": [],
+            "mentions": [],
+            "avg_length": 0,
+            "uses_caps": False,
+            "uses_ellipsis": False,
+            "uses_line_breaks": False,
+            "question_marks": 0,
         }
 
         total_length = 0
@@ -393,71 +430,96 @@ IMPORTANTE:
             "\U00002702-\U000027B0"
             "\U000024C2-\U0001F251"
             "]+",
-            flags=re.UNICODE
+            flags=re.UNICODE,
         )
 
         for post in posts:
-            caption = post.get('caption', '')
+            caption = post.get("caption", "")
             total_length += len(caption)
 
             # Emojis
             emojis = emoji_pattern.findall(caption)
-            stats['emojis'].extend(emojis)
+            stats["emojis"].extend(emojis)
 
             # Hashtags y menciones
-            stats['hashtags'].extend(re.findall(r'#(\w+)', caption))
-            stats['mentions'].extend(re.findall(r'@(\w+)', caption))
+            stats["hashtags"].extend(re.findall(r"#(\w+)", caption))
+            stats["mentions"].extend(re.findall(r"@(\w+)", caption))
 
             # Patrones de formato
-            if re.search(r'[A-Z]{3,}', caption):  # 3+ mayusculas seguidas
-                stats['uses_caps'] = True
-            if '...' in caption or '...' in caption:
-                stats['uses_ellipsis'] = True
-            if '\n' in caption:
-                stats['uses_line_breaks'] = True
+            if re.search(r"[A-Z]{3,}", caption):  # 3+ mayusculas seguidas
+                stats["uses_caps"] = True
+            if "..." in caption or "..." in caption:
+                stats["uses_ellipsis"] = True
+            if "\n" in caption:
+                stats["uses_line_breaks"] = True
 
             # Preguntas
-            stats['question_marks'] += caption.count('?')
+            stats["question_marks"] += caption.count("?")
 
-        stats['avg_length'] = total_length / len(posts) if posts else 0
+        stats["avg_length"] = total_length / len(posts) if posts else 0
 
         # Contar frecuencias
-        stats['emoji_counts'] = Counter(stats['emojis']).most_common(15)
-        stats['hashtag_counts'] = Counter(stats['hashtags']).most_common(10)
+        stats["emoji_counts"] = Counter(stats["emojis"]).most_common(15)
+        stats["hashtag_counts"] = Counter(stats["hashtags"]).most_common(10)
 
         return stats
 
     async def _analyze_with_llm(self, posts_text: str) -> Dict:
         """Analiza con LLM para extraer patrones de lenguaje."""
+        import asyncio
+
+        logger.debug(f"[_analyze_with_llm] Entering, posts_text length: {len(posts_text)}")
         prompt = self.ANALYSIS_PROMPT.format(posts_text=posts_text)
+
+        # Timeout de 30 segundos para evitar que el proceso se cuelgue
+        LLM_TIMEOUT = 30
 
         try:
             if self.llm_client:
                 # Usar cliente proporcionado
-                response = await self.llm_client.chat(
-                    messages=[{"role": "user", "content": prompt}],
-                    temperature=0.3
+                logger.debug(
+                    f"[_analyze_with_llm] Using provided LLM client: {type(self.llm_client)}"
                 )
-                response_text = response.get('content', '{}')
+                response = await asyncio.wait_for(
+                    self.llm_client.chat(
+                        messages=[{"role": "user", "content": prompt}], temperature=0.3
+                    ),
+                    timeout=LLM_TIMEOUT,
+                )
+                response_text = response.get("content", "{}")
             else:
                 # Fallback: intentar importar cliente default de Clonnect
+                logger.debug("[_analyze_with_llm] No LLM client, trying to import default...")
                 try:
-                    from core.llm_client import get_llm_client
+                    from core.llm import get_llm_client
+
                     client = get_llm_client()
-                    response_text = await client.generate(prompt, temperature=0.3)
-                except ImportError:
-                    logger.warning("No LLM client available, using defaults")
+                    logger.debug(
+                        f"[_analyze_with_llm] Got client: {type(client)}, calling generate()..."
+                    )
+                    response_text = await asyncio.wait_for(
+                        client.generate(prompt, temperature=0.3), timeout=LLM_TIMEOUT
+                    )
+                except ImportError as ie:
+                    logger.warning(f"No LLM client available: {ie}, using defaults")
                     return {}
 
             # Parsear JSON de respuesta
             # Limpiar posible markdown
             response_text = response_text.strip()
-            if response_text.startswith('```'):
-                response_text = re.sub(r'^```json?\n?', '', response_text)
-                response_text = re.sub(r'\n?```$', '', response_text)
+            if response_text.startswith("```"):
+                response_text = re.sub(r"^```json?\n?", "", response_text)
+                response_text = re.sub(r"\n?```$", "", response_text)
 
-            return json.loads(response_text)
+            result = json.loads(response_text)
+            logger.debug(
+                f"[_analyze_with_llm] Parsed successfully, keys: {list(result.keys()) if result else []}"
+            )
+            return result
 
+        except asyncio.TimeoutError:
+            logger.warning(f"LLM analysis timeout after {LLM_TIMEOUT}s, using defaults")
+            return {}
         except json.JSONDecodeError as e:
             logger.error(f"Error parseando respuesta LLM: {e}")
             return {}
@@ -466,39 +528,35 @@ IMPORTANTE:
             return {}
 
     def _merge_analyses(
-        self,
-        creator_id: str,
-        stats: Dict,
-        llm_analysis: Dict,
-        posts_count: int
+        self, creator_id: str, stats: Dict, llm_analysis: Dict, posts_count: int
     ) -> ToneProfile:
         """Combina analisis estadistico y LLM en un ToneProfile."""
 
         # Determinar frecuencia de emojis basado en estadisticas
-        emoji_per_post = len(stats['emojis']) / posts_count if posts_count else 0
+        emoji_per_post = len(stats["emojis"]) / posts_count if posts_count else 0
         if emoji_per_post == 0:
-            emoji_freq = 'ninguna'
+            emoji_freq = "ninguna"
         elif emoji_per_post < 1:
-            emoji_freq = 'baja'
+            emoji_freq = "baja"
         elif emoji_per_post < 3:
-            emoji_freq = 'media'
+            emoji_freq = "media"
         elif emoji_per_post < 6:
-            emoji_freq = 'alta'
+            emoji_freq = "alta"
         else:
-            emoji_freq = 'muy_alta'
+            emoji_freq = "muy_alta"
 
         # Determinar longitud promedio
-        avg_len = stats['avg_length']
+        avg_len = stats["avg_length"]
         if avg_len < 50:
-            msg_length = 'muy_corta'
+            msg_length = "muy_corta"
         elif avg_len < 150:
-            msg_length = 'corta'
+            msg_length = "corta"
         elif avg_len < 400:
-            msg_length = 'media'
+            msg_length = "media"
         elif avg_len < 800:
-            msg_length = 'larga'
+            msg_length = "larga"
         else:
-            msg_length = 'muy_larga'
+            msg_length = "muy_larga"
 
         # Calcular confidence score - adjusted for better results with fewer posts
         if posts_count >= 30:
@@ -519,56 +577,59 @@ IMPORTANTE:
             confidence = 0.35
 
         # Extraer emojis favoritos de estadisticas
-        favorite_emojis = [emoji for emoji, count in stats.get('emoji_counts', [])]
+        favorite_emojis = [emoji for emoji, count in stats.get("emoji_counts", [])]
 
         return ToneProfile(
             creator_id=creator_id,
             # Del LLM
-            formality=llm_analysis.get('formality', 'neutral'),
-            energy=llm_analysis.get('energy', 'media'),
-            warmth=llm_analysis.get('warmth', 'calido'),
-            directness=llm_analysis.get('directness', 'media'),
-            signature_phrases=llm_analysis.get('signature_phrases', []),
-            common_greetings=llm_analysis.get('common_greetings', []),
-            common_closings=llm_analysis.get('common_closings', []),
-            filler_words=llm_analysis.get('filler_words', []),
-            uses_anglicisms=llm_analysis.get('uses_anglicisms', False),
-            primary_language=llm_analysis.get('primary_language', 'es'),
-            dialect=llm_analysis.get('dialect', 'neutral'),
-            regional_expressions=llm_analysis.get('regional_expressions', []),
-            asks_questions=llm_analysis.get('asks_questions', stats['question_marks'] > posts_count * 0.3),
-            uses_humor=llm_analysis.get('uses_humor', False),
-            main_topics=llm_analysis.get('main_topics', []),
-            values_expressed=llm_analysis.get('values_expressed', []),
+            formality=llm_analysis.get("formality", "neutral"),
+            energy=llm_analysis.get("energy", "media"),
+            warmth=llm_analysis.get("warmth", "calido"),
+            directness=llm_analysis.get("directness", "media"),
+            signature_phrases=llm_analysis.get("signature_phrases", []),
+            common_greetings=llm_analysis.get("common_greetings", []),
+            common_closings=llm_analysis.get("common_closings", []),
+            filler_words=llm_analysis.get("filler_words", []),
+            uses_anglicisms=llm_analysis.get("uses_anglicisms", False),
+            primary_language=llm_analysis.get("primary_language", "es"),
+            dialect=llm_analysis.get("dialect", "neutral"),
+            regional_expressions=llm_analysis.get("regional_expressions", []),
+            asks_questions=llm_analysis.get(
+                "asks_questions", stats["question_marks"] > posts_count * 0.3
+            ),
+            uses_humor=llm_analysis.get("uses_humor", False),
+            main_topics=llm_analysis.get("main_topics", []),
+            values_expressed=llm_analysis.get("values_expressed", []),
             # De estadisticas
-            uses_emojis=len(stats['emojis']) > 0,
-            favorite_emojis=favorite_emojis or llm_analysis.get('favorite_emojis', []),
+            uses_emojis=len(stats["emojis"]) > 0,
+            favorite_emojis=favorite_emojis or llm_analysis.get("favorite_emojis", []),
             emoji_frequency=emoji_freq,
-            uses_caps_emphasis=stats['uses_caps'],
-            uses_ellipsis=stats['uses_ellipsis'],
+            uses_caps_emphasis=stats["uses_caps"],
+            uses_ellipsis=stats["uses_ellipsis"],
             average_message_length=msg_length,
-            uses_line_breaks=stats['uses_line_breaks'],
+            uses_line_breaks=stats["uses_line_breaks"],
             # Metadata
             analyzed_posts_count=posts_count,
             confidence_score=confidence,
-            last_updated=datetime.utcnow()
+            last_updated=datetime.utcnow(),
         )
 
     def _create_default_profile(self, creator_id: str) -> ToneProfile:
         """Crea perfil por defecto cuando no hay datos."""
         return ToneProfile(
             creator_id=creator_id,
-            formality='informal',
-            energy='alta',
-            warmth='calido',
-            directness='directa',
-            confidence_score=0.0
+            formality="informal",
+            energy="alta",
+            warmth="calido",
+            directness="directa",
+            confidence_score=0.0,
         )
 
 
 # =============================================================================
 # UTILIDADES
 # =============================================================================
+
 
 def quick_analyze_text(text: str) -> Dict:
     """
@@ -584,17 +645,17 @@ def quick_analyze_text(text: str) -> Dict:
         "\U00002702-\U000027B0"
         "\U000024C2-\U0001F251"
         "]+",
-        flags=re.UNICODE
+        flags=re.UNICODE,
     )
 
     return {
-        'length': len(text),
-        'word_count': len(text.split()),
-        'emoji_count': len(emoji_pattern.findall(text)),
-        'has_questions': '?' in text,
-        'has_exclamations': '!' in text,
-        'has_caps_emphasis': bool(re.search(r'[A-Z]{3,}', text)),
-        'has_ellipsis': '...' in text or '...' in text,
-        'hashtag_count': len(re.findall(r'#\w+', text)),
-        'mention_count': len(re.findall(r'@\w+', text))
+        "length": len(text),
+        "word_count": len(text.split()),
+        "emoji_count": len(emoji_pattern.findall(text)),
+        "has_questions": "?" in text,
+        "has_exclamations": "!" in text,
+        "has_caps_emphasis": bool(re.search(r"[A-Z]{3,}", text)),
+        "has_ellipsis": "..." in text or "..." in text,
+        "hashtag_count": len(re.findall(r"#\w+", text)),
+        "mention_count": len(re.findall(r"@\w+", text)),
     }

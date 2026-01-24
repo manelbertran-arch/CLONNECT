@@ -231,6 +231,11 @@ async def scrape_and_index_website(
     from core.rag import get_hybrid_rag
     from ingestion.content_indexer import create_chunks_from_content
 
+    # Normalize URL - add https:// if missing
+    if url and not url.startswith('http://') and not url.startswith('https://'):
+        url = 'https://' + url
+        logger.info(f"[WebsiteScraper] Added https:// to URL: {url}")
+
     stats = {
         "url": url,
         "pages_scraped": 0,

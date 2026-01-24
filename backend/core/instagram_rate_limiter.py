@@ -12,13 +12,13 @@ Límites de Meta (conservadores):
 - 4800 llamadas/día por token
 """
 
-import time
 import asyncio
 import logging
-from typing import Dict, Optional, Tuple
+import time
+from collections import defaultdict
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
-from collections import defaultdict
+from typing import Dict, Optional, Tuple
 
 logger = logging.getLogger(__name__)
 
@@ -26,6 +26,7 @@ logger = logging.getLogger(__name__)
 @dataclass
 class APICallRecord:
     """Registro de una llamada a la API"""
+
     timestamp: float
     endpoint: str
     response_code: int = 200
@@ -35,6 +36,7 @@ class APICallRecord:
 @dataclass
 class RateLimitState:
     """Estado del rate limiter para un creator"""
+
     calls_minute: list = field(default_factory=list)
     calls_hour: list = field(default_factory=list)
     calls_day: list = field(default_factory=list)
@@ -54,17 +56,17 @@ class InstagramRateLimiter:
     """
 
     # Límites conservadores (Meta permite más, pero mejor prevenir)
-    CALLS_PER_MINUTE = 10   # Muy conservador
-    CALLS_PER_HOUR = 150    # Meta permite ~200
-    CALLS_PER_DAY = 3000    # Meta permite ~4800
+    CALLS_PER_MINUTE = 10  # Muy conservador
+    CALLS_PER_HOUR = 150  # Meta permite ~200
+    CALLS_PER_DAY = 3000  # Meta permite ~4800
 
     # Backoff exponencial
     INITIAL_BACKOFF_SECONDS = 5
     MAX_BACKOFF_SECONDS = 300  # 5 minutos máximo
     BACKOFF_MULTIPLIER = 2
 
-    # Errores que indican rate limit
-    RATE_LIMIT_CODES = {429, 503, 190, 4, 17, 32, 613}
+    # Errores que indican rate limit (NOT 190 - OAuth is token issue, not rate limit)
+    RATE_LIMIT_CODES = {429, 503, 4, 17, 32, 613}
 
     def __init__(self):
         # Estado por creator_id
@@ -153,24 +155,25 @@ class InstagramRateLimiter:
         state.calls_day.append(now)
 
         # Guardar en historial global
-        self._call_history.append(APICallRecord(
-            timestamp=now,
-            endpoint=endpoint,
-            response_code=response_code,
-            creator_id=creator_id
-        ))
+        self._call_history.append(
+            APICallRecord(
+                timestamp=now, endpoint=endpoint, response_code=response_code, creator_id=creator_id
+            )
+        )
 
         # Limpiar historial viejo (>24h)
         day_ago = now - 86400
         self._call_history = [c for c in self._call_history if c.timestamp > day_ago]
 
-        # Manejar errores
-        if response_code in self.RATE_LIMIT_CODES or response_code >= 400:
+        # Manejar errores - ONLY rate limit codes trigger backoff, not all errors
+        if response_code in self.RATE_LIMIT_CODES:
             self._handle_error(state, response_code)
         else:
             # Reset errores consecutivos en éxito
             if state.consecutive_errors > 0:
-                logger.info(f"[RateLimit] {creator_id}: Recuperado después de {state.consecutive_errors} errores")
+                logger.info(
+                    f"[RateLimit] {creator_id}: Recuperado después de {state.consecutive_errors} errores"
+                )
             state.consecutive_errors = 0
             state.backoff_until = 0
 
@@ -181,8 +184,9 @@ class InstagramRateLimiter:
 
         # Calcular backoff exponencial
         backoff = min(
-            self.INITIAL_BACKOFF_SECONDS * (self.BACKOFF_MULTIPLIER ** (state.consecutive_errors - 1)),
-            self.MAX_BACKOFF_SECONDS
+            self.INITIAL_BACKOFF_SECONDS
+            * (self.BACKOFF_MULTIPLIER ** (state.consecutive_errors - 1)),
+            self.MAX_BACKOFF_SECONDS,
         )
 
         state.backoff_until = time.time() + backoff
@@ -192,6 +196,23 @@ class InstagramRateLimiter:
             f"Errores consecutivos: {state.consecutive_errors}. "
             f"Backoff: {backoff}s"
         )
+
+    def reset_backoff(self, creator_id: str) -> Dict:
+        """Reset backoff for a specific creator."""
+        state = self._states[creator_id]
+        old_errors = state.consecutive_errors
+        old_backoff = max(0, int(state.backoff_until - time.time()))
+        state.consecutive_errors = 0
+        state.backoff_until = 0
+        logger.info(
+            f"[RateLimit] RESET backoff for {creator_id}: was {old_errors} errors, {old_backoff}s remaining"
+        )
+        return {
+            "creator_id": creator_id,
+            "reset": True,
+            "previous_errors": old_errors,
+            "previous_backoff_remaining": old_backoff,
+        }
 
     def get_stats(self, creator_id: str = None) -> Dict:
         """
@@ -234,7 +255,7 @@ class InstagramRateLimiter:
                     "per_minute": self.CALLS_PER_MINUTE,
                     "per_hour": self.CALLS_PER_HOUR,
                     "per_day": self.CALLS_PER_DAY,
-                }
+                },
             }
 
     def get_call_history(self, creator_id: str = None, hours: int = 1) -> list:

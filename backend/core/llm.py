@@ -89,27 +89,35 @@ class GroqClient(LLMClient):
         self.api_key = (api_key or os.getenv("GROQ_API_KEY") or "").strip()
         self.model = model or DEFAULT_GROQ_MODEL
         self._client = None
+        print(f"[GroqClient] Initialized with model={self.model}, api_key={'set' if self.api_key else 'NOT SET'}", flush=True)
 
     def _get_client(self):
         if self._client is None:
+            print(f"[GroqClient] Creating AsyncGroq client...", flush=True)
             from groq import AsyncGroq
             self._client = AsyncGroq(api_key=self.api_key)
+            print(f"[GroqClient] AsyncGroq client created", flush=True)
         return self._client
 
     async def generate(self, prompt: str, **kwargs) -> str:
+        print(f"[GroqClient.generate] Prompt length: {len(prompt)}", flush=True)
         return await self.chat([{"role": "user", "content": prompt}], **kwargs)
 
     async def chat(self, messages: List[Dict[str, str]], **kwargs) -> str:
+        print(f"[GroqClient.chat] Starting with {len(messages)} messages", flush=True)
         client = self._get_client()
         try:
+            print(f"[GroqClient.chat] Calling Groq API with model={kwargs.get('model', self.model)}...", flush=True)
             response = await client.chat.completions.create(
                 model=kwargs.get("model", self.model),
                 messages=messages,
                 max_tokens=kwargs.get("max_tokens", 1000),
                 temperature=kwargs.get("temperature", 0.7)
             )
+            print(f"[GroqClient.chat] Groq API returned successfully", flush=True)
             return response.choices[0].message.content
         except Exception as e:
+            print(f"[GroqClient.chat] EXCEPTION: {e}", flush=True)
             logger.error(f"Groq API error: {e}")
             raise
 

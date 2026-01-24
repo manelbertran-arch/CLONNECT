@@ -1,0 +1,95 @@
+{
+  "follower_id": "ig_bamos_barcelona_mobility",
+  "creator_id": "stefano_bonanno",
+  "username": "bamos_barcelona_mobility",
+  "name": "Silvia",
+  "first_contact": "2026-01-24T20:08:05.862280",
+  "last_contact": "2026-01-24T19:21:19.592599+00:00",
+  "total_messages": 6,
+  "interests": [],
+  "products_discussed": [
+    "69790358-60de-4066-b5bc-eab2d10a1538"
+  ],
+  "objections_raised": [],
+  "purchase_intent_score": 0.85,
+  "is_lead": true,
+  "is_customer": false,
+  "status": "hot",
+  "preferred_language": "es",
+  "last_messages": [
+    {
+      "role": "user",
+      "content": "Hola! Les escribe Silvia de Bamos, ya habíamos trabajado antes con grupos de estudiantes Erasmus",
+      "timestamp": "2026-01-24T19:08:05.864189+00:00"
+    },
+    {
+      "role": "assistant",
+      "content": "Entiendo que estás frustrado. Perdona si no te he ayudado bien. ¿Qué puedo hacer para ayudarte de verdad?",
+      "timestamp": "2026-01-24T19:08:05.864189+00:00"
+    },
+    {
+      "role": "user",
+      "content": "Les escribo en esta ocasión porque tenemos un grupo de estudiantes del área Sports and fitness que llegan de Irlanda en febrero, que quizás podrían interesarles",
+      "timestamp": "2026-01-24T19:08:07.547045+00:00"
+    },
+    {
+      "role": "assistant",
+      "content": "Me encantaría ayudarte con eso 🙌 Te paso con Stefano Bonanno directamente para que pueda darte toda la info que necesitas. ¡Te escribe pronto!",
+      "timestamp": "2026-01-24T19:08:07.547045+00:00"
+    },
+    {
+      "role": "user",
+      "content": "Hola! Les escribe Silvia de Bamos, ya habíamos trabajado antes con grupos de estudiantes Erasmus",
+      "timestamp": "2026-01-24T19:09:11.500296+00:00"
+    },
+    {
+      "role": "assistant",
+      "content": "¡Perfecto! 🚀 Aquí tienes: https://www.stefanobonanno.com/fitpackchallenge",
+      "timestamp": "2026-01-24T19:09:11.500326+00:00"
+    },
+    {
+      "role": "user",
+      "content": "Les escribo en esta ocasión porque tenemos un grupo de estudiantes del área Sports and fitness que llegan de Irlanda en febrero, que quizás podrían interesarles",
+      "timestamp": "2026-01-24T19:09:13.188309+00:00"
+    },
+    {
+      "role": "assistant",
+      "content": "Me encantaría ayudarte con eso 🙌 Te paso con Stefano Bonanno directamente para que pueda darte toda la info que necesitas. ¡Te escribe pronto!",
+      "timestamp": "2026-01-24T19:09:13.188309+00:00"
+    },
+    {
+      "role": "user",
+      "content": "Hola! Les escribe Silvia de Bamos, ya habíamos trabajado antes con grupos de estudiantes Erasmus",
+      "timestamp": "2026-01-24T19:21:13.098203+00:00"
+    },
+    {
+      "role": "assistant",
+      "content": "¡Perfecto! 🚀 Aquí tienes: https://www.stefanobonanno.com/fitpackchallenge",
+      "timestamp": "2026-01-24T19:21:13.098212+00:00"
+    },
+    {
+      "role": "user",
+      "content": "Les escribo en esta ocasión porque tenemos un grupo de estudiantes del área Sports and fitness que llegan de Irlanda en febrero, que quizás podrían interesarles",
+      "timestamp": "2026-01-24T19:21:19.592599+00:00"
+    },
+    {
+      "role": "assistant",
+      "content": "¡Hola, Silvia! 😊 Suena genial esa oportunidad con los estudiantes de Irlanda.",
+      "timestamp": "2026-01-24T19:21:19.592599+00:00"
+    }
+  ],
+  "links_sent_count": 0,
+  "last_link_message_num": 0,
+  "objections_handled": [],
+  "arguments_used": [],
+  "greeting_variant_index": 0,
+  "last_greeting_style": "hola",
+  "last_emojis_used": [
+    "🙌",
+    "😊"
+  ],
+  "messages_since_name_used": 0,
+  "alternative_contact": "",
+  "alternative_contact_type": "",
+  "contact_requested": false
+}

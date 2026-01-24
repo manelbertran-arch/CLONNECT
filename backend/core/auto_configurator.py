@@ -681,7 +681,9 @@ class AutoConfigurator:
                 page_id = creator.instagram_page_id
                 ig_user_id = creator.instagram_user_id
 
-            if not access_token or not page_id or not ig_user_id:
+            # Solo necesitamos access_token y al menos uno de page_id o ig_user_id
+            # Instagram Login API solo proporciona ig_user_id, no page_id
+            if not access_token or (not page_id and not ig_user_id):
                 result['reason'] = 'Instagram OAuth credentials not configured'
                 logger.info(f"[AutoConfig] DM history skipped: no OAuth credentials for {creator_id}")
                 return result
@@ -691,7 +693,7 @@ class AutoConfigurator:
             stats = await dm_service.load_dm_history(
                 creator_id=creator_id,
                 access_token=access_token,
-                page_id=page_id,
+                page_id=page_id,  # Puede ser None si usamos Instagram Login API
                 ig_user_id=ig_user_id,
                 limit=50  # Últimos 50 DMs
             )
@@ -792,10 +794,9 @@ class AutoConfigurator:
     async def _generate_faqs(self, creator_id: str) -> dict:
         """
         Genera FAQs automáticas basadas en el contenido scrapeado.
-        Extrae preguntas frecuentes de:
-        1. Posts de Instagram con formato Q&A
-        2. Website scrapeado (secciones FAQ)
-        3. Genera FAQs genéricas basadas en productos
+
+        IMPORTANTE: Si ya existen FAQs en KnowledgeBase (del V2 pipeline),
+        NO genera nuevas para evitar duplicados/parafraseados.
         """
         result = {
             'faqs_created': 0,
@@ -818,6 +819,19 @@ class AutoConfigurator:
                 ).first()
 
                 if not creator:
+                    return result
+
+                # SKIP if FAQs already exist from V2 pipeline (literal extraction)
+                existing_faq_count = db.query(KnowledgeBase).filter(
+                    KnowledgeBase.creator_id == creator.id
+                ).count()
+
+                if existing_faq_count >= 10:
+                    logger.info(
+                        f"[AutoConfig] Skipping FAQ generation - {existing_faq_count} FAQs already exist from V2 pipeline"
+                    )
+                    result['faqs_created'] = existing_faq_count
+                    result['source'] = ['v2_pipeline_existing']
                     return result
 
                 creator_uuid = creator.id

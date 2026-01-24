@@ -314,14 +314,29 @@ class InstagramConnector:
         return data.get("data", [])
 
     async def get_conversations(self, limit: int = 20) -> List[dict]:
-        """Obtener conversaciones recientes, ordenadas por updated_time DESC."""
-        url = f"{self.FACEBOOK_API_URL}/{self.page_id}/conversations"
-        params = {
-            "platform": "instagram",
-            "fields": "id,updated_time,participants",
-            "limit": limit,
-            "access_token": self.access_token
-        }
+        """Obtener conversaciones recientes, ordenadas por updated_time DESC.
+
+        Estrategia dual:
+        - Si page_id existe: usa Facebook API (graph.facebook.com/{page_id}/conversations?platform=instagram)
+        - Si solo ig_user_id: usa Instagram API (graph.instagram.com/{ig_user_id}/conversations)
+        """
+        if self.page_id:
+            # Facebook Pages API
+            url = f"{self.FACEBOOK_API_URL}/{self.page_id}/conversations"
+            params = {
+                "platform": "instagram",
+                "fields": "id,updated_time,participants",
+                "limit": limit,
+                "access_token": self.access_token
+            }
+        else:
+            # Instagram API (cuando solo tenemos ig_user_id del Instagram Login)
+            url = f"{self.INSTAGRAM_API_URL}/{self.ig_user_id}/conversations"
+            params = {
+                "fields": "id,updated_time,participants",
+                "limit": limit,
+                "access_token": self.access_token
+            }
 
         data = await self._rate_limited_request("GET", url, "get_conversations", params=params)
         conversations = data.get("data", [])
@@ -334,8 +349,17 @@ class InstagramConnector:
         conversation_id: str,
         limit: int = 50
     ) -> List[dict]:
-        """Obtener mensajes de una conversación"""
-        url = f"{self.FACEBOOK_API_URL}/{conversation_id}/messages"
+        """Obtener mensajes de una conversación.
+
+        Usa la misma API base que se usó para obtener las conversaciones.
+        """
+        # Usar Facebook API si tenemos page_id, sino Instagram API
+        if self.page_id:
+            api_base = self.FACEBOOK_API_URL
+        else:
+            api_base = self.INSTAGRAM_API_URL
+
+        url = f"{api_base}/{conversation_id}/messages"
         params = {
             "fields": "id,message,from,to,created_time",
             "limit": limit,

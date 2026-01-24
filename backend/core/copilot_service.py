@@ -9,10 +9,10 @@ Este servicio maneja:
 """
 
 import logging
-from datetime import datetime, timezone
-from typing import Optional, Dict, List, Any
-from dataclasses import dataclass
 import uuid
+from dataclasses import dataclass
+from datetime import datetime, timezone
+from typing import Any, Dict, List, Optional
 
 logger = logging.getLogger(__name__)
 
@@ -20,6 +20,7 @@ logger = logging.getLogger(__name__)
 @dataclass
 class PendingResponse:
     """Respuesta pendiente de aprobación"""
+
     id: str
     lead_id: str
     follower_id: str
@@ -39,7 +40,9 @@ class CopilotService:
 
     def __init__(self):
         self._pending_responses: Dict[str, PendingResponse] = {}  # In-memory cache
-        self._copilot_mode_cache: Dict[str, bool] = {}  # FIX P1: Cache copilot mode to avoid duplicate DB queries
+        self._copilot_mode_cache: Dict[str, bool] = (
+            {}
+        )  # FIX P1: Cache copilot mode to avoid duplicate DB queries
         self._copilot_mode_cache_ttl: Dict[str, float] = {}  # Cache timestamps
         self._CACHE_TTL = 60  # 60 second cache
 
@@ -50,12 +53,12 @@ class CopilotService:
         """
         intent_scores = {
             "interest_strong": 0.75,  # Hot
-            "purchase": 0.85,         # Very Hot
-            "interest_soft": 0.50,    # Warm
-            "question_product": 0.35, # Active
-            "greeting": 0.10,         # New
-            "objection": -0.10,       # Decrease
-            "other": 0.05,            # Slight increase
+            "purchase": 0.85,  # Very Hot
+            "interest_soft": 0.50,  # Warm
+            "question_product": 0.35,  # Active
+            "greeting": 0.10,  # New
+            "objection": -0.10,  # Decrease
+            "other": 0.05,  # Slight increase
         }
 
         intent_key = message_intent.lower().replace("Intent.", "")
@@ -92,14 +95,14 @@ class CopilotService:
         intent: str,
         confidence: float,
         username: str = "",
-        full_name: str = ""
+        full_name: str = "",
     ) -> PendingResponse:
         """
         Crear una respuesta pendiente de aprobación.
         Guarda en PostgreSQL y cache en memoria.
         """
         from api.database import SessionLocal
-        from api.models import Lead, Message, Creator
+        from api.models import Creator, Lead, Message
 
         pending_id = str(uuid.uuid4())
         now = datetime.now(timezone.utc)
@@ -116,7 +119,7 @@ class CopilotService:
             confidence=confidence,
             created_at=now.isoformat(),
             username=username,
-            full_name=full_name
+            full_name=full_name,
         )
 
         # Guardar en DB
@@ -128,10 +131,11 @@ class CopilotService:
                 logger.error(f"Creator {creator_id} not found")
                 return pending
 
-            lead = session.query(Lead).filter_by(
-                creator_id=creator.id,
-                platform_user_id=follower_id
-            ).first()
+            lead = (
+                session.query(Lead)
+                .filter_by(creator_id=creator.id, platform_user_id=follower_id)
+                .first()
+            )
 
             if not lead:
                 # Crear lead si no existe
@@ -142,7 +146,7 @@ class CopilotService:
                     username=username,
                     full_name=full_name,
                     status="new",
-                    purchase_intent=0.0
+                    purchase_intent=0.0,
                 )
                 session.add(lead)
                 session.commit()
@@ -150,8 +154,7 @@ class CopilotService:
 
             # Update lead scoring based on intent
             lead.purchase_intent = self._calculate_purchase_intent(
-                current_intent=lead.purchase_intent or 0.0,
-                message_intent=intent
+                current_intent=lead.purchase_intent or 0.0, message_intent=intent
             )
             lead.status = self._calculate_lead_status(lead.purchase_intent)
             lead.last_contact_at = now
@@ -163,7 +166,7 @@ class CopilotService:
                 content=user_message,
                 intent=intent,
                 status="sent",
-                platform_message_id=user_message_id
+                platform_message_id=user_message_id,
             )
             session.add(user_msg)
 
@@ -174,7 +177,7 @@ class CopilotService:
                 content=suggested_response,
                 suggested_response=suggested_response,  # Guardar original
                 status="pending_approval",
-                intent=intent
+                intent=intent,
             )
             session.add(bot_msg)
             session.commit()
@@ -196,8 +199,10 @@ class CopilotService:
 
         return pending
 
-    async def get_pending_responses(self, creator_id: str, limit: int = 50) -> List[Dict]:
-        """Obtener todas las respuestas pendientes de un creador"""
+    async def get_pending_responses(
+        self, creator_id: str, limit: int = 50, offset: int = 0
+    ) -> Dict:
+        """Obtener todas las respuestas pendientes de un creador con paginación"""
         from api.database import SessionLocal
         from api.models import Creator, Lead, Message
 
@@ -205,52 +210,67 @@ class CopilotService:
         try:
             creator = session.query(Creator).filter_by(name=creator_id).first()
             if not creator:
-                return []
+                return {"pending": [], "total_count": 0, "has_more": False}
 
-            # Obtener mensajes pendientes con info del lead
-            pending_messages = session.query(Message, Lead).join(
-                Lead, Message.lead_id == Lead.id
-            ).filter(
-                Lead.creator_id == creator.id,
-                Message.status == "pending_approval",
-                Message.role == "assistant"
-            ).order_by(Message.created_at.desc()).limit(limit).all()
+            # Build base query
+            base_query = (
+                session.query(Message, Lead)
+                .join(Lead, Message.lead_id == Lead.id)
+                .filter(
+                    Lead.creator_id == creator.id,
+                    Message.status == "pending_approval",
+                    Message.role == "assistant",
+                )
+            )
+
+            # Get total count
+            total_count = base_query.count()
+
+            # Get paginated messages
+            pending_messages = (
+                base_query.order_by(Message.created_at.desc()).offset(offset).limit(limit).all()
+            )
 
             results = []
             for msg, lead in pending_messages:
                 # Obtener el mensaje del usuario más reciente
-                user_msg = session.query(Message).filter(
-                    Message.lead_id == lead.id,
-                    Message.role == "user"
-                ).order_by(Message.created_at.desc()).first()
+                user_msg = (
+                    session.query(Message)
+                    .filter(Message.lead_id == lead.id, Message.role == "user")
+                    .order_by(Message.created_at.desc())
+                    .first()
+                )
 
-                results.append({
-                    "id": str(msg.id),
-                    "lead_id": str(lead.id),
-                    "follower_id": lead.platform_user_id,
-                    "platform": lead.platform,
-                    "username": lead.username or "",
-                    "full_name": lead.full_name or "",
-                    "user_message": user_msg.content if user_msg else "",
-                    "suggested_response": msg.content,
-                    "intent": msg.intent or "",
-                    "created_at": msg.created_at.isoformat() if msg.created_at else "",
-                    "status": msg.status
-                })
+                results.append(
+                    {
+                        "id": str(msg.id),
+                        "lead_id": str(lead.id),
+                        "follower_id": lead.platform_user_id,
+                        "platform": lead.platform,
+                        "username": lead.username or "",
+                        "full_name": lead.full_name or "",
+                        "user_message": user_msg.content if user_msg else "",
+                        "suggested_response": msg.content,
+                        "intent": msg.intent or "",
+                        "created_at": msg.created_at.isoformat() if msg.created_at else "",
+                        "status": msg.status,
+                    }
+                )
 
-            return results
+            return {
+                "pending": results,
+                "total_count": total_count,
+                "has_more": offset + len(results) < total_count,
+            }
 
         except Exception as e:
             logger.error(f"[Copilot] Error getting pending responses: {e}")
-            return []
+            return {"pending": [], "total_count": 0, "has_more": False}
         finally:
             session.close()
 
     async def approve_response(
-        self,
-        creator_id: str,
-        message_id: str,
-        edited_text: Optional[str] = None
+        self, creator_id: str, message_id: str, edited_text: Optional[str] = None
     ) -> Dict[str, Any]:
         """
         Aprobar (y opcionalmente editar) una respuesta y enviarla.
@@ -285,11 +305,7 @@ class CopilotService:
             was_edited = edited_text is not None and edited_text != msg.suggested_response
 
             # Enviar mensaje
-            send_result = await self._send_message(
-                creator=creator,
-                lead=lead,
-                text=final_text
-            )
+            send_result = await self._send_message(creator=creator, lead=lead, text=final_text)
 
             if not send_result.get("success"):
                 return {"success": False, "error": send_result.get("error", "Failed to send")}
@@ -306,14 +322,16 @@ class CopilotService:
 
             session.commit()
 
-            logger.info(f"[Copilot] Approved and sent message {message_id} to {lead.platform_user_id}")
+            logger.info(
+                f"[Copilot] Approved and sent message {message_id} to {lead.platform_user_id}"
+            )
 
             return {
                 "success": True,
                 "message_id": str(msg.id),
                 "platform_message_id": send_result.get("message_id"),
                 "was_edited": was_edited,
-                "final_text": final_text
+                "final_text": final_text,
             }
 
         except Exception as e:
@@ -349,12 +367,7 @@ class CopilotService:
         finally:
             session.close()
 
-    async def _send_message(
-        self,
-        creator,
-        lead,
-        text: str
-    ) -> Dict[str, Any]:
+    async def _send_message(self, creator, lead, text: str) -> Dict[str, Any]:
         """Enviar mensaje via la plataforma correspondiente"""
         try:
             if lead.platform == "instagram":
@@ -369,30 +382,29 @@ class CopilotService:
 
     async def _send_instagram_message(self, creator, lead, text: str) -> Dict[str, Any]:
         """Enviar mensaje via Instagram API"""
+        import os
+
         from core.instagram import InstagramConnector
 
-        if not creator.instagram_token or not creator.instagram_page_id:
+        # Use DB values with fallback to env vars (same as InstagramHandler)
+        access_token = creator.instagram_token or os.getenv("INSTAGRAM_ACCESS_TOKEN", "")
+        page_id = creator.instagram_page_id or os.getenv("INSTAGRAM_PAGE_ID", "")
+        ig_user_id = creator.instagram_user_id or os.getenv("INSTAGRAM_USER_ID", "")
+
+        if not access_token or not page_id:
             return {"success": False, "error": "Instagram not connected"}
 
         connector = InstagramConnector(
-            access_token=creator.instagram_token,
-            page_id=creator.instagram_page_id,
-            ig_user_id=creator.instagram_user_id or ""
+            access_token=access_token, page_id=page_id, ig_user_id=ig_user_id
         )
 
         try:
-            result = await connector.send_message(
-                recipient_id=lead.platform_user_id,
-                text=text
-            )
+            result = await connector.send_message(recipient_id=lead.platform_user_id, text=text)
 
             if "error" in result:
                 return {"success": False, "error": result["error"]}
 
-            return {
-                "success": True,
-                "message_id": result.get("message_id", "")
-            }
+            return {"success": True, "message_id": result.get("message_id", "")}
         finally:
             await connector.close()
 
@@ -418,10 +430,7 @@ class CopilotService:
         url = f"https://api.telegram.org/bot{bot_token}/sendMessage"
 
         async with httpx.AsyncClient() as client:
-            response = await client.post(url, json={
-                "chat_id": chat_id,
-                "text": text
-            })
+            response = await client.post(url, json={"chat_id": chat_id, "text": text})
             result = response.json()
 
             if not result.get("ok"):
@@ -429,7 +438,7 @@ class CopilotService:
 
             return {
                 "success": True,
-                "message_id": str(result.get("result", {}).get("message_id", ""))
+                "message_id": str(result.get("result", {}).get("message_id", "")),
             }
 
     def is_copilot_enabled(self, creator_id: str) -> bool:
@@ -454,7 +463,7 @@ class CopilotService:
         try:
             creator = session.query(Creator).filter_by(name=creator_id).first()
             if creator:
-                result = getattr(creator, 'copilot_mode', True)
+                result = getattr(creator, "copilot_mode", True)
                 if result is None:
                     result = True  # Default to True if NULL
             else:

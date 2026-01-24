@@ -1,0 +1,52 @@
+{
+  "follower_id": "ig_bamos_barcelona_mobility",
+  "creator_id": "fitpack_global",
+  "username": "bamos_barcelona_mobility",
+  "name": "",
+  "first_contact": "2026-01-24T20:04:56.784938",
+  "last_contact": "2026-01-24T19:04:58.093447+00:00",
+  "total_messages": 2,
+  "interests": [],
+  "products_discussed": [],
+  "objections_raised": [],
+  "purchase_intent_score": 0.75,
+  "is_lead": true,
+  "is_customer": false,
+  "status": "hot",
+  "preferred_language": "es",
+  "last_messages": [
+    {
+      "role": "user",
+      "content": "Hola! Les escribe Silvia de Bamos, ya habíamos trabajado antes con grupos de estudiantes Erasmus",
+      "timestamp": "2026-01-24T19:04:56.787989+00:00"
+    },
+    {
+      "role": "assistant",
+      "content": "Entiendo que estás frustrado. Perdona si no te he ayudado bien. ¿Qué puedo hacer para ayudarte de verdad?",
+      "timestamp": "2026-01-24T19:04:56.787989+00:00"
+    },
+    {
+      "role": "user",
+      "content": "Les escribo en esta ocasión porque tenemos un grupo de estudiantes del área Sports and fitness que llegan de Irlanda en febrero, que quizás podrían interesarles",
+      "timestamp": "2026-01-24T19:04:58.093447+00:00"
+    },
+    {
+      "role": "assistant",
+      "content": "Me encantaría ayudarte con eso 🙌 Te paso con Stefano directamente para que pueda darte toda la info que necesitas. ¡Te escribe pronto!",
+      "timestamp": "2026-01-24T19:04:58.093447+00:00"
+    }
+  ],
+  "links_sent_count": 0,
+  "last_link_message_num": 0,
+  "objections_handled": [],
+  "arguments_used": [],
+  "greeting_variant_index": 0,
+  "last_greeting_style": "entiendo",
+  "last_emojis_used": [
+    "🙌"
+  ],
+  "messages_since_name_used": 2,
+  "alternative_contact": "",
+  "alternative_contact_type": "",
+  "contact_requested": false
+}

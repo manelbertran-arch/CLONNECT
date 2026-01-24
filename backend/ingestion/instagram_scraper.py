@@ -67,7 +67,7 @@ class MetaGraphAPIScraper:
     Docs: https://developers.facebook.com/docs/instagram-api/
     """
 
-    BASE_URL = "https://graph.facebook.com/v18.0"
+    BASE_URL = "https://graph.instagram.com/v21.0"
 
     def __init__(self, access_token: str, instagram_business_id: str):
         """

@@ -1,0 +1,350 @@
+"""
+Detector de Contenido Sensible v2.0.0 para Clonnect.
+
+Detecta contenido que requiere manejo especial:
+- SELF_HARM: Autolesiones, ideación suicida -> Escalado inmediato
+- EATING_DISORDER: TCA, conductas alimentarias peligrosas -> Respuesta empática
+- MINOR: Menores de edad -> No presionar venta
+- PHISHING: Intentos de obtener info personal -> Bloquear
+- SPAM: Bots, spam -> No responder
+- THREAT: Amenazas -> Escalar
+
+CRÍTICO: Este módulo es de seguridad. Cualquier cambio debe ser revisado.
+"""
+
+import re
+import logging
+from enum import Enum
+from typing import Optional, List
+from dataclasses import dataclass
+
+logger = logging.getLogger(__name__)
+
+
+class SensitiveType(Enum):
+    """Tipos de contenido sensible detectado."""
+    NONE = "none"
+    SELF_HARM = "self_harm"
+    EATING_DISORDER = "eating_disorder"
+    MINOR = "minor"
+    PHISHING = "phishing"
+    SPAM = "spam"
+    THREAT = "threat"
+    ECONOMIC_DISTRESS = "economic_distress"
+
+
+@dataclass
+class SensitiveResult:
+    """Resultado de la detección de contenido sensible."""
+    type: SensitiveType
+    confidence: float  # 0.0 - 1.0
+    reason: Optional[str]  # Patrón que matcheó
+    action_required: str  # Acción a tomar
+
+    def __bool__(self):
+        """Permite usar: if sensitive_result:"""
+        return self.type != SensitiveType.NONE
+
+
+# =============================================================================
+# PATRONES DE DETECCIÓN
+# =============================================================================
+
+# AUTOLESIÓN / SUICIDIO - PRIORIDAD MÁXIMA
+SELF_HARM_PATTERNS = [
+    # Español - autolesión directa
+    r'\bme\s+(?:hago|corto|lastimo|provoco)\s+da[ñn]o\b',
+    r'\bme\s+corto\b',  # "me corto" simple
+    r'\bme\s+lastimo\b',  # "me lastimo" simple
+    # Ideación suicida
+    r'\b(?:quiero\s+(?:morir|desaparecer|acabar\s+con\s+todo))\b',
+    r'\b(?:no\s+quiero\s+(?:vivir|seguir|existir))\b',
+    r'\b(?:pienso\s+en\s+(?:suicid|matarme|quitarme\s+la\s+vida))\b',
+    r'\bsuicid(?:arme|io|a)\b',  # suicidarme, suicidio, suicida
+    # Autolesión explícita
+    r'\b(?:autolesion(?:es|arme)?|cortarme|hacerme\s+da[ñn]o)\b',
+    # English
+    r'\b(?:want\s+to\s+(?:die|disappear|end\s+it))\b',
+    r'\b(?:self[\s-]?harm|cutting\s+myself)\b',
+    r'\b(?:suicid|kill\s+myself)\b',
+]
+
+# TRASTORNOS DE CONDUCTA ALIMENTARIA
+EATING_DISORDER_PATTERNS = [
+    # Restricción extrema de calorías
+    r'\b(?:como\s+(?:solo|menos\s+de)\s+\d{2,3}\s*calor[ií]as?)\b',
+    r'\b(?:\d{2,3}\s*calor[ií]as?\s+al\s+d[ií]a)\b',
+    # Ayunos extremos
+    r'\b(?:ayuno\s+(?:de\s+)?\d{2}\s*horas?)\b',
+    r'\b(?:llevo\s+\d+\s+d[ií]as?\s+sin\s+comer)\b',
+    # Pérdida de peso extrema
+    r'\b(?:perder\s+\d{2,}\s*kilos?\s+en\s+(?:una?\s+semana|un\s+mes|pocos\s+d[ií]as))\b',
+    r'\b(?:adelgazar\s+\d{2,}\s*kilos?\s+r[aá]pido)\b',
+    # Conductas purgativas
+    r'\b(?:vomit|purg|laxant)\b',
+    r'\b(?:me\s+provoco\s+(?:el\s+)?v[oó]mito)\b',
+    # Señales de alarma
+    r'\b(?:no\s+me\s+importa\s+si\s+es\s+extremo)\b',
+    r'\b(?:cualquier\s+cosa\s+para\s+(?:adelgazar|perder\s+peso))\b',
+]
+
+# MENORES DE EDAD
+MINOR_PATTERNS = [
+    r'\b(?:tengo\s+1[0-7]\s*a[ñn]os?)\b',  # 10-17 años
+    r'\b(?:soy\s+menor)\b',
+    r'\b(?:mis\s+padres\s+(?:me\s+)?(?:lo\s+)?pagar[ií]an?)\b',
+    r'\b(?:en\s+el\s+(?:colegio|instituto|secundaria))\b',
+    r'\b(?:voy\s+al\s+(?:cole|insti))\b',
+]
+
+# PHISHING / INGENIERÍA SOCIAL
+PHISHING_PATTERNS = [
+    # Suplantación de autoridad
+    r'\b(?:soy\s+(?:de\s+la\s+)?polic[ií]a)\b',
+    r'\b(?:guardia\s+civil|investigaci[oó]n\s+oficial)\b',
+    r'\b(?:requerimiento\s+judicial|orden\s+judicial)\b',
+    # Solicitud de datos personales - más flexible
+    r'\b(?:dame|pasame|env[ií]ame)\s+(?:su|el)\s+(?:email|tel[eé]fono|direcci[oó]n|contacto)',
+    r'\b(?:necesito|quiero)\s+(?:su|el)\s+(?:tel[eé]fono|email|contacto)\s*(?:personal|privado)?',
+    r'\b(?:necesito|dame)\s+(?:sus?|los?)\s+datos\s+personales\b',
+    r'\bdatos\s+personales\s+(?:de|del)\s+(?:creador|stefano)\b',
+    r'\b(?:informaci[oó]n\s+(?:personal|privada)\s+(?:de|sobre))',
+    # Urgencia + solicitud de info
+    r'\b(?:es\s+urgente).*(?:informaci[oó]n|datos|contacto)\b',
+    r'\b(?:tendr[aá]s?\s+problemas?\s+si\s+no)\b',
+]
+
+# SPAM / BOTS
+SPAM_PATTERNS = [
+    # Perfil/links sospechosos
+    r'\b(?:check|mira)\s*(?:out\s+)?(?:my|mi)\s+(?:profile|perfil)\b',
+    r'\b(?:click|haz\s+click)\s+(?:here|aqu[ií])\b',
+    r'\b(?:bit\.ly|tinyurl|t\.co)/\w+\b',
+    # Ofertas de dinero
+    r'\b(?:ganar|make|earn)\s+\$?\d+\s*(?:desde\s+casa|working\s+from\s+home|diarios?)\b',
+    r'\b(?:\$\d{3,}\s+(?:al\s+d[ií]a|daily|per\s+day))\b',
+    # Giveaways falsos
+    r'\b(?:free|gratis)\s+(?:iphone|regalo|giveaway|prize)\b',
+    r'\b(?:last\s+chance|[úu]ltima\s+oportunidad)\s+(?:to\s+win|para\s+ganar)\b',
+    # Contenido adulto
+    r'\b(?:hot\s+pics?|sexy\s+(?:pics?|photos?)|onlyfans)\b',
+    r'\b(?:dm\s+(?:me\s+)?for\s+(?:exclusive|private)\s+content)\b',
+]
+
+# AMENAZAS
+THREAT_PATTERNS = [
+    r'\b(?:s[eé]\s+d[oó]nde\s+vive)\b',
+    r'\b(?:(?:te|le|os)\s+voy\s+a\s+(?:encontrar|buscar|matar))\b',
+    r'\b(?:esto\s+no\s+va\s+a\s+quedar\s+as[ií])\b',
+    r'\b(?:(?:te|se)\s+va[ns]?\s+a\s+enterar)\b',
+    r'\b(?:(?:voy|vamos)\s+a\s+denunciar)\b.*(?:estafa|robo|fraude)\b',
+    r'\b(?:me\s+las\s+vas?\s+a\s+pagar)\b',
+]
+
+# SITUACIÓN ECONÓMICA DIFÍCIL (para respuesta empática, no bloqueo)
+ECONOMIC_DISTRESS_PATTERNS = [
+    r'\b(?:estoy\s+en\s+(?:el\s+)?paro)\b',
+    r'\b(?:no\s+tengo\s+trabajo)\b',
+    r'\bsituaci[oó]n\s+econ[oó]mica\b.*(?:dif[ií]cil|complicada|mala)\b',  # Más flexible
+    r'\b(?:no\s+(?:puedo|tengo\s+(?:para|dinero\s+para))\s+pagar)\b',
+    r'\b(?:sin\s+dinero|sin\s+recursos)\b',
+]
+
+
+# =============================================================================
+# FUNCIONES DE DETECCIÓN
+# =============================================================================
+
+def _check_patterns(message: str, patterns: List[str]) -> Optional[str]:
+    """Verifica si el mensaje contiene alguno de los patrones."""
+    for pattern in patterns:
+        match = re.search(pattern, message, re.IGNORECASE)
+        if match:
+            return pattern
+    return None
+
+
+def detect_sensitive_content(message: str) -> SensitiveResult:
+    """
+    Detecta contenido sensible en un mensaje.
+
+    Args:
+        message: Texto del mensaje del usuario
+
+    Returns:
+        SensitiveResult con tipo, confianza, razón y acción requerida
+
+    Prioridad de detección (de mayor a menor):
+    1. SELF_HARM - Escalado inmediato
+    2. THREAT - Escalado inmediato
+    3. PHISHING - Bloquear respuesta
+    4. SPAM - No responder
+    5. EATING_DISORDER - Respuesta empática
+    6. MINOR - No presionar venta
+    7. ECONOMIC_DISTRESS - Empatía (no bloquea)
+    """
+    if not message or not message.strip():
+        return SensitiveResult(SensitiveType.NONE, 0.0, None, "none")
+
+    msg = message.lower().strip()
+
+    # 1. AUTOLESIÓN - PRIORIDAD MÁXIMA
+    pattern = _check_patterns(msg, SELF_HARM_PATTERNS)
+    if pattern:
+        logger.critical(f"[SENSITIVE] SELF_HARM detected: pattern='{pattern}'")
+        return SensitiveResult(
+            type=SensitiveType.SELF_HARM,
+            confidence=0.95,
+            reason=pattern,
+            action_required="escalate_immediate"
+        )
+
+    # 2. AMENAZAS
+    pattern = _check_patterns(msg, THREAT_PATTERNS)
+    if pattern:
+        logger.warning(f"[SENSITIVE] THREAT detected: pattern='{pattern}'")
+        return SensitiveResult(
+            type=SensitiveType.THREAT,
+            confidence=0.85,
+            reason=pattern,
+            action_required="escalate_immediate"
+        )
+
+    # 3. PHISHING
+    pattern = _check_patterns(msg, PHISHING_PATTERNS)
+    if pattern:
+        logger.warning(f"[SENSITIVE] PHISHING detected: pattern='{pattern}'")
+        return SensitiveResult(
+            type=SensitiveType.PHISHING,
+            confidence=0.90,
+            reason=pattern,
+            action_required="block_response"
+        )
+
+    # 4. SPAM
+    pattern = _check_patterns(msg, SPAM_PATTERNS)
+    if pattern:
+        logger.info(f"[SENSITIVE] SPAM detected: pattern='{pattern}'")
+        return SensitiveResult(
+            type=SensitiveType.SPAM,
+            confidence=0.90,
+            reason=pattern,
+            action_required="no_response"
+        )
+
+    # 5. TCA (Trastorno de Conducta Alimentaria)
+    pattern = _check_patterns(msg, EATING_DISORDER_PATTERNS)
+    if pattern:
+        logger.warning(f"[SENSITIVE] EATING_DISORDER detected: pattern='{pattern}'")
+        return SensitiveResult(
+            type=SensitiveType.EATING_DISORDER,
+            confidence=0.80,
+            reason=pattern,
+            action_required="empathetic_response"
+        )
+
+    # 6. MENOR DE EDAD
+    # Verificación especial: extraer edad y validar
+    age_match = re.search(r'\b(?:tengo|soy\s+de)\s+(\d{1,2})\s*a[ñn]os?\b', msg)
+    if age_match:
+        age = int(age_match.group(1))
+        if age < 18:
+            logger.info(f"[SENSITIVE] MINOR detected: age={age}")
+            return SensitiveResult(
+                type=SensitiveType.MINOR,
+                confidence=0.95,
+                reason=f"age={age}",
+                action_required="no_pressure_sale"
+            )
+
+    # También verificar otros patrones de menor
+    pattern = _check_patterns(msg, MINOR_PATTERNS)
+    if pattern and not age_match:  # Solo si no detectamos edad específica
+        logger.info(f"[SENSITIVE] MINOR detected: pattern='{pattern}'")
+        return SensitiveResult(
+            type=SensitiveType.MINOR,
+            confidence=0.75,
+            reason=pattern,
+            action_required="no_pressure_sale"
+        )
+
+    # 7. SITUACIÓN ECONÓMICA DIFÍCIL (no bloquea, solo para contexto)
+    pattern = _check_patterns(msg, ECONOMIC_DISTRESS_PATTERNS)
+    if pattern:
+        logger.info(f"[SENSITIVE] ECONOMIC_DISTRESS detected: pattern='{pattern}'")
+        return SensitiveResult(
+            type=SensitiveType.ECONOMIC_DISTRESS,
+            confidence=0.75,
+            reason=pattern,
+            action_required="empathetic_response"
+        )
+
+    # Sin contenido sensible detectado
+    return SensitiveResult(SensitiveType.NONE, 0.0, None, "none")
+
+
+def get_crisis_resources(language: str = "es") -> str:
+    """
+    Devuelve recursos de crisis según el idioma.
+
+    Args:
+        language: Código de idioma (es, en, ca)
+
+    Returns:
+        Texto con recursos de ayuda
+    """
+    resources = {
+        "es": """
+Si estás pasando por un momento difícil, hay personas que pueden ayudarte:
+- Teléfono de la Esperanza: 717 003 717 (24h)
+- Teléfono contra el Suicidio: 024 (24h)
+- Cruz Roja Escucha: 900 107 917
+""".strip(),
+        "en": """
+If you're going through a difficult time, there are people who can help:
+- National Suicide Prevention: 988 (24h)
+- Crisis Text Line: Text HOME to 741741
+- International Association for Suicide Prevention: https://www.iasp.info/resources/Crisis_Centres/
+""".strip(),
+        "ca": """
+Si estàs passant per un moment difícil, hi ha persones que et poden ajudar:
+- Telèfon de l'Esperança: 717 003 717 (24h)
+- Telèfon contra el Suïcidi: 024 (24h)
+""".strip(),
+    }
+    return resources.get(language, resources["es"])
+
+
+# =============================================================================
+# SINGLETON
+# =============================================================================
+
+_detector_instance = None
+
+
+def get_sensitive_detector():
+    """Obtiene la instancia singleton del detector."""
+    global _detector_instance
+    if _detector_instance is None:
+        _detector_instance = SensitiveContentDetector()
+    return _detector_instance
+
+
+class SensitiveContentDetector:
+    """
+    Wrapper class para el detector de contenido sensible.
+    Mantiene estadísticas y permite configuración.
+    """
+
+    def __init__(self):
+        self.detections_count = {t: 0 for t in SensitiveType}
+
+    def detect(self, message: str) -> SensitiveResult:
+        """Detecta contenido sensible y actualiza estadísticas."""
+        result = detect_sensitive_content(message)
+        self.detections_count[result.type] += 1
+        return result
+
+    def get_stats(self) -> dict:
+        """Devuelve estadísticas de detecciones."""
+        return {t.value: count for t, count in self.detections_count.items()}
