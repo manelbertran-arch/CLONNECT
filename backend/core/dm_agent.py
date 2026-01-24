@@ -61,6 +61,15 @@ from core.reflexion_engine import get_reflexion_engine
 # v1.8.0 Response Variation
 from core.response_variation import get_variation_engine
 
+# v2.0.0 Sensitive Content Detection
+from core.sensitive_detector import (
+    detect_sensitive_content,
+    get_crisis_resources,
+    SensitiveType,
+    SensitiveResult,
+)
+from core.conversation_state import ConversationPhase
+
 # PostgreSQL integration
 USE_POSTGRES = bool(os.getenv("DATABASE_URL"))
 db_service = None
@@ -4298,9 +4307,116 @@ USA ESTA RESPUESTA PARA LA OBJECION (adaptala a tu tono):
         # =============================================================================
         frustration_detector = get_frustration_detector()
         frustration_signals, frustration_score = frustration_detector.analyze_message(
-            message, f"{self.creator_id}:{sender_id}"
+            message_text, f"{self.creator_id}:{sender_id}"
         )
         logger.info(f"[FRUSTRATION] Score: {frustration_score:.2f}")
+
+        # =============================================================================
+        # v2.0.0: SENSITIVE CONTENT DETECTION
+        # CRÍTICO: Detecta autolesiones, TCA, menores, phishing, spam, amenazas
+        # =============================================================================
+        sensitive_result = detect_sensitive_content(message_text)
+
+        if sensitive_result:
+            logger.warning(f"[SENSITIVE] Detected: {sensitive_result.type.value} (confidence={sensitive_result.confidence:.2f})")
+
+            # AUTOLESIÓN - PRIORIDAD MÁXIMA - ESCALADO INMEDIATO
+            if sensitive_result.type == SensitiveType.SELF_HARM:
+                logger.critical(f"[SENSITIVE] SELF_HARM detected for {sender_id} - IMMEDIATE ESCALATION")
+                conversation_state.phase = ConversationPhase.ESCALAR
+
+                # Mensaje de crisis con recursos de ayuda
+                crisis_resources = get_crisis_resources(follower.preferred_language or "es")
+                crisis_response = (
+                    "Me preocupa mucho lo que me cuentas. Por favor, habla con alguien de confianza. "
+                    f"{crisis_resources}\n\n"
+                    "Voy a avisar a Stefano para que pueda contactarte personalmente."
+                )
+
+                # Notificar al creador (si hay sistema de notificaciones)
+                try:
+                    notification_service = get_notification_service()
+                    await notification_service.notify(EscalationNotification(
+                        creator_id=self.creator_id,
+                        follower_id=sender_id,
+                        reason="ALERTA CRÍTICA: Posible autolesión detectada",
+                        message_preview=message_text[:100],
+                        priority="critical"
+                    ))
+                except Exception as e:
+                    logger.error(f"Failed to send critical notification: {e}")
+
+                await self._update_memory(follower, message_text, crisis_response, Intent.ESCALATION)
+                return DMResponse(
+                    response_text=crisis_response,
+                    intent=Intent.ESCALATION,
+                    action_taken="sensitive_self_harm_escalation",
+                    confidence=sensitive_result.confidence,
+                    metadata={"sensitive_type": "self_harm", "escalated": True}
+                )
+
+            # AMENAZAS - ESCALADO INMEDIATO
+            if sensitive_result.type == SensitiveType.THREAT:
+                logger.warning(f"[SENSITIVE] THREAT detected for {sender_id} - ESCALATION")
+                conversation_state.phase = ConversationPhase.ESCALAR
+
+                threat_response = (
+                    "Este mensaje será revisado por el equipo. "
+                    "Si tienes alguna queja legítima, estaremos encantados de ayudarte por los canales oficiales."
+                )
+
+                # Notificar al creador
+                try:
+                    notification_service = get_notification_service()
+                    await notification_service.notify(EscalationNotification(
+                        creator_id=self.creator_id,
+                        follower_id=sender_id,
+                        reason="ALERTA: Mensaje amenazante detectado",
+                        message_preview=message_text[:100],
+                        priority="high"
+                    ))
+                except Exception as e:
+                    logger.error(f"Failed to send threat notification: {e}")
+
+                await self._update_memory(follower, message_text, threat_response, Intent.ESCALATION)
+                return DMResponse(
+                    response_text=threat_response,
+                    intent=Intent.ESCALATION,
+                    action_taken="sensitive_threat_escalation",
+                    confidence=sensitive_result.confidence,
+                    metadata={"sensitive_type": "threat", "escalated": True}
+                )
+
+            # PHISHING - BLOQUEAR RESPUESTA
+            if sensitive_result.type == SensitiveType.PHISHING:
+                logger.warning(f"[SENSITIVE] PHISHING attempt from {sender_id} - BLOCKING")
+
+                phishing_response = (
+                    "No puedo compartir información personal del creador. "
+                    "Si tienes una consulta legítima, puedes contactar a través de los canales oficiales en las redes sociales."
+                )
+
+                await self._update_memory(follower, message_text, phishing_response, Intent.OTHER)
+                return DMResponse(
+                    response_text=phishing_response,
+                    intent=Intent.OTHER,
+                    action_taken="sensitive_phishing_blocked",
+                    confidence=sensitive_result.confidence,
+                    metadata={"sensitive_type": "phishing", "blocked": True}
+                )
+
+            # SPAM - NO RESPONDER
+            if sensitive_result.type == SensitiveType.SPAM:
+                logger.info(f"[SENSITIVE] SPAM detected from {sender_id} - NO RESPONSE")
+
+                # No guardar en memoria, no responder
+                return DMResponse(
+                    response_text="",  # No responder a spam
+                    intent=Intent.OTHER,
+                    action_taken="sensitive_spam_ignored",
+                    confidence=sensitive_result.confidence,
+                    metadata={"sensitive_type": "spam", "ignored": True}
+                )
 
         # =============================================================================
         # PERSONALIZATION: User Profile + Semantic Memory (Memory Engine Migration)
@@ -5154,6 +5270,55 @@ USA ESTA RESPUESTA PARA LA OBJECION (adaptala a tu tono):
             )
             system_prompt += f"\n\n{frustration_context}"
             logger.info(f"[FRUSTRATION] Added context for score: {frustration_score:.2f}")
+
+        # v2.0.0: Add sensitive content context (TCA, menores, situación económica)
+        # Nota: SELF_HARM, THREAT, PHISHING, SPAM ya fueron manejados arriba con return
+        if sensitive_result and sensitive_result.type in [
+            SensitiveType.EATING_DISORDER,
+            SensitiveType.MINOR,
+            SensitiveType.ECONOMIC_DISTRESS
+        ]:
+            sensitive_context = ""
+
+            if sensitive_result.type == SensitiveType.EATING_DISORDER:
+                sensitive_context = """
+=== ALERTA CONTENIDO SENSIBLE: POSIBLE TCA ===
+El usuario muestra señales de conducta alimentaria peligrosa.
+INSTRUCCIONES OBLIGATORIAS:
+- Responde con EMPATÍA y sin juzgar
+- NO promuevas dietas extremas, ayunos prolongados o pérdida de peso rápida
+- Recomienda consultar con un profesional de salud (médico, nutricionista)
+- NO vendas el producto como solución a problemas de imagen corporal extrema
+- Prioriza su bienestar sobre la venta
+"""
+
+            elif sensitive_result.type == SensitiveType.MINOR:
+                sensitive_context = """
+=== ALERTA: USUARIO MENOR DE EDAD ===
+El usuario parece ser menor de 18 años.
+INSTRUCCIONES OBLIGATORIAS:
+- NO presiones la venta directamente
+- Sugiere que hable con sus padres o tutores antes de comprar
+- Sé amigable pero mantén los límites apropiados
+- No pidas datos personales
+- Si quiere comprar, indica que necesitará la autorización de un adulto
+"""
+
+            elif sensitive_result.type == SensitiveType.ECONOMIC_DISTRESS:
+                sensitive_context = """
+=== CONTEXTO: SITUACIÓN ECONÓMICA DIFÍCIL ===
+El usuario menciona dificultades económicas (desempleo, falta de recursos).
+INSTRUCCIONES:
+- Muestra empatía genuina
+- NO presiones la venta ni hagas sentir mal al usuario
+- Si hay recursos gratuitos disponibles, menciónalos
+- Si no puede permitírselo ahora, sugiere que guarde el contacto para más adelante
+- No uses tácticas de urgencia o escasez
+"""
+
+            if sensitive_context:
+                system_prompt += f"\n\n{sensitive_context}"
+                logger.info(f"[SENSITIVE] Added context for: {sensitive_result.type.value}")
 
         _t1 = time.time()
         user_prompt = self._build_user_prompt(
