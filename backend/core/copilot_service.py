@@ -61,6 +61,10 @@ class CopilotService:
             "other": 0.05,  # Slight increase
         }
 
+        # DEFENSIVE: Ensure message_intent is a string
+        if not isinstance(message_intent, str):
+            message_intent = str(message_intent) if message_intent else "other"
+
         intent_key = message_intent.lower().replace("Intent.", "")
         score_change = intent_scores.get(intent_key, 0.05)
 
