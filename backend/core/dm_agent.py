@@ -48,6 +48,9 @@ from core.semantic_memory import ENABLE_SEMANTIC_MEMORY, get_conversation_memory
 from core.tone_service import get_tone_dialect, get_tone_language, get_tone_prompt_section
 from core.user_profiles import get_user_profile
 
+# v1.5.2 Technical Fixes
+from core.response_fixes import apply_all_response_fixes, apply_product_fixes
+
 # PostgreSQL integration
 USE_POSTGRES = bool(os.getenv("DATABASE_URL"))
 db_service = None
@@ -1557,6 +1560,8 @@ class DMResponderAgent:
         else:
             self.creator_config = self._load_creator_config()
             self.products = self._load_products()
+            # v1.5.2 FIX 2: Deduplicate products by name
+            self.products = apply_product_fixes(self.products)
             # Cache them
             self._config_cache[cache_key] = self.creator_config
             self._products_cache[cache_key] = self.products
@@ -5344,6 +5349,12 @@ USA ESTA RESPUESTA PARA LA OBJECION (adaptala a tu tono):
                 # === POST-PROCESSING: BREVEDAD Y LINKS ===
                 # 0. Sanitize LLM artifacts ([RESPUESTA], garbage text, etc.)
                 response_text = sanitize_llm_response(response_text)
+
+                # 0.5 Apply v1.5.2 technical fixes (price typos, broken links, identity, CTAs, errors)
+                response_text = apply_all_response_fixes(
+                    response_text,
+                    creator_name=self.creator_name if hasattr(self, 'creator_name') else None
+                )
 
                 # 1. Truncar a máximo 2 frases (AGRESIVO - el LLM ignora instrucciones)
                 response_text = truncate_response(response_text, max_sentences=2)
