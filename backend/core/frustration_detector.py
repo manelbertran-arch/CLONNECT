@@ -58,7 +58,9 @@ class FrustrationDetector:
     # Explicit frustration expressions
     FRUSTRATION_PATTERNS = [
         r'\b(?:no\s+(?:entiendes?|me\s+entiendes?))\b',
-        r'\b(?:ya\s+te\s+(?:dije|pregunte))\b',
+        r'\b(?:ya\s+te\s+(?:dije|pregunte|pregunt[eé]))\b',
+        r'\b(?:ya\s+(?:te\s+)?(?:lo\s+)?pregunt[eé])\b',
+        r'\b(?:te\s+pregunt[eé]\s+\d+\s+veces?)\b',
         r'\b(?:otra\s+vez|de\s+nuevo)\b',
         r'\b(?:esto\s+no\s+(?:funciona|sirve|ayuda))\b',
         r'\b(?:no\s+(?:me\s+)?(?:ayudas?|sirves?))\b',
@@ -67,6 +69,8 @@ class FrustrationDetector:
         r'\b(?:dejalo|olvidalo|paso)\b',
         r'\b(?:inutil|tonto|estupido)\b',
         r'\b(?:no\s+(?:vale|sirve)\s+(?:la\s+)?pena)\b',
+        r'\b(?:es\s+imposible)\b',
+        r'\b(?:sin\s+historias?)\b',
         # English patterns
         r'\b(?:you\s+don\'?t\s+understand)\b',
         r'\b(?:i\s+(?:already|just)\s+(?:said|asked|told))\b',

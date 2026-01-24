@@ -158,12 +158,24 @@ FASE: ESCALAR - Tu objetivo es pasar a humano.
             else:
                 state.context.situation = "tiene hijos"
 
-        if any(w in msg for w in ["trabajo", "oficina", "viajo", "ocupado", "ocupada"]):
+        if any(w in msg for w in ["trabajo", "oficina", "viajo", "ocupado", "ocupada", "enfermera", "enfermero", "medico", "doctor"]):
             if state.context.situation:
                 if "trabaja" not in state.context.situation:
                     state.context.situation += ", trabaja mucho"
             else:
                 state.context.situation = "trabaja mucho"
+
+        # Edad/salud
+        import re
+        age_match = re.search(r'(?:tengo|soy de)\s+(\d{2,3})\s*(?:años|anos)', msg)
+        if age_match:
+            age = age_match.group(1)
+            age_info = f"{age} años"
+            if state.context.situation:
+                if "años" not in state.context.situation:
+                    state.context.situation += f", {age_info}"
+            else:
+                state.context.situation = age_info
 
         # Objetivos
         if any(w in msg for w in ["bajar", "adelgazar", "peso", "perder peso"]):

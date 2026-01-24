@@ -162,6 +162,11 @@ def clean_raw_ctas(response: str) -> str:
         r'JOIN\s+NOW',
         r'\[CTA\]',
         r'\[CALL\s+TO\s+ACTION\]',
+        # Social media CTAs
+        r'LINK\s+EN\s+(?:MI\s+)?BIO',
+        r'SWIPE\s+UP',
+        r'DM\s+(?:ME|FOR)\s+(?:INFO|MORE)',
+        r'TAP\s+(?:THE\s+)?LINK',
     ]
 
     original = response
@@ -193,26 +198,27 @@ def hide_technical_errors(response: str) -> str:
         return response
 
     # Patterns for technical errors that should be hidden
+    # Use [^.!?\n]* to stop at sentence boundaries, not consume entire line
     error_patterns = [
-        r'ERROR:\s*[^\n]+',
-        r'Error:\s*[^\n]+',
-        r'Exception:\s*[^\n]+',
-        r'Traceback\s*\([^\)]+\)[^\n]*',
-        r'File\s+"[^"]+",\s+line\s+\d+[^\n]*',
-        r'\[ERROR\][^\n]+',
-        r'\[EXCEPTION\][^\n]+',
-        r'NoneType\s+object[^\n]*',
-        r'KeyError:\s*[^\n]+',
-        r'ValueError:\s*[^\n]+',
-        r'TypeError:\s*[^\n]+',
-        r'IndexError:\s*[^\n]+',
-        r'AttributeError:\s*[^\n]+',
-        r'ConnectionError:\s*[^\n]+',
-        r'TimeoutError:\s*[^\n]+',
-        r'HTTP\s+\d{3}\s+Error[^\n]*',
-        r'Internal\s+Server\s+Error[^\n]*',
-        r'Database\s+error[^\n]*',
-        r'API\s+error[^\n]*',
+        r'ERROR:\s*[^.!?\n]*[.!?]?\s*',
+        r'Error:\s*[^.!?\n]*[.!?]?\s*',
+        r'Exception:\s*[^.!?\n]*[.!?]?\s*',
+        r'Traceback\s*\([^\)]+\)[^.!?\n]*[.!?]?\s*',
+        r'File\s+"[^"]+",\s+line\s+\d+[^.!?\n]*[.!?]?\s*',
+        r'\[ERROR\][^.!?\n]*[.!?]?\s*',
+        r'\[EXCEPTION\][^.!?\n]*[.!?]?\s*',
+        r'NoneType\s+object[^.!?\n]*[.!?]?\s*',
+        r'KeyError:\s*[^.!?\n]*[.!?]?\s*',
+        r'ValueError:\s*[^.!?\n]*[.!?]?\s*',
+        r'TypeError:\s*[^.!?\n]*[.!?]?\s*',
+        r'IndexError:\s*[^.!?\n]*[.!?]?\s*',
+        r'AttributeError:\s*[^.!?\n]*[.!?]?\s*',
+        r'ConnectionError:\s*[^.!?\n]*[.!?]?\s*',
+        r'TimeoutError:\s*[^.!?\n]*[.!?]?\s*',
+        r'HTTP\s+\d{3}\s+Error[^.!?\n]*[.!?]?\s*',
+        r'Internal\s+Server\s+Error[^.!?\n]*[.!?]?\s*',
+        r'Database\s+error[^.!?\n]*[.!?]?\s*',
+        r'API\s+error[^.!?\n]*[.!?]?\s*',
     ]
 
     original = response
