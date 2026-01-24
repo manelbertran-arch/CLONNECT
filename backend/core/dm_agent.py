@@ -786,12 +786,18 @@ def extract_name_from_message(message: str) -> Optional[str]:
 
     # Patrones en español e inglés
     patterns = [
-        # Español
+        # Español - presentaciones formales/informales
         r"(?:^|\s)(?:soy|me llamo|mi nombre es)\s+([A-ZÁÉÍÓÚÑ][a-záéíóúñ]+(?:\s+[A-ZÁÉÍÓÚÑ][a-záéíóúñ]+)?)",
         r"(?:^|\s)(?:hola[,!]?\s*)?soy\s+([A-ZÁÉÍÓÚÑ][a-záéíóúñ]+)",
+        # Español - "Les/Te escribe [Nombre]" (común en contexto B2B)
+        r"(?i)(?:les|te|le)\s+escribe\s+([A-ZÁÉÍÓÚÑ][a-záéíóúñ]+)",
+        r"(?i)(?:les|te|le)\s+habla\s+([A-ZÁÉÍÓÚÑ][a-záéíóúñ]+)",
+        # Español - "[Nombre] aquí/acá"
+        r"(?:^|\s)([A-ZÁÉÍÓÚÑ][a-záéíóúñ]+)\s+(?:aquí|acá|por aquí)",
         # Inglés
         r"(?:^|\s)(?:i'?m|my name is|call me|i am)\s+([A-Z][a-z]+(?:\s+[A-Z][a-z]+)?)",
         r"(?:^|\s)(?:hey[,!]?\s*)?i'?m\s+([A-Z][a-z]+)",
+        r"(?i)this is\s+([A-Z][a-z]+)",
         # Caso insensitivo para detectar más
         r"(?i)(?:^|\s)(?:soy|me llamo)\s+(\w+)",
         r"(?i)(?:^|\s)(?:i'?m|my name is)\s+(\w+)",
@@ -810,6 +816,123 @@ def extract_name_from_message(message: str) -> Optional[str]:
                 return name.title()
 
     return None
+
+
+def detect_b2b_context(message: str) -> Optional[str]:
+    """
+    Detecta si el mensaje tiene contexto B2B/colaboración.
+
+    Returns:
+        String con el tipo de contexto detectado, o None si no es B2B
+    """
+    if not message:
+        return None
+
+    msg_lower = message.lower()
+
+    # Patrones que indican colaboración/B2B
+    b2b_patterns = {
+        "collaboration": [
+            "colaboración", "colaborar", "partnership", "partner",
+            "trabajar juntos", "alianza", "acuerdo"
+        ],
+        "previous_work": [
+            "habíamos trabajado", "trabajamos antes", "ya trabajamos",
+            "colaboramos antes", "we worked", "worked together",
+            "trabajado antes", "worked before"
+        ],
+        "company_intro": [
+            "de la empresa", "de la compañía", "from the company",
+            "representando a", "en nombre de", "on behalf of",
+            "trabajo en", "trabajo para", "i work at", "i work for"
+        ],
+        "group_proposal": [
+            "grupo de estudiantes", "grupo de personas", "group of",
+            "equipo de", "team of", "tenemos un grupo"
+        ],
+        "business_inquiry": [
+            "propuesta", "proposal", "presupuesto", "quote",
+            "cotización", "estimate", "para empresas", "for companies",
+            "corporativo", "corporate"
+        ]
+    }
+
+    for context_type, keywords in b2b_patterns.items():
+        for keyword in keywords:
+            if keyword in msg_lower:
+                return context_type
+
+    return None
+
+
+def is_first_interaction(follower) -> bool:
+    """
+    Determina si es la primera interacción con este usuario.
+
+    Args:
+        follower: FollowerMemory object
+
+    Returns:
+        True si el bot nunca ha respondido a este usuario
+    """
+    if not follower:
+        return True
+
+    # Verificar si hay mensajes previos del bot
+    if hasattr(follower, 'last_messages') and follower.last_messages:
+        for msg in follower.last_messages:
+            if msg.get('role') == 'assistant':
+                return False
+
+    # Verificar total de mensajes (si es 0 o 1, es primera interacción)
+    total_msgs = getattr(follower, 'total_messages', 0) or 0
+    return total_msgs <= 1
+
+
+def build_bot_introduction(
+    creator_name: str,
+    user_name: Optional[str] = None,
+    b2b_context: Optional[str] = None,
+    dialect: str = "neutral"
+) -> str:
+    """
+    Construye el mensaje de presentación del bot.
+
+    Args:
+        creator_name: Nombre del creador (ej: "Stefano Bonanno")
+        user_name: Nombre del usuario si se conoce
+        b2b_context: Tipo de contexto B2B detectado
+        dialect: "rioplatense" para voseo, otro para tuteo
+
+    Returns:
+        Mensaje de presentación personalizado
+    """
+    # Saludo personalizado
+    if user_name:
+        greeting = f"¡Hola {user_name}!"
+    else:
+        greeting = "¡Hola!"
+
+    # Presentación base
+    intro = f"{greeting} 👋 Soy el asistente virtual de {creator_name}."
+
+    # Mensaje según contexto
+    if b2b_context in ["collaboration", "previous_work", "company_intro", "group_proposal", "business_inquiry"]:
+        # Contexto B2B → Escalar a humano
+        if dialect == "rioplatense":
+            intro += f"\n\nVeo que mencionás una propuesta de colaboración. ¡Qué bueno! Le paso tu mensaje a {creator_name} para que pueda atenderte personalmente."
+            intro += "\n\n¿Hay algo específico que quieras que le comente?"
+        else:
+            intro += f"\n\nVeo que mencionas una propuesta de colaboración. ¡Genial! Le paso tu mensaje a {creator_name} para que pueda atenderte personalmente."
+            intro += "\n\n¿Hay algo específico que quieras que le comente?"
+    else:
+        # Contexto general
+        if dialect == "rioplatense":
+            intro += "\n\n¿En qué puedo ayudarte?"
+        else:
+            intro += "\n\n¿En qué puedo ayudarte?"
+
+    return intro
 
 
 # Keywords that indicate DIRECT purchase intent (user wants to pay NOW)
@@ -1739,12 +1862,14 @@ class DMResponderAgent:
                     }
 
         # === FIX FRUSTRACIÓN: Detección de sarcasmo ===
+        # IMPORTANTE: Usar \b (word boundary) para evitar false positives
+        # Ej: r'aj[áa]' matcheaba "trabajado" -> ahora r'\baj[áa]\b' solo matchea "ajá"
         sarcasm_patterns = [
-            r'como si', r'seguro que s[íi]', r'ya ver[áa]s',
-            r'aj[áa]', r'ya ya', r'qu[ée] gracioso',
-            r's[íi].*(?:claro|seguro).*no', r'claro.*como si',
-            r'obvio.*que no', r'seguro.*(?:vas|puedes|sabes)',
-            r'otra vez.*(?:igual|lo mismo)',
+            r'\bcomo si\b', r'\bseguro que s[íi]\b', r'\bya ver[áa]s\b',
+            r'\baj[áa]\b', r'\bya ya\b', r'\bqu[ée] gracioso\b',
+            r's[íi].*(?:claro|seguro).*no', r'\bclaro.*como si\b',
+            r'\bobvio.*que no\b', r'\bseguro.*(?:vas|puedes|sabes)\b',
+            r'\botra vez.*(?:igual|lo mismo)\b',
         ]
 
         for pattern in sarcasm_patterns:
@@ -3357,6 +3482,70 @@ USA ESTA RESPUESTA PARA LA OBJECION (adaptala a tu tono):
             follower.preferred_language = detected_lang
             logger.info(f"Language changed from {old_lang} to {detected_lang} (strong evidence)")
 
+        # === PRIMERA INTERACCIÓN: Presentación del bot ===
+        # Si es la primera vez que el bot responde, presentarse y detectar contexto
+        first_interaction = is_first_interaction(follower)
+
+        if first_interaction:
+            logger.info(f"First interaction detected for {sender_id}")
+
+            # Detectar contexto B2B
+            b2b_context = detect_b2b_context(message_text)
+            if b2b_context:
+                logger.info(f"B2B context detected: {b2b_context}")
+
+            # Obtener nombre del creador
+            creator_name = self.creator_config.get('clone_name') or self.creator_config.get('name', 'el creador')
+
+            # Obtener dialecto para voseo
+            dialect = get_tone_dialect(self.creator_id)
+
+            # Determinar nombre del usuario (extraído del mensaje o de IG)
+            user_display_name = extracted_name or follower.name
+            if user_display_name in ["amigo", "amiga", None, ""]:
+                user_display_name = None
+
+            # Si es contexto B2B → Presentarse + Escalar
+            if b2b_context:
+                intro_message = build_bot_introduction(
+                    creator_name=creator_name,
+                    user_name=user_display_name,
+                    b2b_context=b2b_context,
+                    dialect=dialect
+                )
+
+                # Actualizar memoria con la presentación
+                await self._update_memory(follower, message_text, intro_message, Intent.OTHER)
+
+                # Marcar lead como needs_human en PostgreSQL
+                try:
+                    if USE_POSTGRES and db_service:
+                        db_service.update_lead(
+                            creator_name=self.creator_id,
+                            lead_id=sender_id,
+                            data={"status": "needs_human", "context": f"B2B: {b2b_context}"}
+                        )
+                        logger.info(f"[B2B] Lead {sender_id} marked as needs_human")
+                except Exception as e:
+                    logger.warning(f"[B2B] Failed to update lead status: {e}")
+
+                # Registrar escalación
+                record_escalation(self.creator_id, reason=f"b2b_context_{b2b_context}")
+
+                return DMResponse(
+                    response_text=intro_message,
+                    intent=Intent.OTHER,
+                    action_taken="first_contact_b2b",
+                    escalate_to_human=True,
+                    confidence=0.95,
+                    metadata={
+                        "first_interaction": True,
+                        "b2b_context": b2b_context,
+                        "user_name_detected": user_display_name,
+                        "escalated": True
+                    }
+                )
+
         # === META-MESSAGE DETECTION ===
         # Detectar cuando el usuario hace referencia a la conversación misma
         # ("ya te lo dije", "revisa el chat", "no me entiendes")
@@ -3734,7 +3923,8 @@ USA ESTA RESPUESTA PARA LA OBJECION (adaptala a tu tono):
             from core.citation_service import get_citation_prompt_section
 
             # Buscar contenido relevante en RAG
-            citation_section = get_citation_prompt_section(self.creator_id, message_text, min_relevance=0.25)
+            # Umbral reducido de 0.25 a 0.15 para queries largas con muchos keywords
+            citation_section = get_citation_prompt_section(self.creator_id, message_text, min_relevance=0.15)
 
             if not citation_section:
                 # NO hay contenido relevante en RAG → Escalar al creador
