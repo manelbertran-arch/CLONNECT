@@ -468,7 +468,7 @@ class InstagramHandler:
         Send a response message via Instagram.
 
         Args:
-            recipient_id: Instagram user ID to send to
+            recipient_id: Instagram user ID to send to (may have "ig_" prefix)
             text: Message text
 
         Returns:
@@ -477,6 +477,10 @@ class InstagramHandler:
         if not self.connector:
             logger.error("Instagram connector not initialized")
             return False
+
+        # Strip "ig_" prefix if present - API expects numeric ID only
+        if recipient_id.startswith("ig_"):
+            recipient_id = recipient_id[3:]
 
         try:
             # Send typing indicator
@@ -508,7 +512,7 @@ class InstagramHandler:
         Send a message with quick reply buttons.
 
         Args:
-            recipient_id: Instagram user ID
+            recipient_id: Instagram user ID (may have "ig_" prefix)
             text: Message text
             buttons: List of button configs with 'title' and 'payload'
 
@@ -518,6 +522,10 @@ class InstagramHandler:
         if not self.connector:
             logger.error("Instagram connector not initialized")
             return False
+
+        # Strip "ig_" prefix if present - API expects numeric ID only
+        if recipient_id.startswith("ig_"):
+            recipient_id = recipient_id[3:]
 
         try:
             result = await self.connector.send_message_with_buttons(recipient_id, text, buttons)

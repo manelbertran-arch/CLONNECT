@@ -403,10 +403,24 @@ class CopilotService:
         )
 
         try:
-            result = await connector.send_message(recipient_id=lead.platform_user_id, text=text)
+            # Strip "ig_" prefix - platform_user_id format is "ig_123456" but API needs just "123456"
+            recipient_id = lead.platform_user_id
+            if recipient_id.startswith("ig_"):
+                recipient_id = recipient_id[3:]  # Remove "ig_" prefix
+
+            logger.info(f"[Copilot] Sending Instagram message to {recipient_id} via connector")
+            result = await connector.send_message(recipient_id=recipient_id, text=text)
+            logger.info(f"[Copilot] Instagram API response: {result}")
 
             if "error" in result:
-                return {"success": False, "error": result["error"]}
+                # Instagram API returns error as dict: {"message": "...", "code": X}
+                error_info = result["error"]
+                if isinstance(error_info, dict):
+                    error_msg = f"{error_info.get('message', 'Unknown error')} (code: {error_info.get('code', 'N/A')})"
+                else:
+                    error_msg = str(error_info)
+                logger.error(f"[Copilot] Instagram send error: {error_msg}")
+                return {"success": False, "error": error_msg}
 
             return {"success": True, "message_id": result.get("message_id", "")}
         finally:
