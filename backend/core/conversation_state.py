@@ -129,6 +129,13 @@ FASE: ESCALAR - Tu objetivo es pasar a humano.
 
     def update_state(self, state: ConversationState, message: str, intent: str, response: str) -> ConversationState:
         """Actualiza estado despues de un intercambio."""
+        # DEFENSIVE: Ensure message is a string
+        if not isinstance(message, str):
+            if isinstance(message, dict):
+                message = message.get('text', '') or message.get('content', '') or str(message)
+            else:
+                message = str(message) if message else ""
+
         state.message_count += 1
         state.updated_at = datetime.utcnow()
 

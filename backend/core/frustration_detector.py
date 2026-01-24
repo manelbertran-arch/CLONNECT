@@ -110,6 +110,13 @@ class FrustrationDetector:
         Returns:
             Tuple of (FrustrationSignals, frustration_score)
         """
+        # DEFENSIVE: Ensure message is a string
+        if not isinstance(message, str):
+            if isinstance(message, dict):
+                message = message.get('text', '') or message.get('content', '') or str(message)
+            else:
+                message = str(message) if message else ""
+
         signals = FrustrationSignals()
 
         # Store message history
