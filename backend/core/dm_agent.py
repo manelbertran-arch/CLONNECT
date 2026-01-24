@@ -1232,6 +1232,13 @@ def is_direct_purchase_intent(message: str) -> bool:
     if not message:
         return False
 
+    # DEFENSIVE: Ensure message is a string
+    if not isinstance(message, str):
+        if isinstance(message, dict):
+            message = message.get('text', '') or message.get('content', '') or str(message)
+        else:
+            message = str(message) if message else ""
+
     msg_lower = message.lower()
 
     # EXCLUSIÓN: Si contiene frases de objeción/duda, NO es compra directa
@@ -2100,6 +2107,13 @@ class DMResponderAgent:
         Returns:
             Dict con {action: str, context: str} o None si no es meta-mensaje
         """
+        # DEFENSIVE: Ensure message is a string
+        if not isinstance(message, str):
+            if isinstance(message, dict):
+                message = message.get('text', '') or message.get('content', '') or str(message)
+            else:
+                message = str(message) if message else ""
+
         msg_lower = message.lower().strip()
 
         # === PATRONES: "Revisa lo que dije" ===
@@ -2242,6 +2256,13 @@ class DMResponderAgent:
             message: Mensaje del usuario
             conversation_history: Historial de conversación (opcional) para context-aware classification
         """
+        # DEFENSIVE: Ensure message is a string
+        if not isinstance(message, str):
+            if isinstance(message, dict):
+                message = message.get('text', '') or message.get('content', '') or str(message)
+            else:
+                message = str(message) if message else ""
+
         msg = message.lower()
 
         # === CORRECTION - MÁXIMA PRIORIDAD ===
@@ -2996,6 +3017,13 @@ class DMResponderAgent:
 
     def _get_relevant_product(self, message: str, intent: Intent) -> Optional[dict]:
         """Buscar producto relevante según mensaje e intent"""
+        # DEFENSIVE: Ensure message is a string
+        if not isinstance(message, str):
+            if isinstance(message, dict):
+                message = message.get('text', '') or message.get('content', '') or str(message)
+            else:
+                message = str(message) if message else ""
+
         msg = message.lower()
 
         # Get products with actual prices (real products, not FAQ/content)
@@ -4258,6 +4286,13 @@ USA ESTA RESPUESTA PARA LA OBJECION (adaptala a tu tono):
         """
         if not other_payment_methods:
             return None
+
+        # DEFENSIVE: Ensure message is a string
+        if not isinstance(message, str):
+            if isinstance(message, dict):
+                message = message.get('text', '') or message.get('content', '') or str(message)
+            else:
+                message = str(message) if message else ""
 
         msg_lower = message.lower()
 
