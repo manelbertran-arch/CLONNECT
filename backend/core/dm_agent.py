@@ -54,6 +54,10 @@ from core.response_fixes import apply_all_response_fixes, apply_product_fixes
 # v1.6.0 Conversation State Machine
 from core.conversation_state import get_state_manager
 
+# v1.7.0 Reflexion + Frustration Detection
+from core.frustration_detector import get_frustration_detector
+from core.reflexion_engine import get_reflexion_engine
+
 # PostgreSQL integration
 USE_POSTGRES = bool(os.getenv("DATABASE_URL"))
 db_service = None
@@ -4287,6 +4291,15 @@ USA ESTA RESPUESTA PARA LA OBJECION (adaptala a tu tono):
         logger.info(f"[STATE] Phase: {conversation_state.phase.value}, messages: {conversation_state.message_count}")
 
         # =============================================================================
+        # v1.7.0: FRUSTRATION DETECTION
+        # =============================================================================
+        frustration_detector = get_frustration_detector()
+        frustration_signals, frustration_score = frustration_detector.analyze_message(
+            message, f"{self.creator_id}:{sender_id}"
+        )
+        logger.info(f"[FRUSTRATION] Score: {frustration_score:.2f}")
+
+        # =============================================================================
         # PERSONALIZATION: User Profile + Semantic Memory (Memory Engine Migration)
         # =============================================================================
         _t_pers = time.time()
@@ -5131,6 +5144,14 @@ USA ESTA RESPUESTA PARA LA OBJECION (adaptala a tu tono):
         system_prompt += f"\n\n{state_context}"
         logger.info(f"[STATE] Added state context for phase: {conversation_state.phase.value}")
 
+        # v1.7.0: Add frustration context if detected
+        if frustration_score >= 0.2:
+            frustration_context = frustration_detector.get_frustration_context(
+                frustration_score, frustration_signals
+            )
+            system_prompt += f"\n\n{frustration_context}"
+            logger.info(f"[FRUSTRATION] Added context for score: {frustration_score:.2f}")
+
         _t1 = time.time()
         user_prompt = self._build_user_prompt(
             message=message_text,
@@ -5632,6 +5653,17 @@ USA ESTA RESPUESTA PARA LA OBJECION (adaptala a tu tono):
 
         except Exception as email_error:
             logger.warning(f"Email capture error (non-fatal): {email_error}")
+
+        # v1.7.0: Reflexion analysis (log-only, no re-prompting for v1.7.0)
+        reflexion_engine = get_reflexion_engine()
+        reflexion_result = reflexion_engine.analyze_response(
+            response_text,
+            message_text,
+            conversation_phase=conversation_state.phase.value,
+            previous_bot_responses=follower.last_messages[-6::2] if follower.last_messages else None
+        )
+        if reflexion_result.needs_revision:
+            logger.warning(f"[REFLEXION] Response flagged ({reflexion_result.severity}): {reflexion_result.issues}")
 
         # v1.6.0: Update conversation state after response
         conversation_state = state_manager.update_state(
