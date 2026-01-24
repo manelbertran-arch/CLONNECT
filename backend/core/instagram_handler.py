@@ -348,12 +348,15 @@ class InstagramHandler:
                     })
 
             except Exception as e:
-                logger.error(f"Error processing message {message.message_id}: {e}")
+                import traceback
+                tb = traceback.format_exc()
+                logger.error(f"Error processing message {message.message_id}: {e}\n{tb}")
                 self.status.errors += 1
                 results.append({
                     "message_id": message.message_id,
                     "sender_id": message.sender_id,
-                    "error": str(e)
+                    "error": str(e),
+                    "traceback": tb[:500]  # First 500 chars of traceback for debugging
                 })
 
         return {
