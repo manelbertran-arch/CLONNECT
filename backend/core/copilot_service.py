@@ -407,6 +407,11 @@ class CopilotService:
         if not access_token or not page_id:
             return {"success": False, "error": "Instagram not connected"}
 
+        # Validate page_id is not garbage value
+        if page_id == "auto" or len(page_id) < 5:
+            logger.error(f"[Copilot] Invalid page_id: '{page_id}' - creator may not have Instagram connected")
+            return {"success": False, "error": f"Invalid Instagram page_id: '{page_id}'"}
+
         connector = InstagramConnector(
             access_token=access_token, page_id=page_id, ig_user_id=ig_user_id
         )
@@ -416,6 +421,11 @@ class CopilotService:
             recipient_id = lead.platform_user_id
             if recipient_id.startswith("ig_"):
                 recipient_id = recipient_id[3:]  # Remove "ig_" prefix
+
+            # Validate recipient_id is not garbage
+            if recipient_id == "auto" or not recipient_id or len(recipient_id) < 5:
+                logger.error(f"[Copilot] Invalid recipient_id: '{recipient_id}'")
+                return {"success": False, "error": f"Invalid recipient_id: '{recipient_id}'"}
 
             logger.info(f"[Copilot] Sending Instagram message to {recipient_id} via connector")
             result = await connector.send_message(recipient_id=recipient_id, text=text)
