@@ -49,7 +49,6 @@ export default function Onboarding() {
 
     // Handle OAuth errors
     if (errorParam) {
-      console.log('[Onboarding] OAuth error:', errorParam, errorMessage);
       const errorMessages: Record<string, string> = {
         'instagram_scope_error': errorMessage || 'Error de permisos. Asegúrate de aprobar todos los permisos.',
         'instagram_no_code': 'No se recibió autorización de Instagram.',
@@ -64,9 +63,6 @@ export default function Onboarding() {
     // Handle OAuth success
     if (success?.includes('instagram')) {
       const onboarding = searchParams.get('onboarding');
-      const igUserId = searchParams.get('ig_user_id');
-
-      console.log('[Onboarding] OAuth callback detected:', { success, onboarding, igUserId });
 
       if (onboarding === 'started') {
         // OAuth was successful and auto-onboarding started in backend
@@ -79,9 +75,6 @@ export default function Onboarding() {
   const handleConnectInstagram = async () => {
     // Generate or use existing creator_id for OAuth state
     const creatorId = generateTempCreatorId();
-
-    console.log('[Onboarding] Starting Instagram OAuth for:', creatorId);
-    console.log('[Onboarding] API_URL:', API_URL);
 
     setIsLoading(true);
     setError(null);
@@ -102,14 +95,12 @@ export default function Onboarding() {
       }
 
       const data = await response.json();
-      console.log('[Onboarding] OAuth response:', data);
 
       if (data.auth_url) {
         // Save the creator_id before redirecting (will be updated after OAuth callback)
         setCreatorId(creatorId);
 
         // Redirect to Instagram/Meta OAuth page
-        console.log('[Onboarding] Redirecting to:', data.auth_url);
         window.location.href = data.auth_url;
       } else {
         throw new Error('No se recibió URL de autorización');

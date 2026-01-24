@@ -18,8 +18,6 @@ export default function SwitchUser() {
       // Also set in AuthContext key
       localStorage.setItem('clonnect_selected_creator', creatorId);
 
-      console.log(`[SwitchUser] Switched to creator: ${creatorId}`);
-
       // Clear any cached data by doing a hard redirect
       window.location.href = '/inbox';
     } else {

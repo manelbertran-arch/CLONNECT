@@ -186,7 +186,6 @@ export default function CreandoClon() {
       }
 
       const data: ProgressResponse = await response.json();
-      console.log('[CreandoClon] Poll:', data);
 
       // Update steps and log changes
       if (data.steps) {

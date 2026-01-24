@@ -15,7 +15,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 COPY requirements-lite.txt .
 
 # Force rebuild - change this value to invalidate pip cache
-ENV FORCE_REBUILD="2026-01-23-v9-fix-uvicorn"
+ENV FORCE_REBUILD="2026-01-24-pytorch-cpu"
 
 # Create virtual environment and install dependencies
 RUN python -m venv /opt/venv

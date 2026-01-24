@@ -37,7 +37,6 @@ export default function CrearClon() {
 
     // Handle OAuth errors
     if (errorParam) {
-      console.log('[CrearClon] OAuth error:', errorParam, errorMessage);
       const errorMessages: Record<string, string> = {
         'instagram_scope_error': errorMessage || 'Error de permisos. Asegúrate de aprobar todos los permisos.',
         'instagram_no_code': 'No se recibió autorización de Instagram.',
@@ -51,16 +50,12 @@ export default function CrearClon() {
 
     // Handle OAuth success (redirected back from Instagram)
     if (success?.includes('instagram') || instagramParam === 'connected') {
-      console.log('[CrearClon] Instagram connected successfully!');
       setInstagramConnected(true);
     }
   }, [searchParams]);
 
   const handleConnectInstagram = async () => {
     const creatorId = getOrCreateCreatorId();
-
-    console.log('[CrearClon] Starting Instagram OAuth for:', creatorId);
-    console.log('[CrearClon] API_URL:', API_URL);
 
     setIsLoading(true);
     setError('');
@@ -74,14 +69,12 @@ export default function CrearClon() {
       }
 
       const data = await response.json();
-      console.log('[CrearClon] OAuth response:', data);
 
       if (data.auth_url) {
         // Save creator_id before redirecting
         setCreatorId(creatorId);
 
         // Redirect to Meta OAuth
-        console.log('[CrearClon] Redirecting to:', data.auth_url);
         window.location.href = data.auth_url;
       } else {
         throw new Error('No se recibió URL de autorización');
@@ -101,7 +94,6 @@ export default function CrearClon() {
       return;
     }
 
-    console.log('[CrearClon] Creating clone for:', creatorId);
     setIsLoading(true);
     setError('');
 

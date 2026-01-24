@@ -14,16 +14,12 @@ export default function Onboarding() {
   const handleComplete = useCallback(() => {
     // Prevent double-navigation
     if (completedRef.current) {
-      console.log('[Onboarding] Already completed, ignoring');
       return;
     }
     completedRef.current = true;
-    console.log('[Onboarding] 12 slides completed! Navigating to /crear-clon');
     // After 12 slides, go to the "Create your clone" step
     navigate('/crear-clon');
   }, [navigate]);
-
-  console.log('[Onboarding] Rendering 12 intro slides');
 
   return <OnboardingSlides onComplete={handleComplete} />;
 }
