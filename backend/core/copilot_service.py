@@ -395,6 +395,15 @@ class CopilotService:
         page_id = creator.instagram_page_id or os.getenv("INSTAGRAM_PAGE_ID", "")
         ig_user_id = creator.instagram_user_id or os.getenv("INSTAGRAM_USER_ID", "")
 
+        # DEBUG: Log all values to identify 'auto' issue
+        logger.info(f"[Copilot] _send_instagram_message DEBUG:")
+        logger.info(f"[Copilot]   creator.name = {creator.name}")
+        logger.info(f"[Copilot]   creator.instagram_page_id = {creator.instagram_page_id}")
+        logger.info(f"[Copilot]   creator.instagram_user_id = {creator.instagram_user_id}")
+        logger.info(f"[Copilot]   lead.platform_user_id = {lead.platform_user_id}")
+        logger.info(f"[Copilot]   page_id (final) = {page_id}")
+        logger.info(f"[Copilot]   ig_user_id (final) = {ig_user_id}")
+
         if not access_token or not page_id:
             return {"success": False, "error": "Instagram not connected"}
 
