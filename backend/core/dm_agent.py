@@ -781,6 +781,15 @@ def extract_name_from_message(message: str) -> Optional[str]:
     if not message:
         return None
 
+    # DEFENSIVE: Ensure message is a string (bug fix for dict passed instead of string)
+    if not isinstance(message, str):
+        logger.warning(f"extract_name_from_message received non-string: {type(message)}")
+        if isinstance(message, dict):
+            # Try to extract text from common dict keys
+            message = message.get('text', '') or message.get('content', '') or str(message)
+        else:
+            message = str(message)
+
     # Normalizar mensaje
     text = message.strip()
 
@@ -827,6 +836,14 @@ def detect_b2b_context(message: str) -> Optional[str]:
     """
     if not message:
         return None
+
+    # DEFENSIVE: Ensure message is a string (bug fix for dict passed instead of string)
+    if not isinstance(message, str):
+        logger.warning(f"detect_b2b_context received non-string: {type(message)}")
+        if isinstance(message, dict):
+            message = message.get('text', '') or message.get('content', '') or str(message)
+        else:
+            message = str(message)
 
     msg_lower = message.lower()
 
@@ -3385,6 +3402,14 @@ USA ESTA RESPUESTA PARA LA OBJECION (adaptala a tu tono):
         """Procesar DM y generar respuesta personalizada"""
         import time
         _process_start = time.time()
+
+        # DEFENSIVE: Ensure message_text is a string (bug fix for dict passed instead of string)
+        if not isinstance(message_text, str):
+            logger.warning(f"process_dm received non-string message_text: {type(message_text)}")
+            if isinstance(message_text, dict):
+                message_text = message_text.get('text', '') or message_text.get('content', '') or str(message_text)
+            else:
+                message_text = str(message_text) if message_text else ""
 
         logger.info(f"Processing DM from {sender_id}: {message_text}")
 
