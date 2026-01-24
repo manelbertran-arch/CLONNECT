@@ -6098,11 +6098,19 @@ INSTRUCCIONES:
 
         # v1.7.0: Reflexion analysis (log-only, no re-prompting for v1.7.0)
         reflexion_engine = get_reflexion_engine()
+        # Extract just the content strings from previous bot messages (filter assistant role only)
+        previous_responses = None
+        if follower.last_messages:
+            previous_responses = [
+                msg.get("content", "") if isinstance(msg, dict) else str(msg)
+                for msg in follower.last_messages[-6:]
+                if isinstance(msg, dict) and msg.get("role") == "assistant"
+            ]
         reflexion_result = reflexion_engine.analyze_response(
             response_text,
             message_text,
             conversation_phase=conversation_state.phase.value,
-            previous_bot_responses=follower.last_messages[-6::2] if follower.last_messages else None
+            previous_bot_responses=previous_responses
         )
         if reflexion_result.needs_revision:
             logger.warning(f"[REFLEXION] Response flagged ({reflexion_result.severity}): {reflexion_result.issues}")
