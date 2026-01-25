@@ -73,12 +73,10 @@ echo "Using uvicorn directly for simpler startup"
 # Using uvicorn directly for faster startup and simpler debugging
 # No gunicorn layer - direct uvicorn with single worker for Railway free tier
 
-if [ "$(id -u)" = "0" ]; then
-    # Running as root - switch to clonnect user
-    # Must explicitly set PATH since su doesn't preserve environment
-    exec su -s /bin/bash clonnect -c "export PATH=/opt/venv/bin:\$PATH && uvicorn api.main:app --host 0.0.0.0 --port $PORT --log-level info"
-else
-    # Already running as non-root user (PATH should already include venv)
-    export PATH=/opt/venv/bin:$PATH
-    exec uvicorn api.main:app --host 0.0.0.0 --port $PORT --log-level info
-fi
+# Run uvicorn directly as current user
+# Temporarily skip user switching to debug startup issues
+export PATH=/opt/venv/bin:$PATH
+echo "Running as user: $(whoami)"
+echo "PATH: $PATH"
+echo "uvicorn location: $(which uvicorn 2>/dev/null || echo 'NOT FOUND')"
+exec uvicorn api.main:app --host 0.0.0.0 --port $PORT --log-level info
