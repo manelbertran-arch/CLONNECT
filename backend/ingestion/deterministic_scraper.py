@@ -474,14 +474,42 @@ class DeterministicScraper:
                     from ingestion.playwright_scraper import get_playwright_scraper, is_playwright_available
                     if is_playwright_available():
                         playwright_scraper = get_playwright_scraper()
-                        playwright_result = await playwright_scraper.scrape_page(url, creator_id)
-                        if playwright_result and playwright_result.has_content:
-                            logger.info(f"Playwright fallback successful for {url}: {len(playwright_result.main_content)} chars")
-                            return playwright_result
+                        # Use _fetch_rendered_html directly to avoid redundant checks
+                        # and potential circular import issues with scrape_page
+                        pw_html, pw_final_url = await playwright_scraper._fetch_rendered_html(url)
+                        if pw_html and len(pw_html) > 500:
+                            # Parse the rendered HTML
+                            pw_soup = BeautifulSoup(pw_html, 'html.parser')
+                            pw_title = ""
+                            if pw_soup.title:
+                                pw_title = pw_soup.title.get_text(strip=True)
+                            elif pw_soup.h1:
+                                pw_title = pw_soup.h1.get_text(strip=True)
+
+                            pw_main_soup = pw_soup.find('main') or pw_soup.find('article') or pw_soup.find('body')
+                            if not pw_main_soup:
+                                pw_main_soup = pw_soup
+
+                            pw_content = self._extract_text_from_soup(pw_main_soup)
+
+                            if pw_content and len(pw_content) > 100:
+                                logger.info(f"Playwright fallback successful for {url}: {len(pw_content)} chars")
+                                return ScrapedPage(
+                                    url=pw_final_url,
+                                    title=pw_title or title,
+                                    main_content=pw_content,
+                                    sections=self._extract_sections(pw_main_soup),
+                                    links=links,  # Reuse links already extracted
+                                    metadata={**metadata, "rendered_by": "playwright_fallback"}
+                                )
+                            else:
+                                logger.warning(f"Playwright rendered HTML but content still too short: {len(pw_content) if pw_content else 0} chars")
                 except ImportError:
                     logger.debug("Playwright not available for fallback")
                 except Exception as e:
                     logger.warning(f"Playwright fallback failed for {url}: {e}")
+                    import traceback
+                    logger.debug(traceback.format_exc())
 
             # Record success metrics
             duration = time.time() - start_time
