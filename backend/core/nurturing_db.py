@@ -41,7 +41,7 @@ class NurturingFollowupDB(Base):
     status = Column(String(20), nullable=False, default="pending")
     created_at = Column(DateTime(timezone=True), default=datetime.utcnow)
     sent_at = Column(DateTime(timezone=True), nullable=True)
-    metadata = Column(JSONB, nullable=True, default={})
+    extra_data = Column(JSONB, nullable=True, default={})  # Renamed from metadata - reserved in SQLAlchemy
 
     def to_dict(self) -> Dict[str, Any]:
         """Convert to dictionary format matching FollowUp dataclass."""
@@ -56,7 +56,7 @@ class NurturingFollowupDB(Base):
             "status": self.status,
             "created_at": self.created_at.isoformat() if self.created_at else None,
             "sent_at": self.sent_at.isoformat() if self.sent_at else None,
-            "metadata": self.metadata or {}
+            "metadata": self.extra_data or {}
         }
 
     @classmethod
@@ -85,7 +85,7 @@ class NurturingFollowupDB(Base):
             status=followup.status,
             created_at=created_at,
             sent_at=sent_at,
-            metadata=followup.metadata
+            extra_data=followup.metadata
         )
 
 

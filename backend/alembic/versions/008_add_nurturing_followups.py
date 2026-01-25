@@ -34,7 +34,7 @@ def upgrade():
         sa.Column("status", sa.String(20), nullable=False, default="pending"),
         sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.func.now()),
         sa.Column("sent_at", sa.DateTime(timezone=True), nullable=True),
-        sa.Column("metadata", JSONB, nullable=True, default={}),
+        sa.Column("extra_data", JSONB, nullable=True, default={}),  # Renamed from metadata - reserved in SQLAlchemy
     )
 
     # Index for getting pending followups by creator (most common query)
