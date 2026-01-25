@@ -14,9 +14,11 @@ import os
 import re
 import ssl
 import logging
+import time
 from typing import List, Dict, Optional, Any
 from dataclasses import dataclass, field
 from urllib.parse import urljoin, urlparse
+from urllib.robotparser import RobotFileParser
 from datetime import datetime
 
 import httpx
@@ -30,6 +32,141 @@ logger = logging.getLogger(__name__)
 # Set SCRAPER_VERIFY_SSL=false only for development/testing with self-signed certs.
 # When SSL fails, we log a warning and skip the URL (don't silently disable security).
 VERIFY_SSL = os.getenv("SCRAPER_VERIFY_SSL", "true").lower() in ("true", "1", "yes")
+
+# =============================================================================
+# ROBOTS.TXT CONFIGURATION (BUG-003 FIX)
+# =============================================================================
+# Respect robots.txt is ENABLED by default for legal/ethical compliance.
+# Set SCRAPER_RESPECT_ROBOTS=false to disable (not recommended for production).
+RESPECT_ROBOTS_TXT = os.getenv("SCRAPER_RESPECT_ROBOTS", "true").lower() in ("true", "1", "yes")
+
+# Cache TTL for robots.txt (in seconds) - default 1 hour
+ROBOTS_TXT_CACHE_TTL = int(os.getenv("SCRAPER_ROBOTS_CACHE_TTL", "3600"))
+
+# User agent to identify as when checking robots.txt
+SCRAPER_USER_AGENT = "ClonnectBot"
+
+
+class RobotsTxtChecker:
+    """
+    Checks robots.txt compliance with domain-level caching.
+
+    Features:
+    - Caches parsed robots.txt per domain
+    - TTL-based cache expiration
+    - Graceful handling of fetch failures (allow by default)
+    - Async-compatible synchronous fetching
+    """
+
+    def __init__(self, user_agent: str = SCRAPER_USER_AGENT, cache_ttl: int = ROBOTS_TXT_CACHE_TTL):
+        self.user_agent = user_agent
+        self.cache_ttl = cache_ttl
+        self._cache: Dict[str, tuple] = {}  # domain -> (parser, timestamp)
+
+    def _get_domain(self, url: str) -> str:
+        """Extract domain from URL."""
+        parsed = urlparse(url)
+        return f"{parsed.scheme}://{parsed.netloc}"
+
+    def _is_cache_valid(self, domain: str) -> bool:
+        """Check if cached robots.txt is still valid."""
+        if domain not in self._cache:
+            return False
+        _, timestamp = self._cache[domain]
+        return (time.time() - timestamp) < self.cache_ttl
+
+    def _fetch_robots_txt(self, domain: str) -> Optional[RobotFileParser]:
+        """
+        Fetch and parse robots.txt for a domain.
+
+        Returns None if fetch fails (we'll allow access by default).
+        """
+        robots_url = f"{domain}/robots.txt"
+        parser = RobotFileParser()
+        parser.set_url(robots_url)
+
+        try:
+            # Use httpx for consistency (sync version for robotparser compatibility)
+            import httpx
+            response = httpx.get(
+                robots_url,
+                timeout=5.0,
+                follow_redirects=True,
+                verify=VERIFY_SSL,
+                headers={"User-Agent": f"Mozilla/5.0 (compatible; {self.user_agent}/1.0)"}
+            )
+
+            if response.status_code == 200:
+                # Parse the robots.txt content
+                parser.parse(response.text.splitlines())
+                return parser
+            elif response.status_code in (404, 410):
+                # No robots.txt = allow all
+                logger.debug(f"No robots.txt found at {robots_url} (status {response.status_code})")
+                return None
+            else:
+                logger.warning(f"Unexpected status {response.status_code} fetching {robots_url}")
+                return None
+
+        except httpx.TimeoutException:
+            logger.warning(f"Timeout fetching robots.txt from {domain}")
+            return None
+        except Exception as e:
+            logger.warning(f"Error fetching robots.txt from {domain}: {e}")
+            return None
+
+    def is_allowed(self, url: str) -> bool:
+        """
+        Check if scraping this URL is allowed by robots.txt.
+
+        Returns True if:
+        - robots.txt allows the URL
+        - robots.txt doesn't exist (404)
+        - robots.txt fetch failed (fail-open for availability)
+
+        Returns False if:
+        - robots.txt explicitly disallows the URL
+        """
+        if not RESPECT_ROBOTS_TXT:
+            return True
+
+        domain = self._get_domain(url)
+
+        # Check cache first
+        if not self._is_cache_valid(domain):
+            parser = self._fetch_robots_txt(domain)
+            self._cache[domain] = (parser, time.time())
+        else:
+            parser, _ = self._cache[domain]
+
+        # No parser = no robots.txt = allow all
+        if parser is None:
+            return True
+
+        # Check if our user agent is allowed
+        path = urlparse(url).path or "/"
+        allowed = parser.can_fetch(self.user_agent, path)
+
+        if not allowed:
+            logger.info(f"robots.txt disallows {url} for {self.user_agent}")
+
+        return allowed
+
+    def clear_cache(self):
+        """Clear the robots.txt cache."""
+        self._cache.clear()
+
+
+# Global robots.txt checker instance
+_robots_checker: Optional[RobotsTxtChecker] = None
+
+
+def get_robots_checker() -> RobotsTxtChecker:
+    """Get or create the global robots.txt checker."""
+    global _robots_checker
+    if _robots_checker is None:
+        _robots_checker = RobotsTxtChecker()
+    return _robots_checker
 
 
 @dataclass
@@ -196,6 +333,12 @@ class DeterministicScraper:
             logger.debug(f"Skipping URL: {url}")
             return None
 
+        # BUG-003 FIX: Check robots.txt compliance
+        robots_checker = get_robots_checker()
+        if not robots_checker.is_allowed(url):
+            logger.info(f"Blocked by robots.txt: {url}")
+            return None
+
         try:
             async with httpx.AsyncClient(
                 timeout=self.timeout,
@@ -303,10 +446,15 @@ class DeterministicScraper:
                 pages.append(page)
                 logger.info(f"Scraped {current_url}: {len(page.main_content)} chars, {len(page.sections)} sections")
 
-                # Add discovered links to queue
+                # Add discovered links to queue (check robots.txt first)
+                robots_checker = get_robots_checker()
                 for link in page.links:
                     if link not in self._visited and link not in to_visit:
-                        to_visit.append(link)
+                        # Pre-check robots.txt to avoid queueing blocked URLs
+                        if robots_checker.is_allowed(link):
+                            to_visit.append(link)
+                        else:
+                            logger.debug(f"Not queueing {link} - blocked by robots.txt")
 
         logger.info(f"Total pages scraped: {len(pages)}")
         return pages
