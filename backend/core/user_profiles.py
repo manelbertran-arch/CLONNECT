@@ -6,7 +6,10 @@ Permite:
 - Guardar preferencias de comunicación
 - Registrar interacciones (queries, clicks, ratings)
 - Obtener perfil para personalizar respuestas
+
+v2.0.0 - PostgreSQL Persistence (Phase 2.3)
 """
+import os
 import json
 import logging
 from typing import List, Dict, Any, Optional, Tuple
@@ -15,10 +18,18 @@ from datetime import datetime, timezone
 
 logger = logging.getLogger("clonnect.user_profiles")
 
+# =============================================================================
+# CONFIGURATION
+# =============================================================================
+USER_PROFILES_USE_DB = os.getenv("USER_PROFILES_USE_DB", "true").lower() == "true"
+
 
 class UserProfile:
     """
     Perfil de usuario/lead con preferencias e historial de interacciones.
+
+    v2.0.0: Now persists to PostgreSQL when USER_PROFILES_USE_DB=true.
+    Falls back to JSON files if DB is unavailable.
 
     Uso:
         >>> profile = UserProfile("lead_123", "creator_456")
@@ -39,6 +50,10 @@ class UserProfile:
         self.storage_path.mkdir(parents=True, exist_ok=True)
 
         self.profile_file = self.storage_path / f"{user_id}.json"
+
+        # DB availability flag
+        self._db_available = False
+        self._init_db()
 
         # Default profile structure
         self.profile = {
@@ -73,26 +88,163 @@ class UserProfile:
 
         self._load()
 
-    def _load(self):
-        """Carga perfil desde archivo"""
+    def _init_db(self) -> None:
+        """Initialize database connection if persistence is enabled."""
+        if not USER_PROFILES_USE_DB:
+            logger.debug("[UserProfile] DB persistence disabled, using JSON files only")
+            return
+
+        try:
+            from api.database import SessionLocal
+            from api.models import UserProfileDB
+            self._db_available = True
+            logger.debug("[UserProfile] PostgreSQL persistence enabled")
+        except ImportError as e:
+            logger.warning(f"[UserProfile] DB modules not available: {e}. Using JSON fallback.")
+        except Exception as e:
+            logger.warning(f"[UserProfile] DB init failed: {e}. Using JSON fallback.")
+
+    def _load_from_db(self) -> bool:
+        """Load profile from database. Returns True if loaded successfully."""
+        if not self._db_available:
+            return False
+
+        try:
+            from api.database import SessionLocal
+            from api.models import UserProfileDB
+
+            db = SessionLocal()
+            try:
+                db_record = db.query(UserProfileDB).filter(
+                    UserProfileDB.creator_id == self.creator_id,
+                    UserProfileDB.user_id == self.user_id
+                ).first()
+
+                if db_record:
+                    self.profile["preferences"] = db_record.preferences or self.profile["preferences"]
+                    self.profile["interests"] = db_record.interests or {}
+                    self.profile["objections"] = db_record.objections or []
+                    self.profile["interested_products"] = db_record.interested_products or []
+                    self.profile["content_scores"] = db_record.content_scores or {}
+                    self.profile["interaction_count"] = db_record.interaction_count or 0
+                    self.profile["last_interaction"] = db_record.last_interaction.isoformat() if db_record.last_interaction else None
+                    self.profile["created_at"] = db_record.created_at.isoformat() if db_record.created_at else self.profile["created_at"]
+                    self.profile["updated_at"] = db_record.updated_at.isoformat() if db_record.updated_at else self.profile["updated_at"]
+                    logger.debug(f"[UserProfile] Loaded from DB: {self.user_id}")
+                    return True
+                return False
+            finally:
+                db.close()
+        except Exception as e:
+            logger.error(f"[UserProfile] Error loading from DB: {e}")
+            return False
+
+    def _save_to_db(self) -> bool:
+        """Save profile to database. Returns True if saved successfully."""
+        if not self._db_available:
+            return False
+
+        try:
+            from api.database import SessionLocal
+            from api.models import UserProfileDB
+
+            db = SessionLocal()
+            try:
+                db_record = db.query(UserProfileDB).filter(
+                    UserProfileDB.creator_id == self.creator_id,
+                    UserProfileDB.user_id == self.user_id
+                ).first()
+
+                # Parse last_interaction to datetime
+                last_interaction_dt = None
+                if self.profile["last_interaction"]:
+                    try:
+                        last_interaction_dt = datetime.fromisoformat(self.profile["last_interaction"].replace('Z', '+00:00'))
+                    except:
+                        pass
+
+                if db_record:
+                    # Update existing
+                    db_record.preferences = self.profile["preferences"]
+                    db_record.interests = self.profile["interests"]
+                    db_record.objections = self.profile["objections"]
+                    db_record.interested_products = self.profile["interested_products"]
+                    db_record.content_scores = self.profile["content_scores"]
+                    db_record.interaction_count = self.profile["interaction_count"]
+                    db_record.last_interaction = last_interaction_dt
+                else:
+                    # Create new
+                    db_record = UserProfileDB(
+                        creator_id=self.creator_id,
+                        user_id=self.user_id,
+                        preferences=self.profile["preferences"],
+                        interests=self.profile["interests"],
+                        objections=self.profile["objections"],
+                        interested_products=self.profile["interested_products"],
+                        content_scores=self.profile["content_scores"],
+                        interaction_count=self.profile["interaction_count"],
+                        last_interaction=last_interaction_dt,
+                    )
+                    db.add(db_record)
+
+                db.commit()
+                logger.debug(f"[UserProfile] Saved to DB: {self.user_id}")
+                return True
+            finally:
+                db.close()
+        except Exception as e:
+            logger.error(f"[UserProfile] Error saving to DB: {e}")
+            return False
+
+    def _load_from_json(self) -> bool:
+        """Load profile from JSON file. Returns True if loaded successfully."""
         try:
             if self.profile_file.exists():
                 with open(self.profile_file, 'r', encoding='utf-8') as f:
                     saved = json.load(f)
-                    # Merge con defaults para nuevos campos
                     self.profile.update(saved)
-                logger.debug(f"Loaded profile for {self.user_id}")
+                logger.debug(f"[UserProfile] Loaded from JSON: {self.user_id}")
+                return True
+            return False
         except Exception as e:
-            logger.error(f"Error loading profile: {e}")
+            logger.error(f"[UserProfile] Error loading from JSON: {e}")
+            return False
 
-    def _save(self):
-        """Guarda perfil a archivo"""
+    def _save_to_json(self) -> bool:
+        """Save profile to JSON file. Returns True if saved successfully."""
         try:
             self.profile["updated_at"] = datetime.now(timezone.utc).isoformat()
             with open(self.profile_file, 'w', encoding='utf-8') as f:
                 json.dump(self.profile, f, indent=2, ensure_ascii=False)
+            return True
         except Exception as e:
-            logger.error(f"Error saving profile: {e}")
+            logger.error(f"[UserProfile] Error saving to JSON: {e}")
+            return False
+
+    def _load(self):
+        """Load profile from DB first, then JSON fallback."""
+        # Try DB first
+        if self._db_available:
+            if self._load_from_db():
+                return
+
+        # Fallback to JSON
+        if self._load_from_json():
+            # Migrate to DB if available
+            if self._db_available:
+                self._save_to_db()
+                logger.info(f"[UserProfile] Migrated {self.user_id} from JSON to DB")
+
+    def _save(self):
+        """Save profile to DB (primary) and JSON (backup during migration)."""
+        self.profile["updated_at"] = datetime.now(timezone.utc).isoformat()
+
+        # Save to DB if available
+        if self._db_available:
+            self._save_to_db()
+
+        # Also save to JSON during migration period
+        self._save_to_json()
 
     # === PREFERENCIAS ===
 

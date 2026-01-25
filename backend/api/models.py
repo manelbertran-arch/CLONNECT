@@ -589,3 +589,51 @@ class FollowerMemoryDB(Base):
     # DB timestamps
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+
+
+# =============================================================================
+# USER PROFILES - Lead behavior and preferences for personalization
+# =============================================================================
+
+class UserProfileDB(Base):
+    """
+    User/Lead profile with preferences and behavior tracking.
+    Migrated from JSON files (data/profiles/) to PostgreSQL.
+
+    Different from UnifiedProfile:
+    - UnifiedProfile = identity (email, name, phone) for cross-platform linking
+    - UserProfileDB = behavior (interests, preferences, objections) for personalization
+    """
+    __tablename__ = "user_profiles"
+    __table_args__ = (
+        UniqueConstraint('creator_id', 'user_id', name='uq_user_profile_creator_user'),
+        Index('idx_user_profiles_creator_user', 'creator_id', 'user_id'),
+        {'extend_existing': True},
+    )
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    creator_id = Column(String(100), nullable=False, index=True)
+    user_id = Column(String(255), nullable=False, index=True)
+
+    # Preferences (language, response_style, communication_tone)
+    preferences = Column(JSON, default=dict)
+
+    # Interests with weights (topic -> weight)
+    interests = Column(JSON, default=dict)
+
+    # Objections raised (list of {type, context, timestamp})
+    objections = Column(JSON, default=list)
+
+    # Products of interest (list of {id, name, first_interest, interest_count})
+    interested_products = Column(JSON, default=list)
+
+    # Content scores for personalized ranking (content_id -> score)
+    content_scores = Column(JSON, default=dict)
+
+    # Interaction stats
+    interaction_count = Column(Integer, default=0)
+    last_interaction = Column(DateTime(timezone=True))
+
+    # DB timestamps
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
