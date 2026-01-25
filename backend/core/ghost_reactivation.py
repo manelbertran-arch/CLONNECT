@@ -266,6 +266,10 @@ async def run_ghost_reactivation_cycle():
         from api.database import SessionLocal
         from api.models import Creator
 
+        if SessionLocal is None:
+            logger.debug("[GHOST] Database not configured, skipping reactivation cycle")
+            return {"status": "no_database", **results}
+
         session = SessionLocal()
         try:
             # Get all creators with Instagram token (active creators)
