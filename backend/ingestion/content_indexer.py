@@ -1,12 +1,23 @@
 """
 Content Indexer - Indexa contenido del creador en RAG con chunking inteligente.
 Fase 1 - Magic Slice
+
+Supports two chunking modes (via CHUNKING_MODE env var):
+- 'semantic': Respects paragraph/section/sentence boundaries (default)
+- 'fixed': Traditional fixed-size chunks with character overlap
 """
 
+import os
 from typing import List, Dict, Optional
 from dataclasses import dataclass
 from datetime import datetime
 import hashlib
+import logging
+
+logger = logging.getLogger(__name__)
+
+# Chunking mode configuration
+CHUNKING_MODE = os.getenv("CHUNKING_MODE", "semantic")  # 'semantic' or 'fixed'
 
 
 @dataclass
@@ -28,23 +39,71 @@ class ContentChunk:
 def split_text(
     text: str,
     chunk_size: int = 500,
-    overlap: int = 50
+    overlap: int = 50,
+    mode: str = None,
+    source_url: str = ""
 ) -> List[str]:
     """
     Divide texto en chunks con overlap para mejor contexto en RAG.
 
-    Migrado de clonnect-memory/api/main.py:83-96
-    Mejorado con:
-    - Respeta limites de oraciones cuando es posible
-    - Overlap configurable para mantener contexto
+    Supports two modes:
+    - 'semantic': Uses SemanticChunker to respect paragraph/section/sentence boundaries
+    - 'fixed': Traditional fixed-size chunks with character overlap
 
     Args:
         text: Texto a dividir
-        chunk_size: Tamano objetivo de cada chunk (caracteres)
-        overlap: Caracteres de solapamiento entre chunks
+        chunk_size: Tamano objetivo de cada chunk (caracteres) - used in fixed mode
+        overlap: Caracteres de solapamiento entre chunks - used in fixed mode
+        mode: Chunking mode override ('semantic' or 'fixed'). Default: CHUNKING_MODE env var
+        source_url: Source URL for tracking (used in semantic mode)
 
     Returns:
         Lista de chunks de texto
+    """
+    if not text:
+        return []
+
+    # Determine mode
+    effective_mode = mode or CHUNKING_MODE
+
+    # Try semantic chunking if enabled
+    if effective_mode.lower() == "semantic":
+        try:
+            from core.semantic_chunker import SemanticChunker
+            chunker = SemanticChunker()
+            semantic_chunks = chunker.chunk_text(text, source_url)
+            if semantic_chunks:
+                logger.debug(f"Semantic chunking: {len(semantic_chunks)} chunks created")
+                return [chunk.content for chunk in semantic_chunks]
+        except ImportError:
+            logger.debug("SemanticChunker not available, using fixed chunking")
+        except Exception as e:
+            logger.warning(f"Semantic chunking failed, falling back to fixed: {e}")
+
+    # Fixed chunking (original implementation or fallback)
+    return _fixed_split_text(text, chunk_size, overlap)
+
+
+def _fixed_split_text(
+    text: str,
+    chunk_size: int = 500,
+    overlap: int = 50
+) -> List[str]:
+    """
+    Fixed-size text splitting with overlap.
+
+    Original implementation migrated from clonnect-memory/api/main.py:83-96
+    Improved with:
+    - Respects sentence boundaries when possible
+    - Configurable overlap for context
+
+    Args:
+        text: Text to split
+        chunk_size: Target chunk size (characters)
+        overlap: Character overlap between chunks
+
+    Returns:
+        List of text chunks
     """
     if not text or len(text) <= chunk_size:
         return [text] if text else []
