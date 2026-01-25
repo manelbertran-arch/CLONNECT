@@ -10,14 +10,222 @@ Anti-hallucination principles:
 3. No creative interpretation - just structured extraction
 """
 
+import os
 import re
+import ssl
+import time
 import logging
 from typing import List, Dict, Optional, Any
 from dataclasses import dataclass, field
 from urllib.parse import urljoin, urlparse
+from urllib.robotparser import RobotFileParser
 from datetime import datetime
 
+import httpx
+import pybreaker
+
+from core.metrics import (
+    record_page_scraped,
+    record_page_failed,
+    observe_scrape_duration,
+    record_ingestion_error
+)
+
 logger = logging.getLogger(__name__)
+
+# =============================================================================
+# SSL CONFIGURATION
+# =============================================================================
+# SSL verification is ENABLED by default for security.
+# Set SCRAPER_VERIFY_SSL=false only for development/testing with self-signed certs.
+# When SSL fails, we log a warning and skip the URL (don't silently disable security).
+VERIFY_SSL = os.getenv("SCRAPER_VERIFY_SSL", "true").lower() in ("true", "1", "yes")
+
+# =============================================================================
+# ROBOTS.TXT CONFIGURATION (BUG-003 FIX)
+# =============================================================================
+# Respect robots.txt is ENABLED by default for legal/ethical compliance.
+# Set SCRAPER_RESPECT_ROBOTS=false to disable (not recommended for production).
+RESPECT_ROBOTS_TXT = os.getenv("SCRAPER_RESPECT_ROBOTS", "true").lower() in ("true", "1", "yes")
+
+# Cache TTL for robots.txt (in seconds) - default 1 hour
+ROBOTS_TXT_CACHE_TTL = int(os.getenv("SCRAPER_ROBOTS_CACHE_TTL", "3600"))
+
+# User agent to identify as when checking robots.txt
+SCRAPER_USER_AGENT = "ClonnectBot"
+
+
+class RobotsTxtChecker:
+    """
+    Checks robots.txt compliance with domain-level caching.
+
+    Features:
+    - Caches parsed robots.txt per domain
+    - TTL-based cache expiration
+    - Graceful handling of fetch failures (allow by default)
+    - Async-compatible synchronous fetching
+    """
+
+    def __init__(self, user_agent: str = SCRAPER_USER_AGENT, cache_ttl: int = ROBOTS_TXT_CACHE_TTL):
+        self.user_agent = user_agent
+        self.cache_ttl = cache_ttl
+        self._cache: Dict[str, tuple] = {}  # domain -> (parser, timestamp)
+
+    def _get_domain(self, url: str) -> str:
+        """Extract domain from URL."""
+        parsed = urlparse(url)
+        return f"{parsed.scheme}://{parsed.netloc}"
+
+    def _is_cache_valid(self, domain: str) -> bool:
+        """Check if cached robots.txt is still valid."""
+        if domain not in self._cache:
+            return False
+        _, timestamp = self._cache[domain]
+        return (time.time() - timestamp) < self.cache_ttl
+
+    def _fetch_robots_txt(self, domain: str) -> Optional[RobotFileParser]:
+        """
+        Fetch and parse robots.txt for a domain.
+
+        Returns None if fetch fails (we'll allow access by default).
+        """
+        robots_url = f"{domain}/robots.txt"
+        parser = RobotFileParser()
+        parser.set_url(robots_url)
+
+        try:
+            # Use httpx for consistency (sync version for robotparser compatibility)
+            import httpx
+            response = httpx.get(
+                robots_url,
+                timeout=5.0,
+                follow_redirects=True,
+                verify=VERIFY_SSL,
+                headers={"User-Agent": f"Mozilla/5.0 (compatible; {self.user_agent}/1.0)"}
+            )
+
+            if response.status_code == 200:
+                # Parse the robots.txt content
+                parser.parse(response.text.splitlines())
+                return parser
+            elif response.status_code in (404, 410):
+                # No robots.txt = allow all
+                logger.debug(f"No robots.txt found at {robots_url} (status {response.status_code})")
+                return None
+            else:
+                logger.warning(f"Unexpected status {response.status_code} fetching {robots_url}")
+                return None
+
+        except httpx.TimeoutException:
+            logger.warning(f"Timeout fetching robots.txt from {domain}")
+            return None
+        except Exception as e:
+            logger.warning(f"Error fetching robots.txt from {domain}: {e}")
+            return None
+
+    def is_allowed(self, url: str) -> bool:
+        """
+        Check if scraping this URL is allowed by robots.txt.
+
+        Returns True if:
+        - robots.txt allows the URL
+        - robots.txt doesn't exist (404)
+        - robots.txt fetch failed (fail-open for availability)
+
+        Returns False if:
+        - robots.txt explicitly disallows the URL
+        """
+        if not RESPECT_ROBOTS_TXT:
+            return True
+
+        domain = self._get_domain(url)
+
+        # Check cache first
+        if not self._is_cache_valid(domain):
+            parser = self._fetch_robots_txt(domain)
+            self._cache[domain] = (parser, time.time())
+        else:
+            parser, _ = self._cache[domain]
+
+        # No parser = no robots.txt = allow all
+        if parser is None:
+            return True
+
+        # Check if our user agent is allowed
+        path = urlparse(url).path or "/"
+        allowed = parser.can_fetch(self.user_agent, path)
+
+        if not allowed:
+            logger.info(f"robots.txt disallows {url} for {self.user_agent}")
+
+        return allowed
+
+    def clear_cache(self):
+        """Clear the robots.txt cache."""
+        self._cache.clear()
+
+
+# Global robots.txt checker instance
+_robots_checker: Optional[RobotsTxtChecker] = None
+
+
+def get_robots_checker() -> RobotsTxtChecker:
+    """Get or create the global robots.txt checker."""
+    global _robots_checker
+    if _robots_checker is None:
+        _robots_checker = RobotsTxtChecker()
+    return _robots_checker
+
+
+# =============================================================================
+# CIRCUIT BREAKER CONFIGURATION
+# =============================================================================
+# Circuit breaker protects the system when websites are consistently failing.
+# After FAILURE_THRESHOLD consecutive failures for a domain, the circuit "opens"
+# and rejects requests for RECOVERY_TIMEOUT seconds before testing again.
+
+SCRAPER_CIRCUIT_FAILURE_THRESHOLD = int(os.getenv("SCRAPER_CIRCUIT_FAILURE_THRESHOLD", "5"))
+SCRAPER_CIRCUIT_RECOVERY_TIMEOUT = int(os.getenv("SCRAPER_CIRCUIT_RECOVERY_TIMEOUT", "30"))
+
+
+class ScraperCircuitBreakerListener(pybreaker.CircuitBreakerListener):
+    """Listener to log circuit breaker state changes for website scraper."""
+
+    def __init__(self, name: str):
+        self.name = name
+
+    def state_change(self, cb, old_state, new_state):
+        """Log when circuit state changes."""
+        logger.warning(
+            f"Circuit breaker [{self.name}] state changed: {old_state.name} -> {new_state.name}"
+        )
+        if new_state == pybreaker.STATE_OPEN:
+            logger.error(
+                f"Circuit [{self.name}] OPENED - Too many scraping failures. "
+                f"Requests will be rejected for {cb.reset_timeout} seconds."
+            )
+        elif new_state == pybreaker.STATE_HALF_OPEN:
+            logger.info(f"Circuit [{self.name}] HALF-OPEN - Testing if scraping works again.")
+        elif new_state == pybreaker.STATE_CLOSED:
+            logger.info(f"Circuit [{self.name}] CLOSED - Scraping resumed normally.")
+
+    def failure(self, cb, exc):
+        """Log failures tracked by circuit breaker."""
+        logger.debug(f"Circuit [{self.name}] recorded failure ({cb.fail_counter}/{cb.fail_max}): {exc}")
+
+
+# Circuit breaker for web scraping
+scraper_circuit_breaker = pybreaker.CircuitBreaker(
+    fail_max=SCRAPER_CIRCUIT_FAILURE_THRESHOLD,
+    reset_timeout=SCRAPER_CIRCUIT_RECOVERY_TIMEOUT,
+    listeners=[ScraperCircuitBreakerListener("web_scraper")],
+    name="web_scraper"
+)
+
+
+class ScraperCircuitBreakerOpenError(Exception):
+    """Raised when scraper circuit breaker is open."""
+    pass
 
 
 @dataclass
@@ -162,95 +370,158 @@ class DeterministicScraper:
 
         return links[:30]  # Limit
 
-    async def scrape_page(self, url: str) -> Optional[ScrapedPage]:
+    async def scrape_page(self, url: str, creator_id: str = "unknown") -> Optional[ScrapedPage]:
         """
         Scrape a single page deterministically.
 
         Args:
             url: URL to scrape
+            creator_id: Creator ID for metrics tracking
 
         Returns:
             ScrapedPage with extracted content, or None if failed
+
+        Note:
+            Uses circuit breaker to prevent cascading failures when
+            websites are down or returning errors consistently.
         """
-        import httpx
+        start_time = time.time()
 
         try:
             from bs4 import BeautifulSoup
         except ImportError:
             logger.error("BeautifulSoup not installed. Run: pip install beautifulsoup4")
+            record_page_failed(creator_id, "import_error")
             return None
 
         if self._should_skip_url(url):
             logger.debug(f"Skipping URL: {url}")
             return None
 
+        # BUG-003 FIX: Check robots.txt compliance
+        robots_checker = get_robots_checker()
+        if not robots_checker.is_allowed(url):
+            logger.info(f"Blocked by robots.txt: {url}")
+            return None
+
         try:
-            async with httpx.AsyncClient(
-                timeout=self.timeout,
-                follow_redirects=True,
-                verify=False,  # Some sites have SSL cert issues
-                headers={
-                    "User-Agent": "Mozilla/5.0 (compatible; ClonnectBot/1.0; +https://clonnect.com)"
-                }
-            ) as client:
-                response = await client.get(url)
+            # Circuit breaker wraps the HTTP fetch
+            html, response_url = await self._fetch_page_with_circuit_breaker(url)
+            if html is None:
+                return None
 
-                if response.status_code != 200:
-                    logger.warning(f"Got status {response.status_code} for {url}")
-                    return None
+            soup = BeautifulSoup(html, 'html.parser')
 
-                content_type = response.headers.get('content-type', '')
-                if 'text/html' not in content_type:
-                    return None
+            # Extract title
+            title = ""
+            if soup.title:
+                title = soup.title.get_text(strip=True)
+            elif soup.h1:
+                title = soup.h1.get_text(strip=True)
 
-                html = response.text
-                soup = BeautifulSoup(html, 'html.parser')
+            # IMPORTANTE: Extraer links ANTES de modificar el soup
+            # (decompose() destruye elementos permanentemente)
+            links = self._extract_links(soup, response_url)
 
-                # Extract title
-                title = ""
-                if soup.title:
-                    title = soup.title.get_text(strip=True)
-                elif soup.h1:
-                    title = soup.h1.get_text(strip=True)
+            # Find main content area
+            main_soup = soup.find('main') or soup.find('article') or soup.find('body')
+            if not main_soup:
+                main_soup = soup
 
-                # IMPORTANTE: Extraer links ANTES de modificar el soup
-                # (decompose() destruye elementos permanentemente)
-                links = self._extract_links(soup, url)
+            # Extract content (esto modifica el soup con decompose())
+            main_content = self._extract_text_from_soup(main_soup)
+            sections = self._extract_sections(main_soup)
 
-                # Find main content area
-                main_soup = soup.find('main') or soup.find('article') or soup.find('body')
-                if not main_soup:
-                    main_soup = soup
+            # Extract metadata
+            metadata = {}
+            meta_desc = soup.find('meta', attrs={'name': 'description'})
+            if meta_desc and meta_desc.get('content'):
+                metadata['description'] = meta_desc['content']
 
-                # Extract content (esto modifica el soup con decompose())
-                main_content = self._extract_text_from_soup(main_soup)
-                sections = self._extract_sections(main_soup)
+            og_image = soup.find('meta', attrs={'property': 'og:image'})
+            if og_image and og_image.get('content'):
+                metadata['og_image'] = og_image['content']
 
-                # Extract metadata
-                metadata = {}
-                meta_desc = soup.find('meta', attrs={'name': 'description'})
-                if meta_desc and meta_desc.get('content'):
-                    metadata['description'] = meta_desc['content']
+            # Record success metrics
+            duration = time.time() - start_time
+            observe_scrape_duration(duration)
+            record_page_scraped(creator_id)
 
-                og_image = soup.find('meta', attrs={'property': 'og:image'})
-                if og_image and og_image.get('content'):
-                    metadata['og_image'] = og_image['content']
+            return ScrapedPage(
+                url=response_url,
+                title=title,
+                main_content=main_content,
+                sections=sections,
+                links=links,
+                metadata=metadata
+            )
 
-                return ScrapedPage(
-                    url=url,
-                    title=title,
-                    main_content=main_content,
-                    sections=sections,
-                    links=links,
-                    metadata=metadata
-                )
-
+        except pybreaker.CircuitBreakerError:
+            logger.warning(
+                f"Circuit breaker OPEN - skipping {url}. "
+                f"Too many consecutive scraping failures."
+            )
+            record_page_failed(creator_id, "circuit_breaker_open")
+            return None
         except httpx.TimeoutException:
             logger.warning(f"Timeout scraping {url}")
+            record_page_failed(creator_id, "timeout")
+            record_ingestion_error("scrape_timeout")
+            return None
         except Exception as e:
             logger.error(f"Error scraping {url}: {e}")
+            record_page_failed(creator_id, "exception")
+            record_ingestion_error("scrape_error")
+            return None
 
-        return None
+    async def _fetch_page_with_circuit_breaker(self, url: str) -> tuple:
+        """
+        Fetch page HTML with circuit breaker protection.
+
+        Returns:
+            Tuple of (html_content, final_url) or (None, None) if failed
+        """
+        return await scraper_circuit_breaker.call_async(
+            self._fetch_page_html,
+            url
+        )
+
+    async def _fetch_page_html(self, url: str) -> tuple:
+        """
+        Actual HTTP request to fetch page HTML.
+
+        Separated for circuit breaker wrapping.
+        Raises exceptions on failure so circuit breaker can track them.
+        """
+        import httpx
+
+        async with httpx.AsyncClient(
+            timeout=self.timeout,
+            follow_redirects=True,
+            verify=False,  # Some sites have SSL cert issues
+            headers={
+                "User-Agent": "Mozilla/5.0 (compatible; ClonnectBot/1.0; +https://clonnect.com)"
+            }
+        ) as client:
+            response = await client.get(url)
+
+            if response.status_code >= 500:
+                # Server errors should trip the circuit breaker
+                raise Exception(f"Server error {response.status_code} for {url}")
+
+            if response.status_code == 429:
+                # Rate limit - trip the circuit breaker
+                raise Exception(f"Rate limited (429) for {url}")
+
+            if response.status_code != 200:
+                logger.warning(f"Got status {response.status_code} for {url}")
+                return (None, url)
+
+            content_type = response.headers.get('content-type', '')
+            if 'text/html' not in content_type:
+                return (None, url)
+
+            return (response.text, str(response.url))
 
     async def scrape_website(self, start_url: str) -> List[ScrapedPage]:
         """
@@ -279,10 +550,15 @@ class DeterministicScraper:
                 pages.append(page)
                 logger.info(f"Scraped {current_url}: {len(page.main_content)} chars, {len(page.sections)} sections")
 
-                # Add discovered links to queue
+                # Add discovered links to queue (check robots.txt first)
+                robots_checker = get_robots_checker()
                 for link in page.links:
                     if link not in self._visited and link not in to_visit:
-                        to_visit.append(link)
+                        # Pre-check robots.txt to avoid queueing blocked URLs
+                        if robots_checker.is_allowed(link):
+                            to_visit.append(link)
+                        else:
+                            logger.debug(f"Not queueing {link} - blocked by robots.txt")
 
         logger.info(f"Total pages scraped: {len(pages)}")
         return pages

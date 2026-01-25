@@ -11,6 +11,14 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
+from core.metrics import (
+    record_posts_indexed,
+    record_chunks_saved,
+    start_ingestion,
+    end_ingestion,
+    log_ingestion_complete
+)
+
 from ingestion import (
     Citation,
     CitationContext,
@@ -97,7 +105,16 @@ def _try_load_chunks_from_json(creator_id: str) -> Optional[List[dict]]:
 
 
 def _save_chunks_to_db(creator_id: str, chunks_data: List[dict]) -> bool:
-    """Guarda chunks en PostgreSQL usando llamada sincrónica."""
+    """
+    Guarda chunks en PostgreSQL usando BULK operations.
+
+    Estrategia optimizada (O(1) queries en lugar de O(n)):
+    1. Una query para obtener todos los chunk_ids existentes
+    2. Separar en listas de update vs insert
+    3. bulk_update_mappings para updates
+    4. bulk_insert_mappings para inserts
+    5. Un solo commit
+    """
     try:
         from api.database import SessionLocal
         from api.models import ContentChunk
@@ -105,43 +122,82 @@ def _save_chunks_to_db(creator_id: str, chunks_data: List[dict]) -> bool:
         if SessionLocal is None:
             return False
 
+        if not chunks_data:
+            return True  # Nothing to save
+
         db = SessionLocal()
         try:
-            saved_count = 0
-            for chunk in chunks_data:
-                # Check if exists
-                existing = (
-                    db.query(ContentChunk)
-                    .filter(ContentChunk.chunk_id == chunk.get("id", chunk.get("chunk_id")))
-                    .first()
+            # Step 1: Get all existing chunk_ids for this creator in ONE query
+            chunk_ids_to_check = [
+                chunk.get("id", chunk.get("chunk_id")) for chunk in chunks_data
+            ]
+
+            existing_chunks = (
+                db.query(ContentChunk.id, ContentChunk.chunk_id)
+                .filter(
+                    ContentChunk.creator_id == creator_id,
+                    ContentChunk.chunk_id.in_(chunk_ids_to_check)
                 )
+                .all()
+            )
 
-                if existing:
-                    # Update
-                    existing.content = chunk.get("content", "")
-                    existing.title = chunk.get("title")
-                    existing.source_url = chunk.get("source_url")
+            # Map chunk_id -> database UUID id
+            existing_map = {row.chunk_id: row.id for row in existing_chunks}
+
+            # Step 2: Separate into update and insert lists
+            to_update = []
+            to_insert = []
+
+            for chunk in chunks_data:
+                chunk_id = chunk.get("id", chunk.get("chunk_id"))
+
+                if chunk_id in existing_map:
+                    # Update existing - need the database id
+                    to_update.append({
+                        "id": existing_map[chunk_id],
+                        "content": chunk.get("content", ""),
+                        "title": chunk.get("title"),
+                        "source_url": chunk.get("source_url"),
+                    })
                 else:
-                    # Insert
-                    new_chunk = ContentChunk(
-                        chunk_id=chunk.get("id", chunk.get("chunk_id")),
-                        creator_id=creator_id,
-                        source_type=chunk.get("source_type", "instagram_post"),
-                        source_id=chunk.get("source_id"),
-                        source_url=chunk.get("source_url"),
-                        title=chunk.get("title"),
-                        content=chunk.get("content", ""),
-                        chunk_index=chunk.get("chunk_index", 0),
-                        total_chunks=chunk.get("total_chunks", 1),
-                    )
-                    db.add(new_chunk)
-                saved_count += 1
+                    # Insert new
+                    to_insert.append({
+                        "chunk_id": chunk_id,
+                        "creator_id": creator_id,
+                        "source_type": chunk.get("source_type", "instagram_post"),
+                        "source_id": chunk.get("source_id"),
+                        "source_url": chunk.get("source_url"),
+                        "title": chunk.get("title"),
+                        "content": chunk.get("content", ""),
+                        "chunk_index": chunk.get("chunk_index", 0),
+                        "total_chunks": chunk.get("total_chunks", 1),
+                    })
 
+            # Step 3: Bulk update (if any)
+            if to_update:
+                db.bulk_update_mappings(ContentChunk, to_update)
+                logger.debug(f"Bulk updated {len(to_update)} existing chunks")
+
+            # Step 4: Bulk insert (if any)
+            if to_insert:
+                db.bulk_insert_mappings(ContentChunk, to_insert)
+                logger.debug(f"Bulk inserted {len(to_insert)} new chunks")
+
+            # Step 5: Single commit
             db.commit()
 
-            if saved_count > 0:
-                logger.info(f"Saved {saved_count} chunks to PostgreSQL for {creator_id}")
+            total_saved = len(to_update) + len(to_insert)
+            if total_saved > 0:
+                logger.info(
+                    f"Bulk saved {total_saved} chunks to PostgreSQL for {creator_id} "
+                    f"({len(to_insert)} new, {len(to_update)} updated)"
+                )
                 return True
+
+        except Exception as e:
+            db.rollback()
+            logger.error(f"Error in bulk save, rolling back: {e}")
+            raise
         finally:
             db.close()
 
@@ -596,6 +652,10 @@ async def index_creator_posts(creator_id: str, posts: List[Dict], save: bool = T
         Estadisticas de indexacion
     """
     logger.debug(f"[index_creator_posts] Starting for {creator_id} with {len(posts)} posts")
+
+    # Start tracking metrics
+    start_ingestion(creator_id)
+
     index = get_content_index(creator_id)
     logger.debug("[index_creator_posts] Got content index")
 
@@ -629,13 +689,18 @@ async def index_creator_posts(creator_id: str, posts: List[Dict], save: bool = T
     logger.debug(f"[index_creator_posts] Processed {posts_processed} posts, {total_chunks} chunks")
 
     if save:
-        # TEMPORARY: Skip save to avoid N+1 query timeout (1000+ chunks = 2000+ DB queries)
-        # TODO: Fix _save_chunks_to_db to use bulk operations
-        logger.debug(
-            f"[index_creator_posts] SKIPPING index.save() - N+1 query issue causes timeout"
-        )
-        logger.debug(f"[index_creator_posts] Would save {len(index.chunks)} chunks")
-        # index.save()  # DISABLED - causes worker timeout
+        # BUG-001 FIX: Now using bulk operations in _save_chunks_to_db
+        # This no longer causes timeout - bulk insert handles 1000+ chunks efficiently
+        logger.debug(f"[index_creator_posts] Saving {len(index.chunks)} chunks with bulk operations")
+        index.save()
+
+    # Record metrics
+    record_posts_indexed(creator_id, posts_processed)
+    if total_chunks > 0:
+        record_chunks_saved(creator_id, total_chunks, "instagram_post")
+
+    # End ingestion tracking
+    duration = end_ingestion(creator_id, total_chunks)
 
     result = {
         "creator_id": creator_id,
@@ -643,6 +708,15 @@ async def index_creator_posts(creator_id: str, posts: List[Dict], save: bool = T
         "total_chunks": total_chunks,
         "index_stats": index.stats,
     }
+
+    # Log structured summary
+    log_ingestion_complete(
+        creator_id=creator_id,
+        posts_indexed=posts_processed,
+        chunks_saved=total_chunks,
+        duration_seconds=duration
+    )
+
     logger.info(f"[index_creator_posts] Done: {result}")
     return result
 

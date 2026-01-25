@@ -99,11 +99,12 @@ class SemanticRAG:
                 # Generate query embedding
                 query_embedding = generate_embedding(query)
                 if query_embedding:
+                    # min_similarity uses DEFAULT_MIN_SIMILARITY from embeddings module
+                    # (configurable via RAG_MIN_SIMILARITY env var, default 0.5)
                     results = search_similar(
                         query_embedding=query_embedding,
                         creator_id=creator_id,
-                        top_k=top_k,
-                        min_similarity=0.3
+                        top_k=top_k
                     )
 
                     if results:

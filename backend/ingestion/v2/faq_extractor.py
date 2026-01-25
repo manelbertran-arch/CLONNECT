@@ -14,8 +14,11 @@ import asyncio
 import json
 import logging
 import re
+import time
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, List, Optional
+
+from core.metrics import record_faqs_extracted, observe_extract_duration, record_ingestion_error
 
 if TYPE_CHECKING:
     from ..deterministic_scraper import ScrapedPage
@@ -201,6 +204,7 @@ class FAQExtractor:
         pages: List["ScrapedPage"],
         products: Optional[List["DetectedProduct"]] = None,
         bio: Optional["ExtractedBio"] = None,
+        creator_id: str = "unknown",
     ) -> FAQExtractionResult:
         """
         Extract FAQs using hybrid approach (Regex + LLM).
@@ -211,6 +215,7 @@ class FAQExtractor:
         3. LLM classification → REAL vs SKIP to filter blog questions
         4. LLM categorization → add category and context
         """
+        start_time = time.time()
         result = FAQExtractionResult()
 
         # PASO 1: Extracción LITERAL con regex + filtros básicos
@@ -250,6 +255,7 @@ class FAQExtractor:
             )
         except Exception as e:
             logger.error(f"Error categorizing FAQs: {e}")
+            record_ingestion_error("faq_categorization_error")
             # Fallback: return uncategorized FAQs
             result.faqs = [
                 ExtractedFAQ(
@@ -264,6 +270,11 @@ class FAQExtractor:
                 for faq in classified_faqs
             ]
             result.source_urls = list(set(faq.source_url for faq in result.faqs))
+
+        # Record metrics
+        duration = time.time() - start_time
+        observe_extract_duration("faqs", duration)
+        record_faqs_extracted(creator_id, len(result.faqs))
 
         return result
 
