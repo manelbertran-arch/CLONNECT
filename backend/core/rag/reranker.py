@@ -13,9 +13,8 @@ from typing import List, Dict, Any, Optional
 logger = logging.getLogger("clonnect.reranker")
 
 # Feature flag para activar/desactivar
-# Default: FALSE - reranking adds ~100-200ms latency
-# Enable when: precision matters more than speed
-ENABLE_RERANKING = os.getenv("ENABLE_RERANKING", "false").lower() == "true"
+# Default: TRUE - precision improvement (+20-40%) outweighs latency cost
+ENABLE_RERANKING = os.getenv("ENABLE_RERANKING", "true").lower() == "true"
 
 # Lazy loading para evitar import pesado al inicio
 _reranker = None

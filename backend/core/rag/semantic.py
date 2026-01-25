@@ -23,12 +23,12 @@ logger = logging.getLogger(__name__)
 # =============================================================================
 
 # Cross-encoder reranking: improves relevance but adds ~100-200ms
-# Enable when: precision matters more than speed (e.g., customer support)
-ENABLE_RERANKING = os.getenv("ENABLE_RERANKING", "false").lower() == "true"
+# Default: TRUE - precision improvement (+20-40%) outweighs latency cost
+ENABLE_RERANKING = os.getenv("ENABLE_RERANKING", "true").lower() == "true"
 
 # BM25 hybrid search: combines semantic + lexical search
-# Enable when: users search with specific keywords/product names
-ENABLE_BM25_HYBRID = os.getenv("ENABLE_BM25_HYBRID", "false").lower() == "true"
+# Default: TRUE - better keyword matching for product names and specific terms
+ENABLE_BM25_HYBRID = os.getenv("ENABLE_BM25_HYBRID", "true").lower() == "true"
 
 
 @dataclass

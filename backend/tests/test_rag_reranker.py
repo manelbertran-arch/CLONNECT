@@ -23,14 +23,15 @@ class TestRerankerModule:
         assert rerank_with_threshold is not None
         assert get_reranker is not None
 
-    def test_reranking_disabled_by_default(self):
-        """Test that reranking is disabled by default"""
+    def test_reranking_enabled_by_default(self):
+        """Test that reranking is enabled by default"""
         from core.rag.reranker import ENABLE_RERANKING
-        # Default should be False to minimize latency
-        assert ENABLE_RERANKING == False
+        # Default should be True - precision outweighs latency
+        assert ENABLE_RERANKING == True
 
     def test_rerank_returns_docs_when_disabled(self):
-        """Test rerank returns original docs when disabled"""
+        """Test rerank returns original docs when disabled via module patch"""
+        import core.rag.reranker as reranker_module
         from core.rag.reranker import rerank
 
         docs = [
@@ -38,8 +39,8 @@ class TestRerankerModule:
             {"content": "Second document", "score": 0.8},
         ]
 
-        # With reranking disabled, should return original order
-        with patch.dict(os.environ, {"ENABLE_RERANKING": "false"}):
+        # Patch the module-level constant (env var already evaluated at import)
+        with patch.object(reranker_module, 'ENABLE_RERANKING', False):
             result = rerank("query", docs)
             assert result == docs
 
@@ -103,13 +104,13 @@ class TestRerankerModule:
 class TestEnhancedSearchPipeline:
     """Tests for enhanced SemanticRAG search pipeline"""
 
-    def test_feature_flags_default_off(self):
-        """Test that feature flags are OFF by default"""
+    def test_feature_flags_default_on(self):
+        """Test that feature flags are ON by default"""
         from core.rag.semantic import ENABLE_RERANKING, ENABLE_BM25_HYBRID
 
-        # Both should be False by default to minimize latency
-        assert ENABLE_RERANKING == False
-        assert ENABLE_BM25_HYBRID == False
+        # Both should be True by default - precision outweighs latency
+        assert ENABLE_RERANKING == True
+        assert ENABLE_BM25_HYBRID == True
 
     def test_search_returns_list(self):
         """Test search returns a list"""
