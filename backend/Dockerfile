@@ -15,7 +15,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 COPY requirements-lite.txt .
 
 # Force rebuild - change this value to invalidate pip cache
-ENV FORCE_REBUILD="2026-01-25-add-tenacity"
+ENV FORCE_REBUILD="2026-01-25-enable-playwright"
 
 # Create virtual environment and install dependencies
 RUN python -m venv /opt/venv
@@ -28,12 +28,35 @@ FROM python:3.11-slim as runtime
 
 WORKDIR /app
 
+# Install Playwright dependencies (Chromium browser)
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    libnss3 \
+    libnspr4 \
+    libatk1.0-0 \
+    libatk-bridge2.0-0 \
+    libcups2 \
+    libdrm2 \
+    libxkbcommon0 \
+    libxcomposite1 \
+    libxdamage1 \
+    libxfixes3 \
+    libxrandr2 \
+    libgbm1 \
+    libasound2 \
+    libpango-1.0-0 \
+    libcairo2 \
+    libatspi2.0-0 \
+    && rm -rf /var/lib/apt/lists/*
+
 # Create non-root user for security
 RUN groupadd -r clonnect && useradd -r -g clonnect clonnect
 
 # Copy virtual environment from builder
 COPY --from=builder /opt/venv /opt/venv
 ENV PATH="/opt/venv/bin:$PATH"
+
+# Install Playwright browsers
+RUN playwright install chromium
 
 # Copy application code
 COPY --chown=clonnect:clonnect . .
