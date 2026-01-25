@@ -521,12 +521,28 @@ async def debug_scraper_test(url: str = "https://www.stefanobonanno.com"):
         results["final_status"] = f"http_failed_{step3['status']}"
         return results
 
-    # Step 4: Full scrape attempt
+    # Step 4: Full scrape attempt with detailed error capture
     step4 = {"step": 4, "name": "full_scrape", "status": "pending", "details": {}}
     try:
         scraper = DeterministicScraper(max_pages=1)
+        step4["details"]["scraper_created"] = True
+
         start = time.time()
-        page = await scraper.scrape_page(url)
+        try:
+            page = await scraper.scrape_page(url)
+        except Exception as scrape_err:
+            duration = time.time() - start
+            step4["status"] = "scrape_exception"
+            step4["details"]["scrape_error"] = str(scrape_err)
+            step4["details"]["scrape_error_type"] = type(scrape_err).__name__
+            step4["details"]["duration_seconds"] = round(duration, 3)
+            import traceback
+
+            step4["details"]["traceback"] = traceback.format_exc()[:800]
+            results["steps"].append(step4)
+            results["final_status"] = "scrape_exception"
+            return results
+
         duration = time.time() - start
 
         if page:
@@ -538,13 +554,21 @@ async def debug_scraper_test(url: str = "https://www.stefanobonanno.com"):
                 "sections_count": len(page.sections),
                 "links_count": len(page.links),
                 "duration_seconds": round(duration, 3),
+                "metadata": page.metadata,
             }
         else:
             step4["status"] = "no_content"
-            step4["details"] = {"page": None, "duration_seconds": round(duration, 3)}
+            step4["details"] = {
+                "page": None,
+                "duration_seconds": round(duration, 3),
+                "note": "scrape_page returned None - check if URL was skipped, blocked by robots.txt, or HTTP fetch failed",
+            }
     except Exception as e:
         step4["status"] = "error"
         step4["details"] = {"error": str(e), "error_type": type(e).__name__}
+        import traceback
+
+        step4["details"]["traceback"] = traceback.format_exc()[:500]
     results["steps"].append(step4)
 
     # Step 5: Playwright direct render test (bypass scrape_page)
