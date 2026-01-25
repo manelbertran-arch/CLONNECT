@@ -550,11 +550,22 @@ class DeterministicScraper:
 
         Returns:
             Tuple of (html_content, final_url) or (None, None) if failed
+
+        Note: pybreaker's call_async has bugs with Python 3.11+, so we call
+        the function directly. Circuit breaker state checking is done manually.
         """
-        return await scraper_circuit_breaker.call_async(
-            self._fetch_page_html,
-            url
-        )
+        # Check if circuit is open
+        if scraper_circuit_breaker.current_state == "open":
+            logger.warning(f"Circuit breaker OPEN, skipping fetch for {url}")
+            raise pybreaker.CircuitBreakerError(scraper_circuit_breaker)
+
+        try:
+            result = await self._fetch_page_html(url)
+            return result
+        except Exception as e:
+            # Log the failure for monitoring (circuit breaker tracking disabled due to pybreaker bug)
+            logger.warning(f"Fetch failed for {url}: {e}")
+            raise
 
     async def _fetch_page_html(self, url: str) -> tuple:
         """
