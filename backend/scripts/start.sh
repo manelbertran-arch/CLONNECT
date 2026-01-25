@@ -75,8 +75,10 @@ echo "Using uvicorn directly for simpler startup"
 
 if [ "$(id -u)" = "0" ]; then
     # Running as root - switch to clonnect user
-    exec su -s /bin/bash clonnect -c "uvicorn api.main:app --host 0.0.0.0 --port $PORT --log-level info"
+    # Must explicitly set PATH since su doesn't preserve environment
+    exec su -s /bin/bash clonnect -c "export PATH=/opt/venv/bin:\$PATH && uvicorn api.main:app --host 0.0.0.0 --port $PORT --log-level info"
 else
-    # Already running as non-root user
+    # Already running as non-root user (PATH should already include venv)
+    export PATH=/opt/venv/bin:$PATH
     exec uvicorn api.main:app --host 0.0.0.0 --port $PORT --log-level info
 fi
