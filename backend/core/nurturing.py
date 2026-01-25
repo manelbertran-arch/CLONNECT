@@ -18,6 +18,27 @@ from pathlib import Path
 
 logger = logging.getLogger(__name__)
 
+# Lazy import for DB storage to avoid circular imports
+_db_storage = None
+_db_storage_checked = False
+
+
+def _get_db_storage():
+    """Lazy load DB storage module."""
+    global _db_storage, _db_storage_checked
+    if not _db_storage_checked:
+        _db_storage_checked = True
+        try:
+            from core.nurturing_db import get_nurturing_db_storage, is_db_storage_enabled
+            if is_db_storage_enabled():
+                _db_storage = get_nurturing_db_storage()
+                logger.info("[NURTURING] Database storage enabled (NURTURING_USE_DB=true)")
+            else:
+                logger.info("[NURTURING] Using JSON file storage (NURTURING_USE_DB=false)")
+        except Exception as e:
+            logger.warning(f"[NURTURING] DB storage not available: {e}")
+    return _db_storage
+
 # Base directory for data files (backend/)
 _BASE_DIR = Path(__file__).resolve().parent.parent
 
@@ -162,16 +183,31 @@ class NurturingManager:
         self.storage_path = storage_path
         os.makedirs(storage_path, exist_ok=True)
         self._cache: Dict[str, List[FollowUp]] = {}
+        # Initialize DB storage (lazy loaded)
+        self._db_storage = _get_db_storage()
 
     def _get_file_path(self, creator_id: str) -> str:
         """Obtener ruta del archivo de followups del creador"""
         return os.path.join(self.storage_path, f"{creator_id}_followups.json")
 
     def _load_followups(self, creator_id: str) -> List[FollowUp]:
-        """Cargar followups del creador"""
+        """Cargar followups del creador (DB first, fallback to JSON)"""
         if creator_id in self._cache:
             return self._cache[creator_id]
 
+        # Try DB storage first if available
+        if self._db_storage:
+            try:
+                data = self._db_storage.load_followups(creator_id)
+                if data:
+                    followups = [FollowUp.from_dict(item) for item in data]
+                    self._cache[creator_id] = followups
+                    logger.debug(f"[NURTURING] Loaded {len(followups)} from DB for {creator_id}")
+                    return followups
+            except Exception as e:
+                logger.warning(f"[NURTURING] DB load failed, falling back to JSON: {e}")
+
+        # Fallback to JSON file storage
         file_path = self._get_file_path(creator_id)
         if os.path.exists(file_path):
             try:
@@ -187,14 +223,26 @@ class NurturingManager:
         return []
 
     def _save_followups(self, creator_id: str, followups: List[FollowUp]):
-        """Guardar followups del creador"""
+        """Guardar followups del creador (DB + JSON backup)"""
         self._cache[creator_id] = followups
-        file_path = self._get_file_path(creator_id)
 
+        # Save to DB if available
+        db_saved = False
+        if self._db_storage:
+            try:
+                db_saved = self._db_storage.save_followups(creator_id, followups)
+                if db_saved:
+                    logger.debug(f"[NURTURING] Saved {len(followups)} to DB for {creator_id}")
+            except Exception as e:
+                logger.warning(f"[NURTURING] DB save failed: {e}")
+
+        # Always save to JSON as backup (or primary if DB disabled)
+        file_path = self._get_file_path(creator_id)
         try:
             with open(file_path, 'w', encoding='utf-8') as f:
                 json.dump([fu.to_dict() for fu in followups], f, indent=2, ensure_ascii=False)
-            logger.info(f"[NURTURING] Saved {len(followups)} followups to {file_path}")
+            if not db_saved:
+                logger.info(f"[NURTURING] Saved {len(followups)} followups to {file_path}")
         except Exception as e:
             logger.error(f"Error saving followups for {creator_id}: {e}")
 
@@ -279,6 +327,18 @@ class NurturingManager:
         Returns:
             Lista de followups pendientes listos para enviar
         """
+        # Try DB first for efficient querying
+        if self._db_storage:
+            try:
+                data = self._db_storage.get_pending_followups(creator_id)
+                if data is not None:
+                    pending = [FollowUp.from_dict(item) for item in data]
+                    logger.info(f"[NURTURING] Found {len(pending)} due followups from DB")
+                    return pending
+            except Exception as e:
+                logger.warning(f"[NURTURING] DB query failed, falling back to JSON: {e}")
+
+        # Fallback to JSON file scanning
         pending = []
         now = datetime.now()
 
