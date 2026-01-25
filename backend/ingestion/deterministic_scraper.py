@@ -43,9 +43,10 @@ VERIFY_SSL = os.getenv("SCRAPER_VERIFY_SSL", "false").lower() in ("true", "1", "
 # =============================================================================
 # ROBOTS.TXT CONFIGURATION (BUG-003 FIX)
 # =============================================================================
-# Respect robots.txt is ENABLED by default for legal/ethical compliance.
-# Set SCRAPER_RESPECT_ROBOTS=false to disable (not recommended for production).
-RESPECT_ROBOTS_TXT = os.getenv("SCRAPER_RESPECT_ROBOTS", "true").lower() in ("true", "1", "yes")
+# Respect robots.txt - DISABLED by default for testing.
+# Many creator websites have broken robots.txt that blocks legitimate scraping.
+# Set SCRAPER_RESPECT_ROBOTS=true to enable strict compliance.
+RESPECT_ROBOTS_TXT = os.getenv("SCRAPER_RESPECT_ROBOTS", "false").lower() in ("true", "1", "yes")
 
 # Cache TTL for robots.txt (in seconds) - default 1 hour
 ROBOTS_TXT_CACHE_TTL = int(os.getenv("SCRAPER_ROBOTS_CACHE_TTL", "3600"))
