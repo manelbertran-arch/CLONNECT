@@ -33,7 +33,7 @@ PLAYWRIGHT_TIMEOUT = int(os.getenv("PLAYWRIGHT_TIMEOUT", "30000"))  # 30s defaul
 PLAYWRIGHT_HEADLESS = os.getenv("PLAYWRIGHT_HEADLESS", "true").lower() in ("true", "1", "yes")
 
 # Import SSL config from deterministic_scraper
-VERIFY_SSL = os.getenv("SCRAPER_VERIFY_SSL", "false").lower() in ("true", "1", "yes")
+VERIFY_SSL = os.getenv("SCRAPER_VERIFY_SSL", "true").lower() in ("true", "1", "yes")
 
 
 # =============================================================================
