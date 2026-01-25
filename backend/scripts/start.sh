@@ -77,16 +77,19 @@ echo "Worker class: uvicorn.workers.UvicornWorker"
 
 if [ "$(id -u)" = "0" ]; then
     # Running as root - switch to clonnect user
-    exec su -s /bin/bash clonnect -c "gunicorn api.main:app --workers 4 --worker-class uvicorn.workers.UvicornWorker --bind 0.0.0.0:$PORT --timeout 120 --keep-alive 5 --preload --access-logfile - --error-logfile - --log-level info"
+    # NOTE: Removed --preload to allow healthcheck to pass faster
+    # Each worker loads the app independently (first request will be slower)
+    exec su -s /bin/bash clonnect -c "gunicorn api.main:app --workers 2 --worker-class uvicorn.workers.UvicornWorker --bind 0.0.0.0:$PORT --timeout 180 --keep-alive 5 --access-logfile - --error-logfile - --log-level info"
 else
     # Already running as non-root user
+    # NOTE: Removed --preload to allow healthcheck to pass faster
+    # Reduced workers from 4 to 2 for Railway free tier memory limits
     exec gunicorn api.main:app \
-        --workers 4 \
+        --workers 2 \
         --worker-class uvicorn.workers.UvicornWorker \
         --bind 0.0.0.0:$PORT \
-        --timeout 120 \
+        --timeout 180 \
         --keep-alive 5 \
-        --preload \
         --access-logfile - \
         --error-logfile - \
         --log-level info
