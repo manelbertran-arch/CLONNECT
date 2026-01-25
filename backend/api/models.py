@@ -1,4 +1,4 @@
-from sqlalchemy import Column, String, Integer, Float, Boolean, DateTime, Text, JSON, ForeignKey, Date, Time
+from sqlalchemy import Column, String, Integer, Float, Boolean, DateTime, Text, JSON, ForeignKey, Date, Time, UniqueConstraint, Index
 from sqlalchemy.dialects.postgresql import UUID, ARRAY
 from sqlalchemy.sql import func
 import uuid
@@ -485,7 +485,6 @@ class SyncState(Base):
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
 
 
-# =============================================================================
 # CONVERSATION STATE - Persistent sales funnel state machine
 # =============================================================================
 
@@ -512,5 +511,81 @@ class ConversationStateDB(Base):
     context = Column(JSON, default=dict)  # UserContext serialized as JSON
 
     # Timestamps
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+
+
+# =============================================================================
+# FOLLOWER MEMORY - Persistent follower data for DM conversations
+# =============================================================================
+
+class FollowerMemoryDB(Base):
+    """
+    Persistent follower memory for DM agent.
+    Migrated from JSON files (data/followers/) to PostgreSQL.
+
+    Contains 27 fields matching the FollowerMemory dataclass in dm_agent.py.
+    """
+    __tablename__ = "follower_memories"
+    __table_args__ = (
+        UniqueConstraint('creator_id', 'follower_id', name='uq_follower_memory_creator_follower'),
+        Index('idx_follower_memories_creator_follower', 'creator_id', 'follower_id'),
+        {'extend_existing': True},
+    )
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    creator_id = Column(String(100), nullable=False, index=True)
+    follower_id = Column(String(255), nullable=False, index=True)
+
+    # Basic info
+    username = Column(String(255), default="")
+    name = Column(String(255), default="")
+
+    # Timestamps
+    first_contact = Column(String(50), default="")  # ISO format string
+    last_contact = Column(String(50), default="")   # ISO format string
+
+    # Interaction stats
+    total_messages = Column(Integer, default=0)
+
+    # Profile data (lists stored as JSON)
+    interests = Column(JSON, default=list)
+    products_discussed = Column(JSON, default=list)
+    objections_raised = Column(JSON, default=list)
+
+    # Scoring
+    purchase_intent_score = Column(Float, default=0.0)
+
+    # Status flags
+    is_lead = Column(Boolean, default=False)
+    is_customer = Column(Boolean, default=False)
+    status = Column(String(20), default="new")  # new, active, hot, customer
+
+    # Preferences
+    preferred_language = Column(String(10), default="es")
+
+    # Conversation history (last 20 messages)
+    last_messages = Column(JSON, default=list)
+
+    # Link and objection control
+    links_sent_count = Column(Integer, default=0)
+    last_link_message_num = Column(Integer, default=0)
+    objections_handled = Column(JSON, default=list)
+    arguments_used = Column(JSON, default=list)
+
+    # Greeting variation
+    greeting_variant_index = Column(Integer, default=0)
+
+    # Naturalness fields
+    last_greeting_style = Column(String(100), default="")
+    last_emojis_used = Column(JSON, default=list)
+    messages_since_name_used = Column(Integer, default=0)
+
+    # Alternative contact
+    alternative_contact = Column(String(255), default="")
+    alternative_contact_type = Column(String(50), default="")  # whatsapp, telegram
+    contact_requested = Column(Boolean, default=False)
+
+    # DB timestamps
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
