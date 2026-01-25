@@ -21,6 +21,7 @@ lxml>=5.0.0
 # Utils
 python-dateutil>=2.8.0
 pybreaker>=1.0.0  # Circuit breaker for API calls
+tenacity>=8.0.0  # Retry decorator for API calls
 pytz>=2023.3
 psutil>=5.9.0  # For health checks (memory monitoring)
 
@@ -50,6 +51,7 @@ psycopg2-binary==2.9.9
 bcrypt>=4.0.0
 PyJWT>=2.8.0
 email-validator>=2.0.0
+python-multipart>=0.0.6  # For file uploads in FastAPI
 
 # Monitoring
 sentry-sdk[fastapi]>=1.39.0

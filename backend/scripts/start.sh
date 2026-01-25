@@ -73,9 +73,8 @@ echo "Using uvicorn directly for simpler startup"
 # Using uvicorn directly for faster startup and simpler debugging
 # No gunicorn layer - direct uvicorn with single worker for Railway free tier
 
-# TEMPORARILY use diagnostic app to verify pybreaker is installed
+# Run the main app
 export PATH=/opt/venv/bin:$PATH
 echo "Running as user: $(whoami)"
-echo "PATH: $PATH"
-echo "STARTING DIAGNOSTIC APP"
-exec uvicorn api.minimal:app --host 0.0.0.0 --port $PORT --log-level info
+echo "STARTING MAIN APP"
+exec uvicorn api.main:app --host 0.0.0.0 --port $PORT --log-level info
