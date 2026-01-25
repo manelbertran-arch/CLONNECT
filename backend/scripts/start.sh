@@ -68,29 +68,15 @@ if [ -d /app/data ]; then
 fi
 
 echo "Starting Clonnect Creators API on port $PORT"
-echo "Workers: 4"
-echo "Worker class: uvicorn.workers.UvicornWorker"
+echo "Using uvicorn directly for simpler startup"
 
-# Using gunicorn with uvicorn workers for REAL concurrency
-# --preload: Load app before forking workers (more reliable worker creation)
-# --workers 4: 4 separate processes handling requests in parallel
+# Using uvicorn directly for faster startup and simpler debugging
+# No gunicorn layer - direct uvicorn with single worker for Railway free tier
 
 if [ "$(id -u)" = "0" ]; then
     # Running as root - switch to clonnect user
-    # NOTE: Removed --preload to allow healthcheck to pass faster
-    # Each worker loads the app independently (first request will be slower)
-    exec su -s /bin/bash clonnect -c "gunicorn api.main:app --workers 2 --worker-class uvicorn.workers.UvicornWorker --bind 0.0.0.0:$PORT --timeout 180 --keep-alive 5 --access-logfile - --error-logfile - --log-level info"
+    exec su -s /bin/bash clonnect -c "uvicorn api.main:app --host 0.0.0.0 --port $PORT --log-level info"
 else
     # Already running as non-root user
-    # NOTE: Removed --preload to allow healthcheck to pass faster
-    # Reduced workers from 4 to 2 for Railway free tier memory limits
-    exec gunicorn api.main:app \
-        --workers 2 \
-        --worker-class uvicorn.workers.UvicornWorker \
-        --bind 0.0.0.0:$PORT \
-        --timeout 180 \
-        --keep-alive 5 \
-        --access-logfile - \
-        --error-logfile - \
-        --log-level info
+    exec uvicorn api.main:app --host 0.0.0.0 --port $PORT --log-level info
 fi
