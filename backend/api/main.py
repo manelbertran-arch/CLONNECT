@@ -62,8 +62,10 @@ try:
     from api.models import CalendarBooking as CalendarBookingModel
 
     if DATABASE_URL:
-        init_database()
-        print(f"PostgreSQL connected - SessionLocal={SessionLocal is not None}")
+        # NOTE: init_database() moved to startup_event to not block healthcheck
+        # Tables are created lazily on first request or during startup background task
+        print(f"PostgreSQL configured - SessionLocal={SessionLocal is not None}")
+        print("Database initialization deferred to startup event")
     else:
         print("No DATABASE_URL - using JSON fallback")
 except Exception as e:
@@ -6516,6 +6518,21 @@ async def startup_event():
             logger.info("JSON Fallback: DISABLED - DB errors will raise exceptions")
     else:
         logger.warning("Database: No DATABASE_URL - using JSON files only")
+
+    # Initialize database in background to not block healthcheck
+    # Tables/migrations can take 30-60s on cold start
+    async def init_db_background():
+        await asyncio.sleep(1)  # Let healthcheck pass first
+        try:
+            if db_url:
+                logger.info("Starting database initialization (background)...")
+                init_database()
+                logger.info("Database initialization complete")
+        except Exception as e:
+            logger.error(f"Database initialization failed: {e}")
+
+    asyncio.create_task(init_db_background())
+    logger.info("Database initialization scheduled (background task)")
 
     # Start nurturing scheduler
     try:
