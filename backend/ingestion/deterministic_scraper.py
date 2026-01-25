@@ -412,7 +412,7 @@ class DeterministicScraper:
 
             soup = BeautifulSoup(html, 'html.parser')
 
-            # Extract title
+            # Extract title (will be overridden by Readability if successful)
             title = ""
             if soup.title:
                 title = soup.title.get_text(strip=True)
@@ -423,14 +423,36 @@ class DeterministicScraper:
             # (decompose() destruye elementos permanentemente)
             links = self._extract_links(soup, response_url)
 
-            # Find main content area
-            main_soup = soup.find('main') or soup.find('article') or soup.find('body')
-            if not main_soup:
-                main_soup = soup
+            # Try Readability first for better content extraction
+            main_content = None
+            sections = []
+            readability_used = False
 
-            # Extract content (esto modifica el soup con decompose())
-            main_content = self._extract_text_from_soup(main_soup)
-            sections = self._extract_sections(main_soup)
+            try:
+                from ingestion.content_extractor import extract_with_readability, is_readability_available
+                if is_readability_available():
+                    r_title, r_content, r_success = extract_with_readability(html, response_url)
+                    if r_success and r_content:
+                        main_content = r_content
+                        if r_title:
+                            title = r_title
+                        readability_used = True
+                        logger.debug(f"Readability extracted {len(main_content)} chars from {url}")
+            except ImportError:
+                logger.debug("Readability not available")
+            except Exception as e:
+                logger.warning(f"Readability failed for {url}: {e}")
+
+            # Fallback to manual extraction if Readability didn't work
+            if not readability_used:
+                # Find main content area
+                main_soup = soup.find('main') or soup.find('article') or soup.find('body')
+                if not main_soup:
+                    main_soup = soup
+
+                # Extract content (esto modifica el soup con decompose())
+                main_content = self._extract_text_from_soup(main_soup)
+                sections = self._extract_sections(main_soup)
 
             # Extract metadata
             metadata = {}
@@ -441,6 +463,10 @@ class DeterministicScraper:
             og_image = soup.find('meta', attrs={'property': 'og:image'})
             if og_image and og_image.get('content'):
                 metadata['og_image'] = og_image['content']
+
+            # Track extraction method used
+            if readability_used:
+                metadata['extracted_by'] = 'readability'
 
             # Check if content is too short - might need JavaScript rendering
             if not main_content or len(main_content) < 100:
