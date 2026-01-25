@@ -23,11 +23,11 @@ class TestRerankerModule:
         assert rerank_with_threshold is not None
         assert get_reranker is not None
 
-    def test_reranking_enabled_by_default(self):
-        """Test that reranking is enabled by default"""
+    def test_reranking_disabled_by_default(self):
+        """Test that reranking is disabled by default for Railway compatibility"""
         from core.rag.reranker import ENABLE_RERANKING
-        # Default should be True - precision outweighs latency
-        assert ENABLE_RERANKING == True
+        # Default should be False - Railway can timeout downloading models
+        assert ENABLE_RERANKING == False
 
     def test_rerank_returns_docs_when_disabled(self):
         """Test rerank returns original docs when disabled via module patch"""
@@ -104,13 +104,13 @@ class TestRerankerModule:
 class TestEnhancedSearchPipeline:
     """Tests for enhanced SemanticRAG search pipeline"""
 
-    def test_feature_flags_default_on(self):
-        """Test that feature flags are ON by default"""
+    def test_feature_flags_default_off(self):
+        """Test that feature flags are OFF by default for Railway compatibility"""
         from core.rag.semantic import ENABLE_RERANKING, ENABLE_BM25_HYBRID
 
-        # Both should be True by default - precision outweighs latency
-        assert ENABLE_RERANKING == True
-        assert ENABLE_BM25_HYBRID == True
+        # Both should be False by default - Railway can timeout downloading models
+        assert ENABLE_RERANKING == False
+        assert ENABLE_BM25_HYBRID == False
 
     def test_search_returns_list(self):
         """Test search returns a list"""

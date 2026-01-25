@@ -23,12 +23,12 @@ logger = logging.getLogger(__name__)
 # =============================================================================
 
 # Cross-encoder reranking: improves relevance but adds ~100-200ms
-# Default: TRUE - precision improvement (+20-40%) outweighs latency cost
-ENABLE_RERANKING = os.getenv("ENABLE_RERANKING", "true").lower() == "true"
+# Default: FALSE - Railway can timeout downloading models on cold start
+ENABLE_RERANKING = os.getenv("ENABLE_RERANKING", "false").lower() == "true"
 
 # BM25 hybrid search: combines semantic + lexical search
-# Default: TRUE - better keyword matching for product names and specific terms
-ENABLE_BM25_HYBRID = os.getenv("ENABLE_BM25_HYBRID", "true").lower() == "true"
+# Default: FALSE - Disable to simplify cold start
+ENABLE_BM25_HYBRID = os.getenv("ENABLE_BM25_HYBRID", "false").lower() == "true"
 
 
 @dataclass

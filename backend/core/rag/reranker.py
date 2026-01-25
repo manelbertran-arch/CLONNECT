@@ -13,8 +13,9 @@ from typing import List, Dict, Any, Optional
 logger = logging.getLogger("clonnect.reranker")
 
 # Feature flag para activar/desactivar
-# Default: TRUE - precision improvement (+20-40%) outweighs latency cost
-ENABLE_RERANKING = os.getenv("ENABLE_RERANKING", "true").lower() == "true"
+# Default: FALSE - Railway can timeout downloading models on cold start
+# Set ENABLE_RERANKING=true in env vars once models are cached
+ENABLE_RERANKING = os.getenv("ENABLE_RERANKING", "false").lower() == "true"
 
 # Lazy loading para evitar import pesado al inicio
 _reranker = None

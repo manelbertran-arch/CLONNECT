@@ -18,8 +18,9 @@ from datetime import datetime, timezone
 logger = logging.getLogger("clonnect.semantic_memory")
 
 # Feature flag
-# Feature flag - default true but model is pre-loaded during startup to avoid blocking
-ENABLE_SEMANTIC_MEMORY = os.getenv("ENABLE_SEMANTIC_MEMORY", "true").lower() == "true"
+# Feature flag - default FALSE to avoid model download timeout on Railway cold start
+# Set ENABLE_SEMANTIC_MEMORY=true in env vars once models are cached
+ENABLE_SEMANTIC_MEMORY = os.getenv("ENABLE_SEMANTIC_MEMORY", "false").lower() == "true"
 
 # Lazy loading
 _embeddings_model = None
