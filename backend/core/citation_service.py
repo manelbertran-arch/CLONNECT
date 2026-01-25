@@ -11,6 +11,14 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
+from core.metrics import (
+    record_posts_indexed,
+    record_chunks_saved,
+    start_ingestion,
+    end_ingestion,
+    log_ingestion_complete
+)
+
 from ingestion import (
     Citation,
     CitationContext,
@@ -644,6 +652,10 @@ async def index_creator_posts(creator_id: str, posts: List[Dict], save: bool = T
         Estadisticas de indexacion
     """
     logger.debug(f"[index_creator_posts] Starting for {creator_id} with {len(posts)} posts")
+
+    # Start tracking metrics
+    start_ingestion(creator_id)
+
     index = get_content_index(creator_id)
     logger.debug("[index_creator_posts] Got content index")
 
@@ -682,12 +694,29 @@ async def index_creator_posts(creator_id: str, posts: List[Dict], save: bool = T
         logger.debug(f"[index_creator_posts] Saving {len(index.chunks)} chunks with bulk operations")
         index.save()
 
+    # Record metrics
+    record_posts_indexed(creator_id, posts_processed)
+    if total_chunks > 0:
+        record_chunks_saved(creator_id, total_chunks, "instagram_post")
+
+    # End ingestion tracking
+    duration = end_ingestion(creator_id, total_chunks)
+
     result = {
         "creator_id": creator_id,
         "posts_indexed": posts_processed,
         "total_chunks": total_chunks,
         "index_stats": index.stats,
     }
+
+    # Log structured summary
+    log_ingestion_complete(
+        creator_id=creator_id,
+        posts_indexed=posts_processed,
+        chunks_saved=total_chunks,
+        duration_seconds=duration
+    )
+
     logger.info(f"[index_creator_posts] Done: {result}")
     return result
 
