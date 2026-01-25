@@ -406,3 +406,185 @@ async def get_instagram_ingestion_status(creator_id: str):
     except Exception as e:
         logger.error(f"Status check error: {e}")
         raise HTTPException(status_code=500, detail=str(e))
+
+
+# =============================================================================
+# Debug Endpoints
+# =============================================================================
+
+
+@router.get("/debug/scraper-test")
+async def debug_scraper_test(url: str = "https://www.stefanobonanno.com"):
+    """
+    Diagnóstico paso a paso del scraper.
+
+    Testea cada componente individualmente para identificar
+    dónde falla exactamente.
+    """
+    import os
+    import time
+
+    results = {
+        "url": url,
+        "timestamp": time.strftime("%Y-%m-%d %H:%M:%S"),
+        "steps": [],
+        "config": {},
+        "final_status": "unknown",
+    }
+
+    # Step 0: Config check
+    results["config"] = {
+        "SCRAPER_VERIFY_SSL_env": os.getenv("SCRAPER_VERIFY_SSL", "NOT_SET"),
+        "SCRAPER_RESPECT_ROBOTS_env": os.getenv("SCRAPER_RESPECT_ROBOTS", "NOT_SET"),
+        "PLAYWRIGHT_ENABLED_env": os.getenv("SCRAPER_USE_PLAYWRIGHT", "NOT_SET"),
+    }
+
+    # Step 1: Import check
+    step1 = {"step": 1, "name": "imports", "status": "pending", "details": {}}
+    try:
+        from ingestion.deterministic_scraper import (
+            RESPECT_ROBOTS_TXT,
+            VERIFY_SSL,
+            DeterministicScraper,
+            get_robots_checker,
+            scraper_circuit_breaker,
+        )
+
+        step1["status"] = "ok"
+        step1["details"] = {
+            "VERIFY_SSL_actual": VERIFY_SSL,
+            "RESPECT_ROBOTS_TXT_actual": RESPECT_ROBOTS_TXT,
+            "circuit_breaker_state": scraper_circuit_breaker.current_state,
+            "circuit_breaker_fail_count": scraper_circuit_breaker.fail_counter,
+        }
+    except Exception as e:
+        step1["status"] = "error"
+        step1["details"] = {"error": str(e)}
+    results["steps"].append(step1)
+
+    if step1["status"] == "error":
+        results["final_status"] = "import_error"
+        return results
+
+    # Step 2: Robots.txt check
+    step2 = {"step": 2, "name": "robots_txt", "status": "pending", "details": {}}
+    try:
+        robots_checker = get_robots_checker()
+        is_allowed = robots_checker.is_allowed(url)
+        step2["status"] = "ok" if is_allowed else "blocked"
+        step2["details"] = {
+            "is_allowed": is_allowed,
+            "respect_robots_enabled": RESPECT_ROBOTS_TXT,
+        }
+    except Exception as e:
+        step2["status"] = "error"
+        step2["details"] = {"error": str(e)}
+    results["steps"].append(step2)
+
+    if step2["status"] == "blocked":
+        results["final_status"] = "blocked_by_robots_txt"
+        return results
+
+    # Step 3: Direct HTTP fetch (bypass circuit breaker)
+    step3 = {"step": 3, "name": "http_fetch", "status": "pending", "details": {}}
+    try:
+        import httpx
+
+        async with httpx.AsyncClient(
+            timeout=15.0,
+            follow_redirects=True,
+            verify=VERIFY_SSL,
+            headers={"User-Agent": "Mozilla/5.0 (compatible; ClonnectBot/1.0)"},
+        ) as client:
+            start = time.time()
+            response = await client.get(url)
+            duration = time.time() - start
+
+            step3["status"] = "ok" if response.status_code == 200 else "http_error"
+            step3["details"] = {
+                "status_code": response.status_code,
+                "content_type": response.headers.get("content-type", "unknown"),
+                "content_length": len(response.text),
+                "final_url": str(response.url),
+                "duration_seconds": round(duration, 3),
+                "ssl_verify_used": VERIFY_SSL,
+            }
+    except httpx.ConnectError as e:
+        step3["status"] = "connection_error"
+        step3["details"] = {"error": str(e), "hint": "Check SSL settings or network"}
+    except Exception as e:
+        step3["status"] = "error"
+        step3["details"] = {"error": str(e), "error_type": type(e).__name__}
+    results["steps"].append(step3)
+
+    if step3["status"] != "ok":
+        results["final_status"] = f"http_failed_{step3['status']}"
+        return results
+
+    # Step 4: Full scrape attempt
+    step4 = {"step": 4, "name": "full_scrape", "status": "pending", "details": {}}
+    try:
+        scraper = DeterministicScraper(max_pages=1)
+        start = time.time()
+        page = await scraper.scrape_page(url)
+        duration = time.time() - start
+
+        if page:
+            step4["status"] = "ok"
+            step4["details"] = {
+                "title": page.title[:100] if page.title else None,
+                "content_length": len(page.main_content),
+                "has_content": page.has_content,
+                "sections_count": len(page.sections),
+                "links_count": len(page.links),
+                "duration_seconds": round(duration, 3),
+            }
+        else:
+            step4["status"] = "no_content"
+            step4["details"] = {"page": None, "duration_seconds": round(duration, 3)}
+    except Exception as e:
+        step4["status"] = "error"
+        step4["details"] = {"error": str(e), "error_type": type(e).__name__}
+    results["steps"].append(step4)
+
+    # Step 5: Playwright check
+    step5 = {"step": 5, "name": "playwright", "status": "pending", "details": {}}
+    try:
+        from ingestion.playwright_scraper import get_playwright_scraper, is_playwright_available
+
+        available = is_playwright_available()
+        step5["details"]["is_available"] = available
+
+        if available:
+            pw_scraper = get_playwright_scraper()
+            start = time.time()
+            pw_page = await pw_scraper.scrape_page(url)
+            duration = time.time() - start
+
+            if pw_page:
+                step5["status"] = "ok"
+                step5["details"]["content_length"] = len(pw_page.main_content)
+                step5["details"]["has_content"] = pw_page.has_content
+                step5["details"]["duration_seconds"] = round(duration, 3)
+            else:
+                step5["status"] = "no_content"
+                step5["details"]["duration_seconds"] = round(duration, 3)
+        else:
+            step5["status"] = "not_available"
+    except ImportError as e:
+        step5["status"] = "not_installed"
+        step5["details"] = {"error": str(e)}
+    except Exception as e:
+        step5["status"] = "error"
+        step5["details"] = {"error": str(e), "error_type": type(e).__name__}
+    results["steps"].append(step5)
+
+    # Final status
+    if step4["status"] == "ok":
+        results["final_status"] = "success_deterministic"
+    elif step5["status"] == "ok":
+        results["final_status"] = "success_playwright"
+    else:
+        results["final_status"] = "failed"
+
+    return results
