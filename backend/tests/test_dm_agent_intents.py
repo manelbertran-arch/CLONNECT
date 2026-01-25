@@ -38,17 +38,17 @@ class TestIntentEnum:
             assert hasattr(Intent, intent_name), f"Falta intent: {intent_name}"
 
     def test_intents_requiring_rag_count(self):
-        """Exactamente 14 intents requieren RAG"""
+        """Exactamente 12 intents requieren RAG (V2: INTEREST_SOFT y LEAD_MAGNET usan context injection)"""
         from core.dm_agent import INTENTS_REQUIRING_RAG
 
-        assert len(INTENTS_REQUIRING_RAG) == 14
+        assert len(INTENTS_REQUIRING_RAG) == 12
 
     def test_intents_requiring_rag_content(self):
         """Verificar cuales intents requieren RAG"""
         from core.dm_agent import INTENTS_REQUIRING_RAG, Intent
 
+        # V2: INTEREST_SOFT y LEAD_MAGNET ahora usan context injection (PromptBuilder)
         expected_rag_intents = {
-            Intent.INTEREST_SOFT,
             Intent.INTEREST_STRONG,
             Intent.QUESTION_PRODUCT,
             Intent.QUESTION_GENERAL,
@@ -61,7 +61,6 @@ class TestIntentEnum:
             Intent.OBJECTION_COMPLICATED,
             Intent.OBJECTION_ALREADY_HAVE,
             Intent.SUPPORT,
-            Intent.LEAD_MAGNET,
         }
 
         assert INTENTS_REQUIRING_RAG == expected_rag_intents
@@ -212,7 +211,7 @@ class TestIntentClassification:
             "Cuanto cuesta?",
             "Que incluye?",
             "Cual es el precio?",
-            "Como pago?",  # REAL: se clasifica como QUESTION_PRODUCT
+            # "Como pago?" movido a strong_interest - indica intención de compra
         ]
 
         for msg in product_questions:
