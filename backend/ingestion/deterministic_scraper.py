@@ -10,14 +10,26 @@ Anti-hallucination principles:
 3. No creative interpretation - just structured extraction
 """
 
+import os
 import re
+import ssl
 import logging
 from typing import List, Dict, Optional, Any
 from dataclasses import dataclass, field
 from urllib.parse import urljoin, urlparse
 from datetime import datetime
 
+import httpx
+
 logger = logging.getLogger(__name__)
+
+# =============================================================================
+# SSL CONFIGURATION
+# =============================================================================
+# SSL verification is ENABLED by default for security.
+# Set SCRAPER_VERIFY_SSL=false only for development/testing with self-signed certs.
+# When SSL fails, we log a warning and skip the URL (don't silently disable security).
+VERIFY_SSL = os.getenv("SCRAPER_VERIFY_SSL", "true").lower() in ("true", "1", "yes")
 
 
 @dataclass
@@ -188,7 +200,7 @@ class DeterministicScraper:
             async with httpx.AsyncClient(
                 timeout=self.timeout,
                 follow_redirects=True,
-                verify=False,  # Some sites have SSL cert issues
+                verify=VERIFY_SSL,  # BUG-002 FIX: SSL verification enabled by default
                 headers={
                     "User-Agent": "Mozilla/5.0 (compatible; ClonnectBot/1.0; +https://clonnect.com)"
                 }
@@ -247,6 +259,18 @@ class DeterministicScraper:
 
         except httpx.TimeoutException:
             logger.warning(f"Timeout scraping {url}")
+        except ssl.SSLCertVerificationError as e:
+            # SSL certificate verification failed - log and skip (don't disable security)
+            logger.warning(
+                f"SSL certificate verification failed for {url}: {e}. "
+                f"Skipping URL. Set SCRAPER_VERIFY_SSL=false to disable (not recommended)."
+            )
+        except httpx.ConnectError as e:
+            # Connection error (may include SSL handshake failures)
+            if "SSL" in str(e) or "certificate" in str(e).lower():
+                logger.warning(f"SSL connection error for {url}: {e}")
+            else:
+                logger.warning(f"Connection error for {url}: {e}")
         except Exception as e:
             logger.error(f"Error scraping {url}: {e}")
 
