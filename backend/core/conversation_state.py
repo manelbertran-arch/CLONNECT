@@ -3,16 +3,23 @@ Máquina de Estados Conversacional para Clonnect.
 Gestiona el flujo de venta: INICIO -> CUALIFICACION -> DESCUBRIMIENTO -> PROPUESTA -> OBJECIONES -> CIERRE
 
 v1.6.0 - State Machine Implementation
+v2.0.0 - PostgreSQL Persistence (Phase 2.1)
 """
 
+import os
 from enum import Enum
 from typing import Optional, Dict, List
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, asdict
 from datetime import datetime
 import logging
 import re
 
 logger = logging.getLogger(__name__)
+
+# =============================================================================
+# CONFIGURATION
+# =============================================================================
+PERSIST_CONVERSATION_STATE = os.getenv("PERSIST_CONVERSATION_STATE", "true").lower() == "true"
 
 
 class ConversationPhase(Enum):
@@ -65,7 +72,12 @@ class ConversationState:
 
 
 class StateManager:
-    """Gestiona estados y transiciones."""
+    """
+    Gestiona estados y transiciones.
+
+    v2.0.0: Now persists to PostgreSQL when PERSIST_CONVERSATION_STATE=true.
+    Falls back to in-memory storage if DB is unavailable.
+    """
 
     PHASE_INSTRUCTIONS = {
         ConversationPhase.INICIO: """
@@ -116,15 +128,148 @@ FASE: ESCALAR - Tu objetivo es pasar a humano.
 
     def __init__(self):
         self._states: Dict[str, ConversationState] = {}
+        self._db_available = False
+        self._init_db()
+
+    def _init_db(self) -> None:
+        """Initialize database connection if persistence is enabled."""
+        if not PERSIST_CONVERSATION_STATE:
+            logger.info("[StateManager] Persistence disabled, using in-memory storage")
+            return
+
+        try:
+            from api.database import SessionLocal
+            from api.models import ConversationStateDB
+            self._db_available = True
+            logger.info("[StateManager] PostgreSQL persistence enabled")
+        except ImportError as e:
+            logger.warning(f"[StateManager] DB modules not available: {e}. Using in-memory fallback.")
+        except Exception as e:
+            logger.warning(f"[StateManager] DB init failed: {e}. Using in-memory fallback.")
+
+    def _load_from_db(self, creator_id: str, follower_id: str) -> Optional[ConversationState]:
+        """Load state from database."""
+        if not self._db_available:
+            return None
+
+        try:
+            from api.database import SessionLocal
+            from api.models import ConversationStateDB
+
+            db = SessionLocal()
+            try:
+                db_state = db.query(ConversationStateDB).filter(
+                    ConversationStateDB.creator_id == creator_id,
+                    ConversationStateDB.follower_id == follower_id
+                ).first()
+
+                if db_state:
+                    # Reconstruct UserContext from JSON
+                    context_data = db_state.context or {}
+                    user_context = UserContext(
+                        name=context_data.get('name'),
+                        situation=context_data.get('situation'),
+                        goal=context_data.get('goal'),
+                        constraints=context_data.get('constraints', []),
+                        product_interested=context_data.get('product_interested'),
+                        price_discussed=context_data.get('price_discussed', False),
+                        link_sent=context_data.get('link_sent', False),
+                        objections_raised=context_data.get('objections_raised', [])
+                    )
+
+                    # Convert phase string to enum
+                    phase = ConversationPhase(db_state.phase) if db_state.phase else ConversationPhase.INICIO
+
+                    return ConversationState(
+                        follower_id=follower_id,
+                        creator_id=creator_id,
+                        phase=phase,
+                        context=user_context,
+                        message_count=db_state.message_count or 0,
+                        updated_at=db_state.updated_at or datetime.utcnow()
+                    )
+                return None
+            finally:
+                db.close()
+        except Exception as e:
+            logger.error(f"[StateManager] Error loading from DB: {e}")
+            return None
+
+    def _save_to_db(self, state: ConversationState) -> bool:
+        """Save state to database."""
+        if not self._db_available:
+            return False
+
+        try:
+            from api.database import SessionLocal
+            from api.models import ConversationStateDB
+
+            db = SessionLocal()
+            try:
+                # Check if exists
+                db_state = db.query(ConversationStateDB).filter(
+                    ConversationStateDB.creator_id == state.creator_id,
+                    ConversationStateDB.follower_id == state.follower_id
+                ).first()
+
+                # Serialize UserContext to dict
+                context_dict = {
+                    'name': state.context.name,
+                    'situation': state.context.situation,
+                    'goal': state.context.goal,
+                    'constraints': state.context.constraints,
+                    'product_interested': state.context.product_interested,
+                    'price_discussed': state.context.price_discussed,
+                    'link_sent': state.context.link_sent,
+                    'objections_raised': state.context.objections_raised
+                }
+
+                if db_state:
+                    # Update existing
+                    db_state.phase = state.phase.value
+                    db_state.message_count = state.message_count
+                    db_state.context = context_dict
+                    db_state.updated_at = datetime.utcnow()
+                else:
+                    # Create new
+                    db_state = ConversationStateDB(
+                        creator_id=state.creator_id,
+                        follower_id=state.follower_id,
+                        phase=state.phase.value,
+                        message_count=state.message_count,
+                        context=context_dict
+                    )
+                    db.add(db_state)
+
+                db.commit()
+                return True
+            finally:
+                db.close()
+        except Exception as e:
+            logger.error(f"[StateManager] Error saving to DB: {e}")
+            return False
 
     def get_state(self, follower_id: str, creator_id: str) -> ConversationState:
         """Obtiene o crea estado de conversacion."""
         key = f"{creator_id}:{follower_id}"
-        if key not in self._states:
-            self._states[key] = ConversationState(
-                follower_id=follower_id,
-                creator_id=creator_id
-            )
+
+        # Check memory cache first
+        if key in self._states:
+            return self._states[key]
+
+        # Try loading from DB
+        if self._db_available:
+            db_state = self._load_from_db(creator_id, follower_id)
+            if db_state:
+                self._states[key] = db_state
+                logger.debug(f"[StateManager] Loaded state from DB for {key}")
+                return db_state
+
+        # Create new state
+        self._states[key] = ConversationState(
+            follower_id=follower_id,
+            creator_id=creator_id
+        )
         return self._states[key]
 
     def update_state(self, state: ConversationState, message: str, intent: str, response: str) -> ConversationState:
@@ -150,6 +295,10 @@ FASE: ESCALAR - Tu objetivo es pasar a humano.
 
         # Trackear respuesta
         self._track_response(state, response)
+
+        # Persist to database
+        if self._db_available:
+            self._save_to_db(state)
 
         return state
 

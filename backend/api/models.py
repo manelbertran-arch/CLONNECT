@@ -483,3 +483,34 @@ class SyncState(Base):
     last_error = Column(Text)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+
+
+# =============================================================================
+# CONVERSATION STATE - Persistent sales funnel state machine
+# =============================================================================
+
+class ConversationStateDB(Base):
+    """
+    Persistent conversation state for sales funnel.
+    Migrated from in-memory dict to PostgreSQL for persistence across restarts.
+
+    Stores the state machine position and accumulated user context
+    for each follower-creator pair.
+    """
+    __tablename__ = "conversation_states"
+    __table_args__ = {'extend_existing': True}
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    creator_id = Column(String(100), nullable=False, index=True)
+    follower_id = Column(String(255), nullable=False, index=True)
+
+    # State machine position
+    phase = Column(String(50), default="inicio")  # inicio, cualificacion, descubrimiento, propuesta, objeciones, cierre, escalar
+    message_count = Column(Integer, default=0)
+
+    # User context (accumulated from conversation)
+    context = Column(JSON, default=dict)  # UserContext serialized as JSON
+
+    # Timestamps
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
