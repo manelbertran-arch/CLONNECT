@@ -10,14 +10,112 @@ Soporta 3 metodos:
 
 import json
 import logging
+import os
 import re
 from typing import List, Dict, Optional, Literal
 from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
 
+import pybreaker
+
 logger = logging.getLogger(__name__)
 
+
+# =============================================================================
+# EXCEPTION CLASSES (defined first for circuit breaker configuration)
+# =============================================================================
+
+class InstagramScraperError(Exception):
+    """Error base para el scraper."""
+    pass
+
+
+class RateLimitError(InstagramScraperError):
+    """Error de rate limit."""
+    pass
+
+
+class AuthenticationError(InstagramScraperError):
+    """Error de autenticacion."""
+    pass
+
+
+class CircuitBreakerOpenError(InstagramScraperError):
+    """Raised when circuit breaker is open and rejecting requests."""
+    pass
+
+
+# =============================================================================
+# CIRCUIT BREAKER CONFIGURATION
+# =============================================================================
+# Circuit breaker protects the system when external APIs are failing.
+# After FAILURE_THRESHOLD consecutive failures, the circuit "opens" and
+# rejects requests for RECOVERY_TIMEOUT seconds before testing again.
+
+CIRCUIT_FAILURE_THRESHOLD = int(os.getenv("CIRCUIT_FAILURE_THRESHOLD", "5"))
+CIRCUIT_RECOVERY_TIMEOUT = int(os.getenv("CIRCUIT_RECOVERY_TIMEOUT", "60"))
+
+
+class CircuitBreakerListener(pybreaker.CircuitBreakerListener):
+    """Listener to log circuit breaker state changes."""
+
+    def __init__(self, name: str):
+        self.name = name
+
+    def state_change(self, cb, old_state, new_state):
+        """Log when circuit state changes."""
+        logger.warning(
+            f"Circuit breaker [{self.name}] state changed: {old_state.name} -> {new_state.name}"
+        )
+        if new_state == pybreaker.STATE_OPEN:
+            logger.error(
+                f"Circuit [{self.name}] OPENED - Too many failures. "
+                f"Requests will be rejected for {cb.reset_timeout} seconds."
+            )
+        elif new_state == pybreaker.STATE_HALF_OPEN:
+            logger.info(
+                f"Circuit [{self.name}] HALF-OPEN - Testing if service recovered."
+            )
+        elif new_state == pybreaker.STATE_CLOSED:
+            logger.info(
+                f"Circuit [{self.name}] CLOSED - Service recovered, normal operation resumed."
+            )
+
+    def failure(self, cb, exc):
+        """Log failures tracked by circuit breaker."""
+        logger.debug(
+            f"Circuit [{self.name}] recorded failure ({cb.fail_counter}/{cb.fail_max}): {exc}"
+        )
+
+    def success(self, cb):
+        """Log successful calls (resets failure count)."""
+        if cb.fail_counter > 0:
+            logger.debug(f"Circuit [{self.name}] recorded success, resetting failure counter")
+
+
+# Circuit breaker for Instagram/Meta Graph API
+instagram_circuit_breaker = pybreaker.CircuitBreaker(
+    fail_max=CIRCUIT_FAILURE_THRESHOLD,
+    reset_timeout=CIRCUIT_RECOVERY_TIMEOUT,
+    exclude=[AuthenticationError],  # Don't count auth errors - they won't fix themselves
+    listeners=[CircuitBreakerListener("instagram_api")],
+    name="instagram_api"
+)
+
+# Circuit breaker for Instaloader
+instaloader_circuit_breaker = pybreaker.CircuitBreaker(
+    fail_max=CIRCUIT_FAILURE_THRESHOLD,
+    reset_timeout=CIRCUIT_RECOVERY_TIMEOUT * 2,  # Longer recovery for Instaloader (stricter rate limits)
+    exclude=[AuthenticationError],
+    listeners=[CircuitBreakerListener("instaloader")],
+    name="instaloader"
+)
+
+
+# =============================================================================
+# DATA MODELS
+# =============================================================================
 
 @dataclass
 class InstagramPost:
@@ -38,21 +136,6 @@ class InstagramPost:
     def has_content(self) -> bool:
         """Verifica si el post tiene contenido util para indexar."""
         return bool(self.caption and len(self.caption.strip()) > 10)
-
-
-class InstagramScraperError(Exception):
-    """Error base para el scraper."""
-    pass
-
-
-class RateLimitError(InstagramScraperError):
-    """Error de rate limit."""
-    pass
-
-
-class AuthenticationError(InstagramScraperError):
-    """Error de autenticacion."""
-    pass
 
 
 # =============================================================================
@@ -92,10 +175,58 @@ class MetaGraphAPIScraper:
 
         Returns:
             Lista de InstagramPost
+
+        Raises:
+            CircuitBreakerOpenError: If circuit is open due to too many failures
+            RateLimitError: If API returns 429
+            AuthenticationError: If token is invalid
+        """
+        try:
+            # Circuit breaker wraps the actual API call
+            data = await self._fetch_posts_with_circuit_breaker(limit)
+        except pybreaker.CircuitBreakerError:
+            raise CircuitBreakerOpenError(
+                f"Circuit breaker OPEN for Instagram API. "
+                f"Too many consecutive failures. Try again in {CIRCUIT_RECOVERY_TIMEOUT} seconds."
+            )
+
+        posts = []
+        for item in data.get("data", []):
+            post = self._parse_post(item)
+            if post.has_content:
+                if since and post.timestamp < since:
+                    continue
+                posts.append(post)
+
+                if len(posts) >= limit:
+                    break
+
+        logger.info(f"Obtenidos {len(posts)} posts via Meta Graph API")
+        return posts
+
+    async def _fetch_posts_with_circuit_breaker(self, limit: int) -> Dict:
+        """
+        Fetch posts from Meta Graph API with circuit breaker protection.
+
+        This method is wrapped by the circuit breaker to track failures
+        and prevent cascading failures when the API is down.
         """
         import httpx
 
-        posts = []
+        # Use circuit breaker's call method for async functions
+        return await instagram_circuit_breaker.call_async(
+            self._fetch_media_page,
+            limit
+        )
+
+    async def _fetch_media_page(self, limit: int) -> Dict:
+        """
+        Actual HTTP request to fetch media from Instagram API.
+
+        Separated for circuit breaker wrapping.
+        """
+        import httpx
+
         url = f"{self.BASE_URL}/{self.instagram_business_id}/media"
         params = {
             "access_token": self.access_token,
@@ -104,7 +235,7 @@ class MetaGraphAPIScraper:
         }
 
         try:
-            async with httpx.AsyncClient() as client:
+            async with httpx.AsyncClient(timeout=30.0) as client:
                 response = await client.get(url, params=params)
 
                 if response.status_code == 429:
@@ -113,22 +244,20 @@ class MetaGraphAPIScraper:
                 if response.status_code == 401:
                     raise AuthenticationError("Token de Meta invalido o expirado")
 
-                response.raise_for_status()
-                data = response.json()
+                if response.status_code >= 500:
+                    # Server errors should trip the circuit breaker
+                    raise InstagramScraperError(f"Server error {response.status_code}")
 
-                for item in data.get("data", []):
-                    post = self._parse_post(item)
-                    if post.has_content:
-                        if since and post.timestamp < since:
-                            continue
-                        posts.append(post)
+                if response.status_code >= 400:
+                    # Client errors (except 429/401 handled above) - don't retry
+                    raise InstagramScraperError(
+                        f"Client error {response.status_code}: {response.text[:200]}"
+                    )
 
-                        if len(posts) >= limit:
-                            break
+                return response.json()
 
-                logger.info(f"Obtenidos {len(posts)} posts via Meta Graph API")
-                return posts
-
+        except httpx.TimeoutException as e:
+            raise InstagramScraperError(f"Timeout conectando a Meta API: {e}")
         except httpx.HTTPError as e:
             logger.error(f"Error HTTP en Meta Graph API: {e}")
             raise InstagramScraperError(f"Error de conexion: {e}")
@@ -248,6 +377,35 @@ class InstaloaderScraper:
 
         Returns:
             Lista de InstagramPost
+
+        Raises:
+            CircuitBreakerOpenError: If circuit is open due to too many failures
+            RateLimitError: If Instagram rate limit hit
+        """
+        try:
+            # Circuit breaker wraps the profile fetch
+            return instaloader_circuit_breaker.call(
+                self._fetch_posts_internal,
+                target_username,
+                limit,
+                since,
+                delay_between_posts
+            )
+        except pybreaker.CircuitBreakerError:
+            raise CircuitBreakerOpenError(
+                f"Circuit breaker OPEN for Instaloader. "
+                f"Too many consecutive failures. Try again in {CIRCUIT_RECOVERY_TIMEOUT * 2} seconds."
+            )
+
+    def _fetch_posts_internal(
+        self,
+        target_username: str,
+        limit: int,
+        since: Optional[datetime],
+        delay_between_posts: float
+    ) -> List[InstagramPost]:
+        """
+        Internal method to fetch posts - wrapped by circuit breaker.
         """
         import instaloader
         import time
