@@ -16,6 +16,12 @@ logger = logging.getLogger(__name__)
 EMBEDDING_MODEL = "text-embedding-3-small"
 EMBEDDING_DIMENSIONS = 1536
 
+# Similarity threshold for semantic search
+# Raised from 0.3 to 0.5 to reduce noise in RAG results
+# Lower values = more results but less relevant
+# Higher values = fewer results but more precise
+DEFAULT_MIN_SIMILARITY = float(os.getenv("RAG_MIN_SIMILARITY", "0.5"))
+
 
 def get_openai_client():
     """Get OpenAI client lazily."""
@@ -204,7 +210,7 @@ def search_similar(
     query_embedding: List[float],
     creator_id: str,
     top_k: int = 5,
-    min_similarity: float = 0.3
+    min_similarity: float = None
 ) -> List[dict]:
     """
     Search for similar content using pgvector cosine similarity.
@@ -213,11 +219,15 @@ def search_similar(
         query_embedding: Query vector (1536 floats)
         creator_id: Filter by creator
         top_k: Maximum results
-        min_similarity: Minimum similarity threshold (0-1)
+        min_similarity: Minimum similarity threshold (0-1). Default: RAG_MIN_SIMILARITY env var or 0.5
 
     Returns:
         List of {chunk_id, content, similarity} dicts
     """
+    # Use default from env var if not specified
+    if min_similarity is None:
+        min_similarity = DEFAULT_MIN_SIMILARITY
+
     try:
         from api.database import SessionLocal
         from sqlalchemy import text

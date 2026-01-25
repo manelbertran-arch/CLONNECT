@@ -14,10 +14,13 @@ Si > 20 productos → ABORTAR (algo está mal)
 """
 
 import re
+import time
 import logging
 from typing import List, Dict, Optional, Set
 from dataclasses import dataclass, field
 from enum import Enum
+
+from core.metrics import record_products_detected, observe_extract_duration, record_ingestion_error
 
 logger = logging.getLogger(__name__)
 
@@ -397,12 +400,13 @@ class ProductDetector:
         r'transformación', r'cambio de vida',
     ]
 
-    def detect_products(self, pages: List['ScrapedPage']) -> List[DetectedProduct]:
+    def detect_products(self, pages: List['ScrapedPage'], creator_id: str = "unknown") -> List[DetectedProduct]:
         """
         Detecta productos reales usando sistema de señales.
 
         Args:
             pages: Páginas scrapeadas
+            creator_id: Creator ID for metrics tracking
 
         Returns:
             Lista de productos detectados (solo los verificados)
@@ -411,6 +415,7 @@ class ProductDetector:
             SuspiciousExtractionError: Si se detectan > MAX_PRODUCTS
         """
         from ..deterministic_scraper import ScrapedPage
+        start_time = time.time()
 
         # 1. Identificar páginas de servicio
         service_pages = self._identify_service_pages(pages)
@@ -437,11 +442,17 @@ class ProductDetector:
 
         # 4. SANITY CHECK: Si hay demasiados, abortar
         if len(candidates) > self.MAX_PRODUCTS:
+            record_ingestion_error("too_many_products")
             raise SuspiciousExtractionError(
                 f"Se detectaron {len(candidates)} productos. "
                 f"Máximo esperado: {self.MAX_PRODUCTS}. "
                 "Esto indica un error en la detección. Abortando."
             )
+
+        # Record metrics
+        duration = time.time() - start_time
+        observe_extract_duration("products", duration)
+        record_products_detected(creator_id, len(candidates))
 
         logger.info(f"Total productos verificados: {len(candidates)}")
         return candidates
