@@ -527,6 +527,14 @@ async def debug_scraper_test(url: str = "https://www.stefanobonanno.com"):
         scraper = DeterministicScraper(max_pages=1)
         step4["details"]["scraper_created"] = True
 
+        # First, manually test the HTTP fetch through circuit breaker
+        try:
+            html_result, response_url = await scraper._fetch_page_with_circuit_breaker(url)
+            step4["details"]["cb_fetch_html_length"] = len(html_result) if html_result else 0
+            step4["details"]["cb_fetch_response_url"] = response_url
+        except Exception as cb_err:
+            step4["details"]["cb_fetch_error"] = str(cb_err)
+
         start = time.time()
         try:
             page = await scraper.scrape_page(url)
@@ -544,28 +552,24 @@ async def debug_scraper_test(url: str = "https://www.stefanobonanno.com"):
             return results
 
         duration = time.time() - start
+        step4["details"]["duration_seconds"] = round(duration, 3)
 
         if page:
             step4["status"] = "ok"
-            step4["details"] = {
-                "title": page.title[:100] if page.title else None,
-                "content_length": len(page.main_content),
-                "has_content": page.has_content,
-                "sections_count": len(page.sections),
-                "links_count": len(page.links),
-                "duration_seconds": round(duration, 3),
-                "metadata": page.metadata,
-            }
+            step4["details"]["title"] = page.title[:100] if page.title else None
+            step4["details"]["content_length"] = len(page.main_content)
+            step4["details"]["has_content"] = page.has_content
+            step4["details"]["sections_count"] = len(page.sections)
+            step4["details"]["links_count"] = len(page.links)
+            step4["details"]["metadata"] = page.metadata
         else:
             step4["status"] = "no_content"
-            step4["details"] = {
-                "page": None,
-                "duration_seconds": round(duration, 3),
-                "note": "scrape_page returned None - check if URL was skipped, blocked by robots.txt, or HTTP fetch failed",
-            }
+            step4["details"]["page"] = None
+            step4["details"]["note"] = "scrape_page returned None"
     except Exception as e:
         step4["status"] = "error"
-        step4["details"] = {"error": str(e), "error_type": type(e).__name__}
+        step4["details"]["error"] = str(e)
+        step4["details"]["error_type"] = type(e).__name__
         import traceback
 
         step4["details"]["traceback"] = traceback.format_exc()[:500]

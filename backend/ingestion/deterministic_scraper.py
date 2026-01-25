@@ -468,6 +468,7 @@ class DeterministicScraper:
                 metadata['extracted_by'] = 'readability'
 
             # Check if content is too short - might need JavaScript rendering
+            logger.info(f"Content check: main_content={len(main_content) if main_content else 0} chars, threshold=100")
             if not main_content or len(main_content) < 100:
                 logger.info(f"Content too short ({len(main_content) if main_content else 0} chars), trying Playwright for {url}")
                 try:
