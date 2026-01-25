@@ -20,7 +20,13 @@ from core.analytics import detect_platform, get_analytics_manager
 from core.bot_question_analyzer import QuestionType, get_bot_question_analyzer, is_short_affirmation
 from core.cache import get_response_cache
 from core.citation_service import get_citation_prompt_section
+from core.context_detector import DetectedContext, detect_all
 from core.creator_config import CreatorConfigManager
+
+# =============================================================================
+# FASE 6: Context Injection Modules (refactor/context-injection-v2)
+# =============================================================================
+from core.creator_data_loader import CreatorData, get_creator_data
 from core.gdpr import ConsentType, get_gdpr_manager
 from core.guardrails import get_response_guardrail
 from core.i18n import DEFAULT_LANGUAGE, detect_language, get_i18n_manager, translate_response
@@ -35,7 +41,9 @@ from core.metrics import (
 )
 from core.notifications import EscalationNotification, get_notification_service
 from core.nurturing import get_nurturing_manager, should_schedule_nurturing
+from core.output_validator import validate_response
 from core.personalized_ranking import adapt_system_prompt, personalize_results
+from core.prompt_builder import build_system_prompt as build_context_prompt
 
 # =============================================================================
 # Personalization Modules (Memory Engine Migration)
@@ -46,6 +54,7 @@ from core.reasoning import get_chain_of_thought_reasoner, get_self_consistency_v
 from core.sales_tracker import get_sales_tracker
 from core.semantic_memory import ENABLE_SEMANTIC_MEMORY, get_conversation_memory
 from core.tone_service import get_tone_dialect, get_tone_language, get_tone_prompt_section
+from core.user_context_loader import UserContext, get_user_context
 from core.user_profiles import get_user_profile
 
 # PostgreSQL integration
@@ -131,6 +140,13 @@ def retry_db_operation(max_retries: int = 3, delay: float = 0.5, operation_name:
 
 # Configuration: Set to True to require consent before processing
 REQUIRE_CONSENT = os.getenv("REQUIRE_GDPR_CONSENT", "false").lower() == "true"
+
+# =============================================================================
+# FASE 6: Context Injection Toggle (refactor/context-injection-v2)
+# Set to True to enable new context injection flow (97% LLM)
+# Set to False to rollback to legacy fast paths (45% LLM)
+# =============================================================================
+ENABLE_CONTEXT_INJECTION_V2 = os.getenv("ENABLE_CONTEXT_INJECTION_V2", "true").lower() == "true"
 
 
 def get_valid_payment_url(product: Dict[str, Any]) -> str:
@@ -4351,15 +4367,22 @@ USA ESTA RESPUESTA PARA LA OBJECION (adaptala a tu tono):
             logger.info(f"Meta-message detected: {action} - {instruction[:50]}...")
 
             if action == "USER_FRUSTRATED":
-                # Respuesta de recuperación empática
-                response_text = "Perdona si no te he entendido bien. Cuéntame de nuevo qué necesitas y te ayudo ahora mismo."
-                await self._update_memory(follower, message_text, response_text, Intent.OTHER)
-                return DMResponse(
-                    response_text=response_text,
-                    intent=Intent.OTHER,
-                    confidence=0.95,
-                    metadata={"meta_action": "frustrated_recovery"},
-                )
+                # === FASE 6: Fast path comentado - ahora se inyecta contexto al LLM ===
+                if not ENABLE_CONTEXT_INJECTION_V2:
+                    # Respuesta de recuperación empática (LEGACY)
+                    response_text = "Perdona si no te he entendido bien. Cuéntame de nuevo qué necesitas y te ayudo ahora mismo."
+                    await self._update_memory(follower, message_text, response_text, Intent.OTHER)
+                    return DMResponse(
+                        response_text=response_text,
+                        intent=Intent.OTHER,
+                        confidence=0.95,
+                        metadata={"meta_action": "frustrated_recovery"},
+                    )
+                else:
+                    # V2: Let ContextDetector handle frustration, inject into prompt
+                    logger.info(
+                        "[CONTEXT_INJECTION_V2] USER_FRUSTRATED detected - will inject to prompt"
+                    )
 
             elif action == "REVIEW_HISTORY":
                 # Inyectar contexto en el mensaje para que el LLM lo vea
@@ -4378,15 +4401,22 @@ USA ESTA RESPUESTA PARA LA OBJECION (adaptala a tu tono):
                 logger.info(f"Injected implicit reference context")
 
             elif action == "SARCASM_DETECTED":
-                # Respuesta empática para sarcasmo
-                response_text = "Entiendo que estás frustrado. Perdona si no te he ayudado bien. ¿Qué puedo hacer para ayudarte de verdad?"
-                await self._update_memory(follower, message_text, response_text, Intent.OTHER)
-                return DMResponse(
-                    response_text=response_text,
-                    intent=Intent.OTHER,
-                    confidence=0.90,
-                    metadata={"meta_action": "sarcasm_recovery"},
-                )
+                # === FASE 6: Fast path comentado - ahora se inyecta contexto al LLM ===
+                if not ENABLE_CONTEXT_INJECTION_V2:
+                    # Respuesta empática para sarcasmo (LEGACY)
+                    response_text = "Entiendo que estás frustrado. Perdona si no te he ayudado bien. ¿Qué puedo hacer para ayudarte de verdad?"
+                    await self._update_memory(follower, message_text, response_text, Intent.OTHER)
+                    return DMResponse(
+                        response_text=response_text,
+                        intent=Intent.OTHER,
+                        confidence=0.90,
+                        metadata={"meta_action": "sarcasm_recovery"},
+                    )
+                else:
+                    # V2: Let ContextDetector handle sarcasm, inject into prompt
+                    logger.info(
+                        "[CONTEXT_INJECTION_V2] SARCASM_DETECTED detected - will inject to prompt"
+                    )
 
         # Clasificar intent con contexto conversacional
         _t_intent = time.time()
@@ -4394,8 +4424,63 @@ USA ESTA RESPUESTA PARA LA OBJECION (adaptala a tu tono):
         logger.info(f"⏱️ _classify_intent took {time.time() - _t_intent:.2f}s")
         logger.info(f"Intent: {intent.value} ({confidence:.0%})")
 
+        # =============================================================================
+        # FASE 6: Context Injection V2 Flow
+        # Load all context and inject into LLM prompt instead of using fast paths
+        # =============================================================================
+        creator_data = None
+        user_context = None
+        detected_context = None
+
+        if ENABLE_CONTEXT_INJECTION_V2:
+            try:
+                _t_ctx = time.time()
+
+                # 1. Load creator data (products, prices, links, config) - cached 5min
+                creator_data = get_creator_data(self.creator_id)
+                logger.info(
+                    f"[CONTEXT_INJECTION_V2] Creator data loaded: {len(creator_data.products)} products"
+                )
+
+                # 2. Load user context (profile, history, preferences) - cached 1min
+                user_context = get_user_context(
+                    self.creator_id, follower, follower.last_messages or []
+                )
+                logger.info(
+                    f"[CONTEXT_INJECTION_V2] User context loaded: name={user_context.name}, messages={user_context.total_messages}"
+                )
+
+                # 3. Detect context (frustration, sarcasm, B2B, interest level)
+                is_first_message = (follower.total_messages or 0) <= 1
+                detected_context = detect_all(
+                    message_text, follower.last_messages or [], is_first_message
+                )
+                logger.info(
+                    f"[CONTEXT_INJECTION_V2] Context detected: sentiment={detected_context.sentiment}, "
+                    f"frustration={detected_context.frustration_level}, b2b={detected_context.is_b2b}, "
+                    f"intent={detected_context.intent.value if detected_context.intent else 'none'}"
+                )
+
+                logger.info(f"⏱️ context_injection_load took {time.time() - _t_ctx:.2f}s")
+
+            except Exception as ctx_error:
+                logger.error(f"[CONTEXT_INJECTION_V2] Failed to load context: {ctx_error}")
+                import traceback
+
+                traceback.print_exc()
+                # Fall back to legacy fast paths on error
+                creator_data = None
+                user_context = None
+                detected_context = None
+
+        # =============================================================================
+        # LEGACY FAST PATHS vs CONTEXT INJECTION V2
+        # When V2 is enabled with valid context, skip fast paths and let LLM handle
+        # =============================================================================
+        use_legacy_fast_paths = not ENABLE_CONTEXT_INJECTION_V2 or detected_context is None
+
         # Verificar escalación
-        if intent == Intent.ESCALATION:
+        if intent == Intent.ESCALATION and use_legacy_fast_paths:
             response_text = self._get_escalation_response()
             await self._update_memory(follower, message_text, response_text, intent)
 
@@ -4431,7 +4516,7 @@ USA ESTA RESPUESTA PARA LA OBJECION (adaptala a tu tono):
             )
 
         # Verificar si quiere agendar una llamada
-        if intent == Intent.BOOKING:
+        if intent == Intent.BOOKING and use_legacy_fast_paths:
             booking_links = self._load_booking_links()
             user_language = follower.preferred_language or "es"
 
@@ -4462,7 +4547,7 @@ USA ESTA RESPUESTA PARA LA OBJECION (adaptala a tu tono):
             )
 
         # === INTEREST_STRONG: Usuario quiere comprar - dar link de pago ===
-        if intent == Intent.INTEREST_STRONG:
+        if intent == Intent.INTEREST_STRONG and use_legacy_fast_paths:
             # Get payment links from products
             payment_products = []
             for p in self.products:
@@ -4551,7 +4636,7 @@ USA ESTA RESPUESTA PARA LA OBJECION (adaptala a tu tono):
         direct_payment_response = self._handle_direct_payment_question(
             message_text, other_payment_methods, follower.preferred_language
         )
-        if direct_payment_response:
+        if direct_payment_response and use_legacy_fast_paths:
             logger.info(f"=== DIRECT PAYMENT RESPONSE (NO LLM) ===")
             logger.info(f"Message: {message_text}")
             logger.info(f"Response: {direct_payment_response}")
@@ -4596,7 +4681,7 @@ USA ESTA RESPUESTA PARA LA OBJECION (adaptala a tu tono):
         ]
         is_price_question = any(kw in msg_lower for kw in price_keywords)
 
-        if is_price_question:
+        if is_price_question and use_legacy_fast_paths:
             # Get products with actual prices (filter out FAQ/content items)
             priced_products = [p for p in self.products if (p.get("price") or 0) > 0]
 
@@ -4679,7 +4764,11 @@ USA ESTA RESPUESTA PARA LA OBJECION (adaptala a tu tono):
         # === FAST PATH: Compra directa ===
         # Cuando usuario QUIERE COMPRAR, solo dar el link - NO volver a vender
         # EXCEPTION: Skip if intent is THANKS - "Perfecto gracias" should not trigger purchase
-        if is_direct_purchase_intent(message_text) and intent != Intent.THANKS:
+        if (
+            is_direct_purchase_intent(message_text)
+            and intent != Intent.THANKS
+            and use_legacy_fast_paths
+        ):
             logger.info(f"=== DIRECT PURCHASE INTENT DETECTED ===")
             logger.info(f"Message: {message_text}")
             logger.info(
@@ -4852,7 +4941,7 @@ USA ESTA RESPUESTA PARA LA OBJECION (adaptala a tu tono):
         # FAST PATH: INTEREST_SOFT sin RAG → Mostrar productos disponibles
         # En lugar de escalar, dar información útil sobre los productos
         # =============================================================================
-        if intent == Intent.INTEREST_SOFT:
+        if intent == Intent.INTEREST_SOFT and use_legacy_fast_paths:
             priced_products = [p for p in self.products if (p.get("price") or 0) > 0]
             if priced_products:
                 # Get featured or first priced product
@@ -4887,7 +4976,7 @@ USA ESTA RESPUESTA PARA LA OBJECION (adaptala a tu tono):
         # =============================================================================
         # FAST PATH: LEAD_MAGNET → Buscar contenido gratuito o informar que no hay
         # =============================================================================
-        if intent == Intent.LEAD_MAGNET:
+        if intent == Intent.LEAD_MAGNET and use_legacy_fast_paths:
             # Look for actual lead magnet products (price=0 and marked as lead_magnet)
             lead_magnets = [
                 p
@@ -4925,7 +5014,7 @@ USA ESTA RESPUESTA PARA LA OBJECION (adaptala a tu tono):
         # =============================================================================
         # FAST PATH: THANKS después de BOOKING → Solo agradecer, no vender
         # =============================================================================
-        if intent == Intent.THANKS:
+        if intent == Intent.THANKS and use_legacy_fast_paths:
             logger.info(
                 f"[THANKS] Checking for post-booking context. USE_POSTGRES={USE_POSTGRES}, db_service={db_service is not None}"
             )
@@ -4999,8 +5088,9 @@ USA ESTA RESPUESTA PARA LA OBJECION (adaptala a tu tono):
         # =============================================================================
         # ANTI-ALUCINACIÓN: Verificar si el intent requiere contenido RAG
         # Si requiere RAG y no hay contenido relevante → Escalar al creador
+        # NOTE: V2 uses OutputValidator for anti-hallucination instead
         # =============================================================================
-        if intent in INTENTS_REQUIRING_RAG:
+        if intent in INTENTS_REQUIRING_RAG and use_legacy_fast_paths:
             from core.citation_service import get_citation_prompt_section
 
             # Buscar contenido relevante en RAG
@@ -5071,40 +5161,91 @@ USA ESTA RESPUESTA PARA LA OBJECION (adaptala a tu tono):
         import time
 
         _t0 = time.time()
-        system_prompt = self._build_system_prompt(message=message_text)
-        logger.info(f"⏱️ _build_system_prompt took {time.time() - _t0:.2f}s")
 
         # =============================================================================
-        # PERSONALIZATION: Adapt system prompt based on user profile
+        # FASE 6: Use new PromptBuilder when V2 is enabled
         # =============================================================================
-        if user_profile:
+        if (
+            ENABLE_CONTEXT_INJECTION_V2
+            and creator_data is not None
+            and user_context is not None
+            and detected_context is not None
+        ):
+            # V2: Use new PromptBuilder with full context injection
             try:
-                system_prompt = adapt_system_prompt(system_prompt, user_profile)
-                logger.debug("System prompt personalized based on user profile")
-            except Exception as e:
-                logger.warning(f"Failed to personalize system prompt: {e}")
+                # Get RAG content for the prompt
+                from core.citation_service import get_citation_prompt_section
 
-        # Add user context (name, preferences) to system prompt
-        user_context_parts = []
-        if follower.name:
-            user_context_parts.append(
-                f"- NOMBRE del usuario: {follower.name} (SIEMPRE úsalo cuando le hables)"
-            )
-        if follower.preferred_language and follower.preferred_language != "es":
-            user_context_parts.append(f"- Idioma preferido: {follower.preferred_language}")
-        if follower.products_discussed:
-            user_context_parts.append(
-                f"- Productos que le interesan: {', '.join(follower.products_discussed[-3:])}"
-            )
+                rag_content = (
+                    get_citation_prompt_section(self.creator_id, message_text, min_relevance=0.25)
+                    or ""
+                )
 
-        if user_context_parts:
-            user_context = (
-                "\n\n=== CONTEXTO DEL USUARIO (IMPORTANTE) ===\n"
-                + "\n".join(user_context_parts)
-                + "\n=== FIN CONTEXTO ==="
-            )
-            system_prompt += user_context
-            logger.info(f"Added user context to prompt: name={follower.name}")
+                system_prompt = build_context_prompt(
+                    creator_data=creator_data,
+                    user_context=user_context,
+                    detected_context=detected_context,
+                    rag_content=rag_content,
+                    include_rag=bool(rag_content),
+                    include_conversion_instructions=True,
+                )
+                logger.info(
+                    f"[CONTEXT_INJECTION_V2] Built prompt with PromptBuilder: {len(system_prompt)} chars"
+                )
+
+                # Personalization still applies on top
+                if user_profile:
+                    try:
+                        system_prompt = adapt_system_prompt(system_prompt, user_profile)
+                        logger.debug("System prompt personalized based on user profile")
+                    except Exception as e:
+                        logger.warning(f"Failed to personalize system prompt: {e}")
+
+            except Exception as pb_error:
+                logger.error(f"[CONTEXT_INJECTION_V2] PromptBuilder failed: {pb_error}")
+                import traceback
+
+                traceback.print_exc()
+                # Fall back to legacy prompt builder
+                system_prompt = self._build_system_prompt(message=message_text)
+                logger.info(f"[CONTEXT_INJECTION_V2] Fell back to legacy prompt builder")
+        else:
+            # Legacy: Use original _build_system_prompt
+            system_prompt = self._build_system_prompt(message=message_text)
+
+            # =============================================================================
+            # PERSONALIZATION: Adapt system prompt based on user profile
+            # =============================================================================
+            if user_profile:
+                try:
+                    system_prompt = adapt_system_prompt(system_prompt, user_profile)
+                    logger.debug("System prompt personalized based on user profile")
+                except Exception as e:
+                    logger.warning(f"Failed to personalize system prompt: {e}")
+
+            # Add user context (name, preferences) to system prompt
+            user_context_parts = []
+            if follower.name:
+                user_context_parts.append(
+                    f"- NOMBRE del usuario: {follower.name} (SIEMPRE úsalo cuando le hables)"
+                )
+            if follower.preferred_language and follower.preferred_language != "es":
+                user_context_parts.append(f"- Idioma preferido: {follower.preferred_language}")
+            if follower.products_discussed:
+                user_context_parts.append(
+                    f"- Productos que le interesan: {', '.join(follower.products_discussed[-3:])}"
+                )
+
+            if user_context_parts:
+                user_context_section = (
+                    "\n\n=== CONTEXTO DEL USUARIO (IMPORTANTE) ===\n"
+                    + "\n".join(user_context_parts)
+                    + "\n=== FIN CONTEXTO ==="
+                )
+                system_prompt += user_context_section
+                logger.info(f"Added user context to prompt: name={follower.name}")
+
+        logger.info(f"⏱️ _build_system_prompt took {time.time() - _t0:.2f}s")
 
         # Add semantic memory context if available
         if semantic_context:
@@ -5354,6 +5495,49 @@ USA ESTA RESPUESTA PARA LA OBJECION (adaptala a tu tono):
 
                 # 3. EXTRA AGRESIVO: Si es respuesta de pago alternativo, solo primera frase + CTA
                 response_text = truncate_payment_response(response_text)
+
+                # =============================================================================
+                # FASE 6: OutputValidator when V2 is enabled
+                # Validates prices, links, products to prevent hallucinations
+                # =============================================================================
+                if ENABLE_CONTEXT_INJECTION_V2 and creator_data is not None:
+                    try:
+                        validation_result = validate_response(
+                            response=response_text,
+                            creator_data=creator_data,
+                            detected_context=detected_context,
+                            auto_correct=True,
+                            max_chars=400,
+                        )
+
+                        if validation_result.is_valid:
+                            response_text = validation_result.corrected_response
+                            logger.info(
+                                f"[CONTEXT_INJECTION_V2] Response validated: "
+                                f"price_valid={validation_result.price_valid}, "
+                                f"links_valid={validation_result.links_valid}, "
+                                f"products_valid={validation_result.products_valid}"
+                            )
+                        else:
+                            # Response has issues - use corrected version or log warnings
+                            response_text = validation_result.corrected_response
+                            logger.warning(
+                                f"[CONTEXT_INJECTION_V2] Response corrected: "
+                                f"issues={validation_result.issues}, "
+                                f"corrections={validation_result.corrections}"
+                            )
+
+                            # Track validation issues for monitoring
+                            if validation_result.issues:
+                                for issue in validation_result.issues:
+                                    logger.warning(f"[VALIDATION_ISSUE] {issue}")
+
+                    except Exception as val_error:
+                        logger.error(f"[CONTEXT_INJECTION_V2] OutputValidator failed: {val_error}")
+                        import traceback
+
+                        traceback.print_exc()
+                        # Continue with unvalidated response
 
                 # === SELF-CONSISTENCY CHECK ===
                 # Validate response confidence before sending
