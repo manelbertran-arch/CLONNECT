@@ -637,3 +637,43 @@ class UserProfileDB(Base):
     # DB timestamps
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+
+
+# =============================================================================
+# CONVERSATION EMBEDDINGS - Semantic Memory for Long-term Conversation Context
+# =============================================================================
+
+class ConversationEmbedding(Base):
+    """
+    Conversation embeddings for semantic search over message history.
+    Enables the bot to remember and recall context from ANY point in conversation.
+
+    Use case: User asks "What did you tell me about my business 2 months ago?"
+    -> Semantic search finds relevant messages by meaning, not just recency.
+
+    NOTE: The 'embedding' column (vector(1536)) is NOT in this model because
+    SQLAlchemy doesn't natively support pgvector. Vector operations are done
+    via raw SQL (same pattern as core/embeddings.py).
+    """
+    __tablename__ = "conversation_embeddings"
+    __table_args__ = (
+        Index('idx_conv_emb_creator_follower', 'creator_id', 'follower_id'),
+        {'extend_existing': True},
+    )
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    creator_id = Column(String(100), nullable=False, index=True)
+    follower_id = Column(String(255), nullable=False, index=True)
+
+    # Message data
+    message_role = Column(String(20), nullable=False)  # 'user' or 'assistant'
+    content = Column(Text, nullable=False)
+
+    # Note: embedding column (vector(1536)) exists in DB but not in model
+    # Vector operations handled via raw SQL in semantic_memory_pgvector.py
+
+    # Metadata (intent, products mentioned, etc.)
+    msg_metadata = Column(JSON, default=dict)
+
+    # Timestamp
+    created_at = Column(DateTime(timezone=True), server_default=func.now())

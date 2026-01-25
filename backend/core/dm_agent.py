@@ -53,6 +53,10 @@ from core.rate_limiter import get_rate_limiter
 from core.reasoning import get_chain_of_thought_reasoner, get_self_consistency_validator
 from core.sales_tracker import get_sales_tracker
 from core.semantic_memory import ENABLE_SEMANTIC_MEMORY, get_conversation_memory
+from core.semantic_memory_pgvector import (
+    ENABLE_SEMANTIC_MEMORY_PGVECTOR,
+    get_semantic_memory as get_semantic_memory_pgvector
+)
 from core.tone_service import get_tone_dialect, get_tone_language, get_tone_prompt_section
 from core.user_context_loader import UserContext, get_user_context
 from core.user_profiles import get_user_profile
@@ -4851,7 +4855,23 @@ USA ESTA RESPUESTA PARA LA OBJECION (adaptala a tu tono):
             user_profile = get_user_profile(sender_id, self.creator_id)
             logger.info(f"⏱️ get_user_profile took {time.time() - _t_prof:.2f}s")
 
-            if ENABLE_SEMANTIC_MEMORY:
+            # Try pgvector semantic memory first (preferred), fall back to ChromaDB
+            if ENABLE_SEMANTIC_MEMORY_PGVECTOR:
+                _t_sem = time.time()
+                semantic_memory = get_semantic_memory_pgvector(self.creator_id, sender_id)
+                logger.info(f"⏱️ get_semantic_memory_pgvector took {time.time() - _t_sem:.2f}s")
+
+                _t_ctx = time.time()
+                semantic_context = semantic_memory.get_context_for_response(message_text)
+                logger.info(f"⏱️ get_context_for_response (pgvector) took {time.time() - _t_ctx:.2f}s")
+
+                if semantic_context:
+                    logger.debug(
+                        f"Semantic memory context (pgvector) retrieved ({len(semantic_context)} chars)"
+                    )
+
+            elif ENABLE_SEMANTIC_MEMORY:
+                # Fallback to ChromaDB-based semantic memory
                 _t_sem = time.time()
                 semantic_memory = get_conversation_memory(sender_id, self.creator_id)
                 logger.info(f"⏱️ get_conversation_memory took {time.time() - _t_sem:.2f}s")
@@ -6370,10 +6390,16 @@ INSTRUCCIONES:
                 if product and product.get("id"):
                     user_profile.add_interested_product(product["id"], product.get("name"))
 
-            if semantic_memory and ENABLE_SEMANTIC_MEMORY:
-                semantic_memory.add_message("user", message_text)
-                semantic_memory.add_message("assistant", response_text)
-                logger.debug("Messages saved to semantic memory")
+            # Save messages to semantic memory (pgvector or ChromaDB)
+            if semantic_memory:
+                if ENABLE_SEMANTIC_MEMORY_PGVECTOR:
+                    semantic_memory.add_message("user", message_text)
+                    semantic_memory.add_message("assistant", response_text)
+                    logger.debug("Messages saved to semantic memory (pgvector)")
+                elif ENABLE_SEMANTIC_MEMORY:
+                    semantic_memory.add_message("user", message_text)
+                    semantic_memory.add_message("assistant", response_text)
+                    logger.debug("Messages saved to semantic memory (ChromaDB)")
         except Exception as e:
             logger.warning(f"Failed to update personalization data: {e}")
 
