@@ -37,6 +37,7 @@ python-dateutil>=2.8.0
 pytz>=2023.3
 psutil>=5.9.0
 requests>=2.31.0
+tenacity>=8.2.0  # Retry with exponential backoff
 
 # Phase 2 - Media Connectors
 yt-dlp>=2024.1.0

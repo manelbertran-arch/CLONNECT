@@ -16,7 +16,49 @@ from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
 
+import httpx
+from tenacity import (
+    retry,
+    stop_after_attempt,
+    wait_exponential,
+    retry_if_exception_type,
+    before_sleep_log,
+    RetryError
+)
+
 logger = logging.getLogger(__name__)
+
+
+# =============================================================================
+# RETRY CONFIGURATION
+# =============================================================================
+
+# Retry settings for Meta Graph API
+MAX_RETRY_ATTEMPTS = 5
+RETRY_MIN_WAIT_SECONDS = 2
+RETRY_MAX_WAIT_SECONDS = 60
+
+
+class TransientAPIError(Exception):
+    """Transient error that should be retried (5xx, timeout)."""
+    pass
+
+
+def _is_retryable_exception(exception: BaseException) -> bool:
+    """Determine if an exception should trigger a retry."""
+    # Rate limit - always retry
+    if isinstance(exception, RateLimitError):
+        return True
+    # Transient server errors - retry
+    if isinstance(exception, TransientAPIError):
+        return True
+    # HTTP timeout - retry
+    if isinstance(exception, httpx.TimeoutException):
+        return True
+    # Connection errors - retry
+    if isinstance(exception, httpx.ConnectError):
+        return True
+    return False
 
 
 @dataclass
@@ -65,6 +107,11 @@ class MetaGraphAPIScraper:
     Requiere: Instagram Business/Creator Account + Facebook Page + Access Token
 
     Docs: https://developers.facebook.com/docs/instagram-api/
+
+    Includes retry with exponential backoff for:
+    - Rate limits (429)
+    - Server errors (5xx)
+    - Timeouts
     """
 
     BASE_URL = "https://graph.instagram.com/v21.0"
@@ -78,6 +125,61 @@ class MetaGraphAPIScraper:
         self.access_token = access_token
         self.instagram_business_id = instagram_business_id
 
+    @retry(
+        stop=stop_after_attempt(MAX_RETRY_ATTEMPTS),
+        wait=wait_exponential(multiplier=1, min=RETRY_MIN_WAIT_SECONDS, max=RETRY_MAX_WAIT_SECONDS),
+        retry=retry_if_exception_type((RateLimitError, TransientAPIError, httpx.TimeoutException, httpx.ConnectError)),
+        before_sleep=before_sleep_log(logger, logging.WARNING),
+        reraise=True
+    )
+    async def _fetch_media_page(self, url: str, params: Dict) -> Dict:
+        """
+        Fetch a single page of media from the Graph API with retry logic.
+
+        Retries on:
+        - 429 Rate Limit (with exponential backoff)
+        - 5xx Server Errors (with exponential backoff)
+        - Timeouts (with exponential backoff)
+
+        Does NOT retry on:
+        - 401 Unauthorized (auth error, fail fast)
+        - 400 Bad Request (client error, fail fast)
+        - 403 Forbidden (permission error, fail fast)
+
+        Raises:
+            RateLimitError: On 429 (will be retried)
+            TransientAPIError: On 5xx (will be retried)
+            AuthenticationError: On 401 (not retried)
+            InstagramScraperError: On other errors (not retried)
+        """
+        async with httpx.AsyncClient(timeout=30.0) as client:
+            response = await client.get(url, params=params)
+
+            # Rate limit - retry with backoff
+            if response.status_code == 429:
+                logger.warning(f"Rate limit hit (429), will retry with backoff...")
+                raise RateLimitError("Meta API rate limit alcanzado")
+
+            # Auth error - fail fast, no retry
+            if response.status_code == 401:
+                raise AuthenticationError("Token de Meta invalido o expirado")
+
+            # Permission error - fail fast, no retry
+            if response.status_code == 403:
+                raise InstagramScraperError("Permiso denegado para acceder a este recurso")
+
+            # Client error (4xx except 429) - fail fast, no retry
+            if 400 <= response.status_code < 500:
+                raise InstagramScraperError(f"Error del cliente: {response.status_code} - {response.text[:200]}")
+
+            # Server error (5xx) - retry with backoff
+            if response.status_code >= 500:
+                logger.warning(f"Server error ({response.status_code}), will retry with backoff...")
+                raise TransientAPIError(f"Error del servidor: {response.status_code}")
+
+            response.raise_for_status()
+            return response.json()
+
     async def get_posts(
         self,
         limit: int = 50,
@@ -86,15 +188,20 @@ class MetaGraphAPIScraper:
         """
         Obtiene posts usando la Graph API.
 
+        Includes automatic retry with exponential backoff for transient errors.
+
         Args:
             limit: Numero maximo de posts
             since: Solo posts despues de esta fecha
 
         Returns:
             Lista de InstagramPost
-        """
-        import httpx
 
+        Raises:
+            AuthenticationError: If token is invalid (not retried)
+            InstagramScraperError: On permanent errors (not retried)
+            RetryError: If all retry attempts fail
+        """
         posts = []
         url = f"{self.BASE_URL}/{self.instagram_business_id}/media"
         params = {
@@ -104,32 +211,27 @@ class MetaGraphAPIScraper:
         }
 
         try:
-            async with httpx.AsyncClient() as client:
-                response = await client.get(url, params=params)
+            # This call has automatic retry with exponential backoff
+            data = await self._fetch_media_page(url, params)
 
-                if response.status_code == 429:
-                    raise RateLimitError("Meta API rate limit alcanzado")
+            for item in data.get("data", []):
+                post = self._parse_post(item)
+                if post.has_content:
+                    if since and post.timestamp < since:
+                        continue
+                    posts.append(post)
 
-                if response.status_code == 401:
-                    raise AuthenticationError("Token de Meta invalido o expirado")
+                    if len(posts) >= limit:
+                        break
 
-                response.raise_for_status()
-                data = response.json()
+            logger.info(f"Obtenidos {len(posts)} posts via Meta Graph API")
+            return posts
 
-                for item in data.get("data", []):
-                    post = self._parse_post(item)
-                    if post.has_content:
-                        if since and post.timestamp < since:
-                            continue
-                        posts.append(post)
+        except RetryError as e:
+            logger.error(f"All {MAX_RETRY_ATTEMPTS} retry attempts failed: {e}")
+            raise InstagramScraperError(f"Error tras {MAX_RETRY_ATTEMPTS} reintentos: {e.last_attempt.exception()}")
 
-                        if len(posts) >= limit:
-                            break
-
-                logger.info(f"Obtenidos {len(posts)} posts via Meta Graph API")
-                return posts
-
-        except httpx.HTTPError as e:
+        except (httpx.HTTPError, httpx.TimeoutException) as e:
             logger.error(f"Error HTTP en Meta Graph API: {e}")
             raise InstagramScraperError(f"Error de conexion: {e}")
 
