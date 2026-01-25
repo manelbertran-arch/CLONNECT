@@ -11,11 +11,19 @@ Anti-hallucination principles:
 """
 
 import re
+import time
 import logging
 from typing import List, Dict, Optional, Any
 from dataclasses import dataclass, field
 from urllib.parse import urljoin, urlparse
 from datetime import datetime
+
+from core.metrics import (
+    record_page_scraped,
+    record_page_failed,
+    observe_scrape_duration,
+    record_ingestion_error
+)
 
 logger = logging.getLogger(__name__)
 
@@ -162,22 +170,25 @@ class DeterministicScraper:
 
         return links[:30]  # Limit
 
-    async def scrape_page(self, url: str) -> Optional[ScrapedPage]:
+    async def scrape_page(self, url: str, creator_id: str = "unknown") -> Optional[ScrapedPage]:
         """
         Scrape a single page deterministically.
 
         Args:
             url: URL to scrape
+            creator_id: Creator ID for metrics tracking
 
         Returns:
             ScrapedPage with extracted content, or None if failed
         """
         import httpx
+        start_time = time.time()
 
         try:
             from bs4 import BeautifulSoup
         except ImportError:
             logger.error("BeautifulSoup not installed. Run: pip install beautifulsoup4")
+            record_page_failed(creator_id, "import_error")
             return None
 
         if self._should_skip_url(url):
@@ -236,6 +247,11 @@ class DeterministicScraper:
                 if og_image and og_image.get('content'):
                     metadata['og_image'] = og_image['content']
 
+                # Record success metrics
+                duration = time.time() - start_time
+                observe_scrape_duration(duration)
+                record_page_scraped(creator_id)
+
                 return ScrapedPage(
                     url=url,
                     title=title,
@@ -247,8 +263,12 @@ class DeterministicScraper:
 
         except httpx.TimeoutException:
             logger.warning(f"Timeout scraping {url}")
+            record_page_failed(creator_id, "timeout")
+            record_ingestion_error("scrape_timeout")
         except Exception as e:
             logger.error(f"Error scraping {url}: {e}")
+            record_page_failed(creator_id, "exception")
+            record_ingestion_error("scrape_error")
 
         return None
 

@@ -153,6 +153,91 @@ if PROMETHEUS_AVAILABLE:
         ['component']
     )
 
+    # ==========================================================================
+    # INGESTION PIPELINE METRICS
+    # ==========================================================================
+
+    # Counters
+    INGESTION_PAGES_SCRAPED = Counter(
+        'ingestion_pages_scraped_total',
+        'Total pages successfully scraped',
+        ['creator_id']
+    )
+
+    INGESTION_PAGES_FAILED = Counter(
+        'ingestion_pages_failed_total',
+        'Total pages that failed to scrape',
+        ['creator_id', 'error_type']
+    )
+
+    INGESTION_PRODUCTS_DETECTED = Counter(
+        'ingestion_products_detected_total',
+        'Total products detected by product detector',
+        ['creator_id']
+    )
+
+    INGESTION_FAQS_EXTRACTED = Counter(
+        'ingestion_faqs_extracted_total',
+        'Total FAQs extracted by FAQ extractor',
+        ['creator_id']
+    )
+
+    INGESTION_POSTS_INDEXED = Counter(
+        'ingestion_posts_indexed_total',
+        'Total Instagram posts indexed',
+        ['creator_id']
+    )
+
+    INGESTION_CHUNKS_SAVED = Counter(
+        'ingestion_chunks_saved_total',
+        'Total content chunks saved to database',
+        ['creator_id', 'source_type']
+    )
+
+    INGESTION_ERRORS = Counter(
+        'ingestion_errors_total',
+        'Total ingestion errors by type',
+        ['error_type']
+    )
+
+    # Histograms
+    INGESTION_SCRAPE_DURATION = Histogram(
+        'ingestion_scrape_duration_seconds',
+        'Time spent scraping a single page',
+        buckets=(0.1, 0.5, 1, 2, 5, 10, 30, 60)
+    )
+
+    INGESTION_EXTRACT_DURATION = Histogram(
+        'ingestion_extract_duration_seconds',
+        'Time spent extracting content',
+        ['phase'],  # products, faqs, text
+        buckets=(0.01, 0.05, 0.1, 0.5, 1, 5)
+    )
+
+    INGESTION_TOTAL_DURATION = Histogram(
+        'ingestion_total_duration_seconds',
+        'Total ingestion pipeline duration per creator',
+        buckets=(1, 5, 10, 30, 60, 120, 300, 600)
+    )
+
+    INGESTION_CHUNKS_PER_CREATOR = Histogram(
+        'ingestion_chunks_per_creator',
+        'Number of chunks created per creator ingestion',
+        buckets=(10, 50, 100, 500, 1000, 5000)
+    )
+
+    # Gauges
+    INGESTION_ACTIVE_SCRAPES = Gauge(
+        'ingestion_active_scrapes',
+        'Number of currently active scrape operations'
+    )
+
+    INGESTION_CIRCUIT_BREAKER_STATE = Gauge(
+        'ingestion_circuit_breaker_state',
+        'Circuit breaker state (0=closed, 1=half-open, 2=open)',
+        ['name']
+    )
+
 else:
     # Dummy classes cuando prometheus no esta disponible
     class DummyMetric:
@@ -183,6 +268,20 @@ else:
     TOTAL_LEADS = DummyMetric()
     BOT_ACTIVE = DummyMetric()
     HEALTH_STATUS = DummyMetric()
+    # Ingestion metrics
+    INGESTION_PAGES_SCRAPED = DummyMetric()
+    INGESTION_PAGES_FAILED = DummyMetric()
+    INGESTION_PRODUCTS_DETECTED = DummyMetric()
+    INGESTION_FAQS_EXTRACTED = DummyMetric()
+    INGESTION_POSTS_INDEXED = DummyMetric()
+    INGESTION_CHUNKS_SAVED = DummyMetric()
+    INGESTION_ERRORS = DummyMetric()
+    INGESTION_SCRAPE_DURATION = DummyMetric()
+    INGESTION_EXTRACT_DURATION = DummyMetric()
+    INGESTION_TOTAL_DURATION = DummyMetric()
+    INGESTION_CHUNKS_PER_CREATOR = DummyMetric()
+    INGESTION_ACTIVE_SCRAPES = DummyMetric()
+    INGESTION_CIRCUIT_BREAKER_STATE = DummyMetric()
 
 
 # ==========================================================================
@@ -388,3 +487,165 @@ def normalize_path(path: str) -> str:
     # Reemplazar creator_ids (alfanumericos con guiones)
     path = re.sub(r'/[a-zA-Z0-9_-]+(?=/|$)', '/{id}', path)
     return path
+
+
+# ==========================================================================
+# INGESTION PIPELINE HELPER FUNCTIONS
+# ==========================================================================
+
+# Track ingestion start time per creator
+_ingestion_start_times: Dict[str, float] = {}
+
+
+def record_page_scraped(creator_id: str):
+    """Record a successfully scraped page."""
+    INGESTION_PAGES_SCRAPED.labels(creator_id=creator_id).inc()
+
+
+def record_page_failed(creator_id: str, error_type: str):
+    """Record a failed page scrape."""
+    INGESTION_PAGES_FAILED.labels(creator_id=creator_id, error_type=error_type).inc()
+
+
+def record_products_detected(creator_id: str, count: int = 1):
+    """Record products detected."""
+    for _ in range(count):
+        INGESTION_PRODUCTS_DETECTED.labels(creator_id=creator_id).inc()
+
+
+def record_faqs_extracted(creator_id: str, count: int = 1):
+    """Record FAQs extracted."""
+    for _ in range(count):
+        INGESTION_FAQS_EXTRACTED.labels(creator_id=creator_id).inc()
+
+
+def record_posts_indexed(creator_id: str, count: int = 1):
+    """Record Instagram posts indexed."""
+    for _ in range(count):
+        INGESTION_POSTS_INDEXED.labels(creator_id=creator_id).inc()
+
+
+def record_chunks_saved(creator_id: str, count: int, source_type: str = "mixed"):
+    """Record chunks saved to database."""
+    for _ in range(count):
+        INGESTION_CHUNKS_SAVED.labels(creator_id=creator_id, source_type=source_type).inc()
+
+
+def record_ingestion_error(error_type: str):
+    """Record an ingestion error."""
+    INGESTION_ERRORS.labels(error_type=error_type).inc()
+
+
+def observe_scrape_duration(duration_seconds: float):
+    """Record scrape duration."""
+    INGESTION_SCRAPE_DURATION.observe(duration_seconds)
+
+
+def observe_extract_duration(phase: str, duration_seconds: float):
+    """Record extraction duration by phase."""
+    INGESTION_EXTRACT_DURATION.labels(phase=phase).observe(duration_seconds)
+
+
+def start_ingestion(creator_id: str):
+    """Mark start of ingestion for a creator."""
+    _ingestion_start_times[creator_id] = time.time()
+    INGESTION_ACTIVE_SCRAPES.inc()
+    logger.info(f"[metrics] Starting ingestion for {creator_id}")
+
+
+def end_ingestion(creator_id: str, chunks_count: int = 0):
+    """Mark end of ingestion and record duration."""
+    if creator_id in _ingestion_start_times:
+        duration = time.time() - _ingestion_start_times[creator_id]
+        INGESTION_TOTAL_DURATION.observe(duration)
+        del _ingestion_start_times[creator_id]
+        logger.info(f"[metrics] Completed ingestion for {creator_id} in {duration:.2f}s")
+    else:
+        duration = 0
+
+    if chunks_count > 0:
+        INGESTION_CHUNKS_PER_CREATOR.observe(chunks_count)
+
+    INGESTION_ACTIVE_SCRAPES.dec()
+
+    return duration
+
+
+def set_circuit_breaker_state(name: str, state: int):
+    """
+    Set circuit breaker state metric.
+
+    Args:
+        name: Circuit breaker name (e.g., 'instagram_api', 'web_scraper')
+        state: 0=closed, 1=half-open, 2=open
+    """
+    INGESTION_CIRCUIT_BREAKER_STATE.labels(name=name).set(state)
+
+
+@contextmanager
+def track_scrape_time():
+    """Context manager to track scrape duration."""
+    start = time.time()
+    yield
+    INGESTION_SCRAPE_DURATION.observe(time.time() - start)
+
+
+@contextmanager
+def track_extract_time(phase: str):
+    """Context manager to track extraction duration."""
+    start = time.time()
+    yield
+    INGESTION_EXTRACT_DURATION.labels(phase=phase).observe(time.time() - start)
+
+
+def get_ingestion_summary(creator_id: str) -> Dict[str, Any]:
+    """
+    Get a summary of ingestion metrics for logging.
+
+    Note: This returns approximations as Prometheus metrics are designed
+    for scraping, not direct querying. Use for logging purposes only.
+    """
+    return {
+        "creator_id": creator_id,
+        "prometheus_available": PROMETHEUS_AVAILABLE,
+        "metrics_note": "Query Prometheus directly for accurate values"
+    }
+
+
+def log_ingestion_complete(
+    creator_id: str,
+    pages_scraped: int = 0,
+    pages_failed: int = 0,
+    products_detected: int = 0,
+    faqs_extracted: int = 0,
+    posts_indexed: int = 0,
+    chunks_saved: int = 0,
+    duration_seconds: float = 0
+):
+    """
+    Log structured summary at end of ingestion.
+
+    Use this for structured logging even when Prometheus is available.
+    """
+    logger.info(
+        "ingestion_complete",
+        extra={
+            "creator_id": creator_id,
+            "pages_scraped": pages_scraped,
+            "pages_failed": pages_failed,
+            "products_detected": products_detected,
+            "faqs_extracted": faqs_extracted,
+            "posts_indexed": posts_indexed,
+            "chunks_saved": chunks_saved,
+            "duration_seconds": round(duration_seconds, 2)
+        }
+    )
+
+    # Also log human-readable summary
+    logger.info(
+        f"[Ingestion Complete] creator={creator_id} "
+        f"pages={pages_scraped} failed={pages_failed} "
+        f"products={products_detected} faqs={faqs_extracted} "
+        f"posts={posts_indexed} chunks={chunks_saved} "
+        f"duration={duration_seconds:.2f}s"
+    )
