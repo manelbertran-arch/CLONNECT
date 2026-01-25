@@ -547,8 +547,8 @@ async def debug_scraper_test(url: str = "https://www.stefanobonanno.com"):
         step4["details"] = {"error": str(e), "error_type": type(e).__name__}
     results["steps"].append(step4)
 
-    # Step 5: Playwright check
-    step5 = {"step": 5, "name": "playwright", "status": "pending", "details": {}}
+    # Step 5: Playwright direct render test (bypass scrape_page)
+    step5 = {"step": 5, "name": "playwright_direct", "status": "pending", "details": {}}
     try:
         from ingestion.playwright_scraper import (
             get_playwright_scraper,
@@ -570,23 +570,37 @@ async def debug_scraper_test(url: str = "https://www.stefanobonanno.com"):
             try:
                 await pw_scraper._ensure_browser()
                 step5["details"]["browser_initialized"] = True
+                step5["details"]["browser_type"] = str(type(pw_scraper._browser))
             except Exception as browser_err:
                 step5["details"]["browser_error"] = str(browser_err)
+                step5["status"] = "browser_error"
+                results["steps"].append(step5)
+                results["final_status"] = "playwright_browser_error"
+                return results
 
+            # Try direct _fetch_rendered_html (the actual page render)
             start = time.time()
-            pw_page = await pw_scraper.scrape_page(url)
-            duration = time.time() - start
+            try:
+                html, final_url = await pw_scraper._fetch_rendered_html(url)
+                duration = time.time() - start
+                step5["details"]["fetch_duration_seconds"] = round(duration, 3)
 
-            if pw_page:
-                step5["status"] = "ok"
-                step5["details"]["content_length"] = len(pw_page.main_content)
-                step5["details"]["has_content"] = pw_page.has_content
-                step5["details"]["title"] = pw_page.title[:100] if pw_page.title else None
-                step5["details"]["duration_seconds"] = round(duration, 3)
-            else:
-                step5["status"] = "no_content"
-                step5["details"]["duration_seconds"] = round(duration, 3)
-                step5["details"]["page_was_none"] = True
+                if html:
+                    step5["status"] = "ok"
+                    step5["details"]["html_length"] = len(html)
+                    step5["details"]["final_url"] = final_url
+                    # Check if content exists after JS render
+                    step5["details"]["html_preview"] = html[:500] if html else None
+                else:
+                    step5["status"] = "no_html"
+                    step5["details"]["html"] = None
+                    step5["details"]["final_url"] = final_url
+            except Exception as fetch_err:
+                duration = time.time() - start
+                step5["status"] = "fetch_error"
+                step5["details"]["fetch_error"] = str(fetch_err)
+                step5["details"]["fetch_error_type"] = type(fetch_err).__name__
+                step5["details"]["fetch_duration_seconds"] = round(duration, 3)
         else:
             step5["status"] = "not_available"
             step5["details"]["reason"] = (
@@ -599,6 +613,7 @@ async def debug_scraper_test(url: str = "https://www.stefanobonanno.com"):
         step5["status"] = "error"
         step5["details"] = {"error": str(e), "error_type": type(e).__name__}
         import traceback
+
         step5["details"]["traceback"] = traceback.format_exc()[:500]
     results["steps"].append(step5)
 
