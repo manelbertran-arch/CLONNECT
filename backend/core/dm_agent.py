@@ -1472,12 +1472,39 @@ class FollowerMemory:
 
 
 class MemoryStore:
-    """Almacén simplificado de memoria"""
+    """
+    Almacén de memoria para seguidores.
+
+    v2.0.0: Now persists to PostgreSQL when FOLLOWER_MEMORY_USE_DB=true.
+    Falls back to JSON files if DB is unavailable.
+    During migration period, writes to both DB and JSON for safety.
+    """
+
+    # Feature flag for DB persistence
+    USE_DB = os.getenv("FOLLOWER_MEMORY_USE_DB", "true").lower() == "true"
 
     def __init__(self, storage_path: str = "data/followers"):
         self.storage_path = storage_path
         os.makedirs(storage_path, exist_ok=True)
         self._cache: Dict[str, FollowerMemory] = {}
+        self._db_available = False
+        self._init_db()
+
+    def _init_db(self) -> None:
+        """Initialize database connection if persistence is enabled."""
+        if not self.USE_DB:
+            logger.info("[MemoryStore] DB persistence disabled, using JSON files only")
+            return
+
+        try:
+            from api.database import SessionLocal
+            from api.models import FollowerMemoryDB
+            self._db_available = True
+            logger.info("[MemoryStore] PostgreSQL persistence enabled")
+        except ImportError as e:
+            logger.warning(f"[MemoryStore] DB modules not available: {e}. Using JSON fallback.")
+        except Exception as e:
+            logger.warning(f"[MemoryStore] DB init failed: {e}. Using JSON fallback.")
 
     def _get_file_path(self, creator_id: str, follower_id: str) -> str:
         creator_dir = os.path.join(self.storage_path, creator_id)
@@ -1486,33 +1513,146 @@ class MemoryStore:
         safe_id = follower_id.replace("/", "_").replace("\\", "_")
         return os.path.join(creator_dir, f"{safe_id}.json")
 
-    async def get(self, creator_id: str, follower_id: str) -> Optional[FollowerMemory]:
-        cache_key = f"{creator_id}:{follower_id}"
-        if cache_key in self._cache:
-            return self._cache[cache_key]
+    def _load_from_db(self, creator_id: str, follower_id: str) -> Optional[FollowerMemory]:
+        """Load follower memory from database."""
+        if not self._db_available:
+            return None
 
-        file_path = self._get_file_path(creator_id, follower_id)
-        if os.path.exists(file_path):
+        try:
+            from api.database import SessionLocal
+            from api.models import FollowerMemoryDB
+
+            db = SessionLocal()
             try:
-                with open(file_path, "r", encoding="utf-8") as f:
-                    data = json.load(f)
-                    memory = FollowerMemory(
-                        **{
-                            k: v
-                            for k, v in data.items()
-                            if k in FollowerMemory.__dataclass_fields__
-                        }
+                db_record = db.query(FollowerMemoryDB).filter(
+                    FollowerMemoryDB.creator_id == creator_id,
+                    FollowerMemoryDB.follower_id == follower_id
+                ).first()
+
+                if db_record:
+                    return FollowerMemory(
+                        follower_id=db_record.follower_id,
+                        creator_id=db_record.creator_id,
+                        username=db_record.username or "",
+                        name=db_record.name or "",
+                        first_contact=db_record.first_contact or "",
+                        last_contact=db_record.last_contact or "",
+                        total_messages=db_record.total_messages or 0,
+                        interests=db_record.interests or [],
+                        products_discussed=db_record.products_discussed or [],
+                        objections_raised=db_record.objections_raised or [],
+                        purchase_intent_score=db_record.purchase_intent_score or 0.0,
+                        is_lead=db_record.is_lead or False,
+                        is_customer=db_record.is_customer or False,
+                        status=db_record.status or "new",
+                        preferred_language=db_record.preferred_language or "es",
+                        last_messages=db_record.last_messages or [],
+                        links_sent_count=db_record.links_sent_count or 0,
+                        last_link_message_num=db_record.last_link_message_num or 0,
+                        objections_handled=db_record.objections_handled or [],
+                        arguments_used=db_record.arguments_used or [],
+                        greeting_variant_index=db_record.greeting_variant_index or 0,
+                        last_greeting_style=db_record.last_greeting_style or "",
+                        last_emojis_used=db_record.last_emojis_used or [],
+                        messages_since_name_used=db_record.messages_since_name_used or 0,
+                        alternative_contact=db_record.alternative_contact or "",
+                        alternative_contact_type=db_record.alternative_contact_type or "",
+                        contact_requested=db_record.contact_requested or False,
                     )
-                    self._cache[cache_key] = memory
-                    return memory
-            except Exception as e:
-                logger.error(f"Error loading memory: {e}")
-        return None
+                return None
+            finally:
+                db.close()
+        except Exception as e:
+            logger.error(f"[MemoryStore] Error loading from DB: {e}")
+            return None
 
-    async def save(self, memory: FollowerMemory):
-        cache_key = f"{memory.creator_id}:{memory.follower_id}"
-        self._cache[cache_key] = memory
+    def _save_to_db(self, memory: FollowerMemory) -> bool:
+        """Save follower memory to database."""
+        if not self._db_available:
+            return False
 
+        try:
+            from api.database import SessionLocal
+            from api.models import FollowerMemoryDB
+
+            db = SessionLocal()
+            try:
+                # Check if exists
+                db_record = db.query(FollowerMemoryDB).filter(
+                    FollowerMemoryDB.creator_id == memory.creator_id,
+                    FollowerMemoryDB.follower_id == memory.follower_id
+                ).first()
+
+                if db_record:
+                    # Update existing record
+                    db_record.username = memory.username
+                    db_record.name = memory.name
+                    db_record.first_contact = memory.first_contact
+                    db_record.last_contact = memory.last_contact
+                    db_record.total_messages = memory.total_messages
+                    db_record.interests = memory.interests
+                    db_record.products_discussed = memory.products_discussed
+                    db_record.objections_raised = memory.objections_raised
+                    db_record.purchase_intent_score = memory.purchase_intent_score
+                    db_record.is_lead = memory.is_lead
+                    db_record.is_customer = memory.is_customer
+                    db_record.status = memory.status
+                    db_record.preferred_language = memory.preferred_language
+                    db_record.last_messages = memory.last_messages[-20:]
+                    db_record.links_sent_count = memory.links_sent_count
+                    db_record.last_link_message_num = memory.last_link_message_num
+                    db_record.objections_handled = memory.objections_handled
+                    db_record.arguments_used = memory.arguments_used
+                    db_record.greeting_variant_index = memory.greeting_variant_index
+                    db_record.last_greeting_style = memory.last_greeting_style
+                    db_record.last_emojis_used = memory.last_emojis_used[-5:]
+                    db_record.messages_since_name_used = memory.messages_since_name_used
+                    db_record.alternative_contact = memory.alternative_contact
+                    db_record.alternative_contact_type = memory.alternative_contact_type
+                    db_record.contact_requested = memory.contact_requested
+                else:
+                    # Create new record
+                    db_record = FollowerMemoryDB(
+                        creator_id=memory.creator_id,
+                        follower_id=memory.follower_id,
+                        username=memory.username,
+                        name=memory.name,
+                        first_contact=memory.first_contact,
+                        last_contact=memory.last_contact,
+                        total_messages=memory.total_messages,
+                        interests=memory.interests,
+                        products_discussed=memory.products_discussed,
+                        objections_raised=memory.objections_raised,
+                        purchase_intent_score=memory.purchase_intent_score,
+                        is_lead=memory.is_lead,
+                        is_customer=memory.is_customer,
+                        status=memory.status,
+                        preferred_language=memory.preferred_language,
+                        last_messages=memory.last_messages[-20:],
+                        links_sent_count=memory.links_sent_count,
+                        last_link_message_num=memory.last_link_message_num,
+                        objections_handled=memory.objections_handled,
+                        arguments_used=memory.arguments_used,
+                        greeting_variant_index=memory.greeting_variant_index,
+                        last_greeting_style=memory.last_greeting_style,
+                        last_emojis_used=memory.last_emojis_used[-5:],
+                        messages_since_name_used=memory.messages_since_name_used,
+                        alternative_contact=memory.alternative_contact,
+                        alternative_contact_type=memory.alternative_contact_type,
+                        contact_requested=memory.contact_requested,
+                    )
+                    db.add(db_record)
+
+                db.commit()
+                return True
+            finally:
+                db.close()
+        except Exception as e:
+            logger.error(f"[MemoryStore] Error saving to DB: {e}")
+            return False
+
+    def _save_to_json(self, memory: FollowerMemory) -> bool:
+        """Save follower memory to JSON file."""
         file_path = self._get_file_path(memory.creator_id, memory.follower_id)
         try:
             data = {
@@ -1529,28 +1669,88 @@ class MemoryStore:
                 "purchase_intent_score": memory.purchase_intent_score,
                 "is_lead": memory.is_lead,
                 "is_customer": memory.is_customer,
-                "status": memory.status,  # Pipeline status: new, active, hot, customer
+                "status": memory.status,
                 "preferred_language": memory.preferred_language,
-                "last_messages": memory.last_messages[-20:],  # Keep last 20
-                # Campos para control de links y objeciones
+                "last_messages": memory.last_messages[-20:],
                 "links_sent_count": memory.links_sent_count,
                 "last_link_message_num": memory.last_link_message_num,
                 "objections_handled": memory.objections_handled,
                 "arguments_used": memory.arguments_used,
                 "greeting_variant_index": memory.greeting_variant_index,
-                # Campos para naturalidad
                 "last_greeting_style": memory.last_greeting_style,
-                "last_emojis_used": memory.last_emojis_used[-5:],  # Últimos 5
+                "last_emojis_used": memory.last_emojis_used[-5:],
                 "messages_since_name_used": memory.messages_since_name_used,
-                # Campos para contacto alternativo
                 "alternative_contact": memory.alternative_contact,
                 "alternative_contact_type": memory.alternative_contact_type,
                 "contact_requested": memory.contact_requested,
             }
             with open(file_path, "w", encoding="utf-8") as f:
                 json.dump(data, f, indent=2, ensure_ascii=False)
+            return True
         except Exception as e:
-            logger.error(f"Error saving memory: {e}")
+            logger.error(f"[MemoryStore] Error saving to JSON: {e}")
+            return False
+
+    def _load_from_json(self, creator_id: str, follower_id: str) -> Optional[FollowerMemory]:
+        """Load follower memory from JSON file."""
+        file_path = self._get_file_path(creator_id, follower_id)
+        if os.path.exists(file_path):
+            try:
+                with open(file_path, "r", encoding="utf-8") as f:
+                    data = json.load(f)
+                    return FollowerMemory(
+                        **{
+                            k: v
+                            for k, v in data.items()
+                            if k in FollowerMemory.__dataclass_fields__
+                        }
+                    )
+            except Exception as e:
+                logger.error(f"[MemoryStore] Error loading from JSON: {e}")
+        return None
+
+    async def get(self, creator_id: str, follower_id: str) -> Optional[FollowerMemory]:
+        """Get follower memory, trying DB first, then JSON fallback."""
+        cache_key = f"{creator_id}:{follower_id}"
+
+        # Check cache first
+        if cache_key in self._cache:
+            return self._cache[cache_key]
+
+        memory = None
+
+        # Try DB first if available
+        if self._db_available:
+            memory = self._load_from_db(creator_id, follower_id)
+            if memory:
+                logger.debug(f"[MemoryStore] Loaded {follower_id} from DB")
+
+        # Fallback to JSON
+        if memory is None:
+            memory = self._load_from_json(creator_id, follower_id)
+            if memory:
+                logger.debug(f"[MemoryStore] Loaded {follower_id} from JSON")
+                # Migrate to DB if available
+                if self._db_available:
+                    self._save_to_db(memory)
+                    logger.info(f"[MemoryStore] Migrated {follower_id} from JSON to DB")
+
+        if memory:
+            self._cache[cache_key] = memory
+
+        return memory
+
+    async def save(self, memory: FollowerMemory):
+        """Save follower memory to DB (primary) and JSON (backup during migration)."""
+        cache_key = f"{memory.creator_id}:{memory.follower_id}"
+        self._cache[cache_key] = memory
+
+        # Save to DB if available
+        if self._db_available:
+            self._save_to_db(memory)
+
+        # Also save to JSON during migration period for safety
+        self._save_to_json(memory)
 
     async def get_or_create(
         self, creator_id: str, follower_id: str, name: str = "", username: str = ""

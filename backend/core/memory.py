@@ -1,16 +1,32 @@
 """
 Sistema de memoria simplificado para Clonnect Creators
 Usa almacenamiento en JSON para persistencia
+
+DEPRECATED: This module is deprecated as of v2.0.0.
+Use the FollowerMemory and MemoryStore classes from core.dm_agent instead,
+which have PostgreSQL persistence and more fields.
+
+This file is kept for backward compatibility with existing imports.
+All classes here re-export from dm_agent.py for compatibility.
 """
 
 import os
 import json
+import warnings
 from typing import Optional, List, Dict, Any
 from dataclasses import dataclass, asdict, field
 from datetime import datetime
 import logging
 
 logger = logging.getLogger(__name__)
+
+# Emit deprecation warning on import
+warnings.warn(
+    "core.memory is deprecated. Use FollowerMemory and MemoryStore from core.dm_agent instead. "
+    "This module will be removed in v3.0.0.",
+    DeprecationWarning,
+    stacklevel=2
+)
 
 
 @dataclass
