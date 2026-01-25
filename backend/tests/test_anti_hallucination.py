@@ -22,18 +22,18 @@ class TestAntiHallucinationConfig:
     """Verifica configuracion anti-alucinacion"""
 
     def test_intents_requiring_rag_is_set(self):
-        """INTENTS_REQUIRING_RAG esta definido y tiene 14 intents"""
+        """INTENTS_REQUIRING_RAG esta definido y tiene 12 intents (V2: -2 con context injection)"""
         from core.dm_agent import INTENTS_REQUIRING_RAG
 
-        assert len(INTENTS_REQUIRING_RAG) == 14
+        assert len(INTENTS_REQUIRING_RAG) == 12
 
     def test_intents_requiring_rag_content(self):
-        """Los 14 intents correctos requieren RAG"""
+        """Los 12 intents correctos requieren RAG (V2: -2 con context injection)"""
         from core.dm_agent import INTENTS_REQUIRING_RAG, Intent
 
-        # Intents que SI requieren RAG
+        # V2: INTEREST_SOFT y LEAD_MAGNET ahora usan context injection (PromptBuilder)
+        # en lugar de RAG tradicional
         required = [
-            Intent.INTEREST_SOFT,
             Intent.INTEREST_STRONG,
             Intent.QUESTION_PRODUCT,
             Intent.QUESTION_GENERAL,
@@ -46,7 +46,6 @@ class TestAntiHallucinationConfig:
             Intent.OBJECTION_COMPLICATED,
             Intent.OBJECTION_ALREADY_HAVE,
             Intent.SUPPORT,
-            Intent.LEAD_MAGNET,
         ]
 
         for intent in required:
