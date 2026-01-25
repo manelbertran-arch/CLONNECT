@@ -36,10 +36,9 @@ logger = logging.getLogger(__name__)
 # =============================================================================
 # SSL CONFIGURATION
 # =============================================================================
-# SSL verification is ENABLED by default for security.
-# Set SCRAPER_VERIFY_SSL=false only for development/testing with self-signed certs.
-# When SSL fails, we log a warning and skip the URL (don't silently disable security).
-VERIFY_SSL = os.getenv("SCRAPER_VERIFY_SSL", "true").lower() in ("true", "1", "yes")
+# SSL verification DISABLED by default - many creator websites have cert issues.
+# Set SCRAPER_VERIFY_SSL=true to enable strict SSL verification.
+VERIFY_SSL = os.getenv("SCRAPER_VERIFY_SSL", "false").lower() in ("true", "1", "yes")
 
 # =============================================================================
 # ROBOTS.TXT CONFIGURATION (BUG-003 FIX)
