@@ -468,6 +468,22 @@ class DeterministicScraper:
             if readability_used:
                 metadata['extracted_by'] = 'readability'
 
+            # Check if content is too short - might need JavaScript rendering
+            if not main_content or len(main_content) < 100:
+                logger.info(f"Content too short ({len(main_content) if main_content else 0} chars), trying Playwright for {url}")
+                try:
+                    from ingestion.playwright_scraper import get_playwright_scraper, is_playwright_available
+                    if is_playwright_available():
+                        playwright_scraper = get_playwright_scraper()
+                        playwright_result = await playwright_scraper.scrape_page(url, creator_id)
+                        if playwright_result and playwright_result.has_content:
+                            logger.info(f"Playwright fallback successful for {url}: {len(playwright_result.main_content)} chars")
+                            return playwright_result
+                except ImportError:
+                    logger.debug("Playwright not available for fallback")
+                except Exception as e:
+                    logger.warning(f"Playwright fallback failed for {url}: {e}")
+
             # Record success metrics
             duration = time.time() - start_time
             observe_scrape_duration(duration)
@@ -524,7 +540,7 @@ class DeterministicScraper:
         async with httpx.AsyncClient(
             timeout=self.timeout,
             follow_redirects=True,
-            verify=False,  # Some sites have SSL cert issues
+            verify=VERIFY_SSL,  # Use global SSL config (BUG-004 FIX)
             headers={
                 "User-Agent": "Mozilla/5.0 (compatible; ClonnectBot/1.0; +https://clonnect.com)"
             }
