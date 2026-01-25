@@ -23,6 +23,14 @@ ENV PATH="/opt/venv/bin:$PATH"
 RUN pip install --no-cache-dir --upgrade pip && \
     pip install --no-cache-dir -r requirements-lite.txt
 
+# Stage 1.5: Pre-download ML models (cached in image)
+FROM builder as model-downloader
+ENV PATH="/opt/venv/bin:$PATH"
+# Pre-download sentence-transformers models to avoid runtime download
+# This adds ~200MB to image but saves 3-5 minutes on cold start
+RUN python -c "from sentence_transformers import SentenceTransformer; SentenceTransformer('all-MiniLM-L6-v2')" && \
+    python -c "from sentence_transformers import CrossEncoder; CrossEncoder('cross-encoder/ms-marco-MiniLM-L6-v2')"
+
 # Stage 2: Runtime
 FROM python:3.11-slim as runtime
 
@@ -35,6 +43,16 @@ RUN groupadd -r clonnect && useradd -r -g clonnect clonnect
 COPY --from=builder /opt/venv /opt/venv
 ENV PATH="/opt/venv/bin:$PATH"
 
+# Copy pre-downloaded models to app directory (accessible by clonnect user)
+COPY --from=model-downloader /root/.cache/huggingface /app/.cache/huggingface
+COPY --from=model-downloader /root/.cache/torch /app/.cache/torch
+
+# Set cache directories for HuggingFace and Torch (so models are found at runtime)
+ENV HF_HOME=/app/.cache/huggingface
+ENV TORCH_HOME=/app/.cache/torch
+ENV TRANSFORMERS_CACHE=/app/.cache/huggingface
+ENV SENTENCE_TRANSFORMERS_HOME=/app/.cache/huggingface
+
 # Copy application code
 COPY --chown=clonnect:clonnect . .
 
@@ -42,11 +60,12 @@ COPY --chown=clonnect:clonnect . .
 COPY scripts/start.sh /app/scripts/start.sh
 RUN chmod +x /app/scripts/start.sh
 
-# Create data directories
+# Create data directories and fix model cache permissions
 RUN mkdir -p data/followers data/products data/creators data/analytics \
     data/nurturing data/gdpr data/payments data/calendar data/escalations \
     data/content_index data/tone_profiles \
-    && chown -R clonnect:clonnect data
+    && chown -R clonnect:clonnect data \
+    && chown -R clonnect:clonnect /app/.cache
 
 # Copy initial data that should persist (content_index, tone_profiles, etc.)
 # These will be copied to /app/data at startup if not already there
