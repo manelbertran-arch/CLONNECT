@@ -550,13 +550,29 @@ async def debug_scraper_test(url: str = "https://www.stefanobonanno.com"):
     # Step 5: Playwright check
     step5 = {"step": 5, "name": "playwright", "status": "pending", "details": {}}
     try:
-        from ingestion.playwright_scraper import get_playwright_scraper, is_playwright_available
+        from ingestion.playwright_scraper import (
+            get_playwright_scraper,
+            is_playwright_available,
+            _PLAYWRIGHT_AVAILABLE,
+            PLAYWRIGHT_ENABLED,
+        )
 
+        step5["details"]["_PLAYWRIGHT_AVAILABLE"] = _PLAYWRIGHT_AVAILABLE
+        step5["details"]["PLAYWRIGHT_ENABLED"] = PLAYWRIGHT_ENABLED
         available = is_playwright_available()
         step5["details"]["is_available"] = available
 
         if available:
             pw_scraper = get_playwright_scraper()
+            step5["details"]["scraper_created"] = True
+
+            # Try direct browser test
+            try:
+                await pw_scraper._ensure_browser()
+                step5["details"]["browser_initialized"] = True
+            except Exception as browser_err:
+                step5["details"]["browser_error"] = str(browser_err)
+
             start = time.time()
             pw_page = await pw_scraper.scrape_page(url)
             duration = time.time() - start
@@ -565,18 +581,25 @@ async def debug_scraper_test(url: str = "https://www.stefanobonanno.com"):
                 step5["status"] = "ok"
                 step5["details"]["content_length"] = len(pw_page.main_content)
                 step5["details"]["has_content"] = pw_page.has_content
+                step5["details"]["title"] = pw_page.title[:100] if pw_page.title else None
                 step5["details"]["duration_seconds"] = round(duration, 3)
             else:
                 step5["status"] = "no_content"
                 step5["details"]["duration_seconds"] = round(duration, 3)
+                step5["details"]["page_was_none"] = True
         else:
             step5["status"] = "not_available"
+            step5["details"]["reason"] = (
+                "not_installed" if not _PLAYWRIGHT_AVAILABLE else "disabled_by_env"
+            )
     except ImportError as e:
         step5["status"] = "not_installed"
-        step5["details"] = {"error": str(e)}
+        step5["details"] = {"error": str(e), "error_type": "ImportError"}
     except Exception as e:
         step5["status"] = "error"
         step5["details"] = {"error": str(e), "error_type": type(e).__name__}
+        import traceback
+        step5["details"]["traceback"] = traceback.format_exc()[:500]
     results["steps"].append(step5)
 
     # Final status
