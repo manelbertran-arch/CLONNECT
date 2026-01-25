@@ -5,6 +5,10 @@ Búsqueda semántica real usando:
 - OpenAI text-embedding-3-small (1536 dimensions)
 - PostgreSQL pgvector para almacenamiento y búsqueda
 - Embeddings persistidos en DB (no se regeneran en cada deploy)
+
+v2.0.0 - Enhanced with optional Reranking and BM25 Hybrid Search
+- ENABLE_RERANKING: Cross-encoder reranking for better precision (+100-200ms)
+- ENABLE_BM25_HYBRID: Lexical search fusion for exact keyword matching (+50ms)
 """
 
 import os
@@ -13,6 +17,18 @@ from dataclasses import dataclass
 import logging
 
 logger = logging.getLogger(__name__)
+
+# =============================================================================
+# FEATURE FLAGS - All OFF by default to minimize latency
+# =============================================================================
+
+# Cross-encoder reranking: improves relevance but adds ~100-200ms
+# Enable when: precision matters more than speed (e.g., customer support)
+ENABLE_RERANKING = os.getenv("ENABLE_RERANKING", "false").lower() == "true"
+
+# BM25 hybrid search: combines semantic + lexical search
+# Enable when: users search with specific keywords/product names
+ENABLE_BM25_HYBRID = os.getenv("ENABLE_BM25_HYBRID", "false").lower() == "true"
 
 
 @dataclass
@@ -84,23 +100,49 @@ class SemanticRAG:
         """
         Search for relevant documents using semantic similarity.
 
-        Uses pgvector cosine similarity if embeddings are available,
-        falls back to simple text matching otherwise.
+        Enhanced search pipeline:
+        1. Semantic search (OpenAI embeddings + pgvector)
+        2. Optional: BM25 hybrid fusion (if ENABLE_BM25_HYBRID=true)
+        3. Optional: Cross-encoder reranking (if ENABLE_RERANKING=true)
+
+        Args:
+            query: Search query
+            top_k: Number of results to return
+            creator_id: Filter by creator
+
+        Returns:
+            List of documents with scores
         """
         if not creator_id:
             logger.warning("search() called without creator_id")
             return []
 
-        # Try semantic search with pgvector
+        # Get more results initially if we're going to rerank
+        initial_top_k = top_k * 4 if ENABLE_RERANKING else top_k
+
+        # Step 1: Semantic search
+        semantic_results = self._semantic_search(query, initial_top_k, creator_id)
+
+        # Step 2: BM25 hybrid fusion (optional)
+        if ENABLE_BM25_HYBRID and semantic_results:
+            semantic_results = self._hybrid_with_bm25(query, semantic_results, creator_id, initial_top_k)
+
+        # Step 3: Reranking (optional)
+        if ENABLE_RERANKING and semantic_results:
+            semantic_results = self._rerank_results(query, semantic_results, top_k)
+        else:
+            semantic_results = semantic_results[:top_k]
+
+        return semantic_results
+
+    def _semantic_search(self, query: str, top_k: int, creator_id: str) -> List[Dict]:
+        """Core semantic search using OpenAI embeddings + pgvector."""
         if self._check_embeddings_available():
             try:
                 from core.embeddings import generate_embedding, search_similar
 
-                # Generate query embedding
                 query_embedding = generate_embedding(query)
                 if query_embedding:
-                    # min_similarity uses DEFAULT_MIN_SIMILARITY from embeddings module
-                    # (configurable via RAG_MIN_SIMILARITY env var, default 0.5)
                     results = search_similar(
                         query_embedding=query_embedding,
                         creator_id=creator_id,
@@ -113,13 +155,15 @@ class SemanticRAG:
                             {
                                 "doc_id": r["chunk_id"],
                                 "text": r["content"],
+                                "content": r["content"],  # Alias for reranker
                                 "metadata": {
                                     "creator_id": creator_id,
                                     "source_url": r.get("source_url"),
                                     "title": r.get("title"),
                                     "type": r.get("source_type")
                                 },
-                                "score": r["similarity"]
+                                "score": r["similarity"],
+                                "search_type": "semantic"
                             }
                             for r in results
                         ]
@@ -127,9 +171,122 @@ class SemanticRAG:
             except Exception as e:
                 logger.error(f"Semantic search failed: {e}")
 
-        # Fallback: simple text search in memory
+        # Fallback
         logger.debug("Using fallback text search")
         return self._fallback_search(query, top_k, creator_id)
+
+    def _hybrid_with_bm25(self, query: str, semantic_results: List[Dict], creator_id: str, top_k: int) -> List[Dict]:
+        """
+        Combine semantic results with BM25 lexical search using Reciprocal Rank Fusion.
+
+        RRF formula: score = sum(1 / (k + rank)) for each result list
+        """
+        try:
+            from core.rag.bm25 import get_bm25_retriever
+
+            bm25 = get_bm25_retriever(creator_id)
+
+            # Build BM25 index from semantic results if not already indexed
+            if bm25.corpus_size == 0:
+                # Index documents from memory cache
+                for doc_id, doc in self._documents.items():
+                    if doc.metadata and doc.metadata.get("creator_id") == creator_id:
+                        bm25.add_document(doc_id, doc.text, doc.metadata)
+
+            # BM25 search
+            bm25_results = bm25.search(query, top_k=top_k)
+
+            if not bm25_results:
+                return semantic_results
+
+            # Convert BM25 results to dict format
+            bm25_dicts = [
+                {
+                    "doc_id": r.doc_id,
+                    "text": r.text,
+                    "content": r.text,
+                    "metadata": r.metadata,
+                    "score": r.score,
+                    "search_type": "bm25"
+                }
+                for r in bm25_results
+            ]
+
+            # Reciprocal Rank Fusion
+            fused = self._reciprocal_rank_fusion(semantic_results, bm25_dicts, k=60)
+
+            logger.info(f"BM25 hybrid: {len(semantic_results)} semantic + {len(bm25_results)} bm25 -> {len(fused)} fused")
+            return fused
+
+        except Exception as e:
+            logger.error(f"BM25 hybrid search failed: {e}")
+            return semantic_results
+
+    def _reciprocal_rank_fusion(self, *result_lists, k: int = 60) -> List[Dict]:
+        """
+        Combine multiple ranked lists using Reciprocal Rank Fusion.
+
+        Args:
+            result_lists: Multiple lists of results
+            k: Ranking constant (default 60)
+
+        Returns:
+            Fused and re-ranked results
+        """
+        doc_scores = {}
+        doc_data = {}
+
+        for results in result_lists:
+            for rank, doc in enumerate(results):
+                doc_id = doc.get("doc_id")
+                if not doc_id:
+                    continue
+
+                # RRF score contribution
+                rrf_score = 1.0 / (k + rank + 1)
+
+                if doc_id in doc_scores:
+                    doc_scores[doc_id] += rrf_score
+                else:
+                    doc_scores[doc_id] = rrf_score
+                    doc_data[doc_id] = doc
+
+        # Sort by fused score
+        sorted_docs = sorted(doc_scores.items(), key=lambda x: x[1], reverse=True)
+
+        # Build result list
+        fused_results = []
+        for doc_id, fused_score in sorted_docs:
+            doc = doc_data[doc_id].copy()
+            doc["rrf_score"] = fused_score
+            doc["search_type"] = "hybrid"
+            fused_results.append(doc)
+
+        return fused_results
+
+    def _rerank_results(self, query: str, results: List[Dict], top_k: int) -> List[Dict]:
+        """
+        Rerank results using Cross-Encoder for better precision.
+
+        Cross-encoder evaluates query+document together, more accurate than
+        comparing embeddings separately.
+        """
+        try:
+            from core.rag.reranker import rerank
+
+            # Rerank expects 'content' key
+            reranked = rerank(query, results, top_k=top_k, text_key="content")
+
+            if reranked:
+                logger.info(f"Reranked {len(results)} -> {len(reranked)} results")
+                for doc in reranked:
+                    doc["search_type"] = "reranked"
+                return reranked
+
+        except Exception as e:
+            logger.error(f"Reranking failed: {e}")
+
+        return results[:top_k]
 
     def _fallback_search(self, query: str, top_k: int, creator_id: str) -> List[Dict]:
         """Simple keyword-based fallback search."""
