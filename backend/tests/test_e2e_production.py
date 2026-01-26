@@ -14,7 +14,7 @@ import time
 import pytest
 import requests
 
-API_URL = "https://web-production-9f69.up.railway.app"
+API_URL = "https://api.clonnectapp.com"
 
 
 def send_dm(creator, message, sender_id=None):

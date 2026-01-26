@@ -4,7 +4,7 @@ import { Calendar, Clock, CheckCircle2, Loader2, ArrowLeft, Video, User, Mail, P
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
-const API_URL = import.meta.env.VITE_API_URL || "https://web-production-9f69.up.railway.app";
+const API_URL = import.meta.env.VITE_API_URL || "https://api.clonnectapp.com";
 
 interface ServiceInfo {
   id: string;

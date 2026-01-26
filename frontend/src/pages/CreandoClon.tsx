@@ -174,7 +174,7 @@ export default function CreandoClon() {
 
     try {
       const response = await fetch(
-        `${import.meta.env.VITE_API_URL || 'https://web-production-9f69.up.railway.app'}/onboarding/progress/${encodeURIComponent(creatorId)}`
+        `${import.meta.env.VITE_API_URL || 'https://api.clonnectapp.com'}/onboarding/progress/${encodeURIComponent(creatorId)}`
       );
 
       if (!response.ok) {

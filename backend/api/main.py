@@ -143,6 +143,8 @@ app = FastAPI(
 # =============================================================================
 # Always allow Vercel frontend + localhost + any additional origins from env
 DEFAULT_CORS_ORIGINS = [
+    "https://www.clonnectapp.com",
+    "https://clonnectapp.com",
     "https://clonnect.vercel.app",
     "https://www.clonnect.vercel.app",
     "https://clonnect-production.up.railway.app",
@@ -2784,7 +2786,7 @@ async def telegram_diagnose():
     base_url = (
         os.getenv("RAILWAY_PUBLIC_URL")
         or os.getenv("RENDER_EXTERNAL_URL")
-        or "https://web-production-9f69.up.railway.app"
+        or "https://api.clonnectapp.com"
     )
     expected_webhook = f"{base_url}/webhook/telegram"
     results["expected_webhook_url"] = expected_webhook
@@ -2875,7 +2877,7 @@ async def fix_telegram_webhook(bot_id: str):
     base_url = (
         os.getenv("RAILWAY_PUBLIC_URL")
         or os.getenv("RENDER_EXTERNAL_URL")
-        or "https://web-production-9f69.up.railway.app"
+        or "https://api.clonnectapp.com"
     )
     webhook_url = f"{base_url}/webhook/telegram"
 
