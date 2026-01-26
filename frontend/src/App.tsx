@@ -31,6 +31,7 @@ import Felicidades from "./pages/Felicidades";
 import SwitchUser from "./pages/SwitchUser";
 import InboxTest from "./pages/InboxTest";
 import HomeWithConversations from "./pages/HomeWithConversations";
+import { AnalyticsDashboard } from "./pages/Analytics";
 
 // New Dashboard Pages
 import { NewLayout } from "./components/layout/NewLayout";
@@ -87,6 +88,7 @@ const AppRoutes = () => {
         <Route path="/products" element={<Products />} />
         <Route path="/bookings" element={<Bookings />} />
         <Route path="/settings" element={<Settings />} />
+        <Route path="/analytics" element={<AnalyticsDashboard />} />
         <Route path="/docs" element={<Docs />} />
         <Route path="/terms" element={<Terms />} />
         <Route path="/privacy" element={<Privacy />} />
