@@ -537,16 +537,40 @@ async def start_sync_for_creator(creator_id: str) -> Dict[str, Any]:
 
                 data = conv_resp.json()
                 page_convs = data.get("data", [])
-                conversations.extend(page_convs)
+
+                # Filter conversations by updated_time (last 365 days only)
+                cutoff_date = datetime.now(timezone.utc) - timedelta(days=365)
+                filtered_convs = []
+                old_convs = 0
+                for conv in page_convs:
+                    updated_time = conv.get("updated_time")
+                    if updated_time:
+                        try:
+                            conv_time = datetime.fromisoformat(updated_time.replace("+0000", "+00:00"))
+                            if conv_time >= cutoff_date:
+                                filtered_convs.append(conv)
+                            else:
+                                old_convs += 1
+                        except Exception:
+                            filtered_convs.append(conv)  # Include if can't parse
+                    else:
+                        filtered_convs.append(conv)  # Include if no timestamp
+
+                conversations.extend(filtered_convs)
                 logger.info(
-                    f"[SyncWorker] Fetched page {page_num}: {len(page_convs)} conversations (total: {len(conversations)})"
+                    f"[SyncWorker] Fetched page {page_num}: {len(page_convs)} total, {len(filtered_convs)} recent (skipped {old_convs} old), running total: {len(conversations)}"
                 )
 
                 # Get next page URL if exists
-                url = data.get("paging", {}).get("next")
+                # Stop early if all conversations on this page were old
+                if old_convs == len(page_convs) and len(page_convs) > 0:
+                    logger.info(f"[SyncWorker] All conversations on page {page_num} are older than 365 days, stopping pagination")
+                    url = None
+                else:
+                    url = data.get("paging", {}).get("next")
 
             logger.info(
-                f"[SyncWorker] Total conversations fetched: {len(conversations)} (pages: {page_num})"
+                f"[SyncWorker] Total conversations fetched: {len(conversations)} (filtered to last 365 days, pages: {page_num})"
             )
 
         # Add to queue
