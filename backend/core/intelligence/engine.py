@@ -111,6 +111,7 @@ class IntelligenceEngine:
             }
         except Exception as e:
             logger.error(f"Error analyzing temporal patterns: {e}")
+            db.rollback()
             return {"error": str(e)}
 
     async def _analyze_conversation_patterns(self, db: Session, days: int) -> Dict:
@@ -161,6 +162,7 @@ class IntelligenceEngine:
             }
         except Exception as e:
             logger.error(f"Error analyzing conversation patterns: {e}")
+            db.rollback()
             return {"error": str(e)}
 
     async def _analyze_conversion_patterns(self, db: Session, days: int) -> Dict:
@@ -197,6 +199,7 @@ class IntelligenceEngine:
             }
         except Exception as e:
             logger.error(f"Error analyzing conversion patterns: {e}")
+            db.rollback()
             return {"error": str(e)}
 
     # =========================================
@@ -280,6 +283,7 @@ class IntelligenceEngine:
 
         except Exception as e:
             logger.error(f"Error predicting conversions: {e}")
+            db.rollback()
             return []
 
     def _get_recommended_action(self, messages: int, days_inactive: int, score: float) -> str:
@@ -346,6 +350,7 @@ class IntelligenceEngine:
 
         except Exception as e:
             logger.error(f"Error predicting churn: {e}")
+            db.rollback()
             return []
 
     async def forecast_revenue(self, db: Session, weeks_ahead: int = 4) -> Dict:
@@ -395,6 +400,7 @@ class IntelligenceEngine:
 
         except Exception as e:
             logger.error(f"Error forecasting revenue: {e}")
+            db.rollback()
             return {"error": str(e), "forecasts": []}
 
     # =========================================
@@ -462,6 +468,7 @@ class IntelligenceEngine:
 
         except Exception as e:
             logger.error(f"Error generating content recommendations: {e}")
+            db.rollback()
 
         return recommendations
 
@@ -511,6 +518,7 @@ class IntelligenceEngine:
 
         except Exception as e:
             logger.error(f"Error generating action recommendations: {e}")
+            db.rollback()
 
         return recommendations
 
@@ -558,6 +566,7 @@ class IntelligenceEngine:
 
         except Exception as e:
             logger.error(f"Error generating product recommendations: {e}")
+            db.rollback()
 
         return recommendations
 
@@ -663,6 +672,7 @@ class IntelligenceEngine:
 
         except Exception as e:
             logger.error(f"Error getting weekly metrics: {e}")
+            db.rollback()
             return {}
 
     async def _get_comparison(self, db: Session, current_start: date, days_back: int) -> Dict:
