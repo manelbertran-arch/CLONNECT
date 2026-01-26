@@ -195,7 +195,46 @@ class DMHistoryService:
             if not creator:
                 return result
 
-            # Verificar si el lead ya existe
+            # Procesar mensajes (del más antiguo al más reciente)
+            messages_sorted = sorted(
+                messages,
+                key=lambda m: m.get("created_time", ""),
+                reverse=False
+            )
+
+            # =====================================================
+            # PRIMERO: Verificar si hay mensajes dentro del período
+            # Solo crear Lead si hay mensajes válidos (dentro de 365 días)
+            # =====================================================
+            valid_messages = []
+            for msg in messages_sorted:
+                content = msg.get("message", "")
+                created_time = msg.get("created_time", "")
+
+                # Skip mensajes vacíos
+                if not content or not content.strip():
+                    continue
+                if len(content.strip()) < DEFAULT_MIN_MESSAGE_LENGTH:
+                    continue
+
+                # Verificar fecha
+                if cutoff_date and created_time:
+                    try:
+                        msg_timestamp = datetime.fromisoformat(created_time.replace('Z', '+00:00'))
+                        if msg_timestamp < cutoff_date:
+                            result["messages_filtered"] += 1
+                            continue  # Skip mensaje muy antiguo
+                    except:
+                        pass
+
+                valid_messages.append(msg)
+
+            # Si no hay mensajes válidos, NO crear lead
+            if not valid_messages:
+                logger.info(f"[DMHistory] Skipping conversation with {follower_id}: no valid messages in time window")
+                return result
+
+            # Ahora sí crear/obtener el lead (solo si hay mensajes válidos)
             lead = session.query(Lead).filter_by(
                 creator_id=creator.id,
                 platform_user_id=follower_id
@@ -213,51 +252,23 @@ class DMHistoryService:
                 session.commit()
                 result["lead_created"] = True
 
-            # Procesar mensajes (del más antiguo al más reciente)
-            messages_sorted = sorted(
-                messages,
-                key=lambda m: m.get("created_time", ""),
-                reverse=False
-            )
-
             purchase_signals = 0
             total_user_messages = 0
 
-            for msg in messages_sorted:
+            # Procesar solo mensajes válidos (ya filtrados por fecha y contenido)
+            for msg in valid_messages:
                 msg_id = msg.get("id", "")
-                content = msg.get("message", "")
+                content = msg.get("message", "").strip()
                 from_id = msg.get("from", {}).get("id", "")
                 created_time = msg.get("created_time", "")
 
-                # =====================================================
-                # VALIDACIÓN 1: Mensaje no vacío (GAP 2 FIX)
-                # =====================================================
-                if not content or not content.strip():
-                    result["messages_filtered"] += 1
-                    continue
-
-                # Limpiar contenido
-                content = content.strip()
-
-                # Validar longitud mínima
-                if len(content) < DEFAULT_MIN_MESSAGE_LENGTH:
-                    result["messages_filtered"] += 1
-                    continue
-
-                # =====================================================
-                # VALIDACIÓN 2: Filtro de fecha (GAP 1 FIX)
-                # =====================================================
+                # Parsear timestamp
                 msg_timestamp = None
                 if created_time:
                     try:
                         msg_timestamp = datetime.fromisoformat(created_time.replace('Z', '+00:00'))
                     except:
                         pass
-
-                # Si tenemos cutoff_date y el mensaje es muy antiguo, saltarlo
-                if cutoff_date and msg_timestamp and msg_timestamp < cutoff_date:
-                    result["messages_filtered"] += 1
-                    continue
 
                 # Determinar rol
                 is_from_creator = from_id in [page_id, ig_user_id]

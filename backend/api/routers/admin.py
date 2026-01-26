@@ -2572,6 +2572,32 @@ async def simple_dm_sync(creator_id: str):
                         except Exception as e:
                             logger.warning(f"Could not fetch profile for {follower_id}: {e}")
 
+                        # =====================================================
+                        # PRIMERO: Verificar si hay mensajes dentro del período
+                        # Solo crear Lead si hay mensajes válidos (últimos 365 días)
+                        # =====================================================
+                        days_limit_check = datetime.now().astimezone() - timedelta(days=365)
+                        has_recent_messages = False
+                        for msg in messages:
+                            if msg.get("created_time"):
+                                try:
+                                    msg_time = datetime.fromisoformat(
+                                        msg["created_time"].replace("+0000", "+00:00")
+                                    )
+                                    if msg_time >= days_limit_check:
+                                        has_recent_messages = True
+                                        break
+                                except:
+                                    # Si no puede parsear, asumimos que es reciente
+                                    has_recent_messages = True
+                                    break
+
+                        if not has_recent_messages:
+                            _logger.info(
+                                f"[DMSync] Skipping conversation with {follower_id}: no messages in last 365 days"
+                            )
+                            continue  # Skip esta conversación - no crear lead
+
                         # Get or create lead
                         lead = (
                             session.query(Lead)

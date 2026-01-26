@@ -501,6 +501,31 @@ async def _simple_dm_sync_internal(
                     if not follower_id:
                         continue
 
+                    # =====================================================
+                    # PRIMERO: Verificar si hay mensajes dentro del período
+                    # Solo crear Lead si hay mensajes válidos (últimos 365 días)
+                    # =====================================================
+                    has_recent_messages = False
+                    for msg in messages:
+                        if msg.get("created_time"):
+                            try:
+                                msg_time = datetime.fromisoformat(
+                                    msg["created_time"].replace("+0000", "+00:00")
+                                )
+                                if msg_time >= days_limit_ago:
+                                    has_recent_messages = True
+                                    break
+                            except:
+                                # Si no puede parsear, asumimos que es reciente
+                                has_recent_messages = True
+                                break
+
+                    if not has_recent_messages:
+                        logger.info(
+                            f"[DMSync] Skipping conversation with {follower_id}: no messages in last 365 days"
+                        )
+                        continue  # Skip esta conversación - no crear lead
+
                     # Fetch profile picture for follower
                     follower_profile_pic = None
                     try:
