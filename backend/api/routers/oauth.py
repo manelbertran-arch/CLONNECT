@@ -63,9 +63,9 @@ async def _auto_onboard_after_instagram_oauth(
             access_token=access_token, instagram_business_id=instagram_user_id
         )
 
-        # Fetch posts with full comment data for analytics/insights
+        # Fetch ALL posts with comments (sin límite, filtro por 12 meses)
         posts = await scraper.get_posts_with_comments(
-            limit=365, comments_per_post=100  # Full year of posts  # Up to 100 comments per post
+            comments_per_post=100  # Up to 100 comments per post
         )
         total_comments = sum(len(p.comments) for p in posts)
         logger.info(
@@ -152,6 +152,7 @@ async def _auto_onboard_after_instagram_oauth(
             logger.warning(f"[AutoOnboard] Could not activate nurturing: {nurturing_error}")
 
         # STEP 5: Load DM history using simple sync (proven to work)
+        # Sin límite de cantidad - carga TODAS las conversaciones de los últimos 12 meses
         logger.info(f"[AutoOnboard] Loading DM history for {creator_id}...")
         try:
             dm_stats = await _simple_dm_sync_internal(
@@ -159,7 +160,6 @@ async def _auto_onboard_after_instagram_oauth(
                 access_token=access_token,
                 ig_user_id=instagram_user_id,
                 ig_page_id=page_id,
-                max_convs=100,  # Load all conversations from last 12 months
             )
             logger.info(
                 f"[AutoOnboard] DM history loaded: {dm_stats.get('messages_saved', 0)} messages, {dm_stats.get('leads_created', 0)} leads"
@@ -304,12 +304,13 @@ async def _simple_dm_sync_internal(
     access_token: str,
     ig_user_id: str,
     ig_page_id: str = None,
-    max_convs: int = 100,
 ) -> dict:
     """
     Internal DM sync function that works with credentials passed directly.
     Simplified version of admin.simple_dm_sync for use during auto-onboarding.
     Rate limited: 2s delay between conversations to prevent Meta API blocks.
+
+    Sin límite de cantidad - carga TODAS las conversaciones de los últimos 12 meses.
     """
     import asyncio
     from datetime import datetime, timedelta
@@ -396,18 +397,15 @@ async def _simple_dm_sync_internal(
                 paging = resp_json.get("paging", {})
                 next_url = paging.get("next")
 
-                if not next_url or len(all_conversations) >= max_convs:
-                    break
+                if not next_url:
+                    break  # Sin límite de cantidad - cargar TODAS
 
                 # Small delay between pagination requests
                 await asyncio.sleep(0.5)
 
             conversations = all_conversations
             conversations.sort(key=lambda c: c.get("updated_time", ""), reverse=True)
-
-            # Limit to max_convs after fetching all
-            if len(conversations) > max_convs:
-                conversations = conversations[:max_convs]
+            # Sin límite de cantidad - procesamos TODAS las conversaciones
 
             logger.info(f"[DMSync] Total conversations fetched: {len(conversations)}")
 

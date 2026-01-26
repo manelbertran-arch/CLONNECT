@@ -13,7 +13,7 @@ import logging
 import os
 import re
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import datetime, timezone, timedelta
 from pathlib import Path
 from typing import Dict, List, Literal, Optional
 
@@ -191,14 +191,16 @@ class MetaGraphAPIScraper:
         self.instagram_business_id = instagram_business_id
 
     async def get_posts(
-        self, limit: int = 50, since: Optional[datetime] = None
+        self, since: Optional[datetime] = None
     ) -> List[InstagramPost]:
         """
-        Obtiene posts usando la Graph API.
+        Obtiene TODOS los posts usando la Graph API.
+
+        Sin límite de cantidad - carga todos los posts disponibles.
+        Usa `since` para filtrar por tiempo (recomendado: 12 meses).
 
         Args:
-            limit: Numero maximo de posts
-            since: Solo posts despues de esta fecha
+            since: Solo posts despues de esta fecha (default: 12 meses atrás)
 
         Returns:
             Lista de InstagramPost
@@ -208,9 +210,13 @@ class MetaGraphAPIScraper:
             RateLimitError: If API returns 429
             AuthenticationError: If token is invalid
         """
+        # Default: últimos 12 meses
+        if since is None:
+            since = datetime.now(timezone.utc) - timedelta(days=365)
+
         try:
             # Circuit breaker wraps the actual API call
-            data = await self._fetch_posts_with_circuit_breaker(limit)
+            data = await self._fetch_posts_with_circuit_breaker()
         except pybreaker.CircuitBreakerError:
             raise CircuitBreakerOpenError(
                 f"Circuit breaker OPEN for Instagram API. "
@@ -221,17 +227,15 @@ class MetaGraphAPIScraper:
         for item in data.get("data", []):
             post = self._parse_post(item)
             if post.has_content:
-                if since and post.timestamp < since:
+                # Filtro por tiempo únicamente
+                if post.timestamp < since:
                     continue
                 posts.append(post)
 
-                if len(posts) >= limit:
-                    break
-
-        logger.info(f"Obtenidos {len(posts)} posts via Meta Graph API")
+        logger.info(f"Obtenidos {len(posts)} posts via Meta Graph API (desde {since.date()})")
         return posts
 
-    async def _fetch_posts_with_circuit_breaker(self, limit: int) -> Dict:
+    async def _fetch_posts_with_circuit_breaker(self) -> Dict:
         """
         Fetch posts from Meta Graph API with circuit breaker protection.
 
@@ -241,13 +245,14 @@ class MetaGraphAPIScraper:
         import httpx
 
         # Use circuit breaker's call method for async functions
-        return await instagram_circuit_breaker.call_async(self._fetch_media_page, limit)
+        return await instagram_circuit_breaker.call_async(self._fetch_media_page)
 
-    async def _fetch_media_page(self, limit: int) -> Dict:
+    async def _fetch_media_page(self) -> Dict:
         """
         Fetch ALL media from Instagram API with pagination.
 
-        Separated for circuit breaker wrapping.
+        Sin límite de cantidad - carga todos los posts.
+        El filtro por tiempo se aplica en get_posts().
         """
         import asyncio
 
@@ -259,7 +264,7 @@ class MetaGraphAPIScraper:
 
         try:
             async with httpx.AsyncClient(timeout=30.0) as client:
-                while True:
+                while True:  # Sin límite - cargar TODOS
                     page_count += 1
 
                     if next_url:
@@ -269,7 +274,7 @@ class MetaGraphAPIScraper:
                         params = {
                             "access_token": self.access_token,
                             "fields": "id,caption,permalink,timestamp,media_type,like_count,comments_count,media_url,thumbnail_url",
-                            "limit": min(limit, 100),  # API max es 100 por request
+                            "limit": 100,  # API max per page
                         }
                         response = await client.get(url, params=params)
 
@@ -301,7 +306,7 @@ class MetaGraphAPIScraper:
                     paging = resp_json.get("paging", {})
                     next_url = paging.get("next")
 
-                    if not next_url or len(all_data) >= limit:
+                    if not next_url:
                         break
 
                     # Small delay between pagination requests
@@ -429,23 +434,25 @@ class MetaGraphAPIScraper:
         return comments
 
     async def get_posts_with_comments(
-        self, limit: int = 50, since: Optional[datetime] = None, comments_per_post: int = 50
+        self, since: Optional[datetime] = None, comments_per_post: int = 100
     ) -> List[InstagramPost]:
         """
-        Fetch posts WITH their comments for analytics.
+        Fetch ALL posts WITH their comments for analytics.
+
+        Sin límite de posts - carga todos los posts del período.
+        El límite de comments_per_post se mantiene por rendimiento.
 
         Args:
-            limit: Max posts to fetch
-            since: Only posts after this date
-            comments_per_post: Max comments to fetch per post
+            since: Solo posts después de esta fecha (default: 12 meses)
+            comments_per_post: Max comments per post (default: 100)
 
         Returns:
             List of InstagramPost with comments populated
         """
         import asyncio
 
-        # First get posts
-        posts = await self.get_posts(limit=limit, since=since)
+        # First get ALL posts (sin límite, filtrado por tiempo)
+        posts = await self.get_posts(since=since)
 
         # Then fetch comments for each post (with rate limiting)
         for i, post in enumerate(posts):

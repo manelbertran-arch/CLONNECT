@@ -25,15 +25,18 @@ ACCESS_TOKEN = "IGAAT4utuSH75BZAGE0SFNwU0lfc2oxQ2hhZADNoQkJxR0hrNGc5ZAzZAScjd0dH
 IG_USER_ID = "17841407135263418"  # This is the page_id (used for conversations)
 # IMPORTANTE: Usar graph.facebook.com para conversations/messages
 API_BASE = "https://graph.facebook.com/v21.0"
-MAX_CONVERSATIONS = 100  # Aumentado de 50 a 100
-MAX_MESSAGES_PER_CONV = 200  # Aumentado de 50 a 200
+# Sin límite de cantidad - solo filtro por tiempo (12 meses)
+MAX_AGE_DAYS = 365
 
 
 async def sync_dms():
     import httpx
-    from datetime import datetime
+    from datetime import datetime, timedelta, timezone
     from sqlalchemy import create_engine
     from sqlalchemy.orm import sessionmaker
+
+    # Fecha límite: solo mensajes de los últimos 12 meses
+    cutoff_date = datetime.now(timezone.utc) - timedelta(days=MAX_AGE_DAYS)
 
     # Check DATABASE_URL
     database_url = os.environ.get("DATABASE_URL")
@@ -72,7 +75,7 @@ async def sync_dms():
             params = {"platform": "instagram", "access_token": ACCESS_TOKEN, "limit": 50}
 
             page_num = 0
-            while next_url and len(conversations) < MAX_CONVERSATIONS:
+            while next_url:  # Sin límite de cantidad - cargar TODAS
                 page_num += 1
                 logger.info(f"  Fetching page {page_num}...")
 
@@ -116,7 +119,7 @@ async def sync_dms():
                     "limit": 50
                 }
 
-                while msg_next_url and len(messages) < MAX_MESSAGES_PER_CONV:
+                while msg_next_url:  # Sin límite - cargar TODOS los mensajes
                     if len(messages) == 0:
                         msg_resp = await client.get(msg_next_url, params=msg_params)
                     else:

@@ -917,16 +917,15 @@ async def _run_clone_creation(creator_id: str, website_url: str = None):
                 from api.routers.oauth import _simple_dm_sync_internal
 
                 print(
-                    f"[CloneCreation] Calling _simple_dm_sync_internal with max_convs=100 (12 months of leads)",
+                    f"[CloneCreation] Calling _simple_dm_sync_internal (sin límite - 12 meses)",
                     flush=True,
                 )
-                # Rate-limited: All conversations from last 12 months with 2s delay between each
+                # Rate-limited: ALL conversations from last 12 months with 2s delay between each
                 dm_stats = await _simple_dm_sync_internal(
                     creator_id=creator_id,
                     access_token=access_token,
                     ig_user_id=instagram_user_id,
                     ig_page_id=page_id,
-                    max_convs=100,  # Load all leads from last 12 months
                 )
                 print(f"[CloneCreation] DM sync complete: {dm_stats}", flush=True)
                 logger.info(f"[CloneCreation] DM sync complete: {dm_stats}")

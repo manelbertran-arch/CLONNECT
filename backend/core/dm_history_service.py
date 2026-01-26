@@ -45,7 +45,6 @@ class DMHistoryService:
         access_token: str,
         page_id: str,
         ig_user_id: str,
-        limit: int = 100,
         max_age_days: int = DEFAULT_MAX_AGE_DAYS
     ) -> Dict[str, Any]:
         """
@@ -56,8 +55,7 @@ class DMHistoryService:
             access_token: Token de acceso de Meta
             page_id: ID de la página de Facebook
             ig_user_id: ID del usuario de Instagram
-            limit: Máximo de conversaciones a cargar (default: 50)
-            max_age_days: Solo importar mensajes de los últimos X días (default: 90)
+            max_age_days: Solo importar mensajes de los últimos X días (default: 365)
 
         Returns:
             Dict con estadísticas de la importación
@@ -85,7 +83,7 @@ class DMHistoryService:
             )
 
             # Obtener conversaciones
-            conversations = await connector.get_conversations(limit=limit)
+            conversations = await connector.get_conversations()  # Sin límite - cargar todas
             stats["conversations_found"] = len(conversations)
             logger.info(f"[DMHistory] Found {len(conversations)} conversations")
 
@@ -96,7 +94,7 @@ class DMHistoryService:
                         continue
 
                     # Obtener mensajes de la conversación
-                    messages = await connector.get_conversation_messages(conv_id, limit=200)
+                    messages = await connector.get_conversation_messages(conv_id)  # Sin límite
 
                     if not messages:
                         continue

@@ -2289,7 +2289,7 @@ async def debug_orphaned_messages(creator_id: str):
 
 
 @router.post("/clean-and-sync/{creator_id}")
-async def clean_and_sync(creator_id: str, max_convs: int = 10):
+async def clean_and_sync(creator_id: str):
     """
     Limpia mensajes huérfanos y hace sync limpio.
 
@@ -2321,8 +2321,8 @@ async def clean_and_sync(creator_id: str, max_convs: int = 10):
         finally:
             session.close()
 
-        # 2. Ejecutar sync
-        sync_result = await simple_dm_sync(creator_id, max_convs)
+        # 2. Ejecutar sync (sin límite de cantidad - solo por tiempo)
+        sync_result = await simple_dm_sync(creator_id)
         results["sync"] = sync_result
 
         return results
@@ -2334,11 +2334,12 @@ async def clean_and_sync(creator_id: str, max_convs: int = 10):
 
 
 @router.post("/simple-dm-sync/{creator_id}")
-async def simple_dm_sync(creator_id: str, max_convs: int = 100, msgs_per_conv: int = 200):
+async def simple_dm_sync(creator_id: str):
     """
     [DEPRECATED] Use /onboarding/sync-instagram-dms-background instead.
 
     Simple DM sync with rate limiting (2s delay between conversations).
+    Sin límite de cantidad - carga TODAS las conversaciones de los últimos 12 meses.
     """
     import asyncio
     import logging
@@ -2446,17 +2447,14 @@ async def simple_dm_sync(creator_id: str, max_convs: int = 100, msgs_per_conv: i
                     paging = resp_json.get("paging", {})
                     next_url = paging.get("next")
 
-                    if not next_url or len(all_conversations) >= max_convs:
-                        break
+                    if not next_url:
+                        break  # Sin límite de cantidad - cargar TODAS
 
                     # Small delay between pagination requests
                     await asyncio.sleep(0.5)
 
                 conversations = all_conversations
-
-                # Limit to max_convs after fetching all
-                if len(conversations) > max_convs:
-                    conversations = conversations[:max_convs]
+                # Sin límite de cantidad - procesamos TODAS las conversaciones
 
                 _logger.info(f"[DMSync] Total conversations fetched: {len(conversations)}")
 
