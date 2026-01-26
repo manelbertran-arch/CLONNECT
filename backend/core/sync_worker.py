@@ -10,9 +10,9 @@ Características:
 
 import asyncio
 import logging
-from datetime import datetime, timezone, timedelta
-from typing import Optional, Dict, Any, List
 from dataclasses import dataclass
+from datetime import datetime, timedelta, timezone
+from typing import Any, Dict, List, Optional
 
 logger = logging.getLogger(__name__)
 
@@ -20,11 +20,12 @@ logger = logging.getLogger(__name__)
 @dataclass
 class SyncConfig:
     """Configuración del sync worker."""
-    delay_between_calls: int = 3      # Segundos entre cada llamada API
-    rate_limit_pause: int = 300       # Segundos de pausa si rate limit (5 min)
-    max_retries: int = 3              # Reintentos por conversación
-    batch_size: int = 10              # Procesar N conversaciones, luego pausar
-    batch_pause: int = 30             # Segundos de pausa entre batches
+
+    delay_between_calls: int = 3  # Segundos entre cada llamada API
+    rate_limit_pause: int = 300  # Segundos de pausa si rate limit (5 min)
+    max_retries: int = 3  # Reintentos por conversación
+    batch_size: int = 10  # Procesar N conversaciones, luego pausar
+    batch_pause: int = 30  # Segundos de pausa entre batches
 
 
 # Configuración global
@@ -47,11 +48,7 @@ async def get_or_create_sync_state(session, creator_id: str):
     return state
 
 
-async def add_conversations_to_queue(
-    session,
-    creator_id: str,
-    conversations: List[Dict]
-) -> int:
+async def add_conversations_to_queue(session, creator_id: str, conversations: List[Dict]) -> int:
     """Añade conversaciones a la cola de sync."""
     from api.models import SyncQueue
 
@@ -62,17 +59,14 @@ async def add_conversations_to_queue(
             continue
 
         # Verificar si ya existe
-        existing = session.query(SyncQueue).filter_by(
-            creator_id=creator_id,
-            conversation_id=conv_id
-        ).first()
+        existing = (
+            session.query(SyncQueue)
+            .filter_by(creator_id=creator_id, conversation_id=conv_id)
+            .first()
+        )
 
         if not existing:
-            job = SyncQueue(
-                creator_id=creator_id,
-                conversation_id=conv_id,
-                status="pending"
-            )
+            job = SyncQueue(creator_id=creator_id, conversation_id=conv_id, status="pending")
             session.add(job)
             added += 1
         elif existing.status == "failed" and existing.attempts < SYNC_CONFIG.max_retries:
@@ -96,11 +90,7 @@ async def get_next_pending_job(session, creator_id: Optional[str] = None):
 
 
 async def process_single_conversation(
-    session,
-    job,
-    creator,
-    access_token: str,
-    creator_ids: set
+    session, job, creator, access_token: str, creator_ids: set
 ) -> Dict[str, Any]:
     """
     Procesa una única conversación.
@@ -110,16 +100,12 @@ async def process_single_conversation(
         creator_ids: Set of creator's Instagram IDs (both page_id and user_id)
                     to correctly identify messages from the creator
     """
-    import httpx
     from datetime import datetime
+
+    import httpx
     from api.models import Lead, Message, SyncState
 
-    result = {
-        "success": False,
-        "messages_saved": 0,
-        "lead_created": False,
-        "error": None
-    }
+    result = {"success": False, "messages_saved": 0, "lead_created": False, "error": None}
 
     # Elegir API según si tenemos page_id o no
     # Facebook API requiere page_id, Instagram API usa ig_user_id
@@ -136,8 +122,8 @@ async def process_single_conversation(
                 params={
                     "fields": "id,message,from,to,created_time",
                     "access_token": access_token,
-                    "limit": 50
-                }
+                    "limit": 50,
+                },
             )
 
             if msg_resp.status_code != 200:
@@ -207,11 +193,13 @@ async def process_single_conversation(
             last_user_msg_time = max(user_msg_timestamps) if user_msg_timestamps else None
 
             # Get or create lead
-            lead = session.query(Lead).filter_by(
-                creator_id=creator.id,
-                platform="instagram",
-                platform_user_id=follower_id
-            ).first()
+            lead = (
+                session.query(Lead)
+                .filter_by(
+                    creator_id=creator.id, platform="instagram", platform_user_id=follower_id
+                )
+                .first()
+            )
 
             if not lead:
                 lead = Lead(
@@ -222,17 +210,21 @@ async def process_single_conversation(
                     status="new",
                     first_contact_at=first_msg_time,
                     # IMPORTANTE: usar último mensaje del USUARIO para fantasma
-                    last_contact_at=last_user_msg_time or first_msg_time
+                    last_contact_at=last_user_msg_time or first_msg_time,
                 )
                 session.add(lead)
                 session.commit()
                 result["lead_created"] = True
             else:
                 # Update timestamps
-                if first_msg_time and (not lead.first_contact_at or first_msg_time < lead.first_contact_at):
+                if first_msg_time and (
+                    not lead.first_contact_at or first_msg_time < lead.first_contact_at
+                ):
                     lead.first_contact_at = first_msg_time
                 # IMPORTANTE: solo actualizar si hay mensaje del USUARIO más reciente
-                if last_user_msg_time and (not lead.last_contact_at or last_user_msg_time > lead.last_contact_at):
+                if last_user_msg_time and (
+                    not lead.last_contact_at or last_user_msg_time > lead.last_contact_at
+                ):
                     lead.last_contact_at = last_user_msg_time
 
             # Save messages
@@ -243,9 +235,7 @@ async def process_single_conversation(
                 if not msg_text or not msg_id:
                     continue
 
-                existing = session.query(Message).filter_by(
-                    platform_message_id=msg_id
-                ).first()
+                existing = session.query(Message).filter_by(platform_message_id=msg_id).first()
 
                 if existing:
                     continue
@@ -256,10 +246,7 @@ async def process_single_conversation(
                 role = "assistant" if is_from_creator else "user"
 
                 new_msg = Message(
-                    lead_id=lead.id,
-                    role=role,
-                    content=msg_text,
-                    platform_message_id=msg_id
+                    lead_id=lead.id, role=role, content=msg_text, platform_message_id=msg_id
                 )
 
                 msg_time = msg.get("created_time")
@@ -279,18 +266,28 @@ async def process_single_conversation(
             # Auto-categorizar lead después de guardar mensajes
             if result["messages_saved"] > 0:
                 try:
-                    from core.lead_categorization import calcular_categoria, categoria_a_status_legacy
+                    from core.lead_categorization import (
+                        calcular_categoria,
+                        categoria_a_status_legacy,
+                    )
 
                     # Obtener mensajes del lead para categorización
-                    lead_messages = session.query(Message).filter_by(lead_id=lead.id).order_by(Message.created_at).all()
-                    mensajes_para_cat = [{"role": m.role, "content": m.content or ""} for m in lead_messages]
+                    lead_messages = (
+                        session.query(Message)
+                        .filter_by(lead_id=lead.id)
+                        .order_by(Message.created_at)
+                        .all()
+                    )
+                    mensajes_para_cat = [
+                        {"role": m.role, "content": m.content or ""} for m in lead_messages
+                    ]
 
                     # Calcular categoría
                     cat_result = calcular_categoria(
                         mensajes=mensajes_para_cat,
                         es_cliente=lead.status == "customer",
                         ultimo_mensaje_lead=lead.last_contact_at,
-                        lead_created_at=lead.first_contact_at
+                        lead_created_at=lead.first_contact_at,
                     )
 
                     # Actualizar lead
@@ -299,7 +296,9 @@ async def process_single_conversation(
                         lead.status = new_status
                         lead.purchase_intent = cat_result.intent_score
                         session.commit()
-                        logger.info(f"Lead {lead.username} auto-categorizado: {cat_result.categoria} (intent: {cat_result.intent_score:.2f})")
+                        logger.info(
+                            f"Lead {lead.username} auto-categorizado: {cat_result.categoria} (intent: {cat_result.intent_score:.2f})"
+                        )
 
                 except Exception as cat_error:
                     logger.warning(f"Error en auto-categorización: {cat_error}")
@@ -316,6 +315,7 @@ async def process_single_conversation(
 
 class RateLimitError(Exception):
     """Error cuando Instagram API devuelve rate limit."""
+
     pass
 
 
@@ -324,7 +324,7 @@ async def run_sync_worker_iteration(session, creator_id: str) -> Dict[str, Any]:
     Ejecuta una iteración del worker para un creator específico.
     Procesa jobs hasta completar o hit rate limit.
     """
-    from api.models import SyncQueue, SyncState, Creator
+    from api.models import Creator, SyncQueue, SyncState
 
     result = {
         "jobs_processed": 0,
@@ -332,7 +332,7 @@ async def run_sync_worker_iteration(session, creator_id: str) -> Dict[str, Any]:
         "leads_created": 0,
         "rate_limited": False,
         "completed": False,
-        "error": None
+        "error": None,
     }
 
     # Get sync state
@@ -416,11 +416,15 @@ async def run_sync_worker_iteration(session, creator_id: str) -> Dict[str, Any]:
             job.status = "pending"
             job.attempts -= 1  # Don't count rate limit as attempt
             state.status = "rate_limited"
-            state.rate_limit_until = datetime.now(timezone.utc) + timedelta(seconds=SYNC_CONFIG.rate_limit_pause)
+            state.rate_limit_until = datetime.now(timezone.utc) + timedelta(
+                seconds=SYNC_CONFIG.rate_limit_pause
+            )
             state.last_error = str(e)
             session.commit()
 
-            logger.warning(f"[SyncWorker] Rate limit for {creator_id}, pausing {SYNC_CONFIG.rate_limit_pause}s")
+            logger.warning(
+                f"[SyncWorker] Rate limit for {creator_id}, pausing {SYNC_CONFIG.rate_limit_pause}s"
+            )
             result["rate_limited"] = True
             break
 
@@ -457,11 +461,7 @@ async def start_sync_for_creator(creator_id: str) -> Dict[str, Any]:
     from api.database import SessionLocal
     from api.models import Creator, SyncState
 
-    result = {
-        "status": "error",
-        "conversations_queued": 0,
-        "message": ""
-    }
+    result = {"status": "error", "conversations_queued": 0, "message": ""}
 
     session = SessionLocal()
     try:
@@ -470,7 +470,13 @@ async def start_sync_for_creator(creator_id: str) -> Dict[str, Any]:
 
         if state.rate_limit_until:
             if datetime.now(timezone.utc) < state.rate_limit_until.replace(tzinfo=timezone.utc):
-                minutes_left = int((state.rate_limit_until.replace(tzinfo=timezone.utc) - datetime.now(timezone.utc)).total_seconds() / 60)
+                minutes_left = int(
+                    (
+                        state.rate_limit_until.replace(tzinfo=timezone.utc)
+                        - datetime.now(timezone.utc)
+                    ).total_seconds()
+                    / 60
+                )
                 result["status"] = "rate_limited"
                 result["message"] = f"Rate limited. Retry in {minutes_left} minutes."
                 return result
@@ -485,49 +491,63 @@ async def start_sync_for_creator(creator_id: str) -> Dict[str, Any]:
         page_id = creator.instagram_page_id
         access_token = creator.instagram_token
 
-        # Fetch conversation list (single API call)
+        # Fetch ALL conversation pages with pagination
         # Estrategia dual: usar page_id con Facebook API si existe,
         # sino usar ig_user_id con Instagram API
+        conversations = []
         async with httpx.AsyncClient(timeout=30.0) as client:
             if page_id:
                 # Facebook Pages API - requiere page_id
                 api_base = "https://graph.facebook.com/v21.0"
-                conv_resp = await client.get(
-                    f"{api_base}/{page_id}/conversations",
-                    params={
-                        "platform": "instagram",
-                        "access_token": access_token,
-                        "limit": 50,
-                        "fields": "id,updated_time"
-                    }
-                )
+                url = f"{api_base}/{page_id}/conversations"
+                params = {
+                    "platform": "instagram",
+                    "access_token": access_token,
+                    "limit": 50,
+                    "fields": "id,updated_time",
+                }
             else:
                 # Instagram API - usa ig_user_id directamente
                 api_base = "https://graph.instagram.com/v21.0"
-                conv_resp = await client.get(
-                    f"{api_base}/{ig_user_id}/conversations",
-                    params={
-                        "access_token": access_token,
-                        "limit": 50,
-                        "fields": "id,updated_time"
-                    }
-                )
+                url = f"{api_base}/{ig_user_id}/conversations"
+                params = {"access_token": access_token, "limit": 50, "fields": "id,updated_time"}
 
-            if conv_resp.status_code != 200:
-                error_data = conv_resp.json().get("error", {})
+            # Paginate through ALL conversation pages
+            page_num = 0
+            max_pages = 20  # Safety limit (1000 conversations max)
+            while url and page_num < max_pages:
+                page_num += 1
+                conv_resp = await client.get(url, params=params if page_num == 1 else None)
 
-                if error_data.get("code") in [4, 17]:
-                    state.status = "rate_limited"
-                    state.rate_limit_until = datetime.now(timezone.utc) + timedelta(seconds=SYNC_CONFIG.rate_limit_pause)
-                    session.commit()
-                    result["status"] = "rate_limited"
-                    result["message"] = "Rate limited fetching conversations"
+                if conv_resp.status_code != 200:
+                    error_data = conv_resp.json().get("error", {})
+
+                    if error_data.get("code") in [4, 17]:
+                        state.status = "rate_limited"
+                        state.rate_limit_until = datetime.now(timezone.utc) + timedelta(
+                            seconds=SYNC_CONFIG.rate_limit_pause
+                        )
+                        session.commit()
+                        result["status"] = "rate_limited"
+                        result["message"] = "Rate limited fetching conversations"
+                        return result
+
+                    result["message"] = f"API error: {error_data.get('message', 'Unknown')}"
                     return result
 
-                result["message"] = f"API error: {error_data.get('message', 'Unknown')}"
-                return result
+                data = conv_resp.json()
+                page_convs = data.get("data", [])
+                conversations.extend(page_convs)
+                logger.info(
+                    f"[SyncWorker] Fetched page {page_num}: {len(page_convs)} conversations (total: {len(conversations)})"
+                )
 
-            conversations = conv_resp.json().get("data", [])
+                # Get next page URL if exists
+                url = data.get("paging", {}).get("next")
+
+            logger.info(
+                f"[SyncWorker] Total conversations fetched: {len(conversations)} (pages: {page_num})"
+            )
 
         # Add to queue
         added = await add_conversations_to_queue(session, creator_id, conversations)
@@ -568,19 +588,15 @@ def get_sync_status(creator_id: str) -> Dict[str, Any]:
             return {
                 "status": "not_started",
                 "progress": "0/0",
-                "message": "No sync started for this creator"
+                "message": "No sync started for this creator",
             }
 
         # Count pending jobs
-        pending = session.query(SyncQueue).filter_by(
-            creator_id=creator_id,
-            status="pending"
-        ).count()
+        pending = (
+            session.query(SyncQueue).filter_by(creator_id=creator_id, status="pending").count()
+        )
 
-        failed = session.query(SyncQueue).filter_by(
-            creator_id=creator_id,
-            status="failed"
-        ).count()
+        failed = session.query(SyncQueue).filter_by(creator_id=creator_id, status="failed").count()
 
         # Calculate progress
         total = state.conversations_total or 0
@@ -597,12 +613,17 @@ def get_sync_status(creator_id: str) -> Dict[str, Any]:
             "error_count": state.error_count or 0,
             "current_conversation": state.current_conversation,
             "last_sync": state.last_sync_at.isoformat() if state.last_sync_at else None,
-            "last_error": state.last_error
+            "last_error": state.last_error,
         }
 
         if state.rate_limit_until:
             if datetime.now(timezone.utc) < state.rate_limit_until.replace(tzinfo=timezone.utc):
-                seconds_left = int((state.rate_limit_until.replace(tzinfo=timezone.utc) - datetime.now(timezone.utc)).total_seconds())
+                seconds_left = int(
+                    (
+                        state.rate_limit_until.replace(tzinfo=timezone.utc)
+                        - datetime.now(timezone.utc)
+                    ).total_seconds()
+                )
                 result["rate_limit_seconds"] = seconds_left
                 result["rate_limit_until"] = state.rate_limit_until.isoformat()
 
