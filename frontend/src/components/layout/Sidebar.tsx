@@ -9,6 +9,7 @@ import {
   Settings,
   Bot,
   LogOut,
+  BarChart3,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/context/AuthContext";
@@ -19,6 +20,7 @@ const navItems = [
   { path: "/copilot", label: "Copilot", icon: Bot },
   { path: "/leads", label: "Leads", icon: Users },
   { path: "/nurturing", label: "Nurturing", icon: Sparkles },
+  { path: "/analytics", label: "Analytics", icon: BarChart3 },
   { path: "/products", label: "Productos", icon: ShoppingBag },
   { path: "/bookings", label: "Reservas", icon: Calendar },
   { path: "/settings", label: "Ajustes", icon: Settings },
