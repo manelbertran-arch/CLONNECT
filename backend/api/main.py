@@ -250,6 +250,7 @@ from api.routers import (
 
 app.include_router(knowledge.router)
 app.include_router(analytics.router)
+app.include_router(analytics.router, prefix="/api")  # Also expose at /api/analytics for frontend compatibility
 app.include_router(intelligence.router)
 app.include_router(onboarding.router)
 app.include_router(admin.router)
