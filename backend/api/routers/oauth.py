@@ -308,8 +308,8 @@ async def _simple_dm_sync_internal(
     """
     Internal DM sync function that works with credentials passed directly.
     Simplified version of admin.simple_dm_sync for use during auto-onboarding.
-    Rate limited: 2s delay between conversations to prevent Meta API blocks.
 
+    Usa instagram_rate_limiter para protección contra rate limits de Meta.
     Sin límite de cantidad - carga TODAS las conversaciones de los últimos 12 meses.
     """
     import asyncio
@@ -318,9 +318,10 @@ async def _simple_dm_sync_internal(
     import httpx
     from api.database import SessionLocal
     from api.models import Creator, Lead, Message
+    from core.instagram_rate_limiter import get_instagram_rate_limiter
 
-    # Rate limiting constant
-    DELAY_BETWEEN_CONVS = 2.0
+    # Usar rate limiter centralizado en lugar de delays hardcodeados
+    rate_limiter = get_instagram_rate_limiter()
 
     results = {
         "conversations_processed": 0,
@@ -359,6 +360,9 @@ async def _simple_dm_sync_internal(
             while True:
                 page_count += 1
 
+                # Rate limiter: esperar si es necesario ANTES de cada llamada
+                await rate_limiter.wait_if_needed(creator_id)
+
                 if next_url:
                     # Use the full next URL for pagination
                     conv_resp = await client.get(next_url)
@@ -374,11 +378,16 @@ async def _simple_dm_sync_internal(
                         },
                     )
 
+                # Registrar la llamada en el rate limiter
+                rate_limiter.record_call(creator_id, "/conversations", conv_resp.status_code)
+
                 if conv_resp.status_code != 200:
                     error_data = conv_resp.json().get("error", {})
-                    if error_data.get("code") in [4, 17]:
+                    error_code = error_data.get("code", 0)
+                    if error_code in [4, 17]:
                         logger.warning(
-                            f"[DMSync] Rate limit hit while fetching conversations page {page_count}"
+                            f"[DMSync] Rate limit hit while fetching conversations page {page_count}. "
+                            f"Backoff activado por rate_limiter."
                         )
                         results["rate_limited"] = True
                         break
@@ -400,8 +409,7 @@ async def _simple_dm_sync_internal(
                 if not next_url:
                     break  # Sin límite de cantidad - cargar TODAS
 
-                # Small delay between pagination requests
-                await asyncio.sleep(0.5)
+                # Rate limiter maneja los delays automáticamente
 
             conversations = all_conversations
             conversations.sort(key=lambda c: c.get("updated_time", ""), reverse=True)
@@ -416,12 +424,12 @@ async def _simple_dm_sync_internal(
                 if not conv_id:
                     continue
 
-                # Rate limiting: delay between conversations
-                if conv_idx > 0:
+                # Rate limiter: esperar si es necesario antes de procesar cada conversación
+                waited = await rate_limiter.wait_if_needed(creator_id)
+                if waited > 0:
                     logger.info(
-                        f"[DMSync] Rate limit delay: {DELAY_BETWEEN_CONVS}s before conv {conv_idx + 1}/{len(conversations)}"
+                        f"[DMSync] Rate limiter waited {waited}s before conv {conv_idx + 1}/{len(conversations)}"
                     )
-                    await asyncio.sleep(DELAY_BETWEEN_CONVS)
 
                 try:
                     # Get ALL messages with pagination
@@ -431,6 +439,9 @@ async def _simple_dm_sync_internal(
 
                     while True:
                         msg_page += 1
+
+                        # Rate limiter: esperar si es necesario ANTES de cada llamada
+                        await rate_limiter.wait_if_needed(creator_id)
 
                         if msg_next_url:
                             msg_resp = await client.get(msg_next_url)
@@ -444,12 +455,17 @@ async def _simple_dm_sync_internal(
                                 },
                             )
 
+                        # Registrar la llamada en el rate limiter
+                        rate_limiter.record_call(creator_id, "/messages", msg_resp.status_code)
+
                         # Check for rate limit error
                         if msg_resp.status_code != 200:
                             error_data = msg_resp.json().get("error", {})
-                            if error_data.get("code") in [4, 17]:
+                            error_code = error_data.get("code", 0)
+                            if error_code in [4, 17]:
                                 logger.warning(
-                                    f"[DMSync] Rate limit hit at conv {conv_idx + 1}, stopping"
+                                    f"[DMSync] Rate limit hit at conv {conv_idx + 1}. "
+                                    f"Backoff activado por rate_limiter."
                                 )
                                 results["rate_limited"] = True
                                 results["errors"].append(f"Rate limit at conv {conv_idx + 1}")
@@ -467,8 +483,7 @@ async def _simple_dm_sync_internal(
                         if not msg_next_url:
                             break
 
-                        # Small delay between message pagination
-                        await asyncio.sleep(0.3)
+                        # Rate limiter maneja los delays automáticamente
 
                     if results.get("rate_limited"):
                         break
