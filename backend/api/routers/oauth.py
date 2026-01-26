@@ -346,7 +346,7 @@ async def _simple_dm_sync_internal(
             conversations = conv_resp.json().get("data", [])
             conversations.sort(key=lambda c: c.get("updated_time", ""), reverse=True)
 
-            days_limit_ago = datetime.now().astimezone() - timedelta(days=1825)  # 5 years
+            days_limit_ago = datetime.now().astimezone() - timedelta(days=365)  # 12 months
 
             for conv_idx, conv in enumerate(conversations):
                 conv_id = conv.get("id")

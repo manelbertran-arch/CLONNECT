@@ -2585,11 +2585,11 @@ async def simple_dm_sync(creator_id: str, max_convs: int = 25, msgs_per_conv: in
                                 lead.profile_pic_url = follower_profile_pic
                             session.commit()
 
-                        # REGLA 2: Calcular límite de días (extendido a 5 años)
+                        # REGLA 2: Calcular límite de días (12 meses)
                         from datetime import timedelta
 
-                        # 1825 days (5 years) for full history import
-                        days_limit_ago = datetime.now().astimezone() - timedelta(days=1825)
+                        # 365 days (12 months) for analytics-ready data
+                        days_limit_ago = datetime.now().astimezone() - timedelta(days=365)
 
                         # Save messages
                         messages_saved_this_conv = 0
