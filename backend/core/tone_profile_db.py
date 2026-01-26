@@ -393,6 +393,9 @@ async def save_instagram_posts_db(creator_id: str, posts: List[dict]) -> int:
                 hashtags = [tag.strip('#') for tag in caption.split() if tag.startswith('#')]
                 mentions = [m.strip('@') for m in caption.split() if m.startswith('@')]
 
+                # Extract comments data for analytics
+                comments_data = post.get('comments', [])
+
                 if existing:
                     # Update
                     existing.caption = caption
@@ -405,6 +408,7 @@ async def save_instagram_posts_db(creator_id: str, posts: List[dict]) -> int:
                     existing.comments_count = post.get('comments_count', 0)
                     existing.hashtags = hashtags
                     existing.mentions = mentions
+                    existing.comments = comments_data  # Full comment data for analytics
                 else:
                     # Insert
                     new_post = InstagramPost(
@@ -419,7 +423,8 @@ async def save_instagram_posts_db(creator_id: str, posts: List[dict]) -> int:
                         likes_count=post.get('like_count', 0),
                         comments_count=post.get('comments_count', 0),
                         hashtags=hashtags,
-                        mentions=mentions
+                        mentions=mentions,
+                        comments=comments_data  # Full comment data for analytics
                     )
                     db.add(new_post)
 

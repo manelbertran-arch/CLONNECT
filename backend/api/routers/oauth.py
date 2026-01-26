@@ -57,14 +57,19 @@ async def _auto_onboard_after_instagram_oauth(
             finally:
                 session.close()
 
-        # STEP 1: Scrape Instagram posts
-        logger.info(f"[AutoOnboard] Scraping Instagram posts for {creator_id}...")
+        # STEP 1: Scrape Instagram posts WITH COMMENTS for analytics
+        logger.info(f"[AutoOnboard] Scraping Instagram posts with comments for {creator_id}...")
         scraper = MetaGraphAPIScraper(
             access_token=access_token, instagram_business_id=instagram_user_id
         )
 
-        posts = await scraper.get_posts(limit=365)  # Full year of posts for analytics
-        logger.info(f"[AutoOnboard] Scraped {len(posts)} posts from Instagram")
+        # Fetch posts with full comment data for analytics/insights
+        posts = await scraper.get_posts_with_comments(
+            limit=365,  # Full year of posts
+            comments_per_post=100  # Up to 100 comments per post
+        )
+        total_comments = sum(len(p.comments) for p in posts)
+        logger.info(f"[AutoOnboard] Scraped {len(posts)} posts with {total_comments} comments from Instagram")
 
         if not posts:
             logger.warning(f"[AutoOnboard] No posts found for {creator_id}, skipping tone analysis")
@@ -75,6 +80,17 @@ async def _auto_onboard_after_instagram_oauth(
             posts_data = []
             for p in posts:
                 if p.caption and len(p.caption.strip()) > 10:
+                    # Convert comments to serializable format
+                    comments_data = [
+                        {
+                            "comment_id": c.comment_id,
+                            "text": c.text,
+                            "username": c.username,
+                            "timestamp": c.timestamp.isoformat() if c.timestamp else None,
+                            "like_count": c.like_count,
+                        }
+                        for c in p.comments
+                    ]
                     posts_data.append(
                         {
                             "post_id": p.post_id,
@@ -85,6 +101,7 @@ async def _auto_onboard_after_instagram_oauth(
                             "media_url": p.media_url,
                             "likes_count": p.likes_count,
                             "comments_count": p.comments_count,
+                            "comments": comments_data,  # Full comment data for analytics
                         }
                     )
 

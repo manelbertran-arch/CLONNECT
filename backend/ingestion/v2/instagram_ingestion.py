@@ -365,8 +365,23 @@ class InstagramIngestionV2:
 
     def _convert_posts_to_db_format(self, posts: List) -> List[dict]:
         """Convierte InstagramPost a formato para DB."""
-        return [
-            {
+        result = []
+        for post in posts:
+            # Convert comments to serializable format
+            comments_data = []
+            if hasattr(post, 'comments') and post.comments:
+                comments_data = [
+                    {
+                        'comment_id': c.comment_id if hasattr(c, 'comment_id') else c.get('comment_id', ''),
+                        'text': c.text if hasattr(c, 'text') else c.get('text', ''),
+                        'username': c.username if hasattr(c, 'username') else c.get('username', ''),
+                        'timestamp': (c.timestamp.isoformat() if hasattr(c, 'timestamp') and c.timestamp else c.get('timestamp')),
+                        'like_count': c.like_count if hasattr(c, 'like_count') else c.get('like_count', 0),
+                    }
+                    for c in post.comments
+                ]
+
+            result.append({
                 'id': post.post_id,
                 'post_id': post.post_id,
                 'caption': post.caption,
@@ -378,10 +393,10 @@ class InstagramIngestionV2:
                 'like_count': post.likes_count or 0,
                 'comments_count': post.comments_count or 0,
                 'hashtags': post.hashtags,
-                'mentions': post.mentions
-            }
-            for post in posts
-        ]
+                'mentions': post.mentions,
+                'comments': comments_data  # Full comment data for analytics
+            })
+        return result
 
     async def _save_posts_to_db(self, creator_id: str, posts: List[dict]) -> int:
         """Guarda posts en PostgreSQL."""

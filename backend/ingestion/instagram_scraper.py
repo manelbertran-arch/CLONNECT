@@ -127,6 +127,17 @@ instaloader_circuit_breaker = pybreaker.CircuitBreaker(
 # =============================================================================
 
 @dataclass
+class InstagramComment:
+    """Representa un comentario de Instagram."""
+    comment_id: str
+    text: str
+    username: str
+    timestamp: Optional[datetime] = None
+    like_count: int = 0
+    replies: List['InstagramComment'] = field(default_factory=list)
+
+
+@dataclass
 class InstagramPost:
     """Representa un post de Instagram."""
     post_id: str
@@ -140,6 +151,7 @@ class InstagramPost:
     thumbnail_url: Optional[str] = None
     hashtags: List[str] = field(default_factory=list)
     mentions: List[str] = field(default_factory=list)
+    comments: List[InstagramComment] = field(default_factory=list)  # Full comment data
 
     @property
     def has_content(self) -> bool:
@@ -306,6 +318,101 @@ class MetaGraphAPIScraper:
     @staticmethod
     def _extract_mentions(text: str) -> List[str]:
         return re.findall(r'@(\w+)', text) if text else []
+
+    async def get_post_comments(self, post_id: str, limit: int = 50) -> List[InstagramComment]:
+        """
+        Fetch comments for a specific post.
+
+        Args:
+            post_id: Instagram media ID
+            limit: Max comments to fetch (default 50)
+
+        Returns:
+            List of InstagramComment objects
+        """
+        import httpx
+
+        url = f"{self.BASE_URL}/{post_id}/comments"
+        params = {
+            "access_token": self.access_token,
+            "fields": "id,text,username,timestamp,like_count",
+            "limit": min(limit, 50)  # API max is 50 per request
+        }
+
+        comments = []
+        try:
+            async with httpx.AsyncClient(timeout=30.0) as client:
+                response = await client.get(url, params=params)
+
+                if response.status_code != 200:
+                    logger.warning(f"Failed to fetch comments for {post_id}: {response.status_code}")
+                    return comments
+
+                data = response.json()
+                for item in data.get("data", []):
+                    try:
+                        timestamp = None
+                        if item.get("timestamp"):
+                            timestamp = datetime.fromisoformat(item["timestamp"].replace("Z", "+00:00"))
+
+                        comment = InstagramComment(
+                            comment_id=item["id"],
+                            text=item.get("text", ""),
+                            username=item.get("username", "unknown"),
+                            timestamp=timestamp,
+                            like_count=item.get("like_count", 0)
+                        )
+                        comments.append(comment)
+                    except Exception as e:
+                        logger.warning(f"Error parsing comment: {e}")
+                        continue
+
+        except Exception as e:
+            logger.warning(f"Error fetching comments for {post_id}: {e}")
+
+        return comments
+
+    async def get_posts_with_comments(
+        self,
+        limit: int = 50,
+        since: Optional[datetime] = None,
+        comments_per_post: int = 50
+    ) -> List[InstagramPost]:
+        """
+        Fetch posts WITH their comments for analytics.
+
+        Args:
+            limit: Max posts to fetch
+            since: Only posts after this date
+            comments_per_post: Max comments to fetch per post
+
+        Returns:
+            List of InstagramPost with comments populated
+        """
+        import asyncio
+
+        # First get posts
+        posts = await self.get_posts(limit=limit, since=since)
+
+        # Then fetch comments for each post (with rate limiting)
+        for i, post in enumerate(posts):
+            if post.comments_count and post.comments_count > 0:
+                try:
+                    post.comments = await self.get_post_comments(
+                        post.post_id,
+                        limit=comments_per_post
+                    )
+                    logger.debug(f"Fetched {len(post.comments)} comments for post {post.post_id}")
+                except Exception as e:
+                    logger.warning(f"Failed to fetch comments for post {post.post_id}: {e}")
+
+                # Rate limiting: small delay between comment fetches
+                if i < len(posts) - 1:
+                    await asyncio.sleep(0.5)
+
+        total_comments = sum(len(p.comments) for p in posts)
+        logger.info(f"Fetched {len(posts)} posts with {total_comments} total comments")
+        return posts
 
 
 # =============================================================================

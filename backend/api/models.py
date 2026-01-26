@@ -416,7 +416,7 @@ class ContentChunk(Base):
 class InstagramPost(Base):
     """
     Instagram posts scraped during onboarding.
-    Used for ToneProfile analysis and RAG indexing.
+    Used for ToneProfile analysis, RAG indexing, and Analytics/Insights.
     """
     __tablename__ = "instagram_posts"
     __table_args__ = {'extend_existing': True}
@@ -433,6 +433,8 @@ class InstagramPost(Base):
     comments_count = Column(Integer, default=0)
     hashtags = Column(JSON, default=list)  # Extracted hashtags
     mentions = Column(JSON, default=list)  # Extracted mentions
+    # Full comment data for analytics: [{comment_id, text, username, timestamp, like_count}]
+    comments = Column(JSON, default=list)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
 
