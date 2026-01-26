@@ -236,6 +236,7 @@ from api.routers import (
     connections,
     copilot,
     ingestion_v2,
+    intelligence,
     knowledge,
     oauth,
     onboarding,
@@ -244,6 +245,7 @@ from api.routers import (
 
 app.include_router(knowledge.router)
 app.include_router(analytics.router)
+app.include_router(intelligence.router)
 app.include_router(onboarding.router)
 app.include_router(admin.router)
 app.include_router(connections.router)
