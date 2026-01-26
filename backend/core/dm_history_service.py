@@ -8,7 +8,7 @@ Este servicio:
 4. Guarda historial de mensajes
 
 FILTROS DE SEGURIDAD:
-- max_age_days: Solo importa mensajes de los últimos X días (default: 90)
+- max_age_days: Solo importa mensajes de los últimos X días (default: 365)
 - Valida mensajes vacíos/whitespace antes de guardar
 """
 
@@ -20,7 +20,7 @@ from dataclasses import dataclass
 logger = logging.getLogger(__name__)
 
 # Configuración por defecto
-DEFAULT_MAX_AGE_DAYS = 90  # Solo mensajes de los últimos 90 días
+DEFAULT_MAX_AGE_DAYS = 365  # Mensajes del último año (antes: 90 días)
 DEFAULT_MIN_MESSAGE_LENGTH = 1  # Mínimo 1 carácter después de strip()
 
 
@@ -45,7 +45,7 @@ class DMHistoryService:
         access_token: str,
         page_id: str,
         ig_user_id: str,
-        limit: int = 50,
+        limit: int = 100,
         max_age_days: int = DEFAULT_MAX_AGE_DAYS
     ) -> Dict[str, Any]:
         """
@@ -96,7 +96,7 @@ class DMHistoryService:
                         continue
 
                     # Obtener mensajes de la conversación
-                    messages = await connector.get_conversation_messages(conv_id, limit=50)
+                    messages = await connector.get_conversation_messages(conv_id, limit=200)
 
                     if not messages:
                         continue

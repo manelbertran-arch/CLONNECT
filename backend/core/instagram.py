@@ -313,33 +313,55 @@ class InstagramConnector:
         data = await self._rate_limited_request("GET", url, "get_media", params=params)
         return data.get("data", [])
 
-    async def get_conversations(self, limit: int = 20) -> List[dict]:
-        """Obtener conversaciones recientes, ordenadas por updated_time DESC.
+    async def get_conversations(self, limit: int = 100) -> List[dict]:
+        """Obtener conversaciones recientes con paginación, ordenadas por updated_time DESC.
 
         Estrategia dual:
         - Si page_id existe: usa Facebook API (graph.facebook.com/{page_id}/conversations?platform=instagram)
         - Si solo ig_user_id: usa Instagram API (graph.instagram.com/{ig_user_id}/conversations)
+
+        Args:
+            limit: Máximo de conversaciones a obtener (default: 100, pagina automáticamente)
         """
         if self.page_id:
-            # Facebook Pages API
-            url = f"{self.FACEBOOK_API_URL}/{self.page_id}/conversations"
-            params = {
-                "platform": "instagram",
-                "fields": "id,updated_time,participants",
-                "limit": limit,
-                "access_token": self.access_token
-            }
+            base_url = f"{self.FACEBOOK_API_URL}/{self.page_id}/conversations"
+            base_params = {"platform": "instagram"}
         else:
-            # Instagram API (cuando solo tenemos ig_user_id del Instagram Login)
-            url = f"{self.INSTAGRAM_API_URL}/{self.ig_user_id}/conversations"
-            params = {
-                "fields": "id,updated_time,participants",
-                "limit": limit,
-                "access_token": self.access_token
-            }
+            base_url = f"{self.INSTAGRAM_API_URL}/{self.ig_user_id}/conversations"
+            base_params = {}
 
-        data = await self._rate_limited_request("GET", url, "get_conversations", params=params)
-        conversations = data.get("data", [])
+        conversations = []
+        next_url = base_url
+        page_limit = min(50, limit)  # Meta API max per page is usually 50
+
+        params = {
+            **base_params,
+            "fields": "id,updated_time,participants",
+            "limit": page_limit,
+            "access_token": self.access_token
+        }
+
+        while next_url and len(conversations) < limit:
+            if len(conversations) == 0:
+                data = await self._rate_limited_request("GET", next_url, "get_conversations", params=params)
+            else:
+                # next_url ya incluye los params
+                session = await self._get_session()
+                async with session.get(next_url) as resp:
+                    data = await resp.json()
+
+            batch = data.get("data", [])
+            conversations.extend(batch)
+
+            # Check for next page
+            paging = data.get("paging", {})
+            next_url = paging.get("next")
+
+            if not batch:
+                break
+
+        # Truncar al límite solicitado
+        conversations = conversations[:limit]
 
         # Ordenar por updated_time DESC (más recientes primero)
         return sorted(conversations, key=lambda c: c.get("updated_time", ""), reverse=True)
@@ -347,11 +369,15 @@ class InstagramConnector:
     async def get_conversation_messages(
         self,
         conversation_id: str,
-        limit: int = 50
+        limit: int = 200
     ) -> List[dict]:
-        """Obtener mensajes de una conversación.
+        """Obtener mensajes de una conversación con paginación.
 
         Usa la misma API base que se usó para obtener las conversaciones.
+
+        Args:
+            conversation_id: ID de la conversación
+            limit: Máximo de mensajes a obtener (default: 200, pagina automáticamente)
         """
         # Usar Facebook API si tenemos page_id, sino Instagram API
         if self.page_id:
@@ -359,15 +385,37 @@ class InstagramConnector:
         else:
             api_base = self.INSTAGRAM_API_URL
 
-        url = f"{api_base}/{conversation_id}/messages"
+        messages = []
+        next_url = f"{api_base}/{conversation_id}/messages"
+        page_limit = min(50, limit)  # Meta API max per page
+
         params = {
             "fields": "id,message,from,to,created_time",
-            "limit": limit,
+            "limit": page_limit,
             "access_token": self.access_token
         }
 
-        data = await self._rate_limited_request("GET", url, "get_conversation_messages", params=params)
-        return data.get("data", [])
+        while next_url and len(messages) < limit:
+            if len(messages) == 0:
+                data = await self._rate_limited_request("GET", next_url, "get_conversation_messages", params=params)
+            else:
+                # next_url ya incluye los params
+                session = await self._get_session()
+                async with session.get(next_url) as resp:
+                    data = await resp.json()
+
+            batch = data.get("data", [])
+            messages.extend(batch)
+
+            # Check for next page
+            paging = data.get("paging", {})
+            next_url = paging.get("next")
+
+            if not batch:
+                break
+
+        # Truncar al límite solicitado
+        return messages[:limit]
 
     async def mark_message_seen(self, sender_id: str) -> dict:
         """Marcar mensajes como vistos via Instagram Messaging API"""

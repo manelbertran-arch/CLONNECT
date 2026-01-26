@@ -25,8 +25,8 @@ ACCESS_TOKEN = "IGAAT4utuSH75BZAGE0SFNwU0lfc2oxQ2hhZADNoQkJxR0hrNGc5ZAzZAScjd0dH
 IG_USER_ID = "17841407135263418"  # This is the page_id (used for conversations)
 # IMPORTANTE: Usar graph.facebook.com para conversations/messages
 API_BASE = "https://graph.facebook.com/v21.0"
-MAX_CONVERSATIONS = 50
-MAX_MESSAGES_PER_CONV = 50
+MAX_CONVERSATIONS = 100  # Aumentado de 50 a 100
+MAX_MESSAGES_PER_CONV = 200  # Aumentado de 50 a 200
 
 
 async def sync_dms():
@@ -65,20 +65,41 @@ async def sync_dms():
         insights = []
 
         async with httpx.AsyncClient(timeout=30.0) as client:
-            # Get conversations - usar platform=instagram
-            logger.info("Fetching conversations...")
-            conv_resp = await client.get(
-                f"{API_BASE}/{IG_USER_ID}/conversations",
-                params={"platform": "instagram", "access_token": ACCESS_TOKEN, "limit": MAX_CONVERSATIONS}
-            )
+            # Get ALL conversations with pagination
+            logger.info("Fetching conversations (with pagination)...")
+            conversations = []
+            next_url = f"{API_BASE}/{IG_USER_ID}/conversations"
+            params = {"platform": "instagram", "access_token": ACCESS_TOKEN, "limit": 50}
 
-            if conv_resp.status_code != 200:
-                logger.error(f"Conversations API error: {conv_resp.json()}")
-                return
+            page_num = 0
+            while next_url and len(conversations) < MAX_CONVERSATIONS:
+                page_num += 1
+                logger.info(f"  Fetching page {page_num}...")
 
-            conversations = conv_resp.json().get("data", [])
+                if page_num == 1:
+                    conv_resp = await client.get(next_url, params=params)
+                else:
+                    # next_url already includes params
+                    conv_resp = await client.get(next_url)
+
+                if conv_resp.status_code != 200:
+                    logger.error(f"Conversations API error: {conv_resp.json()}")
+                    break
+
+                data = conv_resp.json()
+                batch = data.get("data", [])
+                conversations.extend(batch)
+                logger.info(f"    Got {len(batch)} conversations (total: {len(conversations)})")
+
+                # Check for next page
+                paging = data.get("paging", {})
+                next_url = paging.get("next")
+
+                if not batch:
+                    break
+
             conversations_fetched = len(conversations)
-            logger.info(f"Found {conversations_fetched} conversations")
+            logger.info(f"Found {conversations_fetched} total conversations")
 
             # Process each conversation
             for i, conv in enumerate(conversations):
@@ -86,21 +107,33 @@ async def sync_dms():
                 if not conv_id:
                     continue
 
-                # Get messages
-                msg_resp = await client.get(
-                    f"{API_BASE}/{conv_id}/messages",
-                    params={
-                        "fields": "id,message,from,to,created_time",
-                        "access_token": ACCESS_TOKEN,
-                        "limit": MAX_MESSAGES_PER_CONV
-                    }
-                )
+                # Get ALL messages with pagination
+                messages = []
+                msg_next_url = f"{API_BASE}/{conv_id}/messages"
+                msg_params = {
+                    "fields": "id,message,from,to,created_time",
+                    "access_token": ACCESS_TOKEN,
+                    "limit": 50
+                }
 
-                if msg_resp.status_code != 200:
-                    logger.warning(f"  Conv {i+1}: Error getting messages")
-                    continue
+                while msg_next_url and len(messages) < MAX_MESSAGES_PER_CONV:
+                    if len(messages) == 0:
+                        msg_resp = await client.get(msg_next_url, params=msg_params)
+                    else:
+                        msg_resp = await client.get(msg_next_url)
 
-                messages = msg_resp.json().get("data", [])
+                    if msg_resp.status_code != 200:
+                        break
+
+                    msg_data = msg_resp.json()
+                    batch = msg_data.get("data", [])
+                    messages.extend(batch)
+
+                    msg_paging = msg_data.get("paging", {})
+                    msg_next_url = msg_paging.get("next")
+
+                    if not batch:
+                        break
                 if not messages:
                     continue
 
