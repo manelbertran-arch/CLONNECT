@@ -12,6 +12,7 @@ import {
   Menu,
   X,
   Bot,
+  BarChart3,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
@@ -22,6 +23,7 @@ const navItems = [
   { path: "/inbox", label: "Bandeja", icon: MessageSquare },
   { path: "/copilot", label: "Copilot", icon: Bot },
   { path: "/leads", label: "Leads", icon: Users },
+  { path: "/analytics", label: "Analytics", icon: BarChart3 },
   { path: "/nurturing", label: "Nurturing", icon: Sparkles },
   { path: "/products", label: "Productos", icon: ShoppingBag },
   { path: "/bookings", label: "Reservas", icon: Calendar },

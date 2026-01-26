@@ -1,10 +1,11 @@
-import { Home, MessageCircle, Users, Settings } from 'lucide-react';
+import { Home, MessageCircle, Users, Settings, BarChart3 } from 'lucide-react';
 import { NavLink, useLocation } from 'react-router-dom';
 
 const navItems = [
   { path: '/new/inicio', icon: Home, label: 'Inicio' },
   { path: '/new/mensajes', icon: MessageCircle, label: 'Mensajes' },
   { path: '/new/clientes', icon: Users, label: 'Clientes' },
+  { path: '/analytics', icon: BarChart3, label: 'Analytics' },
   { path: '/new/ajustes', icon: Settings, label: 'Ajustes' },
 ];
 
