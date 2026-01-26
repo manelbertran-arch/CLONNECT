@@ -149,6 +149,8 @@ DEFAULT_CORS_ORIGINS = [
     "https://www.clonnect.vercel.app",
     "https://clonnect-production.up.railway.app",
     "https://frontend-wine-ten-57.vercel.app",
+    "https://www.clonnectapp.com",
+    "https://clonnectapp.com",
     "http://localhost:3000",
     "http://localhost:5173",
     "http://127.0.0.1:5173",
