@@ -169,10 +169,11 @@ print(f"CORS: Allowing origins: {CORS_ORIGINS}")
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=CORS_ORIGINS,
-    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"],
+    allow_origins=["*"],  # Allow all origins temporarily for debugging
+    allow_methods=["*"],
     allow_headers=["*"],
-    allow_credentials=True,
+    allow_credentials=False,  # Must be False when using "*" for origins
+    expose_headers=["*"],
 )
 
 # Rate Limiting Middleware
