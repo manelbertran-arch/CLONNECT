@@ -1,17 +1,15 @@
 import { useState } from 'react';
 import {
   MessageSquare, Users, Target, DollarSign,
-  TrendingUp, Zap, ArrowRight,
-  Sparkles, AlertTriangle, RefreshCw
+  TrendingUp, Zap, ArrowRight, ChevronRight,
+  Sparkles, AlertTriangle, RefreshCw, Loader2, AlertCircle, Lightbulb
 } from 'lucide-react';
 
-import { KPICard } from './components/KPICard';
-import { RecommendationCard } from './components/RecommendationCard';
-import { HotLeadCard } from './components/HotLeadCard';
-import { ChurnRiskCard } from './components/ChurnRiskCard';
 import { useIntelligenceDashboard, useGenerateWeeklyReport } from '@/hooks/useIntelligence';
 import { getCreatorId } from '@/services/api';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
+import { Button } from '@/components/ui/button';
+import { cn } from '@/lib/utils';
 
 export default function AnalyticsDashboard() {
   const creatorId = getCreatorId();
@@ -25,303 +23,361 @@ export default function AnalyticsDashboard() {
   if (isError) return <DashboardError error={error as Error} onRetry={refetch} />;
   if (!data) return null;
 
-  const { patterns, predictions, recommendations, kpis } = data;
-
-  // Extract metrics from patterns
-  const metrics = {
-    conversations: patterns?.conversation?.avg_messages_per_user || 0,
-    new_leads: predictions?.total_hot_leads || 0,
-    conversions: 0, // Would come from metrics_summary
-    revenue: 0, // Would come from revenue data
-    vs_previous: {
-      conversations: 0,
-      leads: 0,
-      conversions: 0,
-      revenue: 0
-    }
-  };
+  const { patterns, predictions, recommendations } = data;
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-indigo-50">
+    <div className="space-y-8">
       {/* Header */}
-      <header className="bg-white/80 backdrop-blur-sm border-b border-gray-200 sticky top-0 z-10">
-        <div className="max-w-7xl mx-auto px-6 py-5">
-          <div className="flex items-center justify-between">
-            <div>
-              <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
-                <Sparkles className="w-6 h-6 text-indigo-600" />
-                Intelligence Dashboard
-              </h1>
-              <p className="text-gray-500 mt-1">
-                Analisis predictivo de tu negocio en tiempo real
-              </p>
-            </div>
+      <div className="flex items-start justify-between">
+        <div>
+          <p className="text-sm text-muted-foreground mb-1">Business Intelligence</p>
+          <h1 className="text-2xl font-semibold tracking-tight flex items-center gap-2">
+            <Sparkles className="w-5 h-5 text-primary" />
+            Analytics
+          </h1>
+        </div>
+        <div className="flex items-center gap-3">
+          <select
+            value={days}
+            onChange={(e) => setDays(Number(e.target.value))}
+            className="text-sm border border-border/50 rounded-lg px-3 py-2 bg-card"
+          >
+            <option value={7}>7 dias</option>
+            <option value={30}>30 dias</option>
+            <option value={90}>90 dias</option>
+          </select>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => refetch()}
+            className="h-9 px-3"
+          >
+            <RefreshCw className="w-4 h-4" />
+          </Button>
+          <Button
+            size="sm"
+            onClick={() => generateReport.mutate()}
+            disabled={generateReport.isPending}
+            className="h-9"
+          >
+            {generateReport.isPending ? 'Generando...' : 'Generar informe'}
+          </Button>
+        </div>
+      </div>
 
-            <div className="flex items-center gap-3">
-              <select
-                value={days}
-                onChange={(e) => setDays(Number(e.target.value))}
-                className="text-sm border border-gray-200 rounded-lg px-3 py-2"
-              >
-                <option value={7}>Ultimos 7 dias</option>
-                <option value={30}>Ultimos 30 dias</option>
-                <option value={90}>Ultimos 90 dias</option>
-              </select>
-              <button
-                onClick={() => refetch()}
-                className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
-                title="Actualizar datos"
-              >
-                <RefreshCw className="w-5 h-5 text-gray-500" />
-              </button>
-              <button
-                onClick={() => generateReport.mutate()}
-                disabled={generateReport.isPending}
-                className="px-4 py-2 bg-indigo-600 text-white rounded-xl hover:bg-indigo-700 transition-colors font-medium disabled:opacity-50"
-              >
-                {generateReport.isPending ? 'Generando...' : 'Generar informe'}
-              </button>
-            </div>
+      {/* Main KPIs */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        {/* Avg Messages */}
+        <div className="p-5 rounded-2xl bg-card border border-border/50">
+          <div className="flex items-center gap-2 mb-3">
+            <MessageSquare className="w-4 h-4 text-muted-foreground" />
+            <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Avg Msgs/Usuario</span>
+          </div>
+          <span className="text-2xl font-semibold">
+            {patterns?.conversation?.avg_messages_per_user?.toFixed(1) || '0'}
+          </span>
+        </div>
+
+        {/* Hot Leads */}
+        <div className={cn(
+          "p-5 rounded-2xl border",
+          predictions?.total_hot_leads > 0
+            ? "bg-gradient-to-br from-emerald-500/10 via-emerald-500/5 to-transparent border-emerald-500/20"
+            : "bg-card border-border/50"
+        )}>
+          <div className="flex items-center gap-2 mb-3">
+            <Zap className={cn("w-4 h-4", predictions?.total_hot_leads > 0 ? "text-emerald-500" : "text-muted-foreground")} />
+            <span className={cn(
+              "text-xs font-medium uppercase tracking-wide",
+              predictions?.total_hot_leads > 0 ? "text-emerald-500/80" : "text-muted-foreground"
+            )}>Leads Calientes</span>
+          </div>
+          <span className="text-2xl font-semibold">{predictions?.total_hot_leads || 0}</span>
+        </div>
+
+        {/* At Risk */}
+        <div className={cn(
+          "p-5 rounded-2xl border",
+          predictions?.total_at_risk > 3
+            ? "bg-gradient-to-br from-rose-500/10 via-rose-500/5 to-transparent border-rose-500/20"
+            : predictions?.total_at_risk > 0
+            ? "bg-gradient-to-br from-amber-500/10 via-amber-500/5 to-transparent border-amber-500/20"
+            : "bg-card border-border/50"
+        )}>
+          <div className="flex items-center gap-2 mb-3">
+            <AlertTriangle className={cn(
+              "w-4 h-4",
+              predictions?.total_at_risk > 3 ? "text-rose-500" : predictions?.total_at_risk > 0 ? "text-amber-500" : "text-muted-foreground"
+            )} />
+            <span className={cn(
+              "text-xs font-medium uppercase tracking-wide",
+              predictions?.total_at_risk > 3 ? "text-rose-500/80" : predictions?.total_at_risk > 0 ? "text-amber-500/80" : "text-muted-foreground"
+            )}>En Riesgo</span>
+          </div>
+          <span className="text-2xl font-semibold">{predictions?.total_at_risk || 0}</span>
+        </div>
+
+        {/* Weekly Forecast */}
+        <div className="p-5 rounded-2xl bg-card border border-border/50">
+          <div className="flex items-center gap-2 mb-3">
+            <DollarSign className="w-4 h-4 text-muted-foreground" />
+            <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Forecast</span>
+          </div>
+          <div className="flex items-baseline gap-2">
+            <span className="text-2xl font-semibold">
+              ${predictions?.revenue_forecast?.current_weekly_avg?.toLocaleString() || '0'}
+            </span>
+            {predictions?.revenue_forecast?.growth_trend !== undefined && predictions.revenue_forecast.growth_trend !== 0 && (
+              <span className={cn(
+                "text-sm font-medium",
+                predictions.revenue_forecast.growth_trend > 0 ? "text-emerald-500" : "text-rose-500"
+              )}>
+                {predictions.revenue_forecast.growth_trend > 0 ? '+' : ''}{predictions.revenue_forecast.growth_trend.toFixed(1)}%
+              </span>
+            )}
           </div>
         </div>
-      </header>
+      </div>
 
-      <main className="max-w-7xl mx-auto px-6 py-8">
-        {/* KPIs Grid */}
-        <section className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5 mb-8">
-          <KPICard
-            title="Avg Mensajes/Usuario"
-            value={patterns?.conversation?.avg_messages_per_user?.toFixed(1) || '0'}
-            icon={<MessageSquare className="w-5 h-5" />}
-          />
-          <KPICard
-            title="Leads Calientes"
-            value={predictions?.total_hot_leads || 0}
-            icon={<Users className="w-5 h-5" />}
-            variant={predictions?.total_hot_leads > 0 ? 'success' : 'default'}
-          />
-          <KPICard
-            title="En Riesgo"
-            value={predictions?.total_at_risk || 0}
-            icon={<Target className="w-5 h-5" />}
-            variant={predictions?.total_at_risk > 3 ? 'danger' : 'warning'}
-          />
-          <KPICard
-            title="Forecast Semanal"
-            value={predictions?.revenue_forecast?.current_weekly_avg ?
-              `$${predictions.revenue_forecast.current_weekly_avg.toLocaleString()}` : '$0'}
-            change={predictions?.revenue_forecast?.growth_trend}
-            icon={<DollarSign className="w-5 h-5" />}
-            variant="success"
-          />
-        </section>
-
-        {/* Main Grid */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          {/* Left Column - Main Content */}
-          <div className="lg:col-span-2 space-y-8">
-            {/* Hot Leads Section */}
-            <section className="bg-white rounded-2xl border border-gray-200 p-6 shadow-sm">
-              <div className="flex items-center justify-between mb-6">
-                <div>
-                  <h2 className="text-lg font-bold text-gray-900 flex items-center gap-2">
-                    Leads Calientes
-                  </h2>
-                  <p className="text-sm text-gray-500 mt-1">
-                    Alta probabilidad de conversion
-                  </p>
-                </div>
-                <span className="px-3 py-1.5 bg-emerald-100 text-emerald-700 text-sm font-semibold rounded-full">
-                  {predictions?.total_hot_leads || 0} identificados
-                </span>
-              </div>
-
-              {predictions?.hot_leads && predictions.hot_leads.length > 0 ? (
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {predictions.hot_leads.slice(0, 4).map((lead, i) => (
-                    <HotLeadCard
-                      key={i}
-                      lead={lead}
-                      onViewProfile={() => navigate(`/leads?search=${lead.lead_id}`)}
-                    />
-                  ))}
-                </div>
-              ) : (
-                <div className="text-center py-8 text-gray-500">
-                  <Users className="w-12 h-12 mx-auto mb-3 text-gray-300" />
-                  <p>No hay leads calientes identificados</p>
-                  <p className="text-sm mt-1">Los leads apareceran cuando tengan alta probabilidad de conversion</p>
-                </div>
-              )}
-
-              {predictions?.hot_leads && predictions.hot_leads.length > 4 && (
-                <button
-                  onClick={() => navigate('/leads?filter=hot')}
-                  className="mt-5 w-full py-3 text-indigo-600 font-semibold hover:bg-indigo-50 rounded-xl transition-colors flex items-center justify-center gap-2"
-                >
-                  Ver todos los {predictions.total_hot_leads} leads <ArrowRight className="w-4 h-4" />
-                </button>
-              )}
-            </section>
-
-            {/* Recommendations Section */}
-            <section className="bg-white rounded-2xl border border-gray-200 p-6 shadow-sm">
-              <div className="flex items-center justify-between mb-6">
-                <h2 className="text-lg font-bold text-gray-900 flex items-center gap-2">
-                  <Zap className="w-5 h-5 text-amber-500" />
-                  Recomendaciones
-                </h2>
-              </div>
-
-              {recommendations && recommendations.length > 0 ? (
-                <div className="space-y-4">
-                  {recommendations.slice(0, 3).map((rec, i) => (
-                    <RecommendationCard key={i} recommendation={rec} />
-                  ))}
-                </div>
-              ) : (
-                <div className="text-center py-8 text-gray-500">
-                  <Lightbulb className="w-12 h-12 mx-auto mb-3 text-gray-300" />
-                  <p>No hay recomendaciones disponibles</p>
-                  <p className="text-sm mt-1">Las recomendaciones se generan con mas datos</p>
-                </div>
-              )}
-            </section>
+      {/* Secondary metrics */}
+      <div className="grid grid-cols-3 gap-4">
+        <div className="p-4 rounded-xl bg-card/50 border border-border/30">
+          <div className="flex items-center justify-between mb-2">
+            <span className="text-xs text-muted-foreground">Mejor hora</span>
+            <Sparkles className="w-3.5 h-3.5 text-primary" />
           </div>
+          <span className="text-xl font-semibold">
+            {patterns?.temporal?.best_hours?.[0]?.hour !== undefined
+              ? `${patterns.temporal.best_hours[0].hour}:00`
+              : patterns?.temporal?.peak_activity_hour !== undefined
+              ? `${patterns.temporal.peak_activity_hour}:00`
+              : '--'}
+          </span>
+        </div>
 
-          {/* Right Column - Sidebar */}
-          <div className="space-y-6">
-            {/* Insights Card */}
-            <section className="bg-gradient-to-br from-indigo-600 via-indigo-700 to-purple-700 rounded-2xl p-6 text-white shadow-xl">
-              <h3 className="font-bold text-lg mb-4 flex items-center gap-2">
-                <Sparkles className="w-5 h-5" /> Insights Clave
-              </h3>
+        <div className="p-4 rounded-xl bg-card/50 border border-border/30">
+          <div className="flex items-center justify-between mb-2">
+            <span className="text-xs text-muted-foreground">Mejor dia</span>
+            <Target className="w-3.5 h-3.5 text-blue-500" />
+          </div>
+          <span className="text-xl font-semibold">{patterns?.temporal?.peak_activity_day || '--'}</span>
+        </div>
 
-              <div className="space-y-4">
-                {patterns?.temporal?.best_hours?.[0] && (
-                  <div className="bg-white/10 backdrop-blur rounded-xl p-4">
-                    <p className="text-sm opacity-80">Mejor hora para publicar</p>
-                    <p className="font-bold text-2xl">
-                      {patterns.temporal.best_hours[0].hour}:00
-                    </p>
-                    <p className="text-xs opacity-70 mt-1">
-                      {patterns.temporal.best_hours[0].users} usuarios activos
-                    </p>
-                  </div>
-                )}
+        <div className="p-4 rounded-xl bg-card/50 border border-border/30">
+          <div className="flex items-center justify-between mb-2">
+            <span className="text-xs text-muted-foreground">Max msgs</span>
+            <TrendingUp className="w-3.5 h-3.5 text-emerald-500" />
+          </div>
+          <span className="text-xl font-semibold">
+            {patterns?.conversation?.max_messages_per_user || 0}
+          </span>
+        </div>
+      </div>
 
-                {patterns?.temporal?.peak_activity_day && (
-                  <div className="bg-white/10 backdrop-blur rounded-xl p-4">
-                    <p className="text-sm opacity-80">Mejor dia de la semana</p>
-                    <p className="font-bold text-2xl">
-                      {patterns.temporal.peak_activity_day}
-                    </p>
-                  </div>
-                )}
-
-                {patterns?.conversation?.avg_messages_per_user && (
-                  <div className="bg-white/10 backdrop-blur rounded-xl p-4">
-                    <p className="text-sm opacity-80">Mensajes promedio por usuario</p>
-                    <p className="font-bold text-2xl">
-                      ~{Math.round(patterns.conversation.avg_messages_per_user)} msgs
-                    </p>
-                  </div>
-                )}
-              </div>
-            </section>
-
-            {/* Churn Risks Alert */}
-            {predictions?.churn_risks && predictions.churn_risks.length > 0 && (
-              <section className="bg-gradient-to-br from-amber-50 to-orange-50 border border-amber-200 rounded-2xl p-6">
-                <h3 className="font-bold text-amber-800 mb-4 flex items-center gap-2">
-                  <AlertTriangle className="w-5 h-5" />
-                  {predictions.total_at_risk} Leads en Riesgo
-                </h3>
-
-                <div className="space-y-3">
-                  {predictions.churn_risks.slice(0, 2).map((lead, i) => (
-                    <ChurnRiskCard
-                      key={i}
-                      lead={lead}
-                      onRecover={() => navigate(`/leads?search=${lead.lead_id}`)}
-                    />
-                  ))}
-                </div>
-
-                <button
-                  onClick={() => navigate('/leads?filter=at-risk')}
-                  className="mt-4 w-full py-2.5 bg-amber-600 text-white font-semibold rounded-xl hover:bg-amber-700 transition-colors"
+      {/* Two columns */}
+      <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
+        {/* Hot Leads */}
+        <div className="lg:col-span-3 p-5 rounded-2xl bg-card border border-border/50">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-sm font-medium">Leads calientes</h3>
+            <Link
+              to="/leads?filter=hot"
+              className="text-xs text-primary hover:text-primary/80 transition-colors flex items-center gap-1"
+            >
+              Ver todos
+              {predictions?.total_hot_leads > 4 && (
+                <span className="text-muted-foreground">(+{predictions.total_hot_leads - 4})</span>
+              )}
+              <ChevronRight className="w-3 h-3" />
+            </Link>
+          </div>
+          <div className="space-y-2">
+            {predictions?.hot_leads && predictions.hot_leads.length > 0 ? (
+              predictions.hot_leads.slice(0, 5).map((lead, i) => (
+                <Link
+                  key={i}
+                  to={`/inbox?id=${lead.lead_id}`}
+                  className="flex items-center justify-between p-3 rounded-lg bg-muted/30 hover:bg-muted/50 transition-colors cursor-pointer group"
                 >
-                  Ver todos y recuperar
-                </button>
-              </section>
-            )}
-
-            {/* Revenue Forecast */}
-            {predictions?.revenue_forecast?.forecasts && predictions.revenue_forecast.forecasts.length > 0 && (
-              <section className="bg-white rounded-2xl border border-gray-200 p-6 shadow-sm">
-                <h3 className="font-bold text-gray-900 mb-4 flex items-center gap-2">
-                  <TrendingUp className="w-5 h-5 text-emerald-600" />
-                  Forecast Revenue
-                </h3>
-
-                <div className="space-y-3">
-                  {predictions.revenue_forecast.forecasts.slice(0, 4).map((forecast, i) => (
-                    <div key={i} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                      <span className="text-sm text-gray-600">Semana {forecast.week}</span>
-                      <div className="text-right">
-                        <span className="font-bold text-gray-900">
-                          ${forecast.projected_revenue.toLocaleString()}
-                        </span>
-                        <span className="text-xs text-gray-400 ml-2">
-                          ({(forecast.confidence * 100).toFixed(0)}%)
-                        </span>
-                      </div>
+                  <div className="flex items-center gap-3 min-w-0">
+                    <div className="w-8 h-8 rounded-full bg-emerald-500/10 flex items-center justify-center shrink-0">
+                      <Zap className="w-3.5 h-3.5 text-emerald-500" />
                     </div>
-                  ))}
-                </div>
-
-                {predictions.revenue_forecast.growth_trend !== undefined && (
-                  <div className="mt-4 p-3 bg-emerald-50 rounded-xl">
-                    <p className="text-sm text-emerald-700">
-                      <strong>Tendencia:</strong>{' '}
-                      {predictions.revenue_forecast.growth_trend >= 0 ? '+' : ''}
-                      {predictions.revenue_forecast.growth_trend?.toFixed(1)}% mensual
-                    </p>
+                    <div className="min-w-0">
+                      <span className="text-sm font-medium truncate block">{lead.username || lead.lead_id}</span>
+                      <span className="text-xs text-muted-foreground">{lead.recommended_action}</span>
+                    </div>
                   </div>
-                )}
-              </section>
+                  <div className="flex items-center gap-2 shrink-0">
+                    <span className="text-xs text-emerald-500 font-medium">
+                      {(lead.conversion_probability * 100).toFixed(0)}%
+                    </span>
+                    <ChevronRight className="w-4 h-4 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
+                  </div>
+                </Link>
+              ))
+            ) : (
+              <div className="text-center py-8 text-muted-foreground">
+                <p className="text-sm">Sin leads calientes</p>
+                <p className="text-xs mt-1">El bot esta trabajando</p>
+              </div>
             )}
           </div>
         </div>
-      </main>
+
+        {/* Churn Risks */}
+        <div className="lg:col-span-2 p-5 rounded-2xl bg-card border border-border/50">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-sm font-medium flex items-center gap-2">
+              <AlertTriangle className="w-4 h-4 text-amber-500" />
+              En riesgo
+            </h3>
+            {predictions?.total_at_risk > 0 && (
+              <span className="text-xs text-amber-500 font-medium">
+                {predictions.total_at_risk} leads
+              </span>
+            )}
+          </div>
+          <div className="space-y-2">
+            {predictions?.churn_risks && predictions.churn_risks.length > 0 ? (
+              predictions.churn_risks.slice(0, 4).map((lead, i) => (
+                <Link
+                  key={i}
+                  to={`/inbox?id=${lead.lead_id}`}
+                  className="flex items-center justify-between p-3 rounded-lg bg-amber-500/5 hover:bg-amber-500/10 transition-colors cursor-pointer group"
+                >
+                  <div className="flex items-center gap-3 min-w-0">
+                    <div className="w-8 h-8 rounded-full bg-amber-500/10 flex items-center justify-center shrink-0">
+                      <Users className="w-3.5 h-3.5 text-amber-500" />
+                    </div>
+                    <div className="min-w-0">
+                      <span className="text-sm font-medium truncate block">{lead.username || lead.lead_id}</span>
+                      <span className="text-xs text-muted-foreground">{lead.days_inactive}d inactivo</span>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2 shrink-0">
+                    <span className="text-xs text-amber-500 font-medium">
+                      {(lead.churn_risk * 100).toFixed(0)}% riesgo
+                    </span>
+                    <ChevronRight className="w-4 h-4 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
+                  </div>
+                </Link>
+              ))
+            ) : (
+              <div className="text-center py-8 text-muted-foreground">
+                <p className="text-sm">Sin leads en riesgo</p>
+                <p className="text-xs mt-1">Tus leads estan activos</p>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* Recommendations */}
+      {recommendations && recommendations.length > 0 && (
+        <div className="p-5 rounded-2xl bg-card border border-border/50">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-sm font-medium flex items-center gap-2">
+              <Lightbulb className="w-4 h-4 text-primary" />
+              Recomendaciones
+            </h3>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {recommendations.slice(0, 3).map((rec, i) => (
+              <div
+                key={i}
+                className={cn(
+                  "p-4 rounded-xl border-l-4 transition-all",
+                  rec.priority === 'high'
+                    ? "bg-rose-500/5 border-l-rose-500"
+                    : rec.priority === 'medium'
+                    ? "bg-amber-500/5 border-l-amber-500"
+                    : "bg-blue-500/5 border-l-blue-500"
+                )}
+              >
+                <div className="flex items-center gap-2 mb-2">
+                  <span className={cn(
+                    "px-2 py-0.5 rounded-full text-xs font-semibold",
+                    rec.priority === 'high'
+                      ? "bg-rose-100 text-rose-700"
+                      : rec.priority === 'medium'
+                      ? "bg-amber-100 text-amber-700"
+                      : "bg-blue-100 text-blue-700"
+                  )}>
+                    {rec.priority === 'high' ? 'Alta' : rec.priority === 'medium' ? 'Media' : 'Baja'}
+                  </span>
+                  <span className="text-xs text-muted-foreground uppercase">{rec.category}</span>
+                </div>
+                <h4 className="font-semibold text-sm mb-1">{rec.title}</h4>
+                <p className="text-xs text-muted-foreground line-clamp-2">{rec.description}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Revenue Forecast */}
+      {predictions?.revenue_forecast?.forecasts && predictions.revenue_forecast.forecasts.length > 0 && (
+        <div className="p-5 rounded-2xl bg-card border border-border/50">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-sm font-medium flex items-center gap-2">
+              <TrendingUp className="w-4 h-4 text-emerald-500" />
+              Forecast Revenue
+            </h3>
+            {predictions.revenue_forecast.growth_trend !== undefined && (
+              <span className={cn(
+                "text-xs font-medium",
+                predictions.revenue_forecast.growth_trend >= 0 ? "text-emerald-500" : "text-rose-500"
+              )}>
+                Tendencia: {predictions.revenue_forecast.growth_trend >= 0 ? '+' : ''}
+                {predictions.revenue_forecast.growth_trend.toFixed(1)}%
+              </span>
+            )}
+          </div>
+          <div className="grid grid-cols-4 gap-3">
+            {predictions.revenue_forecast.forecasts.slice(0, 4).map((forecast, i) => (
+              <div key={i} className="p-3 rounded-xl bg-muted/30">
+                <p className="text-xs text-muted-foreground mb-1">Semana {forecast.week}</p>
+                <p className="font-semibold">${forecast.projected_revenue.toLocaleString()}</p>
+                <p className="text-xs text-muted-foreground">
+                  {(forecast.confidence * 100).toFixed(0)}% conf.
+                </p>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
 
-// Need to import Lightbulb for the empty state
-import { Lightbulb } from 'lucide-react';
-
 function DashboardSkeleton() {
   return (
-    <div className="min-h-screen bg-gray-50 animate-pulse">
-      <div className="h-20 bg-white border-b" />
-      <div className="max-w-7xl mx-auto px-6 py-8">
-        <div className="grid grid-cols-4 gap-5 mb-8">
-          {[...Array(4)].map((_, i) => (
-            <div key={i} className="h-32 bg-white rounded-2xl" />
-          ))}
+    <div className="space-y-8 animate-pulse">
+      <div className="flex items-center justify-between">
+        <div className="space-y-2">
+          <div className="h-4 w-32 bg-muted rounded" />
+          <div className="h-8 w-48 bg-muted rounded" />
         </div>
-        <div className="grid grid-cols-3 gap-8">
-          <div className="col-span-2 space-y-8">
-            <div className="h-80 bg-white rounded-2xl" />
-            <div className="h-96 bg-white rounded-2xl" />
-          </div>
-          <div className="space-y-6">
-            <div className="h-64 bg-indigo-200 rounded-2xl" />
-            <div className="h-48 bg-white rounded-2xl" />
-          </div>
+        <div className="flex gap-3">
+          <div className="h-9 w-24 bg-muted rounded-lg" />
+          <div className="h-9 w-9 bg-muted rounded-lg" />
+          <div className="h-9 w-32 bg-muted rounded-lg" />
         </div>
+      </div>
+      <div className="grid grid-cols-4 gap-4">
+        {[...Array(4)].map((_, i) => (
+          <div key={i} className="h-28 bg-card rounded-2xl border border-border/50" />
+        ))}
+      </div>
+      <div className="grid grid-cols-3 gap-4">
+        {[...Array(3)].map((_, i) => (
+          <div key={i} className="h-20 bg-card/50 rounded-xl border border-border/30" />
+        ))}
+      </div>
+      <div className="grid grid-cols-5 gap-6">
+        <div className="col-span-3 h-64 bg-card rounded-2xl border border-border/50" />
+        <div className="col-span-2 h-64 bg-card rounded-2xl border border-border/50" />
       </div>
     </div>
   );
@@ -329,18 +385,13 @@ function DashboardSkeleton() {
 
 function DashboardError({ error, onRetry }: { error: Error; onRetry: () => void }) {
   return (
-    <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-      <div className="text-center p-8">
-        <AlertTriangle className="w-16 h-16 text-red-500 mx-auto mb-4" />
-        <h2 className="text-xl font-bold text-gray-900">Error al cargar datos</h2>
-        <p className="text-gray-500 mt-2">{error.message}</p>
-        <button
-          onClick={onRetry}
-          className="mt-6 px-6 py-3 bg-indigo-600 text-white rounded-xl hover:bg-indigo-700"
-        >
-          Reintentar
-        </button>
-      </div>
+    <div className="flex flex-col items-center justify-center h-[60vh] gap-3">
+      <AlertCircle className="w-8 h-8 text-destructive/60" />
+      <p className="text-sm text-muted-foreground">Error al cargar datos</p>
+      <p className="text-xs text-muted-foreground">{error.message}</p>
+      <Button variant="outline" size="sm" onClick={onRetry} className="mt-2">
+        Reintentar
+      </Button>
     </div>
   );
 }
