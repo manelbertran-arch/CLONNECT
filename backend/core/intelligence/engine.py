@@ -166,17 +166,18 @@ class IntelligenceEngine:
     async def _analyze_conversion_patterns(self, db: Session, days: int) -> Dict:
         """Analyze conversion patterns."""
         try:
-            # Products mentioned
+            # Products mentioned - join with creators to match by name
             product_query = text("""
                 SELECT
                     p.name,
                     COUNT(DISTINCT ce.follower_id) as mentions
                 FROM products p
+                JOIN creators c ON c.id = p.creator_id
                 LEFT JOIN conversation_embeddings ce
                     ON LOWER(ce.content) LIKE '%' || LOWER(p.name) || '%'
-                    AND ce.creator_id = p.creator_id
+                    AND ce.creator_id = c.name
                     AND ce.created_at > NOW() - :days * INTERVAL '1 day'
-                WHERE p.creator_id = :creator_id
+                WHERE c.name = :creator_id
                 GROUP BY p.id, p.name
                 HAVING COUNT(DISTINCT ce.follower_id) > 0
                 ORDER BY mentions DESC
