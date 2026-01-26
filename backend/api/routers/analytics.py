@@ -199,7 +199,7 @@ async def get_summary(
         # Sentiment from daily metrics
         sent_q = text("""
             SELECT AVG(sentiment_score) FROM creator_metrics_daily
-            WHERE creator_id = :cid AND date >= :s::date AND date <= :e::date
+            WHERE creator_id = :cid AND date >= :s AND date <= :e
         """)
         sent_current = float(db.execute(sent_q, {"cid": creator_name, "s": start, "e": end}).scalar() or 0)
         sent_previous = float(db.execute(sent_q, {"cid": creator_name, "s": prev_start, "e": prev_end}).scalar() or 0)
@@ -517,7 +517,7 @@ async def get_sales_analytics(
         # Revenue trend
         trend_q = text("""
             SELECT date, revenue, conversions FROM creator_metrics_daily
-            WHERE creator_id = :cid AND date >= :s::date AND date <= :e::date ORDER BY date
+            WHERE creator_id = :cid AND date >= :s AND date <= :e ORDER BY date
         """)
         trend_results = db.execute(trend_q, {"cid": creator_name, "s": start, "e": end}).fetchall()
         revenue_trend = [{"date": r[0].isoformat(), "revenue": float(r[1] or 0), "conversions": int(r[2] or 0)} for r in trend_results]
@@ -644,15 +644,15 @@ async def get_trends(
 
     try:
         if metric == "revenue":
-            q = text(f"SELECT DATE_TRUNC('{date_trunc}', date) as p, SUM(revenue) as v FROM creator_metrics_daily WHERE creator_id = :cid AND date >= :s::date AND date <= :e::date GROUP BY p ORDER BY p")
+            q = text(f"SELECT DATE_TRUNC('{date_trunc}', date) as p, SUM(revenue) as v FROM creator_metrics_daily WHERE creator_id = :cid AND date >= :s AND date <= :e GROUP BY p ORDER BY p")
         elif metric == "leads":
-            q = text(f"SELECT DATE_TRUNC('{date_trunc}', date) as p, SUM(new_leads) as v FROM creator_metrics_daily WHERE creator_id = :cid AND date >= :s::date AND date <= :e::date GROUP BY p ORDER BY p")
+            q = text(f"SELECT DATE_TRUNC('{date_trunc}', date) as p, SUM(new_leads) as v FROM creator_metrics_daily WHERE creator_id = :cid AND date >= :s AND date <= :e GROUP BY p ORDER BY p")
         elif metric == "dms":
-            q = text(f"SELECT DATE_TRUNC('{date_trunc}', date) as p, SUM(total_messages) as v FROM creator_metrics_daily WHERE creator_id = :cid AND date >= :s::date AND date <= :e::date GROUP BY p ORDER BY p")
+            q = text(f"SELECT DATE_TRUNC('{date_trunc}', date) as p, SUM(total_messages) as v FROM creator_metrics_daily WHERE creator_id = :cid AND date >= :s AND date <= :e GROUP BY p ORDER BY p")
         elif metric == "sentiment":
-            q = text(f"SELECT DATE_TRUNC('{date_trunc}', date) as p, AVG(sentiment_score) as v FROM creator_metrics_daily WHERE creator_id = :cid AND date >= :s::date AND date <= :e::date AND sentiment_score IS NOT NULL GROUP BY p ORDER BY p")
+            q = text(f"SELECT DATE_TRUNC('{date_trunc}', date) as p, AVG(sentiment_score) as v FROM creator_metrics_daily WHERE creator_id = :cid AND date >= :s AND date <= :e AND sentiment_score IS NOT NULL GROUP BY p ORDER BY p")
         else:  # conversions
-            q = text(f"SELECT DATE_TRUNC('{date_trunc}', date) as p, SUM(conversions) as v FROM creator_metrics_daily WHERE creator_id = :cid AND date >= :s::date AND date <= :e::date GROUP BY p ORDER BY p")
+            q = text(f"SELECT DATE_TRUNC('{date_trunc}', date) as p, SUM(conversions) as v FROM creator_metrics_daily WHERE creator_id = :cid AND date >= :s AND date <= :e GROUP BY p ORDER BY p")
 
         results = db.execute(q, {"cid": creator_name, "s": start, "e": end}).fetchall()
         data = [{"date": r[0].isoformat(), "value": round(float(r[1] or 0), 2) if metric == "sentiment" else float(r[1] or 0)} for r in results]
