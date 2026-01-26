@@ -102,6 +102,7 @@ const AppRoutes = () => {
         <Route path="mensajes" element={<Mensajes />} />
         <Route path="mensajes/:conversationId" element={<Mensajes />} />
         <Route path="clientes" element={<Clientes />} />
+        <Route path="analytics" element={<AnalyticsDashboard />} />
         <Route path="ajustes" element={<Ajustes />} />
       </Route>
 
