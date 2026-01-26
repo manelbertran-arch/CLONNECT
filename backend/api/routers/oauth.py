@@ -65,11 +65,12 @@ async def _auto_onboard_after_instagram_oauth(
 
         # Fetch posts with full comment data for analytics/insights
         posts = await scraper.get_posts_with_comments(
-            limit=365,  # Full year of posts
-            comments_per_post=100  # Up to 100 comments per post
+            limit=365, comments_per_post=100  # Full year of posts  # Up to 100 comments per post
         )
         total_comments = sum(len(p.comments) for p in posts)
-        logger.info(f"[AutoOnboard] Scraped {len(posts)} posts with {total_comments} comments from Instagram")
+        logger.info(
+            f"[AutoOnboard] Scraped {len(posts)} posts with {total_comments} comments from Instagram"
+        )
 
         if not posts:
             logger.warning(f"[AutoOnboard] No posts found for {creator_id}, skipping tone analysis")
@@ -299,7 +300,11 @@ def _activate_bot_default(creator_id: str):
 
 
 async def _simple_dm_sync_internal(
-    creator_id: str, access_token: str, ig_user_id: str, ig_page_id: str = None, max_convs: int = 25
+    creator_id: str,
+    access_token: str,
+    ig_user_id: str,
+    ig_page_id: str = None,
+    max_convs: int = 100,
 ) -> dict:
     """
     Internal DM sync function that works with credentials passed directly.
@@ -345,23 +350,66 @@ async def _simple_dm_sync_internal(
             conv_extra_params = {}
 
         async with httpx.AsyncClient(timeout=60.0) as client:
-            # Get conversations
-            conv_resp = await client.get(
-                f"{api_base}/{conv_id_for_api}/conversations",
-                params={
-                    **conv_extra_params,
-                    "access_token": access_token,
-                    "limit": max_convs,
-                    "fields": "id,updated_time",
-                },
-            )
+            # Get ALL conversations with pagination
+            all_conversations = []
+            next_url = None
+            page_count = 0
 
-            if conv_resp.status_code != 200:
-                results["errors"].append(f"Conversations API error: {conv_resp.status_code}")
-                return results
+            while True:
+                page_count += 1
 
-            conversations = conv_resp.json().get("data", [])
+                if next_url:
+                    # Use the full next URL for pagination
+                    conv_resp = await client.get(next_url)
+                else:
+                    # First request
+                    conv_resp = await client.get(
+                        f"{api_base}/{conv_id_for_api}/conversations",
+                        params={
+                            **conv_extra_params,
+                            "access_token": access_token,
+                            "limit": 50,  # Batch size per page
+                            "fields": "id,updated_time",
+                        },
+                    )
+
+                if conv_resp.status_code != 200:
+                    error_data = conv_resp.json().get("error", {})
+                    if error_data.get("code") in [4, 17]:
+                        logger.warning(
+                            f"[DMSync] Rate limit hit while fetching conversations page {page_count}"
+                        )
+                        results["rate_limited"] = True
+                        break
+                    results["errors"].append(f"Conversations API error: {conv_resp.status_code}")
+                    return results
+
+                resp_json = conv_resp.json()
+                page_conversations = resp_json.get("data", [])
+                all_conversations.extend(page_conversations)
+
+                logger.info(
+                    f"[DMSync] Fetched page {page_count}: {len(page_conversations)} conversations (total: {len(all_conversations)})"
+                )
+
+                # Check for more pages
+                paging = resp_json.get("paging", {})
+                next_url = paging.get("next")
+
+                if not next_url or len(all_conversations) >= max_convs:
+                    break
+
+                # Small delay between pagination requests
+                await asyncio.sleep(0.5)
+
+            conversations = all_conversations
             conversations.sort(key=lambda c: c.get("updated_time", ""), reverse=True)
+
+            # Limit to max_convs after fetching all
+            if len(conversations) > max_convs:
+                conversations = conversations[:max_convs]
+
+            logger.info(f"[DMSync] Total conversations fetched: {len(conversations)}")
 
             days_limit_ago = datetime.now().astimezone() - timedelta(days=365)  # 12 months
 
@@ -378,29 +426,54 @@ async def _simple_dm_sync_internal(
                     await asyncio.sleep(DELAY_BETWEEN_CONVS)
 
                 try:
-                    # Get messages with extended fields for media, stories, etc.
-                    msg_resp = await client.get(
-                        f"{api_base}/{conv_id}/messages",
-                        params={
-                            "fields": "id,message,from,to,created_time,attachments,story,share,shares,reactions,sticker",
-                            "access_token": access_token,
-                            "limit": 200,  # Full conversation history
-                        },
-                    )
+                    # Get ALL messages with pagination
+                    messages = []
+                    msg_next_url = None
+                    msg_page = 0
 
-                    # Check for rate limit error
-                    if msg_resp.status_code != 200:
-                        error_data = msg_resp.json().get("error", {})
-                        if error_data.get("code") in [4, 17]:
-                            logger.warning(
-                                f"[DMSync] Rate limit hit at conv {conv_idx + 1}, stopping"
+                    while True:
+                        msg_page += 1
+
+                        if msg_next_url:
+                            msg_resp = await client.get(msg_next_url)
+                        else:
+                            msg_resp = await client.get(
+                                f"{api_base}/{conv_id}/messages",
+                                params={
+                                    "fields": "id,message,from,to,created_time,attachments,story,share,shares,reactions,sticker",
+                                    "access_token": access_token,
+                                    "limit": 100,  # Batch size per page
+                                },
                             )
-                            results["rate_limited"] = True
-                            results["errors"].append(f"Rate limit at conv {conv_idx + 1}")
-                            break
-                        continue
 
-                    messages = msg_resp.json().get("data", [])
+                        # Check for rate limit error
+                        if msg_resp.status_code != 200:
+                            error_data = msg_resp.json().get("error", {})
+                            if error_data.get("code") in [4, 17]:
+                                logger.warning(
+                                    f"[DMSync] Rate limit hit at conv {conv_idx + 1}, stopping"
+                                )
+                                results["rate_limited"] = True
+                                results["errors"].append(f"Rate limit at conv {conv_idx + 1}")
+                                break
+                            break
+
+                        msg_json = msg_resp.json()
+                        page_messages = msg_json.get("data", [])
+                        messages.extend(page_messages)
+
+                        # Check for more message pages
+                        msg_paging = msg_json.get("paging", {})
+                        msg_next_url = msg_paging.get("next")
+
+                        if not msg_next_url:
+                            break
+
+                        # Small delay between message pagination
+                        await asyncio.sleep(0.3)
+
+                    if results.get("rate_limited"):
+                        break
                     if not messages:
                         continue
 

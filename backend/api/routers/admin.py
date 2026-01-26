@@ -2334,7 +2334,7 @@ async def clean_and_sync(creator_id: str, max_convs: int = 10):
 
 
 @router.post("/simple-dm-sync/{creator_id}")
-async def simple_dm_sync(creator_id: str, max_convs: int = 25, msgs_per_conv: int = 200):
+async def simple_dm_sync(creator_id: str, max_convs: int = 100, msgs_per_conv: int = 200):
     """
     [DEPRECATED] Use /onboarding/sync-instagram-dms-background instead.
 
@@ -2401,21 +2401,64 @@ async def simple_dm_sync(creator_id: str, max_convs: int = 25, msgs_per_conv: in
                 conv_extra_params = {}
 
             async with httpx.AsyncClient(timeout=60.0) as client:
-                # Get conversations with updated_time
-                conv_resp = await client.get(
-                    f"{api_base}/{conv_id_for_api}/conversations",
-                    params={
-                        **conv_extra_params,
-                        "access_token": access_token,
-                        "limit": max_convs,
-                        "fields": "id,updated_time",
-                    },
-                )
+                # Get ALL conversations with pagination
+                all_conversations = []
+                next_url = None
+                page_count = 0
 
-                if conv_resp.status_code != 200:
-                    return {"error": f"Conversations API error: {conv_resp.json()}"}
+                while True:
+                    page_count += 1
 
-                conversations = conv_resp.json().get("data", [])
+                    if next_url:
+                        # Use the full next URL for pagination
+                        conv_resp = await client.get(next_url)
+                    else:
+                        # First request
+                        conv_resp = await client.get(
+                            f"{api_base}/{conv_id_for_api}/conversations",
+                            params={
+                                **conv_extra_params,
+                                "access_token": access_token,
+                                "limit": 50,  # Batch size per page
+                                "fields": "id,updated_time",
+                            },
+                        )
+
+                    if conv_resp.status_code != 200:
+                        error_data = conv_resp.json().get("error", {})
+                        if error_data.get("code") in [4, 17]:
+                            _logger.warning(
+                                f"[DMSync] Rate limit hit while fetching conversations page {page_count}"
+                            )
+                            results["rate_limited"] = True
+                            break
+                        return {"error": f"Conversations API error: {conv_resp.json()}"}
+
+                    resp_json = conv_resp.json()
+                    page_conversations = resp_json.get("data", [])
+                    all_conversations.extend(page_conversations)
+
+                    _logger.info(
+                        f"[DMSync] Fetched page {page_count}: {len(page_conversations)} conversations (total: {len(all_conversations)})"
+                    )
+
+                    # Check for more pages
+                    paging = resp_json.get("paging", {})
+                    next_url = paging.get("next")
+
+                    if not next_url or len(all_conversations) >= max_convs:
+                        break
+
+                    # Small delay between pagination requests
+                    await asyncio.sleep(0.5)
+
+                conversations = all_conversations
+
+                # Limit to max_convs after fetching all
+                if len(conversations) > max_convs:
+                    conversations = conversations[:max_convs]
+
+                _logger.info(f"[DMSync] Total conversations fetched: {len(conversations)}")
 
                 # REGLA 1: Ordenar por updated_time (más reciente primero)
                 conversations.sort(key=lambda c: c.get("updated_time", ""), reverse=True)
@@ -2433,27 +2476,53 @@ async def simple_dm_sync(creator_id: str, max_convs: int = 25, msgs_per_conv: in
                         await asyncio.sleep(DELAY_BETWEEN_CONVS)
 
                     try:
-                        # Get messages for this conversation (REGLA 3+4: attachments, stories, reactions)
-                        msg_resp = await client.get(
-                            f"{api_base}/{conv_id}/messages",
-                            params={
-                                "fields": "id,message,from,to,created_time,attachments,story,reactions",
-                                "access_token": access_token,
-                                "limit": msgs_per_conv,
-                            },
-                        )
+                        # Get ALL messages with pagination
+                        messages = []
+                        msg_next_url = None
+                        msg_page = 0
 
-                        if msg_resp.status_code != 200:
-                            error_data = msg_resp.json().get("error", {})
-                            # Check for rate limit
-                            if error_data.get("code") in [4, 17]:
-                                results["errors"].append(
-                                    f"Rate limit hit at conv {results['conversations_processed']}"
+                        while True:
+                            msg_page += 1
+
+                            if msg_next_url:
+                                msg_resp = await client.get(msg_next_url)
+                            else:
+                                msg_resp = await client.get(
+                                    f"{api_base}/{conv_id}/messages",
+                                    params={
+                                        "fields": "id,message,from,to,created_time,attachments,story,reactions",
+                                        "access_token": access_token,
+                                        "limit": 100,  # Batch size per page
+                                    },
                                 )
-                                break
-                            continue
 
-                        messages = msg_resp.json().get("data", [])
+                            if msg_resp.status_code != 200:
+                                error_data = msg_resp.json().get("error", {})
+                                # Check for rate limit
+                                if error_data.get("code") in [4, 17]:
+                                    results["errors"].append(
+                                        f"Rate limit hit at conv {results['conversations_processed']}"
+                                    )
+                                    results["rate_limited"] = True
+                                    break
+                                break
+
+                            msg_json = msg_resp.json()
+                            page_messages = msg_json.get("data", [])
+                            messages.extend(page_messages)
+
+                            # Check for more message pages
+                            msg_paging = msg_json.get("paging", {})
+                            msg_next_url = msg_paging.get("next")
+
+                            if not msg_next_url or len(messages) >= msgs_per_conv:
+                                break
+
+                            # Small delay between message pagination
+                            await asyncio.sleep(0.3)
+
+                        if results.get("rate_limited"):
+                            break
                         if not messages:
                             continue
 

@@ -811,12 +811,16 @@ async def _run_clone_creation(creator_id: str, website_url: str = None):
             _update_clone_progress(creator_id, step="website", step_status="active", percent=30)
 
             if website_url:
-                logger.info(f"[CloneCreation] Step 2: Website ingestion (RAG + Products) from {website_url}")
+                logger.info(
+                    f"[CloneCreation] Step 2: Website ingestion (RAG + Products) from {website_url}"
+                )
                 try:
                     from ingestion.v2.pipeline import IngestionV2Pipeline
 
                     # Use existing db session - guaranteed valid at this point
-                    logger.info(f"[CloneCreation] Using db_session={session} for IngestionV2Pipeline")
+                    logger.info(
+                        f"[CloneCreation] Using db_session={session} for IngestionV2Pipeline"
+                    )
                     pipeline = IngestionV2Pipeline(db_session=session, max_pages=100)
                     result = await pipeline.run(
                         creator_id=creator_id,
@@ -846,6 +850,7 @@ async def _run_clone_creation(creator_id: str, website_url: str = None):
                     logger.error(f"[CloneCreation] Website ingestion failed: {e}")
                     print(f"[CloneCreation] Website ingestion error: {e}", flush=True)
                     import traceback
+
                     traceback.print_exc()
             else:
                 logger.info(f"[CloneCreation] Step 2: No website provided, skipping")
@@ -912,16 +917,16 @@ async def _run_clone_creation(creator_id: str, website_url: str = None):
                 from api.routers.oauth import _simple_dm_sync_internal
 
                 print(
-                    f"[CloneCreation] Calling _simple_dm_sync_internal with max_convs=10",
+                    f"[CloneCreation] Calling _simple_dm_sync_internal with max_convs=100 (12 months of leads)",
                     flush=True,
                 )
-                # Rate-limited: 10 conversations with 2s delay between each
+                # Rate-limited: All conversations from last 12 months with 2s delay between each
                 dm_stats = await _simple_dm_sync_internal(
                     creator_id=creator_id,
                     access_token=access_token,
                     ig_user_id=instagram_user_id,
                     ig_page_id=page_id,
-                    max_convs=10,
+                    max_convs=100,  # Load all leads from last 12 months
                 )
                 print(f"[CloneCreation] DM sync complete: {dm_stats}", flush=True)
                 logger.info(f"[CloneCreation] DM sync complete: {dm_stats}")

@@ -12,20 +12,20 @@ import json
 import logging
 import os
 import re
-from typing import List, Dict, Optional, Literal
 from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
+from typing import Dict, List, Literal, Optional
 
 import httpx
 import pybreaker
 from tenacity import (
+    RetryError,
+    before_sleep_log,
     retry,
+    retry_if_exception_type,
     stop_after_attempt,
     wait_exponential,
-    retry_if_exception_type,
-    before_sleep_log,
-    RetryError
 )
 
 logger = logging.getLogger(__name__)
@@ -35,23 +35,28 @@ logger = logging.getLogger(__name__)
 # EXCEPTION CLASSES (defined first for circuit breaker configuration)
 # =============================================================================
 
+
 class InstagramScraperError(Exception):
     """Error base para el scraper."""
+
     pass
 
 
 class RateLimitError(InstagramScraperError):
     """Error de rate limit."""
+
     pass
 
 
 class AuthenticationError(InstagramScraperError):
     """Error de autenticacion."""
+
     pass
 
 
 class CircuitBreakerOpenError(InstagramScraperError):
     """Raised when circuit breaker is open and rejecting requests."""
+
     pass
 
 
@@ -83,9 +88,7 @@ class CircuitBreakerListener(pybreaker.CircuitBreakerListener):
                 f"Requests will be rejected for {cb.reset_timeout} seconds."
             )
         elif new_state == pybreaker.STATE_HALF_OPEN:
-            logger.info(
-                f"Circuit [{self.name}] HALF-OPEN - Testing if service recovered."
-            )
+            logger.info(f"Circuit [{self.name}] HALF-OPEN - Testing if service recovered.")
         elif new_state == pybreaker.STATE_CLOSED:
             logger.info(
                 f"Circuit [{self.name}] CLOSED - Service recovered, normal operation resumed."
@@ -109,16 +112,17 @@ instagram_circuit_breaker = pybreaker.CircuitBreaker(
     reset_timeout=CIRCUIT_RECOVERY_TIMEOUT,
     exclude=[AuthenticationError],  # Don't count auth errors - they won't fix themselves
     listeners=[CircuitBreakerListener("instagram_api")],
-    name="instagram_api"
+    name="instagram_api",
 )
 
 # Circuit breaker for Instaloader
 instaloader_circuit_breaker = pybreaker.CircuitBreaker(
     fail_max=CIRCUIT_FAILURE_THRESHOLD,
-    reset_timeout=CIRCUIT_RECOVERY_TIMEOUT * 2,  # Longer recovery for Instaloader (stricter rate limits)
+    reset_timeout=CIRCUIT_RECOVERY_TIMEOUT
+    * 2,  # Longer recovery for Instaloader (stricter rate limits)
     exclude=[AuthenticationError],
     listeners=[CircuitBreakerListener("instaloader")],
-    name="instaloader"
+    name="instaloader",
 )
 
 
@@ -126,22 +130,25 @@ instaloader_circuit_breaker = pybreaker.CircuitBreaker(
 # DATA MODELS
 # =============================================================================
 
+
 @dataclass
 class InstagramComment:
     """Representa un comentario de Instagram."""
+
     comment_id: str
     text: str
     username: str
     timestamp: Optional[datetime] = None
     like_count: int = 0
-    replies: List['InstagramComment'] = field(default_factory=list)
+    replies: List["InstagramComment"] = field(default_factory=list)
 
 
 @dataclass
 class InstagramPost:
     """Representa un post de Instagram."""
+
     post_id: str
-    post_type: Literal['image', 'video', 'carousel', 'reel']
+    post_type: Literal["image", "video", "carousel", "reel"]
     caption: str
     permalink: str
     timestamp: datetime
@@ -163,6 +170,7 @@ class InstagramPost:
 # METODO 1: META GRAPH API (Oficial)
 # =============================================================================
 
+
 class MetaGraphAPIScraper:
     """
     Scraper usando Meta Graph API oficial.
@@ -183,9 +191,7 @@ class MetaGraphAPIScraper:
         self.instagram_business_id = instagram_business_id
 
     async def get_posts(
-        self,
-        limit: int = 50,
-        since: Optional[datetime] = None
+        self, limit: int = 50, since: Optional[datetime] = None
     ) -> List[InstagramPost]:
         """
         Obtiene posts usando la Graph API.
@@ -235,47 +241,73 @@ class MetaGraphAPIScraper:
         import httpx
 
         # Use circuit breaker's call method for async functions
-        return await instagram_circuit_breaker.call_async(
-            self._fetch_media_page,
-            limit
-        )
+        return await instagram_circuit_breaker.call_async(self._fetch_media_page, limit)
 
     async def _fetch_media_page(self, limit: int) -> Dict:
         """
-        Actual HTTP request to fetch media from Instagram API.
+        Fetch ALL media from Instagram API with pagination.
 
         Separated for circuit breaker wrapping.
         """
+        import asyncio
+
         import httpx
 
-        url = f"{self.BASE_URL}/{self.instagram_business_id}/media"
-        params = {
-            "access_token": self.access_token,
-            "fields": "id,caption,permalink,timestamp,media_type,like_count,comments_count,media_url,thumbnail_url",
-            "limit": min(limit, 100)  # API max es 100 por request
-        }
+        all_data = []
+        next_url = None
+        page_count = 0
 
         try:
             async with httpx.AsyncClient(timeout=30.0) as client:
-                response = await client.get(url, params=params)
+                while True:
+                    page_count += 1
 
-                if response.status_code == 429:
-                    raise RateLimitError("Meta API rate limit alcanzado")
+                    if next_url:
+                        response = await client.get(next_url)
+                    else:
+                        url = f"{self.BASE_URL}/{self.instagram_business_id}/media"
+                        params = {
+                            "access_token": self.access_token,
+                            "fields": "id,caption,permalink,timestamp,media_type,like_count,comments_count,media_url,thumbnail_url",
+                            "limit": min(limit, 100),  # API max es 100 por request
+                        }
+                        response = await client.get(url, params=params)
 
-                if response.status_code == 401:
-                    raise AuthenticationError("Token de Meta invalido o expirado")
+                    if response.status_code == 429:
+                        raise RateLimitError("Meta API rate limit alcanzado")
 
-                if response.status_code >= 500:
-                    # Server errors should trip the circuit breaker
-                    raise InstagramScraperError(f"Server error {response.status_code}")
+                    if response.status_code == 401:
+                        raise AuthenticationError("Token de Meta invalido o expirado")
 
-                if response.status_code >= 400:
-                    # Client errors (except 429/401 handled above) - don't retry
-                    raise InstagramScraperError(
-                        f"Client error {response.status_code}: {response.text[:200]}"
+                    if response.status_code >= 500:
+                        # Server errors should trip the circuit breaker
+                        raise InstagramScraperError(f"Server error {response.status_code}")
+
+                    if response.status_code >= 400:
+                        # Client errors (except 429/401 handled above) - don't retry
+                        raise InstagramScraperError(
+                            f"Client error {response.status_code}: {response.text[:200]}"
+                        )
+
+                    resp_json = response.json()
+                    page_data = resp_json.get("data", [])
+                    all_data.extend(page_data)
+
+                    logger.info(
+                        f"Fetched media page {page_count}: {len(page_data)} posts (total: {len(all_data)})"
                     )
 
-                return response.json()
+                    # Check for more pages
+                    paging = resp_json.get("paging", {})
+                    next_url = paging.get("next")
+
+                    if not next_url or len(all_data) >= limit:
+                        break
+
+                    # Small delay between pagination requests
+                    await asyncio.sleep(0.5)
+
+                return {"data": all_data}
 
         except httpx.TimeoutException as e:
             raise InstagramScraperError(f"Timeout conectando a Meta API: {e}")
@@ -298,7 +330,7 @@ class MetaGraphAPIScraper:
             media_url=data.get("media_url"),
             thumbnail_url=data.get("thumbnail_url"),
             hashtags=self._extract_hashtags(caption),
-            mentions=self._extract_mentions(caption)
+            mentions=self._extract_mentions(caption),
         )
 
     @staticmethod
@@ -307,21 +339,21 @@ class MetaGraphAPIScraper:
             "IMAGE": "image",
             "VIDEO": "video",
             "CAROUSEL_ALBUM": "carousel",
-            "REELS": "reel"
+            "REELS": "reel",
         }
         return mapping.get(media_type, "image")
 
     @staticmethod
     def _extract_hashtags(text: str) -> List[str]:
-        return re.findall(r'#(\w+)', text) if text else []
+        return re.findall(r"#(\w+)", text) if text else []
 
     @staticmethod
     def _extract_mentions(text: str) -> List[str]:
-        return re.findall(r'@(\w+)', text) if text else []
+        return re.findall(r"@(\w+)", text) if text else []
 
     async def get_post_comments(self, post_id: str, limit: int = 50) -> List[InstagramComment]:
         """
-        Fetch comments for a specific post.
+        Fetch ALL comments for a specific post with pagination.
 
         Args:
             post_id: Instagram media ID
@@ -330,42 +362,66 @@ class MetaGraphAPIScraper:
         Returns:
             List of InstagramComment objects
         """
+        import asyncio
+
         import httpx
 
-        url = f"{self.BASE_URL}/{post_id}/comments"
-        params = {
-            "access_token": self.access_token,
-            "fields": "id,text,username,timestamp,like_count",
-            "limit": min(limit, 50)  # API max is 50 per request
-        }
-
         comments = []
+        next_url = None
+        page_count = 0
+
         try:
             async with httpx.AsyncClient(timeout=30.0) as client:
-                response = await client.get(url, params=params)
+                while True:
+                    page_count += 1
 
-                if response.status_code != 200:
-                    logger.warning(f"Failed to fetch comments for {post_id}: {response.status_code}")
-                    return comments
+                    if next_url:
+                        response = await client.get(next_url)
+                    else:
+                        url = f"{self.BASE_URL}/{post_id}/comments"
+                        params = {
+                            "access_token": self.access_token,
+                            "fields": "id,text,username,timestamp,like_count",
+                            "limit": min(limit, 50),  # API max is 50 per request
+                        }
+                        response = await client.get(url, params=params)
 
-                data = response.json()
-                for item in data.get("data", []):
-                    try:
-                        timestamp = None
-                        if item.get("timestamp"):
-                            timestamp = datetime.fromisoformat(item["timestamp"].replace("Z", "+00:00"))
-
-                        comment = InstagramComment(
-                            comment_id=item["id"],
-                            text=item.get("text", ""),
-                            username=item.get("username", "unknown"),
-                            timestamp=timestamp,
-                            like_count=item.get("like_count", 0)
+                    if response.status_code != 200:
+                        logger.warning(
+                            f"Failed to fetch comments for {post_id}: {response.status_code}"
                         )
-                        comments.append(comment)
-                    except Exception as e:
-                        logger.warning(f"Error parsing comment: {e}")
-                        continue
+                        break
+
+                    data = response.json()
+                    for item in data.get("data", []):
+                        try:
+                            timestamp = None
+                            if item.get("timestamp"):
+                                timestamp = datetime.fromisoformat(
+                                    item["timestamp"].replace("Z", "+00:00")
+                                )
+
+                            comment = InstagramComment(
+                                comment_id=item["id"],
+                                text=item.get("text", ""),
+                                username=item.get("username", "unknown"),
+                                timestamp=timestamp,
+                                like_count=item.get("like_count", 0),
+                            )
+                            comments.append(comment)
+                        except Exception as e:
+                            logger.warning(f"Error parsing comment: {e}")
+                            continue
+
+                    # Check for more comment pages
+                    paging = data.get("paging", {})
+                    next_url = paging.get("next")
+
+                    if not next_url or len(comments) >= limit:
+                        break
+
+                    # Small delay between pagination requests
+                    await asyncio.sleep(0.3)
 
         except Exception as e:
             logger.warning(f"Error fetching comments for {post_id}: {e}")
@@ -373,10 +429,7 @@ class MetaGraphAPIScraper:
         return comments
 
     async def get_posts_with_comments(
-        self,
-        limit: int = 50,
-        since: Optional[datetime] = None,
-        comments_per_post: int = 50
+        self, limit: int = 50, since: Optional[datetime] = None, comments_per_post: int = 50
     ) -> List[InstagramPost]:
         """
         Fetch posts WITH their comments for analytics.
@@ -399,8 +452,7 @@ class MetaGraphAPIScraper:
             if post.comments_count and post.comments_count > 0:
                 try:
                     post.comments = await self.get_post_comments(
-                        post.post_id,
-                        limit=comments_per_post
+                        post.post_id, limit=comments_per_post
                     )
                     logger.debug(f"Fetched {len(post.comments)} comments for post {post.post_id}")
                 except Exception as e:
@@ -418,6 +470,7 @@ class MetaGraphAPIScraper:
 # =============================================================================
 # METODO 2: INSTALOADER (No oficial)
 # =============================================================================
+
 
 class InstaloaderScraper:
     """
@@ -444,6 +497,7 @@ class InstaloaderScraper:
         if self._loader is None:
             try:
                 import instaloader
+
                 self._loader = instaloader.Instaloader(
                     download_pictures=False,
                     download_videos=False,
@@ -454,7 +508,7 @@ class InstaloaderScraper:
                     compress_json=False,
                     max_connection_attempts=3,
                     request_timeout=30,
-                    quiet=True  # Less verbose output
+                    quiet=True,  # Less verbose output
                 )
 
                 # Set slower rate to avoid rate limits
@@ -480,7 +534,7 @@ class InstaloaderScraper:
         target_username: str,
         limit: int = 50,
         since: Optional[datetime] = None,
-        delay_between_posts: float = 1.5
+        delay_between_posts: float = 1.5,
     ) -> List[InstagramPost]:
         """
         Obtiene posts de un perfil usando Instaloader.
@@ -501,11 +555,7 @@ class InstaloaderScraper:
         try:
             # Circuit breaker wraps the profile fetch
             return instaloader_circuit_breaker.call(
-                self._fetch_posts_internal,
-                target_username,
-                limit,
-                since,
-                delay_between_posts
+                self._fetch_posts_internal, target_username, limit, since, delay_between_posts
             )
         except pybreaker.CircuitBreakerError:
             raise CircuitBreakerOpenError(
@@ -518,14 +568,15 @@ class InstaloaderScraper:
         target_username: str,
         limit: int,
         since: Optional[datetime],
-        delay_between_posts: float
+        delay_between_posts: float,
     ) -> List[InstagramPost]:
         """
         Internal method to fetch posts - wrapped by circuit breaker.
         """
-        import instaloader
-        import time
         import random
+        import time
+
+        import instaloader
 
         loader = self._get_loader()
         posts = []
@@ -557,14 +608,16 @@ class InstaloaderScraper:
                     media_url=post.url,
                     thumbnail_url=post.url if post.is_video else None,
                     hashtags=list(post.caption_hashtags) if post.caption_hashtags else [],
-                    mentions=list(post.caption_mentions) if post.caption_mentions else []
+                    mentions=list(post.caption_mentions) if post.caption_mentions else [],
                 )
 
                 if ig_post.has_content:
                     posts.append(ig_post)
                     # Add delay between posts to avoid rate limiting
                     if len(posts) < limit:
-                        time.sleep(random.uniform(delay_between_posts * 0.8, delay_between_posts * 1.2))
+                        time.sleep(
+                            random.uniform(delay_between_posts * 0.8, delay_between_posts * 1.2)
+                        )
 
             logger.info(f"Obtenidos {len(posts)} posts via Instaloader")
             return posts
@@ -594,6 +647,7 @@ class InstaloaderScraper:
 # METODO 3: MANUAL JSON (El creador sube sus datos)
 # =============================================================================
 
+
 class ManualJSONScraper:
     """
     Procesa datos exportados manualmente por el creador.
@@ -621,7 +675,7 @@ class ManualJSONScraper:
             raise InstagramScraperError(f"Archivo no encontrado: {json_path}")
 
         try:
-            with open(path, 'r', encoding='utf-8') as f:
+            with open(path, "r", encoding="utf-8") as f:
                 data = json.load(f)
         except json.JSONDecodeError as e:
             raise InstagramScraperError(f"JSON invalido: {e}")
@@ -630,9 +684,9 @@ class ManualJSONScraper:
 
         # Instagram export tiene varias estructuras posibles
         media_items = (
-            data.get("media", []) or
-            data.get("posts", []) or
-            data.get("content", {}).get("posts", [])
+            data.get("media", [])
+            or data.get("posts", [])
+            or data.get("content", {}).get("posts", [])
         )
 
         for item in media_items:
@@ -669,11 +723,13 @@ class ManualJSONScraper:
                     post_type=item.get("type", "image"),
                     caption=caption,
                     permalink=item.get("url", ""),
-                    timestamp=datetime.fromisoformat(item.get("timestamp", datetime.now().isoformat())),
+                    timestamp=datetime.fromisoformat(
+                        item.get("timestamp", datetime.now().isoformat())
+                    ),
                     likes_count=item.get("likes"),
                     comments_count=item.get("comments"),
                     hashtags=self._extract_hashtags(caption),
-                    mentions=self._extract_mentions(caption)
+                    mentions=self._extract_mentions(caption),
                 )
 
                 if post.has_content:
@@ -690,15 +746,17 @@ class ManualJSONScraper:
         try:
             # El formato de Instagram export varia, intentamos varios
             caption = (
-                item.get("caption", "") or
-                item.get("title", "") or
-                item.get("media", [{}])[0].get("title", "") if item.get("media") else ""
+                item.get("caption", "")
+                or item.get("title", "")
+                or item.get("media", [{}])[0].get("title", "")
+                if item.get("media")
+                else ""
             )
 
             timestamp_str = (
-                item.get("creation_timestamp") or
-                item.get("taken_at_timestamp") or
-                item.get("timestamp")
+                item.get("creation_timestamp")
+                or item.get("taken_at_timestamp")
+                or item.get("timestamp")
             )
 
             if isinstance(timestamp_str, (int, float)):
@@ -715,7 +773,7 @@ class ManualJSONScraper:
                 permalink=item.get("permalink", ""),
                 timestamp=timestamp,
                 hashtags=self._extract_hashtags(caption),
-                mentions=self._extract_mentions(caption)
+                mentions=self._extract_mentions(caption),
             )
 
         except Exception as e:
@@ -734,20 +792,20 @@ class ManualJSONScraper:
 
     @staticmethod
     def _extract_hashtags(text: str) -> List[str]:
-        return re.findall(r'#(\w+)', text) if text else []
+        return re.findall(r"#(\w+)", text) if text else []
 
     @staticmethod
     def _extract_mentions(text: str) -> List[str]:
-        return re.findall(r'@(\w+)', text) if text else []
+        return re.findall(r"@(\w+)", text) if text else []
 
 
 # =============================================================================
 # FACTORY FUNCTION
 # =============================================================================
 
+
 def get_instagram_scraper(
-    method: Literal['meta_api', 'instaloader', 'manual'] = 'manual',
-    **kwargs
+    method: Literal["meta_api", "instaloader", "manual"] = "manual", **kwargs
 ):
     """
     Factory para obtener el scraper apropiado.
@@ -777,17 +835,14 @@ def get_instagram_scraper(
         # Manual
         scraper = get_instagram_scraper('manual')
     """
-    if method == 'meta_api':
+    if method == "meta_api":
         return MetaGraphAPIScraper(
-            access_token=kwargs['access_token'],
-            instagram_business_id=kwargs['instagram_business_id']
+            access_token=kwargs["access_token"],
+            instagram_business_id=kwargs["instagram_business_id"],
         )
-    elif method == 'instaloader':
-        return InstaloaderScraper(
-            username=kwargs.get('username'),
-            password=kwargs.get('password')
-        )
-    elif method == 'manual':
+    elif method == "instaloader":
+        return InstaloaderScraper(username=kwargs.get("username"), password=kwargs.get("password"))
+    elif method == "manual":
         return ManualJSONScraper()
     else:
         raise ValueError(f"Metodo desconocido: {method}")
