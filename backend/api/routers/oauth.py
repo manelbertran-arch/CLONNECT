@@ -63,7 +63,7 @@ async def _auto_onboard_after_instagram_oauth(
             access_token=access_token, instagram_business_id=instagram_user_id
         )
 
-        posts = await scraper.get_posts(limit=50)
+        posts = await scraper.get_posts(limit=365)  # Full year of posts for analytics
         logger.info(f"[AutoOnboard] Scraped {len(posts)} posts from Instagram")
 
         if not posts:
@@ -141,7 +141,7 @@ async def _auto_onboard_after_instagram_oauth(
                 access_token=access_token,
                 ig_user_id=instagram_user_id,
                 ig_page_id=page_id,
-                max_convs=30,
+                max_convs=100,  # Load all conversations from last 12 months
             )
             logger.info(
                 f"[AutoOnboard] DM history loaded: {dm_stats.get('messages_saved', 0)} messages, {dm_stats.get('leads_created', 0)} leads"
