@@ -148,13 +148,20 @@ function openInstagramProfile(username: string, e: React.MouseEvent) {
  * Frontend uses: nuevo, interesado, caliente, cliente, fantasma
  */
 function getLeadStatus(convo: Conversation): LeadStatus {
-  // Map backend status (English) to frontend status (Spanish)
+  // Map backend status to frontend status (supports both English and Spanish)
   const statusMap: Record<string, LeadStatus> = {
+    // English keys (legacy)
     "new": "nuevo",
     "active": "interesado",
     "hot": "caliente",
     "customer": "cliente",
     "ghost": "fantasma",
+    // Spanish keys (current backend)
+    "nuevo": "nuevo",
+    "interesado": "interesado",
+    "caliente": "caliente",
+    "cliente": "cliente",
+    "fantasma": "fantasma",
   };
 
   // Priority 1: Use backend status if available
