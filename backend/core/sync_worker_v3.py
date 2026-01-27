@@ -418,6 +418,11 @@ async def save_lead_and_messages(
     if not follower_id:
         return result  # No encontramos follower
 
+    # IMPORTANTE: No crear lead si el follower es el propio creator
+    if follower_id in creator_ids:
+        logger.debug(f"Skipping conversation: follower {follower_id} is the creator")
+        return result
+
     # Calcular timestamps
     all_timestamps = []
     user_timestamps = []
@@ -510,6 +515,38 @@ async def save_lead_and_messages(
 
         session.add(new_msg)
         result["messages_saved"] += 1
+
+    # Categorize the lead based on messages
+    try:
+        from core.lead_categorizer import LeadCategorizer
+
+        categorizer = LeadCategorizer()
+
+        # Build message list for categorizer
+        categorizer_messages = []
+        for msg in messages:
+            from_data = msg.get("from", {})
+            is_from_creator = from_data.get("id") in creator_ids
+            role = "assistant" if is_from_creator else "user"
+            categorizer_messages.append({
+                "role": role,
+                "content": msg.get("message", ""),
+            })
+
+        # Categorize
+        category, score, reason = categorizer.categorize(
+            messages=categorizer_messages,
+            is_customer=lead.status == "cliente",
+            last_user_message_time=last_user_contact,
+        )
+
+        # Update lead status if different (but don't downgrade cliente)
+        if lead.status != "cliente" and lead.status != category.value:
+            lead.status = category.value
+            lead.score = int(score * 100)  # Convert 0-1 to 0-100
+
+    except Exception as e:
+        logger.warning(f"Error categorizing lead: {e}")
 
     session.commit()
     return result
