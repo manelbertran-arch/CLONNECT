@@ -3825,8 +3825,9 @@ async def update_profile_pics(creator_id: str, limit: int = 20):
         if not creator:
             return {"status": "error", "error": f"Creator not found: {creator_id}"}
 
-        # Check Instagram connection
-        if not creator.instagram_page_id or not creator.instagram_token:
+        # Check Instagram connection (can be page_id OR user_id)
+        ig_id = creator.instagram_page_id or creator.instagram_user_id
+        if not ig_id or not creator.instagram_token:
             return {"status": "error", "error": "Instagram not connected for this creator"}
 
         access_token = creator.instagram_token
