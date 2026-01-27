@@ -147,7 +147,8 @@ async def get_all_conversations_paginated(
     params = {
         **extra_params,
         "access_token": access_token,
-        "fields": "id,participants,updated_time",
+        # Include profile_pic in participants for lead avatars
+        "fields": "id,participants{id,username,name,profile_pic},updated_time",
         "limit": 50,  # Máximo por página
     }
 
@@ -354,9 +355,18 @@ async def save_lead_and_messages(
     conversation_id: str,
     messages: List[Dict],
     creator_ids: set,
+    participants: Optional[List[Dict]] = None,
 ) -> Dict[str, Any]:
     """
     Guarda el lead y mensajes en la BD.
+
+    Args:
+        session: DB session
+        creator: Creator object
+        conversation_id: ID de la conversación
+        messages: Lista de mensajes
+        creator_ids: Set de IDs del creator (para filtrar)
+        participants: Lista de participantes con profile_pic (opcional)
 
     Returns:
         Dict con estadísticas: messages_saved, lead_created
@@ -371,14 +381,27 @@ async def save_lead_and_messages(
     # Encontrar el follower (participante que NO es el creator)
     follower_id = None
     follower_username = None
+    follower_profile_pic = None
 
-    for msg in messages:
-        from_data = msg.get("from", {})
-        from_id = from_data.get("id")
-        if from_id and from_id not in creator_ids:
-            follower_id = from_id
-            follower_username = from_data.get("username", "unknown")
-            break
+    # Primero intentar obtener de participants (tiene profile_pic)
+    if participants:
+        for participant in participants:
+            p_id = participant.get("id")
+            if p_id and p_id not in creator_ids:
+                follower_id = p_id
+                follower_username = participant.get("username", "unknown")
+                follower_profile_pic = participant.get("profile_pic")
+                break
+
+    # Si no hay participants, buscar en mensajes
+    if not follower_id:
+        for msg in messages:
+            from_data = msg.get("from", {})
+            from_id = from_data.get("id")
+            if from_id and from_id not in creator_ids:
+                follower_id = from_id
+                follower_username = from_data.get("username", "unknown")
+                break
 
     # Buscar en "to" si no encontramos en "from"
     if not follower_id:
@@ -432,7 +455,8 @@ async def save_lead_and_messages(
             platform="instagram",
             platform_user_id=follower_id,
             username=follower_username,
-            status="new",
+            profile_pic_url=follower_profile_pic,  # Save profile picture
+            status="nuevo",  # Spanish: nuevo, interesado, caliente, cliente, fantasma
             first_contact_at=first_contact,
             last_contact_at=last_user_contact or first_contact,
         )
@@ -447,6 +471,9 @@ async def save_lead_and_messages(
             not lead.last_contact_at or last_user_contact > lead.last_contact_at
         ):
             lead.last_contact_at = last_user_contact
+        # Update profile pic if we have it and lead doesn't
+        if follower_profile_pic and not lead.profile_pic_url:
+            lead.profile_pic_url = follower_profile_pic
 
     # Save messages
     for msg in messages:
@@ -624,13 +651,15 @@ async def run_quick_sync(creator_id: str) -> Dict[str, Any]:
                     max_messages=config.max_messages_per_conv,
                 )
 
-                # Save to DB
+                # Save to DB (include participants for profile pics)
+                participants = conv.get("participants", {}).get("data", [])
                 save_result = await save_lead_and_messages(
                     session=session,
                     creator=creator,
                     conversation_id=conv_id,
                     messages=messages,
                     creator_ids=creator_ids,
+                    participants=participants,
                 )
 
                 result["conversations_synced"] += 1
@@ -797,13 +826,15 @@ async def run_deep_sync_background(creator_id: str, force_restart: bool = False)
                         max_messages=config.max_messages_per_conv,  # Limit to 200
                     )
 
-                    # Save to DB
+                    # Save to DB (include participants for profile pics)
+                    participants = conv.get("participants", {}).get("data", [])
                     save_result = await save_lead_and_messages(
                         session=session,
                         creator=creator,
                         conversation_id=conv_id,
                         messages=messages,
                         creator_ids=creator_ids,
+                        participants=participants,
                     )
 
                     synced += 1
