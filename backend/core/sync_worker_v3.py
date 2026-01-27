@@ -26,7 +26,7 @@ FLUJO:
 
 import asyncio
 import logging
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 from enum import Enum
 from typing import Any, Dict, List, Optional
@@ -43,18 +43,19 @@ logger = logging.getLogger(__name__)
 
 class SyncMode(Enum):
     QUICK = "quick"  # Onboarding: rápido, limitado
-    DEEP = "deep"    # Background: completo, sin límites
+    DEEP = "deep"  # Background: completo, sin límites
 
 
 @dataclass
 class SyncConfig:
     """Configuración del sync"""
+
     mode: SyncMode = SyncMode.DEEP
 
     # Límites
-    max_conversations: Optional[int] = None      # None = sin límite
+    max_conversations: Optional[int] = None  # None = sin límite
     max_messages_per_conv: Optional[int] = None  # None = sin límite
-    max_days: Optional[int] = None               # None = todo el historial
+    max_days: Optional[int] = None  # None = todo el historial
 
     # Timing
     delay_between_calls: float = 2.0
@@ -72,34 +73,35 @@ class SyncConfig:
 # Configuración para QUICK SYNC (onboarding)
 QUICK_SYNC_CONFIG = SyncConfig(
     mode=SyncMode.QUICK,
-    max_conversations=50,        # Solo últimas 50
-    max_messages_per_conv=20,    # Solo últimos 20 mensajes
-    max_days=30,                 # Solo últimos 30 días
-    delay_between_calls=1.5,     # Más rápido
+    max_conversations=50,  # Solo últimas 50
+    max_messages_per_conv=20,  # Solo últimos 20 mensajes
+    max_days=30,  # Solo últimos 30 días
+    delay_between_calls=1.5,  # Más rápido
     batch_size=20,
     batch_pause=10.0,
-    timeout_seconds=180,         # Máximo 3 minutos
-    auto_resume=False,           # No auto-resume, hay timeout
+    timeout_seconds=180,  # Máximo 3 minutos
+    auto_resume=False,  # No auto-resume, hay timeout
 )
 
 
-# Configuración para DEEP SYNC (background)
+# Configuración para DEEP SYNC (background) - OPTIMIZADA
 DEEP_SYNC_CONFIG = SyncConfig(
     mode=SyncMode.DEEP,
-    max_conversations=None,      # TODAS (paginar hasta el final)
-    max_messages_per_conv=None,  # TODOS
-    max_days=None,               # Todo el historial
-    delay_between_calls=4.0,     # Conservador
-    batch_size=10,
-    batch_pause=60.0,
-    rate_limit_pause=300.0,      # 5 min pausa si rate limit
-    timeout_seconds=None,        # Sin timeout
-    auto_resume=True,            # SIEMPRE continúa
+    max_conversations=None,  # TODAS (paginar hasta el final)
+    max_messages_per_conv=200,  # Últimos 200 msgs por conversación (era None)
+    max_days=None,  # Todo el historial
+    delay_between_calls=2.0,  # Optimizado (era 4.0)
+    batch_size=15,  # Optimizado (era 10)
+    batch_pause=30.0,  # Optimizado (era 60.0)
+    rate_limit_pause=180.0,  # 3 min (era 300 / 5 min)
+    timeout_seconds=None,  # Sin timeout
+    auto_resume=True,  # SIEMPRE continúa
 )
 
 
 class RateLimitError(Exception):
     """Error cuando Instagram API devuelve rate limit."""
+
     pass
 
 
@@ -183,10 +185,12 @@ async def get_all_conversations_paginated(
                         error_code = error_data.get("error", {}).get("code")
                         logger.error(f"[Pagination] API error: {error_data}")
                         if error_code in [4, 17]:
-                            logger.warning(f"[Pagination] Rate limit code {error_code}, waiting 5 min...")
+                            logger.warning(
+                                f"[Pagination] Rate limit code {error_code}, waiting 5 min..."
+                            )
                             await asyncio.sleep(300)
                             continue
-                    except Exception as json_err:
+                    except Exception:
                         logger.error(f"[Pagination] Non-JSON error response: {response.text[:200]}")
                     break  # Stop on non-rate-limit error
 
@@ -199,6 +203,7 @@ async def get_all_conversations_paginated(
             except Exception as e:
                 logger.error(f"[Pagination] Error on page {page}: {e}")
                 import traceback
+
                 logger.error(traceback.format_exc())
                 raise
 
@@ -216,9 +221,7 @@ async def get_all_conversations_paginated(
                 updated_time = conv.get("updated_time")
                 if updated_time and cutoff_date:
                     try:
-                        conv_time = datetime.fromisoformat(
-                            updated_time.replace("+0000", "+00:00")
-                        )
+                        conv_time = datetime.fromisoformat(updated_time.replace("+0000", "+00:00"))
                         if conv_time < cutoff_date:
                             old_count += 1
                             continue  # Skip old conversation
@@ -238,7 +241,7 @@ async def get_all_conversations_paginated(
             if old_count == len(page_conversations) and len(page_conversations) > 0:
                 consecutive_old += 1
                 if consecutive_old >= 2:  # 2 páginas seguidas con todo antiguo
-                    logger.info(f"[Pagination] 2 pages of old conversations, stopping.")
+                    logger.info("[Pagination] 2 pages of old conversations, stopping.")
                     break
             else:
                 consecutive_old = 0
@@ -440,7 +443,9 @@ async def save_lead_and_messages(
         # Update timestamps if newer
         if first_contact and (not lead.first_contact_at or first_contact < lead.first_contact_at):
             lead.first_contact_at = first_contact
-        if last_user_contact and (not lead.last_contact_at or last_user_contact > lead.last_contact_at):
+        if last_user_contact and (
+            not lead.last_contact_at or last_user_contact > lead.last_contact_at
+        ):
             lead.last_contact_at = last_user_contact
 
     # Save messages
@@ -472,9 +477,7 @@ async def save_lead_and_messages(
         created_time = msg.get("created_time")
         if created_time:
             try:
-                new_msg.created_at = datetime.fromisoformat(
-                    created_time.replace("+0000", "+00:00")
-                )
+                new_msg.created_at = datetime.fromisoformat(created_time.replace("+0000", "+00:00"))
             except Exception:
                 pass
 
@@ -552,19 +555,30 @@ async def run_quick_sync(creator_id: str) -> Dict[str, Any]:
         ig_page_id = creator.instagram_page_id
         creator_ids = {ig_user_id, ig_page_id} - {None}
 
-        print(f"[QuickSync] Creator found: ig_user_id={ig_user_id}, page_id={ig_page_id}", flush=True)
+        print(
+            f"[QuickSync] Creator found: ig_user_id={ig_user_id}, page_id={ig_page_id}", flush=True
+        )
         logger.info(f"[QuickSync] Creator: ig_user_id={ig_user_id}, page_id={ig_page_id}")
 
         # Update state
-        await update_sync_state(session, creator_id, {
-            "status": "running",
-            "conversations_synced": 0,
-            "messages_saved": 0,
-        })
+        await update_sync_state(
+            session,
+            creator_id,
+            {
+                "status": "running",
+                "conversations_synced": 0,
+                "messages_saved": 0,
+            },
+        )
 
         # Get conversations (limited)
-        print(f"[QuickSync] Fetching conversations (max {config.max_conversations}, last {config.max_days} days)", flush=True)
-        logger.info(f"[QuickSync] Fetching conversations (max {config.max_conversations}, last {config.max_days} days)")
+        print(
+            f"[QuickSync] Fetching conversations (max {config.max_conversations}, last {config.max_days} days)",
+            flush=True,
+        )
+        logger.info(
+            f"[QuickSync] Fetching conversations (max {config.max_conversations}, last {config.max_days} days)"
+        )
 
         try:
             conversations = await get_all_conversations_paginated(
@@ -579,6 +593,7 @@ async def run_quick_sync(creator_id: str) -> Dict[str, Any]:
             print(f"[QuickSync] ERROR getting conversations: {conv_error}", flush=True)
             logger.error(f"[QuickSync] ERROR getting conversations: {conv_error}")
             import traceback
+
             print(traceback.format_exc(), flush=True)
             result["error"] = str(conv_error)
             return result
@@ -590,7 +605,9 @@ async def run_quick_sync(creator_id: str) -> Dict[str, Any]:
             # Check timeout
             elapsed = (datetime.now(timezone.utc) - start_time).total_seconds()
             if config.timeout_seconds and elapsed > config.timeout_seconds:
-                logger.warning(f"[QuickSync] Timeout after {elapsed:.0f}s, processed {i}/{len(conversations)}")
+                logger.warning(
+                    f"[QuickSync] Timeout after {elapsed:.0f}s, processed {i}/{len(conversations)}"
+                )
                 result["timed_out"] = True
                 break
 
@@ -623,14 +640,18 @@ async def run_quick_sync(creator_id: str) -> Dict[str, Any]:
 
                 # Update state periodically
                 if result["conversations_synced"] % 5 == 0:
-                    await update_sync_state(session, creator_id, {
-                        "conversations_synced": result["conversations_synced"],
-                        "messages_saved": result["messages_saved"],
-                    })
+                    await update_sync_state(
+                        session,
+                        creator_id,
+                        {
+                            "conversations_synced": result["conversations_synced"],
+                            "messages_saved": result["messages_saved"],
+                        },
+                    )
 
                 await asyncio.sleep(config.delay_between_calls)
 
-            except RateLimitError as e:
+            except RateLimitError:
                 logger.warning(f"[QuickSync] Rate limit at conv {i}, stopping quick sync")
                 result["error"] = "rate_limit"
                 break
@@ -643,11 +664,15 @@ async def run_quick_sync(creator_id: str) -> Dict[str, Any]:
         result["completed"] = not result["timed_out"] and not result.get("error")
 
         # Final state update
-        await update_sync_state(session, creator_id, {
-            "status": "quick_complete" if result["completed"] else "quick_partial",
-            "conversations_synced": result["conversations_synced"],
-            "messages_saved": result["messages_saved"],
-        })
+        await update_sync_state(
+            session,
+            creator_id,
+            {
+                "status": "quick_complete" if result["completed"] else "quick_partial",
+                "conversations_synced": result["conversations_synced"],
+                "messages_saved": result["messages_saved"],
+            },
+        )
 
         logger.info(
             f"[QuickSync] Done for {creator_id}: "
@@ -698,13 +723,17 @@ async def run_deep_sync_background(creator_id: str):
         creator_ids = {ig_user_id, ig_page_id} - {None}
 
         # Initialize state
-        await update_sync_state(session, creator_id, {
-            "status": "deep_running",
-            "last_error": None,
-        })
+        await update_sync_state(
+            session,
+            creator_id,
+            {
+                "status": "deep_running",
+                "last_error": None,
+            },
+        )
 
         # Get ALL conversations (with full pagination)
-        logger.info(f"[DeepSync] Fetching ALL conversations (no limits)...")
+        logger.info("[DeepSync] Fetching ALL conversations (no limits)...")
 
         all_conversations = await get_all_conversations_paginated(
             access_token=access_token,
@@ -717,10 +746,14 @@ async def run_deep_sync_background(creator_id: str):
         total = len(all_conversations)
         logger.info(f"[DeepSync] Got {total} TOTAL conversations to process")
 
-        await update_sync_state(session, creator_id, {
-            "conversations_total": total,
-            "conversations_synced": 0,
-        })
+        await update_sync_state(
+            session,
+            creator_id,
+            {
+                "conversations_total": total,
+                "conversations_synced": 0,
+            },
+        )
 
         synced = 0
         messages_total = 0
@@ -737,12 +770,12 @@ async def run_deep_sync_background(creator_id: str):
             retry_count = 0
             while retry_count < config.max_retries:
                 try:
-                    # Get ALL messages (no limit)
+                    # Get messages with configured limit (200 for optimization)
                     messages = await get_conversation_messages_paginated(
                         access_token=access_token,
                         conversation_id=conv_id,
                         ig_page_id=ig_page_id,
-                        max_messages=None,  # NO LIMIT
+                        max_messages=config.max_messages_per_conv,  # Limit to 200
                     )
 
                     # Save to DB
@@ -766,10 +799,14 @@ async def run_deep_sync_background(creator_id: str):
                         progress_pct = round(synced * 100 / total, 1) if total > 0 else 0
                         logger.info(f"[DeepSync] Progress: {synced}/{total} ({progress_pct}%)")
 
-                        await update_sync_state(session, creator_id, {
-                            "conversations_synced": synced,
-                            "messages_saved": messages_total,
-                        })
+                        await update_sync_state(
+                            session,
+                            creator_id,
+                            {
+                                "conversations_synced": synced,
+                                "messages_saved": messages_total,
+                            },
+                        )
 
                     await asyncio.sleep(config.delay_between_calls)
                     break  # Success, exit retry loop
@@ -781,22 +818,30 @@ async def run_deep_sync_background(creator_id: str):
                         f"Waiting {config.rate_limit_pause}s..."
                     )
 
-                    await update_sync_state(session, creator_id, {
-                        "status": "deep_rate_limited",
-                        "last_error": str(e),
-                        "rate_limit_until": (
-                            datetime.now(timezone.utc) +
-                            timedelta(seconds=config.rate_limit_pause)
-                        ),
-                    })
+                    await update_sync_state(
+                        session,
+                        creator_id,
+                        {
+                            "status": "deep_rate_limited",
+                            "last_error": str(e),
+                            "rate_limit_until": (
+                                datetime.now(timezone.utc)
+                                + timedelta(seconds=config.rate_limit_pause)
+                            ),
+                        },
+                    )
 
                     # WAIT AND CONTINUE (real auto-resume)
                     await asyncio.sleep(config.rate_limit_pause)
 
-                    await update_sync_state(session, creator_id, {
-                        "status": "deep_running",
-                        "rate_limit_until": None,
-                    })
+                    await update_sync_state(
+                        session,
+                        creator_id,
+                        {
+                            "status": "deep_running",
+                            "rate_limit_until": None,
+                        },
+                    )
 
                     retry_count += 1
                     continue
@@ -817,13 +862,17 @@ async def run_deep_sync_background(creator_id: str):
                 batch_count = 0
 
         # COMPLETED
-        await update_sync_state(session, creator_id, {
-            "status": "deep_completed",
-            "conversations_synced": synced,
-            "conversations_total": total,
-            "messages_saved": messages_total,
-            "last_error": None,
-        })
+        await update_sync_state(
+            session,
+            creator_id,
+            {
+                "status": "deep_completed",
+                "conversations_synced": synced,
+                "conversations_total": total,
+                "messages_saved": messages_total,
+                "last_error": None,
+            },
+        )
 
         logger.info(
             f"[DeepSync] ====== COMPLETED for {creator_id} ======"
@@ -836,12 +885,17 @@ async def run_deep_sync_background(creator_id: str):
     except Exception as e:
         logger.error(f"[DeepSync] Fatal error: {e}")
         import traceback
+
         logger.error(traceback.format_exc())
 
-        await update_sync_state(session, creator_id, {
-            "status": "deep_error",
-            "last_error": str(e),
-        })
+        await update_sync_state(
+            session,
+            creator_id,
+            {
+                "status": "deep_error",
+                "last_error": str(e),
+            },
+        )
     finally:
         session.close()
 
@@ -873,14 +927,18 @@ def get_sync_progress(creator_id: str) -> Dict[str, Any]:
         response = {
             "status": state.status,
             "quick_sync": {
-                "status": "completed" if state.status in ["quick_complete", "deep_running", "deep_completed"] else "pending",
+                "status": (
+                    "completed"
+                    if state.status in ["quick_complete", "deep_running", "deep_completed"]
+                    else "pending"
+                ),
             },
             "deep_sync": {
                 "status": state.status if state.status.startswith("deep_") else "pending",
                 "progress_percent": progress_pct,
                 "conversations": f"{synced}/{total}",
                 "messages": state.messages_saved or 0,
-            }
+            },
         }
 
         if state.status == "deep_rate_limited" and state.rate_limit_until:
