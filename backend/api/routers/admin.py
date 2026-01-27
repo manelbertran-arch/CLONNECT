@@ -3273,6 +3273,71 @@ async def sync_progress(creator_id: str):
     return get_sync_progress(creator_id)
 
 
+@router.post("/test-quick-sync/{creator_id}")
+async def test_quick_sync(creator_id: str):
+    """
+    Test endpoint: Ejecuta Quick Sync V3 directamente y muestra resultados.
+    """
+    try:
+        from core.sync_worker_v3 import run_quick_sync
+
+        result = await run_quick_sync(creator_id)
+        return {"status": "ok", "result": result}
+    except Exception as e:
+        import traceback
+        return {
+            "status": "error",
+            "error": str(e),
+            "traceback": traceback.format_exc()
+        }
+
+
+@router.get("/test-conversations/{creator_id}")
+async def test_conversations(creator_id: str):
+    """
+    Test endpoint: Prueba obtener conversaciones con V3 paginación.
+    """
+    try:
+        from api.database import SessionLocal
+        from api.models import Creator
+        from core.sync_worker_v3 import get_all_conversations_paginated
+
+        session = SessionLocal()
+        try:
+            creator = session.query(Creator).filter_by(name=creator_id).first()
+            if not creator or not creator.instagram_token:
+                return {"error": "Creator not found or no token"}
+
+            access_token = creator.instagram_token
+            ig_user_id = creator.instagram_user_id or creator.instagram_page_id
+            ig_page_id = creator.instagram_page_id
+
+            conversations = await get_all_conversations_paginated(
+                access_token=access_token,
+                ig_user_id=ig_user_id,
+                ig_page_id=ig_page_id,
+                max_conversations=10,  # Limit for testing
+                max_days=30,
+            )
+
+            return {
+                "status": "ok",
+                "ig_user_id": ig_user_id,
+                "page_id": ig_page_id,
+                "conversations_count": len(conversations),
+                "conversations": [c.get("id", "?")[:30] for c in conversations[:5]],
+            }
+        finally:
+            session.close()
+    except Exception as e:
+        import traceback
+        return {
+            "status": "error",
+            "error": str(e),
+            "traceback": traceback.format_exc()
+        }
+
+
 @router.post("/sync-continue/{creator_id}")
 async def sync_continue(creator_id: str, background_tasks: BackgroundTasks):
     """
