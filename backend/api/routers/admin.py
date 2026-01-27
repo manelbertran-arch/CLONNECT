@@ -3481,6 +3481,89 @@ async def sync_reset(creator_id: str):
         session.close()
 
 
+@router.post("/fix-leads/{creator_id}")
+async def fix_leads(creator_id: str):
+    """
+    Fix existing leads for a creator:
+    1. Delete self-lead (creator appearing as their own lead)
+    2. Recategorize all leads based on messages
+    3. Update profile pics
+    """
+    from api.database import SessionLocal
+    from api.models import Creator, Lead, Message
+    from core.lead_categorizer import LeadCategorizer
+
+    session = SessionLocal()
+    try:
+        creator = session.query(Creator).filter_by(name=creator_id).first()
+        if not creator:
+            return {"error": f"Creator {creator_id} not found"}
+
+        # Get creator's Instagram IDs
+        creator_ig_ids = {creator.instagram_user_id, creator.instagram_page_id} - {None}
+
+        # 1. Delete self-lead (creator as their own lead)
+        self_leads_deleted = 0
+        for ig_id in creator_ig_ids:
+            if ig_id:
+                deleted = session.query(Lead).filter_by(
+                    creator_id=creator.id,
+                    platform_user_id=ig_id
+                ).delete()
+                self_leads_deleted += deleted
+
+        # 2. Recategorize existing leads
+        leads = session.query(Lead).filter_by(creator_id=creator.id).all()
+        categorizer = LeadCategorizer()
+        recategorized = 0
+
+        for lead in leads:
+            # Get messages for this lead
+            messages = session.query(Message).filter_by(lead_id=lead.id).all()
+
+            if not messages:
+                continue
+
+            # Build message list for categorizer
+            categorizer_messages = [
+                {"role": msg.role, "content": msg.content or ""}
+                for msg in messages
+            ]
+
+            # Find last user message time
+            user_msgs = [m for m in messages if m.role == "user" and m.created_at]
+            last_user_time = max((m.created_at for m in user_msgs), default=None) if user_msgs else None
+
+            # Categorize
+            category, score, reason = categorizer.categorize(
+                messages=categorizer_messages,
+                is_customer=lead.status == "cliente",
+                last_user_message_time=last_user_time,
+            )
+
+            # Update if different (but don't downgrade cliente)
+            if lead.status != "cliente" and lead.status != category.value:
+                lead.status = category.value
+                lead.score = int(score * 100)
+                recategorized += 1
+
+        session.commit()
+
+        return {
+            "status": "fixed",
+            "creator_id": creator_id,
+            "self_leads_deleted": self_leads_deleted,
+            "leads_recategorized": recategorized,
+            "total_leads": len(leads),
+        }
+    except Exception as e:
+        session.rollback()
+        import traceback
+        return {"error": str(e), "traceback": traceback.format_exc()}
+    finally:
+        session.close()
+
+
 @router.post("/fix-lead-timestamps/{creator_id}")
 async def fix_lead_timestamps(creator_id: str):
     """
