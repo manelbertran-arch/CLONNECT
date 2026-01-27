@@ -694,16 +694,21 @@ async def run_quick_sync(creator_id: str) -> Dict[str, Any]:
 # =============================================================================
 
 
-async def run_deep_sync_background(creator_id: str):
+async def run_deep_sync_background(creator_id: str, force_restart: bool = False):
     """
     DEEP SYNC: Corre en background REAL hasta completar TODO.
     - Sin límites de conversaciones/mensajes
     - Auto-recovery de rate limits
     - Nunca para hasta completar
     - Persistente (puede resumir si el servidor reinicia)
+    - CHECKPOINT: Continúa desde donde quedó si se reinicia
+
+    Args:
+        creator_id: ID del creator
+        force_restart: Si True, empieza desde 0 ignorando checkpoint
     """
     from api.database import SessionLocal
-    from api.models import Creator
+    from api.models import Creator, SyncState
 
     config = DEEP_SYNC_CONFIG
 
@@ -722,7 +727,17 @@ async def run_deep_sync_background(creator_id: str):
         ig_page_id = creator.instagram_page_id
         creator_ids = {ig_user_id, ig_page_id} - {None}
 
-        # Initialize state
+        # CHECKPOINT: Leer estado previo para continuar donde quedamos
+        start_index = 0
+        existing_messages = 0
+        if not force_restart:
+            existing_state = session.query(SyncState).filter_by(creator_id=creator_id).first()
+            if existing_state and existing_state.conversations_synced:
+                start_index = existing_state.conversations_synced
+                existing_messages = existing_state.messages_saved or 0
+                logger.info(f"[DeepSync] CHECKPOINT: Resuming from conversation {start_index}, {existing_messages} msgs already saved")
+
+        # Initialize state (keep existing messages count)
         await update_sync_state(
             session,
             creator_id,
@@ -746,23 +761,27 @@ async def run_deep_sync_background(creator_id: str):
         total = len(all_conversations)
         logger.info(f"[DeepSync] Got {total} TOTAL conversations to process")
 
+        # Update total but preserve synced count from checkpoint
         await update_sync_state(
             session,
             creator_id,
             {
                 "conversations_total": total,
-                "conversations_synced": 0,
             },
         )
 
-        synced = 0
-        messages_total = 0
+        synced = start_index  # Start from checkpoint
+        messages_total = existing_messages  # Keep existing messages count
         leads_created = 0
         rate_limit_hits = 0
         batch_count = 0
 
-        # Process all conversations
+        # Process all conversations (starting from checkpoint)
         for i, conv in enumerate(all_conversations):
+            # CHECKPOINT: Skip already-processed conversations
+            if i < start_index:
+                continue
+
             conv_id = conv.get("id")
             if not conv_id:
                 continue

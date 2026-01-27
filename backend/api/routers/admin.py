@@ -3293,21 +3293,43 @@ async def test_quick_sync(creator_id: str):
 
 
 @router.post("/restart-deep-sync/{creator_id}")
-async def restart_deep_sync(creator_id: str):
+async def restart_deep_sync(creator_id: str, force_restart: bool = False):
     """
     Restart V3 Deep Sync en background con la configuración optimizada.
-    Útil para aplicar nuevas configuraciones.
+
+    Args:
+        creator_id: ID del creator
+        force_restart: Si True, empieza desde 0 ignorando checkpoint.
+                      Si False (default), continúa desde donde quedó.
     """
     import asyncio
     try:
+        from api.database import SessionLocal
+        from api.models import SyncState
         from core.sync_worker_v3 import run_deep_sync_background
 
+        # Get current checkpoint
+        checkpoint_info = {}
+        session = SessionLocal()
+        try:
+            state = session.query(SyncState).filter_by(creator_id=creator_id).first()
+            if state:
+                checkpoint_info = {
+                    "previous_synced": state.conversations_synced or 0,
+                    "previous_total": state.conversations_total or 0,
+                    "previous_messages": state.messages_saved or 0,
+                }
+        finally:
+            session.close()
+
         # Start in background
-        asyncio.create_task(run_deep_sync_background(creator_id))
+        asyncio.create_task(run_deep_sync_background(creator_id, force_restart=force_restart))
 
         return {
             "status": "started",
-            "message": "V3 Deep Sync restarted in background with optimized config",
+            "message": f"V3 Deep Sync {'restarted from 0' if force_restart else 'resumed from checkpoint'} in background",
+            "force_restart": force_restart,
+            "checkpoint": checkpoint_info,
             "config": {
                 "delay_between_calls": "2.0s",
                 "batch_size": 15,
