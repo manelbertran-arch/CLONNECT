@@ -21,11 +21,12 @@ logger = logging.getLogger(__name__)
 class SyncConfig:
     """Configuración del sync worker."""
 
-    delay_between_calls: int = 3  # Segundos entre cada llamada API
+    delay_between_calls: int = 2  # Segundos entre cada llamada API
     rate_limit_pause: int = 300  # Segundos de pausa si rate limit (5 min)
     max_retries: int = 3  # Reintentos por conversación
     batch_size: int = 10  # Procesar N conversaciones, luego pausar
     batch_pause: int = 30  # Segundos de pausa entre batches
+    max_message_pages: int = 2  # Máximo páginas de mensajes por conversación (100 msgs)
 
 
 # Configuración global
@@ -126,7 +127,7 @@ async def process_single_conversation(
             }
 
             page_num = 0
-            max_pages = 20  # Safety limit (1000 messages max per conversation)
+            max_pages = SYNC_CONFIG.max_message_pages  # Limit messages per conversation
             while url and page_num < max_pages:
                 page_num += 1
                 msg_resp = await client.get(url, params=params if page_num == 1 else None)
