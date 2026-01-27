@@ -1,11 +1,18 @@
 """
-Sync Worker - Sistema de cola inteligente para sincronización con Instagram API.
+Sync Worker V2 - Sistema de cola inteligente para sincronización con Instagram API.
 
 Características:
-- Procesa 1 conversación cada N segundos (configurable)
-- Pausa automática ante rate limits
+- Procesa conversaciones con delays configurables para evitar rate limits
+- Pausa automática ante rate limits con auto-recuperación
 - Guarda progreso después de cada job
 - Continúa automáticamente sin intervención manual
+- SIN LÍMITES de mensajes - carga todo el historial
+
+IMPORTANTE: El sync se inicia MANUALMENTE via:
+- POST /admin/start-sync/{creator_id}
+- O cuando se completa el onboarding
+
+NO se ejecuta automáticamente.
 """
 
 import asyncio
@@ -19,17 +26,27 @@ logger = logging.getLogger(__name__)
 
 @dataclass
 class SyncConfig:
-    """Configuración del sync worker."""
+    """Configuración del sync worker V2."""
 
-    delay_between_calls: int = 2  # Segundos entre cada llamada API
+    # Delays para evitar rate limits
+    delay_between_calls: int = 4  # Segundos entre cada llamada API
+    batch_size: int = 10  # Procesar N conversaciones, luego pausar
+    batch_pause: int = 60  # Segundos de pausa entre batches
+
+    # Rate limit handling
     rate_limit_pause: int = 300  # Segundos de pausa si rate limit (5 min)
     max_retries: int = 3  # Reintentos por conversación
-    batch_size: int = 10  # Procesar N conversaciones, luego pausar
-    batch_pause: int = 30  # Segundos de pausa entre batches
-    max_message_pages: int = 10  # Máximo páginas de mensajes por conversación (500 msgs)
+
+    # SIN LÍMITES - cargar todo el historial
+    max_message_pages: Optional[int] = None  # None = sin límite
+    max_conversations: Optional[int] = None  # None = sin límite
+
+    # Comportamiento
+    auto_resume: bool = True  # Continuar después de rate limit
+    stop_on_error: bool = False  # Si falla una conversación, seguir con la siguiente
 
 
-# Configuración global
+# Configuración global V2
 SYNC_CONFIG = SyncConfig()
 
 # Estado del worker
@@ -127,8 +144,8 @@ async def process_single_conversation(
             }
 
             page_num = 0
-            max_pages = SYNC_CONFIG.max_message_pages  # Limit messages per conversation
-            while url and page_num < max_pages:
+            max_pages = SYNC_CONFIG.max_message_pages  # None = sin límite
+            while url and (max_pages is None or page_num < max_pages):
                 page_num += 1
                 msg_resp = await client.get(url, params=params if page_num == 1 else None)
 
@@ -451,6 +468,12 @@ async def run_sync_worker_iteration(session, creator_id: str) -> Dict[str, Any]:
             session.commit()
             logger.error(f"[SyncWorker] Error processing job {job.id}: {e}")
 
+            # Si stop_on_error es True, detener el sync
+            if SYNC_CONFIG.stop_on_error:
+                result["error"] = str(e)
+                break
+            # Si no, continuar con la siguiente conversación
+
         # Throttle between calls
         await asyncio.sleep(SYNC_CONFIG.delay_between_calls)
 
@@ -528,10 +551,10 @@ async def start_sync_for_creator(creator_id: str) -> Dict[str, Any]:
                 url = f"{api_base}/{ig_user_id}/conversations"
                 params = {"access_token": access_token, "limit": 50, "fields": "id,updated_time"}
 
-            # Paginate through ALL conversation pages
+            # Paginate through ALL conversation pages (sin límite por defecto)
             page_num = 0
-            max_pages = 20  # Safety limit (1000 conversations max)
-            while url and page_num < max_pages:
+            max_conv_pages = 100  # Safety limit alto (5000 conversaciones max)
+            while url and page_num < max_conv_pages:
                 page_num += 1
                 conv_resp = await client.get(url, params=params if page_num == 1 else None)
 
