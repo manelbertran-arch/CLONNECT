@@ -8,11 +8,18 @@ Características:
 - Continúa automáticamente sin intervención manual
 - SIN LÍMITES de mensajes - carga todo el historial
 
-IMPORTANTE: El sync se inicia MANUALMENTE via:
-- POST /admin/start-sync/{creator_id}
-- O cuando se completa el onboarding
+FLUJO AUTOMÁTICO:
+1. Usuario hace OAuth (conecta Instagram)
+2. Usuario inyecta su website
+3. Usuario hace click en "CREAR CLON"
+4. → Se dispara el sync V2 AUTOMÁTICAMENTE con:
+   - Sin límite de conversaciones
+   - Sin límite de mensajes
+   - Auto-recovery de rate limits
+   - Nunca para hasta completar TODO
 
-NO se ejecuta automáticamente.
+El sync también puede iniciarse manualmente via:
+- POST /admin/start-sync/{creator_id}
 """
 
 import asyncio
@@ -169,7 +176,9 @@ async def process_single_conversation(
                 if not page_msgs:
                     break
 
-            logger.info(f"[SyncWorker] Fetched {len(messages)} messages for conversation (pages: {page_num})")
+            logger.info(
+                f"[SyncWorker] Fetched {len(messages)} messages for conversation (pages: {page_num})"
+            )
 
             if not messages:
                 result["success"] = True
@@ -445,7 +454,7 @@ async def run_sync_worker_iteration(session, creator_id: str) -> Dict[str, Any]:
             session.commit()
 
         except RateLimitError as e:
-            # Rate limit hit - pause this creator
+            # Rate limit hit - pause and auto-resume
             job.status = "pending"
             job.attempts -= 1  # Don't count rate limit as attempt
             state.status = "rate_limited"
@@ -459,7 +468,22 @@ async def run_sync_worker_iteration(session, creator_id: str) -> Dict[str, Any]:
                 f"[SyncWorker] Rate limit for {creator_id}, pausing {SYNC_CONFIG.rate_limit_pause}s"
             )
             result["rate_limited"] = True
-            break
+
+            # AUTO-RESUME: Si está habilitado, esperar y continuar automáticamente
+            if SYNC_CONFIG.auto_resume:
+                logger.info(
+                    f"[SyncWorker] Auto-resume enabled. Waiting {SYNC_CONFIG.rate_limit_pause}s before continuing..."
+                )
+                await asyncio.sleep(SYNC_CONFIG.rate_limit_pause)
+                # Clear rate limit and continue
+                state.status = "running"
+                state.rate_limit_until = None
+                session.commit()
+                logger.info(f"[SyncWorker] Resuming sync for {creator_id} after rate limit pause")
+                jobs_in_batch = 0  # Reset batch counter
+                continue  # Continue processing instead of breaking
+            else:
+                break
 
         except Exception as e:
             job.status = "failed"
@@ -585,7 +609,9 @@ async def start_sync_for_creator(creator_id: str) -> Dict[str, Any]:
                     updated_time = conv.get("updated_time")
                     if updated_time:
                         try:
-                            conv_time = datetime.fromisoformat(updated_time.replace("+0000", "+00:00"))
+                            conv_time = datetime.fromisoformat(
+                                updated_time.replace("+0000", "+00:00")
+                            )
                             if conv_time >= cutoff_date:
                                 filtered_convs.append(conv)
                             else:
@@ -603,7 +629,9 @@ async def start_sync_for_creator(creator_id: str) -> Dict[str, Any]:
                 # Get next page URL if exists
                 # Stop early if all conversations on this page were old
                 if old_convs == len(page_convs) and len(page_convs) > 0:
-                    logger.info(f"[SyncWorker] All conversations on page {page_num} are older than 365 days, stopping pagination")
+                    logger.info(
+                        f"[SyncWorker] All conversations on page {page_num} are older than 365 days, stopping pagination"
+                    )
                     url = None
                 else:
                     url = data.get("paging", {}).get("next")

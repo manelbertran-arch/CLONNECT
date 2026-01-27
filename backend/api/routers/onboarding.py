@@ -939,32 +939,53 @@ async def _run_clone_creation(creator_id: str, website_url: str = None):
             logger.info(f"[CloneCreation] Step 4: Syncing DM history")
 
             try:
-                print(f"[CloneCreation] Importing _simple_dm_sync_internal...", flush=True)
-                from api.routers.oauth import _simple_dm_sync_internal
+                print(f"[CloneCreation] Importing Sync Worker V2...", flush=True)
+                from core.sync_worker import run_sync_worker_iteration, start_sync_for_creator
 
                 print(
-                    f"[CloneCreation] Calling _simple_dm_sync_internal (sin límite - 12 meses)",
+                    f"[CloneCreation] Starting Sync V2 - Sin límites, auto-recovery habilitado",
                     flush=True,
                 )
-                # Rate-limited: ALL conversations from last 12 months with 2s delay between each
-                dm_stats = await _simple_dm_sync_internal(
-                    creator_id=creator_id,
-                    access_token=access_token,
-                    ig_user_id=instagram_user_id,
-                    ig_page_id=page_id,
-                )
-                print(f"[CloneCreation] DM sync complete: {dm_stats}", flush=True)
-                logger.info(f"[CloneCreation] DM sync complete: {dm_stats}")
-                _update_clone_progress(
-                    creator_id,
-                    extra={
-                        "messages_synced": dm_stats.get("messages_saved", 0),
-                        "leads_created": dm_stats.get("leads_created", 0),
-                    },
-                )
+
+                # Step 4a: Queue all conversations
+                queue_result = await start_sync_for_creator(creator_id)
+                print(f"[CloneCreation] Sync queued: {queue_result}", flush=True)
+                logger.info(f"[CloneCreation] Sync queued: {queue_result}")
+
+                if queue_result["status"] == "started":
+                    # Step 4b: Process all queued conversations with auto-resume
+                    print(
+                        f"[CloneCreation] Processing {queue_result['conversations_queued']} conversations...",
+                        flush=True,
+                    )
+
+                    from api.database import SessionLocal
+
+                    sync_session = SessionLocal()
+                    try:
+                        sync_result = await run_sync_worker_iteration(sync_session, creator_id)
+                        print(f"[CloneCreation] Sync V2 complete: {sync_result}", flush=True)
+                        logger.info(f"[CloneCreation] Sync V2 complete: {sync_result}")
+
+                        _update_clone_progress(
+                            creator_id,
+                            extra={
+                                "messages_synced": sync_result.get("messages_saved", 0),
+                                "leads_created": sync_result.get("leads_created", 0),
+                            },
+                        )
+                    finally:
+                        sync_session.close()
+                elif queue_result["status"] == "rate_limited":
+                    print(f"[CloneCreation] Rate limited during queue: {queue_result}", flush=True)
+                    logger.warning(f"[CloneCreation] Rate limited during queue: {queue_result}")
+                else:
+                    print(f"[CloneCreation] Queue failed: {queue_result}", flush=True)
+                    logger.warning(f"[CloneCreation] Queue failed: {queue_result}")
+
             except Exception as e:
-                print(f"[CloneCreation] DM sync failed: {e}", flush=True)
-                logger.warning(f"[CloneCreation] DM sync failed: {e}")
+                print(f"[CloneCreation] DM sync V2 failed: {e}", flush=True)
+                logger.warning(f"[CloneCreation] DM sync V2 failed: {e}")
                 import traceback
 
                 print(traceback.format_exc(), flush=True)
