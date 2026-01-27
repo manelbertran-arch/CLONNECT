@@ -116,28 +116,43 @@ async def process_single_conversation(
 
     try:
         async with httpx.AsyncClient(timeout=30.0) as client:
-            # Fetch messages for this conversation
-            msg_resp = await client.get(
-                f"{api_base}/{job.conversation_id}/messages",
-                params={
-                    "fields": "id,message,from,to,created_time",
-                    "access_token": access_token,
-                    "limit": 50,
-                },
-            )
+            # Fetch ALL messages for this conversation with pagination
+            messages = []
+            url = f"{api_base}/{job.conversation_id}/messages"
+            params = {
+                "fields": "id,message,from,to,created_time",
+                "access_token": access_token,
+                "limit": 50,
+            }
 
-            if msg_resp.status_code != 200:
-                error_data = msg_resp.json().get("error", {})
-                error_code = error_data.get("code")
+            page_num = 0
+            max_pages = 20  # Safety limit (1000 messages max per conversation)
+            while url and page_num < max_pages:
+                page_num += 1
+                msg_resp = await client.get(url, params=params if page_num == 1 else None)
 
-                # Check for rate limit
-                if error_code in [4, 17] or error_data.get("error_subcode") == 1349210:
-                    raise RateLimitError(error_data.get("message", "Rate limit"))
+                if msg_resp.status_code != 200:
+                    error_data = msg_resp.json().get("error", {})
+                    error_code = error_data.get("code")
 
-                result["error"] = f"API error: {error_data.get('message', 'Unknown')}"
-                return result
+                    # Check for rate limit
+                    if error_code in [4, 17] or error_data.get("error_subcode") == 1349210:
+                        raise RateLimitError(error_data.get("message", "Rate limit"))
 
-            messages = msg_resp.json().get("data", [])
+                    result["error"] = f"API error: {error_data.get('message', 'Unknown')}"
+                    return result
+
+                data = msg_resp.json()
+                page_msgs = data.get("data", [])
+                messages.extend(page_msgs)
+
+                # Get next page URL if exists
+                url = data.get("paging", {}).get("next")
+                if not page_msgs:
+                    break
+
+            logger.info(f"[SyncWorker] Fetched {len(messages)} messages for conversation (pages: {page_num})")
+
             if not messages:
                 result["success"] = True
                 return result

@@ -19,6 +19,7 @@ const navItems = [
   { path: "/inbox", label: "Bandeja", icon: MessageSquare },
   { path: "/copilot", label: "Copilot", icon: Bot },
   { path: "/leads", label: "Leads", icon: Users },
+  { path: "/analytics", label: "Analytics", icon: BarChart3 },
   { path: "/nurturing", label: "Nurturing", icon: Sparkles },
   { path: "/analytics", label: "Analytics", icon: BarChart3 },
   { path: "/products", label: "Productos", icon: ShoppingBag },
