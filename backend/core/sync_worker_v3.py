@@ -160,31 +160,46 @@ async def get_all_conversations_paginated(
     async with httpx.AsyncClient(timeout=60.0) as client:
         while url:
             page += 1
-            logger.info(f"[Pagination] Fetching conversations page {page}...")
+            logger.info(f"[Pagination] Fetching conversations page {page} from {url[:80]}...")
 
             try:
                 if page == 1:
+                    logger.info(f"[Pagination] Params: {list(params.keys())}")
                     response = await client.get(url, params=params)
                 else:
                     response = await client.get(url)  # URL ya tiene params
 
-                # Check rate limit
-                if response.status_code == 429 or (
-                    response.status_code != 200 and
-                    response.json().get("error", {}).get("code") in [4, 17]
-                ):
-                    logger.warning(f"[Pagination] Rate limit on page {page}, waiting 5 min...")
-                    await asyncio.sleep(300)  # 5 minutos
-                    continue  # Reintentar misma página
+                logger.info(f"[Pagination] Response status: {response.status_code}")
 
-                response.raise_for_status()
+                # Check rate limit
+                if response.status_code == 429:
+                    logger.warning(f"[Pagination] Rate limit 429 on page {page}, waiting 5 min...")
+                    await asyncio.sleep(300)
+                    continue
+
+                if response.status_code != 200:
+                    try:
+                        error_data = response.json()
+                        error_code = error_data.get("error", {}).get("code")
+                        logger.error(f"[Pagination] API error: {error_data}")
+                        if error_code in [4, 17]:
+                            logger.warning(f"[Pagination] Rate limit code {error_code}, waiting 5 min...")
+                            await asyncio.sleep(300)
+                            continue
+                    except Exception as json_err:
+                        logger.error(f"[Pagination] Non-JSON error response: {response.text[:200]}")
+                    break  # Stop on non-rate-limit error
+
                 data = response.json()
+                logger.info(f"[Pagination] Got data with {len(data.get('data', []))} conversations")
 
             except httpx.HTTPStatusError as e:
                 logger.error(f"[Pagination] HTTP error on page {page}: {e}")
                 raise
             except Exception as e:
                 logger.error(f"[Pagination] Error on page {page}: {e}")
+                import traceback
+                logger.error(traceback.format_exc())
                 raise
 
             # Procesar conversaciones de esta página
@@ -517,19 +532,28 @@ async def run_quick_sync(creator_id: str) -> Dict[str, Any]:
     }
 
     logger.info(f"[QuickSync] Starting for {creator_id} (max {config.timeout_seconds}s)")
+    print(f"[QuickSync] ====== STARTING for {creator_id} ======", flush=True)
 
     session = SessionLocal()
     try:
         # Get creator
         creator = session.query(Creator).filter_by(name=creator_id).first()
-        if not creator or not creator.instagram_token:
-            result["error"] = "Creator not found or no token"
+        if not creator:
+            print(f"[QuickSync] ERROR: Creator {creator_id} not found!", flush=True)
+            result["error"] = "Creator not found"
+            return result
+        if not creator.instagram_token:
+            print(f"[QuickSync] ERROR: Creator {creator_id} has no token!", flush=True)
+            result["error"] = "No Instagram token"
             return result
 
         access_token = creator.instagram_token
         ig_user_id = creator.instagram_user_id or creator.instagram_page_id
         ig_page_id = creator.instagram_page_id
         creator_ids = {ig_user_id, ig_page_id} - {None}
+
+        print(f"[QuickSync] Creator found: ig_user_id={ig_user_id}, page_id={ig_page_id}", flush=True)
+        logger.info(f"[QuickSync] Creator: ig_user_id={ig_user_id}, page_id={ig_page_id}")
 
         # Update state
         await update_sync_state(session, creator_id, {
@@ -539,15 +563,25 @@ async def run_quick_sync(creator_id: str) -> Dict[str, Any]:
         })
 
         # Get conversations (limited)
+        print(f"[QuickSync] Fetching conversations (max {config.max_conversations}, last {config.max_days} days)", flush=True)
         logger.info(f"[QuickSync] Fetching conversations (max {config.max_conversations}, last {config.max_days} days)")
 
-        conversations = await get_all_conversations_paginated(
-            access_token=access_token,
-            ig_user_id=ig_user_id,
-            ig_page_id=ig_page_id,
-            max_conversations=config.max_conversations,
-            max_days=config.max_days,
-        )
+        try:
+            conversations = await get_all_conversations_paginated(
+                access_token=access_token,
+                ig_user_id=ig_user_id,
+                ig_page_id=ig_page_id,
+                max_conversations=config.max_conversations,
+                max_days=config.max_days,
+            )
+            print(f"[QuickSync] Got {len(conversations)} conversations", flush=True)
+        except Exception as conv_error:
+            print(f"[QuickSync] ERROR getting conversations: {conv_error}", flush=True)
+            logger.error(f"[QuickSync] ERROR getting conversations: {conv_error}")
+            import traceback
+            print(traceback.format_exc(), flush=True)
+            result["error"] = str(conv_error)
+            return result
 
         logger.info(f"[QuickSync] Got {len(conversations)} conversations to process")
 
