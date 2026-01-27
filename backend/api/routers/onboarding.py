@@ -332,6 +332,31 @@ async def get_visual_onboarding_status(creator_id: str):
     return {"status": "ok", "onboarding_completed": False}
 
 
+@router.post("/{creator_id}/activate-bot")
+async def activate_bot_for_creator(creator_id: str):
+    """Activate bot for a creator"""
+    try:
+        from api.database import DATABASE_URL, SessionLocal
+
+        if DATABASE_URL and SessionLocal:
+            session = SessionLocal()
+            try:
+                from api.models import Creator
+
+                creator = session.query(Creator).filter_by(name=creator_id).first()
+                if creator:
+                    creator.bot_active = True
+                    session.commit()
+                    logger.info(f"Bot activated for creator: {creator_id}")
+                    return {"status": "ok", "message": "Bot activated", "bot_active": True}
+                return {"status": "error", "message": "Creator not found"}
+            finally:
+                session.close()
+    except Exception as e:
+        logger.error(f"Error activating bot: {e}")
+        return {"status": "error", "message": str(e)}
+
+
 @router.post("/{creator_id}/complete")
 async def complete_visual_onboarding(creator_id: str):
     """Mark the visual onboarding tour as completed"""
@@ -346,9 +371,10 @@ async def complete_visual_onboarding(creator_id: str):
                 creator = session.query(Creator).filter_by(name=creator_id).first()
                 if creator:
                     creator.onboarding_completed = True
+                    creator.bot_active = True  # Also activate bot
                     session.commit()
                     logger.info(f"Visual onboarding completed for creator: {creator_id}")
-                    return {"status": "ok", "message": "Onboarding completed"}
+                    return {"status": "ok", "message": "Onboarding completed", "bot_active": True}
                 else:
                     # Creator doesn't exist in DB yet - create them
                     import uuid
