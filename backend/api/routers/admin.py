@@ -3292,6 +3292,39 @@ async def test_quick_sync(creator_id: str):
         }
 
 
+@router.post("/restart-deep-sync/{creator_id}")
+async def restart_deep_sync(creator_id: str):
+    """
+    Restart V3 Deep Sync en background con la configuración optimizada.
+    Útil para aplicar nuevas configuraciones.
+    """
+    import asyncio
+    try:
+        from core.sync_worker_v3 import run_deep_sync_background
+
+        # Start in background
+        asyncio.create_task(run_deep_sync_background(creator_id))
+
+        return {
+            "status": "started",
+            "message": "V3 Deep Sync restarted in background with optimized config",
+            "config": {
+                "delay_between_calls": "2.0s",
+                "batch_size": 15,
+                "batch_pause": "30s",
+                "rate_limit_pause": "180s (3 min)",
+                "max_messages_per_conv": 200,
+            }
+        }
+    except Exception as e:
+        import traceback
+        return {
+            "status": "error",
+            "error": str(e),
+            "traceback": traceback.format_exc()
+        }
+
+
 @router.get("/test-conversations/{creator_id}")
 async def test_conversations(creator_id: str):
     """
