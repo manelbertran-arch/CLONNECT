@@ -3427,6 +3427,36 @@ async def sync_continue(creator_id: str, background_tasks: BackgroundTasks):
     }
 
 
+@router.post("/set-sync-checkpoint/{creator_id}/{checkpoint}")
+async def set_sync_checkpoint(creator_id: str, checkpoint: int):
+    """
+    Actualiza el checkpoint del sync manualmente.
+    Útil para saltar conversaciones ya procesadas.
+    """
+    from api.database import SessionLocal
+    from api.models import SyncState
+
+    session = SessionLocal()
+    try:
+        state = session.query(SyncState).filter_by(creator_id=creator_id).first()
+        if not state:
+            return {"error": "No sync state found for this creator"}
+
+        old_value = state.conversations_synced
+        state.conversations_synced = checkpoint
+        session.commit()
+
+        return {
+            "status": "updated",
+            "creator_id": creator_id,
+            "old_checkpoint": old_value,
+            "new_checkpoint": checkpoint,
+            "message": f"Checkpoint updated from {old_value} to {checkpoint}. Restart sync to apply."
+        }
+    finally:
+        session.close()
+
+
 @router.delete("/sync-reset/{creator_id}")
 async def sync_reset(creator_id: str):
     """
