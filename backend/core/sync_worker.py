@@ -26,7 +26,7 @@ class SyncConfig:
     max_retries: int = 3  # Reintentos por conversación
     batch_size: int = 10  # Procesar N conversaciones, luego pausar
     batch_pause: int = 30  # Segundos de pausa entre batches
-    max_message_pages: int = 2  # Máximo páginas de mensajes por conversación (100 msgs)
+    max_message_pages: int = 10  # Máximo páginas de mensajes por conversación (500 msgs)
 
 
 # Configuración global
