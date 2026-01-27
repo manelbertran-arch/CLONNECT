@@ -110,11 +110,29 @@ async def sync_dms():
                 if not conv_id:
                     continue
 
-                # Get ALL messages with pagination
+                # First, get conversation details to get participant profile_pic
+                participant_profile_pics = {}
+                try:
+                    conv_detail_resp = await client.get(
+                        f"{API_BASE}/{conv_id}",
+                        params={"fields": "participants", "access_token": ACCESS_TOKEN}
+                    )
+                    if conv_detail_resp.status_code == 200:
+                        conv_data = conv_detail_resp.json()
+                        participants = conv_data.get("participants", {}).get("data", [])
+                        for p in participants:
+                            if p.get("id") and p.get("profile_pic"):
+                                participant_profile_pics[p["id"]] = p["profile_pic"]
+                            if p.get("username") and p.get("profile_pic"):
+                                participant_profile_pics[p["username"]] = p["profile_pic"]
+                except Exception as e:
+                    logger.warning(f"Could not fetch participant profile pics: {e}")
+
+                # Get ALL messages with pagination (including attachments)
                 messages = []
                 msg_next_url = f"{API_BASE}/{conv_id}/messages"
                 msg_params = {
-                    "fields": "id,message,from,to,created_time",
+                    "fields": "id,message,from,to,created_time,attachments",
                     "access_token": ACCESS_TOKEN,
                     "limit": 50
                 }
@@ -188,6 +206,12 @@ async def sync_dms():
                     logger.info(f"  Skipping @{follower_username}: no messages in last {MAX_AGE_DAYS} days")
                     continue  # Skip esta conversación - no crear lead
 
+                # Get profile pic URL for this follower
+                follower_profile_pic = (
+                    participant_profile_pics.get(follower_id) or
+                    participant_profile_pics.get(follower_username)
+                )
+
                 # Create or get Lead
                 lead = session.query(Lead).filter_by(
                     creator_id=creator.id,
@@ -201,12 +225,18 @@ async def sync_dms():
                         platform="instagram",
                         platform_user_id=follower_id,
                         username=follower_username,
+                        profile_pic_url=follower_profile_pic,  # Save profile picture
                         status="active"
                     )
                     session.add(lead)
                     session.commit()
                     leads_created += 1
-                    logger.info(f"  Created lead: @{follower_username}")
+                    logger.info(f"  Created lead: @{follower_username} (pic: {'yes' if follower_profile_pic else 'no'})")
+                else:
+                    # Update profile pic if we have it and lead doesn't
+                    if follower_profile_pic and not lead.profile_pic_url:
+                        lead.profile_pic_url = follower_profile_pic
+                        session.commit()
 
                 # Save messages
                 conv_messages_saved = 0
@@ -219,7 +249,30 @@ async def sync_dms():
                     msg_from = msg.get("from", {})
                     msg_time = msg.get("created_time")
 
-                    if not msg_text:
+                    # Process attachments (images, videos, etc.)
+                    attachments_data = msg.get("attachments", {}).get("data", [])
+                    media_attachments = []
+                    for att in attachments_data:
+                        attachment_info = {
+                            "id": att.get("id"),
+                            "mime_type": att.get("mime_type"),
+                        }
+                        if "image_data" in att:
+                            attachment_info["type"] = "image"
+                            attachment_info["url"] = att["image_data"].get("url")
+                            attachment_info["preview_url"] = att["image_data"].get("preview_url")
+                        elif "video_data" in att:
+                            attachment_info["type"] = "video"
+                            attachment_info["url"] = att["video_data"].get("url")
+                            attachment_info["preview_url"] = att["video_data"].get("preview_url")
+                        elif att.get("file_url"):
+                            attachment_info["type"] = "file"
+                            attachment_info["url"] = att.get("file_url")
+                        if attachment_info.get("url"):
+                            media_attachments.append(attachment_info)
+
+                    # Skip if no text AND no attachments
+                    if not msg_text and not media_attachments:
                         continue
 
                     # Check if exists
@@ -228,6 +281,14 @@ async def sync_dms():
                     ).first()
 
                     if existing:
+                        # Update existing message with attachments if we have them
+                        if media_attachments and not existing.msg_metadata:
+                            primary = media_attachments[0]
+                            existing.msg_metadata = {
+                                "type": primary.get("type", "image"),
+                                "url": primary.get("url"),
+                                "preview_url": primary.get("preview_url"),
+                            }
                         continue
 
                     # Determine role
@@ -245,13 +306,26 @@ async def sync_dms():
                         except:
                             pass
 
+                    # Build msg_metadata for attachments
+                    msg_metadata = None
+                    if media_attachments:
+                        primary = media_attachments[0]
+                        msg_metadata = {
+                            "type": primary.get("type", "image"),
+                            "url": primary.get("url"),
+                            "preview_url": primary.get("preview_url"),
+                        }
+                        if len(media_attachments) > 1:
+                            msg_metadata["attachments"] = media_attachments
+
                     new_msg = Message(
                         lead_id=lead.id,
                         role=role,
-                        content=msg_text,
+                        content=msg_text or "[Media]",
                         status="sent",
                         platform_message_id=msg_id,
-                        approved_by="historical_sync"
+                        approved_by="historical_sync",
+                        msg_metadata=msg_metadata
                     )
                     if created_at:
                         new_msg.created_at = created_at

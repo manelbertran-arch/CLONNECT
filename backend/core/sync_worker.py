@@ -141,11 +141,33 @@ async def process_single_conversation(
 
     try:
         async with httpx.AsyncClient(timeout=30.0) as client:
-            # Fetch ALL messages for this conversation with pagination
+            # First, fetch conversation details to get participant profile_pic
+            participant_profile_pics = {}  # {user_id: profile_pic_url}
+            try:
+                conv_detail_resp = await client.get(
+                    f"{api_base}/{job.conversation_id}",
+                    params={
+                        "fields": "participants",
+                        "access_token": access_token,
+                    },
+                )
+                if conv_detail_resp.status_code == 200:
+                    conv_data = conv_detail_resp.json()
+                    participants = conv_data.get("participants", {}).get("data", [])
+                    for p in participants:
+                        if p.get("id") and p.get("profile_pic"):
+                            participant_profile_pics[p["id"]] = p["profile_pic"]
+                        # Also try username as key
+                        if p.get("username") and p.get("profile_pic"):
+                            participant_profile_pics[p["username"]] = p["profile_pic"]
+            except Exception as e:
+                logger.warning(f"Could not fetch participant profile pics: {e}")
+
+            # Fetch ALL messages for this conversation with pagination (including attachments)
             messages = []
             url = f"{api_base}/{job.conversation_id}/messages"
             params = {
-                "fields": "id,message,from,to,created_time",
+                "fields": "id,message,from,to,created_time,attachments",
                 "access_token": access_token,
                 "limit": 50,
             }
@@ -243,12 +265,19 @@ async def process_single_conversation(
                 .first()
             )
 
+            # Get profile pic URL for this follower
+            follower_profile_pic = (
+                participant_profile_pics.get(follower_id) or
+                participant_profile_pics.get(follower_username)
+            )
+
             if not lead:
                 lead = Lead(
                     creator_id=creator.id,
                     platform="instagram",
                     platform_user_id=follower_id,
                     username=follower_username,
+                    profile_pic_url=follower_profile_pic,  # Save profile picture URL
                     status="new",
                     first_contact_at=first_msg_time,
                     # IMPORTANTE: usar último mensaje del USUARIO para fantasma
@@ -258,6 +287,9 @@ async def process_single_conversation(
                 session.commit()
                 result["lead_created"] = True
             else:
+                # Update profile pic if we have it and lead doesn't
+                if follower_profile_pic and not lead.profile_pic_url:
+                    lead.profile_pic_url = follower_profile_pic
                 # Update timestamps
                 if first_msg_time and (
                     not lead.first_contact_at or first_msg_time < lead.first_contact_at
@@ -274,12 +306,54 @@ async def process_single_conversation(
                 msg_id = msg.get("id")
                 msg_text = msg.get("message", "")
 
-                if not msg_text or not msg_id:
+                # Process attachments (images, videos, etc.)
+                attachments_data = msg.get("attachments", {}).get("data", [])
+                media_attachments = []
+                for att in attachments_data:
+                    attachment_info = {
+                        "id": att.get("id"),
+                        "mime_type": att.get("mime_type"),
+                        "name": att.get("name"),
+                    }
+                    # Image attachments
+                    if "image_data" in att:
+                        attachment_info["type"] = "image"
+                        attachment_info["url"] = att["image_data"].get("url")
+                        attachment_info["preview_url"] = att["image_data"].get("preview_url")
+                        attachment_info["width"] = att["image_data"].get("width")
+                        attachment_info["height"] = att["image_data"].get("height")
+                    # Video attachments
+                    elif "video_data" in att:
+                        attachment_info["type"] = "video"
+                        attachment_info["url"] = att["video_data"].get("url")
+                        attachment_info["preview_url"] = att["video_data"].get("preview_url")
+                    # Generic file/other attachments
+                    elif att.get("file_url"):
+                        attachment_info["type"] = "file"
+                        attachment_info["url"] = att.get("file_url")
+
+                    if attachment_info.get("url"):
+                        media_attachments.append(attachment_info)
+
+                # Skip if no content AND no attachments
+                if not msg_text and not media_attachments:
+                    continue
+                if not msg_id:
                     continue
 
                 existing = session.query(Message).filter_by(platform_message_id=msg_id).first()
 
                 if existing:
+                    # Update existing message with attachments if we have them now
+                    if media_attachments and not existing.msg_metadata:
+                        primary = media_attachments[0]
+                        existing.msg_metadata = {
+                            "type": primary.get("type", "image"),
+                            "url": primary.get("url"),
+                            "preview_url": primary.get("preview_url"),
+                        }
+                        if len(media_attachments) > 1:
+                            existing.msg_metadata["attachments"] = media_attachments
                     continue
 
                 from_data = msg.get("from", {})
@@ -287,8 +361,33 @@ async def process_single_conversation(
                 is_from_creator = from_data.get("id") in creator_ids
                 role = "assistant" if is_from_creator else "user"
 
+                # Build msg_metadata with attachments
+                # Format compatible with frontend MessageRenderer:
+                # - type: 'image', 'video', 'file'
+                # - url: main media URL
+                # - preview_url: thumbnail/preview
+                msg_metadata = {}
+                if media_attachments:
+                    # Use first attachment as primary media (frontend expects this format)
+                    primary = media_attachments[0]
+                    msg_metadata["type"] = primary.get("type", "image")
+                    msg_metadata["url"] = primary.get("url")
+                    if primary.get("preview_url"):
+                        msg_metadata["preview_url"] = primary["preview_url"]
+                    if primary.get("width"):
+                        msg_metadata["width"] = primary["width"]
+                    if primary.get("height"):
+                        msg_metadata["height"] = primary["height"]
+                    # Store all attachments for reference
+                    if len(media_attachments) > 1:
+                        msg_metadata["attachments"] = media_attachments
+
                 new_msg = Message(
-                    lead_id=lead.id, role=role, content=msg_text, platform_message_id=msg_id
+                    lead_id=lead.id,
+                    role=role,
+                    content=msg_text or "[Media]",  # Placeholder if only media
+                    platform_message_id=msg_id,
+                    msg_metadata=msg_metadata if msg_metadata else None,
                 )
 
                 msg_time = msg.get("created_time")
