@@ -938,58 +938,67 @@ async def _run_clone_creation(creator_id: str, website_url: str = None):
             print(f"[CloneCreation] Step 4: Syncing DM history", flush=True)
             logger.info(f"[CloneCreation] Step 4: Syncing DM history")
 
+            # ═══════════════════════════════════════════════════════════════
+            # SISTEMA DE 2 FASES - QUICK SYNC + DEEP SYNC
+            # ═══════════════════════════════════════════════════════════════
+
             try:
-                print(f"[CloneCreation] Importing Sync Worker V2...", flush=True)
-                from core.sync_worker import run_sync_worker_iteration, start_sync_for_creator
+                print(f"[CloneCreation] Importing Sync Worker V3 (2-phase system)...", flush=True)
+                from core.sync_worker_v3 import run_quick_sync, run_deep_sync_background
+
+                # ─────────────────────────────────────────────────────────────
+                # FASE 1: QUICK SYNC (bloqueante, máx 3 minutos)
+                # El usuario espera esto, pero es RÁPIDO
+                # ─────────────────────────────────────────────────────────────
 
                 print(
-                    f"[CloneCreation] Starting Sync V2 - Sin límites, auto-recovery habilitado",
+                    f"[CloneCreation] PHASE 1: Quick sync (max 3 min, last 30 days, 50 convs)",
                     flush=True,
                 )
+                logger.info(f"[CloneCreation] PHASE 1: Quick sync starting...")
 
-                # Step 4a: Queue all conversations
-                queue_result = await start_sync_for_creator(creator_id)
-                print(f"[CloneCreation] Sync queued: {queue_result}", flush=True)
-                logger.info(f"[CloneCreation] Sync queued: {queue_result}")
+                quick_result = await run_quick_sync(creator_id)
 
-                if queue_result["status"] == "started":
-                    # Step 4b: Process all queued conversations with auto-resume
-                    print(
-                        f"[CloneCreation] Processing {queue_result['conversations_queued']} conversations...",
-                        flush=True,
-                    )
+                print(f"[CloneCreation] Quick sync result: {quick_result}", flush=True)
+                logger.info(f"[CloneCreation] Quick sync result: {quick_result}")
 
-                    from api.database import SessionLocal
+                _update_clone_progress(
+                    creator_id,
+                    extra={
+                        "quick_sync_complete": True,
+                        "messages_synced": quick_result.get("messages_saved", 0),
+                        "leads_created": quick_result.get("leads_created", 0),
+                        "conversations_synced": quick_result.get("conversations_synced", 0),
+                    },
+                )
 
-                    sync_session = SessionLocal()
-                    try:
-                        sync_result = await run_sync_worker_iteration(sync_session, creator_id)
-                        print(f"[CloneCreation] Sync V2 complete: {sync_result}", flush=True)
-                        logger.info(f"[CloneCreation] Sync V2 complete: {sync_result}")
+                # ─────────────────────────────────────────────────────────────
+                # FASE 2: DEEP SYNC (background REAL, no esperar)
+                # El usuario va al dashboard, esto corre en paralelo
+                # ─────────────────────────────────────────────────────────────
 
-                        _update_clone_progress(
-                            creator_id,
-                            extra={
-                                "messages_synced": sync_result.get("messages_saved", 0),
-                                "leads_created": sync_result.get("leads_created", 0),
-                            },
-                        )
-                    finally:
-                        sync_session.close()
-                elif queue_result["status"] == "rate_limited":
-                    print(f"[CloneCreation] Rate limited during queue: {queue_result}", flush=True)
-                    logger.warning(f"[CloneCreation] Rate limited during queue: {queue_result}")
-                else:
-                    print(f"[CloneCreation] Queue failed: {queue_result}", flush=True)
-                    logger.warning(f"[CloneCreation] Queue failed: {queue_result}")
+                print(
+                    f"[CloneCreation] PHASE 2: Starting deep sync in BACKGROUND (no limits)...",
+                    flush=True,
+                )
+                logger.info(f"[CloneCreation] PHASE 2: Starting deep sync in background...")
+
+                # IMPORTANTE: asyncio.create_task() para que sea background REAL
+                # No esperamos el resultado, el usuario va al dashboard
+                asyncio.create_task(run_deep_sync_background(creator_id))
+
+                print(f"[CloneCreation] Deep sync started in background (will run for hours)", flush=True)
+                logger.info(f"[CloneCreation] Deep sync started in background")
 
             except Exception as e:
-                print(f"[CloneCreation] DM sync V2 failed: {e}", flush=True)
-                logger.warning(f"[CloneCreation] DM sync V2 failed: {e}")
+                print(f"[CloneCreation] Sync error (non-fatal): {e}", flush=True)
+                logger.warning(f"[CloneCreation] Sync error (non-fatal): {e}")
                 import traceback
 
                 print(traceback.format_exc(), flush=True)
                 logger.warning(traceback.format_exc())
+                # NO fallar el onboarding por error de sync
+                # El usuario puede usar el dashboard, deep sync se puede reintentar
 
             _update_clone_progress(creator_id, percent=90)
 

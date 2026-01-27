@@ -3248,6 +3248,31 @@ async def sync_status(creator_id: str):
     return get_sync_status(creator_id)
 
 
+@router.get("/sync-progress/{creator_id}")
+async def sync_progress(creator_id: str):
+    """
+    Obtiene el progreso del sync V3 (Quick + Deep).
+    El frontend puede mostrar esto como un banner en el dashboard:
+    "📊 Cargando historial: 45% (esto mejora tu bot)"
+
+    Respuesta:
+    {
+        "status": "deep_running",
+        "quick_sync": {"status": "completed"},
+        "deep_sync": {
+            "status": "running",
+            "progress_percent": 45.2,
+            "conversations": "156/347",
+            "messages": 4521,
+            "rate_limit_remaining": null
+        }
+    }
+    """
+    from core.sync_worker_v3 import get_sync_progress
+
+    return get_sync_progress(creator_id)
+
+
 @router.post("/sync-continue/{creator_id}")
 async def sync_continue(creator_id: str, background_tasks: BackgroundTasks):
     """
