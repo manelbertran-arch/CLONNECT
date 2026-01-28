@@ -2667,33 +2667,8 @@ async def debug_citations(creator_id: str, query: str = "test"):
 
 
 # ---------------------------------------------------------
-# PAYMENTS
+# PAYMENTS (unique endpoints - purchases/revenue in payments.py)
 # ---------------------------------------------------------
-@app.get("/payments/{creator_id}/purchases")
-async def get_purchases(creator_id: str, limit: int = 100, status: Optional[str] = None):
-    """
-    Get all purchases for a creator.
-
-    Optional filter by status: completed, refunded, cancelled
-    """
-    try:
-        payment_manager = get_payment_manager()
-        purchases = payment_manager.get_all_purchases(
-            creator_id=creator_id, limit=limit, status=status
-        )
-
-        return {
-            "status": "ok",
-            "creator_id": creator_id,
-            "purchases": purchases,
-            "count": len(purchases),
-        }
-
-    except Exception as e:
-        logger.error(f"Error getting purchases: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
-
-
 @app.get("/payments/{creator_id}/customer/{follower_id}")
 async def get_customer_purchases(creator_id: str, follower_id: str):
     """Get purchase history for a specific customer"""
@@ -2716,28 +2691,6 @@ async def get_customer_purchases(creator_id: str, follower_id: str):
 
     except Exception as e:
         logger.error(f"Error getting customer purchases: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
-
-
-@app.get("/payments/{creator_id}/revenue")
-async def get_revenue_stats(creator_id: str, days: int = 30):
-    """
-    Get revenue statistics.
-
-    Returns:
-    - Total revenue
-    - Bot-attributed revenue
-    - Revenue by platform (Stripe/Hotmart)
-    - Revenue by product
-    """
-    try:
-        payment_manager = get_payment_manager()
-        stats = payment_manager.get_revenue_stats(creator_id=creator_id, days=days)
-
-        return {"status": "ok", "creator_id": creator_id, "days": days, **stats.to_dict()}
-
-    except Exception as e:
-        logger.error(f"Error getting revenue stats: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 
@@ -2772,37 +2725,8 @@ async def attribute_sale(creator_id: str, purchase_id: str, follower_id: str):
 
 
 # ---------------------------------------------------------
-# CALENDAR
+# CALENDAR (unique endpoints - bookings/stats/links in calendar.py)
 # ---------------------------------------------------------
-@app.get("/calendar/{creator_id}/bookings")
-async def get_bookings(
-    creator_id: str, status: Optional[str] = None, upcoming: bool = False, limit: int = 100
-):
-    """
-    Get bookings for a creator.
-
-    Optional filters:
-    - status: scheduled, completed, cancelled, no_show
-    - upcoming: only future bookings
-    """
-    try:
-        calendar_manager = get_calendar_manager()
-        bookings = calendar_manager.get_bookings(
-            creator_id=creator_id, status=status, upcoming_only=upcoming, limit=limit
-        )
-
-        return {
-            "status": "ok",
-            "creator_id": creator_id,
-            "bookings": bookings,
-            "count": len(bookings),
-        }
-
-    except Exception as e:
-        logger.error(f"Error getting bookings: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
-
-
 @app.get("/calendar/{creator_id}/link/{meeting_type}")
 async def get_booking_link(creator_id: str, meeting_type: str):
     """
