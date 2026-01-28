@@ -11,7 +11,7 @@ import os
 # Añadir el directorio raíz al path
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from core.dm_agent import DMResponderAgent, Intent
+from core.dm_agent_v2 import DMResponderAgent, Intent
 
 
 async def test_dm_agent():

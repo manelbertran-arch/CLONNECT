@@ -37,7 +37,93 @@ from services import (
     RAGService,
 )
 
+# Re-export Intent for backward compatibility
+from services.intent_service import Intent
+
 logger = logging.getLogger(__name__)
+
+
+# =============================================================================
+# NON-CACHEABLE INTENTS (backward compatibility)
+# =============================================================================
+# Intents that should NOT be cached (require fresh responses)
+NON_CACHEABLE_INTENTS = {
+    Intent.OBJECTION_PRICE,
+    Intent.OBJECTION_TIME,
+    Intent.OBJECTION_DOUBT,
+    Intent.OBJECTION_LATER,
+    Intent.OBJECTION_WORKS,
+    Intent.OBJECTION_NOT_FOR_ME,
+    Intent.INTEREST_STRONG,  # Active conversions
+    Intent.ESCALATION,
+    Intent.SUPPORT,  # Support needs personalized responses
+    Intent.OTHER,  # Fallback - always regenerate
+}
+
+
+# =============================================================================
+# VOSEO CONVERSION (backward compatibility)
+# =============================================================================
+def apply_voseo(text: str) -> str:
+    """
+    Convert Spanish tuteo to Argentine voseo.
+    Transforms: tu->vos, tienes->tenes, puedes->podes, etc.
+    """
+    import re
+
+    # Conversion patterns tuteo -> voseo
+    conversions = [
+        # Pronouns
+        (r"\btú\b", "vos"),
+        (r"\bTú\b", "Vos"),
+        # Common present tense verbs (2nd person singular)
+        (r"\btienes\b", "tenés"),
+        (r"\bTienes\b", "Tenés"),
+        (r"\bpuedes\b", "podés"),
+        (r"\bPuedes\b", "Podés"),
+        (r"\bquieres\b", "querés"),
+        (r"\bQuieres\b", "Querés"),
+        (r"\bsabes\b", "sabés"),
+        (r"\bSabes\b", "Sabés"),
+        (r"\beres\b", "sos"),
+        (r"\bEres\b", "Sos"),
+        (r"\bvienes\b", "venís"),
+        (r"\bpiensas\b", "pensás"),
+        (r"\bsientes\b", "sentís"),
+        (r"\bprefieres\b", "preferís"),
+        (r"\bnecesitas\b", "necesitás"),
+        (r"\bestás\b", "estás"),  # Same in voseo
+        (r"\bvas\b", "vas"),  # Same in voseo
+        # Imperatives
+        (r"\bcuéntame\b", "contame"),
+        (r"\bCuéntame\b", "Contame"),
+        (r"\bescríbeme\b", "escribime"),
+        (r"\bEscríbeme\b", "Escribime"),
+        (r"\bdime\b", "decime"),
+        (r"\bDime\b", "Decime"),
+        (r"\bmira\b", "mirá"),
+        (r"\bMira\b", "Mirá"),
+        (r"\bpiensa\b", "pensá"),
+        (r"\bPiensa\b", "Pensá"),
+        (r"\bespera\b", "esperá"),
+        (r"\bEspera\b", "Esperá"),
+        (r"\bescucha\b", "escuchá"),
+        (r"\bEscucha\b", "Escuchá"),
+        (r"\bfíjate\b", "fijate"),
+        (r"\bFíjate\b", "Fijate"),
+        (r"\bpregunta\b", "preguntá"),
+        # Common phrases (same in voseo)
+        (r"\bte respondo\b", "te respondo"),
+        (r"\bte cuento\b", "te cuento"),
+        (r"\bte paso\b", "te paso"),
+        (r"\bte gustaría\b", "te gustaría"),
+    ]
+
+    result = text
+    for pattern, replacement in conversions:
+        result = re.sub(pattern, replacement, result)
+
+    return result
 
 
 @dataclass
@@ -420,3 +506,69 @@ class DMResponderAgentV2:
             "lead_service": self.lead_service is not None,
             "instagram_service": self.instagram_service is not None,
         }
+
+
+# =============================================================================
+# BACKWARD COMPATIBILITY ALIASES
+# =============================================================================
+
+# Alias for backward compatibility with dm_agent.py imports
+DMResponderAgent = DMResponderAgentV2
+
+
+# =============================================================================
+# FACTORY FUNCTIONS (singleton pattern with caching)
+# =============================================================================
+
+_dm_agent_cache: Dict[str, DMResponderAgentV2] = {}
+_dm_agent_cache_timestamp: Dict[str, float] = {}
+_DM_AGENT_CACHE_TTL = 600  # 10 minutes
+
+
+def get_dm_agent(creator_id: str) -> DMResponderAgentV2:
+    """
+    Factory to get DM agent for a creator - SINGLETON PATTERN.
+
+    Reuses existing agent for same creator to avoid expensive initialization.
+
+    Args:
+        creator_id: Creator identifier
+
+    Returns:
+        DMResponderAgentV2 instance (cached or new)
+    """
+    import time
+
+    cache_key = creator_id
+    now = time.time()
+    cache_age = now - _dm_agent_cache_timestamp.get(cache_key, 0)
+
+    if cache_age < _DM_AGENT_CACHE_TTL and cache_key in _dm_agent_cache:
+        logger.debug(f"get_dm_agent: reusing cached agent for {creator_id}")
+        return _dm_agent_cache[cache_key]
+
+    # Create new agent and cache it
+    agent = DMResponderAgentV2(creator_id=creator_id)
+    _dm_agent_cache[cache_key] = agent
+    _dm_agent_cache_timestamp[cache_key] = now
+    logger.info(f"get_dm_agent: created new agent for {creator_id}")
+    return agent
+
+
+def invalidate_dm_agent_cache(creator_id: str = None) -> None:
+    """
+    Invalidate DM agent cache.
+
+    Call when creator config changes to force agent recreation.
+
+    Args:
+        creator_id: Specific creator to invalidate, or None for all
+    """
+    if creator_id:
+        _dm_agent_cache.pop(creator_id, None)
+        _dm_agent_cache_timestamp.pop(creator_id, None)
+        logger.info(f"Invalidated DM agent cache for {creator_id}")
+    else:
+        _dm_agent_cache.clear()
+        _dm_agent_cache_timestamp.clear()
+        logger.info("Invalidated all DM agent caches")

@@ -9,7 +9,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from dotenv import load_dotenv
 load_dotenv()
 
-from core.dm_agent import DMResponderAgent
+from core.dm_agent_v2 import DMResponderAgent
 
 # Test sarcasm patterns manually
 sarcasm_patterns = [

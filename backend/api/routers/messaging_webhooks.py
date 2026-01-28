@@ -340,7 +340,7 @@ async def telegram_webhook(request: Request):
     Receive Telegram webhook updates (POST).
     Supports multi-bot setup via telegram registry.
     """
-    from core.dm_agent import get_dm_agent
+    from core.dm_agent_v2 import get_dm_agent
     from core.telegram_registry import get_telegram_registry
 
     try:

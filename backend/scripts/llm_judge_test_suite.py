@@ -23,7 +23,7 @@ from datetime import datetime
 # Add parent directory to path for imports
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from core.dm_agent import DMResponderAgent
+from core.dm_agent_v2 import DMResponderAgent
 from core.llm import get_llm_client
 
 

@@ -128,7 +128,7 @@ def test_context_aware_classification():
     print("=" * 80 + "\n")
 
     # Simular el flujo de _classify_intent
-    from core.dm_agent import DMResponderAgent, Intent
+    from core.dm_agent_v2 import DMResponderAgent, Intent
 
     # Crear agent de prueba
     agent = DMResponderAgent(creator_id="test_context")
@@ -201,7 +201,7 @@ def test_meta_message_detection():
     print("TEST: Meta-Message Detection - Detección de referencias a la conversación")
     print("=" * 80 + "\n")
 
-    from core.dm_agent import DMResponderAgent
+    from core.dm_agent_v2 import DMResponderAgent
 
     agent = DMResponderAgent(creator_id="test_meta")
 

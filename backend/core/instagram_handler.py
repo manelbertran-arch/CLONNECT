@@ -14,7 +14,7 @@ from typing import Dict, Any, Optional, List
 from datetime import datetime, timezone
 from dataclasses import dataclass, field, asdict
 
-from core.dm_agent import DMResponderAgent, DMResponse
+from core.dm_agent_v2 import DMResponderAgent, DMResponse
 from core.instagram import InstagramConnector, InstagramMessage
 from core.rate_limiter import get_rate_limiter
 

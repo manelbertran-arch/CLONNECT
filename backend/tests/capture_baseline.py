@@ -80,7 +80,7 @@ async def capture_baseline():
 
     # Intentar importar el agente
     try:
-        from core.dm_agent import DMResponderAgent  # noqa: F401
+        from core.dm_agent_v2 import DMResponderAgent  # noqa: F401
 
         print("✅ DMResponderAgent importado correctamente")
     except Exception as e:

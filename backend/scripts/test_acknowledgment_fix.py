@@ -44,7 +44,7 @@ async def test_acknowledgment_flow():
     print("="*80 + "\n")
 
     # Importar después de configurar el path
-    from core.dm_agent import DMResponderAgent
+    from core.dm_agent_v2 import DMResponderAgent
 
     # Usar creator "manel" que tiene configuración
     creator_id = "manel"
@@ -162,7 +162,7 @@ async def test_acknowledgment_classification():
     print("TEST: Clasificación de ACKNOWLEDGMENT")
     print("="*80 + "\n")
 
-    from core.dm_agent import DMResponderAgent, Intent
+    from core.dm_agent_v2 import DMResponderAgent, Intent
 
     agent = DMResponderAgent(creator_id="test")
 

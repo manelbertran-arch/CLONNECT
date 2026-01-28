@@ -473,7 +473,7 @@ async def test_telegram_flow():
 
     # Step 2: Try to generate a response
     try:
-        from core.dm_agent import get_dm_agent
+        from core.dm_agent_v2 import get_dm_agent
 
         agent = get_dm_agent(creator_id)
         steps.append(
@@ -567,7 +567,7 @@ async def test_telegram_flow():
 @router.get("/agent-config/{creator_id}")
 async def debug_agent_config(creator_id: str):
     """Debug: ver qué config carga el DMAgent"""
-    from core.dm_agent import DMResponderAgent
+    from core.dm_agent_v2 import DMResponderAgent
 
     agent = DMResponderAgent(creator_id=creator_id)
     vocab = agent.creator_config.get("clone_vocabulary", "")
@@ -598,7 +598,7 @@ async def debug_agent_config(creator_id: str):
 @router.get("/system-prompt/{creator_id}")
 async def debug_system_prompt(creator_id: str):
     """Debug: ver el system prompt que genera el DMAgent"""
-    from core.dm_agent import DMResponderAgent
+    from core.dm_agent_v2 import DMResponderAgent
 
     agent = DMResponderAgent(creator_id=creator_id)
     prompt = agent._build_system_prompt()

@@ -28,7 +28,7 @@ def register_startup_handlers(app: "FastAPI"):
         # Import dependencies here to avoid circular imports
         from api.database import SessionLocal
         from api.init_db import init_database
-        from core.dm_agent import _dm_agent_cache_timestamp, get_dm_agent
+        from core.dm_agent_v2 import _dm_agent_cache_timestamp, get_dm_agent
         from core.rag import get_simple_rag
 
         rag = get_simple_rag()

@@ -16,7 +16,7 @@ load_dotenv()
 
 print(f"DATABASE_URL loaded: {'Yes' if os.getenv('DATABASE_URL') else 'No'}")
 
-from core.dm_agent import DMResponderAgent
+from core.dm_agent_v2 import DMResponderAgent
 
 async def test_real_messages():
     """Test con mensajes reales de @bamos_barcelona_mobility"""

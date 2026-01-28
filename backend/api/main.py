@@ -91,7 +91,7 @@ logging.warning("========== API MAIN V7 LOADED ==========")
 from core.alerts import get_alert_manager
 from core.calendar import get_calendar_manager
 from core.creator_config import CreatorConfig, CreatorConfigManager
-from core.dm_agent import DMResponderAgent
+from core.dm_agent_v2 import DMResponderAgent
 from core.gdpr import ConsentType, get_gdpr_manager
 from core.instagram_handler import InstagramHandler, get_instagram_handler
 from core.llm import get_llm_client

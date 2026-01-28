@@ -500,7 +500,7 @@ class WhatsAppHandler:
     def _init_agent(self):
         """Initialize DM agent"""
         try:
-            from core.dm_agent import DMResponderAgent
+            from core.dm_agent_v2 import DMResponderAgent
             self.dm_agent = DMResponderAgent(creator_id=self.creator_id)
             logger.info(f"DM Agent initialized for creator: {self.creator_id}")
         except Exception as e:

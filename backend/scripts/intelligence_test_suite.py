@@ -481,7 +481,7 @@ class IntelligenceTestRunner:
 
     async def setup(self):
         """Inicializar el agente y LLM."""
-        from core.dm_agent import DMResponderAgent
+        from core.dm_agent_v2 import DMResponderAgent
         from core.llm import get_llm_client
 
         self.agent = DMResponderAgent(creator_id=self.creator_id)

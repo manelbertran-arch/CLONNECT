@@ -22,7 +22,7 @@ except Exception:
     logger.warning("Database service not available in dm router")
 
 # Core imports
-from core.dm_agent import DMResponderAgent
+from core.dm_agent_v2 import DMResponderAgent
 from core.instagram_handler import get_instagram_handler
 from core.whatsapp import get_whatsapp_handler
 

@@ -23,7 +23,7 @@ except ImportError:
 def _invalidate_bot_cache(creator_id: str):
     """Invalidar caché del bot cuando cambian productos."""
     try:
-        from core.dm_agent import invalidate_dm_agent_cache
+        from core.dm_agent_v2 import invalidate_dm_agent_cache
         invalidate_dm_agent_cache(creator_id)
         logger.info(f"[CACHE] Bot cache invalidated for {creator_id}")
     except Exception as e:

@@ -103,7 +103,7 @@ class LabTestSuite:
         print("=" * 50)
 
         try:
-            from core.dm_agent import DMResponderAgent
+            from core.dm_agent_v2 import DMResponderAgent
             from core.products import ProductManager
             from core.creator_config import CreatorConfigManager
             from core.rag import SimpleRAG

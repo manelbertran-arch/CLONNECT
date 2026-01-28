@@ -24,7 +24,7 @@ from datetime import datetime
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from core.nurturing import get_nurturing_manager, FollowUp
-from core.dm_agent import DMResponderAgent
+from core.dm_agent_v2 import DMResponderAgent
 
 # Configurar logging
 logging.basicConfig(

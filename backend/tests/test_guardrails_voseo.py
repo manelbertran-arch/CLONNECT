@@ -99,13 +99,13 @@ class TestVoseo:
 
     def test_voseo_function_loads(self):
         """apply_voseo function should be importable"""
-        from core.dm_agent import apply_voseo
+        from core.dm_agent_v2 import apply_voseo
 
         assert apply_voseo is not None
 
     def test_voseo_quieres_to_queres(self):
         """'quieres' should convert to 'querés'"""
-        from core.dm_agent import apply_voseo
+        from core.dm_agent_v2 import apply_voseo
 
         tuteo_text = "¿Quieres saber más?"
         voseo_text = apply_voseo(tuteo_text)
@@ -113,7 +113,7 @@ class TestVoseo:
 
     def test_voseo_puedes_to_podes(self):
         """'puedes' should convert to 'podés'"""
-        from core.dm_agent import apply_voseo
+        from core.dm_agent_v2 import apply_voseo
 
         tuteo_text = "Puedes comprarlo cuando quieras."
         voseo_text = apply_voseo(tuteo_text)
@@ -121,7 +121,7 @@ class TestVoseo:
 
     def test_voseo_tienes_to_tenes(self):
         """'tienes' should convert to 'tenés'"""
-        from core.dm_agent import apply_voseo
+        from core.dm_agent_v2 import apply_voseo
 
         tuteo_text = "Tienes que pensar en ello."
         voseo_text = apply_voseo(tuteo_text)
@@ -129,7 +129,7 @@ class TestVoseo:
 
     def test_voseo_necesitas_to_necesitas(self):
         """'necesitas' should convert to 'necesitás'"""
-        from core.dm_agent import apply_voseo
+        from core.dm_agent_v2 import apply_voseo
 
         tuteo_text = "Lo que necesitas es esto."
         voseo_text = apply_voseo(tuteo_text)
@@ -191,43 +191,43 @@ class TestCachingBehavior:
 
     def test_non_cacheable_intents_defined(self):
         """NON_CACHEABLE_INTENTS should be defined"""
-        from core.dm_agent import NON_CACHEABLE_INTENTS
+        from core.dm_agent_v2 import NON_CACHEABLE_INTENTS
 
         assert NON_CACHEABLE_INTENTS is not None
 
     def test_objection_price_is_non_cacheable(self):
         """OBJECTION_PRICE should not be cached"""
-        from core.dm_agent import NON_CACHEABLE_INTENTS, Intent
+        from core.dm_agent_v2 import NON_CACHEABLE_INTENTS, Intent
 
         assert Intent.OBJECTION_PRICE in NON_CACHEABLE_INTENTS
 
     def test_interest_strong_is_non_cacheable(self):
         """INTEREST_STRONG should not be cached"""
-        from core.dm_agent import NON_CACHEABLE_INTENTS, Intent
+        from core.dm_agent_v2 import NON_CACHEABLE_INTENTS, Intent
 
         assert Intent.INTEREST_STRONG in NON_CACHEABLE_INTENTS
 
     def test_escalation_is_non_cacheable(self):
         """ESCALATION should not be cached"""
-        from core.dm_agent import NON_CACHEABLE_INTENTS, Intent
+        from core.dm_agent_v2 import NON_CACHEABLE_INTENTS, Intent
 
         assert Intent.ESCALATION in NON_CACHEABLE_INTENTS
 
     def test_support_is_non_cacheable(self):
         """SUPPORT should not be cached"""
-        from core.dm_agent import NON_CACHEABLE_INTENTS, Intent
+        from core.dm_agent_v2 import NON_CACHEABLE_INTENTS, Intent
 
         assert Intent.SUPPORT in NON_CACHEABLE_INTENTS
 
     def test_greeting_is_cacheable(self):
         """GREETING should be cacheable (not in non-cacheable set)"""
-        from core.dm_agent import NON_CACHEABLE_INTENTS, Intent
+        from core.dm_agent_v2 import NON_CACHEABLE_INTENTS, Intent
 
         assert Intent.GREETING not in NON_CACHEABLE_INTENTS
 
     def test_thanks_is_cacheable(self):
         """THANKS should be cacheable (not in non-cacheable set)"""
-        from core.dm_agent import NON_CACHEABLE_INTENTS, Intent
+        from core.dm_agent_v2 import NON_CACHEABLE_INTENTS, Intent
 
         assert Intent.THANKS not in NON_CACHEABLE_INTENTS
 
@@ -242,21 +242,21 @@ class TestMultiCreatorConfig:
 
     def test_fitpack_global_agent_creates(self):
         """Agent should create for fitpack_global"""
-        from core.dm_agent import DMResponderAgent
+        from core.dm_agent_v2 import DMResponderAgent
 
         agent = DMResponderAgent(creator_id="fitpack_global")
         assert agent is not None
 
     def test_stefano_bonanno_agent_creates(self):
         """Agent should create for stefano_bonanno"""
-        from core.dm_agent import DMResponderAgent
+        from core.dm_agent_v2 import DMResponderAgent
 
         agent = DMResponderAgent(creator_id="stefano_bonanno")
         assert agent is not None
 
     def test_agents_are_independent(self):
         """Different creators should have different agent instances"""
-        from core.dm_agent import DMResponderAgent
+        from core.dm_agent_v2 import DMResponderAgent
 
         agent1 = DMResponderAgent(creator_id="fitpack_global")
         agent2 = DMResponderAgent(creator_id="stefano_bonanno")
@@ -264,7 +264,7 @@ class TestMultiCreatorConfig:
 
     def test_products_accessible(self):
         """Agent should have products attribute"""
-        from core.dm_agent import DMResponderAgent
+        from core.dm_agent_v2 import DMResponderAgent
 
         agent = DMResponderAgent(creator_id="fitpack_global")
         assert hasattr(agent, "products")

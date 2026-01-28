@@ -2,7 +2,22 @@
 DMResponderAgent - Agent simplificado para responder DMs
 Carga configuración y productos directamente de JSON
 Genera respuestas personalizadas usando Groq/LLM
+
+DEPRECATED: This module is deprecated. Use dm_agent_v2.py instead.
+- For DMResponderAgent: from core.dm_agent_v2 import DMResponderAgent
+- For Intent: from core.dm_agent_v2 import Intent
+- For factory: from core.dm_agent_v2 import get_dm_agent
+
+This file is kept for backward compatibility with test files.
+It will be removed in a future version.
 """
+import warnings
+
+warnings.warn(
+    "dm_agent.py is deprecated. Use dm_agent_v2.py instead.",
+    DeprecationWarning,
+    stacklevel=2
+)
 
 import json
 import logging

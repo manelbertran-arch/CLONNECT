@@ -52,7 +52,7 @@ except (ImportError, Exception) as e:
     InlineKeyboardMarkup = None
 
 # Import DM Agent components from clonnect-creators
-from core.dm_agent import DMResponderAgent, DMResponse
+from core.dm_agent_v2 import DMResponderAgent, DMResponse
 from core.rate_limiter import get_rate_limiter
 
 
