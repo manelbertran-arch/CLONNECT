@@ -17,17 +17,20 @@ Refactoring main.py from 7,198 lines to <500 lines by extracting endpoint groups
 | 2026-01-28 | webhooks.py | -161 | c35e9da3 | 5 webhooks |
 | 2026-01-28 | gdpr.py | -131 | 69ac07a8 | 6 GDPR endpoints |
 | 2026-01-28 | telegram.py | -323 | 2c60a434 | 10 Telegram endpoints |
-| **Total** | | **-1,493** | | **40 endpoints** |
+| 2026-01-28 | content.py | -561 | 60604e87 | 12 RAG content endpoints |
+| 2026-01-28 | admin.py | -335 | b40ff05e | 10 Admin panel endpoints |
+| 2026-01-28 | creator.py | -143 | c81a4691 | 6 Creator config endpoints |
+| **Total** | | **-2,532** | | **68 endpoints** |
 
-Current: 7,198 → 5,705 lines (21% reduction)
+Current: 7,198 → 4,666 lines (35% reduction)
 
 ## Remaining Extractions
 | Priority | Router | Endpoints Est. | Status |
 |----------|--------|----------------|--------|
 | 1 | telegram.py | 10 | DONE |
-| 2 | content.py | ~10 | NEXT |
-| 3 | admin.py (consolidate) | ~10 | PENDING |
-| 4 | creator.py | ~8 | PENDING |
+| 2 | content.py | 12 | DONE |
+| 3 | admin.py (consolidate) | 10 | DONE |
+| 4 | creator.py | 6 | DONE |
 
 ## Implementation Steps per Extraction
 
