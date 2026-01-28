@@ -1,79 +1,165 @@
-# Backend Implementation Plan: REFACTOR-PHASE1 Extract Routers from main.py
+# Backend Implementation Plan: REFACTOR-PHASE1 Extract Routers
 
 ## Overview
-Refactoring main.py from 7,198 lines to <500 lines by extracting endpoint groups into separate router modules. Following DDD principles and clean architecture.
+
+**Ticket**: REFACTOR-PHASE1
+**Feature**: Extract endpoints from main.py to dedicated routers
+**Architecture**: DDD Layered - Presentation Layer (FastAPI Routers)
+
+This plan follows ai-specs methodology:
+- TDD (tests before implementation)
+- Baby steps (one change at a time)
+- Documentation before commit
+- 90% test coverage minimum
 
 ## Architecture Context
-- Layer: Presentation (FastAPI routers)
-- Source: backend/api/main.py (7,198 lines)
-- Target: Multiple router files in backend/api/routers/
-- Pattern: Extract endpoints by URL prefix, maintain same signatures
+
+### Layer: Presentation
+- **Components**: FastAPI APIRouter modules
+- **Pattern**: Extract by URL prefix
+- **Principle**: Pure code movement, NO logic changes
+
+### Directory Structure
+```
+backend/api/
+├── main.py              # FastAPI app setup only (<500 lines target)
+├── routers/
+│   ├── __init__.py
+│   ├── auth.py          # /api-keys/*
+│   ├── dm.py            # /dm/*
+│   ├── webhooks.py      # Payment/calendar webhooks
+│   ├── gdpr.py          # /gdpr/*
+│   ├── telegram.py      # /telegram/*
+│   ├── content.py       # /content/*
+│   ├── admin.py         # /admin/*
+│   ├── creator.py       # /creator/*
+│   ├── bot.py           # /bot/*
+│   ├── ai.py            # AI/Grok endpoints
+│   ├── debug.py         # /debug/*
+│   ├── health.py        # /health/*
+│   └── static.py        # Static pages
+├── models/              # Pydantic models (Phase 1.5)
+├── utils/               # Helper functions (Phase 1.5)
+└── tests/
+    └── routers/
+        └── test_*.py    # Router tests
+```
+
+## Implementation Steps
+
+### Step 0: Create Feature Branch ✅
+```bash
+git checkout -b refactor/phase1-extract-routers
+```
+
+### Step 1: Write Router Import Tests (TDD)
+```bash
+# Create test file FIRST
+touch backend/tests/routers/test_routers_import.py
+# Write tests for all routers
+# Run tests (should FAIL - routers don't exist yet or aren't tested)
+pytest backend/tests/routers/ -v
+```
+
+### Step 2: Extract Router [name]
+For each router:
+1. Write endpoint tests FIRST
+2. Create router file
+3. Move endpoints (change @app to @router)
+4. Update main.py imports
+5. Run tests (should PASS)
+6. Update documentation
+7. Commit
+
+### Step N+1: Update Documentation (BEFORE each commit)
+- Update this plan with progress
+- Update api-spec.yml if API changed
+- Update PROGRESS.md
 
 ## Progress Tracking
-| Date | Router | Lines Removed | Commit | Endpoints |
-|------|--------|---------------|--------|-----------|
-| 2026-01-28 | auth.py | -177 | c4ac81e8 | 5 API key endpoints |
-| 2026-01-28 | dm.py | -701 | 3a288d86 | 14 DM endpoints |
-| 2026-01-28 | webhooks.py | -161 | c35e9da3 | 5 webhooks |
-| 2026-01-28 | gdpr.py | -131 | 69ac07a8 | 6 GDPR endpoints |
-| 2026-01-28 | telegram.py | -323 | 2c60a434 | 10 Telegram endpoints |
-| 2026-01-28 | content.py | -561 | 60604e87 | 12 RAG content endpoints |
-| 2026-01-28 | admin.py | -335 | b40ff05e | 10 Admin panel endpoints |
-| 2026-01-28 | creator.py | -143 | c81a4691 | 6 Creator config endpoints |
-| 2026-01-28 | bot.py | -63 | 2d8433a7 | 3 Bot control endpoints |
-| 2026-01-28 | (duplicates) | -299 | a42bf253 | Removed duplicate onboarding/products/dashboard |
-| 2026-01-28 | ai.py | -655 | 6e790d24 | 3 AI/Grok endpoints + 3 helpers |
-| 2026-01-28 | (duplicates) | -76 | 219bf2d2 | Removed purchases/revenue/bookings duplicates |
-| 2026-01-28 | debug.py | -575 | cfcc0665 | 8 debug/diagnostic endpoints |
-| 2026-01-28 | health.py + static.py | -473 | 7f8c7f38 | 8 endpoints (health + static pages) |
-| **Total** | | **-4,673** | | **90 endpoints** |
 
-Current: 7,198 → 2,525 lines (65% reduction)
+| Step | Router | Lines | Endpoints | Tests | Commit | Status |
+|------|--------|-------|-----------|-------|--------|--------|
+| 1 | auth.py | -177 | 5 | ✅ | c4ac81e8 | ✅ complete |
+| 2 | dm.py | -701 | 14 | ✅ | 3a288d86 | ✅ complete |
+| 3 | webhooks.py | -161 | 5 | ✅ | c35e9da3 | ✅ complete |
+| 4 | gdpr.py | -131 | 6 | ✅ | 69ac07a8 | ✅ complete |
+| 5 | telegram.py | -323 | 10 | ✅ | 2c60a434 | ✅ complete |
+| 6 | content.py | -561 | 12 | ✅ | 60604e87 | ✅ complete |
+| 7 | admin.py | -335 | 10 | ✅ | b40ff05e | ✅ complete |
+| 8 | creator.py | -143 | 6 | ✅ | c81a4691 | ✅ complete |
+| 9 | bot.py | -63 | 3 | ✅ | 2d8433a7 | ✅ complete |
+| 10 | ai.py | -655 | 3 | ✅ | 6e790d24 | ✅ complete |
+| 11 | debug.py | -575 | 8 | ✅ | cfcc0665 | ✅ complete |
+| 12 | health.py | -233 | 3 | ✅ | e464832f | ✅ complete |
+| 13 | static.py | -240 | 5 | ✅ | e464832f | ✅ complete |
+| - | duplicates | -375 | - | - | various | ✅ removed |
 
-## Remaining Extractions
-| Priority | Router | Endpoints Est. | Status |
-|----------|--------|----------------|--------|
-| 1 | telegram.py | 10 | DONE |
-| 2 | content.py | 12 | DONE |
-| 3 | admin.py (consolidate) | 10 | DONE |
-| 4 | creator.py | 6 | DONE |
-
-## Implementation Steps per Extraction
-
-### Step N: Extract [router_name]
-1. **Identify**: grep -n "/prefix/" backend/api/main.py
-2. **Create file**: backend/api/routers/[name].py
-3. **Move code**: Copy endpoints exactly (change @app to @router)
-4. **Update main.py**: Add import and include_router()
-5. **Fix imports**: Check other files that import from main.py
-6. **Verify syntax**: python3 -m py_compile [files]
-7. **Run tests**: pytest tests/ -v --tb=short
-8. **Verify startup**: python -c "from api.main import app"
-9. **Commit**: Follow format below
-
-## Commit Message Format
-```
-refactor: extract [prefix] endpoints to routers/[name].py
-
-- Move N endpoints from main.py to routers/[name].py
-- No logic changes
-
-Lines changed:
-- main.py: XXXX -> YYYY (-ZZZ)
-- routers/[name].py: 0 -> ZZZ
-```
+**Current**: 7,198 → 2,525 lines (65% reduction)
+**Target**: <500 lines
 
 ## Testing Checklist
-- [x] python3 -m py_compile passes for all modified files
-- [x] pytest tests/routers/test_routers_import.py passes (15 tests)
-- [ ] Server starts: uvicorn api.main:app
-- [x] No import errors: python -c "from api.main import app"
 
-## Tests Added
-- `tests/routers/test_routers_import.py` - 15 smoke tests for all routers
+- [x] All routers import without errors
+- [x] All routers have `routes` attribute
+- [x] Main app imports correctly
+- [x] Key endpoints registered in app
+- [ ] 90% test coverage achieved
+
+## Tests
+
+### Current Test Coverage
+- `tests/routers/test_routers_import.py` - 15 smoke tests
+
+### Test Commands
+```bash
+# Run all router tests
+pytest backend/tests/routers/ -v
+
+# Check coverage
+pytest backend/tests/ --cov=backend/api/routers --cov-report=term-missing
+```
+
+## Error Response Format
+
+```json
+{
+  "detail": "Error message"
+}
+```
+
+## Dependencies
+
+- FastAPI
+- SQLAlchemy
+- Pydantic
+- pytest
+
+## Technical Debt
+
+- Initial extractions done without TDD (tests added retroactively)
+- Coverage below 90% target
+- All future changes MUST follow TDD
+
+## Implementation Verification
+
+```bash
+# Verify syntax
+python3 -m py_compile backend/api/main.py backend/api/routers/*.py
+
+# Verify imports
+python -c "from api.main import app; print('✅ Import OK')"
+
+# Run tests
+pytest backend/tests/routers/ -v
+
+# Check coverage
+pytest --cov=backend/api/routers --cov-report=term-missing
+```
 
 ## Notes
+
 - English only for code and commits
 - Baby steps: one router at a time
 - NO logic changes during extraction
-- Update this file after each extraction
+- Update this file BEFORE each commit
