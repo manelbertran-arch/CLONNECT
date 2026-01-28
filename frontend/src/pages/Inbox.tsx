@@ -1,6 +1,7 @@
 import { useState, useMemo, useEffect } from "react";
 import { useSearchParams } from "react-router-dom";
-import { Search, Send, MoreHorizontal, Loader2, AlertCircle, Instagram, MessageCircle, Archive, Trash2, AlertTriangle, RotateCcw, ArrowLeft } from "lucide-react";
+import { Search, Send, MoreHorizontal, Loader2, AlertCircle, Instagram, MessageCircle, Archive, Trash2, AlertTriangle, RotateCcw, ArrowLeft, User, X } from "lucide-react";
+import { ProfilePanel } from "@/components/ProfilePanel";
 import { MessageRenderer } from "@/components/chat/MessageRenderer";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -26,6 +27,7 @@ import { useInfiniteConversations, useFollowerDetail, useSendMessage, useArchive
 import { useToast } from "@/hooks/use-toast";
 import type { Conversation, Message } from "@/types/api";
 import { getPurchaseIntent, detectPlatform, getFriendlyName, extractNameFromMessages, getMessages } from "@/types/api";
+import { getCreatorId } from "@/services/api";
 
 // Status colors matching Pipeline (solid colors for visibility)
 const statusColors: Record<string, string> = {
@@ -146,6 +148,7 @@ export default function Inbox() {
   const [searchQuery, setSearchQuery] = useState("");
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [activeTab, setActiveTab] = useState<"all" | "archived">("all");
+  const [showProfile, setShowProfile] = useState(false);
   const { toast } = useToast();
   const sendMessageMutation = useSendMessage();
   const archiveMutation = useArchiveConversation();
@@ -576,12 +579,23 @@ export default function Inbox() {
                   </div>
                 </div>
               </div>
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button variant="ghost" size="icon">
-                    <MoreHorizontal className="w-5 h-5" />
-                  </Button>
-                </DropdownMenuTrigger>
+              <div className="flex items-center gap-2">
+                {/* Profile toggle button */}
+                <Button
+                  variant={showProfile ? "secondary" : "ghost"}
+                  size="sm"
+                  onClick={() => setShowProfile(!showProfile)}
+                  className="hidden md:flex items-center gap-2"
+                >
+                  <User className="w-4 h-4" />
+                  <span className="hidden lg:inline">Ver perfil</span>
+                </Button>
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="ghost" size="icon">
+                      <MoreHorizontal className="w-5 h-5" />
+                    </Button>
+                  </DropdownMenuTrigger>
                 <DropdownMenuContent align="end">
                   <DropdownMenuItem onClick={handleArchive}>
                     <Archive className="w-4 h-4 mr-2" />
@@ -601,6 +615,7 @@ export default function Inbox() {
                   </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
+              </div>
             </div>
 
             {/* Messages */}
@@ -657,6 +672,19 @@ export default function Inbox() {
           </div>
         )}
       </div>
+
+      {/* Profile Panel - Third column */}
+      {showProfile && selectedConversation && (
+        <div className="hidden md:block w-80 shrink-0">
+          <ProfilePanel
+            creatorId={getCreatorId()}
+            followerId={selectedConversation.follower_id}
+            onClose={() => setShowProfile(false)}
+            showCloseButton={true}
+            className="h-full overflow-auto"
+          />
+        </div>
+      )}
 
       {/* Delete Confirmation Dialog */}
       <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
