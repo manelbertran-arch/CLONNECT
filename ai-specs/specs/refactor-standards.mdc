@@ -1,0 +1,217 @@
+---
+description: Standards for refactoring the Clonnect codebase. Follow these rules when breaking up monolithic files.
+globs: ["backend/**/*.py"]
+alwaysApply: true
+---
+
+# Clonnect Refactoring Standards
+
+## Current State (Problems)
+
+| File | Lines | Target | Problem |
+|------|-------|--------|---------|
+| api/main.py | 7,198 | <500 | 135 endpoints in one file |
+| core/dm_agent.py | 7,463 | <800 | All DM logic mixed together |
+| api/routers/onboarding.py | 4,546 | <500 | Onboarding is a monolith |
+| api/routers/admin.py | 3,642 | <500 | Admin endpoints too large |
+
+## Refactoring Process
+
+### Step 1: Create Branch
+
+```bash
+git checkout -b refactor/extract-{module-name}
+```
+
+### Step 2: Identify Extraction Target
+
+Look for:
+- Groups of related functions (same prefix, same domain)
+- Classes that could be their own module
+- Endpoints with same URL prefix
+
+### Step 3: Create New File
+
+```python
+# backend/api/routers/{new_router}.py
+from fastapi import APIRouter, Depends, HTTPException
+from typing import List, Optional
+
+router = APIRouter(prefix="/{prefix}", tags=["{tag}"])
+
+# Move endpoints here
+```
+
+### Step 4: Move Code (Don't Rewrite)
+
+```python
+# CUT from main.py
+@app.get("/leads/{creator_id}")
+async def list_leads(creator_id: str):
+    # existing code
+    ...
+
+# PASTE to routers/leads.py (change @app to @router)
+@router.get("/{creator_id}")  # Remove /leads prefix
+async def list_leads(creator_id: str):
+    # same code, unchanged
+    ...
+```
+
+### Step 5: Update main.py
+
+```python
+# Add import
+from api.routers import leads
+
+# Add router
+app.include_router(leads.router)
+
+# Remove moved endpoints
+```
+
+### Step 6: Fix Imports
+
+```python
+# If other files imported from main.py, update them
+# BEFORE
+from api.main import some_function
+
+# AFTER
+from api.routers.leads import some_function
+```
+
+### Step 7: Run Tests
+
+```bash
+pytest tests/ -v
+```
+
+### Step 8: Commit
+
+```bash
+git add backend/api/main.py backend/api/routers/leads.py
+git commit -m "refactor: extract leads endpoints to separate router"
+```
+
+## Extraction Targets for main.py
+
+### Priority 1: Large Endpoint Groups
+
+| Prefix | Endpoints | New File |
+|--------|-----------|----------|
+| /dm/* | ~15 | routers/dm.py |
+| /leads/* | ~10 | routers/leads.py (exists, consolidate) |
+| /webhook/* | ~8 | routers/webhooks.py |
+| /admin/* | ~12 | routers/admin.py (exists, consolidate) |
+
+### Priority 2: Feature-Specific
+
+| Prefix | Endpoints | New File |
+|--------|-----------|----------|
+| /nurturing/* | ~8 | routers/nurturing.py (exists) |
+| /products/* | ~6 | routers/products.py |
+| /calendar/* | ~5 | routers/calendar.py |
+| /gdpr/* | ~4 | routers/gdpr.py |
+
+### Priority 3: Utilities
+
+| Prefix | Endpoints | New File |
+|--------|-----------|----------|
+| /auth/* | ~4 | routers/auth.py |
+| /health/* | ~3 | Keep in main.py |
+
+## Extraction Targets for dm_agent.py
+
+### Priority 1: Data Classes
+
+| Class | Lines | New File |
+|-------|-------|----------|
+| FollowerMemory | ~100 | core/memory/follower_memory.py |
+| ConversationState | ~150 | core/conversation/state.py |
+| UserContext | ~80 | core/context/user_context.py |
+
+### Priority 2: Services
+
+| Functionality | Lines | New File |
+|---------------|-------|----------|
+| Intent classification | ~500 | core/intent/classifier.py |
+| Response generation | ~800 | core/response/generator.py |
+| Memory store | ~400 | core/memory/store.py |
+| Product matching | ~300 | core/products/matcher.py |
+
+### Priority 3: Orchestrator
+
+After extracting everything:
+- dm_agent.py becomes an orchestrator
+- It imports and coordinates the extracted modules
+- Target: <800 lines
+
+## Rules During Refactoring
+
+### DO:
+
+- ✅ Move code exactly as-is first
+- ✅ Fix imports in all affected files
+- ✅ Run tests after each move
+- ✅ Commit frequently (one logical change per commit)
+- ✅ Keep the same function signatures
+- ✅ Document what you moved in commit messages
+
+### DON'T:
+
+- ❌ Rewrite logic while moving (separate refactor)
+- ❌ Rename functions while moving (breaks imports)
+- ❌ Move and optimize at the same time
+- ❌ Skip running tests
+- ❌ Make large commits with many files
+
+## Verification Checklist
+
+After each extraction:
+
+```bash
+# 1. Tests pass
+pytest tests/ -v
+
+# 2. Server starts
+uvicorn api.main:app --port 8000
+
+# 3. Endpoints work (manual check)
+curl http://localhost:8000/health
+
+# 4. No import errors
+python -c "from api.main import app"
+```
+
+## Commit Message Format
+
+```
+refactor: extract {what} to {where}
+
+- Move {N} endpoints from main.py to routers/{file}.py
+- Update imports in {affected files}
+- No logic changes
+
+Lines changed:
+- main.py: {before} -> {after} (-{diff})
+- {new_file}: 0 -> {lines}
+```
+
+## Progress Tracking
+
+Update this section after each refactoring session:
+
+### main.py Progress
+
+| Date | Lines | Change | Commit |
+|------|-------|--------|--------|
+| Start | 7,198 | - | - |
+| | | | |
+
+### dm_agent.py Progress
+
+| Date | Lines | Change | Commit |
+|------|-------|--------|--------|
+| Start | 7,463 | - | - |
+| | | | |

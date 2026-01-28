@@ -1,0 +1,355 @@
+---
+description: Backend development standards for Clonnect Python/FastAPI application.
+globs: ["backend/**/*.py", "backend/alembic/**/*.py", "backend/tests/**/*.py"]
+alwaysApply: true
+---
+
+# Clonnect Backend Standards
+
+## Technology Stack
+
+- **Python 3.11+**: Runtime
+- **FastAPI**: Web framework
+- **SQLAlchemy 2.0**: ORM
+- **PostgreSQL**: Database
+- **Alembic**: Migrations
+- **Pydantic 2.0**: Validation
+- **pytest**: Testing
+
+## Architecture
+
+### Target Structure (Post-Refactor)
+
+```
+backend/
+├── api/
+│   ├── main.py              # Only app setup, middleware, health endpoints (<500 lines)
+│   ├── routers/             # One file per domain (~200-400 lines each)
+│   │   ├── audience.py
+│   │   ├── leads.py
+│   │   ├── products.py
+│   │   ├── nurturing.py
+│   │   ├── webhooks.py
+│   │   └── ...
+│   ├── models.py            # SQLAlchemy models
+│   └── dependencies.py      # FastAPI dependencies
+├── core/
+│   ├── dm_agent.py          # Orchestrator only (<800 lines)
+│   ├── memory/              # Memory management
+│   │   ├── follower_memory.py
+│   │   └── memory_store.py
+│   ├── intent/              # Intent classification
+│   │   └── classifier.py
+│   ├── response/            # Response generation
+│   │   └── generator.py
+│   └── ...
+├── services/                # Business logic
+├── infrastructure/          # External integrations
+│   ├── logging.py
+│   ├── instagram.py
+│   └── ...
+└── tests/
+    ├── unit/
+    ├── integration/
+    └── conftest.py
+```
+
+## Coding Standards
+
+### Type Hints (MANDATORY)
+
+```python
+# Good: Full type hints
+async def get_follower(
+    creator_id: str,
+    follower_id: str
+) -> Optional[FollowerMemory]:
+    ...
+
+# Bad: No type hints
+async def get_follower(creator_id, follower_id):
+    ...
+```
+
+### Logging (NOT print)
+
+```python
+# Good: Use logging
+import logging
+logger = logging.getLogger(__name__)
+
+logger.info("Processing message", extra={"follower_id": follower_id})
+logger.error("Failed to send", extra={"error": str(e)})
+
+# Bad: Using print
+print(f"Processing message for {follower_id}")
+```
+
+### Error Handling
+
+```python
+# Good: Specific exceptions
+try:
+    result = await instagram_client.send_message(message)
+except InstagramRateLimitError as e:
+    logger.warning("Rate limited", extra={"retry_after": e.retry_after})
+    raise HTTPException(status_code=429, detail="Rate limited")
+except InstagramAPIError as e:
+    logger.error("Instagram API error", extra={"error": str(e)})
+    raise HTTPException(status_code=502, detail="Instagram unavailable")
+
+# Bad: Bare except
+try:
+    result = await instagram_client.send_message(message)
+except:
+    pass  # NEVER do this
+```
+
+### Function Size
+
+```python
+# Good: Small, focused functions (<50 lines)
+async def classify_intent(message: str) -> Intent:
+    """Classify message intent."""
+    preprocessed = preprocess_message(message)
+    features = extract_features(preprocessed)
+    return predict_intent(features)
+
+# Bad: Giant functions (>100 lines)
+async def process_everything(message, follower, creator, products, ...):
+    # 500 lines of mixed logic
+    ...
+```
+
+### File Size
+
+- **Target**: <500 lines per file
+- **Maximum**: 800 lines (requires justification)
+- **Current violations**: main.py (7,198), dm_agent.py (7,463)
+
+## API Design
+
+### Router Organization
+
+```python
+# backend/api/routers/leads.py
+from fastapi import APIRouter, Depends, HTTPException
+
+router = APIRouter(prefix="/leads", tags=["leads"])
+
+@router.get("/{creator_id}")
+async def list_leads(creator_id: str) -> List[Lead]:
+    ...
+
+@router.get("/{creator_id}/{lead_id}")
+async def get_lead(creator_id: str, lead_id: str) -> Lead:
+    ...
+
+@router.put("/{creator_id}/{lead_id}")
+async def update_lead(creator_id: str, lead_id: str, data: LeadUpdate) -> Lead:
+    ...
+```
+
+### Response Models
+
+```python
+# Good: Pydantic models for all responses
+class LeadResponse(BaseModel):
+    id: str
+    username: str
+    status: LeadStatus
+    purchase_intent: float
+
+    model_config = ConfigDict(from_attributes=True)
+
+@router.get("/{lead_id}", response_model=LeadResponse)
+async def get_lead(lead_id: str) -> LeadResponse:
+    ...
+
+# Bad: Returning raw dicts
+@router.get("/{lead_id}")
+async def get_lead(lead_id: str):
+    return {"id": lead_id, "status": "active"}  # No validation
+```
+
+## Database Patterns
+
+### Repository Pattern
+
+```python
+# Good: Repository abstraction
+class LeadRepository:
+    def __init__(self, session: Session):
+        self.session = session
+
+    async def find_by_id(self, lead_id: UUID) -> Optional[Lead]:
+        return self.session.query(Lead).filter_by(id=lead_id).first()
+
+    async def save(self, lead: Lead) -> Lead:
+        self.session.add(lead)
+        self.session.commit()
+        return lead
+
+# Bad: Direct queries everywhere
+@router.get("/{lead_id}")
+async def get_lead(lead_id: str, db: Session = Depends(get_db)):
+    return db.query(Lead).filter_by(id=lead_id).first()
+```
+
+### Migrations
+
+```bash
+# Create migration
+alembic revision --autogenerate -m "add_user_profiles_table"
+
+# Apply migrations
+alembic upgrade head
+
+# Rollback
+alembic downgrade -1
+```
+
+## Testing Standards
+
+### Test Structure
+
+```python
+# tests/unit/test_intent_classifier.py
+import pytest
+from core.intent.classifier import classify_intent, Intent
+
+class TestIntentClassifier:
+    """Tests for intent classification."""
+
+    def test_classify_greeting(self):
+        """Should classify greeting messages correctly."""
+        # Arrange
+        message = "Hola, buenos días"
+
+        # Act
+        result = classify_intent(message)
+
+        # Assert
+        assert result == Intent.GREETING
+
+    def test_classify_price_objection(self):
+        """Should detect price objection."""
+        message = "Es muy caro para mí"
+        result = classify_intent(message)
+        assert result == Intent.OBJECTION_PRICE
+```
+
+### Coverage Requirements
+
+- **Minimum**: 70% (current state)
+- **Target**: 85%
+- **New code**: 90%
+
+### Running Tests
+
+```bash
+# All tests
+pytest tests/ -v
+
+# With coverage
+pytest tests/ --cov=backend --cov-report=html
+
+# Specific file
+pytest tests/unit/test_intent_classifier.py -v
+```
+
+## Refactoring Rules
+
+When refactoring existing code:
+
+1. **Extract, don't rewrite**: Move code to new files, don't rewrite from scratch
+2. **Keep imports working**: Update imports in all files that use moved code
+3. **One responsibility per file**: Each file should have one clear purpose
+4. **Tests first**: Ensure tests pass before and after the move
+5. **Small commits**: One logical change per commit
+
+### Example: Extracting from main.py
+
+```python
+# BEFORE: backend/api/main.py (7,198 lines)
+@app.get("/leads/{creator_id}")
+async def list_leads(creator_id: str):
+    ...
+
+@app.get("/leads/{creator_id}/{lead_id}")
+async def get_lead(creator_id: str, lead_id: str):
+    ...
+
+# AFTER: backend/api/routers/leads.py (new file)
+from fastapi import APIRouter
+router = APIRouter(prefix="/leads", tags=["leads"])
+
+@router.get("/{creator_id}")
+async def list_leads(creator_id: str):
+    ...
+
+# AFTER: backend/api/main.py (updated)
+from api.routers import leads
+app.include_router(leads.router)
+```
+
+## Security
+
+### Environment Variables
+
+```python
+# Good: Use environment variables
+import os
+INSTAGRAM_TOKEN = os.getenv("INSTAGRAM_TOKEN")
+if not INSTAGRAM_TOKEN:
+    raise ValueError("INSTAGRAM_TOKEN not set")
+
+# Bad: Hardcoded secrets
+INSTAGRAM_TOKEN = "IGAAxxxxxxx"  # NEVER
+```
+
+### Input Validation
+
+```python
+# Good: Pydantic validation
+class CreateLeadRequest(BaseModel):
+    username: str = Field(..., min_length=1, max_length=255)
+    email: Optional[EmailStr] = None
+    phone: Optional[str] = Field(None, pattern=r"^\+?[0-9]{10,15}$")
+
+# Bad: No validation
+@router.post("/leads")
+async def create_lead(data: dict):  # No validation
+    ...
+```
+
+## Performance
+
+### Async Operations
+
+```python
+# Good: Async for I/O
+async def fetch_instagram_data(user_id: str) -> dict:
+    async with httpx.AsyncClient() as client:
+        response = await client.get(f"{API_URL}/{user_id}")
+        return response.json()
+
+# Bad: Blocking I/O
+def fetch_instagram_data(user_id: str) -> dict:
+    response = requests.get(f"{API_URL}/{user_id}")  # Blocks event loop
+    return response.json()
+```
+
+### Database Queries
+
+```python
+# Good: Eager loading
+leads = session.query(Lead).options(
+    joinedload(Lead.messages)
+).filter_by(creator_id=creator_id).all()
+
+# Bad: N+1 queries
+leads = session.query(Lead).filter_by(creator_id=creator_id).all()
+for lead in leads:
+    messages = lead.messages  # Query per lead!
+```

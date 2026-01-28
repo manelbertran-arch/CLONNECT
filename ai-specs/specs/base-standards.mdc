@@ -1,0 +1,67 @@
+---
+description: Core development rules for Clonnect. Applicable to all AI agents (Claude, Cursor, Copilot, Gemini).
+alwaysApply: true
+---
+
+# Clonnect - Base Development Standards
+
+## 1. Core Principles
+
+- **Small tasks, one at a time**: Always work in baby steps. Never go forward more than one step.
+- **Test-Driven Development**: Start with failing tests for any new functionality.
+- **Type Safety**: All Python code must use type hints. All TypeScript code must avoid `any`.
+- **Clear Naming**: Use clear, descriptive names for all variables and functions.
+- **Incremental Changes**: Prefer small, focused changes over large modifications.
+- **Question Assumptions**: Always question assumptions and inferences.
+- **Pattern Detection**: Detect and highlight repeated code patterns.
+
+## 2. Language Standards
+
+- **English Only** for all technical artifacts:
+  - Code (variables, functions, classes, comments, error messages, logs)
+  - Documentation (README, guides, API docs)
+  - Git commit messages
+  - Test names and descriptions
+  - Database schema and migrations
+
+- **Spanish Allowed** only for:
+  - User-facing content (UI text, error messages shown to users)
+  - Business domain terms when they have no English equivalent
+
+## 3. Output Standards
+
+- **Always markdown monolithic copy-paste**: All outputs must be complete, self-contained markdown.
+- **Tables for comparisons**: Use markdown tables for comparing options or states.
+- **Code blocks with language**: Always specify language in code blocks (```python, ```typescript).
+- **No excessive emojis**: Use sparingly, only when they add clarity.
+
+## 4. Git Standards
+
+- **Branch naming**: `feature/description`, `fix/description`, `refactor/description`
+- **Commit messages**: Conventional commits format
+  - `feat:` new feature
+  - `fix:` bug fix
+  - `refactor:` code restructuring
+  - `test:` adding tests
+  - `docs:` documentation
+- **Small commits**: One logical change per commit
+- **Tests must pass**: Never commit code that breaks tests
+
+## 5. Specific Standards
+
+For detailed standards specific to different areas:
+
+- [Backend Standards](./backend-standards.mdc) - Python, FastAPI, SQLAlchemy, testing
+- [Frontend Standards](./frontend-standards.mdc) - React, TypeScript, component patterns
+- [Refactor Standards](./refactor-standards.mdc) - How to refactor this codebase
+
+## 6. Current Project State
+
+**IMPORTANT**: This codebase has technical debt that we are actively addressing:
+
+- `main.py` has 7,198 lines (target: <500)
+- `dm_agent.py` has 7,463 lines (target: <800)
+- 542 print() statements (target: 0, use logging)
+- 20+ bare except: clauses (target: 0)
+
+When making changes, prioritize reducing these numbers, not increasing them.
