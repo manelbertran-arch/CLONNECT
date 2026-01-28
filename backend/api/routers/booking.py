@@ -9,7 +9,7 @@ import httpx
 try:
     from api.database import get_db
     from api.models import BookingLink, CalendarBooking, CreatorAvailability, BookingSlot, Creator
-except:
+except ImportError:
     from database import get_db
     from models import BookingLink, CalendarBooking, CreatorAvailability, BookingSlot, Creator
 
@@ -223,7 +223,7 @@ async def get_available_slots(
             if creator and creator.google_refresh_token:
                 try:
                     from api.routers.oauth import get_google_freebusy
-                except:
+                except ImportError:
                     from routers.oauth import get_google_freebusy
 
                 # Query freebusy for the target date
@@ -397,7 +397,7 @@ async def reserve_slot(creator_id: str, data: dict = Body(...), db: Session = De
                 logger.info(f"Creating Google Calendar event for booking...")
                 try:
                     from api.routers.oauth import create_google_meet_event
-                except:
+                except ImportError:
                     from routers.oauth import create_google_meet_event
 
                 # Calculate end time for the event (timedelta already imported at top of file)

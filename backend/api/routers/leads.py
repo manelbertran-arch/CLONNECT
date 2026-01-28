@@ -110,7 +110,7 @@ async def get_escalation_alerts(creator_id: str, limit: int = 50, unread_only: b
                         if unread_only and alert.get("read", False):
                             continue
                         alerts.append(alert)
-                    except:
+                    except json.JSONDecodeError:
                         pass
 
         return {
@@ -345,7 +345,7 @@ async def update_lead_status(creator_id: str, lead_id: str, data: dict = Body(..
                         from uuid import UUID
 
                         lead = session.query(Lead).filter_by(id=UUID(lead_id)).first()
-                    except:
+                    except ValueError:
                         pass
 
                 if not lead:
@@ -419,7 +419,7 @@ async def get_lead_activities(creator_id: str, lead_id: str, limit: int = 50, of
                         from uuid import UUID
 
                         lead = session.query(Lead).filter_by(id=UUID(lead_id)).first()
-                    except:
+                    except ValueError:
                         pass
 
                 if not lead:
@@ -495,7 +495,7 @@ async def create_lead_activity(creator_id: str, lead_id: str, data: dict = Body(
                         from uuid import UUID
 
                         lead = session.query(Lead).filter_by(id=UUID(lead_id)).first()
-                    except:
+                    except ValueError:
                         pass
 
                 if not lead:
@@ -610,7 +610,7 @@ async def get_lead_tasks(creator_id: str, lead_id: str, include_completed: bool 
                         from uuid import UUID
 
                         lead = session.query(Lead).filter_by(id=UUID(lead_id)).first()
-                    except:
+                    except ValueError:
                         pass
 
                 if not lead:
@@ -682,7 +682,7 @@ async def create_lead_task(creator_id: str, lead_id: str, data: dict = Body(...)
                         from uuid import UUID
 
                         lead = session.query(Lead).filter_by(id=UUID(lead_id)).first()
-                    except:
+                    except ValueError:
                         pass
 
                 if not lead:
@@ -693,7 +693,7 @@ async def create_lead_task(creator_id: str, lead_id: str, data: dict = Body(...)
                 if data.get("due_date"):
                     try:
                         due_date = dt.fromisoformat(data["due_date"].replace("Z", "+00:00"))
-                    except:
+                    except ValueError:
                         pass
 
                 task = LeadTask(
@@ -796,7 +796,7 @@ async def update_lead_task(creator_id: str, lead_id: str, task_id: str, data: di
                             task.due_date = dt.fromisoformat(
                                 data["due_date"].replace("Z", "+00:00")
                             )
-                        except:
+                        except ValueError:
                             pass
                     else:
                         task.due_date = None
@@ -895,7 +895,7 @@ async def get_lead_stats(creator_id: str, lead_id: str):
                         from uuid import UUID
 
                         lead = session.query(Lead).filter_by(id=UUID(lead_id)).first()
-                    except:
+                    except ValueError:
                         pass
 
                 if not lead:

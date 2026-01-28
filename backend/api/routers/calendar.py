@@ -9,7 +9,7 @@ import httpx
 try:
     from api.database import get_db
     from api.models import BookingLink, CalendarBooking, Creator, BookingSlot
-except:
+except ImportError:
     from database import get_db
     from models import BookingLink, CalendarBooking, Creator, BookingSlot
 
@@ -184,7 +184,7 @@ async def create_booking_link(creator_id: str, data: dict = Body(...), db: Sessi
             # Verify Google is connected
             try:
                 from api.routers.oauth import get_valid_google_token
-            except:
+            except ImportError:
                 from routers.oauth import get_valid_google_token
 
             try:
