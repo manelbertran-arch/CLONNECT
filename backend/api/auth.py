@@ -24,7 +24,7 @@ import jwt
 try:
     from api.database import get_db
     from api.models import User, UserCreator, Creator
-except:
+except ImportError:
     from database import get_db
     from models import User, UserCreator, Creator
 

@@ -23,7 +23,8 @@ def get_session():
 
         engine = create_engine(DATABASE_URL)
         return Session(engine)
-    except:
+    except Exception as e:
+        logger.error("Failed to create database session: %s", e)
         return None
 
 
@@ -110,8 +111,8 @@ def get_instagram_credentials(creator_id: str):
                     .params(cid=creator_id)
                     .first()
                 )
-            except:
-                pass
+            except Exception as e:
+                logger.warning("Failed to query creator by UUID %s: %s", creator_id, e)
 
         if not creator:
             return {
@@ -191,11 +192,11 @@ def get_or_create_creator(name: str):
         # These columns might not exist in older DB schemas
         try:
             result["other_payment_methods"] = creator.other_payment_methods or {}
-        except:
+        except AttributeError:
             result["other_payment_methods"] = {}
         try:
             result["knowledge_about"] = getattr(creator, "knowledge_about", None) or {}
-        except:
+        except AttributeError:
             result["knowledge_about"] = {}
 
         logger.info(f"get_or_create_creator: returning config for '{name}'")
@@ -1459,8 +1460,8 @@ def archive_conversation(creator_name: str, conversation_id: str) -> bool:
                     .filter_by(creator_id=creator.id, id=uuid.UUID(conversation_id))
                     .first()
                 )
-            except:
-                pass
+            except (ValueError, AttributeError) as e:
+                logger.warning("Failed to parse conversation UUID %s: %s", conversation_id, e)
         if lead:
             lead.status = "archived"
             session.commit()
@@ -1508,8 +1509,8 @@ def mark_conversation_spam(creator_name: str, conversation_id: str) -> bool:
                     .filter_by(creator_id=creator.id, id=uuid.UUID(conversation_id))
                     .first()
                 )
-            except:
-                pass
+            except (ValueError, AttributeError) as e:
+                logger.warning("Failed to parse conversation UUID %s: %s", conversation_id, e)
         if lead:
             lead.status = "spam"
             session.commit()
@@ -1562,8 +1563,8 @@ def reset_conversation_status(creator_name: str, conversation_id: str = None) ->
                         .filter_by(creator_id=creator.id, id=uuid.UUID(conversation_id))
                         .first()
                     )
-                except:
-                    pass
+                except (ValueError, AttributeError) as e:
+                    logger.warning("Failed to parse conversation UUID %s: %s", conversation_id, e)
             if lead and lead.status in ["archived", "spam"]:
                 lead.status = "new"
                 session.commit()
@@ -1616,8 +1617,8 @@ def delete_conversation(creator_name: str, conversation_id: str) -> bool:
                     .filter_by(creator_id=creator.id, id=uuid.UUID(conversation_id))
                     .first()
                 )
-            except:
-                pass
+            except (ValueError, AttributeError) as e:
+                logger.warning("Failed to parse conversation UUID %s: %s", conversation_id, e)
         if lead:
             platform_user_id = lead.platform_user_id
             # Delete all messages first (foreign key constraint)

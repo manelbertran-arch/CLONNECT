@@ -155,7 +155,7 @@ def init_database():
             CreatorAvailability, BookingSlot, UnifiedProfile, PlatformIdentity,
             EmailAskTracking, RAGDocument, ToneProfile, ContentChunk, InstagramPost
         )
-    except:
+    except ImportError:
         from database import Base
         from models import (
             User, UserCreator, Creator, Lead, LeadActivity, LeadTask, Message, Product,
@@ -241,7 +241,7 @@ def create_demo_user(session):
     import bcrypt
     try:
         from api.models import User, UserCreator, Creator
-    except:
+    except ImportError:
         from models import User, UserCreator, Creator
 
     # Check if user exists

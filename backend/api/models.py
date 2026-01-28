@@ -5,7 +5,7 @@ import uuid
 
 try:
     from api.database import Base
-except:
+except ImportError:
     from database import Base
 
 

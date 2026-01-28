@@ -15,7 +15,7 @@ def get_session():
         from sqlalchemy.orm import Session
         engine = create_engine(DATABASE_URL)
         return Session(engine)
-    except:
+    except Exception:
         return None
 
 def get_creator_by_name(name: str):
