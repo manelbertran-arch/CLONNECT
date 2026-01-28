@@ -43,11 +43,11 @@ if SENTRY_DSN:
             ],
             send_default_pii=False,
         )
-        print(f"Sentry initialized: {SENTRY_DSN[:40]}...")
+        logging.info("Sentry initialized: %s...", SENTRY_DSN[:40])
     except ImportError:
-        print("sentry-sdk not installed, error tracking disabled")
+        logging.warning("sentry-sdk not installed, error tracking disabled")
     except Exception as e:
-        print(f"Sentry init failed: {e}")
+        logging.error("Sentry init failed: %s", e)
 
 # PostgreSQL Init - define defaults first
 SessionLocal = None
@@ -64,12 +64,12 @@ try:
     if DATABASE_URL:
         # NOTE: init_database() moved to startup_event to not block healthcheck
         # Tables are created lazily on first request or during startup background task
-        print(f"PostgreSQL configured - SessionLocal={SessionLocal is not None}")
-        print("Database initialization deferred to startup event")
+        logging.info("PostgreSQL configured - SessionLocal=%s", SessionLocal is not None)
+        logging.info("Database initialization deferred to startup event")
     else:
-        print("No DATABASE_URL - using JSON fallback")
+        logging.warning("No DATABASE_URL - using JSON fallback")
 except Exception as e:
-    print(f"PostgreSQL init failed: {e}")
+    logging.error("PostgreSQL init failed: %s", e)
     import traceback
 
     traceback.print_exc()
@@ -79,10 +79,10 @@ try:
     from api import db_service
 
     USE_DB = True
-    print("Database service loaded")
+    logging.info("Database service loaded")
 except Exception as e:
     USE_DB = False
-    print(f"Database service not available: {e}")
+    logging.warning("Database service not available: %s", e)
 
 logging.warning("=" * 60)
 logging.warning("========== API MAIN V7 LOADED ==========")
@@ -161,7 +161,7 @@ if CORS_ORIGINS_ENV:
     CORS_ORIGINS = list(set(DEFAULT_CORS_ORIGINS + env_origins))
 else:
     CORS_ORIGINS = DEFAULT_CORS_ORIGINS
-print(f"CORS: Allowing origins: {CORS_ORIGINS}")
+logging.info("CORS: Allowing origins: %s", CORS_ORIGINS)
 
 app.add_middleware(
     CORSMiddleware,
@@ -5959,10 +5959,8 @@ async def create_booking_link(creator_id: str, data: dict = Body(...)):
 
     from sqlalchemy import text
 
-    print("=== BOOKING LINK CREATE ===")
-    print(f"creator_id: {creator_id}")
-    print(f"data: {data}")
-    print(f"SessionLocal: {SessionLocal}")
+    logger.debug("BOOKING LINK CREATE - creator_id: %s, data: %s, SessionLocal: %s",
+                 creator_id, data, SessionLocal is not None)
 
     # Extract data from body
     meeting_type = data.get("meeting_type", "custom")
@@ -5976,7 +5974,7 @@ async def create_booking_link(creator_id: str, data: dict = Body(...)):
         db = SessionLocal()
         try:
             link_id = str(uuid.uuid4())
-            print(f"Inserting link_id: {link_id}")
+            logger.debug("Inserting link_id: %s", link_id)
 
             # EXACT same SQL as debug endpoint
             db.execute(
@@ -5997,14 +5995,14 @@ async def create_booking_link(creator_id: str, data: dict = Body(...)):
                 },
             )
             db.commit()
-            print(f"INSERT + COMMIT done for {link_id}")
+            logger.debug("INSERT + COMMIT done for %s", link_id)
 
             # Verify
             verify = db.execute(
                 text("SELECT COUNT(*) FROM booking_links WHERE id = :id"), {"id": link_id}
             )
             verify_count = verify.scalar()
-            print(f"verify_count: {verify_count}")
+            logger.debug("verify_count: %s", verify_count)
 
             result["success"] = True
             result["link_id"] = link_id
@@ -6025,16 +6023,13 @@ async def create_booking_link(creator_id: str, data: dict = Body(...)):
                 "debug": result,
             }
         except Exception as e:
-            import traceback
-
-            print(f"ERROR: {e}")
-            print(traceback.format_exc())
+            logger.error("Booking link create failed: %s", e, exc_info=True)
             result["error"] = str(e)
             return {"status": "error", "error": str(e), "debug": result}
         finally:
             db.close()
     else:
-        print("SessionLocal is None!")
+        logger.error("SessionLocal is None - database not configured")
         return {"status": "error", "error": "Database not configured"}
 
 

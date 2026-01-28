@@ -750,23 +750,17 @@ async def _run_clone_creation(creator_id: str, website_url: str = None):
     Background task to run the full clone creation pipeline.
     Updates progress IN DATABASE as each step completes (persistent across workers).
     """
-    print(
-        f"[CloneCreation] ======= STARTING _run_clone_creation for {creator_id} =======", flush=True
-    )
+    logger.info("[CloneCreation] STARTING _run_clone_creation for %s", creator_id)
     try:
         from api.database import SessionLocal
         from api.models import Creator
 
-        print(f"[CloneCreation] Opening database session...", flush=True)
+        logger.debug("[CloneCreation] Opening database session...")
         session = SessionLocal()
         try:
             creator = session.query(Creator).filter_by(name=creator_id).first()
             if not creator or not creator.instagram_token:
-                print(
-                    f"[CloneCreation] ERROR: Creator {creator_id} not found or no Instagram token",
-                    flush=True,
-                )
-                logger.error(f"Creator {creator_id} not found or no Instagram token")
+                logger.error("[CloneCreation] Creator %s not found or no Instagram token", creator_id)
                 _update_clone_progress(
                     creator_id, status="error", error="Creator not found or no Instagram token"
                 )
@@ -780,12 +774,7 @@ async def _run_clone_creation(creator_id: str, website_url: str = None):
             if not website_url and creator.knowledge_about:
                 website_url = creator.knowledge_about.get("website_url")
                 if website_url:
-                    logger.info(
-                        f"[CloneCreation] FALLBACK: Using website_url from knowledge_about: {website_url}"
-                    )
-                    print(
-                        f"[CloneCreation] FALLBACK: website_url from DB = {website_url}", flush=True
-                    )
+                    logger.info("[CloneCreation] FALLBACK: Using website_url from knowledge_about: %s", website_url)
 
             # Step 1: Scrape Instagram posts
             logger.info(f"[CloneCreation] Step 1: Scraping Instagram for {creator_id}")
@@ -833,20 +822,15 @@ async def _run_clone_creation(creator_id: str, website_url: str = None):
                         f"products_saved={result.products_saved}, "
                         f"rag_docs={result.rag_docs_saved}"
                     )
-                    print(
-                        f"[CloneCreation] Results: products={result.products_saved}, rag_docs={result.rag_docs_saved}",
-                        flush=True,
-                    )
+                    logger.info("[CloneCreation] Results: products=%d, rag_docs=%d",
+                                result.products_saved, result.rag_docs_saved)
 
                     if result.products_saved == 0 and result.products_detected > 0:
                         logger.warning(
                             f"[CloneCreation] WARNING: {result.products_detected} products detected but 0 saved!"
                         )
                 except Exception as e:
-                    logger.error(f"[CloneCreation] Website ingestion failed: {e}")
-                    print(f"[CloneCreation] Website ingestion error: {e}", flush=True)
-                    import traceback
-                    traceback.print_exc()
+                    logger.error("[CloneCreation] Website ingestion failed: %s", e, exc_info=True)
             else:
                 logger.info(f"[CloneCreation] Step 2: No website provided, skipping")
 
@@ -854,12 +838,11 @@ async def _run_clone_creation(creator_id: str, website_url: str = None):
 
             # Step 3: Generate tone profile (Magic Slice)
             _update_clone_progress(creator_id, step="training", step_status="active", percent=50)
-            print(f"[CloneCreation] Step 3: Training clone with {len(posts)} posts", flush=True)
-            logger.info(f"[CloneCreation] Step 3: Training clone with {len(posts)} posts")
+            logger.info("[CloneCreation] Step 3: Training clone with %d posts", len(posts))
 
             if posts:
                 try:
-                    print(f"[CloneCreation] Importing onboarding service...", flush=True)
+                    logger.debug("[CloneCreation] Importing onboarding service...")
                     from core.onboarding_service import OnboardingRequest, get_onboarding_service
 
                     posts_data = []
@@ -873,48 +856,34 @@ async def _run_clone_creation(creator_id: str, website_url: str = None):
                                 }
                             )
 
-                    print(
-                        f"[CloneCreation] Created {len(posts_data)} posts for training", flush=True
-                    )
-                    print(f"[CloneCreation] Getting onboarding service...", flush=True)
+                    logger.debug("[CloneCreation] Created %d posts for training", len(posts_data))
+                    logger.debug("[CloneCreation] Getting onboarding service...")
                     service = get_onboarding_service()
-                    print(f"[CloneCreation] Got service: {type(service)}", flush=True)
+                    logger.debug("[CloneCreation] Got service: %s", type(service))
                     request = OnboardingRequest(
                         creator_id=creator_id, manual_posts=posts_data, scraping_method="manual"
                     )
-                    print(
-                        f"[CloneCreation] Created request with {len(posts_data)} posts", flush=True
-                    )
-                    print(f"[CloneCreation] About to call service.onboard_creator()...", flush=True)
+                    logger.debug("[CloneCreation] Created request with %d posts", len(posts_data))
+                    logger.debug("[CloneCreation] About to call service.onboard_creator()...")
                     result = await service.onboard_creator(request)
-                    print(f"[CloneCreation] onboard_creator() returned!", flush=True)
-                    print(f"[CloneCreation] Training complete: {result}", flush=True)
-                    logger.info(f"[CloneCreation] Training complete: {result}")
+                    logger.info("[CloneCreation] Training complete: %s", result)
                 except Exception as e:
-                    print(f"[CloneCreation] Training failed: {e}", flush=True)
-                    logger.warning(f"[CloneCreation] Training failed: {e}")
-                    import traceback
-
-                    print(traceback.format_exc(), flush=True)
+                    logger.warning("[CloneCreation] Training failed: %s", e, exc_info=True)
             else:
-                print(f"[CloneCreation] No posts to train with, skipping", flush=True)
+                logger.info("[CloneCreation] No posts to train with, skipping")
 
             _update_clone_progress(creator_id, step="training", step_status="completed", percent=70)
-            print(f"[CloneCreation] Training step completed, moving to DM sync", flush=True)
+            logger.debug("[CloneCreation] Training step completed, moving to DM sync")
 
             # Step 4: Sync DM history (with pagination)
             _update_clone_progress(creator_id, step="activating", step_status="active", percent=75)
-            print(f"[CloneCreation] Step 4: Syncing DM history", flush=True)
-            logger.info(f"[CloneCreation] Step 4: Syncing DM history")
+            logger.info("[CloneCreation] Step 4: Syncing DM history")
 
             try:
-                print(f"[CloneCreation] Importing _simple_dm_sync_internal...", flush=True)
+                logger.debug("[CloneCreation] Importing _simple_dm_sync_internal...")
                 from api.routers.oauth import _simple_dm_sync_internal
 
-                print(
-                    f"[CloneCreation] Calling _simple_dm_sync_internal with max_convs=10",
-                    flush=True,
-                )
+                logger.debug("[CloneCreation] Calling _simple_dm_sync_internal with max_convs=10")
                 # Rate-limited: 10 conversations with 2s delay between each
                 dm_stats = await _simple_dm_sync_internal(
                     creator_id=creator_id,
@@ -923,8 +892,7 @@ async def _run_clone_creation(creator_id: str, website_url: str = None):
                     ig_page_id=page_id,
                     max_convs=10,
                 )
-                print(f"[CloneCreation] DM sync complete: {dm_stats}", flush=True)
-                logger.info(f"[CloneCreation] DM sync complete: {dm_stats}")
+                logger.info("[CloneCreation] DM sync complete: %s", dm_stats)
                 _update_clone_progress(
                     creator_id,
                     extra={
@@ -933,12 +901,7 @@ async def _run_clone_creation(creator_id: str, website_url: str = None):
                     },
                 )
             except Exception as e:
-                print(f"[CloneCreation] DM sync failed: {e}", flush=True)
-                logger.warning(f"[CloneCreation] DM sync failed: {e}")
-                import traceback
-
-                print(traceback.format_exc(), flush=True)
-                logger.warning(traceback.format_exc())
+                logger.warning("[CloneCreation] DM sync failed: %s", e, exc_info=True)
 
             _update_clone_progress(creator_id, percent=90)
 
