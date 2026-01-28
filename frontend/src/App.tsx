@@ -32,6 +32,7 @@ import SwitchUser from "./pages/SwitchUser";
 import InboxTest from "./pages/InboxTest";
 import HomeWithConversations from "./pages/HomeWithConversations";
 import { AnalyticsDashboard } from "./pages/Analytics";
+import TuAudiencia from "./pages/TuAudiencia";
 
 // Coming Soon placeholder component
 function ComingSoon({ title }: { title: string }) {
@@ -103,8 +104,8 @@ const AppRoutes = () => {
         <Route path="/docs" element={<Docs />} />
         <Route path="/terms" element={<Terms />} />
         <Route path="/privacy" element={<Privacy />} />
-        {/* Sprint 4 placeholder routes */}
-        <Route path="/tu-audiencia" element={<ComingSoon title="Tu Audiencia" />} />
+        {/* Sprint 4 Intelligence routes */}
+        <Route path="/tu-audiencia" element={<TuAudiencia />} />
         <Route path="/personas" element={<ComingSoon title="Personas" />} />
       </Route>
 
