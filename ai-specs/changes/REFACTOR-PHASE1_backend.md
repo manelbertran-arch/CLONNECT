@@ -95,8 +95,22 @@ For each router:
 | 13 | static.py | -240 | 5 | ✅ | e464832f | ✅ complete |
 | - | duplicates | -375 | - | - | various | ✅ removed |
 
-**Current**: 7,198 → 2,525 lines (65% reduction)
+**Current**: 7,198 → 2,502 lines (65% reduction)
 **Target**: <500 lines
+
+### Phase 1.5: Schema Extraction (TDD Compliant)
+
+| Step | Schema File | Models | Tests | Lines | Status |
+|------|-------------|--------|-------|-------|--------|
+| 1 | schemas/requests.py | CreateCreatorRequest, CreateProductRequest | 20 | -23 | ✅ TDD |
+
+**TDD Process Followed:**
+1. Tests written FIRST (20 tests)
+2. Tests FAILED (schemas didn't exist)
+3. Schemas implemented
+4. Tests PASSED (20/20)
+5. main.py updated to use schemas
+6. Documentation updated BEFORE commit
 
 ## Testing Checklist
 

@@ -18,6 +18,8 @@ from fastapi.responses import FileResponse, HTMLResponse, PlainTextResponse, Res
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
+from api.schemas import CreateCreatorRequest, CreateProductRequest
+
 logging.basicConfig(level=logging.INFO)
 
 # =============================================================================
@@ -360,31 +362,6 @@ WEBHOOK_ENDPOINTS = {
 }
 
 
-# ---------------------------------------------------------
-# PYDANTIC MODELS
-# ---------------------------------------------------------
-class CreateCreatorRequest(BaseModel):
-    id: str
-    name: str
-    instagram_handle: str
-    personality: Optional[Dict[str, Any]] = None
-    emoji_style: Optional[str] = "moderate"
-    sales_style: Optional[str] = "soft"
-
-
-class CreateProductRequest(BaseModel):
-    id: str
-    name: str
-    description: str
-    price: float
-    currency: str = "EUR"
-    payment_link: str = ""
-    category: str = ""
-    features: List[str] = []
-    keywords: List[str] = []
-
-
-# ---------------------------------------------------------
 # ---------------------------------------------------------
 # INSTAGRAM WEBHOOK
 # ---------------------------------------------------------

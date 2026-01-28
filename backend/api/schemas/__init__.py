@@ -1,10 +1,9 @@
-"""API Schemas for validation"""
-from api.schemas.lead import LeadCreate, LeadUpdate, LeadResponse
-from api.schemas.creator import CreatorConfig, CreatorUpdate
-from api.schemas.product import ProductCreate, ProductUpdate, ProductResponse
+"""
+Pydantic schemas for Clonnect API.
+"""
+from api.schemas.requests import CreateCreatorRequest, CreateProductRequest
 
 __all__ = [
-    "LeadCreate", "LeadUpdate", "LeadResponse",
-    "CreatorConfig", "CreatorUpdate",
-    "ProductCreate", "ProductUpdate", "ProductResponse"
+    "CreateCreatorRequest",
+    "CreateProductRequest",
 ]
