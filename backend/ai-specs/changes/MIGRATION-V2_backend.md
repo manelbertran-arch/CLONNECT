@@ -1,32 +1,58 @@
 # Migration to dm_agent_v2.py
 
-## Phase 4: Migration to dm_agent_v2.py
+## Phase 4: Migration Strategy
 
 ### Objective
-Replace all imports of `dm_agent.py` (legacy, 7,472 lines) with `dm_agent_v2.py` (new, 422 lines).
+Establish dm_agent_v2.py as the preferred agent architecture while maintaining production stability.
 
-### Approach
-1. Identify all files importing dm_agent.py
-2. Write tests to verify migration works (TDD)
-3. Change imports using alias for compatibility
-4. Verify all tests pass
-5. Document changes
-6. Commit
+### Analysis
 
-### Files to Modify
-- Any file importing `from core.dm_agent import DMResponderAgent`
+**Files importing dm_agent.py (13 total):**
+- `api/main.py` - DMResponderAgent
+- `api/routers/dm.py` - DMResponderAgent
+- `api/routers/debug.py` - get_dm_agent, DMResponderAgent
+- `api/routers/messaging_webhooks.py` - get_dm_agent
+- `api/routers/products.py` - invalidate_dm_agent_cache
+- `api/startup.py` - _dm_agent_cache_timestamp, get_dm_agent
+- `core/instagram_handler.py` - DMResponderAgent, DMResponse
+- `core/telegram_adapter.py` - DMResponderAgent, DMResponse
+- `core/whatsapp.py` - DMResponderAgent
+- `scripts/process_nurturing.py` - DMResponderAgent
 
-### Change Pattern
-```python
-# FROM (legacy):
-from core.dm_agent import DMResponderAgent
+**Helper functions in dm_agent.py NOT in v2:**
+- `get_dm_agent()` - factory function with caching
+- `invalidate_dm_agent_cache()` - cache management
+- `DMResponse` - response dataclass (different from v2)
+- `_dm_agent_cache_timestamp` - internal state
 
-# TO (new with alias for compatibility):
-from core.dm_agent_v2 import DMResponderAgentV2 as DMResponderAgent
-```
+### Approach: Gradual Migration (Baby Steps)
+
+**Strategy: Coexistence**
+1. Keep dm_agent.py as production agent (stability)
+2. Use dm_agent_v2.py for new features and A/B testing
+3. Migrate gradually after production validation
+
+**Why NOT immediate migration:**
+- 13 files depend on dm_agent.py
+- Helper functions not yet in v2
+- Risk of breaking production
+
+### Current Status
+
+| Component | Lines | Status |
+|-----------|-------|--------|
+| dm_agent.py | 7,472 | Production (stable) |
+| dm_agent_v2.py | 422 | Ready for new features |
+| services/ | 2,015 | Shared by both |
 
 ### Success Criteria
-- [ ] All imports updated
-- [ ] All tests pass
-- [ ] No regressions
-- [ ] Documentation updated
+- [x] dm_agent_v2.py created (422 lines)
+- [x] 7 migration compatibility tests passing
+- [x] Both agents can coexist
+- [ ] Gradual migration (future phase)
+
+### Next Steps (Future)
+1. Add helper functions to dm_agent_v2.py
+2. Create compatibility layer
+3. A/B test with real traffic
+4. Full migration when validated
