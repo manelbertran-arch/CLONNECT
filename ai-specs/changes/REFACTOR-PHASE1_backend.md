@@ -258,21 +258,52 @@ pytest backend/tests/routers/ -v
 pytest --cov=backend/api/routers --cov-report=term-missing
 ```
 
-## Remaining Work (Phase 2)
+### Phase 1 Final: Startup & Static Extraction (TDD)
 
-To reach <500 lines target, the following need extraction:
-1. **Startup tasks** (~450 lines) → Extract to `api/startup.py`
-   - Database initialization background task
-   - RAG hydration background task
-   - Cache pre-warming background task
-   - Keep-alive background task
-2. **Public booking-links endpoint** (~60 lines) → Keep or move to calendar.py
+| Step | File | Content | Tests | Lines | Status |
+|------|------|---------|-------|-------|--------|
+| 1 | startup.py | Startup handlers | 4 | -266 | ✅ TDD |
+| 2 | static_serving.py | SPA routes | 3 | -170 | ✅ TDD |
 
-Current main.py breakdown:
-- Imports & app setup: ~200 lines (minimal)
-- Router includes: ~170 lines (required)
-- Booking-links endpoint: ~60 lines
-- Startup event: ~450 lines (extractable)
+**Extracted to startup.py:**
+- Database initialization background task
+- RAG hydration background task
+- Cache pre-warming background task
+- Keep-alive background task
+
+**Extracted to static_serving.py:**
+- Static file routes (logo, favicon, etc.)
+- Debug status endpoint
+- SPA catch-all route
+
+**TDD Process:**
+1. Tests written FIRST (7 tests total)
+2. Tests FAILED (modules didn't exist)
+3. Modules implemented
+4. Tests PASSED (7/7)
+5. main.py updated to use modules
+6. Documentation updated BEFORE commit
+
+## FINAL STATUS - TARGET ACHIEVED
+
+| Metric | Start | End | Change |
+|--------|-------|-----|--------|
+| main.py lines | 7,198 | 446 | **-6,752 (94%)** |
+| Tests passing | 0 | 77 | +77 |
+| TDD Compliance | 0/10 | 10/10 | Full |
+
+**TARGET ACHIEVED: main.py < 500 lines ✅**
+
+### Final File Structure
+```
+backend/api/
+├── main.py              # FastAPI app setup (446 lines) ✅
+├── startup.py           # Startup handlers (248 lines)
+├── static_serving.py    # SPA routes (163 lines)
+├── routers/             # 17+ router modules
+├── schemas/             # Pydantic models
+└── auth.py              # Authentication
+```
 
 ## Notes
 
