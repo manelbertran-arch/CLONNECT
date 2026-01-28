@@ -112,6 +112,29 @@ For each router:
 5. main.py updated to use schemas
 6. Documentation updated BEFORE commit
 
+### Phase 1.5 Step 2: Messaging Webhooks Extraction (TDD)
+
+| Step | File | Endpoints | Tests | Lines | Status |
+|------|------|-----------|-------|-------|--------|
+| 1 | messaging_webhooks.py | Instagram (5), WhatsApp (3), Telegram (2) | 16 | -1,216 | ✅ TDD |
+
+**Endpoints extracted:**
+- Instagram: /webhook/instagram (GET/POST), /instagram/webhook (legacy), /instagram/status, /webhook/instagram/comments
+- WhatsApp: /webhook/whatsapp (GET/POST), /whatsapp/status
+- Telegram: /webhook/telegram (POST), /telegram/webhook (legacy)
+
+**TDD Process:**
+1. Tests written FIRST (16 tests)
+2. Tests FAILED (router didn't exist)
+3. Router implemented
+4. Tests PASSED (16/16)
+5. main.py updated, duplicates removed
+6. Documentation updated BEFORE commit
+
+**Current Status:**
+- main.py: 7,198 → 1,291 lines (82% reduction)
+- Tests: 57 passing
+
 ## Testing Checklist
 
 - [x] All routers import without errors
