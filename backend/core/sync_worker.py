@@ -198,8 +198,8 @@ async def process_single_conversation(
                         from_id = msg.get("from", {}).get("id")
                         if from_id and from_id not in creator_ids:
                             user_msg_timestamps.append(ts)
-                    except:
-                        pass
+                    except ValueError as e:
+                        logger.warning("Failed to parse message timestamp: %s", e)
 
             first_msg_time = min(all_msg_timestamps) if all_msg_timestamps else None
             # IMPORTANTE: last_contact_at debe ser el último mensaje del USUARIO
@@ -268,8 +268,8 @@ async def process_single_conversation(
                         new_msg.created_at = datetime.fromisoformat(
                             msg_time.replace("+0000", "+00:00")
                         )
-                    except:
-                        pass
+                    except ValueError as e:
+                        logger.warning("Failed to parse message created_at: %s", e)
 
                 session.add(new_msg)
                 result["messages_saved"] += 1

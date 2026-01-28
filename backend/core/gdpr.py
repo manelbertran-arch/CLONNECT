@@ -496,8 +496,8 @@ class GDPRManager:
             try:
                 with open(file_path, 'r', encoding='utf-8') as f:
                     records = json.load(f)
-            except:
-                pass
+            except (json.JSONDecodeError, IOError) as e:
+                logger.warning("Failed to load consent records from %s: %s", file_path, e)
 
         records.append(record)
 
@@ -651,8 +651,8 @@ class GDPRManager:
                 with open(analytics_file, 'r', encoding='utf-8') as f:
                     events = json.load(f)
                     has_analytics = any(e.get("follower_id") == follower_id for e in events)
-            except:
-                pass
+            except (json.JSONDecodeError, IOError) as e:
+                logger.warning("Failed to load analytics from %s: %s", analytics_file, e)
 
         inventory.append(DataInventoryItem(
             data_type="analytics",
@@ -684,8 +684,8 @@ class GDPRManager:
                 with open(nurturing_file, 'r', encoding='utf-8') as f:
                     followups = json.load(f)
                     has_nurturing = any(f.get("follower_id") == follower_id for f in followups)
-            except:
-                pass
+            except (json.JSONDecodeError, IOError) as e:
+                logger.warning("Failed to load nurturing data from %s: %s", nurturing_file, e)
 
         inventory.append(DataInventoryItem(
             data_type="nurturing",

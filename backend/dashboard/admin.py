@@ -363,7 +363,7 @@ def page_system():
             st.caption("Mostrando primeras 2000 caracteres de metricas")
         else:
             st.warning("No se pudieron obtener las metricas")
-    except:
+    except Exception:
         st.warning("Endpoint /metrics no disponible")
 
 

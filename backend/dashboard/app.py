@@ -155,7 +155,7 @@ def verify_api_key(api_key: str) -> dict:
             timeout=10
         )
         return resp.json() if resp.ok else None
-    except:
+    except Exception:
         return None
 
 

@@ -135,8 +135,8 @@ class DMHistoryService:
                             profile = await connector.get_user_profile(participant_id)
                             if profile:
                                 participant_username = profile.username
-                        except:
-                            pass
+                        except Exception as e:
+                            logger.warning("Failed to get user profile for %s: %s", participant_id, e)
 
                     # Crear/actualizar lead y guardar mensajes
                     result = await self._import_conversation(
@@ -253,8 +253,8 @@ class DMHistoryService:
                 if created_time:
                     try:
                         msg_timestamp = datetime.fromisoformat(created_time.replace('Z', '+00:00'))
-                    except:
-                        pass
+                    except ValueError as e:
+                        logger.warning("Failed to parse message timestamp: %s", e)
 
                 # Si tenemos cutoff_date y el mensaje es muy antiguo, saltarlo
                 if cutoff_date and msg_timestamp and msg_timestamp < cutoff_date:
@@ -330,14 +330,14 @@ class DMHistoryService:
                 if first_msg_time:
                     try:
                         lead.first_contact_at = datetime.fromisoformat(first_msg_time.replace('Z', '+00:00'))
-                    except:
-                        pass
+                    except ValueError as e:
+                        logger.warning("Failed to parse first_contact_at: %s", e)
 
                 if last_msg_time:
                     try:
                         lead.last_contact_at = datetime.fromisoformat(last_msg_time.replace('Z', '+00:00'))
-                    except:
-                        pass
+                    except ValueError as e:
+                        logger.warning("Failed to parse last_contact_at: %s", e)
 
             session.commit()
             logger.info(
