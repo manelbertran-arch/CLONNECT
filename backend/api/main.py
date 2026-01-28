@@ -321,6 +321,11 @@ from api.routers import insights as insights_router
 
 app.include_router(insights_router.router)
 
+# Audiencia router (aggregated audience data for Tu Audiencia page)
+from api.routers import audiencia as audiencia_router
+
+app.include_router(audiencia_router.router)
+
 # Messaging webhooks router (Instagram, WhatsApp, Telegram)
 from api.routers import messaging_webhooks as messaging_webhooks_router
 
