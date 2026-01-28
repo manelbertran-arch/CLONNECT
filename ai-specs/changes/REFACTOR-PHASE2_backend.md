@@ -47,6 +47,7 @@ backend/
 ├── services/
 │   ├── __init__.py
 │   ├── intent_service.py    # Intent classification ✅
+│   ├── prompt_service.py    # Prompt building ✅
 │   ├── rag_service.py       # RAG/vector search
 │   ├── llm_service.py       # LLM calls (Groq/OpenAI/Anthropic)
 │   ├── memory_service.py    # Conversation memory
@@ -89,12 +90,13 @@ Same process for llm_service.py, memory_service.py, lead_service.py, instagram_s
 | Step | Service | Lines | Tests | Commit | Status |
 |------|---------|-------|-------|--------|--------|
 | 1 | Analysis | - | - | - | ✅ |
-| 1.5 | intent_service.py | 184 | 8/8 | TDD | ✅ |
-| 2 | rag_service.py | - | - | - | ⏳ |
-| 3 | llm_service.py | - | - | - | ⏳ |
-| 4 | memory_service.py | - | - | - | ⏳ |
-| 5 | lead_service.py | - | - | - | ⏳ |
-| 6 | instagram_service.py | - | - | - | ⏳ |
+| 1.5 | intent_service.py | 184 | 8/8 | c2c9ddee | ✅ |
+| 2 | prompt_service.py | 214 | 12/12 | TDD | ✅ |
+| 3 | rag_service.py | - | - | - | ⏳ |
+| 4 | llm_service.py | - | - | - | ⏳ |
+| 5 | memory_service.py | - | - | - | ⏳ |
+| 6 | lead_service.py | - | - | - | ⏳ |
+| 7 | instagram_service.py | - | - | - | ⏳ |
 
 **Current**: dm_agent.py 7,489 lines
 **Target**: dm_agent.py <500 lines
