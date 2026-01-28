@@ -250,6 +250,70 @@ class LeadService:
         }
         return recommendations.get(stage, {})
 
+    # Intent-based score thresholds (0.0 to 1.0 scale)
+    INTENT_SCORE_HOT = 0.75  # Direct purchase intent
+    INTENT_SCORE_WARM = 0.50  # Soft interest
+    INTENT_SCORE_NEW = 0.25  # Product questions
+
+    # Objection adjustments
+    OBJECTION_DECREMENTS = {
+        "OBJECTION_PRICE": -0.05,
+        "OBJECTION_TIME": -0.05,
+        "OBJECTION_DOUBT": -0.05,
+        "OBJECTION_LATER": -0.03,
+        "OBJECTION_WORKS": 0.05,  # Asking for proof = real interest
+        "OBJECTION_NOT_FOR_ME": -0.05,
+        "OBJECTION_COMPLICATED": -0.03,
+        "OBJECTION_ALREADY_HAVE": -0.1,
+    }
+
+    def calculate_intent_score(
+        self,
+        current_score: float,
+        intent: str,
+        has_direct_purchase_keywords: bool = False,
+    ) -> float:
+        """
+        Calculate intent-based score (0.0-1.0 scale).
+
+        This method implements the "never decrease on positive intent" pattern:
+        - Positive intents set minimum score thresholds
+        - Objections apply decrements
+
+        Args:
+            current_score: Current score (0.0-1.0)
+            intent: Intent string (e.g., "INTEREST_STRONG", "OBJECTION_PRICE")
+            has_direct_purchase_keywords: Whether message has purchase keywords
+
+        Returns:
+            Updated score between 0.0 and 1.0
+        """
+        score = current_score or 0.0
+
+        # Direct purchase keywords → Hot (75%)
+        if has_direct_purchase_keywords:
+            score = max(score, self.INTENT_SCORE_HOT)
+            logger.debug(f"[LeadService] Direct purchase keywords → score={score:.0%}")
+            return score
+
+        # Intent-based minimum thresholds
+        if intent == "INTEREST_STRONG":
+            score = max(score, self.INTENT_SCORE_HOT)
+            logger.debug(f"[LeadService] INTEREST_STRONG → score={score:.0%}")
+        elif intent == "INTEREST_SOFT":
+            score = max(score, self.INTENT_SCORE_WARM)
+            logger.debug(f"[LeadService] INTEREST_SOFT → score={score:.0%}")
+        elif intent == "QUESTION_PRODUCT":
+            score = max(score, self.INTENT_SCORE_NEW)
+            logger.debug(f"[LeadService] QUESTION_PRODUCT → score={score:.0%}")
+        elif intent in self.OBJECTION_DECREMENTS:
+            # Apply objection decrement
+            change = self.OBJECTION_DECREMENTS[intent]
+            score = max(0.0, min(1.0, score + change))
+            logger.debug(f"[LeadService] {intent} → change={change:+.0%}, score={score:.0%}")
+
+        return score
+
     def get_stats(self) -> Dict[str, Any]:
         """Get service statistics."""
         return {
@@ -259,4 +323,10 @@ class LeadService:
             },
             "fantasma_threshold_days": self.FANTASMA_THRESHOLD_DAYS,
             "weights": self.WEIGHTS,
+            "intent_thresholds": {
+                "hot": self.INTENT_SCORE_HOT,
+                "warm": self.INTENT_SCORE_WARM,
+                "new": self.INTENT_SCORE_NEW,
+            },
+            "objection_decrements": self.OBJECTION_DECREMENTS,
         }

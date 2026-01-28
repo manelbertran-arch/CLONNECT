@@ -152,3 +152,70 @@ class TestStageTransition:
         service = LeadService()
         stage = service.determine_stage(score=20, days_since_contact=30)
         assert stage == LeadStage.FANTASMA
+
+
+class TestIntentScoring:
+    """Test intent-based scoring functionality (Phase 3A integration)."""
+
+    def test_calculate_intent_score_exists(self):
+        """LeadService should have calculate_intent_score method."""
+        from services.lead_service import LeadService
+        assert hasattr(LeadService, 'calculate_intent_score')
+
+    def test_direct_purchase_keywords_sets_hot(self):
+        """Direct purchase keywords should set score to 75% (hot)."""
+        from services.lead_service import LeadService
+        service = LeadService()
+        score = service.calculate_intent_score(
+            current_score=0.0,
+            intent="GREETING",
+            has_direct_purchase_keywords=True
+        )
+        assert score == 0.75
+
+    def test_interest_strong_sets_hot(self):
+        """INTEREST_STRONG should set score to 75% (hot)."""
+        from services.lead_service import LeadService
+        service = LeadService()
+        score = service.calculate_intent_score(current_score=0.0, intent="INTEREST_STRONG")
+        assert score == 0.75
+
+    def test_interest_soft_sets_warm(self):
+        """INTEREST_SOFT should set score to 50% (warm)."""
+        from services.lead_service import LeadService
+        service = LeadService()
+        score = service.calculate_intent_score(current_score=0.0, intent="INTEREST_SOFT")
+        assert score == 0.50
+
+    def test_question_product_sets_new_threshold(self):
+        """QUESTION_PRODUCT should set score to 25%."""
+        from services.lead_service import LeadService
+        service = LeadService()
+        score = service.calculate_intent_score(current_score=0.0, intent="QUESTION_PRODUCT")
+        assert score == 0.25
+
+    def test_objection_price_decrements(self):
+        """OBJECTION_PRICE should decrement score by 5%."""
+        from services.lead_service import LeadService
+        service = LeadService()
+        score = service.calculate_intent_score(current_score=0.50, intent="OBJECTION_PRICE")
+        assert score == 0.45
+
+    def test_never_decrease_on_positive_intent(self):
+        """Positive intents should never decrease existing score."""
+        from services.lead_service import LeadService
+        service = LeadService()
+        # If score is already 80%, INTEREST_SOFT (50%) should not decrease it
+        score = service.calculate_intent_score(current_score=0.80, intent="INTEREST_SOFT")
+        assert score == 0.80
+
+    def test_score_bounds_enforced(self):
+        """Score should stay within 0.0-1.0 range."""
+        from services.lead_service import LeadService
+        service = LeadService()
+        # Decrement from 0 should not go negative
+        score = service.calculate_intent_score(current_score=0.02, intent="OBJECTION_PRICE")
+        assert score >= 0.0
+        # High score should not exceed 1.0
+        score = service.calculate_intent_score(current_score=0.95, intent="INTEREST_STRONG")
+        assert score <= 1.0

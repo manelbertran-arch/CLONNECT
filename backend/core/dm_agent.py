@@ -83,6 +83,11 @@ from core.sensitive_detector import (
 )
 from core.conversation_state import ConversationPhase
 
+# =============================================================================
+# PHASE 3A: Service Integration (refactor/service-integration)
+# =============================================================================
+from services import LeadService, InstagramService
+
 # PostgreSQL integration
 USE_POSTGRES = bool(os.getenv("DATABASE_URL"))
 db_service = None
@@ -1965,6 +1970,10 @@ class DMResponderAgent:
         self.memory_store = MemoryStore()
         self.config_manager = CreatorConfigManager()
         self._follower_cache: Dict[str, FollowerMemory] = {}
+
+        # Phase 3A: Service integration
+        self.lead_service = LeadService()
+        self.instagram_service = InstagramService()
 
         logger.info(f"DM Agent initialized for creator: {creator_id}")
         logger.info(f"Creator: {self.creator_config.get('name', 'Unknown')}")
@@ -6739,46 +6748,20 @@ INSTRUCCIONES:
                         f"Telegram captured: {username} for follower {follower.follower_id}"
                     )
 
-        # Actualizar score de intención
-        # Usamos MÍNIMOS para intenciones positivas (el score no baja de ese valor)
-        # y DECREMENTOS para objeciones
-
-        # === SCORE RANGES: 25% / 50% / 75% / 100% ===
+        # Actualizar score de intención usando LeadService
+        # Score ranges: 25% / 50% / 75% / 100%
         # New Leads: 0-25% | Warm: 25-50% | Hot: 50-75% | Customer: 75%+
-
-        # BOOST: Si hay keywords de compra directa, subir a 75% (Hot)
-        if is_direct_purchase_intent(message):
-            follower.purchase_intent_score = max(follower.purchase_intent_score or 0.0, 0.75)
+        old_score = follower.purchase_intent_score or 0.0
+        follower.purchase_intent_score = self.lead_service.calculate_intent_score(
+            current_score=old_score,
+            intent=intent.value if hasattr(intent, 'value') else str(intent),
+            has_direct_purchase_keywords=is_direct_purchase_intent(message),
+        )
+        if follower.purchase_intent_score != old_score:
             logger.info(
-                f"Direct purchase keywords detected - score boosted to {follower.purchase_intent_score}"
+                f"Score updated: {old_score:.0%} → {follower.purchase_intent_score:.0%} "
+                f"(intent={intent.value if hasattr(intent, 'value') else intent})"
             )
-        elif intent == Intent.INTEREST_STRONG:
-            # Interés fuerte ("quiero comprar"): 75% → Hot
-            follower.purchase_intent_score = max(follower.purchase_intent_score or 0.0, 0.75)
-            logger.info(f"INTEREST_STRONG detected - score set to 75% (Hot)")
-        elif intent == Intent.INTEREST_SOFT:
-            # Interés suave ("me interesa"): 50% → Warm
-            follower.purchase_intent_score = max(follower.purchase_intent_score or 0.0, 0.50)
-            logger.info(f"INTEREST_SOFT detected - score set to 50% (Warm)")
-        elif intent == Intent.QUESTION_PRODUCT:
-            # Pregunta sobre producto: 25% → sale de New Leads
-            follower.purchase_intent_score = max(follower.purchase_intent_score or 0.0, 0.25)
-        else:
-            # Para objeciones y otros, aplicar decrementos
-            objection_decrements = {
-                Intent.OBJECTION_PRICE: -0.05,
-                Intent.OBJECTION_TIME: -0.05,
-                Intent.OBJECTION_DOUBT: -0.05,
-                Intent.OBJECTION_LATER: -0.03,
-                Intent.OBJECTION_WORKS: 0.05,  # Pide pruebas = interés real
-                Intent.OBJECTION_NOT_FOR_ME: -0.05,
-                Intent.OBJECTION_COMPLICATED: -0.03,
-                Intent.OBJECTION_ALREADY_HAVE: -0.1,
-            }
-            change = objection_decrements.get(intent, 0)
-            if change != 0:
-                current_score = follower.purchase_intent_score or 0.0
-                follower.purchase_intent_score = max(0.0, min(1.0, current_score + change))
 
         # Marcar como lead (score > 25% = sale de New Leads)
         if (follower.purchase_intent_score or 0) > 0.25 or intent == Intent.INTEREST_STRONG:
