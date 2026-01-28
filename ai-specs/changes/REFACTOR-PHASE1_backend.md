@@ -24,9 +24,10 @@ Refactoring main.py from 7,198 lines to <500 lines by extracting endpoint groups
 | 2026-01-28 | (duplicates) | -299 | a42bf253 | Removed duplicate onboarding/products/dashboard |
 | 2026-01-28 | ai.py | -655 | 6e790d24 | 3 AI/Grok endpoints + 3 helpers |
 | 2026-01-28 | (duplicates) | -76 | 219bf2d2 | Removed purchases/revenue/bookings duplicates |
-| **Total** | | **-3,625** | | **74 endpoints** |
+| 2026-01-28 | debug.py | -575 | pending | 8 debug/diagnostic endpoints |
+| **Total** | | **-4,200** | | **82 endpoints** |
 
-Current: 7,198 → 3,573 lines (50% reduction)
+Current: 7,198 → 2,998 lines (58% reduction)
 
 ## Remaining Extractions
 | Priority | Router | Endpoints Est. | Status |
