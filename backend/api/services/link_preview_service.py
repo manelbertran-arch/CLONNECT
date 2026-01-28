@@ -1,7 +1,10 @@
 """Link Preview Service - Obtiene thumbnails de posts/reels compartidos"""
+import logging
 import httpx
 import asyncio
 from typing import Optional, Dict
+
+logger = logging.getLogger(__name__)
 
 class LinkPreviewService:
     """Servicio para obtener previews de links usando Microlink API"""
@@ -37,7 +40,7 @@ class LinkPreviewService:
                             "url": result.get("url")
                         }
         except Exception as e:
-            print(f"Link preview error for {url}: {e}")
+            logger.warning("Link preview error for %s: %s", url, e)
 
         return None
 

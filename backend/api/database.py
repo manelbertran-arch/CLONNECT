@@ -1,21 +1,24 @@
+import logging
 import os
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker, declarative_base
 from sqlalchemy.pool import QueuePool
 
+logger = logging.getLogger(__name__)
+
 # Get DATABASE_URL and fix Railway's postgres:// to postgresql://
 DATABASE_URL = os.getenv("DATABASE_URL", "")
 if DATABASE_URL.startswith("postgres://"):
     DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql://", 1)
-    print(f"Fixed DATABASE_URL scheme: postgres:// -> postgresql://")
+    logger.info("Fixed DATABASE_URL scheme: postgres:// -> postgresql://")
 
 # Ensure sslmode=require for Neon PostgreSQL
 if DATABASE_URL and "sslmode" not in DATABASE_URL:
     separator = "&" if "?" in DATABASE_URL else "?"
     DATABASE_URL = f"{DATABASE_URL}{separator}sslmode=require"
-    print(f"Added sslmode=require to DATABASE_URL")
+    logger.info("Added sslmode=require to DATABASE_URL")
 
-print(f"DATABASE_URL configured: {bool(DATABASE_URL)}")
+logger.info("DATABASE_URL configured: %s", bool(DATABASE_URL))
 
 engine = None
 SessionLocal = None
@@ -41,11 +44,9 @@ if DATABASE_URL:
             }
         )
         SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
-        print(f"SQLAlchemy engine created successfully with connection pooling")
+        logger.info("SQLAlchemy engine created successfully with connection pooling")
     except Exception as e:
-        print(f"Failed to create SQLAlchemy engine: {e}")
-        import traceback
-        traceback.print_exc()
+        logger.error("Failed to create SQLAlchemy engine: %s", e, exc_info=True)
 
 Base = declarative_base()
 

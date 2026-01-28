@@ -661,12 +661,12 @@ def main():
     )
 
     if args.mode == "polling":
-        print(f"Starting Telegram bot in polling mode (creator: {args.creator_id})")
-        print("Press Ctrl+C to stop")
+        logger.info("Starting Telegram bot in polling mode (creator: %s)", args.creator_id)
+        logger.info("Press Ctrl+C to stop")
         asyncio.run(run_polling(args.creator_id))
     else:
-        print("Webhook mode: Use FastAPI endpoints to receive updates")
-        print("Start the API with: uvicorn api.main:app --host 0.0.0.0 --port 8000")
+        logger.info("Webhook mode: Use FastAPI endpoints to receive updates")
+        logger.info("Start the API with: uvicorn api.main:app --host 0.0.0.0 --port 8000")
 
 
 if __name__ == "__main__":

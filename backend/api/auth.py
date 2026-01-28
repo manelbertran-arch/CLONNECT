@@ -5,8 +5,11 @@ Authentication module for Clonnect
 - User registration and login
 """
 
+import logging
 import os
 import uuid
+
+logger = logging.getLogger(__name__)
 from datetime import datetime, timedelta
 from typing import Optional
 
@@ -32,10 +35,10 @@ if not JWT_SECRET:
     # Generate a random secret for development (changes on restart)
     import secrets
     JWT_SECRET = secrets.token_urlsafe(32)
-    print("⚠️  WARNING: JWT_SECRET not set - using random secret. Tokens will invalidate on restart!")
-    print("   Set JWT_SECRET env var for production to persist tokens across restarts.")
+    logger.warning("JWT_SECRET not set - using random secret. Tokens will invalidate on restart!")
+    logger.warning("Set JWT_SECRET env var for production to persist tokens across restarts.")
 elif len(JWT_SECRET) < 32:
-    print("⚠️  WARNING: JWT_SECRET is less than 32 characters. Use a longer secret for security.")
+    logger.warning("JWT_SECRET is less than 32 characters. Use a longer secret for security.")
 
 JWT_ALGORITHM = "HS256"
 JWT_EXPIRATION_HOURS = 24 * 7  # 1 week

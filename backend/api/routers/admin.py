@@ -2460,7 +2460,7 @@ async def simple_dm_sync(creator_id: str, max_convs: int = 10):
                                     # Check for share field at message level (shared posts/reels)
                                     share_data = msg.get("share")
                                     if share_data:
-                                        print(f"[SYNC DEBUG] Share field found: {share_data}")
+                                        logger.debug("Share field found: %s", share_data)
                                         msg_text = "Post compartido"
                                         msg_metadata = {
                                             "type": "shared_post",
@@ -2474,7 +2474,7 @@ async def simple_dm_sync(creator_id: str, max_convs: int = 10):
                                         if attachments:
                                             for att in attachments:
                                                 # DEBUG: Log attachment structure
-                                                print(f"[SYNC DEBUG] Attachment: {att}")
+                                                logger.debug("Attachment: %s", att)
 
                                                 att_type = (att.get("type") or "").lower()
 
