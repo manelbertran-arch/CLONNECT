@@ -1,19 +1,253 @@
-"""Health check endpoints"""
-from fastapi import APIRouter
-from datetime import datetime, timezone
+"""Health check endpoints for Kubernetes probes and system monitoring"""
 import logging
 import os
+import shutil
+import time
+from datetime import datetime, timezone
+from typing import Any, Dict
+
+from fastapi import APIRouter
 
 logger = logging.getLogger(__name__)
 router = APIRouter(tags=["health"])
 
 # Version for tracking deployments
-BUILD_VERSION = "2026.01.05.v2"
+VERSION = "1.0.0"
+
+# Optional psutil for memory health checks
+try:
+    import psutil
+    PSUTIL_AVAILABLE = True
+except ImportError:
+    PSUTIL_AVAILABLE = False
+    psutil = None
+
+
+# =============================================================================
+# HEALTH CHECK HELPERS
+# =============================================================================
+
+async def check_llm_health() -> Dict[str, Any]:
+    """Verify connection to LLM (Groq/OpenAI/Anthropic)"""
+    try:
+        from core.llm import get_llm_client
+
+        start = time.time()
+        llm_client = get_llm_client()
+
+        # Make a simple test call
+        response = await llm_client.generate(prompt="Responde solo 'ok'", max_tokens=5)
+
+        latency_ms = int((time.time() - start) * 1000)
+
+        return {
+            "status": "ok",
+            "latency_ms": latency_ms,
+            "provider": os.getenv("LLM_PROVIDER", "openai"),
+        }
+    except Exception as e:
+        return {"status": "error", "error": str(e), "provider": os.getenv("LLM_PROVIDER", "openai")}
+
+
+def check_disk_health() -> Dict[str, Any]:
+    """Verify disk space availability"""
+    try:
+        data_path = os.getenv("DATA_PATH", "./data")
+
+        # Get disk info
+        total, used, free = shutil.disk_usage(data_path)
+        free_gb = round(free / (1024**3), 2)
+
+        # Warning if less than 1GB, error if less than 100MB
+        if free_gb < 0.1:
+            status = "error"
+        elif free_gb < 1.0:
+            status = "warning"
+        else:
+            status = "ok"
+
+        return {
+            "status": status,
+            "free_gb": free_gb,
+            "total_gb": round(total / (1024**3), 2),
+            "used_percent": round((used / total) * 100, 1),
+        }
+    except Exception as e:
+        return {"status": "error", "error": str(e)}
+
+
+def check_memory_health() -> Dict[str, Any]:
+    """Verify available RAM"""
+    try:
+        if not PSUTIL_AVAILABLE:
+            return {"status": "unknown", "error": "psutil not installed"}
+
+        mem = psutil.virtual_memory()
+        free_mb = round(mem.available / (1024**2), 1)
+
+        # Warning if less than 256MB, error if less than 128MB
+        if free_mb < 128:
+            status = "error"
+        elif free_mb < 256:
+            status = "warning"
+        else:
+            status = "ok"
+
+        return {
+            "status": status,
+            "free_mb": free_mb,
+            "total_mb": round(mem.total / (1024**2), 1),
+            "used_percent": round(mem.percent, 1),
+        }
+    except Exception as e:
+        return {"status": "error", "error": str(e)}
+
+
+def check_data_dir_health() -> Dict[str, Any]:
+    """Verify access to data directory"""
+    try:
+        data_path = os.getenv("DATA_PATH", "./data")
+
+        # Check if exists
+        if not os.path.exists(data_path):
+            return {"status": "error", "error": "data directory does not exist"}
+
+        # Check important subdirectories
+        subdirs = ["followers", "products", "creators", "analytics"]
+        missing = []
+
+        for subdir in subdirs:
+            path = os.path.join(data_path, subdir)
+            if not os.path.exists(path):
+                missing.append(subdir)
+
+        if missing:
+            return {"status": "warning", "path": data_path, "missing_subdirs": missing}
+
+        # Check if writable
+        test_file = os.path.join(data_path, ".health_check")
+        try:
+            with open(test_file, "w") as f:
+                f.write("test")
+            os.remove(test_file)
+            writable = True
+        except Exception as e:
+            logger.warning(f"Data path not writable: {e}")
+            writable = False
+
+        return {"status": "ok" if writable else "error", "path": data_path, "writable": writable}
+    except Exception as e:
+        return {"status": "error", "error": str(e)}
+
+
+def determine_overall_status(checks: Dict[str, Dict]) -> str:
+    """Determine overall status based on individual checks"""
+    statuses = [check.get("status", "unknown") for check in checks.values()]
+
+    if "error" in statuses:
+        return "unhealthy"
+    elif "warning" in statuses or "unknown" in statuses:
+        return "degraded"
+    else:
+        return "healthy"
+
+
+# =============================================================================
+# HEALTH ENDPOINTS
+# =============================================================================
+
+@router.get("/health")
+async def health():
+    """
+    Full system health check.
+
+    Verifies:
+    - Overall system status
+    - LLM connection (Groq/OpenAI)
+    - Disk space
+    - RAM memory
+    - Access to data directory
+
+    Returns:
+        status: healthy | degraded | unhealthy
+        checks: Details of each verification
+    """
+    checks = {
+        "disk": check_disk_health(),
+        "memory": check_memory_health(),
+        "data_dir": check_data_dir_health(),
+    }
+
+    # LLM check is async
+    checks["llm"] = await check_llm_health()
+
+    overall_status = determine_overall_status(checks)
+
+    # Send alert if status is unhealthy
+    if overall_status == "unhealthy":
+        try:
+            from core.alerts import get_alert_manager
+            alert_manager = get_alert_manager()
+            failed_checks = {k: v for k, v in checks.items() if v.get("status") == "error"}
+            await alert_manager.alert_health_check_failed(
+                check_name="system", status=overall_status, details=failed_checks
+            )
+        except Exception as e:
+            logger.debug(f"Could not send health alert: {e}")
+
+    return {
+        "status": overall_status,
+        "timestamp": datetime.now(timezone.utc).isoformat(),
+        "checks": checks,
+        "version": VERSION,
+        "service": "clonnect-creators",
+    }
+
 
 @router.get("/health/live")
 def health_live():
-    return {"status": "ok", "version": BUILD_VERSION}
+    """
+    Liveness probe for Kubernetes.
+
+    Only verifies that the process is alive and can respond.
+    Minimal response for low overhead.
+
+    Returns:
+        status: ok | error
+    """
+    return {"status": "ok"}
+
 
 @router.get("/health/ready")
 async def health_ready():
-    return {"status": "ok", "ready": True, "timestamp": datetime.now(timezone.utc).isoformat()}
+    """
+    Readiness probe for Kubernetes.
+
+    Verifies that the service can process messages:
+    - LLM accessible
+    - Data directory accessible
+
+    Returns:
+        status: ok | error
+        ready: boolean
+    """
+    try:
+        # Check data access
+        data_check = check_data_dir_health()
+        if data_check.get("status") == "error":
+            return {"status": "error", "ready": False, "reason": "data_dir_not_accessible"}
+
+        # Check LLM
+        llm_check = await check_llm_health()
+        if llm_check.get("status") == "error":
+            return {
+                "status": "error",
+                "ready": False,
+                "reason": "llm_not_accessible",
+                "llm_error": llm_check.get("error"),
+            }
+
+        return {"status": "ok", "ready": True, "llm_latency_ms": llm_check.get("latency_ms")}
+
+    except Exception as e:
+        return {"status": "error", "ready": False, "reason": str(e)}
