@@ -45,7 +45,7 @@ const navItems: NavItem[] = [
   // Inteligencia section
   { type: "section", label: "INTELIGENCIA" },
   { path: "/tu-audiencia", label: "Tu Audiencia", icon: Lightbulb },
-  { path: "/personas", label: "Personas", icon: UserCircle, disabled: true, badge: "Pronto" },
+  { path: "/personas", label: "Personas", icon: UserCircle },
 
   // Divider before settings
   { type: "divider", label: "" },
