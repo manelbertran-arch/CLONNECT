@@ -13,9 +13,14 @@ logger = logging.getLogger(__name__)
 from datetime import datetime, timedelta
 from typing import Optional
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, Header, HTTPException, status
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from pydantic import BaseModel, EmailStr
+
+try:
+    from core.auth import get_auth_manager, is_admin_key, validate_api_key
+except ImportError:
+    from api.core.auth import get_auth_manager, is_admin_key, validate_api_key
 from sqlalchemy.orm import Session
 from sqlalchemy import and_
 import bcrypt
@@ -396,3 +401,186 @@ async def unlink_creator(
     db.commit()
 
     return {"message": "Creator unlinked successfully"}
+
+
+# ---------------------------------------------------------
+# API KEY AUTHENTICATION
+# ---------------------------------------------------------
+class CreateAPIKeyRequest(BaseModel):
+    creator_id: str
+    name: Optional[str] = None
+
+
+# API Key dependency functions
+async def get_current_creator(x_api_key: Optional[str] = Header(None, alias="X-API-Key")) -> str:
+    """
+    Dependency to get creator_id from API key.
+    Raises HTTPException 401 if no key or invalid.
+    """
+    if not x_api_key:
+        raise HTTPException(
+            status_code=401,
+            detail="API key required. Include X-API-Key header.",
+            headers={"WWW-Authenticate": "ApiKey"},
+        )
+
+    creator_id = validate_api_key(x_api_key)
+
+    if not creator_id:
+        raise HTTPException(
+            status_code=401,
+            detail="Invalid or expired API key.",
+            headers={"WWW-Authenticate": "ApiKey"},
+        )
+
+    return creator_id
+
+
+async def get_optional_creator(
+    x_api_key: Optional[str] = Header(None, alias="X-API-Key")
+) -> Optional[str]:
+    """
+    Optional dependency - returns creator_id or None.
+    Does not raise exception if no key.
+    """
+    if not x_api_key:
+        return None
+
+    return validate_api_key(x_api_key)
+
+
+async def require_admin(x_api_key: Optional[str] = Header(None, alias="X-API-Key")) -> str:
+    """
+    Dependency that requires admin key.
+    Raises HTTPException 403 if not admin.
+    """
+    if not x_api_key:
+        raise HTTPException(
+            status_code=401, detail="API key required.", headers={"WWW-Authenticate": "ApiKey"}
+        )
+
+    if is_admin_key(x_api_key):
+        return "__admin__"
+
+    raise HTTPException(status_code=403, detail="Admin privileges required for this operation.")
+
+
+async def require_creator_or_admin(
+    creator_id: str, x_api_key: Optional[str] = Header(None, alias="X-API-Key")
+) -> str:
+    """
+    Verifies that API key belongs to creator_id or is admin.
+    """
+    if not x_api_key:
+        raise HTTPException(
+            status_code=401, detail="API key required.", headers={"WWW-Authenticate": "ApiKey"}
+        )
+
+    if is_admin_key(x_api_key):
+        return "__admin__"
+
+    key_creator_id = validate_api_key(x_api_key)
+
+    if not key_creator_id:
+        raise HTTPException(status_code=401, detail="Invalid API key.")
+
+    if key_creator_id != creator_id:
+        raise HTTPException(
+            status_code=403, detail="You don't have permission to access this creator's data."
+        )
+
+    return key_creator_id
+
+
+# ---------------------------------------------------------
+# API KEY ENDPOINTS
+# ---------------------------------------------------------
+@router.post("/keys")
+async def create_api_key(request: CreateAPIKeyRequest, admin: str = Depends(require_admin)):
+    """
+    Create a new API key for a creator.
+    Requires admin key.
+
+    The full API key is only shown once.
+    Store it securely.
+    """
+    auth_manager = get_auth_manager()
+    api_key = auth_manager.generate_api_key(creator_id=request.creator_id, name=request.name)
+
+    return {
+        "status": "ok",
+        "api_key": api_key,
+        "creator_id": request.creator_id,
+        "warning": "Save this key securely. It will not be shown again.",
+    }
+
+
+@router.get("/keys")
+async def list_all_api_keys(admin: str = Depends(require_admin)):
+    """
+    List all API keys (admin only).
+    Does not show full keys, only prefixes.
+    """
+    auth_manager = get_auth_manager()
+    keys = auth_manager.list_all_keys()
+
+    return {"status": "ok", "keys": keys, "count": len(keys)}
+
+
+@router.get("/keys/{creator_id}")
+async def list_creator_api_keys(
+    creator_id: str, x_api_key: Optional[str] = Header(None, alias="X-API-Key")
+):
+    """
+    List API keys for a creator.
+    Requires being the creator or admin.
+    """
+    # Verify permissions
+    await require_creator_or_admin(creator_id, x_api_key)
+
+    auth_manager = get_auth_manager()
+    keys = auth_manager.list_api_keys(creator_id)
+
+    return {"status": "ok", "creator_id": creator_id, "keys": keys, "count": len(keys)}
+
+
+@router.delete("/keys/{key_prefix}")
+async def revoke_api_key(key_prefix: str, admin: str = Depends(require_admin)):
+    """
+    Revoke an API key.
+    Requires admin key.
+
+    Use the key prefix (e.g.: clk_abc12345)
+    """
+    auth_manager = get_auth_manager()
+
+    # Get key info to verify it exists
+    key_info = auth_manager.get_key_info(key_prefix)
+    if not key_info:
+        raise HTTPException(status_code=404, detail="API key not found")
+
+    success = auth_manager.revoke_api_key(key_prefix)
+
+    if not success:
+        raise HTTPException(status_code=404, detail="API key not found")
+
+    return {
+        "status": "ok",
+        "revoked": True,
+        "key_prefix": key_prefix,
+        "creator_id": key_info.get("creator_id"),
+    }
+
+
+@router.get("/verify")
+async def verify_api_key(current_creator: str = Depends(get_current_creator)):
+    """
+    Verify that an API key is valid.
+    Returns the associated creator_id.
+    """
+    return {
+        "status": "ok",
+        "valid": True,
+        "creator_id": current_creator,
+        "is_admin": current_creator == "__admin__",
+    }

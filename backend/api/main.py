@@ -88,7 +88,6 @@ logging.warning("=" * 60)
 logging.warning("========== API MAIN V7 LOADED ==========")
 
 from core.alerts import get_alert_manager
-from core.auth import get_auth_manager, is_admin_key, validate_api_key
 from core.calendar import get_calendar_manager
 from core.creator_config import CreatorConfig, CreatorConfigManager
 from core.dm_agent import DMResponderAgent
@@ -277,7 +276,13 @@ from api.routers import preview as preview_router
 app.include_router(preview_router.router)
 
 # Authentication router
-from api.auth import router as auth_router
+from api.auth import (
+    router as auth_router,
+    get_current_creator,
+    get_optional_creator,
+    require_admin,
+    require_creator_or_admin,
+)
 
 app.include_router(auth_router)
 
@@ -319,86 +324,6 @@ WEBHOOK_ENDPOINTS = {
     "/instagram/webhook",  # Legacy
     "/telegram/webhook",  # Legacy
 }
-
-
-async def get_current_creator(x_api_key: Optional[str] = Header(None, alias="X-API-Key")) -> str:
-    """
-    Dependency para obtener el creator_id del API key.
-    Lanza HTTPException 401 si no hay key o es invalida.
-    """
-    if not x_api_key:
-        raise HTTPException(
-            status_code=401,
-            detail="API key required. Include X-API-Key header.",
-            headers={"WWW-Authenticate": "ApiKey"},
-        )
-
-    creator_id = validate_api_key(x_api_key)
-
-    if not creator_id:
-        raise HTTPException(
-            status_code=401,
-            detail="Invalid or expired API key.",
-            headers={"WWW-Authenticate": "ApiKey"},
-        )
-
-    return creator_id
-
-
-async def get_optional_creator(
-    x_api_key: Optional[str] = Header(None, alias="X-API-Key")
-) -> Optional[str]:
-    """
-    Dependency opcional - retorna creator_id o None.
-    No lanza excepcion si no hay key.
-    """
-    if not x_api_key:
-        return None
-
-    return validate_api_key(x_api_key)
-
-
-async def require_admin(x_api_key: Optional[str] = Header(None, alias="X-API-Key")) -> str:
-    """
-    Dependency que requiere admin key.
-    Lanza HTTPException 403 si no es admin.
-    """
-    if not x_api_key:
-        raise HTTPException(
-            status_code=401, detail="API key required.", headers={"WWW-Authenticate": "ApiKey"}
-        )
-
-    if is_admin_key(x_api_key):
-        return "__admin__"
-
-    raise HTTPException(status_code=403, detail="Admin privileges required for this operation.")
-
-
-async def require_creator_or_admin(
-    creator_id: str, x_api_key: Optional[str] = Header(None, alias="X-API-Key")
-) -> str:
-    """
-    Verifica que el API key pertenece al creator_id o es admin.
-    """
-    if not x_api_key:
-        raise HTTPException(
-            status_code=401, detail="API key required.", headers={"WWW-Authenticate": "ApiKey"}
-        )
-
-    if is_admin_key(x_api_key):
-        return "__admin__"
-
-    key_creator_id = validate_api_key(x_api_key)
-
-    if not key_creator_id:
-        raise HTTPException(status_code=401, detail="Invalid API key.")
-
-    if key_creator_id != creator_id:
-        raise HTTPException(
-            status_code=403, detail="You don't have permission to access this creator's data."
-        )
-
-    return key_creator_id
 
 
 # ---------------------------------------------------------
@@ -1444,105 +1369,6 @@ async def metrics():
     ```
     """
     return Response(content=get_metrics(), media_type=get_content_type())
-
-
-# ---------------------------------------------------------
-# AUTHENTICATION ENDPOINTS
-# ---------------------------------------------------------
-class CreateAPIKeyRequest(BaseModel):
-    creator_id: str
-    name: Optional[str] = None
-
-
-@app.post("/auth/keys")
-async def create_api_key(request: CreateAPIKeyRequest, admin: str = Depends(require_admin)):
-    """
-    Crear una nueva API key para un creador.
-    Requiere admin key.
-
-    La API key completa solo se muestra una vez.
-    Guardala de forma segura.
-    """
-    auth_manager = get_auth_manager()
-    api_key = auth_manager.generate_api_key(creator_id=request.creator_id, name=request.name)
-
-    return {
-        "status": "ok",
-        "api_key": api_key,
-        "creator_id": request.creator_id,
-        "warning": "Save this key securely. It will not be shown again.",
-    }
-
-
-@app.get("/auth/keys")
-async def list_all_api_keys(admin: str = Depends(require_admin)):
-    """
-    Listar todas las API keys (solo admin).
-    No muestra las keys completas, solo prefijos.
-    """
-    auth_manager = get_auth_manager()
-    keys = auth_manager.list_all_keys()
-
-    return {"status": "ok", "keys": keys, "count": len(keys)}
-
-
-@app.get("/auth/keys/{creator_id}")
-async def list_creator_api_keys(
-    creator_id: str, x_api_key: Optional[str] = Header(None, alias="X-API-Key")
-):
-    """
-    Listar API keys de un creador.
-    Requiere ser el creador o admin.
-    """
-    # Verificar permisos
-    await require_creator_or_admin(creator_id, x_api_key)
-
-    auth_manager = get_auth_manager()
-    keys = auth_manager.list_api_keys(creator_id)
-
-    return {"status": "ok", "creator_id": creator_id, "keys": keys, "count": len(keys)}
-
-
-@app.delete("/auth/keys/{key_prefix}")
-async def revoke_api_key(key_prefix: str, admin: str = Depends(require_admin)):
-    """
-    Revocar una API key.
-    Requiere admin key.
-
-    Usa el prefijo de la key (ej: clk_abc12345)
-    """
-    auth_manager = get_auth_manager()
-
-    # Obtener info de la key para verificar que existe
-    key_info = auth_manager.get_key_info(key_prefix)
-    if not key_info:
-        raise HTTPException(status_code=404, detail="API key not found")
-
-    success = auth_manager.revoke_api_key(key_prefix)
-
-    if not success:
-        raise HTTPException(status_code=404, detail="API key not found")
-
-    return {
-        "status": "ok",
-        "revoked": True,
-        "key_prefix": key_prefix,
-        "creator_id": key_info.get("creator_id"),
-    }
-
-
-@app.get("/auth/verify")
-async def verify_api_key(current_creator: str = Depends(get_current_creator)):
-    """
-    Verificar que una API key es valida.
-    Retorna el creator_id asociado.
-    """
-    return {
-        "status": "ok",
-        "valid": True,
-        "creator_id": current_creator,
-        "is_admin": current_creator == "__admin__",
-    }
 
 
 # ---------------------------------------------------------
