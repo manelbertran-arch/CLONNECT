@@ -33,6 +33,17 @@ import InboxTest from "./pages/InboxTest";
 import HomeWithConversations from "./pages/HomeWithConversations";
 import { AnalyticsDashboard } from "./pages/Analytics";
 
+// Coming Soon placeholder component
+function ComingSoon({ title }: { title: string }) {
+  return (
+    <div className="flex flex-col items-center justify-center h-[60vh] gap-4">
+      <div className="text-6xl">🚧</div>
+      <h1 className="text-2xl font-bold">{title}</h1>
+      <p className="text-muted-foreground">Próximamente disponible</p>
+    </div>
+  );
+}
+
 // New Dashboard Pages
 import { NewLayout } from "./components/layout/NewLayout";
 import Inicio from "./pages/new/Inicio";
@@ -92,6 +103,9 @@ const AppRoutes = () => {
         <Route path="/docs" element={<Docs />} />
         <Route path="/terms" element={<Terms />} />
         <Route path="/privacy" element={<Privacy />} />
+        {/* Sprint 4 placeholder routes */}
+        <Route path="/tu-audiencia" element={<ComingSoon title="Tu Audiencia" />} />
+        <Route path="/personas" element={<ComingSoon title="Personas" />} />
       </Route>
 
       {/* New Dashboard Routes */}
