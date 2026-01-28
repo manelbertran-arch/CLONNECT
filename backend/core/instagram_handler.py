@@ -299,8 +299,8 @@ class InstagramHandler:
                         profile = await self.connector.get_user_profile(message.sender_id)
                         if profile:
                             username = profile.username
-                except:
-                    pass
+                except Exception as e:
+                    logger.warning("Failed to get user profile for %s: %s", message.sender_id, e)
 
                 if copilot_enabled:
                     # COPILOT MODE: Save as pending approval, don't send

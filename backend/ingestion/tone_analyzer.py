@@ -268,8 +268,8 @@ class ToneProfile:
         if "generated_at" in data and "last_updated" not in filtered_data:
             try:
                 filtered_data["last_updated"] = datetime.fromisoformat(data["generated_at"])
-            except:
-                pass
+            except ValueError as e:
+                logger.warning("Failed to parse generated_at timestamp: %s", e)
 
         return cls(**filtered_data)
 

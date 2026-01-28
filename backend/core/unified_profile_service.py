@@ -517,8 +517,8 @@ def should_ask_email(
             last_asked_dt = datetime.fromisoformat(last_asked.replace('Z', '+00:00'))
             if datetime.now(timezone.utc) - last_asked_dt < timedelta(hours=24):
                 return EmailAskDecision(False, "", "asked_recently")
-        except:
-            pass
+        except ValueError as e:
+            logger.warning("Failed to parse last_asked timestamp: %s", e)
 
     # Check conditions
     ask_after = config.get("ask_after_messages", 3)

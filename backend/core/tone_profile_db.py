@@ -385,8 +385,8 @@ async def save_instagram_posts_db(creator_id: str, posts: List[dict]) -> int:
                 if post.get('timestamp'):
                     try:
                         timestamp = parse_date(post['timestamp'])
-                    except:
-                        pass
+                    except (ValueError, TypeError) as e:
+                        logger.warning("Failed to parse post timestamp: %s", e)
 
                 # Extract hashtags from caption
                 caption = post.get('caption', '') or ''

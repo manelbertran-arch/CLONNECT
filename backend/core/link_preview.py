@@ -47,7 +47,8 @@ def get_domain(url: str) -> str:
     try:
         parsed = urlparse(url)
         return parsed.netloc.lower()
-    except:
+    except Exception as e:
+        logger.warning("Failed to parse URL domain: %s", e)
         return ""
 
 

@@ -568,8 +568,8 @@ class CalendarManager:
                     start = datetime.fromisoformat(scheduled_at.replace('Z', '+00:00'))
                     end = datetime.fromisoformat(end_time.replace('Z', '+00:00'))
                     duration = int((end - start).total_seconds() / 60)
-                except:
-                    pass
+                except ValueError as e:
+                    logger.warning("Failed to parse calendar event times: %s", e)
 
             # Get meeting type from event name
             event_name = event.get("name", "").lower()

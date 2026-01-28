@@ -395,7 +395,8 @@ class SalesTracker:
         try:
             with open(filepath, 'r', encoding='utf-8') as f:
                 return json.load(f)
-        except:
+        except Exception as e:
+            logger.warning("Failed to load sales from %s: %s", filepath, e)
             return []
 
     def _save_sales(self, creator_id: str, sales: List[dict]):

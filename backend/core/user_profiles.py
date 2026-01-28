@@ -160,8 +160,8 @@ class UserProfile:
                 if self.profile["last_interaction"]:
                     try:
                         last_interaction_dt = datetime.fromisoformat(self.profile["last_interaction"].replace('Z', '+00:00'))
-                    except:
-                        pass
+                    except ValueError as e:
+                        logger.warning("Failed to parse last_interaction timestamp: %s", e)
 
                 if db_record:
                     # Update existing
