@@ -1,9 +1,13 @@
+import logging
 import os
 import sys
+
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from sqlalchemy import create_engine, text
 from sqlalchemy.orm import Session
+
+logger = logging.getLogger(__name__)
 
 def setup_pgvector(engine):
     """
@@ -16,7 +20,7 @@ def setup_pgvector(engine):
     # Skip all pgvector setup - it's pre-configured in Neon
     # The connection pooler blocks DDL and some queries during init
     # Tables exist and will be accessible at runtime
-    print("pgvector setup: skipped (pre-configured in Neon, will verify at runtime)")
+    logger.info("pgvector setup: skipped (pre-configured in Neon, will verify at runtime)")
 
 
 def run_migrations(engine):
@@ -111,9 +115,9 @@ def run_migrations(engine):
                     # Column doesn't exist, add it
                     conn.execute(text(f"ALTER TABLE {table} ADD COLUMN {column} {col_type}"))
                     conn.commit()
-                    print(f"Added column {column} to {table}")
+                    logger.info("Added column %s to %s", column, table)
             except Exception as e:
-                print(f"Migration error for {table}.{column}: {e}")
+                logger.error("Migration error for %s.%s: %s", table, column, e)
 
         # Apply column type alterations
         for table, column, new_type in alterations:
@@ -128,20 +132,20 @@ def run_migrations(engine):
                     # Alter column type to TEXT
                     conn.execute(text(f"ALTER TABLE {table} ALTER COLUMN {column} TYPE {new_type}"))
                     conn.commit()
-                    print(f"Altered column {table}.{column} to {new_type}")
+                    logger.info("Altered column %s.%s to %s", table, column, new_type)
             except Exception as e:
-                print(f"Alteration error for {table}.{column}: {e}")
+                logger.error("Alteration error for %s.%s: %s", table, column, e)
 
 def init_database():
     DATABASE_URL = os.getenv("DATABASE_URL", "")
     if not DATABASE_URL:
-        print("No DATABASE_URL - skipping DB init")
+        logger.warning("No DATABASE_URL - skipping DB init")
         return False
 
     # Fix Railway's postgres:// to postgresql:// for SQLAlchemy 1.4+
     if DATABASE_URL.startswith("postgres://"):
         DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql://", 1)
-        print("Fixed DATABASE_URL scheme: postgres:// -> postgresql://")
+        logger.info("Fixed DATABASE_URL scheme: postgres:// -> postgresql://")
 
     try:
         from api.database import Base
@@ -160,21 +164,21 @@ def init_database():
             EmailAskTracking, RAGDocument, ToneProfile, ContentChunk, InstagramPost
         )
 
-    print(f"Creating engine with DATABASE_URL configured: {bool(DATABASE_URL)}")
+    logger.info("Creating engine with DATABASE_URL configured: %s", bool(DATABASE_URL))
     engine = create_engine(DATABASE_URL)
-    print("Creating tables...")
+    logger.info("Creating tables...")
     Base.metadata.create_all(bind=engine)
-    print("Tables created!")
+    logger.info("Tables created!")
 
     # Run migrations for new columns
-    print("Running migrations...")
+    logger.info("Running migrations...")
     run_migrations(engine)
-    print("Migrations complete!")
+    logger.info("Migrations complete!")
 
     # Setup pgvector for semantic search
-    print("Setting up pgvector...")
+    logger.info("Setting up pgvector...")
     setup_pgvector(engine)
-    print("pgvector setup complete!")
+    logger.info("pgvector setup complete!")
 
     # NOTE: Removed automatic cleanup of booking_links - was causing services to be deleted
     # Only clean up debug test entries if needed
@@ -185,9 +189,9 @@ def init_database():
             ))
             conn.commit()
             if result.rowcount > 0:
-                print(f"Deleted {result.rowcount} debug_test booking_links")
+                logger.info("Deleted %d debug_test booking_links", result.rowcount)
         except Exception as e:
-            print(f"Note: Could not clean up debug booking_links: {e}")
+            logger.warning("Could not clean up debug booking_links: %s", e)
     
     with Session(engine) as session:
         # Create default creator 'manel'
@@ -204,7 +208,7 @@ def init_database():
             )
             session.add(creator)
             session.commit()
-            print("Default creator 'manel' created with copilot_mode=True")
+            logger.info("Default creator 'manel' created with copilot_mode=True")
 
         # Create Stefano creator for Telegram bot
         stefano = session.query(Creator).filter_by(name="stefano_auto").first()
@@ -220,11 +224,11 @@ def init_database():
             )
             session.add(stefano)
             session.commit()
-            print("Creator 'stefano_auto' created with copilot_mode=False (autopilot)")
+            logger.info("Creator 'stefano_auto' created with copilot_mode=False (autopilot)")
         else:
             # Don't override existing copilot_mode setting
             # The user can toggle this via the API
-            print(f"Creator 'stefano_auto' already exists with copilot_mode={stefano.copilot_mode}")
+            logger.info("Creator 'stefano_auto' already exists with copilot_mode=%s", stefano.copilot_mode)
 
         # Create demo user for Stefano
         create_demo_user(session)
@@ -243,7 +247,7 @@ def create_demo_user(session):
     # Check if user exists
     existing_user = session.query(User).filter_by(email="stefano@stefanobonanno.com").first()
     if existing_user:
-        print(f"Demo user 'stefano@stefanobonanno.com' already exists")
+        logger.info("Demo user 'stefano@stefanobonanno.com' already exists")
         return
 
     # Hash the password
@@ -260,7 +264,7 @@ def create_demo_user(session):
     )
     session.add(user)
     session.commit()
-    print(f"Created demo user: stefano@stefanobonanno.com (password: demo2024)")
+    logger.info("Created demo user: stefano@stefanobonanno.com")
 
     # Link user to stefano_auto creator
     stefano_creator = session.query(Creator).filter_by(name="stefano_auto").first()
@@ -278,7 +282,7 @@ def create_demo_user(session):
             )
             session.add(user_creator)
             session.commit()
-            print(f"Linked user to creator 'stefano_auto'")
+            logger.info("Linked user to creator 'stefano_auto'")
 
 if __name__ == "__main__":
     init_database()
