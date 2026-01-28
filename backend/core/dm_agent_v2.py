@@ -507,6 +507,255 @@ class DMResponderAgentV2:
             "instagram_service": self.instagram_service is not None,
         }
 
+    async def get_follower_detail(self, follower_id: str) -> Optional[Dict[str, Any]]:
+        """
+        Get unified follower profile from multiple data sources.
+
+        SPRINT1-T1.1: Extended to unify data from:
+        - follower_memories (basic data)
+        - leads (CRM fields: email, phone, notes, deal_value)
+        - conversation_states (funnel phase, context)
+        - user_profiles (weighted interests, preferences)
+
+        Args:
+            follower_id: Platform-prefixed follower ID (e.g., ig_123)
+
+        Returns:
+            Unified profile dict or None if not found
+        """
+        # Step 1: Get base follower memory
+        follower = await self.memory_store.get(self.creator_id, follower_id)
+
+        if not follower:
+            return None
+
+        # Build base response from follower_memory
+        result = {
+            "follower_id": follower.follower_id,
+            "username": follower.username,
+            "name": follower.name,
+            "platform": self._detect_platform(follower_id),
+            "profile_pic_url": None,  # Will be enriched from leads
+            "first_contact": follower.first_contact,
+            "last_contact": follower.last_contact,
+            "total_messages": follower.total_messages,
+            "interests": follower.interests or [],
+            "products_discussed": follower.products_discussed or [],
+            "objections_raised": follower.objections_raised or [],
+            "purchase_intent_score": follower.purchase_intent_score or 0.0,
+            "is_lead": follower.is_lead,
+            "is_customer": follower.is_customer,
+            "status": getattr(follower, "status", None),
+            "preferred_language": follower.preferred_language or "es",
+            "last_messages": follower.last_messages[-10:] if follower.last_messages else [],
+            # CRM fields (from leads) - defaults
+            "email": None,
+            "phone": None,
+            "notes": None,
+            "deal_value": None,
+            "tags": [],
+            "source": None,
+            "assigned_to": None,
+            # Funnel fields (from conversation_states) - defaults
+            "funnel_phase": None,
+            "funnel_context": {},
+            # Behavior profile (from user_profiles) - defaults
+            "weighted_interests": {},
+            "preferences": {},
+            "interested_products": [],
+        }
+
+        # Step 2: Enrich from PostgreSQL if available
+        try:
+            result = await self._enrich_from_database(result, follower_id)
+        except Exception as e:
+            logger.warning(f"Could not enrich follower data from DB: {e}")
+            # Continue with base data
+
+        return result
+
+    def _detect_platform(self, follower_id: str) -> str:
+        """Detect platform from follower_id prefix."""
+        if follower_id.startswith("ig_"):
+            return "instagram"
+        if follower_id.startswith("tg_"):
+            return "telegram"
+        if follower_id.startswith("wa_"):
+            return "whatsapp"
+        return "instagram"  # Default
+
+    async def _enrich_from_database(
+        self, result: Dict[str, Any], follower_id: str
+    ) -> Dict[str, Any]:
+        """
+        Enrich follower data from PostgreSQL tables using JOINs.
+
+        Uses LEFT JOINs so missing records don't break the query.
+        """
+        import os
+
+        if not os.getenv("DATABASE_URL"):
+            return result
+
+        try:
+            from api.models import ConversationStateDB, Lead, UserProfileDB
+            from api.services.db_service import get_session
+
+            session = get_session()
+            if not session:
+                return result
+
+            try:
+                # Query leads table for CRM data
+                lead = (
+                    session.query(Lead)
+                    .filter(Lead.platform_user_id == follower_id)
+                    .first()
+                )
+                if lead:
+                    result["email"] = lead.email
+                    result["phone"] = lead.phone
+                    result["notes"] = lead.notes
+                    result["deal_value"] = lead.deal_value
+                    result["tags"] = lead.tags or []
+                    result["source"] = lead.source
+                    result["assigned_to"] = lead.assigned_to
+                    result["profile_pic_url"] = lead.profile_pic_url
+                    # Override status from leads if available
+                    if lead.status:
+                        result["status"] = lead.status
+
+                # Query conversation_states for funnel data
+                conv_state = (
+                    session.query(ConversationStateDB)
+                    .filter(
+                        ConversationStateDB.creator_id == self.creator_id,
+                        ConversationStateDB.follower_id == follower_id,
+                    )
+                    .first()
+                )
+                if conv_state:
+                    result["funnel_phase"] = conv_state.phase
+                    result["funnel_context"] = conv_state.context or {}
+
+                # Query user_profiles for behavior data
+                user_profile = (
+                    session.query(UserProfileDB)
+                    .filter(
+                        UserProfileDB.creator_id == self.creator_id,
+                        UserProfileDB.user_id == follower_id,
+                    )
+                    .first()
+                )
+                if user_profile:
+                    result["weighted_interests"] = user_profile.interests or {}
+                    result["preferences"] = user_profile.preferences or {}
+                    result["interested_products"] = user_profile.interested_products or []
+
+            finally:
+                session.close()
+
+        except ImportError:
+            logger.debug("Database models not available for enrichment")
+        except Exception as e:
+            logger.warning(f"Database enrichment failed: {e}")
+
+        return result
+
+    async def save_manual_message(
+        self, follower_id: str, message_text: str, sent: bool = True
+    ) -> bool:
+        """
+        Save a manually sent message in the conversation history.
+
+        Args:
+            follower_id: The follower's ID
+            message_text: The message text that was sent
+            sent: Whether the message was successfully sent
+
+        Returns:
+            True if saved successfully
+        """
+        try:
+            follower = await self.memory_store.get(self.creator_id, follower_id)
+
+            if not follower:
+                logger.warning(f"Follower {follower_id} not found for saving manual message")
+                return False
+
+            # Add the message to history
+            timestamp = datetime.now().isoformat()
+            follower.last_messages.append({
+                "role": "assistant",
+                "content": message_text,
+                "timestamp": timestamp,
+                "manual": True,
+                "sent": sent,
+            })
+
+            # Keep only last 50 messages
+            if len(follower.last_messages) > 50:
+                follower.last_messages = follower.last_messages[-50:]
+
+            # Update last contact time
+            follower.last_contact = timestamp
+
+            # Save to memory store
+            await self.memory_store.save(follower)
+
+            logger.info(f"Saved manual message for {follower_id}")
+            return True
+
+        except Exception as e:
+            logger.error(f"Error saving manual message: {e}")
+            return False
+
+    async def update_follower_status(
+        self, follower_id: str, status: str, purchase_intent: float, is_customer: bool = False
+    ) -> bool:
+        """
+        Update the lead status for a follower.
+
+        Args:
+            follower_id: The follower's ID
+            status: The new status (cold, warm, hot, customer)
+            purchase_intent: The purchase intent score (0.0 to 1.0)
+            is_customer: Whether the follower is now a customer
+
+        Returns:
+            True if updated successfully
+        """
+        try:
+            follower = await self.memory_store.get(self.creator_id, follower_id)
+
+            if not follower:
+                logger.warning(f"Follower {follower_id} not found for status update")
+                return False
+
+            # Update the follower's status
+            old_score = follower.purchase_intent_score
+            follower.purchase_intent_score = purchase_intent
+
+            # Update is_lead based on score
+            if purchase_intent >= 0.3:
+                follower.is_lead = True
+
+            # Update is_customer
+            if is_customer:
+                follower.is_customer = True
+
+            # Save to memory store
+            await self.memory_store.save(follower)
+
+            logger.info(
+                f"Updated status for {follower_id}: {status} (intent: {old_score:.0%} -> {purchase_intent:.0%})"
+            )
+            return True
+
+        except Exception as e:
+            logger.error(f"Error updating follower status: {e}")
+            return False
+
 
 # =============================================================================
 # BACKWARD COMPATIBILITY ALIASES
