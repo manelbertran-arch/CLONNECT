@@ -23,6 +23,7 @@ This plan follows ai-specs methodology:
 | File | Lines | Description |
 |------|-------|-------------|
 | dm_agent.py | <500 | Orchestration only |
+| services/intent_service.py | ~150 | Intent classification |
 | services/rag_service.py | ~800 | RAG logic |
 | services/llm_service.py | ~600 | LLM integration |
 | services/memory_service.py | ~500 | Conversation memory |
@@ -45,6 +46,7 @@ backend/
 │   └── dm_agent.py (<500 lines target)
 ├── services/
 │   ├── __init__.py
+│   ├── intent_service.py    # Intent classification ✅
 │   ├── rag_service.py       # RAG/vector search
 │   ├── llm_service.py       # LLM calls (Groq/OpenAI/Anthropic)
 │   ├── memory_service.py    # Conversation memory
@@ -86,14 +88,15 @@ Same process for llm_service.py, memory_service.py, lead_service.py, instagram_s
 
 | Step | Service | Lines | Tests | Commit | Status |
 |------|---------|-------|-------|--------|--------|
-| 1 | Analysis | - | - | - | ⏳ |
+| 1 | Analysis | - | - | - | ✅ |
+| 1.5 | intent_service.py | 184 | 8/8 | TDD | ✅ |
 | 2 | rag_service.py | - | - | - | ⏳ |
 | 3 | llm_service.py | - | - | - | ⏳ |
 | 4 | memory_service.py | - | - | - | ⏳ |
 | 5 | lead_service.py | - | - | - | ⏳ |
 | 6 | instagram_service.py | - | - | - | ⏳ |
 
-**Current**: dm_agent.py 7,463 lines
+**Current**: dm_agent.py 7,489 lines
 **Target**: dm_agent.py <500 lines
 
 ## Testing Checklist
