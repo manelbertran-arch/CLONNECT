@@ -105,8 +105,8 @@ async def get_follower_detail(creator_id: str, follower_id: str):
                                     .filter_by(creator_id=creator.id, id=follower_id)
                                     .first()
                                 )
-                            except:
-                                pass
+                            except (ValueError, Exception) as e:
+                                logger.warning("Failed to query lead by id %s: %s", follower_id, e)
                         if lead:
                             # Get messages from PostgreSQL
                             messages = (
@@ -137,8 +137,8 @@ async def get_follower_detail(creator_id: str, follower_id: str):
                                     json_data = _load_json(creator_id, follower_id)
                                     if json_data:
                                         last_messages = json_data.get("last_messages", [])[-50:]
-                                except:
-                                    pass
+                                except Exception as e:
+                                    logger.warning("Failed to load JSON fallback for %s: %s", follower_id, e)
 
                             return {
                                 "status": "ok",

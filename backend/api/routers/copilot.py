@@ -245,7 +245,7 @@ async def get_notifications(creator_id: str, since: Optional[str] = None):
         if since:
             try:
                 since_dt = datetime.fromisoformat(since.replace("Z", "+00:00"))
-            except:
+            except ValueError:
                 since_dt = datetime.now(timezone.utc) - timedelta(minutes=5)
         else:
             since_dt = datetime.now(timezone.utc) - timedelta(minutes=5)

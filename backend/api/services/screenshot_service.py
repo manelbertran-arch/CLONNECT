@@ -168,7 +168,7 @@ class ScreenshotService:
             if wait_for_selector:
                 try:
                     await page.wait_for_selector(wait_for_selector, timeout=5000)
-                except:
+                except Exception:
                     pass  # Continuar aunque no encuentre el selector
 
             # Esperar un poco para contenido dinámico
@@ -178,7 +178,7 @@ class ScreenshotService:
             for selector in ['[aria-label="Close"]', '[data-testid="cookie-close"]', '.cookie-banner button']:
                 try:
                     await page.click(selector, timeout=1000)
-                except:
+                except Exception:
                     pass
 
             # Capturar screenshot
@@ -198,17 +198,17 @@ class ScreenshotService:
             if context:
                 try:
                     await context.close()
-                except:
+                except Exception:
                     pass
             if browser:
                 try:
                     await browser.close()
-                except:
+                except Exception:
                     pass
             if playwright:
                 try:
                     await playwright.stop()
-                except:
+                except Exception:
                     pass
 
     @staticmethod

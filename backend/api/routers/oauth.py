@@ -433,7 +433,7 @@ async def _simple_dm_sync_internal(
                                 all_timestamps.append(ts)
                                 if msg.get("from", {}).get("id") not in creator_ids:
                                     user_timestamps.append(ts)
-                            except:
+                            except ValueError:
                                 pass
 
                     first_contact = min(all_timestamps) if all_timestamps else None
@@ -637,7 +637,7 @@ async def _simple_dm_sync_internal(
                                 )
                                 if msg_time < days_limit_ago:
                                     continue
-                            except:
+                            except ValueError:
                                 pass
 
                         # Check for duplicate

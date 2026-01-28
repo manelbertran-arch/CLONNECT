@@ -457,7 +457,7 @@ def sync_messages_from_json(creator_name: str) -> Dict[str, int]:
                             if timestamp_str:
                                 try:
                                     created_at = datetime.fromisoformat(timestamp_str.replace('Z', '+00:00'))
-                                except:
+                                except ValueError:
                                     created_at = datetime.now(timezone.utc)
                             else:
                                 created_at = datetime.now(timezone.utc)

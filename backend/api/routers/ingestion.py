@@ -282,8 +282,8 @@ async def get_ingestion_stats(creator_id: str, db=Depends(get_db)):
                 for doc in rag.semantic_rag._documents.values():
                     if doc.metadata and doc.metadata.get('creator_id') == str(creator.id):
                         rag_in_memory += 1
-        except:
-            pass
+        except Exception as e:
+            logger.warning("Failed to count RAG documents: %s", e)
 
         return {
             "creator_id": creator_id,

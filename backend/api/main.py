@@ -2417,7 +2417,7 @@ async def confirm_telegram_booking(
                 logger.info(f"Creating Google Calendar event for Telegram booking...")
                 try:
                     from api.routers.oauth import create_google_meet_event
-                except:
+                except ImportError:
                     from routers.oauth import create_google_meet_event
 
                 result = await create_google_meet_event(
