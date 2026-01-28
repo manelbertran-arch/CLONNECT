@@ -1672,6 +1672,137 @@ export async function getAudienceAggregated(
   return apiFetch(`/audience/${creatorId}/aggregated`);
 }
 
+// =============================================================================
+// INSIGHTS API (SPRINT3-T3.2)
+// =============================================================================
+
+/**
+ * Hot lead action for today's mission
+ */
+export interface HotLeadAction {
+  follower_id: string;
+  name: string;
+  username: string;
+  profile_pic_url?: string;
+  last_message: string;
+  hours_ago: number;
+  product?: string;
+  deal_value: number;
+  context: string;
+  action: string;
+  purchase_intent_score: number;
+}
+
+/**
+ * Booking info for today
+ */
+export interface BookingInfo {
+  id: string;
+  title: string;
+  time: string;
+  attendee_name: string;
+  attendee_email?: string;
+  platform: string;
+}
+
+/**
+ * Today's mission with actionable priorities
+ */
+export interface TodayMission {
+  potential_revenue: number;
+  hot_leads: HotLeadAction[];
+  pending_responses: number;
+  today_bookings: BookingInfo[];
+  ghost_reactivation_count: number;
+}
+
+/**
+ * Content insight
+ */
+export interface ContentInsight {
+  topic: string;
+  count: number;
+  percentage: number;
+  quotes: string[];
+  suggestion: string;
+}
+
+/**
+ * Trend insight
+ */
+export interface TrendInsight {
+  term: string;
+  count: number;
+  growth: string;
+  suggestion: string;
+}
+
+/**
+ * Product insight
+ */
+export interface ProductInsight {
+  product_name: string;
+  count: number;
+  potential_revenue: number;
+  suggestion: string;
+}
+
+/**
+ * Competition insight
+ */
+export interface CompetitionInsight {
+  competitor: string;
+  count: number;
+  sentiment: string;
+  suggestion: string;
+}
+
+/**
+ * Weekly insights with 4 cards
+ */
+export interface WeeklyInsights {
+  content?: ContentInsight;
+  trend?: TrendInsight;
+  product?: ProductInsight;
+  competition?: CompetitionInsight;
+}
+
+/**
+ * Weekly metrics with deltas
+ */
+export interface WeeklyMetrics {
+  revenue: number;
+  revenue_delta: number;
+  sales_count: number;
+  sales_delta: number;
+  response_rate: number;
+  response_delta: number;
+  hot_leads_count: number;
+  conversations_count: number;
+  new_leads_count: number;
+}
+
+/**
+ * Get today's mission for a creator
+ */
+export async function getTodayMission(creatorId: string): Promise<TodayMission> {
+  return apiFetch(`/insights/${creatorId}/today`);
+}
+
+/**
+ * Get weekly insights for a creator
+ */
+export async function getWeeklyInsights(creatorId: string): Promise<WeeklyInsights> {
+  return apiFetch(`/insights/${creatorId}/weekly`);
+}
+
+/**
+ * Get weekly metrics for a creator
+ */
+export async function getWeeklyMetrics(creatorId: string): Promise<WeeklyMetrics> {
+  return apiFetch(`/insights/${creatorId}/metrics`);
+}
+
 export const apiKeys = {
   dashboard: (creatorId: string) => ["dashboard", creatorId] as const,
   conversations: (creatorId: string) => ["conversations", creatorId] as const,
@@ -1710,6 +1841,10 @@ export const apiKeys = {
   audienceSegments: (creatorId: string) => ["audience", "segments", creatorId] as const,
   audienceSegmentUsers: (creatorId: string, segmentName: string) => ["audience", "segmentUsers", creatorId, segmentName] as const,
   audienceAggregated: (creatorId: string) => ["audience", "aggregated", creatorId] as const,
+  // Insights (Hoy page)
+  insightsToday: (creatorId: string) => ["insights", "today", creatorId] as const,
+  insightsWeekly: (creatorId: string) => ["insights", "weekly", creatorId] as const,
+  insightsMetrics: (creatorId: string) => ["insights", "metrics", creatorId] as const,
 };
 
 // =============================================================================
