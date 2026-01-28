@@ -48,9 +48,9 @@ backend/
 │   ├── __init__.py
 │   ├── intent_service.py    # Intent classification ✅
 │   ├── prompt_service.py    # Prompt building ✅
+│   ├── memory_service.py    # Conversation memory ✅
 │   ├── rag_service.py       # RAG/vector search
 │   ├── llm_service.py       # LLM calls (Groq/OpenAI/Anthropic)
-│   ├── memory_service.py    # Conversation memory
 │   ├── lead_service.py      # Lead CRUD and scoring
 │   └── instagram_service.py # Instagram API integration
 └── tests/
@@ -91,10 +91,10 @@ Same process for llm_service.py, memory_service.py, lead_service.py, instagram_s
 |------|---------|-------|-------|--------|--------|
 | 1 | Analysis | - | - | - | ✅ |
 | 1.5 | intent_service.py | 184 | 8/8 | c2c9ddee | ✅ |
-| 2 | prompt_service.py | 214 | 12/12 | TDD | ✅ |
-| 3 | rag_service.py | - | - | - | ⏳ |
-| 4 | llm_service.py | - | - | - | ⏳ |
-| 5 | memory_service.py | - | - | - | ⏳ |
+| 2 | prompt_service.py | 214 | 12/12 | ccea4e66 | ✅ |
+| 3 | memory_service.py | 309 | 16/16 | TDD | ✅ |
+| 4 | rag_service.py | - | - | - | ⏳ |
+| 5 | llm_service.py | - | - | - | ⏳ |
 | 6 | lead_service.py | - | - | - | ⏳ |
 | 7 | instagram_service.py | - | - | - | ⏳ |
 
