@@ -195,7 +195,7 @@ async def reset_all_data():
                             config["is_active"] = False
                             config.pop("products", None)
                             json_file.write_text(json.dumps(config, indent=2))
-                        except:
+                        except (json.JSONDecodeError, IOError):
                             pass
                     else:
                         # Generic reset - empty object or array
@@ -346,7 +346,7 @@ async def reset_creator(creator_id: str):
                     try:
                         from uuid import UUID
                         creator = session.query(Creator).filter_by(id=UUID(creator_id)).first()
-                    except:
+                    except ValueError:
                         pass
 
                 if creator:
@@ -474,7 +474,7 @@ async def reset_creator(creator_id: str):
                             config["clone_active"] = False
                             config["is_active"] = False
                             filepath.write_text(json.dumps(config, indent=2))
-                        except:
+                        except (json.JSONDecodeError, IOError):
                             filepath.unlink()
                     else:
                         filepath.unlink()
@@ -486,8 +486,8 @@ async def reset_creator(creator_id: str):
     if followers_dir.exists():
         try:
             shutil.rmtree(followers_dir)
-        except:
-            pass
+        except OSError as e:
+            logger.warning("Failed to remove followers dir: %s", e)
 
     logger.info(f"Full reset complete for {creator_id}: {results}")
     return {"status": "success", **results}
@@ -623,15 +623,15 @@ async def delete_creator(creator_name: str):
         from core.tone_service import delete_tone_profile, clear_cache
         delete_tone_profile(creator_name)
         clear_cache(creator_name)
-    except:
-        pass
+    except Exception as e:
+        logger.warning("Failed to clean tone profile: %s", e)
 
     try:
         from core.rag import get_hybrid_rag
         rag = get_hybrid_rag()
         rag.delete_by_creator(creator_name)
-    except:
-        pass
+    except Exception as e:
+        logger.warning("Failed to clean RAG: %s", e)
 
     return {"status": "success", **results}
 
@@ -1041,7 +1041,7 @@ async def test_full_sync_conversation(creator_id: str, username: str):
                         if msg_time < days_limit_ago:
                             skipped_old += 1
                             continue
-                    except:
+                    except ValueError:
                         pass
 
                 # Check for duplicate
@@ -2354,7 +2354,7 @@ async def simple_dm_sync(creator_id: str, max_convs: int = 10):
                                 conv_updated_time = datetime.fromisoformat(
                                     conv["updated_time"].replace("+0000", "+00:00")
                                 )
-                            except:
+                            except ValueError:
                                 pass
 
                         # Parse message timestamps for first/last contact
@@ -2371,7 +2371,7 @@ async def simple_dm_sync(creator_id: str, max_convs: int = 10):
                                     from_id = msg.get("from", {}).get("id")
                                     if from_id and from_id != ig_user_id:
                                         user_msg_timestamps.append(ts)
-                                except:
+                                except ValueError:
                                     pass
 
                         first_msg_time = min(all_msg_timestamps) if all_msg_timestamps else conv_updated_time
@@ -2541,7 +2541,7 @@ async def simple_dm_sync(creator_id: str, max_convs: int = 10):
                                     if msg_timestamp < days_limit_ago:
                                         results["messages_filtered_180days"] += 1
                                         continue  # Skip messages older than 180 days
-                                except:
+                                except ValueError:
                                     pass
 
                             # Track attachment processing
@@ -2582,7 +2582,7 @@ async def simple_dm_sync(creator_id: str, max_convs: int = 10):
                                     new_msg.created_at = datetime.fromisoformat(
                                         msg_time.replace("+0000", "+00:00")
                                     )
-                                except:
+                                except ValueError:
                                     pass
 
                             session.add(new_msg)

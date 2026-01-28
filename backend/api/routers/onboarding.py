@@ -4063,7 +4063,7 @@ async def sync_instagram_dms(request: InstagramDMSyncRequest):
                                         created_at = datetime.fromisoformat(
                                             msg_time.replace("+0000", "+00:00")
                                         )
-                                    except:
+                                    except ValueError:
                                         pass
 
                                 new_msg = Message(
@@ -4419,7 +4419,7 @@ async def _background_dm_sync(
                                             new_msg.created_at = datetime.fromisoformat(
                                                 msg["created_time"].replace("Z", "+00:00")
                                             )
-                                        except:
+                                        except ValueError:
                                             pass
                                     session.add(new_msg)
                                     messages_saved += 1
