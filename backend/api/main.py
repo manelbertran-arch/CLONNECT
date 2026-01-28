@@ -316,6 +316,11 @@ from api.routers import audience as audience_router
 
 app.include_router(audience_router.router)
 
+# Insights router (daily mission and weekly insights)
+from api.routers import insights as insights_router
+
+app.include_router(insights_router.router)
+
 # Messaging webhooks router (Instagram, WhatsApp, Telegram)
 from api.routers import messaging_webhooks as messaging_webhooks_router
 
