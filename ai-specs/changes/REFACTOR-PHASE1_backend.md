@@ -16,15 +16,16 @@ Refactoring main.py from 7,198 lines to <500 lines by extracting endpoint groups
 | 2026-01-28 | dm.py | -701 | 3a288d86 | 14 DM endpoints |
 | 2026-01-28 | webhooks.py | -161 | c35e9da3 | 5 webhooks |
 | 2026-01-28 | gdpr.py | -131 | 69ac07a8 | 6 GDPR endpoints |
-| **Total** | | **-1,170** | | **30 endpoints** |
+| 2026-01-28 | telegram.py | -323 | 2c60a434 | 10 Telegram endpoints |
+| **Total** | | **-1,493** | | **40 endpoints** |
 
-Current: 7,198 → 6,028 lines (16% reduction)
+Current: 7,198 → 5,705 lines (21% reduction)
 
 ## Remaining Extractions
 | Priority | Router | Endpoints Est. | Status |
 |----------|--------|----------------|--------|
-| 1 | telegram.py | ~10 | NEXT |
-| 2 | content.py | ~10 | PENDING |
+| 1 | telegram.py | 10 | DONE |
+| 2 | content.py | ~10 | NEXT |
 | 3 | admin.py (consolidate) | ~10 | PENDING |
 | 4 | creator.py | ~8 | PENDING |
 
