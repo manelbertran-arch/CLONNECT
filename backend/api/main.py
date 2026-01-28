@@ -280,6 +280,11 @@ from api.routers import dm as dm_router
 
 app.include_router(dm_router.router)
 
+# Webhooks router (payment and calendar webhooks)
+from api.routers import webhooks as webhooks_router
+
+app.include_router(webhooks_router.router)
+
 # Authentication router
 from api.auth import (
     router as auth_router,
@@ -4771,111 +4776,8 @@ async def gdpr_audit_log(creator_id: str, follower_id: str, limit: int = 50):
 
 
 # ---------------------------------------------------------
-# PAYMENTS (Stripe + Hotmart)
+# PAYMENTS
 # ---------------------------------------------------------
-@app.post("/webhook/stripe")
-async def stripe_webhook(request: Request):
-    """
-    Stripe webhook endpoint.
-
-    Processes:
-    - checkout.session.completed
-    - payment_intent.succeeded
-    - charge.refunded
-
-    Include metadata in Stripe checkout:
-    - creator_id
-    - follower_id
-    - product_id
-    - product_name
-    """
-    try:
-        raw_payload = await request.body()
-        payload = await request.json()
-        signature = request.headers.get("Stripe-Signature", "")
-
-        payment_manager = get_payment_manager()
-        result = await payment_manager.process_stripe_webhook(
-            payload=payload, signature=signature, raw_payload=raw_payload
-        )
-
-        logger.info(f"Stripe webhook processed: {result}")
-        return result
-
-    except Exception as e:
-        logger.error(f"Stripe webhook error: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
-
-
-@app.post("/webhook/hotmart")
-async def hotmart_webhook(request: Request):
-    """
-    Hotmart webhook (postback) endpoint.
-
-    Processes:
-    - PURCHASE_COMPLETE
-    - PURCHASE_APPROVED
-    - PURCHASE_REFUNDED
-    - PURCHASE_CANCELED
-    """
-    try:
-        payload = await request.json()
-        token = request.headers.get("X-Hotmart-Hottok", "")
-
-        payment_manager = get_payment_manager()
-        result = await payment_manager.process_hotmart_webhook(payload=payload, token=token)
-
-        logger.info(f"Hotmart webhook processed: {result}")
-        return result
-
-    except Exception as e:
-        logger.error(f"Hotmart webhook error: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
-
-
-@app.post("/webhook/paypal")
-async def paypal_webhook(request: Request):
-    """
-    PayPal webhook endpoint.
-
-    Processes:
-    - PAYMENT.SALE.COMPLETED
-    - PAYMENT.CAPTURE.COMPLETED
-    - CHECKOUT.ORDER.APPROVED
-    - PAYMENT.SALE.REFUNDED
-
-    Include custom_id in PayPal checkout with JSON:
-    - creator_id
-    - follower_id
-    - product_id
-    - product_name
-    """
-    try:
-        raw_payload = await request.body()
-        payload = await request.json()
-
-        # Get PayPal verification headers
-        headers = {
-            "paypal-transmission-id": request.headers.get("paypal-transmission-id", ""),
-            "paypal-transmission-time": request.headers.get("paypal-transmission-time", ""),
-            "paypal-transmission-sig": request.headers.get("paypal-transmission-sig", ""),
-            "paypal-cert-url": request.headers.get("paypal-cert-url", ""),
-            "paypal-auth-algo": request.headers.get("paypal-auth-algo", ""),
-        }
-
-        payment_manager = get_payment_manager()
-        result = await payment_manager.process_paypal_webhook(
-            payload=payload, headers=headers, raw_payload=raw_payload
-        )
-
-        logger.info(f"PayPal webhook processed: {result}")
-        return result
-
-    except Exception as e:
-        logger.error(f"PayPal webhook error: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
-
-
 @app.get("/payments/{creator_id}/purchases")
 async def get_purchases(creator_id: str, limit: int = 100, status: Optional[str] = None):
     """
@@ -4979,71 +4881,8 @@ async def attribute_sale(creator_id: str, purchase_id: str, follower_id: str):
 
 
 # ---------------------------------------------------------
-# CALENDAR (Calendly + Cal.com)
+# CALENDAR
 # ---------------------------------------------------------
-@app.post("/webhook/calendly")
-async def calendly_webhook(request: Request):
-    """
-    Calendly webhook endpoint.
-
-    Processes:
-    - invitee.created (new booking)
-    - invitee.canceled (booking cancelled)
-
-    Use UTM parameters in Calendly link:
-    - utm_source: creator_id
-    - utm_campaign: follower_id
-    """
-    try:
-        raw_payload = await request.body()
-        payload = await request.json()
-        signature = request.headers.get("Calendly-Webhook-Signature", "")
-
-        calendar_manager = get_calendar_manager()
-        result = await calendar_manager.process_calendly_webhook(
-            payload=payload, signature=signature, raw_payload=raw_payload
-        )
-
-        logger.info(f"Calendly webhook processed: {result}")
-        return result
-
-    except Exception as e:
-        logger.error(f"Calendly webhook error: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
-
-
-@app.post("/webhook/calcom")
-async def calcom_webhook(request: Request):
-    """
-    Cal.com webhook endpoint.
-
-    Processes:
-    - BOOKING_CREATED
-    - BOOKING_CANCELLED
-    - BOOKING_RESCHEDULED
-
-    Include in booking metadata:
-    - creator_id
-    - follower_id
-    """
-    try:
-        raw_payload = await request.body()
-        payload = await request.json()
-        signature = request.headers.get("X-Cal-Signature-256", "")
-
-        calendar_manager = get_calendar_manager()
-        result = await calendar_manager.process_calcom_webhook(
-            payload=payload, signature=signature, raw_payload=raw_payload
-        )
-
-        logger.info(f"Cal.com webhook processed: {result}")
-        return result
-
-    except Exception as e:
-        logger.error(f"Cal.com webhook error: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
-
-
 @app.get("/calendar/{creator_id}/bookings")
 async def get_bookings(
     creator_id: str, status: Optional[str] = None, upcoming: bool = False, limit: int = 100
