@@ -6,10 +6,13 @@ Fallback a Microlink API cuando Playwright no está disponible.
 """
 import asyncio
 import base64
+import logging
 import re
 import httpx
 from typing import Optional, Dict
 from contextlib import asynccontextmanager
+
+logger = logging.getLogger(__name__)
 
 # Playwright import con fallback
 try:
@@ -17,7 +20,7 @@ try:
     PLAYWRIGHT_AVAILABLE = True
 except ImportError:
     PLAYWRIGHT_AVAILABLE = False
-    print("INFO: Playwright not installed. Using Microlink API fallback.")
+    logger.info("Playwright not installed. Using Microlink API fallback.")
 
 # Microlink API for fallback
 MICROLINK_API = "https://api.microlink.io"
@@ -63,7 +66,7 @@ async def get_microlink_preview(url: str) -> Optional[Dict]:
                             "url": url
                         }
     except Exception as e:
-        print(f"Microlink preview error for {url}: {e}")
+        logger.warning("Microlink preview error for %s: %s", url, e)
 
     return None
 
@@ -110,7 +113,7 @@ class ScreenshotService:
             Screenshot en base64 o None si falla
         """
         if not PLAYWRIGHT_AVAILABLE:
-            print("Playwright not available, skipping screenshot")
+            logger.debug("Playwright not available, skipping screenshot")
             return None
 
         playwright = None
@@ -157,7 +160,7 @@ class ScreenshotService:
             try:
                 await page.goto(url, wait_until="domcontentloaded", timeout=timeout)
             except Exception as e:
-                print(f"Navigation error for {url}: {e}")
+                logger.warning("Navigation error for %s: %s", url, e)
                 # Intentar con timeout más largo
                 await page.goto(url, wait_until="load", timeout=timeout * 1.5)
 
@@ -188,7 +191,7 @@ class ScreenshotService:
             return base64.b64encode(screenshot).decode()
 
         except Exception as e:
-            print(f"Screenshot error for {url}: {e}")
+            logger.warning("Screenshot error for %s: %s", url, e)
             return None
         finally:
             # Clean up in reverse order

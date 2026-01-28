@@ -89,36 +89,35 @@ class GroqClient(LLMClient):
         self.api_key = (api_key or os.getenv("GROQ_API_KEY") or "").strip()
         self.model = model or DEFAULT_GROQ_MODEL
         self._client = None
-        print(f"[GroqClient] Initialized with model={self.model}, api_key={'set' if self.api_key else 'NOT SET'}", flush=True)
+        logger.debug("GroqClient initialized with model=%s, api_key=%s", self.model, 'set' if self.api_key else 'NOT SET')
 
     def _get_client(self):
         if self._client is None:
-            print(f"[GroqClient] Creating AsyncGroq client...", flush=True)
+            logger.debug("Creating AsyncGroq client...")
             from groq import AsyncGroq
             self._client = AsyncGroq(api_key=self.api_key)
-            print(f"[GroqClient] AsyncGroq client created", flush=True)
+            logger.debug("AsyncGroq client created")
         return self._client
 
     async def generate(self, prompt: str, **kwargs) -> str:
-        print(f"[GroqClient.generate] Prompt length: {len(prompt)}", flush=True)
+        logger.debug("GroqClient.generate prompt length: %d", len(prompt))
         return await self.chat([{"role": "user", "content": prompt}], **kwargs)
 
     async def chat(self, messages: List[Dict[str, str]], **kwargs) -> str:
-        print(f"[GroqClient.chat] Starting with {len(messages)} messages", flush=True)
+        logger.debug("GroqClient.chat starting with %d messages", len(messages))
         client = self._get_client()
         try:
-            print(f"[GroqClient.chat] Calling Groq API with model={kwargs.get('model', self.model)}...", flush=True)
+            logger.debug("Calling Groq API with model=%s", kwargs.get('model', self.model))
             response = await client.chat.completions.create(
                 model=kwargs.get("model", self.model),
                 messages=messages,
                 max_tokens=kwargs.get("max_tokens", 1000),
                 temperature=kwargs.get("temperature", 0.7)
             )
-            print(f"[GroqClient.chat] Groq API returned successfully", flush=True)
+            logger.debug("Groq API returned successfully")
             return response.choices[0].message.content
         except Exception as e:
-            print(f"[GroqClient.chat] EXCEPTION: {e}", flush=True)
-            logger.error(f"Groq API error: {e}")
+            logger.error("Groq API error: %s", e)
             raise
 
 
