@@ -603,3 +603,58 @@ async def debug_system_prompt(creator_id: str):
     agent = DMResponderAgent(creator_id=creator_id)
     prompt = agent._build_system_prompt()
     return {"prompt": prompt[:2000]}  # Primeros 2000 chars
+
+
+@router.get("/citations/debug/{creator_id}")
+async def debug_citations(creator_id: str, query: str = "test"):
+    """Debug endpoint to check citation content index"""
+    from core.citation_service import get_citation_prompt_section, get_content_index
+
+    debug_info = {
+        "creator_id": creator_id,
+        "query": query,
+        "cwd": os.getcwd(),
+        "data_dir_exists": os.path.exists("data"),
+        "content_index_dir_exists": os.path.exists("data/content_index"),
+        "creator_dir_exists": os.path.exists(f"data/content_index/{creator_id}"),
+        "chunks_file_exists": os.path.exists(f"data/content_index/{creator_id}/chunks.json"),
+        "initial_data_exists": os.path.exists("/app/initial_data"),
+        "files_in_content_index": [],
+        "chunks_count": 0,
+        "search_results": [],
+        "citation_prompt": "",
+    }
+
+    # List files in content_index
+    try:
+        if os.path.exists("data/content_index"):
+            debug_info["files_in_content_index"] = os.listdir("data/content_index")
+        if os.path.exists(f"data/content_index/{creator_id}"):
+            debug_info["creator_files"] = os.listdir(f"data/content_index/{creator_id}")
+    except Exception as e:
+        debug_info["list_error"] = str(e)
+
+    # Load index and check
+    try:
+        index = get_content_index(creator_id)
+        debug_info["chunks_count"] = len(index.chunks)
+        debug_info["index_loaded"] = index._loaded
+        debug_info["posts_count"] = len(index.posts_metadata)
+
+        # Search test
+        if query:
+            results = index.search(query, max_results=3)
+            debug_info["search_results"] = [
+                {"id": r["chunk_id"], "title": r.get("title"), "relevance": r["relevance_score"]}
+                for r in results
+            ]
+
+            # Get citation prompt
+            citation_prompt = get_citation_prompt_section(creator_id, query)
+            debug_info["citation_prompt_length"] = len(citation_prompt)
+            debug_info["citation_prompt_preview"] = citation_prompt[:500] if citation_prompt else ""
+
+    except Exception as e:
+        debug_info["index_error"] = str(e)
+
+    return {"status": "ok", "debug": debug_info}

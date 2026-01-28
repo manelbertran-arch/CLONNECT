@@ -1,5 +1,5 @@
 """Payments and revenue endpoints"""
-from fastapi import APIRouter, Body
+from fastapi import APIRouter, Body, HTTPException
 from datetime import datetime, timedelta
 from typing import Optional
 import logging
@@ -94,3 +94,58 @@ async def record_purchase(
     )
 
     return {"status": "ok", "message": "Purchase recorded", "purchase_id": purchase.purchase_id}
+
+
+@router.get("/{creator_id}/customer/{follower_id}")
+async def get_customer_purchases(creator_id: str, follower_id: str):
+    """Get purchase history for a specific customer"""
+    try:
+        payment_manager = get_payment_manager()
+        purchases = payment_manager.get_customer_purchases(
+            creator_id=creator_id, follower_id=follower_id
+        )
+
+        total_spent = sum(p.get("amount", 0) for p in purchases if p.get("status") == "completed")
+
+        return {
+            "status": "ok",
+            "creator_id": creator_id,
+            "follower_id": follower_id,
+            "purchases": purchases,
+            "total_spent": total_spent,
+            "count": len(purchases),
+        }
+
+    except Exception as e:
+        logger.error(f"Error getting customer purchases: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/{creator_id}/attribute")
+async def attribute_sale(creator_id: str, purchase_id: str, follower_id: str):
+    """
+    Manually attribute a sale to the bot.
+
+    Use when a purchase wasn't automatically linked to a conversation.
+    """
+    try:
+        payment_manager = get_payment_manager()
+        success = payment_manager.attribute_sale_to_bot(
+            creator_id=creator_id, follower_id=follower_id, purchase_id=purchase_id
+        )
+
+        if not success:
+            raise HTTPException(status_code=404, detail="Purchase not found")
+
+        return {
+            "status": "ok",
+            "attributed": True,
+            "purchase_id": purchase_id,
+            "follower_id": follower_id,
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error attributing sale: {e}")
+        raise HTTPException(status_code=500, detail=str(e))

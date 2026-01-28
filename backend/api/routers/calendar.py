@@ -551,3 +551,103 @@ async def update_booking_status(creator_id: str, db: Session = Depends(get_db)):
         raise HTTPException(status_code=500, detail=str(e))
 
 
+# =============================================================================
+# BOOKING LINK BY TYPE
+# =============================================================================
+
+@router.get("/{creator_id}/link/{meeting_type}")
+async def get_booking_link(creator_id: str, meeting_type: str, db: Session = Depends(get_db)):
+    """
+    Get booking link for a specific meeting type.
+
+    Meeting types: discovery, consultation, coaching, followup, custom
+    """
+    try:
+        # First try to find exact meeting type
+        db_link = db.query(BookingLink).filter(
+            BookingLink.creator_id == creator_id,
+            BookingLink.meeting_type == meeting_type,
+            BookingLink.is_active == True,
+        ).first()
+
+        # If not found, try default
+        if not db_link:
+            db_link = db.query(BookingLink).filter(
+                BookingLink.creator_id == creator_id,
+                BookingLink.meeting_type == "default",
+                BookingLink.is_active == True,
+            ).first()
+
+        if not db_link:
+            raise HTTPException(
+                status_code=404, detail=f"No booking link found for type: {meeting_type}"
+            )
+
+        return {
+            "status": "ok",
+            "creator_id": creator_id,
+            "meeting_type": meeting_type,
+            "url": db_link.url,
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error getting booking link: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+# =============================================================================
+# BOOKING STATUS UPDATES (complete/no-show)
+# =============================================================================
+
+@router.post("/{creator_id}/bookings/{booking_id}/complete")
+async def mark_booking_completed(creator_id: str, booking_id: str, db: Session = Depends(get_db)):
+    """Mark a booking as completed"""
+    try:
+        booking = db.query(CalendarBooking).filter(
+            CalendarBooking.id == booking_id,
+            CalendarBooking.creator_id == creator_id
+        ).first()
+
+        if not booking:
+            raise HTTPException(status_code=404, detail="Booking not found")
+
+        booking.status = "completed"
+        db.commit()
+
+        return {"status": "ok", "booking_id": booking_id, "new_status": "completed"}
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error marking booking complete: {e}")
+        db.rollback()
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/{creator_id}/bookings/{booking_id}/no-show")
+async def mark_booking_no_show(creator_id: str, booking_id: str, db: Session = Depends(get_db)):
+    """Mark a booking as no-show"""
+    try:
+        booking = db.query(CalendarBooking).filter(
+            CalendarBooking.id == booking_id,
+            CalendarBooking.creator_id == creator_id
+        ).first()
+
+        if not booking:
+            raise HTTPException(status_code=404, detail="Booking not found")
+
+        booking.status = "no_show"
+        db.commit()
+
+        return {"status": "ok", "booking_id": booking_id, "new_status": "no_show"}
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error marking booking no-show: {e}")
+        db.rollback()
+        raise HTTPException(status_code=500, detail=str(e))
+
+

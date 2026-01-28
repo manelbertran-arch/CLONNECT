@@ -135,6 +135,64 @@ For each router:
 - main.py: 7,198 → 1,291 lines (82% reduction)
 - Tests: 57 passing
 
+### Phase 1.5 Step 3: Payments Extended Endpoints (TDD)
+
+| Step | File | Endpoints | Tests | Lines | Status |
+|------|------|-----------|-------|-------|--------|
+| 1 | payments.py | customer/{follower_id}, attribute | 4 | -56 | ✅ TDD |
+
+**Endpoints added to payments.py:**
+- GET /{creator_id}/customer/{follower_id} - Get customer purchase history
+- POST /{creator_id}/attribute - Manually attribute sale to bot
+
+**TDD Process:**
+1. Tests written FIRST (4 tests)
+2. Tests FAILED (router endpoints didn't exist)
+3. Endpoints added to payments.py
+4. Tests PASSED (4/4)
+5. Duplicates removed from main.py
+6. Documentation updated BEFORE commit
+
+### Phase 1.5 Step 4: Calendar Extended Endpoints (TDD)
+
+| Step | File | Endpoints | Tests | Lines | Status |
+|------|------|-----------|-------|-------|--------|
+| 1 | calendar.py | link/{meeting_type}, complete, no-show | 7 | -348 | ✅ TDD |
+
+**Endpoints added to calendar.py:**
+- GET /{creator_id}/link/{meeting_type} - Get booking link by type
+- POST /{creator_id}/bookings/{booking_id}/complete - Mark booking completed
+- POST /{creator_id}/bookings/{booking_id}/no-show - Mark booking no-show
+
+**TDD Process:**
+1. Tests written FIRST (7 tests)
+2. Tests FAILED (router endpoints didn't exist)
+3. Endpoints added to calendar.py
+4. Tests PASSED (7/7)
+5. Duplicates removed from main.py (including duplicate /links, /stats, POST /links)
+6. Documentation updated BEFORE commit
+
+### Phase 1.5 Step 5: Citations Debug Endpoint (TDD)
+
+| Step | File | Endpoints | Tests | Lines | Status |
+|------|------|-----------|-------|-------|--------|
+| 1 | debug.py | citations/debug/{creator_id} | 2 | -58 | ✅ TDD |
+
+**Endpoint added to debug.py:**
+- GET /citations/debug/{creator_id} - Debug citation content index
+
+**TDD Process:**
+1. Tests written FIRST (2 tests)
+2. 1 test FAILED (router endpoint didn't exist)
+3. Endpoint added to debug.py
+4. Tests PASSED (2/2)
+5. Duplicate removed from main.py
+6. Documentation updated BEFORE commit
+
+**Current Status (Phase 1.5 Complete):**
+- main.py: 7,198 → 882 lines (88% reduction)
+- Tests: 70 passing
+
 ## Testing Checklist
 
 - [x] All routers import without errors
@@ -146,7 +204,13 @@ For each router:
 ## Tests
 
 ### Current Test Coverage
-- `tests/routers/test_routers_import.py` - 15 smoke tests
+- `tests/routers/test_routers_import.py` - 21 smoke tests (router imports + structure)
+- `tests/routers/test_messaging_webhooks.py` - 16 tests (Instagram, WhatsApp, Telegram)
+- `tests/routers/test_payments_extended.py` - 4 tests (customer purchases, attribution)
+- `tests/routers/test_calendar_extended.py` - 7 tests (booking links, complete, no-show)
+- `tests/routers/test_debug_extended.py` - 2 tests (citations debug)
+- `tests/models/test_request_models.py` - 20 tests (Pydantic schemas)
+- **Total: 70 tests passing**
 
 ### Test Commands
 ```bash
@@ -193,6 +257,22 @@ pytest backend/tests/routers/ -v
 # Check coverage
 pytest --cov=backend/api/routers --cov-report=term-missing
 ```
+
+## Remaining Work (Phase 2)
+
+To reach <500 lines target, the following need extraction:
+1. **Startup tasks** (~450 lines) → Extract to `api/startup.py`
+   - Database initialization background task
+   - RAG hydration background task
+   - Cache pre-warming background task
+   - Keep-alive background task
+2. **Public booking-links endpoint** (~60 lines) → Keep or move to calendar.py
+
+Current main.py breakdown:
+- Imports & app setup: ~200 lines (minimal)
+- Router includes: ~170 lines (required)
+- Booking-links endpoint: ~60 lines
+- Startup event: ~450 lines (extractable)
 
 ## Notes
 
