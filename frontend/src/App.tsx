@@ -33,6 +33,7 @@ import InboxTest from "./pages/InboxTest";
 import HomeWithConversations from "./pages/HomeWithConversations";
 import { AnalyticsDashboard } from "./pages/Analytics";
 import TuAudiencia from "./pages/TuAudiencia";
+import Personas from "./pages/Personas";
 
 // Coming Soon placeholder component
 function ComingSoon({ title }: { title: string }) {
@@ -106,7 +107,7 @@ const AppRoutes = () => {
         <Route path="/privacy" element={<Privacy />} />
         {/* Sprint 4 Intelligence routes */}
         <Route path="/tu-audiencia" element={<TuAudiencia />} />
-        <Route path="/personas" element={<ComingSoon title="Personas" />} />
+        <Route path="/personas" element={<Personas />} />
       </Route>
 
       {/* New Dashboard Routes */}
