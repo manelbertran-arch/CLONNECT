@@ -64,10 +64,13 @@ Lines changed:
 ```
 
 ## Testing Checklist
-- [ ] python3 -m py_compile passes for all modified files
-- [ ] pytest tests/ -v passes
+- [x] python3 -m py_compile passes for all modified files
+- [x] pytest tests/routers/test_routers_import.py passes (15 tests)
 - [ ] Server starts: uvicorn api.main:app
-- [ ] No import errors: python -c "from api.main import app"
+- [x] No import errors: python -c "from api.main import app"
+
+## Tests Added
+- `tests/routers/test_routers_import.py` - 15 smoke tests for all routers
 
 ## Notes
 - English only for code and commits
