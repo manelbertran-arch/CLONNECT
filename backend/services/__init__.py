@@ -5,11 +5,14 @@ Extracted from dm_agent.py following TDD methodology.
 from services.intent_service import Intent, IntentClassifier
 from services.memory_service import FollowerMemory, MemoryStore
 from services.prompt_service import PromptBuilder
+from services.rag_service import DocumentChunk, RAGService
 
 __all__ = [
+    "DocumentChunk",
     "FollowerMemory",
     "Intent",
     "IntentClassifier",
     "MemoryStore",
     "PromptBuilder",
+    "RAGService",
 ]
