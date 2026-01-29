@@ -71,10 +71,42 @@ OBJECTION_WEIGHTS = {
     "trust": 0.15,
 }
 
+# Simple objection keywords for segment detection
+OBJECTION_KEYWORDS = {
+    "price": "precio",
+    "time": "tiempo",
+    "doubt": "duda",
+    "trust": "confianza",
+}
+
+# Competitor accounts for @mentions
+COMPETITORS = [
+    "@fitness_maria",
+    "@nutritionist_ana",
+    "@gym_carlos",
+    "@healthy_laura",
+    "@coach_pedro",
+]
+
+# Trending terms to include in messages
+TRENDING_TERMS = [
+    "ozempic",
+    "ayuno 16:8",
+    "proteína vegana",
+    "creatina",
+    "déficit calórico",
+    "batch cooking",
+]
+
 
 def get_random_interests(count: int = 3) -> list[str]:
     """Get random interests for a follower"""
     return random.sample(TOPICS, min(count, len(TOPICS)))
+
+
+def get_interests_with_weights(interests: list[str]) -> dict[str, float]:
+    """Convert interest list to weighted dict for user_profiles"""
+    return {topic: round(random.uniform(0.5, 1.0), 2) for topic in interests}
 
 
 def get_random_objections(objection_type: str = None) -> tuple[str, str]:

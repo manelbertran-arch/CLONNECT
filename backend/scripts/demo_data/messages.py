@@ -117,6 +117,46 @@ FOLLOW_UP_QUESTIONS = [
     "¿Qué te ha llamado la atención de mi método?",
 ]
 
+# Messages with competitor @mentions for competition detection
+COMPETITOR_MENTIONS = [
+    "Vi que @fitness_maria tiene un curso parecido, ¿el tuyo qué incluye?",
+    "Una amiga hizo el programa de @nutritionist_ana y le fue bien",
+    "¿Conoces a @gym_carlos? Tiene precios más bajos",
+    "He estado mirando lo de @healthy_laura, pero me gusta más tu enfoque",
+    "@coach_pedro dice que el ayuno no funciona, ¿tú qué opinas?",
+    "Entre tu plan y el de @fitness_maria, ¿cuál me recomiendas?",
+    "Vi una review de @nutritionist_ana y me quedé con dudas",
+    "¿Tu método es parecido al de @gym_carlos?",
+]
+
+# Messages with trending terms for trend detection
+TRENDING_MESSAGES = [
+    "¿Qué opinas del ozempic para adelgazar?",
+    "He oído mucho sobre ozempic últimamente",
+    "Estoy pensando en probar ayuno 16:8",
+    "¿El ayuno 16:8 funciona de verdad?",
+    "¿Recomiendas la proteína vegana?",
+    "He empezado a tomar creatina, ¿está bien?",
+    "¿Me explicas el déficit calórico?",
+    "¿Haces batch cooking para tus clientes?",
+    "¿Tienes alguna receta de batch cooking?",
+    "Me interesa el tema de la proteína vegana",
+]
+
+# Questions for content requests detection (must have ?)
+CONTENT_QUESTIONS = [
+    "¿Tienes algún menú semanal para batch cooking?",
+    "¿Cómo leo las etiquetas de los alimentos?",
+    "¿Qué desayunos recomiendas para perder peso?",
+    "¿Cuánta proteína necesito al día?",
+    "¿Es malo saltarse el desayuno?",
+    "¿Puedes hacer un vídeo sobre snacks saludables?",
+    "¿Tienes alguna guía para principiantes?",
+    "¿Cómo calculo mis calorías diarias?",
+    "¿Qué ejercicios puedo hacer en casa?",
+    "¿Es necesario contar macros?",
+]
+
 
 def get_messages_for_segment(segment: str, count: int = 5) -> list[dict]:
     """

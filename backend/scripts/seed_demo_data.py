@@ -28,7 +28,15 @@ from scripts.demo_data.config import (
 )
 from scripts.demo_data.names import get_random_name, generate_username
 from scripts.demo_data.interests import get_random_interests, get_random_objections, TOPICS
-from scripts.demo_data.messages import get_messages_for_segment, get_last_message_for_segment, BOT_RESPONSES
+from scripts.demo_data.messages import (
+    get_messages_for_segment,
+    get_last_message_for_segment,
+    BOT_RESPONSES,
+    COMPETITOR_MENTIONS,
+    TRENDING_MESSAGES,
+    CONTENT_QUESTIONS,
+)
+from scripts.demo_data.interests import COMPETITORS, TRENDING_TERMS, get_interests_with_weights
 
 # Database imports
 from api.database import SessionLocal, engine
@@ -232,14 +240,17 @@ def create_followers_and_leads(db, products: list, creator_uuid: uuid.UUID, crea
             min_intent, max_intent = intent_ranges.get(segment, (0.2, 0.5))
             purchase_intent = round(random.uniform(min_intent, max_intent), 2)
 
-            # Generate objections for objector segments
+            # Generate objections for objector segments (simple string list for aggregation)
             objections_raised = []
+            objections_handled = []
             if segment == "price_objector":
-                _, obj_text = get_random_objections("price")
-                objections_raised = [{"type": "price", "text": obj_text}]
+                objections_raised = ["precio"]
             elif segment == "time_objector":
-                _, obj_text = get_random_objections("time")
-                objections_raised = [{"type": "time", "text": obj_text}]
+                objections_raised = ["tiempo"]
+            elif segment == "customer":
+                # Customers had objections but they were resolved
+                objections_raised = random.sample(["precio", "tiempo", "duda"], k=random.randint(1, 2))
+                objections_handled = objections_raised.copy()  # All resolved
 
             # Determine status
             status_map = {
@@ -253,6 +264,35 @@ def create_followers_and_leads(db, products: list, creator_uuid: uuid.UUID, crea
                 "customer": "cliente",
             }
             status = status_map.get(segment, "nuevo")
+
+            # Generate conversation FIRST so we can populate last_messages
+            conversation = get_messages_for_segment(segment, min(total_messages, 12))
+            last_role, last_content = get_last_message_for_segment(segment)
+            if conversation:
+                conversation[-1] = {"role": last_role, "content": last_content}
+
+            # Add special messages for insights (20% chance for each type)
+            if random.random() < 0.20 and segment not in ["new"]:
+                # Add competitor mention
+                conversation.insert(
+                    random.randint(1, max(1, len(conversation) - 1)),
+                    {"role": "user", "content": random.choice(COMPETITOR_MENTIONS)}
+                )
+            if random.random() < 0.25:
+                # Add trending term message
+                conversation.insert(
+                    random.randint(1, max(1, len(conversation) - 1)),
+                    {"role": "user", "content": random.choice(TRENDING_MESSAGES)}
+                )
+            if random.random() < 0.30:
+                # Add content question
+                conversation.insert(
+                    random.randint(1, max(1, len(conversation) - 1)),
+                    {"role": "user", "content": random.choice(CONTENT_QUESTIONS)}
+                )
+
+            # Get last 10 messages for last_messages field
+            last_messages = conversation[-10:] if len(conversation) > 10 else conversation
 
             # Create FollowerMemoryDB (uses string for creator_id)
             is_customer = segment == "customer"
@@ -273,7 +313,7 @@ def create_followers_and_leads(db, products: list, creator_uuid: uuid.UUID, crea
                 is_customer=is_customer,
                 status=status,
                 preferred_language="es",
-                last_messages=[],
+                last_messages=last_messages,  # Populated with conversation
                 links_sent_count=random.randint(0, 3) if segment in ["hot_lead", "warm_lead"] else 0,
             )
             db.add(follower_memory)
@@ -302,7 +342,7 @@ def create_followers_and_leads(db, products: list, creator_uuid: uuid.UUID, crea
                     context={
                         "segment": segment,
                         "interests": interests,
-                        "objections": [o["type"] for o in objections_raised],
+                        "objections": objections_raised,  # Now a simple list of strings
                     },
                     first_contact_at=first_contact,
                     last_contact_at=last_contact,
@@ -337,14 +377,7 @@ def create_followers_and_leads(db, products: list, creator_uuid: uuid.UUID, crea
                 )
                 db.add(conv_state)
 
-                # Create Messages
-                conversation = get_messages_for_segment(segment, min(total_messages, 12))
-                last_role, last_content = get_last_message_for_segment(segment)
-
-                # Override last message
-                if conversation:
-                    conversation[-1] = {"role": last_role, "content": last_content}
-
+                # Create Messages (use already generated conversation)
                 msg_time = first_contact
                 for msg_data in conversation:
                     msg = Message(
