@@ -39,6 +39,7 @@ from scripts.demo_data.interests import (
     get_arguments_for_objections,
     get_notes_for_segment,
     get_profile_pic_url,
+    get_user_context,
     TOPICS,
 )
 from scripts.demo_data.messages import (
@@ -288,21 +289,21 @@ def create_followers_and_leads(db, products: list, creator_uuid: uuid.UUID, crea
             if conversation:
                 conversation[-1] = {"role": last_role, "content": last_content}
 
-            # Add special messages for insights (20% chance for each type)
-            if random.random() < 0.20 and segment not in ["new"]:
-                # Add competitor mention
+            # Add special messages for Audience Intelligence (higher probabilities)
+            # 40% chance for competitor @mentions (for /audiencia/competition)
+            if random.random() < 0.40 and segment not in ["new"]:
                 conversation.insert(
                     random.randint(1, max(1, len(conversation) - 1)),
                     {"role": "user", "content": random.choice(COMPETITOR_MENTIONS)}
                 )
-            if random.random() < 0.25:
-                # Add trending term message
+            # 35% chance for trending terms (for /audiencia/trends)
+            if random.random() < 0.35:
                 conversation.insert(
                     random.randint(1, max(1, len(conversation) - 1)),
                     {"role": "user", "content": random.choice(TRENDING_MESSAGES)}
                 )
-            if random.random() < 0.30:
-                # Add content question
+            # 40% chance for content questions (for /audiencia/content-requests)
+            if random.random() < 0.40:
                 conversation.insert(
                     random.randint(1, max(1, len(conversation) - 1)),
                     {"role": "user", "content": random.choice(CONTENT_QUESTIONS)}
@@ -422,6 +423,9 @@ def create_followers_and_leads(db, products: list, creator_uuid: uuid.UUID, crea
                     "engaged_fan": "cualificacion",
                     "customer": "cierre",
                 }
+                # Get user context with situation/goal/constraints (for ProfilePanel)
+                user_context = get_user_context() if segment in ["hot_lead", "warm_lead", "customer"] else {}
+
                 conv_state = ConversationStateDB(
                     id=uuid.uuid4(),
                     creator_id=creator_name,  # String type
@@ -432,6 +436,8 @@ def create_followers_and_leads(db, products: list, creator_uuid: uuid.UUID, crea
                         "interests": interests,
                         "objections": objections_raised,
                         "products_discussed": products_discussed,
+                        # ProfilePanel fields
+                        **user_context,
                     },
                 )
                 db.add(conv_state)

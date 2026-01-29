@@ -230,3 +230,53 @@ def get_profile_pic_url(follower_id: str) -> str | None:
         return None
     pattern = random.choice(PROFILE_PIC_PATTERNS)
     return pattern.format(user_id=follower_id.replace("ig_", ""))
+
+
+# Situation/Goal/Constraints for ProfilePanel
+SITUATIONS = [
+    "Madre de 2 niños, trabaja desde casa",
+    "Oficinista con horario intensivo",
+    "Estudiante universitaria",
+    "Autónoma con horarios variables",
+    "Trabaja por turnos en hospital",
+    "Recién llegada de maternidad",
+    "Viaja frecuentemente por trabajo",
+    "Trabaja en hostelería, cenas tarde",
+    "Teletrabajo, poco movimiento",
+    "Deportista amateur, entrena 4 días/semana",
+]
+
+GOALS = [
+    "Perder 8kg antes del verano",
+    "Bajar 5kg para una boda",
+    "Definir músculo sin perder peso",
+    "Aprender a comer sano",
+    "Ganar energía y vitalidad",
+    "Reducir hinchazón abdominal",
+    "Controlar ansiedad con comida",
+    "Establecer rutina de ejercicio",
+    "Preparar oposiciones sin engordar",
+    "Recuperar figura post-parto",
+]
+
+CONSTRAINTS = [
+    "Sin tiempo para cocinar entre semana",
+    "Presupuesto limitado",
+    "Intolerancia al gluten",
+    "No le gusta el pescado",
+    "Familia no come sano",
+    "Come fuera de casa a menudo",
+    "Problemas de tiroides",
+    "Ansiedad por dulces",
+    "Lesión de rodilla, no puede correr",
+    "Horarios de comida irregulares",
+]
+
+
+def get_user_context() -> dict:
+    """Generate realistic user context with situation, goal, constraints"""
+    return {
+        "situation": random.choice(SITUATIONS),
+        "goal": random.choice(GOALS),
+        "constraints": random.sample(CONSTRAINTS, k=random.randint(1, 3)),
+    }
