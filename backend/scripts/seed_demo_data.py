@@ -50,45 +50,80 @@ def log(msg: str):
     print(f"[{datetime.now().strftime('%H:%M:%S')}] {msg}")
 
 
-def clear_demo_data(db):
+def get_or_create_creator(db) -> tuple[uuid.UUID, str]:
+    """
+    Get existing creator or create fitpack_global.
+    Returns (creator_uuid, creator_name_string)
+    """
+    # Try to find existing creator
+    creator = db.query(Creator).filter(Creator.name == CREATOR_ID).first()
+
+    if creator:
+        log(f"Found existing creator: {creator.name} ({creator.id})")
+        return creator.id, CREATOR_ID
+
+    # Try "manel" as fallback
+    creator = db.query(Creator).filter(Creator.name == "manel").first()
+    if creator:
+        log(f"Using existing creator: {creator.name} ({creator.id})")
+        return creator.id, creator.name
+
+    # Create new creator
+    creator = Creator(
+        id=uuid.uuid4(),
+        name=CREATOR_ID,
+        email=f"{CREATOR_ID}@demo.clonnect.com",
+        clone_name="FitPack",
+        bot_active=True,
+    )
+    db.add(creator)
+    db.commit()
+    log(f"Created new creator: {creator.name} ({creator.id})")
+    return creator.id, CREATOR_ID
+
+
+def clear_demo_data(db, creator_uuid: uuid.UUID, creator_name: str):
     """Clear existing demo data for creator"""
-    log(f"Clearing existing data for {CREATOR_ID}...")
+    log(f"Clearing existing data for {creator_name} ({creator_uuid})...")
 
     # Get leads for this creator to delete messages
-    leads = db.query(Lead).filter(Lead.creator_id == CREATOR_ID).all()
-    lead_ids = [str(lead.id) for lead in leads]
+    # Lead uses UUID for creator_id
+    leads = db.query(Lead).filter(Lead.creator_id == creator_uuid).all()
+    lead_ids = [lead.id for lead in leads]
 
     # Delete in order (foreign key constraints)
     if lead_ids:
-        deleted_msgs = db.query(Message).filter(Message.lead_id.in_([uuid.UUID(lid) for lid in lead_ids])).delete(synchronize_session=False)
+        deleted_msgs = db.query(Message).filter(Message.lead_id.in_(lead_ids)).delete(synchronize_session=False)
         log(f"  Deleted {deleted_msgs} messages")
 
-    deleted_leads = db.query(Lead).filter(Lead.creator_id == CREATOR_ID).delete(synchronize_session=False)
+    deleted_leads = db.query(Lead).filter(Lead.creator_id == creator_uuid).delete(synchronize_session=False)
     log(f"  Deleted {deleted_leads} leads")
 
-    deleted_fm = db.query(FollowerMemoryDB).filter(FollowerMemoryDB.creator_id == CREATOR_ID).delete(synchronize_session=False)
+    # These tables use string for creator_id
+    deleted_fm = db.query(FollowerMemoryDB).filter(FollowerMemoryDB.creator_id == creator_name).delete(synchronize_session=False)
     log(f"  Deleted {deleted_fm} follower memories")
 
-    deleted_up = db.query(UserProfileDB).filter(UserProfileDB.creator_id == CREATOR_ID).delete(synchronize_session=False)
+    deleted_up = db.query(UserProfileDB).filter(UserProfileDB.creator_id == creator_name).delete(synchronize_session=False)
     log(f"  Deleted {deleted_up} user profiles")
 
-    deleted_cs = db.query(ConversationStateDB).filter(ConversationStateDB.creator_id == CREATOR_ID).delete(synchronize_session=False)
+    deleted_cs = db.query(ConversationStateDB).filter(ConversationStateDB.creator_id == creator_name).delete(synchronize_session=False)
     log(f"  Deleted {deleted_cs} conversation states")
 
-    deleted_bookings = db.query(CalendarBooking).filter(CalendarBooking.creator_id == CREATOR_ID).delete(synchronize_session=False)
+    deleted_bookings = db.query(CalendarBooking).filter(CalendarBooking.creator_id == creator_name).delete(synchronize_session=False)
     log(f"  Deleted {deleted_bookings} bookings")
 
-    deleted_products = db.query(Product).filter(Product.creator_id == CREATOR_ID).delete(synchronize_session=False)
+    # Product uses UUID for creator_id
+    deleted_products = db.query(Product).filter(Product.creator_id == creator_uuid).delete(synchronize_session=False)
     log(f"  Deleted {deleted_products} products")
 
-    deleted_links = db.query(BookingLink).filter(BookingLink.creator_id == CREATOR_ID).delete(synchronize_session=False)
+    deleted_links = db.query(BookingLink).filter(BookingLink.creator_id == creator_name).delete(synchronize_session=False)
     log(f"  Deleted {deleted_links} booking links")
 
     db.commit()
     log("  Done clearing data")
 
 
-def create_products(db) -> list:
+def create_products(db, creator_uuid: uuid.UUID) -> list:
     """Create products for the creator"""
     log("Creating products...")
     created = []
@@ -96,7 +131,7 @@ def create_products(db) -> list:
     for prod_data in PRODUCTS:
         product = Product(
             id=uuid.uuid4(),
-            creator_id=CREATOR_ID,
+            creator_id=creator_uuid,  # UUID type
             name=prod_data["name"],
             description=prod_data["description"],
             price=prod_data["price"],
@@ -112,7 +147,7 @@ def create_products(db) -> list:
     return created
 
 
-def create_booking_links(db) -> list:
+def create_booking_links(db, creator_name: str) -> list:
     """Create booking links for the creator"""
     log("Creating booking links...")
     created = []
@@ -120,7 +155,7 @@ def create_booking_links(db) -> list:
     for link_data in BOOKING_LINKS:
         link = BookingLink(
             id=uuid.uuid4(),
-            creator_id=CREATOR_ID,
+            creator_id=creator_name,  # String type
             title=link_data["title"],
             meeting_type=link_data["meeting_type"],
             duration_minutes=link_data["duration_minutes"],
@@ -137,7 +172,7 @@ def create_booking_links(db) -> list:
     return created
 
 
-def create_followers_and_leads(db, products: list) -> tuple[list, list]:
+def create_followers_and_leads(db, products: list, creator_uuid: uuid.UUID, creator_name: str) -> tuple[list, list]:
     """Create followers and leads based on segment distribution"""
     log("Creating followers and leads...")
 
@@ -219,11 +254,11 @@ def create_followers_and_leads(db, products: list) -> tuple[list, list]:
             }
             status = status_map.get(segment, "nuevo")
 
-            # Create FollowerMemoryDB
+            # Create FollowerMemoryDB (uses string for creator_id)
             is_customer = segment == "customer"
             follower_memory = FollowerMemoryDB(
                 id=uuid.uuid4(),
-                creator_id=CREATOR_ID,
+                creator_id=creator_name,  # String type
                 follower_id=follower_id,
                 username=username,
                 name=full_name,
@@ -244,7 +279,7 @@ def create_followers_and_leads(db, products: list) -> tuple[list, list]:
             db.add(follower_memory)
             followers.append(follower_memory)
 
-            # Create Lead for non-new segments
+            # Create Lead for non-new segments (uses UUID for creator_id)
             if segment not in ["new"]:
                 deal_value = None
                 if segment == "customer":
@@ -256,7 +291,7 @@ def create_followers_and_leads(db, products: list) -> tuple[list, list]:
 
                 lead = Lead(
                     id=uuid.uuid4(),
-                    creator_id=CREATOR_ID,
+                    creator_id=creator_uuid,  # UUID type
                     platform="instagram",
                     platform_user_id=follower_id,
                     username=username,
@@ -278,7 +313,7 @@ def create_followers_and_leads(db, products: list) -> tuple[list, list]:
                 db.add(lead)
                 leads.append(lead)
 
-                # Create ConversationStateDB
+                # Create ConversationStateDB (uses string for creator_id)
                 phase_map = {
                     "hot_lead": "cierre",
                     "warm_lead": "propuesta",
@@ -290,7 +325,7 @@ def create_followers_and_leads(db, products: list) -> tuple[list, list]:
                 }
                 conv_state = ConversationStateDB(
                     id=uuid.uuid4(),
-                    creator_id=CREATOR_ID,
+                    creator_id=creator_name,  # String type
                     follower_id=follower_id,
                     phase=phase_map.get(segment, "inicio"),
                     message_count=total_messages,
@@ -325,10 +360,10 @@ def create_followers_and_leads(db, products: list) -> tuple[list, list]:
                     all_messages.append(msg)
                     msg_time += timedelta(minutes=random.randint(5, 120))
 
-            # Create UserProfileDB
+            # Create UserProfileDB (uses string for creator_id)
             user_profile = UserProfileDB(
                 id=uuid.uuid4(),
-                creator_id=CREATOR_ID,
+                creator_id=creator_name,  # String type
                 user_id=follower_id,
                 preferences={"language": "es", "response_style": "friendly"},
                 interests={topic: random.uniform(0.3, 1.0) for topic in interests},
@@ -346,7 +381,7 @@ def create_followers_and_leads(db, products: list) -> tuple[list, list]:
     return followers, leads
 
 
-def create_bookings(db, leads: list, booking_links: list) -> list:
+def create_bookings(db, leads: list, booking_links: list, creator_name: str) -> list:
     """Create bookings - 5 for today, 10 historical"""
     log("Creating bookings...")
     created = []
@@ -372,7 +407,7 @@ def create_bookings(db, leads: list, booking_links: list) -> list:
         link = random.choice(booking_links)
         booking = CalendarBooking(
             id=uuid.uuid4(),
-            creator_id=CREATOR_ID,
+            creator_id=creator_name,  # String type
             follower_id=lead.platform_user_id,
             meeting_type=link.meeting_type,
             platform=link.platform,
@@ -398,7 +433,7 @@ def create_bookings(db, leads: list, booking_links: list) -> list:
 
         booking = CalendarBooking(
             id=uuid.uuid4(),
-            creator_id=CREATOR_ID,
+            creator_id=creator_name,  # String type
             follower_id=lead.platform_user_id,
             meeting_type=link.meeting_type,
             platform=link.platform,
@@ -445,14 +480,17 @@ def main():
     db = SessionLocal()
 
     try:
-        # Clear existing data
-        clear_demo_data(db)
+        # Get or create creator (returns UUID and string name)
+        creator_uuid, creator_name = get_or_create_creator(db)
 
-        # Create data
-        products = create_products(db)
-        booking_links = create_booking_links(db)
-        followers, leads = create_followers_and_leads(db, products)
-        bookings = create_bookings(db, leads, booking_links)
+        # Clear existing data
+        clear_demo_data(db, creator_uuid, creator_name)
+
+        # Create data (using appropriate ID type for each table)
+        products = create_products(db, creator_uuid)
+        booking_links = create_booking_links(db, creator_name)
+        followers, leads = create_followers_and_leads(db, products, creator_uuid, creator_name)
+        bookings = create_bookings(db, leads, booking_links, creator_name)
 
         # Summary
         print_summary(followers, leads, products, bookings)
