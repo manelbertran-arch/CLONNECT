@@ -557,13 +557,13 @@ class InstagramWebhookHandler:
 
             logger.info(f"Processing message from {message.sender_id}: {message.text[:50]}")
 
-            # Procesar con DM agent si disponible
+            # Procesar con DM agent si disponible (V2 signature)
             if self.dm_agent:
                 try:
                     response = await self.dm_agent.process_dm(
+                        message=message.text,
                         sender_id=message.sender_id,
-                        message_text=message.text,
-                        message_id=message.message_id
+                        metadata={"message_id": message.message_id, "platform": "instagram"}
                     )
                     results.append({
                         "message_id": message.message_id,
