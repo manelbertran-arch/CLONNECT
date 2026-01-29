@@ -178,12 +178,12 @@ def verify_connections(creator_id: str):
 
 
 def main():
+    global BASE_URL
     parser = argparse.ArgumentParser(description="Verificar integración CLONNECT")
     parser.add_argument("--creator", default=DEFAULT_CREATOR, help="Creator ID a verificar")
     parser.add_argument("--url", default=BASE_URL, help="URL base del backend")
     args = parser.parse_args()
 
-    global BASE_URL
     BASE_URL = args.url
     creator_id = args.creator
 
