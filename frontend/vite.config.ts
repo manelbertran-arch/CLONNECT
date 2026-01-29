@@ -11,7 +11,7 @@ export default defineConfig(({ mode }) => ({
   },
   preview: {
     host: true,
-    allowedHosts: ["clonnect-production.up.railway.app", "localhost"],
+    allowedHosts: ["www.clonnectapp.com", "clonnectapp.com", "localhost"],
   },
   plugins: [react(), mode === "development" && componentTagger()].filter(Boolean),
   resolve: {

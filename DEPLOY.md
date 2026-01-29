@@ -121,7 +121,7 @@ Services available at:
 | `DEBUG` | Enable debug mode | `false` |
 | `DEFAULT_CREATOR_ID` | Default creator | `manel` |
 | `FRONTEND_URL` | Frontend app URL | `https://clonnect.vercel.app` |
-| `API_URL` | Backend API URL | `https://api-clonnect.up.railway.app` |
+| `API_URL` | Backend API URL | `https://www.clonnectapp.com` |
 
 ## Deployment Platforms
 
@@ -219,7 +219,7 @@ python scripts/deploy_check.py
 
 | Environment | Backend | Frontend |
 |-------------|---------|----------|
-| Production | https://web-production-9f69.up.railway.app | https://clonnect.vercel.app |
+| Production | https://www.clonnectapp.com | https://www.clonnectapp.com |
 | Local | http://localhost:8000 | http://localhost:5173 |
 
 ## Useful Commands

@@ -13,7 +13,7 @@ from datetime import datetime
 from typing import Optional, Dict, Any, List
 
 # Configuration
-BASE_URL = os.getenv("API_BASE_URL", "https://web-production-9f69.up.railway.app")
+BASE_URL = os.getenv("API_BASE_URL", "https://www.clonnectapp.com")
 ADMIN_KEY = os.getenv("CLONNECT_ADMIN_KEY", "clonnect_admin_secret_2024")
 
 # Test data

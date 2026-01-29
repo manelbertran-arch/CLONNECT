@@ -627,7 +627,7 @@ data/
 | `DEBUG` | Modo debug | `false` |
 | `DEFAULT_CREATOR_ID` | Creator por defecto | `manel` |
 | `FRONTEND_URL` | URL del frontend | `https://clonnect.vercel.app` |
-| `API_URL` | URL del backend | `https://api-clonnect.up.railway.app` |
+| `API_URL` | URL del backend | `https://www.clonnectapp.com` |
 
 #### Messaging
 | Variable | Descripción |
@@ -718,17 +718,16 @@ dist
 
 | Servicio | URL |
 |----------|-----|
-| Backend | https://web-production-9f69.up.railway.app |
-| Frontend | https://clonnect.vercel.app |
+| Production | https://www.clonnectapp.com |
 
 ### Health Checks
 
 ```bash
 # Liveness
-curl https://web-production-9f69.up.railway.app/health/live
+curl https://www.clonnectapp.com/health/live
 
 # Readiness
-curl https://web-production-9f69.up.railway.app/health/ready
+curl https://www.clonnectapp.com/health/ready
 ```
 
 ---

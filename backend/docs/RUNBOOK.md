@@ -20,7 +20,7 @@ Este documento describe cómo operar, monitorear y solucionar problemas en Clonn
 
 ```bash
 # Backend health
-curl https://web-production-9f69.up.railway.app/health/live
+curl https://www.clonnectapp.com/health/live
 
 # Respuesta esperada:
 # {"status": "ok", "version": "2026.01.17.v1", "timestamp": "..."}
@@ -30,13 +30,13 @@ curl https://web-production-9f69.up.railway.app/health/live
 
 ```bash
 # API funcionando
-curl https://web-production-9f69.up.railway.app/docs
+curl https://www.clonnectapp.com/docs
 
 # Instagram webhook activo
-curl https://web-production-9f69.up.railway.app/webhook/instagram?hub.mode=subscribe&hub.verify_token=clonnect_verify_2024
+curl https://www.clonnectapp.com/webhook/instagram?hub.mode=subscribe&hub.verify_token=clonnect_verify_2024
 
 # Dashboard stats
-curl -H "X-API-Key: YOUR_ADMIN_KEY" https://web-production-9f69.up.railway.app/admin/stats
+curl -H "X-API-Key: YOUR_ADMIN_KEY" https://www.clonnectapp.com/admin/stats
 ```
 
 ### Verificar Base de Datos

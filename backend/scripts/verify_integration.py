@@ -17,7 +17,7 @@ from urllib.request import urlopen, Request
 from urllib.error import URLError, HTTPError
 
 # Configuración
-BASE_URL = "https://web-production-9f69.up.railway.app"
+BASE_URL = "https://www.clonnectapp.com"
 DEFAULT_CREATOR = "fitpack_global"
 
 # Colores para output

@@ -145,7 +145,7 @@ jobs:
 
       - name: Health check - Production Backend
         run: |
-          response=$(curl -s -o /dev/null -w "%{http_code}" https://web-production-9f69.up.railway.app/health)
+          response=$(curl -s -o /dev/null -w "%{http_code}" https://www.clonnectapp.com/health)
           if [ "$response" != "200" ]; then
             echo "Backend health check failed with status $response"
             exit 1
@@ -154,7 +154,7 @@ jobs:
 
       - name: Health check - API Endpoint
         run: |
-          response=$(curl -s https://web-production-9f69.up.railway.app/health)
+          response=$(curl -s https://www.clonnectapp.com/health)
           echo "Health response: $response"
           if echo "$response" | grep -q '"status":"healthy"'; then
             echo "API is healthy ✅"

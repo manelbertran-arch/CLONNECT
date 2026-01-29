@@ -7,8 +7,7 @@
 ---
 
 ## URLs de Producción
-- **Backend**: https://web-production-9f69.up.railway.app
-- **Frontend**: https://frontend-wine-ten-57.vercel.app
+- **Production**: https://www.clonnectapp.com
 
 ---
 

@@ -23,11 +23,11 @@ grep -n "from api.services.db_service" backend/core/dm_agent.py
 
 echo ""
 echo "=== 6. Railway logs (si hay error) ==="
-curl -s https://web-production-9f69.up.railway.app/health/ready
+curl -s https://www.clonnectapp.com/health/ready
 
 echo ""
 echo "=== 7. Test endpoint dashboard ==="
-curl -s https://web-production-9f69.up.railway.app/dashboard/manel/overview | python3 -m json.tool 2>/dev/null | head -20
+curl -s https://www.clonnectapp.com/dashboard/manel/overview | python3 -m json.tool 2>/dev/null | head -20
 
 echo ""
 echo "=== 8. Verificar si hay tabla messages en DB schema ==="

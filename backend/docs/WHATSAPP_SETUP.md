@@ -25,7 +25,7 @@ From Meta App Dashboard:
 
 ### 4. Configure Webhook
 1. In Meta App → WhatsApp → Configuration
-2. Webhook URL: `https://web-production-9f69.up.railway.app/webhook/whatsapp`
+2. Webhook URL: `https://www.clonnectapp.com/webhook/whatsapp`
 3. Verify Token: `clonnect_whatsapp_verify_2024`
 4. Subscribe to: `messages`, `messaging_postbacks`
 

@@ -11,7 +11,7 @@ import httpx
 import sys
 
 # Configuration
-API_URL = "https://web-production-9f69.up.railway.app"
+API_URL = "https://www.clonnectapp.com"
 CREATOR_ID = "stefano_auto"
 CONTENT_FILE = "exports/stefano_full_content.txt"
 CHUNK_SIZE = 500  # Characters per chunk

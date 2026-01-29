@@ -182,8 +182,8 @@ class TelegramBotRegistry:
             if set_webhook:
                 base_url = webhook_url or os.getenv("RAILWAY_PUBLIC_URL") or os.getenv("RENDER_EXTERNAL_URL")
                 if not base_url:
-                    # Try to construct from known Railway URL
-                    base_url = "https://web-production-9f69.up.railway.app"
+                    # Use production URL
+                    base_url = "https://www.clonnectapp.com"
 
                 full_webhook_url = f"{base_url}/webhook/telegram"
 

@@ -31,7 +31,7 @@ aprueben mensajes (Copilot), y configuren productos.
 - PUT /bot/{creator_id}/toggle
 
 ## Configuración
-- VITE_API_URL=https://web-production-9f69.up.railway.app
+- VITE_API_URL=https://www.clonnectapp.com
 
 ## ⚠️ NO TOCAR SIN MOTIVO
 El Dashboard funciona. Cambios en frontend requieren

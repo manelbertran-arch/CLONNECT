@@ -19,7 +19,7 @@ STRIPE_WEBHOOK_SECRET=whsec_your_webhook_secret
 
 ### 3. Configure Webhook
 1. Go to Stripe Dashboard → Developers → Webhooks
-2. Add endpoint: `https://web-production-9f69.up.railway.app/webhook/stripe`
+2. Add endpoint: `https://www.clonnectapp.com/webhook/stripe`
 3. Select events:
    - `checkout.session.completed`
    - `payment_intent.succeeded`

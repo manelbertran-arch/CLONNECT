@@ -18,8 +18,7 @@ sesion-15-enero-completa (15 ene 2026)
 - cache-productos-fix
 
 ## URLs
-- Backend: https://web-production-9f69.up.railway.app
-- Dashboard: https://clonnect.vercel.app
+- Production: https://www.clonnectapp.com
 
 ## COMPLETADO HOY (15 ene 2026)
 - [x] 128 tests pasando

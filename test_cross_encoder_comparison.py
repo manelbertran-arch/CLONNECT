@@ -6,7 +6,7 @@ Compares keyword-based search vs Cross-Encoder reranking.
 import requests
 import json
 
-API_URL = "https://web-production-9f69.up.railway.app"
+API_URL = "https://www.clonnectapp.com"
 
 def test_health():
     """Verify API is healthy"""

@@ -157,7 +157,7 @@ All API calls go through `services/api.ts`:
 
 ```typescript
 // Base configuration
-export const API_URL = import.meta.env.VITE_API_URL || "https://web-production-9f69.up.railway.app";
+export const API_URL = import.meta.env.VITE_API_URL || "https://www.clonnectapp.com";
 export const CREATOR_ID = import.meta.env.VITE_CREATOR_ID || "manel";
 
 // Generic fetch wrapper
@@ -262,7 +262,7 @@ test/utils.tsx       # Test utilities
 ## Environment Variables
 
 ```env
-VITE_API_URL=https://web-production-9f69.up.railway.app
+VITE_API_URL=https://www.clonnectapp.com
 VITE_CREATOR_ID=manel
 ```
 

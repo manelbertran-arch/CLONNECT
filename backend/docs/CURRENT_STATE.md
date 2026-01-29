@@ -6,9 +6,7 @@
 
 | Servicio | URL | Notas |
 |----------|-----|-------|
-| Backend (Railway) | https://web-production-9f69.up.railway.app | API principal |
-| Frontend NUEVO (Vercel) | https://frontend-wine-ten-57.vercel.app | Dashboard actualizado |
-| Frontend VIEJO (Vercel) | https://clonnect.vercel.app | Proyecto anterior, sin cambios recientes |
+| Backend/Frontend | https://www.clonnectapp.com | Producción |
 
 ## Estado de Componentes
 

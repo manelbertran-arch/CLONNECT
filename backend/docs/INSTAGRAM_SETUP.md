@@ -34,7 +34,7 @@ In the App Dashboard, add these products:
 2. Enable "Web" platform
 3. Add Valid OAuth Redirect URIs:
    ```
-   https://api-clonnect.up.railway.app/oauth/instagram/callback
+   https://www.clonnectapp.com/oauth/instagram/callback
    ```
 
 ## 3. Configure App Settings
@@ -44,7 +44,7 @@ Go to "Settings" → "Basic":
 - Note your **App ID** (META_APP_ID)
 - Note your **App Secret** (META_APP_SECRET)
 - Add Privacy Policy URL (required for production)
-- Add App Domains: `api-clonnect.up.railway.app`
+- Add App Domains: `www.clonnectapp.com`
 
 ### Advanced Settings
 Go to "Settings" → "Advanced":
@@ -73,7 +73,7 @@ While in development mode, you can test with:
 
 ### Webhook URL
 ```
-https://api-clonnect.up.railway.app/webhook/instagram
+https://www.clonnectapp.com/webhook/instagram
 ```
 
 ### Verify Token
@@ -99,7 +99,7 @@ Subscribe to these webhook fields:
 ### Setting Up Webhooks in Dashboard
 1. Go to "Webhooks" in your app
 2. Click "Add Subscription" for Instagram
-3. Enter Callback URL: `https://api-clonnect.up.railway.app/webhook/instagram`
+3. Enter Callback URL: `https://www.clonnectapp.com/webhook/instagram`
 4. Enter Verify Token: `clonnect_verify_2024`
 5. Click "Verify and Save"
 6. Select the webhook fields listed above
@@ -114,7 +114,7 @@ META_APP_ID=your_app_id
 META_APP_SECRET=your_app_secret
 
 # OAuth redirect
-META_REDIRECT_URI=https://api-clonnect.up.railway.app/oauth/instagram/callback
+META_REDIRECT_URI=https://www.clonnectapp.com/oauth/instagram/callback
 
 # Webhook verification
 INSTAGRAM_VERIFY_TOKEN=clonnect_verify_2024
