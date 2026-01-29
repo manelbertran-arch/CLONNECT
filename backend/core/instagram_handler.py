@@ -294,7 +294,7 @@ class InstagramHandler:
 
                 # V2 compatibility: response.content (V2) or response_text (V1)
                 response_text = getattr(response, 'content', None) or getattr(response, 'response_text', '')
-                intent_str = intent_str
+                intent_str = response.intent.value if hasattr(response.intent, 'value') else str(response.intent)
 
                 # Get username if available
                 username = ""
