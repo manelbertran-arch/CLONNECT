@@ -15,7 +15,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 COPY requirements-lite.txt .
 
 # Force rebuild - change this value to invalidate pip cache
-ENV FORCE_REBUILD="2026-01-29-audience-intelligence-frontend"
+ENV FORCE_REBUILD="2026-01-29-process-dm-v2-fix"
 
 # Create virtual environment and install dependencies
 RUN python -m venv /opt/venv
@@ -58,7 +58,7 @@ ENV PATH="/opt/venv/bin:$PATH"
 # Install Playwright browsers
 RUN playwright install chromium
 
-# Copy application code - files updated 2026-01-29 20:15
+# Copy application code - files updated 2026-01-29 20:25 process_dm V2 fix
 COPY --chown=clonnect:clonnect . .
 
 # Verify static files are correct (this line forces cache invalidation)
