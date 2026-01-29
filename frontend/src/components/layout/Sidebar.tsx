@@ -13,8 +13,6 @@ import {
   Settings,
   Bot,
   LogOut,
-  Lightbulb,
-  UserCircle,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/context/AuthContext";
@@ -30,22 +28,15 @@ interface NavItem {
   badge?: string;
 }
 
+// BETA STEFAN: Simplified sidebar with 7 pages only
 const navItems: NavItem[] = [
   // Main
   { path: "/dashboard", label: "Hoy", icon: Home },
-  { path: "/copilot", label: "Copilot", icon: Bot },
-
-  // Operaciones section
-  { type: "section", label: "OPERACIONES" },
   { path: "/inbox", label: "Bandeja", icon: MessageSquare },
   { path: "/leads", label: "Leads", icon: Users },
   { path: "/bookings", label: "Reservas", icon: Calendar },
   { path: "/products", label: "Productos", icon: ShoppingBag },
-
-  // Inteligencia section
-  { type: "section", label: "INTELIGENCIA" },
-  { path: "/tu-audiencia", label: "Tu Audiencia", icon: Lightbulb },
-  { path: "/personas", label: "Personas", icon: UserCircle },
+  { path: "/copilot", label: "Copiloto", icon: Bot },
 
   // Divider before settings
   { type: "divider", label: "" },
