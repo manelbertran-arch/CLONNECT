@@ -15,7 +15,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 COPY requirements-lite.txt .
 
 # Force rebuild - change this value to invalidate pip cache
-ENV FORCE_REBUILD="2026-01-25-disable-ssl-verify"
+ENV FORCE_REBUILD="2026-01-29-fix-port-variable"
 
 # Create virtual environment and install dependencies
 RUN python -m venv /opt/venv
