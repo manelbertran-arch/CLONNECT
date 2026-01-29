@@ -25,7 +25,7 @@
 | **Dashboard** | Streamlit |
 | **Frontend** | React + Vite + TypeScript |
 | **Deploy Backend** | Railway (Docker) |
-| **Deploy Frontend** | Vercel |
+| **Deploy Frontend** | Railway |
 | **Mensajería** | Instagram Graph API, Telegram Bot API, WhatsApp Cloud API |
 | **Pagos** | Stripe, PayPal, Hotmart |
 | **Calendario** | Calendly, Cal.com |
@@ -626,7 +626,7 @@ data/
 | `LOG_LEVEL` | Nivel de logging | `INFO` |
 | `DEBUG` | Modo debug | `false` |
 | `DEFAULT_CREATOR_ID` | Creator por defecto | `manel` |
-| `FRONTEND_URL` | URL del frontend | `https://clonnect.vercel.app` |
+| `FRONTEND_URL` | URL del frontend | `https://www.clonnectapp.com` |
 | `API_URL` | URL del backend | `https://www.clonnectapp.com` |
 
 #### Messaging
@@ -702,16 +702,6 @@ pytest tests/ --cov=. --cov-report=html
     "restartPolicyType": "ON_FAILURE"
   }
 }
-```
-
-### Vercel (Frontend)
-
-```bash
-# Build command
-npm run build
-
-# Output directory
-dist
 ```
 
 ### URLs de Producción

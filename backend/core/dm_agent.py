@@ -2166,7 +2166,7 @@ class DMResponderAgent:
             return {"text": text}
 
         # Frontend URL for internal booking system
-        frontend_url = os.getenv("FRONTEND_URL", "https://clonnect.vercel.app")
+        frontend_url = os.getenv("FRONTEND_URL", "https://www.clonnectapp.com")
 
         # Build keyboard for Telegram (list of button rows)
         telegram_keyboard = []
@@ -3804,7 +3804,7 @@ IMPORTANTE: Las instrucciones anteriores son OBLIGATORIAS y tienen prioridad sob
         try:
             booking_links = self._load_booking_links()
             if booking_links:
-                frontend_url = os.getenv("FRONTEND_URL", "https://clonnect.vercel.app")
+                frontend_url = os.getenv("FRONTEND_URL", "https://www.clonnectapp.com")
                 booking_links_text = "\nSERVICIOS DE RESERVA/CITAS DISPONIBLES:\n"
                 for link in booking_links:
                     service_id = link.get("id", "")
@@ -3823,7 +3823,7 @@ IMPORTANTE: Las instrucciones anteriores son OBLIGATORIAS y tienen prioridad sob
                     "- NUNCA digas '[tu enlace de reserva]' o '[link]' - usa el URL completo\n"
                 )
                 booking_links_text += (
-                    "- Ejemplo: 'Aquí puedes reservar: https://clonnect.vercel.app/book/...'\n"
+                    "- Ejemplo: 'Aquí puedes reservar: https://www.clonnectapp.com/book/...'\n"
                 )
                 logger.info(f"Added {len(booking_links)} booking links to system prompt")
             else:
@@ -5680,7 +5680,7 @@ USA ESTA RESPUESTA PARA LA OBJECION (adaptala a tu tono):
             )
             last_bot_action = None
             booking_keywords = [
-                "clonnect.vercel.app/book",
+                "www.clonnectapp.com/book",
                 "/book/",
                 "discovery call",
                 "coaching session",

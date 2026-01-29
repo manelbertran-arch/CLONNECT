@@ -466,7 +466,7 @@ class NotificationService:
                     </p>
 
                     <div style="text-align: center; margin-top: 20px;">
-                        <a href="https://clonnect.vercel.app/dashboard"
+                        <a href="https://www.clonnectapp.com/dashboard"
                            style="background: #667eea; color: white; padding: 12px 30px; text-decoration: none; border-radius: 5px; display: inline-block;">
                             Ver Dashboard
                         </a>

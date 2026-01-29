@@ -20,7 +20,7 @@ SaaS platform for content creators to automate Instagram/Telegram/WhatsApp DMs w
 - **Frontend**: React + TypeScript + Vite + TailwindCSS + shadcn/ui
 - **Database**: PostgreSQL (with SQLAlchemy ORM)
 - **LLM**: Groq (Llama 3.3 70B), OpenAI, Anthropic with fallback
-- **Deployment**: Railway (backend) + Vercel (frontend)
+- **Deployment**: Railway (all services)
 
 ## Project Structure
 
@@ -157,12 +157,6 @@ npm run test:e2e:ui
 1. Connect your GitHub repo to Railway
 2. Set environment variables in Railway dashboard
 3. Railway auto-deploys on push to `main`
-
-### Vercel (Frontend)
-
-1. Import project to Vercel
-2. Set `VITE_API_URL` environment variable
-3. Vercel auto-deploys on push to `main`
 
 ## Database Migrations
 

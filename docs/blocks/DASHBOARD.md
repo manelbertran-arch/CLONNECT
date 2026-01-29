@@ -9,8 +9,8 @@ aprueben mensajes (Copilot), y configuren productos.
 
 ## Ubicación
 - Repo: creator-s-connect-hub
-- URL: https://frontend-wine-ten-57.vercel.app
-- Deploy: Vercel
+- URL: https://www.clonnectapp.com
+- Deploy: Railway
 
 ## Funcionalidades verificadas ✅
 - ✅ Login de creator

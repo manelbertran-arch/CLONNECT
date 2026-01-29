@@ -120,7 +120,7 @@ Services available at:
 | `LOG_LEVEL` | Logging level | `INFO` |
 | `DEBUG` | Enable debug mode | `false` |
 | `DEFAULT_CREATOR_ID` | Default creator | `manel` |
-| `FRONTEND_URL` | Frontend app URL | `https://clonnect.vercel.app` |
+| `FRONTEND_URL` | Frontend app URL | `https://www.clonnectapp.com` |
 | `API_URL` | Backend API URL | `https://www.clonnectapp.com` |
 
 ## Deployment Platforms
@@ -150,14 +150,6 @@ Uses `render.yaml` blueprint for multi-service deployment:
 - clonnect-dashboard (Web Service)
 - clonnect-admin (Web Service)
 - clonnect-telegram-bot (Worker - optional)
-
-### Vercel (Frontend)
-
-1. Import from GitHub
-2. Framework: Vite
-3. Build command: `npm run build`
-4. Output directory: `dist`
-5. Set `VITE_API_URL` environment variable
 
 ## Health Checks
 
