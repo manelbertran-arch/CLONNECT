@@ -408,13 +408,16 @@ class TelegramAdapter:
         if telegram_msg.last_name:
             full_name += f" {telegram_msg.last_name}"
 
-        # Process with DM agent (async) - passing name for storage
+        # Process with DM agent (async) - V2 signature
         response = await self.dm_agent.process_dm(
+            message=telegram_msg.text,
             sender_id=telegram_msg.follower_id,
-            message_text=telegram_msg.text,
-            message_id=str(telegram_msg.message_id),
-            username=display_name,
-            name=full_name.strip()
+            metadata={
+                "message_id": str(telegram_msg.message_id),
+                "username": display_name,
+                "name": full_name.strip(),
+                "platform": "telegram"
+            }
         )
 
         # Update follower name/username in memory if available and not set

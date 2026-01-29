@@ -409,11 +409,14 @@ async def telegram_webhook(request: Request):
             full_name = f"{first_name} {last_name}".strip()
 
             response = await agent.process_dm(
+                message=text,
                 sender_id=f"tg_{sender_id}",
-                message_text=text,
-                message_id=str(message.get("message_id", "")),
-                username=sender_name,
-                name=full_name,
+                metadata={
+                    "message_id": str(message.get("message_id", "")),
+                    "username": sender_name,
+                    "name": full_name,
+                    "platform": "telegram"
+                }
             )
             _t_process_done = time.time()
             logger.info(f"process_dm completed in {_t_process_done - _t_agent_ready:.2f}s")

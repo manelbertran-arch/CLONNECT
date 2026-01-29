@@ -484,13 +484,15 @@ async def test_telegram_flow():
             }
         )
 
-        # Process a test message
+        # Process a test message (V2 signature)
         response = await agent.process_dm(
+            message="hola, esto es una prueba de diagnóstico",
             sender_id="test_diagnosis",
-            message_text="hola, esto es una prueba de diagnóstico",
-            message_id="diag_001",
-            username="DiagnosticTest",
-            name="Test User",
+            metadata={
+                "message_id": "diag_001",
+                "username": "DiagnosticTest",
+                "name": "Test User",
+            }
         )
 
         steps.append(

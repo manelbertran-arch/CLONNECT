@@ -621,12 +621,15 @@ class WhatsAppHandler:
         if not self.dm_agent:
             raise RuntimeError("DM Agent not initialized")
 
-        # Process with DM agent
+        # Process with DM agent (V2 signature)
         response = await self.dm_agent.process_dm(
+            message=message.text,
             sender_id=f"wa_{message.sender_id}",
-            message_text=message.text,
-            message_id=message.message_id,
-            username="amigo"  # WhatsApp doesn't provide username
+            metadata={
+                "message_id": message.message_id,
+                "username": "amigo",
+                "platform": "whatsapp"
+            }
         )
 
         logger.info(f"[WA:{message.sender_id}] Intent: {response.intent.value} ({response.confidence:.0%})")
