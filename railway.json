@@ -5,7 +5,7 @@
     "watchPatterns": ["backend/**"]
   },
   "deploy": {
-    "startCommand": "cd backend && uvicorn api.main:app --host 0.0.0.0 --port ${PORT:-8000}",
+    "startCommand": "cd backend && sh scripts/start.sh",
     "healthcheckPath": "/health/live",
     "healthcheckTimeout": 300,
     "restartPolicyType": "ON_FAILURE",
