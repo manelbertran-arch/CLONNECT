@@ -1,8 +1,6 @@
 import { useState, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
-import { Instagram, MoreHorizontal, Plus, Loader2, AlertCircle, MessageCircle, Send, Eye, Pencil, Trash2, Users, Flame, Star, CheckCircle, Ghost, Clock, ExternalLink, ListTodo, History, StickyNote, CheckSquare, Square, Phone, Mail, Calendar, Activity, TrendingUp, Tag, ShoppingBag, Brain } from "lucide-react";
-import { ProfilePanel } from "@/components/ProfilePanel";
-import { getCreatorId } from "@/services/api";
+import { Instagram, MoreHorizontal, Plus, Loader2, AlertCircle, MessageCircle, Send, Eye, Pencil, Trash2, Users, Flame, Star, CheckCircle, Ghost, Clock, ExternalLink, ListTodo, History, StickyNote, CheckSquare, Square, Phone, Mail, Calendar, Activity, TrendingUp, Tag, ShoppingBag } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -916,14 +914,10 @@ export default function Leads() {
 
               {/* Tabs */}
               <Tabs value={modalTab} onValueChange={setModalTab} className="flex-1 flex flex-col overflow-hidden">
-                <TabsList className="grid w-full grid-cols-5">
+                <TabsList className="grid w-full grid-cols-4">
                   <TabsTrigger value="info" className="text-xs">
                     <Eye className="w-3.5 h-3.5 mr-1.5" />
                     Info
-                  </TabsTrigger>
-                  <TabsTrigger value="intelligence" className="text-xs">
-                    <Brain className="w-3.5 h-3.5 mr-1.5" />
-                    AI
                   </TabsTrigger>
                   <TabsTrigger value="activity" className="text-xs">
                     <Activity className="w-3.5 h-3.5 mr-1.5" />
@@ -1039,16 +1033,6 @@ export default function Leads() {
                       Ir al Chat
                     </Button>
                   </div>
-                </TabsContent>
-
-                {/* Intelligence Tab - Audience Profile */}
-                <TabsContent value="intelligence" className="flex-1 overflow-auto mt-3">
-                  <ProfilePanel
-                    creatorId={getCreatorId()}
-                    followerId={selectedLead.followerId}
-                    showCloseButton={false}
-                    className="border-0 shadow-none"
-                  />
                 </TabsContent>
 
                 {/* Activity Tab - INTELLIGENT Prediction */}

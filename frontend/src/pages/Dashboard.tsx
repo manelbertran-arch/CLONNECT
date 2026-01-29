@@ -1,42 +1,25 @@
-/**
- * Dashboard / "Hoy" Page
- *
- * SPRINT3-T3.2: Reimagined dashboard with daily mission and insights
- */
-import { Loader2, AlertCircle, Power, Calendar, MessageCircle, Ghost, ChevronRight } from "lucide-react";
-import { Link, useNavigate } from "react-router-dom";
+import { TrendingUp, TrendingDown, MessageCircle, Users, AlertCircle, Loader2, Power, PowerOff, UserCheck, Bot, DollarSign, Zap, ArrowUpRight, ChevronRight } from "lucide-react";
+import { Area, AreaChart, ResponsiveContainer, XAxis, YAxis, Tooltip } from "recharts";
+import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { useDashboard, useToggleBot } from "@/hooks/useApi";
-import { useTodayMission, useWeeklyInsights, useWeeklyMetrics } from "@/hooks/useInsights";
+import { useDashboard, useToggleBot, useRevenue } from "@/hooks/useApi";
 import { useToast } from "@/hooks/use-toast";
+import { getPurchaseIntent } from "@/types/api";
 import { cn } from "@/lib/utils";
-import { getCreatorId } from "@/services/api";
-import { MetricsBar } from "@/components/MetricsBar";
-import { MissionCard } from "@/components/MissionCard";
-import { InsightCard } from "@/components/InsightCard";
+import EscalationsCard from "@/components/EscalationsCard";
 
 export default function Dashboard() {
-  const creatorId = getCreatorId();
-  const navigate = useNavigate();
+  const { data, isLoading, error } = useDashboard();
+  const { data: revenueData } = useRevenue();
+  const toggleBot = useToggleBot();
   const { toast } = useToast();
 
-  // Existing dashboard data (for bot status and creator name)
-  const { data: dashboardData, isLoading: dashboardLoading, error: dashboardError } = useDashboard();
-  const toggleBot = useToggleBot();
-
-  // New insights data
-  const { data: mission, isLoading: missionLoading } = useTodayMission(creatorId);
-  const { data: insights, isLoading: insightsLoading } = useWeeklyInsights(creatorId);
-  const { data: metrics, isLoading: metricsLoading } = useWeeklyMetrics(creatorId);
-
-  // Greeting based on time
   const currentHour = new Date().getHours();
   const greeting = currentHour < 12 ? "Buenos días" : currentHour < 18 ? "Buenas tardes" : "Buenas noches";
 
-  // Bot toggle handler
   const handleToggleBot = () => {
-    if (!dashboardData) return;
-    const newStatus = !dashboardData.clone_active;
+    if (!data) return;
+    const newStatus = !data.clone_active;
     toggleBot.mutate(
       { active: newStatus },
       {
@@ -53,13 +36,7 @@ export default function Dashboard() {
     );
   };
 
-  // Open chat handler
-  const handleOpenChat = (followerId: string) => {
-    navigate(`/inbox?id=${followerId}`);
-  };
-
-  // Loading state
-  if (dashboardLoading) {
+  if (isLoading) {
     return (
       <div className="flex items-center justify-center h-[60vh]">
         <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
@@ -67,8 +44,7 @@ export default function Dashboard() {
     );
   }
 
-  // Error state
-  if (dashboardError) {
+  if (error) {
     return (
       <div className="flex flex-col items-center justify-center h-[60vh] gap-3">
         <AlertCircle className="w-8 h-8 text-destructive/60" />
@@ -77,12 +53,75 @@ export default function Dashboard() {
     );
   }
 
-  const config = dashboardData?.config;
-  const creatorName = dashboardData?.creator_name || config?.name || config?.clone_name || "Creator";
-  const isActive = dashboardData?.clone_active ?? false;
+  const metrics = data?.metrics || {
+    total_messages: 0,
+    total_followers: 0,
+    leads: 0,
+    customers: 0,
+    high_intent_followers: 0,
+    conversion_rate: 0,
+  };
+
+  const config = data?.config;
+  const creatorName = data?.creator_name || config?.name || config?.clone_name || "Creator";
+  const isActive = data?.clone_active ?? false;
+
+  const totalRevenue = revenueData?.total_revenue || 0;
+  const botAttributedRevenue = revenueData?.bot_attributed_revenue || 0;
+
+  // Engagement data
+  const getEngagementData = () => {
+    const dayNames = ["D", "L", "M", "X", "J", "V", "S"];
+    const now = new Date();
+    const recentConversations = data?.recent_conversations || [];
+    const messagesByDate: Record<string, number> = {};
+    const dateToDay: Record<string, string> = {};
+
+    for (let i = 6; i >= 0; i--) {
+      const d = new Date(now);
+      d.setDate(d.getDate() - i);
+      const dateKey = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+      messagesByDate[dateKey] = 0;
+      dateToDay[dateKey] = dayNames[d.getDay()];
+    }
+
+    recentConversations.forEach((conv: any) => {
+      if (conv.last_contact) {
+        const contactDate = new Date(conv.last_contact);
+        const dateKey = `${contactDate.getFullYear()}-${String(contactDate.getMonth() + 1).padStart(2, '0')}-${String(contactDate.getDate()).padStart(2, '0')}`;
+        if (dateKey in messagesByDate) {
+          messagesByDate[dateKey] += 1;
+        }
+      }
+    });
+
+    const result = [];
+    for (let i = 6; i >= 0; i--) {
+      const d = new Date(now);
+      d.setDate(d.getDate() - i);
+      const dateKey = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+      result.push({ day: dateToDay[dateKey], value: messagesByDate[dateKey] || 0 });
+    }
+    return result;
+  };
+
+  const engagementData = getEngagementData();
+
+  // Hot leads
+  const hotLeads = data?.leads?.filter(l => getPurchaseIntent(l) >= 0.50) || [];
+  const actionItems = hotLeads.slice(0, 5).map((lead, i) => {
+    const displayName = lead.name || lead.username || lead.follower_id;
+    const intent = (getPurchaseIntent(lead) * 100).toFixed(0);
+    return {
+      id: `lead-${i}`,
+      follower_id: lead.follower_id,
+      name: displayName,
+      intent,
+    };
+  });
 
   return (
-    <div className="space-y-8 max-w-6xl mx-auto">
+    <div className="space-y-8">
       {/* Header */}
       <div className="flex items-start justify-between">
         <div>
@@ -110,185 +149,160 @@ export default function Dashboard() {
         </Button>
       </div>
 
-      {/* Metrics Bar */}
-      {metricsLoading ? (
-        <div className="h-20 bg-card rounded-xl border border-border/50 animate-pulse" />
-      ) : metrics ? (
-        <MetricsBar metrics={metrics} />
-      ) : null}
-
-      {/* Section: Ventas de Hoy */}
-      <section>
-        <h2 className="text-lg font-semibold mb-4 flex items-center gap-2">
-          <span>💰</span>
-          Ventas de Hoy
-        </h2>
-
-        {missionLoading ? (
-          <div className="space-y-3">
-            {[1, 2, 3].map((i) => (
-              <div key={i} className="h-32 bg-card rounded-xl border border-border/50 animate-pulse" />
-            ))}
+      {/* Main KPIs - Clean cards */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        {/* Revenue */}
+        <div className="col-span-2 p-5 rounded-2xl bg-gradient-to-br from-emerald-500/10 via-emerald-500/5 to-transparent border border-emerald-500/20">
+          <div className="flex items-center gap-2 mb-3">
+            <DollarSign className="w-4 h-4 text-emerald-500" />
+            <span className="text-xs font-medium text-emerald-500/80 uppercase tracking-wide">Ingresos 30d</span>
           </div>
-        ) : mission && mission.hot_leads.length > 0 ? (
-          <>
-            {mission.potential_revenue > 0 && (
-              <p className="text-muted-foreground mb-4">
-                Si haces estas <span className="text-foreground font-medium">{mission.hot_leads.length} cosas</span>, cierras{" "}
-                <span className="text-emerald-500 font-semibold">{mission.potential_revenue.toFixed(0)}€</span> hoy
-              </p>
+          <div className="flex items-baseline gap-3">
+            <span className="text-3xl font-semibold">€{totalRevenue.toLocaleString()}</span>
+            {botAttributedRevenue > 0 && (
+              <span className="text-sm text-emerald-500">
+                €{botAttributedRevenue.toLocaleString()} via bot
+              </span>
             )}
+          </div>
+        </div>
 
-            <div className="space-y-3">
-              {mission.hot_leads.map((lead) => (
-                <MissionCard
-                  key={lead.follower_id}
-                  lead={lead}
-                  onOpenChat={handleOpenChat}
+        {/* Messages */}
+        <div className="p-5 rounded-2xl bg-card border border-border/50">
+          <div className="flex items-center gap-2 mb-3">
+            <MessageCircle className="w-4 h-4 text-muted-foreground" />
+            <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Mensajes</span>
+          </div>
+          <span className="text-2xl font-semibold">{(metrics.total_messages || 0).toLocaleString()}</span>
+        </div>
+
+        {/* Followers */}
+        <div className="p-5 rounded-2xl bg-card border border-border/50">
+          <div className="flex items-center gap-2 mb-3">
+            <Users className="w-4 h-4 text-muted-foreground" />
+            <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Contactos</span>
+          </div>
+          <span className="text-2xl font-semibold">{metrics.total_followers || 0}</span>
+        </div>
+      </div>
+
+      {/* Secondary metrics */}
+      <div className="grid grid-cols-3 gap-4">
+        <div className="p-4 rounded-xl bg-card/50 border border-border/30">
+          <div className="flex items-center justify-between mb-2">
+            <span className="text-xs text-muted-foreground">Leads</span>
+            <Zap className="w-3.5 h-3.5 text-amber-500" />
+          </div>
+          <span className="text-xl font-semibold">{metrics.leads || 0}</span>
+        </div>
+
+        <div className="p-4 rounded-xl bg-card/50 border border-border/30">
+          <div className="flex items-center justify-between mb-2">
+            <span className="text-xs text-muted-foreground">Clientes</span>
+            <UserCheck className="w-3.5 h-3.5 text-emerald-500" />
+          </div>
+          <span className="text-xl font-semibold">{metrics.customers || 0}</span>
+        </div>
+
+        <div className="p-4 rounded-xl bg-card/50 border border-border/30">
+          <div className="flex items-center justify-between mb-2">
+            <span className="text-xs text-muted-foreground">Conversión</span>
+            <TrendingUp className="w-3.5 h-3.5 text-blue-500" />
+          </div>
+          <span className="text-xl font-semibold">{((metrics.conversion_rate || 0) * 100).toFixed(0)}%</span>
+        </div>
+      </div>
+
+      {/* Escalations - needs attention */}
+      <EscalationsCard maxItems={5} />
+
+      {/* Two columns */}
+      <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
+        {/* Activity Chart */}
+        <div className="lg:col-span-3 p-5 rounded-2xl bg-card border border-border/50">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-sm font-medium">Actividad semanal</h3>
+            <span className="text-xs text-muted-foreground">Conversaciones activas</span>
+          </div>
+          <div className="h-[160px]">
+            <ResponsiveContainer width="100%" height="100%">
+              <AreaChart data={engagementData}>
+                <defs>
+                  <linearGradient id="chartGradient" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stopColor="hsl(var(--primary))" stopOpacity={0.2} />
+                    <stop offset="100%" stopColor="hsl(var(--primary))" stopOpacity={0} />
+                  </linearGradient>
+                </defs>
+                <XAxis
+                  dataKey="day"
+                  axisLine={false}
+                  tickLine={false}
+                  tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 11 }}
                 />
-              ))}
-            </div>
-
-            {mission.pending_responses > 0 && (
-              <div className="mt-4 flex items-center gap-2 text-muted-foreground">
-                <MessageCircle className="w-4 h-4" />
-                <span>+ {mission.pending_responses} personas más esperan respuesta</span>
-                <Link to="/inbox" className="text-violet-400 hover:text-violet-300 ml-1 flex items-center gap-1">
-                  Ver en Bandeja
-                  <ChevronRight className="w-4 h-4" />
-                </Link>
-              </div>
-            )}
-          </>
-        ) : (
-          <div className="p-8 bg-card rounded-xl border border-border/50 text-center">
-            <p className="text-muted-foreground">No hay leads calientes hoy</p>
-            <p className="text-sm text-muted-foreground/70 mt-1">El bot está trabajando para ti</p>
+                <YAxis hide />
+                <Tooltip
+                  contentStyle={{
+                    backgroundColor: 'hsl(var(--card))',
+                    border: '1px solid hsl(var(--border))',
+                    borderRadius: '8px',
+                    fontSize: '12px',
+                  }}
+                  formatter={(value: number) => [`${value}`, 'Activas']}
+                />
+                <Area
+                  type="monotone"
+                  dataKey="value"
+                  stroke="hsl(var(--primary))"
+                  strokeWidth={2}
+                  fill="url(#chartGradient)"
+                />
+              </AreaChart>
+            </ResponsiveContainer>
           </div>
-        )}
-      </section>
+        </div>
 
-      {/* Section: Agenda de Hoy */}
-      {mission && mission.today_bookings && mission.today_bookings.length > 0 && (
-        <section>
-          <h2 className="text-lg font-semibold mb-4 flex items-center gap-2">
-            <Calendar className="w-5 h-5" />
-            Agenda de Hoy
-          </h2>
-
-          <div className="space-y-2">
-            {mission.today_bookings.map((booking) => (
-              <div
-                key={booking.id}
-                className="p-4 bg-card rounded-xl border border-border/50 flex items-center justify-between"
-              >
-                <div className="flex items-center gap-4">
-                  <span className="font-semibold text-lg text-violet-400">{booking.time}</span>
-                  <div>
-                    <span className="font-medium">{booking.attendee_name}</span>
-                    <span className="text-muted-foreground ml-2">• {booking.title}</span>
-                  </div>
-                </div>
-                <span className="text-xs text-muted-foreground capitalize">{booking.platform}</span>
-              </div>
-            ))}
-          </div>
-        </section>
-      )}
-
-      {/* Section: Ghosts to Reactivate */}
-      {mission && mission.ghost_reactivation_count > 0 && (
-        <section className="p-4 bg-muted/30 rounded-xl border border-border/30">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <Ghost className="w-5 h-5 text-muted-foreground" />
-              <div>
-                <span className="font-medium">{mission.ghost_reactivation_count} fantasmas</span>
-                <span className="text-muted-foreground ml-2">llevan +7 días sin respuesta</span>
-              </div>
-            </div>
+        {/* Hot Leads */}
+        <div className="lg:col-span-2 p-5 rounded-2xl bg-card border border-border/50">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-sm font-medium">Leads calientes</h3>
             <Link
               to="/leads"
-              className="text-sm text-violet-400 hover:text-violet-300 flex items-center gap-1"
+              className="text-xs text-primary hover:text-primary/80 transition-colors flex items-center gap-1"
             >
-              Reactivar
-              <ChevronRight className="w-4 h-4" />
+              Ver todos
+              {hotLeads.length > 5 && <span className="text-muted-foreground">(+{hotLeads.length - 5})</span>}
+              <ChevronRight className="w-3 h-3" />
             </Link>
           </div>
-        </section>
-      )}
-
-      {/* Section: Tu Audiencia Esta Semana */}
-      <section>
-        <h2 className="text-lg font-semibold mb-4 flex items-center gap-2">
-          <span>💡</span>
-          Tu Audiencia Esta Semana
-        </h2>
-
-        {insightsLoading ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {[1, 2, 3, 4].map((i) => (
-              <div key={i} className="h-36 bg-card rounded-xl border border-border/50 animate-pulse" />
-            ))}
-          </div>
-        ) : insights && (insights.content || insights.trend || insights.product || insights.competition) ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {insights.content && (
-              <InsightCard
-                icon="📝"
-                title="CONTENIDO"
-                highlight={`${insights.content.count} personas preguntaron sobre ${insights.content.topic}`}
-                detail={`${insights.content.percentage.toFixed(0)}% de tu audiencia`}
-                suggestion={insights.content.suggestion}
-              />
-            )}
-
-            {insights.trend && (
-              <InsightCard
-                icon="🔥"
-                title="TENDENCIA"
-                highlight={`"${insights.trend.term}" apareció ${insights.trend.count} veces`}
-                detail={insights.trend.growth}
-                suggestion={insights.trend.suggestion}
-              />
-            )}
-
-            {insights.product && (
-              <InsightCard
-                icon="🎁"
-                title="PRODUCTO"
-                highlight={`${insights.product.count} personas pidieron ${insights.product.product_name}`}
-                detail={`Potencial: ${insights.product.potential_revenue.toFixed(0)}€`}
-                suggestion={insights.product.suggestion}
-              />
-            )}
-
-            {insights.competition && (
-              <InsightCard
-                icon="🆚"
-                title="COMPETENCIA"
-                highlight={`${insights.competition.count} mencionaron a ${insights.competition.competitor}`}
-                detail={insights.competition.sentiment}
-                suggestion={insights.competition.suggestion}
-              />
+          <div className="space-y-2">
+            {actionItems.length > 0 ? (
+              actionItems.map((item) => (
+                <Link
+                  key={item.id}
+                  to={`/inbox?id=${item.follower_id}`}
+                  className="flex items-center justify-between p-3 rounded-lg bg-muted/30 hover:bg-muted/50 transition-colors cursor-pointer group"
+                >
+                  <div className="flex items-center gap-3 min-w-0">
+                    <div className="w-8 h-8 rounded-full bg-rose-500/10 flex items-center justify-center shrink-0">
+                      <Zap className="w-3.5 h-3.5 text-rose-500" />
+                    </div>
+                    <span className="text-sm font-medium truncate">{item.name}</span>
+                  </div>
+                  <div className="flex items-center gap-2 shrink-0">
+                    <span className="text-xs text-rose-500 font-medium">{item.intent}%</span>
+                    <ChevronRight className="w-4 h-4 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
+                  </div>
+                </Link>
+              ))
+            ) : (
+              <div className="text-center py-8 text-muted-foreground">
+                <p className="text-sm">Sin leads calientes</p>
+                <p className="text-xs mt-1">El bot está trabajando</p>
+              </div>
             )}
           </div>
-        ) : (
-          <div className="p-8 bg-card rounded-xl border border-border/50 text-center">
-            <p className="text-muted-foreground">No hay suficientes datos esta semana</p>
-            <p className="text-sm text-muted-foreground/70 mt-1">Los insights aparecerán cuando tengas más conversaciones</p>
-          </div>
-        )}
-
-        {/* Link to full audience page (future) */}
-        {/* <Link
-          to="/tu-audiencia"
-          className="block mt-4 text-sm text-violet-400 hover:text-violet-300 flex items-center gap-1"
-        >
-          Ver todo en Tu Audiencia
-          <ChevronRight className="w-4 h-4" />
-        </Link> */}
-      </section>
+        </div>
+      </div>
     </div>
   );
 }
