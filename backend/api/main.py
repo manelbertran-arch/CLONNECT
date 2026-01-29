@@ -133,6 +133,7 @@ app = FastAPI(
 # Allow production domain + localhost for development
 DEFAULT_CORS_ORIGINS = [
     "https://web-production-9f69.up.railway.app",
+    "https://clonnect-stagging-production.up.railway.app",
     "https://www.clonnectapp.com",
     "https://clonnectapp.com",
     "http://localhost:3000",
