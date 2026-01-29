@@ -68,3 +68,47 @@ def generate_username(first_name: str, index: int) -> str:
 
     pattern = random.choice(patterns)
     return pattern(name_clean, index)
+
+
+def generate_email(username: str, first_name: str) -> str:
+    """Generate realistic email from username"""
+    domains = ["gmail.com", "hotmail.com", "outlook.es", "yahoo.es", "icloud.com"]
+    # 70% use gmail
+    domain = "gmail.com" if random.random() < 0.7 else random.choice(domains)
+
+    # Sometimes use username, sometimes first name
+    if random.random() < 0.6:
+        local = username.replace("_", ".")
+    else:
+        local = first_name.lower()
+        for accent, plain in {'á': 'a', 'é': 'e', 'í': 'i', 'ó': 'o', 'ú': 'u', 'ñ': 'n'}.items():
+            local = local.replace(accent, plain)
+        local = f"{local}{random.randint(1, 99)}"
+
+    return f"{local}@{domain}"
+
+
+def generate_phone() -> str:
+    """Generate Spanish mobile phone number"""
+    # Spanish mobiles start with 6 or 7
+    prefix = random.choice(["6", "7"])
+    # Generate 8 more digits
+    number = "".join([str(random.randint(0, 9)) for _ in range(8)])
+    # Format: +34 6XX XXX XXX
+    return f"+34 {prefix}{number[:2]} {number[2:5]} {number[5:]}"
+
+
+# Team members for assignment
+TEAM_MEMBERS = [
+    "Maria García",
+    "Carlos López",
+    "Ana Martínez",
+    None,  # Unassigned
+    None,
+    None,
+]
+
+
+def get_assigned_to() -> str | None:
+    """Get random team member for assignment (60% unassigned)"""
+    return random.choice(TEAM_MEMBERS)

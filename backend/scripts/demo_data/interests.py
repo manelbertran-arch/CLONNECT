@@ -119,3 +119,114 @@ def get_random_objections(objection_type: str = None) -> tuple[str, str]:
 
     objection_text = random.choice(OBJECTIONS[objection_type])
     return objection_type, objection_text
+
+
+# Arguments used to handle objections
+ARGUMENTS_BY_OBJECTION = {
+    "precio": [
+        "valor_vs_precio",
+        "roi_inversion",
+        "comparativa_alternativas",
+        "pago_fraccionado",
+        "garantia_satisfaccion",
+    ],
+    "tiempo": [
+        "recetas_rapidas",
+        "meal_prep_domingo",
+        "plan_adaptado_horarios",
+        "minimalismo_efectivo",
+        "priorizar_salud",
+    ],
+    "duda": [
+        "testimonios_reales",
+        "casos_similares",
+        "metodo_probado",
+        "soporte_continuo",
+        "ajustes_personalizados",
+    ],
+    "confianza": [
+        "credenciales_experiencia",
+        "resultados_clientes",
+        "comunidad_activa",
+        "transparencia_proceso",
+    ],
+}
+
+
+def get_arguments_for_objections(objections: list[str]) -> list[str]:
+    """Get arguments that could handle given objections"""
+    arguments = []
+    for obj in objections:
+        if obj in ARGUMENTS_BY_OBJECTION:
+            # Pick 1-2 arguments for each objection
+            args = random.sample(
+                ARGUMENTS_BY_OBJECTION[obj],
+                k=min(random.randint(1, 2), len(ARGUMENTS_BY_OBJECTION[obj]))
+            )
+            arguments.extend(args)
+    return list(set(arguments))  # Remove duplicates
+
+
+# Notes templates by segment
+NOTES_TEMPLATES = {
+    "hot_lead": [
+        "Muy interesada, lista para comprar. Seguimiento inmediato.",
+        "Ha preguntado por el link de pago 2 veces. Prioridad alta.",
+        "Quiere empezar esta semana. Enviar info completa.",
+        "Contacto caliente. Cerrar antes del viernes.",
+    ],
+    "warm_lead": [
+        "Interesada pero necesita más información. Enviar testimonios.",
+        "Ha preguntado por el programa, pendiente de responder dudas.",
+        "Buen engagement, cultivar relación antes de proponer.",
+        "Potencial cliente, necesita nurturing.",
+    ],
+    "price_objector": [
+        "Interesada pero el precio es barrera. Ofrecer financiación.",
+        "Ha mencionado presupuesto limitado. Mostrar valor ROI.",
+        "Comparando con alternativas más baratas. Diferenciación.",
+    ],
+    "time_objector": [
+        "Le gusta pero dice no tener tiempo. Plan express.",
+        "Trabaja muchas horas, adaptar recetas rápidas.",
+        "Viaja mucho, necesita plan flexible.",
+    ],
+    "ghost": [
+        "No responde desde hace 2 semanas. Reactivar con contenido.",
+        "Dejó de contestar después de preguntar precio.",
+        "Ghosteó después de mostrar interés inicial.",
+    ],
+    "engaged_fan": [
+        "Fan activa, interactúa mucho pero no compra.",
+        "Le encanta el contenido, convertir en lead.",
+        "Muy engaged, momento de proponer.",
+    ],
+    "customer": [
+        "Cliente satisfecha, pedir testimonio.",
+        "Resultados excelentes, potencial para upsell.",
+        "Terminó programa con éxito. Ofrecer continuidad.",
+    ],
+}
+
+
+def get_notes_for_segment(segment: str) -> str | None:
+    """Get random notes for a segment (40% chance of having notes)"""
+    if random.random() > 0.4:
+        return None
+    templates = NOTES_TEMPLATES.get(segment, [])
+    return random.choice(templates) if templates else None
+
+
+# Instagram CDN-style profile pic URLs (placeholder pattern)
+PROFILE_PIC_PATTERNS = [
+    "https://instagram.fmad3-4.fna.fbcdn.net/v/t51.2885-19/{user_id}_profile_pic.jpg",
+    "https://scontent-mad1-1.cdninstagram.com/v/t51.2885-19/s150x150/{user_id}_profile.jpg",
+]
+
+
+def get_profile_pic_url(follower_id: str) -> str | None:
+    """Generate fake Instagram profile pic URL (80% have one)"""
+    if random.random() > 0.8:
+        return None
+    pattern = random.choice(PROFILE_PIC_PATTERNS)
+    return pattern.format(user_id=follower_id.replace("ig_", ""))

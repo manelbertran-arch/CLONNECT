@@ -26,8 +26,21 @@ from scripts.demo_data.config import (
     PRODUCTS,
     BOOKING_LINKS,
 )
-from scripts.demo_data.names import get_random_name, generate_username
-from scripts.demo_data.interests import get_random_interests, get_random_objections, TOPICS
+from scripts.demo_data.names import (
+    get_random_name,
+    generate_username,
+    generate_email,
+    generate_phone,
+    get_assigned_to,
+)
+from scripts.demo_data.interests import (
+    get_random_interests,
+    get_random_objections,
+    get_arguments_for_objections,
+    get_notes_for_segment,
+    get_profile_pic_url,
+    TOPICS,
+)
 from scripts.demo_data.messages import (
     get_messages_for_segment,
     get_last_message_for_segment,
@@ -43,6 +56,7 @@ from api.database import SessionLocal, engine
 from api.models import (
     Creator,
     Lead,
+    LeadActivity,
     Message,
     Product,
     CalendarBooking,
@@ -51,6 +65,7 @@ from api.models import (
     UserProfileDB,
     ConversationStateDB,
 )
+from core.analytics.analytics_manager import get_analytics_manager, EventType
 
 
 def log(msg: str):
@@ -94,13 +109,15 @@ def clear_demo_data(db, creator_uuid: uuid.UUID, creator_name: str):
     """Clear existing demo data for creator"""
     log(f"Clearing existing data for {creator_name} ({creator_uuid})...")
 
-    # Get leads for this creator to delete messages
+    # Get leads for this creator to delete messages and activities
     # Lead uses UUID for creator_id
     leads = db.query(Lead).filter(Lead.creator_id == creator_uuid).all()
     lead_ids = [lead.id for lead in leads]
 
     # Delete in order (foreign key constraints)
     if lead_ids:
+        deleted_activities = db.query(LeadActivity).filter(LeadActivity.lead_id.in_(lead_ids)).delete(synchronize_session=False)
+        log(f"  Deleted {deleted_activities} lead activities")
         deleted_msgs = db.query(Message).filter(Message.lead_id.in_(lead_ids)).delete(synchronize_session=False)
         log(f"  Deleted {deleted_msgs} messages")
 
@@ -294,6 +311,23 @@ def create_followers_and_leads(db, products: list, creator_uuid: uuid.UUID, crea
             # Get last 10 messages for last_messages field
             last_messages = conversation[-10:] if len(conversation) > 10 else conversation
 
+            # Get arguments used for handling objections
+            arguments_used = get_arguments_for_objections(objections_handled) if objections_handled else []
+
+            # Alternative contact info (some customers provided WhatsApp/Telegram)
+            has_alt_contact = random.random() < (0.5 if segment == "customer" else 0.15)
+            alt_contact = ""
+            alt_contact_type = ""
+            contact_requested = False
+            if has_alt_contact:
+                alt_contact_type = random.choice(["whatsapp", "telegram"])
+                alt_contact = generate_phone() if alt_contact_type == "whatsapp" else f"@{username}"
+                contact_requested = True
+
+            # Greeting styles used
+            greeting_styles = ["casual", "formal", "enthusiastic", "empathetic", "direct"]
+            emoji_sets = [["😊", "💪"], ["🙌", "✨"], ["❤️", "🔥"], ["👋", "🎯"], []]
+
             # Create FollowerMemoryDB (uses string for creator_id)
             is_customer = segment == "customer"
             follower_memory = FollowerMemoryDB(
@@ -314,7 +348,22 @@ def create_followers_and_leads(db, products: list, creator_uuid: uuid.UUID, crea
                 status=status,
                 preferred_language="es",
                 last_messages=last_messages,  # Populated with conversation
+                # Link control
                 links_sent_count=random.randint(0, 3) if segment in ["hot_lead", "warm_lead"] else 0,
+                last_link_message_num=random.randint(3, 8) if segment in ["hot_lead", "warm_lead"] else 0,
+                # Objection handling
+                objections_handled=objections_handled,
+                arguments_used=arguments_used,
+                # Greeting variation
+                greeting_variant_index=random.randint(0, 4),
+                # Naturalness fields
+                last_greeting_style=random.choice(greeting_styles),
+                last_emojis_used=random.choice(emoji_sets),
+                messages_since_name_used=random.randint(0, 5),
+                # Alternative contact
+                alternative_contact=alt_contact,
+                alternative_contact_type=alt_contact_type,
+                contact_requested=contact_requested,
             )
             db.add(follower_memory)
             followers.append(follower_memory)
@@ -329,6 +378,10 @@ def create_followers_and_leads(db, products: list, creator_uuid: uuid.UUID, crea
                 elif segment == "warm_lead":
                     deal_value = random.choice(products).price * 0.7  # Weighted
 
+                # Generate email and phone (higher chance for hot leads/customers)
+                has_email = random.random() < (0.9 if segment in ["hot_lead", "customer"] else 0.4)
+                has_phone = random.random() < (0.7 if segment in ["hot_lead", "customer"] else 0.2)
+
                 lead = Lead(
                     id=uuid.uuid4(),
                     creator_id=creator_uuid,  # UUID type
@@ -336,6 +389,7 @@ def create_followers_and_leads(db, products: list, creator_uuid: uuid.UUID, crea
                     platform_user_id=follower_id,
                     username=username,
                     full_name=full_name,
+                    profile_pic_url=get_profile_pic_url(follower_id),
                     status=status,
                     score=int(purchase_intent * 100),
                     purchase_intent=purchase_intent,
@@ -348,7 +402,12 @@ def create_followers_and_leads(db, products: list, creator_uuid: uuid.UUID, crea
                     last_contact_at=last_contact,
                     deal_value=deal_value,
                     tags=[segment] + interests[:2],
-                    source="instagram_dm",
+                    source=random.choice(["instagram_dm", "story_reply", "story_mention"]),
+                    # NEW FIELDS
+                    email=generate_email(username, first_name) if has_email else None,
+                    phone=generate_phone() if has_phone else None,
+                    notes=get_notes_for_segment(segment),
+                    assigned_to=get_assigned_to() if segment in ["hot_lead", "warm_lead"] else None,
                 )
                 db.add(lead)
                 leads.append(lead)
@@ -412,6 +471,186 @@ def create_followers_and_leads(db, products: list, creator_uuid: uuid.UUID, crea
     db.commit()
     log(f"  Created {len(followers)} followers, {len(leads)} leads, {len(all_messages)} messages")
     return followers, leads
+
+
+def create_lead_activities(db, leads: list, creator_uuid: uuid.UUID) -> list:
+    """Create LeadActivity timeline records for leads"""
+    log("Creating lead activities...")
+    activities = []
+    now = datetime.now(timezone.utc)
+
+    for lead in leads:
+        segment = lead.context.get("segment", "new")
+        lead_activities_list = []
+
+        # Activity 1: Lead created (always)
+        lead_activities_list.append({
+            "activity_type": "lead_created",
+            "description": f"Lead creado desde {lead.source}",
+            "created_at": lead.first_contact_at,
+            "created_by": "system",
+        })
+
+        # Activity 2: Status change (for non-new leads)
+        if segment in ["warm_lead", "hot_lead", "customer"]:
+            status_time = lead.first_contact_at + timedelta(hours=random.randint(2, 48))
+            old_status = "nuevo"
+            if segment == "warm_lead":
+                new_status = "interesado"
+            elif segment == "hot_lead":
+                new_status = "caliente"
+            else:
+                new_status = "cliente"
+
+            lead_activities_list.append({
+                "activity_type": "status_change",
+                "description": f"Estado cambiado de {old_status} a {new_status}",
+                "old_value": old_status,
+                "new_value": new_status,
+                "created_at": status_time,
+                "created_by": "system",
+            })
+
+        # Activity 3: Note added (30% chance)
+        if lead.notes and random.random() < 0.3:
+            note_time = lead.first_contact_at + timedelta(hours=random.randint(1, 72))
+            lead_activities_list.append({
+                "activity_type": "note",
+                "description": lead.notes,
+                "created_at": note_time,
+                "created_by": "creator",
+            })
+
+        # Activity 4: Tag added (for some leads)
+        if len(lead.tags) > 1 and random.random() < 0.4:
+            tag = lead.tags[1]  # Second tag (first is segment)
+            tag_time = lead.first_contact_at + timedelta(hours=random.randint(1, 24))
+            lead_activities_list.append({
+                "activity_type": "tag_added",
+                "description": f"Etiqueta '{tag}' añadida",
+                "extra_data": {"tag": tag},
+                "created_at": tag_time,
+                "created_by": "creator",
+            })
+
+        # Activity 5: Email captured (for leads with email)
+        if lead.email:
+            email_time = lead.first_contact_at + timedelta(hours=random.randint(4, 96))
+            lead_activities_list.append({
+                "activity_type": "email",
+                "description": f"Email capturado: {lead.email}",
+                "created_at": email_time,
+                "created_by": "system",
+            })
+
+        # Activity 6: Call/meeting scheduled (for hot leads, customers)
+        if segment in ["hot_lead", "customer"] and random.random() < 0.5:
+            call_time = lead.last_contact_at - timedelta(days=random.randint(1, 7))
+            lead_activities_list.append({
+                "activity_type": "meeting",
+                "description": "Llamada de discovery programada",
+                "extra_data": {"meeting_type": "discovery"},
+                "created_at": call_time,
+                "created_by": "creator",
+            })
+
+        # Activity 7: Conversion (for customers)
+        if segment == "customer":
+            conv_time = lead.last_contact_at - timedelta(days=random.randint(1, 14))
+            lead_activities_list.append({
+                "activity_type": "status_change",
+                "description": "Conversión: Lead convertido a cliente",
+                "old_value": "caliente",
+                "new_value": "cliente",
+                "extra_data": {"deal_value": lead.deal_value},
+                "created_at": conv_time,
+                "created_by": "system",
+            })
+
+        # Create activity records
+        for activity_data in lead_activities_list:
+            activity = LeadActivity(
+                id=uuid.uuid4(),
+                lead_id=lead.id,
+                creator_id=creator_uuid,
+                activity_type=activity_data["activity_type"],
+                description=activity_data.get("description"),
+                old_value=activity_data.get("old_value"),
+                new_value=activity_data.get("new_value"),
+                extra_data=activity_data.get("extra_data", {}),
+                created_by=activity_data.get("created_by", "system"),
+                created_at=activity_data["created_at"],
+            )
+            db.add(activity)
+            activities.append(activity)
+
+    db.commit()
+    log(f"  Created {len(activities)} lead activities")
+    return activities
+
+
+def track_analytics_events(leads: list, creator_name: str):
+    """Track analytics events for demo data"""
+    log("Tracking analytics events...")
+    analytics = get_analytics_manager()
+    events_tracked = 0
+
+    for lead in leads:
+        segment = lead.context.get("segment", "new")
+        follower_id = lead.platform_user_id
+
+        # Track message received
+        analytics.track_message(
+            creator_id=creator_name,
+            follower_id=follower_id,
+            direction="received",
+            intent=segment,
+            platform="instagram",
+            metadata={"segment": segment},
+        )
+        events_tracked += 1
+
+        # Track message sent
+        analytics.track_message(
+            creator_id=creator_name,
+            follower_id=follower_id,
+            direction="sent",
+            platform="instagram",
+        )
+        events_tracked += 1
+
+        # Track lead creation
+        analytics.track_lead(
+            creator_id=creator_name,
+            follower_id=follower_id,
+            score=lead.purchase_intent,
+            source=lead.source,
+            platform="instagram",
+        )
+        events_tracked += 1
+
+        # Track objections
+        for objection in lead.context.get("objections", []):
+            analytics.track_objection(
+                creator_id=creator_name,
+                follower_id=follower_id,
+                objection_type=objection,
+                platform="instagram",
+            )
+            events_tracked += 1
+
+        # Track conversions (for customers)
+        if segment == "customer" and lead.deal_value:
+            analytics.track_conversion(
+                creator_id=creator_name,
+                follower_id=follower_id,
+                product_id="plan_12_semanas",
+                amount=lead.deal_value,
+                platform="instagram",
+            )
+            events_tracked += 1
+
+    log(f"  Tracked {events_tracked} analytics events")
 
 
 def create_bookings(db, leads: list, booking_links: list, creator_name: str) -> list:
@@ -484,7 +723,7 @@ def create_bookings(db, leads: list, booking_links: list, creator_name: str) -> 
     return created
 
 
-def print_summary(followers, leads, products, bookings):
+def print_summary(followers, leads, products, bookings, activities):
     """Print summary of created data"""
     log("\n" + "=" * 60)
     log("DEMO DATA SEED COMPLETE")
@@ -494,10 +733,24 @@ def print_summary(followers, leads, products, bookings):
     log(f"Leads:             {len(leads)}")
     log(f"Products:          {len(products)}")
     log(f"Bookings:          {len(bookings)}")
+    log(f"Lead Activities:   {len(activities)}")
     log("")
     log("Segment distribution:")
     for segment, count in SEGMENT_DISTRIBUTION.items():
         log(f"  {segment:20s}: {count}")
+
+    # Field population stats
+    leads_with_email = sum(1 for l in leads if l.email)
+    leads_with_phone = sum(1 for l in leads if l.phone)
+    leads_with_notes = sum(1 for l in leads if l.notes)
+    leads_assigned = sum(1 for l in leads if l.assigned_to)
+
+    log("")
+    log("Field population:")
+    log(f"  Leads with email:    {leads_with_email} ({leads_with_email*100//len(leads) if leads else 0}%)")
+    log(f"  Leads with phone:    {leads_with_phone} ({leads_with_phone*100//len(leads) if leads else 0}%)")
+    log(f"  Leads with notes:    {leads_with_notes} ({leads_with_notes*100//len(leads) if leads else 0}%)")
+    log(f"  Leads assigned:      {leads_assigned} ({leads_assigned*100//len(leads) if leads else 0}%)")
     log("=" * 60)
 
 
@@ -523,10 +776,14 @@ def main():
         products = create_products(db, creator_uuid)
         booking_links = create_booking_links(db, creator_name)
         followers, leads = create_followers_and_leads(db, products, creator_uuid, creator_name)
+        activities = create_lead_activities(db, leads, creator_uuid)
         bookings = create_bookings(db, leads, booking_links, creator_name)
 
+        # Track analytics events (stored in JSON files)
+        track_analytics_events(leads, creator_name)
+
         # Summary
-        print_summary(followers, leads, products, bookings)
+        print_summary(followers, leads, products, bookings, activities)
 
         log("\nSeed completed successfully!")
 
