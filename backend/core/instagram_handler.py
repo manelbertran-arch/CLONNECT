@@ -448,7 +448,8 @@ class InstagramHandler:
             }
         )
 
-        logger.info(f"[IG:{message.sender_id}] Intent: {response.intent.value} ({response.confidence:.0%})")
+        intent_str = response.intent.value if hasattr(response.intent, 'value') else str(response.intent)
+        logger.info(f"[IG:{message.sender_id}] Intent: {intent_str} ({response.confidence:.0%})")
         logger.info(f"[IG:{message.sender_id}] Output: {response.response_text[:100]}...")
 
         return response
