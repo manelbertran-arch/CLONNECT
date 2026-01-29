@@ -1,11 +1,15 @@
-#!/bin/bash
+#!/bin/sh
 set -e
 
 echo "=========================================="
-echo "START.SH EXECUTING - $(date)"
+echo "START.SH EXECUTING"
 echo "=========================================="
 
-PORT=${PORT:-8000}
+echo "PORT from env: $PORT"
+if [ -z "$PORT" ]; then
+    PORT=8000
+fi
+echo "Using PORT: $PORT"
 
 # Fix permissions for mounted volume (runs as root before switching user)
 if [ -d /app/data ]; then
