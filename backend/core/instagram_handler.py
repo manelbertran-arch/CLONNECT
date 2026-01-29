@@ -292,6 +292,10 @@ class InstagramHandler:
                 # Process with DM agent to get suggested response
                 response = await self.process_message(message)
 
+                # V2 compatibility: response.content (V2) or response_text (V1)
+                response_text = getattr(response, 'content', None) or getattr(response, 'response_text', '')
+                intent_str = intent_str
+
                 # Get username if available
                 username = ""
                 try:
@@ -314,8 +318,8 @@ class InstagramHandler:
                         platform="instagram",
                         user_message=message.text,
                         user_message_id=message.message_id,
-                        suggested_response=response.response_text,
-                        intent=response.intent.value if hasattr(response.intent, 'value') else str(response.intent),
+                        suggested_response=response_text,
+                        intent=intent_str,
                         confidence=response.confidence,
                         username=username
                     )
@@ -327,22 +331,22 @@ class InstagramHandler:
                         "sender_id": message.sender_id,
                         "copilot_mode": True,
                         "pending_id": pending.id,
-                        "suggested_response": response.response_text,
-                        "intent": response.intent.value if hasattr(response.intent, 'value') else str(response.intent),
+                        "suggested_response": response_text,
+                        "intent": intent_str,
                         "confidence": response.confidence,
                         "status": "pending_approval"
                     })
                 else:
                     # AUTOPILOT MODE: Send response immediately
-                    await self.send_response(message.sender_id, response.response_text)
+                    await self.send_response(message.sender_id, response_text)
                     self._record_response(message, response)
 
                     results.append({
                         "message_id": message.message_id,
                         "sender_id": message.sender_id,
                         "copilot_mode": False,
-                        "response": response.response_text,
-                        "intent": response.intent.value if hasattr(response.intent, 'value') else str(response.intent),
+                        "response": response_text,
+                        "intent": intent_str,
                         "confidence": response.confidence,
                         "status": "sent"
                     })
@@ -448,9 +452,11 @@ class InstagramHandler:
             }
         )
 
+        # V2 compatibility for logging
+        response_text = getattr(response, 'content', None) or getattr(response, 'response_text', '')
         intent_str = response.intent.value if hasattr(response.intent, 'value') else str(response.intent)
         logger.info(f"[IG:{message.sender_id}] Intent: {intent_str} ({response.confidence:.0%})")
-        logger.info(f"[IG:{message.sender_id}] Output: {response.response_text[:100]}...")
+        logger.info(f"[IG:{message.sender_id}] Output: {response_text[:100]}...")
 
         return response
 
@@ -570,15 +576,18 @@ class InstagramHandler:
 
     def _record_response(self, msg: InstagramMessage, response: DMResponse):
         """Record response"""
+        # V2 compatibility
+        response_text = getattr(response, 'content', None) or getattr(response, 'response_text', '')
+        intent_str = response.intent.value if hasattr(response.intent, 'value') else str(response.intent)
         record = {
             "follower_id": f"ig_{msg.sender_id}",
             "sender_id": msg.sender_id,
             "input": msg.text,
-            "response": response.response_text,
-            "intent": response.intent.value if hasattr(response.intent, 'value') else str(response.intent),
+            "response": response_text,
+            "intent": intent_str,
             "confidence": response.confidence,
-            "product": response.product_mentioned,
-            "escalate": response.escalate_to_human,
+            "product": getattr(response, 'product_mentioned', None),
+            "escalate": getattr(response, 'escalate_to_human', False),
             "timestamp": datetime.now(timezone.utc).isoformat()
         }
         self.recent_responses.append(record)
