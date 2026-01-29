@@ -436,7 +436,8 @@ class InstagramHandler:
         # Get username for personalization (try to fetch from API)
         username = await self._get_username(message.sender_id)
 
-        # Process with DM agent (V2 signature: message, sender_id, metadata)
+        # Process with DM agent (V2 signature: message, sender_id, metadata) - FIX 2026-01-29
+        logger.info(f"[V2-FIX] Calling process_dm with V2 signature for {message.sender_id}")
         response = await self.dm_agent.process_dm(
             message=message.text,
             sender_id=f"ig_{message.sender_id}",
