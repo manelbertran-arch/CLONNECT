@@ -219,6 +219,26 @@ def extract_page_id_from_payload(payload: Dict[str, Any]) -> Optional[str]:
 
 
 # =============================================================================
+# DEBUG/CACHE ENDPOINTS
+# =============================================================================
+
+@router.get("/clear-cache")
+async def clear_instagram_cache():
+    """Clear handler and lookup caches - useful for debugging"""
+    global _creator_handlers, _creator_by_page_id_cache
+    handlers_cleared = len(_creator_handlers)
+    lookups_cleared = len(_creator_by_page_id_cache)
+    _creator_handlers.clear()
+    _creator_by_page_id_cache.clear()
+    return {
+        "status": "ok",
+        "handlers_cleared": handlers_cleared,
+        "lookups_cleared": lookups_cleared,
+        "code_version": "V2_FIX_2026-01-29"
+    }
+
+
+# =============================================================================
 # WEBHOOK ENDPOINTS
 # =============================================================================
 

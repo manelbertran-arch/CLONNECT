@@ -58,6 +58,7 @@ from api.models import (
     Creator,
     Lead,
     LeadActivity,
+    LeadTask,
     Message,
     Product,
     CalendarBooking,
@@ -119,6 +120,8 @@ def clear_demo_data(db, creator_uuid: uuid.UUID, creator_name: str):
     if lead_ids:
         deleted_activities = db.query(LeadActivity).filter(LeadActivity.lead_id.in_(lead_ids)).delete(synchronize_session=False)
         log(f"  Deleted {deleted_activities} lead activities")
+        deleted_tasks = db.query(LeadTask).filter(LeadTask.lead_id.in_(lead_ids)).delete(synchronize_session=False)
+        log(f"  Deleted {deleted_tasks} lead tasks")
         deleted_msgs = db.query(Message).filter(Message.lead_id.in_(lead_ids)).delete(synchronize_session=False)
         log(f"  Deleted {deleted_msgs} messages")
 

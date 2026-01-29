@@ -1,14 +1,14 @@
 {
   "$schema": "https://railway.app/railway.schema.json",
   "build": {
-    "builder": "DOCKERFILE"
+    "builder": "NIXPACKS",
+    "watchPatterns": ["backend/**"]
   },
   "deploy": {
+    "startCommand": "cd backend && sh scripts/start.sh",
     "healthcheckPath": "/health/live",
     "healthcheckTimeout": 300,
     "restartPolicyType": "ON_FAILURE",
-    "restartPolicyMaxRetries": 5,
-    "numReplicas": 1,
-    "sleepApplication": false
+    "restartPolicyMaxRetries": 5
   }
 }

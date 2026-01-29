@@ -74,7 +74,9 @@ async def process_dm(payload: ProcessDMRequest):
         agent = get_dm_agent(payload.creator_id)
 
         result = await agent.process_dm(
-            sender_id=payload.sender_id, message_text=payload.message, message_id=payload.message_id
+            message=payload.message,
+            sender_id=payload.sender_id,
+            metadata={"message_id": payload.message_id}
         )
 
         return {

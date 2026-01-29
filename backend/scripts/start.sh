@@ -1,11 +1,15 @@
-#!/bin/bash
+#!/bin/sh
 set -e
 
 echo "=========================================="
-echo "START.SH EXECUTING - $(date)"
+echo "START.SH EXECUTING"
 echo "=========================================="
 
-PORT=${PORT:-8000}
+echo "PORT from env: $PORT"
+if [ -z "$PORT" ]; then
+    PORT=8000
+fi
+echo "Using PORT: $PORT"
 
 # Fix permissions for mounted volume (runs as root before switching user)
 if [ -d /app/data ]; then
@@ -77,4 +81,8 @@ echo "Using uvicorn directly for simpler startup"
 export PATH=/opt/venv/bin:$PATH
 echo "Running as user: $(whoami)"
 echo "STARTING MAIN APP"
+echo "=== STATIC FILES CHECK ==="
+ls -la /app/static/assets/ 2>/dev/null || echo "No static/assets folder"
+cat /app/static/index.html 2>/dev/null | grep "index-" || echo "No index.html"
+echo "==========================="
 exec uvicorn api.main:app --host 0.0.0.0 --port $PORT --log-level info
