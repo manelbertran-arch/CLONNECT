@@ -71,6 +71,11 @@ class AudienceProfile:
     days_inactive: int = 0
     last_message_role: Optional[str] = None
 
+    # CRM data (from Lead table)
+    email: Optional[str] = None
+    phone: Optional[str] = None
+    notes: Optional[str] = None
+
     def to_dict(self) -> Dict[str, Any]:
         """Convert to dictionary."""
         return {
@@ -96,6 +101,9 @@ class AudienceProfile:
             "objections": self.objections,
             "days_inactive": self.days_inactive,
             "last_message_role": self.last_message_role,
+            "email": self.email,
+            "phone": self.phone,
+            "notes": self.notes,
         }
 
 
@@ -252,6 +260,9 @@ class AudienceProfileBuilder:
             objections=objections,
             days_inactive=days_inactive,
             last_message_role=last_message_role,
+            email=raw_data.get("email"),
+            phone=raw_data.get("phone"),
+            notes=raw_data.get("notes"),
         )
 
     def _detect_segments(self, profile_data: ProfileData) -> List[str]:
@@ -416,9 +427,10 @@ class AudienceProfileBuilder:
 
     async def _fetch_follower_data(self, follower_id: str) -> Optional[Dict[str, Any]]:
         """
-        Fetch follower data from database or agent.
+        Fetch follower data from PostgreSQL database.
 
-        This method can be overridden or mocked in tests.
+        Queries FollowerMemoryDB, Lead, ConversationStateDB, and UserProfileDB
+        to build a unified profile.
 
         Args:
             follower_id: Platform-prefixed follower ID
@@ -427,14 +439,80 @@ class AudienceProfileBuilder:
             Dict with follower data or None
         """
         try:
-            # Try to use the dm_agent_v2 method
-            from core.dm_agent_v2 import get_dm_agent
+            from api.database import SessionLocal
+            from api.models import FollowerMemoryDB, Lead, ConversationStateDB, UserProfileDB
 
-            agent = get_dm_agent(self.creator_id)
-            return await agent.get_follower_detail(follower_id)
+            db = SessionLocal()
+            if not db:
+                logger.warning("Database not available")
+                return None
+
+            try:
+                # Query FollowerMemoryDB (primary source)
+                follower = db.query(FollowerMemoryDB).filter(
+                    FollowerMemoryDB.creator_id == self.creator_id,
+                    FollowerMemoryDB.follower_id == follower_id,
+                ).first()
+
+                if not follower:
+                    logger.debug(f"Follower {follower_id} not found in follower_memories")
+                    return None
+
+                # Build base result
+                result = {
+                    "follower_id": follower.follower_id,
+                    "username": follower.username,
+                    "name": follower.name,
+                    "platform": "instagram" if follower_id.startswith("ig_") else "unknown",
+                    "profile_pic_url": None,
+                    "first_contact": follower.first_contact,
+                    "last_contact": follower.last_contact,
+                    "total_messages": follower.total_messages or 0,
+                    "interests": follower.interests or [],
+                    "products_discussed": follower.products_discussed or [],
+                    "objections_raised": follower.objections_raised or [],
+                    "objections_handled": follower.objections_handled or [],
+                    "purchase_intent_score": follower.purchase_intent_score or 0.0,
+                    "is_lead": follower.is_lead,
+                    "is_customer": follower.is_customer,
+                    "status": follower.status,
+                    "last_messages": follower.last_messages or [],
+                    # Defaults for enrichment
+                    "email": None,
+                    "phone": None,
+                    "notes": None,
+                    "deal_value": None,
+                    "funnel_phase": None,
+                    "funnel_context": {},
+                }
+
+                # Enrich from Lead table (CRM data)
+                lead = db.query(Lead).filter(
+                    Lead.platform_user_id == follower_id,
+                ).first()
+                if lead:
+                    result["profile_pic_url"] = lead.profile_pic_url
+                    result["email"] = lead.email
+                    result["phone"] = lead.phone
+                    result["notes"] = lead.notes
+                    result["deal_value"] = lead.deal_value
+
+                # Enrich from ConversationStateDB (funnel data)
+                conv_state = db.query(ConversationStateDB).filter(
+                    ConversationStateDB.creator_id == self.creator_id,
+                    ConversationStateDB.follower_id == follower_id,
+                ).first()
+                if conv_state:
+                    result["funnel_phase"] = conv_state.phase
+                    result["funnel_context"] = conv_state.context or {}
+
+                return result
+
+            finally:
+                db.close()
 
         except Exception as e:
-            logger.warning(f"Could not fetch follower data: {e}")
+            logger.error(f"Error fetching follower data: {e}")
             return None
 
     def _calculate_days_inactive(self, last_contact: Optional[str]) -> int:
