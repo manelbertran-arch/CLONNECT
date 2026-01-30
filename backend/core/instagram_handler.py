@@ -289,12 +289,45 @@ class InstagramHandler:
                 continue
 
             try:
+                # DEDUPLICATION: Check if we've already processed this message_id
+                if hasattr(self, '_processed_message_ids'):
+                    if message.message_id in self._processed_message_ids:
+                        logger.warning(f"[IG:{message.sender_id}] Skipping duplicate message_id: {message.message_id}")
+                        results.append({
+                            "message_id": message.message_id,
+                            "sender_id": message.sender_id,
+                            "status": "duplicate_skipped"
+                        })
+                        continue
+                else:
+                    self._processed_message_ids = set()
+
+                # Add to processed set (keep last 1000 to prevent memory leak)
+                self._processed_message_ids.add(message.message_id)
+                if len(self._processed_message_ids) > 1000:
+                    # Remove oldest entries (convert to list, slice, back to set)
+                    self._processed_message_ids = set(list(self._processed_message_ids)[-500:])
+
                 # Process with DM agent to get suggested response
                 response = await self.process_message(message)
 
                 # V2 compatibility: response.content (V2) or response_text (V1)
                 response_text = getattr(response, 'content', None) or getattr(response, 'response_text', '')
                 intent_str = response.intent.value if hasattr(response.intent, 'value') else str(response.intent)
+
+                # CRITICAL: Never send error messages to users
+                error_patterns = ["[LLM not configured]", "[Error", "[error", "error:", "Error:"]
+                is_error_response = any(pattern in response_text for pattern in error_patterns)
+
+                if is_error_response:
+                    logger.error(f"[IG:{message.sender_id}] LLM returned error, NOT sending to user: {response_text[:100]}")
+                    results.append({
+                        "message_id": message.message_id,
+                        "sender_id": message.sender_id,
+                        "status": "llm_error",
+                        "error": "LLM not available - response not sent"
+                    })
+                    continue
 
                 # Get username if available
                 username = ""
