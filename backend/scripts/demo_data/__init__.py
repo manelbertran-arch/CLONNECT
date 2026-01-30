@@ -1,9 +1,24 @@
-"""
-Demo Data Module
+"""Demo data module for seeding realistic data."""
 
-SPRINT4: Seed data generation for realistic demo environment
-"""
-from .config import SEGMENT_DISTRIBUTION, PRODUCTS, CREATOR_ID
-from .names import generate_username, get_random_name, SPANISH_NAMES
-from .messages import get_messages_for_segment, BOT_RESPONSES
-from .interests import TOPICS, OBJECTIONS, get_random_interests, get_random_objections
+from .config import (
+    CREATOR_ID,
+    SEGMENT_DISTRIBUTION,
+    PRODUCTS,
+    METRICS,
+    WEEKLY_INSIGHTS,
+    TODAY_BOOKINGS,
+)
+from .names import SPANISH_NAMES, generate_username, generate_email
+from .messages import (
+    get_conversation_for_segment,
+    HOT_LEAD_TEMPLATES,
+    GHOST_TEMPLATES,
+    OBJECTION_TEMPLATES,
+)
+from .interests import (
+    TOPICS,
+    PASSIONS,
+    FRUSTRATIONS,
+    PURCHASE_OBJECTIONS,
+    INTERESTS_WEIGHTS,
+)

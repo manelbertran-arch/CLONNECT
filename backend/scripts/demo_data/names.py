@@ -1,114 +1,132 @@
-"""
-Spanish names and username generation
-"""
+"""Spanish names and username generation for demo data."""
+
 import random
+from typing import List, Tuple
 
-SPANISH_NAMES = {
-    "female": [
-        "María", "Carmen", "Ana", "Laura", "Marta", "Lucía", "Paula", "Sara",
-        "Elena", "Cristina", "Isabel", "Raquel", "Silvia", "Nuria", "Patricia",
-        "Andrea", "Alba", "Irene", "Beatriz", "Rosa", "Pilar", "Teresa", "Julia",
-        "Rocío", "Natalia", "Eva", "Mónica", "Sonia", "Alicia", "Lorena",
-        "Claudia", "Marina", "Esther", "Verónica", "Ángela", "Sandra", "Yolanda",
-        "Miriam", "Noelia", "Lidia", "Carolina", "Victoria", "Diana", "Vanessa",
-        "Inés", "Olga", "Adriana", "Susana", "Rebeca", "Gloria",
-    ],
-    "male": [
-        "Antonio", "Manuel", "José", "Francisco", "David", "Juan", "Carlos",
-        "Javier", "Daniel", "Miguel", "Rafael", "Pedro", "Pablo", "Alejandro",
-        "Fernando", "Luis", "Sergio", "Jorge", "Alberto", "Ángel", "Diego",
-        "Adrián", "Rubén", "Iván", "Raúl", "Marcos", "Enrique", "Vicente",
-        "Ramón", "Andrés", "Jesús", "Mario", "Guillermo", "Salvador", "Joaquín",
-        "Óscar", "Roberto", "Eduardo", "Álvaro", "Víctor", "Gonzalo", "Nicolás",
-        "Hugo", "Ignacio", "Jaime", "Tomás", "Lucas", "Héctor", "Martín", "Emilio",
-    ],
-}
+# Spanish first names
+SPANISH_FIRST_NAMES: List[str] = [
+    # Female names
+    "María", "Carmen", "Ana", "Laura", "Isabel", "Lucía", "Elena", "Sofía",
+    "Paula", "Marta", "Sara", "Alba", "Andrea", "Claudia", "Patricia",
+    "Cristina", "Raquel", "Beatriz", "Nuria", "Silvia", "Rosa", "Pilar",
+    "Teresa", "Alicia", "Mónica", "Eva", "Inés", "Irene", "Julia", "Diana",
+    "Natalia", "Rocío", "Marina", "Carolina", "Lorena", "Verónica", "Sandra",
+    "Esther", "Adriana", "Victoria", "Noelia", "Miriam", "Yolanda", "Susana",
+    "Lidia", "Maite", "Olga", "Vanessa", "Lourdes", "Amparo",
+    # Male names
+    "Carlos", "Pedro", "Diego", "Pablo", "Javier", "Miguel", "Antonio",
+    "Francisco", "José", "Manuel", "David", "Daniel", "Alejandro", "Rafael",
+    "Fernando", "Jorge", "Luis", "Sergio", "Álvaro", "Adrián", "Rubén",
+    "Iván", "Óscar", "Alberto", "Enrique", "Víctor", "Roberto", "Marcos",
+    "Andrés", "Mario", "Raúl", "Gonzalo", "Guillermo", "Ignacio", "Eduardo",
+    "Héctor", "Nicolás", "Jaime", "Gabriel", "Tomás", "Ricardo", "Hugo",
+    "Martín", "Samuel", "Emilio", "Felipe", "Ramón", "Alfonso", "Salvador",
+]
 
-SPANISH_SURNAMES = [
+# Spanish last names
+SPANISH_LAST_NAMES: List[str] = [
     "García", "Rodríguez", "Martínez", "López", "González", "Hernández",
     "Pérez", "Sánchez", "Ramírez", "Torres", "Flores", "Rivera", "Gómez",
     "Díaz", "Reyes", "Moreno", "Jiménez", "Ruiz", "Álvarez", "Romero",
-    "Alonso", "Gutiérrez", "Navarro", "Domínguez", "Vázquez", "Ramos",
-    "Gil", "Serrano", "Blanco", "Molina", "Morales", "Suárez", "Ortega",
-    "Delgado", "Castro", "Ortiz", "Rubio", "Marín", "Sanz", "Iglesias",
-    "Medina", "Garrido", "Cortés", "Castillo", "Santos", "Lozano", "Guerrero",
-    "Cano", "Prieto", "Méndez", "Cruz", "Calvo", "Gallego", "Herrera", "Peña",
+    "Navarro", "Domínguez", "Vega", "Ramos", "Gil", "Serrano", "Blanco",
+    "Molina", "Morales", "Suárez", "Ortega", "Delgado", "Castro", "Ortiz",
+    "Rubio", "Marín", "Sanz", "Iglesias", "Núñez", "Medina", "Garrido",
+    "Cortés", "Castillo", "Santos", "Lozano", "Guerrero", "Cano", "Prieto",
+    "Méndez", "Cruz", "Calvo", "Gallego", "Vidal", "León", "Márquez",
+    "Herrera", "Peña", "Cabrera", "Campos", "Vargas", "Fuentes", "Carrasco",
+]
+
+# Username patterns
+USERNAME_PATTERNS: List[str] = [
+    "{first}_{topic}",
+    "{first}_{topic}_{num}",
+    "{first}.{topic}",
+    "{topic}_{first}",
+    "{first}_{adj}",
+    "{first}{num}_{topic}",
+    "soy_{first}_{topic}",
+    "{first}_life",
+    "{first}_oficial",
+    "{first}_{year}",
+]
+
+# Topics for usernames
+USERNAME_TOPICS: List[str] = [
+    "fit", "fitness", "gym", "healthy", "wellness", "strong", "active",
+    "nutri", "nutrition", "vida_sana", "salud", "training", "sport",
+    "running", "yoga", "pilates", "crossfit", "cardio", "muscle",
+    "lifestyle", "health", "bienestar", "deporte", "entreno", "coach",
+]
+
+# Adjectives for usernames
+USERNAME_ADJECTIVES: List[str] = [
+    "happy", "strong", "fit", "healthy", "active", "motivated", "focused",
+    "real", "true", "official", "daily", "lifestyle", "journey", "goals",
+]
+
+# Email domains
+EMAIL_DOMAINS: List[str] = [
+    "gmail.com", "hotmail.com", "outlook.com", "yahoo.es", "icloud.com",
+    "live.com", "mail.com", "protonmail.com",
 ]
 
 
-def get_random_name() -> tuple[str, str]:
-    """Returns (first_name, full_name) tuple"""
-    gender = random.choice(["female", "male"])
-    first_name = random.choice(SPANISH_NAMES[gender])
-    surname = random.choice(SPANISH_SURNAMES)
-    full_name = f"{first_name} {surname}"
-    return first_name, full_name
+def generate_full_name() -> Tuple[str, str]:
+    """Generate a random Spanish full name."""
+    first_name = random.choice(SPANISH_FIRST_NAMES)
+    last_name = random.choice(SPANISH_LAST_NAMES)
+    return first_name, last_name
 
 
-def generate_username(first_name: str, index: int) -> str:
-    """Generate realistic Instagram-style username"""
+def generate_username(first_name: str, index: int = 0) -> str:
+    """Generate a realistic Instagram username."""
+    first = first_name.lower().replace("á", "a").replace("é", "e").replace("í", "i").replace("ó", "o").replace("ú", "u")
+    topic = random.choice(USERNAME_TOPICS)
+    adj = random.choice(USERNAME_ADJECTIVES)
+    num = random.randint(1, 99)
+    year = random.randint(90, 99)
+
+    pattern = random.choice(USERNAME_PATTERNS)
+    username = pattern.format(
+        first=first,
+        topic=topic,
+        adj=adj,
+        num=num,
+        year=year,
+    )
+
+    # Add index to ensure uniqueness
+    if index > 0 and random.random() > 0.5:
+        username = f"{username}_{index}"
+
+    return username.replace(" ", "_").lower()[:30]  # Instagram max 30 chars
+
+
+def generate_email(first_name: str, last_name: str) -> str:
+    """Generate a realistic email address."""
+    first = first_name.lower().replace("á", "a").replace("é", "e").replace("í", "i").replace("ó", "o").replace("ú", "u")
+    last = last_name.lower().replace("á", "a").replace("é", "e").replace("í", "i").replace("ó", "o").replace("ú", "u")
+    domain = random.choice(EMAIL_DOMAINS)
+
     patterns = [
-        lambda n, i: f"{n.lower()}{random.randint(80, 99)}",
-        lambda n, i: f"{n.lower()}_{random.choice(['fit', 'healthy', 'life', 'real', 'oficial'])}",
-        lambda n, i: f"{n.lower()}.{random.choice(['es', 'spain', 'bcn', 'mad'])}",
-        lambda n, i: f"soy{n.lower()}",
-        lambda n, i: f"{n.lower()}_{random.randint(1, 99):02d}",
-        lambda n, i: f"la_{n.lower()}" if random.random() > 0.5 else f"el_{n.lower()}",
-        lambda n, i: f"{n.lower()}{random.choice(['xo', 'xx', '_ok', '_go'])}",
+        f"{first}.{last}@{domain}",
+        f"{first}{last}@{domain}",
+        f"{first}_{last}@{domain}",
+        f"{first}{random.randint(1, 99)}@{domain}",
+        f"{first}.{last}{random.randint(1, 99)}@{domain}",
     ]
 
-    # Remove accents for username
-    name_clean = first_name.lower()
-    replacements = {
-        'á': 'a', 'é': 'e', 'í': 'i', 'ó': 'o', 'ú': 'u',
-        'ñ': 'n', 'ü': 'u'
-    }
-    for accent, plain in replacements.items():
-        name_clean = name_clean.replace(accent, plain)
-
-    pattern = random.choice(patterns)
-    return pattern(name_clean, index)
-
-
-def generate_email(username: str, first_name: str) -> str:
-    """Generate realistic email from username"""
-    domains = ["gmail.com", "hotmail.com", "outlook.es", "yahoo.es", "icloud.com"]
-    # 70% use gmail
-    domain = "gmail.com" if random.random() < 0.7 else random.choice(domains)
-
-    # Sometimes use username, sometimes first name
-    if random.random() < 0.6:
-        local = username.replace("_", ".")
-    else:
-        local = first_name.lower()
-        for accent, plain in {'á': 'a', 'é': 'e', 'í': 'i', 'ó': 'o', 'ú': 'u', 'ñ': 'n'}.items():
-            local = local.replace(accent, plain)
-        local = f"{local}{random.randint(1, 99)}"
-
-    return f"{local}@{domain}"
+    return random.choice(patterns)
 
 
 def generate_phone() -> str:
-    """Generate Spanish mobile phone number"""
-    # Spanish mobiles start with 6 or 7
+    """Generate a Spanish mobile phone number."""
     prefix = random.choice(["6", "7"])
-    # Generate 8 more digits
     number = "".join([str(random.randint(0, 9)) for _ in range(8)])
-    # Format: +34 6XX XXX XXX
-    return f"+34 {prefix}{number[:2]} {number[2:5]} {number[5:]}"
+    return f"+34{prefix}{number}"
 
 
-# Team members for assignment
-TEAM_MEMBERS = [
-    "Maria García",
-    "Carlos López",
-    "Ana Martínez",
-    None,  # Unassigned
-    None,
-    None,
+# Pre-generated list of 200 names for consistency
+SPANISH_NAMES: List[Tuple[str, str]] = [
+    generate_full_name() for _ in range(250)  # Generate extra for uniqueness
 ]
-
-
-def get_assigned_to() -> str | None:
-    """Get random team member for assignment (60% unassigned)"""
-    return random.choice(TEAM_MEMBERS)

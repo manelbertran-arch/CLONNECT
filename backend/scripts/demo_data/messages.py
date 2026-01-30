@@ -1,228 +1,289 @@
-"""
-Message templates by segment for realistic conversations
-"""
-import random
+"""Message templates for realistic conversation generation."""
 
-# User messages by segment
-USER_MESSAGES = {
-    "hot_lead": [
-        "¿Me pasas el link de pago?",
-        "¿Cómo puedo comprar el plan?",
-        "Quiero empezar ya, ¿cómo lo hago?",
-        "Estoy lista para apuntarme",
-        "¿Aceptas Bizum?",
-        "Vale, me apunto. ¿Qué tengo que hacer?",
-        "Perfecto, ¿cuál es el siguiente paso?",
-        "Me has convencido, vamos a ello",
-        "¿Puedo empezar esta semana?",
-        "Quiero el plan de 12 semanas",
+import random
+from typing import List, Dict, Any
+
+# Intent types matching the system
+INTENT_TYPES = [
+    "GREETING", "INTEREST_SOFT", "INTEREST_STRONG", "QUESTION_PRODUCT",
+    "QUESTION_PRICE", "QUESTION_GENERAL", "OBJECTION_PRICE", "OBJECTION_TIME",
+    "OBJECTION_DOUBT", "OBJECTION_LATER", "READY_TO_BUY", "THANK_YOU",
+    "OFF_TOPIC", "COMPLAINT", "TESTIMONIAL_REQUEST", "PAYMENT_QUESTION",
+]
+
+# ============================================================================
+# HOT LEAD CONVERSATION TEMPLATES
+# ============================================================================
+
+HOT_LEAD_TEMPLATES: List[List[Dict[str, Any]]] = [
+    # Template 1: Direct buyer
+    [
+        {"role": "user", "content": "Hola! Vi tu reel sobre el ayuno y me interesa mucho", "intent": "GREETING"},
+        {"role": "assistant", "content": "¡Hola! Me alegra que te haya gustado 😊 ¿Qué es lo que más te llamó la atención?"},
+        {"role": "user", "content": "Quiero perder peso de forma saludable, llevo años probando dietas", "intent": "INTEREST_SOFT"},
+        {"role": "assistant", "content": "Te entiendo perfectamente. ¿Cuántos kilos te gustaría perder y en qué tiempo?"},
+        {"role": "user", "content": "Unos 8kg, antes del verano si es posible", "intent": "INTEREST_SOFT"},
+        {"role": "assistant", "content": "Es totalmente posible con el enfoque correcto. Tengo un programa de 12 semanas que podría ser perfecto para ti."},
+        {"role": "user", "content": "¿De qué va exactamente?", "intent": "QUESTION_PRODUCT"},
+        {"role": "assistant", "content": "Es un curso completo que incluye plan de alimentación, recetas, y seguimiento semanal. Todo adaptado a tu ritmo de vida."},
+        {"role": "user", "content": "Suena bien. ¿Cuánto cuesta?", "intent": "QUESTION_PRICE"},
+        {"role": "assistant", "content": "Son 297€ por todo el programa. Incluye acceso de por vida y actualizaciones."},
+        {"role": "user", "content": "Es un poco caro para mí ahora mismo...", "intent": "OBJECTION_PRICE"},
+        {"role": "assistant", "content": "Entiendo. Piensa que son menos de 25€ al mes durante un año, y los resultados son para siempre. Además, puedo ofrecerte 3 cuotas sin intereses."},
+        {"role": "user", "content": "¿3 cuotas? Eso sí me viene mejor", "intent": "INTEREST_STRONG"},
+        {"role": "assistant", "content": "Sí, serían 99€ al mes durante 3 meses. ¿Te gustaría empezar?"},
+        {"role": "user", "content": "Vale, lo quiero. ¿Me pasas el link de pago?", "intent": "READY_TO_BUY"},
     ],
-    "warm_lead": [
-        "Me interesa mucho lo que haces",
-        "¿Cómo funciona exactamente el programa?",
-        "¿Qué incluye el plan?",
-        "He visto tus resultados y me gustaría saber más",
-        "¿Cuánto tiempo se tarda en ver resultados?",
-        "¿Es personalizado?",
-        "Llevo tiempo siguiéndote y creo que es el momento",
-        "¿Tienes hueco para nuevos clientes?",
-        "Me encantaría probar tu método",
-        "¿Hacéis seguimiento?",
+    # Template 2: Quick decision
+    [
+        {"role": "user", "content": "Hola! Una amiga me recomendó tu curso", "intent": "GREETING"},
+        {"role": "assistant", "content": "¡Hola! Qué bien, ¿quién es tu amiga?"},
+        {"role": "user", "content": "Laura, hizo tu programa el año pasado y está increíble", "intent": "INTEREST_SOFT"},
+        {"role": "assistant", "content": "¡Ah, Laura! Sí, tuvo unos resultados espectaculares. ¿Tú también buscas transformarte?"},
+        {"role": "user", "content": "Sí, quiero lo mismo que ella. Cuéntame qué incluye", "intent": "QUESTION_PRODUCT"},
+        {"role": "assistant", "content": "El curso incluye 12 semanas de plan alimenticio, +50 recetas, vídeos explicativos y seguimiento semanal."},
+        {"role": "user", "content": "Perfecto. ¿Precio?", "intent": "QUESTION_PRICE"},
+        {"role": "assistant", "content": "297€ acceso completo. Laura me dijo que le cambió la vida."},
+        {"role": "user", "content": "Me fío de ella. ¿Puedo empezar ya?", "intent": "READY_TO_BUY"},
+        {"role": "assistant", "content": "¡Claro! Te paso el link de pago y esta misma semana empezamos."},
+        {"role": "user", "content": "Genial, mándamelo!", "intent": "READY_TO_BUY"},
     ],
-    "price_objector": [
-        "Me parece un poco caro...",
-        "¿No tienes algo más barato?",
-        "Ahora mismo no me lo puedo permitir",
-        "¿Se puede pagar en varios plazos?",
-        "Tengo que pensarlo, es mucho dinero",
-        "¿Por qué es tan caro?",
-        "He visto otros más baratos",
-        "No sé si vale la pena la inversión",
-        "¿Hay algún descuento?",
-        "Cuando pueda permitírmelo te escribo",
+    # Template 3: Resolved time objection
+    [
+        {"role": "user", "content": "Hola, me interesa tu mentoría pero trabajo mucho", "intent": "GREETING"},
+        {"role": "assistant", "content": "¡Hola! Muchos de mis clientes trabajan a jornada completa. ¿Cuántas horas libres tienes al día?"},
+        {"role": "user", "content": "Como mucho 1 hora, y eso con suerte", "intent": "OBJECTION_TIME"},
+        {"role": "assistant", "content": "Perfecto, con 30-45 minutos al día es suficiente. El programa está diseñado para gente ocupada."},
+        {"role": "user", "content": "¿En serio? ¿Y funciona igual?", "intent": "INTEREST_SOFT"},
+        {"role": "assistant", "content": "Sí, tengo testimonios de madres trabajadoras que lo han conseguido. ¿Te paso algunos?"},
+        {"role": "user", "content": "Sí porfa, quiero verlos", "intent": "TESTIMONIAL_REQUEST"},
+        {"role": "assistant", "content": "Mira, aquí tienes 3 casos de personas con situaciones similares a la tuya..."},
+        {"role": "user", "content": "Wow, increíble. Creo que sí puedo hacerlo", "intent": "INTEREST_STRONG"},
+        {"role": "assistant", "content": "¡Claro que puedes! ¿Quieres que te cuente cómo funciona?"},
+        {"role": "user", "content": "Sí, y dime el precio también", "intent": "QUESTION_PRICE"},
+        {"role": "assistant", "content": "La mentoría 1:1 son 497€. Incluye seguimiento diario por WhatsApp y 4 llamadas al mes."},
+        {"role": "user", "content": "Ok, lo hablé con mi pareja y adelante", "intent": "READY_TO_BUY"},
     ],
-    "time_objector": [
-        "No tengo tiempo para cocinar",
-        "Mi horario es imposible",
-        "Entre el trabajo y los niños...",
-        "¿Cuánto tiempo hay que dedicarle?",
-        "Ahora estoy muy liada",
-        "Viajo mucho y no puedo seguir un plan",
-        "¿Funciona si solo puedo dedicarle 30 min?",
-        "Trabajo de noche, ¿se puede adaptar?",
-        "No tengo tiempo ni para mí",
-        "Quizás más adelante cuando tenga más tiempo",
+]
+
+# ============================================================================
+# WARM LEAD CONVERSATION TEMPLATES
+# ============================================================================
+
+WARM_LEAD_TEMPLATES: List[List[Dict[str, Any]]] = [
+    [
+        {"role": "user", "content": "Hola! Acabo de ver tu story sobre nutrición", "intent": "GREETING"},
+        {"role": "assistant", "content": "¡Hola! ¿Qué parte te llamó más la atención?"},
+        {"role": "user", "content": "Lo de las proteínas, no sabía que eran tan importantes", "intent": "INTEREST_SOFT"},
+        {"role": "assistant", "content": "Sí, son fundamentales. ¿Actualmente llevas algún control de tu alimentación?"},
+        {"role": "user", "content": "No mucho, como lo que puedo cuando puedo", "intent": "OFF_TOPIC"},
+        {"role": "assistant", "content": "Es muy común. ¿Te gustaría aprender a organizarte mejor?"},
+        {"role": "user", "content": "Sí, pero no sé por dónde empezar", "intent": "INTEREST_SOFT"},
+        {"role": "assistant", "content": "Tengo un curso que te enseña exactamente eso, paso a paso."},
+        {"role": "user", "content": "¿Qué incluye?", "intent": "QUESTION_PRODUCT"},
+        {"role": "assistant", "content": "Plan de comidas, recetas fáciles, lista de la compra y seguimiento semanal."},
+        {"role": "user", "content": "Suena bien, lo voy a pensar", "intent": "OBJECTION_LATER"},
     ],
-    "ghost": [
-        "Hola, me interesa",
-        "¿Qué precio tiene?",
-        "Ok, lo miro",
-        "Gracias",
-        "Ya te digo algo",
-        "Lo consulto con mi pareja",
-        "Dame unos días",
-        "Ahora no puedo hablar",
+    [
+        {"role": "user", "content": "Hola! Quiero empezar a comer mejor", "intent": "GREETING"},
+        {"role": "assistant", "content": "¡Genial! ¿Hay algún objetivo específico que tengas en mente?"},
+        {"role": "user", "content": "Perder barriga, tengo mucha grasa acumulada", "intent": "INTEREST_SOFT"},
+        {"role": "assistant", "content": "Es uno de los objetivos más comunes. ¿Has intentado algo antes?"},
+        {"role": "user", "content": "Sí, mil dietas pero ninguna me funciona", "intent": "OBJECTION_DOUBT"},
+        {"role": "assistant", "content": "Normal, las dietas restrictivas no funcionan a largo plazo. Mi enfoque es diferente."},
+        {"role": "user", "content": "¿Cómo es tu enfoque?", "intent": "QUESTION_PRODUCT"},
+        {"role": "assistant", "content": "Se basa en crear hábitos sostenibles, no en prohibir alimentos. ¿Te cuento más?"},
+        {"role": "user", "content": "Sí, me interesa", "intent": "INTEREST_SOFT"},
     ],
-    "engaged_fan": [
-        "¡Me encanta tu contenido!",
-        "Siempre aprendo mucho contigo",
-        "¿Qué opinas de...?",
-        "He probado tu receta y está buenísima",
-        "Eres una inspiración",
-        "Gracias por todo lo que compartes",
-        "¿Podrías hablar sobre...?",
-        "Me motivas mucho",
-        "Tu último post me ha ayudado mucho",
-        "Sigo todos tus consejos",
+]
+
+# ============================================================================
+# GHOST CONVERSATION TEMPLATES (last message from bot, no response)
+# ============================================================================
+
+GHOST_TEMPLATES: List[List[Dict[str, Any]]] = [
+    [
+        {"role": "user", "content": "Hola, vi tu post sobre recetas rápidas", "intent": "GREETING"},
+        {"role": "assistant", "content": "¡Hola! Sí, las recetas de 15 minutos son las favoritas. ¿Cocinas mucho en casa?"},
+        {"role": "user", "content": "Intento pero no tengo tiempo", "intent": "OBJECTION_TIME"},
+        {"role": "assistant", "content": "Por eso hice esas recetas, pensando en gente ocupada como tú."},
+        {"role": "user", "content": "Ya, pero es que mi día es una locura", "intent": "OBJECTION_TIME"},
+        {"role": "assistant", "content": "Te entiendo. ¿Te gustaría que te mande algunas recetas que puedes hacer en 10 minutos?"},
+        # No response - ghost
     ],
-    "new": [
-        "Hola!",
-        "Buenas!",
-        "Hola, te acabo de descubrir",
-        "Me ha salido tu perfil y me ha gustado",
+    [
+        {"role": "user", "content": "Hola! Me interesa tu programa", "intent": "GREETING"},
+        {"role": "assistant", "content": "¡Hola! Genial, ¿qué te gustaría saber?"},
+        {"role": "user", "content": "¿Cuánto cuesta?", "intent": "QUESTION_PRICE"},
+        {"role": "assistant", "content": "El programa completo son 297€. Incluye todo lo necesario para transformar tu alimentación."},
+        {"role": "user", "content": "Es mucho dinero para mí ahora", "intent": "OBJECTION_PRICE"},
+        {"role": "assistant", "content": "Entiendo. Puedo ofrecerte pago en 3 cuotas de 99€. ¿Te viene mejor así?"},
+        {"role": "user", "content": "Lo tengo que pensar", "intent": "OBJECTION_LATER"},
+        {"role": "assistant", "content": "Claro, tómate tu tiempo. ¿Quieres que te cuente qué resultados han tenido otros clientes?"},
+        # No response - ghost
     ],
-    "customer": [
-        "¡Gracias! El plan está genial",
-        "Ya he perdido 3 kilos",
-        "Las recetas son muy fáciles",
-        "Estoy muy contenta con el programa",
-        "¿Puedo repetir el plan?",
-        "¿Tienes algo para después?",
-        "Lo recomendaré a mis amigas",
-        "Ha sido la mejor inversión",
+]
+
+# ============================================================================
+# OBJECTION CONVERSATION TEMPLATES
+# ============================================================================
+
+OBJECTION_TEMPLATES: Dict[str, List[List[Dict[str, Any]]]] = {
+    "price": [
+        [
+            {"role": "user", "content": "Hola! Me interesa tu curso pero es caro", "intent": "GREETING"},
+            {"role": "assistant", "content": "¡Hola! Entiendo tu preocupación. ¿Cuánto tenías pensado invertir?"},
+            {"role": "user", "content": "No sé, menos de 100€", "intent": "OBJECTION_PRICE"},
+            {"role": "assistant", "content": "Entiendo. El curso son 297€ pero son menos de 25€ al mes si lo piensas así."},
+            {"role": "user", "content": "Ya pero ahora mismo no puedo", "intent": "OBJECTION_PRICE"},
+            {"role": "assistant", "content": "¿Y si te ofrezco pagarlo en 3 cuotas sin intereses?"},
+            {"role": "user", "content": "Aún así es mucho, ya veré más adelante", "intent": "OBJECTION_LATER"},
+        ],
+        [
+            {"role": "user", "content": "Me parece muy caro comparado con otros cursos", "intent": "OBJECTION_PRICE"},
+            {"role": "assistant", "content": "¿Con qué cursos lo has comparado?"},
+            {"role": "user", "content": "Vi uno por 50€ en Udemy", "intent": "OBJECTION_PRICE"},
+            {"role": "assistant", "content": "Entiendo. La diferencia es que aquí tienes seguimiento personalizado y acceso directo a mí."},
+            {"role": "user", "content": "Ya pero sigue siendo mucho dinero", "intent": "OBJECTION_PRICE"},
+            {"role": "assistant", "content": "Piensa en lo que gastas cada mes en comida basura o en cosas que no te acercan a tu objetivo..."},
+            {"role": "user", "content": "Tienes razón pero no me lo puedo permitir ahora", "intent": "OBJECTION_PRICE"},
+        ],
+    ],
+    "time": [
+        [
+            {"role": "user", "content": "No tengo tiempo para hacer ningún programa", "intent": "OBJECTION_TIME"},
+            {"role": "assistant", "content": "¿Cuántas horas trabajas al día?"},
+            {"role": "user", "content": "10-12 horas, llego muerta a casa", "intent": "OBJECTION_TIME"},
+            {"role": "assistant", "content": "Entiendo perfectamente. Por eso el programa solo requiere 20-30 minutos al día."},
+            {"role": "user", "content": "Ni eso tengo, de verdad", "intent": "OBJECTION_TIME"},
+            {"role": "assistant", "content": "¿Y si te dijera que con las recetas del programa ahorrarás tiempo porque ya no tendrás que pensar qué comer?"},
+            {"role": "user", "content": "Suena bien pero no sé si podré cumplir", "intent": "OBJECTION_DOUBT"},
+        ],
     ],
 }
 
-# Bot responses (generic)
-BOT_RESPONSES = [
-    "¡Hola! Me alegro de que me escribas 😊",
-    "¡Genial! Te cuento cómo funciona...",
-    "Claro, el programa incluye...",
-    "Entiendo perfectamente, es una inversión importante",
-    "Muchas personas empezaron igual que tú",
-    "¿Qué te gustaría conseguir exactamente?",
-    "Te explico las opciones que tenemos...",
-    "¡Gracias por confiar en mí!",
-    "Cualquier duda que tengas, aquí estoy",
-    "¿Te puedo ayudar en algo más?",
+# ============================================================================
+# CUSTOMER CONVERSATION TEMPLATES
+# ============================================================================
+
+CUSTOMER_TEMPLATES: List[List[Dict[str, Any]]] = [
+    [
+        {"role": "user", "content": "Hola! Acabo de terminar la semana 12 del curso", "intent": "GREETING"},
+        {"role": "assistant", "content": "¡Enhorabuena! ¿Cómo te sientes?"},
+        {"role": "user", "content": "Increíble! He perdido 7kg y me siento con mucha energía", "intent": "THANK_YOU"},
+        {"role": "assistant", "content": "¡Qué maravilla! Me alegro muchísimo. ¿Te gustaría continuar con la mentoría?"},
+        {"role": "user", "content": "Sí, quiero seguir contigo", "intent": "INTEREST_STRONG"},
+        {"role": "assistant", "content": "Perfecto. Te cuento las opciones de continuidad que tenemos..."},
+    ],
+    [
+        {"role": "user", "content": "Gracias por todo! El programa me ha cambiado la vida", "intent": "THANK_YOU"},
+        {"role": "assistant", "content": "¡Gracias a ti por confiar! ¿Me dejarías un testimonio para ayudar a otros?"},
+        {"role": "user", "content": "Claro que sí, te lo mando ahora", "intent": "THANK_YOU"},
+        {"role": "assistant", "content": "¡Genial! Y si conoces a alguien que le pueda interesar, tengo un descuento especial por recomendación."},
+    ],
 ]
 
-# Follow-up questions for engagement
-FOLLOW_UP_QUESTIONS = [
-    "¿Cuál es tu objetivo principal?",
-    "¿Has intentado otros métodos antes?",
-    "¿Qué es lo que más te cuesta?",
-    "¿Tienes alguna restricción alimentaria?",
-    "¿Cuánto tiempo llevas queriendo cambiar?",
-    "¿Qué te ha llamado la atención de mi método?",
+# ============================================================================
+# NEW FOLLOWER TEMPLATES
+# ============================================================================
+
+NEW_TEMPLATES: List[List[Dict[str, Any]]] = [
+    [
+        {"role": "user", "content": "Hola! Acabo de descubrirte y me encanta tu contenido", "intent": "GREETING"},
+        {"role": "assistant", "content": "¡Hola! Muchas gracias 😊 ¿Qué contenido te ha gustado más?"},
+        {"role": "user", "content": "Los reels sobre nutrición, son muy claros", "intent": "INTEREST_SOFT"},
+    ],
+    [
+        {"role": "user", "content": "Hola! Una pregunta rápida", "intent": "GREETING"},
+        {"role": "assistant", "content": "¡Hola! Dime, ¿en qué puedo ayudarte?"},
+    ],
+    [
+        {"role": "user", "content": "Hola 👋", "intent": "GREETING"},
+        {"role": "assistant", "content": "¡Hola! ¿Qué tal? ¿En qué te puedo ayudar?"},
+    ],
 ]
 
-# Messages with competitor @mentions for competition detection
-COMPETITOR_MENTIONS = [
-    "Vi que @fitness_maria tiene un curso parecido, ¿el tuyo qué incluye?",
-    "Una amiga hizo el programa de @nutritionist_ana y le fue bien",
-    "¿Conoces a @gym_carlos? Tiene precios más bajos",
-    "He estado mirando lo de @healthy_laura, pero me gusta más tu enfoque",
-    "@coach_pedro dice que el ayuno no funciona, ¿tú qué opinas?",
-    "Entre tu plan y el de @fitness_maria, ¿cuál me recomiendas?",
-    "Vi una review de @nutritionist_ana y me quedé con dudas",
-    "¿Tu método es parecido al de @gym_carlos?",
-]
+# ============================================================================
+# ENGAGED FAN TEMPLATES (many messages, low intent)
+# ============================================================================
 
-# Messages with trending terms for trend detection
-TRENDING_MESSAGES = [
-    "¿Qué opinas del ozempic para adelgazar?",
-    "He oído mucho sobre ozempic últimamente",
-    "Estoy pensando en probar ayuno 16:8",
-    "¿El ayuno 16:8 funciona de verdad?",
-    "¿Recomiendas la proteína vegana?",
-    "He empezado a tomar creatina, ¿está bien?",
-    "¿Me explicas el déficit calórico?",
-    "¿Haces batch cooking para tus clientes?",
-    "¿Tienes alguna receta de batch cooking?",
-    "Me interesa el tema de la proteína vegana",
-]
-
-# Questions for content requests detection (must have ?)
-CONTENT_QUESTIONS = [
-    "¿Tienes algún menú semanal para batch cooking?",
-    "¿Cómo leo las etiquetas de los alimentos?",
-    "¿Qué desayunos recomiendas para perder peso?",
-    "¿Cuánta proteína necesito al día?",
-    "¿Es malo saltarse el desayuno?",
-    "¿Puedes hacer un vídeo sobre snacks saludables?",
-    "¿Tienes alguna guía para principiantes?",
-    "¿Cómo calculo mis calorías diarias?",
-    "¿Qué ejercicios puedo hacer en casa?",
-    "¿Es necesario contar macros?",
+ENGAGED_FAN_TEMPLATES: List[List[Dict[str, Any]]] = [
+    [
+        {"role": "user", "content": "Hola! Me encantan tus recetas", "intent": "GREETING"},
+        {"role": "assistant", "content": "¡Gracias! ¿Cuál has probado últimamente?"},
+        {"role": "user", "content": "La de la tortilla de claras, brutal", "intent": "THANK_YOU"},
+        {"role": "assistant", "content": "¡Es de mis favoritas! ¿Qué otros platos te gustan?"},
+        {"role": "user", "content": "Todos los de batch cooking", "intent": "INTEREST_SOFT"},
+        {"role": "assistant", "content": "Tengo un ebook con 50 recetas de batch cooking, ¿te interesaría?"},
+        {"role": "user", "content": "Ahora no puedo comprarlo, pero me lo apunto", "intent": "OBJECTION_LATER"},
+        {"role": "assistant", "content": "Sin problema, aquí estaré cuando quieras 😊"},
+        {"role": "user", "content": "Por cierto, ¿has visto lo de la proteína vegana?", "intent": "OFF_TOPIC"},
+        {"role": "assistant", "content": "Sí, es un tema interesante. ¿Tú eres vegana?"},
+        {"role": "user", "content": "No, pero me interesa reducir la carne", "intent": "OFF_TOPIC"},
+    ],
 ]
 
 
-def get_messages_for_segment(segment: str, count: int = 5) -> list[dict]:
-    """
-    Generate a realistic conversation for a segment.
-    Returns list of {"role": "user"|"assistant", "content": str}
-    """
-    user_msgs = USER_MESSAGES.get(segment, USER_MESSAGES["new"])
+def get_conversation_for_segment(segment: str, index: int = 0) -> List[Dict[str, Any]]:
+    """Get a conversation template for a specific segment."""
+    templates = {
+        "hot_lead": HOT_LEAD_TEMPLATES,
+        "warm_lead": WARM_LEAD_TEMPLATES,
+        "ghost": GHOST_TEMPLATES,
+        "price_objector": OBJECTION_TEMPLATES.get("price", []),
+        "time_objector": OBJECTION_TEMPLATES.get("time", []),
+        "customer": CUSTOMER_TEMPLATES,
+        "new": NEW_TEMPLATES,
+        "engaged_fan": ENGAGED_FAN_TEMPLATES,
+    }
 
-    conversation = []
+    segment_templates = templates.get(segment, NEW_TEMPLATES)
+    if not segment_templates:
+        return NEW_TEMPLATES[0]
 
-    # Start with user message
-    conversation.append({
-        "role": "user",
-        "content": random.choice(user_msgs)
-    })
-
-    # Alternate bot and user
-    for i in range(count - 1):
-        if i % 2 == 0:
-            # Bot response
-            conversation.append({
-                "role": "assistant",
-                "content": random.choice(BOT_RESPONSES)
-            })
-        else:
-            # User response
-            conversation.append({
-                "role": "user",
-                "content": random.choice(user_msgs)
-            })
-
-    return conversation
+    # Use index to cycle through templates
+    template_index = index % len(segment_templates)
+    return segment_templates[template_index]
 
 
-def get_last_message_for_segment(segment: str) -> tuple[str, str]:
-    """
-    Get appropriate last message based on segment.
-    Returns (role, content) - who sent the last message
-    """
-    if segment == "hot_lead":
-        # Hot leads: user asking for payment link
-        return "user", random.choice([
-            "¿Me pasas el link?",
-            "¿Cómo pago?",
-            "Quiero empezar ya",
-            "Vale, vamos a ello",
-        ])
-    elif segment == "ghost":
-        # Ghosts: bot sent last message, no response
-        return "assistant", random.choice([
-            "¿Sigues interesada? 😊",
-            "¿Has podido pensarlo?",
-            "¿Te puedo ayudar en algo?",
-            "¿Qué tal va todo?",
-        ])
-    elif segment == "customer":
-        # Customers: happy feedback
-        return "user", random.choice([
-            "¡Mil gracias! Estoy encantada",
-            "El plan está siendo genial",
-            "Ya noto los cambios",
-        ])
-    else:
-        # Others: varied
-        role = random.choice(["user", "assistant"])
-        if role == "user":
-            return role, random.choice(USER_MESSAGES.get(segment, USER_MESSAGES["new"]))
-        else:
-            return role, random.choice(BOT_RESPONSES)
+def generate_extended_conversation(
+    base_conversation: List[Dict[str, Any]],
+    target_length: int
+) -> List[Dict[str, Any]]:
+    """Extend a conversation to reach target message count."""
+    if len(base_conversation) >= target_length:
+        return base_conversation[:target_length]
+
+    extended = list(base_conversation)
+
+    # Filler exchanges to extend conversation
+    fillers = [
+        [
+            {"role": "user", "content": "¿Y eso cómo funciona exactamente?", "intent": "QUESTION_GENERAL"},
+            {"role": "assistant", "content": "Te lo explico paso a paso..."},
+        ],
+        [
+            {"role": "user", "content": "Ah vale, tiene sentido", "intent": "INTEREST_SOFT"},
+            {"role": "assistant", "content": "¿Tienes alguna otra duda?"},
+        ],
+        [
+            {"role": "user", "content": "Una cosa más...", "intent": "QUESTION_GENERAL"},
+            {"role": "assistant", "content": "Dime, te escucho"},
+        ],
+        [
+            {"role": "user", "content": "Gracias por la info", "intent": "THANK_YOU"},
+            {"role": "assistant", "content": "De nada, aquí estoy para lo que necesites"},
+        ],
+        [
+            {"role": "user", "content": "¿Cuánto tiempo lleva ver resultados?", "intent": "QUESTION_GENERAL"},
+            {"role": "assistant", "content": "Normalmente en 2-3 semanas ya empiezas a notar cambios"},
+        ],
+    ]
+
+    while len(extended) < target_length:
+        filler = random.choice(fillers)
+        for msg in filler:
+            if len(extended) < target_length:
+                extended.append(msg)
+
+    return extended

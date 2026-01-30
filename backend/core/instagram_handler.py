@@ -248,11 +248,24 @@ class InstagramHandler:
                 self.status.errors += 1
                 return {"status": "error", "reason": "invalid_signature"}
 
+        # ANTI-DUPLICATION: Extract and record echo messages (creator's manual responses)
+        # This must happen BEFORE we process incoming messages
+        echo_messages = await self._extract_echo_messages(payload)
+        echo_recorded = 0
+        for echo_msg in echo_messages:
+            if await self._record_creator_manual_response(echo_msg):
+                echo_recorded += 1
+
         # Extract messages from webhook
         messages = await self._extract_messages(payload)
 
         if not messages:
-            return {"status": "ok", "messages_processed": 0, "results": []}
+            return {
+                "status": "ok",
+                "messages_processed": 0,
+                "echo_messages_recorded": echo_recorded,
+                "results": []
+            }
 
         # Check if copilot mode is enabled for this creator
         copilot_enabled = await self._is_copilot_enabled()
@@ -370,19 +383,39 @@ class InstagramHandler:
                         "status": "pending_approval"
                     })
                 else:
-                    # AUTOPILOT MODE: Send response immediately
-                    await self.send_response(message.sender_id, response_text)
-                    self._record_response(message, response)
+                    # AUTOPILOT MODE: Check if creator already responded before sending
+                    creator_already_responded = await self._has_creator_responded_recently(
+                        message.sender_id,
+                        window_seconds=300  # 5 minute window
+                    )
 
-                    results.append({
-                        "message_id": message.message_id,
-                        "sender_id": message.sender_id,
-                        "copilot_mode": False,
-                        "response": response_text,
-                        "intent": intent_str,
-                        "confidence": response.confidence,
-                        "status": "sent"
-                    })
+                    if creator_already_responded:
+                        # Creator already replied manually, skip bot response
+                        logger.info(
+                            f"[AntiDup] Skipping autopilot response to {message.sender_id} - "
+                            f"creator already responded"
+                        )
+                        results.append({
+                            "message_id": message.message_id,
+                            "sender_id": message.sender_id,
+                            "copilot_mode": False,
+                            "status": "skipped_creator_responded",
+                            "reason": "Creator already responded manually"
+                        })
+                    else:
+                        # AUTOPILOT MODE: Send response immediately
+                        await self.send_response(message.sender_id, response.response_text)
+                        self._record_response(message, response)
+
+                        results.append({
+                            "message_id": message.message_id,
+                            "sender_id": message.sender_id,
+                            "copilot_mode": False,
+                            "response": response.response_text,
+                            "intent": response.intent.value if hasattr(response.intent, 'value') else str(response.intent),
+                            "confidence": response.confidence,
+                            "status": "sent"
+                        })
 
             except Exception as e:
                 import traceback
@@ -397,6 +430,7 @@ class InstagramHandler:
         return {
             "status": "ok",
             "messages_processed": len(messages),
+            "echo_messages_recorded": echo_recorded,
             "copilot_mode": copilot_enabled,
             "results": results
         }
@@ -413,6 +447,191 @@ class InstagramHandler:
         except Exception as e:
             logger.error(f"Error checking copilot mode: {e}")
             return True  # Default to copilot mode on error
+
+    async def _extract_echo_messages(self, payload: Dict[str, Any]) -> List[Dict[str, Any]]:
+        """
+        Extract echo messages (creator's manual responses) from webhook payload.
+        These are messages sent BY the creator/page, not by followers.
+        """
+        echo_messages = []
+
+        try:
+            for entry in payload.get("entry", []):
+                for messaging in entry.get("messaging", []):
+                    if "message" in messaging:
+                        message_data = messaging["message"]
+
+                        # Only capture echo messages (sent BY the page/creator)
+                        if message_data.get("is_echo"):
+                            sender_id = messaging.get("sender", {}).get("id", "")
+                            recipient_id = messaging.get("recipient", {}).get("id", "")
+                            text = message_data.get("text", "")
+
+                            if text:  # Only record text messages
+                                echo_messages.append({
+                                    "message_id": message_data.get("mid", ""),
+                                    "sender_id": sender_id,  # This is the page/creator
+                                    "recipient_id": recipient_id,  # This is the follower
+                                    "text": text,
+                                    "timestamp": messaging.get("timestamp", 0)
+                                })
+                                logger.info(f"[Echo] Detected creator response to {recipient_id}: {text[:50]}...")
+
+        except Exception as e:
+            logger.error(f"Error extracting echo messages: {e}")
+
+        return echo_messages
+
+    async def _record_creator_manual_response(self, echo_msg: Dict[str, Any]) -> bool:
+        """
+        Record a creator's manual response in the database.
+        This allows us to detect if creator already responded before bot sends.
+        """
+        try:
+            from api.database import SessionLocal
+            from api.models import Creator, Lead, Message
+
+            session = SessionLocal()
+            try:
+                # Find creator
+                creator = session.query(Creator).filter_by(name=self.creator_id).first()
+                if not creator:
+                    logger.warning(f"[Echo] Creator {self.creator_id} not found")
+                    return False
+
+                # The recipient of an echo message is the follower
+                follower_id = echo_msg["recipient_id"]
+
+                # Find or create lead
+                lead = session.query(Lead).filter_by(
+                    creator_id=creator.id,
+                    platform_user_id=follower_id
+                ).first()
+
+                if not lead:
+                    # Also check with ig_ prefix
+                    lead = session.query(Lead).filter_by(
+                        creator_id=creator.id,
+                        platform_user_id=f"ig_{follower_id}"
+                    ).first()
+
+                if not lead:
+                    logger.info(f"[Echo] Lead not found for {follower_id}, skipping record")
+                    return False
+
+                # Check if this exact message already exists (avoid duplicates)
+                existing = session.query(Message).filter_by(
+                    lead_id=lead.id,
+                    platform_message_id=echo_msg["message_id"]
+                ).first()
+
+                if existing:
+                    logger.debug(f"[Echo] Message {echo_msg['message_id']} already recorded")
+                    return True
+
+                # Record the creator's manual response
+                msg = Message(
+                    lead_id=lead.id,
+                    role="assistant",
+                    content=echo_msg["text"],
+                    status="sent",
+                    approved_by="creator_manual",  # Mark as manually sent by creator
+                    platform_message_id=echo_msg["message_id"],
+                    msg_metadata={"source": "instagram_echo", "is_manual": True}
+                )
+                session.add(msg)
+
+                # Update lead last_contact
+                lead.last_contact_at = datetime.now(timezone.utc)
+                session.commit()
+
+                logger.info(f"[Echo] Recorded creator manual response to {follower_id}")
+                return True
+
+            finally:
+                session.close()
+
+        except Exception as e:
+            logger.error(f"[Echo] Error recording creator response: {e}")
+            return False
+
+    async def _has_creator_responded_recently(self, follower_id: str, window_seconds: int = 300) -> bool:
+        """
+        Check if the creator has manually responded to this follower recently.
+        Used to prevent duplicate bot responses when creator already replied.
+
+        Args:
+            follower_id: The follower's Instagram ID
+            window_seconds: Time window to check (default 5 minutes)
+
+        Returns:
+            True if creator responded recently, False otherwise
+        """
+        try:
+            from api.database import SessionLocal
+            from api.models import Creator, Lead, Message
+
+            session = SessionLocal()
+            try:
+                # Find creator
+                creator = session.query(Creator).filter_by(name=self.creator_id).first()
+                if not creator:
+                    return False
+
+                # Find lead (try both with and without ig_ prefix)
+                lead = session.query(Lead).filter_by(
+                    creator_id=creator.id,
+                    platform_user_id=follower_id
+                ).first()
+
+                if not lead:
+                    lead = session.query(Lead).filter_by(
+                        creator_id=creator.id,
+                        platform_user_id=f"ig_{follower_id}"
+                    ).first()
+
+                if not lead:
+                    return False
+
+                # Check for recent creator messages
+                from datetime import timedelta
+                cutoff_time = datetime.now(timezone.utc) - timedelta(seconds=window_seconds)
+
+                recent_creator_msg = session.query(Message).filter(
+                    Message.lead_id == lead.id,
+                    Message.role == "assistant",
+                    Message.created_at >= cutoff_time
+                ).order_by(Message.created_at.desc()).first()
+
+                if recent_creator_msg:
+                    # Check if it was a manual response or recent bot response
+                    is_manual = (
+                        recent_creator_msg.approved_by == "creator_manual" or
+                        (recent_creator_msg.msg_metadata or {}).get("is_manual") == True
+                    )
+
+                    # Get the most recent user message
+                    last_user_msg = session.query(Message).filter(
+                        Message.lead_id == lead.id,
+                        Message.role == "user"
+                    ).order_by(Message.created_at.desc()).first()
+
+                    # If creator responded AFTER the last user message, skip bot
+                    if last_user_msg and recent_creator_msg.created_at > last_user_msg.created_at:
+                        logger.info(
+                            f"[AntiDup] Creator already responded to {follower_id} "
+                            f"(manual={is_manual}, msg_id={recent_creator_msg.id})"
+                        )
+                        return True
+
+                return False
+
+            finally:
+                session.close()
+
+        except Exception as e:
+            logger.error(f"[AntiDup] Error checking creator response: {e}")
+            return False  # On error, allow bot to respond
 
     async def _extract_messages(self, payload: Dict[str, Any]) -> List[InstagramMessage]:
         """Extract messages from webhook payload"""

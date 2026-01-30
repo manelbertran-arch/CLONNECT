@@ -1,807 +1,661 @@
 #!/usr/bin/env python3
 """
-Seed Demo Data Script
-
-SPRINT4: Populates database with realistic demo data for testing and demos.
-Idempotent - can be run multiple times safely.
+Seed script to populate database with realistic demo data.
 
 Usage:
-    cd backend
     python scripts/seed_demo_data.py
+
+This script is idempotent - it can be run multiple times safely.
+It clears existing demo data before inserting new data.
 """
-import os
+
 import sys
+import os
 import random
 import uuid
-from datetime import datetime, timedelta, timezone
-from typing import Optional
+from datetime import datetime, timedelta
+from typing import List, Dict, Any, Optional
 
-# Add backend to path
+# Add parent directory to path for imports
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+from sqlalchemy.orm import Session
+from api.database import SessionLocal, engine
+from api.models import (
+    Creator, Lead, Message, Product, KnowledgeBase,
+    CalendarBooking, BookingLink, FollowerMemoryDB,
+    ConversationStateDB, UserProfileDB,
+)
 
 # Import demo data modules
 from scripts.demo_data.config import (
-    CREATOR_ID,
-    SEGMENT_DISTRIBUTION,
-    PRODUCTS,
-    BOOKING_LINKS,
+    CREATOR_ID, SEGMENT_DISTRIBUTION, PRODUCTS, METRICS,
+    WEEKLY_INSIGHTS, TODAY_BOOKINGS, SEGMENT_CHARACTERISTICS,
+    HOT_LEADS_DATA,
 )
 from scripts.demo_data.names import (
-    get_random_name,
-    generate_username,
-    generate_email,
-    generate_phone,
-    get_assigned_to,
-)
-from scripts.demo_data.interests import (
-    get_random_interests,
-    get_random_objections,
-    get_arguments_for_objections,
-    get_notes_for_segment,
-    get_profile_pic_url,
-    get_user_context,
-    TOPICS,
+    generate_full_name, generate_username, generate_email, generate_phone,
 )
 from scripts.demo_data.messages import (
-    get_messages_for_segment,
-    get_last_message_for_segment,
-    BOT_RESPONSES,
-    COMPETITOR_MENTIONS,
-    TRENDING_MESSAGES,
-    CONTENT_QUESTIONS,
+    get_conversation_for_segment, generate_extended_conversation,
 )
-from scripts.demo_data.interests import COMPETITORS, TRENDING_TERMS, get_interests_with_weights
-
-# Database imports
-from api.database import SessionLocal, engine
-from api.models import (
-    Creator,
-    Lead,
-    LeadActivity,
-    LeadTask,
-    Message,
-    Product,
-    CalendarBooking,
-    BookingLink,
-    FollowerMemoryDB,
-    UserProfileDB,
-    ConversationStateDB,
+from scripts.demo_data.interests import (
+    TOPICS, PURCHASE_OBJECTIONS, INTERESTS_WEIGHTS,
 )
-from core.analytics.analytics_manager import get_analytics_manager, EventType
 
 
-def log(msg: str):
-    """Simple logging with timestamp"""
-    print(f"[{datetime.now().strftime('%H:%M:%S')}] {msg}")
+def main():
+    """Main entry point for seed script."""
+    print("\n" + "=" * 60)
+    print("🌱 CLONNECT DEMO DATA SEED")
+    print("=" * 60)
+
+    db = SessionLocal()
+
+    try:
+        print("\n🗑️  Limpiando datos existentes...")
+        clear_existing_data(db, CREATOR_ID)
+
+        print("\n👤 Creando creador y productos...")
+        creator = create_creator(db, CREATOR_ID)
+        create_products(db, str(creator.id))
+
+        print("\n👥 Generando 200 followers con distribución por segmento...")
+        followers = create_followers(db, str(creator.id))
+
+        print("\n🎯 Creando leads y conversation states...")
+        create_leads_and_states(db, str(creator.id), followers)
+
+        print("\n🧠 Creando user profiles...")
+        create_user_profiles(db, str(creator.id), followers)
+
+        print("\n💬 Generando mensajes de conversación...")
+        create_messages(db, followers)
+
+        print("\n📅 Creando bookings...")
+        create_bookings(db, str(creator.id))
+
+        print("\n📚 Creando knowledge base...")
+        create_knowledge_base(db, str(creator.id))
+
+        db.commit()
+
+        print("\n" + "=" * 60)
+        print("✅ SEED COMPLETADO!")
+        print("=" * 60)
+        print_summary(db, str(creator.id))
+
+    except Exception as e:
+        db.rollback()
+        print(f"\n❌ Error: {e}")
+        import traceback
+        traceback.print_exc()
+        raise
+    finally:
+        db.close()
 
 
-def get_or_create_creator(db) -> tuple[uuid.UUID, str]:
-    """
-    Get existing creator or create fitpack_global.
-    Returns (creator_uuid, creator_name_string)
-    """
-    # Try to find existing creator
-    creator = db.query(Creator).filter(Creator.name == CREATOR_ID).first()
+def clear_existing_data(db: Session, creator_id: str):
+    """Clear all demo data for the creator. Order matters due to foreign keys."""
+    # Get creator by name to find UUID
+    creator = db.query(Creator).filter(Creator.name == creator_id).first()
 
     if creator:
-        log(f"Found existing creator: {creator.name} ({creator.id})")
-        return creator.id, CREATOR_ID
+        creator_uuid = str(creator.id)
+        print(f"   Encontrado creador existente: {creator_uuid}")
 
-    # Try "manel" as fallback
-    creator = db.query(Creator).filter(Creator.name == "manel").first()
-    if creator:
-        log(f"Using existing creator: {creator.name} ({creator.id})")
-        return creator.id, creator.name
+        # Delete in order respecting foreign keys
+        msg_count = db.query(Message).filter(
+            Message.lead_id.in_(
+                db.query(Lead.id).filter(Lead.creator_id == creator.id)
+            )
+        ).delete(synchronize_session=False)
+        print(f"   - Messages: {msg_count}")
 
-    # Create new creator
+        lead_count = db.query(Lead).filter(Lead.creator_id == creator.id).delete()
+        print(f"   - Leads: {lead_count}")
+
+        cs_count = db.query(ConversationStateDB).filter(
+            ConversationStateDB.creator_id == creator_id
+        ).delete()
+        print(f"   - ConversationStates: {cs_count}")
+
+        up_count = db.query(UserProfileDB).filter(
+            UserProfileDB.creator_id == creator_id
+        ).delete()
+        print(f"   - UserProfiles: {up_count}")
+
+        fm_count = db.query(FollowerMemoryDB).filter(
+            FollowerMemoryDB.creator_id == creator_id
+        ).delete()
+        print(f"   - FollowerMemories: {fm_count}")
+
+        booking_count = db.query(CalendarBooking).filter(
+            CalendarBooking.creator_id == creator_id
+        ).delete()
+        print(f"   - Bookings: {booking_count}")
+
+        product_count = db.query(Product).filter(
+            Product.creator_id == creator.id
+        ).delete()
+        print(f"   - Products: {product_count}")
+
+        kb_count = db.query(KnowledgeBase).filter(
+            KnowledgeBase.creator_id == creator.id
+        ).delete()
+        print(f"   - KnowledgeBase: {kb_count}")
+
+        db.delete(creator)
+        print(f"   - Creator: 1")
+
+        db.commit()
+    else:
+        print("   No hay datos previos para limpiar")
+
+
+def create_creator(db: Session, creator_id: str) -> Creator:
+    """Create the demo creator."""
     creator = Creator(
         id=uuid.uuid4(),
-        name=CREATOR_ID,
-        email=f"{CREATOR_ID}@demo.clonnect.com",
-        clone_name="FitPack",
+        email="demo@fitpack.com",
+        name=creator_id,
+        api_key=f"demo_key_{uuid.uuid4().hex[:16]}",
         bot_active=True,
+        copilot_mode=True,
+        clone_tone="friendly",
+        clone_style="Comunicación cercana y motivadora. Uso de emojis moderado. Enfoque en resultados.",
+        clone_name="FitPack",
+        welcome_message="¡Hola! 👋 Soy el asistente de FitPack. ¿En qué puedo ayudarte hoy?",
+        onboarding_completed=True,
+        clone_status="complete",
+        product_price=297.0,
+        knowledge_about={
+            "business_name": "FitPack",
+            "niche": "Nutrición y fitness",
+            "target_audience": "Mujeres 25-45 que quieren mejorar su alimentación",
+            "main_products": ["Curso Nutrición Completo", "Mentoría 1:1", "Plan 12 Semanas"],
+            "unique_value": "Acompañamiento personalizado + método probado",
+        },
     )
     db.add(creator)
-    db.commit()
-    log(f"Created new creator: {creator.name} ({creator.id})")
-    return creator.id, CREATOR_ID
+    db.flush()
+    print(f"   ✓ Creador: {creator.name} ({creator.id})")
+    return creator
 
 
-def clear_demo_data(db, creator_uuid: uuid.UUID, creator_name: str):
-    """Clear existing demo data for creator"""
-    log(f"Clearing existing data for {creator_name} ({creator_uuid})...")
+def create_products(db: Session, creator_id: str):
+    """Create demo products."""
+    # Get creator UUID
+    creator = db.query(Creator).filter(Creator.name == CREATOR_ID).first()
 
-    # Get leads for this creator to delete messages and activities
-    # Lead uses UUID for creator_id
-    leads = db.query(Lead).filter(Lead.creator_id == creator_uuid).all()
-    lead_ids = [lead.id for lead in leads]
-
-    # Delete in order (foreign key constraints)
-    if lead_ids:
-        deleted_activities = db.query(LeadActivity).filter(LeadActivity.lead_id.in_(lead_ids)).delete(synchronize_session=False)
-        log(f"  Deleted {deleted_activities} lead activities")
-        deleted_tasks = db.query(LeadTask).filter(LeadTask.lead_id.in_(lead_ids)).delete(synchronize_session=False)
-        log(f"  Deleted {deleted_tasks} lead tasks")
-        deleted_msgs = db.query(Message).filter(Message.lead_id.in_(lead_ids)).delete(synchronize_session=False)
-        log(f"  Deleted {deleted_msgs} messages")
-
-    deleted_leads = db.query(Lead).filter(Lead.creator_id == creator_uuid).delete(synchronize_session=False)
-    log(f"  Deleted {deleted_leads} leads")
-
-    # These tables use string for creator_id
-    deleted_fm = db.query(FollowerMemoryDB).filter(FollowerMemoryDB.creator_id == creator_name).delete(synchronize_session=False)
-    log(f"  Deleted {deleted_fm} follower memories")
-
-    deleted_up = db.query(UserProfileDB).filter(UserProfileDB.creator_id == creator_name).delete(synchronize_session=False)
-    log(f"  Deleted {deleted_up} user profiles")
-
-    deleted_cs = db.query(ConversationStateDB).filter(ConversationStateDB.creator_id == creator_name).delete(synchronize_session=False)
-    log(f"  Deleted {deleted_cs} conversation states")
-
-    deleted_bookings = db.query(CalendarBooking).filter(CalendarBooking.creator_id == creator_name).delete(synchronize_session=False)
-    log(f"  Deleted {deleted_bookings} bookings")
-
-    # Product uses UUID for creator_id
-    deleted_products = db.query(Product).filter(Product.creator_id == creator_uuid).delete(synchronize_session=False)
-    log(f"  Deleted {deleted_products} products")
-
-    deleted_links = db.query(BookingLink).filter(BookingLink.creator_id == creator_name).delete(synchronize_session=False)
-    log(f"  Deleted {deleted_links} booking links")
-
-    db.commit()
-    log("  Done clearing data")
-
-
-def create_products(db, creator_uuid: uuid.UUID) -> list:
-    """Create products for the creator"""
-    log("Creating products...")
-    created = []
-
-    for prod_data in PRODUCTS:
+    for product_data in PRODUCTS:
         product = Product(
             id=uuid.uuid4(),
-            creator_id=creator_uuid,  # UUID type
-            name=prod_data["name"],
-            description=prod_data["description"],
-            price=prod_data["price"],
-            currency=prod_data["currency"],
-            category=prod_data["category"],
-            is_active=prod_data["is_active"],
+            creator_id=creator.id,
+            name=product_data["name"],
+            description=product_data["description"],
+            short_description=product_data["short_description"],
+            price=product_data["price"],
+            category=product_data["category"],
+            product_type=product_data["product_type"],
+            currency=product_data["currency"],
+            is_active=True,
+            price_verified=True,
+            confidence=0.95,
         )
         db.add(product)
-        created.append(product)
 
-    db.commit()
-    log(f"  Created {len(created)} products")
-    return created
+    db.flush()
+    print(f"   ✓ Productos: {len(PRODUCTS)}")
 
 
-def create_booking_links(db, creator_name: str) -> list:
-    """Create booking links for the creator"""
-    log("Creating booking links...")
-    created = []
-
-    for link_data in BOOKING_LINKS:
-        link = BookingLink(
-            id=uuid.uuid4(),
-            creator_id=creator_name,  # String type
-            title=link_data["title"],
-            meeting_type=link_data["meeting_type"],
-            duration_minutes=link_data["duration_minutes"],
-            platform=link_data["platform"],
-            price=link_data["price"],
-            url=f"https://calendly.com/fitpack/{link_data['meeting_type']}",
-            is_active=True,
-        )
-        db.add(link)
-        created.append(link)
-
-    db.commit()
-    log(f"  Created {len(created)} booking links")
-    return created
-
-
-def create_followers_and_leads(db, products: list, creator_uuid: uuid.UUID, creator_name: str) -> tuple[list, list]:
-    """Create followers and leads based on segment distribution"""
-    log("Creating followers and leads...")
-
+def create_followers(db: Session, creator_id: str) -> List[Dict[str, Any]]:
+    """Create followers with segment distribution."""
     followers = []
-    leads = []
-    all_messages = []
-
     follower_index = 0
-    now = datetime.now(timezone.utc)
 
     for segment, count in SEGMENT_DISTRIBUTION.items():
-        log(f"  Creating {count} {segment} followers...")
+        characteristics = SEGMENT_CHARACTERISTICS.get(segment, {})
 
         for i in range(count):
-            # Generate identity
-            first_name, full_name = get_random_name()
+            first_name, last_name = generate_full_name()
             username = generate_username(first_name, follower_index)
-            follower_id = f"ig_{random.randint(1000000000, 9999999999)}"
+            email = generate_email(first_name, last_name)
+            phone = generate_phone()
+            follower_id = f"ig_{uuid.uuid4().hex[:12]}"
 
             # Calculate dates based on segment
-            if segment == "new":
-                first_contact = now - timedelta(days=random.randint(0, 3))
-                last_contact = now - timedelta(hours=random.randint(0, 24))
-                total_messages = random.randint(1, 3)
-            elif segment == "ghost":
-                first_contact = now - timedelta(days=random.randint(14, 60))
-                last_contact = now - timedelta(days=random.randint(7, 30))
-                total_messages = random.randint(3, 8)
-            elif segment == "customer":
-                first_contact = now - timedelta(days=random.randint(30, 90))
-                last_contact = now - timedelta(days=random.randint(0, 14))
-                total_messages = random.randint(15, 40)
-            else:
-                first_contact = now - timedelta(days=random.randint(7, 45))
-                last_contact = now - timedelta(hours=random.randint(1, 72))
-                total_messages = random.randint(5, 25)
+            days_since_first = random.randint(30, 180)
+            days_since_last = random.randint(
+                characteristics.get("days_since_last_contact", (0, 7))[0],
+                characteristics.get("days_since_last_contact", (0, 7))[1]
+            )
 
-            # Generate interests
-            interests = get_random_interests(random.randint(2, 5))
+            first_contact = datetime.now() - timedelta(days=days_since_first)
+            last_contact = datetime.now() - timedelta(days=days_since_last)
 
-            # Generate products discussed
-            products_discussed = []
-            if segment in ["hot_lead", "warm_lead", "price_objector", "customer"]:
-                products_discussed = [random.choice(products).name for _ in range(random.randint(1, 2))]
+            # Message count based on segment
+            msg_range = characteristics.get("message_count_range", (5, 15))
+            total_messages = random.randint(msg_range[0], msg_range[1])
 
-            # Calculate purchase intent based on segment
-            intent_ranges = {
-                "hot_lead": (0.75, 0.95),
-                "warm_lead": (0.45, 0.70),
-                "price_objector": (0.35, 0.55),
-                "time_objector": (0.30, 0.50),
-                "ghost": (0.10, 0.30),
-                "engaged_fan": (0.20, 0.45),
-                "new": (0.15, 0.35),
-                "customer": (0.05, 0.20),  # Already bought
-            }
-            min_intent, max_intent = intent_ranges.get(segment, (0.2, 0.5))
-            purchase_intent = round(random.uniform(min_intent, max_intent), 2)
+            # Purchase intent based on segment
+            intent_range = characteristics.get("intent_range", (0.1, 0.5))
+            purchase_intent = round(random.uniform(intent_range[0], intent_range[1]), 2)
 
-            # Generate objections for objector segments (simple string list for aggregation)
+            # Interests (random subset)
+            all_interests = list(INTERESTS_WEIGHTS.keys())
+            num_interests = random.randint(2, 5)
+            interests = random.sample(all_interests, min(num_interests, len(all_interests)))
+
+            # Products discussed
+            products_discussed = random.sample(
+                [p["name"] for p in PRODUCTS],
+                random.randint(1, 3)
+            )
+
+            # Objections
             objections_raised = []
             objections_handled = []
+
             if segment == "price_objector":
                 objections_raised = ["precio"]
             elif segment == "time_objector":
                 objections_raised = ["tiempo"]
-            elif segment == "customer":
-                # Customers had objections but they were resolved
-                objections_raised = random.sample(["precio", "tiempo", "duda"], k=random.randint(1, 2))
-                objections_handled = objections_raised.copy()  # All resolved
+            elif segment in ["hot_lead", "customer"]:
+                objections_raised = random.sample(["precio", "tiempo", "duda"], random.randint(1, 2))
+                objections_handled = list(objections_raised)
 
-            # Determine status
-            status_map = {
-                "hot_lead": "caliente",
-                "warm_lead": "interesado",
-                "price_objector": "interesado",
-                "time_objector": "interesado",
-                "ghost": "fantasma",
-                "engaged_fan": "nuevo",
-                "new": "nuevo",
-                "customer": "cliente",
-            }
-            status = status_map.get(segment, "nuevo")
+            # Status mapping
+            status = characteristics.get("status", "nuevo")
 
-            # Generate conversation FIRST so we can populate last_messages
-            conversation = get_messages_for_segment(segment, min(total_messages, 12))
-            last_role, last_content = get_last_message_for_segment(segment)
-            if conversation:
-                conversation[-1] = {"role": last_role, "content": last_content}
+            # Is customer?
+            is_customer = characteristics.get("is_customer", False)
+            is_lead = segment in ["hot_lead", "warm_lead", "price_objector", "time_objector", "customer"]
 
-            # Add special messages for Audience Intelligence (higher probabilities)
-            # 40% chance for competitor @mentions (for /audiencia/competition)
-            if random.random() < 0.40 and segment not in ["new"]:
-                conversation.insert(
-                    random.randint(1, max(1, len(conversation) - 1)),
-                    {"role": "user", "content": random.choice(COMPETITOR_MENTIONS)}
-                )
-            # 35% chance for trending terms (for /audiencia/trends)
-            if random.random() < 0.35:
-                conversation.insert(
-                    random.randint(1, max(1, len(conversation) - 1)),
-                    {"role": "user", "content": random.choice(TRENDING_MESSAGES)}
-                )
-            # 40% chance for content questions (for /audiencia/content-requests)
-            if random.random() < 0.40:
-                conversation.insert(
-                    random.randint(1, max(1, len(conversation) - 1)),
-                    {"role": "user", "content": random.choice(CONTENT_QUESTIONS)}
-                )
-
-            # Get last 10 messages for last_messages field
-            last_messages = conversation[-10:] if len(conversation) > 10 else conversation
-
-            # Get arguments used for handling objections
-            arguments_used = get_arguments_for_objections(objections_handled) if objections_handled else []
-
-            # Alternative contact info (some customers provided WhatsApp/Telegram)
-            has_alt_contact = random.random() < (0.5 if segment == "customer" else 0.15)
-            alt_contact = ""
-            alt_contact_type = ""
-            contact_requested = False
-            if has_alt_contact:
-                alt_contact_type = random.choice(["whatsapp", "telegram"])
-                alt_contact = generate_phone() if alt_contact_type == "whatsapp" else f"@{username}"
-                contact_requested = True
-
-            # Greeting styles used
-            greeting_styles = ["casual", "formal", "enthusiastic", "empathetic", "direct"]
-            emoji_sets = [["😊", "💪"], ["🙌", "✨"], ["❤️", "🔥"], ["👋", "🎯"], []]
-
-            # Create FollowerMemoryDB (uses string for creator_id)
-            is_customer = segment == "customer"
+            # Create FollowerMemory
             follower_memory = FollowerMemoryDB(
                 id=uuid.uuid4(),
-                creator_id=creator_name,  # String type
+                creator_id=CREATOR_ID,
                 follower_id=follower_id,
                 username=username,
-                name=full_name,
+                name=f"{first_name} {last_name}",
                 first_contact=first_contact.isoformat(),
                 last_contact=last_contact.isoformat(),
                 total_messages=total_messages,
                 interests=interests,
                 products_discussed=products_discussed,
                 objections_raised=objections_raised,
+                objections_handled=objections_handled,
                 purchase_intent_score=purchase_intent,
-                is_lead=segment not in ["new", "engaged_fan"],
+                is_lead=is_lead,
                 is_customer=is_customer,
                 status=status,
                 preferred_language="es",
-                last_messages=last_messages,  # Populated with conversation
-                # Link control
-                links_sent_count=random.randint(0, 3) if segment in ["hot_lead", "warm_lead"] else 0,
-                last_link_message_num=random.randint(3, 8) if segment in ["hot_lead", "warm_lead"] else 0,
-                # Objection handling
-                objections_handled=objections_handled,
-                arguments_used=arguments_used,
-                # Greeting variation
-                greeting_variant_index=random.randint(0, 4),
-                # Naturalness fields
-                last_greeting_style=random.choice(greeting_styles),
-                last_emojis_used=random.choice(emoji_sets),
-                messages_since_name_used=random.randint(0, 5),
-                # Alternative contact
-                alternative_contact=alt_contact,
-                alternative_contact_type=alt_contact_type,
-                contact_requested=contact_requested,
+                links_sent_count=random.randint(0, 3) if is_lead else 0,
+                alternative_contact=email if random.random() > 0.7 else "",
+                alternative_contact_type="email" if random.random() > 0.7 else "",
             )
             db.add(follower_memory)
-            followers.append(follower_memory)
 
-            # Create Lead for non-new segments (uses UUID for creator_id)
-            if segment not in ["new"]:
-                deal_value = None
-                if segment == "customer":
-                    deal_value = random.choice(products).price
-                elif segment == "hot_lead":
-                    deal_value = random.choice(products).price
-                elif segment == "warm_lead":
-                    deal_value = random.choice(products).price * 0.7  # Weighted
-
-                # Generate email and phone (higher chance for hot leads/customers)
-                has_email = random.random() < (0.9 if segment in ["hot_lead", "customer"] else 0.4)
-                has_phone = random.random() < (0.7 if segment in ["hot_lead", "customer"] else 0.2)
-
-                lead = Lead(
-                    id=uuid.uuid4(),
-                    creator_id=creator_uuid,  # UUID type
-                    platform="instagram",
-                    platform_user_id=follower_id,
-                    username=username,
-                    full_name=full_name,
-                    profile_pic_url=get_profile_pic_url(follower_id),
-                    status=status,
-                    score=int(purchase_intent * 100),
-                    purchase_intent=purchase_intent,
-                    context={
-                        "segment": segment,
-                        "interests": interests,
-                        "objections": objections_raised,  # Now a simple list of strings
-                    },
-                    first_contact_at=first_contact,
-                    last_contact_at=last_contact,
-                    deal_value=deal_value,
-                    tags=[segment] + interests[:2],
-                    source=random.choice(["instagram_dm", "story_reply", "story_mention"]),
-                    # NEW FIELDS
-                    email=generate_email(username, first_name) if has_email else None,
-                    phone=generate_phone() if has_phone else None,
-                    notes=get_notes_for_segment(segment),
-                    assigned_to=get_assigned_to() if segment in ["hot_lead", "warm_lead"] else None,
-                )
-                db.add(lead)
-                leads.append(lead)
-
-                # Create ConversationStateDB (uses string for creator_id)
-                phase_map = {
-                    "hot_lead": "cierre",
-                    "warm_lead": "propuesta",
-                    "price_objector": "objeciones",
-                    "time_objector": "objeciones",
-                    "ghost": "inicio",
-                    "engaged_fan": "cualificacion",
-                    "customer": "cierre",
-                }
-                # Get user context with situation/goal/constraints (for ProfilePanel)
-                user_context = get_user_context() if segment in ["hot_lead", "warm_lead", "customer"] else {}
-
-                conv_state = ConversationStateDB(
-                    id=uuid.uuid4(),
-                    creator_id=creator_name,  # String type
-                    follower_id=follower_id,
-                    phase=phase_map.get(segment, "inicio"),
-                    message_count=total_messages,
-                    context={
-                        "interests": interests,
-                        "objections": objections_raised,
-                        "products_discussed": products_discussed,
-                        # ProfilePanel fields
-                        **user_context,
-                    },
-                )
-                db.add(conv_state)
-
-                # Create Messages (use already generated conversation)
-                msg_time = first_contact
-                for msg_data in conversation:
-                    msg = Message(
-                        id=uuid.uuid4(),
-                        lead_id=lead.id,
-                        role=msg_data["role"],
-                        content=msg_data["content"],
-                        intent=segment if msg_data["role"] == "user" else None,
-                        status="sent",
-                        created_at=msg_time,
-                    )
-                    db.add(msg)
-                    all_messages.append(msg)
-                    msg_time += timedelta(minutes=random.randint(5, 120))
-
-            # Create UserProfileDB (uses string for creator_id)
-            user_profile = UserProfileDB(
-                id=uuid.uuid4(),
-                creator_id=creator_name,  # String type
-                user_id=follower_id,
-                preferences={"language": "es", "response_style": "friendly"},
-                interests={topic: random.uniform(0.3, 1.0) for topic in interests},
-                objections=objections_raised,
-                interested_products=[{"name": p, "interest_count": random.randint(1, 5)} for p in products_discussed],
-                interaction_count=total_messages,
-                last_interaction=last_contact,
-            )
-            db.add(user_profile)
-
+            follower_data = {
+                "follower_id": follower_id,
+                "username": username,
+                "name": f"{first_name} {last_name}",
+                "email": email,
+                "phone": phone,
+                "segment": segment,
+                "characteristics": characteristics,
+                "first_contact": first_contact,
+                "last_contact": last_contact,
+                "total_messages": total_messages,
+                "purchase_intent": purchase_intent,
+                "interests": interests,
+                "products_discussed": products_discussed,
+                "objections_raised": objections_raised,
+                "is_customer": is_customer,
+                "is_lead": is_lead,
+                "status": status,
+            }
+            followers.append(follower_data)
             follower_index += 1
 
-    db.commit()
-    log(f"  Created {len(followers)} followers, {len(leads)} leads, {len(all_messages)} messages")
-    return followers, leads
+    db.flush()
+    print(f"   ✓ FollowerMemories: {len(followers)}")
+
+    # Print segment distribution
+    for segment, count in SEGMENT_DISTRIBUTION.items():
+        print(f"      - {segment}: {count}")
+
+    return followers
 
 
-def create_lead_activities(db, leads: list, creator_uuid: uuid.UUID) -> list:
-    """Create LeadActivity timeline records for leads"""
-    log("Creating lead activities...")
-    activities = []
-    now = datetime.now(timezone.utc)
+def create_leads_and_states(db: Session, creator_id: str, followers: List[Dict[str, Any]]):
+    """Create leads and conversation states for qualifying followers."""
+    creator = db.query(Creator).filter(Creator.name == CREATOR_ID).first()
+    lead_count = 0
+    state_count = 0
 
-    for lead in leads:
-        segment = lead.context.get("segment", "new")
-        lead_activities_list = []
+    for follower in followers:
+        if not follower["is_lead"]:
+            continue
 
-        # Activity 1: Lead created (always)
-        lead_activities_list.append({
-            "activity_type": "lead_created",
-            "description": f"Lead creado desde {lead.source}",
-            "created_at": lead.first_contact_at,
-            "created_by": "system",
-        })
+        # Create Lead
+        segment = follower["segment"]
+        characteristics = follower["characteristics"]
 
-        # Activity 2: Status change (for non-new leads)
-        if segment in ["warm_lead", "hot_lead", "customer"]:
-            status_time = lead.first_contact_at + timedelta(hours=random.randint(2, 48))
-            old_status = "nuevo"
-            if segment == "warm_lead":
-                new_status = "interesado"
-            elif segment == "hot_lead":
-                new_status = "caliente"
+        # Deal value based on product interest
+        product_prices = {p["name"]: p["price"] for p in PRODUCTS}
+        interested_product = follower["products_discussed"][0] if follower["products_discussed"] else "Curso Nutrición Completo"
+        deal_value = product_prices.get(interested_product, 297.0)
+
+        lead = Lead(
+            id=uuid.uuid4(),
+            creator_id=creator.id,
+            platform="instagram",
+            platform_user_id=follower["follower_id"],
+            username=follower["username"],
+            full_name=follower["name"],
+            status=follower["status"],
+            score=int(follower["purchase_intent"] * 100),
+            purchase_intent=follower["purchase_intent"],
+            context={
+                "segment": segment,
+                "interests": follower["interests"],
+                "products_discussed": follower["products_discussed"],
+                "objections": follower["objections_raised"],
+            },
+            first_contact_at=follower["first_contact"],
+            last_contact_at=follower["last_contact"],
+            email=follower["email"] if random.random() > 0.5 else None,
+            phone=follower["phone"] if random.random() > 0.7 else None,
+            deal_value=deal_value,
+            source="instagram_dm",
+            tags=[segment] + (["customer"] if follower["is_customer"] else []),
+        )
+        db.add(lead)
+        lead_count += 1
+
+        # Create ConversationState
+        phase = characteristics.get("phase", "inicio")
+        conv_state = ConversationStateDB(
+            id=uuid.uuid4(),
+            creator_id=CREATOR_ID,
+            follower_id=follower["follower_id"],
+            phase=phase,
+            message_count=follower["total_messages"],
+            context={
+                "name": follower["name"],
+                "product_interested": interested_product,
+                "objections_raised": follower["objections_raised"],
+                "price_discussed": "precio" in follower["objections_raised"] or segment == "hot_lead",
+            },
+        )
+        db.add(conv_state)
+        state_count += 1
+
+    db.flush()
+    print(f"   ✓ Leads: {lead_count}")
+    print(f"   ✓ ConversationStates: {state_count}")
+
+
+def create_user_profiles(db: Session, creator_id: str, followers: List[Dict[str, Any]]):
+    """Create user profiles with weighted interests."""
+    profile_count = 0
+
+    for follower in followers:
+        # Build weighted interests
+        interests_with_weights = {}
+        for interest in follower["interests"]:
+            base_weight = INTERESTS_WEIGHTS.get(interest, 0.3)
+            # Add some randomness
+            weight = min(1.0, max(0.1, base_weight + random.uniform(-0.1, 0.1)))
+            interests_with_weights[interest] = round(weight, 2)
+
+        # Build objections list
+        objections = []
+        for obj in follower["objections_raised"]:
+            objections.append({
+                "type": obj,
+                "context": f"Objeción de {obj} detectada en conversación",
+                "timestamp": follower["last_contact"].isoformat(),
+            })
+
+        # Interested products
+        interested_products = []
+        for product_name in follower["products_discussed"]:
+            interested_products.append({
+                "name": product_name,
+                "first_interest": follower["first_contact"].isoformat(),
+                "interest_count": random.randint(1, 5),
+            })
+
+        profile = UserProfileDB(
+            id=uuid.uuid4(),
+            creator_id=CREATOR_ID,
+            user_id=follower["follower_id"],
+            preferences={
+                "language": "es",
+                "response_time": random.choice(["morning", "afternoon", "evening"]),
+                "communication_style": random.choice(["formal", "casual", "friendly"]),
+            },
+            interests=interests_with_weights,
+            objections=objections,
+            interested_products=interested_products,
+            interaction_count=follower["total_messages"],
+            last_interaction=follower["last_contact"],
+        )
+        db.add(profile)
+        profile_count += 1
+
+    db.flush()
+    print(f"   ✓ UserProfiles: {profile_count}")
+
+
+def create_messages(db: Session, followers: List[Dict[str, Any]]):
+    """Create message history for each follower."""
+    # Get all leads
+    leads = {lead.platform_user_id: lead for lead in db.query(Lead).all()}
+
+    total_messages = 0
+
+    for follower in followers:
+        lead = leads.get(follower["follower_id"])
+        if not lead:
+            continue
+
+        # Get conversation template for this segment
+        segment = follower["segment"]
+        base_conversation = get_conversation_for_segment(segment, random.randint(0, 100))
+
+        # Extend to target length
+        target_length = follower["total_messages"]
+        conversation = generate_extended_conversation(base_conversation, target_length)
+
+        # Calculate message timestamps
+        first_contact = follower["first_contact"]
+        last_contact = follower["last_contact"]
+        total_duration = (last_contact - first_contact).total_seconds()
+
+        for i, msg in enumerate(conversation):
+            # Calculate timestamp for this message
+            if len(conversation) > 1:
+                progress = i / (len(conversation) - 1)
             else:
-                new_status = "cliente"
+                progress = 0
 
-            lead_activities_list.append({
-                "activity_type": "status_change",
-                "description": f"Estado cambiado de {old_status} a {new_status}",
-                "old_value": old_status,
-                "new_value": new_status,
-                "created_at": status_time,
-                "created_by": "system",
-            })
+            msg_time = first_contact + timedelta(seconds=total_duration * progress)
 
-        # Activity 3: Note added (30% chance)
-        if lead.notes and random.random() < 0.3:
-            note_time = lead.first_contact_at + timedelta(hours=random.randint(1, 72))
-            lead_activities_list.append({
-                "activity_type": "note",
-                "description": lead.notes,
-                "created_at": note_time,
-                "created_by": "creator",
-            })
+            # Add some randomness to timing
+            msg_time += timedelta(minutes=random.randint(-30, 30))
 
-        # Activity 4: Tag added (for some leads)
-        if len(lead.tags) > 1 and random.random() < 0.4:
-            tag = lead.tags[1]  # Second tag (first is segment)
-            tag_time = lead.first_contact_at + timedelta(hours=random.randint(1, 24))
-            lead_activities_list.append({
-                "activity_type": "tag_added",
-                "description": f"Etiqueta '{tag}' añadida",
-                "extra_data": {"tag": tag},
-                "created_at": tag_time,
-                "created_by": "creator",
-            })
-
-        # Activity 5: Email captured (for leads with email)
-        if lead.email:
-            email_time = lead.first_contact_at + timedelta(hours=random.randint(4, 96))
-            lead_activities_list.append({
-                "activity_type": "email",
-                "description": f"Email capturado: {lead.email}",
-                "created_at": email_time,
-                "created_by": "system",
-            })
-
-        # Activity 6: Call/meeting scheduled (for hot leads, customers)
-        if segment in ["hot_lead", "customer"] and random.random() < 0.5:
-            call_time = lead.last_contact_at - timedelta(days=random.randint(1, 7))
-            lead_activities_list.append({
-                "activity_type": "meeting",
-                "description": "Llamada de discovery programada",
-                "extra_data": {"meeting_type": "discovery"},
-                "created_at": call_time,
-                "created_by": "creator",
-            })
-
-        # Activity 7: Conversion (for customers)
-        if segment == "customer":
-            conv_time = lead.last_contact_at - timedelta(days=random.randint(1, 14))
-            lead_activities_list.append({
-                "activity_type": "status_change",
-                "description": "Conversión: Lead convertido a cliente",
-                "old_value": "caliente",
-                "new_value": "cliente",
-                "extra_data": {"deal_value": lead.deal_value},
-                "created_at": conv_time,
-                "created_by": "system",
-            })
-
-        # Create activity records
-        for activity_data in lead_activities_list:
-            activity = LeadActivity(
+            message = Message(
                 id=uuid.uuid4(),
                 lead_id=lead.id,
-                creator_id=creator_uuid,
-                activity_type=activity_data["activity_type"],
-                description=activity_data.get("description"),
-                old_value=activity_data.get("old_value"),
-                new_value=activity_data.get("new_value"),
-                extra_data=activity_data.get("extra_data", {}),
-                created_by=activity_data.get("created_by", "system"),
-                created_at=activity_data["created_at"],
+                role=msg["role"],
+                content=msg["content"],
+                intent=msg.get("intent"),
+                status="sent",
+                created_at=msg_time,
             )
-            db.add(activity)
-            activities.append(activity)
+            db.add(message)
+            total_messages += 1
 
-    db.commit()
-    log(f"  Created {len(activities)} lead activities")
-    return activities
+    db.flush()
+    print(f"   ✓ Messages: {total_messages}")
 
 
-def track_analytics_events(leads: list, creator_name: str):
-    """Track analytics events for demo data"""
-    log("Tracking analytics events...")
-    analytics = get_analytics_manager()
-    events_tracked = 0
+def create_bookings(db: Session, creator_id: str):
+    """Create calendar bookings."""
+    booking_count = 0
+    now = datetime.now()
 
-    for lead in leads:
-        segment = lead.context.get("segment", "new")
-        follower_id = lead.platform_user_id
-
-        # Track message received
-        analytics.track_message(
-            creator_id=creator_name,
-            follower_id=follower_id,
-            direction="received",
-            intent=segment,
-            platform="instagram",
-            metadata={"segment": segment},
+    # Today's bookings
+    for booking_data in TODAY_BOOKINGS:
+        time_parts = booking_data["time"].split(":")
+        scheduled_at = now.replace(
+            hour=int(time_parts[0]),
+            minute=int(time_parts[1]),
+            second=0,
+            microsecond=0
         )
-        events_tracked += 1
 
-        # Track message sent
-        analytics.track_message(
-            creator_id=creator_name,
-            follower_id=follower_id,
-            direction="sent",
-            platform="instagram",
-        )
-        events_tracked += 1
-
-        # Track lead creation
-        analytics.track_lead(
-            creator_id=creator_name,
-            follower_id=follower_id,
-            score=lead.purchase_intent,
-            source=lead.source,
-            platform="instagram",
-        )
-        events_tracked += 1
-
-        # Track objections
-        for objection in lead.context.get("objections", []):
-            analytics.track_objection(
-                creator_id=creator_name,
-                follower_id=follower_id,
-                objection_type=objection,
-                platform="instagram",
-            )
-            events_tracked += 1
-
-        # Track conversions (for customers)
-        if segment == "customer" and lead.deal_value:
-            analytics.track_conversion(
-                creator_id=creator_name,
-                follower_id=follower_id,
-                product_id="plan_12_semanas",
-                amount=lead.deal_value,
-                platform="instagram",
-            )
-            events_tracked += 1
-
-    log(f"  Tracked {events_tracked} analytics events")
-
-
-def create_bookings(db, leads: list, booking_links: list, creator_name: str) -> list:
-    """Create bookings - 5 for today, 10 historical"""
-    log("Creating bookings...")
-    created = []
-    now = datetime.now(timezone.utc)
-    today = now.date()
-
-    # Pick some leads for bookings
-    hot_leads = [l for l in leads if l.context.get("segment") == "hot_lead"]
-    warm_leads = [l for l in leads if l.context.get("segment") == "warm_lead"]
-    booking_candidates = hot_leads[:5] + warm_leads[:10]
-
-    if not booking_candidates:
-        booking_candidates = leads[:15]
-
-    random.shuffle(booking_candidates)
-
-    # 5 bookings for today
-    for i, lead in enumerate(booking_candidates[:5]):
-        hour = 9 + i * 2  # 9am, 11am, 1pm, 3pm, 5pm
-        scheduled_at = datetime.combine(today, datetime.min.time().replace(hour=hour, minute=0))
-        scheduled_at = scheduled_at.replace(tzinfo=timezone.utc)
-
-        link = random.choice(booking_links)
         booking = CalendarBooking(
             id=uuid.uuid4(),
-            creator_id=creator_name,  # String type
-            follower_id=lead.platform_user_id,
-            meeting_type=link.meeting_type,
-            platform=link.platform,
+            creator_id=CREATOR_ID,
+            follower_id=f"ig_{uuid.uuid4().hex[:12]}",
+            meeting_type=booking_data["type"].lower().replace(" ", "_"),
+            platform="calendly",
             status="scheduled",
             scheduled_at=scheduled_at,
-            duration_minutes=link.duration_minutes,
-            guest_name=lead.full_name,
-            guest_email=f"{lead.username}@gmail.com",
-            meeting_url=f"https://meet.google.com/abc-{i}-xyz",
+            duration_minutes=30,
+            guest_name=booking_data["name"],
+            guest_email=booking_data["email"],
+            guest_phone=booking_data.get("phone", ""),
+            notes=f"Interesado en: {booking_data['product']}",
         )
         db.add(booking)
-        created.append(booking)
+        booking_count += 1
 
-    # 10 historical bookings (past 30 days)
-    for i, lead in enumerate(booking_candidates[5:15]):
-        days_ago = random.randint(1, 30)
-        hour = random.randint(9, 17)
-        scheduled_at = now - timedelta(days=days_ago)
-        scheduled_at = scheduled_at.replace(hour=hour, minute=0, second=0, microsecond=0)
+    # Future bookings (next 7 days)
+    for i in range(10):
+        future_date = now + timedelta(days=random.randint(1, 7))
+        hour = random.choice([9, 10, 11, 14, 15, 16, 17, 18])
+        scheduled_at = future_date.replace(hour=hour, minute=random.choice([0, 30]))
 
-        link = random.choice(booking_links)
-        status = random.choice(["completed", "completed", "completed", "no_show", "cancelled"])
+        first_name, last_name = generate_full_name()
+        email = generate_email(first_name, last_name)
 
         booking = CalendarBooking(
             id=uuid.uuid4(),
-            creator_id=creator_name,  # String type
-            follower_id=lead.platform_user_id,
-            meeting_type=link.meeting_type,
-            platform=link.platform,
-            status=status,
+            creator_id=CREATOR_ID,
+            follower_id=f"ig_{uuid.uuid4().hex[:12]}",
+            meeting_type=random.choice(["discovery", "follow_up", "demo", "closing"]),
+            platform="calendly",
+            status="scheduled",
             scheduled_at=scheduled_at,
-            duration_minutes=link.duration_minutes,
-            guest_name=lead.full_name,
-            guest_email=f"{lead.username}@gmail.com",
+            duration_minutes=random.choice([30, 45, 60]),
+            guest_name=f"{first_name} {last_name}",
+            guest_email=email,
         )
         db.add(booking)
-        created.append(booking)
+        booking_count += 1
 
-    db.commit()
-    log(f"  Created {len(created)} bookings (5 today, 10 historical)")
-    return created
-
-
-def print_summary(followers, leads, products, bookings, activities):
-    """Print summary of created data"""
-    log("\n" + "=" * 60)
-    log("DEMO DATA SEED COMPLETE")
-    log("=" * 60)
-    log(f"Creator:           {CREATOR_ID}")
-    log(f"Followers:         {len(followers)}")
-    log(f"Leads:             {len(leads)}")
-    log(f"Products:          {len(products)}")
-    log(f"Bookings:          {len(bookings)}")
-    log(f"Lead Activities:   {len(activities)}")
-    log("")
-    log("Segment distribution:")
-    for segment, count in SEGMENT_DISTRIBUTION.items():
-        log(f"  {segment:20s}: {count}")
-
-    # Field population stats
-    leads_with_email = sum(1 for l in leads if l.email)
-    leads_with_phone = sum(1 for l in leads if l.phone)
-    leads_with_notes = sum(1 for l in leads if l.notes)
-    leads_assigned = sum(1 for l in leads if l.assigned_to)
-
-    log("")
-    log("Field population:")
-    log(f"  Leads with email:    {leads_with_email} ({leads_with_email*100//len(leads) if leads else 0}%)")
-    log(f"  Leads with phone:    {leads_with_phone} ({leads_with_phone*100//len(leads) if leads else 0}%)")
-    log(f"  Leads with notes:    {leads_with_notes} ({leads_with_notes*100//len(leads) if leads else 0}%)")
-    log(f"  Leads assigned:      {leads_assigned} ({leads_assigned*100//len(leads) if leads else 0}%)")
-    log("=" * 60)
+    db.flush()
+    print(f"   ✓ Bookings: {booking_count}")
 
 
-def main():
-    """Main entry point"""
-    log("Starting demo data seed...")
-    log(f"Target creator: {CREATOR_ID}")
+def create_knowledge_base(db: Session, creator_id: str):
+    """Create FAQ knowledge base entries."""
+    creator = db.query(Creator).filter(Creator.name == CREATOR_ID).first()
 
-    if SessionLocal is None:
-        log("ERROR: Database not configured. Set DATABASE_URL environment variable.")
-        sys.exit(1)
+    faqs = [
+        ("¿Qué incluye el curso de nutrición?", "El curso incluye 12 semanas de plan alimenticio, más de 50 recetas, vídeos explicativos, lista de la compra semanal y seguimiento personalizado."),
+        ("¿Cuánto cuesta la mentoría?", "La mentoría 1:1 Premium tiene un precio de 497€. Incluye seguimiento diario por WhatsApp y 4 llamadas mensuales."),
+        ("¿Puedo pagar en cuotas?", "Sí, ofrecemos pago en 3 cuotas sin intereses para todos nuestros programas."),
+        ("¿Cuánto tiempo tardan en verse resultados?", "Los primeros cambios se notan en 2-3 semanas. Para resultados significativos, recomendamos al menos 8-12 semanas de constancia."),
+        ("¿El programa sirve para vegetarianos?", "Sí, tenemos versiones adaptadas para vegetarianos y veganos con alternativas proteicas de origen vegetal."),
+        ("¿Necesito ir al gimnasio?", "No es necesario. El programa incluye opciones de entrenamiento en casa sin material."),
+        ("¿Qué horarios tienes para las mentorías?", "Trabajo de lunes a viernes de 9:00 a 19:00. Las llamadas las agendamos según tu disponibilidad."),
+        ("¿Hay garantía de devolución?", "Sí, ofrecemos garantía de 14 días. Si no estás satisfecho/a, te devolvemos el dinero sin preguntas."),
+        ("¿Puedo combinar el curso con ejercicio?", "¡Por supuesto! El programa está diseñado para complementar cualquier tipo de actividad física."),
+        ("¿Sirve para perder peso rápido?", "Nos enfocamos en pérdida de peso saludable y sostenible, típicamente 0.5-1kg por semana."),
+        ("¿Qué pasa si tengo intolerancias?", "Adaptamos el plan a cualquier intolerancia o alergia alimentaria."),
+        ("¿Incluye recetas para toda la familia?", "Sí, las recetas están pensadas para que toda la familia pueda disfrutarlas."),
+        ("¿Cómo es el seguimiento semanal?", "Cada semana revisamos tu progreso, ajustamos el plan si es necesario y resolvemos dudas."),
+        ("¿Puedo empezar en cualquier momento?", "Sí, puedes empezar cuando quieras. El acceso es inmediato tras el pago."),
+        ("¿El acceso al curso es de por vida?", "Sí, una vez comprado tienes acceso de por vida incluyendo todas las actualizaciones."),
+        ("¿Hacéis envíos internacionales?", "Al ser productos digitales, puedes acceder desde cualquier parte del mundo."),
+        ("¿Qué métodos de pago aceptáis?", "Aceptamos tarjeta, PayPal, Bizum y transferencia bancaria."),
+        ("¿Puedo hablar contigo antes de comprar?", "¡Claro! Puedes escribirme por aquí o agendar una llamada de descubrimiento gratuita."),
+        ("¿Hay comunidad de alumnos?", "Sí, tenemos un grupo privado de Telegram donde compartimos tips, recetas y motivación."),
+        ("¿Qué diferencia hay entre curso y mentoría?", "El curso es autogestionado con seguimiento semanal. La mentoría incluye acompañamiento diario y llamadas personalizadas."),
+    ]
 
-    db = SessionLocal()
+    for question, answer in faqs:
+        kb_entry = KnowledgeBase(
+            id=uuid.uuid4(),
+            creator_id=creator.id,
+            question=question,
+            answer=answer,
+        )
+        db.add(kb_entry)
 
-    try:
-        # Get or create creator (returns UUID and string name)
-        creator_uuid, creator_name = get_or_create_creator(db)
+    db.flush()
+    print(f"   ✓ KnowledgeBase: {len(faqs)}")
 
-        # Clear existing data
-        clear_demo_data(db, creator_uuid, creator_name)
 
-        # Create data (using appropriate ID type for each table)
-        products = create_products(db, creator_uuid)
-        booking_links = create_booking_links(db, creator_name)
-        followers, leads = create_followers_and_leads(db, products, creator_uuid, creator_name)
-        activities = create_lead_activities(db, leads, creator_uuid)
-        bookings = create_bookings(db, leads, booking_links, creator_name)
+def print_summary(db: Session, creator_id: str):
+    """Print summary of generated data."""
+    creator = db.query(Creator).filter(Creator.name == CREATOR_ID).first()
 
-        # Track analytics events (stored in JSON files)
-        track_analytics_events(leads, creator_name)
+    print("\n" + "-" * 60)
+    print("📊 RESUMEN DE DATOS GENERADOS")
+    print("-" * 60)
 
-        # Summary
-        print_summary(followers, leads, products, bookings, activities)
+    # Counts
+    followers = db.query(FollowerMemoryDB).filter_by(creator_id=CREATOR_ID).count()
+    leads = db.query(Lead).filter_by(creator_id=creator.id).count()
+    messages = db.query(Message).filter(
+        Message.lead_id.in_(db.query(Lead.id).filter(Lead.creator_id == creator.id))
+    ).count()
+    bookings = db.query(CalendarBooking).filter_by(creator_id=CREATOR_ID).count()
+    products = db.query(Product).filter_by(creator_id=creator.id).count()
+    profiles = db.query(UserProfileDB).filter_by(creator_id=CREATOR_ID).count()
+    states = db.query(ConversationStateDB).filter_by(creator_id=CREATOR_ID).count()
+    kb = db.query(KnowledgeBase).filter_by(creator_id=creator.id).count()
 
-        log("\nSeed completed successfully!")
+    print(f"\n👥 Followers:          {followers}")
+    print(f"🎯 Leads:              {leads}")
+    print(f"💬 Messages:           {messages}")
+    print(f"📅 Bookings:           {bookings}")
+    print(f"📦 Products:           {products}")
+    print(f"🧠 UserProfiles:       {profiles}")
+    print(f"🔄 ConversationStates: {states}")
+    print(f"📚 KnowledgeBase:      {kb}")
 
-    except Exception as e:
-        log(f"ERROR: {e}")
-        db.rollback()
-        raise
-    finally:
-        db.close()
+    # Segment distribution
+    print("\n📊 DISTRIBUCIÓN POR SEGMENTO:")
+    for segment, expected in SEGMENT_DISTRIBUTION.items():
+        print(f"   {segment:20}: {expected}")
+
+    # Hot leads
+    hot_leads = db.query(Lead).filter_by(creator_id=creator.id, status="caliente").all()
+    hot_leads_value = sum(l.deal_value or 0 for l in hot_leads)
+    print(f"\n🔥 Hot Leads: {len(hot_leads)} (Valor potencial: €{hot_leads_value:,.2f})")
+
+    # Customers
+    customers = db.query(FollowerMemoryDB).filter_by(
+        creator_id=CREATOR_ID, is_customer=True
+    ).count()
+    print(f"💰 Clientes: {customers}")
+
+    print("\n" + "-" * 60)
+    print("✅ Verifica en el dashboard:")
+    print("   → /dashboard (Página Hoy)")
+    print("   → /tu-audiencia")
+    print("   → /personas")
+    print("   → /inbox")
+    print("-" * 60 + "\n")
 
 
 if __name__ == "__main__":
