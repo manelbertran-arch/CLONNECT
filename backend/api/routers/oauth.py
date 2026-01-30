@@ -830,6 +830,7 @@ async def instagram_oauth_start(creator_id: str, website_url: str = None):
     logger.info(
         f"Instagram OAuth start for {creator_id} with app_id={app_id[:6]}... scopes: {scopes}"
     )
+    logger.info(f"[DEBUG] OAuth start redirect_uri: {META_REDIRECT_URI}")
 
     return {
         "auth_url": auth_url,
@@ -901,6 +902,7 @@ async def instagram_oauth_callback(
             # Step 1: Exchange code for short-lived access token
             # NEW Instagram API uses POST to api.instagram.com
             logger.info(f"Exchanging code with app_id={app_id[:6]}...")
+            logger.info(f"[DEBUG] Token exchange redirect_uri: {META_REDIRECT_URI}")
             token_response = await client.post(
                 "https://api.instagram.com/oauth/access_token",
                 data={
