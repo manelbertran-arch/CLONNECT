@@ -320,12 +320,17 @@ async def get_content_chunks_db(creator_id: str) -> List[dict]:
         return []
 
 
-async def delete_content_chunks_db(creator_id: str) -> int:
+async def delete_content_chunks_db(
+    creator_id: str,
+    source_type: Optional[str] = None
+) -> int:
     """
-    Delete all content chunks for a creator.
+    Delete content chunks for a creator.
 
     Args:
         creator_id: Creator identifier
+        source_type: Optional filter by source type (e.g., 'youtube', 'instagram_post')
+                    If None, deletes all chunks for the creator.
 
     Returns:
         Number of chunks deleted
@@ -335,12 +340,19 @@ async def delete_content_chunks_db(creator_id: str) -> int:
         from api.models import ContentChunk
 
         with get_db_session() as db:
-            deleted = db.query(ContentChunk).filter(
+            query = db.query(ContentChunk).filter(
                 ContentChunk.creator_id == creator_id
-            ).delete()
+            )
+
+            # Filter by source_type if provided
+            if source_type:
+                query = query.filter(ContentChunk.source_type == source_type)
+
+            deleted = query.delete()
 
             db.commit()
-            logger.info(f"Deleted {deleted} content chunks from DB for {creator_id}")
+            type_info = f" (source_type={source_type})" if source_type else ""
+            logger.info(f"Deleted {deleted} content chunks from DB for {creator_id}{type_info}")
             return deleted
 
     except Exception as e:
