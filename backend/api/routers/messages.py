@@ -522,10 +522,16 @@ async def get_conversations(creator_id: str, limit: int = 50, offset: int = 0):
                                 round(intent * 100) if intent <= 1 else int(intent)
                             ),
                             "lead_status": lead_status,
+                            "status": lead_status,
                             "pipeline_score": get_pipeline_score(lead_status),
                             "last_messages": [],  # Skip for performance - fetch on detail view
                             "last_contact": c.get("last_contact"),
                             "first_contact": c.get("first_contact"),
+                            # Instagram-like UX fields (FIX 2026-02-02)
+                            "last_message_preview": c.get("last_message_preview"),
+                            "last_message_role": c.get("last_message_role"),
+                            "is_unread": c.get("is_unread", False),
+                            "is_verified": c.get("is_verified", False),
                             # CRM fields from database (not hardcoded!)
                             "email": c.get("email") or "",
                             "phone": c.get("phone") or "",
