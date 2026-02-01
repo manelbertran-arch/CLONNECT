@@ -8,11 +8,11 @@ Follows the same pattern as telegram_adapter.py.
 Usage:
     Webhook (prod): Used via FastAPI endpoints in api/main.py
 """
-import os
 import logging
-from typing import Dict, Any, Optional, List
+import os
+from dataclasses import asdict, dataclass, field
 from datetime import datetime, timezone
-from dataclasses import dataclass, field, asdict
+from typing import Any, Dict, List, Optional
 
 from core.dm_agent_v2 import DMResponderAgent, DMResponse
 from core.instagram import InstagramConnector, InstagramMessage
@@ -24,6 +24,7 @@ logger = logging.getLogger("clonnect-instagram")
 @dataclass
 class InstagramHandlerStatus:
     """Status of the Instagram handler"""
+
     connected: bool = False
     page_id: str = ""
     ig_user_id: str = ""
@@ -52,7 +53,7 @@ class InstagramHandler:
         ig_user_id: Optional[str] = None,
         app_secret: Optional[str] = None,
         verify_token: Optional[str] = None,
-        creator_id: str = None  # Changed from "manel" to None for auto-detection
+        creator_id: str = None,  # Changed from "manel" to None for auto-detection
     ):
         """
         Initialize Instagram handler.
@@ -70,7 +71,9 @@ class InstagramHandler:
         self.page_id = page_id or os.getenv("INSTAGRAM_PAGE_ID", "")
         self.ig_user_id = ig_user_id or os.getenv("INSTAGRAM_USER_ID", "")
         self.app_secret = app_secret or os.getenv("INSTAGRAM_APP_SECRET", "")
-        self.verify_token = verify_token or os.getenv("INSTAGRAM_VERIFY_TOKEN", "clonnect_verify_2024")
+        self.verify_token = verify_token or os.getenv(
+            "INSTAGRAM_VERIFY_TOKEN", "clonnect_verify_2024"
+        )
         self.creator_id = creator_id
 
         # If credentials not in ENV, try to load from database
@@ -111,10 +114,11 @@ class InstagramHandler:
             db = SessionLocal()
             try:
                 # Find first creator with Instagram token
-                creator = db.query(Creator).filter(
-                    Creator.instagram_token.isnot(None),
-                    Creator.instagram_token != ""
-                ).first()
+                creator = (
+                    db.query(Creator)
+                    .filter(Creator.instagram_token.isnot(None), Creator.instagram_token != "")
+                    .first()
+                )
 
                 if creator:
                     self.access_token = creator.instagram_token
@@ -175,7 +179,9 @@ class InstagramHandler:
                 else:
                     logger.warning("No Facebook pages found for this token")
             else:
-                logger.warning(f"Meta API error fetching pages: {response.status_code} - {response.text[:200]}")
+                logger.warning(
+                    f"Meta API error fetching pages: {response.status_code} - {response.text[:200]}"
+                )
 
         except Exception as e:
             logger.error(f"Error fetching page_id from Meta API: {e}")
@@ -183,7 +189,9 @@ class InstagramHandler:
     def _init_connector(self):
         """Initialize Instagram connector"""
         if not self.access_token or not self.page_id:
-            logger.warning("Instagram credentials not configured (INSTAGRAM_ACCESS_TOKEN, INSTAGRAM_PAGE_ID)")
+            logger.warning(
+                "Instagram credentials not configured (INSTAGRAM_ACCESS_TOKEN, INSTAGRAM_PAGE_ID)"
+            )
             return
 
         try:
@@ -192,7 +200,7 @@ class InstagramHandler:
                 page_id=self.page_id,
                 ig_user_id=self.ig_user_id,
                 app_secret=self.app_secret,
-                verify_token=self.verify_token
+                verify_token=self.verify_token,
             )
             self.status.connected = True
             self.status.page_id = self.page_id
@@ -225,7 +233,9 @@ class InstagramHandler:
         if mode == "subscribe" and token == self.verify_token:
             logger.info("Webhook verification successful")
             return challenge
-        logger.warning(f"Webhook verification failed: mode={mode}, token_match={token == self.verify_token}")
+        logger.warning(
+            f"Webhook verification failed: mode={mode}, token_match={token == self.verify_token}"
+        )
         return None
 
     async def handle_webhook(self, payload: Dict[str, Any], signature: str = "") -> Dict[str, Any]:
@@ -242,7 +252,8 @@ class InstagramHandler:
         # Verify signature if app_secret is configured
         if self.connector and self.app_secret and signature:
             import json
-            payload_bytes = json.dumps(payload, separators=(',', ':')).encode()
+
+            payload_bytes = json.dumps(payload, separators=(",", ":")).encode()
             if not self.connector.verify_webhook_signature(payload_bytes, signature):
                 logger.warning("Invalid webhook signature")
                 self.status.errors += 1
@@ -264,7 +275,7 @@ class InstagramHandler:
                 "status": "ok",
                 "messages_processed": 0,
                 "echo_messages_recorded": echo_recorded,
-                "results": []
+                "results": [],
             }
 
         # Check if copilot mode is enabled for this creator
@@ -288,29 +299,71 @@ class InstagramHandler:
             self._record_received(message)
             logger.info(f"[IG:{message.sender_id}] Input: {message.text[:100]}")
 
+            # =================================================================
+            # LEAD ENRICHMENT: Check if lead exists, if not load history
+            # This ensures returning customers are properly categorized
+            # =================================================================
+            lead_exists = await self._check_lead_exists(message.sender_id)
+            lead_status = None
+
+            if not lead_exists:
+                logger.info(f"[IG:{message.sender_id}] New lead detected - loading history...")
+
+                # Get username for the new lead
+                username = ""
+                full_name = ""
+                try:
+                    if self.connector:
+                        profile = await self.connector.get_user_profile(message.sender_id)
+                        if profile:
+                            username = profile.username or ""
+                            full_name = profile.name or ""
+                except Exception as e:
+                    logger.warning(f"[IG:{message.sender_id}] Could not get profile: {e}")
+
+                # Enrich lead with history (creates lead + loads messages)
+                lead_status = await self._enrich_new_lead(
+                    sender_id=message.sender_id, username=username, full_name=full_name
+                )
+
+                if lead_status:
+                    logger.info(
+                        f"[IG:{message.sender_id}] Lead enriched with status: {lead_status}"
+                    )
+                else:
+                    logger.warning(
+                        f"[IG:{message.sender_id}] Lead enrichment failed, will create as 'new'"
+                    )
+
             # Rate limit check - prevent spam and control costs
             rate_limiter = get_rate_limiter()
             allowed, reason = rate_limiter.check_limit(message.sender_id)
             if not allowed:
                 logger.warning(f"[IG:{message.sender_id}] Rate limited: {reason}")
-                results.append({
-                    "message_id": message.message_id,
-                    "sender_id": message.sender_id,
-                    "status": "rate_limited",
-                    "reason": reason
-                })
+                results.append(
+                    {
+                        "message_id": message.message_id,
+                        "sender_id": message.sender_id,
+                        "status": "rate_limited",
+                        "reason": reason,
+                    }
+                )
                 continue
 
             try:
                 # DEDUPLICATION: Check if we've already processed this message_id
-                if hasattr(self, '_processed_message_ids'):
+                if hasattr(self, "_processed_message_ids"):
                     if message.message_id in self._processed_message_ids:
-                        logger.warning(f"[IG:{message.sender_id}] Skipping duplicate message_id: {message.message_id}")
-                        results.append({
-                            "message_id": message.message_id,
-                            "sender_id": message.sender_id,
-                            "status": "duplicate_skipped"
-                        })
+                        logger.warning(
+                            f"[IG:{message.sender_id}] Skipping duplicate message_id: {message.message_id}"
+                        )
+                        results.append(
+                            {
+                                "message_id": message.message_id,
+                                "sender_id": message.sender_id,
+                                "status": "duplicate_skipped",
+                            }
+                        )
                         continue
                 else:
                     self._processed_message_ids = set()
@@ -325,21 +378,31 @@ class InstagramHandler:
                 response = await self.process_message(message)
 
                 # V2 compatibility: response.content (V2) or response_text (V1)
-                response_text = getattr(response, 'content', None) or getattr(response, 'response_text', '')
-                intent_str = response.intent.value if hasattr(response.intent, 'value') else str(response.intent)
+                response_text = getattr(response, "content", None) or getattr(
+                    response, "response_text", ""
+                )
+                intent_str = (
+                    response.intent.value
+                    if hasattr(response.intent, "value")
+                    else str(response.intent)
+                )
 
                 # CRITICAL: Never send error messages to users
                 error_patterns = ["[LLM not configured]", "[Error", "[error", "error:", "Error:"]
                 is_error_response = any(pattern in response_text for pattern in error_patterns)
 
                 if is_error_response:
-                    logger.error(f"[IG:{message.sender_id}] LLM returned error, NOT sending to user: {response_text[:100]}")
-                    results.append({
-                        "message_id": message.message_id,
-                        "sender_id": message.sender_id,
-                        "status": "llm_error",
-                        "error": "LLM not available - response not sent"
-                    })
+                    logger.error(
+                        f"[IG:{message.sender_id}] LLM returned error, NOT sending to user: {response_text[:100]}"
+                    )
+                    results.append(
+                        {
+                            "message_id": message.message_id,
+                            "sender_id": message.sender_id,
+                            "status": "llm_error",
+                            "error": "LLM not available - response not sent",
+                        }
+                    )
                     continue
 
                 # Get username and display name if available
@@ -350,13 +413,16 @@ class InstagramHandler:
                         profile = await self.connector.get_user_profile(message.sender_id)
                         if profile:
                             username = profile.username
-                            full_name = profile.name or ""  # Display name (e.g., "Nahuel A. Sastre")
+                            full_name = (
+                                profile.name or ""
+                            )  # Display name (e.g., "Nahuel A. Sastre")
                 except Exception as e:
                     logger.warning("Failed to get user profile for %s: %s", message.sender_id, e)
 
                 if copilot_enabled:
                     # COPILOT MODE: Save as pending approval, don't send
                     from core.copilot_service import get_copilot_service
+
                     copilot = get_copilot_service()
 
                     pending = await copilot.create_pending_response(
@@ -370,26 +436,29 @@ class InstagramHandler:
                         intent=intent_str,
                         confidence=response.confidence,
                         username=username,
-                        full_name=full_name
+                        full_name=full_name,
                     )
 
-                    logger.info(f"[Copilot] Created pending response {pending.id} for {message.sender_id}")
+                    logger.info(
+                        f"[Copilot] Created pending response {pending.id} for {message.sender_id}"
+                    )
 
-                    results.append({
-                        "message_id": message.message_id,
-                        "sender_id": message.sender_id,
-                        "copilot_mode": True,
-                        "pending_id": pending.id,
-                        "suggested_response": response_text,
-                        "intent": intent_str,
-                        "confidence": response.confidence,
-                        "status": "pending_approval"
-                    })
+                    results.append(
+                        {
+                            "message_id": message.message_id,
+                            "sender_id": message.sender_id,
+                            "copilot_mode": True,
+                            "pending_id": pending.id,
+                            "suggested_response": response_text,
+                            "intent": intent_str,
+                            "confidence": response.confidence,
+                            "status": "pending_approval",
+                        }
+                    )
                 else:
                     # AUTOPILOT MODE: Check if creator already responded before sending
                     creator_already_responded = await self._has_creator_responded_recently(
-                        message.sender_id,
-                        window_seconds=300  # 5 minute window
+                        message.sender_id, window_seconds=300  # 5 minute window
                     )
 
                     if creator_already_responded:
@@ -398,45 +467,350 @@ class InstagramHandler:
                             f"[AntiDup] Skipping autopilot response to {message.sender_id} - "
                             f"creator already responded"
                         )
-                        results.append({
-                            "message_id": message.message_id,
-                            "sender_id": message.sender_id,
-                            "copilot_mode": False,
-                            "status": "skipped_creator_responded",
-                            "reason": "Creator already responded manually"
-                        })
+                        results.append(
+                            {
+                                "message_id": message.message_id,
+                                "sender_id": message.sender_id,
+                                "copilot_mode": False,
+                                "status": "skipped_creator_responded",
+                                "reason": "Creator already responded manually",
+                            }
+                        )
                     else:
                         # AUTOPILOT MODE: Send response immediately
                         await self.send_response(message.sender_id, response.response_text)
                         self._record_response(message, response)
 
-                        results.append({
-                            "message_id": message.message_id,
-                            "sender_id": message.sender_id,
-                            "copilot_mode": False,
-                            "response": response.response_text,
-                            "intent": response.intent.value if hasattr(response.intent, 'value') else str(response.intent),
-                            "confidence": response.confidence,
-                            "status": "sent"
-                        })
+                        results.append(
+                            {
+                                "message_id": message.message_id,
+                                "sender_id": message.sender_id,
+                                "copilot_mode": False,
+                                "response": response.response_text,
+                                "intent": (
+                                    response.intent.value
+                                    if hasattr(response.intent, "value")
+                                    else str(response.intent)
+                                ),
+                                "confidence": response.confidence,
+                                "status": "sent",
+                            }
+                        )
 
             except Exception as e:
                 import traceback
-                logger.error(f"Error processing message {message.message_id}: {e}\n{traceback.format_exc()}")
+
+                logger.error(
+                    f"Error processing message {message.message_id}: {e}\n{traceback.format_exc()}"
+                )
                 self.status.errors += 1
-                results.append({
-                    "message_id": message.message_id,
-                    "sender_id": message.sender_id,
-                    "error": str(e)
-                })
+                results.append(
+                    {
+                        "message_id": message.message_id,
+                        "sender_id": message.sender_id,
+                        "error": str(e),
+                    }
+                )
 
         return {
             "status": "ok",
             "messages_processed": len(messages),
             "echo_messages_recorded": echo_recorded,
             "copilot_mode": copilot_enabled,
-            "results": results
+            "results": results,
         }
+
+    # =========================================================================
+    # LEAD HISTORY ENRICHMENT (Beta feature - Feb 2026)
+    # When a new lead sends a message, load their conversation history
+    # to properly categorize them (new vs returning vs existing customer)
+    # =========================================================================
+
+    async def _check_lead_exists(self, sender_id: str) -> bool:
+        """Check if a lead already exists in the database."""
+        try:
+            from api.database import SessionLocal
+            from api.models import Creator, Lead
+
+            session = SessionLocal()
+            try:
+                creator = session.query(Creator).filter_by(name=self.creator_id).first()
+                if not creator:
+                    return False
+
+                # Check both with and without ig_ prefix
+                lead = (
+                    session.query(Lead)
+                    .filter_by(creator_id=creator.id, platform_user_id=sender_id)
+                    .first()
+                )
+
+                if not lead:
+                    lead = (
+                        session.query(Lead)
+                        .filter_by(creator_id=creator.id, platform_user_id=f"ig_{sender_id}")
+                        .first()
+                    )
+
+                return lead is not None
+            finally:
+                session.close()
+        except Exception as e:
+            logger.error(f"[LeadCheck] Error checking lead existence: {e}")
+            return False  # Assume doesn't exist on error
+
+    async def _find_conversation_for_user(self, sender_id: str) -> Optional[str]:
+        """Find the conversation ID for a specific user by searching conversations."""
+        if not self.connector:
+            return None
+
+        try:
+            # Get recent conversations and find the one with this participant
+            conversations = await self.connector.get_conversations(limit=50)
+
+            for conv in conversations:
+                participants = conv.get("participants", {}).get("data", [])
+                for participant in participants:
+                    if participant.get("id") == sender_id:
+                        logger.info(
+                            f"[LeadHistory] Found conversation {conv['id']} for user {sender_id}"
+                        )
+                        return conv.get("id")
+
+            logger.info(f"[LeadHistory] No existing conversation found for {sender_id}")
+            return None
+
+        except Exception as e:
+            logger.error(f"[LeadHistory] Error finding conversation: {e}")
+            return None
+
+    async def _fetch_conversation_history(self, sender_id: str) -> Optional[dict]:
+        """
+        Fetch conversation history from Instagram API for a new lead.
+        Returns dict with messages and oldest_message_date if found.
+        """
+        if not self.connector:
+            logger.warning("[LeadHistory] No connector available")
+            return None
+
+        try:
+            # Find the conversation for this user
+            conv_id = await self._find_conversation_for_user(sender_id)
+            if not conv_id:
+                return None
+
+            # Get all messages from this conversation (last year)
+            from datetime import timedelta
+
+            cutoff_date = datetime.now(timezone.utc) - timedelta(days=365)
+
+            messages = await self.connector.get_all_conversation_messages(
+                conversation_id=conv_id,
+                max_pages=10,  # Limit to prevent too many API calls
+                cutoff_date=cutoff_date,
+            )
+
+            if not messages:
+                logger.info(f"[LeadHistory] No messages found for {sender_id}")
+                return None
+
+            # Find oldest message date
+            oldest_date = None
+            for msg in messages:
+                created_time_str = msg.get("created_time", "")
+                if created_time_str:
+                    try:
+                        created_time = datetime.fromisoformat(
+                            created_time_str.replace("Z", "+00:00").replace("+0000", "+00:00")
+                        )
+                        if oldest_date is None or created_time < oldest_date:
+                            oldest_date = created_time
+                    except Exception:
+                        pass
+
+            logger.info(
+                f"[LeadHistory] Found {len(messages)} messages for {sender_id}, "
+                f"oldest: {oldest_date}"
+            )
+
+            return {
+                "messages": messages,
+                "oldest_message_date": oldest_date,
+                "conversation_id": conv_id,
+                "message_count": len(messages),
+            }
+
+        except Exception as e:
+            logger.error(f"[LeadHistory] Error fetching history: {e}")
+            return None
+
+    def _categorize_lead_by_history(self, oldest_date: Optional[datetime]) -> str:
+        """
+        Categorize a lead based on the age of their oldest message.
+
+        Returns:
+            - "existing_customer" if oldest message > 30 days ago
+            - "returning" if oldest message > 7 days ago
+            - "new" if recent or no history
+        """
+        if not oldest_date:
+            return "new"
+
+        now = datetime.now(timezone.utc)
+        days_old = (now - oldest_date).days
+
+        if days_old > 30:
+            return "existing_customer"
+        elif days_old > 7:
+            return "returning"
+        else:
+            return "new"
+
+    async def _create_lead_with_history(
+        self, sender_id: str, username: str, full_name: str, status: str, history: Optional[dict]
+    ) -> Optional[int]:
+        """
+        Create a new lead with pre-loaded conversation history.
+
+        Args:
+            sender_id: Instagram user ID
+            username: Instagram username
+            full_name: Display name
+            status: Lead status (new, returning, existing_customer)
+            history: Dict with messages and metadata from _fetch_conversation_history
+
+        Returns:
+            Lead ID if created successfully
+        """
+        try:
+            from api.database import SessionLocal
+            from api.models import Creator, Lead, Message
+
+            session = SessionLocal()
+            try:
+                creator = session.query(Creator).filter_by(name=self.creator_id).first()
+                if not creator:
+                    logger.error(f"[LeadHistory] Creator {self.creator_id} not found")
+                    return None
+
+                # Create the lead with proper categorization
+                lead = Lead(
+                    creator_id=creator.id,
+                    platform="instagram",
+                    platform_user_id=f"ig_{sender_id}",
+                    username=username,
+                    full_name=full_name,
+                    status=status,
+                    purchase_intent=(
+                        0.1
+                        if status == "returning"
+                        else (0.2 if status == "existing_customer" else 0.0)
+                    ),
+                )
+                session.add(lead)
+                session.commit()
+
+                logger.info(
+                    f"[LeadHistory] Created lead {lead.id} for @{username} with status={status}"
+                )
+
+                # Save historical messages if available
+                if history and history.get("messages"):
+                    messages_saved = 0
+                    for msg in history["messages"]:
+                        msg_id = msg.get("id")
+                        msg_text = msg.get("message", "")
+                        msg_from = msg.get("from", {})
+                        msg_time_str = msg.get("created_time")
+
+                        if not msg_text:
+                            continue
+
+                        # Check if message already exists
+                        existing = (
+                            session.query(Message).filter_by(platform_message_id=msg_id).first()
+                        )
+                        if existing:
+                            continue
+
+                        # Determine role (is this from the creator or the follower?)
+                        is_from_creator = msg_from.get("id") in [self.page_id, self.ig_user_id]
+                        role = "assistant" if is_from_creator else "user"
+
+                        # Parse timestamp
+                        created_at = None
+                        if msg_time_str:
+                            try:
+                                created_at = datetime.fromisoformat(
+                                    msg_time_str.replace("Z", "+00:00").replace("+0000", "+00:00")
+                                )
+                            except Exception:
+                                pass
+
+                        new_msg = Message(
+                            lead_id=lead.id,
+                            role=role,
+                            content=msg_text,
+                            status="sent",
+                            platform_message_id=msg_id,
+                            approved_by="historical_sync",
+                        )
+                        if created_at:
+                            new_msg.created_at = created_at
+
+                        session.add(new_msg)
+                        messages_saved += 1
+
+                    session.commit()
+                    logger.info(
+                        f"[LeadHistory] Saved {messages_saved} historical messages for lead {lead.id}"
+                    )
+
+                return lead.id
+
+            finally:
+                session.close()
+
+        except Exception as e:
+            logger.error(f"[LeadHistory] Error creating lead with history: {e}")
+            import traceback
+
+            logger.error(traceback.format_exc())
+            return None
+
+    async def _enrich_new_lead(
+        self, sender_id: str, username: str = "", full_name: str = ""
+    ) -> Optional[str]:
+        """
+        Main method to enrich a new lead with conversation history.
+        Called when we detect a message from an unknown sender.
+
+        Returns:
+            Lead status ("new", "returning", "existing_customer") or None if failed
+        """
+        logger.info(f"[LeadHistory] Enriching new lead: {sender_id}")
+
+        # Fetch conversation history from Instagram API
+        history = await self._fetch_conversation_history(sender_id)
+
+        # Categorize based on history
+        oldest_date = history.get("oldest_message_date") if history else None
+        status = self._categorize_lead_by_history(oldest_date)
+
+        logger.info(f"[LeadHistory] Categorized {sender_id} as '{status}' (oldest: {oldest_date})")
+
+        # Create lead with history
+        lead_id = await self._create_lead_with_history(
+            sender_id=sender_id,
+            username=username,
+            full_name=full_name,
+            status=status,
+            history=history,
+        )
+
+        if lead_id:
+            return status
+        return None
 
     async def _is_copilot_enabled(self) -> bool:
         """
@@ -445,6 +819,7 @@ class InstagramHandler:
         """
         try:
             from core.copilot_service import get_copilot_service
+
             copilot = get_copilot_service()
             return copilot.is_copilot_enabled(self.creator_id)
         except Exception as e:
@@ -471,14 +846,18 @@ class InstagramHandler:
                             text = message_data.get("text", "")
 
                             if text:  # Only record text messages
-                                echo_messages.append({
-                                    "message_id": message_data.get("mid", ""),
-                                    "sender_id": sender_id,  # This is the page/creator
-                                    "recipient_id": recipient_id,  # This is the follower
-                                    "text": text,
-                                    "timestamp": messaging.get("timestamp", 0)
-                                })
-                                logger.info(f"[Echo] Detected creator response to {recipient_id}: {text[:50]}...")
+                                echo_messages.append(
+                                    {
+                                        "message_id": message_data.get("mid", ""),
+                                        "sender_id": sender_id,  # This is the page/creator
+                                        "recipient_id": recipient_id,  # This is the follower
+                                        "text": text,
+                                        "timestamp": messaging.get("timestamp", 0),
+                                    }
+                                )
+                                logger.info(
+                                    f"[Echo] Detected creator response to {recipient_id}: {text[:50]}..."
+                                )
 
         except Exception as e:
             logger.error(f"Error extracting echo messages: {e}")
@@ -506,27 +885,30 @@ class InstagramHandler:
                 follower_id = echo_msg["recipient_id"]
 
                 # Find or create lead
-                lead = session.query(Lead).filter_by(
-                    creator_id=creator.id,
-                    platform_user_id=follower_id
-                ).first()
+                lead = (
+                    session.query(Lead)
+                    .filter_by(creator_id=creator.id, platform_user_id=follower_id)
+                    .first()
+                )
 
                 if not lead:
                     # Also check with ig_ prefix
-                    lead = session.query(Lead).filter_by(
-                        creator_id=creator.id,
-                        platform_user_id=f"ig_{follower_id}"
-                    ).first()
+                    lead = (
+                        session.query(Lead)
+                        .filter_by(creator_id=creator.id, platform_user_id=f"ig_{follower_id}")
+                        .first()
+                    )
 
                 if not lead:
                     logger.info(f"[Echo] Lead not found for {follower_id}, skipping record")
                     return False
 
                 # Check if this exact message already exists (avoid duplicates)
-                existing = session.query(Message).filter_by(
-                    lead_id=lead.id,
-                    platform_message_id=echo_msg["message_id"]
-                ).first()
+                existing = (
+                    session.query(Message)
+                    .filter_by(lead_id=lead.id, platform_message_id=echo_msg["message_id"])
+                    .first()
+                )
 
                 if existing:
                     logger.debug(f"[Echo] Message {echo_msg['message_id']} already recorded")
@@ -540,7 +922,7 @@ class InstagramHandler:
                     status="sent",
                     approved_by="creator_manual",  # Mark as manually sent by creator
                     platform_message_id=echo_msg["message_id"],
-                    msg_metadata={"source": "instagram_echo", "is_manual": True}
+                    msg_metadata={"source": "instagram_echo", "is_manual": True},
                 )
                 session.add(msg)
 
@@ -558,7 +940,9 @@ class InstagramHandler:
             logger.error(f"[Echo] Error recording creator response: {e}")
             return False
 
-    async def _has_creator_responded_recently(self, follower_id: str, window_seconds: int = 300) -> bool:
+    async def _has_creator_responded_recently(
+        self, follower_id: str, window_seconds: int = 300
+    ) -> bool:
         """
         Check if the creator has manually responded to this follower recently.
         Used to prevent duplicate bot responses when creator already replied.
@@ -582,42 +966,52 @@ class InstagramHandler:
                     return False
 
                 # Find lead (try both with and without ig_ prefix)
-                lead = session.query(Lead).filter_by(
-                    creator_id=creator.id,
-                    platform_user_id=follower_id
-                ).first()
+                lead = (
+                    session.query(Lead)
+                    .filter_by(creator_id=creator.id, platform_user_id=follower_id)
+                    .first()
+                )
 
                 if not lead:
-                    lead = session.query(Lead).filter_by(
-                        creator_id=creator.id,
-                        platform_user_id=f"ig_{follower_id}"
-                    ).first()
+                    lead = (
+                        session.query(Lead)
+                        .filter_by(creator_id=creator.id, platform_user_id=f"ig_{follower_id}")
+                        .first()
+                    )
 
                 if not lead:
                     return False
 
                 # Check for recent creator messages
                 from datetime import timedelta
+
                 cutoff_time = datetime.now(timezone.utc) - timedelta(seconds=window_seconds)
 
-                recent_creator_msg = session.query(Message).filter(
-                    Message.lead_id == lead.id,
-                    Message.role == "assistant",
-                    Message.created_at >= cutoff_time
-                ).order_by(Message.created_at.desc()).first()
+                recent_creator_msg = (
+                    session.query(Message)
+                    .filter(
+                        Message.lead_id == lead.id,
+                        Message.role == "assistant",
+                        Message.created_at >= cutoff_time,
+                    )
+                    .order_by(Message.created_at.desc())
+                    .first()
+                )
 
                 if recent_creator_msg:
                     # Check if it was a manual response or recent bot response
                     is_manual = (
-                        recent_creator_msg.approved_by == "creator_manual" or
-                        (recent_creator_msg.msg_metadata or {}).get("is_manual") == True
+                        recent_creator_msg.approved_by == "creator_manual"
+                        or (recent_creator_msg.msg_metadata or {}).get("is_manual") == True
                     )
 
                     # Get the most recent user message
-                    last_user_msg = session.query(Message).filter(
-                        Message.lead_id == lead.id,
-                        Message.role == "user"
-                    ).order_by(Message.created_at.desc()).first()
+                    last_user_msg = (
+                        session.query(Message)
+                        .filter(Message.lead_id == lead.id, Message.role == "user")
+                        .order_by(Message.created_at.desc())
+                        .first()
+                    )
 
                     # If creator responded AFTER the last user message, skip bot
                     if last_user_msg and recent_creator_msg.created_at > last_user_msg.created_at:
@@ -664,10 +1058,8 @@ class InstagramHandler:
                             sender_id=sender_id,
                             recipient_id=recipient_id,
                             text=message_data.get("text", ""),
-                            timestamp=datetime.fromtimestamp(
-                                messaging.get("timestamp", 0) / 1000
-                            ),
-                            attachments=message_data.get("attachments", [])
+                            timestamp=datetime.fromtimestamp(messaging.get("timestamp", 0) / 1000),
+                            attachments=message_data.get("attachments", []),
                         )
                         if msg.text:  # Only process text messages
                             messages.append(msg)
@@ -703,13 +1095,15 @@ class InstagramHandler:
             metadata={
                 "message_id": message.message_id,
                 "username": username,
-                "platform": "instagram"
-            }
+                "platform": "instagram",
+            },
         )
 
         # V2 compatibility for logging
-        response_text = getattr(response, 'content', None) or getattr(response, 'response_text', '')
-        intent_str = response.intent.value if hasattr(response.intent, 'value') else str(response.intent)
+        response_text = getattr(response, "content", None) or getattr(response, "response_text", "")
+        intent_str = (
+            response.intent.value if hasattr(response.intent, "value") else str(response.intent)
+        )
         logger.info(f"[IG:{message.sender_id}] Intent: {intent_str} ({response.confidence:.0%})")
         logger.info(f"[IG:{message.sender_id}] Output: {response_text[:100]}...")
 
@@ -769,10 +1163,7 @@ class InstagramHandler:
             return False
 
     async def send_message_with_buttons(
-        self,
-        recipient_id: str,
-        text: str,
-        buttons: List[Dict[str, str]]
+        self, recipient_id: str, text: str, buttons: List[Dict[str, str]]
     ) -> bool:
         """
         Send a message with quick reply buttons.
@@ -819,7 +1210,7 @@ class InstagramHandler:
             "follower_id": f"ig_{msg.sender_id}",
             "sender_id": msg.sender_id,
             "text": msg.text,
-            "timestamp": self.status.last_message_time
+            "timestamp": self.status.last_message_time,
         }
         self.recent_messages.append(record)
         if len(self.recent_messages) > 10:
@@ -832,8 +1223,10 @@ class InstagramHandler:
     def _record_response(self, msg: InstagramMessage, response: DMResponse):
         """Record response"""
         # V2 compatibility
-        response_text = getattr(response, 'content', None) or getattr(response, 'response_text', '')
-        intent_str = response.intent.value if hasattr(response.intent, 'value') else str(response.intent)
+        response_text = getattr(response, "content", None) or getattr(response, "response_text", "")
+        intent_str = (
+            response.intent.value if hasattr(response.intent, "value") else str(response.intent)
+        )
         record = {
             "follower_id": f"ig_{msg.sender_id}",
             "sender_id": msg.sender_id,
@@ -841,9 +1234,9 @@ class InstagramHandler:
             "response": response_text,
             "intent": intent_str,
             "confidence": response.confidence,
-            "product": getattr(response, 'product_mentioned', None),
-            "escalate": getattr(response, 'escalate_to_human', False),
-            "timestamp": datetime.now(timezone.utc).isoformat()
+            "product": getattr(response, "product_mentioned", None),
+            "escalate": getattr(response, "escalate_to_human", False),
+            "timestamp": datetime.now(timezone.utc).isoformat(),
         }
         self.recent_responses.append(record)
         if len(self.recent_responses) > 10:
@@ -891,9 +1284,24 @@ class InstagramHandler:
 
         # Check for interest keywords
         interest_keywords = [
-            "interesa", "precio", "info", "información", "quiero", "cómo",
-            "como", "comprar", "cuánto", "cuanto", "dónde", "donde",
-            "interested", "price", "how", "want", "buy", "cost"
+            "interesa",
+            "precio",
+            "info",
+            "información",
+            "quiero",
+            "cómo",
+            "como",
+            "comprar",
+            "cuánto",
+            "cuanto",
+            "dónde",
+            "donde",
+            "interested",
+            "price",
+            "how",
+            "want",
+            "buy",
+            "cost",
         ]
         has_interest = any(kw.lower() in comment_text.lower() for kw in interest_keywords)
 
@@ -901,12 +1309,14 @@ class InstagramHandler:
             logger.debug(f"Comment from {commenter_username} has no interest keywords")
             return None
 
-        logger.info(f"Interest detected in comment from @{commenter_username}: {comment_text[:50]}...")
+        logger.info(
+            f"Interest detected in comment from @{commenter_username}: {comment_text[:50]}..."
+        )
 
         # Get DM template from config or use default
         dm_template = os.getenv(
             "COMMENT_DM_TEMPLATE",
-            "¡Hola! Vi tu comentario y me encantó. 😊 ¿Te cuento más sobre lo que preguntabas?"
+            "¡Hola! Vi tu comentario y me encantó. 😊 ¿Te cuento más sobre lo que preguntabas?",
         )
 
         # Send DM
@@ -918,29 +1328,25 @@ class InstagramHandler:
                 commenter_id=commenter_id,
                 commenter_username=commenter_username,
                 comment_text=comment_text,
-                media_id=media_id
+                media_id=media_id,
             )
 
             return {
                 "action": "dm_sent",
                 "commenter_id": commenter_id,
                 "commenter_username": commenter_username,
-                "comment_preview": comment_text[:50]
+                "comment_preview": comment_text[:50],
             }
 
         return {"action": "dm_failed", "commenter_id": commenter_id}
 
     async def _register_comment_lead(
-        self,
-        commenter_id: str,
-        commenter_username: str,
-        comment_text: str,
-        media_id: str
+        self, commenter_id: str, commenter_username: str, comment_text: str, media_id: str
     ):
         """Register a lead from a comment interaction"""
         try:
             # Import here to avoid circular imports
-            from core.memory import MemoryStore, FollowerMemory
+            from core.memory import FollowerMemory, MemoryStore
 
             memory_store = MemoryStore()
             follower_id = f"ig_{commenter_id}"
@@ -949,9 +1355,7 @@ class InstagramHandler:
             follower = await memory_store.load(self.creator_id, follower_id)
             if not follower:
                 follower = FollowerMemory(
-                    follower_id=follower_id,
-                    creator_id=self.creator_id,
-                    platform="instagram"
+                    follower_id=follower_id, creator_id=self.creator_id, platform="instagram"
                 )
 
             follower.name = commenter_username
@@ -959,14 +1363,16 @@ class InstagramHandler:
             follower.source = "comment"
 
             # Store comment in notes
-            if not hasattr(follower, 'notes') or not follower.notes:
+            if not hasattr(follower, "notes") or not follower.notes:
                 follower.notes = []
-            follower.notes.append({
-                "type": "comment",
-                "text": comment_text,
-                "media_id": media_id,
-                "timestamp": datetime.now(timezone.utc).isoformat()
-            })
+            follower.notes.append(
+                {
+                    "type": "comment",
+                    "text": comment_text,
+                    "media_id": media_id,
+                    "timestamp": datetime.now(timezone.utc).isoformat(),
+                }
+            )
 
             await memory_store.save(follower)
             logger.info(f"Registered lead from comment: @{commenter_username}")
@@ -989,14 +1395,12 @@ _handler: Optional[InstagramHandler] = None
 def get_instagram_handler(
     creator_id: str = None,  # Changed from "manel" to None for auto-detection
     access_token: Optional[str] = None,
-    page_id: Optional[str] = None
+    page_id: Optional[str] = None,
 ) -> InstagramHandler:
     """Get or create Instagram handler. Credentials auto-loaded from DB if not provided."""
     global _handler
     if _handler is None:
         _handler = InstagramHandler(
-            access_token=access_token,
-            page_id=page_id,
-            creator_id=creator_id
+            access_token=access_token, page_id=page_id, creator_id=creator_id
         )
     return _handler
