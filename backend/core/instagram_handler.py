@@ -16,6 +16,7 @@ from typing import Any, Dict, List, Optional
 
 from core.dm_agent_v2 import DMResponderAgent, DMResponse
 from core.instagram import InstagramConnector, InstagramMessage
+from core.lead_categorization import calcular_categoria, categoria_a_status_legacy
 from core.rate_limiter import get_rate_limiter
 
 logger = logging.getLogger("clonnect-instagram")
@@ -1160,6 +1161,9 @@ class InstagramHandler:
         logger.info(f"[IG:{message.sender_id}] Intent: {intent_str} ({response.confidence:.0%})")
         logger.info(f"[IG:{message.sender_id}] Output: {response_text[:100]}...")
 
+        # Recalculate lead category based on message content (FIX 2026-02-02)
+        await self._update_lead_category(message.sender_id)
+
         return response
 
     async def _get_username(self, sender_id: str) -> str:
@@ -1262,6 +1266,106 @@ class InstagramHandler:
                 logger.info(f"[IG:{sender_id}] Updated lead profile: pic={'yes' if profile_pic_url else 'no'}, verified={is_verified}")
         except Exception as e:
             logger.warning(f"Could not update lead profile: {e}")
+
+    async def _update_lead_category(self, sender_id: str) -> None:
+        """
+        Recalculate and update lead category based on message content.
+
+        This analyzes all messages from the lead and updates their status
+        (nuevo/interesado/caliente/cliente/fantasma) based on keywords detected.
+
+        FIX 2026-02-02: Previously, categorization code existed but was never called.
+        Now integrated into the message processing flow.
+        """
+        try:
+            from api.services.db_service import get_session, get_messages_by_lead_id
+            from api.models import Lead, Creator
+
+            session = get_session()
+            if not session:
+                return
+
+            try:
+                # Find the lead
+                platform_user_id = f"ig_{sender_id}"
+                creator = session.query(Creator).filter_by(name=self.creator_id).first()
+                if not creator:
+                    return
+
+                lead = session.query(Lead).filter_by(
+                    creator_id=creator.id,
+                    platform_user_id=platform_user_id
+                ).first()
+
+                if not lead:
+                    logger.debug(f"[Categorization] Lead not found for {platform_user_id}")
+                    return
+
+                old_status = lead.status
+
+                # Skip if already a customer
+                if old_status == "cliente":
+                    return
+
+                # Get messages for analysis
+                messages_raw = get_messages_by_lead_id(str(lead.id), limit=50)
+
+                # Convert to format expected by calcular_categoria
+                messages = []
+                last_user_msg_time = None
+                for msg in messages_raw:
+                    messages.append({
+                        "role": msg.get("role", "user"),
+                        "content": msg.get("content", "")
+                    })
+                    if msg.get("role") == "user" and msg.get("created_at"):
+                        msg_time = msg.get("created_at")
+                        if isinstance(msg_time, str):
+                            from datetime import datetime
+                            try:
+                                msg_time = datetime.fromisoformat(msg_time.replace("Z", "+00:00"))
+                            except:
+                                msg_time = None
+                        if msg_time and (not last_user_msg_time or msg_time > last_user_msg_time):
+                            last_user_msg_time = msg_time
+
+                # Calculate category
+                result = calcular_categoria(
+                    mensajes=messages,
+                    es_cliente=(old_status == "cliente"),
+                    ultimo_mensaje_lead=last_user_msg_time,
+                    lead_created_at=lead.first_contact_at
+                )
+
+                # Map to legacy status for DB
+                new_status = categoria_a_status_legacy(result.categoria)
+
+                # Only update if status changed (and it's an upgrade in the funnel)
+                status_priority = {"new": 1, "active": 2, "hot": 3, "customer": 4, "ghost": 0}
+                old_priority = status_priority.get(old_status, 1)
+                new_priority = status_priority.get(new_status, 1)
+
+                # Update if upgrading (nuevo→interesado→caliente) or becoming ghost
+                if new_priority > old_priority or (new_status == "ghost" and old_status != "customer"):
+                    lead.status = new_status
+                    lead.purchase_intent = result.intent_score
+                    session.commit()
+
+                    logger.info(
+                        f"[Categorization] Lead {sender_id}: {old_status} → {new_status} "
+                        f"(intent: {result.intent_score:.2f}, razón: {', '.join(result.razones[:2])})"
+                    )
+                else:
+                    logger.debug(
+                        f"[Categorization] Lead {sender_id}: keeping {old_status} "
+                        f"(detected: {new_status}, keywords: {result.keywords_detectados[:3]})"
+                    )
+
+            finally:
+                session.close()
+
+        except Exception as e:
+            logger.error(f"[Categorization] Error updating lead category: {e}")
 
     async def send_response(self, recipient_id: str, text: str) -> bool:
         """
