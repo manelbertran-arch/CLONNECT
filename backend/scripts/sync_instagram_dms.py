@@ -39,9 +39,8 @@ rate_limiter = get_instagram_rate_limiter()
 # Config
 CREATOR_ID = "stefano_bonanno"
 START_FROM_CONVERSATION = int(os.environ.get("START_FROM", "0"))
-ACCESS_TOKEN = "IGAAT4utuSH75BZAGE0SFNwU0lfc2oxQ2hhZADNoQkJxR0hrNGc5ZAzZAScjd0dHNHYmJyQXBTODViQlFpOUdlSDlQSHE5Y2c1WjJ3MUluX2xLazdZAWUlHcC1xOE81R2tHRXJZARnM2U2xlYkk0Vk9tblRsSTBfS3VVQm1sLWllSElkUQZDZD"
-IG_USER_ID = "17841407135263418"
-API_BASE = "https://graph.facebook.com/v21.0"
+# Token se lee de la DB (creators.instagram_token)
+API_BASE = "https://graph.instagram.com/v21.0"  # IGAAT tokens requieren este endpoint
 MAX_AGE_DAYS = 365
 
 # ============================================
@@ -108,7 +107,19 @@ async def sync_dms():
             logger.error(f"Creator not found: {CREATOR_ID}")
             return
 
+        # Leer token y user_id desde la DB
+        ACCESS_TOKEN = creator.instagram_token
+        IG_USER_ID = creator.instagram_user_id or creator.instagram_page_id
+
+        if not ACCESS_TOKEN:
+            logger.error(f"Creator {CREATOR_ID} has no instagram_token in DB")
+            return
+        if not IG_USER_ID:
+            logger.error(f"Creator {CREATOR_ID} has no instagram_user_id/page_id in DB")
+            return
+
         logger.info(f"Found creator: {creator.name} (id: {creator.id})")
+        logger.info(f"Using IG_USER_ID: {IG_USER_ID}, token: {ACCESS_TOKEN[:20]}...")
 
         conversations_fetched = 0
         messages_saved = 0
