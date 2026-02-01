@@ -395,6 +395,7 @@ async def sync_dms():
                 # Filter messages by date and count valid ones
                 valid_messages = []
                 oldest_date = None
+                newest_date = None  # For last_contact_at
 
                 for msg in messages:
                     msg_text = msg.get("message", "")
@@ -412,8 +413,13 @@ async def sync_dms():
                             if created_at < cutoff_date:
                                 continue
 
+                            # Track oldest for categorization
                             if oldest_date is None or created_at < oldest_date:
                                 oldest_date = created_at
+
+                            # Track newest for last_contact_at
+                            if newest_date is None or created_at > newest_date:
+                                newest_date = created_at
                         except Exception:
                             pass
 
@@ -443,9 +449,10 @@ async def sync_dms():
                 )
 
                 if lead:
-                    # Lead exists - check if we need to update profile data
+                    # Lead exists - check if we need to update profile data or timestamps
                     needs_update = False
 
+                    # Update profile data if missing
                     if not lead.profile_pic_url or not lead.full_name:
                         profile = await fetch_user_profile(follower_id)
                         if profile:
@@ -455,6 +462,18 @@ async def sync_dms():
                             if not lead.profile_pic_url and profile.get("profile_picture_url"):
                                 lead.profile_pic_url = profile["profile_picture_url"]
                                 needs_update = True
+
+                    # Update last_contact_at if we have newer messages
+                    if newest_date:
+                        if not lead.last_contact_at or newest_date > lead.last_contact_at:
+                            lead.last_contact_at = newest_date
+                            needs_update = True
+
+                    # Update first_contact_at if we have older messages
+                    if oldest_date:
+                        if not lead.first_contact_at or oldest_date < lead.first_contact_at:
+                            lead.first_contact_at = oldest_date
+                            needs_update = True
 
                     if needs_update:
                         session.commit()
@@ -480,7 +499,7 @@ async def sync_dms():
                     # 2. Categorize by history
                     status = categorize_lead_by_history(oldest_date)
 
-                    # 3. Create lead with ALL data
+                    # 3. Create lead with ALL data + correct timestamps
                     lead = Lead(
                         creator_id=creator.id,
                         platform="instagram",
@@ -494,6 +513,8 @@ async def sync_dms():
                             if status == "returning"
                             else (0.2 if status == "existing_customer" else 0.0)
                         ),
+                        first_contact_at=oldest_date,  # Real first message date
+                        last_contact_at=newest_date,  # Real last message date
                     )
                     session.add(lead)
                     session.commit()
@@ -503,7 +524,8 @@ async def sync_dms():
                         f"  Created @{follower_username} "
                         f"(name={full_name[:20] if full_name else 'N/A'}, "
                         f"pic={'Yes' if profile_pic_url else 'No'}, "
-                        f"status={status})"
+                        f"status={status}, "
+                        f"last_msg={newest_date.strftime('%Y-%m-%d') if newest_date else 'N/A'})"
                     )
 
                 # Save messages with link previews
