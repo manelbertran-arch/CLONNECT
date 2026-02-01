@@ -1,20 +1,26 @@
 """
 Admin endpoints for demo/testing purposes
 """
+
+import json
+import logging
 import os
 import re
-import json
 import shutil
-import logging
 from pathlib import Path
-from typing import Optional, Dict
-from fastapi import APIRouter, HTTPException, BackgroundTasks, Depends
+from typing import Dict, Optional
+
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
 
 logger = logging.getLogger(__name__)
 
 # URL patterns for link preview detection
-INSTAGRAM_URL_REGEX = re.compile(r'https?://(?:www\.)?instagram\.com/(?:p|reel|tv)/([A-Za-z0-9_-]+)')
-YOUTUBE_URL_REGEX = re.compile(r'https?://(?:www\.|m\.)?(?:youtube\.com/watch\?v=|youtu\.be/)([A-Za-z0-9_-]+)')
+INSTAGRAM_URL_REGEX = re.compile(
+    r"https?://(?:www\.)?instagram\.com/(?:p|reel|tv)/([A-Za-z0-9_-]+)"
+)
+YOUTUBE_URL_REGEX = re.compile(
+    r"https?://(?:www\.|m\.)?(?:youtube\.com/watch\?v=|youtu\.be/)([A-Za-z0-9_-]+)"
+)
 
 
 async def generate_link_preview(url: str, msg_metadata: Dict) -> Dict:
@@ -34,7 +40,7 @@ async def generate_link_preview(url: str, msg_metadata: Dict) -> Dict:
                 "platform": "youtube",
                 "url": url,
                 "thumbnail_url": f"https://img.youtube.com/vi/{video_id}/maxresdefault.jpg",
-                "video_id": video_id
+                "video_id": video_id,
             }
 
         # Instagram - use Microlink API for thumbnail
@@ -42,6 +48,7 @@ async def generate_link_preview(url: str, msg_metadata: Dict) -> Dict:
         if instagram_match:
             try:
                 from api.services.screenshot_service import get_microlink_preview
+
                 microlink_result = await get_microlink_preview(url)
                 if microlink_result and microlink_result.get("thumbnail_url"):
                     return {
@@ -51,7 +58,7 @@ async def generate_link_preview(url: str, msg_metadata: Dict) -> Dict:
                         "url": url,
                         "thumbnail_url": microlink_result["thumbnail_url"],
                         "title": microlink_result.get("title"),
-                        "author": microlink_result.get("author")
+                        "author": microlink_result.get("author"),
                     }
             except Exception as e:
                 logger.warning(f"Microlink error for {url}: {e}")
@@ -62,7 +69,7 @@ async def generate_link_preview(url: str, msg_metadata: Dict) -> Dict:
                 "type": "shared_post",
                 "platform": "instagram",
                 "url": url,
-                "needs_thumbnail": True
+                "needs_thumbnail": True,
             }
     except Exception as e:
         logger.warning(f"Error generating link preview for {url}: {e}")
@@ -76,6 +83,7 @@ def detect_url_in_metadata(msg_metadata: Dict) -> Optional[str]:
     if url and url.startswith("http"):
         return url
     return None
+
 
 router = APIRouter(prefix="/admin", tags=["admin"])
 
@@ -94,24 +102,27 @@ async def reset_all_data():
     """
     if not DEMO_RESET_ENABLED:
         raise HTTPException(
-            status_code=403,
-            detail="Demo reset is disabled. Set ENABLE_DEMO_RESET=true to enable."
+            status_code=403, detail="Demo reset is disabled. Set ENABLE_DEMO_RESET=true to enable."
         )
 
-    results = {
-        "database": {},
-        "json_files": {},
-        "status": "success"
-    }
+    results = {"database": {}, "json_files": {}, "status": "success"}
 
     # 1. Reset PostgreSQL database using SQLAlchemy
     try:
-        from api.database import DATABASE_URL, engine, SessionLocal
+        from api.database import DATABASE_URL, SessionLocal, engine
+
         if DATABASE_URL and SessionLocal:
             session = SessionLocal()
             try:
                 # Import models
-                from api.models import Creator, Lead, Message, Product, NurturingSequence, KnowledgeBase
+                from api.models import (
+                    Creator,
+                    KnowledgeBase,
+                    Lead,
+                    Message,
+                    NurturingSequence,
+                    Product,
+                )
 
                 # Delete in correct order (foreign key constraints)
                 msg_count = session.query(Message).delete()
@@ -178,10 +189,12 @@ async def reset_all_data():
                     elif "sales" in json_file.name:
                         json_file.write_text('{"clicks": [], "sales": []}')
                     elif "metrics" in json_file.name:
-                        json_file.write_text('{"messages_today": 0, "leads_today": 0, "hot_leads_count": 0, "total_messages": 0, "total_leads": 0}')
+                        json_file.write_text(
+                            '{"messages_today": 0, "leads_today": 0, "hot_leads_count": 0, "total_messages": 0, "total_leads": 0}'
+                        )
                     elif "followups" in json_file.name:
                         # Followups files are plain arrays
-                        json_file.write_text('[]')
+                        json_file.write_text("[]")
                     elif "nurturing" in json_file.name or "sequences" in json_file.name:
                         json_file.write_text('{"sequences": [], "enrolled": []}')
                     elif "payments" in json_file.name or "purchases" in json_file.name:
@@ -199,7 +212,7 @@ async def reset_all_data():
                             pass
                     else:
                         # Generic reset - empty object or array
-                        json_file.write_text('{}')
+                        json_file.write_text("{}")
                     json_deleted += 1
                 except Exception as e:
                     logger.warning(f"Failed to reset {json_file}: {e}")
@@ -229,7 +242,7 @@ async def delete_user_by_email(email: str):
 
     try:
         from api.database import SessionLocal
-        from api.models import User, UserCreator, Creator, Lead, Message, Product, KnowledgeBase
+        from api.models import Creator, KnowledgeBase, Lead, Message, Product, User, UserCreator
 
         session = SessionLocal()
         try:
@@ -239,7 +252,9 @@ async def delete_user_by_email(email: str):
             user = session.query(User).filter(User.email == email).first()
             if user:
                 # Get associated creator IDs before deleting associations
-                user_creators = session.query(UserCreator).filter(UserCreator.user_id == user.id).all()
+                user_creators = (
+                    session.query(UserCreator).filter(UserCreator.user_id == user.id).all()
+                )
                 creator_ids = [uc.creator_id for uc in user_creators]
 
                 # Delete user-creator associations
@@ -257,7 +272,9 @@ async def delete_user_by_email(email: str):
                         session.query(Message).filter(Message.lead_id == lead.id).delete()
                     session.query(Lead).filter(Lead.creator_id == creator_id).delete()
                     session.query(Product).filter(Product.creator_id == creator_id).delete()
-                    session.query(KnowledgeBase).filter(KnowledgeBase.creator_id == creator_id).delete()
+                    session.query(KnowledgeBase).filter(
+                        KnowledgeBase.creator_id == creator_id
+                    ).delete()
                     session.query(Creator).filter(Creator.id == creator_id).delete()
                     deleted["creator"] = str(creator_id)
 
@@ -270,7 +287,9 @@ async def delete_user_by_email(email: str):
                     session.query(Message).filter(Message.lead_id == lead.id).delete()
                 session.query(Lead).filter(Lead.creator_id == orphan_creator.id).delete()
                 session.query(Product).filter(Product.creator_id == orphan_creator.id).delete()
-                session.query(KnowledgeBase).filter(KnowledgeBase.creator_id == orphan_creator.id).delete()
+                session.query(KnowledgeBase).filter(
+                    KnowledgeBase.creator_id == orphan_creator.id
+                ).delete()
                 session.delete(orphan_creator)
                 deleted["orphan_creator"] = str(orphan_creator.id)
 
@@ -310,8 +329,7 @@ async def reset_creator(creator_id: str):
     """
     if not DEMO_RESET_ENABLED:
         raise HTTPException(
-            status_code=403,
-            detail="Demo reset is disabled. Set ENABLE_DEMO_RESET=true to enable."
+            status_code=403, detail="Demo reset is disabled. Set ENABLE_DEMO_RESET=true to enable."
         )
 
     results = {
@@ -327,17 +345,25 @@ async def reset_creator(creator_id: str):
             "tone_profile": False,
             "rag_documents": 0,
             "bot_paused": False,
-            "onboarding_reset": False
-        }
+            "onboarding_reset": False,
+        },
     }
 
     # 1. Database reset using SQLAlchemy
     try:
         from api.database import DATABASE_URL, SessionLocal
+
         if DATABASE_URL and SessionLocal:
             session = SessionLocal()
             try:
-                from api.models import Creator, Lead, Message, Product, NurturingSequence, KnowledgeBase
+                from api.models import (
+                    Creator,
+                    KnowledgeBase,
+                    Lead,
+                    Message,
+                    NurturingSequence,
+                    Product,
+                )
 
                 # Find creator by name
                 creator = session.query(Creator).filter_by(name=creator_id).first()
@@ -345,6 +371,7 @@ async def reset_creator(creator_id: str):
                     # Try by ID if it's a UUID
                     try:
                         from uuid import UUID
+
                         creator = session.query(Creator).filter_by(id=UUID(creator_id)).first()
                     except ValueError:
                         pass
@@ -357,22 +384,29 @@ async def reset_creator(creator_id: str):
                     lead_ids = [l.id for l in leads]
 
                     if lead_ids:
-                        msg_count = session.query(Message).filter(
-                            Message.lead_id.in_(lead_ids)
-                        ).delete(synchronize_session='fetch')
+                        msg_count = (
+                            session.query(Message)
+                            .filter(Message.lead_id.in_(lead_ids))
+                            .delete(synchronize_session="fetch")
+                        )
                         results["deleted"]["messages"] = msg_count
 
                         # Delete lead_activities and lead_tasks first (FK constraint)
                         try:
                             from api.models import LeadActivity, LeadTask
-                            activity_count = session.query(LeadActivity).filter(
-                                LeadActivity.lead_id.in_(lead_ids)
-                            ).delete(synchronize_session='fetch')
+
+                            activity_count = (
+                                session.query(LeadActivity)
+                                .filter(LeadActivity.lead_id.in_(lead_ids))
+                                .delete(synchronize_session="fetch")
+                            )
                             results["deleted"]["lead_activities"] = activity_count
 
-                            task_count = session.query(LeadTask).filter(
-                                LeadTask.lead_id.in_(lead_ids)
-                            ).delete(synchronize_session='fetch')
+                            task_count = (
+                                session.query(LeadTask)
+                                .filter(LeadTask.lead_id.in_(lead_ids))
+                                .delete(synchronize_session="fetch")
+                            )
                             results["deleted"]["lead_tasks"] = task_count
                         except Exception as e:
                             logger.warning(f"Could not delete lead activities/tasks: {e}")
@@ -386,21 +420,34 @@ async def reset_creator(creator_id: str):
                     results["deleted"]["products"] = prod_count
 
                     # Delete sequences
-                    seq_count = session.query(NurturingSequence).filter_by(creator_id=creator_uuid).delete()
+                    seq_count = (
+                        session.query(NurturingSequence).filter_by(creator_id=creator_uuid).delete()
+                    )
                     results["deleted"]["sequences"] = seq_count
 
                     # Delete knowledge base
-                    kb_count = session.query(KnowledgeBase).filter_by(creator_id=creator_uuid).delete()
+                    kb_count = (
+                        session.query(KnowledgeBase).filter_by(creator_id=creator_uuid).delete()
+                    )
                     results["deleted"]["knowledge_base"] = kb_count
 
                     # Delete email tracking for this creator
                     try:
                         from api.models import EmailAskTracking, PlatformIdentity
-                        email_tracking_count = session.query(EmailAskTracking).filter_by(creator_id=creator_uuid).delete()
+
+                        email_tracking_count = (
+                            session.query(EmailAskTracking)
+                            .filter_by(creator_id=creator_uuid)
+                            .delete()
+                        )
                         results["deleted"]["email_tracking"] = email_tracking_count
 
                         # Delete platform identities (but keep unified profiles - they're cross-creator)
-                        identity_count = session.query(PlatformIdentity).filter_by(creator_id=creator_uuid).delete()
+                        identity_count = (
+                            session.query(PlatformIdentity)
+                            .filter_by(creator_id=creator_uuid)
+                            .delete()
+                        )
                         results["deleted"]["platform_identities"] = identity_count
                     except Exception as e:
                         logger.warning(f"Could not delete email tracking tables: {e}")
@@ -428,7 +475,8 @@ async def reset_creator(creator_id: str):
 
     # 2. Delete Tone Profile
     try:
-        from core.tone_service import delete_tone_profile, clear_cache
+        from core.tone_service import clear_cache, delete_tone_profile
+
         if delete_tone_profile(creator_id):
             results["deleted"]["tone_profile"] = True
             logger.info(f"Tone profile deleted for {creator_id}")
@@ -439,6 +487,7 @@ async def reset_creator(creator_id: str):
     # 3. Clear RAG documents for this creator
     try:
         from core.rag import get_hybrid_rag
+
         rag = get_hybrid_rag()
         deleted_docs = rag.delete_by_creator(creator_id)
         results["deleted"]["rag_documents"] = deleted_docs
@@ -466,7 +515,7 @@ async def reset_creator(creator_id: str):
             if filepath.exists():
                 try:
                     if "products" in pattern:
-                        filepath.write_text('[]')
+                        filepath.write_text("[]")
                     elif "config" in pattern:
                         try:
                             with open(filepath) as f:
@@ -509,8 +558,7 @@ async def delete_creator(creator_name: str):
     """
     if not DEMO_RESET_ENABLED:
         raise HTTPException(
-            status_code=403,
-            detail="Demo reset is disabled. Set ENABLE_DEMO_RESET=true to enable."
+            status_code=403, detail="Demo reset is disabled. Set ENABLE_DEMO_RESET=true to enable."
         )
 
     results = {
@@ -521,15 +569,16 @@ async def delete_creator(creator_name: str):
             "products": 0,
             "sequences": 0,
             "knowledge_base": 0,
-            "creator": False
-        }
+            "creator": False,
+        },
     }
 
     try:
         from api.database import SessionLocal
+
         session = SessionLocal()
         try:
-            from api.models import Creator, Lead, Message, Product, NurturingSequence, KnowledgeBase
+            from api.models import Creator, KnowledgeBase, Lead, Message, NurturingSequence, Product
 
             # Find creator by name
             creator = session.query(Creator).filter_by(name=creator_name).first()
@@ -543,9 +592,11 @@ async def delete_creator(creator_name: str):
             lead_ids = [l.id for l in leads]
 
             if lead_ids:
-                msg_count = session.query(Message).filter(
-                    Message.lead_id.in_(lead_ids)
-                ).delete(synchronize_session='fetch')
+                msg_count = (
+                    session.query(Message)
+                    .filter(Message.lead_id.in_(lead_ids))
+                    .delete(synchronize_session="fetch")
+                )
                 results["deleted"]["messages"] = msg_count
 
             # Delete leads
@@ -567,6 +618,7 @@ async def delete_creator(creator_name: str):
             # Delete email tracking and platform identities
             try:
                 from api.models import EmailAskTracking, PlatformIdentity
+
                 session.query(EmailAskTracking).filter_by(creator_id=creator_uuid).delete()
                 session.query(PlatformIdentity).filter_by(creator_id=creator_uuid).delete()
             except Exception as e:
@@ -575,6 +627,7 @@ async def delete_creator(creator_name: str):
             # Delete user_creators associations (FK constraint)
             try:
                 from api.models import UserCreator
+
                 session.query(UserCreator).filter_by(creator_id=creator_uuid).delete()
                 results["deleted"]["user_creators"] = True
             except Exception as e:
@@ -583,6 +636,7 @@ async def delete_creator(creator_name: str):
             # Delete RAG documents (FK constraint)
             try:
                 from api.models import RAGDocument
+
                 rag_count = session.query(RAGDocument).filter_by(creator_id=creator_uuid).delete()
                 results["deleted"]["rag_documents"] = rag_count
             except Exception as e:
@@ -591,6 +645,7 @@ async def delete_creator(creator_name: str):
             # Delete sync queue and state (FK constraint)
             try:
                 from api.models import SyncQueue, SyncState
+
                 session.query(SyncQueue).filter_by(creator_id=creator_uuid).delete()
                 session.query(SyncState).filter_by(creator_id=creator_uuid).delete()
                 results["deleted"]["sync_data"] = True
@@ -620,7 +675,8 @@ async def delete_creator(creator_name: str):
 
     # Clean up tone profile and RAG
     try:
-        from core.tone_service import delete_tone_profile, clear_cache
+        from core.tone_service import clear_cache, delete_tone_profile
+
         delete_tone_profile(creator_name)
         clear_cache(creator_name)
     except Exception as e:
@@ -628,6 +684,7 @@ async def delete_creator(creator_name: str):
 
     try:
         from core.rag import get_hybrid_rag
+
         rag = get_hybrid_rag()
         rag.delete_by_creator(creator_name)
     except Exception as e:
@@ -653,8 +710,7 @@ async def force_delete_creator(creator_name: str):
         try:
             # Get creator ID first
             result = session.execute(
-                text("SELECT id FROM creators WHERE name = :name"),
-                {"name": creator_name}
+                text("SELECT id FROM creators WHERE name = :name"), {"name": creator_name}
             )
             row = result.fetchone()
             if not row:
@@ -664,9 +720,21 @@ async def force_delete_creator(creator_name: str):
 
             # Delete in order of FK dependencies
             tables_to_clean = [
-                ("messages", "lead_id", f"SELECT id FROM leads WHERE creator_id = '{creator_id}'::uuid"),
-                ("lead_activities", "lead_id", f"SELECT id FROM leads WHERE creator_id = '{creator_id}'::uuid"),
-                ("lead_tasks", "lead_id", f"SELECT id FROM leads WHERE creator_id = '{creator_id}'::uuid"),
+                (
+                    "messages",
+                    "lead_id",
+                    f"SELECT id FROM leads WHERE creator_id = '{creator_id}'::uuid",
+                ),
+                (
+                    "lead_activities",
+                    "lead_id",
+                    f"SELECT id FROM leads WHERE creator_id = '{creator_id}'::uuid",
+                ),
+                (
+                    "lead_tasks",
+                    "lead_id",
+                    f"SELECT id FROM leads WHERE creator_id = '{creator_id}'::uuid",
+                ),
                 ("leads", "creator_id", None),
                 ("products", "creator_id", None),
                 ("nurturing_sequences", "creator_id", None),
@@ -724,7 +792,7 @@ async def nuclear_reset(confirm: str = ""):
         return {
             "error": "Safety check failed",
             "usage": "POST /admin/nuclear-reset?confirm=DELETE_EVERYTHING",
-            "warning": "This will DELETE ALL DATA including creators, leads, messages, products, etc."
+            "warning": "This will DELETE ALL DATA including creators, leads, messages, products, etc.",
         }
 
     if not DEMO_RESET_ENABLED:
@@ -755,7 +823,7 @@ async def nuclear_reset(confirm: str = ""):
                 "user_creators",
                 "rag_documents",
                 "creators",
-                "users"
+                "users",
             ]
 
             for table in tables:
@@ -768,11 +836,7 @@ async def nuclear_reset(confirm: str = ""):
             session.commit()
             logger.warning("NUCLEAR RESET: All data deleted!")
 
-            return {
-                "status": "success",
-                "message": "All data has been deleted",
-                "deleted": deleted
-            }
+            return {"status": "success", "message": "All data has been deleted", "deleted": deleted}
 
         except Exception as e:
             session.rollback()
@@ -794,8 +858,9 @@ async def test_full_sync_conversation(creator_id: str, username: str):
 
     Ejemplo: POST /admin/test-full-sync/manel_bertran_luque/stefanobonanno
     """
-    import httpx
     from datetime import datetime, timedelta
+
+    import httpx
     from api.database import SessionLocal
     from api.models import Creator, Lead, Message
 
@@ -828,11 +893,18 @@ async def test_full_sync_conversation(creator_id: str, username: str):
             # Step 1: Get all conversations to find the one with the target username
             conv_resp = await client.get(
                 f"{api_base}/{conv_id_for_api}/conversations",
-                params={**conv_extra_params, "access_token": access_token, "limit": 50, "fields": "id,updated_time"}
+                params={
+                    **conv_extra_params,
+                    "access_token": access_token,
+                    "limit": 50,
+                    "fields": "id,updated_time",
+                },
             )
 
             if conv_resp.status_code != 200:
-                raise HTTPException(status_code=500, detail=f"Conversations API error: {conv_resp.status_code}")
+                raise HTTPException(
+                    status_code=500, detail=f"Conversations API error: {conv_resp.status_code}"
+                )
 
             conversations = conv_resp.json().get("data", [])
 
@@ -851,8 +923,8 @@ async def test_full_sync_conversation(creator_id: str, username: str):
                     params={
                         "fields": "id,message,from,to,created_time",
                         "access_token": access_token,
-                        "limit": 5
-                    }
+                        "limit": 5,
+                    },
                 )
 
                 if msg_resp.status_code != 200:
@@ -880,7 +952,9 @@ async def test_full_sync_conversation(creator_id: str, username: str):
                     break
 
             if not target_conv_id:
-                raise HTTPException(status_code=404, detail=f"Conversation with {username} not found")
+                raise HTTPException(
+                    status_code=404, detail=f"Conversation with {username} not found"
+                )
 
             # Step 2: Fetch ALL messages with pagination
             # Request extended fields to capture media, stories, reactions, etc.
@@ -889,7 +963,7 @@ async def test_full_sync_conversation(creator_id: str, username: str):
             msg_params = {
                 "fields": "id,message,from,to,created_time,attachments,story,shares,reactions,sticker",
                 "access_token": access_token,
-                "limit": 50
+                "limit": 50,
             }
 
             pages_fetched = 0
@@ -899,7 +973,9 @@ async def test_full_sync_conversation(creator_id: str, username: str):
                 msg_resp = await client.get(msg_url, params=msg_params)
 
                 if msg_resp.status_code != 200:
-                    logger.warning(f"Messages API error {msg_resp.status_code} on page {pages_fetched}")
+                    logger.warning(
+                        f"Messages API error {msg_resp.status_code} on page {pages_fetched}"
+                    )
                     break
 
                 msg_data = msg_resp.json()
@@ -914,20 +990,26 @@ async def test_full_sync_conversation(creator_id: str, username: str):
                     msg_url = next_url
                     msg_params = {}  # Next URL includes params
                     pages_fetched += 1
-                    logger.info(f"[FullSync] Fetched page {pages_fetched}, total messages: {len(all_messages)}")
+                    logger.info(
+                        f"[FullSync] Fetched page {pages_fetched}, total messages: {len(all_messages)}"
+                    )
                 else:
                     break
 
-            logger.info(f"[FullSync] Total pages: {pages_fetched + 1}, total messages: {len(all_messages)}")
+            logger.info(
+                f"[FullSync] Total pages: {pages_fetched + 1}, total messages: {len(all_messages)}"
+            )
 
             # Step 3: Get or create lead
             days_limit_ago = datetime.now().astimezone() - timedelta(days=180)
 
-            lead = session.query(Lead).filter_by(
-                creator_id=creator.id,
-                platform="instagram",
-                platform_user_id=target_follower_id
-            ).first()
+            lead = (
+                session.query(Lead)
+                .filter_by(
+                    creator_id=creator.id, platform="instagram", platform_user_id=target_follower_id
+                )
+                .first()
+            )
 
             if not lead:
                 lead = Lead(
@@ -935,7 +1017,7 @@ async def test_full_sync_conversation(creator_id: str, username: str):
                     platform="instagram",
                     platform_user_id=target_follower_id,
                     username=username,
-                    status="new"
+                    status="new",
                 )
                 session.add(lead)
                 session.commit()
@@ -945,7 +1027,15 @@ async def test_full_sync_conversation(creator_id: str, username: str):
             skipped_duplicate = 0
             skipped_old = 0
             skipped_no_id = 0
-            content_types = {"text": 0, "attachment": 0, "story": 0, "share": 0, "reaction": 0, "sticker": 0, "unknown": 0}
+            content_types = {
+                "text": 0,
+                "attachment": 0,
+                "story": 0,
+                "share": 0,
+                "reaction": 0,
+                "sticker": 0,
+                "unknown": 0,
+            }
 
             for msg in all_messages:
                 msg_id = msg.get("id")
@@ -1003,7 +1093,11 @@ async def test_full_sync_conversation(creator_id: str, username: str):
                     if shares:
                         share = shares[0]
                         share_link = share.get("link", "")
-                        msg_text = f"[Compartido: {share_link}]" if share_link else "[Contenido compartido]"
+                        msg_text = (
+                            f"[Compartido: {share_link}]"
+                            if share_link
+                            else "[Contenido compartido]"
+                        )
                         metadata["type"] = "share"
                         metadata["url"] = share_link
                     else:
@@ -1037,7 +1131,9 @@ async def test_full_sync_conversation(creator_id: str, username: str):
                 msg_time = None
                 if msg.get("created_time"):
                     try:
-                        msg_time = datetime.fromisoformat(msg["created_time"].replace("+0000", "+00:00"))
+                        msg_time = datetime.fromisoformat(
+                            msg["created_time"].replace("+0000", "+00:00")
+                        )
                         if msg_time < days_limit_ago:
                             skipped_old += 1
                             continue
@@ -1059,7 +1155,7 @@ async def test_full_sync_conversation(creator_id: str, username: str):
                     role=role,
                     content=msg_text,
                     platform_message_id=msg_id,
-                    msg_metadata=metadata if metadata else {}
+                    msg_metadata=metadata if metadata else {},
                 )
                 if msg_time:
                     new_msg.created_at = msg_time
@@ -1069,7 +1165,9 @@ async def test_full_sync_conversation(creator_id: str, username: str):
             session.commit()
 
             # Update lead timestamps
-            lead_messages = session.query(Message).filter_by(lead_id=lead.id).order_by(Message.created_at).all()
+            lead_messages = (
+                session.query(Message).filter_by(lead_id=lead.id).order_by(Message.created_at).all()
+            )
             if lead_messages:
                 lead.first_contact_at = lead_messages[0].created_at
                 lead.last_contact_at = lead_messages[-1].created_at
@@ -1087,7 +1185,7 @@ async def test_full_sync_conversation(creator_id: str, username: str):
                 "skipped_old": skipped_old,
                 "skipped_no_id": skipped_no_id,
                 "content_types": content_types,
-                "lead_id": str(lead.id)
+                "lead_id": str(lead.id),
             }
 
     except HTTPException:
@@ -1095,6 +1193,7 @@ async def test_full_sync_conversation(creator_id: str, username: str):
     except Exception as e:
         logger.error(f"[FullSync] Error: {e}")
         import traceback
+
         traceback.print_exc()
         raise HTTPException(status_code=500, detail=str(e))
     finally:
@@ -1138,11 +1237,19 @@ async def debug_raw_messages(creator_id: str, username: str):
             # Get conversations
             conv_resp = await client.get(
                 f"{api_base}/{conv_id_for_api}/conversations",
-                params={**conv_extra_params, "access_token": access_token, "limit": 20, "fields": "id,updated_time"}
+                params={
+                    **conv_extra_params,
+                    "access_token": access_token,
+                    "limit": 20,
+                    "fields": "id,updated_time",
+                },
             )
 
             if conv_resp.status_code != 200:
-                return {"error": f"Conversations API error: {conv_resp.status_code}", "response": conv_resp.text}
+                return {
+                    "error": f"Conversations API error: {conv_resp.status_code}",
+                    "response": conv_resp.text,
+                }
 
             conversations = conv_resp.json().get("data", [])
 
@@ -1158,8 +1265,8 @@ async def debug_raw_messages(creator_id: str, username: str):
                     params={
                         "fields": "id,message,from,to,created_time",
                         "access_token": access_token,
-                        "limit": 3
-                    }
+                        "limit": 3,
+                    },
                 )
                 if msg_resp.status_code == 200:
                     for msg in msg_resp.json().get("data", []):
@@ -1182,11 +1289,13 @@ async def debug_raw_messages(creator_id: str, username: str):
                 params={
                     "fields": "id,message,from,to,created_time,attachments,story,shares,reactions,sticker,is_unsupported",
                     "access_token": access_token,
-                    "limit": 20
-                }
+                    "limit": 20,
+                },
             )
 
-            raw_messages = msg_resp.json() if msg_resp.status_code == 200 else {"error": msg_resp.text}
+            raw_messages = (
+                msg_resp.json() if msg_resp.status_code == 200 else {"error": msg_resp.text}
+            )
 
             # Analyze what fields are present in each message
             field_analysis = []
@@ -1194,14 +1303,16 @@ async def debug_raw_messages(creator_id: str, username: str):
                 analysis = {
                     "id": msg.get("id", "")[:20] + "...",
                     "has_message_text": bool(msg.get("message")),
-                    "message_preview": (msg.get("message", "")[:50] + "...") if msg.get("message") else None,
+                    "message_preview": (
+                        (msg.get("message", "")[:50] + "...") if msg.get("message") else None
+                    ),
                     "has_attachments": bool(msg.get("attachments")),
                     "has_story": bool(msg.get("story")),
                     "has_shares": bool(msg.get("shares")),
                     "has_reactions": bool(msg.get("reactions")),
                     "has_sticker": bool(msg.get("sticker")),
                     "is_unsupported": msg.get("is_unsupported"),
-                    "all_keys": list(msg.keys())
+                    "all_keys": list(msg.keys()),
                 }
                 if msg.get("attachments"):
                     analysis["attachments_data"] = msg.get("attachments")
@@ -1216,7 +1327,7 @@ async def debug_raw_messages(creator_id: str, username: str):
                 "username": username,
                 "total_messages": len(raw_messages.get("data", [])),
                 "field_analysis": field_analysis,
-                "raw_messages": raw_messages.get("data", [])[:5]  # First 5 raw messages
+                "raw_messages": raw_messages.get("data", [])[:5],  # First 5 raw messages
             }
 
     finally:
@@ -1236,13 +1347,19 @@ async def run_email_capture_migration():
         session = SessionLocal()
         try:
             # Add email_capture_config column
-            session.execute(text("""
+            session.execute(
+                text(
+                    """
                 ALTER TABLE creators
                 ADD COLUMN IF NOT EXISTS email_capture_config JSONB DEFAULT NULL
-            """))
+            """
+                )
+            )
 
             # Create unified_profiles table
-            session.execute(text("""
+            session.execute(
+                text(
+                    """
                 CREATE TABLE IF NOT EXISTS unified_profiles (
                     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
                     email VARCHAR(255) UNIQUE NOT NULL,
@@ -1251,10 +1368,14 @@ async def run_email_capture_migration():
                     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
                     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
                 )
-            """))
+            """
+                )
+            )
 
             # Create platform_identities table
-            session.execute(text("""
+            session.execute(
+                text(
+                    """
                 CREATE TABLE IF NOT EXISTS platform_identities (
                     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
                     unified_profile_id UUID REFERENCES unified_profiles(id),
@@ -1264,16 +1385,24 @@ async def run_email_capture_migration():
                     username VARCHAR(255),
                     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
                 )
-            """))
+            """
+                )
+            )
 
             # Create unique index
-            session.execute(text("""
+            session.execute(
+                text(
+                    """
                 CREATE UNIQUE INDEX IF NOT EXISTS idx_platform_identity_unique
                 ON platform_identities(platform, platform_user_id)
-            """))
+            """
+                )
+            )
 
             # Create email_ask_tracking table
-            session.execute(text("""
+            session.execute(
+                text(
+                    """
                 CREATE TABLE IF NOT EXISTS email_ask_tracking (
                     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
                     creator_id UUID REFERENCES creators(id),
@@ -1286,13 +1415,19 @@ async def run_email_capture_migration():
                     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
                     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
                 )
-            """))
+            """
+                )
+            )
 
             # Create index for fast lookups
-            session.execute(text("""
+            session.execute(
+                text(
+                    """
                 CREATE INDEX IF NOT EXISTS idx_email_ask_tracking_lookup
                 ON email_ask_tracking(platform, platform_user_id)
-            """))
+            """
+                )
+            )
 
             session.commit()
             logger.info("Email capture migration completed successfully")
@@ -1300,24 +1435,15 @@ async def run_email_capture_migration():
             return {
                 "status": "success",
                 "message": "Migration completed",
-                "tables_created": [
-                    "unified_profiles",
-                    "platform_identities",
-                    "email_ask_tracking"
-                ],
-                "columns_added": [
-                    "creators.email_capture_config"
-                ]
+                "tables_created": ["unified_profiles", "platform_identities", "email_ask_tracking"],
+                "columns_added": ["creators.email_capture_config"],
             }
         finally:
             session.close()
 
     except Exception as e:
         logger.error(f"Migration failed: {e}")
-        return {
-            "status": "error",
-            "error": str(e)
-        }
+        return {"status": "error", "error": str(e)}
 
 
 @router.post("/refresh-all-tokens")
@@ -1331,25 +1457,19 @@ async def refresh_all_instagram_tokens():
     Los tokens long-lived duran 60 días y se pueden refrescar indefinidamente.
     """
     try:
-        from core.token_refresh_service import refresh_all_creator_tokens
         from api.database import SessionLocal
+        from core.token_refresh_service import refresh_all_creator_tokens
 
         session = SessionLocal()
         try:
             result = await refresh_all_creator_tokens(session)
-            return {
-                "status": "success",
-                **result
-            }
+            return {"status": "success", **result}
         finally:
             session.close()
 
     except Exception as e:
         logger.error(f"Token refresh failed: {e}")
-        return {
-            "status": "error",
-            "error": str(e)
-        }
+        return {"status": "error", "error": str(e)}
 
 
 @router.post("/refresh-token/{creator_id}")
@@ -1364,25 +1484,19 @@ async def refresh_creator_token(creator_id: str):
         Estado del refresh (success/skip/error)
     """
     try:
-        from core.token_refresh_service import check_and_refresh_if_needed
         from api.database import SessionLocal
+        from core.token_refresh_service import check_and_refresh_if_needed
 
         session = SessionLocal()
         try:
             result = await check_and_refresh_if_needed(creator_id, session)
-            return {
-                "status": "success" if result.get("success") else "error",
-                **result
-            }
+            return {"status": "success" if result.get("success") else "error", **result}
         finally:
             session.close()
 
     except Exception as e:
         logger.error(f"Token refresh failed for {creator_id}: {e}")
-        return {
-            "status": "error",
-            "error": str(e)
-        }
+        return {"status": "error", "error": str(e)}
 
 
 @router.post("/exchange-token/{creator_id}")
@@ -1400,8 +1514,8 @@ async def exchange_short_lived_token(creator_id: str, short_lived_token: str):
         Nuevo token long-lived y fecha de expiración
     """
     try:
-        from core.token_refresh_service import exchange_for_long_lived_token
         from api.database import SessionLocal
+        from core.token_refresh_service import exchange_for_long_lived_token
         from sqlalchemy import text
 
         # Exchange token
@@ -1410,24 +1524,26 @@ async def exchange_short_lived_token(creator_id: str, short_lived_token: str):
         if not new_token_data:
             return {
                 "status": "error",
-                "error": "Failed to exchange token. Check META_APP_SECRET is configured."
+                "error": "Failed to exchange token. Check META_APP_SECRET is configured.",
             }
 
         # Save to database
         session = SessionLocal()
         try:
             session.execute(
-                text("""
+                text(
+                    """
                     UPDATE creators
                     SET instagram_token = :token,
                         instagram_token_expires_at = :expires_at
                     WHERE id::text = :cid OR name = :cid
-                """),
+                """
+                ),
                 {
                     "token": new_token_data["token"],
                     "expires_at": new_token_data["expires_at"],
-                    "cid": creator_id
-                }
+                    "cid": creator_id,
+                },
             )
             session.commit()
 
@@ -1435,17 +1551,14 @@ async def exchange_short_lived_token(creator_id: str, short_lived_token: str):
                 "status": "success",
                 "token_prefix": new_token_data["token"][:20] + "...",
                 "expires_at": new_token_data["expires_at"].isoformat(),
-                "expires_in_days": new_token_data["expires_in"] // 86400
+                "expires_in_days": new_token_data["expires_in"] // 86400,
             }
         finally:
             session.close()
 
     except Exception as e:
         logger.error(f"Token exchange failed for {creator_id}: {e}")
-        return {
-            "status": "error",
-            "error": str(e)
-        }
+        return {"status": "error", "error": str(e)}
 
 
 @router.post("/set-token/{creator_id}")
@@ -1470,22 +1583,26 @@ async def set_creator_token(creator_id: str, token: str, instagram_user_id: str 
             # Build update query
             if instagram_user_id:
                 session.execute(
-                    text("""
+                    text(
+                        """
                         UPDATE creators
                         SET instagram_token = :token,
                             instagram_user_id = :ig_user_id
                         WHERE name = :cid
-                    """),
-                    {"token": token, "ig_user_id": instagram_user_id, "cid": creator_id}
+                    """
+                    ),
+                    {"token": token, "ig_user_id": instagram_user_id, "cid": creator_id},
                 )
             else:
                 session.execute(
-                    text("""
+                    text(
+                        """
                         UPDATE creators
                         SET instagram_token = :token
                         WHERE name = :cid
-                    """),
-                    {"token": token, "cid": creator_id}
+                    """
+                    ),
+                    {"token": token, "cid": creator_id},
                 )
             session.commit()
 
@@ -1493,7 +1610,7 @@ async def set_creator_token(creator_id: str, token: str, instagram_user_id: str 
                 "status": "success",
                 "creator_id": creator_id,
                 "token_prefix": token[:20] + "...",
-                "instagram_user_id": instagram_user_id
+                "instagram_user_id": instagram_user_id,
             }
         finally:
             session.close()
@@ -1530,9 +1647,11 @@ async def set_page_access_token(creator_id: str, token: str):
 
         session = SessionLocal()
         try:
-            creator = session.query(Creator).filter(
-                (Creator.name == creator_id) | (Creator.id == creator_id)
-            ).first()
+            creator = (
+                session.query(Creator)
+                .filter((Creator.name == creator_id) | (Creator.id == creator_id))
+                .first()
+            )
 
             if not creator:
                 return {"status": "error", "error": f"Creator {creator_id} not found"}
@@ -1548,8 +1667,12 @@ async def set_page_access_token(creator_id: str, token: str):
                 "creator_id": creator_id,
                 "old_token_prefix": old_prefix,
                 "new_token_prefix": token[:15] + "...",
-                "token_type": "PAGE (EAA)" if token.startswith("EAA") else "INSTAGRAM (IGAAT)" if token.startswith("IGAAT") else "UNKNOWN",
-                "valid_for_messaging": token.startswith("EAA")
+                "token_type": (
+                    "PAGE (EAA)"
+                    if token.startswith("EAA")
+                    else "INSTAGRAM (IGAAT)" if token.startswith("IGAAT") else "UNKNOWN"
+                ),
+                "valid_for_messaging": token.startswith("EAA"),
             }
         finally:
             session.close()
@@ -1566,10 +1689,11 @@ async def get_demo_status():
 
     try:
         from api.database import DATABASE_URL, SessionLocal
+
         if DATABASE_URL and SessionLocal:
             session = SessionLocal()
             try:
-                from api.models import Creator, Lead, Message, Product, NurturingSequence
+                from api.models import Creator, Lead, Message, NurturingSequence, Product
 
                 counts["creators"] = session.query(Creator).count()
                 counts["leads"] = session.query(Lead).count()
@@ -1597,6 +1721,7 @@ async def get_demo_status():
     # Check tone profiles
     try:
         from core.tone_service import list_profiles
+
         counts["tone_profiles"] = list_profiles()
     except Exception as e:
         counts["tone_profiles_error"] = str(e)
@@ -1604,6 +1729,7 @@ async def get_demo_status():
     # Check RAG documents
     try:
         from core.rag import get_hybrid_rag
+
         rag = get_hybrid_rag()
         counts["rag_documents"] = rag.count()
     except Exception as e:
@@ -1615,8 +1741,8 @@ async def get_demo_status():
         "endpoints": {
             "reset_all": "POST /admin/reset-db",
             "reset_creator": "POST /admin/reset-creator/{creator_id}",
-            "demo_status": "GET /admin/demo-status"
-        }
+            "demo_status": "GET /admin/demo-status",
+        },
     }
 
 
@@ -1641,21 +1767,24 @@ async def rescore_leads(creator_id: str):
     try:
         from api.database import SessionLocal
         from api.models import Creator, Lead, Message
-        from sqlalchemy import text
         from core.lead_categorization import (
+            CATEGORIAS_CONFIG,
             calcular_categoria,
             categoria_a_status_legacy,
-            CATEGORIAS_CONFIG
         )
+        from sqlalchemy import text
 
         session = SessionLocal()
         try:
             # Get creator
             creator = session.query(Creator).filter_by(name=creator_id).first()
             if not creator:
-                creator = session.query(Creator).filter(
-                    text("id::text = :cid")
-                ).params(cid=creator_id).first()
+                creator = (
+                    session.query(Creator)
+                    .filter(text("id::text = :cid"))
+                    .params(cid=creator_id)
+                    .first()
+                )
 
             if not creator:
                 return {"status": "error", "error": f"Creator not found: {creator_id}"}
@@ -1670,19 +1799,21 @@ async def rescore_leads(creator_id: str):
                     "interesado": 0,
                     "caliente": 0,
                     "cliente": 0,
-                    "fantasma": 0
+                    "fantasma": 0,
                 },
-                "details": []
+                "details": [],
             }
 
             for lead in leads:
-                messages = session.query(Message).filter_by(lead_id=lead.id).order_by(Message.created_at).all()
+                messages = (
+                    session.query(Message)
+                    .filter_by(lead_id=lead.id)
+                    .order_by(Message.created_at)
+                    .all()
+                )
 
                 # Convertir a formato esperado por calcular_categoria
-                mensajes_dict = [
-                    {"role": m.role, "content": m.content or ""}
-                    for m in messages
-                ]
+                mensajes_dict = [{"role": m.role, "content": m.content or ""} for m in messages]
 
                 # Obtener último mensaje del lead para detectar fantasma
                 mensajes_usuario = [m for m in messages if m.role == "user"]
@@ -1692,7 +1823,11 @@ async def rescore_leads(creator_id: str):
                 ultima_interaccion = messages[-1].created_at if messages else None
 
                 # Verificar si es cliente (por ahora manual, luego webhook)
-                es_cliente = getattr(lead, 'has_purchased', False) if hasattr(lead, 'has_purchased') else False
+                es_cliente = (
+                    getattr(lead, "has_purchased", False)
+                    if hasattr(lead, "has_purchased")
+                    else False
+                )
 
                 # Calcular categoría
                 # IMPORTANTE: NO usar lead.last_contact_at como fallback porque
@@ -1704,7 +1839,7 @@ async def rescore_leads(creator_id: str):
                     ultimo_mensaje_lead=ultimo_msg_lead,
                     dias_fantasma=7,
                     lead_created_at=lead.first_contact_at,
-                    ultima_interaccion=ultima_interaccion
+                    ultima_interaccion=ultima_interaccion,
                 )
 
                 # Convertir a status legacy para compatibilidad con frontend actual
@@ -1720,28 +1855,28 @@ async def rescore_leads(creator_id: str):
                 stats["leads_updated"] += 1
                 stats["por_categoria"][resultado.categoria] += 1
 
-                stats["details"].append({
-                    "username": lead.username,
-                    "categoria": resultado.categoria,
-                    "status_legacy": new_status,
-                    "old_status": old_status,
-                    "intent_score": resultado.intent_score,
-                    "old_intent": old_intent,
-                    "razones": resultado.razones,
-                    "keywords": resultado.keywords_detectados[:5],
-                    "messages_count": len(messages),
-                    "first_contact": str(lead.first_contact_at) if lead.first_contact_at else None,
-                    "last_contact": str(lead.last_contact_at) if lead.last_contact_at else None
-                })
+                stats["details"].append(
+                    {
+                        "username": lead.username,
+                        "categoria": resultado.categoria,
+                        "status_legacy": new_status,
+                        "old_status": old_status,
+                        "intent_score": resultado.intent_score,
+                        "old_intent": old_intent,
+                        "razones": resultado.razones,
+                        "keywords": resultado.keywords_detectados[:5],
+                        "messages_count": len(messages),
+                        "first_contact": (
+                            str(lead.first_contact_at) if lead.first_contact_at else None
+                        ),
+                        "last_contact": str(lead.last_contact_at) if lead.last_contact_at else None,
+                    }
+                )
 
             session.commit()
             logger.info(f"[Rescore] Updated {stats['leads_updated']} leads for {creator_id}")
 
-            return {
-                "status": "success",
-                "creator_id": creator_id,
-                **stats
-            }
+            return {"status": "success", "creator_id": creator_id, **stats}
 
         finally:
             session.close()
@@ -1749,11 +1884,9 @@ async def rescore_leads(creator_id: str):
     except Exception as e:
         logger.error(f"Rescore failed for {creator_id}: {e}")
         import traceback
+
         traceback.print_exc()
-        return {
-            "status": "error",
-            "error": str(e)
-        }
+        return {"status": "error", "error": str(e)}
 
 
 @router.get("/lead-categories")
@@ -1764,10 +1897,8 @@ async def get_lead_categories():
     Retorna colores, iconos, labels y descripciones de cada categoría.
     """
     from core.lead_categorization import CATEGORIAS_CONFIG
-    return {
-        "status": "success",
-        "categories": CATEGORIAS_CONFIG
-    }
+
+    return {"status": "success", "categories": CATEGORIAS_CONFIG}
 
 
 @router.delete("/cleanup-test-leads/{creator_id}")
@@ -1793,15 +1924,19 @@ async def cleanup_test_leads(creator_id: str):
                 return {"status": "error", "error": f"Creator not found: {creator_id}"}
 
             # Find test leads
-            test_leads = session.query(Lead).filter(
-                Lead.creator_id == creator.id,
-                or_(
-                    Lead.username == None,
-                    Lead.username == "",
-                    Lead.username.like("test%"),
-                    Lead.platform_user_id.like("test%")
+            test_leads = (
+                session.query(Lead)
+                .filter(
+                    Lead.creator_id == creator.id,
+                    or_(
+                        Lead.username == None,
+                        Lead.username == "",
+                        Lead.username.like("test%"),
+                        Lead.platform_user_id.like("test%"),
+                    ),
                 )
-            ).all()
+                .all()
+            )
 
             lead_ids = [l.id for l in test_leads]
 
@@ -1810,28 +1945,32 @@ async def cleanup_test_leads(creator_id: str):
                     "status": "success",
                     "message": "No test leads found",
                     "deleted_leads": 0,
-                    "deleted_messages": 0
+                    "deleted_messages": 0,
                 }
 
             # Delete messages first (foreign key)
-            deleted_messages = session.query(Message).filter(
-                Message.lead_id.in_(lead_ids)
-            ).delete(synchronize_session=False)
+            deleted_messages = (
+                session.query(Message)
+                .filter(Message.lead_id.in_(lead_ids))
+                .delete(synchronize_session=False)
+            )
 
             # Delete leads
-            deleted_leads = session.query(Lead).filter(
-                Lead.id.in_(lead_ids)
-            ).delete(synchronize_session=False)
+            deleted_leads = (
+                session.query(Lead).filter(Lead.id.in_(lead_ids)).delete(synchronize_session=False)
+            )
 
             session.commit()
 
-            logger.info(f"[Cleanup] Deleted {deleted_leads} test leads and {deleted_messages} messages for {creator_id}")
+            logger.info(
+                f"[Cleanup] Deleted {deleted_leads} test leads and {deleted_messages} messages for {creator_id}"
+            )
 
             return {
                 "status": "success",
                 "creator_id": creator_id,
                 "deleted_leads": deleted_leads,
-                "deleted_messages": deleted_messages
+                "deleted_messages": deleted_messages,
             }
 
         finally:
@@ -1839,10 +1978,7 @@ async def cleanup_test_leads(creator_id: str):
 
     except Exception as e:
         logger.error(f"Cleanup failed for {creator_id}: {e}")
-        return {
-            "status": "error",
-            "error": str(e)
-        }
+        return {"status": "error", "error": str(e)}
 
 
 @router.get("/debug-instagram-api/{creator_id}")
@@ -1879,17 +2015,15 @@ async def debug_instagram_api(creator_id: str):
             "page_id": page_id,
             "api_used": "Facebook" if page_id else "Instagram",
             "conversations": [],
-            "sample_messages": []
+            "sample_messages": [],
         }
 
         async with httpx.AsyncClient(timeout=30.0) as client:
             # Get conversations
             conv_url = f"{api_base}/{conv_id_for_api}/conversations"
-            conv_resp = await client.get(conv_url, params={
-                **conv_extra_params,
-                "access_token": access_token,
-                "limit": 5
-            })
+            conv_resp = await client.get(
+                conv_url, params={**conv_extra_params, "access_token": access_token, "limit": 5}
+            )
 
             if conv_resp.status_code != 200:
                 results["conversations_error"] = conv_resp.json()
@@ -1906,11 +2040,14 @@ async def debug_instagram_api(creator_id: str):
 
                 # Get messages
                 msg_url = f"{api_base}/{conv_id}/messages"
-                msg_resp = await client.get(msg_url, params={
-                    "fields": "id,message,from,to,created_time",
-                    "access_token": access_token,
-                    "limit": 3
-                })
+                msg_resp = await client.get(
+                    msg_url,
+                    params={
+                        "fields": "id,message,from,to,created_time",
+                        "access_token": access_token,
+                        "limit": 3,
+                    },
+                )
 
                 if msg_resp.status_code != 200:
                     conv_info["messages_error"] = msg_resp.json()
@@ -1959,14 +2096,14 @@ async def debug_sync_logic(creator_id: str):
         results = {
             "creator_ids": list(creator_ids),
             "api_base": api_base,
-            "conversations_analysis": []
+            "conversations_analysis": [],
         }
 
         async with httpx.AsyncClient(timeout=30.0) as client:
             # Get conversations
             conv_resp = await client.get(
                 f"{api_base}/{conv_id_for_api}/conversations",
-                params={**conv_extra_params, "access_token": access_token, "limit": 3}
+                params={**conv_extra_params, "access_token": access_token, "limit": 3},
             )
 
             if conv_resp.status_code != 200:
@@ -1980,7 +2117,7 @@ async def debug_sync_logic(creator_id: str):
                     "conv_id": conv_id,
                     "messages_raw": [],
                     "follower_detection": {},
-                    "messages_would_save": []
+                    "messages_would_save": [],
                 }
 
                 # Get messages
@@ -1989,8 +2126,8 @@ async def debug_sync_logic(creator_id: str):
                     params={
                         "fields": "id,message,from,to,created_time",
                         "access_token": access_token,
-                        "limit": 10
-                    }
+                        "limit": 10,
+                    },
                 )
 
                 if msg_resp.status_code != 200:
@@ -2011,14 +2148,16 @@ async def debug_sync_logic(creator_id: str):
                     from_username = from_data.get("username", "unknown")
                     msg_text = msg.get("message", "")
 
-                    conv_analysis["messages_raw"].append({
-                        "id": msg.get("id"),
-                        "from_id": from_id,
-                        "from_username": from_username,
-                        "is_creator": from_id in creator_ids if from_id else "no_from_id",
-                        "has_text": bool(msg_text),
-                        "text_preview": msg_text[:50] if msg_text else "(empty)"
-                    })
+                    conv_analysis["messages_raw"].append(
+                        {
+                            "id": msg.get("id"),
+                            "from_id": from_id,
+                            "from_username": from_username,
+                            "is_creator": from_id in creator_ids if from_id else "no_from_id",
+                            "has_text": bool(msg_text),
+                            "text_preview": msg_text[:50] if msg_text else "(empty)",
+                        }
+                    )
 
                     # Lógica de sync_worker para encontrar follower
                     if from_id and from_id not in creator_ids and not follower_id:
@@ -2029,7 +2168,11 @@ async def debug_sync_logic(creator_id: str):
                     "found": bool(follower_id),
                     "follower_id": follower_id,
                     "follower_username": follower_username,
-                    "reason": "Found non-creator sender" if follower_id else "All senders are in creator_ids or no from.id"
+                    "reason": (
+                        "Found non-creator sender"
+                        if follower_id
+                        else "All senders are in creator_ids or no from.id"
+                    ),
                 }
 
                 # Simular qué mensajes se guardarían
@@ -2041,12 +2184,16 @@ async def debug_sync_logic(creator_id: str):
                     would_save = bool(msg_text) and bool(msg_id)
                     role = "assistant" if from_id in creator_ids else "user"
 
-                    conv_analysis["messages_would_save"].append({
-                        "id": msg_id,
-                        "would_save": would_save,
-                        "skip_reason": None if would_save else ("no_text" if not msg_text else "no_id"),
-                        "role": role
-                    })
+                    conv_analysis["messages_would_save"].append(
+                        {
+                            "id": msg_id,
+                            "would_save": would_save,
+                            "skip_reason": (
+                                None if would_save else ("no_text" if not msg_text else "no_id")
+                            ),
+                            "role": role,
+                        }
+                    )
 
                 results["conversations_analysis"].append(conv_analysis)
 
@@ -2054,6 +2201,7 @@ async def debug_sync_logic(creator_id: str):
 
     except Exception as e:
         import traceback
+
         return {"error": str(e), "traceback": traceback.format_exc()}
 
 
@@ -2083,29 +2231,39 @@ async def debug_orphaned_messages(creator_id: str):
 
             # 3. Mensajes vinculados a leads de este creator
             if lead_ids:
-                creator_messages = session.query(Message).filter(
-                    Message.lead_id.in_([l.id for l in leads])
-                ).count()
+                creator_messages = (
+                    session.query(Message)
+                    .filter(Message.lead_id.in_([l.id for l in leads]))
+                    .count()
+                )
             else:
                 creator_messages = 0
 
             # 4. Mensajes con platform_message_id de Instagram (posibles duplicados)
-            ig_messages = session.query(Message).filter(
-                Message.platform_message_id.like('aWdf%')  # Instagram message IDs start with aWdf
-            ).all()
+            ig_messages = (
+                session.query(Message)
+                .filter(
+                    Message.platform_message_id.like(
+                        "aWdf%"
+                    )  # Instagram message IDs start with aWdf
+                )
+                .all()
+            )
 
             # Analizar a qué leads pertenecen
             orphaned = []
             for msg in ig_messages[:20]:  # Limitar para no sobrecargar
                 lead = session.query(Lead).filter_by(id=msg.lead_id).first()
-                orphaned.append({
-                    "msg_id": str(msg.id)[:8],
-                    "platform_msg_id": msg.platform_message_id[:30] + "...",
-                    "lead_id": str(msg.lead_id)[:8] if msg.lead_id else None,
-                    "lead_exists": lead is not None,
-                    "lead_creator": lead.creator_id == creator.id if lead else False,
-                    "content_preview": msg.content[:30] if msg.content else "(empty)"
-                })
+                orphaned.append(
+                    {
+                        "msg_id": str(msg.id)[:8],
+                        "platform_msg_id": msg.platform_message_id[:30] + "...",
+                        "lead_id": str(msg.lead_id)[:8] if msg.lead_id else None,
+                        "lead_exists": lead is not None,
+                        "lead_creator": lead.creator_id == creator.id if lead else False,
+                        "content_preview": msg.content[:30] if msg.content else "(empty)",
+                    }
+                )
 
             return {
                 "creator_id": creator_id,
@@ -2117,9 +2275,8 @@ async def debug_orphaned_messages(creator_id: str):
                 "diagnosis": (
                     "Messages exist but not linked to current creator's leads"
                     if len(ig_messages) > 0 and creator_messages == 0
-                    else "OK" if creator_messages > 0
-                    else "No messages found"
-                )
+                    else "OK" if creator_messages > 0 else "No messages found"
+                ),
             }
 
         finally:
@@ -2127,6 +2284,7 @@ async def debug_orphaned_messages(creator_id: str):
 
     except Exception as e:
         import traceback
+
         return {"error": str(e), "traceback": traceback.format_exc()}
 
 
@@ -2143,10 +2301,7 @@ async def clean_and_sync(creator_id: str, max_convs: int = 10):
         from api.models import Creator, Lead, Message
 
         session = SessionLocal()
-        results = {
-            "cleaned": {"orphaned_messages": 0},
-            "sync": {}
-        }
+        results = {"cleaned": {"orphaned_messages": 0}, "sync": {}}
 
         try:
             creator = session.query(Creator).filter_by(name=creator_id).first()
@@ -2154,9 +2309,11 @@ async def clean_and_sync(creator_id: str, max_convs: int = 10):
                 return {"error": f"Creator '{creator_id}' not found"}
 
             # 1. Eliminar TODOS los mensajes de Instagram (empezar fresco)
-            deleted = session.query(Message).filter(
-                Message.platform_message_id.like('aWdf%')
-            ).delete(synchronize_session='fetch')
+            deleted = (
+                session.query(Message)
+                .filter(Message.platform_message_id.like("aWdf%"))
+                .delete(synchronize_session="fetch")
+            )
             results["cleaned"]["orphaned_messages"] = deleted
             session.commit()
             logger.info(f"Deleted {deleted} Instagram messages for clean sync")
@@ -2172,6 +2329,7 @@ async def clean_and_sync(creator_id: str, max_convs: int = 10):
 
     except Exception as e:
         import traceback
+
         return {"error": str(e), "traceback": traceback.format_exc()}
 
 
@@ -2183,9 +2341,10 @@ async def simple_dm_sync(creator_id: str, max_convs: int = 10):
     Simple DM sync with rate limiting (2s delay between conversations).
     """
     import asyncio
-    import httpx
     import logging
     from datetime import datetime
+
+    import httpx
     from api.services import db_service
 
     _logger = logging.getLogger(__name__)
@@ -2202,7 +2361,7 @@ async def simple_dm_sync(creator_id: str, max_convs: int = 10):
         "messages_with_attachments": 0,
         "leads_created": 0,
         "errors": [],
-        "rate_limited": False
+        "rate_limited": False,
     }
 
     # First check Instagram credentials using centralized function
@@ -2245,7 +2404,12 @@ async def simple_dm_sync(creator_id: str, max_convs: int = 10):
                 # Get conversations with updated_time
                 conv_resp = await client.get(
                     f"{api_base}/{conv_id_for_api}/conversations",
-                    params={**conv_extra_params, "access_token": access_token, "limit": max_convs, "fields": "id,updated_time"}
+                    params={
+                        **conv_extra_params,
+                        "access_token": access_token,
+                        "limit": max_convs,
+                        "fields": "id,updated_time",
+                    },
                 )
 
                 if conv_resp.status_code != 200:
@@ -2254,10 +2418,7 @@ async def simple_dm_sync(creator_id: str, max_convs: int = 10):
                 conversations = conv_resp.json().get("data", [])
 
                 # REGLA 1: Ordenar por updated_time (más reciente primero)
-                conversations.sort(
-                    key=lambda c: c.get("updated_time", ""),
-                    reverse=True
-                )
+                conversations.sort(key=lambda c: c.get("updated_time", ""), reverse=True)
 
                 for conv_idx, conv in enumerate(conversations):
                     conv_id = conv.get("id")
@@ -2266,7 +2427,9 @@ async def simple_dm_sync(creator_id: str, max_convs: int = 10):
 
                     # Rate limiting: delay between conversations
                     if conv_idx > 0:
-                        _logger.info(f"[DMSync] Rate limit delay: {DELAY_BETWEEN_CONVS}s before conv {conv_idx + 1}/{len(conversations)}")
+                        _logger.info(
+                            f"[DMSync] Rate limit delay: {DELAY_BETWEEN_CONVS}s before conv {conv_idx + 1}/{len(conversations)}"
+                        )
                         await asyncio.sleep(DELAY_BETWEEN_CONVS)
 
                     try:
@@ -2276,15 +2439,17 @@ async def simple_dm_sync(creator_id: str, max_convs: int = 10):
                             params={
                                 "fields": "id,message,from,to,created_time,attachments,story,reactions",
                                 "access_token": access_token,
-                                "limit": 50
-                            }
+                                "limit": 50,
+                            },
                         )
 
                         if msg_resp.status_code != 200:
                             error_data = msg_resp.json().get("error", {})
                             # Check for rate limit
                             if error_data.get("code") in [4, 17]:
-                                results["errors"].append(f"Rate limit hit at conv {results['conversations_processed']}")
+                                results["errors"].append(
+                                    f"Rate limit hit at conv {results['conversations_processed']}"
+                                )
                                 break
                             continue
 
@@ -2328,8 +2493,8 @@ async def simple_dm_sync(creator_id: str, max_convs: int = 10):
                                 f"{api_base}/{follower_id}",
                                 params={
                                     "fields": "id,username,name,profile_pic",
-                                    "access_token": access_token
-                                }
+                                    "access_token": access_token,
+                                },
                             )
                             if profile_resp.status_code == 200:
                                 profile_data = profile_resp.json()
@@ -2341,11 +2506,15 @@ async def simple_dm_sync(creator_id: str, max_convs: int = 10):
                             logger.warning(f"Could not fetch profile for {follower_id}: {e}")
 
                         # Get or create lead
-                        lead = session.query(Lead).filter_by(
-                            creator_id=creator.id,
-                            platform="instagram",
-                            platform_user_id=follower_id
-                        ).first()
+                        lead = (
+                            session.query(Lead)
+                            .filter_by(
+                                creator_id=creator.id,
+                                platform="instagram",
+                                platform_user_id=follower_id,
+                            )
+                            .first()
+                        )
 
                         # Parse conversation updated_time as fallback
                         conv_updated_time = None
@@ -2364,7 +2533,9 @@ async def simple_dm_sync(creator_id: str, max_convs: int = 10):
                         for msg in messages:
                             if msg.get("created_time"):
                                 try:
-                                    ts = datetime.fromisoformat(msg["created_time"].replace("+0000", "+00:00"))
+                                    ts = datetime.fromisoformat(
+                                        msg["created_time"].replace("+0000", "+00:00")
+                                    )
                                     all_msg_timestamps.append(ts)
 
                                     # Solo contar mensajes del follower para last_contact
@@ -2374,9 +2545,13 @@ async def simple_dm_sync(creator_id: str, max_convs: int = 10):
                                 except ValueError:
                                     pass
 
-                        first_msg_time = min(all_msg_timestamps) if all_msg_timestamps else conv_updated_time
+                        first_msg_time = (
+                            min(all_msg_timestamps) if all_msg_timestamps else conv_updated_time
+                        )
                         # IMPORTANTE: usar último mensaje del USUARIO para fantasma
-                        last_user_msg_time = max(user_msg_timestamps) if user_msg_timestamps else first_msg_time
+                        last_user_msg_time = (
+                            max(user_msg_timestamps) if user_msg_timestamps else first_msg_time
+                        )
 
                         if not lead:
                             lead = Lead(
@@ -2388,17 +2563,22 @@ async def simple_dm_sync(creator_id: str, max_convs: int = 10):
                                 status="new",
                                 first_contact_at=first_msg_time,
                                 # IMPORTANTE: usar último mensaje del USUARIO para fantasma
-                                last_contact_at=last_user_msg_time or first_msg_time
+                                last_contact_at=last_user_msg_time or first_msg_time,
                             )
                             session.add(lead)
                             session.commit()
                             results["leads_created"] += 1
                         else:
                             # Update timestamps if we have older/newer messages
-                            if first_msg_time and (not lead.first_contact_at or first_msg_time < lead.first_contact_at):
+                            if first_msg_time and (
+                                not lead.first_contact_at or first_msg_time < lead.first_contact_at
+                            ):
                                 lead.first_contact_at = first_msg_time
                             # IMPORTANTE: solo actualizar si hay mensaje del USUARIO más reciente
-                            if last_user_msg_time and (not lead.last_contact_at or last_user_msg_time > lead.last_contact_at):
+                            if last_user_msg_time and (
+                                not lead.last_contact_at
+                                or last_user_msg_time > lead.last_contact_at
+                            ):
                                 lead.last_contact_at = last_user_msg_time
                             # Update profile pic if we got one and lead doesn't have it
                             if follower_profile_pic and not lead.profile_pic_url:
@@ -2407,6 +2587,7 @@ async def simple_dm_sync(creator_id: str, max_convs: int = 10):
 
                         # REGLA 2: Calcular límite de 90 días
                         from datetime import timedelta
+
                         # 180 days for initial import (captures more valuable conversations)
                         days_limit_ago = datetime.now().astimezone() - timedelta(days=180)
 
@@ -2444,7 +2625,11 @@ async def simple_dm_sync(creator_id: str, max_convs: int = 10):
                                 # Construir mensaje según combinación
                                 if story_type and reaction_emoji:
                                     msg_text = f"Reacción {reaction_emoji} a story"
-                                    msg_metadata = {"type": "story_reaction", "url": story_link, "emoji": reaction_emoji}
+                                    msg_metadata = {
+                                        "type": "story_reaction",
+                                        "url": story_link,
+                                        "emoji": reaction_emoji,
+                                    }
                                 elif story_type == "reply_to":
                                     msg_text = "Respuesta a story"
                                     msg_metadata = {"type": "story_reply", "url": story_link}
@@ -2467,7 +2652,7 @@ async def simple_dm_sync(creator_id: str, max_convs: int = 10):
                                             "url": share_data.get("link", ""),
                                             "thumbnail_url": share_data.get("image_url", ""),
                                             "name": share_data.get("name", ""),
-                                            "description": share_data.get("description", "")
+                                            "description": share_data.get("description", ""),
                                         }
                                     else:
                                         attachments = msg.get("attachments", {}).get("data", [])
@@ -2483,7 +2668,9 @@ async def simple_dm_sync(creator_id: str, max_convs: int = 10):
                                                 has_image = att.get("image_data") is not None
                                                 has_audio = att.get("audio_data") is not None
                                                 is_sticker = att.get("render_as_sticker", False)
-                                                is_animated = att.get("animated_gif_url") is not None
+                                                is_animated = (
+                                                    att.get("animated_gif_url") is not None
+                                                )
 
                                                 # Get URL based on structure
                                                 if has_video:
@@ -2507,17 +2694,31 @@ async def simple_dm_sync(creator_id: str, max_convs: int = 10):
                                                     gif_url = att.get("animated_gif_url") or att_url
                                                     msg_text = "GIF"
                                                     msg_metadata = {"type": "gif", "url": gif_url}
-                                                elif "share" in att_type or "post" in att_type or "media_share" in att_type:
+                                                elif (
+                                                    "share" in att_type
+                                                    or "post" in att_type
+                                                    or "media_share" in att_type
+                                                ):
                                                     # Shared post (explicit type)
-                                                    post_url = att.get("target", {}).get("url") or att_url
-                                                    thumbnail_url = att.get("image_data", {}).get("url") if att.get("image_data") else att.get("preview_url")
+                                                    post_url = (
+                                                        att.get("target", {}).get("url") or att_url
+                                                    )
+                                                    thumbnail_url = (
+                                                        att.get("image_data", {}).get("url")
+                                                        if att.get("image_data")
+                                                        else att.get("preview_url")
+                                                    )
                                                     msg_text = "Post compartido"
                                                     msg_metadata = {
                                                         "type": "shared_post",
                                                         "url": post_url,
-                                                        "thumbnail_url": thumbnail_url
+                                                        "thumbnail_url": thumbnail_url,
                                                     }
-                                                elif "image" in att_type or "photo" in att_type or has_image:
+                                                elif (
+                                                    "image" in att_type
+                                                    or "photo" in att_type
+                                                    or has_image
+                                                ):
                                                     msg_text = "Imagen"
                                                     msg_metadata = {"type": "image", "url": att_url}
                                                 elif "link" in att_type:
@@ -2537,7 +2738,9 @@ async def simple_dm_sync(creator_id: str, max_convs: int = 10):
                             msg_time_str = msg.get("created_time")
                             if msg_time_str:
                                 try:
-                                    msg_timestamp = datetime.fromisoformat(msg_time_str.replace("+0000", "+00:00"))
+                                    msg_timestamp = datetime.fromisoformat(
+                                        msg_time_str.replace("+0000", "+00:00")
+                                    )
                                     if msg_timestamp < days_limit_ago:
                                         results["messages_filtered_180days"] += 1
                                         continue  # Skip messages older than 180 days
@@ -2549,9 +2752,9 @@ async def simple_dm_sync(creator_id: str, max_convs: int = 10):
                                 results["messages_with_attachments"] += 1
 
                             # Check if already exists
-                            existing = session.query(Message).filter_by(
-                                platform_message_id=msg_id
-                            ).first()
+                            existing = (
+                                session.query(Message).filter_by(platform_message_id=msg_id).first()
+                            )
 
                             if existing:
                                 results["messages_duplicate"] += 1
@@ -2565,14 +2768,16 @@ async def simple_dm_sync(creator_id: str, max_convs: int = 10):
                             # LINK PREVIEW: Enhance metadata with thumbnails for shared content
                             url_to_preview = detect_url_in_metadata(msg_metadata)
                             if url_to_preview:
-                                msg_metadata = await generate_link_preview(url_to_preview, msg_metadata)
+                                msg_metadata = await generate_link_preview(
+                                    url_to_preview, msg_metadata
+                                )
 
                             new_msg = Message(
                                 lead_id=lead.id,
                                 role=role,
                                 content=msg_text,
                                 platform_message_id=msg_id,
-                                msg_metadata=msg_metadata if msg_metadata else {}
+                                msg_metadata=msg_metadata if msg_metadata else {},
                             )
 
                             # Parse timestamp
@@ -2595,27 +2800,43 @@ async def simple_dm_sync(creator_id: str, max_convs: int = 10):
                         # Auto-categorizar lead después de guardar mensajes
                         if messages_saved_this_conv > 0:
                             try:
-                                from core.lead_categorization import calcular_categoria, categoria_a_status_legacy
+                                from core.lead_categorization import (
+                                    calcular_categoria,
+                                    categoria_a_status_legacy,
+                                )
 
                                 # Obtener mensajes del lead para categorización
-                                lead_messages = session.query(Message).filter_by(lead_id=lead.id).order_by(Message.created_at).all()
-                                mensajes_para_cat = [{"role": m.role, "content": m.content or ""} for m in lead_messages]
+                                lead_messages = (
+                                    session.query(Message)
+                                    .filter_by(lead_id=lead.id)
+                                    .order_by(Message.created_at)
+                                    .all()
+                                )
+                                mensajes_para_cat = [
+                                    {"role": m.role, "content": m.content or ""}
+                                    for m in lead_messages
+                                ]
 
                                 # Calcular categoría
                                 cat_result = calcular_categoria(
                                     mensajes=mensajes_para_cat,
                                     es_cliente=lead.status == "customer",
                                     ultimo_mensaje_lead=lead.last_contact_at,
-                                    lead_created_at=lead.first_contact_at
+                                    lead_created_at=lead.first_contact_at,
                                 )
 
                                 # Actualizar lead
                                 new_status = categoria_a_status_legacy(cat_result.categoria)
-                                if lead.status != new_status or lead.purchase_intent != cat_result.intent_score:
+                                if (
+                                    lead.status != new_status
+                                    or lead.purchase_intent != cat_result.intent_score
+                                ):
                                     lead.status = new_status
                                     lead.purchase_intent = cat_result.intent_score
                                     session.commit()
-                                    logger.info(f"Lead {lead.username} auto-categorizado: {cat_result.categoria} (intent: {cat_result.intent_score:.2f})")
+                                    logger.info(
+                                        f"Lead {lead.username} auto-categorizado: {cat_result.categoria} (intent: {cat_result.intent_score:.2f})"
+                                    )
 
                             except Exception as cat_error:
                                 logger.warning(f"Error en auto-categorización: {cat_error}")
@@ -2631,6 +2852,7 @@ async def simple_dm_sync(creator_id: str, max_convs: int = 10):
 
     except Exception as e:
         import traceback
+
         traceback.print_exc()
         return {"error": str(e), **results}
 
@@ -2658,7 +2880,7 @@ async def generate_thumbnails(creator_id: str, limit: int = 10):
 
         # Try to import screenshot service
         try:
-            from api.services.screenshot_service import ScreenshotService, PLAYWRIGHT_AVAILABLE
+            from api.services.screenshot_service import PLAYWRIGHT_AVAILABLE, ScreenshotService
         except ImportError:
             return {"error": "Screenshot service not available", "playwright_available": False}
 
@@ -2666,11 +2888,7 @@ async def generate_thumbnails(creator_id: str, limit: int = 10):
             return {"error": "Playwright not installed", "playwright_available": False}
 
         session = SessionLocal()
-        results = {
-            "thumbnails_generated": 0,
-            "thumbnails_failed": 0,
-            "messages_processed": 0
-        }
+        results = {"thumbnails_generated": 0, "thumbnails_failed": 0, "messages_processed": 0}
 
         try:
             # Get creator
@@ -2686,9 +2904,7 @@ async def generate_thumbnails(creator_id: str, limit: int = 10):
                 return {"error": "No leads found for creator"}
 
             # Query messages that need thumbnails
-            messages = session.query(Message).filter(
-                Message.lead_id.in_(lead_ids)
-            ).all()
+            messages = session.query(Message).filter(Message.lead_id.in_(lead_ids)).all()
 
             processed = 0
             for msg in messages:
@@ -2733,6 +2949,7 @@ async def generate_thumbnails(creator_id: str, limit: int = 10):
 
     except Exception as e:
         import traceback
+
         traceback.print_exc()
         return {"error": str(e)}
 
@@ -2772,9 +2989,11 @@ async def clear_messages(creator_id: str):
                 return {"status": "ok", "messages_deleted": 0, "message": "No leads found"}
 
             # Delete all messages for these leads
-            deleted_count = session.query(Message).filter(
-                Message.lead_id.in_(lead_ids)
-            ).delete(synchronize_session=False)
+            deleted_count = (
+                session.query(Message)
+                .filter(Message.lead_id.in_(lead_ids))
+                .delete(synchronize_session=False)
+            )
 
             session.commit()
 
@@ -2782,7 +3001,7 @@ async def clear_messages(creator_id: str):
                 "status": "success",
                 "messages_deleted": deleted_count,
                 "leads_count": len(lead_ids),
-                "creator": creator_id
+                "creator": creator_id,
             }
 
         finally:
@@ -2790,6 +3009,7 @@ async def clear_messages(creator_id: str):
 
     except Exception as e:
         import traceback
+
         traceback.print_exc()
         return {"error": str(e)}
 
@@ -2800,16 +3020,18 @@ async def insert_test_shared_post(creator_id: str, lead_id: str):
     Insert a test shared_post message with thumbnail for frontend testing.
     """
     try:
+        import uuid
+        from datetime import datetime, timezone
+
         from api.database import DATABASE_URL, SessionLocal
         from api.models import Creator, Lead, Message
-        from datetime import datetime, timezone
-        import uuid
 
         if not DATABASE_URL or not SessionLocal:
             return {"error": "Database not configured"}
 
         # Get a real Instagram preview
         from api.services.screenshot_service import get_microlink_preview
+
         test_url = "https://www.instagram.com/p/C3xK7ZmOQVz/"
         preview = await get_microlink_preview(test_url)
 
@@ -2831,7 +3053,7 @@ async def insert_test_shared_post(creator_id: str, lead_id: str):
                 "url": test_url,
                 "thumbnail_url": preview.get("thumbnail_url") if preview else None,
                 "title": preview.get("title") if preview else "Instagram Post",
-                "author": preview.get("author") if preview else None
+                "author": preview.get("author") if preview else None,
             }
 
             test_msg = Message(
@@ -2839,7 +3061,7 @@ async def insert_test_shared_post(creator_id: str, lead_id: str):
                 role="user",
                 content="Mira este post! 👀",
                 msg_metadata=msg_metadata,
-                created_at=datetime.now(timezone.utc)
+                created_at=datetime.now(timezone.utc),
             )
             session.add(test_msg)
             session.commit()
@@ -2848,7 +3070,7 @@ async def insert_test_shared_post(creator_id: str, lead_id: str):
                 "status": "success",
                 "message_id": str(test_msg.id),
                 "metadata": msg_metadata,
-                "lead_username": lead.username
+                "lead_username": lead.username,
             }
 
         finally:
@@ -2856,6 +3078,7 @@ async def insert_test_shared_post(creator_id: str, lead_id: str):
 
     except Exception as e:
         import traceback
+
         traceback.print_exc()
         return {"error": str(e)}
 
@@ -2863,6 +3086,7 @@ async def insert_test_shared_post(creator_id: str, lead_id: str):
 # =============================================================================
 # SYNC QUEUE SYSTEM - Sincronización inteligente con rate limiting
 # =============================================================================
+
 
 @router.post("/start-sync/{creator_id}")
 async def start_sync(creator_id: str, background_tasks: BackgroundTasks):
@@ -2879,8 +3103,8 @@ async def start_sync(creator_id: str, background_tasks: BackgroundTasks):
     1. POST /admin/start-sync/fitpack_global → inicia sync
     2. GET /admin/sync-status/fitpack_global → ver progreso
     """
-    from core.sync_worker import start_sync_for_creator, run_sync_worker_iteration
     from api.database import SessionLocal
+    from core.sync_worker import run_sync_worker_iteration, start_sync_for_creator
 
     # Start the sync (queues conversations)
     result = await start_sync_for_creator(creator_id)
@@ -2911,6 +3135,7 @@ async def sync_status(creator_id: str):
     - status: "completed" → Terminado
     """
     from core.sync_worker import get_sync_status
+
     return get_sync_status(creator_id)
 
 
@@ -2920,8 +3145,8 @@ async def sync_continue(creator_id: str, background_tasks: BackgroundTasks):
     Continúa el sync si hay jobs pendientes.
     Útil para reanudar después de rate limit.
     """
-    from core.sync_worker import run_sync_worker_iteration, get_sync_status
     from api.database import SessionLocal
+    from core.sync_worker import get_sync_status, run_sync_worker_iteration
 
     status = get_sync_status(creator_id)
 
@@ -2944,7 +3169,7 @@ async def sync_continue(creator_id: str, background_tasks: BackgroundTasks):
     return {
         "status": "continuing",
         "pending_jobs": status["pending_jobs"],
-        "message": "Sync resumed in background"
+        "message": "Sync resumed in background",
     }
 
 
@@ -2967,11 +3192,7 @@ async def sync_reset(creator_id: str):
 
         session.commit()
 
-        return {
-            "status": "reset",
-            "jobs_deleted": deleted_jobs,
-            "state_deleted": deleted_state
-        }
+        return {"status": "reset", "jobs_deleted": deleted_jobs, "state_deleted": deleted_state}
     finally:
         session.close()
 
@@ -3000,9 +3221,12 @@ async def fix_lead_timestamps(creator_id: str):
             # Get creator
             creator = session.query(Creator).filter_by(name=creator_id).first()
             if not creator:
-                creator = session.query(Creator).filter(
-                    text("id::text = :cid")
-                ).params(cid=creator_id).first()
+                creator = (
+                    session.query(Creator)
+                    .filter(text("id::text = :cid"))
+                    .params(cid=creator_id)
+                    .first()
+                )
 
             if not creator:
                 return {"status": "error", "error": f"Creator not found: {creator_id}"}
@@ -3014,11 +3238,16 @@ async def fix_lead_timestamps(creator_id: str):
                 "leads_updated": 0,
                 "leads_no_messages": 0,
                 "leads_no_user_messages": 0,
-                "details": []
+                "details": [],
             }
 
             for lead in leads:
-                messages = session.query(Message).filter_by(lead_id=lead.id).order_by(Message.created_at).all()
+                messages = (
+                    session.query(Message)
+                    .filter_by(lead_id=lead.id)
+                    .order_by(Message.created_at)
+                    .all()
+                )
                 old_first = lead.first_contact_at
                 old_last = lead.last_contact_at
 
@@ -3029,16 +3258,22 @@ async def fix_lead_timestamps(creator_id: str):
                         lead.last_contact_at = lead.first_contact_at
                         stats["leads_no_messages"] += 1
                         stats["leads_updated"] += 1
-                        stats["details"].append({
-                            "username": lead.username,
-                            "old_first": str(old_first) if old_first else None,
-                            "new_first": str(lead.first_contact_at) if lead.first_contact_at else None,
-                            "old_last": str(old_last) if old_last else None,
-                            "new_last": str(lead.last_contact_at) if lead.last_contact_at else None,
-                            "total_messages": 0,
-                            "user_messages": 0,
-                            "fix_type": "no_messages_use_first_contact"
-                        })
+                        stats["details"].append(
+                            {
+                                "username": lead.username,
+                                "old_first": str(old_first) if old_first else None,
+                                "new_first": (
+                                    str(lead.first_contact_at) if lead.first_contact_at else None
+                                ),
+                                "old_last": str(old_last) if old_last else None,
+                                "new_last": (
+                                    str(lead.last_contact_at) if lead.last_contact_at else None
+                                ),
+                                "total_messages": 0,
+                                "user_messages": 0,
+                                "fix_type": "no_messages_use_first_contact",
+                            }
+                        )
                     else:
                         stats["leads_no_messages"] += 1
                     continue
@@ -3057,15 +3292,19 @@ async def fix_lead_timestamps(creator_id: str):
                     lead.last_contact_at = max(user_timestamps)
                     stats["leads_updated"] += 1
 
-                    stats["details"].append({
-                        "username": lead.username,
-                        "old_first": str(old_first) if old_first else None,
-                        "new_first": str(lead.first_contact_at) if lead.first_contact_at else None,
-                        "old_last": str(old_last) if old_last else None,
-                        "new_last": str(lead.last_contact_at) if lead.last_contact_at else None,
-                        "total_messages": len(messages),
-                        "user_messages": len(user_messages)
-                    })
+                    stats["details"].append(
+                        {
+                            "username": lead.username,
+                            "old_first": str(old_first) if old_first else None,
+                            "new_first": (
+                                str(lead.first_contact_at) if lead.first_contact_at else None
+                            ),
+                            "old_last": str(old_last) if old_last else None,
+                            "new_last": str(lead.last_contact_at) if lead.last_contact_at else None,
+                            "total_messages": len(messages),
+                            "user_messages": len(user_messages),
+                        }
+                    )
                 else:
                     # Mensajes pero ninguno del usuario: usar first_contact
                     if lead.first_contact_at:
@@ -3076,11 +3315,7 @@ async def fix_lead_timestamps(creator_id: str):
             session.commit()
             logger.info(f"[FixTimestamps] Updated {stats['leads_updated']} leads for {creator_id}")
 
-            return {
-                "status": "success",
-                "creator_id": creator_id,
-                **stats
-            }
+            return {"status": "success", "creator_id": creator_id, **stats}
 
         finally:
             session.close()
@@ -3088,16 +3323,15 @@ async def fix_lead_timestamps(creator_id: str):
     except Exception as e:
         logger.error(f"Fix timestamps failed for {creator_id}: {e}")
         import traceback
+
         traceback.print_exc()
-        return {
-            "status": "error",
-            "error": str(e)
-        }
+        return {"status": "error", "error": str(e)}
 
 
 # =============================================================================
 # GHOST REACTIVATION - Reactivación automática de leads fantasma
 # =============================================================================
+
 
 @router.get("/ghost-stats/{creator_id}")
 async def get_ghost_stats(creator_id: str):
@@ -3111,6 +3345,7 @@ async def get_ghost_stats(creator_id: str):
     """
     try:
         from core.ghost_reactivation import get_reactivation_stats
+
         return get_reactivation_stats(creator_id)
     except Exception as e:
         return {"error": str(e)}
@@ -3130,6 +3365,7 @@ async def reactivate_ghosts(creator_id: str, dry_run: bool = False):
     """
     try:
         from core.ghost_reactivation import reactivate_ghost_leads
+
         result = await reactivate_ghost_leads(creator_id, dry_run=dry_run)
         return {"status": "success", **result}
     except Exception as e:
@@ -3143,7 +3379,7 @@ async def configure_ghost_reactivation(
     min_days: int = None,
     max_days: int = None,
     cooldown_days: int = None,
-    max_per_cycle: int = None
+    max_per_cycle: int = None,
 ):
     """
     Configura parámetros de reactivación de fantasmas.
@@ -3160,12 +3396,13 @@ async def configure_ghost_reactivation(
     """
     try:
         from core.ghost_reactivation import configure_reactivation
+
         config = configure_reactivation(
             enabled=enabled,
             min_days=min_days,
             max_days=max_days,
             cooldown_days=cooldown_days,
-            max_per_cycle=max_per_cycle
+            max_per_cycle=max_per_cycle,
         )
         return {"status": "success", "config": config}
     except Exception as e:
@@ -3177,6 +3414,7 @@ async def get_ghost_config():
     """Obtiene la configuración actual de reactivación."""
     try:
         from core.ghost_reactivation import REACTIVATION_CONFIG
+
         return {"status": "success", "config": REACTIVATION_CONFIG}
     except Exception as e:
         return {"status": "error", "error": str(e)}
@@ -3198,6 +3436,7 @@ async def update_profile_pics(creator_id: str, limit: int = 20):
         {"updated": 15, "failed": 2, "total": 17, "remaining": 5}
     """
     import asyncio
+
     import httpx
     from api.database import SessionLocal
     from api.models import Creator, Lead
@@ -3208,43 +3447,64 @@ async def update_profile_pics(creator_id: str, limit: int = 20):
         creator = session.query(Creator).filter_by(name=creator_id).first()
         if not creator:
             from sqlalchemy import text
-            creator = session.query(Creator).filter(
-                text("id::text = :cid")
-            ).params(cid=creator_id).first()
+
+            creator = (
+                session.query(Creator)
+                .filter(text("id::text = :cid"))
+                .params(cid=creator_id)
+                .first()
+            )
 
         if not creator:
             return {"status": "error", "error": f"Creator not found: {creator_id}"}
 
-        # Check Instagram connection
-        if not creator.instagram_page_id or not creator.instagram_token:
+        # Check Instagram connection - support both page_id and user_id (IGAAT tokens)
+        if not creator.instagram_token:
             return {"status": "error", "error": "Instagram not connected for this creator"}
 
+        if not creator.instagram_page_id and not creator.instagram_user_id:
+            return {"status": "error", "error": "Instagram page_id or user_id required"}
+
         access_token = creator.instagram_token
-        # IMPORTANTE: Usar graph.facebook.com para user profiles también
-        api_base = "https://graph.facebook.com/v21.0"
+        # Use correct API based on token type
+        # IGAAT tokens (start with IGAAT) use graph.instagram.com
+        # EAA tokens (Page tokens) use graph.facebook.com
+        if access_token.startswith("IGAAT"):
+            api_base = "https://graph.instagram.com/v21.0"
+        else:
+            api_base = "https://graph.facebook.com/v21.0"
 
         # Get leads without profile pic
-        leads_without_pic = session.query(Lead).filter(
-            Lead.creator_id == creator.id,
-            Lead.platform == "instagram",
-            Lead.platform_user_id.isnot(None),
-            Lead.profile_pic_url.is_(None)
-        ).limit(limit).all()
+        leads_without_pic = (
+            session.query(Lead)
+            .filter(
+                Lead.creator_id == creator.id,
+                Lead.platform == "instagram",
+                Lead.platform_user_id.isnot(None),
+                Lead.profile_pic_url.is_(None),
+            )
+            .limit(limit)
+            .all()
+        )
 
         # Count total remaining
-        total_remaining = session.query(Lead).filter(
-            Lead.creator_id == creator.id,
-            Lead.platform == "instagram",
-            Lead.platform_user_id.isnot(None),
-            Lead.profile_pic_url.is_(None)
-        ).count()
+        total_remaining = (
+            session.query(Lead)
+            .filter(
+                Lead.creator_id == creator.id,
+                Lead.platform == "instagram",
+                Lead.platform_user_id.isnot(None),
+                Lead.profile_pic_url.is_(None),
+            )
+            .count()
+        )
 
         results = {
             "updated": 0,
             "failed": 0,
             "total": len(leads_without_pic),
             "remaining": total_remaining - len(leads_without_pic),
-            "details": []
+            "details": [],
         }
 
         if not leads_without_pic:
@@ -3258,8 +3518,8 @@ async def update_profile_pics(creator_id: str, limit: int = 20):
                         f"{api_base}/{lead.platform_user_id}",
                         params={
                             "fields": "id,username,name,profile_pic",
-                            "access_token": access_token
-                        }
+                            "access_token": access_token,
+                        },
                     )
 
                     if resp.status_code == 200:
@@ -3275,32 +3535,28 @@ async def update_profile_pics(creator_id: str, limit: int = 20):
                                 lead.full_name = data.get("name")
                             session.commit()
                             results["updated"] += 1
-                            results["details"].append({
-                                "username": lead.username,
-                                "status": "updated"
-                            })
+                            results["details"].append(
+                                {"username": lead.username, "status": "updated"}
+                            )
                         else:
                             results["failed"] += 1
-                            results["details"].append({
-                                "username": lead.username,
-                                "status": "no_pic_in_response"
-                            })
+                            results["details"].append(
+                                {"username": lead.username, "status": "no_pic_in_response"}
+                            )
                     else:
                         results["failed"] += 1
-                        results["details"].append({
-                            "username": lead.username,
-                            "status": f"api_error_{resp.status_code}"
-                        })
+                        results["details"].append(
+                            {"username": lead.username, "status": f"api_error_{resp.status_code}"}
+                        )
 
                     # Rate limiting: 500ms between requests
                     await asyncio.sleep(0.5)
 
                 except Exception as e:
                     results["failed"] += 1
-                    results["details"].append({
-                        "username": lead.username,
-                        "status": f"error: {str(e)[:50]}"
-                    })
+                    results["details"].append(
+                        {"username": lead.username, "status": f"error: {str(e)[:50]}"}
+                    )
 
         return {"status": "ok", **results}
 
@@ -3328,9 +3584,10 @@ async def generate_link_previews(creator_id: str, limit: int = 50):
     """
     import asyncio
     import re
+
     from api.database import SessionLocal
     from api.models import Creator, Lead, Message
-    from core.link_preview import extract_urls, extract_link_preview
+    from core.link_preview import extract_link_preview, extract_urls
 
     session = SessionLocal()
     try:
@@ -3338,24 +3595,35 @@ async def generate_link_previews(creator_id: str, limit: int = 50):
         creator = session.query(Creator).filter_by(name=creator_id).first()
         if not creator:
             from sqlalchemy import text
-            creator = session.query(Creator).filter(
-                text("id::text = :cid")
-            ).params(cid=creator_id).first()
+
+            creator = (
+                session.query(Creator)
+                .filter(text("id::text = :cid"))
+                .params(cid=creator_id)
+                .first()
+            )
 
         if not creator:
             return {"status": "error", "error": f"Creator not found: {creator_id}"}
 
         # Find messages with URLs using JOIN (avoids N+1)
         # Single query: messages -> leads -> creator
-        messages = session.query(Message).join(
-            Lead, Message.lead_id == Lead.id
-        ).filter(
-            Lead.creator_id == creator.id,
-            Message.content.ilike('%http%')
-        ).order_by(Message.created_at.desc()).limit(limit).all()
+        messages = (
+            session.query(Message)
+            .join(Lead, Message.lead_id == Lead.id)
+            .filter(Lead.creator_id == creator.id, Message.content.ilike("%http%"))
+            .order_by(Message.created_at.desc())
+            .limit(limit)
+            .all()
+        )
 
         if not messages:
-            return {"status": "ok", "message": "No messages with URLs found", "updated": 0, "total": 0}
+            return {
+                "status": "ok",
+                "message": "No messages with URLs found",
+                "updated": 0,
+                "total": 0,
+            }
 
         results = {
             "updated": 0,
@@ -3363,7 +3631,7 @@ async def generate_link_previews(creator_id: str, limit: int = 50):
             "no_urls": 0,
             "already_has_preview": 0,
             "total": len(messages),
-            "details": []
+            "details": [],
         }
 
         for msg in messages:
@@ -3389,21 +3657,22 @@ async def generate_link_previews(creator_id: str, limit: int = 50):
                     msg.msg_metadata = current_metadata
 
                     results["updated"] += 1
-                    results["details"].append({
-                        "url": urls[0][:50],
-                        "title": preview.get("title", "")[:30] if preview.get("title") else None,
-                        "status": "updated"
-                    })
+                    results["details"].append(
+                        {
+                            "url": urls[0][:50],
+                            "title": (
+                                preview.get("title", "")[:30] if preview.get("title") else None
+                            ),
+                            "status": "updated",
+                        }
+                    )
 
                     # Batch commit every 10 updates for efficiency
                     if results["updated"] % 10 == 0:
                         session.commit()
                 else:
                     results["failed"] += 1
-                    results["details"].append({
-                        "url": urls[0][:50],
-                        "status": "no_preview_data"
-                    })
+                    results["details"].append({"url": urls[0][:50], "status": "no_preview_data"})
 
                 # Rate limiting - don't saturate external services
                 await asyncio.sleep(0.3)
@@ -3429,11 +3698,10 @@ async def generate_link_previews(creator_id: str, limit: int = 50):
 # LEAD SYNC: Categorize and score leads based on their conversations
 # =============================================================================
 
+
 @router.post("/sync-leads/{creator_id}")
 async def sync_leads_from_conversations(
-    creator_id: str,
-    recategorize: bool = False,
-    limit: int = 100
+    creator_id: str, recategorize: bool = False, limit: int = 100
 ):
     """
     Sync and categorize leads from their conversations.
@@ -3458,20 +3726,24 @@ async def sync_leads_from_conversations(
             "details": [...]
         }
     """
+    from datetime import timezone
+
     from api.database import SessionLocal
     from api.models import Creator, Lead, Message
     from core.lead_categorization import calcular_categoria, categoria_a_status_legacy
     from sqlalchemy import func, text
-    from datetime import timezone
 
     session = SessionLocal()
     try:
         # Get creator
         creator = session.query(Creator).filter_by(name=creator_id).first()
         if not creator:
-            creator = session.query(Creator).filter(
-                text("id::text = :cid")
-            ).params(cid=creator_id).first()
+            creator = (
+                session.query(Creator)
+                .filter(text("id::text = :cid"))
+                .params(cid=creator_id)
+                .first()
+            )
 
         if not creator:
             raise HTTPException(status_code=404, detail=f"Creator not found: {creator_id}")
@@ -3490,25 +3762,26 @@ async def sync_leads_from_conversations(
                 "status": "ok",
                 "message": "No leads to process",
                 "total_leads": 0,
-                "updated": 0
+                "updated": 0,
             }
 
         # Get all messages for these leads in single query (avoid N+1)
         lead_ids = [lead.id for lead in leads]
-        messages_query = session.query(Message).filter(
-            Message.lead_id.in_(lead_ids)
-        ).order_by(Message.lead_id, Message.created_at).all()
+        messages_query = (
+            session.query(Message)
+            .filter(Message.lead_id.in_(lead_ids))
+            .order_by(Message.lead_id, Message.created_at)
+            .all()
+        )
 
         # Group messages by lead_id
         messages_by_lead = {}
         for msg in messages_query:
             if msg.lead_id not in messages_by_lead:
                 messages_by_lead[msg.lead_id] = []
-            messages_by_lead[msg.lead_id].append({
-                "role": msg.role,
-                "content": msg.content or "",
-                "created_at": msg.created_at
-            })
+            messages_by_lead[msg.lead_id].append(
+                {"role": msg.role, "content": msg.content or "", "created_at": msg.created_at}
+            )
 
         results = {
             "total_leads": len(leads),
@@ -3519,9 +3792,9 @@ async def sync_leads_from_conversations(
                 "interesado": 0,
                 "caliente": 0,
                 "cliente": 0,
-                "fantasma": 0
+                "fantasma": 0,
             },
-            "details": []
+            "details": [],
         }
 
         for lead in leads:
@@ -3542,14 +3815,17 @@ async def sync_leads_from_conversations(
                     es_cliente=is_cliente,
                     ultimo_mensaje_lead=last_user_msg_time,
                     dias_fantasma=7,
-                    lead_created_at=lead.first_contact_at
+                    lead_created_at=lead.first_contact_at,
                 )
 
                 # Map category to legacy status for compatibility
                 new_status = categoria_a_status_legacy(result.categoria)
 
                 # Check if update needed
-                if lead.status == new_status and abs((lead.purchase_intent or 0) - result.intent_score) < 0.01:
+                if (
+                    lead.status == new_status
+                    and abs((lead.purchase_intent or 0) - result.intent_score) < 0.01
+                ):
                     results["skipped"] += 1
                     continue
 
@@ -3560,16 +3836,18 @@ async def sync_leads_from_conversations(
 
                 results["updated"] += 1
                 results["categorized"][result.categoria] += 1
-                results["details"].append({
-                    "lead_id": str(lead.id),
-                    "username": lead.username,
-                    "old_status": old_status,
-                    "new_status": new_status,
-                    "categoria": result.categoria,
-                    "intent_score": round(result.intent_score, 2),
-                    "razones": result.razones[:2],
-                    "total_messages": len(msgs)
-                })
+                results["details"].append(
+                    {
+                        "lead_id": str(lead.id),
+                        "username": lead.username,
+                        "old_status": old_status,
+                        "new_status": new_status,
+                        "categoria": result.categoria,
+                        "intent_score": round(result.intent_score, 2),
+                        "razones": result.razones[:2],
+                        "total_messages": len(msgs),
+                    }
+                )
 
                 # Batch commit every 20 updates
                 if results["updated"] % 20 == 0:
@@ -3582,7 +3860,9 @@ async def sync_leads_from_conversations(
         # Final commit
         session.commit()
 
-        logger.info(f"Sync leads for {creator_id}: {results['updated']} updated, {results['skipped']} skipped")
+        logger.info(
+            f"Sync leads for {creator_id}: {results['updated']} updated, {results['skipped']} skipped"
+        )
         return {"status": "ok", **results}
 
     except HTTPException:
@@ -3599,21 +3879,18 @@ async def sync_leads_from_conversations(
 async def test_ingestion_v2(creator_id: str, website_url: str):
     """
     Test endpoint to run IngestionV2Pipeline directly.
-    
+
     Usage: POST /admin/test-ingestion-v2/stefano?website_url=https://stefanobonanno.com
     """
     try:
         from api.database import SessionLocal
         from ingestion.v2.pipeline import IngestionV2Pipeline
-        
+
         session = SessionLocal()
         try:
             pipeline = IngestionV2Pipeline(db_session=session)
             result = await pipeline.run(
-                creator_id=creator_id,
-                website_url=website_url,
-                clean_before=True,
-                re_verify=True
+                creator_id=creator_id, website_url=website_url, clean_before=True, re_verify=True
             )
 
             # Ensure commit is done
@@ -3630,14 +3907,15 @@ async def test_ingestion_v2(creator_id: str, website_url: str):
                 "faqs_count": len(result.faqs) if result.faqs else 0,
                 "faqs": result.faqs[:3] if result.faqs else [],
                 "tone": result.tone,
-                "errors": result.errors
+                "errors": result.errors,
             }
         finally:
             session.close()
-            
+
     except Exception as e:
         logger.error(f"test_ingestion_v2 error: {e}")
         import traceback
+
         traceback.print_exc()
         return {"status": "error", "error": str(e)}
 
@@ -3652,8 +3930,8 @@ async def admin_list_creators():
     Requiere CLONNECT_ADMIN_KEY.
     """
     from api.auth import require_admin
-    from core.creator_config import CreatorConfigManager
     from api.routers.dm import get_dm_agent
+    from core.creator_config import CreatorConfigManager
 
     try:
         config_manager = CreatorConfigManager()
@@ -3702,8 +3980,8 @@ async def admin_global_stats():
     [ADMIN] Estadísticas globales de la plataforma.
     Requiere CLONNECT_ADMIN_KEY.
     """
-    from core.creator_config import CreatorConfigManager
     from api.routers.dm import get_dm_agent
+    from core.creator_config import CreatorConfigManager
 
     try:
         config_manager = CreatorConfigManager()
@@ -3762,8 +4040,8 @@ async def admin_all_conversations(creator_id: Optional[str] = None, limit: int =
     Opcionalmente filtrar por creator_id.
     Requiere CLONNECT_ADMIN_KEY.
     """
-    from core.creator_config import CreatorConfigManager
     from api.routers.dm import get_dm_agent
+    from core.creator_config import CreatorConfigManager
 
     try:
         config_manager = CreatorConfigManager()
