@@ -138,13 +138,16 @@ async def get_follower_detail(creator_id: str, follower_id: str):
                                     if json_data:
                                         last_messages = json_data.get("last_messages", [])[-50:]
                                 except Exception as e:
-                                    logger.warning("Failed to load JSON fallback for %s: %s", follower_id, e)
+                                    logger.warning(
+                                        "Failed to load JSON fallback for %s: %s", follower_id, e
+                                    )
 
                             return {
                                 "status": "ok",
                                 "follower_id": lead.platform_user_id or str(lead.id),
                                 "username": lead.username,
                                 "name": lead.full_name,
+                                "profile_pic_url": lead.profile_pic_url,
                                 "platform": lead.platform or "instagram",
                                 "total_messages": (
                                     len(messages)
