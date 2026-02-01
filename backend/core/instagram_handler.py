@@ -667,10 +667,16 @@ class InstagramHandler:
             return "new"
 
     async def _create_lead_with_history(
-        self, sender_id: str, username: str, full_name: str, status: str, history: Optional[dict]
+        self,
+        sender_id: str,
+        username: str,
+        full_name: str,
+        status: str,
+        history: Optional[dict],
+        profile_pic_url: str = "",
     ) -> Optional[int]:
         """
-        Create a new lead with pre-loaded conversation history.
+        Create a COMPLETE lead with pre-loaded conversation history.
 
         Args:
             sender_id: Instagram user ID
@@ -678,6 +684,7 @@ class InstagramHandler:
             full_name: Display name
             status: Lead status (new, returning, existing_customer)
             history: Dict with messages and metadata from _fetch_conversation_history
+            profile_pic_url: Profile picture URL from Instagram API
 
         Returns:
             Lead ID if created successfully
@@ -685,6 +692,7 @@ class InstagramHandler:
         try:
             from api.database import SessionLocal
             from api.models import Creator, Lead, Message
+            from core.link_preview import extract_link_preview, extract_urls
 
             session = SessionLocal()
             try:
@@ -693,13 +701,14 @@ class InstagramHandler:
                     logger.error(f"[LeadHistory] Creator {self.creator_id} not found")
                     return None
 
-                # Create the lead with proper categorization
+                # Create COMPLETE lead with all fields
                 lead = Lead(
                     creator_id=creator.id,
                     platform="instagram",
                     platform_user_id=f"ig_{sender_id}",
                     username=username,
                     full_name=full_name,
+                    profile_pic_url=profile_pic_url,
                     status=status,
                     purchase_intent=(
                         0.1
@@ -711,12 +720,16 @@ class InstagramHandler:
                 session.commit()
 
                 logger.info(
-                    f"[LeadHistory] Created lead {lead.id} for @{username} with status={status}"
+                    f"[LeadHistory] Created COMPLETE lead {lead.id} for @{username} "
+                    f"(name={full_name[:15] if full_name else 'N/A'}, "
+                    f"pic={'Yes' if profile_pic_url else 'No'}, status={status})"
                 )
 
-                # Save historical messages if available
+                # Save historical messages with link previews
                 if history and history.get("messages"):
                     messages_saved = 0
+                    previews_generated = 0
+
                     for msg in history["messages"]:
                         msg_id = msg.get("id")
                         msg_text = msg.get("message", "")
@@ -747,6 +760,18 @@ class InstagramHandler:
                             except Exception:
                                 pass
 
+                        # Generate link preview if message has URLs
+                        msg_metadata = None
+                        urls = extract_urls(msg_text)
+                        if urls:
+                            try:
+                                preview = await extract_link_preview(urls[0])
+                                if preview:
+                                    msg_metadata = {"link_preview": preview}
+                                    previews_generated += 1
+                            except Exception:
+                                pass
+
                         new_msg = Message(
                             lead_id=lead.id,
                             role=role,
@@ -754,6 +779,7 @@ class InstagramHandler:
                             status="sent",
                             platform_message_id=msg_id,
                             approved_by="historical_sync",
+                            msg_metadata=msg_metadata,
                         )
                         if created_at:
                             new_msg.created_at = created_at
@@ -763,7 +789,8 @@ class InstagramHandler:
 
                     session.commit()
                     logger.info(
-                        f"[LeadHistory] Saved {messages_saved} historical messages for lead {lead.id}"
+                        f"[LeadHistory] Saved {messages_saved} messages "
+                        f"({previews_generated} link previews) for lead {lead.id}"
                     )
 
                 return lead.id
@@ -785,10 +812,35 @@ class InstagramHandler:
         Main method to enrich a new lead with conversation history.
         Called when we detect a message from an unknown sender.
 
+        Creates a COMPLETE lead with:
+        - username, full_name, profile_pic_url (from API)
+        - categorized status based on history
+        - historical messages with link_previews
+
         Returns:
             Lead status ("new", "returning", "existing_customer") or None if failed
         """
         logger.info(f"[LeadHistory] Enriching new lead: {sender_id}")
+
+        # Fetch user profile data (name, profile_pic_url)
+        profile_pic_url = ""
+        try:
+            from core.instagram_profile import fetch_instagram_profile
+
+            profile = await fetch_instagram_profile(sender_id, self.access_token)
+            if profile:
+                if not full_name and profile.get("name"):
+                    full_name = profile["name"]
+                if not username and profile.get("username"):
+                    username = profile["username"]
+                profile_pic_url = profile.get("profile_picture_url", "")
+                logger.info(
+                    f"[LeadHistory] Got profile for {sender_id}: "
+                    f"name={full_name[:20] if full_name else 'N/A'}, "
+                    f"pic={'Yes' if profile_pic_url else 'No'}"
+                )
+        except Exception as e:
+            logger.warning(f"[LeadHistory] Failed to fetch profile for {sender_id}: {e}")
 
         # Fetch conversation history from Instagram API
         history = await self._fetch_conversation_history(sender_id)
@@ -804,6 +856,7 @@ class InstagramHandler:
             sender_id=sender_id,
             username=username,
             full_name=full_name,
+            profile_pic_url=profile_pic_url,
             status=status,
             history=history,
         )
