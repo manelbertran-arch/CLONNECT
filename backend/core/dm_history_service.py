@@ -129,20 +129,24 @@ class DMHistoryService:
                         logger.warning(f"[DMHistory] Could not find participant in conv {conv_id}")
                         continue
 
-                    # Intentar obtener perfil del usuario
-                    if not participant_username:
-                        try:
-                            profile = await connector.get_user_profile(participant_id)
-                            if profile:
+                    # Intentar obtener perfil del usuario (username + display name)
+                    participant_full_name = ""
+                    try:
+                        profile = await connector.get_user_profile(participant_id)
+                        if profile:
+                            if not participant_username:
                                 participant_username = profile.username
-                        except Exception as e:
-                            logger.warning("Failed to get user profile for %s: %s", participant_id, e)
+                            # Extract display name (e.g., "Nahuel A. Sastre" instead of "ram_peris")
+                            participant_full_name = profile.name or ""
+                    except Exception as e:
+                        logger.warning("Failed to get user profile for %s: %s", participant_id, e)
 
                     # Crear/actualizar lead y guardar mensajes
                     result = await self._import_conversation(
                         creator_id=creator_id,
                         follower_id=participant_id,
                         username=participant_username,
+                        full_name=participant_full_name,
                         messages=messages,
                         page_id=page_id,
                         ig_user_id=ig_user_id,
@@ -174,6 +178,7 @@ class DMHistoryService:
         creator_id: str,
         follower_id: str,
         username: str,
+        full_name: str,
         messages: List[Dict],
         page_id: str,
         ig_user_id: str,
@@ -183,6 +188,7 @@ class DMHistoryService:
         Importar una conversación a la base de datos.
 
         Args:
+            full_name: Display name from Instagram (e.g., "Nahuel A. Sastre")
             cutoff_date: Solo importar mensajes después de esta fecha
         """
         from api.database import SessionLocal
@@ -209,11 +215,16 @@ class DMHistoryService:
                     platform="instagram",
                     platform_user_id=follower_id,
                     username=username,
+                    full_name=full_name or None,
                     status="new"
                 )
                 session.add(lead)
                 session.commit()
                 result["lead_created"] = True
+            elif full_name and not lead.full_name:
+                # Update existing lead with display name if missing
+                lead.full_name = full_name
+                session.commit()
 
             # Procesar mensajes (del más antiguo al más reciente)
             messages_sorted = sorted(

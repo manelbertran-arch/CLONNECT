@@ -342,13 +342,15 @@ class InstagramHandler:
                     })
                     continue
 
-                # Get username if available
+                # Get username and display name if available
                 username = ""
+                full_name = ""
                 try:
                     if self.connector:
                         profile = await self.connector.get_user_profile(message.sender_id)
                         if profile:
                             username = profile.username
+                            full_name = profile.name or ""  # Display name (e.g., "Nahuel A. Sastre")
                 except Exception as e:
                     logger.warning("Failed to get user profile for %s: %s", message.sender_id, e)
 
@@ -367,7 +369,8 @@ class InstagramHandler:
                         suggested_response=response_text,
                         intent=intent_str,
                         confidence=response.confidence,
-                        username=username
+                        username=username,
+                        full_name=full_name
                     )
 
                     logger.info(f"[Copilot] Created pending response {pending.id} for {message.sender_id}")

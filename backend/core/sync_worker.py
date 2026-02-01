@@ -159,6 +159,7 @@ async def process_single_conversation(
             # Find the follower (non-creator participant)
             follower_id = None
             follower_username = None
+            follower_full_name = None
 
             for msg in messages:
                 from_data = msg.get("from", {})
@@ -167,6 +168,7 @@ async def process_single_conversation(
                 if from_id and from_id not in creator_ids:
                     follower_id = from_id
                     follower_username = from_data.get("username", "unknown")
+                    follower_full_name = from_data.get("name", "")  # Display name from Meta API
                     break
 
             if not follower_id:
@@ -176,6 +178,7 @@ async def process_single_conversation(
                         if recipient.get("id") not in creator_ids:
                             follower_id = recipient.get("id")
                             follower_username = recipient.get("username", "unknown")
+                            follower_full_name = recipient.get("name", "")
                             break
                     if follower_id:
                         break
@@ -219,6 +222,7 @@ async def process_single_conversation(
                     platform="instagram",
                     platform_user_id=follower_id,
                     username=follower_username,
+                    full_name=follower_full_name or None,
                     status="new",
                     first_contact_at=first_msg_time,
                     # IMPORTANTE: usar último mensaje del USUARIO para fantasma
@@ -234,6 +238,9 @@ async def process_single_conversation(
                 # IMPORTANTE: solo actualizar si hay mensaje del USUARIO más reciente
                 if last_user_msg_time and (not lead.last_contact_at or last_user_msg_time > lead.last_contact_at):
                     lead.last_contact_at = last_user_msg_time
+                # Update full_name if missing
+                if follower_full_name and not lead.full_name:
+                    lead.full_name = follower_full_name
 
             # Save messages
             for msg in messages:
