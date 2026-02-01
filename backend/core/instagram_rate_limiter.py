@@ -55,10 +55,10 @@ class InstagramRateLimiter:
     - Tracking: Registra todas las llamadas para análisis
     """
 
-    # Límites conservadores (Meta permite más, pero mejor prevenir)
-    CALLS_PER_MINUTE = 10  # Muy conservador
-    CALLS_PER_HOUR = 150  # Meta permite ~200
-    CALLS_PER_DAY = 3000  # Meta permite ~4800
+    # Límites optimizados (Enero 2026 - Meta permite 200/hora)
+    CALLS_PER_MINUTE = 15  # Burst limit para ráfagas cortas
+    CALLS_PER_HOUR = 190  # ~3.17 calls/min = 1 call cada ~19s (Meta permite 200)
+    CALLS_PER_DAY = 4500  # Meta permite ~4800, dejamos 6% margen
 
     # Backoff exponencial
     INITIAL_BACKOFF_SECONDS = 5
@@ -183,11 +183,10 @@ class InstagramRateLimiter:
         state.last_error_time = time.time()
 
         # Calcular backoff exponencial
-        backoff = min(
-            self.INITIAL_BACKOFF_SECONDS
-            * (self.BACKOFF_MULTIPLIER ** (state.consecutive_errors - 1)),
-            self.MAX_BACKOFF_SECONDS,
+        exp_backoff = self.INITIAL_BACKOFF_SECONDS * (
+            self.BACKOFF_MULTIPLIER ** (state.consecutive_errors - 1)
         )
+        backoff = min(exp_backoff, self.MAX_BACKOFF_SECONDS)
 
         state.backoff_until = time.time() + backoff
 
