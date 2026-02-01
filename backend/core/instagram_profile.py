@@ -63,7 +63,7 @@ async def fetch_instagram_profile(
                 "id": data.get("id"),
                 "username": data.get("username", ""),
                 "name": data.get("name", ""),
-                "profile_picture_url": data.get("profile_pic", ""),  # API returns profile_pic
+                "profile_pic": data.get("profile_pic", ""),  # Match key name with API field
             }
         else:
             logger.debug(f"Profile fetch failed for {user_id}: HTTP {resp.status_code}")
