@@ -170,6 +170,9 @@ async def get_conversations(creator_id: str, limit: int = 50):
                         # Get last message from pre-fetched data
                         last_msg = last_msg_by_lead.get(lead.id)
                         last_messages = []
+                        last_message_preview = None
+                        last_message_role = None
+
                         if last_msg:
                             last_messages = [
                                 {
@@ -182,6 +185,15 @@ async def get_conversations(creator_id: str, limit: int = 50):
                                     ),
                                 }
                             ]
+                            # Instagram-like UX fields
+                            content = last_msg.content or ""
+                            last_message_preview = content[:50] + "..." if len(content) > 50 else content
+                            last_message_role = last_msg.role
+
+                        # is_unread: true if last message is from user (awaiting response)
+                        is_unread = last_message_role == "user"
+                        # is_verified: from context JSON (populated by Instagram API)
+                        is_verified = ctx.get("is_verified", False)
 
                         conversations.append(
                             {
@@ -190,8 +202,11 @@ async def get_conversations(creator_id: str, limit: int = 50):
                                 "username": lead.username or lead.platform_user_id,
                                 "name": lead.full_name or lead.username or "",
                                 "platform": lead.platform or "instagram",
+                                "profile_pic_url": lead.profile_pic_url,
                                 "total_messages": msg_count,
+                                "purchase_intent": lead.purchase_intent or 0.0,
                                 "purchase_intent_score": lead.purchase_intent or 0.0,
+                                "status": lead.status or "new",
                                 "is_lead": True,
                                 "last_contact": (
                                     lead.last_contact_at.isoformat()
@@ -199,9 +214,15 @@ async def get_conversations(creator_id: str, limit: int = 50):
                                     else None
                                 ),
                                 "last_messages": last_messages,
-                                "email": ctx.get("email") or "",
-                                "phone": ctx.get("phone") or "",
-                                "notes": ctx.get("notes") or "",
+                                # Instagram-like UX fields (FIX 2026-02-02)
+                                "last_message_preview": last_message_preview,
+                                "last_message_role": last_message_role,
+                                "is_unread": is_unread,
+                                "is_verified": is_verified,
+                                # CRM fields
+                                "email": ctx.get("email") or lead.email or "",
+                                "phone": ctx.get("phone") or lead.phone or "",
+                                "notes": ctx.get("notes") or lead.notes or "",
                             }
                         )
 
