@@ -46,7 +46,8 @@ class DMHistoryService:
         page_id: str,
         ig_user_id: str,
         limit: int = 50,
-        max_age_days: int = DEFAULT_MAX_AGE_DAYS
+        max_age_days: int = DEFAULT_MAX_AGE_DAYS,
+        use_pagination: bool = False
     ) -> Dict[str, Any]:
         """
         Cargar historial de DMs desde Instagram.
@@ -56,8 +57,9 @@ class DMHistoryService:
             access_token: Token de acceso de Meta
             page_id: ID de la página de Facebook
             ig_user_id: ID del usuario de Instagram
-            limit: Máximo de conversaciones a cargar (default: 50)
+            limit: Máximo de conversaciones a cargar (default: 50, ignored if use_pagination=True)
             max_age_days: Solo importar mensajes de los últimos X días (default: 90)
+            use_pagination: Si es True, obtiene TODAS las conversaciones con paginación
 
         Returns:
             Dict con estadísticas de la importación
@@ -66,12 +68,14 @@ class DMHistoryService:
 
         # Calcular fecha límite para filtrar mensajes
         cutoff_date = datetime.now(timezone.utc) - timedelta(days=max_age_days)
-        logger.info(f"[DMHistory] Loading DM history for {creator_id} (max_age: {max_age_days} days, cutoff: {cutoff_date.date()})")
+        logger.info(f"[DMHistory] Loading DM history for {creator_id} (max_age: {max_age_days} days, cutoff: {cutoff_date.date()}, pagination: {use_pagination})")
 
         stats = {
             "conversations_found": 0,
             "leads_created": 0,
+            "leads_updated": 0,
             "messages_imported": 0,
+            "messages_skipped_duplicate": 0,
             "messages_filtered": 0,  # Mensajes filtrados por fecha/vacíos
             "max_age_days": max_age_days,
             "errors": []
@@ -84,8 +88,15 @@ class DMHistoryService:
                 ig_user_id=ig_user_id
             )
 
-            # Obtener conversaciones
-            conversations = await connector.get_conversations(limit=limit)
+            # Obtener conversaciones (con o sin paginación)
+            if use_pagination:
+                conversations = await connector.get_all_conversations(
+                    max_pages=20,
+                    cutoff_date=cutoff_date
+                )
+            else:
+                conversations = await connector.get_conversations(limit=limit)
+
             stats["conversations_found"] = len(conversations)
             logger.info(f"[DMHistory] Found {len(conversations)} conversations")
 
@@ -95,8 +106,15 @@ class DMHistoryService:
                     if not conv_id:
                         continue
 
-                    # Obtener mensajes de la conversación
-                    messages = await connector.get_conversation_messages(conv_id, limit=50)
+                    # Obtener mensajes de la conversación (con o sin paginación)
+                    if use_pagination:
+                        messages = await connector.get_all_conversation_messages(
+                            conv_id,
+                            max_pages=20,
+                            cutoff_date=cutoff_date
+                        )
+                    else:
+                        messages = await connector.get_conversation_messages(conv_id, limit=50)
 
                     if not messages:
                         continue
@@ -155,7 +173,10 @@ class DMHistoryService:
 
                     if result.get("lead_created"):
                         stats["leads_created"] += 1
+                    if result.get("lead_updated"):
+                        stats["leads_updated"] += 1
                     stats["messages_imported"] += result.get("messages_imported", 0)
+                    stats["messages_skipped_duplicate"] += result.get("messages_skipped_duplicate", 0)
                     stats["messages_filtered"] += result.get("messages_filtered", 0)
 
                 except Exception as e:
@@ -196,7 +217,13 @@ class DMHistoryService:
         from core.intent_classifier import classify_intent_simple
 
         session = SessionLocal()
-        result = {"lead_created": False, "messages_imported": 0, "messages_filtered": 0}
+        result = {
+            "lead_created": False,
+            "lead_updated": False,
+            "messages_imported": 0,
+            "messages_skipped_duplicate": 0,
+            "messages_filtered": 0
+        }
 
         try:
             creator = session.query(Creator).filter_by(name=creator_id).first()
@@ -221,10 +248,17 @@ class DMHistoryService:
                 session.add(lead)
                 session.commit()
                 result["lead_created"] = True
-            elif full_name and not lead.full_name:
+            else:
                 # Update existing lead with display name if missing
-                lead.full_name = full_name
-                session.commit()
+                if full_name and not lead.full_name:
+                    lead.full_name = full_name
+                    result["lead_updated"] = True
+                # Update username if missing
+                if username and not lead.username:
+                    lead.username = username
+                    result["lead_updated"] = True
+                if result["lead_updated"]:
+                    session.commit()
 
             # Procesar mensajes (del más antiguo al más reciente)
             messages_sorted = sorted(
@@ -276,13 +310,14 @@ class DMHistoryService:
                 is_from_creator = from_id in [page_id, ig_user_id]
                 role = "assistant" if is_from_creator else "user"
 
-                # Verificar si el mensaje ya existe
+                # Verificar si el mensaje ya existe (deduplication by platform_message_id)
                 existing = session.query(Message).filter_by(
                     lead_id=lead.id,
                     platform_message_id=msg_id
                 ).first()
 
                 if existing:
+                    result["messages_skipped_duplicate"] += 1
                     continue
 
                 # Clasificar intent si es mensaje del usuario
@@ -353,8 +388,9 @@ class DMHistoryService:
             session.commit()
             logger.info(
                 f"[DMHistory] Imported conversation with {follower_id}: "
-                f"{result['messages_imported']} messages imported, "
-                f"{result['messages_filtered']} filtered (old/empty), "
+                f"{result['messages_imported']} new, "
+                f"{result['messages_skipped_duplicate']} duplicates, "
+                f"{result['messages_filtered']} filtered, "
                 f"score={purchase_intent:.2f}"
             )
 

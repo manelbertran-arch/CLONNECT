@@ -12,7 +12,7 @@ import hashlib
 import hmac
 from typing import Optional, List, Dict, Any
 from dataclasses import dataclass, asdict
-from datetime import datetime
+from datetime import datetime, timezone, timedelta
 import logging
 
 logger = logging.getLogger(__name__)
@@ -348,6 +348,77 @@ class InstagramConnector:
         # Ordenar por updated_time DESC (más recientes primero)
         return sorted(conversations, key=lambda c: c.get("updated_time", ""), reverse=True)
 
+    async def get_all_conversations(
+        self,
+        max_pages: int = 10,
+        cutoff_date: datetime = None
+    ) -> List[dict]:
+        """Obtener TODAS las conversaciones con paginación.
+
+        Args:
+            max_pages: Máximo de páginas a recorrer (seguridad)
+            cutoff_date: Solo incluir conversaciones actualizadas después de esta fecha
+
+        Returns:
+            Lista de todas las conversaciones
+        """
+        all_conversations = []
+        page_count = 0
+
+        if self.page_id:
+            url = f"{self.FACEBOOK_API_URL}/{self.page_id}/conversations"
+            params = {
+                "platform": "instagram",
+                "fields": "id,updated_time,participants",
+                "limit": 50,
+                "access_token": self.access_token
+            }
+        else:
+            url = f"{self.INSTAGRAM_API_URL}/{self.ig_user_id}/conversations"
+            params = {
+                "fields": "id,updated_time,participants",
+                "limit": 50,
+                "access_token": self.access_token
+            }
+
+        while url and page_count < max_pages:
+            page_count += 1
+
+            if page_count == 1:
+                data = await self._rate_limited_request("GET", url, "get_conversations", params=params)
+            else:
+                # Subsequent pages use the full URL with cursor
+                data = await self._rate_limited_request("GET", url, "get_conversations", params={})
+
+            conversations = data.get("data", [])
+
+            for conv in conversations:
+                # Check cutoff date if provided
+                if cutoff_date:
+                    updated_time_str = conv.get("updated_time", "")
+                    if updated_time_str:
+                        try:
+                            updated_time = datetime.fromisoformat(updated_time_str.replace('Z', '+00:00'))
+                            if updated_time < cutoff_date:
+                                # Conversation is older than cutoff, stop fetching
+                                logger.info(f"[get_all_conversations] Reached cutoff date at page {page_count}")
+                                return sorted(all_conversations, key=lambda c: c.get("updated_time", ""), reverse=True)
+                        except ValueError:
+                            pass
+
+                all_conversations.append(conv)
+
+            # Get next page URL
+            paging = data.get("paging", {})
+            url = paging.get("next")
+
+            if not url:
+                break
+
+            logger.info(f"[get_all_conversations] Fetched page {page_count}, total: {len(all_conversations)}")
+
+        return sorted(all_conversations, key=lambda c: c.get("updated_time", ""), reverse=True)
+
     async def get_conversation_messages(
         self,
         conversation_id: str,
@@ -372,6 +443,71 @@ class InstagramConnector:
 
         data = await self._rate_limited_request("GET", url, "get_conversation_messages", params=params)
         return data.get("data", [])
+
+    async def get_all_conversation_messages(
+        self,
+        conversation_id: str,
+        max_pages: int = 20,
+        cutoff_date: datetime = None
+    ) -> List[dict]:
+        """Obtener TODOS los mensajes de una conversación con paginación.
+
+        Args:
+            conversation_id: ID de la conversación
+            max_pages: Máximo de páginas a recorrer (seguridad)
+            cutoff_date: Solo incluir mensajes después de esta fecha
+
+        Returns:
+            Lista de todos los mensajes
+        """
+        all_messages = []
+        page_count = 0
+
+        if self.page_id:
+            api_base = self.FACEBOOK_API_URL
+        else:
+            api_base = self.INSTAGRAM_API_URL
+
+        url = f"{api_base}/{conversation_id}/messages"
+        params = {
+            "fields": "id,message,from,to,created_time",
+            "limit": 100,  # Max per page
+            "access_token": self.access_token
+        }
+
+        while url and page_count < max_pages:
+            page_count += 1
+
+            if page_count == 1:
+                data = await self._rate_limited_request("GET", url, "get_conversation_messages", params=params)
+            else:
+                data = await self._rate_limited_request("GET", url, "get_conversation_messages", params={})
+
+            messages = data.get("data", [])
+
+            for msg in messages:
+                # Check cutoff date if provided
+                if cutoff_date:
+                    created_time_str = msg.get("created_time", "")
+                    if created_time_str:
+                        try:
+                            created_time = datetime.fromisoformat(created_time_str.replace('Z', '+00:00'))
+                            if created_time < cutoff_date:
+                                # Message is older than cutoff, skip but continue
+                                continue
+                        except ValueError:
+                            pass
+
+                all_messages.append(msg)
+
+            # Get next page URL
+            paging = data.get("paging", {})
+            url = paging.get("next")
+
+            if not url:
+                break
+
+        return all_messages
 
     async def mark_message_seen(self, sender_id: str) -> dict:
         """Marcar mensajes como vistos via Instagram Messaging API"""
