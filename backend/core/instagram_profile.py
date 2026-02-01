@@ -52,7 +52,7 @@ async def fetch_instagram_profile(
         resp = await client.get(
             f"{api_base}/{user_id}",
             params={
-                "fields": "id,username,name,profile_picture_url",
+                "fields": "id,username,name,profile_pic",  # Note: field is profile_pic, not profile_picture_url
                 "access_token": access_token,
             },
         )
@@ -63,7 +63,7 @@ async def fetch_instagram_profile(
                 "id": data.get("id"),
                 "username": data.get("username", ""),
                 "name": data.get("name", ""),
-                "profile_picture_url": data.get("profile_picture_url", ""),
+                "profile_picture_url": data.get("profile_pic", ""),  # API returns profile_pic
             }
         else:
             logger.debug(f"Profile fetch failed for {user_id}: HTTP {resp.status_code}")

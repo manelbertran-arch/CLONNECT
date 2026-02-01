@@ -241,21 +241,35 @@ async def sync_dms():
                     resp = await rate_limited_request(
                         f"{API_BASE}/{user_id}",
                         params={
-                            "fields": "id,username,name,profile_picture_url",
+                            "fields": "id,username,name,profile_pic",
                             "access_token": ACCESS_TOKEN,
                         },
                     )
                     if resp.status_code == 200:
-                        return resp.json()
-                    return None
-                except Exception:
+                        data = resp.json()
+                        if data.get("profile_pic"):
+                            logger.info(f"    Profile fetched: {data.get('username')} has pic")
+                        else:
+                            logger.warning(f"    Profile fetched but NO pic: {data}")
+                        return data
+                    else:
+                        logger.warning(f"    Profile fetch failed: HTTP {resp.status_code}")
+                        return None
+                except Exception as e:
+                    logger.warning(f"    Profile fetch error: {e}")
                     return None
 
             # Fetch all conversations with pagination
+            # Include updated_time for pre-filtering (optimization)
             logger.info("Fetching conversations...")
             conversations = []
             next_url = f"{API_BASE}/{IG_USER_ID}/conversations"
-            params = {"platform": "instagram", "access_token": ACCESS_TOKEN, "limit": 50}
+            params = {
+                "platform": "instagram",
+                "fields": "id,updated_time,participants",  # Include updated_time for filtering
+                "access_token": ACCESS_TOKEN,
+                "limit": 50,
+            }
 
             page_num = 0
             while next_url:
@@ -282,8 +296,34 @@ async def sync_dms():
                 if not batch:
                     break
 
+            total_from_api = len(conversations)
+            logger.info(f"Found {total_from_api} total conversations from API")
+
+            # PRE-FILTER: Skip conversations older than cutoff_date
+            # This is a CRITICAL optimization - reduces API calls by ~5x
+            filtered_conversations = []
+            conversations_too_old = 0
+            for conv in conversations:
+                updated_time_str = conv.get("updated_time")
+                if updated_time_str:
+                    try:
+                        updated_time = datetime.fromisoformat(
+                            updated_time_str.replace("+0000", "+00:00")
+                        )
+                        if updated_time < cutoff_date:
+                            conversations_too_old += 1
+                            continue  # Skip - no API call needed!
+                    except Exception:
+                        pass  # If can't parse, include it
+
+                filtered_conversations.append(conv)
+
+            conversations = filtered_conversations
             stats["conversations_fetched"] = len(conversations)
-            logger.info(f"Found {len(conversations)} total conversations")
+            logger.info(
+                f"After filtering: {len(conversations)} conversations "
+                f"(skipped {conversations_too_old} older than {MAX_AGE_DAYS} days)"
+            )
 
             if START_FROM_CONVERSATION > 0:
                 logger.info(f"Skipping first {START_FROM_CONVERSATION} conversations")
@@ -459,8 +499,8 @@ async def sync_dms():
                             if not lead.full_name and profile.get("name"):
                                 lead.full_name = profile["name"]
                                 needs_update = True
-                            if not lead.profile_pic_url and profile.get("profile_picture_url"):
-                                lead.profile_pic_url = profile["profile_picture_url"]
+                            if not lead.profile_pic_url and profile.get("profile_pic"):
+                                lead.profile_pic_url = profile["profile_pic"]
                                 needs_update = True
 
                     # Update last_contact_at if we have newer messages
@@ -492,7 +532,7 @@ async def sync_dms():
 
                     if profile:
                         full_name = profile.get("name", "")
-                        profile_pic_url = profile.get("profile_picture_url", "")
+                        profile_pic_url = profile.get("profile_pic", "")
                         if profile.get("username"):
                             follower_username = profile["username"]
 
