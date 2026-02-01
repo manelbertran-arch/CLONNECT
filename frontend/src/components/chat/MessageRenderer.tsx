@@ -73,6 +73,15 @@ function convertEmoticonsToEmoji(text: string): string {
   return result;
 }
 
+/**
+ * Decode HTML entities like &#064; -> @, &#x2022; -> •
+ */
+function decodeHtmlEntities(text: string): string {
+  const textarea = document.createElement('textarea');
+  textarea.innerHTML = text;
+  return textarea.value;
+}
+
 interface LinkPreview {
   url: string;
   title?: string;
@@ -198,6 +207,9 @@ function LinkPreviewCard({ preview }: { preview: LinkPreview }) {
   const [imageLoaded, setImageLoaded] = useState(false);
   const [imageError, setImageError] = useState(false);
 
+  // Decode HTML entities in image URL (e.g., &amp; -> &)
+  const imageUrl = preview.image ? decodeHtmlEntities(preview.image) : undefined;
+
   // Extract domain from URL
   const domain = (() => {
     try {
@@ -214,7 +226,7 @@ function LinkPreviewCard({ preview }: { preview: LinkPreview }) {
       rel="noopener noreferrer"
       className="block border-t border-white/10 bg-black/20 hover:bg-black/30 transition-colors"
     >
-      {preview.image && !imageError && (
+      {imageUrl && !imageError && (
         <div className="relative">
           {!imageLoaded && (
             <div className="w-full h-32 bg-[#1a1a1a] flex items-center justify-center">
@@ -222,8 +234,8 @@ function LinkPreviewCard({ preview }: { preview: LinkPreview }) {
             </div>
           )}
           <img
-            src={preview.image}
-            alt={preview.title || 'Preview'}
+            src={imageUrl}
+            alt={preview.title ? decodeHtmlEntities(preview.title) : 'Preview'}
             className={`w-full h-32 object-cover ${imageLoaded ? '' : 'hidden'}`}
             onLoad={() => setImageLoaded(true)}
             onError={() => setImageError(true)}
@@ -232,10 +244,10 @@ function LinkPreviewCard({ preview }: { preview: LinkPreview }) {
       )}
       <div className="p-3">
         {preview.title && (
-          <p className="text-sm font-medium text-white line-clamp-2">{preview.title}</p>
+          <p className="text-sm font-medium text-white line-clamp-2">{decodeHtmlEntities(preview.title)}</p>
         )}
         {preview.description && (
-          <p className="text-xs text-gray-400 mt-1 line-clamp-2">{preview.description}</p>
+          <p className="text-xs text-gray-400 mt-1 line-clamp-2">{decodeHtmlEntities(preview.description)}</p>
         )}
         <p className="text-xs text-violet-400 mt-2 flex items-center gap-1">
           {domain}

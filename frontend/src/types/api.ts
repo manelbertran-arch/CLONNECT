@@ -17,10 +17,37 @@ export interface DashboardMetrics {
   lead_rate: number;
 }
 
+export interface MessageMetadata {
+  type?: string;
+  url?: string;
+  emoji?: string;
+  thumbnail_url?: string;
+  thumbnail_base64?: string;
+  preview_url?: string;
+  animated_gif_url?: string;
+  width?: number;
+  height?: number;
+  render_as_sticker?: boolean;
+  author_username?: string;
+  permalink?: string;
+  caption?: string;
+  platform?: string;
+  link_preview?: {
+    url: string;
+    title?: string;
+    description?: string;
+    image?: string;
+    site_name?: string;
+    platform?: string;
+    original_url?: string;
+  };
+}
+
 export interface Message {
   role: "user" | "assistant";
   content: string;
   timestamp: string;
+  metadata?: MessageMetadata;
 }
 
 export interface Conversation {
