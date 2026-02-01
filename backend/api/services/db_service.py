@@ -272,8 +272,8 @@ def get_leads(creator_name: str, include_archived: bool = False):
     if not session:
         return []
     try:
-        from api.models import Creator, Lead
-        from sqlalchemy import and_, not_
+        from api.models import Creator, Lead, Message
+        from sqlalchemy import func, not_
 
         creator = session.query(Creator).filter_by(name=creator_name).first()
         if not creator:
@@ -283,8 +283,42 @@ def get_leads(creator_name: str, include_archived: bool = False):
         if not include_archived:
             query = query.filter(not_(Lead.status.in_(["archived", "spam"])))
         leads = query.order_by(Lead.last_contact_at.desc()).all()
+
+        # Get last message for each lead (batch query for efficiency)
+        lead_ids = [lead.id for lead in leads]
+        last_messages = {}
+        if lead_ids:
+            max_date_subq = (
+                session.query(
+                    Message.lead_id,
+                    func.max(Message.created_at).label("max_created_at")
+                )
+                .filter(Message.lead_id.in_(lead_ids))
+                .group_by(Message.lead_id)
+                .subquery()
+            )
+            last_msg_query = (
+                session.query(Message)
+                .join(
+                    max_date_subq,
+                    (Message.lead_id == max_date_subq.c.lead_id) &
+                    (Message.created_at == max_date_subq.c.max_created_at)
+                )
+            )
+            for msg in last_msg_query.all():
+                last_messages[msg.lead_id] = msg
+
         result = []
         for lead in leads:
+            # Get last message preview and role
+            last_msg = last_messages.get(lead.id)
+            last_message_preview = None
+            last_message_role = None
+            if last_msg:
+                content = last_msg.content or ""
+                last_message_preview = content[:50] + "..." if len(content) > 50 else content
+                last_message_role = last_msg.role
+
             result.append(
                 {
                     "id": str(lead.id),
@@ -299,6 +333,9 @@ def get_leads(creator_name: str, include_archived: bool = False):
                     "last_contact_at": (
                         lead.last_contact_at.isoformat() if lead.last_contact_at else None
                     ),
+                    # Instagram-like UX fields (FIX 2026-02-02)
+                    "last_message_preview": last_message_preview,
+                    "last_message_role": last_message_role,
                     # CRM fields from direct columns (not context JSON)
                     "email": lead.email,
                     "phone": lead.phone,
@@ -330,6 +367,7 @@ def get_conversations_with_counts(
 
     Returns:
         dict with 'conversations' list, 'total_count', 'limit', 'offset', 'has_more'
+        Each conversation includes last_message_preview and last_message_role for Instagram-like UX
     """
     session = get_session()
     if not session:
@@ -370,8 +408,45 @@ def get_conversations_with_counts(
         # Apply pagination
         results = query.order_by(Lead.last_contact_at.desc()).offset(offset).limit(limit).all()
 
+        # Get last message for each lead (batch query for efficiency)
+        lead_ids = [lead.id for lead, _ in results]
+        last_messages = {}
+        if lead_ids:
+            # Subquery to get the max created_at for each lead
+            from sqlalchemy.orm import aliased
+            max_date_subq = (
+                session.query(
+                    Message.lead_id,
+                    func.max(Message.created_at).label("max_created_at")
+                )
+                .filter(Message.lead_id.in_(lead_ids))
+                .group_by(Message.lead_id)
+                .subquery()
+            )
+            # Join to get the actual message
+            last_msg_query = (
+                session.query(Message)
+                .join(
+                    max_date_subq,
+                    (Message.lead_id == max_date_subq.c.lead_id) &
+                    (Message.created_at == max_date_subq.c.max_created_at)
+                )
+            )
+            for msg in last_msg_query.all():
+                last_messages[msg.lead_id] = msg
+
         conversations = []
         for lead, msg_count in results:
+            # Get last message preview and role
+            last_msg = last_messages.get(lead.id)
+            last_message_preview = None
+            last_message_role = None
+            if last_msg:
+                # Truncate to 50 chars for preview
+                content = last_msg.content or ""
+                last_message_preview = content[:50] + "..." if len(content) > 50 else content
+                last_message_role = last_msg.role  # "user" or "assistant"
+
             conversations.append(
                 {
                     "id": str(lead.id),
@@ -393,6 +468,9 @@ def get_conversations_with_counts(
                     "total_messages": msg_count,
                     "archived": lead.status == "archived",
                     "spam": lead.status == "spam",
+                    # Instagram-like UX fields (FIX 2026-02-02)
+                    "last_message_preview": last_message_preview,
+                    "last_message_role": last_message_role,
                     # CRM fields from direct columns
                     "email": lead.email,
                     "phone": lead.phone,
