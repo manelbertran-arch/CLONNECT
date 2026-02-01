@@ -319,6 +319,13 @@ def get_leads(creator_name: str, include_archived: bool = False):
                 last_message_preview = content[:50] + "..." if len(content) > 50 else content
                 last_message_role = last_msg.role
 
+            # is_unread: true if last message is from user (follower) - awaiting creator response
+            is_unread = last_message_role == "user"
+
+            # is_verified: from context JSON (populated by Instagram API)
+            context = lead.context or {}
+            is_verified = context.get("is_verified", False)
+
             result.append(
                 {
                     "id": str(lead.id),
@@ -336,6 +343,8 @@ def get_leads(creator_name: str, include_archived: bool = False):
                     # Instagram-like UX fields (FIX 2026-02-02)
                     "last_message_preview": last_message_preview,
                     "last_message_role": last_message_role,
+                    "is_unread": is_unread,
+                    "is_verified": is_verified,
                     # CRM fields from direct columns (not context JSON)
                     "email": lead.email,
                     "phone": lead.phone,
@@ -447,6 +456,13 @@ def get_conversations_with_counts(
                 last_message_preview = content[:50] + "..." if len(content) > 50 else content
                 last_message_role = last_msg.role  # "user" or "assistant"
 
+            # is_unread: true if last message is from user (follower) - awaiting creator response
+            is_unread = last_message_role == "user"
+
+            # is_verified: from context JSON (populated by Instagram API)
+            context = lead.context or {}
+            is_verified = context.get("is_verified", False)
+
             conversations.append(
                 {
                     "id": str(lead.id),
@@ -471,6 +487,8 @@ def get_conversations_with_counts(
                     # Instagram-like UX fields (FIX 2026-02-02)
                     "last_message_preview": last_message_preview,
                     "last_message_role": last_message_role,
+                    "is_unread": is_unread,
+                    "is_verified": is_verified,
                     # CRM fields from direct columns
                     "email": lead.email,
                     "phone": lead.phone,

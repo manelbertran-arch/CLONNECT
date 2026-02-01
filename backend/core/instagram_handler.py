@@ -1202,33 +1202,37 @@ class InstagramHandler:
                 username = profile.name or profile.username or "amigo"
                 profile_pic_url = profile.profile_pic_url
 
-                # Update lead if we got a profile_pic
-                if profile_pic_url:
-                    await self._update_lead_profile_pic(
+                # Update lead with profile info including is_verified
+                if profile_pic_url or profile.is_verified:
+                    await self._update_lead_profile(
                         sender_id,
                         profile.username,
                         profile.name,
-                        profile_pic_url
+                        profile_pic_url,
+                        profile.is_verified
                     )
         except Exception as e:
             logger.debug(f"Could not fetch user profile: {e}")
 
         return username, profile_pic_url
 
-    async def _update_lead_profile_pic(
+    async def _update_lead_profile(
         self,
         sender_id: str,
         username: str,
         full_name: str,
-        profile_pic_url: str
+        profile_pic_url: str,
+        is_verified: bool = False
     ):
         """
-        Update lead's profile_pic_url if it's currently empty.
+        Update lead's profile info including profile_pic_url and is_verified.
 
-        Uses get_or_create_lead which handles the update logic.
+        Uses get_or_create_lead which handles the update logic,
+        then updates context with is_verified if applicable.
         """
         try:
-            from api.services.db_service import get_or_create_lead
+            from api.services.db_service import get_or_create_lead, get_session
+            from api.models import Lead
 
             result = get_or_create_lead(
                 creator_name=self.creator_id,
@@ -1239,10 +1243,25 @@ class InstagramHandler:
                 profile_pic_url=profile_pic_url
             )
 
+            # Update is_verified in lead's context if verified
+            if result and is_verified:
+                session = get_session()
+                if session:
+                    try:
+                        lead = session.query(Lead).filter_by(id=result["id"]).first()
+                        if lead:
+                            context = lead.context or {}
+                            context["is_verified"] = True
+                            lead.context = context
+                            session.commit()
+                            logger.info(f"[IG:{sender_id}] Updated verified badge")
+                    finally:
+                        session.close()
+
             if result:
-                logger.info(f"[IG:{sender_id}] Updated lead profile: pic={'yes' if profile_pic_url else 'no'}")
+                logger.info(f"[IG:{sender_id}] Updated lead profile: pic={'yes' if profile_pic_url else 'no'}, verified={is_verified}")
         except Exception as e:
-            logger.warning(f"Could not update lead profile_pic: {e}")
+            logger.warning(f"Could not update lead profile: {e}")
 
     async def send_response(self, recipient_id: str, text: str) -> bool:
         """

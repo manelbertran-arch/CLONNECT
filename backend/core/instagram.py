@@ -55,6 +55,7 @@ class InstagramUser:
     username: str
     name: str
     profile_pic_url: str = ""
+    is_verified: bool = False  # Instagram verified badge
 
 
 class InstagramConnector:
@@ -288,7 +289,8 @@ class InstagramConnector:
         else:
             url = f"{self.FACEBOOK_API_URL}/{user_id}"
         params = {
-            "fields": "id,username,name,profile_pic",
+            # Note: is_verified_user may not be available for all token types
+            "fields": "id,username,name,profile_pic,is_verified_user",
             "access_token": self.access_token
         }
 
@@ -302,7 +304,8 @@ class InstagramConnector:
             user_id=data.get("id", user_id),
             username=data.get("username", ""),
             name=data.get("name", ""),
-            profile_pic_url=data.get("profile_pic", "")
+            profile_pic_url=data.get("profile_pic", ""),
+            is_verified=data.get("is_verified_user", False)
         )
 
     async def get_media(self, limit: int = 100) -> List[dict]:
