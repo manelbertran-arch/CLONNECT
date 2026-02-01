@@ -433,7 +433,8 @@ export default function Inbox() {
                         <span className="text-xs text-muted-foreground">{formatTimeAgo(convo.last_contact)}</span>
                       </div>
                       <p className="text-xs text-muted-foreground truncate mt-0.5">
-                        {lastMessage?.content || `${convo.total_messages || 0} messages`}
+                        {convo.last_message_role === 'assistant' ? 'You: ' : ''}
+                        {convo.last_message_preview || lastMessage?.content || `${convo.total_messages || 0} messages`}
                       </p>
                       <div className="mt-2 flex items-center gap-2">
                         <span className={cn(
