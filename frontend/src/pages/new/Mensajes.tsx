@@ -55,7 +55,7 @@ export default function Mensajes() {
 
   const messages = followerDetail?.last_messages || [];
 
-  // Format time ago
+  // Format time ago - Instagram style (day + time for older messages)
   const formatTimeAgo = (dateStr?: string) => {
     if (!dateStr) return '';
     const date = new Date(dateStr);
@@ -67,6 +67,14 @@ export default function Mensajes() {
 
     if (diffMins < 60) return `${diffMins}m`;
     if (diffHours < 24) return `${diffHours}h`;
+
+    // For older messages, show day + time like Instagram
+    const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+    const dayName = days[date.getDay()];
+    const hours = date.getHours().toString().padStart(2, '0');
+    const mins = date.getMinutes().toString().padStart(2, '0');
+
+    if (diffDays < 7) return `${dayName} ${hours}:${mins}`;
     return `${diffDays}d`;
   };
 
@@ -150,22 +158,27 @@ export default function Mensajes() {
                 </div>
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2">
-                    <p className="font-semibold text-white text-[14px] truncate">
+                    <p className={`font-semibold text-[14px] truncate ${conv.is_unread ? 'text-white' : 'text-gray-300'}`}>
                       {conv.username || conv.name || conv.follower_id}
                     </p>
+                    {/* Verified badge */}
+                    {conv.is_verified && (
+                      <span className="text-[#0095F6] text-xs">✓</span>
+                    )}
                   </div>
                   <div className="flex items-center gap-1">
-                    <p className="text-sm text-gray-400 truncate flex-1">
-                      {conv.last_messages?.[0]?.content || 'Sin mensajes'}
+                    <p className={`text-sm truncate flex-1 ${conv.is_unread ? 'text-white font-medium' : 'text-gray-400'}`}>
+                      {conv.last_message_role === 'assistant' ? 'You: ' : ''}
+                      {conv.last_message_preview || 'Sin mensajes'}
                     </p>
                     <span className="text-xs text-gray-500 shrink-0">
                       · {formatTimeAgo(conv.last_contact)}
                     </span>
                   </div>
                 </div>
-                {/* Unread indicator */}
-                {(conv.purchase_intent ?? 0) > 0.7 && (
-                  <div className="w-2 h-2 rounded-full bg-[#0095F6]"></div>
+                {/* Unread indicator - blue dot */}
+                {conv.is_unread && (
+                  <div className="w-2.5 h-2.5 rounded-full bg-[#0095F6]"></div>
                 )}
               </Link>
             ))

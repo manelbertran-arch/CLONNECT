@@ -32,6 +32,11 @@ export interface Conversation {
   platform?: string;
   last_contact?: string;
   total_messages: number;
+  // Instagram-like UX fields (FIX 2026-02-02)
+  last_message_preview?: string; // Truncated last message text
+  last_message_role?: "user" | "assistant"; // Who sent last message
+  is_unread?: boolean; // True if last message is from user (awaiting response)
+  is_verified?: boolean; // Instagram verified badge
   // AI Intent Score (computed from conversation analysis)
   purchase_intent?: number;       // 0.0 to 1.0
   purchase_intent_score?: number; // 0 to 100 (derived)
