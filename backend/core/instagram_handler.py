@@ -833,7 +833,7 @@ class InstagramHandler:
                     full_name = profile["name"]
                 if not username and profile.get("username"):
                     username = profile["username"]
-                profile_pic_url = profile.get("profile_picture_url", "")
+                profile_pic_url = profile.get("profile_pic", "")
                 logger.info(
                     f"[LeadHistory] Got profile for {sender_id}: "
                     f"name={full_name[:20] if full_name else 'N/A'}, "

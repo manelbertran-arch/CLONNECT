@@ -4,6 +4,7 @@ Instagram Service.
 Extracted from dm_agent.py as part of REFACTOR-PHASE2.
 Provides Instagram API integration, message formatting, and webhook parsing.
 """
+
 import logging
 from dataclasses import dataclass, field
 from datetime import datetime
@@ -89,8 +90,7 @@ class InstagramService:
         # Truncate with ellipsis
         truncated = text[: MAX_MESSAGE_LENGTH - 3] + "..."
         logger.debug(
-            f"[InstagramService] Message truncated from {len(text)} "
-            f"to {len(truncated)} chars"
+            f"[InstagramService] Message truncated from {len(text)} " f"to {len(truncated)} chars"
         )
         return truncated
 
@@ -108,7 +108,7 @@ class InstagramService:
             "username": raw_data.get("username", ""),
             "user_id": raw_data.get("id", ""),
             "name": raw_data.get("name", ""),
-            "profile_pic": raw_data.get("profile_picture_url", ""),
+            "profile_pic": raw_data.get("profile_pic", ""),
         }
 
     def is_rate_limited(self) -> bool:
@@ -132,13 +132,9 @@ class InstagramService:
     def increment_request_count(self) -> None:
         """Increment the API request counter."""
         self._request_count += 1
-        logger.debug(
-            f"[InstagramService] Request count: {self._request_count}/{self.rate_limit}"
-        )
+        logger.debug(f"[InstagramService] Request count: {self._request_count}/{self.rate_limit}")
 
-    def parse_webhook_message(
-        self, payload: Dict[str, Any]
-    ) -> Optional[Dict[str, Any]]:
+    def parse_webhook_message(self, payload: Dict[str, Any]) -> Optional[Dict[str, Any]]:
         """
         Parse incoming webhook message from Instagram.
 
