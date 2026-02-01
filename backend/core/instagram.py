@@ -282,7 +282,11 @@ class InstagramConnector:
 
     async def get_user_profile(self, user_id: str) -> Optional[InstagramUser]:
         """Obtener perfil de usuario de Instagram"""
-        url = f"{self.FACEBOOK_API_URL}/{user_id}"
+        # Use Instagram API for IGAAT tokens, Facebook API for EAAG tokens
+        if self.access_token.startswith("IGAAT"):
+            url = f"{self.INSTAGRAM_API_URL}/{user_id}"
+        else:
+            url = f"{self.FACEBOOK_API_URL}/{user_id}"
         params = {
             "fields": "id,username,name,profile_pic",
             "access_token": self.access_token
