@@ -1,0 +1,130 @@
+{
+  "follower_id": "user_123",
+  "creator_id": "test",
+  "username": "user_123",
+  "name": "",
+  "first_contact": "2026-01-28T14:16:32.186230",
+  "last_contact": "2026-01-28T14:49:55.060445",
+  "total_messages": 14,
+  "interests": [],
+  "products_discussed": [],
+  "objections_raised": [],
+  "purchase_intent_score": 0.0,
+  "is_lead": false,
+  "is_customer": false,
+  "status": "new",
+  "preferred_language": "es",
+  "last_messages": [
+    {
+      "role": "user",
+      "content": "Hola",
+      "timestamp": "2026-01-28T14:27:59.198921"
+    },
+    {
+      "role": "assistant",
+      "content": "Hola! En que puedo ayudarte?",
+      "timestamp": "2026-01-28T14:27:59.198921"
+    },
+    {
+      "role": "user",
+      "content": "Cuanto cuesta el curso?",
+      "timestamp": "2026-01-28T14:27:59.199953"
+    },
+    {
+      "role": "assistant",
+      "content": "El curso cuesta 97 euros.",
+      "timestamp": "2026-01-28T14:27:59.199953"
+    },
+    {
+      "role": "user",
+      "content": "Hola",
+      "timestamp": "2026-01-28T14:39:45.513575"
+    },
+    {
+      "role": "assistant",
+      "content": "Hola! En que puedo ayudarte?",
+      "timestamp": "2026-01-28T14:39:45.513575"
+    },
+    {
+      "role": "user",
+      "content": "Cuanto cuesta el curso?",
+      "timestamp": "2026-01-28T14:39:45.514783"
+    },
+    {
+      "role": "assistant",
+      "content": "El curso cuesta 97 euros.",
+      "timestamp": "2026-01-28T14:39:45.514783"
+    },
+    {
+      "role": "user",
+      "content": "Hola",
+      "timestamp": "2026-01-28T14:45:49.007985"
+    },
+    {
+      "role": "assistant",
+      "content": "Hola! En que puedo ayudarte?",
+      "timestamp": "2026-01-28T14:45:49.007985"
+    },
+    {
+      "role": "user",
+      "content": "Cuanto cuesta el curso?",
+      "timestamp": "2026-01-28T14:45:49.008943"
+    },
+    {
+      "role": "assistant",
+      "content": "El curso cuesta 97 euros.",
+      "timestamp": "2026-01-28T14:45:49.008943"
+    },
+    {
+      "role": "user",
+      "content": "Hola",
+      "timestamp": "2026-01-28T14:48:22.774740"
+    },
+    {
+      "role": "assistant",
+      "content": "Hola! En que puedo ayudarte?",
+      "timestamp": "2026-01-28T14:48:22.774740"
+    },
+    {
+      "role": "user",
+      "content": "Cuanto cuesta el curso?",
+      "timestamp": "2026-01-28T14:48:22.775886"
+    },
+    {
+      "role": "assistant",
+      "content": "El curso cuesta 97 euros.",
+      "timestamp": "2026-01-28T14:48:22.775886"
+    },
+    {
+      "role": "user",
+      "content": "Hola",
+      "timestamp": "2026-01-28T14:49:55.059401"
+    },
+    {
+      "role": "assistant",
+      "content": "Hola! En que puedo ayudarte?",
+      "timestamp": "2026-01-28T14:49:55.059401"
+    },
+    {
+      "role": "user",
+      "content": "Cuanto cuesta el curso?",
+      "timestamp": "2026-01-28T14:49:55.060445"
+    },
+    {
+      "role": "assistant",
+      "content": "El curso cuesta 97 euros.",
+      "timestamp": "2026-01-28T14:49:55.060445"
+    }
+  ],
+  "links_sent_count": 0,
+  "last_link_message_num": 0,
+  "objections_handled": [],
+  "arguments_used": [],
+  "greeting_variant_index": 0,
+  "last_greeting_style": "",
+  "last_emojis_used": [],
+  "messages_since_name_used": 0,
+  "alternative_contact": "",
+  "alternative_contact_type": "",
+  "contact_requested": false
+}
