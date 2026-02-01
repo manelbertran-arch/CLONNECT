@@ -132,7 +132,18 @@ export default function Mensajes() {
                 {/* Avatar with optional hot lead ring */}
                 <div className={`p-[2px] rounded-full ${(conv.purchase_intent ?? 0) > 0.5 ? 'bg-gradient-to-tr from-violet-500 via-purple-500 to-violet-600' : ''}`}>
                   <div className={`${(conv.purchase_intent ?? 0) > 0.5 ? 'p-[2px] bg-black rounded-full' : ''}`}>
-                    <div className="w-14 h-14 rounded-full bg-gradient-to-br from-violet-600 to-purple-600 flex items-center justify-center text-white font-semibold text-lg">
+                    {conv.profile_pic_url ? (
+                      <img
+                        src={conv.profile_pic_url}
+                        alt={conv.username || conv.name || ''}
+                        className="w-14 h-14 rounded-full object-cover"
+                        onError={(e) => {
+                          e.currentTarget.style.display = 'none';
+                          e.currentTarget.nextElementSibling?.classList.remove('hidden');
+                        }}
+                      />
+                    ) : null}
+                    <div className={`w-14 h-14 rounded-full bg-gradient-to-br from-violet-600 to-purple-600 flex items-center justify-center text-white font-semibold text-lg ${conv.profile_pic_url ? 'hidden' : ''}`}>
                       {(conv.username || conv.name)?.[0]?.toUpperCase() || '?'}
                     </div>
                   </div>
@@ -173,7 +184,18 @@ export default function Mensajes() {
             {/* Violet gradient ring for avatar */}
             <div className="p-[2px] rounded-full bg-gradient-to-tr from-violet-500 via-purple-500 to-violet-600">
               <div className="w-10 h-10 rounded-full bg-black p-[2px]">
-                <div className="w-full h-full rounded-full bg-gradient-to-br from-violet-600 to-purple-600 flex items-center justify-center text-white font-semibold text-sm">
+                {(selectedConversation?.profile_pic_url || followerDetail?.profile_pic_url) ? (
+                  <img
+                    src={selectedConversation?.profile_pic_url || followerDetail?.profile_pic_url}
+                    alt={selectedConversation?.username || followerDetail?.username || ''}
+                    className="w-full h-full rounded-full object-cover"
+                    onError={(e) => {
+                      e.currentTarget.style.display = 'none';
+                      e.currentTarget.nextElementSibling?.classList.remove('hidden');
+                    }}
+                  />
+                ) : null}
+                <div className={`w-full h-full rounded-full bg-gradient-to-br from-violet-600 to-purple-600 flex items-center justify-center text-white font-semibold text-sm ${(selectedConversation?.profile_pic_url || followerDetail?.profile_pic_url) ? 'hidden' : ''}`}>
                   {(
                     selectedConversation?.username ||
                     selectedConversation?.name ||
