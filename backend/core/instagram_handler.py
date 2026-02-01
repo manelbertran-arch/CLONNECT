@@ -1137,8 +1137,8 @@ class InstagramHandler:
         if not self.dm_agent:
             raise RuntimeError("DM Agent not initialized")
 
-        # Get username for personalization (try to fetch from API)
-        username = await self._get_username(message.sender_id)
+        # Get profile and update lead if needed (FIX 2026-02-02: update profile_pic when user responds)
+        username, profile_pic_url = await self._get_profile_and_update_lead(message.sender_id)
 
         # Process with DM agent (V2 signature: message, sender_id, metadata) - FIX 2026-01-29
         logger.info(f"[V2-FIX] Calling process_dm with V2 signature for {message.sender_id}")
@@ -1175,6 +1175,74 @@ class InstagramHandler:
             logger.debug(f"Could not fetch user profile: {e}")
 
         return "amigo"
+
+    async def _get_profile_and_update_lead(self, sender_id: str) -> tuple:
+        """
+        Get user profile from Instagram API and update lead if profile_pic is missing.
+
+        FIX 2026-02-02: When a user responds, we can now access their profile.
+        This updates leads that previously couldn't get profile_pic due to
+        "User consent is required" error (one-way conversations).
+
+        Args:
+            sender_id: Instagram user ID
+
+        Returns:
+            Tuple of (username, profile_pic_url)
+        """
+        username = "amigo"
+        profile_pic_url = None
+
+        if not self.connector:
+            return username, profile_pic_url
+
+        try:
+            profile = await self.connector.get_user_profile(sender_id)
+            if profile:
+                username = profile.name or profile.username or "amigo"
+                profile_pic_url = profile.profile_pic_url
+
+                # Update lead if we got a profile_pic
+                if profile_pic_url:
+                    await self._update_lead_profile_pic(
+                        sender_id,
+                        profile.username,
+                        profile.name,
+                        profile_pic_url
+                    )
+        except Exception as e:
+            logger.debug(f"Could not fetch user profile: {e}")
+
+        return username, profile_pic_url
+
+    async def _update_lead_profile_pic(
+        self,
+        sender_id: str,
+        username: str,
+        full_name: str,
+        profile_pic_url: str
+    ):
+        """
+        Update lead's profile_pic_url if it's currently empty.
+
+        Uses get_or_create_lead which handles the update logic.
+        """
+        try:
+            from api.services.db_service import get_or_create_lead
+
+            result = get_or_create_lead(
+                creator_name=self.creator_id,
+                platform_user_id=f"ig_{sender_id}",
+                platform="instagram",
+                username=username,
+                full_name=full_name,
+                profile_pic_url=profile_pic_url
+            )
+
+            if result:
+                logger.info(f"[IG:{sender_id}] Updated lead profile: pic={'yes' if profile_pic_url else 'no'}")
+        except Exception as e:
+            logger.warning(f"Could not update lead profile_pic: {e}")
 
     async def send_response(self, recipient_id: str, text: str) -> bool:
         """
