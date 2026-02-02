@@ -391,12 +391,56 @@ async def get_dm_metrics(creator_id: str):
 
 @router.get("/follower/{creator_id}/{follower_id}")
 async def get_follower_detail(creator_id: str, follower_id: str):
-    """Obtener detalle de un seguidor"""
+    """Obtener detalle de un seguidor con mensajes incluyendo metadata"""
     try:
         agent = get_dm_agent(creator_id)
         detail = await agent.get_follower_detail(follower_id)
         if not detail:
             raise HTTPException(status_code=404, detail="Follower not found")
+
+        # Enrich messages with metadata from PostgreSQL
+        if USE_DB:
+            try:
+                from api.models import Creator, Lead, Message
+                from api.services.db_service import get_session
+
+                session = get_session()
+                if session:
+                    try:
+                        creator = session.query(Creator).filter_by(name=creator_id).first()
+                        if creator:
+                            lead = (
+                                session.query(Lead)
+                                .filter_by(creator_id=creator.id, platform_user_id=follower_id)
+                                .first()
+                            )
+                            if lead:
+                                # Get messages with metadata from PostgreSQL
+                                messages = (
+                                    session.query(Message)
+                                    .filter_by(lead_id=lead.id)
+                                    .order_by(Message.created_at.asc())
+                                    .all()
+                                )
+                                if messages:
+                                    detail["last_messages"] = [
+                                        {
+                                            "role": m.role,
+                                            "content": m.content,
+                                            "timestamp": m.created_at.isoformat() if m.created_at else None,
+                                            "metadata": (
+                                                m.msg_metadata
+                                                if hasattr(m, "msg_metadata") and m.msg_metadata
+                                                else {}
+                                            ),
+                                        }
+                                        for m in messages[-50:]  # Last 50 messages
+                                    ]
+                    finally:
+                        session.close()
+            except Exception as e:
+                logger.warning(f"Failed to enrich messages with metadata: {e}")
+                # Continue with original detail
 
         return {"status": "ok", **detail}
 
