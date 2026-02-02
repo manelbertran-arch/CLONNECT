@@ -72,9 +72,6 @@ export default function Mensajes() {
   const conversations = conversationsData?.conversations || [];
   const unreadCount = conversations.filter((c) => c.is_unread).length;
 
-  // DEBUG: Log verified users
-  console.log('[Mensajes] Verified users:', conversations.filter(c => c.is_verified).map(c => c.username));
-
   const selectedConversation = conversations.find(
     (c) => c.follower_id === conversationId
   );
