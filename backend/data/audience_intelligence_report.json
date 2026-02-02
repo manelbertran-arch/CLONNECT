@@ -1,0 +1,666 @@
+{
+  "creator_id": "602b864b-889b-4421-883c-783963686858",
+  "creator_name": "Stefan",
+  "generated_at": "2026-02-02T22:45:26.727125",
+  "network": {
+    "total_contacts": 200,
+    "vips": [
+      {
+        "username": "lucíadíaz44",
+        "name": "Lucía Díaz",
+        "messages": 5,
+        "status": "cliente",
+        "intent": 1.0
+      },
+      {
+        "username": "carmenfernández26",
+        "name": "Carmen Fernández",
+        "messages": 9,
+        "status": "caliente",
+        "intent": 0.6157276917398621
+      },
+      {
+        "username": "robertohernández71",
+        "name": "Roberto Hernández",
+        "messages": 5,
+        "status": "cliente",
+        "intent": 1.0
+      },
+      {
+        "username": "javiergonzález54",
+        "name": "Javier González",
+        "messages": 5,
+        "status": "cliente",
+        "intent": 1.0
+      },
+      {
+        "username": "maríasánchez4",
+        "name": "María Sánchez",
+        "messages": 9,
+        "status": "caliente",
+        "intent": 0.8896650983817523
+      },
+      {
+        "username": "robertomartínez4",
+        "name": "Roberto Martínez",
+        "messages": 9,
+        "status": "caliente",
+        "intent": 0.6175673075072843
+      },
+      {
+        "username": "saramuñoz83",
+        "name": "Sara Muñoz",
+        "messages": 9,
+        "status": "caliente",
+        "intent": 0.7638349379991016
+      },
+      {
+        "username": "lucíaruiz36",
+        "name": "Lucía Ruiz",
+        "messages": 9,
+        "status": "caliente",
+        "intent": 0.8103472107427631
+      },
+      {
+        "username": "fernandogonzález62",
+        "name": "Fernando González",
+        "messages": 9,
+        "status": "caliente",
+        "intent": 0.7093804140515987
+      },
+      {
+        "username": "davidgómez84",
+        "name": "David Gómez",
+        "messages": 5,
+        "status": "cliente",
+        "intent": 1.0
+      }
+    ],
+    "referrers": [
+      {
+        "username": "carmenfernández26",
+        "name": "Carmen Fernández",
+        "messages": 9,
+        "status": "caliente",
+        "intent": 0.6157276917398621
+      },
+      {
+        "username": "maríasánchez4",
+        "name": "María Sánchez",
+        "messages": 9,
+        "status": "caliente",
+        "intent": 0.8896650983817523
+      },
+      {
+        "username": "robertomartínez4",
+        "name": "Roberto Martínez",
+        "messages": 9,
+        "status": "caliente",
+        "intent": 0.6175673075072843
+      },
+      {
+        "username": "saramuñoz83",
+        "name": "Sara Muñoz",
+        "messages": 9,
+        "status": "caliente",
+        "intent": 0.7638349379991016
+      },
+      {
+        "username": "lucíaruiz36",
+        "name": "Lucía Ruiz",
+        "messages": 9,
+        "status": "caliente",
+        "intent": 0.8103472107427631
+      },
+      {
+        "username": "fernandogonzález62",
+        "name": "Fernando González",
+        "messages": 9,
+        "status": "caliente",
+        "intent": 0.7093804140515987
+      },
+      {
+        "username": "beatrizmoreno42",
+        "name": "Beatriz Moreno",
+        "messages": 9,
+        "status": "caliente",
+        "intent": 0.8465879619412096
+      },
+      {
+        "username": "beatrizhernández4",
+        "name": "Beatriz Hernández",
+        "messages": 9,
+        "status": "caliente",
+        "intent": 0.6042401375316317
+      },
+      {
+        "username": "elenamartínez48",
+        "name": "Elena Martínez",
+        "messages": 9,
+        "status": "caliente",
+        "intent": 0.8263783384533578
+      },
+      {
+        "username": "cristinamuñoz45",
+        "name": "Cristina Muñoz",
+        "messages": 9,
+        "status": "caliente",
+        "intent": 0.8965424260396802
+      }
+    ],
+    "engaged": 30
+  },
+  "opportunities": {
+    "lost_sales": [
+      {
+        "username": "carmenfernández26",
+        "value": 997.0,
+        "days_inactive": 38,
+        "last_msg": "Me interesa! ¿Tienen algún plan de pago?"
+      },
+      {
+        "username": "anafernández10",
+        "value": 97,
+        "days_inactive": 38,
+        "last_msg": "Suena interesante, lo pienso y te digo"
+      },
+      {
+        "username": "carlosgómez88",
+        "value": 97,
+        "days_inactive": 25,
+        "last_msg": "Suena interesante, lo pienso y te digo"
+      },
+      {
+        "username": "robertojiménez74",
+        "value": 97,
+        "days_inactive": 50,
+        "last_msg": "Suena interesante, lo pienso y te digo"
+      },
+      {
+        "username": "manuellópez36",
+        "value": 97,
+        "days_inactive": 46,
+        "last_msg": "Suena interesante, lo pienso y te digo"
+      },
+      {
+        "username": "maríasánchez4",
+        "value": 997.0,
+        "days_inactive": 60,
+        "last_msg": "Me interesa! ¿Tienen algún plan de pago?"
+      },
+      {
+        "username": "robertomartínez4",
+        "value": 997.0,
+        "days_inactive": 16,
+        "last_msg": "¿Cuánto cuesta tu mentoría?"
+      },
+      {
+        "username": "saramuñoz83",
+        "value": 97.0,
+        "days_inactive": 11,
+        "last_msg": "¿Quién eres y cuál es tu experiencia?"
+      },
+      {
+        "username": "beatrizmartínez46",
+        "value": 97,
+        "days_inactive": 54,
+        "last_msg": "Suena interesante, lo pienso y te digo"
+      },
+      {
+        "username": "lucíaruiz36",
+        "value": 997.0,
+        "days_inactive": 10,
+        "last_msg": "Me interesa! ¿Tienen algún plan de pago?"
+      },
+      {
+        "username": "fernandogonzález62",
+        "value": 297.0,
+        "days_inactive": 10,
+        "last_msg": "Me interesa! ¿Tienen algún plan de pago?"
+      },
+      {
+        "username": "carmenmoreno92",
+        "value": 97,
+        "days_inactive": 34,
+        "last_msg": "¿Tienes disponibilidad para sesiones?"
+      },
+      {
+        "username": "beatrizmoreno42",
+        "value": 497.0,
+        "days_inactive": 14,
+        "last_msg": "Me interesa! ¿Tienen algún plan de pago?"
+      },
+      {
+        "username": "pablolópez65",
+        "value": 97,
+        "days_inactive": 44,
+        "last_msg": "Suena interesante, lo pienso y te digo"
+      },
+      {
+        "username": "maríalópez13",
+        "value": 97,
+        "days_inactive": 26,
+        "last_msg": "Suena interesante, lo pienso y te digo"
+      },
+      {
+        "username": "anadíaz41",
+        "value": 97,
+        "days_inactive": 4,
+        "last_msg": "¿Dónde puedo ver tu contenido?"
+      },
+      {
+        "username": "beatrizhernández4",
+        "value": 297.0,
+        "days_inactive": 31,
+        "last_msg": "Me interesa! ¿Tienen algún plan de pago?"
+      },
+      {
+        "username": "sofíajiménez33",
+        "value": 97,
+        "days_inactive": 13,
+        "last_msg": "¿Dónde puedo ver tu contenido?"
+      },
+      {
+        "username": "pablodíaz83",
+        "value": 97,
+        "days_inactive": 4,
+        "last_msg": "Suena interesante, lo pienso y te digo"
+      },
+      {
+        "username": "beatrizfernández48",
+        "value": 97,
+        "days_inactive": 56,
+        "last_msg": "Suena interesante, lo pienso y te digo"
+      }
+    ],
+    "abandoned": [
+      {
+        "username": "javierlópez3",
+        "days_inactive": 8
+      },
+      {
+        "username": "miguelruiz21",
+        "days_inactive": 9
+      },
+      {
+        "username": "fernandohernández51",
+        "days_inactive": 54
+      },
+      {
+        "username": "jorgedíaz10",
+        "days_inactive": 47
+      },
+      {
+        "username": "carlosmuñoz98",
+        "days_inactive": 27
+      }
+    ],
+    "cold_leads": [
+      {
+        "username": "pedropérez55",
+        "intent": 0.30871368507013985,
+        "days_inactive": 38
+      },
+      {
+        "username": "rosamuñoz89",
+        "intent": 0.37359589797958775,
+        "days_inactive": 45
+      },
+      {
+        "username": "alejandrogómez97",
+        "intent": 0.3763228486821994,
+        "days_inactive": 18
+      },
+      {
+        "username": "sofíagonzález40",
+        "intent": 0.3244934987165381,
+        "days_inactive": 47
+      },
+      {
+        "username": "rosafernández8",
+        "intent": 0.38432274841823066,
+        "days_inactive": 8
+      },
+      {
+        "username": "diegolópez6",
+        "intent": 0.32410457883983823,
+        "days_inactive": 33
+      },
+      {
+        "username": "rosagómez92",
+        "intent": 0.36400703433801473,
+        "days_inactive": 31
+      },
+      {
+        "username": "maríapérez25",
+        "intent": 0.3733062962750644,
+        "days_inactive": 42
+      },
+      {
+        "username": "elenamartínez42",
+        "intent": 0.35081196033694473,
+        "days_inactive": 34
+      },
+      {
+        "username": "claudiagómez40",
+        "intent": 0.39407631465988535,
+        "days_inactive": 21
+      },
+      {
+        "username": "martasánchez92",
+        "intent": 0.44537281667665524,
+        "days_inactive": 38
+      },
+      {
+        "username": "claudiapérez22",
+        "intent": 0.3279286703373945,
+        "days_inactive": 31
+      }
+    ],
+    "total_value_at_risk": 20186.0
+  },
+  "followups": {
+    "overdue": [
+      {
+        "username": "pablodíaz83",
+        "commitment": "Claro, te cuento. La mentoría tiene varios formatos...",
+        "days_overdue": 6
+      },
+      {
+        "username": "rosafernández52",
+        "commitment": "Claro, te cuento. La mentoría tiene varios formatos...",
+        "days_overdue": 8
+      },
+      {
+        "username": "anadíaz41",
+        "commitment": "Claro, te cuento. La mentoría tiene varios formatos...",
+        "days_overdue": 9
+      },
+      {
+        "username": "robertopérez32",
+        "commitment": "Claro, te cuento. La mentoría tiene varios formatos...",
+        "days_overdue": 9
+      },
+      {
+        "username": "sofíajiménez33",
+        "commitment": "Claro, te cuento. La mentoría tiene varios formatos...",
+        "days_overdue": 10
+      },
+      {
+        "username": "beatrizmuñoz13",
+        "commitment": "Claro, te cuento. La mentoría tiene varios formatos...",
+        "days_overdue": 11
+      },
+      {
+        "username": "paularodríguez17",
+        "commitment": "Claro, te cuento. La mentoría tiene varios formatos...",
+        "days_overdue": 16
+      },
+      {
+        "username": "carmenjiménez85",
+        "commitment": "Claro, te cuento. La mentoría tiene varios formatos...",
+        "days_overdue": 21
+      },
+      {
+        "username": "rosaruiz54",
+        "commitment": "Claro, te cuento. La mentoría tiene varios formatos...",
+        "days_overdue": 22
+      },
+      {
+        "username": "rosafernández26",
+        "commitment": "Claro, te cuento. La mentoría tiene varios formatos...",
+        "days_overdue": 23
+      },
+      {
+        "username": "davidhernández27",
+        "commitment": "Claro, te cuento. La mentoría tiene varios formatos...",
+        "days_overdue": 23
+      },
+      {
+        "username": "beatrizgarcía76",
+        "commitment": "Claro, te cuento. La mentoría tiene varios formatos...",
+        "days_overdue": 24
+      },
+      {
+        "username": "paulalópez89",
+        "commitment": "Claro, te cuento. La mentoría tiene varios formatos...",
+        "days_overdue": 25
+      },
+      {
+        "username": "martagonzález59",
+        "commitment": "Claro, te cuento. La mentoría tiene varios formatos...",
+        "days_overdue": 28
+      },
+      {
+        "username": "luisjiménez46",
+        "commitment": "Claro, te cuento. La mentoría tiene varios formatos...",
+        "days_overdue": 28
+      },
+      {
+        "username": "rosapérez89",
+        "commitment": "Claro, te cuento. La mentoría tiene varios formatos...",
+        "days_overdue": 29
+      },
+      {
+        "username": "beatrizgonzález26",
+        "commitment": "Claro, te cuento. La mentoría tiene varios formatos...",
+        "days_overdue": 29
+      },
+      {
+        "username": "carlosmuñoz98",
+        "commitment": "Claro, te cuento. La mentoría tiene varios formatos...",
+        "days_overdue": 30
+      },
+      {
+        "username": "carmenruiz56",
+        "commitment": "Claro, te cuento. La mentoría tiene varios formatos...",
+        "days_overdue": 31
+      },
+      {
+        "username": "javierlópez3",
+        "commitment": "Claro, te cuento. La mentoría tiene varios formatos...",
+        "days_overdue": 32
+      }
+    ]
+  },
+  "testimonials": {
+    "results": [
+      {
+        "username": "lucíadíaz44",
+        "content": "Dupliqué mis ingresos en solo 2 meses aplicando sus métodos",
+        "category": "result",
+        "score": 0.9
+      },
+      {
+        "username": "lucíadíaz44",
+        "content": "Dupliqué mis ingresos en 3 meses, te lo recomiendo a todos",
+        "category": "result",
+        "score": 0.9
+      },
+      {
+        "username": "robertohernández71",
+        "content": "Stefan! Gracias a tu mentoría conseguí mis primeros 10 clientes",
+        "category": "result",
+        "score": 0.9
+      },
+      {
+        "username": "robertohernández71",
+        "content": "Dupliqué mis ingresos en solo 2 meses aplicando sus métodos",
+        "category": "result",
+        "score": 0.9
+      },
+      {
+        "username": "javiergonzález54",
+        "content": "Dupliqué mis ingresos en 3 meses, te lo recomiendo a todos",
+        "category": "result",
+        "score": 0.9
+      },
+      {
+        "username": "anapérez59",
+        "content": "Stefan! Gracias a tu mentoría conseguí mis primeros 10 clientes",
+        "category": "result",
+        "score": 0.9
+      },
+      {
+        "username": "elenapérez29",
+        "content": "Dupliqué mis ingresos en solo 2 meses aplicando sus métodos",
+        "category": "result",
+        "score": 0.9
+      },
+      {
+        "username": "martafernández36",
+        "content": "Stefan! Gracias a tu mentoría conseguí mis primeros 10 clientes",
+        "category": "result",
+        "score": 0.9
+      },
+      {
+        "username": "pedromartínez77",
+        "content": "Stefan! Gracias a tu mentoría conseguí mis primeros 10 clientes",
+        "category": "result",
+        "score": 0.9
+      },
+      {
+        "username": "pedromartínez77",
+        "content": "Dupliqué mis ingresos en solo 2 meses aplicando sus métodos",
+        "category": "result",
+        "score": 0.9
+      }
+    ],
+    "gratitude": [
+      {
+        "username": "davidgómez84",
+        "content": "Mi negocio cambió completamente después de trabajar con Stefan",
+        "category": "gratitude",
+        "score": 0.7
+      },
+      {
+        "username": "elenapérez29",
+        "content": "Increíble la transformación que tuve con la mentoría de Stefan",
+        "category": "gratitude",
+        "score": 0.7
+      },
+      {
+        "username": "elenapérez29",
+        "content": "Increíble la transformación que tuve con la mentoría de Stefan",
+        "category": "gratitude",
+        "score": 0.7
+      },
+      {
+        "username": "martafernández36",
+        "content": "Lo recomiendo 100%, Stefan es el mejor mentor que he tenido",
+        "category": "gratitude",
+        "score": 0.7
+      },
+      {
+        "username": "carmenmartínez36",
+        "content": "Gracias por todo Stefan, cambiaste mi vida profesional",
+        "category": "gratitude",
+        "score": 0.7
+      },
+      {
+        "username": "diegomoreno41",
+        "content": "Increíble la transformación que tuve con la mentoría de Stefan",
+        "category": "gratitude",
+        "score": 0.7
+      },
+      {
+        "username": "fernandogonzález90",
+        "content": "Mi negocio cambió completamente después de trabajar con Stefan",
+        "category": "gratitude",
+        "score": 0.7
+      },
+      {
+        "username": "martagómez52",
+        "content": "Mi negocio cambió completamente después de trabajar con Stefan",
+        "category": "gratitude",
+        "score": 0.7
+      },
+      {
+        "username": "beatrizlópez26",
+        "content": "Increíble la transformación que tuve con la mentoría de Stefan",
+        "category": "gratitude",
+        "score": 0.7
+      },
+      {
+        "username": "beatrizlópez26",
+        "content": "Mi negocio cambió completamente después de trabajar con Stefan",
+        "category": "gratitude",
+        "score": 0.7
+      }
+    ]
+  },
+  "proposals": [
+    {
+      "username": "sofíagonzález40",
+      "content": "Hola Stefan, tengo un podcast y me gustaría entrevistarte",
+      "date": "2025-11-28"
+    },
+    {
+      "username": "sofíagonzález40",
+      "content": "Queremos contratarte para una formación interna",
+      "date": "2025-11-29"
+    },
+    {
+      "username": "aliciamartínez24",
+      "content": "Me gustaría proponerte una colaboración para mi podcast",
+      "date": "2025-11-28"
+    },
+    {
+      "username": "rosafernández8",
+      "content": "Me gustaría proponerte una colaboración para mi podcast",
+      "date": "2026-01-11"
+    },
+    {
+      "username": "elenamartínez42",
+      "content": "Hola Stefan, tengo un podcast y me gustaría entrevistarte",
+      "date": "2025-12-11"
+    },
+    {
+      "username": "claudiagómez40",
+      "content": "Hola Stefan, tengo un podcast y me gustaría entrevistarte",
+      "date": "2026-01-07"
+    }
+  ],
+  "faqs": {
+    "categories": {
+      "process": 13,
+      "results": 23,
+      "pricing": 81,
+      "content": 28,
+      "personal": 13,
+      "availability": 14
+    },
+    "examples": {
+      "process": [
+        "¿Cómo funciona el programa?",
+        "¿Cómo funciona el programa?",
+        "¿Cómo funciona el programa?"
+      ],
+      "results": [
+        "¿Cómo funciona el programa?",
+        "¿Cómo funciona el programa?",
+        "¿Cómo funciona el programa?"
+      ],
+      "pricing": [
+        "¿Cuánto cuesta tu programa de mentoría?",
+        "¿Cuánto cuesta tu mentoría?",
+        "Quería saber más sobre tu mentoría, cuánto cuesta?"
+      ],
+      "content": [
+        "Apliqué la estrategia de contenido que me enseñaste",
+        "¿Dónde puedo ver tu contenido?",
+        "Apliqué la estrategia de contenido que me enseñaste"
+      ],
+      "personal": [
+        "¿Quién eres y cuál es tu experiencia?",
+        "¿Quién eres y cuál es tu experiencia?",
+        "¿Quién eres y cuál es tu experiencia?"
+      ],
+      "availability": [
+        "¿Tienes disponibilidad para sesiones?",
+        "¿Tienes disponibilidad para sesiones?",
+        "¿Tienes disponibilidad para sesiones?"
+      ]
+    }
+  }
+}
