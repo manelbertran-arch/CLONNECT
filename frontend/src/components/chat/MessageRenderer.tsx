@@ -351,8 +351,8 @@ function isVideoUrl(url?: string): boolean {
 function StoryMessage({ message, isOutgoing, isLastInGroup }: { message: Message; isOutgoing: boolean; isLastInGroup: boolean }) {
   const [mediaLoaded, setMediaLoaded] = useState(false);
   const [useVideoFallback, setUseVideoFallback] = useState(false);
+  const [mediaError, setMediaError] = useState(false);
   const metadata = message.metadata || {};
-  const hasLink = !!metadata.url;
   const storyType = metadata.type === 'story_reply' ? 'Respuesta a story'
     : metadata.type === 'story_mention' ? 'Mención en story'
     : 'Reacción a story';
@@ -393,13 +393,14 @@ function StoryMessage({ message, isOutgoing, isLastInGroup }: { message: Message
           <p className="text-xs text-gray-400">{storyHeader}</p>
         </div>
         {/* Story Preview with gradient border and thumbnail */}
-        {hasLink && (
-          <a href={metadata.url} target="_blank" rel="noopener noreferrer" className="block">
+        {/* Show preview if we have a thumbnail or a link (even if thumbnail fails) */}
+        {(thumbnailSrc || metadata.url) && (
+          <a href={metadata.url || '#'} target="_blank" rel="noopener noreferrer" className="block">
             <div className="p-2">
               <div className={`${IG_GRADIENT_STORY} p-[2px] rounded-xl`}>
                 <div className="bg-black rounded-xl overflow-hidden">
-                  {/* Show thumbnail/video if available */}
-                  {thumbnailSrc && (
+                  {/* Show thumbnail/video if available and not errored */}
+                  {thumbnailSrc && !mediaError && (
                     <div className="relative">
                       {!mediaLoaded && (
                         <div className="w-full h-32 bg-[#1a1a1a] flex items-center justify-center">
@@ -416,7 +417,7 @@ function StoryMessage({ message, isOutgoing, isLastInGroup }: { message: Message
                           autoPlay
                           loop
                           onLoadedData={() => setMediaLoaded(true)}
-                          onError={() => setMediaLoaded(true)}
+                          onError={() => { setMediaError(true); setMediaLoaded(true); }}
                         />
                       ) : (
                         <img
@@ -439,8 +440,8 @@ function StoryMessage({ message, isOutgoing, isLastInGroup }: { message: Message
                       )}
                     </div>
                   )}
-                  {/* Fallback if no thumbnail - Story expired */}
-                  {!thumbnailSrc && (
+                  {/* Fallback if no thumbnail or media failed to load */}
+                  {(!thumbnailSrc || mediaError) && (
                     <div className="p-3 flex items-center gap-3">
                       <div className="w-12 h-12 rounded-lg bg-gradient-to-br from-violet-600 to-purple-600 flex items-center justify-center">
                         <Film className="w-6 h-6 text-white" />
@@ -448,7 +449,7 @@ function StoryMessage({ message, isOutgoing, isLastInGroup }: { message: Message
                       <div className="flex-1 min-w-0">
                         <p className="text-white text-sm font-medium">{storyType}</p>
                         <p className="text-gray-400 text-xs flex items-center gap-1">
-                          {hasSavedThumbnail ? 'Toca para ver' : 'Story expirada'}
+                          {mediaError ? 'Media expirado' : (hasSavedThumbnail ? 'Toca para ver' : 'Story expirada')}
                           <ExternalLink className="w-3 h-3" />
                         </p>
                       </div>
@@ -474,8 +475,8 @@ function StoryMessage({ message, isOutgoing, isLastInGroup }: { message: Message
           </div>
         )}
 
-        {/* No URL available - show nice placeholder matching story style */}
-        {!hasLink && (
+        {/* No URL or thumbnail available - show nice placeholder matching story style */}
+        {!thumbnailSrc && !metadata.url && (
           <div className="p-2">
             <div className={`${IG_GRADIENT_STORY} p-[2px] rounded-xl`}>
               <div className="bg-black rounded-xl overflow-hidden">
@@ -687,6 +688,7 @@ function AudioMessage({ message, isOutgoing, isLastInGroup }: { message: Message
 function SharedPostMessage({ message, isOutgoing, isLastInGroup }: { message: Message; isOutgoing: boolean; isLastInGroup: boolean }) {
   const [mediaLoaded, setMediaLoaded] = useState(false);
   const [useVideoFallback, setUseVideoFallback] = useState(false);
+  const [mediaError, setMediaError] = useState(false);
   const metadata = message.metadata || {};
 
   // IMPORTANT: Check if metadata.url is a video URL FIRST (lookaside.fbsbx.com)
@@ -717,7 +719,7 @@ function SharedPostMessage({ message, isOutgoing, isLastInGroup }: { message: Me
       <div className={`max-w-[75%] bg-[#262626] rounded-2xl ${isLastInGroup ? (isOutgoing ? 'rounded-br-md' : 'rounded-bl-md') : ''} overflow-hidden`}>
         {/* Post Preview */}
         <a href={permalink} target="_blank" rel="noopener noreferrer" className="block">
-          {thumbnailSrc ? (
+          {thumbnailSrc && !mediaError ? (
             <div className="relative">
               {!mediaLoaded && (
                 <div className="w-full h-48 bg-[#363636] flex items-center justify-center">
@@ -734,7 +736,7 @@ function SharedPostMessage({ message, isOutgoing, isLastInGroup }: { message: Me
                   autoPlay
                   loop
                   onLoadedData={() => setMediaLoaded(true)}
-                  onError={() => setMediaLoaded(true)}
+                  onError={() => { setMediaError(true); setMediaLoaded(true); }}
                 />
               ) : (
                 <img
@@ -753,8 +755,9 @@ function SharedPostMessage({ message, isOutgoing, isLastInGroup }: { message: Me
               )}
             </div>
           ) : (
-            <div className="h-32 bg-[#363636] flex items-center justify-center">
+            <div className="h-32 bg-[#363636] flex items-center justify-center flex-col gap-2">
               <Share2 className="w-8 h-8 text-gray-500" />
+              {mediaError && <p className="text-xs text-gray-500">Media expirado</p>}
             </div>
           )}
 
