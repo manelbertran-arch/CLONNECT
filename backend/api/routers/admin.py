@@ -4361,7 +4361,7 @@ async def admin_list_backups():
         raise HTTPException(status_code=500, detail=str(e))
 
 
-@router.post("/fix-reaction-emojis")
+@router.api_route("/fix-reaction-emojis", methods=["GET", "POST"])
 async def fix_reaction_emojis():
     """
     Fix reaction emojis missing the variation selector.
