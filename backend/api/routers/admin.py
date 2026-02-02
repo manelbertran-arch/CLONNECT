@@ -4378,17 +4378,17 @@ async def fix_reaction_emojis():
             # Find messages with reaction type or emoji in metadata
             messages = (
                 session.query(Message)
-                .filter(Message.metadata.isnot(None))
+                .filter(Message.msg_metadata.isnot(None))
                 .all()
             )
 
             fixed_count = 0
             for msg in messages:
-                if msg.metadata and isinstance(msg.metadata, dict):
-                    emoji = msg.metadata.get("emoji")
+                if msg.msg_metadata and isinstance(msg.msg_metadata, dict):
+                    emoji = msg.msg_metadata.get("emoji")
                     # Check if it's the heart without variation selector
                     if emoji == "❤" or emoji == "\u2764":
-                        msg.metadata = {**msg.metadata, "emoji": "❤️"}
+                        msg.msg_metadata = {**msg.msg_metadata, "emoji": "❤️"}
                         fixed_count += 1
 
             session.commit()
