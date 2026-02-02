@@ -413,19 +413,21 @@ async def _simple_dm_sync_internal(
                     if not follower_id:
                         continue
 
-                    # Fetch profile picture for follower
+                    # Fetch profile picture and verified status for follower
                     follower_profile_pic = None
+                    follower_is_verified = False
                     try:
                         profile_resp = await client.get(
                             f"{api_base}/{follower_id}",
                             params={
-                                "fields": "id,username,name,profile_pic",
+                                "fields": "id,username,name,profile_pic,is_verified_user",
                                 "access_token": access_token,
                             },
                         )
                         if profile_resp.status_code == 200:
                             profile_data = profile_resp.json()
                             follower_profile_pic = profile_data.get("profile_pic")
+                            follower_is_verified = profile_data.get("is_verified_user", False)
                             if profile_data.get("username"):
                                 follower_username = profile_data.get("username")
                     except Exception as profile_error:
@@ -461,6 +463,10 @@ async def _simple_dm_sync_internal(
                     )
 
                     if not lead:
+                        # Build initial context with verified status
+                        initial_context = {}
+                        if follower_is_verified:
+                            initial_context["is_verified"] = True
                         lead = Lead(
                             creator_id=creator.id,
                             platform="instagram",
@@ -470,6 +476,7 @@ async def _simple_dm_sync_internal(
                             status="new",
                             first_contact_at=first_contact,
                             last_contact_at=last_contact,
+                            context=initial_context if initial_context else None,
                         )
                         session.add(lead)
                         session.commit()
@@ -486,6 +493,12 @@ async def _simple_dm_sync_internal(
                         # Update profile pic if we got one and lead doesn't have it
                         if follower_profile_pic and not lead.profile_pic_url:
                             lead.profile_pic_url = follower_profile_pic
+                        # Update verified status if we got it
+                        if follower_is_verified:
+                            context = lead.context or {}
+                            if not context.get("is_verified"):
+                                context["is_verified"] = True
+                                lead.context = context
                         session.commit()
 
                     # Save ALL messages (including media, reactions, stories)
