@@ -5,6 +5,7 @@ Extracted from main.py as part of refactoring
 import json
 import logging
 import os
+from datetime import datetime, timezone
 from typing import Dict, Optional
 
 from fastapi import APIRouter, HTTPException
@@ -190,8 +191,19 @@ async def get_conversations(creator_id: str, limit: int = 50):
                             last_message_preview = content[:50] + "..." if len(content) > 50 else content
                             last_message_role = last_msg.role
 
-                        # is_unread: true if last message is from user (awaiting response)
-                        is_unread = last_message_role == "user"
+                        # is_unread: Check if last user message is after last_read_at
+                        last_read_at = ctx.get("last_read_at")
+                        last_user_msg_time = (
+                            last_msg.created_at.isoformat()
+                            if last_msg and last_msg.role == "user" and last_msg.created_at
+                            else None
+                        )
+                        if last_read_at and last_user_msg_time:
+                            # Compare timestamps - unread if user message is after read time
+                            is_unread = last_user_msg_time > last_read_at
+                        else:
+                            # Fallback: unread if last message is from user
+                            is_unread = last_message_role == "user"
                         # is_verified: from context JSON (populated by Instagram API)
                         is_verified = ctx.get("is_verified", False)
 
@@ -246,6 +258,55 @@ async def get_conversations(creator_id: str, limit: int = 50):
 
     except Exception as e:
         logger.error(f"get_conversations error: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/conversations/{creator_id}/{follower_id}/mark-read")
+async def mark_conversation_read(creator_id: str, follower_id: str):
+    """Mark a conversation as read by updating last_read_at in lead context"""
+    if not USE_DB:
+        return {"status": "ok", "message": "No database - skipped"}
+
+    try:
+        from api.models import Creator, Lead
+        from api.services.db_service import get_session
+
+        session = get_session()
+        if not session:
+            return {"status": "error", "message": "No database session"}
+
+        try:
+            # Find creator
+            creator = session.query(Creator).filter_by(name=creator_id).first()
+            if not creator:
+                return {"status": "error", "message": "Creator not found"}
+
+            # Find lead by platform_user_id
+            lead = (
+                session.query(Lead)
+                .filter(
+                    Lead.creator_id == creator.id,
+                    Lead.platform_user_id == follower_id,
+                )
+                .first()
+            )
+
+            if lead:
+                # Update context with last_read_at timestamp
+                context = lead.context or {}
+                context["last_read_at"] = datetime.now(timezone.utc).isoformat()
+                lead.context = context
+                session.commit()
+                logger.info(f"[MarkRead] {creator_id}/{follower_id} marked as read")
+                return {"status": "ok", "message": "Conversation marked as read"}
+            else:
+                return {"status": "error", "message": "Lead not found"}
+
+        finally:
+            session.close()
+
+    except Exception as e:
+        logger.error(f"mark_conversation_read error: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 

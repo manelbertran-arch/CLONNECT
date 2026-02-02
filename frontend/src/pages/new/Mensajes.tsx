@@ -5,6 +5,7 @@ import {
   getConversations,
   getFollowerDetail,
   sendMessage,
+  markConversationRead,
   CREATOR_ID,
 } from '@/services/api';
 import { Search, Send, ArrowLeft, MessageCircle } from 'lucide-react';
@@ -41,6 +42,31 @@ export default function Mensajes() {
       });
     },
   });
+
+  // Mark conversation as read when opened
+  useEffect(() => {
+    if (conversationId) {
+      // Call API to mark as read
+      markConversationRead(creatorId, conversationId).catch(() => {
+        // Silently ignore errors - not critical
+      });
+      // Optimistically update local state to remove blue dot
+      queryClient.setQueryData(
+        ['conversations', creatorId],
+        (oldData: any) => {
+          if (!oldData?.conversations) return oldData;
+          return {
+            ...oldData,
+            conversations: oldData.conversations.map((conv: any) =>
+              conv.follower_id === conversationId
+                ? { ...conv, is_unread: false }
+                : conv
+            ),
+          };
+        }
+      );
+    }
+  }, [conversationId, creatorId, queryClient]);
 
   const conversations = conversationsData?.conversations || [];
 

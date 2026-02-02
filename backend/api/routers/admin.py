@@ -1025,6 +1025,7 @@ async def test_full_sync_conversation(creator_id: str, username: str):
             # Step 4: Save all messages (including media, reactions, stories)
             saved_count = 0
             skipped_duplicate = 0
+            updated_unknown = 0  # Messages updated from unknown to proper type
             skipped_old = 0
             skipped_no_id = 0
             content_types = {
@@ -1189,10 +1190,19 @@ async def test_full_sync_conversation(creator_id: str, username: str):
                     except ValueError:
                         pass
 
-                # Check for duplicate
+                # Check for duplicate - but UPDATE if existing has type="unknown"
                 existing = session.query(Message).filter_by(platform_message_id=msg_id).first()
                 if existing:
-                    skipped_duplicate += 1
+                    # If existing message has unknown type and new extraction has better type, update it
+                    existing_type = (existing.msg_metadata or {}).get("type", "")
+                    new_type = metadata.get("type", "unknown")
+                    if existing_type == "unknown" and new_type != "unknown":
+                        # Update the existing message with new metadata
+                        existing.content = msg_text
+                        existing.msg_metadata = metadata
+                        updated_unknown += 1
+                    else:
+                        skipped_duplicate += 1
                     continue
 
                 # Determine role
@@ -1230,6 +1240,7 @@ async def test_full_sync_conversation(creator_id: str, username: str):
                 "pages_fetched": pages_fetched + 1,
                 "total_api_messages": len(all_messages),
                 "messages_saved": saved_count,
+                "updated_unknown": updated_unknown,
                 "skipped_duplicate": skipped_duplicate,
                 "skipped_old": skipped_old,
                 "skipped_no_id": skipped_no_id,

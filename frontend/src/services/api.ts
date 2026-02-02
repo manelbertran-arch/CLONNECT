@@ -327,6 +327,18 @@ export async function sendMessage(
 }
 
 /**
+ * Mark a conversation as read
+ */
+export async function markConversationRead(
+  creatorId: string = CREATOR_ID,
+  followerId: string
+): Promise<{ status: string; message: string }> {
+  return apiFetch(`/dm/conversations/${creatorId}/${followerId}/mark-read`, {
+    method: "POST",
+  });
+}
+
+/**
  * Update the lead status for a follower
  * Nuevo embudo: nuevo, interesado, caliente, cliente, fantasma
  */
@@ -2263,6 +2275,7 @@ export default {
   getMetrics,
   getFollowerDetail,
   sendMessage,
+  markConversationRead,
   updateLeadStatus,
   getCreatorConfig,
   updateCreatorConfig,
