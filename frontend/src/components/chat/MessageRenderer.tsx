@@ -426,10 +426,22 @@ function StoryMessage({ message, isOutgoing, isLastInGroup }: { message: Message
           </div>
         )}
 
+        {/* No URL available - show nice placeholder matching story style */}
         {!hasLink && (
-          <div className="px-4 py-2.5">
-            <p className="text-[15px] text-gray-300">{storyType}</p>
-            <p className="text-xs text-gray-500 mt-1">Story no disponible</p>
+          <div className="p-2">
+            <div className={`${IG_GRADIENT_STORY} p-[2px] rounded-xl`}>
+              <div className="bg-black rounded-xl overflow-hidden">
+                <div className="p-3 flex items-center gap-3">
+                  <div className="w-12 h-12 rounded-lg bg-gradient-to-br from-violet-600 to-purple-600 flex items-center justify-center">
+                    <Film className="w-6 h-6 text-white" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-white text-sm font-medium">{storyType}</p>
+                    <p className="text-gray-400 text-xs">Story no disponible</p>
+                  </div>
+                </div>
+              </div>
+            </div>
           </div>
         )}
 
