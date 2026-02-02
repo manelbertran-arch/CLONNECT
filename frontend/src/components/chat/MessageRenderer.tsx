@@ -74,6 +74,16 @@ function convertEmoticonsToEmoji(text: string): string {
 }
 
 /**
+ * Decode HTML entities in text
+ * Handles common entities like &#064; (@), &#x2022; (•), &amp; (&), etc.
+ */
+function decodeHtmlEntities(text: string): string {
+  const textarea = document.createElement('textarea');
+  textarea.innerHTML = text;
+  return textarea.value;
+}
+
+/**
  * URL regex pattern - matches URLs with or without protocol
  * Supports: https://..., http://..., www..., domain.com/path
  */
@@ -301,8 +311,8 @@ function LinkPreviewCard({ preview }: { preview: LinkPreview }) {
             </div>
           )}
           <img
-            src={preview.image}
-            alt={preview.title || 'Preview'}
+            src={decodeHtmlEntities(preview.image)}
+            alt={preview.title ? decodeHtmlEntities(preview.title) : 'Preview'}
             className={`w-full h-40 object-cover ${imageLoaded ? '' : 'hidden'}`}
             style={{ imageRendering: 'auto' }}
             onLoad={() => setImageLoaded(true)}
@@ -312,10 +322,10 @@ function LinkPreviewCard({ preview }: { preview: LinkPreview }) {
       )}
       <div className="p-3">
         {preview.title && (
-          <p className="text-sm font-medium text-white line-clamp-2">{preview.title}</p>
+          <p className="text-sm font-medium text-white line-clamp-2">{decodeHtmlEntities(preview.title)}</p>
         )}
         {preview.description && (
-          <p className="text-xs text-gray-400 mt-1 line-clamp-2">{preview.description}</p>
+          <p className="text-xs text-gray-400 mt-1 line-clamp-2">{decodeHtmlEntities(preview.description)}</p>
         )}
         <p className="text-xs text-violet-400 mt-2 flex items-center gap-1">
           {domain}
@@ -636,11 +646,11 @@ function SharedPostMessage({ message, isOutgoing, isLastInGroup }: { message: Me
   const [imageError, setImageError] = useState(false);
   const metadata = message.metadata || {};
 
-  // Prefer higher resolution sources: url > preview_url > thumbnail_url > base64
-  const thumbnailSrc = metadata.url
-    || metadata.preview_url
-    || metadata.thumbnail_url
-    || (metadata.thumbnail_base64 ? `data:image/jpeg;base64,${metadata.thumbnail_base64}` : null);
+  // Prefer reliable image sources: base64 (saved) > thumbnail_url > preview_url
+  // Note: metadata.url is often a permalink (not an image), so we don't use it for thumbnails
+  const thumbnailSrc = metadata.thumbnail_base64
+    ? `data:image/jpeg;base64,${metadata.thumbnail_base64}`
+    : metadata.thumbnail_url || metadata.preview_url;
 
   const permalink = metadata.permalink || metadata.url;
   const authorUsername = metadata.author_username;
