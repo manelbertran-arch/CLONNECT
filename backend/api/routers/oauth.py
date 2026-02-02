@@ -533,21 +533,50 @@ async def _simple_dm_sync_internal(
                             story_link = story_data["mention"].get("link", "")
                             story_type = "mention"
 
+                        # FIX 2026-02-02: Extract CDN URL from attachments for stories
+                        # story_link is just a permalink (instagram.com/stories/...)
+                        # The actual video/image is in attachments (lookaside.fbsbx.com/...)
+                        story_cdn_url = None
+                        if story_type:
+                            raw_atts = msg.get("attachments", {})
+                            story_atts = (
+                                raw_atts.get("data", [])
+                                if isinstance(raw_atts, dict)
+                                else raw_atts if isinstance(raw_atts, list) else []
+                            )
+                            if story_atts:
+                                att = story_atts[0]
+                                story_cdn_url = (
+                                    att.get("video_data", {}).get("url")
+                                    or att.get("image_data", {}).get("url")
+                                    or (att.get("payload", {}).get("url") if isinstance(att.get("payload"), dict) else None)
+                                    or att.get("url")
+                                )
+
                         # STEP 2: Build message based on combination (if no text)
                         if not msg_text:
                             if story_type and reaction_emoji:
                                 msg_text = f"Reacción {reaction_emoji} a story"
                                 msg_metadata = {
                                     "type": "story_reaction",
-                                    "url": story_link,
+                                    "url": story_cdn_url or story_link,  # CDN URL first, fallback to permalink
+                                    "link": story_link,  # Keep permalink for "open in Instagram"
                                     "emoji": reaction_emoji,
                                 }
                             elif story_type == "reply_to":
                                 msg_text = "Respuesta a story"
-                                msg_metadata = {"type": "story_reply", "url": story_link}
+                                msg_metadata = {
+                                    "type": "story_reply",
+                                    "url": story_cdn_url or story_link,
+                                    "link": story_link,
+                                }
                             elif story_type == "mention":
                                 msg_text = "Mención en story"
-                                msg_metadata = {"type": "story_mention", "url": story_link}
+                                msg_metadata = {
+                                    "type": "story_mention",
+                                    "url": story_cdn_url or story_link,
+                                    "link": story_link,
+                                }
                             elif reaction_emoji:
                                 msg_text = f"Reacción {reaction_emoji}"
                                 msg_metadata = {"type": "reaction", "emoji": reaction_emoji}

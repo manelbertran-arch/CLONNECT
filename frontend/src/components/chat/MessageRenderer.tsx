@@ -162,6 +162,7 @@ interface CarouselItem {
 interface MessageMetadata {
   type?: string;
   url?: string;
+  link?: string;  // Instagram permalink (for stories: link to story, url is CDN video)
   emoji?: string;
   thumbnail_url?: string;
   thumbnail_base64?: string;  // Screenshot base64 for link previews
@@ -353,6 +354,9 @@ function StoryMessage({ message, isOutgoing, isLastInGroup }: { message: Message
   const [useVideoFallback, setUseVideoFallback] = useState(false);
   const [mediaError, setMediaError] = useState(false);
   const metadata = message.metadata || {};
+  // Use metadata.link for Instagram permalink, metadata.url for CDN media
+  const storyPermalink = metadata.link || metadata.url;  // link is permalink, url may be CDN
+  const hasLink = !!storyPermalink;
   const storyType = metadata.type === 'story_reply' ? 'Respuesta a story'
     : metadata.type === 'story_mention' ? 'Mención en story'
     : 'Reacción a story';
@@ -394,8 +398,8 @@ function StoryMessage({ message, isOutgoing, isLastInGroup }: { message: Message
         </div>
         {/* Story Preview with gradient border and thumbnail */}
         {/* Show preview if we have a thumbnail or a link (even if thumbnail fails) */}
-        {(thumbnailSrc || metadata.url) && (
-          <a href={metadata.url || '#'} target="_blank" rel="noopener noreferrer" className="block">
+        {(thumbnailSrc || hasLink) && (
+          <a href={storyPermalink || '#'} target="_blank" rel="noopener noreferrer" className="block">
             <div className="p-2">
               <div className={`${IG_GRADIENT_STORY} p-[2px] rounded-xl`}>
                 <div className="bg-black rounded-xl overflow-hidden">
