@@ -291,7 +291,7 @@ function StoryMessage({ message, isOutgoing, isLastInGroup }: { message: Message
       <div className={`max-w-[75%] ${bubbleClass} rounded-2xl ${isLastInGroup ? (isOutgoing ? 'rounded-br-md' : 'rounded-bl-md') : ''} overflow-hidden`}>
         {/* Story Preview with gradient border and thumbnail */}
         {hasLink && (
-          <a href={metadata.url} target="_blank" rel="noopener noreferrer" className="block">
+          <a href={metadata.url} target="_blank" rel="noopener noreferrer" className="block cursor-pointer hover:opacity-90 transition-opacity">
             <div className="p-2">
               <div className={`${IG_GRADIENT_STORY} p-[2px] rounded-xl`}>
                 <div className="bg-black rounded-xl overflow-hidden">
@@ -410,7 +410,7 @@ function MediaMessage({ message, isOutgoing, isLastInGroup, type }: { message: M
   return (
     <div className={`flex ${isOutgoing ? 'justify-end' : 'justify-start'}`}>
       <div className={`max-w-[70%] ${isSticker ? '' : 'rounded-2xl overflow-hidden'}`}>
-        <a href={imageUrl} target="_blank" rel="noopener noreferrer" className="block relative">
+        <a href={imageUrl} target="_blank" rel="noopener noreferrer" className="block relative cursor-pointer hover:opacity-90 transition-opacity">
           {!loaded && (
             <div className="w-48 h-48 bg-[#262626] rounded-2xl flex items-center justify-center">
               <ImageIcon className="w-8 h-8 text-gray-500 animate-pulse" />
@@ -501,7 +501,7 @@ function SharedPostMessage({ message, isOutgoing, isLastInGroup }: { message: Me
     <div className={`flex ${isOutgoing ? 'justify-end' : 'justify-start'}`}>
       <div className={`max-w-[75%] bg-[#262626] rounded-2xl ${isLastInGroup ? (isOutgoing ? 'rounded-br-md' : 'rounded-bl-md') : ''} overflow-hidden`}>
         {/* Post Preview */}
-        <a href={permalink} target="_blank" rel="noopener noreferrer" className="block">
+        <a href={permalink} target="_blank" rel="noopener noreferrer" className="block cursor-pointer hover:opacity-90 transition-opacity">
           {thumbnailSrc && !imageError ? (
             <div className="relative">
               {!mediaLoaded && (
