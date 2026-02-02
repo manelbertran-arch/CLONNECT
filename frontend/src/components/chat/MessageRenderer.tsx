@@ -337,15 +337,18 @@ function LinkPreviewCard({ preview }: { preview: LinkPreview }) {
   );
 }
 
-// Helper: Detect if URL is likely a video (Instagram CDN, mp4, etc.)
-// This allows proactive video rendering instead of waiting for img to fail
-function isVideoUrl(url?: string): boolean {
+// Helper: Detect if URL has explicit video extension
+// NOTE: lookaside.fbsbx.com can return EITHER image or video, so we DON'T assume video
+// We try image first, then fallback to video on error
+function isExplicitVideoUrl(url?: string): boolean {
   if (!url) return false;
-  return (
-    url.includes('lookaside.fbsbx.com') ||
-    url.includes('cdninstagram.com') ||
-    /\.(mp4|mov|webm|m4v)($|\?)/i.test(url)
-  );
+  return /\.(mp4|mov|webm|m4v)($|\?)/i.test(url);
+}
+
+// Helper: Check if URL is from Instagram CDN (can be image OR video)
+function isCdnUrl(url?: string): boolean {
+  if (!url) return false;
+  return url.includes('lookaside.fbsbx.com') || url.includes('cdninstagram.com');
 }
 
 // Story Message - With gradient border and thumbnail preview
@@ -370,20 +373,17 @@ function StoryMessage({ message, isOutgoing, isLastInGroup }: { message: Message
       : metadata.type === 'story_mention' ? 'Te mencionó en su historia'
       : 'Reaccionó a tu historia');
 
-  // IMPORTANT: Check if metadata.url is a video URL FIRST (lookaside.fbsbx.com)
-  // If it's a video, use it directly - don't use static thumbnails for video content!
-  const videoUrl = isVideoUrl(metadata.url) ? metadata.url : null;
-
-  // For thumbnails: video URL takes priority, then static images
-  const thumbnailSrc = videoUrl  // Video URL first!
+  // For thumbnails: use CDN URL, permanent URL, or base64
+  // NOTE: We DON'T assume CDN URLs are video - try image first, fallback to video
+  const thumbnailSrc = metadata.url  // CDN URL (can be image OR video)
     || metadata.permanent_url
     || (metadata.thumbnail_base64
       ? (metadata.thumbnail_base64.startsWith('data:') ? metadata.thumbnail_base64 : `data:image/jpeg;base64,${metadata.thumbnail_base64}`)
       : metadata.thumbnail_url);
   const hasSavedThumbnail = !!metadata.thumbnail_base64 || !!metadata.permanent_url;
 
-  // Detect video: by URL pattern or fallback
-  const isVideo = !!videoUrl || isVideoUrl(thumbnailSrc) || useVideoFallback;
+  // Only use video if: explicit video extension, OR image failed (useVideoFallback)
+  const isVideo = isExplicitVideoUrl(thumbnailSrc) || useVideoFallback;
 
   const bubbleClass = isOutgoing
     ? `${IG_GRADIENT} text-white`
@@ -411,8 +411,9 @@ function StoryMessage({ message, isOutgoing, isLastInGroup }: { message: Message
                           <Film className="w-8 h-8 text-gray-600 animate-pulse" />
                         </div>
                       )}
-                      {/* Video player for video URLs (Instagram CDN returns video/mp4) */}
+                      {/* Try image first, fallback to video if image fails */}
                       {isVideo ? (
+                        // Video fallback: image failed, try as video
                         <video
                           src={thumbnailSrc}
                           className={`w-full max-h-64 object-cover ${mediaLoaded ? '' : 'hidden'}`}
@@ -421,16 +422,17 @@ function StoryMessage({ message, isOutgoing, isLastInGroup }: { message: Message
                           autoPlay
                           loop
                           onLoadedData={() => setMediaLoaded(true)}
-                          onError={() => { setMediaError(true); setMediaLoaded(true); }}
+                          onError={() => { setMediaError(true); setMediaLoaded(true); }}  // Video also failed
                         />
                       ) : (
+                        // Try as image first
                         <img
                           src={thumbnailSrc}
                           alt={storyType}
                           className={`w-full max-h-64 object-cover ${mediaLoaded ? '' : 'hidden'}`}
                           style={{ imageRendering: 'auto' }}
                           onLoad={() => setMediaLoaded(true)}
-                          onError={() => setUseVideoFallback(true)}  // Fallback: try as video
+                          onError={() => setUseVideoFallback(true)}  // Image failed, try as video
                         />
                       )}
                       {/* Overlay with story type */}
@@ -569,8 +571,9 @@ function MediaMessage({ message, isOutgoing, isLastInGroup, type }: { message: M
     || metadata.thumbnail_url;
   const isSticker = metadata.render_as_sticker;
 
-  // Check if URL is a playable video (Instagram CDN, mp4, mov, webm)
-  const isPlayableVideo = (type === 'video' || useVideoFallback || isVideoUrl(mediaUrl)) && mediaUrl;
+  // Check if URL is a playable video (explicit extension, or fallback from failed image)
+  // NOTE: CDN URLs can be image OR video, so we try image first
+  const isPlayableVideo = (type === 'video' || useVideoFallback || isExplicitVideoUrl(mediaUrl)) && mediaUrl;
 
   if (!mediaUrl) {
     return <TextMessage message={message} isOutgoing={isOutgoing} isLastInGroup={isLastInGroup} />;
@@ -695,11 +698,9 @@ function SharedPostMessage({ message, isOutgoing, isLastInGroup }: { message: Me
   const [mediaError, setMediaError] = useState(false);
   const metadata = message.metadata || {};
 
-  // IMPORTANT: Check if metadata.url is a video URL FIRST (lookaside.fbsbx.com)
-  const videoUrl = isVideoUrl(metadata.url) ? metadata.url : null;
-
-  // For thumbnails: video URL takes priority, then static images
-  const thumbnailSrc = videoUrl
+  // For thumbnails: use CDN URL, permanent URL, or base64
+  // NOTE: CDN URLs can be image OR video - we try image first, fallback to video
+  const thumbnailSrc = metadata.url
     || metadata.permanent_url
     || (metadata.thumbnail_base64
       ? (metadata.thumbnail_base64.startsWith('data:') ? metadata.thumbnail_base64 : `data:image/jpeg;base64,${metadata.thumbnail_base64}`)
@@ -709,9 +710,9 @@ function SharedPostMessage({ message, isOutgoing, isLastInGroup }: { message: Me
   const authorUsername = metadata.author_username;
   const isReel = metadata.type === 'shared_reel' || metadata.type === 'reel';
 
-  // Detect video: by URL, type, or fallback
-  const isVideo = !!videoUrl || metadata.type === 'shared_video' || isReel || metadata.type === 'clip' || metadata.type === 'igtv'
-    || isVideoUrl(thumbnailSrc) || useVideoFallback;
+  // Detect video: by type, explicit extension, or fallback from failed image
+  const isVideo = metadata.type === 'shared_video' || isReel || metadata.type === 'clip' || metadata.type === 'igtv'
+    || isExplicitVideoUrl(thumbnailSrc) || useVideoFallback;
 
   // Platform-specific label
   const platformLabel = metadata.platform === 'youtube' ? 'YouTube'
