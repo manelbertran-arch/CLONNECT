@@ -18,6 +18,7 @@ export default function Mensajes() {
   const [newMessage, setNewMessage] = useState('');
   const creatorId = CREATOR_ID;
   const queryClient = useQueryClient();
+  const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const { data: conversationsData } = useQuery({
     queryKey: ['conversations', creatorId],
@@ -54,6 +55,13 @@ export default function Mensajes() {
   );
 
   const messages = followerDetail?.last_messages || [];
+
+  // Auto-scroll to bottom when messages load or change
+  useEffect(() => {
+    if (messages.length > 0) {
+      messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    }
+  }, [messages, conversationId]);
 
   // Format relative time - Spanish Instagram style
   const formatTimeAgo = (dateStr?: string) => {
@@ -265,24 +273,28 @@ export default function Mensajes() {
                 <div className="text-gray-500">No hay mensajes</div>
               </div>
             ) : (
-              messages.map((msg, i) => {
-                // Determine if this is the last message in a group from same sender
-                const nextMsg = messages[i + 1];
-                const isLastInGroup = !nextMsg || nextMsg.role !== msg.role;
+              <>
+                {messages.map((msg, i) => {
+                  // Determine if this is the last message in a group from same sender
+                  const nextMsg = messages[i + 1];
+                  const isLastInGroup = !nextMsg || nextMsg.role !== msg.role;
 
-                return (
-                  <MessageRenderer
-                    key={i}
-                    message={{
-                      role: msg.role === 'assistant' ? 'assistant' : 'user',
-                      content: msg.content,
-                      timestamp: msg.timestamp,
-                      metadata: msg.metadata,
-                    }}
-                    isLastInGroup={isLastInGroup}
-                  />
-                );
-              })
+                  return (
+                    <MessageRenderer
+                      key={i}
+                      message={{
+                        role: msg.role === 'assistant' ? 'assistant' : 'user',
+                        content: msg.content,
+                        timestamp: msg.timestamp,
+                        metadata: msg.metadata,
+                      }}
+                      isLastInGroup={isLastInGroup}
+                    />
+                  );
+                })}
+                {/* Scroll anchor */}
+                <div ref={messagesEndRef} />
+              </>
             )}
           </div>
 
