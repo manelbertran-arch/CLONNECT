@@ -10,9 +10,9 @@ import logging
 
 logger = logging.getLogger(__name__)
 
-# Default provider - Groq es gratis con Llama 3.1
-DEFAULT_PROVIDER = "groq"
-DEFAULT_GROQ_MODEL = "llama-3.3-70b-versatile"
+# Default provider - OpenAI gpt-4o-mini
+DEFAULT_PROVIDER = "openai"
+DEFAULT_OPENAI_MODEL = "gpt-4o-mini"
 
 
 class LLMClient(ABC):

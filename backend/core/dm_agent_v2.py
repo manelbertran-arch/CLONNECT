@@ -130,7 +130,7 @@ def apply_voseo(text: str) -> str:
 class AgentConfig:
     """Configuration for the DM Agent."""
 
-    llm_provider: LLMProvider = LLMProvider.GROQ
+    llm_provider: LLMProvider = LLMProvider.OPENAI
     llm_model: Optional[str] = None
     temperature: float = 0.7
     max_tokens: int = 1024

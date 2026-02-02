@@ -85,7 +85,7 @@ def check_env_vars():
             ok(f"{var} is set")
 
     # Check LLM_PROVIDER
-    llm_provider = os.getenv("LLM_PROVIDER", "groq")
+    llm_provider = os.getenv("LLM_PROVIDER", "openai")
     info(f"LLM_PROVIDER = {llm_provider}")
 
     if llm_provider == "groq" and not os.getenv("GROQ_API_KEY"):

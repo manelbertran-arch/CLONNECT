@@ -85,7 +85,7 @@ class LLMService:
 
     def __init__(
         self,
-        provider: LLMProvider = LLMProvider.GROQ,
+        provider: LLMProvider = LLMProvider.OPENAI,
         model: Optional[str] = None,
         temperature: float = 0.7,
         max_tokens: int = 1024,
@@ -95,7 +95,7 @@ class LLMService:
         Initialize LLM service.
 
         Args:
-            provider: LLM provider to use (default: Groq)
+            provider: LLM provider to use (default: OpenAI)
             model: Specific model name (uses provider default if not set)
             temperature: Generation temperature 0-1
             max_tokens: Maximum tokens in response
