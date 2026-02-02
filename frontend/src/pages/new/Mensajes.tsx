@@ -16,6 +16,7 @@ import { MessageRenderer } from '@/components/chat/MessageRenderer';
 export default function Mensajes() {
   const { conversationId } = useParams();
   const [search, setSearch] = useState('');
+  const [statusFilter, setStatusFilter] = useState<string>('all');
   const [newMessage, setNewMessage] = useState('');
   const creatorId = CREATOR_ID;
   const queryClient = useQueryClient();
@@ -74,11 +75,13 @@ export default function Mensajes() {
     (c) => c.follower_id === conversationId
   );
 
-  const filteredConversations = conversations.filter((c) =>
-    (c.username || c.name || c.follower_id)
-      .toLowerCase()
-      .includes(search.toLowerCase())
-  );
+  const filteredConversations = conversations
+    .filter((c) => statusFilter === 'all' || c.status === statusFilter)
+    .filter((c) =>
+      (c.username || c.name || c.follower_id)
+        .toLowerCase()
+        .includes(search.toLowerCase())
+    );
 
   const messages = followerDetail?.last_messages || [];
 
@@ -155,6 +158,30 @@ export default function Mensajes() {
               className="pl-10 bg-[#262626] border-0 rounded-lg text-white placeholder:text-gray-500 focus-visible:ring-0"
             />
           </div>
+        </div>
+
+        {/* Status Filter */}
+        <div className="flex gap-2 px-3 pb-3 overflow-x-auto scrollbar-hide">
+          {[
+            { value: 'all', label: 'Todos' },
+            { value: 'new', label: 'Nuevos' },
+            { value: 'interested', label: 'Interesados' },
+            { value: 'hot', label: 'Calientes' },
+            { value: 'customer', label: 'Clientes' },
+            { value: 'ghost', label: 'Fantasmas' },
+          ].map(({ value, label }) => (
+            <button
+              key={value}
+              onClick={() => setStatusFilter(value)}
+              className={`px-3 py-1 rounded-full text-xs whitespace-nowrap transition-colors ${
+                statusFilter === value
+                  ? 'bg-violet-600 text-white'
+                  : 'bg-[#262626] text-gray-400 hover:bg-[#363636]'
+              }`}
+            >
+              {label}
+            </button>
+          ))}
         </div>
 
         {/* List */}
