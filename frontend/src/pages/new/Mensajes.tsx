@@ -55,7 +55,7 @@ export default function Mensajes() {
 
   const messages = followerDetail?.last_messages || [];
 
-  // Format time ago - Instagram style (day + time for older messages)
+  // Format relative time - Spanish Instagram style
   const formatTimeAgo = (dateStr?: string) => {
     if (!dateStr) return '';
     const date = new Date(dateStr);
@@ -65,17 +65,19 @@ export default function Mensajes() {
     const diffHours = Math.floor(diffMs / 3600000);
     const diffDays = Math.floor(diffMs / 86400000);
 
-    if (diffMins < 60) return `${diffMins}m`;
-    if (diffHours < 24) return `${diffHours}h`;
+    // < 1 hour: "hace 5 min"
+    if (diffMins < 60) return `hace ${diffMins || 1} min`;
 
-    // For older messages, show day + time like Instagram
-    const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-    const dayName = days[date.getDay()];
-    const hours = date.getHours().toString().padStart(2, '0');
-    const mins = date.getMinutes().toString().padStart(2, '0');
+    // < 24 hours: "hace 3h"
+    if (diffHours < 24) return `hace ${diffHours}h`;
 
-    if (diffDays < 7) return `${dayName} ${hours}:${mins}`;
-    return `${diffDays}d`;
+    // < 7 days: "lun", "mar", etc.
+    if (diffDays < 7) {
+      return date.toLocaleDateString('es', { weekday: 'short' });
+    }
+
+    // > 7 days: "15 ene"
+    return date.toLocaleDateString('es', { day: 'numeric', month: 'short' });
   };
 
   const handleSendMessage = () => {
