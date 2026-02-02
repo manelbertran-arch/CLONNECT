@@ -366,16 +366,20 @@ function StoryMessage({ message, isOutgoing, isLastInGroup }: { message: Message
       : metadata.type === 'story_mention' ? 'Te mencionó en su historia'
       : 'Reaccionó a tu historia');
 
-  // For stories: prefer saved thumbnails, but also use metadata.url (the story CDN URL)
-  // Priority: permanent_url > base64 > thumbnail_url > url (CDN URL from backend)
-  const thumbnailSrc = metadata.permanent_url
+  // IMPORTANT: Check if metadata.url is a video URL FIRST (lookaside.fbsbx.com)
+  // If it's a video, use it directly - don't use static thumbnails for video content!
+  const videoUrl = isVideoUrl(metadata.url) ? metadata.url : null;
+
+  // For thumbnails: video URL takes priority, then static images
+  const thumbnailSrc = videoUrl  // Video URL first!
+    || metadata.permanent_url
     || (metadata.thumbnail_base64
       ? (metadata.thumbnail_base64.startsWith('data:') ? metadata.thumbnail_base64 : `data:image/jpeg;base64,${metadata.thumbnail_base64}`)
-      : (metadata.thumbnail_url || metadata.url));  // ← Added metadata.url as fallback!
+      : metadata.thumbnail_url);
   const hasSavedThumbnail = !!metadata.thumbnail_base64 || !!metadata.permanent_url;
 
-  // Detect video proactively by URL pattern (Instagram CDN returns video/mp4)
-  const isVideo = isVideoUrl(thumbnailSrc) || useVideoFallback;
+  // Detect video: by URL pattern or fallback
+  const isVideo = !!videoUrl || isVideoUrl(thumbnailSrc) || useVideoFallback;
 
   const bubbleClass = isOutgoing
     ? `${IG_GRADIENT} text-white`
@@ -685,9 +689,12 @@ function SharedPostMessage({ message, isOutgoing, isLastInGroup }: { message: Me
   const [useVideoFallback, setUseVideoFallback] = useState(false);
   const metadata = message.metadata || {};
 
-  // Prefer reliable image sources: permanent_url (Cloudinary) > base64 (saved) > thumbnail_url > preview_url
-  // Note: metadata.url is often a permalink (not an image), so we don't use it for thumbnails
-  const thumbnailSrc = metadata.permanent_url
+  // IMPORTANT: Check if metadata.url is a video URL FIRST (lookaside.fbsbx.com)
+  const videoUrl = isVideoUrl(metadata.url) ? metadata.url : null;
+
+  // For thumbnails: video URL takes priority, then static images
+  const thumbnailSrc = videoUrl
+    || metadata.permanent_url
     || (metadata.thumbnail_base64
       ? (metadata.thumbnail_base64.startsWith('data:') ? metadata.thumbnail_base64 : `data:image/jpeg;base64,${metadata.thumbnail_base64}`)
       : metadata.thumbnail_url || metadata.preview_url);
@@ -696,8 +703,8 @@ function SharedPostMessage({ message, isOutgoing, isLastInGroup }: { message: Me
   const authorUsername = metadata.author_username;
   const isReel = metadata.type === 'shared_reel' || metadata.type === 'reel';
 
-  // Detect video: by type, URL pattern (Instagram CDN), or fallback
-  const isVideo = metadata.type === 'shared_video' || isReel || metadata.type === 'clip' || metadata.type === 'igtv'
+  // Detect video: by URL, type, or fallback
+  const isVideo = !!videoUrl || metadata.type === 'shared_video' || isReel || metadata.type === 'clip' || metadata.type === 'igtv'
     || isVideoUrl(thumbnailSrc) || useVideoFallback;
 
   // Platform-specific label
