@@ -336,6 +336,15 @@ function StoryMessage({ message, isOutgoing, isLastInGroup }: { message: Message
     : metadata.type === 'story_mention' ? 'Mención en story'
     : 'Reacción a story';
 
+  // Contextual header text based on story type and direction
+  const storyHeader = isOutgoing
+    ? (metadata.type === 'story_reply' ? 'Respondiste a su historia'
+      : metadata.type === 'story_mention' ? 'Te mencionaron en su historia'
+      : 'Reaccionaste a su historia')
+    : (metadata.type === 'story_reply' ? 'Respondió a tu historia'
+      : metadata.type === 'story_mention' ? 'Te mencionó en su historia'
+      : 'Reaccionó a tu historia');
+
   // Prefer higher resolution: url > thumbnail_url > base64 (base64 is low-res but never expires)
   const thumbnailSrc = metadata.url || metadata.thumbnail_url || metadata.thumbnail_base64;
   const hasSavedThumbnail = !!metadata.thumbnail_base64;
@@ -347,6 +356,10 @@ function StoryMessage({ message, isOutgoing, isLastInGroup }: { message: Message
   return (
     <div className={`flex ${isOutgoing ? 'justify-end' : 'justify-start'}`}>
       <div className={`max-w-[75%] ${bubbleClass} rounded-2xl ${isLastInGroup ? (isOutgoing ? 'rounded-br-md' : 'rounded-bl-md') : ''} overflow-hidden`}>
+        {/* Contextual header */}
+        <div className="px-3 pt-2">
+          <p className="text-xs text-gray-400">{storyHeader}</p>
+        </div>
         {/* Story Preview with gradient border and thumbnail */}
         {hasLink && (
           <a href={metadata.url} target="_blank" rel="noopener noreferrer" className="block">
