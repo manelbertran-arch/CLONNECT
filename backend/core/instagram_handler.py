@@ -1121,7 +1121,7 @@ class InstagramHandler:
             is_sticker = att.get("render_as_sticker", False)
             is_animated = att.get("animated_gif_url") is not None
 
-            # Get URL: try payload.url first, then legacy formats
+            # Get URL: try payload.url first, then legacy formats, then fallbacks
             if payload_url:
                 media_url = payload_url
             elif has_video:
@@ -1131,7 +1131,19 @@ class InstagramHandler:
             elif has_audio:
                 media_url = att.get("audio_data", {}).get("url")
             else:
-                media_url = att.get("url")
+                # Try common URL fields as fallbacks
+                media_url = (
+                    att.get("url")
+                    or att.get("file_url")
+                    or att.get("preview_url")
+                    or att.get("src")
+                    or att.get("source")
+                    or att.get("link")
+                    # Try nested structures
+                    or att.get("target", {}).get("url")
+                    or att.get("media", {}).get("url")
+                    or att.get("media", {}).get("source")
+                )
 
             # Determine media type
             if "video" in att_type or has_video:
@@ -1155,13 +1167,31 @@ class InstagramHandler:
                     "captured_at": datetime.now(timezone.utc).isoformat(),
                 }
 
-        # No URL found - log raw attachment keys for debugging
+        # No URL found - try deep extraction as last resort
         if attachments:
-            raw_keys = list(attachments[0].keys()) if attachments else []
-            logger.warning(f"[MediaExtract] No URL found. Attachment keys: {raw_keys}")
+            att = attachments[0]
+            raw_keys = list(att.keys())
+            logger.warning(f"[MediaExtract] No URL found via standard methods. Attachment keys: {raw_keys}")
+
+            # Deep search for any URL-like field in the attachment
+            fallback_url = None
+            for key, value in att.items():
+                if isinstance(value, str) and (value.startswith("http://") or value.startswith("https://")):
+                    fallback_url = value
+                    logger.info(f"[MediaExtract] Found fallback URL in field '{key}'")
+                    break
+                elif isinstance(value, dict):
+                    for subkey, subvalue in value.items():
+                        if isinstance(subvalue, str) and (subvalue.startswith("http://") or subvalue.startswith("https://")):
+                            fallback_url = subvalue
+                            logger.info(f"[MediaExtract] Found fallback URL in nested field '{key}.{subkey}'")
+                            break
+                    if fallback_url:
+                        break
+
             return {
                 "type": "unknown",
-                "url": None,
+                "url": fallback_url,  # May still be None, but we tried harder
                 "raw_keys": raw_keys,
                 "captured_at": datetime.now(timezone.utc).isoformat(),
             }

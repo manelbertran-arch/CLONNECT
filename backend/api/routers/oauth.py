@@ -580,7 +580,7 @@ async def _simple_dm_sync_internal(
                                     is_sticker = att.get("render_as_sticker", False)
                                     is_animated = att.get("animated_gif_url") is not None
 
-                                    # Get URL: try payload.url first, then legacy formats
+                                    # Get URL: try payload.url first, then legacy formats, then fallbacks
                                     if payload_url:
                                         att_url = payload_url
                                     elif has_video:
@@ -590,7 +590,17 @@ async def _simple_dm_sync_internal(
                                     elif has_audio:
                                         att_url = att["audio_data"].get("url")
                                     else:
-                                        att_url = att.get("url")
+                                        # Try common URL fields as fallbacks
+                                        att_url = (
+                                            att.get("url")
+                                            or att.get("file_url")
+                                            or att.get("preview_url")
+                                            or att.get("src")
+                                            or att.get("source")
+                                            or att.get("link")
+                                            or att.get("target", {}).get("url")
+                                            or att.get("media", {}).get("url")
+                                        )
 
                                     # Detect type by structure or explicit type
                                     if "video" in att_type or has_video:
@@ -651,10 +661,27 @@ async def _simple_dm_sync_internal(
                                 "url": sticker_url if isinstance(sticker_url, str) else "",
                             }
 
-                        # STEP 6: Default to [Media] for unknown
+                        # STEP 7: Default to [Media] for unknown - but still try to extract URL
                         if not msg_text:
                             msg_text = "[Media]"
-                            msg_metadata = {"type": "unknown"}
+                            # Try to extract any URL from attachments as last resort
+                            fallback_url = None
+                            attachments = msg.get("attachments", {}).get("data", [])
+                            if attachments:
+                                att = attachments[0]
+                                # Deep search for any URL-like field
+                                for key, value in att.items():
+                                    if isinstance(value, str) and value.startswith("http"):
+                                        fallback_url = value
+                                        break
+                                    elif isinstance(value, dict):
+                                        for subkey, subvalue in value.items():
+                                            if isinstance(subvalue, str) and subvalue.startswith("http"):
+                                                fallback_url = subvalue
+                                                break
+                                        if fallback_url:
+                                            break
+                            msg_metadata = {"type": "unknown", "url": fallback_url}
 
                         # Check timestamp within limit
                         msg_time = None
