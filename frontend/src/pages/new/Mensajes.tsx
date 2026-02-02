@@ -25,12 +25,14 @@ export default function Mensajes() {
   const { data: conversationsData } = useQuery({
     queryKey: ['conversations', creatorId],
     queryFn: () => getConversations(creatorId),
+    refetchInterval: 5000, // Auto-refresh every 5 seconds
   });
 
   const { data: followerDetail, isLoading: isLoadingMessages } = useQuery({
     queryKey: ['follower', creatorId, conversationId],
     queryFn: () => getFollowerDetail(creatorId, conversationId!),
     enabled: !!conversationId,
+    refetchInterval: 5000, // Auto-refresh every 5 seconds
   });
 
   const sendMessageMutation = useMutation({
