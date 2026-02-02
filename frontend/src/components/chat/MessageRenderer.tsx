@@ -713,18 +713,44 @@ function CarouselMessage({ message, isOutgoing, isLastInGroup }: { message: Mess
   );
 }
 
-// Timestamp component
+// Timestamp component - shows day for non-today messages
 function Timestamp({ timestamp, isOutgoing, className = '' }: { timestamp?: string; isOutgoing: boolean; className?: string }) {
   if (!timestamp) return null;
 
-  const time = new Date(timestamp).toLocaleTimeString('es', {
+  const msgDate = new Date(timestamp);
+  const now = new Date();
+
+  // Get time part (always shown)
+  const time = msgDate.toLocaleTimeString('es', {
     hour: '2-digit',
     minute: '2-digit',
   });
 
+  // Check if same day
+  const isToday = msgDate.toDateString() === now.toDateString();
+
+  // Check if within last 7 days
+  const diffMs = now.getTime() - msgDate.getTime();
+  const diffDays = Math.floor(diffMs / 86400000);
+  const isThisWeek = diffDays < 7;
+
+  let display: string;
+  if (isToday) {
+    // Today: just time "10:32"
+    display = time;
+  } else if (isThisWeek) {
+    // This week: "lun 10:32"
+    const dayName = msgDate.toLocaleDateString('es', { weekday: 'short' });
+    display = `${dayName} ${time}`;
+  } else {
+    // Older: "15 ene 10:32"
+    const dateStr = msgDate.toLocaleDateString('es', { day: 'numeric', month: 'short' });
+    display = `${dateStr} ${time}`;
+  }
+
   return (
     <p className={`text-[10px] ${isOutgoing ? 'text-white/60' : 'text-gray-500'} text-right ${className}`}>
-      {time}
+      {display}
     </p>
   );
 }
