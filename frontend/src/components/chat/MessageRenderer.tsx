@@ -260,8 +260,9 @@ function LinkPreviewCard({ preview }: { preview: LinkPreview }) {
 
 // Story Message - With gradient border and thumbnail preview
 function StoryMessage({ message, isOutgoing, isLastInGroup }: { message: Message; isOutgoing: boolean; isLastInGroup: boolean }) {
-  const [imageLoaded, setImageLoaded] = useState(false);
+  const [mediaLoaded, setMediaLoaded] = useState(false);
   const [imageError, setImageError] = useState(false);
+  const [isVideo, setIsVideo] = useState(false);
   const metadata = message.metadata || {};
   const hasLink = !!metadata.url;
   const storyType = metadata.type === 'story_reply' ? 'Respuesta a story'
@@ -271,6 +272,15 @@ function StoryMessage({ message, isOutgoing, isLastInGroup }: { message: Message
   // Prefer saved base64 thumbnail (never expires), fallback to CDN URL (may expire)
   const thumbnailSrc = metadata.thumbnail_base64 || metadata.thumbnail_url || metadata.url;
   const hasSavedThumbnail = !!metadata.thumbnail_base64;
+
+  // Handle image load error - try as video
+  const handleImageError = () => {
+    if (!isVideo) {
+      setIsVideo(true); // Try loading as video instead
+    } else {
+      setImageError(true); // Video also failed
+    }
+  };
 
   const bubbleClass = isOutgoing
     ? `${IG_GRADIENT} text-white`
@@ -285,21 +295,34 @@ function StoryMessage({ message, isOutgoing, isLastInGroup }: { message: Message
             <div className="p-2">
               <div className={`${IG_GRADIENT_STORY} p-[2px] rounded-xl`}>
                 <div className="bg-black rounded-xl overflow-hidden">
-                  {/* Show thumbnail if available and not errored */}
+                  {/* Show thumbnail/video if available and not errored */}
                   {thumbnailSrc && !imageError && (
                     <div className="relative">
-                      {!imageLoaded && (
+                      {!mediaLoaded && (
                         <div className="w-full h-32 bg-[#1a1a1a] flex items-center justify-center">
                           <Film className="w-8 h-8 text-gray-600 animate-pulse" />
                         </div>
                       )}
-                      <img
-                        src={thumbnailSrc}
-                        alt={storyType}
-                        className={`w-full max-h-48 object-cover ${imageLoaded ? '' : 'hidden'}`}
-                        onLoad={() => setImageLoaded(true)}
-                        onError={() => setImageError(true)}
-                      />
+                      {!isVideo ? (
+                        <img
+                          src={thumbnailSrc}
+                          alt={storyType}
+                          className={`w-full max-h-48 object-cover ${mediaLoaded ? '' : 'hidden'}`}
+                          onLoad={() => setMediaLoaded(true)}
+                          onError={handleImageError}
+                        />
+                      ) : (
+                        <video
+                          src={thumbnailSrc}
+                          className={`w-full max-h-48 object-cover ${mediaLoaded ? '' : 'hidden'}`}
+                          onLoadedData={() => setMediaLoaded(true)}
+                          onError={() => setImageError(true)}
+                          muted
+                          playsInline
+                          autoPlay
+                          loop
+                        />
+                      )}
                       {/* Overlay with story type */}
                       <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent p-3">
                         <p className="text-white text-sm font-medium">{storyType}</p>
@@ -440,13 +463,15 @@ function AudioMessage({ message, isOutgoing, isLastInGroup }: { message: Message
 
 // Shared Post/Reel Message
 function SharedPostMessage({ message, isOutgoing, isLastInGroup }: { message: Message; isOutgoing: boolean; isLastInGroup: boolean }) {
-  const [imageLoaded, setImageLoaded] = useState(false);
+  const [mediaLoaded, setMediaLoaded] = useState(false);
   const [imageError, setImageError] = useState(false);
+  const [tryVideo, setTryVideo] = useState(false);
   const metadata = message.metadata || {};
 
   // Support both URL and base64 thumbnails
+  // For "share" type, the URL might be in metadata.url directly
   const thumbnailBase64 = metadata.thumbnail_base64;
-  const thumbnailUrl = metadata.thumbnail_url || metadata.preview_url;
+  const thumbnailUrl = metadata.thumbnail_url || metadata.preview_url || metadata.url;
   const thumbnailSrc = thumbnailBase64
     ? `data:image/jpeg;base64,${thumbnailBase64}`
     : thumbnailUrl;
@@ -454,12 +479,23 @@ function SharedPostMessage({ message, isOutgoing, isLastInGroup }: { message: Me
   const permalink = metadata.permalink || metadata.url;
   const authorUsername = metadata.author_username;
   const isReel = metadata.type === 'shared_reel';
-  const isVideo = metadata.type === 'shared_video' || isReel;
+  const isVideo = metadata.type === 'shared_video' || isReel || tryVideo;
 
   // Platform-specific label
+  const isShareType = metadata.type === 'share';
   const platformLabel = metadata.platform === 'youtube' ? 'YouTube'
     : metadata.platform === 'tiktok' ? 'TikTok'
+    : isShareType ? 'Contenido compartido'
     : 'Instagram';
+
+  // Handle image error - try as video for CDN URLs
+  const handleImageError = () => {
+    if (!tryVideo && thumbnailUrl?.includes('lookaside.fbsbx.com')) {
+      setTryVideo(true); // CDN might serve video, try loading as video
+    } else {
+      setImageError(true);
+    }
+  };
 
   return (
     <div className={`flex ${isOutgoing ? 'justify-end' : 'justify-start'}`}>
@@ -468,19 +504,32 @@ function SharedPostMessage({ message, isOutgoing, isLastInGroup }: { message: Me
         <a href={permalink} target="_blank" rel="noopener noreferrer" className="block">
           {thumbnailSrc && !imageError ? (
             <div className="relative">
-              {!imageLoaded && (
+              {!mediaLoaded && (
                 <div className="w-full h-48 bg-[#363636] flex items-center justify-center">
                   <Share2 className="w-8 h-8 text-gray-500 animate-pulse" />
                 </div>
               )}
-              <img
-                src={thumbnailSrc}
-                alt="Post preview"
-                className={`w-full max-h-64 object-cover ${imageLoaded ? '' : 'hidden'}`}
-                onLoad={() => setImageLoaded(true)}
-                onError={() => setImageError(true)}
-              />
-              {isVideo && imageLoaded && (
+              {!tryVideo ? (
+                <img
+                  src={thumbnailSrc}
+                  alt="Post preview"
+                  className={`w-full max-h-64 object-cover ${mediaLoaded ? '' : 'hidden'}`}
+                  onLoad={() => setMediaLoaded(true)}
+                  onError={handleImageError}
+                />
+              ) : (
+                <video
+                  src={thumbnailSrc}
+                  className={`w-full max-h-64 object-cover ${mediaLoaded ? '' : 'hidden'}`}
+                  onLoadedData={() => setMediaLoaded(true)}
+                  onError={() => setImageError(true)}
+                  muted
+                  playsInline
+                  autoPlay
+                  loop
+                />
+              )}
+              {isVideo && mediaLoaded && !tryVideo && (
                 <div className="absolute inset-0 flex items-center justify-center bg-black/20">
                   <div className="w-12 h-12 rounded-full bg-black/60 flex items-center justify-center">
                     <Play className="w-6 h-6 text-white ml-1" />
@@ -511,7 +560,7 @@ function SharedPostMessage({ message, isOutgoing, isLastInGroup }: { message: Me
               <p className="text-gray-400 text-xs mt-2 line-clamp-2">{metadata.caption}</p>
             )}
             <p className="text-blue-400 text-xs mt-2 flex items-center gap-1">
-              Ver en {platformLabel} <ExternalLink className="w-3 h-3" />
+              {isShareType ? 'Toca para ver' : `Ver en ${platformLabel}`} <ExternalLink className="w-3 h-3" />
             </p>
           </div>
         </a>
