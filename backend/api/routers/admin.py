@@ -2683,7 +2683,7 @@ async def simple_dm_sync(creator_id: str, max_convs: int = 10):
                                 # Obtener emoji de reacción si existe
                                 reaction_emoji = None
                                 if reactions_data:
-                                    reaction_emoji = reactions_data[0].get("emoji", "❤")
+                                    reaction_emoji = reactions_data[0].get("emoji", "❤️")
 
                                 # Obtener link de story si existe
                                 story_link = None

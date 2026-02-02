@@ -519,7 +519,7 @@ async def _simple_dm_sync_internal(
                         # Get reaction emoji if exists
                         reaction_emoji = None
                         if reactions_data:
-                            reaction_emoji = reactions_data[0].get("emoji", "❤")
+                            reaction_emoji = reactions_data[0].get("emoji", "❤️")
 
                         # Get story link if exists (check both reply_to and mention)
                         story_link = None
