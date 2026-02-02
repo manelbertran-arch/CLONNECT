@@ -457,11 +457,10 @@ function ReactionMessage({ message, isOutgoing }: { message: Message; isOutgoing
 
   return (
     <div className={`flex ${isOutgoing ? 'justify-end' : 'justify-start'}`}>
-      <div className="bg-[#262626] rounded-full px-4 py-2 flex items-center gap-2">
-        <span className="text-2xl">{emoji}</span>
-        {message.content && !message.content.includes('Reacción') && (
-          <span className="text-white text-sm">{message.content}</span>
-        )}
+      <div className={`inline-flex items-center justify-center text-2xl p-2 rounded-full ${
+        isOutgoing ? 'bg-gradient-to-r from-violet-600 to-purple-600' : 'bg-[#262626]'
+      }`}>
+        {emoji}
       </div>
     </div>
   );
