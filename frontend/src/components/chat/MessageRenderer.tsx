@@ -340,6 +340,7 @@ function LinkPreviewCard({ preview }: { preview: LinkPreview }) {
 function StoryMessage({ message, isOutgoing, isLastInGroup }: { message: Message; isOutgoing: boolean; isLastInGroup: boolean }) {
   const [imageLoaded, setImageLoaded] = useState(false);
   const [imageError, setImageError] = useState(false);
+  const [useVideoFallback, setUseVideoFallback] = useState(false);
   const metadata = message.metadata || {};
   const hasLink = !!metadata.url;
   const storyType = metadata.type === 'story_reply' ? 'Respuesta a story'
@@ -355,8 +356,11 @@ function StoryMessage({ message, isOutgoing, isLastInGroup }: { message: Message
       : metadata.type === 'story_mention' ? 'Te mencionó en su historia'
       : 'Reaccionó a tu historia');
 
-  // Prefer higher resolution: url > thumbnail_url > base64 (base64 is low-res but never expires)
-  const thumbnailSrc = metadata.url || metadata.thumbnail_url || metadata.thumbnail_base64;
+  // For stories: prefer saved thumbnails over URL (URL is often a permalink, not an image)
+  // Priority: base64 (saved) > thumbnail_url > nothing (URL is story link, not image)
+  const thumbnailSrc = metadata.thumbnail_base64
+    ? (metadata.thumbnail_base64.startsWith('data:') ? metadata.thumbnail_base64 : `data:image/jpeg;base64,${metadata.thumbnail_base64}`)
+    : metadata.thumbnail_url;
   const hasSavedThumbnail = !!metadata.thumbnail_base64;
 
   const bubbleClass = isOutgoing
@@ -384,21 +388,41 @@ function StoryMessage({ message, isOutgoing, isLastInGroup }: { message: Message
                           <Film className="w-8 h-8 text-gray-600 animate-pulse" />
                         </div>
                       )}
-                      <img
-                        src={thumbnailSrc}
-                        alt={storyType}
-                        className={`w-full max-h-64 object-cover ${imageLoaded ? '' : 'hidden'}`}
-                        style={{ imageRendering: 'auto' }}
-                        onLoad={() => setImageLoaded(true)}
-                        onError={() => setImageError(true)}
-                      />
+                      {useVideoFallback ? (
+                        <video
+                          src={thumbnailSrc}
+                          controls
+                          playsInline
+                          preload="metadata"
+                          className="w-full max-h-64 object-cover"
+                          onLoadedData={() => setImageLoaded(true)}
+                        />
+                      ) : (
+                        <img
+                          src={thumbnailSrc}
+                          alt={storyType}
+                          className={`w-full max-h-64 object-cover ${imageLoaded ? '' : 'hidden'}`}
+                          style={{ imageRendering: 'auto' }}
+                          onLoad={() => setImageLoaded(true)}
+                          onError={() => {
+                            // If image fails and URL looks like video, try video fallback
+                            if (thumbnailSrc && /\.(mp4|mov|webm|m4v)($|\?)/i.test(thumbnailSrc)) {
+                              setUseVideoFallback(true);
+                            } else {
+                              setImageError(true);
+                            }
+                          }}
+                        />
+                      )}
                       {/* Overlay with story type */}
-                      <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent p-3">
-                        <p className="text-white text-sm font-medium">{storyType}</p>
-                        <p className="text-gray-300 text-xs flex items-center gap-1">
-                          Toca para ver <ExternalLink className="w-3 h-3" />
-                        </p>
-                      </div>
+                      {!useVideoFallback && (
+                        <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent p-3">
+                          <p className="text-white text-sm font-medium">{storyType}</p>
+                          <p className="text-gray-300 text-xs flex items-center gap-1">
+                            Toca para ver <ExternalLink className="w-3 h-3" />
+                          </p>
+                        </div>
+                      )}
                     </div>
                   )}
                   {/* Fallback if image fails or no thumbnail - Story expired */}
@@ -512,23 +536,24 @@ function UnknownMediaMessage({ message, isOutgoing, isLastInGroup }: { message: 
   );
 }
 
-// Media Message - Image/GIF/Sticker/Video
+// Media Message - Image/GIF/Sticker/Video with video fallback
 function MediaMessage({ message, isOutgoing, isLastInGroup, type }: { message: Message; isOutgoing: boolean; isLastInGroup: boolean; type: 'image' | 'video' }) {
   const [loaded, setLoaded] = useState(false);
+  const [useVideoFallback, setUseVideoFallback] = useState(false);
   const metadata = message.metadata || {};
   const mediaUrl = metadata.url || metadata.preview_url || metadata.animated_gif_url || metadata.thumbnail_url;
   const isSticker = metadata.render_as_sticker;
 
   // Check if URL is a playable video (mp4, mov, webm)
-  const isPlayableVideo = type === 'video' && mediaUrl &&
+  const isPlayableVideo = (type === 'video' || useVideoFallback) && mediaUrl &&
     /\.(mp4|mov|webm|m4v)($|\?)/i.test(mediaUrl);
 
   if (!mediaUrl) {
     return <TextMessage message={message} isOutgoing={isOutgoing} isLastInGroup={isLastInGroup} />;
   }
 
-  // Render inline video player if we have a direct video URL
-  if (isPlayableVideo) {
+  // Render inline video player if we have a direct video URL or fallback triggered
+  if (isPlayableVideo || useVideoFallback) {
     return (
       <div className={`flex ${isOutgoing ? 'justify-end' : 'justify-start'}`}>
         <div className="max-w-[70%] rounded-2xl overflow-hidden bg-black">
@@ -544,6 +569,7 @@ function MediaMessage({ message, isOutgoing, isLastInGroup, type }: { message: M
             preload="metadata"
             className={`max-w-full max-h-96 rounded-2xl ${loaded ? '' : 'hidden'}`}
             onLoadedData={() => setLoaded(true)}
+            onError={() => setLoaded(true)}
           >
             <source src={mediaUrl} type="video/mp4" />
             Your browser does not support video playback.
@@ -554,7 +580,7 @@ function MediaMessage({ message, isOutgoing, isLastInGroup, type }: { message: M
     );
   }
 
-  // Fallback: show thumbnail with link (for non-playable video URLs or images)
+  // Show image with video fallback on error (Instagram CDN sometimes returns mp4)
   return (
     <div className={`flex ${isOutgoing ? 'justify-end' : 'justify-start'}`}>
       <div className={`max-w-[70%] ${isSticker ? '' : 'rounded-2xl overflow-hidden'}`}>
@@ -570,7 +596,14 @@ function MediaMessage({ message, isOutgoing, isLastInGroup, type }: { message: M
             className={`max-w-full ${isSticker ? 'max-h-32' : 'max-h-96 rounded-2xl'} ${loaded ? '' : 'hidden'}`}
             style={{ imageRendering: 'auto' }}
             onLoad={() => setLoaded(true)}
-            onError={() => setLoaded(true)}
+            onError={() => {
+              // If image fails and URL looks like video, try video fallback
+              if (mediaUrl && /\.(mp4|mov|webm|m4v)($|\?)/i.test(mediaUrl)) {
+                setUseVideoFallback(true);
+              } else {
+                setLoaded(true);
+              }
+            }}
           />
           {type === 'video' && (
             <div className="absolute inset-0 flex items-center justify-center">
@@ -644,12 +677,13 @@ function AudioMessage({ message, isOutgoing, isLastInGroup }: { message: Message
 function SharedPostMessage({ message, isOutgoing, isLastInGroup }: { message: Message; isOutgoing: boolean; isLastInGroup: boolean }) {
   const [imageLoaded, setImageLoaded] = useState(false);
   const [imageError, setImageError] = useState(false);
+  const [useVideoFallback, setUseVideoFallback] = useState(false);
   const metadata = message.metadata || {};
 
   // Prefer reliable image sources: base64 (saved) > thumbnail_url > preview_url
   // Note: metadata.url is often a permalink (not an image), so we don't use it for thumbnails
   const thumbnailSrc = metadata.thumbnail_base64
-    ? `data:image/jpeg;base64,${metadata.thumbnail_base64}`
+    ? (metadata.thumbnail_base64.startsWith('data:') ? metadata.thumbnail_base64 : `data:image/jpeg;base64,${metadata.thumbnail_base64}`)
     : metadata.thumbnail_url || metadata.preview_url;
 
   const permalink = metadata.permalink || metadata.url;
@@ -674,22 +708,40 @@ function SharedPostMessage({ message, isOutgoing, isLastInGroup }: { message: Me
                   <Share2 className="w-8 h-8 text-gray-500 animate-pulse" />
                 </div>
               )}
-              <img
-                src={thumbnailSrc}
-                alt="Post preview"
-                className={`w-full max-h-80 object-cover ${imageLoaded ? '' : 'hidden'}`}
-                style={{ imageRendering: 'auto' }}
-                onLoad={() => setImageLoaded(true)}
-                onError={() => setImageError(true)}
-              />
-              {isVideo && imageLoaded && (
+              {useVideoFallback ? (
+                <video
+                  src={thumbnailSrc}
+                  controls
+                  playsInline
+                  preload="metadata"
+                  className="w-full max-h-80 object-cover"
+                  onLoadedData={() => setImageLoaded(true)}
+                />
+              ) : (
+                <img
+                  src={thumbnailSrc}
+                  alt="Post preview"
+                  className={`w-full max-h-80 object-cover ${imageLoaded ? '' : 'hidden'}`}
+                  style={{ imageRendering: 'auto' }}
+                  onLoad={() => setImageLoaded(true)}
+                  onError={() => {
+                    // If image fails and URL looks like video, try video fallback
+                    if (thumbnailSrc && /\.(mp4|mov|webm|m4v)($|\?)/i.test(thumbnailSrc)) {
+                      setUseVideoFallback(true);
+                    } else {
+                      setImageError(true);
+                    }
+                  }}
+                />
+              )}
+              {isVideo && imageLoaded && !useVideoFallback && (
                 <div className="absolute inset-0 flex items-center justify-center bg-black/20">
                   <div className="w-12 h-12 rounded-full bg-black/60 flex items-center justify-center">
                     <Play className="w-6 h-6 text-white ml-1" />
                   </div>
                 </div>
               )}
-              {isReel && (
+              {isReel && !useVideoFallback && (
                 <div className="absolute top-2 right-2 bg-black/60 rounded px-2 py-1">
                   <Film className="w-4 h-4 text-white" />
                 </div>
