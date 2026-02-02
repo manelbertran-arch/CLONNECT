@@ -16,7 +16,6 @@ from typing import Any, Dict, List, Optional
 
 from core.dm_agent_v2 import DMResponderAgent, DMResponse
 from core.instagram import InstagramConnector, InstagramMessage
-from core.lead_categorization import calcular_categoria, categoria_a_status_legacy
 from core.rate_limiter import get_rate_limiter
 
 logger = logging.getLogger("clonnect-instagram")
@@ -298,7 +297,13 @@ class InstagramHandler:
                 continue
 
             self._record_received(message)
-            logger.info(f"[IG:{message.sender_id}] Input: {message.text[:100]}")
+            # FIX 2026-02-02: Handle media messages without text
+            input_preview = (
+                message.text[:100]
+                if message.text
+                else f"[Media: {len(message.attachments)} attachment(s)]"
+            )
+            logger.info(f"[IG:{message.sender_id}] Input: {input_preview}")
 
             # =================================================================
             # LEAD ENRICHMENT: Check if lead exists, if not load history
@@ -1084,6 +1089,84 @@ class InstagramHandler:
             logger.error(f"[AntiDup] Error checking creator response: {e}")
             return False  # On error, allow bot to respond
 
+    def _extract_media_info(self, attachments: List[Dict[str, Any]]) -> Optional[Dict[str, Any]]:
+        """
+        Extract media URL and type from Instagram message attachments.
+
+        FIX 2026-02-02: Support both Meta formats:
+        - New format (Instagram Messaging API): payload.url
+        - Legacy format: image_data.url, video_data.url, audio_data.url
+
+        Args:
+            attachments: List of attachment objects from webhook
+
+        Returns:
+            Dict with type, url, and captured_at if media found, None otherwise
+        """
+        if not attachments:
+            return None
+
+        for att in attachments:
+            att_type = (att.get("type") or "").lower()
+
+            # Try new payload format first (Instagram Messaging API)
+            payload = att.get("payload", {})
+            payload_url = payload.get("url") if isinstance(payload, dict) else None
+
+            # Check for legacy structure-based formats
+            has_video = att.get("video_data") is not None
+            has_image = att.get("image_data") is not None
+            has_audio = att.get("audio_data") is not None
+            is_sticker = att.get("render_as_sticker", False)
+            is_animated = att.get("animated_gif_url") is not None
+
+            # Get URL: try payload.url first, then legacy formats
+            if payload_url:
+                media_url = payload_url
+            elif has_video:
+                media_url = att.get("video_data", {}).get("url")
+            elif has_image:
+                media_url = att.get("image_data", {}).get("url")
+            elif has_audio:
+                media_url = att.get("audio_data", {}).get("url")
+            else:
+                media_url = att.get("url")
+
+            # Determine media type
+            if "video" in att_type or has_video:
+                media_type = "video"
+            elif "audio" in att_type or has_audio:
+                media_type = "audio"
+            elif is_sticker:
+                media_type = "sticker"
+            elif is_animated or "gif" in att_type:
+                media_type = "gif"
+                media_url = att.get("animated_gif_url") or media_url
+            elif "image" in att_type or "photo" in att_type or has_image:
+                media_type = "image"
+            else:
+                media_type = att_type or "file"
+
+            if media_url:
+                return {
+                    "type": media_type,
+                    "url": media_url,
+                    "captured_at": datetime.now(timezone.utc).isoformat(),
+                }
+
+        # No URL found - log raw attachment keys for debugging
+        if attachments:
+            raw_keys = list(attachments[0].keys()) if attachments else []
+            logger.warning(f"[MediaExtract] No URL found. Attachment keys: {raw_keys}")
+            return {
+                "type": "unknown",
+                "url": None,
+                "raw_keys": raw_keys,
+                "captured_at": datetime.now(timezone.utc).isoformat(),
+            }
+
+        return None
+
     async def _extract_messages(self, payload: Dict[str, Any]) -> List[InstagramMessage]:
         """Extract messages from webhook payload"""
         messages = []
@@ -1115,7 +1198,8 @@ class InstagramHandler:
                             timestamp=datetime.fromtimestamp(messaging.get("timestamp", 0) / 1000),
                             attachments=message_data.get("attachments", []),
                         )
-                        if msg.text:  # Only process text messages
+                        # FIX 2026-02-02: Process text AND media messages (not just text)
+                        if msg.text or msg.attachments:
                             messages.append(msg)
         except Exception as e:
             logger.error(f"Error extracting messages from webhook: {e}")
@@ -1141,16 +1225,43 @@ class InstagramHandler:
         # Get profile and update lead if needed (FIX 2026-02-02: update profile_pic when user responds)
         username, profile_pic_url = await self._get_profile_and_update_lead(message.sender_id)
 
+        # FIX 2026-02-02: Handle media messages without text
+        message_text = message.text
+        media_info = None
+
+        if not message_text and message.attachments:
+            # Extract media info and create descriptive text
+            media_info = self._extract_media_info(message.attachments)
+            if media_info:
+                media_type = media_info.get("type", "media")
+                media_type_display = {
+                    "image": "Imagen",
+                    "video": "Video",
+                    "audio": "Audio",
+                    "gif": "GIF",
+                    "sticker": "Sticker",
+                }.get(media_type, "Media")
+                message_text = f"[{media_type_display}]"
+                logger.info(
+                    f"[IG:{message.sender_id}] Media message: type={media_type}, "
+                    f"url={'Yes' if media_info.get('url') else 'No'}"
+                )
+
+        # Build metadata including media info if present
+        dm_metadata = {
+            "message_id": message.message_id,
+            "username": username,
+            "platform": "instagram",
+        }
+        if media_info:
+            dm_metadata["media"] = media_info
+
         # Process with DM agent (V2 signature: message, sender_id, metadata) - FIX 2026-01-29
         logger.info(f"[V2-FIX] Calling process_dm with V2 signature for {message.sender_id}")
         response = await self.dm_agent.process_dm(
-            message=message.text,
+            message=message_text or "[Media]",
             sender_id=f"ig_{message.sender_id}",
-            metadata={
-                "message_id": message.message_id,
-                "username": username,
-                "platform": "instagram",
-            },
+            metadata=dm_metadata,
         )
 
         # V2 compatibility for logging
@@ -1160,9 +1271,6 @@ class InstagramHandler:
         )
         logger.info(f"[IG:{message.sender_id}] Intent: {intent_str} ({response.confidence:.0%})")
         logger.info(f"[IG:{message.sender_id}] Output: {response_text[:100]}...")
-
-        # Recalculate lead category based on message content (FIX 2026-02-02)
-        await self._update_lead_category(message.sender_id)
 
         return response
 
@@ -1213,7 +1321,7 @@ class InstagramHandler:
                         profile.username,
                         profile.name,
                         profile_pic_url,
-                        profile.is_verified
+                        profile.is_verified,
                     )
         except Exception as e:
             logger.debug(f"Could not fetch user profile: {e}")
@@ -1226,7 +1334,7 @@ class InstagramHandler:
         username: str,
         full_name: str,
         profile_pic_url: str,
-        is_verified: bool = False
+        is_verified: bool = False,
     ):
         """
         Update lead's profile info including profile_pic_url and is_verified.
@@ -1235,8 +1343,8 @@ class InstagramHandler:
         then updates context with is_verified if applicable.
         """
         try:
-            from api.services.db_service import get_or_create_lead, get_session
             from api.models import Lead
+            from api.services.db_service import get_or_create_lead, get_session
 
             result = get_or_create_lead(
                 creator_name=self.creator_id,
@@ -1244,7 +1352,7 @@ class InstagramHandler:
                 platform="instagram",
                 username=username,
                 full_name=full_name,
-                profile_pic_url=profile_pic_url
+                profile_pic_url=profile_pic_url,
             )
 
             # Update is_verified in lead's context if verified
@@ -1263,109 +1371,11 @@ class InstagramHandler:
                         session.close()
 
             if result:
-                logger.info(f"[IG:{sender_id}] Updated lead profile: pic={'yes' if profile_pic_url else 'no'}, verified={is_verified}")
+                logger.info(
+                    f"[IG:{sender_id}] Updated lead profile: pic={'yes' if profile_pic_url else 'no'}, verified={is_verified}"
+                )
         except Exception as e:
             logger.warning(f"Could not update lead profile: {e}")
-
-    async def _update_lead_category(self, sender_id: str) -> None:
-        """
-        Recalculate and update lead category based on message content.
-
-        This analyzes all messages from the lead and updates their status
-        (nuevo/interesado/caliente/cliente/fantasma) based on keywords detected.
-
-        FIX 2026-02-02: Previously, categorization code existed but was never called.
-        Now integrated into the message processing flow.
-        """
-        try:
-            from api.services.db_service import get_session, get_messages_by_lead_id
-            from api.models import Lead, Creator
-
-            session = get_session()
-            if not session:
-                return
-
-            try:
-                # Find the lead
-                platform_user_id = f"ig_{sender_id}"
-                creator = session.query(Creator).filter_by(name=self.creator_id).first()
-                if not creator:
-                    return
-
-                lead = session.query(Lead).filter_by(
-                    creator_id=creator.id,
-                    platform_user_id=platform_user_id
-                ).first()
-
-                if not lead:
-                    logger.debug(f"[Categorization] Lead not found for {platform_user_id}")
-                    return
-
-                old_status = lead.status
-
-                # Skip if already a customer
-                if old_status == "cliente":
-                    return
-
-                # Get messages for analysis
-                messages_raw = get_messages_by_lead_id(str(lead.id), limit=50)
-
-                # Convert to format expected by calcular_categoria
-                messages = []
-                last_user_msg_time = None
-                for msg in messages_raw:
-                    messages.append({
-                        "role": msg.get("role", "user"),
-                        "content": msg.get("content", "")
-                    })
-                    if msg.get("role") == "user" and msg.get("created_at"):
-                        msg_time = msg.get("created_at")
-                        if isinstance(msg_time, str):
-                            from datetime import datetime
-                            try:
-                                msg_time = datetime.fromisoformat(msg_time.replace("Z", "+00:00"))
-                            except:
-                                msg_time = None
-                        if msg_time and (not last_user_msg_time or msg_time > last_user_msg_time):
-                            last_user_msg_time = msg_time
-
-                # Calculate category
-                result = calcular_categoria(
-                    mensajes=messages,
-                    es_cliente=(old_status == "cliente"),
-                    ultimo_mensaje_lead=last_user_msg_time,
-                    lead_created_at=lead.first_contact_at
-                )
-
-                # Map to legacy status for DB
-                new_status = categoria_a_status_legacy(result.categoria)
-
-                # Only update if status changed (and it's an upgrade in the funnel)
-                status_priority = {"new": 1, "active": 2, "hot": 3, "customer": 4, "ghost": 0}
-                old_priority = status_priority.get(old_status, 1)
-                new_priority = status_priority.get(new_status, 1)
-
-                # Update if upgrading (nuevo→interesado→caliente) or becoming ghost
-                if new_priority > old_priority or (new_status == "ghost" and old_status != "customer"):
-                    lead.status = new_status
-                    lead.purchase_intent = result.intent_score
-                    session.commit()
-
-                    logger.info(
-                        f"[Categorization] Lead {sender_id}: {old_status} → {new_status} "
-                        f"(intent: {result.intent_score:.2f}, razón: {', '.join(result.razones[:2])})"
-                    )
-                else:
-                    logger.debug(
-                        f"[Categorization] Lead {sender_id}: keeping {old_status} "
-                        f"(detected: {new_status}, keywords: {result.keywords_detectados[:3]})"
-                    )
-
-            finally:
-                session.close()
-
-        except Exception as e:
-            logger.error(f"[Categorization] Error updating lead category: {e}")
 
     async def send_response(self, recipient_id: str, text: str) -> bool:
         """

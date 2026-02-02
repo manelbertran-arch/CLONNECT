@@ -1051,27 +1051,43 @@ async def test_full_sync_conversation(creator_id: str, username: str):
                     content_types["text"] += 1
                 elif msg.get("attachments"):
                     # Media attachment (image, video, file)
+                    # FIX 2026-02-02: Support both Meta formats (payload.url and legacy)
                     attachments = msg.get("attachments", {}).get("data", [])
                     if attachments:
                         att = attachments[0]
                         att_type = att.get("type", "file")
+                        # Try new payload format first, then legacy formats
+                        payload = att.get("payload", {})
+                        payload_url = payload.get("url") if isinstance(payload, dict) else None
+                        legacy_url = (
+                            att.get("image_data", {}).get("url")
+                            or att.get("video_data", {}).get("url")
+                            or att.get("audio_data", {}).get("url")
+                            or att.get("url")
+                        )
+                        att_url = payload_url or legacy_url or ""
+
                         if att_type == "image":
                             msg_text = "[Imagen]"
                             metadata["type"] = "image"
-                            metadata["url"] = att.get("image_data", {}).get("url", "")
+                            metadata["url"] = att_url
                         elif att_type == "video":
                             msg_text = "[Video]"
                             metadata["type"] = "video"
-                            metadata["url"] = att.get("video_data", {}).get("url", "")
+                            metadata["url"] = att_url
                         elif att_type == "audio":
                             msg_text = "[Audio]"
                             metadata["type"] = "audio"
+                            metadata["url"] = att_url
                         elif att_type == "file":
                             msg_text = "[Archivo]"
                             metadata["type"] = "file"
+                            metadata["url"] = att_url
                         else:
                             msg_text = f"[{att_type.title()}]"
                             metadata["type"] = att_type
+                            metadata["url"] = att_url
+                        metadata["captured_at"] = datetime.utcnow().isoformat() + "Z"
                     else:
                         msg_text = "[Adjunto]"
                         metadata["type"] = "attachment"
@@ -2673,7 +2689,17 @@ async def simple_dm_sync(creator_id: str, max_convs: int = 10):
                                                 )
 
                                                 # Get URL based on structure
-                                                if has_video:
+                                                # FIX 2026-02-02: Try payload.url first (new format)
+                                                payload = att.get("payload", {})
+                                                payload_url = (
+                                                    payload.get("url")
+                                                    if isinstance(payload, dict)
+                                                    else None
+                                                )
+
+                                                if payload_url:
+                                                    att_url = payload_url
+                                                elif has_video:
                                                     att_url = att["video_data"].get("url")
                                                 elif has_image:
                                                     att_url = att["image_data"].get("url")

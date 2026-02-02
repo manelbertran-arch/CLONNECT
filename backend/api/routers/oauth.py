@@ -299,7 +299,13 @@ async def _simple_dm_sync_internal(
     # Rate limiting constant
     DELAY_BETWEEN_CONVS = 2.0
 
-    results = {"conversations_processed": 0, "messages_saved": 0, "leads_created": 0, "errors": [], "rate_limited": False}
+    results = {
+        "conversations_processed": 0,
+        "messages_saved": 0,
+        "leads_created": 0,
+        "errors": [],
+        "rate_limited": False,
+    }
 
     # Build set of creator IDs for identification
     creator_ids = {ig_user_id, ig_page_id} - {None}
@@ -349,7 +355,9 @@ async def _simple_dm_sync_internal(
 
                 # Rate limiting: delay between conversations
                 if conv_idx > 0:
-                    logger.info(f"[DMSync] Rate limit delay: {DELAY_BETWEEN_CONVS}s before conv {conv_idx + 1}/{len(conversations)}")
+                    logger.info(
+                        f"[DMSync] Rate limit delay: {DELAY_BETWEEN_CONVS}s before conv {conv_idx + 1}/{len(conversations)}"
+                    )
                     await asyncio.sleep(DELAY_BETWEEN_CONVS)
 
                 try:
@@ -367,7 +375,9 @@ async def _simple_dm_sync_internal(
                     if msg_resp.status_code != 200:
                         error_data = msg_resp.json().get("error", {})
                         if error_data.get("code") in [4, 17]:
-                            logger.warning(f"[DMSync] Rate limit hit at conv {conv_idx + 1}, stopping")
+                            logger.warning(
+                                f"[DMSync] Rate limit hit at conv {conv_idx + 1}, stopping"
+                            )
                             results["rate_limited"] = True
                             results["errors"].append(f"Rate limit at conv {conv_idx + 1}")
                             break
@@ -541,11 +551,20 @@ async def _simple_dm_sync_internal(
                                 }
 
                         # STEP 4: Process attachments with structure-based detection
+                        # FIX 2026-02-02: Support both Meta formats:
+                        # - Old format: image_data.url, video_data.url
+                        # - New format: payload.url (Instagram Messaging API)
                         if not msg_text:
                             attachments = msg.get("attachments", {}).get("data", [])
                             if attachments:
                                 for att in attachments:
                                     att_type = (att.get("type") or "").lower()
+
+                                    # Check for new payload format first (Instagram Messaging API)
+                                    payload = att.get("payload", {})
+                                    payload_url = (
+                                        payload.get("url") if isinstance(payload, dict) else None
+                                    )
 
                                     # Instagram sends structure-based types (no explicit type field)
                                     has_video = att.get("video_data") is not None
@@ -554,8 +573,10 @@ async def _simple_dm_sync_internal(
                                     is_sticker = att.get("render_as_sticker", False)
                                     is_animated = att.get("animated_gif_url") is not None
 
-                                    # Get URL based on structure
-                                    if has_video:
+                                    # Get URL: try payload.url first, then legacy formats
+                                    if payload_url:
+                                        att_url = payload_url
+                                    elif has_video:
                                         att_url = att["video_data"].get("url")
                                     elif has_image:
                                         att_url = att["image_data"].get("url")
@@ -969,8 +990,8 @@ async def instagram_oauth_callback(
                     "https://graph.facebook.com/v21.0/me/accounts",
                     params={
                         "access_token": access_token,
-                        "fields": "id,name,access_token"  # Explicitly request access_token!
-                    }
+                        "fields": "id,name,access_token",  # Explicitly request access_token!
+                    },
                 )
                 pages_data = pages_response.json()
                 logger.info(f"Pages response: {len(pages_data.get('data', []))} pages found")
@@ -984,7 +1005,9 @@ async def instagram_oauth_callback(
                     # Log token type for debugging
                     if page_access_token:
                         token_prefix = page_access_token[:10] if page_access_token else "NONE"
-                        logger.info(f"Got Page Access Token: {token_prefix}... (type: {'PAGE' if page_access_token.startswith('EAA') else 'OTHER'})")
+                        logger.info(
+                            f"Got Page Access Token: {token_prefix}... (type: {'PAGE' if page_access_token.startswith('EAA') else 'OTHER'})"
+                        )
                     else:
                         logger.warning(f"No access_token in page response! Page data: {page}")
 
@@ -995,8 +1018,8 @@ async def instagram_oauth_callback(
                         f"https://graph.facebook.com/v21.0/{page_id}",
                         params={
                             "fields": "instagram_business_account,name",
-                            "access_token": page_access_token or access_token
-                        }
+                            "access_token": page_access_token or access_token,
+                        },
                     )
                     ig_data = ig_response.json()
 
@@ -1013,12 +1036,20 @@ async def instagram_oauth_callback(
             final_access_token = page_access_token or access_token
 
             # Log what we're saving for debugging
-            token_type = "PAGE (EAA)" if final_access_token.startswith("EAA") else "INSTAGRAM (IGAAT)" if final_access_token.startswith("IGAAT") else "UNKNOWN"
-            logger.info(f"Saving token for {creator_id}: {final_access_token[:15]}... (type: {token_type})")
+            token_type = (
+                "PAGE (EAA)"
+                if final_access_token.startswith("EAA")
+                else "INSTAGRAM (IGAAT)" if final_access_token.startswith("IGAAT") else "UNKNOWN"
+            )
+            logger.info(
+                f"Saving token for {creator_id}: {final_access_token[:15]}... (type: {token_type})"
+            )
             logger.info(f"  page_id: {page_id}, ig_user_id: {instagram_user_id}")
 
             if not final_access_token.startswith("EAA"):
-                logger.warning(f"⚠️ Token is NOT a Page token! Using Instagram token - messaging endpoint will use graph.instagram.com")
+                logger.warning(
+                    f"⚠️ Token is NOT a Page token! Using Instagram token - messaging endpoint will use graph.instagram.com"
+                )
 
             # Step 5: Save to database
             await _save_instagram_connection(
