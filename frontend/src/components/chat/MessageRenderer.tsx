@@ -366,12 +366,12 @@ function StoryMessage({ message, isOutgoing, isLastInGroup }: { message: Message
       : metadata.type === 'story_mention' ? 'Te mencionó en su historia'
       : 'Reaccionó a tu historia');
 
-  // For stories: prefer saved thumbnails over URL (URL is often a permalink, not an image)
-  // Priority: permanent_url (Cloudinary) > base64 (saved) > thumbnail_url > nothing
+  // For stories: prefer saved thumbnails, but also use metadata.url (the story CDN URL)
+  // Priority: permanent_url > base64 > thumbnail_url > url (CDN URL from backend)
   const thumbnailSrc = metadata.permanent_url
     || (metadata.thumbnail_base64
       ? (metadata.thumbnail_base64.startsWith('data:') ? metadata.thumbnail_base64 : `data:image/jpeg;base64,${metadata.thumbnail_base64}`)
-      : metadata.thumbnail_url);
+      : (metadata.thumbnail_url || metadata.url));  // ← Added metadata.url as fallback!
   const hasSavedThumbnail = !!metadata.thumbnail_base64 || !!metadata.permanent_url;
 
   // Detect video proactively by URL pattern (Instagram CDN returns video/mp4)
