@@ -1159,7 +1159,11 @@ async def test_full_sync_conversation(creator_id: str, username: str):
                     reactions = msg.get("reactions", {}).get("data", [])
                     if reactions:
                         emoji = reactions[0].get("reaction", "❤️")
+                        # Ensure heart emoji has variation selector (U+FE0F) for red rendering
+                        if emoji == "❤" or emoji == "\u2764":
+                            emoji = "❤️"
                         msg_text = f"[Reacción: {emoji}]"
+                        metadata["emoji"] = emoji
                     else:
                         msg_text = "[Reacción]"
                     metadata["type"] = "reaction"
@@ -2684,6 +2688,9 @@ async def simple_dm_sync(creator_id: str, max_convs: int = 10):
                                 reaction_emoji = None
                                 if reactions_data:
                                     reaction_emoji = reactions_data[0].get("emoji", "❤️")
+                                    # Ensure heart emoji has variation selector (U+FE0F) for red rendering
+                                    if reaction_emoji == "❤" or reaction_emoji == "\u2764":
+                                        reaction_emoji = "❤️"
 
                                 # Obtener link de story si existe
                                 story_link = None
