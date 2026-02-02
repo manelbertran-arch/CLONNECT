@@ -225,6 +225,9 @@ export function MessageRenderer({ message, isLastInGroup = true }: MessageRender
     case 'carousel':
       return <CarouselMessage message={message} isOutgoing={isOutgoing} isLastInGroup={isLastInGroup} />;
 
+    case 'unknown':
+      return <UnknownMediaMessage message={message} isOutgoing={isOutgoing} isLastInGroup={isLastInGroup} />;
+
     default:
       return <TextMessage message={message} isOutgoing={isOutgoing} isLastInGroup={isLastInGroup} />;
   }
@@ -434,6 +437,42 @@ function ReactionMessage({ message, isOutgoing }: { message: Message; isOutgoing
         {message.content && !message.content.includes('Reacción') && (
           <span className="text-white text-sm">{message.content}</span>
         )}
+      </div>
+    </div>
+  );
+}
+
+// Unknown Media Message - Nice placeholder for media that couldn't be loaded
+function UnknownMediaMessage({ message, isOutgoing, isLastInGroup }: { message: Message; isOutgoing: boolean; isLastInGroup: boolean }) {
+  const metadata = message.metadata || {};
+  const mediaUrl = metadata.url;
+
+  // If we have a URL, try to display it as an image
+  if (mediaUrl) {
+    return <MediaMessage message={message} isOutgoing={isOutgoing} isLastInGroup={isLastInGroup} type="image" />;
+  }
+
+  // No URL - show nice placeholder
+  const bubbleClass = isOutgoing
+    ? `${IG_GRADIENT} text-white`
+    : 'bg-[#262626] text-white';
+
+  const radiusClass = isOutgoing
+    ? `rounded-2xl ${isLastInGroup ? 'rounded-br-md' : ''}`
+    : `rounded-2xl ${isLastInGroup ? 'rounded-bl-md' : ''}`;
+
+  return (
+    <div className={`flex ${isOutgoing ? 'justify-end' : 'justify-start'}`}>
+      <div className={`max-w-[75%] ${bubbleClass} ${radiusClass} overflow-hidden`}>
+        <div className="p-3">
+          <div className="bg-black/20 rounded-lg p-4 flex items-center gap-3">
+            <svg className="w-6 h-6 text-gray-400 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+            </svg>
+            <span className="text-gray-300 text-sm">Contenido multimedia no disponible</span>
+          </div>
+        </div>
+        <Timestamp timestamp={message.timestamp} isOutgoing={isOutgoing} className="px-4 pb-2" />
       </div>
     </div>
   );
