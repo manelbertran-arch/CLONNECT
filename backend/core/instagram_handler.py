@@ -841,6 +841,23 @@ class InstagramHandler:
                 if not username and profile.get("username"):
                     username = profile["username"]
                 profile_pic_url = profile.get("profile_pic", "")
+
+                # Upload profile pic to Cloudinary for permanent storage
+                if profile_pic_url:
+                    cloudinary_svc = get_cloudinary_service()
+                    if cloudinary_svc.is_configured:
+                        result = cloudinary_svc.upload_from_url(
+                            url=profile_pic_url,
+                            media_type="image",
+                            folder=f"clonnect/{self.creator_id or 'unknown'}/profiles",
+                            public_id=f"profile_{sender_id}",
+                        )
+                        if result.success and result.url:
+                            logger.info(f"[LeadHistory] Profile pic uploaded to Cloudinary: {sender_id}")
+                            profile_pic_url = result.url
+                        else:
+                            logger.warning(f"[LeadHistory] Cloudinary upload failed: {result.error}")
+
                 logger.info(
                     f"[LeadHistory] Got profile for {sender_id}: "
                     f"name={full_name[:20] if full_name else 'N/A'}, "
@@ -1371,6 +1388,20 @@ class InstagramHandler:
             if profile:
                 username = profile.name or profile.username or "amigo"
                 profile_pic_url = profile.profile_pic_url
+
+                # Upload profile pic to Cloudinary for permanent storage
+                if profile_pic_url:
+                    cloudinary_svc = get_cloudinary_service()
+                    if cloudinary_svc.is_configured:
+                        result = cloudinary_svc.upload_from_url(
+                            url=profile_pic_url,
+                            media_type="image",
+                            folder=f"clonnect/{self.creator_id or 'unknown'}/profiles",
+                            public_id=f"profile_{sender_id}",
+                        )
+                        if result.success and result.url:
+                            logger.info(f"[IG:{sender_id}] Profile pic uploaded to Cloudinary")
+                            profile_pic_url = result.url
 
                 # Update lead with profile info including is_verified
                 if profile_pic_url or profile.is_verified:
