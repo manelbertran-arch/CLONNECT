@@ -447,6 +447,8 @@ function StoryMessage({ message, isOutgoing, isLastInGroup }: { message: Message
                     </div>
                   )}
                   {/* Fallback if no thumbnail or media failed to load */}
+                  {/* Fallback when no thumbnail or media failed to load */}
+                  {/* IMPORTANT: If we have a URL (hasLink), show "Toca para ver" - URLs work when clicked even if inline rendering fails */}
                   {(!thumbnailSrc || mediaError) && (
                     <div className="p-3 flex items-center gap-3">
                       <div className="w-12 h-12 rounded-lg bg-gradient-to-br from-violet-600 to-purple-600 flex items-center justify-center">
@@ -455,7 +457,8 @@ function StoryMessage({ message, isOutgoing, isLastInGroup }: { message: Message
                       <div className="flex-1 min-w-0">
                         <p className="text-white text-sm font-medium">{storyType}</p>
                         <p className="text-gray-400 text-xs flex items-center gap-1">
-                          {mediaError ? 'Media expirado' : (hasSavedThumbnail ? 'Toca para ver' : 'Story expirada')}
+                          {/* If we have a link, show "Toca para ver" - URL works even if inline rendering failed (CORS etc) */}
+                          {hasLink ? 'Toca para ver' : (hasSavedThumbnail ? 'Toca para ver' : 'Story no disponible')}
                           <ExternalLink className="w-3 h-3" />
                         </p>
                       </div>
@@ -762,7 +765,11 @@ function SharedPostMessage({ message, isOutgoing, isLastInGroup }: { message: Me
           ) : (
             <div className="h-32 bg-[#363636] flex items-center justify-center flex-col gap-2">
               <Share2 className="w-8 h-8 text-gray-500" />
-              {mediaError && <p className="text-xs text-gray-500">Media expirado</p>}
+              {/* If we have a permalink, show "Toca para ver" - URL works even if inline rendering failed */}
+              <p className="text-xs text-gray-400 flex items-center gap-1">
+                {permalink ? 'Toca para ver' : 'Media no disponible'}
+                {permalink && <ExternalLink className="w-3 h-3" />}
+              </p>
             </div>
           )}
 
