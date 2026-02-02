@@ -17,6 +17,7 @@ from typing import Any, Dict, List, Optional
 from core.dm_agent_v2 import DMResponderAgent, DMResponse
 from core.instagram import InstagramConnector, InstagramMessage
 from core.rate_limiter import get_rate_limiter
+from services.cloudinary_service import get_cloudinary_service
 
 logger = logging.getLogger("clonnect-instagram")
 
@@ -1246,6 +1247,33 @@ class InstagramHandler:
                     f"[IG:{message.sender_id}] Media message: type={media_type}, "
                     f"url={'Yes' if media_info.get('url') else 'No'}"
                 )
+
+                # Upload to Cloudinary for permanent storage (Instagram URLs expire)
+                if media_info.get("url"):
+                    cloudinary_svc = get_cloudinary_service()
+                    if cloudinary_svc.is_configured:
+                        folder = f"clonnect/{self.creator_id or 'unknown'}/media"
+                        result = cloudinary_svc.upload_from_url(
+                            url=media_info["url"],
+                            media_type=media_type,
+                            folder=folder,
+                            tags=["instagram", f"sender_{message.sender_id}"],
+                        )
+                        if result.success:
+                            logger.info(
+                                f"[IG:{message.sender_id}] Media uploaded to Cloudinary: "
+                                f"{result.public_id}"
+                            )
+                            media_info["original_url"] = media_info["url"]
+                            media_info["url"] = result.url
+                            media_info["cloudinary_id"] = result.public_id
+                        else:
+                            logger.warning(
+                                f"[IG:{message.sender_id}] Cloudinary upload failed: "
+                                f"{result.error}"
+                            )
+                    else:
+                        logger.debug("[IG] Cloudinary not configured, keeping Instagram URL")
 
         # Build metadata including media info if present
         dm_metadata = {

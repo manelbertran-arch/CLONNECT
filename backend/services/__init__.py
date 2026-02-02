@@ -2,6 +2,7 @@
 Business logic services for Clonnect.
 Extracted from dm_agent.py following TDD methodology.
 """
+from services.cloudinary_service import CloudinaryService, UploadResult, get_cloudinary_service
 from services.instagram_service import InstagramService, WebhookMessage
 from services.intent_service import Intent, IntentClassifier
 from services.lead_service import LeadScore, LeadService, LeadStage
@@ -11,8 +12,10 @@ from services.prompt_service import PromptBuilder
 from services.rag_service import DocumentChunk, RAGService
 
 __all__ = [
+    "CloudinaryService",
     "DocumentChunk",
     "FollowerMemory",
+    "get_cloudinary_service",
     "InstagramService",
     "Intent",
     "IntentClassifier",
@@ -25,5 +28,6 @@ __all__ = [
     "MemoryStore",
     "PromptBuilder",
     "RAGService",
+    "UploadResult",
     "WebhookMessage",
 ]
