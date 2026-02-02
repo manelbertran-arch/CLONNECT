@@ -1171,25 +1171,27 @@ async def test_full_sync_conversation(creator_id: str, username: str):
                     metadata["sticker_id"] = msg.get("sticker", "")
                     content_types["sticker"] += 1
                 else:
-                    # Unknown type - still save it with debug info
-                    msg_text = "[Media]"
-                    metadata["type"] = "unknown"
-                    metadata["raw_keys"] = list(msg.keys())
-                    # Capture sample of unknown messages for debugging
-                    if "unknown_samples" not in content_types:
-                        content_types["unknown_samples"] = []
-                    if len(content_types.get("unknown_samples", [])) < 3:
-                        # Capture first 3 unknown messages for debugging
-                        content_types["unknown_samples"].append({
-                            "keys": list(msg.keys()),
-                            "has_text": bool(msg.get("message")),
-                            "has_attachments": bool(msg.get("attachments")),
-                            "has_share": bool(msg.get("share")),
-                            "has_shares": bool(msg.get("shares")),
-                            "has_story": bool(msg.get("story")),
-                            "raw_sample": {k: str(v)[:100] for k, v in msg.items() if k != "from" and k != "to"}
-                        })
-                    content_types["unknown"] += 1
+                    # Check if this is an empty/deleted message (no content at all)
+                    has_any_content = (
+                        msg.get("message") or
+                        msg.get("attachments") or
+                        msg.get("share") or
+                        msg.get("shares") or
+                        msg.get("story") or
+                        msg.get("sticker") or
+                        msg.get("reactions")
+                    )
+                    if not has_any_content:
+                        # Empty message - likely deleted or expired media
+                        msg_text = "[Mensaje eliminado]"
+                        metadata["type"] = "deleted"
+                        content_types["deleted"] = content_types.get("deleted", 0) + 1
+                    else:
+                        # Truly unknown type - save with debug info
+                        msg_text = "[Media]"
+                        metadata["type"] = "unknown"
+                        metadata["raw_keys"] = list(msg.keys())
+                        content_types["unknown"] += 1
 
                 # Check timestamp
                 msg_time = None
