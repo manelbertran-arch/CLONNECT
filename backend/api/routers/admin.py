@@ -1171,10 +1171,24 @@ async def test_full_sync_conversation(creator_id: str, username: str):
                     metadata["sticker_id"] = msg.get("sticker", "")
                     content_types["sticker"] += 1
                 else:
-                    # Unknown type - still save it
+                    # Unknown type - still save it with debug info
                     msg_text = "[Media]"
                     metadata["type"] = "unknown"
                     metadata["raw_keys"] = list(msg.keys())
+                    # Capture sample of unknown messages for debugging
+                    if "unknown_samples" not in content_types:
+                        content_types["unknown_samples"] = []
+                    if len(content_types.get("unknown_samples", [])) < 3:
+                        # Capture first 3 unknown messages for debugging
+                        content_types["unknown_samples"].append({
+                            "keys": list(msg.keys()),
+                            "has_text": bool(msg.get("message")),
+                            "has_attachments": bool(msg.get("attachments")),
+                            "has_share": bool(msg.get("share")),
+                            "has_shares": bool(msg.get("shares")),
+                            "has_story": bool(msg.get("story")),
+                            "raw_sample": {k: str(v)[:100] for k, v in msg.items() if k != "from" and k != "to"}
+                        })
                     content_types["unknown"] += 1
 
                 # Check timestamp
