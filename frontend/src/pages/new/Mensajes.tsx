@@ -157,13 +157,15 @@ export default function Mensajes() {
                   </div>
                 </div>
                 <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-1">
                     <p className={`font-semibold text-[14px] truncate ${conv.is_unread ? 'text-white' : 'text-gray-300'}`}>
                       {conv.username || conv.name || conv.follower_id}
                     </p>
-                    {/* Verified badge */}
-                    {conv.is_verified && (
-                      <span className="text-[#0095F6] text-xs">✓</span>
+                    {/* Verified badge - Instagram style */}
+                    {(conv.is_verified || conv.isVerified) && (
+                      <svg className="w-4 h-4 text-[#0095F6] flex-shrink-0" viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10 10-4.5 10-10S17.5 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/>
+                      </svg>
                     )}
                   </div>
                   <div className="flex items-center gap-1">
@@ -218,12 +220,20 @@ export default function Mensajes() {
               </div>
             </div>
             <div className="flex-1">
-              <p className="font-semibold text-white text-[15px]">
-                {selectedConversation?.username ||
-                  selectedConversation?.name ||
-                  followerDetail?.username ||
-                  conversationId}
-              </p>
+              <div className="flex items-center gap-1">
+                <p className="font-semibold text-white text-[15px]">
+                  {selectedConversation?.username ||
+                    selectedConversation?.name ||
+                    followerDetail?.username ||
+                    conversationId}
+                </p>
+                {/* Verified badge - Instagram style */}
+                {(selectedConversation?.is_verified || selectedConversation?.isVerified || followerDetail?.is_verified || followerDetail?.isVerified) && (
+                  <svg className="w-4 h-4 text-[#0095F6] flex-shrink-0" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10 10-4.5 10-10S17.5 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/>
+                  </svg>
+                )}
+              </div>
               <p className="text-xs text-gray-400">
                 {(selectedConversation?.purchase_intent ?? 0) > 0.7
                   ? '🔥 Hot lead · Activo ahora'
