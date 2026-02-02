@@ -392,10 +392,11 @@ function StoryMessage({ message, isOutgoing, isLastInGroup }: { message: Message
                       {useVideoFallback ? (
                         <video
                           src={thumbnailSrc}
-                          controls
+                          muted
                           playsInline
-                          preload="metadata"
-                          className="w-full max-h-64 object-cover"
+                          autoPlay
+                          loop
+                          className={`w-full max-h-64 object-cover ${imageLoaded ? '' : 'hidden'}`}
                           onLoadedData={() => setImageLoaded(true)}
                         />
                       ) : (
@@ -406,8 +407,12 @@ function StoryMessage({ message, isOutgoing, isLastInGroup }: { message: Message
                           style={{ imageRendering: 'auto' }}
                           onLoad={() => setImageLoaded(true)}
                           onError={() => {
-                            // If image fails and URL looks like video, try video fallback
-                            if (thumbnailSrc && /\.(mp4|mov|webm|m4v)($|\?)/i.test(thumbnailSrc)) {
+                            // If image fails on CDN URL, try video fallback (CDN may serve video)
+                            if (thumbnailSrc && (
+                              thumbnailSrc.includes('lookaside.fbsbx.com') ||
+                              thumbnailSrc.includes('cdninstagram.com') ||
+                              /\.(mp4|mov|webm|m4v)($|\?)/i.test(thumbnailSrc)
+                            )) {
                               setUseVideoFallback(true);
                             } else {
                               setImageError(true);
@@ -604,8 +609,12 @@ function MediaMessage({ message, isOutgoing, isLastInGroup, type }: { message: M
             style={{ imageRendering: 'auto' }}
             onLoad={() => setLoaded(true)}
             onError={() => {
-              // If image fails and URL looks like video, try video fallback
-              if (mediaUrl && /\.(mp4|mov|webm|m4v)($|\?)/i.test(mediaUrl)) {
+              // If image fails on CDN URL, try video fallback (CDN may serve video)
+              if (mediaUrl && (
+                mediaUrl.includes('lookaside.fbsbx.com') ||
+                mediaUrl.includes('cdninstagram.com') ||
+                /\.(mp4|mov|webm|m4v)($|\?)/i.test(mediaUrl)
+              )) {
                 setUseVideoFallback(true);
               } else {
                 setLoaded(true);
@@ -719,10 +728,11 @@ function SharedPostMessage({ message, isOutgoing, isLastInGroup }: { message: Me
               {useVideoFallback ? (
                 <video
                   src={thumbnailSrc}
-                  controls
+                  muted
                   playsInline
-                  preload="metadata"
-                  className="w-full max-h-80 object-cover"
+                  autoPlay
+                  loop
+                  className={`w-full max-h-80 object-cover ${imageLoaded ? '' : 'hidden'}`}
                   onLoadedData={() => setImageLoaded(true)}
                 />
               ) : (
@@ -733,8 +743,12 @@ function SharedPostMessage({ message, isOutgoing, isLastInGroup }: { message: Me
                   style={{ imageRendering: 'auto' }}
                   onLoad={() => setImageLoaded(true)}
                   onError={() => {
-                    // If image fails and URL looks like video, try video fallback
-                    if (thumbnailSrc && /\.(mp4|mov|webm|m4v)($|\?)/i.test(thumbnailSrc)) {
+                    // If image fails on CDN URL, try video fallback (CDN may serve video)
+                    if (thumbnailSrc && (
+                      thumbnailSrc.includes('lookaside.fbsbx.com') ||
+                      thumbnailSrc.includes('cdninstagram.com') ||
+                      /\.(mp4|mov|webm|m4v)($|\?)/i.test(thumbnailSrc)
+                    )) {
                       setUseVideoFallback(true);
                     } else {
                       setImageError(true);
