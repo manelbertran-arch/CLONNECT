@@ -70,6 +70,7 @@ export default function Mensajes() {
   }, [conversationId, creatorId, queryClient]);
 
   const conversations = conversationsData?.conversations || [];
+  const unreadCount = conversations.filter((c) => c.is_unread).length;
 
   const selectedConversation = conversations.find(
     (c) => c.follower_id === conversationId
@@ -139,9 +140,16 @@ export default function Mensajes() {
         flex-col w-full md:w-96 bg-black rounded-xl overflow-hidden border-r border-[#262626]
       `}
       >
-        {/* Header with username */}
+        {/* Header with username and unread count */}
         <div className="p-4 border-b border-[#262626]">
-          <h1 className="text-xl font-bold text-white">Mensajes</h1>
+          <h1 className="text-xl font-bold text-white flex items-center">
+            Mensajes
+            {unreadCount > 0 && (
+              <span className="bg-red-500 text-white text-xs rounded-full px-2 py-0.5 ml-2">
+                {unreadCount}
+              </span>
+            )}
+          </h1>
         </div>
 
         {/* Search */}
