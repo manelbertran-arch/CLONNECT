@@ -429,10 +429,16 @@ export default function Inbox() {
                       className="flex-1 min-w-0 text-left"
                     >
                       <div className="flex items-center justify-between">
-                        <span className="font-medium text-sm truncate">{listDisplayName}</span>
-                        <span className="text-xs text-muted-foreground">{formatTimeAgo(convo.last_contact)}</span>
+                        <div className="flex items-center gap-1">
+                          <span className={`font-medium text-sm truncate ${convo.is_unread ? 'text-white' : ''}`}>{listDisplayName}</span>
+                          {convo.is_verified && <span className="text-[#0095F6] text-xs">✓</span>}
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <span className="text-xs text-muted-foreground">{formatTimeAgo(convo.last_contact)}</span>
+                          {convo.is_unread && <div className="w-2 h-2 rounded-full bg-[#0095F6]"></div>}
+                        </div>
                       </div>
-                      <p className="text-xs text-muted-foreground truncate mt-0.5">
+                      <p className={`text-xs truncate mt-0.5 ${convo.is_unread ? 'text-white font-medium' : 'text-muted-foreground'}`}>
                         {convo.last_message_role === 'assistant' ? 'You: ' : ''}
                         {convo.last_message_preview || lastMessage?.content || `${convo.total_messages || 0} messages`}
                       </p>
