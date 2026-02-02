@@ -166,6 +166,7 @@ interface MessageMetadata {
   platform?: string;  // instagram, youtube, tiktok, web
   link_preview?: LinkPreview;  // Open Graph link preview data
   carousel_items?: CarouselItem[];  // For carousel/album messages
+  items?: Array<{ url?: string; type?: string }>;  // Alternative carousel items
   duration?: number;  // Audio/video duration in seconds
 }
 
@@ -458,12 +459,17 @@ function MediaMessage({ message, isOutgoing, isLastInGroup, type }: { message: M
     return (
       <div className={`flex ${isOutgoing ? 'justify-end' : 'justify-start'}`}>
         <div className="max-w-[70%] rounded-2xl overflow-hidden bg-black">
+          {!loaded && (
+            <div className="w-48 h-48 bg-[#262626] rounded-2xl flex items-center justify-center">
+              <Film className="w-8 h-8 text-gray-500 animate-pulse" />
+            </div>
+          )}
           <video
             src={mediaUrl}
             controls
             playsInline
             preload="metadata"
-            className="max-w-full max-h-96 rounded-2xl"
+            className={`max-w-full max-h-96 rounded-2xl ${loaded ? '' : 'hidden'}`}
             onLoadedData={() => setLoaded(true)}
           >
             <source src={mediaUrl} type="video/mp4" />
@@ -479,7 +485,7 @@ function MediaMessage({ message, isOutgoing, isLastInGroup, type }: { message: M
   return (
     <div className={`flex ${isOutgoing ? 'justify-end' : 'justify-start'}`}>
       <div className={`max-w-[70%] ${isSticker ? '' : 'rounded-2xl overflow-hidden'}`}>
-        <a href={mediaUrl} target="_blank" rel="noopener noreferrer" className="block relative">
+        <a href={mediaUrl} target="_blank" rel="noopener noreferrer" className="block relative cursor-pointer hover:opacity-90 transition-opacity">
           {!loaded && (
             <div className="w-48 h-48 bg-[#262626] rounded-2xl flex items-center justify-center">
               <ImageIcon className="w-8 h-8 text-gray-500 animate-pulse" />
@@ -575,8 +581,8 @@ function SharedPostMessage({ message, isOutgoing, isLastInGroup }: { message: Me
 
   const permalink = metadata.permalink || metadata.url;
   const authorUsername = metadata.author_username;
-  const isReel = metadata.type === 'shared_reel';
-  const isVideo = metadata.type === 'shared_video' || isReel;
+  const isReel = metadata.type === 'shared_reel' || metadata.type === 'reel';
+  const isVideo = metadata.type === 'shared_video' || isReel || metadata.type === 'clip' || metadata.type === 'igtv';
 
   // Platform-specific label
   const platformLabel = metadata.platform === 'youtube' ? 'YouTube'
@@ -610,7 +616,7 @@ function SharedPostMessage({ message, isOutgoing, isLastInGroup }: { message: Me
                   </div>
                 </div>
               )}
-              {isReel && !isVideo && (
+              {isReel && (
                 <div className="absolute top-2 right-2 bg-black/60 rounded px-2 py-1">
                   <Film className="w-4 h-4 text-white" />
                 </div>
@@ -650,7 +656,9 @@ function CarouselMessage({ message, isOutgoing, isLastInGroup }: { message: Mess
   const [loaded, setLoaded] = useState(false);
   const [imageError, setImageError] = useState(false);
   const metadata = message.metadata || {};
-  const items = metadata.carousel_items || [];
+
+  // Support both carousel_items and items arrays
+  const items = metadata.carousel_items || metadata.items || [];
   const totalCount = items.length;
 
   // Get first item for preview
@@ -664,7 +672,7 @@ function CarouselMessage({ message, isOutgoing, isLastInGroup }: { message: Mess
   return (
     <div className={`flex ${isOutgoing ? 'justify-end' : 'justify-start'}`}>
       <div className="max-w-[70%] rounded-2xl overflow-hidden">
-        <a href={metadata.permalink || imageUrl} target="_blank" rel="noopener noreferrer" className="block relative">
+        <a href={metadata.permalink || imageUrl} target="_blank" rel="noopener noreferrer" className="block relative cursor-pointer hover:opacity-90 transition-opacity">
           {!loaded && !imageError && (
             <div className="w-48 h-48 bg-[#262626] rounded-2xl flex items-center justify-center">
               <ImageIcon className="w-8 h-8 text-gray-500 animate-pulse" />
