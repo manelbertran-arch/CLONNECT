@@ -554,8 +554,15 @@ async def _simple_dm_sync_internal(
                         # FIX 2026-02-02: Support both Meta formats:
                         # - Old format: image_data.url, video_data.url
                         # - New format: payload.url (Instagram Messaging API)
+                        # - Dict format: {"data": [{...}]} vs List format: [{...}]
                         if not msg_text:
-                            attachments = msg.get("attachments", {}).get("data", [])
+                            raw_attachments = msg.get("attachments", {})
+                            if isinstance(raw_attachments, dict):
+                                attachments = raw_attachments.get("data", [])
+                            elif isinstance(raw_attachments, list):
+                                attachments = raw_attachments
+                            else:
+                                attachments = []
                             if attachments:
                                 for att in attachments:
                                     att_type = (att.get("type") or "").lower()

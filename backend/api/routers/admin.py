@@ -1049,44 +1049,77 @@ async def test_full_sync_conversation(creator_id: str, username: str):
 
                 if msg_text:
                     content_types["text"] += 1
+                elif msg.get("share"):
+                    # Shared content (singular - shared post/reel)
+                    share_data = msg.get("share", {})
+                    share_link = share_data.get("link", "")
+                    msg_text = "[Post compartido]" if share_link else "[Contenido compartido]"
+                    metadata["type"] = "share"
+                    metadata["url"] = share_link
+                    metadata["thumbnail_url"] = share_data.get("image_url", "")
+                    metadata["name"] = share_data.get("name", "")
+                    content_types["share"] += 1
                 elif msg.get("attachments"):
                     # Media attachment (image, video, file)
-                    # FIX 2026-02-02: Support both Meta formats (payload.url and legacy)
-                    attachments = msg.get("attachments", {}).get("data", [])
+                    # FIX 2026-02-02: Support both Meta formats:
+                    # - Dict format: {"data": [{...}]}
+                    # - List format: [{...}]
+                    raw_attachments = msg.get("attachments", {})
+                    if isinstance(raw_attachments, dict):
+                        attachments = raw_attachments.get("data", [])
+                    elif isinstance(raw_attachments, list):
+                        attachments = raw_attachments
+                    else:
+                        attachments = []
                     if attachments:
                         att = attachments[0]
-                        att_type = att.get("type", "file")
+                        att_type_raw = (att.get("type") or "").lower()
+
+                        # Structure-based detection (Instagram often omits explicit type)
+                        has_video = att.get("video_data") is not None
+                        has_image = att.get("image_data") is not None
+                        has_audio = att.get("audio_data") is not None
+                        is_sticker = att.get("render_as_sticker", False)
+                        is_animated = att.get("animated_gif_url") is not None
+
                         # Try new payload format first, then legacy formats
                         payload = att.get("payload", {})
                         payload_url = payload.get("url") if isinstance(payload, dict) else None
                         legacy_url = (
-                            att.get("image_data", {}).get("url")
-                            or att.get("video_data", {}).get("url")
+                            att.get("video_data", {}).get("url")
+                            or att.get("image_data", {}).get("url")
                             or att.get("audio_data", {}).get("url")
                             or att.get("url")
                         )
                         att_url = payload_url or legacy_url or ""
 
-                        if att_type == "image":
-                            msg_text = "[Imagen]"
-                            metadata["type"] = "image"
-                            metadata["url"] = att_url
-                        elif att_type == "video":
+                        # Determine type: prefer structure-based, fallback to explicit type
+                        if "video" in att_type_raw or has_video:
                             msg_text = "[Video]"
                             metadata["type"] = "video"
-                            metadata["url"] = att_url
-                        elif att_type == "audio":
+                        elif "audio" in att_type_raw or has_audio:
                             msg_text = "[Audio]"
                             metadata["type"] = "audio"
-                            metadata["url"] = att_url
-                        elif att_type == "file":
+                        elif is_sticker:
+                            msg_text = "[Sticker]"
+                            metadata["type"] = "sticker"
+                        elif is_animated or "gif" in att_type_raw:
+                            msg_text = "[GIF]"
+                            metadata["type"] = "gif"
+                            att_url = att.get("animated_gif_url") or att_url
+                        elif "image" in att_type_raw or "photo" in att_type_raw or has_image:
+                            msg_text = "[Imagen]"
+                            metadata["type"] = "image"
+                        elif "share" in att_type_raw or "post" in att_type_raw:
+                            msg_text = "[Post compartido]"
+                            metadata["type"] = "shared_post"
+                        elif att_type_raw:
+                            msg_text = f"[{att_type_raw.title()}]"
+                            metadata["type"] = att_type_raw
+                        else:
                             msg_text = "[Archivo]"
                             metadata["type"] = "file"
-                            metadata["url"] = att_url
-                        else:
-                            msg_text = f"[{att_type.title()}]"
-                            metadata["type"] = att_type
-                            metadata["url"] = att_url
+                        metadata["url"] = att_url
                         metadata["captured_at"] = datetime.utcnow().isoformat() + "Z"
                     else:
                         msg_text = "[Adjunto]"
