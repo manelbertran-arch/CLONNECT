@@ -1296,7 +1296,10 @@ class InstagramHandler:
                 )
 
                 # Upload to Cloudinary for permanent storage (Instagram URLs expire)
+                # Fallback to base64 if Cloudinary not configured
                 if media_info.get("url"):
+                    from services.media_capture_service import capture_media_from_url, is_cdn_url
+
                     cloudinary_svc = get_cloudinary_service()
                     if cloudinary_svc.is_configured:
                         folder = f"clonnect/{self.creator_id or 'unknown'}/media"
@@ -1319,8 +1322,33 @@ class InstagramHandler:
                                 f"[IG:{message.sender_id}] Cloudinary upload failed: "
                                 f"{result.error}"
                             )
+                            # Fallback to base64 if Cloudinary fails
+                            if is_cdn_url(media_info["url"]):
+                                captured = await capture_media_from_url(
+                                    url=media_info["url"],
+                                    media_type=media_type,
+                                    creator_id=self.creator_id,
+                                    use_cloudinary=False,  # Already tried Cloudinary
+                                )
+                                if captured and captured.startswith("data:"):
+                                    media_info["thumbnail_base64"] = captured
+                                    logger.info(f"[IG:{message.sender_id}] Captured media as base64")
                     else:
-                        logger.debug("[IG] Cloudinary not configured, keeping Instagram URL")
+                        # No Cloudinary - capture as base64
+                        logger.debug("[IG] Cloudinary not configured, capturing as base64")
+                        if is_cdn_url(media_info["url"]):
+                            captured = await capture_media_from_url(
+                                url=media_info["url"],
+                                media_type=media_type,
+                                creator_id=self.creator_id,
+                                use_cloudinary=False,
+                            )
+                            if captured:
+                                if captured.startswith("data:"):
+                                    media_info["thumbnail_base64"] = captured
+                                else:
+                                    media_info["permanent_url"] = captured
+                                logger.info(f"[IG:{message.sender_id}] Captured media for permanent storage")
 
         # Build metadata including media info if present
         dm_metadata = {

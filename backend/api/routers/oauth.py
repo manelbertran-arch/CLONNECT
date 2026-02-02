@@ -11,6 +11,8 @@ from urllib.parse import urlencode
 from fastapi import APIRouter, BackgroundTasks, HTTPException, Query
 from fastapi.responses import RedirectResponse
 
+from services.media_capture_service import capture_media_from_url, is_cdn_url
+
 logger = logging.getLogger(__name__)
 
 
@@ -718,6 +720,33 @@ async def _simple_dm_sync_internal(
                         # Determine role (assistant = creator, user = follower)
                         from_id = msg.get("from", {}).get("id")
                         role = "assistant" if from_id in creator_ids else "user"
+
+                        # MEDIA CAPTURE: Capture CDN URLs before they expire
+                        # Instagram CDN URLs expire after ~24 hours
+                        if msg_metadata:
+                            media_url = msg_metadata.get("url") or msg_metadata.get("thumbnail_url")
+                            if media_url and is_cdn_url(media_url):
+                                try:
+                                    media_type = msg_metadata.get("type", "image")
+                                    if media_type in ("video", "audio", "shared_video", "reel"):
+                                        capture_type = "video"
+                                    else:
+                                        capture_type = "image"
+
+                                    captured = await capture_media_from_url(
+                                        url=media_url,
+                                        media_type=capture_type,
+                                        creator_id=creator_id,
+                                    )
+                                    if captured:
+                                        # Store captured media
+                                        if captured.startswith("data:"):
+                                            msg_metadata["thumbnail_base64"] = captured
+                                        else:
+                                            msg_metadata["permanent_url"] = captured
+                                        logger.debug(f"[DM Sync] Captured media for msg {msg_id}")
+                                except Exception as capture_err:
+                                    logger.warning(f"[DM Sync] Media capture failed: {capture_err}")
 
                         new_msg = Message(
                             lead_id=lead.id,

@@ -357,11 +357,12 @@ function StoryMessage({ message, isOutgoing, isLastInGroup }: { message: Message
       : 'Reaccionó a tu historia');
 
   // For stories: prefer saved thumbnails over URL (URL is often a permalink, not an image)
-  // Priority: base64 (saved) > thumbnail_url > nothing (URL is story link, not image)
-  const thumbnailSrc = metadata.thumbnail_base64
-    ? (metadata.thumbnail_base64.startsWith('data:') ? metadata.thumbnail_base64 : `data:image/jpeg;base64,${metadata.thumbnail_base64}`)
-    : metadata.thumbnail_url;
-  const hasSavedThumbnail = !!metadata.thumbnail_base64;
+  // Priority: permanent_url (Cloudinary) > base64 (saved) > thumbnail_url > nothing
+  const thumbnailSrc = metadata.permanent_url
+    || (metadata.thumbnail_base64
+      ? (metadata.thumbnail_base64.startsWith('data:') ? metadata.thumbnail_base64 : `data:image/jpeg;base64,${metadata.thumbnail_base64}`)
+      : metadata.thumbnail_url);
+  const hasSavedThumbnail = !!metadata.thumbnail_base64 || !!metadata.permanent_url;
 
   const bubbleClass = isOutgoing
     ? `${IG_GRADIENT} text-white`
@@ -541,7 +542,13 @@ function MediaMessage({ message, isOutgoing, isLastInGroup, type }: { message: M
   const [loaded, setLoaded] = useState(false);
   const [useVideoFallback, setUseVideoFallback] = useState(false);
   const metadata = message.metadata || {};
-  const mediaUrl = metadata.url || metadata.preview_url || metadata.animated_gif_url || metadata.thumbnail_url;
+  // Priority: permanent_url (Cloudinary) > thumbnail_base64 > url > preview_url > thumbnail_url
+  const mediaUrl = metadata.permanent_url
+    || metadata.thumbnail_base64
+    || metadata.url
+    || metadata.preview_url
+    || metadata.animated_gif_url
+    || metadata.thumbnail_url;
   const isSticker = metadata.render_as_sticker;
 
   // Check if URL is a playable video (mp4, mov, webm)
@@ -680,11 +687,12 @@ function SharedPostMessage({ message, isOutgoing, isLastInGroup }: { message: Me
   const [useVideoFallback, setUseVideoFallback] = useState(false);
   const metadata = message.metadata || {};
 
-  // Prefer reliable image sources: base64 (saved) > thumbnail_url > preview_url
+  // Prefer reliable image sources: permanent_url (Cloudinary) > base64 (saved) > thumbnail_url > preview_url
   // Note: metadata.url is often a permalink (not an image), so we don't use it for thumbnails
-  const thumbnailSrc = metadata.thumbnail_base64
-    ? (metadata.thumbnail_base64.startsWith('data:') ? metadata.thumbnail_base64 : `data:image/jpeg;base64,${metadata.thumbnail_base64}`)
-    : metadata.thumbnail_url || metadata.preview_url;
+  const thumbnailSrc = metadata.permanent_url
+    || (metadata.thumbnail_base64
+      ? (metadata.thumbnail_base64.startsWith('data:') ? metadata.thumbnail_base64 : `data:image/jpeg;base64,${metadata.thumbnail_base64}`)
+      : metadata.thumbnail_url || metadata.preview_url);
 
   const permalink = metadata.permalink || metadata.url;
   const authorUsername = metadata.author_username;
