@@ -499,7 +499,7 @@ async def test_telegram_flow():
             {
                 "step": "4. Generate response",
                 "status": "OK",
-                "detail": f"Intent: {response.intent.value if hasattr(response.intent, 'value') else response.intent}, Response: {response.response_text[:80]}...",
+                "detail": f"Intent: {response.intent}, Response: {response.content[:80]}...",
             }
         )
     except Exception as e:
@@ -529,12 +529,8 @@ async def test_telegram_flow():
                 platform="telegram",
                 user_message="TEST - diagnostic message",
                 user_message_id="diag_001",
-                suggested_response=response.response_text,
-                intent=(
-                    response.intent.value
-                    if hasattr(response.intent, "value")
-                    else str(response.intent)
-                ),
+                suggested_response=response.content,
+                intent=response.intent,
                 confidence=0.95,
                 username="DiagnosticTest",
                 full_name="Test User",

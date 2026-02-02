@@ -82,12 +82,11 @@ async def process_dm(payload: ProcessDMRequest):
 
         return {
             "status": "ok",
-            "response": result.response_text,
-            "intent": result.intent.value,
-            "action": result.action_taken,
-            "product_mentioned": result.product_mentioned,
-            "escalate": result.escalate_to_human,
+            "response": result.content,
+            "intent": result.intent,
+            "lead_stage": result.lead_stage,
             "confidence": result.confidence,
+            "tokens_used": result.tokens_used,
         }
 
     except Exception as e:

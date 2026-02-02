@@ -773,12 +773,8 @@ async def _handle_story_reply(
                 platform="instagram",
                 user_message=reply_text,
                 user_message_id=message.message_id,
-                suggested_response=response.response_text,
-                intent=(
-                    response.intent.value
-                    if hasattr(response.intent, "value")
-                    else str(response.intent)
-                ),
+                suggested_response=response.content,
+                intent=response.intent,
                 confidence=response.confidence,
                 source="story_reply",
             )
@@ -792,13 +788,13 @@ async def _handle_story_reply(
             }
         else:
             # Send immediately
-            await handler.send_response(sender_id, response.response_text)
+            await handler.send_response(sender_id, response.content)
 
             return {
                 "type": "story_reply",
                 "sender_id": sender_id,
                 "copilot_mode": False,
-                "response": response.response_text[:50] + "...",
+                "response": response.content[:50] + "...",
                 "status": "sent",
             }
 

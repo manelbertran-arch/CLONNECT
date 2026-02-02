@@ -421,8 +421,8 @@ async def telegram_webhook(request: Request):
             _t_process_done = time.time()
             logger.info(f"process_dm completed in {_t_process_done - _t_agent_ready:.2f}s")
 
-            bot_reply = response.response_text
-            intent = response.intent.value if response.intent else "unknown"
+            bot_reply = response.content
+            intent = response.intent if response.intent else "unknown"
 
             logger.info(f"Telegram DM from {sender_name} ({sender_id}): '{text[:50]}' -> intent={intent}")
 
