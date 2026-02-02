@@ -42,10 +42,14 @@ class InstagramMessage:
     text: str
     timestamp: datetime
     attachments: List[dict] = None
+    story: dict = None  # Story data (reply_to, mention) for story messages
+    reactions: List[dict] = None  # Reaction data
 
     def __post_init__(self):
         if self.attachments is None:
             self.attachments = []
+        if self.reactions is None:
+            self.reactions = []
 
 
 @dataclass

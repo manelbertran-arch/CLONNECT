@@ -1245,9 +1245,11 @@ class InstagramHandler:
                             text=message_data.get("text", ""),
                             timestamp=datetime.fromtimestamp(messaging.get("timestamp", 0) / 1000),
                             attachments=message_data.get("attachments", []),
+                            story=message_data.get("story"),  # Story reply/mention data
+                            reactions=message_data.get("reactions", {}).get("data", []),
                         )
-                        # FIX 2026-02-02: Process text AND media messages (not just text)
-                        if msg.text or msg.attachments:
+                        # FIX 2026-02-02: Process text, media, AND story messages
+                        if msg.text or msg.attachments or msg.story:
                             messages.append(msg)
         except Exception as e:
             logger.error(f"Error extracting messages from webhook: {e}")
@@ -1276,8 +1278,106 @@ class InstagramHandler:
         # FIX 2026-02-02: Handle media messages without text
         message_text = message.text
         media_info = None
+        story_info = None
 
-        if not message_text and message.attachments:
+        # FIX 2026-02-02: Handle STORY messages (reply_to, mention)
+        # Stories contain CDN URLs in attachments that expire in 24h - capture immediately!
+        if message.story:
+            story_data = message.story
+            story_type = None
+            story_link = None
+
+            if story_data.get("reply_to"):
+                story_type = "story_reply"
+                story_link = story_data["reply_to"].get("link", "")
+            elif story_data.get("mention"):
+                story_type = "story_mention"
+                story_link = story_data["mention"].get("link", "")
+
+            if story_type:
+                # Extract CDN URL from attachments (this is the actual video/image)
+                cdn_url = None
+                if message.attachments:
+                    att = message.attachments[0]
+                    cdn_url = (
+                        att.get("video_data", {}).get("url")
+                        or att.get("image_data", {}).get("url")
+                        or (att.get("payload", {}).get("url") if isinstance(att.get("payload"), dict) else None)
+                        or att.get("url")
+                    )
+
+                # Get reaction emoji if present
+                reaction_emoji = None
+                if message.reactions:
+                    reaction_emoji = message.reactions[0].get("emoji", "❤️")
+                    if reaction_emoji:
+                        story_type = "story_reaction"
+
+                # Build story info
+                story_info = {
+                    "type": story_type,
+                    "url": cdn_url or "",  # CDN URL for video/image
+                    "link": story_link,    # Permalink for opening in Instagram
+                }
+                if reaction_emoji:
+                    story_info["emoji"] = reaction_emoji
+
+                # Set message text based on story type
+                if not message_text:
+                    if story_type == "story_reaction":
+                        message_text = f"Reacción {reaction_emoji} a story"
+                    elif story_type == "story_reply":
+                        message_text = "Respuesta a story"
+                    elif story_type == "story_mention":
+                        message_text = "Mención en story"
+
+                logger.info(
+                    f"[IG:{message.sender_id}] Story message: type={story_type}, "
+                    f"cdn_url={'Yes' if cdn_url else 'No'}, link={'Yes' if story_link else 'No'}"
+                )
+
+                # Capture CDN media immediately before it expires!
+                if cdn_url:
+                    from services.media_capture_service import capture_media_from_url, is_cdn_url
+
+                    if is_cdn_url(cdn_url):
+                        cloudinary_svc = get_cloudinary_service()
+                        if cloudinary_svc.is_configured:
+                            folder = f"clonnect/{self.creator_id or 'unknown'}/stories"
+                            result = cloudinary_svc.upload_from_url(
+                                url=cdn_url,
+                                media_type="video",  # Stories are usually video
+                                folder=folder,
+                                tags=["instagram", "story", f"sender_{message.sender_id}"],
+                            )
+                            if result.success:
+                                story_info["original_url"] = cdn_url
+                                story_info["permanent_url"] = result.url
+                                story_info["cloudinary_id"] = result.public_id
+                                logger.info(f"[IG:{message.sender_id}] Story media uploaded to Cloudinary")
+                            else:
+                                # Fallback to base64
+                                captured = await capture_media_from_url(
+                                    url=cdn_url, media_type="video",
+                                    creator_id=self.creator_id, use_cloudinary=False
+                                )
+                                if captured and captured.startswith("data:"):
+                                    story_info["thumbnail_base64"] = captured
+                                    logger.info(f"[IG:{message.sender_id}] Story captured as base64")
+                        else:
+                            # No Cloudinary - capture as base64
+                            captured = await capture_media_from_url(
+                                url=cdn_url, media_type="video",
+                                creator_id=self.creator_id, use_cloudinary=False
+                            )
+                            if captured:
+                                if captured.startswith("data:"):
+                                    story_info["thumbnail_base64"] = captured
+                                else:
+                                    story_info["permanent_url"] = captured
+                                logger.info(f"[IG:{message.sender_id}] Story media captured permanently")
+
+        if not message_text and message.attachments and not story_info:
             # Extract media info and create descriptive text
             media_info = self._extract_media_info(message.attachments)
             if media_info:
@@ -1350,7 +1450,7 @@ class InstagramHandler:
                                     media_info["permanent_url"] = captured
                                 logger.info(f"[IG:{message.sender_id}] Captured media for permanent storage")
 
-        # Build metadata including media info if present
+        # Build metadata including media and story info if present
         dm_metadata = {
             "message_id": message.message_id,
             "username": username,
@@ -1358,6 +1458,11 @@ class InstagramHandler:
         }
         if media_info:
             dm_metadata["media"] = media_info
+        if story_info:
+            # Story info becomes the msg_metadata directly (type, url, link, emoji)
+            dm_metadata["story"] = story_info
+            # Also set as msg_metadata for direct storage in message
+            dm_metadata["msg_metadata"] = story_info
 
         # Process with DM agent (V2 signature: message, sender_id, metadata) - FIX 2026-01-29
         logger.info(f"[V2-FIX] Calling process_dm with V2 signature for {message.sender_id}")
