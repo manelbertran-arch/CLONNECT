@@ -71,3 +71,5 @@ clonnect-memory/
 clonnect-memory-core/
 .vercel
 .env*.local
+backend/clonnect.db
+backend/clonnect.db
