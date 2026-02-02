@@ -336,10 +336,20 @@ function LinkPreviewCard({ preview }: { preview: LinkPreview }) {
   );
 }
 
+// Helper: Detect if URL is likely a video (Instagram CDN, mp4, etc.)
+// This allows proactive video rendering instead of waiting for img to fail
+function isVideoUrl(url?: string): boolean {
+  if (!url) return false;
+  return (
+    url.includes('lookaside.fbsbx.com') ||
+    url.includes('cdninstagram.com') ||
+    /\.(mp4|mov|webm|m4v)($|\?)/i.test(url)
+  );
+}
+
 // Story Message - With gradient border and thumbnail preview
 function StoryMessage({ message, isOutgoing, isLastInGroup }: { message: Message; isOutgoing: boolean; isLastInGroup: boolean }) {
-  const [imageLoaded, setImageLoaded] = useState(false);
-  const [imageError, setImageError] = useState(false);
+  const [mediaLoaded, setMediaLoaded] = useState(false);
   const [useVideoFallback, setUseVideoFallback] = useState(false);
   const metadata = message.metadata || {};
   const hasLink = !!metadata.url;
@@ -364,6 +374,9 @@ function StoryMessage({ message, isOutgoing, isLastInGroup }: { message: Message
       : metadata.thumbnail_url);
   const hasSavedThumbnail = !!metadata.thumbnail_base64 || !!metadata.permanent_url;
 
+  // Detect video proactively by URL pattern (Instagram CDN returns video/mp4)
+  const isVideo = isVideoUrl(thumbnailSrc) || useVideoFallback;
+
   const bubbleClass = isOutgoing
     ? `${IG_GRADIENT} text-white`
     : 'bg-[#262626] text-white';
@@ -381,42 +394,38 @@ function StoryMessage({ message, isOutgoing, isLastInGroup }: { message: Message
             <div className="p-2">
               <div className={`${IG_GRADIENT_STORY} p-[2px] rounded-xl`}>
                 <div className="bg-black rounded-xl overflow-hidden">
-                  {/* Show thumbnail if available and not errored */}
-                  {thumbnailSrc && !imageError && (
+                  {/* Show thumbnail/video if available */}
+                  {thumbnailSrc && (
                     <div className="relative">
-                      {!imageLoaded && (
+                      {!mediaLoaded && (
                         <div className="w-full h-32 bg-[#1a1a1a] flex items-center justify-center">
                           <Film className="w-8 h-8 text-gray-600 animate-pulse" />
                         </div>
                       )}
-                      {useVideoFallback ? (
+                      {/* Video player for video URLs (Instagram CDN returns video/mp4) */}
+                      {isVideo ? (
                         <video
                           src={thumbnailSrc}
-                          controls
+                          className={`w-full max-h-64 object-cover ${mediaLoaded ? '' : 'hidden'}`}
+                          muted
                           playsInline
-                          preload="metadata"
-                          className="w-full max-h-64 object-cover"
-                          onLoadedData={() => setImageLoaded(true)}
+                          autoPlay
+                          loop
+                          onLoadedData={() => setMediaLoaded(true)}
+                          onError={() => setMediaLoaded(true)}
                         />
                       ) : (
                         <img
                           src={thumbnailSrc}
                           alt={storyType}
-                          className={`w-full max-h-64 object-cover ${imageLoaded ? '' : 'hidden'}`}
+                          className={`w-full max-h-64 object-cover ${mediaLoaded ? '' : 'hidden'}`}
                           style={{ imageRendering: 'auto' }}
-                          onLoad={() => setImageLoaded(true)}
-                          onError={() => {
-                            // If image fails and URL looks like video, try video fallback
-                            if (thumbnailSrc && /\.(mp4|mov|webm|m4v)($|\?)/i.test(thumbnailSrc)) {
-                              setUseVideoFallback(true);
-                            } else {
-                              setImageError(true);
-                            }
-                          }}
+                          onLoad={() => setMediaLoaded(true)}
+                          onError={() => setUseVideoFallback(true)}  // Fallback: try as video
                         />
                       )}
                       {/* Overlay with story type */}
-                      {!useVideoFallback && (
+                      {!isVideo && (
                         <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent p-3">
                           <p className="text-white text-sm font-medium">{storyType}</p>
                           <p className="text-gray-300 text-xs flex items-center gap-1">
@@ -426,8 +435,8 @@ function StoryMessage({ message, isOutgoing, isLastInGroup }: { message: Message
                       )}
                     </div>
                   )}
-                  {/* Fallback if image fails or no thumbnail - Story expired */}
-                  {(imageError || !thumbnailSrc) && (
+                  {/* Fallback if no thumbnail - Story expired */}
+                  {!thumbnailSrc && (
                     <div className="p-3 flex items-center gap-3">
                       <div className="w-12 h-12 rounded-lg bg-gradient-to-br from-violet-600 to-purple-600 flex items-center justify-center">
                         <Film className="w-6 h-6 text-white" />
@@ -551,16 +560,15 @@ function MediaMessage({ message, isOutgoing, isLastInGroup, type }: { message: M
     || metadata.thumbnail_url;
   const isSticker = metadata.render_as_sticker;
 
-  // Check if URL is a playable video (mp4, mov, webm)
-  const isPlayableVideo = (type === 'video' || useVideoFallback) && mediaUrl &&
-    /\.(mp4|mov|webm|m4v)($|\?)/i.test(mediaUrl);
+  // Check if URL is a playable video (Instagram CDN, mp4, mov, webm)
+  const isPlayableVideo = (type === 'video' || useVideoFallback || isVideoUrl(mediaUrl)) && mediaUrl;
 
   if (!mediaUrl) {
     return <TextMessage message={message} isOutgoing={isOutgoing} isLastInGroup={isLastInGroup} />;
   }
 
   // Render inline video player if we have a direct video URL or fallback triggered
-  if (isPlayableVideo || useVideoFallback) {
+  if (isPlayableVideo) {
     return (
       <div className={`flex ${isOutgoing ? 'justify-end' : 'justify-start'}`}>
         <div className="max-w-[70%] rounded-2xl overflow-hidden bg-black">
@@ -571,23 +579,21 @@ function MediaMessage({ message, isOutgoing, isLastInGroup, type }: { message: M
           )}
           <video
             src={mediaUrl}
-            controls
-            playsInline
-            preload="metadata"
             className={`max-w-full max-h-96 rounded-2xl ${loaded ? '' : 'hidden'}`}
+            muted
+            playsInline
+            autoPlay
+            loop
             onLoadedData={() => setLoaded(true)}
             onError={() => setLoaded(true)}
-          >
-            <source src={mediaUrl} type="video/mp4" />
-            Your browser does not support video playback.
-          </video>
+          />
           <Timestamp timestamp={message.timestamp} isOutgoing={isOutgoing} className="mt-1" />
         </div>
       </div>
     );
   }
 
-  // Show image with video fallback on error (Instagram CDN sometimes returns mp4)
+  // Show image with fallback to video on error
   return (
     <div className={`flex ${isOutgoing ? 'justify-end' : 'justify-start'}`}>
       <div className={`max-w-[70%] ${isSticker ? '' : 'rounded-2xl overflow-hidden'}`}>
@@ -603,16 +609,9 @@ function MediaMessage({ message, isOutgoing, isLastInGroup, type }: { message: M
             className={`max-w-full ${isSticker ? 'max-h-32' : 'max-h-96 rounded-2xl'} ${loaded ? '' : 'hidden'}`}
             style={{ imageRendering: 'auto' }}
             onLoad={() => setLoaded(true)}
-            onError={() => {
-              // If image fails and URL looks like video, try video fallback
-              if (mediaUrl && /\.(mp4|mov|webm|m4v)($|\?)/i.test(mediaUrl)) {
-                setUseVideoFallback(true);
-              } else {
-                setLoaded(true);
-              }
-            }}
+            onError={() => setUseVideoFallback(true)}  // Fallback: try as video
           />
-          {type === 'video' && (
+          {type === 'video' && !useVideoFallback && (
             <div className="absolute inset-0 flex items-center justify-center">
               <div className="w-12 h-12 rounded-full bg-black/60 flex items-center justify-center">
                 <Play className="w-6 h-6 text-white ml-1" />
@@ -682,8 +681,7 @@ function AudioMessage({ message, isOutgoing, isLastInGroup }: { message: Message
 
 // Shared Post/Reel Message
 function SharedPostMessage({ message, isOutgoing, isLastInGroup }: { message: Message; isOutgoing: boolean; isLastInGroup: boolean }) {
-  const [imageLoaded, setImageLoaded] = useState(false);
-  const [imageError, setImageError] = useState(false);
+  const [mediaLoaded, setMediaLoaded] = useState(false);
   const [useVideoFallback, setUseVideoFallback] = useState(false);
   const metadata = message.metadata || {};
 
@@ -697,7 +695,10 @@ function SharedPostMessage({ message, isOutgoing, isLastInGroup }: { message: Me
   const permalink = metadata.permalink || metadata.url;
   const authorUsername = metadata.author_username;
   const isReel = metadata.type === 'shared_reel' || metadata.type === 'reel';
-  const isVideo = metadata.type === 'shared_video' || isReel || metadata.type === 'clip' || metadata.type === 'igtv';
+
+  // Detect video: by type, URL pattern (Instagram CDN), or fallback
+  const isVideo = metadata.type === 'shared_video' || isReel || metadata.type === 'clip' || metadata.type === 'igtv'
+    || isVideoUrl(thumbnailSrc) || useVideoFallback;
 
   // Platform-specific label
   const platformLabel = metadata.platform === 'youtube' ? 'YouTube'
@@ -709,47 +710,36 @@ function SharedPostMessage({ message, isOutgoing, isLastInGroup }: { message: Me
       <div className={`max-w-[75%] bg-[#262626] rounded-2xl ${isLastInGroup ? (isOutgoing ? 'rounded-br-md' : 'rounded-bl-md') : ''} overflow-hidden`}>
         {/* Post Preview */}
         <a href={permalink} target="_blank" rel="noopener noreferrer" className="block">
-          {thumbnailSrc && !imageError ? (
+          {thumbnailSrc ? (
             <div className="relative">
-              {!imageLoaded && (
+              {!mediaLoaded && (
                 <div className="w-full h-48 bg-[#363636] flex items-center justify-center">
                   <Share2 className="w-8 h-8 text-gray-500 animate-pulse" />
                 </div>
               )}
-              {useVideoFallback ? (
+              {/* Video player for video URLs (autoplay for reels/videos) */}
+              {isVideo ? (
                 <video
                   src={thumbnailSrc}
-                  controls
+                  className={`w-full max-h-80 object-cover ${mediaLoaded ? '' : 'hidden'}`}
+                  muted
                   playsInline
-                  preload="metadata"
-                  className="w-full max-h-80 object-cover"
-                  onLoadedData={() => setImageLoaded(true)}
+                  autoPlay
+                  loop
+                  onLoadedData={() => setMediaLoaded(true)}
+                  onError={() => setMediaLoaded(true)}
                 />
               ) : (
                 <img
                   src={thumbnailSrc}
                   alt="Post preview"
-                  className={`w-full max-h-80 object-cover ${imageLoaded ? '' : 'hidden'}`}
+                  className={`w-full max-h-80 object-cover ${mediaLoaded ? '' : 'hidden'}`}
                   style={{ imageRendering: 'auto' }}
-                  onLoad={() => setImageLoaded(true)}
-                  onError={() => {
-                    // If image fails and URL looks like video, try video fallback
-                    if (thumbnailSrc && /\.(mp4|mov|webm|m4v)($|\?)/i.test(thumbnailSrc)) {
-                      setUseVideoFallback(true);
-                    } else {
-                      setImageError(true);
-                    }
-                  }}
+                  onLoad={() => setMediaLoaded(true)}
+                  onError={() => setUseVideoFallback(true)}  // Fallback: try as video
                 />
               )}
-              {isVideo && imageLoaded && !useVideoFallback && (
-                <div className="absolute inset-0 flex items-center justify-center bg-black/20">
-                  <div className="w-12 h-12 rounded-full bg-black/60 flex items-center justify-center">
-                    <Play className="w-6 h-6 text-white ml-1" />
-                  </div>
-                </div>
-              )}
-              {isReel && !useVideoFallback && (
+              {isReel && !isVideo && (
                 <div className="absolute top-2 right-2 bg-black/60 rounded px-2 py-1">
                   <Film className="w-4 h-4 text-white" />
                 </div>
