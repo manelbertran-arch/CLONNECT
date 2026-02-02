@@ -708,6 +708,9 @@ async def force_delete_creator(creator_name: str):
 
         session = SessionLocal()
         try:
+            # Clear any failed transaction state from connection pool
+            session.rollback()
+
             # Get creator ID first
             result = session.execute(
                 text("SELECT id FROM creators WHERE name = :name"), {"name": creator_name}
