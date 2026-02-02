@@ -45,7 +45,7 @@ instaloader>=4.10.0
 
 # Database
 sqlalchemy==2.0.23
-psycopg2-binary==2.9.9
+psycopg2-binary==2.9.11
 
 # Authentication
 bcrypt>=4.0.0
