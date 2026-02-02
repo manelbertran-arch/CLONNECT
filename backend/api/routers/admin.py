@@ -4352,3 +4352,48 @@ async def admin_list_backups():
     except Exception as e:
         logger.error(f"Error listing backups: {e}")
         raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/fix-reaction-emojis")
+async def fix_reaction_emojis():
+    """
+    Fix reaction emojis missing the variation selector.
+
+    The problem: Hearts stored as "❤" (U+2764) render as white/black text.
+    The fix: Add variation selector to make "❤️" (U+2764 U+FE0F) render as red emoji.
+    """
+    try:
+        from api.database import SessionLocal
+        from api.models import Message
+
+        session = SessionLocal()
+        try:
+            # Find messages with reaction type or emoji in metadata
+            messages = (
+                session.query(Message)
+                .filter(Message.metadata.isnot(None))
+                .all()
+            )
+
+            fixed_count = 0
+            for msg in messages:
+                if msg.metadata and isinstance(msg.metadata, dict):
+                    emoji = msg.metadata.get("emoji")
+                    # Check if it's the heart without variation selector
+                    if emoji == "❤" or emoji == "\u2764":
+                        msg.metadata = {**msg.metadata, "emoji": "❤️"}
+                        fixed_count += 1
+
+            session.commit()
+            return {
+                "status": "ok",
+                "messages_checked": len(messages),
+                "messages_fixed": fixed_count,
+            }
+
+        finally:
+            session.close()
+
+    except Exception as e:
+        logger.error(f"Error fixing reaction emojis: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
