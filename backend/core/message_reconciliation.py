@@ -43,6 +43,83 @@ async def _fetch_profile_for_lead(user_id: str, access_token: str) -> Dict[str, 
     return {}
 
 
+def _extract_media_from_attachments(attachments: List[Dict[str, Any]]) -> Dict[str, Any]:
+    """
+    Extract media info from Instagram message attachments.
+
+    Returns dict with:
+        - type: 'image', 'video', 'audio', 'story_mention', 'share', etc.
+        - url: Media URL if available
+        - content_text: Human-readable description for the message content
+    """
+    if not attachments:
+        return {}
+
+    att = attachments[0]  # Usually only one attachment
+    att_type = att.get("type", "").lower()
+
+    # Extract URL from various possible locations
+    media_url = None
+
+    # Check common URL locations
+    if "image_data" in att:
+        media_url = att["image_data"].get("url")
+    elif "video_data" in att:
+        media_url = att["video_data"].get("url")
+    elif "audio_data" in att:
+        media_url = att["audio_data"].get("url")
+    elif "story" in att:
+        media_url = att["story"].get("url") or att["story"].get("mention", {}).get("link")
+    elif "share" in att:
+        media_url = att["share"].get("link")
+    elif "url" in att:
+        media_url = att["url"]
+
+    # Determine type and content text
+    media_type = "unknown"
+    content_text = "Sent an attachment"
+
+    if att_type == "image" or "image_data" in att:
+        media_type = "image"
+        content_text = "Sent a photo"
+    elif att_type == "video" or "video_data" in att:
+        media_type = "video"
+        content_text = "Sent a video"
+    elif att_type == "audio" or "audio_data" in att:
+        media_type = "audio"
+        content_text = "Sent a voice message"
+    elif att_type == "animated_image" or "animated_gif" in str(att).lower():
+        media_type = "gif"
+        content_text = "Sent a GIF"
+    elif att_type == "sticker":
+        media_type = "sticker"
+        content_text = "Sent a sticker"
+    elif "story" in att_type or "story" in att:
+        media_type = "story_mention"
+        content_text = "Mentioned you in their story"
+    elif att_type == "share" or "share" in att:
+        media_type = "share"
+        share_link = att.get("share", {}).get("link", "")
+        if "reel" in share_link.lower():
+            media_type = "shared_reel"
+            content_text = "Shared a reel"
+        else:
+            content_text = "Shared a post"
+    elif att_type == "reel":
+        media_type = "shared_reel"
+        content_text = "Shared a reel"
+
+    result = {
+        "type": media_type,
+        "content_text": content_text,
+    }
+
+    if media_url:
+        result["url"] = media_url
+
+    return result
+
+
 async def _queue_profile_enrichment(creator_id: str, user_id: str) -> None:
     """Queue a lead for profile enrichment retry."""
     try:
@@ -207,7 +284,7 @@ async def get_instagram_conversations(
                     # Fetch messages for this conversation (limit 25 per conversation)
                     msg_url = f"{api_base}/{conv_id}"
                     msg_params = {
-                        "fields": "messages.limit(25){id,message,created_time,from}",
+                        "fields": "messages.limit(25){id,message,created_time,from,attachments}",
                         "access_token": access_token,
                     }
 
@@ -458,6 +535,7 @@ async def reconcile_messages_for_creator(
                 msg_from = msg.get("from", {})
                 msg_from_id = msg_from.get("id", "")
                 created_time_str = msg.get("created_time", "")
+                attachments = msg.get("attachments", {}).get("data", [])
 
                 # Determine role
                 role = "user" if msg_from_id == follower_id else "assistant"
@@ -470,19 +548,35 @@ async def reconcile_messages_for_creator(
                     except Exception:
                         created_at = datetime.now(timezone.utc)
 
+                # Parse media attachments
+                media_info = _extract_media_from_attachments(attachments)
+                content = msg_text
+                if not content and media_info:
+                    content = media_info.get("content_text", "Sent an attachment")
+                elif not content:
+                    content = "[Media/Attachment]"
+
+                # Build metadata
+                metadata = {
+                    "source": "reconciliation",
+                    "conversation_id": conv_id,
+                    "original_from_id": msg_from_id,
+                }
+                if media_info:
+                    if media_info.get("type"):
+                        metadata["type"] = media_info["type"]
+                    if media_info.get("url"):
+                        metadata["url"] = media_info["url"]
+
                 # Insert message
                 try:
                     new_msg = Message(
                         lead_id=lead.id,
                         role=role,
-                        content=msg_text or "[Media/Attachment]",
+                        content=content,
                         platform_message_id=msg_id,
                         status="sent",
-                        msg_metadata={
-                            "source": "reconciliation",
-                            "conversation_id": conv_id,
-                            "original_from_id": msg_from_id,
-                        },
+                        msg_metadata=metadata,
                         created_at=created_at,
                     )
                     session.add(new_msg)
