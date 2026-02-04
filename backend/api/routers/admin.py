@@ -4652,6 +4652,16 @@ async def full_diagnostic(creator_id: str, username: str = None, search: str = N
         creator_uuid = str(creator.id)
         results = {}
 
+        # Creator info (including bot_active status)
+        results["creator_info"] = {
+            "id": str(creator.id)[:8],
+            "name": creator.name,
+            "bot_active": creator.bot_active,
+            "instagram_page_id": creator.instagram_page_id,
+            "instagram_user_id": creator.instagram_user_id,
+            "has_instagram_token": bool(creator.instagram_token),
+        }
+
         # 0. Search for leads by name (if search parameter provided)
         if search:
             result = session.execute(
