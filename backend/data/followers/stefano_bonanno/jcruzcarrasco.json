@@ -1,0 +1,40 @@
+{
+  "follower_id": "jcruzcarrasco",
+  "creator_id": "stefano_bonanno",
+  "username": "jcruzcarrasco",
+  "name": "",
+  "first_contact": "2026-02-04T19:07:48.545090",
+  "last_contact": "2026-02-04T19:07:51.186148",
+  "total_messages": 1,
+  "interests": [],
+  "products_discussed": [],
+  "objections_raised": [],
+  "purchase_intent_score": 0.0,
+  "is_lead": false,
+  "is_customer": false,
+  "status": "new",
+  "preferred_language": "es",
+  "last_messages": [
+    {
+      "role": "user",
+      "content": "Hola hermano! Cómo va todo?",
+      "timestamp": "2026-02-04T19:07:51.186148"
+    },
+    {
+      "role": "assistant",
+      "content": "¡Hola! 😊 Todo bien, ¿y tú? ¿En qué andas?",
+      "timestamp": "2026-02-04T19:07:51.186148"
+    }
+  ],
+  "links_sent_count": 0,
+  "last_link_message_num": 0,
+  "objections_handled": [],
+  "arguments_used": [],
+  "greeting_variant_index": 0,
+  "last_greeting_style": "",
+  "last_emojis_used": [],
+  "messages_since_name_used": 0,
+  "alternative_contact": "",
+  "alternative_contact_type": "",
+  "contact_requested": false
+}

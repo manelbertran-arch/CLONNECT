@@ -1,0 +1,40 @@
+{
+  "follower_id": "johnyduran_",
+  "creator_id": "stefano_bonanno",
+  "username": "johnyduran_",
+  "name": "",
+  "first_contact": "2026-02-04T19:07:51.186771",
+  "last_contact": "2026-02-04T19:07:53.352157",
+  "total_messages": 1,
+  "interests": [],
+  "products_discussed": [],
+  "objections_raised": [],
+  "purchase_intent_score": 0.0,
+  "is_lead": false,
+  "is_customer": false,
+  "status": "new",
+  "preferred_language": "es",
+  "last_messages": [
+    {
+      "role": "user",
+      "content": "Gracias por el consejo!",
+      "timestamp": "2026-02-04T19:07:53.352157"
+    },
+    {
+      "role": "assistant",
+      "content": "¡De nada, crack! 😊 Si necesitas más ayuda, aquí estoy. Un abrazo! ❤️",
+      "timestamp": "2026-02-04T19:07:53.352157"
+    }
+  ],
+  "links_sent_count": 0,
+  "last_link_message_num": 0,
+  "objections_handled": [],
+  "arguments_used": [],
+  "greeting_variant_index": 0,
+  "last_greeting_style": "",
+  "last_emojis_used": [],
+  "messages_since_name_used": 0,
+  "alternative_contact": "",
+  "alternative_contact_type": "",
+  "contact_requested": false
+}

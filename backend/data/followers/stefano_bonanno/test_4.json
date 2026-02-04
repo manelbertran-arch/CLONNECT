@@ -1,0 +1,40 @@
+{
+  "follower_id": "test_4",
+  "creator_id": "stefano_bonanno",
+  "username": "test_4",
+  "name": "",
+  "first_contact": "2026-02-04T19:06:28.861400",
+  "last_contact": "2026-02-04T19:06:29.987515",
+  "total_messages": 1,
+  "interests": [],
+  "products_discussed": [],
+  "objections_raised": [],
+  "purchase_intent_score": 0.0,
+  "is_lead": false,
+  "is_customer": false,
+  "status": "new",
+  "preferred_language": "es",
+  "last_messages": [
+    {
+      "role": "user",
+      "content": "Me interesa el círculo de hombres",
+      "timestamp": "2026-02-04T19:06:29.987515"
+    },
+    {
+      "role": "assistant",
+      "content": "Genial! 🌟 El círculo de hombres es una gran opción. ¿Te gustaría saber más sobre cómo funciona?",
+      "timestamp": "2026-02-04T19:06:29.987515"
+    }
+  ],
+  "links_sent_count": 0,
+  "last_link_message_num": 0,
+  "objections_handled": [],
+  "arguments_used": [],
+  "greeting_variant_index": 0,
+  "last_greeting_style": "",
+  "last_emojis_used": [],
+  "messages_since_name_used": 0,
+  "alternative_contact": "",
+  "alternative_contact_type": "",
+  "contact_requested": false
+}

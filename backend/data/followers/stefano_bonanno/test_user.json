@@ -1,0 +1,50 @@
+{
+  "follower_id": "test_user",
+  "creator_id": "stefano_bonanno",
+  "username": "test_user",
+  "name": "",
+  "first_contact": "2026-02-04T19:07:55.590536",
+  "last_contact": "2026-02-04T19:07:59.375879",
+  "total_messages": 2,
+  "interests": [],
+  "products_discussed": [],
+  "objections_raised": [],
+  "purchase_intent_score": 0.0,
+  "is_lead": false,
+  "is_customer": false,
+  "status": "new",
+  "preferred_language": "es",
+  "last_messages": [
+    {
+      "role": "user",
+      "content": "👍",
+      "timestamp": "2026-02-04T19:07:57.431130"
+    },
+    {
+      "role": "assistant",
+      "content": "Hola! 😊 ¿Cómo va todo?",
+      "timestamp": "2026-02-04T19:07:57.431130"
+    },
+    {
+      "role": "user",
+      "content": "Ok perfecto",
+      "timestamp": "2026-02-04T19:07:59.375879"
+    },
+    {
+      "role": "assistant",
+      "content": "Genial! ❤️ ¿Te gustaría saber más sobre el Círculo de Hombres?",
+      "timestamp": "2026-02-04T19:07:59.375879"
+    }
+  ],
+  "links_sent_count": 0,
+  "last_link_message_num": 0,
+  "objections_handled": [],
+  "arguments_used": [],
+  "greeting_variant_index": 0,
+  "last_greeting_style": "",
+  "last_emojis_used": [],
+  "messages_since_name_used": 0,
+  "alternative_contact": "",
+  "alternative_contact_type": "",
+  "contact_requested": false
+}

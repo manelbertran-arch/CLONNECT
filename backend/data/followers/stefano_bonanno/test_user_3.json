@@ -1,0 +1,40 @@
+{
+  "follower_id": "test_user_3",
+  "creator_id": "stefano_bonanno",
+  "username": "test_user_3",
+  "name": "",
+  "first_contact": "2026-02-04T19:06:08.689619",
+  "last_contact": "2026-02-04T19:06:09.792494",
+  "total_messages": 1,
+  "interests": [],
+  "products_discussed": [],
+  "objections_raised": [],
+  "purchase_intent_score": 0.0,
+  "is_lead": false,
+  "is_customer": false,
+  "status": "new",
+  "preferred_language": "es",
+  "last_messages": [
+    {
+      "role": "user",
+      "content": "Cuánto cuesta el programa?",
+      "timestamp": "2026-02-04T19:06:09.792494"
+    },
+    {
+      "role": "assistant",
+      "content": "Hey! 😊 El programa cuesta 97€. ¿Te interesa?",
+      "timestamp": "2026-02-04T19:06:09.792494"
+    }
+  ],
+  "links_sent_count": 0,
+  "last_link_message_num": 0,
+  "objections_handled": [],
+  "arguments_used": [],
+  "greeting_variant_index": 0,
+  "last_greeting_style": "",
+  "last_emojis_used": [],
+  "messages_since_name_used": 0,
+  "alternative_contact": "",
+  "alternative_contact_type": "",
+  "contact_requested": false
+}

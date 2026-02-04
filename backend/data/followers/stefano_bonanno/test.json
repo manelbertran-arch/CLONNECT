@@ -1,0 +1,130 @@
+{
+  "follower_id": "test",
+  "creator_id": "stefano_bonanno",
+  "username": "test",
+  "name": "",
+  "first_contact": "2026-02-04T19:09:09.801627",
+  "last_contact": "2026-02-04T19:10:15.150882",
+  "total_messages": 20,
+  "interests": [],
+  "products_discussed": [],
+  "objections_raised": [],
+  "purchase_intent_score": 0.0,
+  "is_lead": false,
+  "is_customer": false,
+  "status": "new",
+  "preferred_language": "es",
+  "last_messages": [
+    {
+      "role": "user",
+      "content": "Hola!",
+      "timestamp": "2026-02-04T19:10:09.514172"
+    },
+    {
+      "role": "assistant",
+      "content": "¡Hola! ¿Qué tal? 😊",
+      "timestamp": "2026-02-04T19:10:09.514172"
+    },
+    {
+      "role": "user",
+      "content": "Qué tal hermano?",
+      "timestamp": "2026-02-04T19:10:10.090972"
+    },
+    {
+      "role": "assistant",
+      "content": "¡Genial! ¿Y tú? 😊",
+      "timestamp": "2026-02-04T19:10:10.090972"
+    },
+    {
+      "role": "user",
+      "content": "Gracias!",
+      "timestamp": "2026-02-04T19:10:10.561095"
+    },
+    {
+      "role": "assistant",
+      "content": "¡De nada! 💪",
+      "timestamp": "2026-02-04T19:10:10.561095"
+    },
+    {
+      "role": "user",
+      "content": "👍",
+      "timestamp": "2026-02-04T19:10:11.283169"
+    },
+    {
+      "role": "assistant",
+      "content": "💪",
+      "timestamp": "2026-02-04T19:10:11.283169"
+    },
+    {
+      "role": "user",
+      "content": "❤️",
+      "timestamp": "2026-02-04T19:10:11.741165"
+    },
+    {
+      "role": "assistant",
+      "content": "❤️",
+      "timestamp": "2026-02-04T19:10:11.741165"
+    },
+    {
+      "role": "user",
+      "content": "Ok perfecto",
+      "timestamp": "2026-02-04T19:10:12.304878"
+    },
+    {
+      "role": "assistant",
+      "content": "¡Genial! 😊",
+      "timestamp": "2026-02-04T19:10:12.304878"
+    },
+    {
+      "role": "user",
+      "content": "Jajaja muy bueno",
+      "timestamp": "2026-02-04T19:10:12.835260"
+    },
+    {
+      "role": "assistant",
+      "content": "¡Me alegra que te guste! 😄",
+      "timestamp": "2026-02-04T19:10:12.835260"
+    },
+    {
+      "role": "user",
+      "content": "Me interesa",
+      "timestamp": "2026-02-04T19:10:13.369636"
+    },
+    {
+      "role": "assistant",
+      "content": "Genial! 😊 ¿Qué te interesa?",
+      "timestamp": "2026-02-04T19:10:13.369636"
+    },
+    {
+      "role": "user",
+      "content": "Dale",
+      "timestamp": "2026-02-04T19:10:14.657154"
+    },
+    {
+      "role": "assistant",
+      "content": "¡Perfecto! 😊 ¿Qué necesitas?",
+      "timestamp": "2026-02-04T19:10:14.657154"
+    },
+    {
+      "role": "user",
+      "content": "Un abrazo!",
+      "timestamp": "2026-02-04T19:10:15.150882"
+    },
+    {
+      "role": "assistant",
+      "content": "¡Un abrazo! ❤️",
+      "timestamp": "2026-02-04T19:10:15.150882"
+    }
+  ],
+  "links_sent_count": 0,
+  "last_link_message_num": 0,
+  "objections_handled": [],
+  "arguments_used": [],
+  "greeting_variant_index": 0,
+  "last_greeting_style": "",
+  "last_emojis_used": [],
+  "messages_since_name_used": 0,
+  "alternative_contact": "",
+  "alternative_contact_type": "",
+  "contact_requested": false
+}

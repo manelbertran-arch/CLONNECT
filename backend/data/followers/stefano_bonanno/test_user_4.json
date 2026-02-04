@@ -1,0 +1,40 @@
+{
+  "follower_id": "test_user_4",
+  "creator_id": "stefano_bonanno",
+  "username": "test_user_4",
+  "name": "",
+  "first_contact": "2026-02-04T19:06:09.793602",
+  "last_contact": "2026-02-04T19:06:10.816910",
+  "total_messages": 1,
+  "interests": [],
+  "products_discussed": [],
+  "objections_raised": [],
+  "purchase_intent_score": 0.0,
+  "is_lead": false,
+  "is_customer": false,
+  "status": "new",
+  "preferred_language": "es",
+  "last_messages": [
+    {
+      "role": "user",
+      "content": "Ok perfecto, lo voy a pensar",
+      "timestamp": "2026-02-04T19:06:10.816910"
+    },
+    {
+      "role": "assistant",
+      "content": "Genial! 😊 Tómate tu tiempo. Un abrazo! ❤️",
+      "timestamp": "2026-02-04T19:06:10.816910"
+    }
+  ],
+  "links_sent_count": 0,
+  "last_link_message_num": 0,
+  "objections_handled": [],
+  "arguments_used": [],
+  "greeting_variant_index": 0,
+  "last_greeting_style": "",
+  "last_emojis_used": [],
+  "messages_since_name_used": 0,
+  "alternative_contact": "",
+  "alternative_contact_type": "",
+  "contact_requested": false
+}
