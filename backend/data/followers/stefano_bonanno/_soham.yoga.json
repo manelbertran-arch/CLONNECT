@@ -1,0 +1,100 @@
+{
+  "follower_id": "_soham.yoga",
+  "creator_id": "stefano_bonanno",
+  "username": "_soham.yoga",
+  "name": "",
+  "first_contact": "2026-02-04T19:16:20.156858",
+  "last_contact": "2026-02-04T19:20:44.769495",
+  "total_messages": 7,
+  "interests": [],
+  "products_discussed": [],
+  "objections_raised": [],
+  "purchase_intent_score": 0.75,
+  "is_lead": false,
+  "is_customer": false,
+  "status": "new",
+  "preferred_language": "es",
+  "last_messages": [
+    {
+      "role": "user",
+      "content": "Pues espero poder asistir porque no me lo quiero perdeeer",
+      "timestamp": "2026-02-04T19:16:21.869191"
+    },
+    {
+      "role": "assistant",
+      "content": "Genial! 😊 Te va a encantar. Dale!",
+      "timestamp": "2026-02-04T19:16:21.869191"
+    },
+    {
+      "role": "user",
+      "content": "🙏🏻🙏🏻🙏🏻",
+      "timestamp": "2026-02-04T19:16:23.606787"
+    },
+    {
+      "role": "assistant",
+      "content": "❤️",
+      "timestamp": "2026-02-04T19:16:23.606787"
+    },
+    {
+      "role": "user",
+      "content": "Tu como estás stefano? Como te sientes? Que hace mucho no hablamos",
+      "timestamp": "2026-02-04T19:16:25.418216"
+    },
+    {
+      "role": "assistant",
+      "content": "Hola! 😊 Estoy bien, gracias. ¿Y tú? ¿Cómo va todo? ",
+      "timestamp": "2026-02-04T19:16:25.418216"
+    },
+    {
+      "role": "user",
+      "content": "Ooh",
+      "timestamp": "2026-02-04T19:20:37.982974"
+    },
+    {
+      "role": "assistant",
+      "content": "¿Qué tal? 😊 ¿Todo bien?",
+      "timestamp": "2026-02-04T19:20:37.982974"
+    },
+    {
+      "role": "user",
+      "content": "Pues espero poder asistir porque no me lo quiero perdeeer",
+      "timestamp": "2026-02-04T19:20:39.712464"
+    },
+    {
+      "role": "assistant",
+      "content": "Genial! 😊 Te va a encantar. Dale!",
+      "timestamp": "2026-02-04T19:20:39.712464"
+    },
+    {
+      "role": "user",
+      "content": "🙏🏻🙏🏻🙏🏻",
+      "timestamp": "2026-02-04T19:20:42.677858"
+    },
+    {
+      "role": "assistant",
+      "content": "❤️",
+      "timestamp": "2026-02-04T19:20:42.677858"
+    },
+    {
+      "role": "user",
+      "content": "Tu como estás stefano? Como te sientes? Que hace mucho no hablamos",
+      "timestamp": "2026-02-04T19:20:44.769495"
+    },
+    {
+      "role": "assistant",
+      "content": "Hola! 😊 Estoy bien, gracias. ¿Y tú? ¿Qué tal va todo?",
+      "timestamp": "2026-02-04T19:20:44.769495"
+    }
+  ],
+  "links_sent_count": 0,
+  "last_link_message_num": 0,
+  "objections_handled": [],
+  "arguments_used": [],
+  "greeting_variant_index": 0,
+  "last_greeting_style": "",
+  "last_emojis_used": [],
+  "messages_since_name_used": 0,
+  "alternative_contact": "",
+  "alternative_contact_type": "",
+  "contact_requested": false
+}

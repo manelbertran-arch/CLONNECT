@@ -1,0 +1,15 @@
+{
+  "total_turns": 131,
+  "turns_clean": 41,
+  "turns_with_problems": 90,
+  "clean_pct": 31.297709923664126,
+  "problems_ranking": {
+    "PREGUNTA_INNECESARIA": 46,
+    "DEMASIADO_LARGO": 39,
+    "DEMASIADO_CORTO": 16,
+    "RESPUESTA_GENERICA": 8,
+    "EXCESO_EMOJIS": 6,
+    "USA_PUNTO_FINAL": 5,
+    "POOL_INADECUADO": 3
+  }
+}

@@ -1,0 +1,12 @@
+{
+  "lead_id": "memory_test_lead",
+  "creator_id": "test_creator",
+  "facts": [],
+  "info_given": {},
+  "last_topic": null,
+  "pending_questions": [],
+  "unanswered_lead_questions": [],
+  "last_interaction": null,
+  "total_messages": 3,
+  "conversation_started": null
+}

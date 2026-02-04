@@ -1,0 +1,100 @@
+{
+  "follower_id": "andrea_feelingood",
+  "creator_id": "stefano_bonanno",
+  "username": "andrea_feelingood",
+  "name": "",
+  "first_contact": "2026-02-04T19:16:08.985502",
+  "last_contact": "2026-02-04T19:20:28.280804",
+  "total_messages": 7,
+  "interests": [],
+  "products_discussed": [],
+  "objections_raised": [],
+  "purchase_intent_score": 0.0,
+  "is_lead": false,
+  "is_customer": false,
+  "status": "new",
+  "preferred_language": "es",
+  "last_messages": [
+    {
+      "role": "user",
+      "content": "Super!! Que vaya geniaaaaal",
+      "timestamp": "2026-02-04T19:16:10.788129"
+    },
+    {
+      "role": "assistant",
+      "content": "Genial! 😊 Un abrazo! ❤️",
+      "timestamp": "2026-02-04T19:16:10.788129"
+    },
+    {
+      "role": "user",
+      "content": "Hello!!! Bon dia Stefano ! Siii claro , en un ratito te lo escribi",
+      "timestamp": "2026-02-04T19:16:12.649575"
+    },
+    {
+      "role": "assistant",
+      "content": "Hola! Qué tal? 😊 Dale! 💪",
+      "timestamp": "2026-02-04T19:16:12.649575"
+    },
+    {
+      "role": "user",
+      "content": "Escribo*",
+      "timestamp": "2026-02-04T19:16:14.434835"
+    },
+    {
+      "role": "assistant",
+      "content": "¡Perfecto! Espero tu mensaje. 😊",
+      "timestamp": "2026-02-04T19:16:14.434835"
+    },
+    {
+      "role": "user",
+      "content": "Super!! Que vaya geniaaaaal",
+      "timestamp": "2026-02-04T19:20:22.330632"
+    },
+    {
+      "role": "assistant",
+      "content": "Genial! 😊 Un abrazo! ❤️",
+      "timestamp": "2026-02-04T19:20:22.330632"
+    },
+    {
+      "role": "user",
+      "content": "Hello!!! Bon dia Stefano ! Siii claro , en un ratito te lo escribi",
+      "timestamp": "2026-02-04T19:20:24.335447"
+    },
+    {
+      "role": "assistant",
+      "content": "Hola! Qué tal? 😊 Dale! 💪",
+      "timestamp": "2026-02-04T19:20:24.335447"
+    },
+    {
+      "role": "user",
+      "content": "Escribo*",
+      "timestamp": "2026-02-04T19:20:26.160485"
+    },
+    {
+      "role": "assistant",
+      "content": "Genial! 😊 Espero tu mensaje. 💪",
+      "timestamp": "2026-02-04T19:20:26.160485"
+    },
+    {
+      "role": "user",
+      "content": "Done!!! 🙏🏻",
+      "timestamp": "2026-02-04T19:20:28.280804"
+    },
+    {
+      "role": "assistant",
+      "content": "Dale! 💪 ¿Cómo te fue? 😊",
+      "timestamp": "2026-02-04T19:20:28.280804"
+    }
+  ],
+  "links_sent_count": 0,
+  "last_link_message_num": 0,
+  "objections_handled": [],
+  "arguments_used": [],
+  "greeting_variant_index": 0,
+  "last_greeting_style": "",
+  "last_emojis_used": [],
+  "messages_since_name_used": 0,
+  "alternative_contact": "",
+  "alternative_contact_type": "",
+  "contact_requested": false
+}

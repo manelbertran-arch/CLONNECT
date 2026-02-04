@@ -1,0 +1,100 @@
+{
+  "follower_id": "mauriciosperanza93",
+  "creator_id": "stefano_bonanno",
+  "username": "mauriciosperanza93",
+  "name": "",
+  "first_contact": "2026-02-04T19:16:02.996711",
+  "last_contact": "2026-02-04T19:20:20.615414",
+  "total_messages": 7,
+  "interests": [],
+  "products_discussed": [],
+  "objections_raised": [],
+  "purchase_intent_score": 0.0,
+  "is_lead": false,
+  "is_customer": false,
+  "status": "new",
+  "preferred_language": "es",
+  "last_messages": [
+    {
+      "role": "user",
+      "content": "Steff",
+      "timestamp": "2026-02-04T19:16:05.060657"
+    },
+    {
+      "role": "assistant",
+      "content": "Hola! Qué tal? 😊",
+      "timestamp": "2026-02-04T19:16:05.060657"
+    },
+    {
+      "role": "user",
+      "content": "Desde ayer que no puedo reservar",
+      "timestamp": "2026-02-04T19:16:07.019443"
+    },
+    {
+      "role": "assistant",
+      "content": "Hola! Todo bien? Te ayudo con eso. 🤔",
+      "timestamp": "2026-02-04T19:16:07.019443"
+    },
+    {
+      "role": "user",
+      "content": "No me deja",
+      "timestamp": "2026-02-04T19:16:08.984921"
+    },
+    {
+      "role": "assistant",
+      "content": "Dale, lo consulto y te cuento! 💪",
+      "timestamp": "2026-02-04T19:16:08.984921"
+    },
+    {
+      "role": "user",
+      "content": "Steff",
+      "timestamp": "2026-02-04T19:20:15.112806"
+    },
+    {
+      "role": "assistant",
+      "content": "Hola! 😊 ¿Cómo va?",
+      "timestamp": "2026-02-04T19:20:15.112806"
+    },
+    {
+      "role": "user",
+      "content": "Desde ayer que no puedo reservar",
+      "timestamp": "2026-02-04T19:20:16.782327"
+    },
+    {
+      "role": "assistant",
+      "content": "Dale, lo consulto de nuevo! 💪",
+      "timestamp": "2026-02-04T19:20:16.782327"
+    },
+    {
+      "role": "user",
+      "content": "No me deja",
+      "timestamp": "2026-02-04T19:20:18.574758"
+    },
+    {
+      "role": "assistant",
+      "content": "Dale, lo reviso y te cuento! 💪",
+      "timestamp": "2026-02-04T19:20:18.574758"
+    },
+    {
+      "role": "user",
+      "content": "Me queda cargando",
+      "timestamp": "2026-02-04T19:20:20.615414"
+    },
+    {
+      "role": "assistant",
+      "content": "Dale, lo reviso de nuevo! 💪",
+      "timestamp": "2026-02-04T19:20:20.615414"
+    }
+  ],
+  "links_sent_count": 0,
+  "last_link_message_num": 0,
+  "objections_handled": [],
+  "arguments_used": [],
+  "greeting_variant_index": 0,
+  "last_greeting_style": "",
+  "last_emojis_used": [],
+  "messages_since_name_used": 0,
+  "alternative_contact": "",
+  "alternative_contact_type": "",
+  "contact_requested": false
+}

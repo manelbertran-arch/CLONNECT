@@ -4,8 +4,8 @@
   "username": "test_user",
   "name": "",
   "first_contact": "2026-02-04T19:07:55.590536",
-  "last_contact": "2026-02-04T19:07:59.375879",
-  "total_messages": 2,
+  "last_contact": "2026-02-04T19:13:30.243264",
+  "total_messages": 9,
   "interests": [],
   "products_discussed": [],
   "objections_raised": [],
@@ -34,6 +34,76 @@
       "role": "assistant",
       "content": "Genial! ❤️ ¿Te gustaría saber más sobre el Círculo de Hombres?",
       "timestamp": "2026-02-04T19:07:59.375879"
+    },
+    {
+      "role": "user",
+      "content": "Hola!",
+      "timestamp": "2026-02-04T19:13:25.154650"
+    },
+    {
+      "role": "assistant",
+      "content": "Hola! Qué tal? 😊",
+      "timestamp": "2026-02-04T19:13:25.154650"
+    },
+    {
+      "role": "user",
+      "content": "Ok gracias!",
+      "timestamp": "2026-02-04T19:13:25.640945"
+    },
+    {
+      "role": "assistant",
+      "content": "De nada! 💪",
+      "timestamp": "2026-02-04T19:13:25.640945"
+    },
+    {
+      "role": "user",
+      "content": "💪",
+      "timestamp": "2026-02-04T19:13:26.162314"
+    },
+    {
+      "role": "assistant",
+      "content": "❤️",
+      "timestamp": "2026-02-04T19:13:26.162314"
+    },
+    {
+      "role": "user",
+      "content": "Cuánto cuesta el coaching?",
+      "timestamp": "2026-02-04T19:13:26.837192"
+    },
+    {
+      "role": "assistant",
+      "content": "No tengo los precios ahora, lo consulto y te digo! 😊",
+      "timestamp": "2026-02-04T19:13:26.837192"
+    },
+    {
+      "role": "user",
+      "content": "Qué es el Círculo de Hombres?",
+      "timestamp": "2026-02-04T19:13:27.673196"
+    },
+    {
+      "role": "assistant",
+      "content": "Es un espacio para crecer, compartir y apoyarnos entre hombres. 💪 ¿Te interesa saber más? 😊",
+      "timestamp": "2026-02-04T19:13:27.673196"
+    },
+    {
+      "role": "user",
+      "content": "Me interesa mucho lo que haces, cuéntame más",
+      "timestamp": "2026-02-04T19:13:29.138226"
+    },
+    {
+      "role": "assistant",
+      "content": "Genial! 😊 El Círculo de Hombres es un lugar donde nos reunimos para hablar de experiencias, aprender y apoyarnos mutuamente. Hacemos actividades, talleres y charlas. ¿Te gustaría unirte a alguna sesión? 💪",
+      "timestamp": "2026-02-04T19:13:29.138226"
+    },
+    {
+      "role": "user",
+      "content": "Qué diferencia hay entre coaching y el Círculo?",
+      "timestamp": "2026-02-04T19:13:30.243264"
+    },
+    {
+      "role": "assistant",
+      "content": "La diferencia es que el coaching es más individual y enfocado en objetivos personales, mientras que el Círculo de Hombres es grupal, se trata de compartir y apoyarse entre todos. ¿Te gustaría saber más? 😊💪",
+      "timestamp": "2026-02-04T19:13:30.243264"
     }
   ],
   "links_sent_count": 0,

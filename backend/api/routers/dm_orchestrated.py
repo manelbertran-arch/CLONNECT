@@ -159,3 +159,44 @@ async def health_check():
             "natural_timing",
         ],
     }
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# V2 ENDPOINT - Con prompt universal mejorado
+# ═══════════════════════════════════════════════════════════════════════════════
+
+from core.dm_agent_orchestrated_v2 import get_orchestrated_agent_v2
+
+
+@router.post("/process-v2", response_model=DMResponse)
+async def process_dm_orchestrated_v2(request: DMRequest):
+    """
+    Process DM with V2 system (improved universal prompt).
+
+    Improvements over V1:
+    - No unnecessary questions (fixes 35% of issues)
+    - Controlled length (fixes 30% of issues)
+    - No generic phrases
+    - Better punctuation matching
+    """
+    try:
+        agent = await get_orchestrated_agent_v2(request.creator_id)
+
+        response = await agent.process_message(
+            message=request.message,
+            lead_id=request.lead_id,
+            context=request.context or {},
+        )
+
+        return DMResponse(
+            messages=response.messages,
+            delays=response.delays,
+            should_escalate=response.should_escalate,
+            used_pool=response.used_pool,
+            edge_case=response.edge_case,
+            total_delay=response.total_delay,
+            is_multi_message=response.is_multi_message,
+        )
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))

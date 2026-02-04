@@ -1,0 +1,10 @@
+{
+  "total": 172,
+  "avg": 71.30813953488372,
+  "autopilot_pct": 98.83720930232558,
+  "grades": {
+    "\ud83d\udfe2 AUTOPILOT": 34,
+    "\ud83d\udfe1 COPILOT": 136,
+    "\ud83d\udfe0 HEAVY EDIT": 2
+  }
+}

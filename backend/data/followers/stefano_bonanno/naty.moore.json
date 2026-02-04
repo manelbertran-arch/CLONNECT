@@ -1,0 +1,100 @@
+{
+  "follower_id": "naty.moore",
+  "creator_id": "stefano_bonanno",
+  "username": "naty.moore",
+  "name": "",
+  "first_contact": "2026-02-04T19:16:14.435682",
+  "last_contact": "2026-02-04T19:20:36.231618",
+  "total_messages": 7,
+  "interests": [],
+  "products_discussed": [],
+  "objections_raised": [],
+  "purchase_intent_score": 0.0,
+  "is_lead": false,
+  "is_customer": false,
+  "status": "new",
+  "preferred_language": "es",
+  "last_messages": [
+    {
+      "role": "user",
+      "content": "Siiiiii!",
+      "timestamp": "2026-02-04T19:16:16.134040"
+    },
+    {
+      "role": "assistant",
+      "content": "💪",
+      "timestamp": "2026-02-04T19:16:16.134040"
+    },
+    {
+      "role": "user",
+      "content": "Qué es lo más tarde que podrías?",
+      "timestamp": "2026-02-04T19:16:18.180820"
+    },
+    {
+      "role": "assistant",
+      "content": "Hola! 😊 ¿Te refieres a los encuentros del Círculo de Hombres?",
+      "timestamp": "2026-02-04T19:16:18.180820"
+    },
+    {
+      "role": "user",
+      "content": "Es que siempre termino de trabajar en la noche",
+      "timestamp": "2026-02-04T19:16:20.156009"
+    },
+    {
+      "role": "assistant",
+      "content": "Entiendo! 😊 Podemos ver opciones para que puedas unirte. ¿Qué horarios te vendrían mejor?",
+      "timestamp": "2026-02-04T19:16:20.156009"
+    },
+    {
+      "role": "user",
+      "content": "Siiiiii!",
+      "timestamp": "2026-02-04T19:20:29.942067"
+    },
+    {
+      "role": "assistant",
+      "content": "💪",
+      "timestamp": "2026-02-04T19:20:29.942067"
+    },
+    {
+      "role": "user",
+      "content": "Qué es lo más tarde que podrías?",
+      "timestamp": "2026-02-04T19:20:31.966740"
+    },
+    {
+      "role": "assistant",
+      "content": "Genial! 😊 Podría hasta las 9 pm. ¿Te vendría bien?",
+      "timestamp": "2026-02-04T19:20:31.966740"
+    },
+    {
+      "role": "user",
+      "content": "Es que siempre termino de trabajar en la noche",
+      "timestamp": "2026-02-04T19:20:34.274920"
+    },
+    {
+      "role": "assistant",
+      "content": "Entiendo! 😊 Si terminás tarde, podemos buscar opciones más flexibles. ¿A qué hora sueles terminar?",
+      "timestamp": "2026-02-04T19:20:34.274920"
+    },
+    {
+      "role": "user",
+      "content": "Vale, déjame miro",
+      "timestamp": "2026-02-04T19:20:36.231618"
+    },
+    {
+      "role": "assistant",
+      "content": "Dale! 😊 Un abrazo! ",
+      "timestamp": "2026-02-04T19:20:36.231618"
+    }
+  ],
+  "links_sent_count": 0,
+  "last_link_message_num": 0,
+  "objections_handled": [],
+  "arguments_used": [],
+  "greeting_variant_index": 0,
+  "last_greeting_style": "",
+  "last_emojis_used": [],
+  "messages_since_name_used": 0,
+  "alternative_contact": "",
+  "alternative_contact_type": "",
+  "contact_requested": false
+}

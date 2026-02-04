@@ -1,0 +1,14 @@
+{
+  "timestamp": "2026-02-04T20:41:50.293189",
+  "test_type": "FINAL_TEST_LLM_REAL",
+  "total_turns": 149,
+  "avg_score": 76.67785234899328,
+  "acceptable_pct": 100.0,
+  "grade_distribution": {
+    "\ud83d\udfe2 AUTOPILOT": 74,
+    "\ud83d\udfe1 COPILOT": 75,
+    "\ud83d\udfe0 HEAVY": 0,
+    "\ud83d\udd34 FAIL": 0
+  },
+  "pool_responses": 11
+}

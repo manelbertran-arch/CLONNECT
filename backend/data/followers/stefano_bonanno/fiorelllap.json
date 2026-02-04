@@ -1,0 +1,100 @@
+{
+  "follower_id": "fiorelllap",
+  "creator_id": "stefano_bonanno",
+  "username": "fiorelllap",
+  "name": "",
+  "first_contact": "2026-02-04T19:16:25.419058",
+  "last_contact": "2026-02-04T19:20:52.945043",
+  "total_messages": 7,
+  "interests": [],
+  "products_discussed": [],
+  "objections_raised": [],
+  "purchase_intent_score": 0.0,
+  "is_lead": false,
+  "is_customer": false,
+  "status": "new",
+  "preferred_language": "es",
+  "last_messages": [
+    {
+      "role": "user",
+      "content": "Te perdí el hilo, no se en que andas pero se que estás siempre a full! Y se te ve contento o al menos así es como se te percibe  🙌🏼",
+      "timestamp": "2026-02-04T19:16:27.359004"
+    },
+    {
+      "role": "assistant",
+      "content": "Hey! 😊 Gracias, sí, ando a full con el Círculo de Hombres y la comunidad. Todo bien por aquí. ¿Y tú?",
+      "timestamp": "2026-02-04T19:16:27.359004"
+    },
+    {
+      "role": "user",
+      "content": "De esa vez que encontré en el sushi?",
+      "timestamp": "2026-02-04T19:16:29.551725"
+    },
+    {
+      "role": "assistant",
+      "content": "¿Te referís al encuentro que hicimos? Fue genial! 🍣😊",
+      "timestamp": "2026-02-04T19:16:29.551725"
+    },
+    {
+      "role": "user",
+      "content": "Buuueno espero que podamos charlar un ratito y saber en que andas y como estás!!",
+      "timestamp": "2026-02-04T19:16:31.494289"
+    },
+    {
+      "role": "assistant",
+      "content": "Genial! 😊 Estoy bien, gracias. ¡Claro que sí! ¿Cuándo te viene bien charlar? 💪",
+      "timestamp": "2026-02-04T19:16:31.494289"
+    },
+    {
+      "role": "user",
+      "content": "Te perdí el hilo, no se en que andas pero se que estás siempre a full! Y se te ve contento o al menos así es como se te percibe  🙌🏼",
+      "timestamp": "2026-02-04T19:20:46.783823"
+    },
+    {
+      "role": "assistant",
+      "content": "Hola! 😊 Sí, ando a mil con el Círculo de Hombres y la comunidad. ¿Cómo estás tú?",
+      "timestamp": "2026-02-04T19:20:46.783823"
+    },
+    {
+      "role": "user",
+      "content": "De esa vez que encontré en el sushi?",
+      "timestamp": "2026-02-04T19:20:48.782488"
+    },
+    {
+      "role": "assistant",
+      "content": "¿Te referís al encuentro que hicimos? Fue genial! 🍣😊",
+      "timestamp": "2026-02-04T19:20:48.782488"
+    },
+    {
+      "role": "user",
+      "content": "Buuueno espero que podamos charlar un ratito y saber en que andas y como estás!!",
+      "timestamp": "2026-02-04T19:20:50.715638"
+    },
+    {
+      "role": "assistant",
+      "content": "Genial! 😊 Estoy bien, gracias. ¿Cuándo te viene bien charlar? 💪",
+      "timestamp": "2026-02-04T19:20:50.715638"
+    },
+    {
+      "role": "user",
+      "content": "En les corts! Algunos días con ganas de irme de la ciudad, moverme a algo más tranqui pero por ahora ahí sigo",
+      "timestamp": "2026-02-04T19:20:52.945043"
+    },
+    {
+      "role": "assistant",
+      "content": "Entiendo! 😊 A veces es bueno desconectar un poco. ¿Cuándo te gustaría charlar? Un abrazo! 💪",
+      "timestamp": "2026-02-04T19:20:52.945043"
+    }
+  ],
+  "links_sent_count": 0,
+  "last_link_message_num": 0,
+  "objections_handled": [],
+  "arguments_used": [],
+  "greeting_variant_index": 0,
+  "last_greeting_style": "",
+  "last_emojis_used": [],
+  "messages_since_name_used": 0,
+  "alternative_contact": "",
+  "alternative_contact_type": "",
+  "contact_requested": false
+}
