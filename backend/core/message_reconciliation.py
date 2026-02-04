@@ -23,14 +23,14 @@ logger = logging.getLogger("clonnect-reconciliation")
 # Configuration
 RECONCILIATION_LOOKBACK_HOURS = 24  # How far back to check on startup
 RECONCILIATION_INTERVAL_MINUTES = 5  # How often to run periodic reconciliation
-MAX_CONVERSATIONS_PER_CYCLE = 50  # Limit per reconciliation cycle
+MAX_CONVERSATIONS_PER_CYCLE = 20  # Limit per reconciliation cycle (reduced to avoid API limits)
 
 
 async def get_instagram_conversations(
     access_token: str,
     ig_user_id: str,
     since: Optional[datetime] = None,
-    limit: int = 50,
+    limit: int = 20,
 ) -> List[Dict[str, Any]]:
     """
     Fetch conversations from Instagram API with messages.
@@ -39,7 +39,7 @@ async def get_instagram_conversations(
         access_token: Instagram access token
         ig_user_id: Instagram user ID (page_id for creator)
         since: Only fetch messages since this time
-        limit: Max conversations to fetch
+        limit: Max conversations to fetch (default 20 to avoid API limits)
 
     Returns:
         List of conversations with messages
@@ -53,10 +53,10 @@ async def get_instagram_conversations(
 
     async with httpx.AsyncClient(timeout=30.0) as client:
         try:
-            # Fetch conversations
+            # First, fetch conversation IDs only (smaller request)
             url = f"{api_base}/{ig_user_id}/conversations"
             params = {
-                "fields": "id,participants,messages{id,message,created_time,from}",
+                "fields": "id,participants",
                 "access_token": access_token,
                 "limit": limit,
             }
@@ -68,9 +68,43 @@ async def get_instagram_conversations(
                 return []
 
             data = resp.json()
-            conversations = data.get("data", [])
+            conv_list = data.get("data", [])
 
-            logger.debug(f"[Reconciliation] Fetched {len(conversations)} conversations")
+            logger.debug(f"[Reconciliation] Fetched {len(conv_list)} conversation IDs")
+
+            # Then fetch messages for each conversation separately
+            for conv in conv_list:
+                conv_id = conv.get("id")
+                if not conv_id:
+                    continue
+
+                try:
+                    # Fetch messages for this conversation (limit 25 per conversation)
+                    msg_url = f"{api_base}/{conv_id}"
+                    msg_params = {
+                        "fields": "messages.limit(25){id,message,created_time,from}",
+                        "access_token": access_token,
+                    }
+
+                    msg_resp = await client.get(msg_url, params=msg_params)
+
+                    if msg_resp.status_code == 200:
+                        msg_data = msg_resp.json()
+                        conv["messages"] = msg_data.get("messages", {})
+                        conversations.append(conv)
+                    else:
+                        logger.debug(f"[Reconciliation] Could not fetch messages for {conv_id}")
+                        # Still add conversation without messages
+                        conversations.append(conv)
+
+                    # Small delay to avoid rate limits
+                    await asyncio.sleep(0.1)
+
+                except Exception as e:
+                    logger.debug(f"[Reconciliation] Error fetching messages for {conv_id}: {e}")
+                    conversations.append(conv)
+
+            logger.debug(f"[Reconciliation] Fetched {len(conversations)} conversations with messages")
 
         except Exception as e:
             logger.error(f"[Reconciliation] Error fetching conversations: {e}")
