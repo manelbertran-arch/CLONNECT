@@ -70,6 +70,25 @@ def register_startup_handlers(app: "FastAPI"):
         except Exception as e:
             logger.error(f"Failed to start nurturing scheduler: {e}")
 
+        # Run message reconciliation on startup (recover last 24 hours)
+        async def startup_reconciliation():
+            await asyncio.sleep(10)  # Wait for DB to be ready
+            try:
+                from core.message_reconciliation import run_startup_reconciliation
+                result = await run_startup_reconciliation()
+                if result.get("total_inserted", 0) > 0:
+                    logger.info(
+                        f"[Reconciliation] Startup: recovered {result['total_inserted']} "
+                        f"messages for {result['creators_processed']} creators"
+                    )
+                else:
+                    logger.info("[Reconciliation] Startup: no missing messages found")
+            except Exception as e:
+                logger.error(f"[Reconciliation] Startup reconciliation failed: {e}")
+
+        asyncio.create_task(startup_reconciliation())
+        logger.info("Message reconciliation scheduled (startup task)")
+
         # Hydrate RAG from PostgreSQL
         async def hydrate_rag_background():
             await asyncio.sleep(5)

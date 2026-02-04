@@ -703,7 +703,19 @@ async def _run_scheduler_cycle():
 
     manager = get_nurturing_manager()
 
-    # 0. Process pending profile retries (automatic enrichment)
+    # 0a. Run message reconciliation (recover missing messages from Instagram)
+    try:
+        from core.message_reconciliation import run_periodic_reconciliation
+
+        recon_result = await run_periodic_reconciliation()
+        if recon_result.get("total_inserted", 0) > 0:
+            logger.info(
+                f"[NURTURING SCHEDULER] Reconciliation: {recon_result['total_inserted']} messages recovered"
+            )
+    except Exception as e:
+        logger.error(f"[NURTURING SCHEDULER] Reconciliation error: {e}")
+
+    # 0b. Process pending profile retries (automatic enrichment)
     try:
         profile_result = await _process_profile_retries()
         if profile_result.get("processed", 0) > 0:
@@ -841,4 +853,50 @@ async def get_scheduler_status():
 async def run_scheduler_now():
     """Manually trigger a scheduler run (for testing)"""
     result = await _run_scheduler_cycle()
+    return {"status": "ok", "result": result}
+
+
+@router.get("/reconciliation/status")
+async def get_reconciliation_status():
+    """Get message reconciliation status"""
+    from core.message_reconciliation import get_reconciliation_status
+
+    return {
+        "status": "ok",
+        "reconciliation": get_reconciliation_status(),
+    }
+
+
+@router.get("/reconciliation/health")
+async def check_reconciliation_health():
+    """
+    Health check to detect gaps between Instagram and DB.
+    Returns creators with message gaps that may need sync.
+    """
+    from core.message_reconciliation import check_message_gaps
+
+    result = await check_message_gaps()
+
+    status = "healthy" if result["gaps_detected"] == 0 else "gaps_detected"
+
+    return {
+        "status": status,
+        "gaps_detected": result["gaps_detected"],
+        "creators_checked": result["creators_checked"],
+        "creators_with_gaps": result["creators_with_gaps"],
+        "timestamp": result["timestamp"],
+    }
+
+
+@router.post("/reconciliation/run-now")
+async def run_reconciliation_now(lookback_hours: int = 24):
+    """
+    Manually trigger message reconciliation.
+
+    Args:
+        lookback_hours: How many hours to look back (default 24)
+    """
+    from core.message_reconciliation import run_reconciliation_cycle
+
+    result = await run_reconciliation_cycle(lookback_hours=lookback_hours)
     return {"status": "ok", "result": result}
