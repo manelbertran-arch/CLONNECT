@@ -11,6 +11,7 @@ Clonnect Creators es una plataforma que permite a creadores de contenido automat
 - ✅ Escala a ti cuando es necesario
 - ✅ Soporta multiples idiomas
 - ✅ Integra pagos (Stripe, Hotmart) y calendarios (Calendly, Cal.com)
+- ✅ **RelationshipDNA**: Personaliza el estilo de comunicacion por relacion (nuevo!)
 
 ## 🚀 Quick Start (Local)
 
@@ -204,41 +205,85 @@ PYTHONPATH=. python3 scripts/deploy_check.py
 
 ---
 
+## 🧬 RelationshipDNA (Nuevo!)
+
+RelationshipDNA permite al bot adaptar su estilo de comunicacion segun el tipo de relacion con cada lead:
+
+### Tipos de Relacion
+
+| Tipo | Descripcion | Ejemplo de Vocabulario |
+|------|-------------|----------------------|
+| `INTIMA` | Pareja/muy cercana | "amor", "cariño", 💙 |
+| `AMISTAD_CERCANA` | Amigo de confianza | "hermano", "bro", 🙏🏽 |
+| `AMISTAD_CASUAL` | Conocido/amigo casual | "crack", "tio", 😄 |
+| `CLIENTE` | Cliente potencial | Tono profesional, informativo |
+| `COLABORADOR` | Partner de negocio | Tono profesional-cercano |
+| `DESCONOCIDO` | Lead nuevo | Tono neutral, sin asumir |
+
+### Como Funciona
+
+1. **Analisis automatico**: El sistema analiza conversaciones para detectar el tipo de relacion
+2. **Vocabulario personalizado**: Extrae palabras a usar/evitar por relacion
+3. **Instrucciones dinamicas**: Genera instrucciones para el bot basadas en el DNA
+4. **Auto-actualizacion**: Re-analiza cuando hay suficientes mensajes nuevos
+
+### Migracion de Leads Existentes
+
+```bash
+# Migrar leads existentes (dry-run primero)
+python scripts/migrate_dna.py --creator stefan --dry-run
+
+# Ejecutar migracion real
+python scripts/migrate_dna.py --creator stefan --limit 100 --min-messages 10
+```
+
+### Archivos Principales
+
+```
+services/
+├── relationship_dna_service.py   # Servicio principal
+├── relationship_analyzer.py      # Analisis de conversaciones
+├── relationship_type_detector.py # Deteccion de tipo
+├── vocabulary_extractor.py       # Extraccion de vocabulario
+└── bot_instructions_generator.py # Generacion de instrucciones
+```
+
+---
+
 ## 🏗️ Estructura del Proyecto
 
 ```
 clonnect-creators/
 ├── api/
-│   └── main.py              # API FastAPI
+│   ├── main.py              # API FastAPI
+│   └── models.py            # SQLAlchemy models (+RelationshipDNA)
 ├── core/
 │   ├── dm_agent.py          # Agente principal de DMs
 │   ├── llm.py               # Cliente LLM (Groq/OpenAI)
 │   ├── creator_config.py    # Configuracion creadores
 │   ├── products.py          # Gestion de productos
 │   ├── memory.py            # Memoria de seguidores
-│   ├── auth.py              # Autenticacion API keys
-│   ├── alerts.py            # Sistema de alertas
-│   ├── metrics.py           # Metricas Prometheus
-│   ├── cache.py             # Cache de respuestas
-│   ├── payments.py          # Integracion Stripe/Hotmart
-│   ├── calendar.py          # Integracion calendarios
-│   ├── gdpr.py              # Cumplimiento GDPR
 │   └── ...
-├── dashboard/
-│   ├── app.py               # Dashboard creadores
-│   └── admin.py             # Panel admin
+├── services/                # Servicios de negocio
+│   ├── relationship_dna_service.py    # DNA principal
+│   ├── relationship_analyzer.py       # Analisis
+│   ├── relationship_type_detector.py  # Deteccion
+│   ├── vocabulary_extractor.py        # Vocabulario
+│   ├── bot_instructions_generator.py  # Instrucciones
+│   └── dna_update_triggers.py         # Auto-update
+├── models/
+│   └── relationship_dna.py  # Modelos DNA
+├── migrations/
+│   └── relationship_dna.sql # Migracion PostgreSQL
 ├── scripts/
-│   ├── onboarding.py        # Wizard de onboarding
-│   ├── backup.py            # Backup de datos
-│   └── deploy_check.py      # Verificacion pre-deploy
+│   ├── migrate_dna.py       # Migracion DNA existente
+│   └── ...
+├── tests/
+│   ├── models/              # Tests de modelos
+│   ├── services/            # Tests de servicios
+│   └── integration/         # Tests e2e
 ├── docs/
-│   ├── BETA_AGREEMENT.md    # Acuerdo beta
-│   ├── ONBOARDING_CREADOR.md # Guia onboarding
-│   └── CHECKLIST_INTERNO.md # Checklist interno
-├── data/                    # Datos persistentes
-├── requirements.txt
-├── railway.json             # Config Railway
-├── render.yaml              # Config Render
+│   └── ROADMAP_VISUAL_RELATIONSHIP_DNA.md
 └── README.md
 ```
 
