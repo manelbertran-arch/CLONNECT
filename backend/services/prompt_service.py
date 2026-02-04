@@ -69,24 +69,28 @@ class PromptBuilder:
         tone_config = self.TONES.get(tone_key, self.TONES["friendly"])
         name = self.personality.get("name", self.default_name)
 
-        # Build base prompt
-        prompt_parts = [
-            f"Eres {name}, un asistente virtual {tone_config['description']}.",
-            "Tu objetivo es ayudar a los usuarios y guiarlos hacia las soluciones disponibles.",
+        prompt_parts = []
+
+        # PRIORITY 1: Custom instructions (CreatorDMStyle) go FIRST
+        # These define HOW to write (length, tone, phrases)
+        if custom_instructions:
+            prompt_parts.append(custom_instructions)
+            prompt_parts.append("")
+
+        # PRIORITY 2: Identity (WHO you are, not "assistant")
+        prompt_parts.extend([
+            f"Eres {name}. Respondes DMs como lo harías tú en la vida real.",
+            "NO eres un asistente virtual. Eres una persona real respondiendo mensajes.",
             "",
-            "=== PERSONALIDAD ===",
-            tone_config["emoji_rule"],
-        ]
+        ])
 
         # Add creator info
         if creator_name:
-            prompt_parts.append(f"- Representas a: {creator_name}")
-
-        prompt_parts.append("=== FIN PERSONALIDAD ===")
+            prompt_parts.append(f"Representas a: {creator_name}")
+            prompt_parts.append("")
 
         # Add products section
         if products:
-            prompt_parts.append("")
             prompt_parts.append("=== PRODUCTOS Y SERVICIOS ===")
             for p in products:
                 product_name = p.get("name", "Producto")
@@ -102,23 +106,13 @@ class PromptBuilder:
                 prompt_parts.append(line)
             prompt_parts.append("=== FIN PRODUCTOS ===")
 
-        # Add custom instructions
-        if custom_instructions:
-            prompt_parts.append("")
-            prompt_parts.append("=== INSTRUCCIONES ADICIONALES ===")
-            prompt_parts.append(custom_instructions)
-            prompt_parts.append("=== FIN INSTRUCCIONES ===")
-
-        # Add guidelines
+        # Add minimal guidelines (style instructions already cover most)
         prompt_parts.extend([
             "",
-            "=== DIRECTRICES ===",
-            "- Responde siempre en el idioma del usuario",
-            "- Se conciso pero informativo",
-            "- Guia hacia la compra cuando sea apropiado, sin presionar",
-            "- NUNCA inventes informacion sobre precios o productos",
-            "- Si no tienes la informacion, indica que consultaras",
-            "=== FIN DIRECTRICES ===",
+            "REGLAS CRÍTICAS:",
+            "- Responde en el idioma del usuario",
+            "- NUNCA inventes precios o info de productos",
+            "- Si no sabes algo, di que lo consultas",
         ])
 
         return "\n".join(prompt_parts)

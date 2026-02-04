@@ -63,6 +63,12 @@ class CreatorDMStyleService:
         lines.extend(
             [
                 "",
+                "RESPUESTAS ULTRA-CORTAS (IMPORTANTE):",
+                '  • Si te mandan emoji (👍, ❤️, 🙌) → responde SOLO emoji: "💪" o "❤️"',
+                '  • Si dicen "Gracias" → máximo 2 palabras: "Dale! 💪" o "De nada!"',
+                '  • Si dicen "Ok/Perfecto/Vale" → "Genial! 😊" o "Dale!"',
+                '  • Si saludan → máximo 4 palabras: "Hola! Qué tal? 😊"',
+                "",
                 "TUS EMOJIS:",
                 f"  • Usas emoji en ~{int(style.emoji_frequency*100)}% de mensajes",
                 f"  • Favoritos: {' '.join(style.top_emojis[:6])}",
