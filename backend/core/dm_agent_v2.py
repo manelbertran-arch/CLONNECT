@@ -286,7 +286,9 @@ class DMResponderAgentV2:
             current_stage = self._get_lead_stage(follower, metadata)
 
             # Step 5: Build prompts - combine RAG and DNA context
-            combined_context = "\n\n".join(filter(None, [rag_context, dna_context]))
+            # Include system_prompt_override if provided (for V2 prompt)
+            prompt_override = metadata.get("system_prompt_override", "")
+            combined_context = "\n\n".join(filter(None, [rag_context, dna_context, prompt_override]))
             system_prompt = self.prompt_builder.build_system_prompt(
                 products=self.products, custom_instructions=combined_context
             )
