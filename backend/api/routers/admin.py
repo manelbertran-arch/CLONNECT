@@ -4407,3 +4407,100 @@ async def fix_reaction_emojis():
     except Exception as e:
         logger.error(f"Error fixing reaction emojis: {e}")
         raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/diagnose-duplicate-leads/{creator_id}")
+async def diagnose_duplicate_leads(creator_id: str):
+    """
+    Diagnose duplicate leads (same username with different platform_user_id).
+    Also creates a backup of the leads table.
+    """
+    from api.database import SessionLocal
+    from sqlalchemy import text
+
+    session = SessionLocal()
+    try:
+        # Get creator
+        from api.models import Creator
+
+        creator = session.query(Creator).filter_by(name=creator_id).first()
+        if not creator:
+            raise HTTPException(status_code=404, detail=f"Creator {creator_id} not found")
+
+        # 1. Count duplicates for this creator
+        result = session.execute(
+            text("""
+                SELECT COUNT(*) FROM (
+                    SELECT username FROM leads
+                    WHERE username IS NOT NULL AND username != ''
+                    AND creator_id = :creator_id
+                    GROUP BY username
+                    HAVING COUNT(*) > 1
+                ) as dupes
+            """),
+            {"creator_id": str(creator.id)},
+        )
+        dupe_count = result.scalar()
+
+        # 2. Get duplicate details with message counts
+        result = session.execute(
+            text("""
+                SELECT l.username, l.platform_user_id, l.id,
+                       (SELECT COUNT(*) FROM messages m WHERE m.lead_id = l.id) as msg_count,
+                       l.updated_at::date as updated
+                FROM leads l
+                WHERE l.creator_id = :creator_id
+                AND l.username IN (
+                    SELECT username FROM leads
+                    WHERE username IS NOT NULL AND username != ''
+                    AND creator_id = :creator_id
+                    GROUP BY username
+                    HAVING COUNT(*) > 1
+                )
+                ORDER BY l.username, msg_count DESC
+            """),
+            {"creator_id": str(creator.id)},
+        )
+        rows = result.fetchall()
+
+        duplicates = {}
+        for row in rows:
+            username = row[0]
+            if username not in duplicates:
+                duplicates[username] = []
+            duplicates[username].append({
+                "platform_user_id": row[1],
+                "lead_id": str(row[2]),
+                "message_count": row[3],
+                "updated": str(row[4]) if row[4] else None,
+            })
+
+        # 3. Create backup
+        backup_created = False
+        try:
+            session.execute(text("DROP TABLE IF EXISTS leads_backup_20260204"))
+            session.execute(text("CREATE TABLE leads_backup_20260204 AS SELECT * FROM leads"))
+            session.commit()
+            backup_count = session.execute(
+                text("SELECT COUNT(*) FROM leads_backup_20260204")
+            ).scalar()
+            backup_created = True
+        except Exception as e:
+            logger.error(f"Backup failed: {e}")
+            backup_count = 0
+
+        return {
+            "status": "ok",
+            "creator_id": creator_id,
+            "duplicate_usernames_count": dupe_count,
+            "total_duplicate_rows": len(rows),
+            "duplicates": duplicates,
+            "backup": {
+                "created": backup_created,
+                "table": "leads_backup_20260204",
+                "rows": backup_count,
+            },
+        }
+
+    finally:
+        session.close()
