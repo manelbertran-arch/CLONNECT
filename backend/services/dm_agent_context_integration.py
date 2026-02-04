@@ -337,3 +337,76 @@ def get_memory_context_for_prompt(memory: ConversationMemory) -> str:
     """Obtiene el contexto de memoria formateado para el prompt."""
     service = get_conversation_memory_service()
     return service.get_memory_context_for_prompt(memory)
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# BOT ORCHESTRATOR INTEGRATION (Final Integration)
+# ═══════════════════════════════════════════════════════════════════════════════
+
+from services.bot_orchestrator import BotOrchestrator, BotResponse, get_bot_orchestrator
+
+
+async def process_with_orchestrator(
+    message: str,
+    lead_id: str,
+    creator_id: str,
+    llm_generator: callable = None,
+    context: dict = None,
+) -> BotResponse:
+    """
+    Process a message using the full bot orchestrator.
+
+    This is the recommended entry point for processing messages.
+    Includes:
+    - Edge case handling (sarcasm, complaints, aggression)
+    - Response variations (pools for greetings, thanks, emojis)
+    - Conversation memory (persistent context)
+    - Message splitting (multi-message for long responses)
+    - Natural timing delays (2-30s)
+
+    Args:
+        message: User's message
+        lead_id: Lead identifier
+        creator_id: Creator identifier
+        llm_generator: Async function for LLM generation
+        context: Additional context
+
+    Returns:
+        BotResponse with message(s), delays, and metadata
+
+    Usage:
+        response = await process_with_orchestrator(
+            message="Hola! Cuánto cuesta?",
+            lead_id="lead_123",
+            creator_id="creator_456",
+            llm_generator=my_llm_function
+        )
+
+        # response.messages: ["El precio es 150€", "Te paso el link 😊"]
+        # response.delays: [3.2, 1.8]
+        # response.should_escalate: False
+        # response.used_pool: False
+    """
+    orchestrator = get_bot_orchestrator()
+    return await orchestrator.process_message(
+        message=message,
+        lead_id=lead_id,
+        creator_id=creator_id,
+        generate_with_llm=llm_generator,
+        context=context,
+    )
+
+
+async def send_orchestrated_response(
+    bot_response: BotResponse,
+    send_func: callable,
+):
+    """
+    Send an orchestrated response with natural delays.
+
+    Args:
+        bot_response: Response from process_with_orchestrator
+        send_func: Async function to send a single message
+    """
+    orchestrator = get_bot_orchestrator()
+    await orchestrator.send_responses(bot_response, send_func)

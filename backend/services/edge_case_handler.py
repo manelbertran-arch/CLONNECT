@@ -129,11 +129,12 @@ class EdgeCaseHandler:
 
     # Aggressive patterns
     AGGRESSIVE_PATTERNS = [
-        r"eres (idiota|estúpido|tonto)",
-        r"vete (a la mierda|al carajo)",
+        r"eres (un |una )?(idiota|estúpido|tonto|imbécil|gilipollas)",
+        r"vete (a la mierda|al carajo|a tomar)",
         r"me cago en",
-        r"hijo de",
+        r"hijo de (puta|perra)",
         r"la puta madre",
+        r"que te (jodan|den)",
     ]
 
     # "No sé" responses (Stefan style)
