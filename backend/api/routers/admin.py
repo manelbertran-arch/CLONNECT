@@ -4504,3 +4504,118 @@ async def diagnose_duplicate_leads(creator_id: str):
 
     finally:
         session.close()
+
+
+@router.post("/merge-duplicate-leads/{creator_id}")
+async def merge_duplicate_leads(creator_id: str):
+    """
+    Merge duplicate leads (same username with different platform_user_id).
+    Moves messages from ig_xxx leads to xxx leads, then deletes the ig_xxx leads.
+    """
+    from api.database import SessionLocal
+    from sqlalchemy import text
+
+    session = SessionLocal()
+    try:
+        # Get creator
+        from api.models import Creator
+
+        creator = session.query(Creator).filter_by(name=creator_id).first()
+        if not creator:
+            raise HTTPException(status_code=404, detail=f"Creator {creator_id} not found")
+
+        creator_uuid = str(creator.id)
+
+        # Step 1: Count before
+        leads_before = session.execute(
+            text("SELECT COUNT(*) FROM leads WHERE creator_id = :cid"),
+            {"cid": creator_uuid},
+        ).scalar()
+
+        # Step 2: Find duplicates
+        duplicates = session.execute(
+            text("""
+                SELECT l.id, l.username, l.platform_user_id,
+                       (SELECT COUNT(*) FROM messages m WHERE m.lead_id = l.id) as msg_count
+                FROM leads l
+                WHERE l.creator_id = :cid
+                AND l.platform_user_id LIKE 'ig_%'
+                AND EXISTS (
+                    SELECT 1 FROM leads l2
+                    WHERE l2.platform_user_id = REPLACE(l.platform_user_id, 'ig_', '')
+                    AND l2.creator_id = l.creator_id
+                )
+            """),
+            {"cid": creator_uuid},
+        ).fetchall()
+
+        messages_moved = 0
+        leads_deleted = 0
+        details = []
+
+        for dup in duplicates:
+            dup_id = str(dup[0])
+            username = dup[1]
+            dup_platform_id = dup[2]
+            dup_msg_count = dup[3]
+            original_platform_id = dup_platform_id.replace("ig_", "")
+
+            # Find original lead
+            original = session.execute(
+                text("""
+                    SELECT id FROM leads
+                    WHERE platform_user_id = :pid AND creator_id = :cid
+                """),
+                {"pid": original_platform_id, "cid": creator_uuid},
+            ).fetchone()
+
+            if original:
+                original_id = str(original[0])
+
+                # Move messages if any
+                if dup_msg_count > 0:
+                    session.execute(
+                        text("UPDATE messages SET lead_id = :new_id WHERE lead_id = :old_id"),
+                        {"new_id": original_id, "old_id": dup_id},
+                    )
+                    messages_moved += dup_msg_count
+
+                # Delete duplicate lead
+                session.execute(
+                    text("DELETE FROM leads WHERE id = :lid"),
+                    {"lid": dup_id},
+                )
+                leads_deleted += 1
+
+                details.append({
+                    "username": username,
+                    "deleted_platform_id": dup_platform_id,
+                    "kept_platform_id": original_platform_id,
+                    "messages_moved": dup_msg_count,
+                })
+
+        session.commit()
+
+        # Step 3: Count after
+        leads_after = session.execute(
+            text("SELECT COUNT(*) FROM leads WHERE creator_id = :cid"),
+            {"cid": creator_uuid},
+        ).scalar()
+
+        return {
+            "status": "ok",
+            "creator_id": creator_id,
+            "leads_before": leads_before,
+            "leads_after": leads_after,
+            "leads_deleted": leads_deleted,
+            "messages_moved": messages_moved,
+            "details": details,
+        }
+
+    except Exception as e:
+        session.rollback()
+        logger.error(f"Error merging duplicates: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+    finally:
+        session.close()
