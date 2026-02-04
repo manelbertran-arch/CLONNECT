@@ -298,3 +298,42 @@ def get_context_for_dm_agent(
     except Exception as e:
         logger.error(f"Error getting context: {e}")
         return ""
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# CONVERSATION MEMORY INTEGRATION (Phase 2)
+# ═══════════════════════════════════════════════════════════════════════════════
+
+from models.conversation_memory import ConversationMemory
+from services.memory_service import ConversationMemoryService, get_conversation_memory_service
+
+
+async def get_conversation_memory(lead_id: str, creator_id: str) -> ConversationMemory:
+    """Obtiene la memoria de conversación para un lead."""
+    service = get_conversation_memory_service()
+    return await service.load(lead_id, creator_id)
+
+
+async def save_conversation_memory(memory: ConversationMemory):
+    """Guarda la memoria de conversación."""
+    service = get_conversation_memory_service()
+    await service.save(memory)
+
+
+async def update_memory_after_response(
+    lead_id: str,
+    creator_id: str,
+    lead_message: str,
+    bot_response: str,
+):
+    """Actualiza la memoria después de una respuesta del bot."""
+    service = get_conversation_memory_service()
+    memory = await service.load(lead_id, creator_id)
+    memory = await service.update_memory_after_exchange(memory, lead_message, bot_response)
+    await service.save(memory)
+
+
+def get_memory_context_for_prompt(memory: ConversationMemory) -> str:
+    """Obtiene el contexto de memoria formateado para el prompt."""
+    service = get_conversation_memory_service()
+    return service.get_memory_context_for_prompt(memory)

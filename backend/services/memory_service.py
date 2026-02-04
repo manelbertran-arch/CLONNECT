@@ -307,3 +307,252 @@ class MemoryStore:
     def get_cache_size(self) -> int:
         """Get number of items in cache."""
         return len(self._cache)
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# CONVERSATION MEMORY SERVICE (Phase 2)
+# ═══════════════════════════════════════════════════════════════════════════════
+
+import re
+from typing import Tuple
+
+from models.conversation_memory import ConversationFact, ConversationMemory, FactType
+
+
+class ConversationMemoryService:
+    """Servicio para gestionar memoria de conversaciones con detección de facts."""
+
+    # Patrones para detectar referencias al pasado
+    PAST_REFERENCE_PATTERNS = [
+        r"ya te (lo )?dije",
+        r"ya me (lo )?dijiste",
+        r"como te (comenté|dije|mencioné)",
+        r"te (había|habia) (dicho|comentado)",
+        r"recuerdas que",
+        r"la otra vez",
+        r"la vez pasada",
+        r"antes (me dijiste|hablamos)",
+        r"el otro día",
+        r"hace (unos )?días",
+        r"cuando hablamos",
+        r"lo que me dijiste",
+        r"seguimos con",
+        r"retomamos",
+    ]
+
+    # Patrones para extraer precios
+    PRICE_PATTERNS = [
+        r"(\d+)\s*€",
+        r"(\d+)\s*euros?",
+        r"(\d+)\s*EUR",
+        r"€\s*(\d+)",
+        r"cuesta\s*(\d+)",
+        r"precio[:\s]+(\d+)",
+        r"son\s*(\d+)",
+    ]
+
+    # Patrones para detectar preguntas
+    QUESTION_PATTERNS = [
+        r"\?",
+        r"cuánto\s+(cuesta|vale|es)",
+        r"qué\s+(es|incluye|ofrece)",
+        r"cómo\s+(funciona|puedo)",
+        r"dónde\s+(puedo|está)",
+        r"cuándo\s+(es|empieza|puedo)",
+    ]
+
+    def __init__(self, storage_path: str = "data/conversation_memory"):
+        self.storage_path = storage_path
+        os.makedirs(storage_path, exist_ok=True)
+
+    def _get_memory_path(self, lead_id: str, creator_id: str) -> str:
+        """Ruta del archivo de memoria."""
+        return os.path.join(self.storage_path, f"{creator_id}_{lead_id}.json")
+
+    async def load(self, lead_id: str, creator_id: str) -> ConversationMemory:
+        """Carga la memoria de una conversación."""
+        path = self._get_memory_path(lead_id, creator_id)
+
+        if os.path.exists(path):
+            try:
+                with open(path, "r") as f:
+                    data = json.load(f)
+                    return ConversationMemory.from_dict(data)
+            except Exception as e:
+                logger.error(f"Error loading conversation memory from {path}: {e}")
+
+        return ConversationMemory(lead_id=lead_id, creator_id=creator_id)
+
+    async def save(self, memory: ConversationMemory):
+        """Guarda la memoria de una conversación."""
+        path = self._get_memory_path(memory.lead_id, memory.creator_id)
+
+        try:
+            with open(path, "w") as f:
+                json.dump(memory.to_dict(), f, indent=2, ensure_ascii=False)
+        except Exception as e:
+            logger.error(f"Error saving conversation memory to {path}: {e}")
+
+    def detect_past_reference(self, message: str) -> bool:
+        """Detecta si el usuario hace referencia a conversación pasada."""
+        message_lower = message.lower()
+        return any(
+            re.search(pattern, message_lower)
+            for pattern in self.PAST_REFERENCE_PATTERNS
+        )
+
+    def extract_facts(
+        self, message: str, response: str, is_bot_response: bool = True
+    ) -> list:
+        """Extrae facts de un intercambio de mensajes."""
+        facts = []
+        text = response if is_bot_response else message
+
+        # Detectar precios mencionados
+        for pattern in self.PRICE_PATTERNS:
+            match = re.search(pattern, text, re.IGNORECASE)
+            if match:
+                price = match.group(1) if match.lastindex else match.group(0)
+                facts.append(
+                    ConversationFact(
+                        fact_type=FactType.PRICE_GIVEN,
+                        content=f"{price}€",
+                        confidence=0.95,
+                    )
+                )
+                break
+
+        # Detectar links compartidos
+        link_match = re.search(r"https?://\S+", text)
+        if link_match:
+            facts.append(
+                ConversationFact(
+                    fact_type=FactType.LINK_SHARED,
+                    content=link_match.group(),
+                    confidence=0.99,
+                )
+            )
+
+        # Detectar productos mencionados
+        products = ["círculo", "coaching", "mentoría", "programa", "sesión", "sesion"]
+        for product in products:
+            if product in text.lower() and len(text) > 50:
+                facts.append(
+                    ConversationFact(
+                        fact_type=FactType.PRODUCT_EXPLAINED,
+                        content=product,
+                        confidence=0.8,
+                    )
+                )
+
+        # Detectar preguntas del lead
+        if not is_bot_response:
+            for pattern in self.QUESTION_PATTERNS:
+                if re.search(pattern, message, re.IGNORECASE):
+                    facts.append(
+                        ConversationFact(
+                            fact_type=FactType.QUESTION_ASKED,
+                            content=message[:100],
+                            confidence=0.9,
+                        )
+                    )
+                    break
+
+        return facts
+
+    def should_repeat_info(
+        self, memory: ConversationMemory, info_type: str
+    ) -> Tuple[bool, Optional[str]]:
+        """Determina si es necesario repetir información."""
+        if not memory.has_given_info(info_type):
+            return True, None
+
+        previous_value = memory.get_info(info_type)
+
+        days = memory.get_days_since_last_interaction()
+        if days and days > 7:
+            return True, previous_value
+
+        return False, previous_value
+
+    def detect_question_type(self, message: str) -> Optional[str]:
+        """Detecta el tipo de pregunta del usuario."""
+        message_lower = message.lower()
+
+        if any(
+            p in message_lower for p in ["cuánto", "cuanto", "precio", "cuesta", "vale"]
+        ):
+            return "precio"
+        if any(
+            p in message_lower
+            for p in ["qué es", "que es", "qué incluye", "cómo funciona"]
+        ):
+            return "producto"
+        if any(p in message_lower for p in ["cuándo", "cuando", "horario", "fecha"]):
+            return "disponibilidad"
+        if any(p in message_lower for p in ["dónde", "donde", "ubicación", "dirección"]):
+            return "ubicacion"
+
+        return None
+
+    async def update_memory_after_exchange(
+        self, memory: ConversationMemory, lead_message: str, bot_response: str
+    ) -> ConversationMemory:
+        """Actualiza la memoria después de un intercambio."""
+        lead_facts = self.extract_facts(lead_message, "", is_bot_response=False)
+        for fact in lead_facts:
+            memory.add_fact(fact)
+
+        bot_facts = self.extract_facts(lead_message, bot_response, is_bot_response=True)
+        for fact in bot_facts:
+            memory.add_fact(fact)
+
+        question_type = self.detect_question_type(lead_message)
+        if question_type and "?" in lead_message:
+            if lead_message not in memory.unanswered_lead_questions:
+                memory.unanswered_lead_questions.append(lead_message[:100])
+
+        if question_type == "precio" and any(
+            f.fact_type == FactType.PRICE_GIVEN for f in bot_facts
+        ):
+            memory.unanswered_lead_questions = [
+                q
+                for q in memory.unanswered_lead_questions
+                if "precio" not in q.lower() and "cuánto" not in q.lower()
+            ]
+
+        memory.last_interaction = datetime.now()
+        memory.total_messages += 2
+
+        if not memory.conversation_started:
+            memory.conversation_started = datetime.now()
+
+        return memory
+
+    def get_memory_context_for_prompt(self, memory: ConversationMemory) -> str:
+        """Genera contexto de memoria para inyectar en el prompt."""
+        context = memory.get_context_summary()
+
+        if not context:
+            return ""
+
+        return f"""
+=== MEMORIA DE CONVERSACIÓN ===
+{context}
+
+⚠️ Si ya diste un precio o info, NO lo repitas textualmente.
+   Di algo como "como te comenté" o "el precio que te dije".
+=== FIN MEMORIA ===
+"""
+
+
+# Singleton para ConversationMemoryService
+_conversation_memory_service: Optional[ConversationMemoryService] = None
+
+
+def get_conversation_memory_service() -> ConversationMemoryService:
+    """Obtiene la instancia global del servicio de memoria de conversación."""
+    global _conversation_memory_service
+    if _conversation_memory_service is None:
+        _conversation_memory_service = ConversationMemoryService()
+    return _conversation_memory_service
