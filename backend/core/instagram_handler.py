@@ -2031,6 +2031,41 @@ class InstagramHandler:
                                     "shared_reel": "Shared a reel",
                                 }.get(media_type, "Sent an attachment")
 
+                    # MEDIA CAPTURE: Capture CDN URLs immediately before they expire
+                    if msg_metadata.get("url"):
+                        try:
+                            from services.media_capture_service import (
+                                capture_media_from_url,
+                                is_cdn_url,
+                            )
+
+                            media_url = msg_metadata["url"]
+                            if is_cdn_url(media_url):
+                                media_type_for_capture = msg_metadata.get("type", "image")
+                                if media_type_for_capture in (
+                                    "video",
+                                    "audio",
+                                    "shared_video",
+                                    "reel",
+                                ):
+                                    capture_type = "video"
+                                else:
+                                    capture_type = "image"
+
+                                captured = await capture_media_from_url(
+                                    url=media_url,
+                                    media_type=capture_type,
+                                    creator_id=self.creator_id,
+                                )
+                                if captured:
+                                    if captured.startswith("data:"):
+                                        msg_metadata["thumbnail_base64"] = captured
+                                    else:
+                                        msg_metadata["permanent_url"] = captured
+                                    logger.info(f"[SaveMsg] Captured media for {msg.sender_id}")
+                        except Exception as capture_err:
+                            logger.warning(f"[SaveMsg] Media capture failed: {capture_err}")
+
                     # Save user message
                     user_msg = Message(
                         lead_id=lead.id,
@@ -2207,6 +2242,37 @@ class InstagramHandler:
                                 "share": "Shared a post",
                                 "shared_reel": "Shared a reel",
                             }.get(media_type, "Sent an attachment")
+
+                # MEDIA CAPTURE: Capture CDN URLs immediately before they expire
+                # Instagram CDN URLs expire after ~24 hours
+                if msg_metadata.get("url"):
+                    try:
+                        from services.media_capture_service import (
+                            capture_media_from_url,
+                            is_cdn_url,
+                        )
+
+                        media_url = msg_metadata["url"]
+                        if is_cdn_url(media_url):
+                            media_type_for_capture = msg_metadata.get("type", "image")
+                            if media_type_for_capture in ("video", "audio", "shared_video", "reel"):
+                                capture_type = "video"
+                            else:
+                                capture_type = "image"
+
+                            captured = await capture_media_from_url(
+                                url=media_url,
+                                media_type=capture_type,
+                                creator_id=self.creator_id,
+                            )
+                            if captured:
+                                if captured.startswith("data:"):
+                                    msg_metadata["thumbnail_base64"] = captured
+                                else:
+                                    msg_metadata["permanent_url"] = captured
+                                logger.info(f"[SaveUserMsg] Captured media for {msg.sender_id}")
+                    except Exception as capture_err:
+                        logger.warning(f"[SaveUserMsg] Media capture failed: {capture_err}")
 
                 # Save user message
                 user_msg = Message(
