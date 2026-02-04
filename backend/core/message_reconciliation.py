@@ -381,12 +381,13 @@ async def reconcile_messages_for_creator(
 
             if not lead:
                 # Create new lead and try to enrich with profile
+                # Use raw follower_id (no ig_ prefix) for consistency with other services
                 profile_data = await _fetch_profile_for_lead(follower_id, access_token)
 
                 lead = Lead(
                     creator_id=creator.id,
                     platform="instagram",
-                    platform_user_id=f"ig_{follower_id}",
+                    platform_user_id=follower_id,  # No prefix - consistent with webhook handler
                     username=profile_data.get("username") or None,
                     full_name=profile_data.get("name") or None,
                     profile_pic_url=profile_data.get("profile_pic") or None,

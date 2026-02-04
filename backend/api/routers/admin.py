@@ -1003,13 +1003,15 @@ async def test_full_sync_conversation(creator_id: str, username: str):
                 f"[FullSync] Total pages: {pages_fetched + 1}, total messages: {len(all_messages)}"
             )
 
-            # Step 3: Get or create lead
+            # Step 3: Get or create lead - check both with and without ig_ prefix
             days_limit_ago = datetime.now().astimezone() - timedelta(days=180)
 
             lead = (
                 session.query(Lead)
-                .filter_by(
-                    creator_id=creator.id, platform="instagram", platform_user_id=target_follower_id
+                .filter(
+                    Lead.creator_id == creator.id,
+                    Lead.platform == "instagram",
+                    Lead.platform_user_id.in_([target_follower_id, f"ig_{target_follower_id}"]),
                 )
                 .first()
             )
@@ -1180,13 +1182,13 @@ async def test_full_sync_conversation(creator_id: str, username: str):
                 else:
                     # Check if this is an empty/deleted message (no content at all)
                     has_any_content = (
-                        msg.get("message") or
-                        msg.get("attachments") or
-                        msg.get("share") or
-                        msg.get("shares") or
-                        msg.get("story") or
-                        msg.get("sticker") or
-                        msg.get("reactions")
+                        msg.get("message")
+                        or msg.get("attachments")
+                        or msg.get("share")
+                        or msg.get("shares")
+                        or msg.get("story")
+                        or msg.get("sticker")
+                        or msg.get("reactions")
                     )
                     if not has_any_content:
                         # Empty message - likely deleted or expired media
@@ -2588,13 +2590,13 @@ async def simple_dm_sync(creator_id: str, max_convs: int = 10):
                         except Exception as e:
                             logger.warning(f"Could not fetch profile for {follower_id}: {e}")
 
-                        # Get or create lead
+                        # Get or create lead - check both with and without ig_ prefix
                         lead = (
                             session.query(Lead)
-                            .filter_by(
-                                creator_id=creator.id,
-                                platform="instagram",
-                                platform_user_id=follower_id,
+                            .filter(
+                                Lead.creator_id == creator.id,
+                                Lead.platform == "instagram",
+                                Lead.platform_user_id.in_([follower_id, f"ig_{follower_id}"]),
                             )
                             .first()
                         )
@@ -4379,11 +4381,7 @@ async def fix_reaction_emojis():
         session = SessionLocal()
         try:
             # Find messages with reaction type or emoji in metadata
-            messages = (
-                session.query(Message)
-                .filter(Message.msg_metadata.isnot(None))
-                .all()
-            )
+            messages = session.query(Message).filter(Message.msg_metadata.isnot(None)).all()
 
             fixed_count = 0
             for msg in messages:
@@ -4429,7 +4427,8 @@ async def diagnose_duplicate_leads(creator_id: str):
 
         # 1. Count duplicates for this creator
         result = session.execute(
-            text("""
+            text(
+                """
                 SELECT COUNT(*) FROM (
                     SELECT username FROM leads
                     WHERE username IS NOT NULL AND username != ''
@@ -4437,14 +4436,16 @@ async def diagnose_duplicate_leads(creator_id: str):
                     GROUP BY username
                     HAVING COUNT(*) > 1
                 ) as dupes
-            """),
+            """
+            ),
             {"creator_id": str(creator.id)},
         )
         dupe_count = result.scalar()
 
         # 2. Get duplicate details with message counts
         result = session.execute(
-            text("""
+            text(
+                """
                 SELECT l.username, l.platform_user_id, l.id,
                        (SELECT COUNT(*) FROM messages m WHERE m.lead_id = l.id) as msg_count,
                        l.updated_at::date as updated
@@ -4458,7 +4459,8 @@ async def diagnose_duplicate_leads(creator_id: str):
                     HAVING COUNT(*) > 1
                 )
                 ORDER BY l.username, msg_count DESC
-            """),
+            """
+            ),
             {"creator_id": str(creator.id)},
         )
         rows = result.fetchall()
@@ -4468,12 +4470,14 @@ async def diagnose_duplicate_leads(creator_id: str):
             username = row[0]
             if username not in duplicates:
                 duplicates[username] = []
-            duplicates[username].append({
-                "platform_user_id": row[1],
-                "lead_id": str(row[2]),
-                "message_count": row[3],
-                "updated": str(row[4]) if row[4] else None,
-            })
+            duplicates[username].append(
+                {
+                    "platform_user_id": row[1],
+                    "lead_id": str(row[2]),
+                    "message_count": row[3],
+                    "updated": str(row[4]) if row[4] else None,
+                }
+            )
 
         # 3. Create backup
         backup_created = False
@@ -4534,7 +4538,8 @@ async def merge_duplicate_leads(creator_id: str):
 
         # Step 2: Find duplicates
         duplicates = session.execute(
-            text("""
+            text(
+                """
                 SELECT l.id, l.username, l.platform_user_id,
                        (SELECT COUNT(*) FROM messages m WHERE m.lead_id = l.id) as msg_count
                 FROM leads l
@@ -4545,7 +4550,8 @@ async def merge_duplicate_leads(creator_id: str):
                     WHERE l2.platform_user_id = REPLACE(l.platform_user_id, 'ig_', '')
                     AND l2.creator_id = l.creator_id
                 )
-            """),
+            """
+            ),
             {"cid": creator_uuid},
         ).fetchall()
 
@@ -4562,10 +4568,12 @@ async def merge_duplicate_leads(creator_id: str):
 
             # Find original lead
             original = session.execute(
-                text("""
+                text(
+                    """
                     SELECT id FROM leads
                     WHERE platform_user_id = :pid AND creator_id = :cid
-                """),
+                """
+                ),
                 {"pid": original_platform_id, "cid": creator_uuid},
             ).fetchone()
 
@@ -4587,12 +4595,14 @@ async def merge_duplicate_leads(creator_id: str):
                 )
                 leads_deleted += 1
 
-                details.append({
-                    "username": username,
-                    "deleted_platform_id": dup_platform_id,
-                    "kept_platform_id": original_platform_id,
-                    "messages_moved": dup_msg_count,
-                })
+                details.append(
+                    {
+                        "username": username,
+                        "deleted_platform_id": dup_platform_id,
+                        "kept_platform_id": original_platform_id,
+                        "messages_moved": dup_msg_count,
+                    }
+                )
 
         session.commit()
 

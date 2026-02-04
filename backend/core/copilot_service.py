@@ -135,9 +135,13 @@ class CopilotService:
                 logger.error(f"Creator {creator_id} not found")
                 return pending
 
+            # Check both with and without ig_ prefix to avoid duplicates
             lead = (
                 session.query(Lead)
-                .filter_by(creator_id=creator.id, platform_user_id=follower_id)
+                .filter(
+                    Lead.creator_id == creator.id,
+                    Lead.platform_user_id.in_([follower_id, f"ig_{follower_id}"]),
+                )
                 .first()
             )
 
@@ -409,7 +413,9 @@ class CopilotService:
 
         # Validate page_id is not garbage value
         if page_id == "auto" or len(page_id) < 5:
-            logger.error(f"[Copilot] Invalid page_id: '{page_id}' - creator may not have Instagram connected")
+            logger.error(
+                f"[Copilot] Invalid page_id: '{page_id}' - creator may not have Instagram connected"
+            )
             return {"success": False, "error": f"Invalid Instagram page_id: '{page_id}'"}
 
         connector = InstagramConnector(

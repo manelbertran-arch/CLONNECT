@@ -477,13 +477,13 @@ async def sync_dms():
                     stats["convs_no_messages"] += 1
                     continue
 
-                # Check if lead already exists
+                # Check if lead already exists - check both with and without ig_ prefix
                 lead = (
                     session.query(Lead)
-                    .filter_by(
-                        creator_id=creator.id,
-                        platform="instagram",
-                        platform_user_id=follower_id,
+                    .filter(
+                        Lead.creator_id == creator.id,
+                        Lead.platform == "instagram",
+                        Lead.platform_user_id.in_([follower_id, f"ig_{follower_id}"]),
                     )
                     .first()
                 )

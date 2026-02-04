@@ -289,21 +289,15 @@ def get_leads(creator_name: str, include_archived: bool = False):
         last_messages = {}
         if lead_ids:
             max_date_subq = (
-                session.query(
-                    Message.lead_id,
-                    func.max(Message.created_at).label("max_created_at")
-                )
+                session.query(Message.lead_id, func.max(Message.created_at).label("max_created_at"))
                 .filter(Message.lead_id.in_(lead_ids))
                 .group_by(Message.lead_id)
                 .subquery()
             )
-            last_msg_query = (
-                session.query(Message)
-                .join(
-                    max_date_subq,
-                    (Message.lead_id == max_date_subq.c.lead_id) &
-                    (Message.created_at == max_date_subq.c.max_created_at)
-                )
+            last_msg_query = session.query(Message).join(
+                max_date_subq,
+                (Message.lead_id == max_date_subq.c.lead_id)
+                & (Message.created_at == max_date_subq.c.max_created_at),
             )
             for msg in last_msg_query.all():
                 last_messages[msg.lead_id] = msg
@@ -423,23 +417,18 @@ def get_conversations_with_counts(
         if lead_ids:
             # Subquery to get the max created_at for each lead
             from sqlalchemy.orm import aliased
+
             max_date_subq = (
-                session.query(
-                    Message.lead_id,
-                    func.max(Message.created_at).label("max_created_at")
-                )
+                session.query(Message.lead_id, func.max(Message.created_at).label("max_created_at"))
                 .filter(Message.lead_id.in_(lead_ids))
                 .group_by(Message.lead_id)
                 .subquery()
             )
             # Join to get the actual message
-            last_msg_query = (
-                session.query(Message)
-                .join(
-                    max_date_subq,
-                    (Message.lead_id == max_date_subq.c.lead_id) &
-                    (Message.created_at == max_date_subq.c.max_created_at)
-                )
+            last_msg_query = session.query(Message).join(
+                max_date_subq,
+                (Message.lead_id == max_date_subq.c.lead_id)
+                & (Message.created_at == max_date_subq.c.max_created_at),
             )
             for msg in last_msg_query.all():
                 last_messages[msg.lead_id] = msg
@@ -1198,10 +1187,20 @@ def get_or_create_lead(
             logger.warning(f"get_or_create_lead: creator '{creator_name}' not found")
             return None
 
-        # Check if lead already exists
+        # Check if lead already exists - check both with and without ig_ prefix
+        # to prevent duplicates from different sources
+        raw_id = (
+            platform_user_id.replace("ig_", "")
+            if platform_user_id.startswith("ig_")
+            else platform_user_id
+        )
+        possible_ids = [platform_user_id, f"ig_{raw_id}", raw_id]
+        # Remove duplicates while preserving order
+        possible_ids = list(dict.fromkeys(possible_ids))
+
         lead = (
             session.query(Lead)
-            .filter_by(creator_id=creator.id, platform_user_id=platform_user_id)
+            .filter(Lead.creator_id == creator.id, Lead.platform_user_id.in_(possible_ids))
             .first()
         )
 

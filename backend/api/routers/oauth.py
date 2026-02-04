@@ -10,7 +10,6 @@ from urllib.parse import urlencode
 
 from fastapi import APIRouter, BackgroundTasks, HTTPException, Query
 from fastapi.responses import RedirectResponse
-
 from services.media_capture_service import capture_media_from_url, is_cdn_url
 
 logger = logging.getLogger(__name__)
@@ -453,13 +452,13 @@ async def _simple_dm_sync_internal(
                     first_contact = min(all_timestamps) if all_timestamps else None
                     last_contact = max(user_timestamps) if user_timestamps else first_contact
 
-                    # Get or create lead
+                    # Get or create lead - check both with and without ig_ prefix
                     lead = (
                         session.query(Lead)
-                        .filter_by(
-                            creator_id=creator.id,
-                            platform="instagram",
-                            platform_user_id=follower_id,
+                        .filter(
+                            Lead.creator_id == creator.id,
+                            Lead.platform == "instagram",
+                            Lead.platform_user_id.in_([follower_id, f"ig_{follower_id}"]),
                         )
                         .first()
                     )
@@ -549,7 +548,11 @@ async def _simple_dm_sync_internal(
                                 story_cdn_url = (
                                     att.get("video_data", {}).get("url")
                                     or att.get("image_data", {}).get("url")
-                                    or (att.get("payload", {}).get("url") if isinstance(att.get("payload"), dict) else None)
+                                    or (
+                                        att.get("payload", {}).get("url")
+                                        if isinstance(att.get("payload"), dict)
+                                        else None
+                                    )
                                     or att.get("url")
                                 )
 
@@ -559,7 +562,8 @@ async def _simple_dm_sync_internal(
                                 msg_text = f"Reacción {reaction_emoji} a story"
                                 msg_metadata = {
                                     "type": "story_reaction",
-                                    "url": story_cdn_url or story_link,  # CDN URL first, fallback to permalink
+                                    "url": story_cdn_url
+                                    or story_link,  # CDN URL first, fallback to permalink
                                     "link": story_link,  # Keep permalink for "open in Instagram"
                                     "emoji": reaction_emoji,
                                 }
@@ -720,7 +724,9 @@ async def _simple_dm_sync_internal(
                                         break
                                     elif isinstance(value, dict):
                                         for subkey, subvalue in value.items():
-                                            if isinstance(subvalue, str) and subvalue.startswith("http"):
+                                            if isinstance(subvalue, str) and subvalue.startswith(
+                                                "http"
+                                            ):
                                                 fallback_url = subvalue
                                                 break
                                         if fallback_url:

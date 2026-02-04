@@ -760,7 +760,9 @@ async def _run_clone_creation(creator_id: str, website_url: str = None):
         try:
             creator = session.query(Creator).filter_by(name=creator_id).first()
             if not creator or not creator.instagram_token:
-                logger.error("[CloneCreation] Creator %s not found or no Instagram token", creator_id)
+                logger.error(
+                    "[CloneCreation] Creator %s not found or no Instagram token", creator_id
+                )
                 _update_clone_progress(
                     creator_id, status="error", error="Creator not found or no Instagram token"
                 )
@@ -774,7 +776,10 @@ async def _run_clone_creation(creator_id: str, website_url: str = None):
             if not website_url and creator.knowledge_about:
                 website_url = creator.knowledge_about.get("website_url")
                 if website_url:
-                    logger.info("[CloneCreation] FALLBACK: Using website_url from knowledge_about: %s", website_url)
+                    logger.info(
+                        "[CloneCreation] FALLBACK: Using website_url from knowledge_about: %s",
+                        website_url,
+                    )
 
             # Step 1: Scrape Instagram posts
             logger.info(f"[CloneCreation] Step 1: Scraping Instagram for {creator_id}")
@@ -800,12 +805,16 @@ async def _run_clone_creation(creator_id: str, website_url: str = None):
             _update_clone_progress(creator_id, step="website", step_status="active", percent=30)
 
             if website_url:
-                logger.info(f"[CloneCreation] Step 2: Website ingestion (RAG + Products) from {website_url}")
+                logger.info(
+                    f"[CloneCreation] Step 2: Website ingestion (RAG + Products) from {website_url}"
+                )
                 try:
                     from ingestion.v2.pipeline import IngestionV2Pipeline
 
                     # Use existing db session - guaranteed valid at this point
-                    logger.info(f"[CloneCreation] Using db_session={session} for IngestionV2Pipeline")
+                    logger.info(
+                        f"[CloneCreation] Using db_session={session} for IngestionV2Pipeline"
+                    )
                     pipeline = IngestionV2Pipeline(db_session=session, max_pages=100)
                     result = await pipeline.run(
                         creator_id=creator_id,
@@ -822,8 +831,11 @@ async def _run_clone_creation(creator_id: str, website_url: str = None):
                         f"products_saved={result.products_saved}, "
                         f"rag_docs={result.rag_docs_saved}"
                     )
-                    logger.info("[CloneCreation] Results: products=%d, rag_docs=%d",
-                                result.products_saved, result.rag_docs_saved)
+                    logger.info(
+                        "[CloneCreation] Results: products=%d, rag_docs=%d",
+                        result.products_saved,
+                        result.rag_docs_saved,
+                    )
 
                     if result.products_saved == 0 and result.products_detected > 0:
                         logger.warning(
@@ -4008,13 +4020,13 @@ async def sync_instagram_dms(request: InstagramDMSyncRequest):
                             if not follower_id:
                                 continue
 
-                            # Create or get Lead
+                            # Create or get Lead - check both with and without ig_ prefix
                             lead = (
                                 session.query(Lead)
-                                .filter_by(
-                                    creator_id=creator.id,
-                                    platform="instagram",
-                                    platform_user_id=follower_id,
+                                .filter(
+                                    Lead.creator_id == creator.id,
+                                    Lead.platform == "instagram",
+                                    Lead.platform_user_id.in_([follower_id, f"ig_{follower_id}"]),
                                 )
                                 .first()
                             )
@@ -4369,13 +4381,13 @@ async def _background_dm_sync(
                             if not follower_id:
                                 continue
 
-                            # Get or create lead
+                            # Get or create lead - check both with and without ig_ prefix
                             lead = (
                                 session.query(Lead)
-                                .filter_by(
-                                    creator_id=creator.id,
-                                    platform="instagram",
-                                    platform_user_id=follower_id,
+                                .filter(
+                                    Lead.creator_id == creator.id,
+                                    Lead.platform == "instagram",
+                                    Lead.platform_user_id.in_([follower_id, f"ig_{follower_id}"]),
                                 )
                                 .first()
                             )

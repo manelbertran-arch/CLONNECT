@@ -751,10 +751,11 @@ class InstagramHandler:
                     context["profile_retry_at"] = None
 
                 # Create COMPLETE lead with all fields
+                # Use raw sender_id (no ig_ prefix) for consistency
                 lead = Lead(
                     creator_id=creator.id,
                     platform="instagram",
-                    platform_user_id=f"ig_{sender_id}",
+                    platform_user_id=sender_id,  # No prefix - prevents duplicates
                     username=username,
                     full_name=full_name,
                     profile_pic_url=profile_pic_url,
@@ -1905,10 +1906,11 @@ class InstagramHandler:
 
                 if not lead:
                     # Create lead if doesn't exist
+                    # Use raw sender_id (no ig_ prefix) for consistency
                     lead = Lead(
                         creator_id=creator.id,
                         platform="instagram",
-                        platform_user_id=f"ig_{msg.sender_id}",
+                        platform_user_id=msg.sender_id,  # No prefix - prevents duplicates
                         username=username or None,
                         full_name=full_name or None,
                         status="nuevo",
@@ -2015,10 +2017,11 @@ class InstagramHandler:
 
                 if not lead:
                     # Create lead if doesn't exist
+                    # Use raw sender_id (no ig_ prefix) for consistency
                     lead = Lead(
                         creator_id=creator.id,
                         platform="instagram",
-                        platform_user_id=f"ig_{msg.sender_id}",
+                        platform_user_id=msg.sender_id,  # No prefix - prevents duplicates
                         username=username or None,
                         full_name=full_name or None,
                         status="nuevo",

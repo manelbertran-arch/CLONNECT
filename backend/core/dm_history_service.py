@@ -13,9 +13,9 @@ FILTROS DE SEGURIDAD:
 """
 
 import logging
-from datetime import datetime, timezone, timedelta
-from typing import Optional, List, Dict, Any
 from dataclasses import dataclass
+from datetime import datetime, timedelta, timezone
+from typing import Any, Dict, List, Optional
 
 logger = logging.getLogger(__name__)
 
@@ -27,6 +27,7 @@ DEFAULT_MIN_MESSAGE_LENGTH = 1  # Mínimo 1 carácter después de strip()
 @dataclass
 class ConversationSummary:
     """Resumen de una conversación importada"""
+
     follower_id: str
     username: str
     message_count: int
@@ -47,7 +48,7 @@ class DMHistoryService:
         ig_user_id: str,
         limit: int = 50,
         max_age_days: int = DEFAULT_MAX_AGE_DAYS,
-        use_pagination: bool = False
+        use_pagination: bool = False,
     ) -> Dict[str, Any]:
         """
         Cargar historial de DMs desde Instagram.
@@ -68,7 +69,9 @@ class DMHistoryService:
 
         # Calcular fecha límite para filtrar mensajes
         cutoff_date = datetime.now(timezone.utc) - timedelta(days=max_age_days)
-        logger.info(f"[DMHistory] Loading DM history for {creator_id} (max_age: {max_age_days} days, cutoff: {cutoff_date.date()}, pagination: {use_pagination})")
+        logger.info(
+            f"[DMHistory] Loading DM history for {creator_id} (max_age: {max_age_days} days, cutoff: {cutoff_date.date()}, pagination: {use_pagination})"
+        )
 
         stats = {
             "conversations_found": 0,
@@ -78,21 +81,18 @@ class DMHistoryService:
             "messages_skipped_duplicate": 0,
             "messages_filtered": 0,  # Mensajes filtrados por fecha/vacíos
             "max_age_days": max_age_days,
-            "errors": []
+            "errors": [],
         }
 
         try:
             connector = InstagramConnector(
-                access_token=access_token,
-                page_id=page_id,
-                ig_user_id=ig_user_id
+                access_token=access_token, page_id=page_id, ig_user_id=ig_user_id
             )
 
             # Obtener conversaciones (con o sin paginación)
             if use_pagination:
                 conversations = await connector.get_all_conversations(
-                    max_pages=20,
-                    cutoff_date=cutoff_date
+                    max_pages=20, cutoff_date=cutoff_date
                 )
             else:
                 conversations = await connector.get_conversations(limit=limit)
@@ -109,9 +109,7 @@ class DMHistoryService:
                     # Obtener mensajes de la conversación (con o sin paginación)
                     if use_pagination:
                         messages = await connector.get_all_conversation_messages(
-                            conv_id,
-                            max_pages=20,
-                            cutoff_date=cutoff_date
+                            conv_id, max_pages=20, cutoff_date=cutoff_date
                         )
                     else:
                         messages = await connector.get_conversation_messages(conv_id, limit=50)
@@ -168,7 +166,7 @@ class DMHistoryService:
                         messages=messages,
                         page_id=page_id,
                         ig_user_id=ig_user_id,
-                        cutoff_date=cutoff_date
+                        cutoff_date=cutoff_date,
                     )
 
                     if result.get("lead_created"):
@@ -176,7 +174,9 @@ class DMHistoryService:
                     if result.get("lead_updated"):
                         stats["leads_updated"] += 1
                     stats["messages_imported"] += result.get("messages_imported", 0)
-                    stats["messages_skipped_duplicate"] += result.get("messages_skipped_duplicate", 0)
+                    stats["messages_skipped_duplicate"] += result.get(
+                        "messages_skipped_duplicate", 0
+                    )
                     stats["messages_filtered"] += result.get("messages_filtered", 0)
 
                 except Exception as e:
@@ -203,7 +203,7 @@ class DMHistoryService:
         messages: List[Dict],
         page_id: str,
         ig_user_id: str,
-        cutoff_date: datetime = None
+        cutoff_date: datetime = None,
     ) -> Dict[str, Any]:
         """
         Importar una conversación a la base de datos.
@@ -222,7 +222,7 @@ class DMHistoryService:
             "lead_updated": False,
             "messages_imported": 0,
             "messages_skipped_duplicate": 0,
-            "messages_filtered": 0
+            "messages_filtered": 0,
         }
 
         try:
@@ -230,11 +230,15 @@ class DMHistoryService:
             if not creator:
                 return result
 
-            # Verificar si el lead ya existe
-            lead = session.query(Lead).filter_by(
-                creator_id=creator.id,
-                platform_user_id=follower_id
-            ).first()
+            # Verificar si el lead ya existe - check both with and without ig_ prefix
+            lead = (
+                session.query(Lead)
+                .filter(
+                    Lead.creator_id == creator.id,
+                    Lead.platform_user_id.in_([follower_id, f"ig_{follower_id}"]),
+                )
+                .first()
+            )
 
             if not lead:
                 lead = Lead(
@@ -243,7 +247,7 @@ class DMHistoryService:
                     platform_user_id=follower_id,
                     username=username,
                     full_name=full_name or None,
-                    status="new"
+                    status="new",
                 )
                 session.add(lead)
                 session.commit()
@@ -262,9 +266,7 @@ class DMHistoryService:
 
             # Procesar mensajes (del más antiguo al más reciente)
             messages_sorted = sorted(
-                messages,
-                key=lambda m: m.get("created_time", ""),
-                reverse=False
+                messages, key=lambda m: m.get("created_time", ""), reverse=False
             )
 
             purchase_signals = 0
@@ -297,7 +299,7 @@ class DMHistoryService:
                 msg_timestamp = None
                 if created_time:
                     try:
-                        msg_timestamp = datetime.fromisoformat(created_time.replace('Z', '+00:00'))
+                        msg_timestamp = datetime.fromisoformat(created_time.replace("Z", "+00:00"))
                     except ValueError as e:
                         logger.warning("Failed to parse message timestamp: %s", e)
 
@@ -311,10 +313,11 @@ class DMHistoryService:
                 role = "assistant" if is_from_creator else "user"
 
                 # Verificar si el mensaje ya existe (deduplication by platform_message_id)
-                existing = session.query(Message).filter_by(
-                    lead_id=lead.id,
-                    platform_message_id=msg_id
-                ).first()
+                existing = (
+                    session.query(Message)
+                    .filter_by(lead_id=lead.id, platform_message_id=msg_id)
+                    .first()
+                )
 
                 if existing:
                     result["messages_skipped_duplicate"] += 1
@@ -345,7 +348,7 @@ class DMHistoryService:
                     intent=intent,
                     status="sent",
                     platform_message_id=msg_id,
-                    created_at=created_at
+                    created_at=created_at,
                 )
                 session.add(db_msg)
                 result["messages_imported"] += 1
@@ -375,13 +378,17 @@ class DMHistoryService:
 
                 if first_msg_time:
                     try:
-                        lead.first_contact_at = datetime.fromisoformat(first_msg_time.replace('Z', '+00:00'))
+                        lead.first_contact_at = datetime.fromisoformat(
+                            first_msg_time.replace("Z", "+00:00")
+                        )
                     except ValueError as e:
                         logger.warning("Failed to parse first_contact_at: %s", e)
 
                 if last_msg_time:
                     try:
-                        lead.last_contact_at = datetime.fromisoformat(last_msg_time.replace('Z', '+00:00'))
+                        lead.last_contact_at = datetime.fromisoformat(
+                            last_msg_time.replace("Z", "+00:00")
+                        )
                     except ValueError as e:
                         logger.warning("Failed to parse last_contact_at: %s", e)
 
