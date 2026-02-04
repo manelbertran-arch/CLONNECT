@@ -358,10 +358,18 @@ async def reconcile_messages_for_creator(
             participants = conv.get("participants", {}).get("data", [])
 
             # Find the follower (non-creator participant)
+            # Exclude both ig_user_id AND instagram_page_id to avoid creating leads
+            # for the creator's own account (which can have multiple IDs)
+            creator_ids = {ig_user_id}
+            if creator.instagram_user_id:
+                creator_ids.add(creator.instagram_user_id)
+            if creator.instagram_page_id:
+                creator_ids.add(creator.instagram_page_id)
+
             follower_id = None
             for p in participants:
                 p_id = p.get("id", "")
-                if p_id and p_id != ig_user_id:
+                if p_id and p_id not in creator_ids:
                     follower_id = p_id
                     break
 
