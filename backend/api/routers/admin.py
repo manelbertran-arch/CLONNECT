@@ -4774,10 +4774,81 @@ async def full_diagnostic(creator_id: str, username: str = None):
             {"cid": creator_uuid},
         ).scalar()
 
+        # 6. Check constraints on leads table
+        result = session.execute(
+            text("""
+                SELECT conname, contype, pg_get_constraintdef(oid)
+                FROM pg_constraint
+                WHERE conrelid = 'leads'::regclass
+            """)
+        )
+        rows = result.fetchall()
+        results["table_constraints"] = [
+            {"name": r[0], "type": r[1], "definition": r[2]}
+            for r in rows
+        ]
+
+        # 7. Find duplicates by platform_user_id
+        result = session.execute(
+            text("""
+                SELECT platform_user_id, COUNT(*) as cnt,
+                       array_agg(username) as usernames,
+                       array_agg(id::text) as ids
+                FROM leads
+                WHERE creator_id = :cid
+                GROUP BY platform_user_id
+                HAVING COUNT(*) > 1
+            """),
+            {"cid": creator_uuid},
+        )
+        rows = result.fetchall()
+        results["duplicates_by_platform_id"] = [
+            {"platform_user_id": r[0], "count": r[1], "usernames": r[2], "ids": r[3]}
+            for r in rows
+        ]
+
+        # 8. Leads created in last 30 minutes
+        result = session.execute(
+            text("""
+                SELECT l.username, l.platform_user_id, l.created_at::text,
+                       (SELECT COUNT(*) FROM messages m WHERE m.lead_id = l.id) as msg_count
+                FROM leads l
+                WHERE l.creator_id = :cid
+                AND l.created_at > NOW() - INTERVAL '30 minutes'
+                ORDER BY l.created_at DESC
+            """),
+            {"cid": creator_uuid},
+        )
+        rows = result.fetchall()
+        results["leads_created_last_30min"] = [
+            {"username": r[0], "platform_user_id": r[1], "created_at": r[2][:19] if r[2] else None, "msg_count": r[3]}
+            for r in rows
+        ]
+
+        # 9. Leads with 0 messages
+        result = session.execute(
+            text("""
+                SELECT l.username, l.platform_user_id, l.created_at::text
+                FROM leads l
+                WHERE l.creator_id = :cid
+                AND NOT EXISTS (SELECT 1 FROM messages m WHERE m.lead_id = l.id)
+                ORDER BY l.created_at DESC
+                LIMIT 10
+            """),
+            {"cid": creator_uuid},
+        )
+        rows = result.fetchall()
+        results["leads_with_zero_messages"] = [
+            {"username": r[0], "platform_user_id": r[1], "created_at": r[2][:19] if r[2] else None}
+            for r in rows
+        ]
+
         results["summary"] = {
             "total_leads": total_leads,
             "leads_with_messages": leads_with_messages,
             "leads_without_profile_count": len(results["leads_without_profile"]),
+            "duplicates_count": len(results["duplicates_by_platform_id"]),
+            "zero_message_leads_count": len(results["leads_with_zero_messages"]),
         }
 
         return {"status": "ok", "creator_id": creator_id, "results": results}
