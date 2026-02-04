@@ -1,0 +1,107 @@
+{
+  "total_messages": 3056,
+  "capitalization": {
+    "starts_upper_pct": 0.8658376963350786,
+    "starts_lower_pct": 0.0487565445026178,
+    "all_caps_pct": 0.010143979057591623
+  },
+  "punctuation": {
+    "ends_exclamation_pct": 0.15412303664921467,
+    "ends_question_pct": 0.10863874345549739,
+    "ends_period_pct": 0.01112565445026178,
+    "ends_emoji_pct": 0.10078534031413612,
+    "has_ellipsis_pct": 0.0,
+    "double_exclamation_pct": 0.07951570680628273
+  },
+  "laughs": {
+    "total_pct": 0.06708115183246073,
+    "patterns": {
+      "jajaja+": 39,
+      "jaja": 137,
+      "jeje": 8,
+      "haha": 2,
+      "😂": 16,
+      "🤣": 3
+    }
+  },
+  "emojis": {
+    "messages_with_emoji_pct": 0.2244764397905759,
+    "top_emojis": [
+      "😀",
+      "😊",
+      "❤",
+      "💙",
+      "☺",
+      "🙏🏽",
+      "🙌🏾",
+      "😀😀",
+      "😌",
+      "😂"
+    ],
+    "position": {
+      "at_start_pct": 0.07725947521865889,
+      "at_end_pct": 0.8119533527696793,
+      "middle_pct": 0.11078717201166181
+    }
+  },
+  "length": {
+    "mean": 37.56086387434555,
+    "median": 22.0
+  },
+  "top_responses": [
+    "[Media/Attachment]",
+    "Mención en story",
+    "Jajaja",
+    "[Media]",
+    "Cómo estás?",
+    "Jaja",
+    "Gracias 🙏🏽",
+    "🫂",
+    "Gracias",
+    "Cómo estás??",
+    "Gracias hermano!",
+    "Reacción ❤",
+    "Hola!!",
+    "Hola amigo",
+    "Gracias por tu mensaje!",
+    "👏",
+    "😍",
+    "😀",
+    "Jajajaja",
+    "695112016"
+  ],
+  "top_openers": [
+    "[media/attachment]",
+    "mención en story",
+    "jajaja",
+    "gracias por tu",
+    "jaja",
+    "[media]",
+    "cómo estás?",
+    "gracias 🙏🏽",
+    "🫂",
+    "muchas gracias por",
+    "gracias por venir",
+    "gracias",
+    "cómo estás??",
+    "gracias hermano!",
+    "reacción ❤"
+  ],
+  "top_closers": [
+    "[media/attachment]",
+    "gracias",
+    "mención en story",
+    "jajaja",
+    "jaja",
+    "muchas gracias",
+    "[media]",
+    "cómo estás?",
+    "🫂",
+    "por tu mensaje",
+    "gracias ️",
+    "️",
+    "gracias!",
+    "cómo estás??",
+    "gracias hermano!"
+  ]
+}

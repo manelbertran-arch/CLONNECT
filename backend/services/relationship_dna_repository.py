@@ -1,15 +1,20 @@
 """Repository functions for RelationshipDNA CRUD operations.
 
 Follows the same pattern as api/services/db_service.py for consistency.
+Falls back to JSON file storage when database is not available.
 
 Part of RELATIONSHIP-DNA feature.
 """
 
+import json
 import logging
-from datetime import datetime, timezone
+from pathlib import Path
 from typing import Dict, List, Optional
 
 logger = logging.getLogger(__name__)
+
+# JSON file storage path
+DNA_BASE_DIR = Path(__file__).parent.parent / "data" / "relationship_dna"
 
 
 def get_session():
@@ -44,9 +49,7 @@ def _dna_to_dict(dna) -> Dict:
         "bot_instructions": dna.bot_instructions,
         "golden_examples": dna.golden_examples or [],
         "total_messages_analyzed": dna.total_messages_analyzed or 0,
-        "last_analyzed_at": (
-            dna.last_analyzed_at.isoformat() if dna.last_analyzed_at else None
-        ),
+        "last_analyzed_at": (dna.last_analyzed_at.isoformat() if dna.last_analyzed_at else None),
         "version": dna.version or 1,
         "created_at": dna.created_at.isoformat() if dna.created_at else None,
         "updated_at": dna.updated_at.isoformat() if dna.updated_at else None,
@@ -106,9 +109,7 @@ def create_relationship_dna(
         session.add(dna)
         session.commit()
 
-        logger.info(
-            f"Created RelationshipDNA for {creator_id}/{follower_id}: {relationship_type}"
-        )
+        logger.info(f"Created RelationshipDNA for {creator_id}/{follower_id}: {relationship_type}")
         return _dna_to_dict(dna)
 
     except Exception as e:
@@ -119,12 +120,50 @@ def create_relationship_dna(
         session.close()
 
 
+def _get_dna_from_json(creator_id: str, follower_id: str) -> Optional[Dict]:
+    """Get DNA from JSON file storage.
+
+    Args:
+        creator_id: Creator identifier
+        follower_id: Follower/lead identifier
+
+    Returns:
+        Dict with DNA data or None if not found
+    """
+    # Build possible file paths
+    creator_dir = DNA_BASE_DIR / creator_id
+    if not creator_dir.exists():
+        return None
+
+    # Try different follower_id formats
+    follower_ids_to_try = [follower_id]
+    if "_" in follower_id:
+        without_prefix = follower_id.split("_", 1)[1]
+        follower_ids_to_try.append(without_prefix)
+    else:
+        follower_ids_to_try.append(f"ig_{follower_id}")
+
+    for fid in follower_ids_to_try:
+        json_path = creator_dir / f"{fid}.json"
+        if json_path.exists():
+            try:
+                with open(json_path) as f:
+                    return json.load(f)
+            except Exception as e:
+                logger.error(f"Error reading DNA JSON {json_path}: {e}")
+                continue
+
+    return None
+
+
 def get_relationship_dna(creator_id: str, follower_id: str) -> Optional[Dict]:
     """Get RelationshipDNA by creator_id and follower_id.
 
     Handles both formats of follower_id:
     - With platform prefix: "ig_687843303852230"
     - Without prefix: "687843303852230"
+
+    Falls back to JSON file storage when database is not available.
 
     Args:
         creator_id: Creator identifier
@@ -134,8 +173,10 @@ def get_relationship_dna(creator_id: str, follower_id: str) -> Optional[Dict]:
         Dict with DNA data or None if not found
     """
     session = get_session()
+
+    # If no database session, try JSON files
     if not session:
-        return None
+        return _get_dna_from_json(creator_id, follower_id)
 
     try:
         from api.models import RelationshipDNAModel
@@ -160,18 +201,18 @@ def get_relationship_dna(creator_id: str, follower_id: str) -> Optional[Dict]:
             if dna:
                 return _dna_to_dict(dna)
 
-        return None
+        # If not in database, try JSON files as fallback
+        return _get_dna_from_json(creator_id, follower_id)
 
     except Exception as e:
         logger.error(f"get_relationship_dna error: {e}")
-        return None
+        # Try JSON as last resort
+        return _get_dna_from_json(creator_id, follower_id)
     finally:
         session.close()
 
 
-def update_relationship_dna(
-    creator_id: str, follower_id: str, data: Dict
-) -> bool:
+def update_relationship_dna(creator_id: str, follower_id: str, data: Dict) -> bool:
     """Update an existing RelationshipDNA record.
 
     Args:
@@ -196,9 +237,7 @@ def update_relationship_dna(
         )
 
         if not dna:
-            logger.warning(
-                f"update_relationship_dna: DNA not found for {creator_id}/{follower_id}"
-            )
+            logger.warning(f"update_relationship_dna: DNA not found for {creator_id}/{follower_id}")
             return False
 
         # Update allowed fields
@@ -240,9 +279,7 @@ def update_relationship_dna(
         session.close()
 
 
-def get_or_create_relationship_dna(
-    creator_id: str, follower_id: str
-) -> Optional[Dict]:
+def get_or_create_relationship_dna(creator_id: str, follower_id: str) -> Optional[Dict]:
     """Get existing DNA or create new one with defaults.
 
     Args:
@@ -295,8 +332,35 @@ def get_or_create_relationship_dna(
         session.close()
 
 
+def _list_dnas_from_json(creator_id: str) -> List[Dict]:
+    """List all DNA records from JSON files for a creator.
+
+    Args:
+        creator_id: Creator identifier
+
+    Returns:
+        List of DNA dicts
+    """
+    creator_dir = DNA_BASE_DIR / creator_id
+    if not creator_dir.exists():
+        return []
+
+    dnas = []
+    for json_file in creator_dir.glob("*.json"):
+        try:
+            with open(json_file) as f:
+                dnas.append(json.load(f))
+        except Exception as e:
+            logger.error(f"Error reading DNA JSON {json_file}: {e}")
+            continue
+
+    return dnas
+
+
 def list_relationship_dnas_by_creator(creator_id: str) -> List[Dict]:
     """List all RelationshipDNA records for a creator.
+
+    Falls back to JSON file storage when database is not available.
 
     Args:
         creator_id: Creator identifier
@@ -305,23 +369,32 @@ def list_relationship_dnas_by_creator(creator_id: str) -> List[Dict]:
         List of DNA dicts
     """
     session = get_session()
+
+    # If no database session, try JSON files
     if not session:
-        return []
+        return _list_dnas_from_json(creator_id)
 
     try:
         from api.models import RelationshipDNAModel
 
-        dnas = (
-            session.query(RelationshipDNAModel)
-            .filter_by(creator_id=creator_id)
-            .all()
-        )
+        dnas = session.query(RelationshipDNAModel).filter_by(creator_id=creator_id).all()
 
-        return [_dna_to_dict(dna) for dna in dnas]
+        db_dnas = [_dna_to_dict(dna) for dna in dnas]
+
+        # Also include JSON files (for local development)
+        json_dnas = _list_dnas_from_json(creator_id)
+
+        # Merge, preferring database records
+        seen_ids = {d["follower_id"] for d in db_dnas}
+        for jd in json_dnas:
+            if jd.get("follower_id") not in seen_ids:
+                db_dnas.append(jd)
+
+        return db_dnas
 
     except Exception as e:
         logger.error(f"list_relationship_dnas_by_creator error: {e}")
-        return []
+        return _list_dnas_from_json(creator_id)
     finally:
         session.close()
 
@@ -350,9 +423,7 @@ def delete_relationship_dna(creator_id: str, follower_id: str) -> bool:
         )
 
         if not dna:
-            logger.warning(
-                f"delete_relationship_dna: DNA not found for {creator_id}/{follower_id}"
-            )
+            logger.warning(f"delete_relationship_dna: DNA not found for {creator_id}/{follower_id}")
             return False
 
         session.delete(dna)

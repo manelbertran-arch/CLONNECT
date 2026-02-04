@@ -12,6 +12,7 @@ import logging
 from typing import Any, Dict, Optional
 
 from models.post_context import PostContext
+from models.writing_patterns import format_writing_patterns_for_prompt
 from services.creator_dm_style_service import get_creator_dm_style_for_prompt
 from services.post_context_repository import get_post_context
 from services.relationship_dna_repository import get_relationship_dna
@@ -94,6 +95,15 @@ async def build_context_prompt(
             logger.debug(f"Added CreatorDMStyle for {creator_id}")
     except Exception as e:
         logger.error(f"Error getting creator style: {e}")
+
+    # 1.5 Get WritingPatterns (detailed writing style)
+    try:
+        writing_patterns = format_writing_patterns_for_prompt(creator_id)
+        if writing_patterns:
+            sections.append(writing_patterns)
+            logger.debug(f"Added WritingPatterns for {creator_id}")
+    except Exception as e:
+        logger.error(f"Error getting writing patterns: {e}")
 
     # 2. Get RelationshipDNA (per-lead personalization)
     try:
@@ -199,8 +209,9 @@ def _format_dna_for_prompt(dna: Dict[str, Any]) -> Optional[str]:
     if examples and len(examples) > 0:
         parts.append("\nEjemplos de cómo respondes a esta persona:")
         for ex in examples[:3]:
-            user_msg = ex.get("user", "")
-            assistant_msg = ex.get("assistant", "")
+            # Handle both formats: user/assistant or lead/creator
+            user_msg = ex.get("user") or ex.get("lead", "")
+            assistant_msg = ex.get("assistant") or ex.get("creator", "")
             if user_msg and assistant_msg:
                 parts.append(f"  Usuario: {user_msg[:80]}")
                 parts.append(f"  Tú: {assistant_msg[:80]}")

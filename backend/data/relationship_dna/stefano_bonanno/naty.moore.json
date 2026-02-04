@@ -1,0 +1,43 @@
+{
+  "creator_id": "stefano_bonanno",
+  "follower_id": "naty.moore",
+  "relationship_type": "DESCONOCIDO",
+  "trust_score": 0.128,
+  "depth_level": 1,
+  "vocabulary_uses": [
+    "genial"
+  ],
+  "vocabulary_avoids": [],
+  "emojis": [
+    "💪",
+    "😊"
+  ],
+  "avg_message_length": 45,
+  "questions_frequency": 0.57,
+  "multi_message_frequency": 0.0,
+  "tone_description": "Neutral, amable, sin asumir confianza",
+  "recurring_topics": [
+    "circulos de hombres"
+  ],
+  "private_references": [],
+  "bot_instructions": "USA estas palabras: genial Puedes usar estos emojis: 💪 😊 Temas recurrentes que puedes mencionar: circulos de hombres",
+  "golden_examples": [
+    {
+      "lead": "Siiiiii!",
+      "creator": "💪"
+    },
+    {
+      "lead": "Qué es lo más tarde que podrías?",
+      "creator": "Hola! 😊 ¿Te refieres a los encuentros del Círculo de Hombres?"
+    },
+    {
+      "lead": "Es que siempre termino de trabajar en la noche",
+      "creator": "Entiendo! 😊 Podemos ver opciones para que puedas unirte. ¿Qué horarios te vendrían mejor?"
+    }
+  ],
+  "total_messages_analyzed": 14,
+  "username": "naty.moore",
+  "source_file": "naty.moore.json",
+  "generated_at": "2026-02-04T18:33:29.645549+00:00",
+  "last_analyzed_at": "2026-02-04T18:33:29.645550+00:00"
+}

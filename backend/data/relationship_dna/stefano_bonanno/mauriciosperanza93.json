@@ -1,0 +1,39 @@
+{
+  "creator_id": "stefano_bonanno",
+  "follower_id": "mauriciosperanza93",
+  "relationship_type": "DESCONOCIDO",
+  "trust_score": 0.128,
+  "depth_level": 1,
+  "vocabulary_uses": [],
+  "vocabulary_avoids": [],
+  "emojis": [
+    "💪",
+    "😊"
+  ],
+  "avg_message_length": 26,
+  "questions_frequency": 0.43,
+  "multi_message_frequency": 0.0,
+  "tone_description": "Neutral, amable, sin asumir confianza",
+  "recurring_topics": [],
+  "private_references": [],
+  "bot_instructions": "Puedes usar estos emojis: 💪 😊",
+  "golden_examples": [
+    {
+      "lead": "Steff",
+      "creator": "Hola! Qué tal? 😊"
+    },
+    {
+      "lead": "Desde ayer que no puedo reservar",
+      "creator": "Hola! Todo bien? Te ayudo con eso. 🤔"
+    },
+    {
+      "lead": "No me deja",
+      "creator": "Dale, lo consulto y te cuento! 💪"
+    }
+  ],
+  "total_messages_analyzed": 14,
+  "username": "mauriciosperanza93",
+  "source_file": "mauriciosperanza93.json",
+  "generated_at": "2026-02-04T18:33:29.645380+00:00",
+  "last_analyzed_at": "2026-02-04T18:33:29.645381+00:00"
+}

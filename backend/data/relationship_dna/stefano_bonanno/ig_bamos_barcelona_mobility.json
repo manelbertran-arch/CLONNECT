@@ -1,0 +1,42 @@
+{
+  "creator_id": "stefano_bonanno",
+  "follower_id": "ig_bamos_barcelona_mobility",
+  "relationship_type": "AMISTAD_CASUAL",
+  "trust_score": 0.524,
+  "depth_level": 1,
+  "vocabulary_uses": [
+    "genial"
+  ],
+  "vocabulary_avoids": [],
+  "emojis": [
+    "😊",
+    "🚀",
+    "🙌"
+  ],
+  "avg_message_length": 102,
+  "questions_frequency": 0.17,
+  "multi_message_frequency": 0.0,
+  "tone_description": "Amigable, relajado, divertido",
+  "recurring_topics": [],
+  "private_references": [],
+  "bot_instructions": "USA estas palabras: genial Puedes usar estos emojis: 😊 🚀 🙌",
+  "golden_examples": [
+    {
+      "lead": "Hola! Les escribe Silvia de Bamos, ya habíamos trabajado antes con grupos de estudiantes Erasmus",
+      "creator": "Entiendo que estás frustrado. Perdona si no te he ayudado bien. ¿Qué puedo hacer para ayudarte de verdad?"
+    },
+    {
+      "lead": "Hola! Les escribe Silvia de Bamos, ya habíamos trabajado antes con grupos de estudiantes Erasmus",
+      "creator": "¡Perfecto! 🚀 Aquí tienes: https://www.stefanobonanno.com/fitpackchallenge"
+    },
+    {
+      "lead": "Hola! Les escribe Silvia de Bamos, ya habíamos trabajado antes con grupos de estudiantes Erasmus",
+      "creator": "¡Perfecto! 🚀 Aquí tienes: https://www.stefanobonanno.com/fitpackchallenge"
+    }
+  ],
+  "total_messages_analyzed": 12,
+  "username": "bamos_barcelona_mobility",
+  "source_file": "ig_bamos_barcelona_mobility.json",
+  "generated_at": "2026-02-04T18:33:29.645106+00:00",
+  "last_analyzed_at": "2026-02-04T18:33:29.645108+00:00"
+}

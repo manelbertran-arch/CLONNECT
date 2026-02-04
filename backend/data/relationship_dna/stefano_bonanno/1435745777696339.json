@@ -1,0 +1,34 @@
+{
+  "creator_id": "stefano_bonanno",
+  "follower_id": "1435745777696339",
+  "relationship_type": "AMISTAD_CASUAL",
+  "trust_score": 0.52,
+  "depth_level": 1,
+  "vocabulary_uses": [
+    "compa",
+    "genial"
+  ],
+  "vocabulary_avoids": [],
+  "emojis": [
+    "🙌🏻",
+    "👏",
+    "😊",
+    "🌟",
+    "😄✨"
+  ],
+  "avg_message_length": 246,
+  "questions_frequency": 0.0,
+  "multi_message_frequency": 0.0,
+  "tone_description": "Amigable, relajado, divertido",
+  "recurring_topics": [
+    "circulos de hombres"
+  ],
+  "private_references": [],
+  "bot_instructions": "USA estas palabras: compa, genial Puedes usar estos emojis: 🙌🏻 👏 😊 🌟 😄✨ Temas recurrentes que puedes mencionar: circulos de hombres",
+  "golden_examples": [],
+  "total_messages_analyzed": 10,
+  "username": "caritomunozs",
+  "source_file": "1435745777696339.json",
+  "generated_at": "2026-02-04T18:33:29.643714+00:00",
+  "last_analyzed_at": "2026-02-04T18:33:29.643839+00:00"
+}
