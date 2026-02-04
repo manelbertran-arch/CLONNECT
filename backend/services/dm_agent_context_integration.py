@@ -12,6 +12,7 @@ import logging
 from typing import Any, Dict, Optional
 
 from models.post_context import PostContext
+from services.creator_dm_style_service import get_creator_dm_style_for_prompt
 from services.post_context_repository import get_post_context
 from services.relationship_dna_repository import get_relationship_dna
 
@@ -71,7 +72,10 @@ async def build_context_prompt(
 ) -> str:
     """Build context section for bot prompt.
 
-    Combines all context into a single prompt section.
+    Combines all context into a single prompt section:
+    1. CreatorDMStyle - How the creator writes (applies to ALL conversations)
+    2. RelationshipDNA - Personalization for this specific lead
+    3. PostContext - Temporal context from recent posts
 
     Args:
         creator_id: Creator identifier
@@ -82,7 +86,16 @@ async def build_context_prompt(
     """
     sections = []
 
-    # Get RelationshipDNA
+    # 1. Get CreatorDMStyle (applies to ALL conversations)
+    try:
+        creator_style = get_creator_dm_style_for_prompt(creator_id)
+        if creator_style:
+            sections.append(creator_style)
+            logger.debug(f"Added CreatorDMStyle for {creator_id}")
+    except Exception as e:
+        logger.error(f"Error getting creator style: {e}")
+
+    # 2. Get RelationshipDNA (per-lead personalization)
     try:
         dna = get_relationship_dna(creator_id, lead_id)
         if dna:
@@ -92,7 +105,7 @@ async def build_context_prompt(
     except Exception as e:
         logger.error(f"Error formatting DNA: {e}")
 
-    # Get PostContext
+    # 3. Get PostContext (temporal context from posts)
     try:
         post_ctx = get_post_context(creator_id)
         if post_ctx:
