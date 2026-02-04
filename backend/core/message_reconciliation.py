@@ -81,7 +81,9 @@ async def _queue_profile_enrichment(creator_id: str, user_id: str) -> None:
         logger.error(f"[Reconciliation] Failed to queue profile retry: {e}")
 
 
-async def enrich_leads_without_profile(creator_id: str, access_token: str, limit: int = 10) -> Dict[str, int]:
+async def enrich_leads_without_profile(
+    creator_id: str, access_token: str, limit: int = 10
+) -> Dict[str, int]:
     """
     Find and enrich leads that don't have profile info.
     Called periodically to fix leads created without profiles.
@@ -227,7 +229,9 @@ async def get_instagram_conversations(
                     logger.debug(f"[Reconciliation] Error fetching messages for {conv_id}: {e}")
                     conversations.append(conv)
 
-            logger.debug(f"[Reconciliation] Fetched {len(conversations)} conversations with messages")
+            logger.debug(
+                f"[Reconciliation] Fetched {len(conversations)} conversations with messages"
+            )
 
         except Exception as e:
             logger.error(f"[Reconciliation] Error fetching conversations: {e}")
@@ -365,20 +369,19 @@ async def reconcile_messages_for_creator(
                 continue
 
             # Find or create lead
+            # Check for both ig_prefixed and non-prefixed variants to avoid duplicates
             lead = (
                 session.query(Lead)
-                .filter_by(
-                    creator_id=creator.id,
-                    platform_user_id=f"ig_{follower_id}",
+                .filter(
+                    Lead.creator_id == creator.id,
+                    Lead.platform_user_id.in_([f"ig_{follower_id}", follower_id]),
                 )
                 .first()
             )
 
             if not lead:
                 # Create new lead and try to enrich with profile
-                profile_data = await _fetch_profile_for_lead(
-                    follower_id, access_token
-                )
+                profile_data = await _fetch_profile_for_lead(follower_id, access_token)
 
                 lead = Lead(
                     creator_id=creator.id,
@@ -418,11 +421,7 @@ async def reconcile_messages_for_creator(
                     continue
 
                 # Check DB directly (in case it was added after our initial query)
-                existing = (
-                    session.query(Message)
-                    .filter_by(platform_message_id=msg_id)
-                    .first()
-                )
+                existing = session.query(Message).filter_by(platform_message_id=msg_id).first()
                 if existing:
                     existing_ids.add(msg_id)
                     continue
@@ -442,9 +441,7 @@ async def reconcile_messages_for_creator(
                 created_at = None
                 if created_time_str:
                     try:
-                        created_at = datetime.fromisoformat(
-                            created_time_str.replace("Z", "+00:00")
-                        )
+                        created_at = datetime.fromisoformat(created_time_str.replace("Z", "+00:00"))
                     except Exception:
                         created_at = datetime.now(timezone.utc)
 
@@ -560,10 +557,12 @@ async def run_reconciliation_cycle(lookback_hours: int = 1) -> Dict[str, Any]:
 
         except Exception as e:
             logger.error(f"[Reconciliation] Error for {creator_info['name']}: {e}")
-            results["by_creator"].append({
-                "creator_id": creator_info["name"],
-                "error": str(e),
-            })
+            results["by_creator"].append(
+                {
+                    "creator_id": creator_info["name"],
+                    "error": str(e),
+                }
+            )
 
     if results["total_inserted"] > 0:
         logger.info(
@@ -641,9 +640,7 @@ async def check_message_gaps() -> Dict[str, Any]:
                     created_time = messages[0].get("created_time", "")
                     if created_time:
                         try:
-                            ig_latest = datetime.fromisoformat(
-                                created_time.replace("Z", "+00:00")
-                            )
+                            ig_latest = datetime.fromisoformat(created_time.replace("Z", "+00:00"))
                         except Exception:
                             pass
 
@@ -652,22 +649,26 @@ async def check_message_gaps() -> Dict[str, Any]:
                 gap_minutes = (ig_latest - db_latest).total_seconds() / 60
                 if gap_minutes > 5:  # More than 5 minutes gap
                     results["gaps_detected"] += 1
-                    results["creators_with_gaps"].append({
-                        "creator_id": creator.name,
-                        "db_latest": db_latest.isoformat() if db_latest else None,
-                        "ig_latest": ig_latest.isoformat() if ig_latest else None,
-                        "gap_minutes": round(gap_minutes, 1),
-                    })
+                    results["creators_with_gaps"].append(
+                        {
+                            "creator_id": creator.name,
+                            "db_latest": db_latest.isoformat() if db_latest else None,
+                            "ig_latest": ig_latest.isoformat() if ig_latest else None,
+                            "gap_minutes": round(gap_minutes, 1),
+                        }
+                    )
             elif ig_latest and not db_latest:
                 # Instagram has messages but DB is empty
                 results["gaps_detected"] += 1
-                results["creators_with_gaps"].append({
-                    "creator_id": creator.name,
-                    "db_latest": None,
-                    "ig_latest": ig_latest.isoformat(),
-                    "gap_minutes": None,
-                    "note": "DB empty, Instagram has messages",
-                })
+                results["creators_with_gaps"].append(
+                    {
+                        "creator_id": creator.name,
+                        "db_latest": None,
+                        "ig_latest": ig_latest.isoformat(),
+                        "gap_minutes": None,
+                        "note": "DB empty, Instagram has messages",
+                    }
+                )
 
     finally:
         session.close()
@@ -687,7 +688,9 @@ async def run_startup_reconciliation():
     """
     global _last_reconciliation, _reconciliation_count
 
-    logger.info(f"[Reconciliation] Starting startup reconciliation (last {RECONCILIATION_LOOKBACK_HOURS}h)")
+    logger.info(
+        f"[Reconciliation] Starting startup reconciliation (last {RECONCILIATION_LOOKBACK_HOURS}h)"
+    )
 
     try:
         result = await run_reconciliation_cycle(lookback_hours=RECONCILIATION_LOOKBACK_HOURS)

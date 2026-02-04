@@ -347,6 +347,14 @@ class InstagramHandler:
             allowed, reason = rate_limiter.check_limit(message.sender_id)
             if not allowed:
                 logger.warning(f"[IG:{message.sender_id}] Rate limited: {reason}")
+
+                # Still save user message even if rate-limited
+                await self._save_user_message_to_db(
+                    msg=message,
+                    username="",
+                    full_name="",
+                )
+
                 results.append(
                     {
                         "message_id": message.message_id,
@@ -402,6 +410,14 @@ class InstagramHandler:
                     logger.error(
                         f"[IG:{message.sender_id}] LLM returned error, NOT sending to user: {response_text[:100]}"
                     )
+
+                    # Still save user message even if LLM errored
+                    await self._save_user_message_to_db(
+                        msg=message,
+                        username="",
+                        full_name="",
+                    )
+
                     results.append(
                         {
                             "message_id": message.message_id,
@@ -470,10 +486,19 @@ class InstagramHandler:
 
                     if creator_already_responded:
                         # Creator already replied manually, skip bot response
+                        # BUT still save user message to database!
                         logger.info(
                             f"[AntiDup] Skipping autopilot response to {message.sender_id} - "
                             f"creator already responded"
                         )
+
+                        # Save user message even if bot doesn't respond
+                        await self._save_user_message_to_db(
+                            msg=message,
+                            username=username,
+                            full_name=full_name,
+                        )
+
                         results.append(
                             {
                                 "message_id": message.message_id,
@@ -487,6 +512,15 @@ class InstagramHandler:
                         # AUTOPILOT MODE: Send response immediately
                         await self.send_response(message.sender_id, response.response_text)
                         self._record_response(message, response)
+
+                        # CRITICAL FIX: Save messages to database
+                        # Without this, messages only exist in memory and are lost!
+                        await self._save_messages_to_db(
+                            msg=message,
+                            response=response,
+                            username=username,
+                            full_name=full_name,
+                        )
 
                         results.append(
                             {
@@ -1825,6 +1859,211 @@ class InstagramHandler:
         self.recent_responses.append(record)
         if len(self.recent_responses) > 10:
             self.recent_responses = self.recent_responses[-10:]
+
+    async def _save_messages_to_db(
+        self,
+        msg: InstagramMessage,
+        response: DMResponse,
+        username: str = "",
+        full_name: str = "",
+    ) -> bool:
+        """
+        Save user message and bot response to database (AUTOPILOT mode).
+
+        This is CRITICAL - without this, messages only exist in memory!
+
+        Args:
+            msg: Incoming Instagram message
+            response: DM agent response
+            username: User's Instagram username
+            full_name: User's display name
+
+        Returns:
+            True if saved successfully, False otherwise
+        """
+        try:
+            from api.database import SessionLocal
+            from api.models import Creator, Lead, Message
+
+            session = SessionLocal()
+            try:
+                # Get creator
+                creator = session.query(Creator).filter_by(name=self.creator_id).first()
+                if not creator:
+                    logger.error(f"[SaveMsg] Creator {self.creator_id} not found")
+                    return False
+
+                # Find lead (check both with and without ig_ prefix)
+                lead = (
+                    session.query(Lead)
+                    .filter(
+                        Lead.creator_id == creator.id,
+                        Lead.platform_user_id.in_([f"ig_{msg.sender_id}", msg.sender_id]),
+                    )
+                    .first()
+                )
+
+                if not lead:
+                    # Create lead if doesn't exist
+                    lead = Lead(
+                        creator_id=creator.id,
+                        platform="instagram",
+                        platform_user_id=f"ig_{msg.sender_id}",
+                        username=username or None,
+                        full_name=full_name or None,
+                        status="nuevo",
+                    )
+                    session.add(lead)
+                    session.commit()
+                    logger.info(f"[SaveMsg] Created lead for {msg.sender_id}")
+
+                # Check if user message already exists (by platform_message_id)
+                existing_user_msg = (
+                    session.query(Message).filter_by(platform_message_id=msg.message_id).first()
+                )
+
+                if not existing_user_msg:
+                    # Save user message
+                    user_msg = Message(
+                        lead_id=lead.id,
+                        role="user",
+                        content=msg.text or "[Media/Attachment]",
+                        status="sent",
+                        platform_message_id=msg.message_id,
+                    )
+                    session.add(user_msg)
+                    logger.debug(f"[SaveMsg] Saved user message {msg.message_id}")
+
+                # Get response text (V2 compatibility)
+                response_text = getattr(response, "content", None) or getattr(
+                    response, "response_text", ""
+                )
+                intent_str = (
+                    response.intent.value
+                    if hasattr(response.intent, "value")
+                    else str(response.intent)
+                )
+
+                # Save bot response
+                bot_msg = Message(
+                    lead_id=lead.id,
+                    role="assistant",
+                    content=response_text,
+                    status="sent",
+                    intent=intent_str,
+                    approved_by="autopilot",
+                )
+                session.add(bot_msg)
+
+                # Update lead's last_contact
+                lead.last_contact_at = datetime.now(timezone.utc)
+
+                session.commit()
+                logger.info(f"[SaveMsg] Saved messages for {msg.sender_id} (lead_id={lead.id})")
+                return True
+
+            finally:
+                session.close()
+
+        except Exception as e:
+            logger.error(f"[SaveMsg] Error saving messages: {e}")
+            import traceback
+
+            logger.error(traceback.format_exc())
+            return False
+
+    async def _save_user_message_to_db(
+        self,
+        msg: InstagramMessage,
+        username: str = "",
+        full_name: str = "",
+    ) -> bool:
+        """
+        Save only user message to database (when bot doesn't respond).
+
+        Used when creator already responded manually.
+
+        Args:
+            msg: Incoming Instagram message
+            username: User's Instagram username
+            full_name: User's display name
+
+        Returns:
+            True if saved successfully, False otherwise
+        """
+        try:
+            from api.database import SessionLocal
+            from api.models import Creator, Lead, Message
+
+            session = SessionLocal()
+            try:
+                # Get creator
+                creator = session.query(Creator).filter_by(name=self.creator_id).first()
+                if not creator:
+                    logger.error(f"[SaveUserMsg] Creator {self.creator_id} not found")
+                    return False
+
+                # Find lead (check both with and without ig_ prefix)
+                lead = (
+                    session.query(Lead)
+                    .filter(
+                        Lead.creator_id == creator.id,
+                        Lead.platform_user_id.in_([f"ig_{msg.sender_id}", msg.sender_id]),
+                    )
+                    .first()
+                )
+
+                if not lead:
+                    # Create lead if doesn't exist
+                    lead = Lead(
+                        creator_id=creator.id,
+                        platform="instagram",
+                        platform_user_id=f"ig_{msg.sender_id}",
+                        username=username or None,
+                        full_name=full_name or None,
+                        status="nuevo",
+                    )
+                    session.add(lead)
+                    session.commit()
+                    logger.info(f"[SaveUserMsg] Created lead for {msg.sender_id}")
+
+                # Check if user message already exists
+                existing_msg = (
+                    session.query(Message).filter_by(platform_message_id=msg.message_id).first()
+                )
+
+                if existing_msg:
+                    logger.debug(f"[SaveUserMsg] Message {msg.message_id} already exists")
+                    return True
+
+                # Save user message
+                user_msg = Message(
+                    lead_id=lead.id,
+                    role="user",
+                    content=msg.text or "[Media/Attachment]",
+                    status="sent",
+                    platform_message_id=msg.message_id,
+                )
+                session.add(user_msg)
+
+                # Update lead's last_contact
+                lead.last_contact_at = datetime.now(timezone.utc)
+
+                session.commit()
+                logger.info(
+                    f"[SaveUserMsg] Saved user message for {msg.sender_id} (lead_id={lead.id})"
+                )
+                return True
+
+            finally:
+                session.close()
+
+        except Exception as e:
+            logger.error(f"[SaveUserMsg] Error saving user message: {e}")
+            import traceback
+
+            logger.error(traceback.format_exc())
+            return False
 
     def get_status(self) -> Dict[str, Any]:
         """Get current handler status"""

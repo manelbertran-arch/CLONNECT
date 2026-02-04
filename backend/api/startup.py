@@ -8,6 +8,7 @@ Contains:
 - Cache warming
 - Keep-alive setup
 """
+
 import asyncio
 import logging
 import os
@@ -62,9 +63,40 @@ def register_startup_handlers(app: "FastAPI"):
         asyncio.create_task(init_db_background())
         logger.info("Database initialization scheduled (background task)")
 
+        # Clean test data on startup
+        async def cleanup_test_data():
+            await asyncio.sleep(3)  # Wait for DB to be ready
+            try:
+                from sqlalchemy import text
+
+                session = SessionLocal()
+                try:
+                    # Delete test leads with 999999% pattern
+                    result1 = session.execute(
+                        text("DELETE FROM leads WHERE platform_user_id LIKE '999999%'")
+                    )
+                    result2 = session.execute(
+                        text("DELETE FROM leads WHERE platform_user_id LIKE 'ig_999%'")
+                    )
+                    result3 = session.execute(
+                        text("DELETE FROM leads WHERE username LIKE 'test_%'")
+                    )
+                    session.commit()
+                    total_deleted = result1.rowcount + result2.rowcount + result3.rowcount
+                    if total_deleted > 0:
+                        logger.info(f"[Cleanup] Deleted {total_deleted} test leads on startup")
+                finally:
+                    session.close()
+            except Exception as e:
+                logger.error(f"[Cleanup] Failed to clean test data: {e}")
+
+        asyncio.create_task(cleanup_test_data())
+        logger.info("Test data cleanup scheduled (background task)")
+
         # Start nurturing scheduler
         try:
             from api.routers.nurturing import start_scheduler
+
             start_scheduler()
             logger.info("Nurturing scheduler started")
         except Exception as e:
@@ -75,6 +107,7 @@ def register_startup_handlers(app: "FastAPI"):
             await asyncio.sleep(10)  # Wait for DB to be ready
             try:
                 from core.message_reconciliation import run_startup_reconciliation
+
                 result = await run_startup_reconciliation()
                 if result.get("total_inserted", 0) > 0:
                     logger.info(
@@ -117,10 +150,13 @@ def register_startup_handlers(app: "FastAPI"):
         # Keep-alive task
         async def keep_alive_task():
             import time
+
             KEEP_ALIVE_INTERVAL = 240
 
             await asyncio.sleep(3)
-            logger.warning(f"[KEEP-ALIVE] ===== STARTED - will ping every {KEEP_ALIVE_INTERVAL}s (4 min) =====")
+            logger.warning(
+                f"[KEEP-ALIVE] ===== STARTED - will ping every {KEEP_ALIVE_INTERVAL}s (4 min) ====="
+            )
 
             while True:
                 try:
@@ -130,6 +166,7 @@ def register_startup_handlers(app: "FastAPI"):
                     if SessionLocal:
                         try:
                             from api.models import Creator
+
                             session = SessionLocal()
                             try:
                                 creators = session.query(Creator).filter_by(bot_active=True).all()
@@ -143,6 +180,7 @@ def register_startup_handlers(app: "FastAPI"):
 
                     try:
                         from core.telegram_registry import get_telegram_registry
+
                         registry = get_telegram_registry()
                         for bot in registry.list_bots():
                             if bot.get("is_active") and bot.get("creator_id"):
@@ -158,12 +196,17 @@ def register_startup_handlers(app: "FastAPI"):
                             cache_age = time.time() - _dm_agent_cache_timestamp.get(creator_id, 0)
                             if hasattr(agent, "_build_system_prompt"):
                                 _ = agent._build_system_prompt("")
-                            logger.info(f"[KEEP-ALIVE] Agent for {creator_id} kept warm (cache age: {cache_age:.1f}s)")
+                            logger.info(
+                                f"[KEEP-ALIVE] Agent for {creator_id} kept warm (cache age: {cache_age:.1f}s)"
+                            )
                         except Exception as e:
-                            logger.warning(f"[KEEP-ALIVE] DM agent warm failed for {creator_id}: {e}")
+                            logger.warning(
+                                f"[KEEP-ALIVE] DM agent warm failed for {creator_id}: {e}"
+                            )
 
                     try:
                         from core.semantic_memory import ENABLE_SEMANTIC_MEMORY, _get_embeddings
+
                         if ENABLE_SEMANTIC_MEMORY:
                             _get_embeddings()
                     except Exception:
@@ -172,6 +215,7 @@ def register_startup_handlers(app: "FastAPI"):
                     try:
                         from core.citation_service import get_content_index
                         from core.tone_service import get_tone_prompt_section
+
                         for creator_id in active_creators:
                             try:
                                 get_tone_prompt_section(creator_id)
@@ -184,6 +228,7 @@ def register_startup_handlers(app: "FastAPI"):
                     if SessionLocal:
                         try:
                             from sqlalchemy import text
+
                             session = SessionLocal()
                             session.execute(text("SELECT 1"))
                             session.close()
@@ -191,7 +236,9 @@ def register_startup_handlers(app: "FastAPI"):
                             pass
 
                     _t_end = time.time()
-                    logger.warning(f"[KEEP-ALIVE] ===== Ping completed in {_t_end - _t_start:.2f}s =====")
+                    logger.warning(
+                        f"[KEEP-ALIVE] ===== Ping completed in {_t_end - _t_start:.2f}s ====="
+                    )
 
                 except Exception as e:
                     logger.error(f"[KEEP-ALIVE] Error: {e}", exc_info=True)
@@ -207,6 +254,7 @@ def register_startup_handlers(app: "FastAPI"):
 async def _do_prewarm(SessionLocal):
     """Pre-warm caches for active creators."""
     import time
+
     _t_start = time.time()
 
     active_creators = set()
@@ -214,6 +262,7 @@ async def _do_prewarm(SessionLocal):
     if SessionLocal:
         try:
             from api.models import Creator
+
             session = SessionLocal()
             try:
                 creators = session.query(Creator).filter_by(bot_active=True).all()
@@ -227,6 +276,7 @@ async def _do_prewarm(SessionLocal):
 
     try:
         from core.telegram_registry import get_telegram_registry
+
         registry = get_telegram_registry()
         for bot in registry.list_bots():
             if bot.get("is_active") and bot.get("creator_id"):
@@ -242,6 +292,7 @@ async def _do_prewarm(SessionLocal):
 
     try:
         from core.semantic_memory import ENABLE_SEMANTIC_MEMORY, _get_embeddings
+
         if ENABLE_SEMANTIC_MEMORY:
             _t_emb = time.time()
             _get_embeddings()
@@ -250,6 +301,7 @@ async def _do_prewarm(SessionLocal):
         logger.warning(f"Could not pre-load embedding model: {e}")
 
     from core.tone_service import get_tone_prompt_section
+
     for creator_id in active_creators:
         try:
             get_tone_prompt_section(creator_id)
@@ -257,6 +309,7 @@ async def _do_prewarm(SessionLocal):
             logger.debug(f"ToneProfile not found for {creator_id}: {e}")
 
     from core.citation_service import get_content_index
+
     for creator_id in active_creators:
         try:
             get_content_index(creator_id)
