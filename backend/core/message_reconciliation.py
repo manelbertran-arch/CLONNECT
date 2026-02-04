@@ -14,7 +14,7 @@ Features:
 import asyncio
 import logging
 from datetime import datetime, timedelta, timezone
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional
 
 import httpx
 
@@ -467,20 +467,27 @@ async def reconcile_messages_for_creator(
             )
 
             if not lead:
-                # FIX: Don't create lead if there are no new messages to insert
-                # This prevents "ghost leads" with 0 messages
-                has_new_messages = False
+                # FIX: Don't create lead if there are no new USER messages to insert
+                # This prevents "ghost leads" when creator sends messages to someone who never wrote
+                # IMPORTANT: Only count messages FROM the follower, not creator echo messages
+                has_new_user_messages = False
                 for msg in messages_data:
                     msg_id = msg.get("id", "")
-                    if msg_id and msg_id not in existing_ids:
+                    msg_from_id = msg.get("from", {}).get("id", "")
+                    # Only count messages FROM the follower (user), not from creator (echo)
+                    if msg_id and msg_id not in existing_ids and msg_from_id == follower_id:
                         # Check DB directly
-                        existing = session.query(Message).filter_by(platform_message_id=msg_id).first()
+                        existing = (
+                            session.query(Message).filter_by(platform_message_id=msg_id).first()
+                        )
                         if not existing:
-                            has_new_messages = True
+                            has_new_user_messages = True
                             break
 
-                if not has_new_messages:
-                    logger.debug(f"[Reconciliation] Skipping lead creation for {follower_id} - no new messages")
+                if not has_new_user_messages:
+                    logger.debug(
+                        f"[Reconciliation] Skipping lead creation for {follower_id} - no new USER messages (only echo)"
+                    )
                     continue
 
                 # Create new lead and try to enrich with profile
@@ -640,7 +647,7 @@ async def run_reconciliation_cycle(lookback_hours: int = 1) -> Dict[str, Any]:
             .filter(
                 Creator.instagram_token.isnot(None),
                 Creator.instagram_token != "",
-                Creator.bot_active == True,
+                Creator.bot_active.is_(True),
             )
             .all()
         )
