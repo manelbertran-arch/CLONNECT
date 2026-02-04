@@ -126,6 +126,14 @@ class InstagramHandler:
                     self.page_id = creator.instagram_page_id or ""
                     self.ig_user_id = creator.instagram_user_id or ""
                     self.creator_id = creator.name
+                    # Store all known creator IDs to prevent creating leads for creator's own accounts
+                    self.known_creator_ids = set()
+                    if self.page_id:
+                        self.known_creator_ids.add(self.page_id)
+                    if self.ig_user_id:
+                        self.known_creator_ids.add(self.ig_user_id)
+                    # Add legacy ID that was previously used (prevents ghost leads)
+                    self.known_creator_ids.add("17841400506734756")
 
                     logger.info(f"Loaded Instagram credentials from DB for creator: {creator.name}")
                     logger.info(f"  - page_id: {self.page_id or 'N/A'}")
@@ -284,12 +292,14 @@ class InstagramHandler:
 
         results = []
         for message in messages:
-            # Skip messages from our own page/account (prevent self-reply loop)
-            if message.sender_id == self.page_id:
-                logger.info(f"Skipping message from page_id: {message.sender_id}")
-                continue
-            if self.ig_user_id and message.sender_id == self.ig_user_id:
-                logger.info(f"Skipping message from ig_user_id: {message.sender_id}")
+            # Skip messages from any known creator ID (prevent self-reply loop and ghost leads)
+            known_ids = getattr(self, "known_creator_ids", set())
+            if not known_ids:
+                # Fallback if known_creator_ids not initialized
+                known_ids = {self.page_id, self.ig_user_id, "17841400506734756"}
+
+            if message.sender_id in known_ids:
+                logger.info(f"Skipping message from known creator ID: {message.sender_id}")
                 continue
 
             # Additional safety: skip if recipient_id matches sender_id
@@ -732,6 +742,16 @@ class InstagramHandler:
         Returns:
             Lead ID (string) if created successfully
         """
+        # Prevent creating leads for creator's own IDs (prevents ghost leads)
+        known_ids = getattr(self, "known_creator_ids", set())
+        if not known_ids:
+            known_ids = {self.page_id, self.ig_user_id, "17841400506734756"}
+        if sender_id in known_ids:
+            logger.warning(
+                f"[LeadHistory] Skipping lead creation for known creator ID: {sender_id}"
+            )
+            return None
+
         try:
             from api.database import SessionLocal
             from api.models import Creator, Lead, Message
@@ -1932,6 +1952,16 @@ class InstagramHandler:
                 )
 
                 if not lead:
+                    # Prevent creating leads for creator's own IDs (prevents ghost leads)
+                    known_ids = getattr(self, "known_creator_ids", set())
+                    if not known_ids:
+                        known_ids = {self.page_id, self.ig_user_id, "17841400506734756"}
+                    if msg.sender_id in known_ids:
+                        logger.warning(
+                            f"[SaveMsg] Skipping lead creation for known creator ID: {msg.sender_id}"
+                        )
+                        return False
+
                     # Create lead if doesn't exist
                     # Use raw sender_id (no ig_ prefix) for consistency
                     try:
@@ -2068,6 +2098,16 @@ class InstagramHandler:
                 )
 
                 if not lead:
+                    # Prevent creating leads for creator's own IDs (prevents ghost leads)
+                    known_ids = getattr(self, "known_creator_ids", set())
+                    if not known_ids:
+                        known_ids = {self.page_id, self.ig_user_id, "17841400506734756"}
+                    if msg.sender_id in known_ids:
+                        logger.warning(
+                            f"[SaveUserMsg] Skipping lead creation for known creator ID: {msg.sender_id}"
+                        )
+                        return False
+
                     # Create lead if doesn't exist
                     # Use raw sender_id (no ig_ prefix) for consistency
                     try:

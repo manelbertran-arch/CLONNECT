@@ -4665,7 +4665,8 @@ async def full_diagnostic(creator_id: str, username: str = None, search: str = N
         # 0. Search for leads by name (if search parameter provided)
         if search:
             result = session.execute(
-                text("""
+                text(
+                    """
                     SELECT l.username, l.platform_user_id, l.full_name, l.status,
                            l.last_contact_at::text, l.updated_at::text,
                            (SELECT COUNT(*) FROM messages m WHERE m.lead_id = l.id) as msg_count
@@ -4673,7 +4674,8 @@ async def full_diagnostic(creator_id: str, username: str = None, search: str = N
                     WHERE l.creator_id = :cid
                     AND (l.username ILIKE :search OR l.full_name ILIKE :search)
                     ORDER BY l.last_contact_at DESC NULLS LAST
-                """),
+                """
+                ),
                 {"cid": creator_uuid, "search": f"%{search}%"},
             )
             rows = result.fetchall()
@@ -4693,14 +4695,16 @@ async def full_diagnostic(creator_id: str, username: str = None, search: str = N
         # 1. Media/Metadatos for specific user
         if username:
             result = session.execute(
-                text("""
+                text(
+                    """
                     SELECT m.id::text, LEFT(m.content, 80) as content,
                            m.msg_metadata, m.role, m.created_at::text
                     FROM messages m
                     JOIN leads l ON m.lead_id = l.id
                     WHERE l.username = :username AND l.creator_id = :cid
                     ORDER BY m.created_at DESC LIMIT 10
-                """),
+                """
+                ),
                 {"username": username, "cid": creator_uuid},
             )
             rows = result.fetchall()
@@ -4717,25 +4721,34 @@ async def full_diagnostic(creator_id: str, username: str = None, search: str = N
 
         # 2. Leads with Sergio in name
         result = session.execute(
-            text("""
+            text(
+                """
                 SELECT l.username, l.platform_user_id, l.full_name,
                        (SELECT COUNT(*) FROM messages m WHERE m.lead_id = l.id) as msg_count,
                        l.id::text
                 FROM leads l
                 WHERE l.creator_id = :cid
                 AND (l.username ILIKE '%sergio%' OR l.full_name ILIKE '%sergio%')
-            """),
+            """
+            ),
             {"cid": creator_uuid},
         )
         rows = result.fetchall()
         results["sergio_leads"] = [
-            {"username": r[0], "platform_user_id": r[1], "full_name": r[2], "msg_count": r[3], "id": r[4][:8]}
+            {
+                "username": r[0],
+                "platform_user_id": r[1],
+                "full_name": r[2],
+                "msg_count": r[3],
+                "id": r[4][:8],
+            }
             for r in rows
         ]
 
         # 3. Leads without profile (username NULL or ig_%)
         result = session.execute(
-            text("""
+            text(
+                """
                 SELECT l.platform_user_id, l.username, l.full_name,
                        CASE WHEN l.profile_pic_url IS NOT NULL THEN true ELSE false END as has_pic,
                        (SELECT COUNT(*) FROM messages m WHERE m.lead_id = l.id) as msg_count
@@ -4743,18 +4756,26 @@ async def full_diagnostic(creator_id: str, username: str = None, search: str = N
                 WHERE l.creator_id = :cid
                 AND (l.username IS NULL OR l.username LIKE 'ig_%' OR l.username = '')
                 LIMIT 20
-            """),
+            """
+            ),
             {"cid": creator_uuid},
         )
         rows = result.fetchall()
         results["leads_without_profile"] = [
-            {"platform_user_id": r[0], "username": r[1], "full_name": r[2], "has_pic": r[3], "msg_count": r[4]}
+            {
+                "platform_user_id": r[0],
+                "username": r[1],
+                "full_name": r[2],
+                "has_pic": r[3],
+                "msg_count": r[4],
+            }
             for r in rows
         ]
 
         # 4. Order/sorting - top 10 by last_contact_at
         result = session.execute(
-            text("""
+            text(
+                """
                 SELECT l.username, l.updated_at::text, l.last_contact_at::text,
                        l.first_contact_at::text,
                        (SELECT COUNT(*) FROM messages m WHERE m.lead_id = l.id) as msg_count
@@ -4762,7 +4783,8 @@ async def full_diagnostic(creator_id: str, username: str = None, search: str = N
                 WHERE l.creator_id = :cid
                 ORDER BY l.last_contact_at DESC NULLS LAST
                 LIMIT 10
-            """),
+            """
+            ),
             {"cid": creator_uuid},
         )
         rows = result.fetchall()
@@ -4779,7 +4801,8 @@ async def full_diagnostic(creator_id: str, username: str = None, search: str = N
 
         # 5. Search for Sebastien/Roger
         result = session.execute(
-            text("""
+            text(
+                """
                 SELECT l.username, l.platform_user_id, l.full_name, l.status,
                        (SELECT COUNT(*) FROM messages m WHERE m.lead_id = l.id) as msg_count,
                        l.last_contact_at::text
@@ -4787,7 +4810,8 @@ async def full_diagnostic(creator_id: str, username: str = None, search: str = N
                 WHERE l.username ILIKE '%bastien%' OR l.username ILIKE '%roger%'
                    OR l.full_name ILIKE '%bastien%' OR l.full_name ILIKE '%roger%'
                    OR l.username ILIKE '%sebastien%'
-            """),
+            """
+            ),
         )
         rows = result.fetchall()
         results["sebastien_roger_search"] = [
@@ -4809,31 +4833,35 @@ async def full_diagnostic(creator_id: str, username: str = None, search: str = N
         ).scalar()
 
         leads_with_messages = session.execute(
-            text("""
+            text(
+                """
                 SELECT COUNT(*) FROM leads l
                 WHERE l.creator_id = :cid
                 AND EXISTS (SELECT 1 FROM messages m WHERE m.lead_id = l.id)
-            """),
+            """
+            ),
             {"cid": creator_uuid},
         ).scalar()
 
         # 6. Check constraints on leads table
         result = session.execute(
-            text("""
+            text(
+                """
                 SELECT conname, contype, pg_get_constraintdef(oid)
                 FROM pg_constraint
                 WHERE conrelid = 'leads'::regclass
-            """)
+            """
+            )
         )
         rows = result.fetchall()
         results["table_constraints"] = [
-            {"name": r[0], "type": r[1], "definition": r[2]}
-            for r in rows
+            {"name": r[0], "type": r[1], "definition": r[2]} for r in rows
         ]
 
         # 7. Find duplicates by platform_user_id
         result = session.execute(
-            text("""
+            text(
+                """
                 SELECT platform_user_id, COUNT(*) as cnt,
                        array_agg(username) as usernames,
                        array_agg(id::text) as ids
@@ -4841,43 +4869,52 @@ async def full_diagnostic(creator_id: str, username: str = None, search: str = N
                 WHERE creator_id = :cid
                 GROUP BY platform_user_id
                 HAVING COUNT(*) > 1
-            """),
+            """
+            ),
             {"cid": creator_uuid},
         )
         rows = result.fetchall()
         results["duplicates_by_platform_id"] = [
-            {"platform_user_id": r[0], "count": r[1], "usernames": r[2], "ids": r[3]}
-            for r in rows
+            {"platform_user_id": r[0], "count": r[1], "usernames": r[2], "ids": r[3]} for r in rows
         ]
 
         # 8. Leads updated in last 30 minutes (leads table has updated_at, not created_at)
         result = session.execute(
-            text("""
+            text(
+                """
                 SELECT l.username, l.platform_user_id, l.updated_at::text,
                        (SELECT COUNT(*) FROM messages m WHERE m.lead_id = l.id) as msg_count
                 FROM leads l
                 WHERE l.creator_id = :cid
                 AND l.updated_at > NOW() - INTERVAL '30 minutes'
                 ORDER BY l.updated_at DESC
-            """),
+            """
+            ),
             {"cid": creator_uuid},
         )
         rows = result.fetchall()
         results["leads_updated_last_30min"] = [
-            {"username": r[0], "platform_user_id": r[1], "updated_at": r[2][:19] if r[2] else None, "msg_count": r[3]}
+            {
+                "username": r[0],
+                "platform_user_id": r[1],
+                "updated_at": r[2][:19] if r[2] else None,
+                "msg_count": r[3],
+            }
             for r in rows
         ]
 
         # 9. Leads with 0 messages
         result = session.execute(
-            text("""
+            text(
+                """
                 SELECT l.username, l.platform_user_id, l.updated_at::text
                 FROM leads l
                 WHERE l.creator_id = :cid
                 AND NOT EXISTS (SELECT 1 FROM messages m WHERE m.lead_id = l.id)
                 ORDER BY l.updated_at DESC
                 LIMIT 10
-            """),
+            """
+            ),
             {"cid": creator_uuid},
         )
         rows = result.fetchall()
@@ -4921,13 +4958,15 @@ async def apply_unique_constraint():
     try:
         # 1. Find all duplicates
         duplicates = session.execute(
-            text("""
+            text(
+                """
                 SELECT platform_user_id, creator_id,
                        array_agg(id::text ORDER BY (SELECT COUNT(*) FROM messages m WHERE m.lead_id = leads.id) DESC) as ids
                 FROM leads
                 GROUP BY platform_user_id, creator_id
                 HAVING COUNT(*) > 1
-            """)
+            """
+            )
         ).fetchall()
 
         for dup in duplicates:
@@ -4940,28 +4979,29 @@ async def apply_unique_constraint():
                 # Move any messages to the kept lead
                 session.execute(
                     text("UPDATE messages SET lead_id = :keep_id WHERE lead_id = :del_id"),
-                    {"keep_id": keep_id, "del_id": del_id}
+                    {"keep_id": keep_id, "del_id": del_id},
                 )
                 # Delete the duplicate lead
-                session.execute(
-                    text("DELETE FROM leads WHERE id = :del_id"),
-                    {"del_id": del_id}
+                session.execute(text("DELETE FROM leads WHERE id = :del_id"), {"del_id": del_id})
+                results["duplicates_merged"].append(
+                    {
+                        "platform_user_id": platform_user_id,
+                        "deleted_id": del_id[:8],
+                        "kept_id": keep_id[:8],
+                    }
                 )
-                results["duplicates_merged"].append({
-                    "platform_user_id": platform_user_id,
-                    "deleted_id": del_id[:8],
-                    "kept_id": keep_id[:8]
-                })
 
         session.commit()
 
         # 2. Check if constraint already exists
         existing = session.execute(
-            text("""
+            text(
+                """
                 SELECT conname FROM pg_constraint
                 WHERE conrelid = 'leads'::regclass
                 AND conname = 'uq_lead_creator_platform'
-            """)
+            """
+            )
         ).fetchone()
 
         if existing:
@@ -4970,11 +5010,13 @@ async def apply_unique_constraint():
             # 3. Apply the constraint
             try:
                 session.execute(
-                    text("""
+                    text(
+                        """
                         ALTER TABLE leads
                         ADD CONSTRAINT uq_lead_creator_platform
                         UNIQUE (creator_id, platform_user_id)
-                    """)
+                    """
+                    )
                 )
                 session.commit()
                 results["constraint_applied"] = True
@@ -4984,11 +5026,13 @@ async def apply_unique_constraint():
 
         # 4. Verify constraint exists now
         constraints = session.execute(
-            text("""
+            text(
+                """
                 SELECT conname, pg_get_constraintdef(oid)
                 FROM pg_constraint
                 WHERE conrelid = 'leads'::regclass
-            """)
+            """
+            )
         ).fetchall()
         results["current_constraints"] = [{"name": c[0], "def": c[1]} for c in constraints]
 
@@ -5031,7 +5075,9 @@ async def fix_instagram_page_id(creator_id: str):
         is_page_token = token.startswith("EAA") if token else False
         is_igaat_token = token.startswith("IGAAT") if token else False
 
-        logger.info(f"[FixPageID] Token: {token_prefix}... (len={token_length}), is_page={is_page_token}, is_igaat={is_igaat_token}")
+        logger.info(
+            f"[FixPageID] Token: {token_prefix}... (len={token_length}), is_page={is_page_token}, is_igaat={is_igaat_token}"
+        )
 
         page_id = None
         page_name = None
@@ -5058,7 +5104,7 @@ async def fix_instagram_page_id(creator_id: str):
                     "error": f"Instagram API error: {response.status_code}",
                     "detail": response.text[:500],
                     "token_debug": token_debug,
-                    "hint": "IGAAT tokens work with graph.instagram.com, not graph.facebook.com"
+                    "hint": "IGAAT tokens work with graph.instagram.com, not graph.facebook.com",
                 }
 
             data = response.json()
@@ -5077,7 +5123,7 @@ async def fix_instagram_page_id(creator_id: str):
                 "current_stored_page_id": creator.instagram_page_id,
                 "token_debug": token_debug,
                 "action_needed": "For IGAAT tokens, the instagram_user_id should be used for routing. Check if webhooks send this ID.",
-                "recommendation": f"Set instagram_page_id = '{ig_user_id}' to match webhook routing"
+                "recommendation": f"Set instagram_page_id = '{ig_user_id}' to match webhook routing",
             }
 
         elif is_page_token:
@@ -5093,7 +5139,7 @@ async def fix_instagram_page_id(creator_id: str):
                     "status": "error",
                     "error": f"Meta API error: {response.status_code}",
                     "detail": response.text[:500],
-                    "token_debug": token_debug
+                    "token_debug": token_debug,
                 }
 
             data = response.json()
@@ -5113,7 +5159,7 @@ async def fix_instagram_page_id(creator_id: str):
                     "status": "error",
                     "error": f"Meta API error: {response.status_code}",
                     "detail": response.text[:500],
-                    "token_debug": token_debug
+                    "token_debug": token_debug,
                 }
 
             data = response.json()
@@ -5124,7 +5170,7 @@ async def fix_instagram_page_id(creator_id: str):
                     "status": "error",
                     "error": "No Facebook pages found for this token",
                     "hint": "Make sure the token has pages_read_engagement permission",
-                    "token_debug": token_debug
+                    "token_debug": token_debug,
                 }
 
             # Use the first page
@@ -5139,6 +5185,7 @@ async def fix_instagram_page_id(creator_id: str):
 
         # Clear the lookup cache
         from api.routers.instagram import _creator_by_page_id_cache
+
         _creator_by_page_id_cache.clear()
 
         return {
@@ -5148,7 +5195,7 @@ async def fix_instagram_page_id(creator_id: str):
             "new_page_id": page_id,
             "page_name": page_name,
             "all_pages": [{"id": p.get("id"), "name": p.get("name")} for p in pages],
-            "cache_cleared": True
+            "cache_cleared": True,
         }
 
     except HTTPException:
@@ -5175,7 +5222,7 @@ async def fix_instagram_ids(creator_id: str):
         "old_values": {},
         "new_values": {},
         "ghost_leads_deleted": [],
-        "cache_cleared": False
+        "cache_cleared": False,
     }
 
     try:
@@ -5189,7 +5236,7 @@ async def fix_instagram_ids(creator_id: str):
         # Store old values
         results["old_values"] = {
             "instagram_user_id": creator.instagram_user_id,
-            "instagram_page_id": creator.instagram_page_id
+            "instagram_page_id": creator.instagram_page_id,
         }
 
         token = creator.instagram_token
@@ -5203,7 +5250,7 @@ async def fix_instagram_ids(creator_id: str):
             return {
                 "status": "error",
                 "error": f"Instagram API error: {response.status_code}",
-                "detail": response.text[:500]
+                "detail": response.text[:500],
             }
 
         data = response.json()
@@ -5220,36 +5267,35 @@ async def fix_instagram_ids(creator_id: str):
         results["new_values"] = {
             "instagram_user_id": real_ig_user_id,
             "instagram_page_id": real_ig_user_id,
-            "instagram_username": ig_username
+            "instagram_username": ig_username,
         }
 
         # Delete ghost leads (0 messages)
         ghost_leads = session.execute(
-            text("""
+            text(
+                """
                 SELECT l.id, l.platform_user_id, l.username
                 FROM leads l
                 WHERE l.creator_id = :cid
                 AND NOT EXISTS (SELECT 1 FROM messages m WHERE m.lead_id = l.id)
-            """),
-            {"cid": str(creator.id)}
+            """
+            ),
+            {"cid": str(creator.id)},
         ).fetchall()
 
         for lead in ghost_leads:
             lead_id, platform_user_id, username = lead
-            session.execute(
-                text("DELETE FROM leads WHERE id = :id"),
-                {"id": str(lead_id)}
+            session.execute(text("DELETE FROM leads WHERE id = :id"), {"id": str(lead_id)})
+            results["ghost_leads_deleted"].append(
+                {"platform_user_id": platform_user_id, "username": username}
             )
-            results["ghost_leads_deleted"].append({
-                "platform_user_id": platform_user_id,
-                "username": username
-            })
 
         session.commit()
 
         # Clear lookup cache
         try:
             from api.routers.instagram import _creator_by_page_id_cache
+
             _creator_by_page_id_cache.clear()
             results["cache_cleared"] = True
         except Exception:
@@ -5263,6 +5309,72 @@ async def fix_instagram_ids(creator_id: str):
     except Exception as e:
         session.rollback()
         logger.error(f"Error fixing Instagram IDs: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+    finally:
+        session.close()
+
+
+@router.delete("/delete-lead-by-platform-id/{creator_id}/{platform_user_id}")
+async def delete_lead_by_platform_id(creator_id: str, platform_user_id: str):
+    """
+    Delete a specific lead by platform_user_id, including all its messages.
+    Use this to clean up leads that were incorrectly created (e.g., old creator IDs).
+    """
+    from api.database import SessionLocal
+    from api.models import Creator
+    from sqlalchemy import text
+
+    session = SessionLocal()
+    results = {"status": "ok", "deleted_lead": None, "deleted_messages_count": 0}
+
+    try:
+        creator = session.query(Creator).filter_by(name=creator_id).first()
+        if not creator:
+            raise HTTPException(status_code=404, detail=f"Creator {creator_id} not found")
+
+        # Find the lead
+        lead_info = session.execute(
+            text(
+                """
+                SELECT l.id, l.username, l.platform_user_id,
+                       (SELECT COUNT(*) FROM messages m WHERE m.lead_id = l.id) as msg_count
+                FROM leads l
+                WHERE l.creator_id = :cid AND l.platform_user_id = :puid
+            """
+            ),
+            {"cid": str(creator.id), "puid": platform_user_id},
+        ).fetchone()
+
+        if not lead_info:
+            raise HTTPException(
+                status_code=404,
+                detail=f"Lead with platform_user_id {platform_user_id} not found for creator {creator_id}",
+            )
+
+        lead_id, username, puid, msg_count = lead_info
+
+        # Delete messages first
+        session.execute(text("DELETE FROM messages WHERE lead_id = :lid"), {"lid": str(lead_id)})
+
+        # Delete the lead
+        session.execute(text("DELETE FROM leads WHERE id = :lid"), {"lid": str(lead_id)})
+
+        session.commit()
+
+        results["deleted_lead"] = {
+            "id": str(lead_id),
+            "username": username,
+            "platform_user_id": puid,
+        }
+        results["deleted_messages_count"] = msg_count
+
+        return results
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        session.rollback()
+        logger.error(f"Error deleting lead: {e}")
         raise HTTPException(status_code=500, detail=str(e))
     finally:
         session.close()
@@ -5284,12 +5396,14 @@ async def cleanup_orphan_leads():
     try:
         # 1. Delete all leads with 0 messages for stefano_bonanno
         zero_msg_leads = session.execute(
-            text("""
+            text(
+                """
                 SELECT l.id, l.platform_user_id, l.username
                 FROM leads l
                 WHERE l.creator_id = (SELECT id FROM creators WHERE name = 'stefano_bonanno')
                 AND (SELECT COUNT(*) FROM messages m WHERE m.lead_id = l.id) = 0
-            """)
+            """
+            )
         ).fetchall()
 
         for lead in zero_msg_leads:
@@ -5298,21 +5412,25 @@ async def cleanup_orphan_leads():
                 text("DELETE FROM leads WHERE id = :id"),
                 {"id": str(lead_id)},
             )
-            results["actions"].append({
-                "action": "deleted_zero_messages",
-                "platform_user_id": platform_user_id,
-                "username": username,
-            })
+            results["actions"].append(
+                {
+                    "action": "deleted_zero_messages",
+                    "platform_user_id": platform_user_id,
+                    "username": username,
+                }
+            )
 
         # 2. Delete leads without username that have only 1 message with [Media]
         orphan_leads = session.execute(
-            text("""
+            text(
+                """
                 SELECT l.id, l.platform_user_id
                 FROM leads l
                 WHERE l.creator_id = (SELECT id FROM creators WHERE name = 'stefano_bonanno')
                 AND (l.username IS NULL OR l.username = '' OR l.username = l.platform_user_id)
                 AND (SELECT COUNT(*) FROM messages m WHERE m.lead_id = l.id) <= 1
-            """)
+            """
+            )
         ).fetchall()
 
         for lead in orphan_leads:
@@ -5332,23 +5450,27 @@ async def cleanup_orphan_leads():
                     text("DELETE FROM leads WHERE id = :id"),
                     {"id": str(lead_id)},
                 )
-                results["actions"].append({
-                    "action": "deleted_orphan_media",
-                    "platform_user_id": platform_user_id,
-                })
+                results["actions"].append(
+                    {
+                        "action": "deleted_orphan_media",
+                        "platform_user_id": platform_user_id,
+                    }
+                )
 
         session.commit()
 
         # 3. Show top 10 leads after cleanup
         top10 = session.execute(
-            text("""
+            text(
+                """
                 SELECT l.username, l.platform_user_id, l.last_contact_at::text,
                        (SELECT COUNT(*) FROM messages m WHERE m.lead_id = l.id) as msg_count
                 FROM leads l
                 WHERE l.creator_id = (SELECT id FROM creators WHERE name = 'stefano_bonanno')
                 ORDER BY l.last_contact_at DESC NULLS LAST
                 LIMIT 10
-            """)
+            """
+            )
         ).fetchall()
 
         results["top_10_after"] = [
@@ -5363,10 +5485,12 @@ async def cleanup_orphan_leads():
 
         # Count totals
         total = session.execute(
-            text("""
+            text(
+                """
                 SELECT COUNT(*) FROM leads
                 WHERE creator_id = (SELECT id FROM creators WHERE name = 'stefano_bonanno')
-            """)
+            """
+            )
         ).scalar()
         results["total_leads_after"] = total
 
@@ -5405,12 +5529,14 @@ async def fix_lead_duplicates():
     try:
         # Step 1: Find all duplicates across ALL creators
         duplicates = session.execute(
-            text("""
+            text(
+                """
                 SELECT creator_id, platform_user_id, COUNT(*) as cnt
                 FROM leads
                 GROUP BY creator_id, platform_user_id
                 HAVING COUNT(*) > 1
-            """)
+            """
+            )
         ).fetchall()
 
         results["duplicates_found"] = len(duplicates)
@@ -5421,13 +5547,15 @@ async def fix_lead_duplicates():
 
             # Get all leads with this creator_id + platform_user_id, ordered by message count
             leads = session.execute(
-                text("""
+                text(
+                    """
                     SELECT l.id, l.username,
                            (SELECT COUNT(*) FROM messages m WHERE m.lead_id = l.id) as msg_count
                     FROM leads l
                     WHERE l.creator_id = :cid AND l.platform_user_id = :puid
                     ORDER BY msg_count DESC
-                """),
+                """
+                ),
                 {"cid": str(creator_id), "puid": platform_user_id},
             ).fetchall()
 
@@ -5458,22 +5586,26 @@ async def fix_lead_duplicates():
                 )
                 results["leads_deleted"] += 1
 
-            results["details"].append({
-                "platform_user_id": platform_user_id,
-                "kept_username": keep_username,
-                "duplicates_removed": len(leads) - 1,
-            })
+            results["details"].append(
+                {
+                    "platform_user_id": platform_user_id,
+                    "kept_username": keep_username,
+                    "duplicates_removed": len(leads) - 1,
+                }
+            )
 
         session.commit()
 
         # Step 3: Try to add unique constraint
         try:
             session.execute(
-                text("""
+                text(
+                    """
                     ALTER TABLE leads
                     ADD CONSTRAINT uq_lead_creator_platform
                     UNIQUE (creator_id, platform_user_id)
-                """)
+                """
+                )
             )
             session.commit()
             results["constraint_added"] = True
