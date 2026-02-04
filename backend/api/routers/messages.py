@@ -91,22 +91,26 @@ async def get_follower_detail(creator_id: str, follower_id: str):
                 try:
                     creator = session.query(Creator).filter_by(name=creator_id).first()
                     if creator:
-                        # Find lead by platform_user_id or id
+                        # Find lead by platform_user_id, username, or with ig_ prefix
                         lead = (
                             session.query(Lead)
                             .filter_by(creator_id=creator.id, platform_user_id=follower_id)
                             .first()
                         )
                         if not lead:
-                            # Try finding by id
-                            try:
-                                lead = (
-                                    session.query(Lead)
-                                    .filter_by(creator_id=creator.id, id=follower_id)
-                                    .first()
-                                )
-                            except (ValueError, Exception) as e:
-                                logger.warning("Failed to query lead by id %s: %s", follower_id, e)
+                            # Try with ig_ prefix
+                            lead = (
+                                session.query(Lead)
+                                .filter_by(creator_id=creator.id, platform_user_id=f"ig_{follower_id}")
+                                .first()
+                            )
+                        if not lead:
+                            # Try finding by username
+                            lead = (
+                                session.query(Lead)
+                                .filter_by(creator_id=creator.id, username=follower_id)
+                                .first()
+                            )
                         if lead:
                             # Get messages from PostgreSQL
                             messages = (
