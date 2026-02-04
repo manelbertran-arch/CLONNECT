@@ -330,13 +330,6 @@ async def get_instagram_conversations(
                     if msg_resp.status_code == 200:
                         msg_data = msg_resp.json()
                         conv["messages"] = msg_data.get("messages", {})
-                        # Debug: Log raw attachment data from API
-                        for m in msg_data.get("messages", {}).get("data", [])[:3]:
-                            if m.get("attachments"):
-                                logger.info(
-                                    f"[Reconciliation] RAW API attachment for msg "
-                                    f"{m.get('id', 'unknown')[:20]}: {m.get('attachments')}"
-                                )
                         conversations.append(conv)
                     else:
                         logger.debug(f"[Reconciliation] Could not fetch messages for {conv_id}")

@@ -2007,13 +2007,38 @@ class InstagramHandler:
                 )
 
                 if not existing_user_msg:
+                    # Extract media info if present
+                    media_info = None
+                    msg_metadata = {}
+                    content = msg.text
+                    if msg.attachments:
+                        media_info = self._extract_media_info(msg.attachments)
+                        if media_info:
+                            msg_metadata["type"] = media_info.get("type", "unknown")
+                            if media_info.get("url"):
+                                msg_metadata["url"] = media_info["url"]
+                            # Use descriptive content if no text
+                            if not content:
+                                media_type = media_info.get("type", "media")
+                                content = {
+                                    "image": "Sent a photo",
+                                    "video": "Sent a video",
+                                    "audio": "Sent a voice message",
+                                    "gif": "Sent a GIF",
+                                    "sticker": "Sent a sticker",
+                                    "story_mention": "Mentioned you in their story",
+                                    "share": "Shared a post",
+                                    "shared_reel": "Shared a reel",
+                                }.get(media_type, "Sent an attachment")
+
                     # Save user message
                     user_msg = Message(
                         lead_id=lead.id,
                         role="user",
-                        content=msg.text or "[Media/Attachment]",
+                        content=content or "[Media/Attachment]",
                         status="sent",
                         platform_message_id=msg.message_id,
+                        msg_metadata=msg_metadata if msg_metadata else None,
                     )
                     session.add(user_msg)
                     logger.debug(f"[SaveMsg] Saved user message {msg.message_id}")
@@ -2159,13 +2184,38 @@ class InstagramHandler:
                     session.commit()
                     return True
 
+                # Extract media info if present
+                media_info = None
+                msg_metadata = {}
+                content = msg.text
+                if msg.attachments:
+                    media_info = self._extract_media_info(msg.attachments)
+                    if media_info:
+                        msg_metadata["type"] = media_info.get("type", "unknown")
+                        if media_info.get("url"):
+                            msg_metadata["url"] = media_info["url"]
+                        # Use descriptive content if no text
+                        if not content:
+                            media_type = media_info.get("type", "media")
+                            content = {
+                                "image": "Sent a photo",
+                                "video": "Sent a video",
+                                "audio": "Sent a voice message",
+                                "gif": "Sent a GIF",
+                                "sticker": "Sent a sticker",
+                                "story_mention": "Mentioned you in their story",
+                                "share": "Shared a post",
+                                "shared_reel": "Shared a reel",
+                            }.get(media_type, "Sent an attachment")
+
                 # Save user message
                 user_msg = Message(
                     lead_id=lead.id,
                     role="user",
-                    content=msg.text or "[Media/Attachment]",
+                    content=content or "[Media/Attachment]",
                     status="sent",
                     platform_message_id=msg.message_id,
+                    msg_metadata=msg_metadata if msg_metadata else None,
                 )
                 session.add(user_msg)
 
