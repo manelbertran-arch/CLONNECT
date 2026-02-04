@@ -1,0 +1,60 @@
+{
+  "follower_id": "1045752537347539",
+  "creator_id": "stefano_bonanno",
+  "username": "al.di.ba",
+  "name": "",
+  "first_contact": "2026-02-04T17:58:41.765405",
+  "last_contact": "2026-02-04T17:58:51.737371",
+  "total_messages": 3,
+  "interests": [],
+  "products_discussed": [],
+  "objections_raised": [],
+  "purchase_intent_score": 0.0,
+  "is_lead": false,
+  "is_customer": false,
+  "status": "new",
+  "preferred_language": "es",
+  "last_messages": [
+    {
+      "role": "user",
+      "content": "🔝",
+      "timestamp": "2026-02-04T17:58:45.104318"
+    },
+    {
+      "role": "assistant",
+      "content": "¡Hola! 😊 Veo que estás aquí y eso es genial. Si tienes alguna pregunta o algo específico en mente, no dudes en compartirlo. Estoy aquí para ayudarte en lo que necesites. ¡Cuéntame! 🫂",
+      "timestamp": "2026-02-04T17:58:45.104318"
+    },
+    {
+      "role": "user",
+      "content": "Igualmente 😘",
+      "timestamp": "2026-02-04T17:58:48.346281"
+    },
+    {
+      "role": "assistant",
+      "content": "¡Me alegra que lo sientas así! 😄 ¿Hay algo en particular que te gustaría explorar o saber más sobre nuestra comunidad o los encuentros? Estoy aquí para lo que necesites. ¡Hablemos! 🫂",
+      "timestamp": "2026-02-04T17:58:48.346281"
+    },
+    {
+      "role": "user",
+      "content": "Vemos si buscamos un hueco para hablar, hacemos una mini sesión de coaching?",
+      "timestamp": "2026-02-04T17:58:51.737371"
+    },
+    {
+      "role": "assistant",
+      "content": "¡Claro que sí! 😊 Hacer una mini sesión de coaching suena genial. ¿Tienes algún tema específico en mente que te gustaría tratar o simplemente quieres explorar lo que surja? Dime cuándo te viene bien y organizamos el encuentro. ¡Estoy aquí para ayudarte! 🫂",
+      "timestamp": "2026-02-04T17:58:51.737371"
+    }
+  ],
+  "links_sent_count": 0,
+  "last_link_message_num": 0,
+  "objections_handled": [],
+  "arguments_used": [],
+  "greeting_variant_index": 0,
+  "last_greeting_style": "",
+  "last_emojis_used": [],
+  "messages_since_name_used": 0,
+  "alternative_contact": "",
+  "alternative_contact_type": "",
+  "contact_requested": false
+}

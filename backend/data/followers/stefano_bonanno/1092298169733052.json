@@ -1,0 +1,50 @@
+{
+  "follower_id": "1092298169733052",
+  "creator_id": "stefano_bonanno",
+  "username": "giulia_nis_",
+  "name": "",
+  "first_contact": "2026-02-04T17:58:51.801738",
+  "last_contact": "2026-02-04T17:58:59.206150",
+  "total_messages": 2,
+  "interests": [],
+  "products_discussed": [],
+  "objections_raised": [],
+  "purchase_intent_score": 0.0,
+  "is_lead": false,
+  "is_customer": false,
+  "status": "new",
+  "preferred_language": "es",
+  "last_messages": [
+    {
+      "role": "user",
+      "content": "Wow bien yo no tan limpia pero nunca me ha gustado mucho beber - pues un vinito a una cena aún me gusta pero no mucho más .. perfecto allora mate sia🙌 me encantaría también probar una classe tua de gym un día … me encanta este concepto de entrenar juntos",
+      "timestamp": "2026-02-04T17:58:55.550087"
+    },
+    {
+      "role": "assistant",
+      "content": "¡Hola Giulia! 😊 Me alegra que te guste la idea de entrenar juntos, es una forma genial de crear comunidad y apoyarnos mutuamente. Un vinito de vez en cuando está bien, ¡todo con moderación! Si alguna vez organizamos una clase, te avisaré para que puedas unirte. ¡Sería genial tenerte! 🙌🏾 ¿Hay algo en particular que te gustaría probar en la clase de gym?",
+      "timestamp": "2026-02-04T17:58:55.550087"
+    },
+    {
+      "role": "user",
+      "content": "Creo que traigo algunas amigas también 🤍",
+      "timestamp": "2026-02-04T17:58:59.206150"
+    },
+    {
+      "role": "assistant",
+      "content": "¡Eso suena genial, Giulia! 🤍 Cuantas más seamos, mejor será la experiencia. Entrenar en grupo es muy divertido y motivador. Si organizamos algo, definitivamente será un buen momento para compartir y fortalecer esos lazos. ¡Mantendré informada a tu grupo! ¿Tienes alguna amiga en mente que creas que le gustaría unirse? 😊",
+      "timestamp": "2026-02-04T17:58:59.206150"
+    }
+  ],
+  "links_sent_count": 0,
+  "last_link_message_num": 0,
+  "objections_handled": [],
+  "arguments_used": [],
+  "greeting_variant_index": 0,
+  "last_greeting_style": "",
+  "last_emojis_used": [],
+  "messages_since_name_used": 0,
+  "alternative_contact": "",
+  "alternative_contact_type": "",
+  "contact_requested": false
+}

@@ -1,0 +1,80 @@
+{
+  "follower_id": "1435745777696339",
+  "creator_id": "stefano_bonanno",
+  "username": "caritomunozs",
+  "name": "",
+  "first_contact": "2026-02-04T17:58:59.272519",
+  "last_contact": "2026-02-04T18:03:55.651580",
+  "total_messages": 5,
+  "interests": [],
+  "products_discussed": [],
+  "objections_raised": [],
+  "purchase_intent_score": 0.0,
+  "is_lead": false,
+  "is_customer": false,
+  "status": "new",
+  "preferred_language": "es",
+  "last_messages": [
+    {
+      "role": "user",
+      "content": "Hola corazón, te dejo un saludito por acá! Ya me cuentas cuando podes y vemos de continuar la conversación de ayer en el sun sun love 🙃\n\nLindo concierte y saber qué ayudas con tu trabajo 🌱🙌🏻",
+      "timestamp": "2026-02-04T17:59:03.334782"
+    },
+    {
+      "role": "assistant",
+      "content": "¡Hola Carito! 🌟 Qué genial que me escribas. Estoy aquí para ayudarte con lo que necesites. Si quieres seguir la conversación sobre el círculo de hombres o cualquier otro tema, ¡dímelo! Estoy a tu disposición para que podamos seguir conversando y explorando esos temas importantes. 😄✨ \n\n¡Espero tu mensaje!",
+      "timestamp": "2026-02-04T17:59:03.334782"
+    },
+    {
+      "role": "user",
+      "content": "Muchas gracias guapo😃\n\nSi, cuando la haga te diré. Para luego ver contigo una segunda opinión de acuerdo a la técnica que haces tú.",
+      "timestamp": "2026-02-04T17:59:07.223319"
+    },
+    {
+      "role": "assistant",
+      "content": "```json\n{\n  \"respuesta\": \"¡De nada, Carito! 😊 Me alegra que estés pensando en eso. Estaré aquí para darte mi opinión cuando lo necesites. ¡Es genial poder compartir ideas y técnicas juntos! 🙌🏾 Si hay algo más en lo que pueda ayudarte, no dudes en decírmelo. ¡Espero tu mensaje!\",\n  \"emojis\": [\"😊\", \"🙌🏾\"]\n}\n```",
+      "timestamp": "2026-02-04T17:59:07.223319"
+    },
+    {
+      "role": "user",
+      "content": "👏",
+      "timestamp": "2026-02-04T17:59:12.049019"
+    },
+    {
+      "role": "assistant",
+      "content": "```json\n{\n  \"respuesta\": \"¡Hola de nuevo, Carito! 👏 Genial ver tu entusiasmo. Si tienes algo específico en mente sobre lo que quieras hablar o explorar, ¡házmelo saber! Estoy aquí para ayudarte. 😊✨\",\n  \"emojis\": [\"👏\", \"😊\", \"✨\"]\n}\n```",
+      "timestamp": "2026-02-04T17:59:12.049019"
+    },
+    {
+      "role": "user",
+      "content": "Merci 🙌🏻",
+      "timestamp": "2026-02-04T17:59:15.653364"
+    },
+    {
+      "role": "assistant",
+      "content": "```json\n{\n  \"respuesta\": \"¡De nada, Carito! 🙌🏻 Me alegra que estés aquí. Si hay algo más en lo que pueda ayudarte o cualquier tema que quieras explorar, ¡solo dímelo! 😊✨\",\n  \"emojis\": [\"🙌🏻\", \"😊\", \"✨\"]\n}\n```",
+      "timestamp": "2026-02-04T17:59:15.653364"
+    },
+    {
+      "role": "user",
+      "content": "👏",
+      "timestamp": "2026-02-04T18:03:55.651580"
+    },
+    {
+      "role": "assistant",
+      "content": "¡Hola de nuevo, Carito! 👏 Me encanta tu energía. Si hay algún tema específico del círculo de hombres o sobre la comunidad que te gustaría explorar, ¡estoy aquí para ayudarte! 😊✨",
+      "timestamp": "2026-02-04T18:03:55.651580"
+    }
+  ],
+  "links_sent_count": 0,
+  "last_link_message_num": 0,
+  "objections_handled": [],
+  "arguments_used": [],
+  "greeting_variant_index": 0,
+  "last_greeting_style": "",
+  "last_emojis_used": [],
+  "messages_since_name_used": 0,
+  "alternative_contact": "",
+  "alternative_contact_type": "",
+  "contact_requested": false
+}

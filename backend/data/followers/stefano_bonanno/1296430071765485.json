@@ -1,0 +1,70 @@
+{
+  "follower_id": "1296430071765485",
+  "creator_id": "stefano_bonanno",
+  "username": "esco.andrew",
+  "name": "",
+  "first_contact": "2026-02-04T17:59:30.128140",
+  "last_contact": "2026-02-04T17:59:44.552475",
+  "total_messages": 4,
+  "interests": [],
+  "products_discussed": [],
+  "objections_raised": [],
+  "purchase_intent_score": 0.0,
+  "is_lead": false,
+  "is_customer": false,
+  "status": "new",
+  "preferred_language": "es",
+  "last_messages": [
+    {
+      "role": "user",
+      "content": "Hey Stefano! How are you?\n\nI was told that you host a mens group in Barcelona. Is that still going on and something held weekly?\n\nThank you",
+      "timestamp": "2026-02-04T17:59:34.170704"
+    },
+    {
+      "role": "assistant",
+      "content": "¡Hola Andrew! 😊 Estoy bien, gracias. Sí, efectivamente, hay un grupo de hombres que se reúne en Barcelona. Las sesiones suelen ser semanales y son un gran espacio para compartir y explorar la masculinidad consciente en un ambiente seguro y de apoyo. \n\nSi quieres más detalles sobre los encuentros, puedo consultar la información actualizada para ti. ¡Déjame saber!",
+      "timestamp": "2026-02-04T17:59:34.170704"
+    },
+    {
+      "role": "user",
+      "content": "In doing good, thank you!\n\nMy level of Spanish is good - conversational.\n\nI’d love to join but wanted to double-check on what time it begins?\n\nHow can I sign up? :)",
+      "timestamp": "2026-02-04T17:59:37.892621"
+    },
+    {
+      "role": "assistant",
+      "content": "¡Genial, Andrew! Me alegra saber que tu nivel de español es bueno. 😊 \n\nLos encuentros generalmente comienzan a las 7 p.m., pero es mejor confirmar la hora exacta para la próxima sesión. \n\nPara inscribirte, puedes enviarme tu correo electrónico o contactarnos a través de la página del grupo. Te proporcionaré todos los detalles que necesitas. ¡Espero verte pronto!",
+      "timestamp": "2026-02-04T17:59:37.892621"
+    },
+    {
+      "role": "user",
+      "content": "Awesome thank you, looking forward to it",
+      "timestamp": "2026-02-04T17:59:41.692721"
+    },
+    {
+      "role": "assistant",
+      "content": "¡De nada, Andrew! 😊 Me alegra que estés emocionado por unirte. Si necesitas más información o tienes alguna otra pregunta antes del encuentro, no dudes en decírmelo. ¡Nos vemos pronto!",
+      "timestamp": "2026-02-04T17:59:41.692721"
+    },
+    {
+      "role": "user",
+      "content": "Hey all good, nice and steady week so far. Yes 👍🏾 see you in Thursday for the men’s circle",
+      "timestamp": "2026-02-04T17:59:44.552475"
+    },
+    {
+      "role": "assistant",
+      "content": "¡Hola Andrew! Me alegra saber que tu semana va bien. 😊 Estoy emocionado por verte el jueves en el círculo de hombres. Si tienes alguna pregunta o necesitas algo antes de la reunión, aquí estoy para ayudar. ¡Hasta pronto! 👍🏾",
+      "timestamp": "2026-02-04T17:59:44.552475"
+    }
+  ],
+  "links_sent_count": 0,
+  "last_link_message_num": 0,
+  "objections_handled": [],
+  "arguments_used": [],
+  "greeting_variant_index": 0,
+  "last_greeting_style": "",
+  "last_emojis_used": [],
+  "messages_since_name_used": 0,
+  "alternative_contact": "",
+  "alternative_contact_type": "",
+  "contact_requested": false
+}

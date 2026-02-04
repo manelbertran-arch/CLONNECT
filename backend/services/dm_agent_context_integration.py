@@ -111,6 +111,9 @@ async def build_context_prompt(
 def _format_dna_for_prompt(dna: Dict[str, Any]) -> Optional[str]:
     """Format RelationshipDNA for prompt.
 
+    Includes all relevant personalization data for this specific lead.
+    The LLM uses this to adapt tone, vocabulary, and style.
+
     Args:
         dna: RelationshipDNA dict
 
@@ -120,22 +123,76 @@ def _format_dna_for_prompt(dna: Dict[str, Any]) -> Optional[str]:
     if not dna:
         return None
 
-    parts = ["CONTEXTO DE RELACIÓN:"]
+    parts = ["=== CONTEXTO DE RELACIÓN CON ESTE USUARIO ==="]
 
+    # Relationship type and depth
     rel_type = dna.get("relationship_type", "DESCONOCIDO")
-    parts.append(f"- Tipo de relación: {rel_type}")
+    depth = dna.get("depth_level", 0)
+    trust = dna.get("trust_score", 0.0)
 
+    # Map relationship type to communication style hint
+    rel_hints = {
+        "INTIMA": "Comunicación muy cercana y personal",
+        "AMISTAD_CERCANA": "Como un buen amigo, confianza alta",
+        "AMISTAD_CASUAL": "Amigable pero no demasiado personal",
+        "CLIENTE": "Profesional pero cercano",
+        "COLABORADOR": "Colega de trabajo, respeto mutuo",
+        "DESCONOCIDO": "Cordial, ir conociéndose",
+    }
+    hint = rel_hints.get(rel_type, "Adapta el tono según la conversación")
+    parts.append(f"Relación: {rel_type} ({hint})")
+
+    if depth > 0 or trust > 0.3:
+        depth_desc = ["superficial", "conocidos", "confianza", "cercanos", "íntimos"]
+        trust_hint = " (alta confianza)" if trust > 0.7 else ""
+        parts.append(f"Nivel de profundidad: {depth_desc[min(depth, 4)]}{trust_hint}")
+
+    # Vocabulary guidance (not rules)
     vocab_uses = dna.get("vocabulary_uses", [])
     if vocab_uses:
-        parts.append(f"- Vocabulario a usar: {', '.join(vocab_uses[:5])}")
+        parts.append(f"Palabras que sueles usar con esta persona: {', '.join(vocab_uses[:8])}")
 
     vocab_avoids = dna.get("vocabulary_avoids", [])
     if vocab_avoids:
-        parts.append(f"- Vocabulario a evitar: {', '.join(vocab_avoids[:5])}")
+        parts.append(f"Palabras que esta persona usa pero TÚ no: {', '.join(vocab_avoids[:5])}")
 
+    # Emojis for this relationship
+    emojis = dna.get("emojis", [])
+    if emojis:
+        parts.append(f"Emojis típicos en esta relación: {' '.join(emojis[:6])}")
+
+    # Tone description
+    tone = dna.get("tone_description")
+    if tone:
+        parts.append(f"Tono: {tone}")
+
+    # Recurring topics (context)
+    topics = dna.get("recurring_topics", [])
+    if topics:
+        parts.append(f"Temas frecuentes: {', '.join(topics[:5])}")
+
+    # Private references (inside jokes, shared context)
+    private = dna.get("private_references", [])
+    if private:
+        parts.append(f"Referencias compartidas: {', '.join(private[:3])}")
+
+    # Bot instructions (generated guidance)
     instructions = dna.get("bot_instructions")
     if instructions:
-        parts.append(f"- Instrucciones: {instructions}")
+        parts.append(f"\nGuía de comunicación: {instructions}")
+
+    # Golden examples for few-shot learning
+    examples = dna.get("golden_examples", [])
+    if examples and len(examples) > 0:
+        parts.append("\nEjemplos de cómo respondes a esta persona:")
+        for ex in examples[:3]:
+            user_msg = ex.get("user", "")
+            assistant_msg = ex.get("assistant", "")
+            if user_msg and assistant_msg:
+                parts.append(f"  Usuario: {user_msg[:80]}")
+                parts.append(f"  Tú: {assistant_msg[:80]}")
+
+    parts.append("=== FIN CONTEXTO RELACIÓN ===")
 
     return "\n".join(parts)
 
@@ -161,9 +218,7 @@ def _format_post_context_for_prompt(ctx: Dict[str, Any]) -> Optional[str]:
             recent_topics=ctx.get("recent_topics", []),
             recent_products=ctx.get("recent_products", []),
             availability_hint=ctx.get("availability_hint"),
-            context_instructions=ctx.get(
-                "context_instructions", "Sin contexto especial."
-            ),
+            context_instructions=ctx.get("context_instructions", "Sin contexto especial."),
             expires_at=ctx.get("expires_at"),
         )
 
@@ -212,9 +267,7 @@ def get_context_for_dm_agent(
             import concurrent.futures
 
             with concurrent.futures.ThreadPoolExecutor() as executor:
-                future = executor.submit(
-                    asyncio.run, build_context_prompt(creator_id, lead_id)
-                )
+                future = executor.submit(asyncio.run, build_context_prompt(creator_id, lead_id))
                 return future.result(timeout=5)
         else:
             return loop.run_until_complete(build_context_prompt(creator_id, lead_id))
