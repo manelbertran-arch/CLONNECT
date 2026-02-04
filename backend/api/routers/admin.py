@@ -4629,9 +4629,14 @@ async def merge_duplicate_leads(creator_id: str):
 
 
 @router.get("/full-diagnostic/{creator_id}")
-async def full_diagnostic(creator_id: str, username: str = None):
+async def full_diagnostic(creator_id: str, username: str = None, search: str = None):
     """
     Run comprehensive diagnostic queries for debugging.
+
+    Args:
+        creator_id: Creator name
+        username: Exact username to get messages for
+        search: Search term to find leads by username or full_name (partial match)
     """
     from api.database import SessionLocal
     from sqlalchemy import text
@@ -4646,6 +4651,34 @@ async def full_diagnostic(creator_id: str, username: str = None):
 
         creator_uuid = str(creator.id)
         results = {}
+
+        # 0. Search for leads by name (if search parameter provided)
+        if search:
+            result = session.execute(
+                text("""
+                    SELECT l.username, l.platform_user_id, l.full_name, l.status,
+                           l.last_contact_at::text, l.updated_at::text,
+                           (SELECT COUNT(*) FROM messages m WHERE m.lead_id = l.id) as msg_count
+                    FROM leads l
+                    WHERE l.creator_id = :cid
+                    AND (l.username ILIKE :search OR l.full_name ILIKE :search)
+                    ORDER BY l.last_contact_at DESC NULLS LAST
+                """),
+                {"cid": creator_uuid, "search": f"%{search}%"},
+            )
+            rows = result.fetchall()
+            results["search_results"] = [
+                {
+                    "username": r[0],
+                    "platform_user_id": r[1],
+                    "full_name": r[2],
+                    "status": r[3],
+                    "last_contact_at": r[4][:19] if r[4] else None,
+                    "updated_at": r[5][:19] if r[5] else None,
+                    "msg_count": r[6],
+                }
+                for r in rows
+            ]
 
         # 1. Media/Metadatos for specific user
         if username:
