@@ -4807,39 +4807,39 @@ async def full_diagnostic(creator_id: str, username: str = None):
             for r in rows
         ]
 
-        # 8. Leads created in last 30 minutes
+        # 8. Leads updated in last 30 minutes (leads table has updated_at, not created_at)
         result = session.execute(
             text("""
-                SELECT l.username, l.platform_user_id, l.created_at::text,
+                SELECT l.username, l.platform_user_id, l.updated_at::text,
                        (SELECT COUNT(*) FROM messages m WHERE m.lead_id = l.id) as msg_count
                 FROM leads l
                 WHERE l.creator_id = :cid
-                AND l.created_at > NOW() - INTERVAL '30 minutes'
-                ORDER BY l.created_at DESC
+                AND l.updated_at > NOW() - INTERVAL '30 minutes'
+                ORDER BY l.updated_at DESC
             """),
             {"cid": creator_uuid},
         )
         rows = result.fetchall()
-        results["leads_created_last_30min"] = [
-            {"username": r[0], "platform_user_id": r[1], "created_at": r[2][:19] if r[2] else None, "msg_count": r[3]}
+        results["leads_updated_last_30min"] = [
+            {"username": r[0], "platform_user_id": r[1], "updated_at": r[2][:19] if r[2] else None, "msg_count": r[3]}
             for r in rows
         ]
 
         # 9. Leads with 0 messages
         result = session.execute(
             text("""
-                SELECT l.username, l.platform_user_id, l.created_at::text
+                SELECT l.username, l.platform_user_id, l.updated_at::text
                 FROM leads l
                 WHERE l.creator_id = :cid
                 AND NOT EXISTS (SELECT 1 FROM messages m WHERE m.lead_id = l.id)
-                ORDER BY l.created_at DESC
+                ORDER BY l.updated_at DESC
                 LIMIT 10
             """),
             {"cid": creator_uuid},
         )
         rows = result.fetchall()
         results["leads_with_zero_messages"] = [
-            {"username": r[0], "platform_user_id": r[1], "created_at": r[2][:19] if r[2] else None}
+            {"username": r[0], "platform_user_id": r[1], "updated_at": r[2][:19] if r[2] else None}
             for r in rows
         ]
 
