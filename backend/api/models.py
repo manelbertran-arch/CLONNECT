@@ -1099,3 +1099,51 @@ class RelationshipDNAModel(Base):
     # Timestamps
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+
+
+class PostContextModel(Base):
+    """SQLAlchemy model for temporal context from Instagram posts.
+
+    Stores analyzed context from creator's recent posts including
+    promotions, topics, and availability hints.
+
+    Part of POST-CONTEXT-DETECTION feature (Layer 4).
+    """
+
+    __tablename__ = "post_contexts"
+    __table_args__ = (
+        UniqueConstraint("creator_id", name="unique_post_context_creator"),
+        Index("idx_post_contexts_creator", "creator_id"),
+        Index("idx_post_contexts_expires", "expires_at"),
+        {"extend_existing": True},
+    )
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+
+    # Creator reference
+    creator_id = Column(String(100), nullable=False)
+
+    # Promotion fields
+    active_promotion = Column(Text)
+    promotion_deadline = Column(DateTime(timezone=True))
+    promotion_urgency = Column(Text)
+
+    # Topics and products (JSON arrays)
+    recent_topics = Column(JSON, default=list)
+    recent_products = Column(JSON, default=list)
+
+    # Availability
+    availability_hint = Column(Text)
+
+    # Generated instructions for bot
+    context_instructions = Column(Text, nullable=False)
+
+    # Metadata
+    posts_analyzed = Column(Integer, default=0)
+    analyzed_at = Column(DateTime(timezone=True), server_default=func.now())
+    expires_at = Column(DateTime(timezone=True), nullable=False)
+    source_posts = Column(JSON, default=list)
+
+    # Timestamps
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
