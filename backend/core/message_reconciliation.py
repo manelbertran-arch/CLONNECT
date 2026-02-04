@@ -47,6 +47,10 @@ def _extract_media_from_attachments(attachments: List[Dict[str, Any]]) -> Dict[s
     """
     Extract media info from Instagram message attachments.
 
+    FIX 2026-02-05: Support both Meta formats:
+    - New format (Instagram Messaging API): payload.url
+    - Legacy format: image_data.url, video_data.url, audio_data.url
+
     Returns dict with:
         - type: 'image', 'video', 'audio', 'story_mention', 'share', etc.
         - url: Media URL if available
@@ -56,50 +60,67 @@ def _extract_media_from_attachments(attachments: List[Dict[str, Any]]) -> Dict[s
         return {}
 
     att = attachments[0]  # Usually only one attachment
-    att_type = att.get("type", "").lower()
+    att_type = (att.get("type") or "").lower()
 
-    # Extract URL from various possible locations
+    # Extract URL - try payload.url FIRST (new Instagram Messaging API format)
     media_url = None
-
-    # Check common URL locations
-    if "image_data" in att:
-        media_url = att["image_data"].get("url")
-    elif "video_data" in att:
-        media_url = att["video_data"].get("url")
-    elif "audio_data" in att:
-        media_url = att["audio_data"].get("url")
-    elif "story" in att:
-        media_url = att["story"].get("url") or att["story"].get("mention", {}).get("link")
-    elif "share" in att:
-        media_url = att["share"].get("link")
-    elif "url" in att:
+    payload = att.get("payload", {})
+    if isinstance(payload, dict) and payload.get("url"):
+        media_url = payload["url"]
+    # Then try legacy formats
+    elif att.get("video_data", {}).get("url"):
+        media_url = att["video_data"]["url"]
+    elif att.get("image_data", {}).get("url"):
+        media_url = att["image_data"]["url"]
+    elif att.get("audio_data", {}).get("url"):
+        media_url = att["audio_data"]["url"]
+    elif att.get("story", {}).get("url"):
+        media_url = att["story"]["url"]
+    elif att.get("story", {}).get("mention", {}).get("link"):
+        media_url = att["story"]["mention"]["link"]
+    elif att.get("share", {}).get("link"):
+        media_url = att["share"]["link"]
+    elif att.get("url"):
         media_url = att["url"]
 
-    # Determine type and content text
+    # Deep fallback: search any URL-like field
+    if not media_url:
+        for key, value in att.items():
+            if isinstance(value, str) and value.startswith("https://"):
+                media_url = value
+                break
+            elif isinstance(value, dict):
+                for subkey, subval in value.items():
+                    if isinstance(subval, str) and subval.startswith("https://"):
+                        media_url = subval
+                        break
+
+    # Determine type and content text based on att_type or structure
     media_type = "unknown"
     content_text = "Sent an attachment"
 
-    if att_type == "image" or "image_data" in att:
+    # Check by type field first
+    if att_type == "image":
         media_type = "image"
         content_text = "Sent a photo"
-    elif att_type == "video" or "video_data" in att:
+    elif att_type == "video":
         media_type = "video"
         content_text = "Sent a video"
-    elif att_type == "audio" or "audio_data" in att:
+    elif att_type == "audio":
         media_type = "audio"
         content_text = "Sent a voice message"
-    elif att_type == "animated_image" or "animated_gif" in str(att).lower():
+    elif att_type == "animated_image" or att_type == "animated_gif":
         media_type = "gif"
         content_text = "Sent a GIF"
     elif att_type == "sticker":
         media_type = "sticker"
         content_text = "Sent a sticker"
-    elif "story" in att_type or "story" in att:
+    elif att_type == "story_mention" or "story" in att_type:
         media_type = "story_mention"
         content_text = "Mentioned you in their story"
-    elif att_type == "share" or "share" in att:
+    elif att_type == "share":
         media_type = "share"
-        share_link = att.get("share", {}).get("link", "")
+        share_link = att.get("share", {}).get("link", "") or media_url or ""
         if "reel" in share_link.lower():
             media_type = "shared_reel"
             content_text = "Shared a reel"
@@ -108,6 +129,22 @@ def _extract_media_from_attachments(attachments: List[Dict[str, Any]]) -> Dict[s
     elif att_type == "reel":
         media_type = "shared_reel"
         content_text = "Shared a reel"
+    # Fallback: check by structure if type field is missing/generic
+    elif att.get("image_data"):
+        media_type = "image"
+        content_text = "Sent a photo"
+    elif att.get("video_data"):
+        media_type = "video"
+        content_text = "Sent a video"
+    elif att.get("audio_data"):
+        media_type = "audio"
+        content_text = "Sent a voice message"
+    elif att.get("story"):
+        media_type = "story_mention"
+        content_text = "Mentioned you in their story"
+    elif att.get("share"):
+        media_type = "share"
+        content_text = "Shared a post"
 
     result = {
         "type": media_type,
@@ -559,6 +596,11 @@ async def reconcile_messages_for_creator(
 
                 # Parse media attachments
                 media_info = _extract_media_from_attachments(attachments)
+                if attachments:
+                    logger.info(
+                        f"[Reconciliation] Attachments for msg {msg_id[:20]}...: "
+                        f"count={len(attachments)}, media_info={media_info}"
+                    )
                 content = msg_text
                 if not content and media_info:
                     content = media_info.get("content_text", "Sent an attachment")
