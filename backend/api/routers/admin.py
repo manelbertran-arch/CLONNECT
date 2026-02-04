@@ -5025,33 +5025,63 @@ async def fix_instagram_page_id(creator_id: str):
         if not creator.instagram_token:
             raise HTTPException(status_code=400, detail="Creator has no Instagram token")
 
-        # Call Meta API to get connected pages
-        url = "https://graph.facebook.com/v18.0/me/accounts"
-        params = {"access_token": creator.instagram_token}
+        token = creator.instagram_token
+        is_page_token = token.startswith("EAA") if token else False
 
-        response = requests.get(url, params=params, timeout=10)
+        page_id = None
+        page_name = None
 
-        if response.status_code != 200:
-            return {
-                "status": "error",
-                "error": f"Meta API error: {response.status_code}",
-                "detail": response.text[:500]
-            }
+        if is_page_token:
+            # EAA token = Page Access Token
+            # Use /me to get the page info directly
+            url = "https://graph.facebook.com/v18.0/me"
+            params = {"access_token": token, "fields": "id,name"}
 
-        data = response.json()
-        pages = data.get("data", [])
+            response = requests.get(url, params=params, timeout=10)
 
-        if not pages:
-            return {
-                "status": "error",
-                "error": "No Facebook pages found for this token",
-                "hint": "Make sure the token has pages_read_engagement permission"
-            }
+            if response.status_code != 200:
+                return {
+                    "status": "error",
+                    "error": f"Meta API error: {response.status_code}",
+                    "detail": response.text[:500],
+                    "token_type": "PAGE (EAA)"
+                }
 
-        # Use the first page (most users have only one)
-        page = pages[0]
-        page_id = page.get("id")
-        page_name = page.get("name")
+            data = response.json()
+            page_id = data.get("id")
+            page_name = data.get("name")
+
+        else:
+            # IGAAT token = User/Instagram token
+            # Use /me/accounts to get pages
+            url = "https://graph.facebook.com/v18.0/me/accounts"
+            params = {"access_token": token}
+
+            response = requests.get(url, params=params, timeout=10)
+
+            if response.status_code != 200:
+                return {
+                    "status": "error",
+                    "error": f"Meta API error: {response.status_code}",
+                    "detail": response.text[:500],
+                    "token_type": "USER (IGAAT)"
+                }
+
+            data = response.json()
+            pages = data.get("data", [])
+
+            if not pages:
+                return {
+                    "status": "error",
+                    "error": "No Facebook pages found for this token",
+                    "hint": "Make sure the token has pages_read_engagement permission",
+                    "token_type": "USER (IGAAT)"
+                }
+
+            # Use the first page
+            page = pages[0]
+            page_id = page.get("id")
+            page_name = page.get("name")
 
         # Save to database
         old_page_id = creator.instagram_page_id
