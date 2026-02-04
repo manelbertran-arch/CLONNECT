@@ -442,6 +442,8 @@ async def reconcile_messages_for_creator(
                 creator_ids.add(creator.instagram_user_id)
             if creator.instagram_page_id:
                 creator_ids.add(creator.instagram_page_id)
+            # Add legacy creator ID that was previously used (prevents ghost leads)
+            creator_ids.add("17841400506734756")
 
             follower_id = None
             for p in participants:
