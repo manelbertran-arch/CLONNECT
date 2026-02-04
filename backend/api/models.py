@@ -1039,3 +1039,63 @@ class WeeklyReport(Base):
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     sent_at = Column(DateTime(timezone=True))
     opened_at = Column(DateTime(timezone=True))
+
+
+class RelationshipDNAModel(Base):
+    """SQLAlchemy model for relationship-specific communication context.
+
+    Stores personalized vocabulary, tone, and interaction patterns
+    for each creator-follower relationship.
+
+    Part of RELATIONSHIP-DNA feature.
+    """
+
+    __tablename__ = "relationship_dna"
+    __table_args__ = (
+        UniqueConstraint("creator_id", "follower_id", name="uq_relationship_dna_creator_follower"),
+        Index("idx_relationship_dna_creator_follower", "creator_id", "follower_id"),
+        Index("idx_relationship_dna_type", "relationship_type"),
+        Index("idx_relationship_dna_creator", "creator_id"),
+        {"extend_existing": True},
+    )
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+
+    # Foreign keys (stored as strings for flexibility with external IDs)
+    creator_id = Column(String(100), nullable=False)
+    follower_id = Column(String(255), nullable=False)
+
+    # Relationship classification
+    relationship_type = Column(String(50), nullable=False, default="DESCONOCIDO")
+    trust_score = Column(Float, default=0.0)
+    depth_level = Column(Integer, default=0)
+
+    # Vocabulary specific to this relationship (JSONB for efficient querying)
+    vocabulary_uses = Column(JSON, default=list)
+    vocabulary_avoids = Column(JSON, default=list)
+    emojis = Column(JSON, default=list)
+
+    # Interaction patterns observed from conversation history
+    avg_message_length = Column(Integer)
+    questions_frequency = Column(Float)
+    multi_message_frequency = Column(Float)
+    tone_description = Column(Text)
+
+    # Shared context extracted from conversations
+    recurring_topics = Column(JSON, default=list)
+    private_references = Column(JSON, default=list)
+
+    # Generated instructions for the bot
+    bot_instructions = Column(Text)
+
+    # Golden examples for few-shot learning
+    golden_examples = Column(JSON, default=list)
+
+    # Metadata for tracking analysis state
+    total_messages_analyzed = Column(Integer, default=0)
+    last_analyzed_at = Column(DateTime(timezone=True))
+    version = Column(Integer, default=1)
+
+    # Timestamps
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
