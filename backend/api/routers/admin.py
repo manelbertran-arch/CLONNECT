@@ -4790,6 +4790,3 @@ async def full_diagnostic(creator_id: str, username: str = None):
 
     finally:
         session.close()
-
-    finally:
-        session.close()
