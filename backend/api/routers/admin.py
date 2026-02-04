@@ -4627,5 +4627,169 @@ async def merge_duplicate_leads(creator_id: str):
         logger.error(f"Error merging duplicates: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
+
+@router.get("/full-diagnostic/{creator_id}")
+async def full_diagnostic(creator_id: str, username: str = None):
+    """
+    Run comprehensive diagnostic queries for debugging.
+    """
+    from api.database import SessionLocal
+    from sqlalchemy import text
+
+    session = SessionLocal()
+    try:
+        from api.models import Creator
+
+        creator = session.query(Creator).filter_by(name=creator_id).first()
+        if not creator:
+            raise HTTPException(status_code=404, detail=f"Creator {creator_id} not found")
+
+        creator_uuid = str(creator.id)
+        results = {}
+
+        # 1. Media/Metadatos for specific user
+        if username:
+            result = session.execute(
+                text("""
+                    SELECT m.id::text, LEFT(m.content, 80) as content,
+                           m.media_url, m.media_type, m.msg_metadata,
+                           m.created_at::text
+                    FROM messages m
+                    JOIN leads l ON m.lead_id = l.id
+                    WHERE l.username = :username AND l.creator_id = :cid
+                    ORDER BY m.created_at DESC LIMIT 10
+                """),
+                {"username": username, "cid": creator_uuid},
+            )
+            rows = result.fetchall()
+            results["messages_for_user"] = [
+                {
+                    "id": r[0][:8] + "...",
+                    "content": r[1],
+                    "media_url": r[2],
+                    "media_type": r[3],
+                    "metadata": r[4],
+                    "created_at": r[5],
+                }
+                for r in rows
+            ]
+
+        # 2. Leads with Sergio in name
+        result = session.execute(
+            text("""
+                SELECT l.username, l.platform_user_id, l.full_name,
+                       (SELECT COUNT(*) FROM messages m WHERE m.lead_id = l.id) as msg_count,
+                       l.id::text
+                FROM leads l
+                WHERE l.creator_id = :cid
+                AND (l.username ILIKE '%sergio%' OR l.full_name ILIKE '%sergio%')
+            """),
+            {"cid": creator_uuid},
+        )
+        rows = result.fetchall()
+        results["sergio_leads"] = [
+            {"username": r[0], "platform_user_id": r[1], "full_name": r[2], "msg_count": r[3], "id": r[4][:8]}
+            for r in rows
+        ]
+
+        # 3. Leads without profile (username NULL or ig_%)
+        result = session.execute(
+            text("""
+                SELECT l.platform_user_id, l.username, l.full_name,
+                       CASE WHEN l.profile_pic_url IS NOT NULL THEN true ELSE false END as has_pic,
+                       (SELECT COUNT(*) FROM messages m WHERE m.lead_id = l.id) as msg_count
+                FROM leads l
+                WHERE l.creator_id = :cid
+                AND (l.username IS NULL OR l.username LIKE 'ig_%' OR l.username = '')
+                LIMIT 20
+            """),
+            {"cid": creator_uuid},
+        )
+        rows = result.fetchall()
+        results["leads_without_profile"] = [
+            {"platform_user_id": r[0], "username": r[1], "full_name": r[2], "has_pic": r[3], "msg_count": r[4]}
+            for r in rows
+        ]
+
+        # 4. Order/sorting - top 10 by last_contact_at
+        result = session.execute(
+            text("""
+                SELECT l.username, l.updated_at::text, l.last_contact_at::text,
+                       l.first_contact_at::text,
+                       (SELECT COUNT(*) FROM messages m WHERE m.lead_id = l.id) as msg_count
+                FROM leads l
+                WHERE l.creator_id = :cid
+                ORDER BY l.last_contact_at DESC NULLS LAST
+                LIMIT 10
+            """),
+            {"cid": creator_uuid},
+        )
+        rows = result.fetchall()
+        results["top_10_by_last_contact"] = [
+            {
+                "username": r[0],
+                "updated_at": r[1][:19] if r[1] else None,
+                "last_contact_at": r[2][:19] if r[2] else None,
+                "first_contact_at": r[3][:19] if r[3] else None,
+                "msg_count": r[4],
+            }
+            for r in rows
+        ]
+
+        # 5. Search for Sebastien/Roger
+        result = session.execute(
+            text("""
+                SELECT l.username, l.platform_user_id, l.full_name, l.status,
+                       (SELECT COUNT(*) FROM messages m WHERE m.lead_id = l.id) as msg_count,
+                       l.last_contact_at::text
+                FROM leads l
+                WHERE l.username ILIKE '%bastien%' OR l.username ILIKE '%roger%'
+                   OR l.full_name ILIKE '%bastien%' OR l.full_name ILIKE '%roger%'
+                   OR l.username ILIKE '%sebastien%'
+            """),
+        )
+        rows = result.fetchall()
+        results["sebastien_roger_search"] = [
+            {
+                "username": r[0],
+                "platform_user_id": r[1],
+                "full_name": r[2],
+                "status": r[3],
+                "msg_count": r[4],
+                "last_contact": r[5][:19] if r[5] else None,
+            }
+            for r in rows
+        ]
+
+        # Summary stats
+        total_leads = session.execute(
+            text("SELECT COUNT(*) FROM leads WHERE creator_id = :cid"),
+            {"cid": creator_uuid},
+        ).scalar()
+
+        leads_with_messages = session.execute(
+            text("""
+                SELECT COUNT(*) FROM leads l
+                WHERE l.creator_id = :cid
+                AND EXISTS (SELECT 1 FROM messages m WHERE m.lead_id = l.id)
+            """),
+            {"cid": creator_uuid},
+        ).scalar()
+
+        results["summary"] = {
+            "total_leads": total_leads,
+            "leads_with_messages": leads_with_messages,
+            "leads_without_profile_count": len(results["leads_without_profile"]),
+        }
+
+        return {"status": "ok", "creator_id": creator_id, "results": results}
+
+    except Exception as e:
+        logger.error(f"Error in diagnostic: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+    finally:
+        session.close()
+
     finally:
         session.close()
