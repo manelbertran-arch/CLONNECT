@@ -782,7 +782,9 @@ class InstagramHandler:
                     # Race condition: another request created the lead
                     session.rollback()
                     if "uq_lead_creator_platform" in str(e) or "duplicate" in str(e).lower():
-                        logger.info(f"[LeadHistory] Lead already exists (race condition), fetching...")
+                        logger.info(
+                            f"[LeadHistory] Lead already exists (race condition), fetching..."
+                        )
                         lead = (
                             session.query(Lead)
                             .filter(
@@ -792,7 +794,9 @@ class InstagramHandler:
                             .first()
                         )
                         if not lead:
-                            logger.error(f"[LeadHistory] Could not find lead after constraint error")
+                            logger.error(
+                                f"[LeadHistory] Could not find lead after constraint error"
+                            )
                             return None
                     else:
                         raise
@@ -1126,6 +1130,9 @@ class InstagramHandler:
 
                 if existing:
                     logger.debug(f"[Echo] Message {echo_msg['message_id']} already recorded")
+                    # Still update last_contact_at even if message exists
+                    lead.last_contact_at = datetime.now(timezone.utc)
+                    session.commit()
                     return True
 
                 # Record the creator's manual response
@@ -1943,17 +1950,23 @@ class InstagramHandler:
                         # Race condition: another request created the lead
                         session.rollback()
                         if "uq_lead_creator_platform" in str(e) or "duplicate" in str(e).lower():
-                            logger.info(f"[SaveMsg] Lead already exists (race condition), fetching...")
+                            logger.info(
+                                f"[SaveMsg] Lead already exists (race condition), fetching..."
+                            )
                             lead = (
                                 session.query(Lead)
                                 .filter(
                                     Lead.creator_id == creator.id,
-                                    Lead.platform_user_id.in_([msg.sender_id, f"ig_{msg.sender_id}"]),
+                                    Lead.platform_user_id.in_(
+                                        [msg.sender_id, f"ig_{msg.sender_id}"]
+                                    ),
                                 )
                                 .first()
                             )
                             if not lead:
-                                logger.error(f"[SaveMsg] Could not find lead after constraint error")
+                                logger.error(
+                                    f"[SaveMsg] Could not find lead after constraint error"
+                                )
                                 return False
                         else:
                             raise
@@ -2073,17 +2086,23 @@ class InstagramHandler:
                         # Race condition: another request created the lead
                         session.rollback()
                         if "uq_lead_creator_platform" in str(e) or "duplicate" in str(e).lower():
-                            logger.info(f"[SaveUserMsg] Lead already exists (race condition), fetching...")
+                            logger.info(
+                                f"[SaveUserMsg] Lead already exists (race condition), fetching..."
+                            )
                             lead = (
                                 session.query(Lead)
                                 .filter(
                                     Lead.creator_id == creator.id,
-                                    Lead.platform_user_id.in_([msg.sender_id, f"ig_{msg.sender_id}"]),
+                                    Lead.platform_user_id.in_(
+                                        [msg.sender_id, f"ig_{msg.sender_id}"]
+                                    ),
                                 )
                                 .first()
                             )
                             if not lead:
-                                logger.error(f"[SaveUserMsg] Could not find lead after constraint error")
+                                logger.error(
+                                    f"[SaveUserMsg] Could not find lead after constraint error"
+                                )
                                 return False
                         else:
                             raise
@@ -2095,6 +2114,9 @@ class InstagramHandler:
 
                 if existing_msg:
                     logger.debug(f"[SaveUserMsg] Message {msg.message_id} already exists")
+                    # Still update last_contact_at even if message exists
+                    lead.last_contact_at = datetime.now(timezone.utc)
+                    session.commit()
                     return True
 
                 # Save user message
