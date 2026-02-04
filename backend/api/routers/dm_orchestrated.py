@@ -16,6 +16,7 @@ from typing import List, Optional
 from core.dm_agent_orchestrated import get_orchestrated_agent
 from core.dm_agent_orchestrated_v2 import get_orchestrated_agent_v2
 from core.dm_agent_orchestrated_v3 import get_orchestrated_agent_v3
+from core.dm_agent_orchestrated_v4 import get_orchestrated_agent_v4
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 
@@ -273,6 +274,46 @@ async def process_dm_orchestrated_v3(request: DMRequest):
             "total_delay": response.total_delay,
             "is_multi_message": response.is_multi_message,
             "processing_steps": response.processing_steps,
+        }
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# V4 ENDPOINT - Context memory + Creator knowledge
+# ═══════════════════════════════════════════════════════════════════════════════
+
+
+@router.post("/process-v4")
+async def process_dm_orchestrated_v4(request: DMRequest):
+    """
+    Process DM with V4 system (context + knowledge).
+
+    V4 adds over V3:
+    - Conversation memory (last 15-20 messages)
+    - Creator knowledge (profile, services, FAQs)
+    - Context-aware responses
+    """
+    try:
+        agent = await get_orchestrated_agent_v4(request.creator_id)
+
+        response = await agent.process_message(
+            message=request.message,
+            lead_id=request.lead_id,
+            context=request.context or {},
+        )
+
+        return {
+            "messages": response.messages,
+            "delays": response.delays,
+            "should_escalate": response.should_escalate,
+            "used_pool": response.used_pool,
+            "edge_case": response.edge_case,
+            "total_delay": response.total_delay,
+            "is_multi_message": response.is_multi_message,
+            "context_used": response.context_used,
+            "knowledge_used": response.knowledge_used,
         }
 
     except Exception as e:
