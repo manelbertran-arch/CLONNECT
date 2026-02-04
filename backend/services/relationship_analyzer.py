@@ -13,7 +13,7 @@ Part of RELATIONSHIP-DNA feature.
 import logging
 import re
 from datetime import datetime, timedelta, timezone
-from typing import Dict, List, Optional
+from typing import Dict, List
 
 from models.relationship_dna import RelationshipType
 
@@ -55,9 +55,7 @@ class RelationshipAnalyzer:
         """Initialize the analyzer."""
         self._cache = {}  # Simple in-memory cache
 
-    def analyze(
-        self, creator_id: str, follower_id: str, messages: List[Dict]
-    ) -> Dict:
+    def analyze(self, creator_id: str, follower_id: str, messages: List[Dict]) -> Dict:
         """Analyze conversation and return relationship DNA.
 
         Args:
@@ -88,27 +86,21 @@ class RelationshipAnalyzer:
 
         # Extract text for analysis
         all_text = " ".join([m.get("content", "") for m in messages]).lower()
-        creator_messages = [
-            m.get("content", "") for m in messages if m.get("role") == "assistant"
-        ]
-        user_messages = [
-            m.get("content", "") for m in messages if m.get("role") == "user"
-        ]
+        creator_messages = [m.get("content", "") for m in messages if m.get("role") == "assistant"]
+        user_messages = [m.get("content", "") for m in messages if m.get("role") == "user"]
 
         # Detect relationship type
         relationship_type = self._detect_relationship_type(all_text, messages)
 
         # Calculate trust score
-        trust_score = self._calculate_trust_score(
-            relationship_type, total_messages, all_text
-        )
+        trust_score = self._calculate_trust_score(relationship_type, total_messages, all_text)
 
         # Calculate depth level
         depth_level = self._calculate_depth_level(total_messages)
 
-        # Extract vocabulary
+        # Extract vocabulary - analyze what creator USES and what to AVOID
         vocabulary_uses = self._extract_vocabulary_uses(creator_messages, relationship_type)
-        vocabulary_avoids = self._get_vocabulary_avoids(relationship_type)
+        vocabulary_avoids = self._extract_vocabulary_avoids(user_messages, creator_messages)
         emojis = self._extract_emojis(creator_messages, relationship_type)
 
         # Extract patterns
@@ -241,34 +233,82 @@ class RelationshipAnalyzer:
     def _extract_vocabulary_uses(
         self, creator_messages: List[str], relationship_type: str
     ) -> List[str]:
-        """Extract vocabulary patterns from creator messages."""
+        """Extract vocabulary patterns the creator ACTUALLY uses in their messages."""
         uses = []
         all_text = " ".join(creator_messages).lower()
 
-        # Check for relationship-specific vocabulary
-        if relationship_type == RelationshipType.AMISTAD_CERCANA.value:
-            for word in ["hermano", "bro", "crack", "tio"]:
-                if word in all_text:
-                    uses.append(word)
-        elif relationship_type == RelationshipType.INTIMA.value:
-            for word in ["amor", "cariño", "preciosa", "precioso"]:
-                if word in all_text:
-                    uses.append(word)
+        # Check ALL relationship vocabulary (not just type-specific)
+        # This captures what the creator actually uses regardless of relationship type
+        all_vocabulary = [
+            # Intimate/affectionate
+            "amor",
+            "cariño",
+            "preciosa",
+            "precioso",
+            "mi vida",
+            "te quiero",
+            "te amo",
+            # Friendship
+            "hermano",
+            "bro",
+            "crack",
+            "tio",
+            "compa",
+            "brother",
+            "amigo",
+            # Casual
+            "maquina",
+            "genial",
+            "crack",
+            "capo",
+        ]
+
+        for word in all_vocabulary:
+            if word in all_text:
+                uses.append(word)
 
         return list(set(uses))
 
-    def _get_vocabulary_avoids(self, relationship_type: str) -> List[str]:
-        """Get vocabulary to avoid based on relationship type."""
-        avoids = {
-            RelationshipType.INTIMA.value: ["hermano", "bro", "colega"],
-            RelationshipType.AMISTAD_CERCANA.value: ["amor", "cariño", "mi vida"],
-            RelationshipType.CLIENTE.value: ["hermano", "bro", "tio"],
-        }
-        return avoids.get(relationship_type, [])
-
-    def _extract_emojis(
-        self, creator_messages: List[str], relationship_type: str
+    def _extract_vocabulary_avoids(
+        self, user_messages: List[str], creator_messages: List[str]
     ) -> List[str]:
+        """Extract vocabulary the lead uses but the creator doesn't.
+
+        This prevents the bot from mimicking the lead's vocabulary instead of the creator's.
+        """
+        avoids = []
+        user_text = " ".join(user_messages).lower()
+        creator_text = " ".join(creator_messages).lower()
+
+        # Words to check - if lead uses them but creator doesn't, avoid them
+        vocabulary_to_check = [
+            "hermano",
+            "bro",
+            "crack",
+            "tio",
+            "compa",
+            "brother",
+            "amigo",
+            "amor",
+            "cariño",
+            "preciosa",
+            "precioso",
+            "mi vida",
+            "colega",
+            "maquina",
+            "capo",
+            "jefe",
+            "master",
+        ]
+
+        for word in vocabulary_to_check:
+            # Lead uses it but creator doesn't → avoid it
+            if word in user_text and word not in creator_text:
+                avoids.append(word)
+
+        return list(set(avoids))
+
+    def _extract_emojis(self, creator_messages: List[str], relationship_type: str) -> List[str]:
         """Extract commonly used emojis from creator messages."""
         all_text = " ".join(creator_messages)
 
@@ -347,9 +387,7 @@ class RelationshipAnalyzer:
                 "multi_message_frequency": 0.0,
             }
 
-        creator_messages = [
-            m.get("content", "") for m in messages if m.get("role") == "assistant"
-        ]
+        creator_messages = [m.get("content", "") for m in messages if m.get("role") == "assistant"]
 
         if not creator_messages:
             return {
@@ -409,9 +447,7 @@ class RelationshipAnalyzer:
                 "Esta es una amistad cercana. Usa un tono fraternal y de confianza."
             )
         elif relationship_type == RelationshipType.CLIENTE.value:
-            instructions.append(
-                "Esta es una relación de cliente. Sé profesional pero cálido."
-            )
+            instructions.append("Esta es una relación de cliente. Sé profesional pero cálido.")
 
         # Vocabulary instructions
         if vocabulary_uses:
@@ -425,9 +461,7 @@ class RelationshipAnalyzer:
 
         # Topic instructions
         if topics:
-            instructions.append(
-                f"Temas recurrentes que puedes mencionar: {', '.join(topics)}"
-            )
+            instructions.append(f"Temas recurrentes que puedes mencionar: {', '.join(topics)}")
 
         return " ".join(instructions) if instructions else "Usa un tono neutral y amable."
 
@@ -493,8 +527,8 @@ class RelationshipAnalyzer:
         updated["golden_examples"] = preserved_golden
 
         # Update message count
-        updated["total_messages_analyzed"] = (
-            existing_dna.get("total_messages_analyzed", 0) + len(new_messages)
+        updated["total_messages_analyzed"] = existing_dna.get("total_messages_analyzed", 0) + len(
+            new_messages
         )
 
         return updated
@@ -516,10 +550,12 @@ class RelationshipAnalyzer:
 
                     # Only include short, representative exchanges
                     if len(user_content) < 100 and len(creator_content) < 150:
-                        examples.append({
-                            "lead": user_content,
-                            "creator": creator_content,
-                        })
+                        examples.append(
+                            {
+                                "lead": user_content,
+                                "creator": creator_content,
+                            }
+                        )
 
                     if len(examples) >= 3:  # Limit to 3 examples
                         break
