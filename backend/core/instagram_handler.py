@@ -681,7 +681,8 @@ class InstagramHandler:
         status: str,
         history: Optional[dict],
         profile_pic_url: str = "",
-    ) -> Optional[int]:
+        profile_pending: bool = False,
+    ) -> Optional[str]:
         """
         Create a COMPLETE lead with pre-loaded conversation history.
 
@@ -692,9 +693,10 @@ class InstagramHandler:
             status: Lead status (new, returning, existing_customer)
             history: Dict with messages and metadata from _fetch_conversation_history
             profile_pic_url: Profile picture URL from Instagram API
+            profile_pending: If True, profile fetch failed and will be retried
 
         Returns:
-            Lead ID if created successfully
+            Lead ID (string) if created successfully
         """
         try:
             from api.database import SessionLocal
@@ -708,6 +710,12 @@ class InstagramHandler:
                     logger.error(f"[LeadHistory] Creator {self.creator_id} not found")
                     return None
 
+                # Build context with profile_pending flag if needed
+                context = {}
+                if profile_pending:
+                    context["profile_pending"] = True
+                    context["profile_retry_at"] = None
+
                 # Create COMPLETE lead with all fields
                 lead = Lead(
                     creator_id=creator.id,
@@ -717,6 +725,7 @@ class InstagramHandler:
                     full_name=full_name,
                     profile_pic_url=profile_pic_url,
                     status=status,
+                    context=context,
                     purchase_intent=(
                         0.1
                         if status == "returning"
@@ -729,7 +738,8 @@ class InstagramHandler:
                 logger.info(
                     f"[LeadHistory] Created COMPLETE lead {lead.id} for @{username} "
                     f"(name={full_name[:15] if full_name else 'N/A'}, "
-                    f"pic={'Yes' if profile_pic_url else 'No'}, status={status})"
+                    f"pic={'Yes' if profile_pic_url else 'No'}, status={status}"
+                    f"{', profile_pending=True' if profile_pending else ''})"
                 )
 
                 # Save historical messages with link previews
@@ -800,7 +810,7 @@ class InstagramHandler:
                         f"({previews_generated} link previews) for lead {lead.id}"
                     )
 
-                return lead.id
+                return str(lead.id)
 
             finally:
                 session.close()
@@ -824,18 +834,24 @@ class InstagramHandler:
         - categorized status based on history
         - historical messages with link_previews
 
+        AUTOMATIC RETRY: If profile fetch fails with transient error,
+        the lead is created with profile_pending=True in context,
+        and a background task will retry the profile fetch later.
+
         Returns:
             Lead status ("new", "returning", "existing_customer") or None if failed
         """
         logger.info(f"[LeadHistory] Enriching new lead: {sender_id}")
 
-        # Fetch user profile data (name, profile_pic_url)
+        # Fetch user profile data with automatic retry
         profile_pic_url = ""
+        profile_pending = False
         try:
-            from core.instagram_profile import fetch_instagram_profile
+            from core.instagram_profile import fetch_instagram_profile_with_retry
 
-            profile = await fetch_instagram_profile(sender_id, self.access_token)
-            if profile:
+            result = await fetch_instagram_profile_with_retry(sender_id, self.access_token)
+            if result.success and result.profile:
+                profile = result.profile
                 if not full_name and profile.get("name"):
                     full_name = profile["name"]
                 if not username and profile.get("username"):
@@ -846,24 +862,41 @@ class InstagramHandler:
                 if profile_pic_url:
                     cloudinary_svc = get_cloudinary_service()
                     if cloudinary_svc.is_configured:
-                        result = cloudinary_svc.upload_from_url(
+                        cloud_result = cloudinary_svc.upload_from_url(
                             url=profile_pic_url,
                             media_type="image",
                             folder=f"clonnect/{self.creator_id or 'unknown'}/profiles",
                             public_id=f"profile_{sender_id}",
                         )
-                        if result.success and result.url:
-                            logger.info(f"[LeadHistory] Profile pic uploaded to Cloudinary: {sender_id}")
-                            profile_pic_url = result.url
+                        if cloud_result.success and cloud_result.url:
+                            logger.info(
+                                f"[LeadHistory] Profile pic uploaded to Cloudinary: {sender_id}"
+                            )
+                            profile_pic_url = cloud_result.url
                         else:
-                            logger.warning(f"[LeadHistory] Cloudinary upload failed: {result.error}")
+                            logger.warning(
+                                f"[LeadHistory] Cloudinary upload failed: {cloud_result.error}"
+                            )
 
                 logger.info(
                     f"[LeadHistory] Got profile for {sender_id}: "
                     f"name={full_name[:20] if full_name else 'N/A'}, "
                     f"pic={'Yes' if profile_pic_url else 'No'}"
                 )
+            else:
+                # Profile fetch failed - mark for later retry if transient
+                if result.is_transient:
+                    profile_pending = True
+                    logger.warning(
+                        f"[LeadHistory] Profile fetch transient error for {sender_id}: {result.error_message}. "
+                        "Will retry automatically."
+                    )
+                else:
+                    logger.warning(
+                        f"[LeadHistory] Profile fetch permanent error for {sender_id}: {result.error_message}"
+                    )
         except Exception as e:
+            profile_pending = True  # Assume transient on exception
             logger.warning(f"[LeadHistory] Failed to fetch profile for {sender_id}: {e}")
 
         # Fetch conversation history from Instagram API
@@ -883,11 +916,60 @@ class InstagramHandler:
             profile_pic_url=profile_pic_url,
             status=status,
             history=history,
+            profile_pending=profile_pending,
         )
+
+        # Queue profile retry if needed
+        if lead_id and profile_pending:
+            await self._queue_profile_retry(sender_id, lead_id)
 
         if lead_id:
             return status
         return None
+
+    async def _queue_profile_retry(self, sender_id: str, lead_id: str) -> None:
+        """
+        Queue a lead for profile retry.
+        Uses the sync_queue table with a special task_type.
+        """
+        try:
+            from api.database import SessionLocal
+            from api.models import SyncQueue
+
+            session = SessionLocal()
+            try:
+                # Check if already queued
+                existing = (
+                    session.query(SyncQueue)
+                    .filter_by(
+                        creator_id=self.creator_id,
+                        conversation_id=f"profile_retry:{sender_id}",
+                        status="pending",
+                    )
+                    .first()
+                )
+                if existing:
+                    logger.debug(f"[ProfileRetry] Already queued for {sender_id}")
+                    return
+
+                # Queue for retry
+                queue_item = SyncQueue(
+                    creator_id=self.creator_id,
+                    conversation_id=f"profile_retry:{sender_id}",
+                    status="pending",
+                    attempts=0,
+                )
+                session.add(queue_item)
+                session.commit()
+                logger.info(
+                    f"[ProfileRetry] Queued profile retry for {sender_id} (lead: {lead_id})"
+                )
+
+            finally:
+                session.close()
+
+        except Exception as e:
+            logger.error(f"[ProfileRetry] Failed to queue retry for {sender_id}: {e}")
 
     async def _is_copilot_enabled(self) -> bool:
         """
@@ -1188,20 +1270,28 @@ class InstagramHandler:
         if attachments:
             att = attachments[0]
             raw_keys = list(att.keys())
-            logger.warning(f"[MediaExtract] No URL found via standard methods. Attachment keys: {raw_keys}")
+            logger.warning(
+                f"[MediaExtract] No URL found via standard methods. Attachment keys: {raw_keys}"
+            )
 
             # Deep search for any URL-like field in the attachment
             fallback_url = None
             for key, value in att.items():
-                if isinstance(value, str) and (value.startswith("http://") or value.startswith("https://")):
+                if isinstance(value, str) and (
+                    value.startswith("http://") or value.startswith("https://")
+                ):
                     fallback_url = value
                     logger.info(f"[MediaExtract] Found fallback URL in field '{key}'")
                     break
                 elif isinstance(value, dict):
                     for subkey, subvalue in value.items():
-                        if isinstance(subvalue, str) and (subvalue.startswith("http://") or subvalue.startswith("https://")):
+                        if isinstance(subvalue, str) and (
+                            subvalue.startswith("http://") or subvalue.startswith("https://")
+                        ):
                             fallback_url = subvalue
-                            logger.info(f"[MediaExtract] Found fallback URL in nested field '{key}.{subkey}'")
+                            logger.info(
+                                f"[MediaExtract] Found fallback URL in nested field '{key}.{subkey}'"
+                            )
                             break
                     if fallback_url:
                         break
@@ -1302,7 +1392,11 @@ class InstagramHandler:
                     cdn_url = (
                         att.get("video_data", {}).get("url")
                         or att.get("image_data", {}).get("url")
-                        or (att.get("payload", {}).get("url") if isinstance(att.get("payload"), dict) else None)
+                        or (
+                            att.get("payload", {}).get("url")
+                            if isinstance(att.get("payload"), dict)
+                            else None
+                        )
                         or att.get("url")
                     )
 
@@ -1317,7 +1411,7 @@ class InstagramHandler:
                 story_info = {
                     "type": story_type,
                     "url": cdn_url or "",  # CDN URL for video/image
-                    "link": story_link,    # Permalink for opening in Instagram
+                    "link": story_link,  # Permalink for opening in Instagram
                 }
                 if reaction_emoji:
                     story_info["emoji"] = reaction_emoji
@@ -1354,28 +1448,38 @@ class InstagramHandler:
                                 story_info["original_url"] = cdn_url
                                 story_info["permanent_url"] = result.url
                                 story_info["cloudinary_id"] = result.public_id
-                                logger.info(f"[IG:{message.sender_id}] Story media uploaded to Cloudinary")
+                                logger.info(
+                                    f"[IG:{message.sender_id}] Story media uploaded to Cloudinary"
+                                )
                             else:
                                 # Fallback to base64
                                 captured = await capture_media_from_url(
-                                    url=cdn_url, media_type="video",
-                                    creator_id=self.creator_id, use_cloudinary=False
+                                    url=cdn_url,
+                                    media_type="video",
+                                    creator_id=self.creator_id,
+                                    use_cloudinary=False,
                                 )
                                 if captured and captured.startswith("data:"):
                                     story_info["thumbnail_base64"] = captured
-                                    logger.info(f"[IG:{message.sender_id}] Story captured as base64")
+                                    logger.info(
+                                        f"[IG:{message.sender_id}] Story captured as base64"
+                                    )
                         else:
                             # No Cloudinary - capture as base64
                             captured = await capture_media_from_url(
-                                url=cdn_url, media_type="video",
-                                creator_id=self.creator_id, use_cloudinary=False
+                                url=cdn_url,
+                                media_type="video",
+                                creator_id=self.creator_id,
+                                use_cloudinary=False,
                             )
                             if captured:
                                 if captured.startswith("data:"):
                                     story_info["thumbnail_base64"] = captured
                                 else:
                                     story_info["permanent_url"] = captured
-                                logger.info(f"[IG:{message.sender_id}] Story media captured permanently")
+                                logger.info(
+                                    f"[IG:{message.sender_id}] Story media captured permanently"
+                                )
 
         if not message_text and message.attachments and not story_info:
             # Extract media info and create descriptive text
@@ -1432,7 +1536,9 @@ class InstagramHandler:
                                 )
                                 if captured and captured.startswith("data:"):
                                     media_info["thumbnail_base64"] = captured
-                                    logger.info(f"[IG:{message.sender_id}] Captured media as base64")
+                                    logger.info(
+                                        f"[IG:{message.sender_id}] Captured media as base64"
+                                    )
                     else:
                         # No Cloudinary - capture as base64
                         logger.debug("[IG] Cloudinary not configured, capturing as base64")
@@ -1448,7 +1554,9 @@ class InstagramHandler:
                                     media_info["thumbnail_base64"] = captured
                                 else:
                                     media_info["permanent_url"] = captured
-                                logger.info(f"[IG:{message.sender_id}] Captured media for permanent storage")
+                                logger.info(
+                                    f"[IG:{message.sender_id}] Captured media for permanent storage"
+                                )
 
         # Build metadata including media and story info if present
         dm_metadata = {

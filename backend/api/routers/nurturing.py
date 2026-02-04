@@ -1,19 +1,16 @@
 """Nurturing sequences endpoints - Full implementation"""
-from fastapi import APIRouter, Body, HTTPException
-from typing import Optional, List, Dict, Any
-from pydantic import BaseModel
+
+import asyncio
+import json
 import logging
 import os
-import json
-import asyncio
-import httpx
 from datetime import datetime
+from typing import Any, Dict, List, Optional
 
-from core.nurturing import (
-    get_nurturing_manager,
-    NURTURING_SEQUENCES,
-    SequenceType,
-)
+import httpx
+from core.nurturing import NURTURING_SEQUENCES, SequenceType, get_nurturing_manager
+from fastapi import APIRouter, Body, HTTPException
+from pydantic import BaseModel
 
 # Telegram proxy config
 TELEGRAM_PROXY_URL = os.getenv("TELEGRAM_PROXY_URL", "")
@@ -41,6 +38,7 @@ SEQUENCES_CONFIG_PATH = "data/nurturing/sequences_config.json"
 # Pydantic Models
 # ============================================================================
 
+
 class SequenceStep(BaseModel):
     delay_hours: int
     message: str
@@ -58,6 +56,7 @@ class ToggleSequenceRequest(BaseModel):
 # Sequence Configuration Manager
 # ============================================================================
 
+
 def _get_default_sequences() -> List[Dict[str, Any]]:
     """Get default sequences from NURTURING_SEQUENCES"""
     sequence_meta = {
@@ -73,16 +72,20 @@ def _get_default_sequences() -> List[Dict[str, Any]]:
 
     sequences = []
     for seq_type, steps in NURTURING_SEQUENCES.items():
-        meta = sequence_meta.get(seq_type, {"name": seq_type.replace("_", " ").title(), "id": f"seq_{seq_type}"})
-        sequences.append({
-            "id": meta["id"],
-            "type": seq_type,
-            "name": meta["name"],
-            "is_active": False,  # Default to inactive - user must enable
-            "steps": [{"delay_hours": delay, "message": msg} for delay, msg in steps],
-            "enrolled_count": 0,
-            "sent_count": 0,
-        })
+        meta = sequence_meta.get(
+            seq_type, {"name": seq_type.replace("_", " ").title(), "id": f"seq_{seq_type}"}
+        )
+        sequences.append(
+            {
+                "id": meta["id"],
+                "type": seq_type,
+                "name": meta["name"],
+                "is_active": False,  # Default to inactive - user must enable
+                "steps": [{"delay_hours": delay, "message": msg} for delay, msg in steps],
+                "enrolled_count": 0,
+                "sent_count": 0,
+            }
+        )
 
     return sequences
 
@@ -92,7 +95,7 @@ def _load_sequences_config(creator_id: str) -> Dict[str, Any]:
     config_path = f"data/nurturing/{creator_id}_sequences.json"
     if os.path.exists(config_path):
         try:
-            with open(config_path, 'r', encoding='utf-8') as f:
+            with open(config_path, "r", encoding="utf-8") as f:
                 return json.load(f)
         except Exception as e:
             logger.error(f"Error loading sequences config for {creator_id}: {e}")
@@ -106,7 +109,7 @@ def _save_sequences_config(creator_id: str, config: Dict[str, Any]):
     os.makedirs("data/nurturing", exist_ok=True)
     config_path = f"data/nurturing/{creator_id}_sequences.json"
     try:
-        with open(config_path, 'w', encoding='utf-8') as f:
+        with open(config_path, "w", encoding="utf-8") as f:
             json.dump(config, f, indent=2, ensure_ascii=False)
     except Exception as e:
         logger.error(f"Error saving sequences config for {creator_id}: {e}")
@@ -150,23 +153,16 @@ def _get_sequences_with_stats(creator_id: str) -> List[Dict[str, Any]]:
 # Endpoints
 # ============================================================================
 
+
 @router.get("/{creator_id}/sequences")
 async def get_nurturing_sequences(creator_id: str):
     """Get all nurturing sequences with configuration and stats"""
     sequences = _get_sequences_with_stats(creator_id)
-    return {
-        "status": "ok",
-        "creator_id": creator_id,
-        "sequences": sequences
-    }
+    return {"status": "ok", "creator_id": creator_id, "sequences": sequences}
 
 
 @router.get("/{creator_id}/followups")
-async def get_nurturing_followups(
-    creator_id: str,
-    status: Optional[str] = None,
-    limit: int = 50
-):
+async def get_nurturing_followups(creator_id: str, status: Optional[str] = None, limit: int = 50):
     """Get all followups for a creator"""
     manager = get_nurturing_manager()
     followups = manager.get_all_followups(creator_id, status)
@@ -178,7 +174,7 @@ async def get_nurturing_followups(
         "status": "ok",
         "creator_id": creator_id,
         "followups": [fu.to_dict() for fu in followups],
-        "count": len(followups)
+        "count": len(followups),
     }
 
 
@@ -213,15 +209,13 @@ async def get_nurturing_stats(creator_id: str):
         "sent": stats.get("sent", 0),
         "cancelled": stats.get("cancelled", 0),
         "active_sequences": active_count,
-        "by_sequence": stats.get("by_sequence", {})
+        "by_sequence": stats.get("by_sequence", {}),
     }
 
 
 @router.post("/{creator_id}/sequences/{sequence_type}/toggle")
 async def toggle_nurturing_sequence(
-    creator_id: str,
-    sequence_type: str,
-    data: Optional[ToggleSequenceRequest] = Body(default=None)
+    creator_id: str, sequence_type: str, data: Optional[ToggleSequenceRequest] = Body(default=None)
 ):
     """Toggle a nurturing sequence on/off"""
     config = _load_sequences_config(creator_id)
@@ -246,18 +240,12 @@ async def toggle_nurturing_sequence(
 
     logger.info(f"Toggled sequence {sequence_type} for {creator_id}: is_active={new_active}")
 
-    return {
-        "status": "ok",
-        "sequence_type": sequence_type,
-        "is_active": new_active
-    }
+    return {"status": "ok", "sequence_type": sequence_type, "is_active": new_active}
 
 
 @router.put("/{creator_id}/sequences/{sequence_type}")
 async def update_nurturing_sequence(
-    creator_id: str,
-    sequence_type: str,
-    data: UpdateSequenceRequest
+    creator_id: str, sequence_type: str, data: UpdateSequenceRequest
 ):
     """Update nurturing sequence steps"""
     config = _load_sequences_config(creator_id)
@@ -271,8 +259,7 @@ async def update_nurturing_sequence(
 
     # Update steps
     config["sequences"][sequence_type]["steps"] = [
-        {"delay_hours": step.delay_hours, "message": step.message}
-        for step in data.steps
+        {"delay_hours": step.delay_hours, "message": step.message} for step in data.steps
     ]
 
     _save_sequences_config(creator_id, config)
@@ -282,7 +269,7 @@ async def update_nurturing_sequence(
     return {
         "status": "ok",
         "sequence_type": sequence_type,
-        "steps": config["sequences"][sequence_type]["steps"]
+        "steps": config["sequences"][sequence_type]["steps"],
     }
 
 
@@ -304,14 +291,20 @@ async def get_enrolled_followers(creator_id: str, sequence_type: str):
             enrolled_map[fid] = {
                 "follower_id": fid,
                 "next_scheduled": fu.scheduled_at,
-                "pending_steps": []
+                "pending_steps": [],
             }
 
-        enrolled_map[fid]["pending_steps"].append({
-            "step": fu.step,
-            "scheduled_at": fu.scheduled_at,
-            "message_preview": fu.message_template[:50] + "..." if len(fu.message_template) > 50 else fu.message_template
-        })
+        enrolled_map[fid]["pending_steps"].append(
+            {
+                "step": fu.step,
+                "scheduled_at": fu.scheduled_at,
+                "message_preview": (
+                    fu.message_template[:50] + "..."
+                    if len(fu.message_template) > 50
+                    else fu.message_template
+                ),
+            }
+        )
 
         # Update next_scheduled to earliest
         if fu.scheduled_at < enrolled_map[fid]["next_scheduled"]:
@@ -323,27 +316,21 @@ async def get_enrolled_followers(creator_id: str, sequence_type: str):
         "status": "ok",
         "sequence_type": sequence_type,
         "enrolled": enrolled_list,
-        "count": len(enrolled_list)
+        "count": len(enrolled_list),
     }
 
 
 @router.delete("/{creator_id}/cancel/{follower_id}")
-async def cancel_nurturing(
-    creator_id: str,
-    follower_id: str,
-    sequence_type: Optional[str] = None
-):
+async def cancel_nurturing(creator_id: str, follower_id: str, sequence_type: Optional[str] = None):
     """Cancel nurturing for a follower"""
     manager = get_nurturing_manager()
     cancelled = manager.cancel_followups(creator_id, follower_id, sequence_type)
 
-    logger.info(f"Cancelled {cancelled} followups for {follower_id} (creator: {creator_id}, sequence: {sequence_type})")
+    logger.info(
+        f"Cancelled {cancelled} followups for {follower_id} (creator: {creator_id}, sequence: {sequence_type})"
+    )
 
-    return {
-        "status": "ok",
-        "follower_id": follower_id,
-        "cancelled": cancelled
-    }
+    return {"status": "ok", "follower_id": follower_id, "cancelled": cancelled}
 
 
 # Legacy endpoint for backwards compatibility
@@ -378,11 +365,7 @@ async def _send_telegram_via_proxy(chat_id: str, text: str) -> bool:
     payload = {
         "bot_token": TELEGRAM_BOT_TOKEN,
         "method": "sendMessage",
-        "params": {
-            "chat_id": int(chat_id),
-            "text": text,
-            "parse_mode": "HTML"
-        }
+        "params": {"chat_id": int(chat_id), "text": text, "parse_mode": "HTML"},
     }
 
     logger.info(f"[NURTURING] Sending to {chat_id}: '{text[:50]}...'")
@@ -428,6 +411,7 @@ async def _try_send_message(creator_id: str, follower_id: str, message: str) -> 
     if channel == "instagram":
         try:
             from core.instagram_handler import send_instagram_dm
+
             ig_user_id = follower_id.replace("ig_", "")
             result = await send_instagram_dm(creator_id, ig_user_id, message)
             if result:
@@ -446,7 +430,7 @@ async def run_nurturing_followups(
     due_only: bool = True,
     dry_run: Optional[bool] = None,  # P0 FIX: Now uses NURTURING_DRY_RUN env var as default
     limit: int = 50,
-    force_due: bool = False
+    force_due: bool = False,
 ):
     """
     Execute pending nurturing followups for a creator.
@@ -483,29 +467,33 @@ async def run_nurturing_followups(
     # Apply limit
     followups = followups[:limit]
 
-    logger.info(f"[NURTURING RUN] creator={creator_id} due_only={due_only} dry_run={dry_run} force_due={force_due} found={len(followups)}")
+    logger.info(
+        f"[NURTURING RUN] creator={creator_id} due_only={due_only} dry_run={dry_run} force_due={force_due} found={len(followups)}"
+    )
 
     if dry_run:
         # Return detailed list without changing anything
         items = []
         for fu in followups:
             message = manager.get_followup_message(fu)
-            items.append({
-                "followup_id": fu.id,
-                "follower_id": fu.follower_id,
-                "sequence_type": fu.sequence_type,
-                "step": fu.step,
-                "scheduled_at": fu.scheduled_at,
-                "message_preview": message[:100] + "..." if len(message) > 100 else message,
-                "channel_guess": _guess_channel(fu.follower_id)
-            })
+            items.append(
+                {
+                    "followup_id": fu.id,
+                    "follower_id": fu.follower_id,
+                    "sequence_type": fu.sequence_type,
+                    "step": fu.step,
+                    "scheduled_at": fu.scheduled_at,
+                    "message_preview": message[:100] + "..." if len(message) > 100 else message,
+                    "channel_guess": _guess_channel(fu.follower_id),
+                }
+            )
 
         return {
             "status": "ok",
             "creator_id": creator_id,
             "dry_run": True,
             "would_process": len(items),
-            "items": items
+            "items": items,
         }
 
     # Actually process followups
@@ -564,8 +552,8 @@ async def run_nurturing_followups(
         "stats_after": {
             "pending": stats.get("pending", 0),
             "sent": stats.get("sent", 0),
-            "cancelled": stats.get("cancelled", 0)
-        }
+            "cancelled": stats.get("cancelled", 0),
+        },
     }
 
 
@@ -573,18 +561,168 @@ async def run_nurturing_followups(
 # Automatic Scheduler
 # ============================================================================
 
+
+async def _process_profile_retries(max_per_cycle: int = 10) -> Dict[str, int]:
+    """
+    Process pending profile retry queue.
+    Automatically retries failed profile fetches for leads.
+
+    Returns:
+        Dict with counts: processed, success, failed
+    """
+    from api.database import SessionLocal
+    from api.models import Creator, Lead, SyncQueue
+    from core.instagram_profile import fetch_instagram_profile_with_retry
+    from services.cloudinary_service import get_cloudinary_service
+
+    result = {"processed": 0, "success": 0, "failed": 0}
+
+    session = SessionLocal()
+    try:
+        # Get pending profile retries
+        pending = (
+            session.query(SyncQueue)
+            .filter(
+                SyncQueue.conversation_id.like("profile_retry:%"),
+                SyncQueue.status == "pending",
+                SyncQueue.attempts < 5,  # Max 5 attempts
+            )
+            .order_by(SyncQueue.created_at)
+            .limit(max_per_cycle)
+            .all()
+        )
+
+        if not pending:
+            return result
+
+        for item in pending:
+            result["processed"] += 1
+
+            # Extract sender_id from conversation_id
+            sender_id = item.conversation_id.replace("profile_retry:", "")
+
+            # Get creator info
+            creator = session.query(Creator).filter_by(name=item.creator_id).first()
+            if not creator or not creator.instagram_token:
+                item.status = "failed"
+                item.last_error = "Creator not found or no token"
+                session.commit()
+                result["failed"] += 1
+                continue
+
+            # Try to fetch profile
+            try:
+                profile_result = await fetch_instagram_profile_with_retry(
+                    sender_id, creator.instagram_token
+                )
+
+                if profile_result.success and profile_result.profile:
+                    profile = profile_result.profile
+
+                    # Find and update lead
+                    lead = (
+                        session.query(Lead)
+                        .filter(
+                            Lead.creator_id == creator.id,
+                            Lead.platform_user_id == f"ig_{sender_id}",
+                        )
+                        .first()
+                    )
+
+                    if lead:
+                        # Update lead with profile data
+                        if profile.get("username"):
+                            lead.username = profile["username"]
+                        if profile.get("name"):
+                            lead.full_name = profile["name"]
+
+                        # Upload profile pic to Cloudinary
+                        if profile.get("profile_pic"):
+                            cloudinary_svc = get_cloudinary_service()
+                            if cloudinary_svc.is_configured:
+                                cloud_result = cloudinary_svc.upload_from_url(
+                                    url=profile["profile_pic"],
+                                    media_type="image",
+                                    folder=f"clonnect/{item.creator_id}/profiles",
+                                    public_id=f"profile_{sender_id}",
+                                )
+                                if cloud_result.success and cloud_result.url:
+                                    lead.profile_pic_url = cloud_result.url
+                                else:
+                                    lead.profile_pic_url = profile["profile_pic"]
+                            else:
+                                lead.profile_pic_url = profile["profile_pic"]
+
+                        # Clear pending flag from context
+                        if lead.context:
+                            lead.context.pop("profile_pending", None)
+                            lead.context.pop("profile_retry_at", None)
+                        else:
+                            lead.context = {}
+
+                        session.commit()
+                        logger.info(
+                            f"[ProfileRetry] Success for {sender_id}: @{profile.get('username', 'N/A')}"
+                        )
+
+                    # Mark queue item as done
+                    item.status = "done"
+                    item.processed_at = datetime.now()
+                    session.commit()
+                    result["success"] += 1
+
+                else:
+                    # Failed - increment attempts
+                    item.attempts += 1
+                    item.last_error = profile_result.error_message or "Unknown error"
+
+                    if item.attempts >= 5:
+                        item.status = "failed"
+                        logger.warning(f"[ProfileRetry] Giving up on {sender_id} after 5 attempts")
+                    session.commit()
+                    result["failed"] += 1
+
+            except Exception as e:
+                item.attempts += 1
+                item.last_error = str(e)
+                if item.attempts >= 5:
+                    item.status = "failed"
+                session.commit()
+                result["failed"] += 1
+                logger.error(f"[ProfileRetry] Error for {sender_id}: {e}")
+
+    finally:
+        session.close()
+
+    return result
+
+
 async def _run_scheduler_cycle():
     """Run a single scheduler cycle - process all due followups across all creators"""
     global _scheduler_last_run, _scheduler_run_count
 
     manager = get_nurturing_manager()
 
+    # 0. Process pending profile retries (automatic enrichment)
+    try:
+        profile_result = await _process_profile_retries()
+        if profile_result.get("processed", 0) > 0:
+            logger.info(
+                f"[NURTURING SCHEDULER] Profile retry: {profile_result['processed']} processed, "
+                f"{profile_result['success']} success, {profile_result['failed']} failed"
+            )
+    except Exception as e:
+        logger.error(f"[NURTURING SCHEDULER] Profile retry error: {e}")
+
     # 1. Run ghost reactivation (find and schedule re-engagement for ghosts)
     try:
         from core.ghost_reactivation import run_ghost_reactivation_cycle
+
         ghost_result = await run_ghost_reactivation_cycle()
         if ghost_result.get("total_scheduled", 0) > 0:
-            logger.info(f"[NURTURING SCHEDULER] Ghost reactivation: {ghost_result['total_scheduled']} scheduled")
+            logger.info(
+                f"[NURTURING SCHEDULER] Ghost reactivation: {ghost_result['total_scheduled']} scheduled"
+            )
     except Exception as e:
         logger.error(f"[NURTURING SCHEDULER] Ghost reactivation error: {e}")
 
@@ -626,14 +764,16 @@ async def _run_scheduler_cycle():
     _scheduler_last_run = datetime.now().isoformat()
     _scheduler_run_count += 1
 
-    logger.info(f"[NURTURING SCHEDULER] Completed: {processed} processed, {sent_real} sent, {sent_simulated} simulated, {error_count} errors")
+    logger.info(
+        f"[NURTURING SCHEDULER] Completed: {processed} processed, {sent_real} sent, {sent_simulated} simulated, {error_count} errors"
+    )
 
     return {
         "pending": len(followups),
         "processed": processed,
         "sent": sent_real,
         "simulated": sent_simulated,
-        "errors": error_count
+        "errors": error_count,
     }
 
 
@@ -687,11 +827,13 @@ async def get_scheduler_status():
     return {
         "status": "ok",
         "scheduler": {
-            "running": _scheduler_running and _scheduler_task is not None and not _scheduler_task.done(),
+            "running": _scheduler_running
+            and _scheduler_task is not None
+            and not _scheduler_task.done(),
             "interval_seconds": _scheduler_interval,
             "last_run": _scheduler_last_run,
-            "total_runs": _scheduler_run_count
-        }
+            "total_runs": _scheduler_run_count,
+        },
     }
 
 
@@ -699,7 +841,4 @@ async def get_scheduler_status():
 async def run_scheduler_now():
     """Manually trigger a scheduler run (for testing)"""
     result = await _run_scheduler_cycle()
-    return {
-        "status": "ok",
-        "result": result
-    }
+    return {"status": "ok", "result": result}

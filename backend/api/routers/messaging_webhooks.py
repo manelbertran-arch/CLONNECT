@@ -2,6 +2,7 @@
 Messaging webhooks router (Instagram, WhatsApp, Telegram).
 Extracted from main.py following TDD methodology.
 """
+
 import asyncio
 import logging
 import os
@@ -18,6 +19,7 @@ router = APIRouter(tags=["messaging-webhooks"])
 # =============================================================================
 # INSTAGRAM WEBHOOK
 # =============================================================================
+
 
 @router.get("/webhook/instagram")
 async def instagram_webhook_verify(request: Request):
@@ -48,26 +50,76 @@ async def instagram_webhook_receive(request: Request):
     """
     Receive Instagram webhook events (POST).
     Processes incoming DMs with DMResponderAgent and sends automatic responses.
+
+    FIXED V7: Now uses multi-creator routing (same as /instagram/webhook).
     """
-    from core.instagram_handler import get_instagram_handler
+    from api.routers.instagram import (
+        extract_page_id_from_payload,
+        get_creator_by_ig_user_id,
+        get_creator_by_page_id,
+        get_handler_for_creator,
+    )
 
     logger.warning("=" * 60)
-    logger.warning("========== INSTAGRAM WEBHOOK HIT V6 ==========")
+    logger.warning("========== INSTAGRAM WEBHOOK HIT V7 (MULTI-CREATOR) ==========")
     logger.warning("=" * 60)
 
     try:
         payload = await request.json()
         signature = request.headers.get("X-Hub-Signature-256", "")
 
-        handler = get_instagram_handler()
+        # Extract page_id to route to correct creator
+        page_id = extract_page_id_from_payload(payload)
+
+        if not page_id:
+            logger.warning("Could not extract page_id from webhook payload")
+            return {"status": "ok", "warning": "no_page_id", "messages_processed": 0}
+
+        logger.info(f"Routing webhook for page_id: {page_id}")
+
+        # Lookup creator by page_id
+        creator_info = get_creator_by_page_id(page_id)
+
+        if not creator_info:
+            # Try alternative lookup by recipient in messaging
+            for entry in payload.get("entry", []):
+                for messaging in entry.get("messaging", []):
+                    ig_user_id = messaging.get("recipient", {}).get("id")
+                    if ig_user_id:
+                        creator_info = get_creator_by_ig_user_id(ig_user_id)
+                        if creator_info:
+                            break
+                if creator_info:
+                    break
+
+        if not creator_info:
+            logger.warning(f"No creator found for page_id: {page_id}")
+            return {"status": "ok", "warning": "unknown_creator", "page_id": page_id}
+
+        creator_id = creator_info["creator_id"]
+        logger.info(f"Found creator: {creator_id} for page_id: {page_id}")
+
+        # Check if bot is active
+        if not creator_info.get("bot_active", False):
+            logger.info(f"Bot not active for creator {creator_id}, skipping")
+            return {"status": "ok", "info": "bot_paused", "creator_id": creator_id}
+
+        # Get handler for this creator
+        handler = get_handler_for_creator(creator_info)
+
+        # Process the webhook
         result = await handler.handle_webhook(payload, signature)
 
         logger.info(f"Instagram webhook processed: {result.get('messages_processed', 0)} messages")
-        return result
+        return {**result, "creator_id": creator_id, "page_id": page_id}
 
     except Exception as e:
         logger.error(f"Error processing Instagram webhook: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        import traceback
+
+        logger.error(traceback.format_exc())
+        # Return 200 to acknowledge receipt (prevents infinite retries)
+        return {"status": "error", "error": str(e)}
 
 
 # Legacy endpoint (backwards compatibility)
@@ -129,6 +181,7 @@ async def instagram_comments_webhook(request: Request):
 # =============================================================================
 # WHATSAPP WEBHOOK
 # =============================================================================
+
 
 @router.get("/webhook/whatsapp")
 async def whatsapp_webhook_verify(request: Request):
@@ -241,9 +294,13 @@ def _get_copilot_mode_cached(creator_id: str) -> bool:
                 copilot_enabled = getattr(creator, "copilot_mode", True)
                 if copilot_enabled is None:
                     copilot_enabled = True
-                logger.info(f"[COPILOT-CACHE] MISS for {creator_id}: loaded copilot_mode={copilot_enabled} from DB")
+                logger.info(
+                    f"[COPILOT-CACHE] MISS for {creator_id}: loaded copilot_mode={copilot_enabled} from DB"
+                )
             else:
-                logger.warning(f"[COPILOT-CACHE] Creator '{creator_id}' not found, defaulting to copilot_mode=True")
+                logger.warning(
+                    f"[COPILOT-CACHE] Creator '{creator_id}' not found, defaulting to copilot_mode=True"
+                )
         finally:
             session.close()
     except Exception as e:
@@ -260,7 +317,11 @@ async def _check_telegram_duplicate(update_id: int) -> bool:
     current_time = time.time()
 
     async with _telegram_dedup_lock:
-        expired = [uid for uid, ts in _telegram_processed_updates.items() if current_time - ts > TELEGRAM_DEDUP_TTL]
+        expired = [
+            uid
+            for uid, ts in _telegram_processed_updates.items()
+            if current_time - ts > TELEGRAM_DEDUP_TTL
+        ]
         for uid in expired:
             del _telegram_processed_updates[uid]
 
@@ -272,7 +333,9 @@ async def _check_telegram_duplicate(update_id: int) -> bool:
         return False
 
 
-async def send_telegram_direct(chat_id: int, text: str, bot_token: str, reply_markup: dict = None) -> dict:
+async def send_telegram_direct(
+    chat_id: int, text: str, bot_token: str, reply_markup: dict = None
+) -> dict:
     """Send Telegram message directly."""
     telegram_api = f"https://api.telegram.org/bot{bot_token}/sendMessage"
     payload = {"chat_id": chat_id, "text": text, "parse_mode": "HTML"}
@@ -284,7 +347,9 @@ async def send_telegram_direct(chat_id: int, text: str, bot_token: str, reply_ma
         return response.json()
 
 
-async def send_telegram_via_proxy(chat_id: int, text: str, bot_token: str, reply_markup: dict = None) -> dict:
+async def send_telegram_via_proxy(
+    chat_id: int, text: str, bot_token: str, reply_markup: dict = None
+) -> dict:
     """Send Telegram message via Cloudflare Worker proxy."""
     headers = {}
     if TELEGRAM_PROXY_SECRET:
@@ -303,7 +368,9 @@ async def send_telegram_via_proxy(chat_id: int, text: str, bot_token: str, reply
         return response.json()
 
 
-async def send_telegram_message(chat_id: int, text: str, bot_token: str, reply_markup: dict = None) -> dict:
+async def send_telegram_message(
+    chat_id: int, text: str, bot_token: str, reply_markup: dict = None
+) -> dict:
     """Send Telegram message - direct first, proxy as fallback."""
     import time
 
@@ -357,6 +424,7 @@ async def telegram_webhook(request: Request):
             # Import the booking handler from main for now
             try:
                 from api.main import handle_telegram_booking_callback
+
                 return await handle_telegram_booking_callback(callback_query)
             except ImportError:
                 logger.warning("Booking callback handler not available")
@@ -398,6 +466,7 @@ async def telegram_webhook(request: Request):
 
         try:
             import time
+
             _t_webhook_start = time.time()
 
             agent = get_dm_agent(creator_id)
@@ -415,8 +484,8 @@ async def telegram_webhook(request: Request):
                     "message_id": str(message.get("message_id", "")),
                     "username": sender_name,
                     "name": full_name,
-                    "platform": "telegram"
-                }
+                    "platform": "telegram",
+                },
             )
             _t_process_done = time.time()
             logger.info(f"process_dm completed in {_t_process_done - _t_agent_ready:.2f}s")
@@ -424,14 +493,18 @@ async def telegram_webhook(request: Request):
             bot_reply = response.content
             intent = response.intent if response.intent else "unknown"
 
-            logger.info(f"Telegram DM from {sender_name} ({sender_id}): '{text[:50]}' -> intent={intent}")
+            logger.info(
+                f"Telegram DM from {sender_name} ({sender_id}): '{text[:50]}' -> intent={intent}"
+            )
 
             _t_copilot_start = time.time()
             copilot_enabled = _get_copilot_mode_cached(creator_id)
             logger.info(f"Copilot mode check took {time.time() - _t_copilot_start:.3f}s (cached)")
 
             if copilot_enabled:
-                logger.info("COPILOT MODE ACTIVE - NOT sending auto-reply, creating pending response")
+                logger.info(
+                    "COPILOT MODE ACTIVE - NOT sending auto-reply, creating pending response"
+                )
                 from core.copilot_service import get_copilot_service
 
                 copilot = get_copilot_service()
@@ -481,11 +554,15 @@ async def telegram_webhook(request: Request):
             if bot_reply and bot_token:
                 try:
                     _t_tg_start = time.time()
-                    result = await send_telegram_message(chat_id, bot_reply, bot_token, reply_markup)
+                    result = await send_telegram_message(
+                        chat_id, bot_reply, bot_token, reply_markup
+                    )
                     _t_tg_end = time.time()
                     if result.get("ok"):
                         telegram_sent = True
-                        logger.info(f"Telegram sent in {_t_tg_end - _t_tg_start:.2f}s to chat {chat_id}")
+                        logger.info(
+                            f"Telegram sent in {_t_tg_end - _t_tg_start:.2f}s to chat {chat_id}"
+                        )
                     else:
                         logger.error(f"Telegram send failed: {result}")
                 except Exception as e:
@@ -507,6 +584,7 @@ async def telegram_webhook(request: Request):
         except Exception as e:
             logger.error(f"Error processing Telegram message: {type(e).__name__}: {e}")
             import traceback
+
             logger.error(f"Traceback: {traceback.format_exc()}")
             return {"status": "error", "detail": str(e)}
 
