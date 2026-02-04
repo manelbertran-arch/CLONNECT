@@ -5026,10 +5026,21 @@ async def fix_instagram_page_id(creator_id: str):
             raise HTTPException(status_code=400, detail="Creator has no Instagram token")
 
         token = creator.instagram_token
+        token_prefix = token[:15] if token else "NONE"
+        token_length = len(token) if token else 0
         is_page_token = token.startswith("EAA") if token else False
+
+        logger.info(f"[FixPageID] Token: {token_prefix}... (len={token_length}), is_page_token={is_page_token}")
 
         page_id = None
         page_name = None
+
+        # Return token debug info in all responses
+        token_debug = {
+            "token_prefix": token_prefix,
+            "token_length": token_length,
+            "detected_type": "PAGE (EAA)" if is_page_token else "USER (IGAAT)"
+        }
 
         if is_page_token:
             # EAA token = Page Access Token
@@ -5044,7 +5055,7 @@ async def fix_instagram_page_id(creator_id: str):
                     "status": "error",
                     "error": f"Meta API error: {response.status_code}",
                     "detail": response.text[:500],
-                    "token_type": "PAGE (EAA)"
+                    "token_debug": token_debug
                 }
 
             data = response.json()
@@ -5064,7 +5075,7 @@ async def fix_instagram_page_id(creator_id: str):
                     "status": "error",
                     "error": f"Meta API error: {response.status_code}",
                     "detail": response.text[:500],
-                    "token_type": "USER (IGAAT)"
+                    "token_debug": token_debug
                 }
 
             data = response.json()
@@ -5075,7 +5086,7 @@ async def fix_instagram_page_id(creator_id: str):
                     "status": "error",
                     "error": "No Facebook pages found for this token",
                     "hint": "Make sure the token has pages_read_engagement permission",
-                    "token_type": "USER (IGAAT)"
+                    "token_debug": token_debug
                 }
 
             # Use the first page
