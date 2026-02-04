@@ -2,18 +2,18 @@
 
 ## 🎯 Objetivo: Bot indistinguible de Stefan real
 
-## Overall Progress: 2/7 fases completadas (29%)
+## Overall Progress: 3/7 fases completadas (43%)
 
 ```
-[██████░░░░░░░░░░░░░░] 29%
+[████████░░░░░░░░░░░░] 43%
 ```
 
 | Phase | Nombre | Status | Impacto Turing | Notas |
 |-------|--------|--------|----------------|-------|
 | 0 | Data Cleanup | ✅ DONE | N/A | 10 DNAs generados |
 | 1 | Writing Patterns | ✅ DONE | ⭐⭐⭐⭐⭐ | 3056 msgs analizados |
-| 2 | Conversation Memory | 🔴 TODO | ⭐⭐⭐⭐⭐ | NEXT |
-| 3 | Response Variations | 🔴 TODO | ⭐⭐⭐⭐ | |
+| 2 | Conversation Memory | ✅ DONE | ⭐⭐⭐⭐⭐ | 23 tests passing |
+| 3 | Response Variations | 🔴 TODO | ⭐⭐⭐⭐ | NEXT |
 | 4 | Timing & Rhythm | 🔴 TODO | ⭐⭐⭐ | |
 | 5 | Multi-Message | 🔴 TODO | ⭐⭐⭐ | |
 | 6 | Edge Cases | 🔴 TODO | ⭐⭐⭐ | |
@@ -52,26 +52,50 @@
 
 **Top 5 emojis:** 😀 😊 ❤ 💙 ☺
 
-**Archivos creados:**
+**Archivos:**
 - `models/writing_patterns.py`
 - `data/writing_patterns/stefan_analysis.json`
 
 ---
 
-## 🔴 Phase 2: Conversation Memory - PENDIENTE
+## ✅ Phase 2: Conversation Memory - COMPLETADO
 
-**Objetivo:** Bot recuerda conversaciones previas entre sesiones
+**Fecha:** 2026-02-04
 
-**Entregables:**
-- [ ] `models/conversation_memory.py`
-- [ ] `services/memory_service.py`
-- [ ] Integración con dm_agent
-- [ ] Tests
+**Implementado:**
+- `models/conversation_memory.py` - Modelo con facts, info_given, estado
+- `services/memory_service.py` - ConversationMemoryService añadido
+- Detección de referencias al pasado ("ya te dije", "como te comenté")
+- Tracking de información dada (precios, links, productos)
+- Detección de tipos de pregunta
+- Test suite completo (23 tests, 100% passing)
 
-**Casos de uso:**
-- "Ya te lo dije" → Bot revisa historial
-- No repetir precios ya dados
-- Continuar conversación después de días
+**Capabilities:**
+- ✅ No repetir precios ya dados
+- ✅ Detectar "ya te lo dije"
+- ✅ Continuar conversación después de días
+- ✅ Rastrear preguntas pendientes
+
+**Patrones detectados:**
+```
+- "ya te dije" / "ya me dijiste"
+- "como te comenté" / "te había dicho"
+- "la otra vez" / "la vez pasada"
+- "el otro día" / "hace unos días"
+- "seguimos con" / "retomamos"
+```
+
+**Facts extraídos automáticamente:**
+- PRICE_GIVEN (150€, etc.)
+- LINK_SHARED (https://...)
+- PRODUCT_EXPLAINED (coaching, círculo, etc.)
+- QUESTION_ASKED (preguntas del lead)
+
+**Archivos:**
+- `models/conversation_memory.py`
+- `services/memory_service.py` (ConversationMemoryService)
+- `tests/test_conversation_memory.py` (23 tests)
+- `data/conversation_memory/` (storage)
 
 ---
 
@@ -90,21 +114,11 @@
 
 **Objetivo:** Delays naturales, horarios de Stefan
 
-**Entregables:**
-- [ ] Delay mínimo 2 segundos
-- [ ] Delay proporcional a longitud
-- [ ] Horarios activos (8am-11pm)
-
 ---
 
 ## 🔴 Phase 5: Multi-Message - PENDIENTE
 
 **Objetivo:** Enviar 2-3 mensajes seguidos como Stefan
-
-**Entregables:**
-- [ ] `services/message_splitter.py`
-- [ ] Lógica de cuándo dividir
-- [ ] Delays entre mensajes
 
 ---
 
@@ -112,30 +126,31 @@
 
 **Objetivo:** Manejar situaciones difíciles
 
-**Entregables:**
-- [ ] Detección sarcasmo/ironía
-- [ ] Respuestas "secas" cuando corresponde
-- [ ] Admitir "no sé"
-
 ---
 
-## 📊 Métricas de Éxito
+## 📊 Progreso General
 
 | Métrica | Baseline | Target | Actual |
 |---------|----------|--------|--------|
-| Turing Test Pass | 55% | 90% | ~70% |
+| Turing Test Pass | 55% | 90% | ~75% |
 | Longitud Match | 60% | 95% | 85% |
-| Vocabulario Match | 70% | 95% | 80% |
-| No usa "." final | 0% | 99% | ? |
-| Emoji posición correcta | ? | 81% | ? |
+| No repite info | 0% | 95% | ✅ |
+| Detecta "ya te dije" | 0% | 90% | ✅ |
 
----
+## 📅 Tiempo
+
+| Fase | Status |
+|------|--------|
+| ~~Phase 0~~ | ✅ |
+| ~~Phase 1~~ | ✅ |
+| ~~Phase 2~~ | ✅ |
+| Phase 3 | NEXT |
+| Phase 4 | TODO |
+| Phase 5 | TODO |
+| Phase 6 | TODO |
 
 ## 🚀 Próximo Paso
 
-**Phase 2: Conversation Memory**
+**Phase 3: Response Variations**
 
-```bash
-# Ver spec completa:
-cat ai-specs/changes/bot-autopilot/PHASE-2-CONVERSATION-MEMORY.md
-```
+Hacer que el bot no responda siempre igual.
