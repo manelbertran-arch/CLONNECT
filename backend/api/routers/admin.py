@@ -4652,8 +4652,7 @@ async def full_diagnostic(creator_id: str, username: str = None):
             result = session.execute(
                 text("""
                     SELECT m.id::text, LEFT(m.content, 80) as content,
-                           m.media_url, m.media_type, m.msg_metadata,
-                           m.created_at::text
+                           m.msg_metadata, m.role, m.created_at::text
                     FROM messages m
                     JOIN leads l ON m.lead_id = l.id
                     WHERE l.username = :username AND l.creator_id = :cid
@@ -4666,10 +4665,9 @@ async def full_diagnostic(creator_id: str, username: str = None):
                 {
                     "id": r[0][:8] + "...",
                     "content": r[1],
-                    "media_url": r[2],
-                    "media_type": r[3],
-                    "metadata": r[4],
-                    "created_at": r[5],
+                    "metadata": r[2],
+                    "role": r[3],
+                    "created_at": r[4],
                 }
                 for r in rows
             ]
