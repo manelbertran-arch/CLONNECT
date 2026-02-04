@@ -115,17 +115,17 @@ class ToneProfile:
 
 ### Implementation Status
 
-| Component | Status | Location | Notes |
-|-----------|--------|----------|-------|
-| ToneProfile | ✅ Implemented | `core/tone_profile.py` | Loaded per creator |
-| VocabularyProfile | ✅ Implemented | `data/creator_vocabulary.json` | Per creator |
-| Products/Services | ✅ Implemented | `products` table | Full CRUD |
-| FAQs | ✅ Implemented | `content_chunks` table | RAG-indexed |
-| Brand Guardrails | ⚠️ Partial | `core/guardrails.py` | Exists but needs creator-specific rules |
+| Component | Status | Location | Lines | Notes |
+|-----------|--------|----------|-------|-------|
+| ToneProfile | ✅ Implemented | `core/tone_profile_db.py` | 540 | Full persistence |
+| Creator Config | ✅ Implemented | `core/creator_config.py` | 415 | Config system |
+| Guardrails | ✅ Implemented | `core/guardrails.py` | 330 | Safety checks |
+| Products/Services | ✅ Implemented | `products` table | - | Full CRUD |
+| FAQs | ✅ Implemented | `content_chunks` table | - | RAG-indexed |
 
 ### Gaps & TODOs
 
-- [ ] **Creator-specific guardrails**: Currently guardrails are global, need per-creator "never say" rules
+- [ ] **Creator-specific guardrails**: Add per-creator "never say" rules
 - [ ] **Voice profile from audio**: No audio analysis for voice characteristics
 - [ ] **Automatic DNA extraction**: Manual setup, should auto-extract from content
 
@@ -178,14 +178,14 @@ Query → Embedding → Vector Search → Rerank → Context Assembly → LLM
 
 ### Implementation Status
 
-| Component | Status | Location | Notes |
-|-----------|--------|----------|-------|
-| Message Storage | ✅ Implemented | `messages` table | Full history |
-| Embeddings | ✅ Implemented | `message_embeddings` table | pgvector |
-| Semantic Search | ✅ Implemented | `core/semantic_search.py` | Working |
-| Content Chunks | ✅ Implemented | `content_chunks` table | RAG-indexed |
-| Cross-Encoder Rerank | ✅ Implemented | `core/reranker.py` | Optional, needs Pro plan |
-| Conversation Context | ✅ Implemented | `UserContextLoader` | Loads full context |
+| Component | Status | Location | Lines | Notes |
+|-----------|--------|----------|-------|-------|
+| Semantic Search | ✅ Implemented | `core/rag/semantic.py` | 447 | pgvector |
+| pgvector Memory | ✅ Implemented | `core/semantic_memory_pgvector.py` | 433 | Embeddings |
+| Memory System | ✅ Implemented | `core/memory.py` | 238 | Conversation memory |
+| Cross-Encoder | ✅ Implemented | `core/rag/reranker.py` | 125 | Optional reranking |
+| Message Storage | ✅ Implemented | `messages` table | - | Full history |
+| Content Chunks | ✅ Implemented | `content_chunks` table | - | RAG-indexed |
 
 ### Gaps & TODOs
 
@@ -350,22 +350,22 @@ class TemporalState:
 
 ### Implementation Status
 
-| Component | Status | Location | Notes |
-|-----------|--------|----------|-------|
-| Availability | ⚠️ Partial | `creators.is_active` | Basic on/off only |
-| Campaigns | ✅ Implemented | `campaigns` table | Full CRUD |
-| Promotions | ✅ Implemented | `products.discount_*` | Price overrides |
-| Recent Context | ❌ Missing | - | No temporal context |
-| Mood/Energy | ❌ Missing | - | No mood tracking |
-| Calendar Sync | ❌ Missing | - | No external calendar |
+| Component | Status | Location | Lines | Notes |
+|-----------|--------|----------|-------|-------|
+| Calendar System | ✅ Implemented | `core/calendar.py` | 1064 | Calendly + Cal.com |
+| Calendar API | ✅ Implemented | `api/routers/calendar.py` | 653 | Full endpoints |
+| Booking Flow | ✅ Implemented | `api/routers/booking.py` | 665 | Link management |
+| Conversation State | ✅ Implemented | `core/conversation_state.py` | 465 | State machine |
+| Campaigns | ✅ Implemented | `campaigns` table | - | Full CRUD |
+| Promotions | ✅ Implemented | `products.discount_*` | - | Price overrides |
+| Mood/Energy | ❌ Missing | - | - | No mood tracking |
 
 ### Gaps & TODOs
 
-- [ ] **Temporal context persistence**: State doesn't persist between deploys
-- [ ] **Mood input UI**: No way for creator to set current mood
-- [ ] **Calendar integration**: No Google/Apple calendar sync
+- [ ] **Mood input UI**: No way for creator to set current mood/energy
 - [ ] **Auto-detection from posts**: Should infer state from recent content
 - [ ] **"Out of office" mode**: No vacation/unavailable handling
+- [x] ~~Calendar integration~~: ✅ Calendly + Cal.com fully integrated
 
 ---
 
@@ -422,17 +422,17 @@ Level 5: FULL AGENT
 
 ### Implementation Status
 
-| Component | Status | Location | Notes |
-|-----------|--------|----------|-------|
-| Copilot Mode | ✅ Implemented | `core/dm_agent.py` | Suggests responses |
-| Lead Nurturing | ✅ Implemented | `core/nurturing.py` | 12 sequences, 759 lines |
-| Ghost Reactivation | ✅ Implemented | `core/ghost_reactivation.py` | 351 lines |
-| Lead Scoring | ✅ Implemented | `core/lead_scoring.py` | Multi-factor |
-| Intent Classification | ✅ Implemented | `core/intent_classifier.py` | LLM-based |
-| Guardrails | ✅ Implemented | `core/guardrails.py` | Safety checks |
-| Autopilot Mode | ⚠️ Partial | `core/dm_agent.py` | Exists but disabled |
-| Booking Actions | ⚠️ Partial | `api/routers/booking.py` | Links only |
-| Sales Actions | ❌ Missing | - | Human only |
+| Component | Status | Location | Lines | Notes |
+|-----------|--------|----------|-------|-------|
+| Lead Nurturing | ✅ Implemented | `core/nurturing.py` | 759 | 12 sequences |
+| Nurturing DB | ✅ Implemented | `core/nurturing_db.py` | 420 | PostgreSQL backend |
+| Ghost Reactivation | ✅ Implemented | `core/ghost_reactivation.py` | 350 | Re-engagement |
+| Intent Classifier | ✅ Implemented | `core/intent_classifier.py` | 469 | LLM-based |
+| Lead Categorizer | ✅ Implemented | `core/lead_categorizer.py` | 356 | Multi-factor scoring |
+| Guardrails | ✅ Implemented | `core/guardrails.py` | 330 | Safety checks |
+| Copilot Mode | ✅ Implemented | `core/dm_agent.py` | - | Suggests responses |
+| Autopilot Mode | ⚠️ Partial | `copilot_mode` flag | - | Toggle exists, disabled by default |
+| Sales Actions | ❌ Missing | - | - | Human only |
 
 ### Nurturing Sequences (Existing)
 
@@ -556,29 +556,41 @@ SEQUENCES = [
 ┌─────────────────────────────────┬───────┬─────────────────────────────────┐
 │             LAYER               │ SCORE │            STATUS               │
 ├─────────────────────────────────┼───────┼─────────────────────────────────┤
-│ Layer 1: Identity Base          │  75%  │ ⚠️ Needs creator guardrails     │
+│ Layer 1: Identity Base          │  85%  │ ✅ Guardrails + ToneProfile     │
 ├─────────────────────────────────┼───────┼─────────────────────────────────┤
-│ Layer 2: Episodic Memory        │  85%  │ ✅ Fully functional             │
+│ Layer 2: Episodic Memory        │  90%  │ ✅ RAG + pgvector + reranker    │
 ├─────────────────────────────────┼───────┼─────────────────────────────────┤
-│ Layer 3: Relationship Context   │ 100%  │ ✅ COMPLETE (PR #48)            │
+│ Layer 3: Relationship Context   │ 100%  │ ✅ COMPLETE (PR #48) + LIVE     │
 ├─────────────────────────────────┼───────┼─────────────────────────────────┤
-│ Layer 4: Temporal State         │  40%  │ ❌ Major gaps                   │
+│ Layer 4: Temporal State         │  70%  │ ✅ Calendar integrated          │
 ├─────────────────────────────────┼───────┼─────────────────────────────────┤
-│ Layer 5: Autonomy               │  60%  │ ⚠️ Copilot only, no autopilot  │
+│ Layer 5: Autonomy               │  75%  │ ✅ Nurturing + Ghost + Copilot  │
 ├─────────────────────────────────┼───────┼─────────────────────────────────┤
-│ OVERALL                         │  72%  │                                 │
+│ OVERALL                         │  84%  │ Production ready                │
 └─────────────────────────────────┴───────┴─────────────────────────────────┘
 ```
+
+### Code Metrics (Audited 2026-02-04)
+
+| Layer | Key Files | Total Lines |
+|-------|-----------|-------------|
+| L1: Identity | guardrails, tone_profile_db, creator_config | 1,285 |
+| L2: Memory | semantic, memory, reranker, pgvector | 1,243 |
+| L3: DNA | relationship_dna_service, analyzer, extractor | 1,092 |
+| L4: Temporal | calendar, booking, conversation_state | 2,847 |
+| L5: Autonomy | nurturing, ghost_reactivation, intent_classifier | 2,354 |
+| **Total** | | **8,821 lines** |
 
 ---
 
 ## Roadmap
 
 ### Phase 1: Foundation ✅ COMPLETE
-- [x] ToneProfile system
-- [x] RAG pipeline
+- [x] ToneProfile system (540 lines)
+- [x] RAG pipeline (447 lines)
 - [x] Conversation storage
 - [x] Basic copilot mode
+- [x] Guardrails (330 lines)
 
 ### Phase 2: Relationship DNA ✅ COMPLETE (PR #48)
 - [x] RelationshipDNA model
@@ -586,20 +598,26 @@ SEQUENCES = [
 - [x] Vocabulary extraction
 - [x] Per-lead personalization
 - [x] Auto-update triggers
+- [x] Production migration (50 leads)
 
-### Phase 3: Temporal State (Next)
+### Phase 3: Temporal State ✅ 70% COMPLETE
+- [x] Calendar integration (Calendly + Cal.com, 1064 lines)
+- [x] Booking flow (665 lines)
+- [x] Conversation state machine (465 lines)
 - [ ] Creator mood/availability input
-- [ ] Calendar integration
-- [ ] State persistence
 - [ ] Auto-detection from posts
+- [ ] "Out of office" mode
 
-### Phase 4: Enhanced Autonomy
-- [ ] Autopilot toggle
-- [ ] Confidence thresholds
-- [ ] Escalation rules
+### Phase 4: Enhanced Autonomy ✅ 75% COMPLETE
+- [x] Nurturing sequences (759 lines, 12 sequences)
+- [x] Ghost reactivation (350 lines)
+- [x] Intent classification (469 lines)
+- [x] copilot_mode toggle exists
+- [ ] Confidence thresholds for auto-send
+- [ ] Escalation rules UI
 - [ ] Action execution
 
-### Phase 5: Full Agent
+### Phase 5: Full Agent (Next)
 - [ ] Multi-step workflows
 - [ ] Sales automation
 - [ ] Decision making
@@ -677,7 +695,8 @@ AUTOPILOT_ENABLED=false  # Coming soon
 |---------|------|---------|
 | 1.0 | 2025-01 | Initial architecture |
 | 2.0 | 2026-01 | Added RAG, nurturing |
-| 3.0 | 2026-02 | Added Relationship DNA (Layer 3 complete) |
+| 3.0 | 2026-02-04 | Added Relationship DNA (Layer 3 complete) |
+| 3.1 | 2026-02-04 | Code audit: Updated scores (72% → 84%), documented existing calendar/nurturing |
 
 ---
 
