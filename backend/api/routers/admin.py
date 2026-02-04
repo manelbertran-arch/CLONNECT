@@ -4788,3 +4788,138 @@ async def full_diagnostic(creator_id: str, username: str = None):
 
     finally:
         session.close()
+
+
+@router.post("/cleanup-orphan-leads")
+async def cleanup_orphan_leads():
+    """
+    Clean up orphan leads:
+    1. Delete duplicate with ig_ prefix and 0 messages
+    2. Check and delete lead without profile if message not important
+    """
+    from api.database import SessionLocal
+    from sqlalchemy import text
+
+    session = SessionLocal()
+    results = {"actions": [], "top_10_after": []}
+
+    try:
+        # 1. Delete sergi_relaccionate duplicate (ig_1089296093403632)
+        # First verify it has 0 messages
+        check = session.execute(
+            text("""
+                SELECT l.id, l.username,
+                       (SELECT COUNT(*) FROM messages m WHERE m.lead_id = l.id) as msg_count
+                FROM leads l
+                WHERE l.platform_user_id = 'ig_1089296093403632'
+            """)
+        ).fetchone()
+
+        if check:
+            lead_id, username, msg_count = check
+            if msg_count == 0:
+                session.execute(
+                    text("DELETE FROM leads WHERE platform_user_id = 'ig_1089296093403632'")
+                )
+                results["actions"].append({
+                    "action": "deleted_duplicate",
+                    "platform_user_id": "ig_1089296093403632",
+                    "username": username,
+                    "msg_count": msg_count,
+                })
+            else:
+                results["actions"].append({
+                    "action": "skipped_has_messages",
+                    "platform_user_id": "ig_1089296093403632",
+                    "username": username,
+                    "msg_count": msg_count,
+                })
+        else:
+            results["actions"].append({
+                "action": "not_found",
+                "platform_user_id": "ig_1089296093403632",
+            })
+
+        # 2. Check lead without profile (ig_878471388387113)
+        check2 = session.execute(
+            text("""
+                SELECT m.id, m.content, m.role, m.created_at::text
+                FROM messages m
+                JOIN leads l ON m.lead_id = l.id
+                WHERE l.platform_user_id = 'ig_878471388387113'
+            """)
+        ).fetchall()
+
+        results["orphan_lead_messages"] = [
+            {"id": str(r[0])[:8], "content": r[1][:100] if r[1] else None, "role": r[2], "created_at": r[3]}
+            for r in check2
+        ]
+
+        # Delete if only 1 message and it's not important (media/attachment)
+        if len(check2) <= 1:
+            # Get the message content to check
+            if check2 and check2[0][1] and "[Media" not in check2[0][1]:
+                results["actions"].append({
+                    "action": "kept_has_text",
+                    "platform_user_id": "ig_878471388387113",
+                    "message_preview": check2[0][1][:50] if check2[0][1] else None,
+                })
+            else:
+                # Delete messages first, then lead
+                session.execute(
+                    text("""
+                        DELETE FROM messages
+                        WHERE lead_id = (SELECT id FROM leads WHERE platform_user_id = 'ig_878471388387113')
+                    """)
+                )
+                session.execute(
+                    text("DELETE FROM leads WHERE platform_user_id = 'ig_878471388387113'")
+                )
+                results["actions"].append({
+                    "action": "deleted_orphan",
+                    "platform_user_id": "ig_878471388387113",
+                    "messages_deleted": len(check2),
+                })
+
+        session.commit()
+
+        # 3. Show top 10 leads after cleanup
+        top10 = session.execute(
+            text("""
+                SELECT l.username, l.platform_user_id, l.last_contact_at::text,
+                       (SELECT COUNT(*) FROM messages m WHERE m.lead_id = l.id) as msg_count
+                FROM leads l
+                WHERE l.creator_id = (SELECT id FROM creators WHERE name = 'stefano_bonanno')
+                ORDER BY l.last_contact_at DESC NULLS LAST
+                LIMIT 10
+            """)
+        ).fetchall()
+
+        results["top_10_after"] = [
+            {
+                "username": r[0],
+                "platform_user_id": r[1],
+                "last_contact_at": r[2][:19] if r[2] else None,
+                "msg_count": r[3],
+            }
+            for r in top10
+        ]
+
+        # Count totals
+        total = session.execute(
+            text("""
+                SELECT COUNT(*) FROM leads
+                WHERE creator_id = (SELECT id FROM creators WHERE name = 'stefano_bonanno')
+            """)
+        ).scalar()
+        results["total_leads_after"] = total
+
+        return {"status": "ok", "results": results}
+
+    except Exception as e:
+        session.rollback()
+        logger.error(f"Error in cleanup: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+    finally:
+        session.close()
