@@ -4861,6 +4861,105 @@ async def full_diagnostic(creator_id: str, username: str = None):
         session.close()
 
 
+@router.post("/apply-unique-constraint")
+async def apply_unique_constraint():
+    """
+    Apply UniqueConstraint to leads table to prevent duplicates.
+    Steps:
+    1. Find and merge duplicates (keep one with most messages)
+    2. Add the UniqueConstraint
+    """
+    from api.database import SessionLocal
+    from sqlalchemy import text
+
+    session = SessionLocal()
+    results = {"duplicates_merged": [], "constraint_applied": False, "errors": []}
+
+    try:
+        # 1. Find all duplicates
+        duplicates = session.execute(
+            text("""
+                SELECT platform_user_id, creator_id,
+                       array_agg(id::text ORDER BY (SELECT COUNT(*) FROM messages m WHERE m.lead_id = leads.id) DESC) as ids
+                FROM leads
+                GROUP BY platform_user_id, creator_id
+                HAVING COUNT(*) > 1
+            """)
+        ).fetchall()
+
+        for dup in duplicates:
+            platform_user_id, creator_id, ids = dup
+            # Keep the first one (has most messages), delete the rest
+            keep_id = ids[0]
+            delete_ids = ids[1:]
+
+            for del_id in delete_ids:
+                # Move any messages to the kept lead
+                session.execute(
+                    text("UPDATE messages SET lead_id = :keep_id WHERE lead_id = :del_id"),
+                    {"keep_id": keep_id, "del_id": del_id}
+                )
+                # Delete the duplicate lead
+                session.execute(
+                    text("DELETE FROM leads WHERE id = :del_id"),
+                    {"del_id": del_id}
+                )
+                results["duplicates_merged"].append({
+                    "platform_user_id": platform_user_id,
+                    "deleted_id": del_id[:8],
+                    "kept_id": keep_id[:8]
+                })
+
+        session.commit()
+
+        # 2. Check if constraint already exists
+        existing = session.execute(
+            text("""
+                SELECT conname FROM pg_constraint
+                WHERE conrelid = 'leads'::regclass
+                AND conname = 'uq_lead_creator_platform'
+            """)
+        ).fetchone()
+
+        if existing:
+            results["constraint_applied"] = "already_exists"
+        else:
+            # 3. Apply the constraint
+            try:
+                session.execute(
+                    text("""
+                        ALTER TABLE leads
+                        ADD CONSTRAINT uq_lead_creator_platform
+                        UNIQUE (creator_id, platform_user_id)
+                    """)
+                )
+                session.commit()
+                results["constraint_applied"] = True
+            except Exception as e:
+                results["errors"].append(f"Constraint error: {str(e)}")
+                session.rollback()
+
+        # 4. Verify constraint exists now
+        constraints = session.execute(
+            text("""
+                SELECT conname, pg_get_constraintdef(oid)
+                FROM pg_constraint
+                WHERE conrelid = 'leads'::regclass
+            """)
+        ).fetchall()
+        results["current_constraints"] = [{"name": c[0], "def": c[1]} for c in constraints]
+
+        return {"status": "ok", "results": results}
+
+    except Exception as e:
+        logger.error(f"Error applying constraint: {e}")
+        session.rollback()
+        raise HTTPException(status_code=500, detail=str(e))
+
+    finally:
+        session.close()
+
+
 @router.post("/cleanup-orphan-leads")
 async def cleanup_orphan_leads():
     """
