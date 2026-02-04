@@ -4923,3 +4923,121 @@ async def cleanup_orphan_leads():
 
     finally:
         session.close()
+
+
+@router.post("/fix-lead-duplicates")
+async def fix_lead_duplicates():
+    """
+    Fix all duplicate leads and add unique constraint.
+    1. Find all duplicates (same creator_id + platform_user_id)
+    2. Merge messages to the one with most messages
+    3. Delete duplicates
+    4. Add unique constraint
+    """
+    from api.database import SessionLocal
+    from sqlalchemy import text
+
+    session = SessionLocal()
+    results = {
+        "duplicates_found": 0,
+        "leads_deleted": 0,
+        "messages_moved": 0,
+        "constraint_added": False,
+        "details": [],
+    }
+
+    try:
+        # Step 1: Find all duplicates across ALL creators
+        duplicates = session.execute(
+            text("""
+                SELECT creator_id, platform_user_id, COUNT(*) as cnt
+                FROM leads
+                GROUP BY creator_id, platform_user_id
+                HAVING COUNT(*) > 1
+            """)
+        ).fetchall()
+
+        results["duplicates_found"] = len(duplicates)
+
+        # Step 2: For each duplicate, keep the one with most messages
+        for dup in duplicates:
+            creator_id, platform_user_id, cnt = dup
+
+            # Get all leads with this creator_id + platform_user_id, ordered by message count
+            leads = session.execute(
+                text("""
+                    SELECT l.id, l.username,
+                           (SELECT COUNT(*) FROM messages m WHERE m.lead_id = l.id) as msg_count
+                    FROM leads l
+                    WHERE l.creator_id = :cid AND l.platform_user_id = :puid
+                    ORDER BY msg_count DESC
+                """),
+                {"cid": str(creator_id), "puid": platform_user_id},
+            ).fetchall()
+
+            if len(leads) <= 1:
+                continue
+
+            # Keep the first one (most messages), delete the rest
+            keep_id = leads[0][0]
+            keep_username = leads[0][1]
+            keep_msg_count = leads[0][2]
+
+            for lead in leads[1:]:
+                delete_id = lead[0]
+                delete_msg_count = lead[2]
+
+                # Move messages from duplicate to keeper
+                if delete_msg_count > 0:
+                    session.execute(
+                        text("UPDATE messages SET lead_id = :keep WHERE lead_id = :delete"),
+                        {"keep": str(keep_id), "delete": str(delete_id)},
+                    )
+                    results["messages_moved"] += delete_msg_count
+
+                # Delete the duplicate lead
+                session.execute(
+                    text("DELETE FROM leads WHERE id = :id"),
+                    {"id": str(delete_id)},
+                )
+                results["leads_deleted"] += 1
+
+            results["details"].append({
+                "platform_user_id": platform_user_id,
+                "kept_username": keep_username,
+                "duplicates_removed": len(leads) - 1,
+            })
+
+        session.commit()
+
+        # Step 3: Try to add unique constraint
+        try:
+            session.execute(
+                text("""
+                    ALTER TABLE leads
+                    ADD CONSTRAINT uq_lead_creator_platform
+                    UNIQUE (creator_id, platform_user_id)
+                """)
+            )
+            session.commit()
+            results["constraint_added"] = True
+        except Exception as ce:
+            session.rollback()
+            if "already exists" in str(ce).lower():
+                results["constraint_added"] = "already_exists"
+            else:
+                results["constraint_error"] = str(ce)
+
+        # Step 4: Count remaining leads
+        total = session.execute(text("SELECT COUNT(*) FROM leads")).scalar()
+        results["total_leads_after"] = total
+
+        return {"status": "ok", "results": results}
+
+    except Exception as e:
+        session.rollback()
+        logger.error(f"Error fixing duplicates: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+    finally:
+        session.close()

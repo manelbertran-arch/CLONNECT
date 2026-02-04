@@ -752,30 +752,50 @@ class InstagramHandler:
 
                 # Create COMPLETE lead with all fields
                 # Use raw sender_id (no ig_ prefix) for consistency
-                lead = Lead(
-                    creator_id=creator.id,
-                    platform="instagram",
-                    platform_user_id=sender_id,  # No prefix - prevents duplicates
-                    username=username,
-                    full_name=full_name,
-                    profile_pic_url=profile_pic_url,
-                    status=status,
-                    context=context,
-                    purchase_intent=(
-                        0.1
-                        if status == "returning"
-                        else (0.2 if status == "existing_customer" else 0.0)
-                    ),
-                )
-                session.add(lead)
-                session.commit()
+                # Handle race condition with unique constraint
+                try:
+                    lead = Lead(
+                        creator_id=creator.id,
+                        platform="instagram",
+                        platform_user_id=sender_id,  # No prefix - prevents duplicates
+                        username=username,
+                        full_name=full_name,
+                        profile_pic_url=profile_pic_url,
+                        status=status,
+                        context=context,
+                        purchase_intent=(
+                            0.1
+                            if status == "returning"
+                            else (0.2 if status == "existing_customer" else 0.0)
+                        ),
+                    )
+                    session.add(lead)
+                    session.commit()
 
-                logger.info(
-                    f"[LeadHistory] Created COMPLETE lead {lead.id} for @{username} "
-                    f"(name={full_name[:15] if full_name else 'N/A'}, "
-                    f"pic={'Yes' if profile_pic_url else 'No'}, status={status}"
-                    f"{', profile_pending=True' if profile_pending else ''})"
-                )
+                    logger.info(
+                        f"[LeadHistory] Created COMPLETE lead {lead.id} for @{username} "
+                        f"(name={full_name[:15] if full_name else 'N/A'}, "
+                        f"pic={'Yes' if profile_pic_url else 'No'}, status={status}"
+                        f"{', profile_pending=True' if profile_pending else ''})"
+                    )
+                except Exception as e:
+                    # Race condition: another request created the lead
+                    session.rollback()
+                    if "uq_lead_creator_platform" in str(e) or "duplicate" in str(e).lower():
+                        logger.info(f"[LeadHistory] Lead already exists (race condition), fetching...")
+                        lead = (
+                            session.query(Lead)
+                            .filter(
+                                Lead.creator_id == creator.id,
+                                Lead.platform_user_id.in_([sender_id, f"ig_{sender_id}"]),
+                            )
+                            .first()
+                        )
+                        if not lead:
+                            logger.error(f"[LeadHistory] Could not find lead after constraint error")
+                            return None
+                    else:
+                        raise
 
                 # Save historical messages with link previews
                 if history and history.get("messages"):
@@ -1907,17 +1927,36 @@ class InstagramHandler:
                 if not lead:
                     # Create lead if doesn't exist
                     # Use raw sender_id (no ig_ prefix) for consistency
-                    lead = Lead(
-                        creator_id=creator.id,
-                        platform="instagram",
-                        platform_user_id=msg.sender_id,  # No prefix - prevents duplicates
-                        username=username or None,
-                        full_name=full_name or None,
-                        status="nuevo",
-                    )
-                    session.add(lead)
-                    session.commit()
-                    logger.info(f"[SaveMsg] Created lead for {msg.sender_id}")
+                    try:
+                        lead = Lead(
+                            creator_id=creator.id,
+                            platform="instagram",
+                            platform_user_id=msg.sender_id,  # No prefix - prevents duplicates
+                            username=username or None,
+                            full_name=full_name or None,
+                            status="nuevo",
+                        )
+                        session.add(lead)
+                        session.commit()
+                        logger.info(f"[SaveMsg] Created lead for {msg.sender_id}")
+                    except Exception as e:
+                        # Race condition: another request created the lead
+                        session.rollback()
+                        if "uq_lead_creator_platform" in str(e) or "duplicate" in str(e).lower():
+                            logger.info(f"[SaveMsg] Lead already exists (race condition), fetching...")
+                            lead = (
+                                session.query(Lead)
+                                .filter(
+                                    Lead.creator_id == creator.id,
+                                    Lead.platform_user_id.in_([msg.sender_id, f"ig_{msg.sender_id}"]),
+                                )
+                                .first()
+                            )
+                            if not lead:
+                                logger.error(f"[SaveMsg] Could not find lead after constraint error")
+                                return False
+                        else:
+                            raise
 
                 # Check if user message already exists (by platform_message_id)
                 existing_user_msg = (
@@ -2018,17 +2057,36 @@ class InstagramHandler:
                 if not lead:
                     # Create lead if doesn't exist
                     # Use raw sender_id (no ig_ prefix) for consistency
-                    lead = Lead(
-                        creator_id=creator.id,
-                        platform="instagram",
-                        platform_user_id=msg.sender_id,  # No prefix - prevents duplicates
-                        username=username or None,
-                        full_name=full_name or None,
-                        status="nuevo",
-                    )
-                    session.add(lead)
-                    session.commit()
-                    logger.info(f"[SaveUserMsg] Created lead for {msg.sender_id}")
+                    try:
+                        lead = Lead(
+                            creator_id=creator.id,
+                            platform="instagram",
+                            platform_user_id=msg.sender_id,  # No prefix - prevents duplicates
+                            username=username or None,
+                            full_name=full_name or None,
+                            status="nuevo",
+                        )
+                        session.add(lead)
+                        session.commit()
+                        logger.info(f"[SaveUserMsg] Created lead for {msg.sender_id}")
+                    except Exception as e:
+                        # Race condition: another request created the lead
+                        session.rollback()
+                        if "uq_lead_creator_platform" in str(e) or "duplicate" in str(e).lower():
+                            logger.info(f"[SaveUserMsg] Lead already exists (race condition), fetching...")
+                            lead = (
+                                session.query(Lead)
+                                .filter(
+                                    Lead.creator_id == creator.id,
+                                    Lead.platform_user_id.in_([msg.sender_id, f"ig_{msg.sender_id}"]),
+                                )
+                                .first()
+                            )
+                            if not lead:
+                                logger.error(f"[SaveUserMsg] Could not find lead after constraint error")
+                                return False
+                        else:
+                            raise
 
                 # Check if user message already exists
                 existing_msg = (
