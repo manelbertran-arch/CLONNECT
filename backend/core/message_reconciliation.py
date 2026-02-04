@@ -618,6 +618,36 @@ async def reconcile_messages_for_creator(
                         metadata["type"] = media_info["type"]
                     if media_info.get("url"):
                         metadata["url"] = media_info["url"]
+                        # Capture media from CDN URL before it expires
+                        try:
+                            from services.media_capture_service import (
+                                capture_media_from_url,
+                                is_cdn_url,
+                            )
+
+                            media_url = media_info["url"]
+                            if is_cdn_url(media_url):
+                                media_type_for_capture = "video" if media_info.get(
+                                    "type"
+                                ) in ["video", "story_mention", "shared_reel"] else "image"
+                                captured = await capture_media_from_url(
+                                    media_url,
+                                    media_type=media_type_for_capture,
+                                    creator_id=creator_id,
+                                )
+                                if captured:
+                                    if captured.startswith("data:"):
+                                        metadata["thumbnail_base64"] = captured
+                                        logger.info(
+                                            f"[Reconciliation] Captured media as base64 for msg {msg_id[:20]}"
+                                        )
+                                    else:
+                                        metadata["permanent_url"] = captured
+                                        logger.info(
+                                            f"[Reconciliation] Captured media to Cloudinary for msg {msg_id[:20]}"
+                                        )
+                        except Exception as e:
+                            logger.warning(f"[Reconciliation] Media capture failed: {e}")
 
                 # Insert message
                 try:
