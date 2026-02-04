@@ -2,140 +2,126 @@
 
 ## 🎯 Objetivo: Bot indistinguible de Stefan real
 
-## Overall Progress: 3/7 fases completadas (43%)
+## Overall Progress: 6/7 fases completadas (86%)
 
 ```
-[████████░░░░░░░░░░░░] 43%
+[█████████████████░░░] 86%
 ```
 
-| Phase | Nombre | Status | Impacto Turing | Notas |
-|-------|--------|--------|----------------|-------|
-| 0 | Data Cleanup | ✅ DONE | N/A | 10 DNAs generados |
-| 1 | Writing Patterns | ✅ DONE | ⭐⭐⭐⭐⭐ | 3056 msgs analizados |
-| 2 | Conversation Memory | ✅ DONE | ⭐⭐⭐⭐⭐ | 23 tests passing |
-| 3 | Response Variations | 🔴 TODO | ⭐⭐⭐⭐ | NEXT |
-| 4 | Timing & Rhythm | 🔴 TODO | ⭐⭐⭐ | |
-| 5 | Multi-Message | 🔴 TODO | ⭐⭐⭐ | |
-| 6 | Edge Cases | 🔴 TODO | ⭐⭐⭐ | |
+| Phase | Nombre | Status | Tests | Notas |
+|-------|--------|--------|-------|-------|
+| 0 | Data Cleanup | ✅ DONE | - | 10 DNAs generados |
+| 1 | Writing Patterns | ✅ DONE | - | 3056 msgs analizados |
+| 2 | Conversation Memory | ✅ DONE | 23 ✅ | Memoria persistente |
+| 3 | Response Variations | ✅ DONE | 27 ✅ | 8 pools con variedad |
+| 4 | Timing & Rhythm | ✅ DONE | 11 ✅ | Delays naturales |
+| 5 | Multi-Message | ✅ DONE | 26 ✅ | Divide respuestas largas |
+| 6 | Edge Cases | 🔴 TODO | - | NEXT |
 
 ---
 
-## ✅ Phase 0: Data Cleanup - COMPLETADO
+## ✅ Phase 3: Response Variations - COMPLETADO
 
 **Fecha:** 2026-02-04
 
-**Resultados:**
-- 10 RelationshipDNA generados
-- Tipos: 3 AMISTAD_CERCANA, 3 AMISTAD_CASUAL, 4 DESCONOCIDO
-- Golden examples extraídos
-- Vocabulario por lead poblado
+**Pools implementados:**
+| Pool | Respuestas | Ejemplo |
+|------|------------|---------|
+| greeting | 10 | "Hey! 😊", "Qué tal!", "Buenas!" |
+| thanks | 9 | "A ti! 😊", "De nada! 💙", "💙" |
+| confirmation | 10 | "Perfecto! 😊", "Dale!", "👍" |
+| emoji_reaction | 7 | "❤", "💙", "😊", "💪" |
+| dry_response | 6 | "Ok", "Vale", "👍" |
+| laugh | 6 | "Jajaja", "Jaja", "😀" |
+| farewell | 7 | "Un abrazo! 😊", "💙" |
+| enthusiasm | 7 | "Genial!! 😀", "Qué bien!" |
 
----
-
-## ✅ Phase 1: Writing Patterns - COMPLETADO
-
-**Fecha:** 2026-02-04
-
-**Análisis de 3,056 mensajes de Stefan:**
-
-| Patrón | Valor | Implicación para Bot |
-|--------|-------|---------------------|
-| Capitalización | 86.6% mayúscula | Usar capitalización estándar |
-| Termina con "!" | 15.4% | No abusar de exclamaciones |
-| Termina con "." | **1.1%** | ⚠️ CASI NUNCA usar punto final |
-| Termina con emoji | 10.1% | Emoji al final moderado |
-| Usa "!!" | 8.0% | Doble exclamación ocasional |
-| Risas | 6.7% | Preferir "jaja" no "jajajaja" |
-| Emojis | 22.4% msgs | **81% van al FINAL** |
-| Preguntas | 14.6% | Hacer preguntas frecuentes |
-| Mediana longitud | 22 chars | Mensajes cortos |
-
-**Top 5 emojis:** 😀 😊 ❤ 💙 ☺
+**Features:**
+- ✅ Detección automática de tipo de mensaje
+- ✅ Selección aleatoria con pesos
+- ✅ Evita repetición inmediata (historial de 10)
+- ✅ 10% respuestas secas en confirmaciones
+- ✅ 15% follow-up questions en saludos
 
 **Archivos:**
-- `models/writing_patterns.py`
-- `data/writing_patterns/stefan_analysis.json`
+- `models/response_variations.py`
+- `services/response_variator.py`
+- `tests/test_response_variator.py` (27 tests)
 
 ---
 
-## ✅ Phase 2: Conversation Memory - COMPLETADO
+## ✅ Phase 4: Timing & Rhythm - COMPLETADO
 
 **Fecha:** 2026-02-04
 
-**Implementado:**
-- `models/conversation_memory.py` - Modelo con facts, info_given, estado
-- `services/memory_service.py` - ConversationMemoryService añadido
-- Detección de referencias al pasado ("ya te dije", "como te comenté")
-- Tracking de información dada (precios, links, productos)
-- Detección de tipos de pregunta
-- Test suite completo (23 tests, 100% passing)
-
-**Capabilities:**
-- ✅ No repetir precios ya dados
-- ✅ Detectar "ya te lo dije"
-- ✅ Continuar conversación después de días
-- ✅ Rastrear preguntas pendientes
-
-**Patrones detectados:**
-```
-- "ya te dije" / "ya me dijiste"
-- "como te comenté" / "te había dicho"
-- "la otra vez" / "la vez pasada"
-- "el otro día" / "hace unos días"
-- "seguimos con" / "retomamos"
-```
-
-**Facts extraídos automáticamente:**
-- PRICE_GIVEN (150€, etc.)
-- LINK_SHARED (https://...)
-- PRODUCT_EXPLAINED (coaching, círculo, etc.)
-- QUESTION_ASKED (preguntas del lead)
+**Configuración:**
+| Parámetro | Valor |
+|-----------|-------|
+| Delay mínimo | 2 segundos |
+| Delay máximo | 30 segundos |
+| Velocidad escritura | 50 chars/seg |
+| Velocidad lectura | 200 chars/seg |
+| Variación | ±20% |
+| Horario activo | 8am - 11pm |
+| Timezone | Europe/Madrid |
+| Off-hours response | 10% chance |
 
 **Archivos:**
-- `models/conversation_memory.py`
-- `services/memory_service.py` (ConversationMemoryService)
-- `tests/test_conversation_memory.py` (23 tests)
-- `data/conversation_memory/` (storage)
+- `services/timing_service.py`
+- `tests/test_timing_service.py` (11 tests)
 
 ---
 
-## 🔴 Phase 3: Response Variations - PENDIENTE
+## ✅ Phase 5: Multi-Message - COMPLETADO
 
-**Objetivo:** Bot no responde siempre igual
-
-**Entregables:**
-- [ ] Pool de respuestas por tipo
-- [ ] Selección aleatoria con pesos
-- [ ] Respuestas "secas" de Stefan
-
----
-
-## 🔴 Phase 4: Timing & Rhythm - PENDIENTE
-
-**Objetivo:** Delays naturales, horarios de Stefan
-
----
-
-## 🔴 Phase 5: Multi-Message - PENDIENTE
+**Fecha:** 2026-02-04
 
 **Objetivo:** Enviar 2-3 mensajes seguidos como Stefan
 
+**Configuración:**
+| Parámetro | Valor |
+|-----------|-------|
+| Min length to split | 80 chars |
+| Target length | 40 chars |
+| Max length per part | 120 chars |
+| Max parts | 4 |
+| Inter-message delay | 1-3 segundos |
+
+**Features:**
+- ✅ Detección automática de cuándo dividir (>80 chars con puntos de corte)
+- ✅ División por párrafos (\n\n)
+- ✅ División por oraciones (. ! ?)
+- ✅ División por comas (fallback)
+- ✅ Delays proporcionales al tamaño
+- ✅ Preserva emojis con su texto
+
+**Archivos:**
+- `services/message_splitter.py`
+- `tests/test_message_splitter.py` (26 tests)
+
 ---
 
-## 🔴 Phase 6: Edge Cases - PENDIENTE
+## 🔴 Phase 6: Edge Cases - NEXT
 
 **Objetivo:** Manejar situaciones difíciles
 
+**Entregables:**
+- [ ] Detección sarcasmo/ironía
+- [ ] Respuestas "secas" contextuales
+- [ ] Admitir "no sé"
+- [ ] Tests
+
 ---
 
-## 📊 Progreso General
+## 📊 Tests Totales
 
-| Métrica | Baseline | Target | Actual |
-|---------|----------|--------|--------|
-| Turing Test Pass | 55% | 90% | ~75% |
-| Longitud Match | 60% | 95% | 85% |
-| No repite info | 0% | 95% | ✅ |
-| Detecta "ya te dije" | 0% | 90% | ✅ |
+| Componente | Tests |
+|------------|-------|
+| Conversation Memory | 23 |
+| Response Variator | 27 |
+| Timing Service | 11 |
+| Message Splitter | 26 |
+| **TOTAL** | **87** |
 
 ## 📅 Tiempo
 
@@ -144,13 +130,13 @@
 | ~~Phase 0~~ | ✅ |
 | ~~Phase 1~~ | ✅ |
 | ~~Phase 2~~ | ✅ |
-| Phase 3 | NEXT |
-| Phase 4 | TODO |
-| Phase 5 | TODO |
-| Phase 6 | TODO |
+| ~~Phase 3~~ | ✅ |
+| ~~Phase 4~~ | ✅ |
+| ~~Phase 5~~ | ✅ |
+| Phase 6 | NEXT |
 
 ## 🚀 Próximo Paso
 
-**Phase 3: Response Variations**
+**Phase 6: Edge Cases**
 
-Hacer que el bot no responda siempre igual.
+Manejar situaciones difíciles: sarcasmo, ironía, respuestas "secas" contextuales, admitir "no sé".
