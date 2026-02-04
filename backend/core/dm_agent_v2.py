@@ -40,6 +40,9 @@ from services import (
 # Re-export Intent for backward compatibility
 from services.intent_service import Intent
 
+# Import DNA context integration
+from services.dm_agent_context_integration import get_context_for_dm_agent
+
 logger = logging.getLogger(__name__)
 
 
@@ -274,12 +277,18 @@ class DMResponderAgentV2:
             )
             rag_context = self._format_rag_context(rag_results)
 
+            # Step 3b: Get RelationshipDNA context (personalization per lead)
+            dna_context = get_context_for_dm_agent(self.creator_id, sender_id)
+            if dna_context:
+                logger.debug(f"DNA context loaded for {sender_id}")
+
             # Step 4: Get lead stage
             current_stage = self._get_lead_stage(follower, metadata)
 
-            # Step 5: Build prompts
+            # Step 5: Build prompts - combine RAG and DNA context
+            combined_context = "\n\n".join(filter(None, [rag_context, dna_context]))
             system_prompt = self.prompt_builder.build_system_prompt(
-                products=self.products, custom_instructions=rag_context
+                products=self.products, custom_instructions=combined_context
             )
 
             # Get conversation history from follower memory

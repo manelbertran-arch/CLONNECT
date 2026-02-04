@@ -122,6 +122,10 @@ def create_relationship_dna(
 def get_relationship_dna(creator_id: str, follower_id: str) -> Optional[Dict]:
     """Get RelationshipDNA by creator_id and follower_id.
 
+    Handles both formats of follower_id:
+    - With platform prefix: "ig_687843303852230"
+    - Without prefix: "687843303852230"
+
     Args:
         creator_id: Creator identifier
         follower_id: Follower/lead identifier
@@ -136,14 +140,26 @@ def get_relationship_dna(creator_id: str, follower_id: str) -> Optional[Dict]:
     try:
         from api.models import RelationshipDNAModel
 
-        dna = (
-            session.query(RelationshipDNAModel)
-            .filter_by(creator_id=creator_id, follower_id=follower_id)
-            .first()
-        )
+        # Normalize follower_id - try both with and without prefix
+        follower_ids_to_try = [follower_id]
 
-        if dna:
-            return _dna_to_dict(dna)
+        # If has prefix (ig_, wa_, etc.), also try without
+        if "_" in follower_id:
+            without_prefix = follower_id.split("_", 1)[1]
+            follower_ids_to_try.append(without_prefix)
+        else:
+            # If no prefix, also try with common prefixes
+            follower_ids_to_try.append(f"ig_{follower_id}")
+
+        for fid in follower_ids_to_try:
+            dna = (
+                session.query(RelationshipDNAModel)
+                .filter_by(creator_id=creator_id, follower_id=fid)
+                .first()
+            )
+            if dna:
+                return _dna_to_dict(dna)
+
         return None
 
     except Exception as e:
