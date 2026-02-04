@@ -64,10 +64,9 @@ class DMAgentOrchestrated:
         """Lazy load the original dm_agent."""
         if not self._dm_agent_initialized:
             try:
-                from core.dm_agent_v2 import DMResponderAgentV2
+                from core.dm_agent_v2 import DMResponderAgent
 
-                self._dm_agent = DMResponderAgentV2(creator_id=self.creator_id)
-                await self._dm_agent.initialize()
+                self._dm_agent = DMResponderAgent(creator_id=self.creator_id)
                 self._dm_agent_initialized = True
                 logger.info(f"DM Agent initialized for {self.creator_id}")
             except Exception as e:
