@@ -11,10 +11,9 @@ This provides endpoints to test the full bot autopilot integration:
 
 from typing import List, Optional
 
+from core.dm_agent_orchestrated import get_orchestrated_agent
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
-
-from core.dm_agent_orchestrated import get_orchestrated_agent
 
 router = APIRouter(prefix="/dm/orchestrated", tags=["DM Orchestrated"])
 
@@ -197,6 +196,48 @@ async def process_dm_orchestrated_v2(request: DMRequest):
             total_delay=response.total_delay,
             is_multi_message=response.is_multi_message,
         )
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# V3 ENDPOINT - All improvements integrated
+# ═══════════════════════════════════════════════════════════════════════════════
+
+from core.dm_agent_orchestrated_v3 import get_orchestrated_agent_v3
+
+
+@router.post("/process-v3")
+async def process_dm_orchestrated_v3(request: DMRequest):
+    """
+    Process DM with V3 system (all improvements).
+
+    V3 improvements over V2:
+    - Stricter length control (target 20 chars, max 28)
+    - Question removal post-processor
+    - Expanded response pools (9 categories)
+    - Post-processing pipeline: questions -> length -> punctuation
+    """
+    try:
+        agent = await get_orchestrated_agent_v3(request.creator_id)
+
+        response = await agent.process_message(
+            message=request.message,
+            lead_id=request.lead_id,
+            context=request.context or {},
+        )
+
+        return {
+            "messages": response.messages,
+            "delays": response.delays,
+            "should_escalate": response.should_escalate,
+            "used_pool": response.used_pool,
+            "edge_case": response.edge_case,
+            "total_delay": response.total_delay,
+            "is_multi_message": response.is_multi_message,
+            "processing_steps": response.processing_steps,
+        }
 
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))

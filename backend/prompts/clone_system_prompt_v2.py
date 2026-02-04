@@ -20,43 +20,44 @@ from typing import List, Optional
 @dataclass
 class CreatorMetrics:
     """Métricas extraídas del análisis de mensajes del creador."""
+
     name: str
-    avg_length: float           # Longitud promedio de sus mensajes
-    median_length: float        # Mediana de longitud
-    question_rate: float        # % de mensajes que son preguntas (0-1)
-    emoji_rate: float           # % de mensajes con emoji (0-1)
-    avg_emojis_per_msg: float   # Promedio de emojis por mensaje
-    uses_period: bool           # Si usa punto final frecuentemente
-    period_rate: float          # % de mensajes que terminan en punto
-    exclamation_rate: float     # % de mensajes que terminan en !
-    common_phrases: List[str]   # Frases típicas del creador
-    vocabulary: List[str]       # Palabras características
-    tone_words: List[str]       # Palabras de tono (bro, hermano, crack, etc)
-    
+    avg_length: float  # Longitud promedio de sus mensajes
+    median_length: float  # Mediana de longitud
+    question_rate: float  # % de mensajes que son preguntas (0-1)
+    emoji_rate: float  # % de mensajes con emoji (0-1)
+    avg_emojis_per_msg: float  # Promedio de emojis por mensaje
+    uses_period: bool  # Si usa punto final frecuentemente
+    period_rate: float  # % de mensajes que terminan en punto
+    exclamation_rate: float  # % de mensajes que terminan en !
+    common_phrases: List[str]  # Frases típicas del creador
+    vocabulary: List[str]  # Palabras características
+    tone_words: List[str]  # Palabras de tono (bro, hermano, crack, etc)
+
     # Patrones de respuesta
-    elaborates_on_emotion: bool     # Si elabora cuando el lead comparte emociones
-    elaborates_on_questions: bool   # Si da respuestas largas a preguntas
-    uses_dry_responses: bool        # Si a veces responde muy seco (ok, dale, etc)
-    dry_response_rate: float        # % de respuestas secas
+    elaborates_on_emotion: bool  # Si elabora cuando el lead comparte emociones
+    elaborates_on_questions: bool  # Si da respuestas largas a preguntas
+    uses_dry_responses: bool  # Si a veces responde muy seco (ok, dale, etc)
+    dry_response_rate: float  # % de respuestas secas
 
 
 def build_clone_system_prompt(metrics: CreatorMetrics, relationship_context: str = "") -> str:
     """
     Construye el prompt del sistema para clonar el estilo del creador.
-    
+
     Args:
         metrics: Métricas del creador extraídas de su historial
         relationship_context: Contexto de la relación con el lead específico
-    
+
     Returns:
         Prompt del sistema optimizado
     """
-    
-    # Calcular límites de longitud
-    min_length = int(metrics.avg_length * 0.5)
-    max_length = int(metrics.avg_length * 1.5)
-    target_length = int(metrics.median_length)
-    
+
+    # Calcular límites de longitud - MÁS ESTRICTOS
+    min_length = int(metrics.avg_length * 0.3)  # Más bajo
+    max_length = int(metrics.avg_length * 1.2)  # Más estricto (era 1.5)
+    target_length = int(metrics.median_length * 0.9)  # Apuntar más bajo
+
     # Determinar política de preguntas
     if metrics.question_rate < 0.10:
         question_policy = "CASI NUNCA preguntes. Solo si es absolutamente necesario para continuar."
@@ -64,15 +65,17 @@ def build_clone_system_prompt(metrics: CreatorMetrics, relationship_context: str
         question_policy = "Pregunta MUY POCO. Máximo 1 de cada 5 respuestas puede tener pregunta."
     else:
         question_policy = "Puedes preguntar ocasionalmente, pero no en cada mensaje."
-    
+
     # Determinar política de emojis
     if metrics.emoji_rate < 0.15:
         emoji_policy = "USA MUY POCOS EMOJIS. Máximo 1 emoji cada 3-4 mensajes."
     elif metrics.emoji_rate < 0.30:
-        emoji_policy = f"Usa emojis moderadamente. Promedio: {metrics.avg_emojis_per_msg:.1f} por mensaje."
+        emoji_policy = (
+            f"Usa emojis moderadamente. Promedio: {metrics.avg_emojis_per_msg:.1f} por mensaje."
+        )
     else:
         emoji_policy = f"Puedes usar emojis frecuentemente. Promedio: {metrics.avg_emojis_per_msg:.1f} por mensaje."
-    
+
     # Determinar política de puntuación
     if metrics.period_rate < 0.05:
         punctuation_policy = "NUNCA termines con punto (.). Usa ! o emoji o nada."
@@ -80,7 +83,7 @@ def build_clone_system_prompt(metrics: CreatorMetrics, relationship_context: str
         punctuation_policy = "CASI NUNCA uses punto final. Prefiere ! o terminar sin puntuación."
     else:
         punctuation_policy = "Puedes usar punto final ocasionalmente."
-    
+
     # Construir lista de frases prohibidas
     banned_phrases = [
         "¿Qué tal?",
@@ -89,7 +92,7 @@ def build_clone_system_prompt(metrics: CreatorMetrics, relationship_context: str
         "¿En qué puedo ayudarte?",
         "¿Necesitas algo?",
     ]
-    
+
     prompt = f"""Eres {metrics.name}. Responde EXACTAMENTE como lo haría {metrics.name} en Instagram DM.
 
 ═══════════════════════════════════════════════════════════════════════════════
@@ -151,13 +154,13 @@ RECUERDA: Eres {metrics.name}, NO un asistente. CORTO > largo. NATURAL > correct
 
 {relationship_context}
 """
-    
+
     return prompt
 
 
 def build_response_guidelines(metrics: CreatorMetrics) -> str:
     """Construye guías adicionales por tipo de mensaje."""
-    
+
     return f"""
 ═══════════════════════════════════════════════════════════════════════════════
 GUÍA POR TIPO DE MENSAJE
@@ -208,35 +211,35 @@ def extract_creator_metrics(creator_id: str, messages: list) -> CreatorMetrics:
     """Extrae métricas de los mensajes de un creador."""
     if not messages:
         return STEFAN_METRICS
-    
+
     lengths = [len(m) for m in messages]
     avg_length = sum(lengths) / len(lengths)
     sorted_lengths = sorted(lengths)
     median_length = sorted_lengths[len(sorted_lengths) // 2]
-    
-    questions = sum(1 for m in messages if '?' in m)
+
+    questions = sum(1 for m in messages if "?" in m)
     question_rate = questions / len(messages)
-    
+
     def count_emojis(text):
         return sum(1 for c in text if ord(c) > 127000)
-    
+
     msgs_with_emoji = sum(1 for m in messages if count_emojis(m) > 0)
     emoji_rate = msgs_with_emoji / len(messages)
     avg_emojis = sum(count_emojis(m) for m in messages) / len(messages)
-    
-    period_endings = sum(1 for m in messages if m.rstrip().endswith('.'))
+
+    period_endings = sum(1 for m in messages if m.rstrip().endswith("."))
     period_rate = period_endings / len(messages)
-    
-    exclamation_endings = sum(1 for m in messages if m.rstrip().endswith('!'))
+
+    exclamation_endings = sum(1 for m in messages if m.rstrip().endswith("!"))
     exclamation_rate = exclamation_endings / len(messages)
-    
-    dry_responses = ['ok', 'dale', 'vale', 'jaja', 'jajaja', 'sí', 'si', 'no', 'bien']
+
+    dry_responses = ["ok", "dale", "vale", "jaja", "jajaja", "sí", "si", "no", "bien"]
     dry_count = sum(1 for m in messages if m.lower().strip() in dry_responses or len(m) < 8)
     dry_rate = dry_count / len(messages)
-    
-    common_words = ['bro', 'hermano', 'crack', 'tío', 'amigo', 'genial', 'dale', 'perfecto']
+
+    common_words = ["bro", "hermano", "crack", "tío", "amigo", "genial", "dale", "perfecto"]
     found_words = [w for w in common_words if any(w in m.lower() for m in messages)]
-    
+
     return CreatorMetrics(
         name="Creator",
         avg_length=avg_length,
