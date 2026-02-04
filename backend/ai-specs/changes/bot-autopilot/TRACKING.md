@@ -2,10 +2,10 @@
 
 ## 🎯 Objetivo: Bot indistinguible de Stefan real
 
-## Overall Progress: 6/7 fases completadas (86%)
+## Overall Progress: 7/7 fases completadas (100%) 🎉
 
 ```
-[█████████████████░░░] 86%
+[████████████████████] 100%
 ```
 
 | Phase | Nombre | Status | Tests | Notas |
@@ -16,7 +16,7 @@
 | 3 | Response Variations | ✅ DONE | 27 ✅ | 8 pools con variedad |
 | 4 | Timing & Rhythm | ✅ DONE | 11 ✅ | Delays naturales |
 | 5 | Multi-Message | ✅ DONE | 26 ✅ | Divide respuestas largas |
-| 6 | Edge Cases | 🔴 TODO | - | NEXT |
+| 6 | Edge Cases | ✅ DONE | 39 ✅ | Sarcasmo, "no sé", escalación |
 
 ---
 
@@ -101,15 +101,34 @@
 
 ---
 
-## 🔴 Phase 6: Edge Cases - NEXT
+## ✅ Phase 6: Edge Cases - COMPLETADO
+
+**Fecha:** 2026-02-04
 
 **Objetivo:** Manejar situaciones difíciles
 
-**Entregables:**
-- [ ] Detección sarcasmo/ironía
-- [ ] Respuestas "secas" contextuales
-- [ ] Admitir "no sé"
-- [ ] Tests
+**Edge Cases detectados:**
+| Tipo | Ejemplo | Acción |
+|------|---------|--------|
+| SARCASM | "Claro que sí, como no" | Respuesta empática |
+| IRONY | "Qué gracioso 😂😂😂" | Cautela en LLM |
+| UNKNOWN_QUESTION | "Qué piensas de verdad?" | "No sé" response |
+| PERSONAL_QUESTION | "Tienes novia?" | Deflection |
+| OFF_TOPIC | "Qué opinas de política?" | Deflection |
+| COMPLAINT | "Quiero mi devolución" | Empatía + Escalación |
+| AGGRESSIVE | "Eres idiota" | Escalación sin respuesta |
+
+**Features:**
+- ✅ Detección de sarcasmo e ironía
+- ✅ Respuestas "no sé" para preguntas inciertas
+- ✅ Deflection para preguntas personales/off-topic
+- ✅ Empatía para quejas
+- ✅ Escalación automática para agresividad
+- ✅ Respuestas secas contextuales (15% chance)
+
+**Archivos:**
+- `services/edge_case_handler.py`
+- `tests/test_edge_case_handler.py` (39 tests)
 
 ---
 
@@ -121,7 +140,8 @@
 | Response Variator | 27 |
 | Timing Service | 11 |
 | Message Splitter | 26 |
-| **TOTAL** | **87** |
+| Edge Case Handler | 39 |
+| **TOTAL** | **126** |
 
 ## 📅 Tiempo
 
@@ -133,10 +153,16 @@
 | ~~Phase 3~~ | ✅ |
 | ~~Phase 4~~ | ✅ |
 | ~~Phase 5~~ | ✅ |
-| Phase 6 | NEXT |
+| ~~Phase 6~~ | ✅ |
 
-## 🚀 Próximo Paso
+## 🎉 IMPLEMENTACIÓN COMPLETA
 
-**Phase 6: Edge Cases**
+**Bot Autopilot está listo para integración.**
 
-Manejar situaciones difíciles: sarcasmo, ironía, respuestas "secas" contextuales, admitir "no sé".
+Todos los servicios están implementados y testeados:
+- `services/response_variator.py` - Variaciones de respuesta
+- `services/timing_service.py` - Delays naturales
+- `services/message_splitter.py` - Multi-mensajes
+- `services/edge_case_handler.py` - Casos difíciles
+
+**Próximo paso:** Integrar estos servicios en el flujo principal de `DMResponderAgent`.
