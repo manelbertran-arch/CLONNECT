@@ -380,6 +380,22 @@ async def reconcile_messages_for_creator(
             )
 
             if not lead:
+                # FIX: Don't create lead if there are no new messages to insert
+                # This prevents "ghost leads" with 0 messages
+                has_new_messages = False
+                for msg in messages_data:
+                    msg_id = msg.get("id", "")
+                    if msg_id and msg_id not in existing_ids:
+                        # Check DB directly
+                        existing = session.query(Message).filter_by(platform_message_id=msg_id).first()
+                        if not existing:
+                            has_new_messages = True
+                            break
+
+                if not has_new_messages:
+                    logger.debug(f"[Reconciliation] Skipping lead creation for {follower_id} - no new messages")
+                    continue
+
                 # Create new lead and try to enrich with profile
                 # Use raw follower_id (no ig_ prefix) for consistency with other services
                 profile_data = await _fetch_profile_for_lead(follower_id, access_token)
