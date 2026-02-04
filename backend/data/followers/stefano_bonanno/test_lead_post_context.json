@@ -1,0 +1,40 @@
+{
+  "follower_id": "test_lead_post_context",
+  "creator_id": "stefano_bonanno",
+  "username": "carlos_test",
+  "name": "Carlos",
+  "first_contact": "2026-02-04T15:45:55.456520",
+  "last_contact": "2026-02-04T14:45:59.057941+00:00",
+  "total_messages": 1,
+  "interests": [],
+  "products_discussed": [],
+  "objections_raised": [],
+  "purchase_intent_score": 0.0,
+  "is_lead": false,
+  "is_customer": false,
+  "status": "active",
+  "preferred_language": "es",
+  "last_messages": [
+    {
+      "role": "user",
+      "content": "Hola! Vi tu post sobre el círculo de hombres, me interesa saber más",
+      "timestamp": "2026-02-04T14:45:59.057941+00:00"
+    },
+    {
+      "role": "assistant",
+      "content": "¡Hola! Me alegra que te haya llamado la atención el círculo de hombres.",
+      "timestamp": "2026-02-04T14:45:59.057941+00:00"
+    }
+  ],
+  "links_sent_count": 0,
+  "last_link_message_num": 0,
+  "objections_handled": [],
+  "arguments_used": [],
+  "greeting_variant_index": 0,
+  "last_greeting_style": "hola",
+  "last_emojis_used": [],
+  "messages_since_name_used": 1,
+  "alternative_contact": "",
+  "alternative_contact_type": "",
+  "contact_requested": false
+}

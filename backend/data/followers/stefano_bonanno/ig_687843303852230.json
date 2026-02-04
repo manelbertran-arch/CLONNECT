@@ -1,0 +1,50 @@
+{
+  "follower_id": "ig_687843303852230",
+  "creator_id": "stefano_bonanno",
+  "username": "ig_687843303852230",
+  "name": "",
+  "first_contact": "2026-02-04T17:04:51.392987",
+  "last_contact": "2026-02-04T17:08:46.018537",
+  "total_messages": 2,
+  "interests": [],
+  "products_discussed": [],
+  "objections_raised": [],
+  "purchase_intent_score": 0.0,
+  "is_lead": false,
+  "is_customer": false,
+  "status": "new",
+  "preferred_language": "es",
+  "last_messages": [
+    {
+      "role": "user",
+      "content": "Hola hermano! Cómo va todo? Te cuento que cerré un cliente nuevo esta semana 🔥",
+      "timestamp": "2026-02-04T17:04:53.739063"
+    },
+    {
+      "role": "assistant",
+      "content": "¡Hola! 😊 ¡Felicidades por cerrar ese nuevo cliente! Eso es un gran logro. ¿Hay algo en lo que te pueda ayudar hoy, ya sea relacionado con tus nuevos proyectos o cualquier otra cosa?",
+      "timestamp": "2026-02-04T17:04:53.739063"
+    },
+    {
+      "role": "user",
+      "content": "Hola hermano! Cómo va todo? Te cuento que cerré un cliente nuevo esta semana 🔥",
+      "timestamp": "2026-02-04T17:08:46.018537"
+    },
+    {
+      "role": "assistant",
+      "content": "¡Hola, crack! 😄 Todo va genial por aquí, gracias por preguntar. Y qué buena noticia lo de tu nuevo cliente, ¡te lo mereces! Eso es un gran paso en tu camino. ¿Cómo te sientes al respecto? Si necesitas ayuda con algo más relacionado con tus proyectos o cualquier otra cosa, aquí estoy. ¡Te quiero! ❤️",
+      "timestamp": "2026-02-04T17:08:46.018537"
+    }
+  ],
+  "links_sent_count": 0,
+  "last_link_message_num": 0,
+  "objections_handled": [],
+  "arguments_used": [],
+  "greeting_variant_index": 0,
+  "last_greeting_style": "",
+  "last_emojis_used": [],
+  "messages_since_name_used": 0,
+  "alternative_contact": "",
+  "alternative_contact_type": "",
+  "contact_requested": false
+}

@@ -1,0 +1,17 @@
+{
+  "user_id": "test_carlos_123",
+  "creator_id": "stefano_bonanno",
+  "created_at": "2026-02-04T14:46:20.065997+00:00",
+  "updated_at": "2026-02-04T14:46:22.965713+00:00",
+  "preferences": {
+    "language": "es",
+    "response_style": "balanced",
+    "communication_tone": "friendly"
+  },
+  "interests": {},
+  "objections": [],
+  "interested_products": [],
+  "interaction_count": 1,
+  "last_interaction": "2026-02-04T14:46:22.762841+00:00",
+  "content_scores": {}
+}

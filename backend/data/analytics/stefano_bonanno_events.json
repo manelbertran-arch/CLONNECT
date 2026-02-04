@@ -80,5 +80,57 @@
     "metadata": {
       "source": "dm"
     }
+  },
+  {
+    "event_id": "evt_0f1123aa4b72",
+    "event_type": "message_received",
+    "creator_id": "stefano_bonanno",
+    "follower_id": "test_lead_post_context",
+    "timestamp": "2026-02-04T14:45:59.386333+00:00",
+    "platform": "api",
+    "intent": "interest_soft",
+    "product_id": "",
+    "amount": 0.0,
+    "score": 0.0,
+    "metadata": {}
+  },
+  {
+    "event_id": "evt_c31bb777c651",
+    "event_type": "message_sent",
+    "creator_id": "stefano_bonanno",
+    "follower_id": "test_lead_post_context",
+    "timestamp": "2026-02-04T14:45:59.389149+00:00",
+    "platform": "api",
+    "intent": "",
+    "product_id": "",
+    "amount": 0.0,
+    "score": 0.0,
+    "metadata": {}
+  },
+  {
+    "event_id": "evt_427fc9a35370",
+    "event_type": "message_received",
+    "creator_id": "stefano_bonanno",
+    "follower_id": "test_carlos_123",
+    "timestamp": "2026-02-04T14:46:22.966995+00:00",
+    "platform": "api",
+    "intent": "interest_soft",
+    "product_id": "",
+    "amount": 0.0,
+    "score": 0.0,
+    "metadata": {}
+  },
+  {
+    "event_id": "evt_1c2a6014950f",
+    "event_type": "message_sent",
+    "creator_id": "stefano_bonanno",
+    "follower_id": "test_carlos_123",
+    "timestamp": "2026-02-04T14:46:22.967919+00:00",
+    "platform": "api",
+    "intent": "",
+    "product_id": "",
+    "amount": 0.0,
+    "score": 0.0,
+    "metadata": {}
   }
 ]

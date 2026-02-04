@@ -1,0 +1,80 @@
+{
+  "follower_id": "7957121404366071",
+  "creator_id": "stefano_bonanno",
+  "username": "aureliageru",
+  "name": "",
+  "first_contact": "2026-02-04T17:19:14.165770",
+  "last_contact": "2026-02-04T17:19:28.333248",
+  "total_messages": 5,
+  "interests": [],
+  "products_discussed": [],
+  "objections_raised": [],
+  "purchase_intent_score": 0.0,
+  "is_lead": false,
+  "is_customer": false,
+  "status": "new",
+  "preferred_language": "es",
+  "last_messages": [
+    {
+      "role": "user",
+      "content": "Ya estoy por aquí, si!",
+      "timestamp": "2026-02-04T17:19:16.828496"
+    },
+    {
+      "role": "assistant",
+      "content": "¡Genial, Aurelia! 😊 Me alegra que estés aquí. ¿En qué puedo ayudarte hoy?",
+      "timestamp": "2026-02-04T17:19:16.828496"
+    },
+    {
+      "role": "user",
+      "content": "Si hagamos algo.",
+      "timestamp": "2026-02-04T17:19:19.392180"
+    },
+    {
+      "role": "assistant",
+      "content": "¡Claro, Aurelia! 😊 ¿Tienes algo específico en mente o alguna idea que quieras explorar? Estoy aquí para ayudarte a que sea genial. 💙",
+      "timestamp": "2026-02-04T17:19:19.392180"
+    },
+    {
+      "role": "user",
+      "content": "Thanks 🙏",
+      "timestamp": "2026-02-04T17:19:21.848093"
+    },
+    {
+      "role": "assistant",
+      "content": "¡De nada, Aurelia! 😊 Si necesitas algo más o tienes alguna pregunta, aquí estoy para ayudarte. ¡Hagamos que sea genial! ❤️",
+      "timestamp": "2026-02-04T17:19:21.848093"
+    },
+    {
+      "role": "user",
+      "content": "Gracias mi querido 😍",
+      "timestamp": "2026-02-04T17:19:24.872518"
+    },
+    {
+      "role": "assistant",
+      "content": "¡De nada, Aurelia! 😊 Siempre es un placer ayudarte. Si hay algo más en lo que pueda colaborar o alguna idea que quieras compartir, aquí estoy. ¡Vamos a hacer que sea genial! 💙",
+      "timestamp": "2026-02-04T17:19:24.872518"
+    },
+    {
+      "role": "user",
+      "content": "See you in Guatemala?",
+      "timestamp": "2026-02-04T17:19:28.333248"
+    },
+    {
+      "role": "assistant",
+      "content": "¡Guatemala suena genial! ✈️😍 ¿Tienes planes específicos o algo en mente para esa visita? Si necesitas recomendaciones o información, estaré encantado de ayudarte. ¡Cuéntame! 💙",
+      "timestamp": "2026-02-04T17:19:28.333248"
+    }
+  ],
+  "links_sent_count": 0,
+  "last_link_message_num": 0,
+  "objections_handled": [],
+  "arguments_used": [],
+  "greeting_variant_index": 0,
+  "last_greeting_style": "",
+  "last_emojis_used": [],
+  "messages_since_name_used": 0,
+  "alternative_contact": "",
+  "alternative_contact_type": "",
+  "contact_requested": false
+}

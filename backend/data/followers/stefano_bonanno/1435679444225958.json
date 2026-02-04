@@ -1,0 +1,50 @@
+{
+  "follower_id": "1435679444225958",
+  "creator_id": "stefano_bonanno",
+  "username": "licristiandres",
+  "name": "",
+  "first_contact": "2026-02-04T17:19:07.699248",
+  "last_contact": "2026-02-04T17:19:14.133464",
+  "total_messages": 2,
+  "interests": [],
+  "products_discussed": [],
+  "objections_raised": [],
+  "purchase_intent_score": 0.0,
+  "is_lead": false,
+  "is_customer": false,
+  "status": "new",
+  "preferred_language": "es",
+  "last_messages": [
+    {
+      "role": "user",
+      "content": "Xq mi hna me dijo lo mismo",
+      "timestamp": "2026-02-04T17:19:11.125950"
+    },
+    {
+      "role": "assistant",
+      "content": "¡Hola, amigo! Parece que hay algo en lo que tu hermana y tú están en sintonía. A veces, nuestras personas más cercanas pueden ver cosas que nosotros no. ¿Quieres hablar más sobre eso? Estoy aquí para escuchar y ayudar. 😊",
+      "timestamp": "2026-02-04T17:19:11.125950"
+    },
+    {
+      "role": "user",
+      "content": "Vos q ondis ?",
+      "timestamp": "2026-02-04T17:19:14.133464"
+    },
+    {
+      "role": "assistant",
+      "content": "¡Hola, hermano! Todo bien por aquí, gracias por preguntar. ¿Y tú? ¿Cómo va todo? Si quieres platicar de algo en particular o si hay algo en lo que pueda ayudarte, aquí estoy. 😊",
+      "timestamp": "2026-02-04T17:19:14.133464"
+    }
+  ],
+  "links_sent_count": 0,
+  "last_link_message_num": 0,
+  "objections_handled": [],
+  "arguments_used": [],
+  "greeting_variant_index": 0,
+  "last_greeting_style": "",
+  "last_emojis_used": [],
+  "messages_since_name_used": 0,
+  "alternative_contact": "",
+  "alternative_contact_type": "",
+  "contact_requested": false
+}

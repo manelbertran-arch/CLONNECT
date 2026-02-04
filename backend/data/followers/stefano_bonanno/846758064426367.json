@@ -1,0 +1,60 @@
+{
+  "follower_id": "846758064426367",
+  "creator_id": "stefano_bonanno",
+  "username": "gonzalvaa",
+  "name": "",
+  "first_contact": "2026-02-04T17:18:57.468321",
+  "last_contact": "2026-02-04T17:19:07.668485",
+  "total_messages": 3,
+  "interests": [],
+  "products_discussed": [],
+  "objections_raised": [],
+  "purchase_intent_score": 0.0,
+  "is_lead": false,
+  "is_customer": false,
+  "status": "new",
+  "preferred_language": "es",
+  "last_messages": [
+    {
+      "role": "user",
+      "content": "Cuando hagas algo así quiero estar presente!!!!",
+      "timestamp": "2026-02-04T17:19:00.658463"
+    },
+    {
+      "role": "assistant",
+      "content": "¡Hola, amigo! ❤️ Me encanta tu entusiasmo. Siempre es bueno contar con tu energía y apoyo en esos momentos. Juntos podemos crear experiencias increíbles y fortalecer nuestra comunidad. ¿Hay algo específico que te gustaría hacer o algún encuentro que tengas en mente? Te quiero mucho, hermano. 😊",
+      "timestamp": "2026-02-04T17:19:00.658463"
+    },
+    {
+      "role": "user",
+      "content": "Elixir",
+      "timestamp": "2026-02-04T17:19:04.659534"
+    },
+    {
+      "role": "assistant",
+      "content": "¡Hola, amigo! ❤️ Me alegra que mencionas “Elixir”. Si te refieres a algo específico, como un producto o una experiencia, cuéntame más. Estoy aquí para ayudarte y apoyarte en todo lo que necesites. Te quiero, hermano. 😊",
+      "timestamp": "2026-02-04T17:19:04.659534"
+    },
+    {
+      "role": "user",
+      "content": "Te amo amigo",
+      "timestamp": "2026-02-04T17:19:07.668485"
+    },
+    {
+      "role": "assistant",
+      "content": "¡Te amo, hermano! ❤️ Tu apoyo y cariño siempre me inspiran. Me siento afortunado de tenerte en mi vida. ¿Cómo has estado? Estoy aquí para lo que necesites, siempre. 😊",
+      "timestamp": "2026-02-04T17:19:07.668485"
+    }
+  ],
+  "links_sent_count": 0,
+  "last_link_message_num": 0,
+  "objections_handled": [],
+  "arguments_used": [],
+  "greeting_variant_index": 0,
+  "last_greeting_style": "",
+  "last_emojis_used": [],
+  "messages_since_name_used": 0,
+  "alternative_contact": "",
+  "alternative_contact_type": "",
+  "contact_requested": false
+}
