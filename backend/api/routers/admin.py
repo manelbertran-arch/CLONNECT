@@ -5003,6 +5003,84 @@ async def apply_unique_constraint():
         session.close()
 
 
+@router.post("/fix-instagram-page-id/{creator_id}")
+async def fix_instagram_page_id(creator_id: str):
+    """
+    Fetch and save the Facebook Page ID for a creator.
+
+    This is needed because Meta webhooks send the page_id (Facebook Page ID),
+    not the ig_user_id (Instagram User ID). Without the page_id stored,
+    webhooks cannot be routed to the correct creator.
+    """
+    import requests
+    from api.database import SessionLocal
+    from api.models import Creator
+
+    session = SessionLocal()
+    try:
+        creator = session.query(Creator).filter_by(name=creator_id).first()
+        if not creator:
+            raise HTTPException(status_code=404, detail=f"Creator {creator_id} not found")
+
+        if not creator.instagram_token:
+            raise HTTPException(status_code=400, detail="Creator has no Instagram token")
+
+        # Call Meta API to get connected pages
+        url = "https://graph.facebook.com/v18.0/me/accounts"
+        params = {"access_token": creator.instagram_token}
+
+        response = requests.get(url, params=params, timeout=10)
+
+        if response.status_code != 200:
+            return {
+                "status": "error",
+                "error": f"Meta API error: {response.status_code}",
+                "detail": response.text[:500]
+            }
+
+        data = response.json()
+        pages = data.get("data", [])
+
+        if not pages:
+            return {
+                "status": "error",
+                "error": "No Facebook pages found for this token",
+                "hint": "Make sure the token has pages_read_engagement permission"
+            }
+
+        # Use the first page (most users have only one)
+        page = pages[0]
+        page_id = page.get("id")
+        page_name = page.get("name")
+
+        # Save to database
+        old_page_id = creator.instagram_page_id
+        creator.instagram_page_id = page_id
+        session.commit()
+
+        # Clear the lookup cache
+        from api.routers.instagram import _creator_by_page_id_cache
+        _creator_by_page_id_cache.clear()
+
+        return {
+            "status": "ok",
+            "creator_id": creator_id,
+            "old_page_id": old_page_id,
+            "new_page_id": page_id,
+            "page_name": page_name,
+            "all_pages": [{"id": p.get("id"), "name": p.get("name")} for p in pages],
+            "cache_cleared": True
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error fixing Instagram page_id: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+    finally:
+        session.close()
+
+
 @router.post("/cleanup-orphan-leads")
 async def cleanup_orphan_leads():
     """
