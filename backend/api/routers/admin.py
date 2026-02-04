@@ -5160,6 +5160,114 @@ async def fix_instagram_page_id(creator_id: str):
         session.close()
 
 
+@router.post("/fix-instagram-ids/{creator_id}")
+async def fix_instagram_ids(creator_id: str):
+    """
+    Fix instagram_user_id using the real ID from the token, and clean up ghost leads.
+    """
+    import requests
+    from api.database import SessionLocal
+    from api.models import Creator, Lead, Message
+    from sqlalchemy import text
+
+    session = SessionLocal()
+    results = {
+        "old_values": {},
+        "new_values": {},
+        "ghost_leads_deleted": [],
+        "cache_cleared": False
+    }
+
+    try:
+        creator = session.query(Creator).filter_by(name=creator_id).first()
+        if not creator:
+            raise HTTPException(status_code=404, detail=f"Creator {creator_id} not found")
+
+        if not creator.instagram_token:
+            raise HTTPException(status_code=400, detail="Creator has no Instagram token")
+
+        # Store old values
+        results["old_values"] = {
+            "instagram_user_id": creator.instagram_user_id,
+            "instagram_page_id": creator.instagram_page_id
+        }
+
+        token = creator.instagram_token
+
+        # Get real Instagram User ID from token
+        url = "https://graph.instagram.com/me"
+        params = {"access_token": token, "fields": "id,username"}
+        response = requests.get(url, params=params, timeout=10)
+
+        if response.status_code != 200:
+            return {
+                "status": "error",
+                "error": f"Instagram API error: {response.status_code}",
+                "detail": response.text[:500]
+            }
+
+        data = response.json()
+        real_ig_user_id = data.get("id")
+        ig_username = data.get("username")
+
+        # Update creator with correct ID
+        # For IGAAT tokens, use the same ID for both user_id and page_id
+        # because Meta webhooks send this ID as the recipient
+        creator.instagram_user_id = real_ig_user_id
+        creator.instagram_page_id = real_ig_user_id  # Same ID for routing
+        session.commit()
+
+        results["new_values"] = {
+            "instagram_user_id": real_ig_user_id,
+            "instagram_page_id": real_ig_user_id,
+            "instagram_username": ig_username
+        }
+
+        # Delete ghost leads (0 messages)
+        ghost_leads = session.execute(
+            text("""
+                SELECT l.id, l.platform_user_id, l.username
+                FROM leads l
+                WHERE l.creator_id = :cid
+                AND NOT EXISTS (SELECT 1 FROM messages m WHERE m.lead_id = l.id)
+            """),
+            {"cid": str(creator.id)}
+        ).fetchall()
+
+        for lead in ghost_leads:
+            lead_id, platform_user_id, username = lead
+            session.execute(
+                text("DELETE FROM leads WHERE id = :id"),
+                {"id": str(lead_id)}
+            )
+            results["ghost_leads_deleted"].append({
+                "platform_user_id": platform_user_id,
+                "username": username
+            })
+
+        session.commit()
+
+        # Clear lookup cache
+        try:
+            from api.routers.instagram import _creator_by_page_id_cache
+            _creator_by_page_id_cache.clear()
+            results["cache_cleared"] = True
+        except Exception:
+            pass
+
+        results["status"] = "ok"
+        return results
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        session.rollback()
+        logger.error(f"Error fixing Instagram IDs: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+    finally:
+        session.close()
+
+
 @router.post("/cleanup-orphan-leads")
 async def cleanup_orphan_leads():
     """
