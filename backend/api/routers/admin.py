@@ -5029,8 +5029,9 @@ async def fix_instagram_page_id(creator_id: str):
         token_prefix = token[:15] if token else "NONE"
         token_length = len(token) if token else 0
         is_page_token = token.startswith("EAA") if token else False
+        is_igaat_token = token.startswith("IGAAT") if token else False
 
-        logger.info(f"[FixPageID] Token: {token_prefix}... (len={token_length}), is_page_token={is_page_token}")
+        logger.info(f"[FixPageID] Token: {token_prefix}... (len={token_length}), is_page={is_page_token}, is_igaat={is_igaat_token}")
 
         page_id = None
         page_name = None
@@ -5039,10 +5040,47 @@ async def fix_instagram_page_id(creator_id: str):
         token_debug = {
             "token_prefix": token_prefix,
             "token_length": token_length,
-            "detected_type": "PAGE (EAA)" if is_page_token else "USER (IGAAT)"
+            "is_page_token": is_page_token,
+            "is_igaat_token": is_igaat_token,
         }
 
-        if is_page_token:
+        if is_igaat_token:
+            # IGAAT token = Instagram Graph API Token
+            # Use graph.instagram.com/me to get Instagram user info
+            url = "https://graph.instagram.com/me"
+            params = {"access_token": token, "fields": "id,username"}
+
+            response = requests.get(url, params=params, timeout=10)
+
+            if response.status_code != 200:
+                return {
+                    "status": "error",
+                    "error": f"Instagram API error: {response.status_code}",
+                    "detail": response.text[:500],
+                    "token_debug": token_debug,
+                    "hint": "IGAAT tokens work with graph.instagram.com, not graph.facebook.com"
+                }
+
+            data = response.json()
+            ig_user_id = data.get("id")
+            ig_username = data.get("username")
+
+            # For IGAAT tokens, we don't have a Facebook page_id
+            # The ig_user_id IS what Meta sends in webhooks as the recipient
+            # So we should use ig_user_id as the "page_id" for routing
+            return {
+                "status": "ok",
+                "message": "IGAAT token - using Instagram User ID for webhook routing",
+                "instagram_user_id": ig_user_id,
+                "instagram_username": ig_username,
+                "current_stored_user_id": creator.instagram_user_id,
+                "current_stored_page_id": creator.instagram_page_id,
+                "token_debug": token_debug,
+                "action_needed": "For IGAAT tokens, the instagram_user_id should be used for routing. Check if webhooks send this ID.",
+                "recommendation": f"Set instagram_page_id = '{ig_user_id}' to match webhook routing"
+            }
+
+        elif is_page_token:
             # EAA token = Page Access Token
             # Use /me to get the page info directly
             url = "https://graph.facebook.com/v18.0/me"
