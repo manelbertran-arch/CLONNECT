@@ -316,6 +316,7 @@ The current moment context - what's happening NOW in the creator's life. This la
 | **Availability** | Schedule, trips, busy periods | Calendar sync |
 | **Active Campaigns** | Current promotions, launches | Manual config |
 | **Recent Events** | Just happened (surgery, travel) | Manual or detected |
+| **PostContext** | Topics, promotions from Instagram posts | Auto (6h cache) |
 
 ### Data Model
 
@@ -358,12 +359,42 @@ class TemporalState:
 | Conversation State | ✅ Implemented | `core/conversation_state.py` | 465 | State machine |
 | Campaigns | ✅ Implemented | `campaigns` table | - | Full CRUD |
 | Promotions | ✅ Implemented | `products.discount_*` | - | Price overrides |
+| **PostContext Model** | ✅ Implemented | `models/post_context.py` | 139 | Temporal context |
+| **PostContext Repository** | ✅ Implemented | `services/post_context_repository.py` | 314 | CRUD + cache |
+| **Instagram Fetcher** | ✅ Implemented | `services/instagram_post_fetcher.py` | 224 | Graph API |
+| **Post Analyzer** | ✅ Implemented | `services/post_analyzer.py` | 219 | LLM extraction |
+| **PostContext Service** | ✅ Implemented | `services/post_context_service.py` | 285 | Orchestration |
+| **Context Scheduler** | ✅ Implemented | `services/post_context_scheduler.py` | 79 | Auto-refresh |
+| **DM Agent Integration** | ✅ Implemented | `services/dm_agent_context_integration.py` | 223 | DNA + PostContext |
 | Mood/Energy | ❌ Missing | - | - | No mood tracking |
+
+### PostContext Schema (PR #49)
+
+```python
+@dataclass
+class PostContext:
+    creator_id: str
+    context_instructions: str
+    expires_at: datetime  # 6h TTL
+    active_promotion: Optional[str] = None
+    promotion_deadline: Optional[datetime] = None
+    promotion_urgency: Optional[str] = None
+    recent_topics: List[str] = field(default_factory=list)
+    recent_products: List[str] = field(default_factory=list)
+    availability_hint: Optional[str] = None
+```
+
+### Tests (PR #49)
+
+- Unit tests: 38 passing
+- Integration tests: 4 passing
+- Scheduler tests: 3 passing
+- **Total: 45 tests**
 
 ### Gaps & TODOs
 
 - [ ] **Mood input UI**: No way for creator to set current mood/energy
-- [ ] **Auto-detection from posts**: Should infer state from recent content
+- [x] ~~Auto-detection from posts~~: ✅ PR #49 - PostContext extracts from Instagram
 - [ ] **"Out of office" mode**: No vacation/unavailable handling
 - [x] ~~Calendar integration~~: ✅ Calendly + Cal.com fully integrated
 
@@ -562,11 +593,11 @@ SEQUENCES = [
 ├─────────────────────────────────┼───────┼─────────────────────────────────┤
 │ Layer 3: Relationship Context   │ 100%  │ ✅ COMPLETE (PR #48) + LIVE     │
 ├─────────────────────────────────┼───────┼─────────────────────────────────┤
-│ Layer 4: Temporal State         │  70%  │ ✅ Calendar integrated          │
+│ Layer 4: Temporal State         │  85%  │ ✅ Calendar + PostContext (#49) │
 ├─────────────────────────────────┼───────┼─────────────────────────────────┤
 │ Layer 5: Autonomy               │  75%  │ ✅ Nurturing + Ghost + Copilot  │
 ├─────────────────────────────────┼───────┼─────────────────────────────────┤
-│ OVERALL                         │  84%  │ Production ready                │
+│ OVERALL                         │  87%  │ Production ready                │
 └─────────────────────────────────┴───────┴─────────────────────────────────┘
 ```
 
@@ -577,9 +608,9 @@ SEQUENCES = [
 | L1: Identity | guardrails, tone_profile_db, creator_config | 1,285 |
 | L2: Memory | semantic, memory, reranker, pgvector | 1,243 |
 | L3: DNA | relationship_dna_service, analyzer, extractor | 1,092 |
-| L4: Temporal | calendar, booking, conversation_state | 2,847 |
+| L4: Temporal | calendar, booking, post_context_*, dm_agent_context | 4,330 |
 | L5: Autonomy | nurturing, ghost_reactivation, intent_classifier | 2,354 |
-| **Total** | | **8,821 lines** |
+| **Total** | | **10,304 lines** |
 
 ---
 
@@ -600,12 +631,18 @@ SEQUENCES = [
 - [x] Auto-update triggers
 - [x] Production migration (50 leads)
 
-### Phase 3: Temporal State ✅ 70% COMPLETE
+### Phase 3: Temporal State ✅ 85% COMPLETE
 - [x] Calendar integration (Calendly + Cal.com, 1064 lines)
 - [x] Booking flow (665 lines)
 - [x] Conversation state machine (465 lines)
+- [x] **POST-CONTEXT-DETECTION (PR #49)** - Auto-detect context from Instagram posts
+  - PostContext model + repository (453 lines)
+  - Instagram Graph API fetcher (224 lines)
+  - LLM-powered post analyzer (219 lines)
+  - 6h cache with auto-refresh scheduler
+  - dm_agent integration (223 lines)
+  - **45 tests passing**
 - [ ] Creator mood/availability input
-- [ ] Auto-detection from posts
 - [ ] "Out of office" mode
 
 ### Phase 4: Enhanced Autonomy ✅ 75% COMPLETE
@@ -697,6 +734,7 @@ AUTOPILOT_ENABLED=false  # Coming soon
 | 2.0 | 2026-01 | Added RAG, nurturing |
 | 3.0 | 2026-02-04 | Added Relationship DNA (Layer 3 complete) |
 | 3.1 | 2026-02-04 | Code audit: Updated scores (72% → 84%), documented existing calendar/nurturing |
+| 3.2 | 2026-02-04 | Added POST-CONTEXT-DETECTION (PR #49): Layer 4 70% → 85%, Overall 84% → 87% |
 
 ---
 
