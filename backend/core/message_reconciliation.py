@@ -318,18 +318,21 @@ async def get_instagram_conversations(
                     continue
 
                 try:
-                    # Fetch messages for this conversation (limit 25 per conversation)
-                    msg_url = f"{api_base}/{conv_id}"
+                    # Fetch messages for this conversation using /messages endpoint
+                    # This format returns more attachment data (story, share, etc.)
+                    msg_url = f"{api_base}/{conv_id}/messages"
                     msg_params = {
-                        "fields": "messages.limit(25){id,message,created_time,from,attachments}",
+                        "fields": "id,message,from,to,created_time,attachments,story,share,shares,sticker",
                         "access_token": access_token,
+                        "limit": 25,
                     }
 
                     msg_resp = await client.get(msg_url, params=msg_params)
 
                     if msg_resp.status_code == 200:
                         msg_data = msg_resp.json()
-                        conv["messages"] = msg_data.get("messages", {})
+                        # Format response to match expected structure
+                        conv["messages"] = {"data": msg_data.get("data", [])}
                         conversations.append(conv)
                     else:
                         logger.debug(f"[Reconciliation] Could not fetch messages for {conv_id}")
@@ -582,6 +585,10 @@ async def reconcile_messages_for_creator(
                 msg_from_id = msg_from.get("id", "")
                 created_time_str = msg.get("created_time", "")
                 attachments = msg.get("attachments", {}).get("data", [])
+                story_data = msg.get("story")
+                share_data = msg.get("share")
+                shares_data = msg.get("shares", {}).get("data", [])
+                sticker_data = msg.get("sticker")
 
                 # Determine role
                 role = "user" if msg_from_id == follower_id else "assistant"
@@ -594,14 +601,66 @@ async def reconcile_messages_for_creator(
                     except Exception:
                         created_at = datetime.now(timezone.utc)
 
-                # Parse media attachments
-                media_info = _extract_media_from_attachments(attachments)
-                if attachments:
+                # Parse media - check attachments, story, share, sticker
+                media_info = {}
+                content = msg_text
+
+                # Check story data first (story mentions/replies)
+                if story_data:
+                    story_link = story_data.get("link") or story_data.get("url")
+                    mention_link = story_data.get("mention", {}).get("link")
+                    reply_link = story_data.get("reply_to", {}).get("link")
+                    media_url = story_link or mention_link or reply_link
+                    media_info = {
+                        "type": "story_mention",
+                        "content_text": "Mentioned you in their story",
+                    }
+                    if media_url:
+                        media_info["url"] = media_url
+                    logger.info(f"[Reconciliation] Story data for msg {msg_id[:20]}: url={bool(media_url)}")
+
+                # Check share data
+                elif share_data:
+                    share_link = share_data.get("link") or share_data.get("url")
+                    media_info = {
+                        "type": "share",
+                        "content_text": "Shared a post",
+                    }
+                    if share_link:
+                        media_info["url"] = share_link
+                        if "reel" in share_link.lower():
+                            media_info["type"] = "shared_reel"
+                            media_info["content_text"] = "Shared a reel"
+
+                # Check shares array
+                elif shares_data:
+                    share = shares_data[0]
+                    share_link = share.get("link") or share.get("url")
+                    media_info = {
+                        "type": "share",
+                        "content_text": "Shared content",
+                    }
+                    if share_link:
+                        media_info["url"] = share_link
+
+                # Check sticker
+                elif sticker_data:
+                    media_info = {
+                        "type": "sticker",
+                        "content_text": "Sent a sticker",
+                    }
+                    if isinstance(sticker_data, str):
+                        media_info["url"] = sticker_data
+
+                # Check attachments
+                elif attachments:
+                    media_info = _extract_media_from_attachments(attachments)
                     logger.info(
                         f"[Reconciliation] Attachments for msg {msg_id[:20]}...: "
                         f"count={len(attachments)}, media_info={media_info}"
                     )
-                content = msg_text
+
+                # Set content text
                 if not content and media_info:
                     content = media_info.get("content_text", "Sent an attachment")
                 elif not content:
