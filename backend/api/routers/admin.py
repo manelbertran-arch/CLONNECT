@@ -4804,81 +4804,59 @@ async def cleanup_orphan_leads():
     results = {"actions": [], "top_10_after": []}
 
     try:
-        # 1. Delete sergi_relaccionate duplicate (ig_1089296093403632)
-        # First verify it has 0 messages
-        check = session.execute(
+        # 1. Delete all leads with 0 messages for stefano_bonanno
+        zero_msg_leads = session.execute(
             text("""
-                SELECT l.id, l.username,
-                       (SELECT COUNT(*) FROM messages m WHERE m.lead_id = l.id) as msg_count
+                SELECT l.id, l.platform_user_id, l.username
                 FROM leads l
-                WHERE l.platform_user_id = 'ig_1089296093403632'
-            """)
-        ).fetchone()
-
-        if check:
-            lead_id, username, msg_count = check
-            if msg_count == 0:
-                session.execute(
-                    text("DELETE FROM leads WHERE platform_user_id = 'ig_1089296093403632'")
-                )
-                results["actions"].append({
-                    "action": "deleted_duplicate",
-                    "platform_user_id": "ig_1089296093403632",
-                    "username": username,
-                    "msg_count": msg_count,
-                })
-            else:
-                results["actions"].append({
-                    "action": "skipped_has_messages",
-                    "platform_user_id": "ig_1089296093403632",
-                    "username": username,
-                    "msg_count": msg_count,
-                })
-        else:
-            results["actions"].append({
-                "action": "not_found",
-                "platform_user_id": "ig_1089296093403632",
-            })
-
-        # 2. Check lead without profile (ig_878471388387113)
-        check2 = session.execute(
-            text("""
-                SELECT m.id, m.content, m.role, m.created_at::text
-                FROM messages m
-                JOIN leads l ON m.lead_id = l.id
-                WHERE l.platform_user_id = 'ig_878471388387113'
+                WHERE l.creator_id = (SELECT id FROM creators WHERE name = 'stefano_bonanno')
+                AND (SELECT COUNT(*) FROM messages m WHERE m.lead_id = l.id) = 0
             """)
         ).fetchall()
 
-        results["orphan_lead_messages"] = [
-            {"id": str(r[0])[:8], "content": r[1][:100] if r[1] else None, "role": r[2], "created_at": r[3]}
-            for r in check2
-        ]
+        for lead in zero_msg_leads:
+            lead_id, platform_user_id, username = lead
+            session.execute(
+                text("DELETE FROM leads WHERE id = :id"),
+                {"id": str(lead_id)},
+            )
+            results["actions"].append({
+                "action": "deleted_zero_messages",
+                "platform_user_id": platform_user_id,
+                "username": username,
+            })
 
-        # Delete if only 1 message and it's not important (media/attachment)
-        if len(check2) <= 1:
-            # Get the message content to check
-            if check2 and check2[0][1] and "[Media" not in check2[0][1]:
-                results["actions"].append({
-                    "action": "kept_has_text",
-                    "platform_user_id": "ig_878471388387113",
-                    "message_preview": check2[0][1][:50] if check2[0][1] else None,
-                })
-            else:
-                # Delete messages first, then lead
+        # 2. Delete leads without username that have only 1 message with [Media]
+        orphan_leads = session.execute(
+            text("""
+                SELECT l.id, l.platform_user_id
+                FROM leads l
+                WHERE l.creator_id = (SELECT id FROM creators WHERE name = 'stefano_bonanno')
+                AND (l.username IS NULL OR l.username = '' OR l.username = l.platform_user_id)
+                AND (SELECT COUNT(*) FROM messages m WHERE m.lead_id = l.id) <= 1
+            """)
+        ).fetchall()
+
+        for lead in orphan_leads:
+            lead_id, platform_user_id = lead
+            # Check if the single message is just media
+            msg = session.execute(
+                text("SELECT content FROM messages WHERE lead_id = :id"),
+                {"id": str(lead_id)},
+            ).fetchone()
+
+            if not msg or not msg[0] or "[Media" in msg[0]:
                 session.execute(
-                    text("""
-                        DELETE FROM messages
-                        WHERE lead_id = (SELECT id FROM leads WHERE platform_user_id = 'ig_878471388387113')
-                    """)
+                    text("DELETE FROM messages WHERE lead_id = :id"),
+                    {"id": str(lead_id)},
                 )
                 session.execute(
-                    text("DELETE FROM leads WHERE platform_user_id = 'ig_878471388387113'")
+                    text("DELETE FROM leads WHERE id = :id"),
+                    {"id": str(lead_id)},
                 )
                 results["actions"].append({
-                    "action": "deleted_orphan",
-                    "platform_user_id": "ig_878471388387113",
-                    "messages_deleted": len(check2),
+                    "action": "deleted_orphan_media",
+                    "platform_user_id": platform_user_id,
                 })
 
         session.commit()
