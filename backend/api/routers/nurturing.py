@@ -715,6 +715,43 @@ async def _run_scheduler_cycle():
     except Exception as e:
         logger.error(f"[NURTURING SCHEDULER] Reconciliation error: {e}")
 
+    # 0a2. Enrich leads without profile (fix ig_XXXX leads)
+    try:
+        from core.message_reconciliation import enrich_leads_without_profile
+        from api.database import SessionLocal
+        from api.models import Creator
+
+        session = SessionLocal()
+        try:
+            creators = (
+                session.query(Creator)
+                .filter(
+                    Creator.instagram_token.isnot(None),
+                    Creator.instagram_token != "",
+                    Creator.bot_active == True,
+                )
+                .all()
+            )
+            creator_list = [
+                {"name": c.name, "token": c.instagram_token}
+                for c in creators
+            ]
+        finally:
+            session.close()
+
+        total_enriched = 0
+        for c in creator_list:
+            enrich_result = await enrich_leads_without_profile(
+                c["name"], c["token"], limit=5
+            )
+            total_enriched += enrich_result.get("enriched", 0)
+
+        if total_enriched > 0:
+            logger.info(f"[NURTURING SCHEDULER] Lead enrichment: {total_enriched} profiles updated")
+
+    except Exception as e:
+        logger.error(f"[NURTURING SCHEDULER] Lead enrichment error: {e}")
+
     # 0b. Process pending profile retries (automatic enrichment)
     try:
         profile_result = await _process_profile_retries()
