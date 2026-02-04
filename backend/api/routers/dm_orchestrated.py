@@ -1,12 +1,12 @@
 """
 DM Orchestrated Router - Production Bot Autopilot endpoints.
 
-V3 is the production default (100% clean rate).
+V4 is the production default (100% clean rate + context).
 
 Endpoints:
-- /process → V3 (PRODUCTION DEFAULT)
-- /process-production → V3 (explicit production)
-- /process-v3 → V3 (versioned)
+- /process → V4 (PRODUCTION DEFAULT)
+- /process-v4 → V4 (versioned)
+- /process-v3 → V3 (legacy)
 - /process-v2 → V2 (legacy)
 - /process-v1 → V1 (original)
 """
@@ -45,25 +45,26 @@ class DMResponse(BaseModel):
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
-# PRODUCTION DEFAULT - V3 (100% clean rate)
+# PRODUCTION DEFAULT - V4 (100% clean rate + context + knowledge)
 # ═══════════════════════════════════════════════════════════════════════════════
 
 
 @router.post("/process", response_model=DMResponse)
 async def process_dm_production(request: DMRequest):
     """
-    PRODUCTION DEFAULT - Uses V3 (best performing version).
+    PRODUCTION DEFAULT - Uses V4 (best performing version).
 
-    V3 achieves 100% clean rate with:
+    V4 achieves 100% clean rate with:
+    - Conversation memory (last 15 messages)
+    - Creator knowledge (profile, services, FAQs)
     - No unnecessary questions (0%)
-    - Stefan-like brevity (avg 13.4 chars)
+    - Stefan-like brevity (avg 7 chars)
     - Natural response pools (9 categories)
-    - Post-processing pipeline
 
-    Improvement: 31.3% → 100% (3.2x better than V1)
+    Improvement: V1 31.3% → V4 100%
     """
     try:
-        agent = await get_orchestrated_agent_v3(request.creator_id)
+        agent = await get_orchestrated_agent_v4(request.creator_id)
 
         response = await agent.process_message(
             message=request.message,
