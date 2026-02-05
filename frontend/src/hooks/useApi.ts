@@ -112,8 +112,8 @@ export function useConversations(creatorId: string = getCreatorId(), limit = 50)
   return useQuery({
     queryKey: apiKeys.conversations(creatorId),
     queryFn: () => getConversations(creatorId, limit, 0),
-    refetchInterval: 30000, // Refetch every 30 seconds (reduced from 5s to prevent request backlog)
-    staleTime: 15000, // Data is fresh for 15 seconds
+    refetchInterval: 5000, // Refresh every 5s for near-instant updates
+    staleTime: 3000,
   });
 }
 
@@ -141,14 +141,22 @@ export function useInfiniteConversations(creatorId: string = getCreatorId(), pag
 /**
  * Hook to fetch a specific follower's conversation history
  * Auto-refreshes every 5 seconds when viewing a conversation
+ * Also invalidates conversations list to keep sidebar in sync
  */
 export function useFollowerDetail(followerId: string | null, creatorId: string = getCreatorId()) {
+  const queryClient = useQueryClient();
+
   return useQuery({
     queryKey: apiKeys.follower(creatorId, followerId || ""),
-    queryFn: () => getFollowerDetail(creatorId, followerId!),
+    queryFn: async () => {
+      const result = await getFollowerDetail(creatorId, followerId!);
+      // Invalidate conversations to keep sidebar sorted by latest message
+      queryClient.invalidateQueries({ queryKey: apiKeys.conversations(creatorId) });
+      return result;
+    },
     enabled: !!followerId, // Only fetch when we have a followerId
-    refetchInterval: 15000, // Refetch every 15 seconds (reduced from 5s)
-    staleTime: 10000, // Data is fresh for 10 seconds
+    refetchInterval: 5000, // Refresh every 5s for real-time messages
+    staleTime: 3000,
   });
 }
 
