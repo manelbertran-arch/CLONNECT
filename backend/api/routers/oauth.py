@@ -1068,6 +1068,11 @@ async def instagram_oauth_callback(
             instagram_user_id = str(token_data.get("user_id", ""))
             logger.info(f"Got short-lived token for Instagram user: {instagram_user_id}")
 
+            # Track ALL Instagram IDs for webhook routing
+            all_instagram_ids = set()
+            if instagram_user_id:
+                all_instagram_ids.add(instagram_user_id)
+
             # Step 2: Exchange for long-lived token (60 days)
             # Uses graph.instagram.com (not graph.facebook.com)
             long_token_response = await client.get(
@@ -1101,7 +1106,10 @@ async def instagram_oauth_callback(
             logger.info(f"Instagram user info: {user_data}")
 
             ig_username = user_data.get("username", "unknown")
-            instagram_user_id = str(user_data.get("user_id", instagram_user_id))
+            me_user_id = user_data.get("user_id")
+            if me_user_id:
+                all_instagram_ids.add(str(me_user_id))
+            instagram_user_id = str(me_user_id or instagram_user_id)
 
             # Step 4: Try to get Page Access Token (needed for messaging)
             # IMPORTANT: Explicitly request access_token field to get Page Access Token
@@ -1125,6 +1133,11 @@ async def instagram_oauth_callback(
                     page_id = page["id"]
                     page_access_token = page.get("access_token")
 
+                    # Add ALL page IDs to additional_ids for webhook routing
+                    for p in pages_data["data"]:
+                        if p.get("id"):
+                            all_instagram_ids.add(str(p["id"]))
+
                     # Log token type for debugging
                     if page_access_token:
                         token_prefix = page_access_token[:10] if page_access_token else "NONE"
@@ -1147,7 +1160,9 @@ async def instagram_oauth_callback(
                     ig_data = ig_response.json()
 
                     if ig_data.get("instagram_business_account"):
-                        instagram_user_id = ig_data["instagram_business_account"]["id"]
+                        ig_business_id = ig_data["instagram_business_account"]["id"]
+                        all_instagram_ids.add(str(ig_business_id))
+                        instagram_user_id = ig_business_id
                         logger.info(f"Found Instagram Business Account: {instagram_user_id}")
                 else:
                     logger.warning("No Facebook Pages found - using Instagram token directly")
@@ -1174,12 +1189,17 @@ async def instagram_oauth_callback(
                     f"⚠️ Token is NOT a Page token! Using Instagram token - messaging endpoint will use graph.instagram.com"
                 )
 
-            # Step 5: Save to database
+            # Step 5: Save to database with ALL collected IDs
+            # Convert set to list for JSON storage
+            additional_ids_list = list(all_instagram_ids)
+            logger.info(f"Collected {len(additional_ids_list)} Instagram IDs: {additional_ids_list}")
+
             await _save_instagram_connection(
                 creator_id=creator_id,
                 access_token=final_access_token,
                 page_id=page_id,
                 instagram_user_id=instagram_user_id,
+                additional_ids=additional_ids_list,
             )
 
             # NOTE: DO NOT set onboarding_completed=True here!
@@ -1748,9 +1768,20 @@ async def google_oauth_callback(code: str = Query(...), state: str = Query("")):
 
 
 async def _save_instagram_connection(
-    creator_id: str, access_token: str, page_id: str = None, instagram_user_id: str = None
+    creator_id: str,
+    access_token: str,
+    page_id: str = None,
+    instagram_user_id: str = None,
+    additional_ids: list = None,
 ):
-    """Save Instagram OAuth connection to database"""
+    """
+    Save Instagram OAuth connection to database.
+
+    Stores ALL Instagram IDs for robust webhook routing:
+    - instagram_user_id: Primary Instagram user ID
+    - instagram_page_id: Facebook Page ID (if connected)
+    - instagram_additional_ids: All other IDs found during OAuth
+    """
     try:
         from api.database import DATABASE_URL, SessionLocal
 
@@ -1768,13 +1799,23 @@ async def _save_instagram_connection(
 
                 creator.instagram_token = access_token
                 creator.instagram_page_id = page_id
+
                 # Store Instagram user ID if we have it
                 if instagram_user_id:
                     creator.instagram_user_id = instagram_user_id
 
+                # Store ALL additional IDs for webhook routing fallback
+                if additional_ids:
+                    # Merge with existing additional_ids (don't overwrite)
+                    existing_ids = creator.instagram_additional_ids or []
+                    all_ids = list(set(existing_ids + additional_ids))
+                    creator.instagram_additional_ids = all_ids
+                    logger.info(f"Stored {len(all_ids)} additional IDs for webhook routing")
+
                 session.commit()
                 logger.info(
-                    f"Saved Instagram connection for {creator_id} (page: {page_id}, ig_user: {instagram_user_id})"
+                    f"Saved Instagram connection for {creator_id} "
+                    f"(page: {page_id}, ig_user: {instagram_user_id}, additional_ids: {additional_ids})"
                 )
             finally:
                 session.close()
