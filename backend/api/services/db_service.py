@@ -1179,7 +1179,7 @@ def get_or_create_lead(
     try:
         from datetime import timezone
 
-        from api.models import Creator, Lead
+        from api.models import Creator, DismissedLead, Lead
 
         # Get creator by name
         creator = session.query(Creator).filter_by(name=creator_name).first()
@@ -1225,6 +1225,23 @@ def get_or_create_lead(
                 "full_name": lead.full_name,
                 "status": lead.status,
             }
+
+        # Check if this lead was dismissed (deleted by creator)
+        # Must check all possible ID formats in the blocklist
+        is_dismissed = (
+            session.query(DismissedLead)
+            .filter(
+                DismissedLead.creator_id == creator.id,
+                DismissedLead.platform_user_id.in_(possible_ids),
+            )
+            .first()
+        )
+        if is_dismissed:
+            logger.info(
+                f"get_or_create_lead: BLOCKED dismissed lead {platform_user_id} "
+                f"(dismissed as {is_dismissed.platform_user_id})"
+            )
+            return None
 
         # Create new lead
         now = datetime.now(timezone.utc)
