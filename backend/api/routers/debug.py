@@ -568,7 +568,10 @@ async def debug_agent_config(creator_id: str):
     from core.dm_agent_v2 import DMResponderAgent
 
     agent = DMResponderAgent(creator_id=creator_id)
-    vocab = agent.creator_config.get("clone_vocabulary", "")
+
+    # New V2 API: personality dict instead of creator_config
+    personality = getattr(agent, "personality", {})
+    vocab = personality.get("vocabulary", "")
 
     # Detect preset like dm_agent does
     vocab_lower = vocab.lower() if vocab else ""
@@ -583,13 +586,15 @@ async def debug_agent_config(creator_id: str):
         detected_preset = "amigo"
 
     return {
-        "clone_tone": agent.creator_config.get("clone_tone"),
-        "clone_name": agent.creator_config.get("clone_name"),
+        "clone_tone": personality.get("tone"),
+        "clone_name": personality.get("name"),
         "clone_vocabulary": vocab[:500] if vocab else "(empty)",
         "clone_vocabulary_length": len(vocab) if vocab else 0,
         "detected_preset": detected_preset,
-        "name": agent.creator_config.get("name"),
-        "config_keys": list(agent.creator_config.keys()),
+        "name": personality.get("name"),
+        "personality_keys": list(personality.keys()),
+        "products_count": len(getattr(agent, "products", [])),
+        "knowledge_about": personality.get("knowledge_about", {}),
     }
 
 
@@ -599,8 +604,22 @@ async def debug_system_prompt(creator_id: str):
     from core.dm_agent_v2 import DMResponderAgent
 
     agent = DMResponderAgent(creator_id=creator_id)
-    prompt = agent._build_system_prompt()
-    return {"prompt": prompt[:2000]}  # Primeros 2000 chars
+
+    # New V2 API: use prompt_builder service
+    if hasattr(agent, "prompt_builder"):
+        prompt = agent.prompt_builder.build_system_prompt(
+            products=getattr(agent, "products", []),
+            creator_name=agent.personality.get("name", creator_id),
+        )
+    else:
+        prompt = "(prompt_builder not available)"
+
+    return {
+        "prompt": prompt[:3000],
+        "personality_name": agent.personality.get("name", "NOT SET"),
+        "personality_tone": agent.personality.get("tone", "NOT SET"),
+        "products_count": len(getattr(agent, "products", [])),
+    }
 
 
 @router.get("/citations/debug/{creator_id}")
