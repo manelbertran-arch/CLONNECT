@@ -318,14 +318,26 @@ async def _simple_dm_sync_internal(
             results["errors"].append(f"Creator {creator_id} not found")
             return results
 
-        # Estrategia dual: usar Facebook API con page_id si existe, sino Instagram API
-        if ig_page_id:
+        # FIX: Check token type FIRST to determine API
+        # IGAAT tokens (Instagram Graph API) only work with graph.instagram.com
+        # EAA tokens (Page Access) work with graph.facebook.com
+        is_igaat_token = access_token.startswith("IGAAT")
+        is_page_token = access_token.startswith("EAA")
+
+        if is_igaat_token:
+            # IGAAT tokens MUST use Instagram API
+            api_base = "https://graph.instagram.com/v21.0"
+            conv_id_for_api = ig_user_id or ig_page_id
+            conv_extra_params = {}
+        elif is_page_token and ig_page_id:
+            # Page tokens use Facebook API with page_id
             api_base = "https://graph.facebook.com/v21.0"
             conv_id_for_api = ig_page_id
             conv_extra_params = {"platform": "instagram"}
         else:
+            # Fallback to Instagram API
             api_base = "https://graph.instagram.com/v21.0"
-            conv_id_for_api = ig_user_id
+            conv_id_for_api = ig_user_id or ig_page_id
             conv_extra_params = {}
 
         async with httpx.AsyncClient(timeout=60.0) as client:
