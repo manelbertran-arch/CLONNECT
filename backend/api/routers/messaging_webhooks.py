@@ -51,74 +51,85 @@ async def instagram_webhook_receive(request: Request):
     Receive Instagram webhook events (POST).
     Processes incoming DMs with DMResponderAgent and sends automatic responses.
 
-    FIXED V7: Now uses multi-creator routing (same as /instagram/webhook).
+    V8: Multi-creator routing with robust ID matching.
+    - Extracts ALL possible Instagram IDs from payload
+    - Searches by page_id, user_id, and additional_ids
+    - Saves unmatched webhooks for debugging
     """
-    from api.routers.instagram import (
-        extract_page_id_from_payload,
-        get_creator_by_ig_user_id,
-        get_creator_by_page_id,
-        get_handler_for_creator,
+    from api.routers.instagram import get_handler_for_creator
+    from core.webhook_routing import (
+        extract_all_instagram_ids,
+        find_creator_for_webhook,
+        save_unmatched_webhook,
+        update_creator_webhook_stats,
     )
 
     logger.warning("=" * 60)
-    logger.warning("========== INSTAGRAM WEBHOOK HIT V7 (MULTI-CREATOR) ==========")
+    logger.warning("========== INSTAGRAM WEBHOOK HIT V8 (ROBUST ROUTING) ==========")
     logger.warning("=" * 60)
 
     try:
         payload = await request.json()
         signature = request.headers.get("X-Hub-Signature-256", "")
 
-        # Extract page_id to route to correct creator
-        page_id = extract_page_id_from_payload(payload)
+        # 1. Extract ALL possible Instagram IDs from payload
+        instagram_ids = extract_all_instagram_ids(payload)
 
-        if not page_id:
-            logger.warning("Could not extract page_id from webhook payload")
-            return {"status": "ok", "warning": "no_page_id", "messages_processed": 0}
+        if not instagram_ids:
+            logger.warning("Could not extract any Instagram IDs from webhook payload")
+            return {"status": "ok", "warning": "no_ids_found", "messages_processed": 0}
 
-        logger.info(f"Routing webhook for page_id: {page_id}")
+        logger.info(f"Extracted Instagram IDs: {instagram_ids}")
 
-        # Lookup creator by page_id
-        creator_info = get_creator_by_page_id(page_id)
+        # 2. Find creator using any of the extracted IDs
+        creator_info, matched_id = find_creator_for_webhook(instagram_ids)
 
+        # 3. If no creator found, save for debugging and return
         if not creator_info:
-            # Try alternative lookup by recipient in messaging
-            for entry in payload.get("entry", []):
-                for messaging in entry.get("messaging", []):
-                    ig_user_id = messaging.get("recipient", {}).get("id")
-                    if ig_user_id:
-                        creator_info = get_creator_by_ig_user_id(ig_user_id)
-                        if creator_info:
-                            break
-                if creator_info:
-                    break
-
-        if not creator_info:
-            logger.warning(f"No creator found for page_id: {page_id}")
-            return {"status": "ok", "warning": "unknown_creator", "page_id": page_id}
+            logger.warning(f"No creator found for Instagram IDs: {instagram_ids}")
+            unmatched_id = save_unmatched_webhook(instagram_ids, payload)
+            return {
+                "status": "ok",
+                "warning": "unknown_creator",
+                "instagram_ids": instagram_ids,
+                "unmatched_webhook_id": unmatched_id,
+                "messages_processed": 0,
+            }
 
         creator_id = creator_info["creator_id"]
-        logger.info(f"Found creator: {creator_id} for page_id: {page_id}")
+        logger.info(f"Found creator: {creator_id} (matched by ID: {matched_id})")
 
-        # Check if bot is active
+        # 4. Update webhook stats for this creator
+        update_creator_webhook_stats(creator_id)
+
+        # 5. Check if bot is active
         if not creator_info.get("bot_active", False):
-            logger.info(f"Bot not active for creator {creator_id}, skipping")
-            return {"status": "ok", "info": "bot_paused", "creator_id": creator_id}
+            logger.info(f"Bot not active for creator {creator_id}, skipping processing")
+            return {
+                "status": "ok",
+                "info": "bot_paused",
+                "creator_id": creator_id,
+                "matched_id": matched_id,
+                "messages_processed": 0,
+            }
 
-        # Get handler for this creator
+        # 6. Get handler for this creator and process
         handler = get_handler_for_creator(creator_info)
-
-        # Process the webhook
         result = await handler.handle_webhook(payload, signature)
 
         logger.info(f"Instagram webhook processed: {result.get('messages_processed', 0)} messages")
-        return {**result, "creator_id": creator_id, "page_id": page_id}
+        return {
+            **result,
+            "creator_id": creator_id,
+            "matched_id": matched_id,
+        }
 
     except Exception as e:
         logger.error(f"Error processing Instagram webhook: {e}")
         import traceback
 
         logger.error(traceback.format_exc())
-        # Return 200 to acknowledge receipt (prevents infinite retries)
+        # Return 200 to acknowledge receipt (prevents infinite retries from Meta)
         return {"status": "error", "error": str(e)}
 
 

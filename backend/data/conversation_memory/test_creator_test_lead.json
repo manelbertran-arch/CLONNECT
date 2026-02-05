@@ -106,6 +106,41 @@
       "message_id": null,
       "timestamp": "2026-02-04T20:20:36.057869",
       "confidence": 0.95
+    },
+    {
+      "fact_type": "price_given",
+      "content": "150€",
+      "message_id": null,
+      "timestamp": "2026-02-05T20:31:01.271722",
+      "confidence": 0.95
+    },
+    {
+      "fact_type": "price_given",
+      "content": "97€",
+      "message_id": null,
+      "timestamp": "2026-02-05T20:31:01.274716",
+      "confidence": 0.95
+    },
+    {
+      "fact_type": "product_explained",
+      "content": "círculo",
+      "message_id": null,
+      "timestamp": "2026-02-05T20:31:01.274719",
+      "confidence": 0.8
+    },
+    {
+      "fact_type": "product_explained",
+      "content": "sesion",
+      "message_id": null,
+      "timestamp": "2026-02-05T20:31:01.274724",
+      "confidence": 0.8
+    },
+    {
+      "fact_type": "price_given",
+      "content": "150€",
+      "message_id": null,
+      "timestamp": "2026-02-05T20:31:01.275470",
+      "confidence": 0.95
     }
   ],
   "info_given": {
@@ -117,6 +152,6 @@
   "pending_questions": [],
   "unanswered_lead_questions": [],
   "last_interaction": null,
-  "total_messages": 19,
+  "total_messages": 25,
   "conversation_started": null
 }
