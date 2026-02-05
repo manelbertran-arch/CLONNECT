@@ -870,3 +870,62 @@ async def sync_messages_from_json_endpoint(creator_id: str):
             logger.warning(f"Message sync failed: {e}")
             return {"status": "error", "message": str(e)}
     return {"status": "error", "message": "Database not configured"}
+
+
+@router.post("/conversations/{creator_id}/sync-timestamps")
+async def sync_last_contact_timestamps(creator_id: str):
+    """Sync last_contact_at for all leads based on their actual last message time."""
+    USE_DB = bool(os.getenv("DATABASE_URL"))
+    if not USE_DB:
+        return {"status": "error", "message": "Database not configured"}
+
+    try:
+        from api.models import Creator, Lead, Message
+        from api.services.db_service import get_session
+        from sqlalchemy import func
+
+        session = get_session()
+        if not session:
+            return {"status": "error", "message": "Could not get database session"}
+
+        try:
+            creator = session.query(Creator).filter_by(name=creator_id).first()
+            if not creator:
+                return {"status": "error", "message": f"Creator {creator_id} not found"}
+
+            # Get all leads with their actual last message time
+            leads_with_last_msg = (
+                session.query(
+                    Lead.id,
+                    Lead.username,
+                    Lead.last_contact_at,
+                    func.max(Message.created_at).label("last_msg_time"),
+                )
+                .outerjoin(Message, Lead.id == Message.lead_id)
+                .filter(Lead.creator_id == creator.id)
+                .group_by(Lead.id)
+                .all()
+            )
+
+            updated = 0
+            for lead_id, username, last_contact, last_msg_time in leads_with_last_msg:
+                if last_msg_time and (not last_contact or last_msg_time > last_contact):
+                    session.query(Lead).filter_by(id=lead_id).update(
+                        {"last_contact_at": last_msg_time}
+                    )
+                    updated += 1
+                    logger.info(f"[SyncTimestamps] Updated {username}: {last_contact} -> {last_msg_time}")
+
+            session.commit()
+            return {
+                "status": "ok",
+                "leads_checked": len(leads_with_last_msg),
+                "leads_updated": updated,
+            }
+
+        finally:
+            session.close()
+
+    except Exception as e:
+        logger.error(f"[SyncTimestamps] Error: {e}")
+        return {"status": "error", "message": str(e)}
