@@ -84,6 +84,20 @@ class PromptBuilder:
             "",
         ])
 
+        # Add knowledge about creator (from personality dict)
+        knowledge = self.personality.get("knowledge_about", {})
+        if knowledge:
+            prompt_parts.append("=== SOBRE TI ===")
+            if knowledge.get("website_url"):
+                prompt_parts.append(f"Tu web: {knowledge['website_url']}")
+            if knowledge.get("bio"):
+                prompt_parts.append(f"Bio: {knowledge['bio']}")
+            if knowledge.get("expertise"):
+                prompt_parts.append(f"Especialidad: {knowledge['expertise']}")
+            if knowledge.get("location"):
+                prompt_parts.append(f"Ubicación: {knowledge['location']}")
+            prompt_parts.append("")
+
         # Add creator info
         if creator_name:
             prompt_parts.append(f"Representas a: {creator_name}")

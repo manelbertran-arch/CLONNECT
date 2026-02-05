@@ -193,18 +193,121 @@ class DMResponderAgentV2:
         Args:
             creator_id: Creator ID for personalization
             config: Agent configuration
-            personality: Bot personality settings
-            products: Products/services to promote
+            personality: Bot personality settings (auto-loaded if None)
+            products: Products/services to promote (auto-loaded if None)
         """
         self.creator_id = creator_id
         self.config = config or AgentConfig()
-        self.personality = personality or {}
-        self.products = products or []
+
+        # AUTO-LOAD creator data if not provided
+        if personality is None or products is None:
+            self.personality, self.products = self._load_creator_data(
+                creator_id, personality, products
+            )
+        else:
+            self.personality = personality
+            self.products = products
 
         # Initialize all services
         self._init_services()
 
-        logger.info(f"DMResponderAgentV2 initialized for creator {creator_id}")
+        logger.info(
+            f"DMResponderAgentV2 initialized for creator {creator_id} "
+            f"(personality: {self.personality.get('name', 'default')}, "
+            f"products: {len(self.products)})"
+        )
+
+    def _load_creator_data(
+        self,
+        creator_id: str,
+        personality: Optional[Dict[str, Any]],
+        products: Optional[List[Dict]],
+    ) -> tuple:
+        """
+        Load creator personality and products from database.
+
+        Returns:
+            Tuple of (personality_dict, products_list)
+        """
+        loaded_personality = personality or {}
+        loaded_products = products or []
+
+        try:
+            from core.creator_data_loader import get_creator_data
+
+            creator_data = get_creator_data(creator_id)
+
+            if not creator_data:
+                logger.warning(f"No creator data found for {creator_id}")
+                return loaded_personality, loaded_products
+
+            # Load personality from profile and tone_profile
+            if personality is None and creator_data.profile:
+                profile = creator_data.profile
+                tone = creator_data.tone_profile
+
+                loaded_personality = {
+                    "name": profile.clone_name or profile.name or creator_id,
+                    "tone": profile.clone_tone or "friendly",
+                    "vocabulary": profile.clone_vocabulary or "",
+                    "welcome_message": profile.welcome_message or "",
+                    # From ToneProfile
+                    "dialect": tone.dialect if tone else "neutral",
+                    "formality": tone.formality if tone else "informal",
+                    "energy": tone.energy if tone else "medium",
+                    "humor": tone.humor if tone else False,
+                    "emojis": tone.emojis if tone else "moderate",
+                    "signature_phrases": tone.signature_phrases if tone else [],
+                    "topics_to_avoid": tone.topics_to_avoid if tone else [],
+                    # Knowledge about creator
+                    "knowledge_about": profile.knowledge_about or {},
+                }
+
+                logger.info(
+                    f"Loaded personality for {creator_id}: "
+                    f"name={loaded_personality.get('name')}, "
+                    f"tone={loaded_personality.get('tone')}"
+                )
+
+            # Load products
+            if products is None and creator_data.products:
+                loaded_products = [
+                    {
+                        "name": p.name,
+                        "description": p.description or p.short_description or "",
+                        "price": p.price,
+                        "currency": p.currency,
+                        "url": p.payment_link or "",
+                        "category": p.category,
+                        "type": p.product_type,
+                    }
+                    for p in creator_data.products
+                ]
+                logger.info(f"Loaded {len(loaded_products)} products for {creator_id}")
+
+            # Also add lead magnets as free products
+            if products is None and creator_data.lead_magnets:
+                for lm in creator_data.lead_magnets:
+                    loaded_products.append(
+                        {
+                            "name": lm.name,
+                            "description": lm.description or lm.short_description or "",
+                            "price": 0,
+                            "currency": lm.currency,
+                            "url": lm.payment_link or "",
+                            "category": "lead_magnet",
+                            "type": lm.product_type,
+                            "is_free": True,
+                        }
+                    )
+                logger.info(
+                    f"Added {len(creator_data.lead_magnets)} lead magnets for {creator_id}"
+                )
+
+        except Exception as e:
+            logger.warning(f"Could not load creator data for {creator_id}: {e}")
+
+        return loaded_personality, loaded_products
 
     def _init_services(self) -> None:
         """Initialize all required services."""
