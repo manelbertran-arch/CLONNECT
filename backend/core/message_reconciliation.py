@@ -617,7 +617,9 @@ async def reconcile_messages_for_creator(
                     }
                     if media_url:
                         media_info["url"] = media_url
-                    logger.info(f"[Reconciliation] Story data for msg {msg_id[:20]}: url={bool(media_url)}")
+                    logger.info(
+                        f"[Reconciliation] Story data for msg {msg_id[:20]}: url={bool(media_url)}"
+                    )
 
                 # Check share data
                 elif share_data:
@@ -686,9 +688,12 @@ async def reconcile_messages_for_creator(
 
                             media_url = media_info["url"]
                             if is_cdn_url(media_url):
-                                media_type_for_capture = "video" if media_info.get(
-                                    "type"
-                                ) in ["video", "story_mention", "shared_reel"] else "image"
+                                media_type_for_capture = (
+                                    "video"
+                                    if media_info.get("type")
+                                    in ["video", "story_mention", "shared_reel"]
+                                    else "image"
+                                )
                                 captured = await capture_media_from_url(
                                     media_url,
                                     media_type=media_type_for_capture,
@@ -720,6 +725,12 @@ async def reconcile_messages_for_creator(
                         created_at=created_at,
                     )
                     session.add(new_msg)
+
+                    # Update lead's last_contact_at so conversation rises to top
+                    if role == "user":
+                        lead.last_contact_at = datetime.now(timezone.utc)
+                        session.add(lead)
+
                     session.commit()
 
                     existing_ids.add(msg_id)
