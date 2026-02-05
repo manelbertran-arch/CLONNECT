@@ -22,6 +22,57 @@ YOUTUBE_URL_REGEX = re.compile(
     r"https?://(?:www\.|m\.)?(?:youtube\.com/watch\?v=|youtu\.be/)([A-Za-z0-9_-]+)"
 )
 
+# Whitelist of allowed table names for SQL operations (SQL injection prevention)
+ALLOWED_TABLES = frozenset(
+    {
+        "messages",
+        "lead_activities",
+        "lead_tasks",
+        "leads",
+        "products",
+        "nurturing_sequences",
+        "knowledge_base",
+        "email_ask_tracking",
+        "platform_identities",
+        "user_creators",
+        "rag_documents",
+        "sync_queue",
+        "sync_state",
+        "creators",
+        "users",
+        "unified_profiles",
+        "tone_profiles",
+        "booking_links",
+        "calendar_bookings",
+        "content_embeddings",
+        "relationship_dna",
+        "post_contexts",
+    }
+)
+
+# Whitelist of allowed FK column names
+ALLOWED_FK_COLUMNS = frozenset(
+    {
+        "lead_id",
+        "creator_id",
+        "user_id",
+    }
+)
+
+
+def _validate_table_name(table: str) -> str:
+    """Validate table name against whitelist to prevent SQL injection."""
+    if table not in ALLOWED_TABLES:
+        raise ValueError(f"Table '{table}' not in allowed tables whitelist")
+    return table
+
+
+def _validate_fk_column(column: str) -> str:
+    """Validate FK column name against whitelist to prevent SQL injection."""
+    if column not in ALLOWED_FK_COLUMNS:
+        raise ValueError(f"Column '{column}' not in allowed FK columns whitelist")
+    return column
+
 
 async def generate_link_preview(url: str, msg_metadata: Dict) -> Dict:
     """
@@ -722,49 +773,51 @@ async def force_delete_creator(creator_name: str):
             creator_id = str(row[0])
 
             # Delete in order of FK dependencies
+            # Format: (table_name, fk_column, needs_lead_subquery)
             tables_to_clean = [
-                (
-                    "messages",
-                    "lead_id",
-                    f"SELECT id FROM leads WHERE creator_id = '{creator_id}'::uuid",
-                ),
-                (
-                    "lead_activities",
-                    "lead_id",
-                    f"SELECT id FROM leads WHERE creator_id = '{creator_id}'::uuid",
-                ),
-                (
-                    "lead_tasks",
-                    "lead_id",
-                    f"SELECT id FROM leads WHERE creator_id = '{creator_id}'::uuid",
-                ),
-                ("leads", "creator_id", None),
-                ("products", "creator_id", None),
-                ("nurturing_sequences", "creator_id", None),
-                ("knowledge_base", "creator_id", None),
-                ("email_ask_tracking", "creator_id", None),
-                ("platform_identities", "creator_id", None),
-                ("user_creators", "creator_id", None),
-                ("rag_documents", "creator_id", None),
-                ("sync_queue", "creator_id", None),
-                ("sync_state", "creator_id", None),
+                ("messages", "lead_id", True),
+                ("lead_activities", "lead_id", True),
+                ("lead_tasks", "lead_id", True),
+                ("leads", "creator_id", False),
+                ("products", "creator_id", False),
+                ("nurturing_sequences", "creator_id", False),
+                ("knowledge_base", "creator_id", False),
+                ("email_ask_tracking", "creator_id", False),
+                ("platform_identities", "creator_id", False),
+                ("user_creators", "creator_id", False),
+                ("rag_documents", "creator_id", False),
+                ("sync_queue", "creator_id", False),
+                ("sync_state", "creator_id", False),
             ]
 
             deleted = {}
-            for table, fk_col, subquery in tables_to_clean:
+            for table, fk_col, needs_lead_subquery in tables_to_clean:
                 try:
-                    if subquery:
-                        sql = text(f"DELETE FROM {table} WHERE {fk_col} IN ({subquery})")
+                    # Validate table and column names against whitelist (SQL injection prevention)
+                    _validate_table_name(table)
+                    _validate_fk_column(fk_col)
+
+                    if needs_lead_subquery:
+                        # Delete where FK is in leads for this creator (parameterized)
+                        sql = text(
+                            f"DELETE FROM {table} WHERE {fk_col} IN "
+                            f"(SELECT id FROM leads WHERE creator_id = :creator_id)"
+                        )
                     else:
-                        sql = text(f"DELETE FROM {table} WHERE {fk_col} = '{creator_id}'::uuid")
-                    result = session.execute(sql)
+                        # Delete directly by creator_id (parameterized)
+                        sql = text(f"DELETE FROM {table} WHERE {fk_col} = :creator_id")
+
+                    result = session.execute(sql, {"creator_id": creator_id})
                     deleted[table] = result.rowcount
                 except Exception as e:
                     logger.warning(f"Could not delete from {table}: {e}")
                     deleted[table] = f"error: {str(e)[:50]}"
 
-            # Delete creator
-            session.execute(text(f"DELETE FROM creators WHERE id = '{creator_id}'::uuid"))
+            # Delete creator (parameterized query)
+            _validate_table_name("creators")
+            session.execute(
+                text("DELETE FROM creators WHERE id = :creator_id"), {"creator_id": creator_id}
+            )
             deleted["creators"] = 1
 
             session.commit()
@@ -831,6 +884,8 @@ async def nuclear_reset(confirm: str = ""):
 
             for table in tables:
                 try:
+                    # Validate table name against whitelist (SQL injection prevention)
+                    _validate_table_name(table)
                     result = session.execute(text(f"DELETE FROM {table}"))
                     deleted[table] = result.rowcount
                 except Exception as e:
@@ -5472,9 +5527,7 @@ async def cleanup_orphan_leads(confirm: str = None, dry_run: bool = True):
             session.close()
 
     # Log the dangerous operation
-    logger.warning(
-        f"[DANGER] cleanup_orphan_leads called with confirmation - WILL DELETE DATA"
-    )
+    logger.warning(f"[DANGER] cleanup_orphan_leads called with confirmation - WILL DELETE DATA")
 
     session = SessionLocal()
     results = {"actions": [], "top_10_after": []}

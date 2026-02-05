@@ -18,11 +18,11 @@ The script exports:
 Backups are stored in data/backups/{timestamp}/ by default.
 """
 
+import argparse
+import json
+import logging
 import os
 import sys
-import json
-import argparse
-import logging
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -32,8 +32,36 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from sqlalchemy import create_engine, text
 from sqlalchemy.orm import sessionmaker
 
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
 logger = logging.getLogger(__name__)
+
+# Whitelist of allowed table names for backup (SQL injection prevention)
+ALLOWED_BACKUP_TABLES = frozenset(
+    {
+        "creators",
+        "products",
+        "leads",
+        "booking_links",
+        "nurturing_sequences",
+        "knowledge_base",
+        "tone_profiles",
+        "lead_activities",
+        "lead_tasks",
+        "calendar_bookings",
+        "messages",
+        "rag_documents",
+        "content_embeddings",
+        "relationship_dna",
+        "post_contexts",
+    }
+)
+
+
+def _validate_table_name(table_name: str) -> str:
+    """Validate table name against whitelist to prevent SQL injection."""
+    if table_name not in ALLOWED_BACKUP_TABLES:
+        raise ValueError(f"Table '{table_name}' not in allowed backup tables whitelist")
+    return table_name
 
 
 def get_database_url():
@@ -47,11 +75,17 @@ def get_database_url():
 def export_table_to_json(session, table_name: str, output_dir: Path, limit: int = None) -> int:
     """Export a table to JSON file"""
     try:
+        # Validate table name against whitelist (SQL injection prevention)
+        _validate_table_name(table_name)
+
         query = f"SELECT * FROM {table_name}"
         if limit:
-            query += f" LIMIT {limit}"
+            # Use parameterized query for limit
+            query += " LIMIT :limit"
+            result = session.execute(text(query), {"limit": limit})
+        else:
+            result = session.execute(text(query))
 
-        result = session.execute(text(query))
         rows = result.fetchall()
         columns = result.keys()
 
@@ -61,16 +95,16 @@ def export_table_to_json(session, table_name: str, output_dir: Path, limit: int 
             for i, col in enumerate(columns):
                 value = row[i]
                 # Handle datetime serialization
-                if hasattr(value, 'isoformat'):
+                if hasattr(value, "isoformat"):
                     value = value.isoformat()
                 # Handle UUID serialization
-                elif hasattr(value, 'hex'):
+                elif hasattr(value, "hex"):
                     value = str(value)
                 row_dict[col] = value
             data.append(row_dict)
 
         output_file = output_dir / f"{table_name}.json"
-        with open(output_file, 'w', encoding='utf-8') as f:
+        with open(output_file, "w", encoding="utf-8") as f:
             json.dump(data, f, ensure_ascii=False, indent=2, default=str)
 
         logger.info(f"Exported {len(data)} rows from {table_name}")
@@ -141,13 +175,17 @@ def run_backup(output_base: str = None, creators_only: bool = False):
 
         # Save backup metadata
         meta_file = output_dir / "_backup_meta.json"
-        with open(meta_file, 'w') as f:
-            json.dump({
-                "timestamp": timestamp,
-                "created_at": datetime.now(timezone.utc).isoformat(),
-                "creators_only": creators_only,
-                "stats": stats
-            }, f, indent=2)
+        with open(meta_file, "w") as f:
+            json.dump(
+                {
+                    "timestamp": timestamp,
+                    "created_at": datetime.now(timezone.utc).isoformat(),
+                    "creators_only": creators_only,
+                    "stats": stats,
+                },
+                f,
+                indent=2,
+            )
 
         logger.info(f"Backup completed: {output_dir}")
         logger.info(f"Stats: {json.dumps(stats['tables'], indent=2)}")
@@ -162,7 +200,7 @@ def restore_table_from_json(session, table_name: str, json_file: Path) -> int:
     """Restore a table from JSON file (CAREFUL: Replaces existing data!)"""
     logger.warning(f"Restoring {table_name} from {json_file} - This will replace existing data!")
 
-    with open(json_file, 'r', encoding='utf-8') as f:
+    with open(json_file, "r", encoding="utf-8") as f:
         data = json.load(f)
 
     if not data:
@@ -192,12 +230,14 @@ def list_backups(backup_dir: str = "data/backups"):
             if meta_file.exists():
                 with open(meta_file) as f:
                     meta = json.load(f)
-                backups.append({
-                    "dir": str(item),
-                    "timestamp": meta.get("timestamp"),
-                    "created_at": meta.get("created_at"),
-                    "tables": list(meta.get("stats", {}).get("tables", {}).keys())
-                })
+                backups.append(
+                    {
+                        "dir": str(item),
+                        "timestamp": meta.get("timestamp"),
+                        "created_at": meta.get("created_at"),
+                        "tables": list(meta.get("stats", {}).get("tables", {}).keys()),
+                    }
+                )
 
     return backups
 
