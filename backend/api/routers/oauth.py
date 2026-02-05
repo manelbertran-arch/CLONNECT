@@ -464,6 +464,14 @@ async def _simple_dm_sync_internal(
                     first_contact = min(all_timestamps) if all_timestamps else None
                     last_contact = max(user_timestamps) if user_timestamps else first_contact
 
+                    # FIX 2026-02-05: Skip conversations with no user messages
+                    # These are "dead" outreach attempts (creator sent but got no response)
+                    if not user_timestamps:
+                        logger.debug(
+                            f"[DM Sync] Skipping {follower_username}: no user messages (outbound only)"
+                        )
+                        continue
+
                     # Get or create lead - check both with and without ig_ prefix
                     lead = (
                         session.query(Lead)
