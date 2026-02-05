@@ -7,8 +7,10 @@ from typing import Dict, List, Optional
 
 from core.creator_config import CreatorConfigManager
 from core.products import ProductManager
-from fastapi import APIRouter, BackgroundTasks, HTTPException
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
 from pydantic import BaseModel
+
+from api.auth import require_admin
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/onboarding", tags=["onboarding"])
@@ -1061,9 +1063,11 @@ async def get_magic_slice_status(creator_id: str):
 
 
 @router.delete("/magic-slice/{creator_id}/reset")
-async def reset_magic_slice_data(creator_id: str):
+async def reset_magic_slice_data(creator_id: str, admin: str = Depends(require_admin)):
     """
     Resetea los datos de Magic Slice de un creador.
+
+    Requires admin API key (X-API-Key header).
 
     Util para re-onboarding con nuevo contenido.
 
@@ -3389,10 +3393,16 @@ async def manual_setup(request: ManualSetupRequest):
 
 
 @router.delete("/full-reset/{creator_id}")
-async def full_reset_creator(creator_id: str, email: Optional[str] = None, confirm: str = None):
+async def full_reset_creator(
+    creator_id: str,
+    email: Optional[str] = None,
+    confirm: str = None,
+    admin: str = Depends(require_admin),
+):
     """
     Delete ALL data for a creator. Use for testing/starting fresh.
 
+    Requires admin API key (X-API-Key header).
     DANGER: Requires confirmation parameter.
 
     Deletes:

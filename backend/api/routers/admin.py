@@ -10,7 +10,10 @@ import shutil
 from pathlib import Path
 from typing import Dict, Optional
 
-from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Header
+from typing import Optional
+
+from api.auth import require_admin
 
 logger = logging.getLogger(__name__)
 
@@ -143,13 +146,15 @@ DEMO_RESET_ENABLED = os.getenv("ENABLE_DEMO_RESET", "true").lower() == "true"
 
 
 @router.post("/reset-db")
-async def reset_all_data():
+async def reset_all_data(admin: str = Depends(require_admin)):
     """
     Reset ALL data in the database and JSON files.
     Returns the creator to a fresh state with:
     - No leads, messages, products, sequences
     - Bot set to Paused
     - Onboarding at 0%
+
+    Requires admin API key (X-API-Key header).
     """
     if not DEMO_RESET_ENABLED:
         raise HTTPException(
@@ -286,8 +291,11 @@ async def reset_all_data():
 
 
 @router.delete("/delete-user/{email}")
-async def delete_user_by_email(email: str):
-    """Delete a user AND associated creator by email (for testing/reset purposes)"""
+async def delete_user_by_email(email: str, admin: str = Depends(require_admin)):
+    """Delete a user AND associated creator by email (for testing/reset purposes).
+
+    Requires admin API key (X-API-Key header).
+    """
     if not DEMO_RESET_ENABLED:
         raise HTTPException(status_code=403, detail="Demo reset is disabled")
 
@@ -360,9 +368,11 @@ async def delete_user_by_email(email: str):
 
 
 @router.post("/reset-creator/{creator_id}")
-async def reset_creator(creator_id: str):
+async def reset_creator(creator_id: str, admin: str = Depends(require_admin)):
     """
     Full reset for a creator - empties everything for demo.
+
+    Requires admin API key (X-API-Key header).
 
     Resets:
     - All leads and conversations/messages
@@ -594,18 +604,22 @@ async def reset_creator(creator_id: str):
 
 
 @router.post("/reset-demo-data/{creator_id}")
-async def reset_demo_data(creator_id: str):
+async def reset_demo_data(creator_id: str, admin: str = Depends(require_admin)):
     """
     Legacy endpoint - redirects to reset-creator.
+
+    Requires admin API key (X-API-Key header).
     """
-    return await reset_creator(creator_id)
+    return await reset_creator(creator_id, admin)
 
 
 @router.delete("/creators/{creator_name}")
-async def delete_creator(creator_name: str):
+async def delete_creator(creator_name: str, admin: str = Depends(require_admin)):
     """
     Completely delete a creator and all associated data.
     Use with caution - this is irreversible!
+
+    Requires admin API key (X-API-Key header).
     """
     if not DEMO_RESET_ENABLED:
         raise HTTPException(
@@ -745,10 +759,12 @@ async def delete_creator(creator_name: str):
 
 
 @router.delete("/force-delete-creator/{creator_name}")
-async def force_delete_creator(creator_name: str):
+async def force_delete_creator(creator_name: str, admin: str = Depends(require_admin)):
     """
     Force delete a creator using raw SQL with proper transaction handling.
     Use this when normal delete fails due to transaction issues.
+
+    Requires admin API key (X-API-Key header).
     """
     if not DEMO_RESET_ENABLED:
         raise HTTPException(status_code=403, detail="Demo reset is disabled")
@@ -839,10 +855,12 @@ async def force_delete_creator(creator_name: str):
 
 
 @router.post("/nuclear-reset")
-async def nuclear_reset(confirm: str = ""):
+async def nuclear_reset(confirm: str = "", admin: str = Depends(require_admin)):
     """
     NUCLEAR OPTION: Delete absolutely everything from the database.
     Requires confirm=DELETE_EVERYTHING to execute.
+
+    Requires admin API key (X-API-Key header).
     """
     if confirm != "DELETE_EVERYTHING":
         return {
@@ -2042,9 +2060,11 @@ async def get_lead_categories():
 
 
 @router.delete("/cleanup-test-leads/{creator_id}")
-async def cleanup_test_leads(creator_id: str):
+async def cleanup_test_leads(creator_id: str, admin: str = Depends(require_admin)):
     """
     Eliminar leads de test y leads sin username.
+
+    Requires admin API key (X-API-Key header).
 
     Elimina:
     - Leads sin username (NULL o vacío)
@@ -3137,11 +3157,13 @@ async def generate_thumbnails(creator_id: str, limit: int = 10):
 
 
 @router.delete("/clear-messages/{creator_id}")
-async def clear_messages(creator_id: str, confirm: str = None):
+async def clear_messages(creator_id: str, confirm: str = None, admin: str = Depends(require_admin)):
     """
     Delete all messages for a creator to allow re-import with new features.
 
     DANGER: This permanently deletes ALL messages. Requires confirmation.
+
+    Requires admin API key (X-API-Key header).
 
     Args:
         creator_id: Creator name (e.g., 'fitpack_global')
@@ -3376,10 +3398,12 @@ async def sync_continue(creator_id: str, background_tasks: BackgroundTasks):
 
 
 @router.delete("/sync-reset/{creator_id}")
-async def sync_reset(creator_id: str):
+async def sync_reset(creator_id: str, admin: str = Depends(require_admin)):
     """
     Resetea el estado del sync para un creator.
     Limpia la cola y el estado.
+
+    Requires admin API key (X-API-Key header).
     """
     from api.database import SessionLocal
     from api.models import SyncQueue, SyncState
@@ -5419,10 +5443,14 @@ async def fix_instagram_ids(creator_id: str):
 
 
 @router.delete("/delete-lead-by-platform-id/{creator_id}/{platform_user_id}")
-async def delete_lead_by_platform_id(creator_id: str, platform_user_id: str):
+async def delete_lead_by_platform_id(
+    creator_id: str, platform_user_id: str, admin: str = Depends(require_admin)
+):
     """
     Delete a specific lead by platform_user_id, including all its messages.
     Use this to clean up leads that were incorrectly created (e.g., old creator IDs).
+
+    Requires admin API key (X-API-Key header).
     """
     from api.database import SessionLocal
     from api.models import Creator
@@ -5485,11 +5513,15 @@ async def delete_lead_by_platform_id(creator_id: str, platform_user_id: str):
 
 
 @router.post("/cleanup-orphan-leads")
-async def cleanup_orphan_leads(confirm: str = None, dry_run: bool = True):
+async def cleanup_orphan_leads(
+    confirm: str = None, dry_run: bool = True, admin: str = Depends(require_admin)
+):
     """
     Clean up orphan leads:
     1. Delete duplicate with ig_ prefix and 0 messages
     2. Check and delete lead without profile if message not important
+
+    Requires admin API key (X-API-Key header).
 
     SAFETY: Requires confirm=DELETE_ORPHAN_LEADS and dry_run=false to actually delete.
     By default runs in dry_run mode showing what WOULD be deleted.
