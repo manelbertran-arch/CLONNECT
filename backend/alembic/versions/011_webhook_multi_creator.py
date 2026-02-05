@@ -6,8 +6,8 @@ Add support for multi-creator webhook routing with:
 - Webhook tracking fields
 - unmatched_webhooks table for debugging
 
-Revision ID: 011_webhook_multi_creator
-Revises: 010_add_intelligence_tables
+Revision ID: 011
+Revises: 010
 Create Date: 2026-02-05
 """
 
@@ -16,8 +16,8 @@ from alembic import op
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 
 # revision identifiers
-revision = "011_webhook_multi_creator"
-down_revision = "010_add_intelligence_tables"
+revision = "011"
+down_revision = "010"
 branch_labels = None
 depends_on = None
 
