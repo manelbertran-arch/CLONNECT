@@ -3884,19 +3884,27 @@ async def sync_instagram_dms(request: InstagramDMSyncRequest):
 
             access_token = creator.instagram_token
 
-            # Estrategia dual: usar Facebook API con page_id si existe, sino Instagram API
-            if page_id:
+            # FIX: Check token type FIRST to determine API
+            is_igaat_token = access_token.startswith("IGAAT")
+            is_page_token = access_token.startswith("EAA")
+
+            if is_igaat_token:
+                api_base = "https://graph.instagram.com/v21.0"
+                conv_id_for_api = ig_user_id or page_id
+                conv_extra_params = {}
+                api_used = "Instagram"
+            elif is_page_token and page_id:
                 api_base = "https://graph.facebook.com/v21.0"
                 conv_id_for_api = page_id
                 conv_extra_params = {"platform": "instagram"}
+                api_used = "Facebook"
             else:
                 api_base = "https://graph.instagram.com/v21.0"
-                conv_id_for_api = ig_user_id
+                conv_id_for_api = ig_user_id or page_id
                 conv_extra_params = {}
+                api_used = "Instagram"
 
-            logger.info(
-                f"[DMSync] Starting sync for {request.creator_id} using {'Facebook' if page_id else 'Instagram'} API"
-            )
+            logger.info(f"[DMSync] Starting sync for {request.creator_id} using {api_used} API")
 
             async with httpx.AsyncClient(timeout=60.0) as client:
 
@@ -4269,19 +4277,27 @@ async def _background_dm_sync(
             page_id = creator.instagram_page_id
             access_token = creator.instagram_token
 
-            # Estrategia dual: usar Facebook API con page_id si existe, sino Instagram API
-            if page_id:
+            # FIX: Check token type FIRST to determine API
+            is_igaat_token = access_token.startswith("IGAAT")
+            is_page_token = access_token.startswith("EAA")
+
+            if is_igaat_token:
+                api_base = "https://graph.instagram.com/v21.0"
+                conv_id_for_api = ig_user_id or page_id
+                conv_extra_params = {}
+                api_used = "Instagram"
+            elif is_page_token and page_id:
                 api_base = "https://graph.facebook.com/v21.0"
                 conv_id_for_api = page_id
                 conv_extra_params = {"platform": "instagram"}
+                api_used = "Facebook"
             else:
                 api_base = "https://graph.instagram.com/v21.0"
-                conv_id_for_api = ig_user_id
+                conv_id_for_api = ig_user_id or page_id
                 conv_extra_params = {}
+                api_used = "Instagram"
 
-            logger.info(
-                f"[BGSync] Starting background sync for {creator_id} using {'Facebook' if page_id else 'Instagram'} API"
-            )
+            logger.info(f"[BGSync] Starting background sync for {creator_id} using {api_used} API")
 
             async with httpx.AsyncClient(timeout=60.0) as client:
 

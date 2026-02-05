@@ -2085,20 +2085,30 @@ async def debug_instagram_api(creator_id: str):
         page_id = creds["page_id"]
         access_token = creds["token"]
 
-        # Estrategia dual: usar Facebook API con page_id si existe, sino Instagram API
-        if page_id:
+        # FIX: Check token type FIRST to determine API
+        is_igaat_token = access_token.startswith("IGAAT")
+        is_page_token = access_token.startswith("EAA")
+
+        if is_igaat_token:
+            api_base = "https://graph.instagram.com/v21.0"
+            conv_id_for_api = ig_user_id or page_id
+            conv_extra_params = {}
+            api_used = "Instagram"
+        elif is_page_token and page_id:
             api_base = "https://graph.facebook.com/v21.0"
             conv_id_for_api = page_id
             conv_extra_params = {"platform": "instagram"}
+            api_used = "Facebook"
         else:
             api_base = "https://graph.instagram.com/v21.0"
-            conv_id_for_api = ig_user_id
+            conv_id_for_api = ig_user_id or page_id
             conv_extra_params = {}
+            api_used = "Instagram"
 
         results = {
             "ig_user_id": ig_user_id,
             "page_id": page_id,
-            "api_used": "Facebook" if page_id else "Instagram",
+            "api_used": api_used,
             "conversations": [],
             "sample_messages": [],
         }
@@ -2168,14 +2178,21 @@ async def debug_sync_logic(creator_id: str):
         creator_ids = {ig_user_id, ig_page_id} - {None}
         access_token = creds["token"]
 
-        # Usar la misma lógica que sync_worker
-        if ig_page_id:
+        # FIX: Check token type FIRST to determine API
+        is_igaat_token = access_token.startswith("IGAAT")
+        is_page_token = access_token.startswith("EAA")
+
+        if is_igaat_token:
+            api_base = "https://graph.instagram.com/v21.0"
+            conv_id_for_api = ig_user_id or ig_page_id
+            conv_extra_params = {}
+        elif is_page_token and ig_page_id:
             api_base = "https://graph.facebook.com/v21.0"
             conv_id_for_api = ig_page_id
             conv_extra_params = {"platform": "instagram"}
         else:
             api_base = "https://graph.instagram.com/v21.0"
-            conv_id_for_api = ig_user_id
+            conv_id_for_api = ig_user_id or ig_page_id
             conv_extra_params = {}
 
         results = {
