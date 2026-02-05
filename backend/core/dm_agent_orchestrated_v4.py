@@ -62,11 +62,11 @@ class DMAgentOrchestratedV4:
         """Get LLM service lazily."""
         if self._llm_service is None:
             try:
-                from services.llm_service import get_llm_service
+                from services.llm_service import LLMService
 
-                self._llm_service = get_llm_service()
+                self._llm_service = LLMService()
             except Exception as e:
-                logger.error(f"Error getting LLM service: {e}")
+                logger.error(f"Error creating LLM service: {e}")
         return self._llm_service
 
     def _build_system_prompt(self, lead_id: str, message: str) -> str:
