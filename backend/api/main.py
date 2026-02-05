@@ -336,6 +336,11 @@ from api.routers import messaging_webhooks as messaging_webhooks_router
 
 app.include_router(messaging_webhooks_router.router)
 
+# Maintenance router (profile picture refresh, cleanup tasks)
+from api.routers import maintenance as maintenance_router
+
+app.include_router(maintenance_router.router)
+
 # Authentication router
 from api.auth import (
     router as auth_router,
