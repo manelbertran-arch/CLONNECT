@@ -74,7 +74,7 @@ class Creator(Base):
         String(255), index=True
     )  # Instagram Business Account ID (indexed for webhook routing)
     instagram_additional_ids = Column(
-        JSON, default=list
+        JSONB, default=list
     )  # Additional/legacy IDs for webhook routing ["id1", "id2"]
     # Webhook tracking
     webhook_last_received = Column(DateTime(timezone=True))
