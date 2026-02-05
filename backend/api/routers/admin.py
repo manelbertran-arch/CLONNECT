@@ -5430,14 +5430,51 @@ async def delete_lead_by_platform_id(creator_id: str, platform_user_id: str):
 
 
 @router.post("/cleanup-orphan-leads")
-async def cleanup_orphan_leads():
+async def cleanup_orphan_leads(confirm: str = None, dry_run: bool = True):
     """
     Clean up orphan leads:
     1. Delete duplicate with ig_ prefix and 0 messages
     2. Check and delete lead without profile if message not important
+
+    SAFETY: Requires confirm=DELETE_ORPHAN_LEADS and dry_run=false to actually delete.
+    By default runs in dry_run mode showing what WOULD be deleted.
     """
     from api.database import SessionLocal
     from sqlalchemy import text
+
+    # SAFETY: Require explicit confirmation to delete
+    if confirm != "DELETE_ORPHAN_LEADS" or dry_run:
+        # Dry run - show what would be deleted without actually deleting
+        session = SessionLocal()
+        try:
+            zero_msg_leads = session.execute(
+                text(
+                    """
+                    SELECT l.id, l.platform_user_id, l.username
+                    FROM leads l
+                    WHERE l.creator_id = (SELECT id FROM creators WHERE name = 'stefano_bonanno')
+                    AND (SELECT COUNT(*) FROM messages m WHERE m.lead_id = l.id) = 0
+                """
+                )
+            ).fetchall()
+            would_delete = [
+                {"id": str(r[0]), "platform_user_id": r[1], "username": r[2]}
+                for r in zero_msg_leads
+            ]
+            return {
+                "dry_run": True,
+                "would_delete_count": len(would_delete),
+                "would_delete": would_delete[:20],  # Show first 20
+                "warning": "This is a DRY RUN. No data was deleted.",
+                "usage": "POST /admin/cleanup-orphan-leads?confirm=DELETE_ORPHAN_LEADS&dry_run=false",
+            }
+        finally:
+            session.close()
+
+    # Log the dangerous operation
+    logger.warning(
+        f"[DANGER] cleanup_orphan_leads called with confirmation - WILL DELETE DATA"
+    )
 
     session = SessionLocal()
     results = {"actions": [], "top_10_after": []}
