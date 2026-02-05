@@ -18,11 +18,15 @@ Architecture: Orchestrator Pattern
 - Services handle business logic
 - Clean separation of concerns
 """
+
 import logging
 import os
 from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Any, Dict, List, Optional
+
+# Import notification service for escalations
+from core.notifications import EscalationNotification, get_notification_service
 
 # Import all services
 from services import (
@@ -37,11 +41,11 @@ from services import (
     RAGService,
 )
 
-# Re-export Intent for backward compatibility
-from services.intent_service import Intent
-
 # Import DNA context integration
 from services.dm_agent_context_integration import get_context_for_dm_agent
+
+# Re-export Intent for backward compatibility
+from services.intent_service import Intent
 
 logger = logging.getLogger(__name__)
 
@@ -214,9 +218,7 @@ class DMResponderAgentV2:
         self.memory_store = MemoryStore()
 
         # RAG retrieval
-        self.rag_service = RAGService(
-            similarity_threshold=self.config.rag_similarity_threshold
-        )
+        self.rag_service = RAGService(similarity_threshold=self.config.rag_similarity_threshold)
 
         # LLM generation
         self.llm_service = LLMService(
@@ -230,9 +232,7 @@ class DMResponderAgentV2:
         self.lead_service = LeadService()
 
         # Instagram API
-        self.instagram_service = InstagramService(
-            access_token=os.getenv("INSTAGRAM_ACCESS_TOKEN")
-        )
+        self.instagram_service = InstagramService(access_token=os.getenv("INSTAGRAM_ACCESS_TOKEN"))
 
         logger.debug("All services initialized")
 
@@ -272,9 +272,7 @@ class DMResponderAgentV2:
             )
 
             # Step 3: Retrieve relevant context (RAG)
-            rag_results = self.rag_service.retrieve(
-                message, top_k=self.config.rag_top_k
-            )
+            rag_results = self.rag_service.retrieve(message, top_k=self.config.rag_top_k)
             rag_context = self._format_rag_context(rag_results)
 
             # Step 3b: Get RelationshipDNA context (personalization per lead)
@@ -288,7 +286,9 @@ class DMResponderAgentV2:
             # Step 5: Build prompts - combine RAG and DNA context
             # Include system_prompt_override if provided (for V2 prompt)
             prompt_override = metadata.get("system_prompt_override", "")
-            combined_context = "\n\n".join(filter(None, [rag_context, dna_context, prompt_override]))
+            combined_context = "\n\n".join(
+                filter(None, [rag_context, dna_context, prompt_override])
+            )
             system_prompt = self.prompt_builder.build_system_prompt(
                 products=self.products, custom_instructions=combined_context
             )
@@ -309,17 +309,22 @@ class DMResponderAgentV2:
             )
 
             # Step 7: Format response for Instagram
-            formatted_content = self.instagram_service.format_message(
-                llm_response.content
-            )
+            formatted_content = self.instagram_service.format_message(llm_response.content)
 
             # Step 8: Update follower memory
-            await self._update_follower_memory(
-                follower, message, formatted_content, intent_value
-            )
+            await self._update_follower_memory(follower, message, formatted_content, intent_value)
 
             # Step 9: Update lead score
             new_stage = self._update_lead_score(follower, intent_value, metadata)
+
+            # Step 10: Notify on escalation-worthy intents
+            await self._check_and_notify_escalation(
+                intent_value=intent_value,
+                follower=follower,
+                sender_id=sender_id,
+                message=message,
+                metadata=metadata,
+            )
 
             return DMResponse(
                 content=formatted_content,
@@ -369,10 +374,12 @@ class DMResponderAgentV2:
         history = []
         for msg in follower.last_messages[-10:]:
             if isinstance(msg, dict):
-                history.append({
-                    "role": msg.get("role", "user"),
-                    "content": msg.get("content", ""),
-                })
+                history.append(
+                    {
+                        "role": msg.get("role", "user"),
+                        "content": msg.get("content", ""),
+                    }
+                )
         return history
 
     async def _update_follower_memory(
@@ -386,16 +393,20 @@ class DMResponderAgentV2:
         # Add messages to history
         now = datetime.now().isoformat()
 
-        follower.last_messages.append({
-            "role": "user",
-            "content": user_message,
-            "timestamp": now,
-        })
-        follower.last_messages.append({
-            "role": "assistant",
-            "content": assistant_message,
-            "timestamp": now,
-        })
+        follower.last_messages.append(
+            {
+                "role": "user",
+                "content": user_message,
+                "timestamp": now,
+            }
+        )
+        follower.last_messages.append(
+            {
+                "role": "assistant",
+                "content": assistant_message,
+                "timestamp": now,
+            }
+        )
 
         # Keep only last 20 messages
         follower.last_messages = follower.last_messages[-20:]
@@ -407,17 +418,13 @@ class DMResponderAgentV2:
         # Save to storage
         await self.memory_store.save(follower)
 
-    def _update_lead_score(
-        self, follower, intent: str, metadata: Dict
-    ) -> LeadStage:
+    def _update_lead_score(self, follower, intent: str, metadata: Dict) -> LeadStage:
         """Update and return lead stage based on interaction."""
         # Use LeadService for intent-based scoring
         new_score = self.lead_service.calculate_intent_score(
             current_score=follower.purchase_intent_score or 0.0,
             intent=intent.upper() if intent else "OTHER",
-            has_direct_purchase_keywords=(
-                intent in ["purchase_intent", "PURCHASE_INTENT"]
-            ),
+            has_direct_purchase_keywords=(intent in ["purchase_intent", "PURCHASE_INTENT"]),
         )
         follower.purchase_intent_score = new_score
 
@@ -427,6 +434,91 @@ class DMResponderAgentV2:
             days_since_contact=metadata.get("days_since_contact", 0),
             is_customer=follower.is_customer,
         )
+
+    async def _check_and_notify_escalation(
+        self,
+        intent_value: str,
+        follower,
+        sender_id: str,
+        message: str,
+        metadata: Dict,
+    ) -> None:
+        """
+        Check if intent warrants escalation notification and send if needed.
+
+        Triggers notification for:
+        - ESCALATION: User explicitly wants to talk to human
+        - SUPPORT: User has a problem/complaint
+        - FEEDBACK_NEGATIVE: Negative feedback
+        - High purchase intent (>0.8) as hot lead alert
+        """
+        # Intents that trigger escalation notification
+        escalation_intents = {"escalation", "support", "feedback_negative"}
+        intent_lower = intent_value.lower() if intent_value else ""
+
+        # Check if should notify
+        should_notify = intent_lower in escalation_intents
+        is_hot_lead = (
+            follower.purchase_intent_score
+            and follower.purchase_intent_score >= 0.8
+            and intent_lower == "interest_strong"
+        )
+
+        if not should_notify and not is_hot_lead:
+            return
+
+        try:
+            notification_service = get_notification_service()
+
+            # Determine escalation reason
+            if intent_lower == "escalation":
+                reason = "Usuario solicitó hablar con una persona real"
+            elif intent_lower == "support":
+                reason = "Usuario reportó un problema o necesita soporte"
+            elif intent_lower == "feedback_negative":
+                reason = "Usuario expresó insatisfacción o feedback negativo"
+            elif is_hot_lead:
+                reason = f"🔥 HOT LEAD - Intención de compra: {follower.purchase_intent_score:.0%}"
+            else:
+                reason = f"Escalación automática por intent: {intent_value}"
+
+            # Build notification
+            notification = EscalationNotification(
+                creator_id=self.creator_id,
+                follower_id=sender_id,
+                follower_username=follower.username or sender_id,
+                follower_name=metadata.get("name", ""),
+                reason=reason,
+                last_message=message[:500],  # Truncate for notification
+                conversation_summary=self._get_conversation_summary(follower),
+                purchase_intent_score=follower.purchase_intent_score or 0.0,
+                total_messages=follower.total_messages or 0,
+                products_discussed=follower.products_discussed or [],
+            )
+
+            # Send notification (async, non-blocking)
+            results = await notification_service.notify_escalation(notification)
+            logger.info(f"Escalation notification sent for {sender_id}: {results}")
+
+        except Exception as e:
+            # Don't fail the main flow if notification fails
+            logger.error(f"Failed to send escalation notification: {e}")
+
+    def _get_conversation_summary(self, follower) -> str:
+        """Get a brief summary of recent conversation for notification."""
+        if not follower.last_messages:
+            return "Sin historial previo"
+
+        # Get last 3 exchanges
+        recent = follower.last_messages[-6:]
+        summary_parts = []
+        for msg in recent:
+            if isinstance(msg, dict):
+                role = "👤" if msg.get("role") == "user" else "🤖"
+                content = msg.get("content", "")[:100]
+                summary_parts.append(f"{role} {content}")
+
+        return "\n".join(summary_parts) if summary_parts else "Sin historial"
 
     def _error_response(self, error: str) -> DMResponse:
         """Generate error response."""
@@ -442,9 +534,7 @@ class DMResponderAgentV2:
     # PUBLIC API METHODS
     # ═══════════════════════════════════════════════════════════════════════
 
-    def add_knowledge(
-        self, content: str, metadata: Optional[Dict] = None
-    ) -> str:
+    def add_knowledge(self, content: str, metadata: Optional[Dict] = None) -> str:
         """
         Add knowledge to RAG index.
 
@@ -469,9 +559,7 @@ class DMResponderAgentV2:
         """
         doc_ids = []
         for doc in documents:
-            doc_id = self.rag_service.add_document(
-                doc.get("content", ""), doc.get("metadata", {})
-            )
+            doc_id = self.rag_service.add_document(doc.get("content", ""), doc.get("metadata", {}))
             doc_ids.append(doc_id)
         return doc_ids
 
@@ -618,11 +706,7 @@ class DMResponderAgentV2:
 
             try:
                 # Query leads table for CRM data
-                lead = (
-                    session.query(Lead)
-                    .filter(Lead.platform_user_id == follower_id)
-                    .first()
-                )
+                lead = session.query(Lead).filter(Lead.platform_user_id == follower_id).first()
                 if lead:
                     result["email"] = lead.email
                     result["phone"] = lead.phone
@@ -696,13 +780,15 @@ class DMResponderAgentV2:
 
             # Add the message to history
             timestamp = datetime.now().isoformat()
-            follower.last_messages.append({
-                "role": "assistant",
-                "content": message_text,
-                "timestamp": timestamp,
-                "manual": True,
-                "sent": sent,
-            })
+            follower.last_messages.append(
+                {
+                    "role": "assistant",
+                    "content": message_text,
+                    "timestamp": timestamp,
+                    "manual": True,
+                    "sent": sent,
+                }
+            )
 
             # Keep only last 50 messages
             if len(follower.last_messages) > 50:
