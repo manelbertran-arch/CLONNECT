@@ -3082,18 +3082,27 @@ async def generate_thumbnails(creator_id: str, limit: int = 10):
 
 
 @router.delete("/clear-messages/{creator_id}")
-async def clear_messages(creator_id: str):
+async def clear_messages(creator_id: str, confirm: str = None):
     """
     Delete all messages for a creator to allow re-import with new features.
 
-    WARNING: This permanently deletes all messages. Use with caution.
+    DANGER: This permanently deletes ALL messages. Requires confirmation.
 
     Args:
         creator_id: Creator name (e.g., 'fitpack_global')
+        confirm: Must be "DELETE_ALL_MESSAGES" to proceed
 
     Returns:
         Count of deleted messages
     """
+    # SAFETY: Require explicit confirmation
+    if confirm != "DELETE_ALL_MESSAGES":
+        return {
+            "error": "Safety check failed",
+            "usage": f"DELETE /admin/clear-messages/{creator_id}?confirm=DELETE_ALL_MESSAGES",
+            "warning": "This will PERMANENTLY delete ALL messages for this creator. This action cannot be undone.",
+        }
+
     try:
         from api.database import DATABASE_URL, SessionLocal
         from api.models import Creator, Lead, Message
@@ -3115,6 +3124,12 @@ async def clear_messages(creator_id: str):
             if not lead_ids:
                 return {"status": "ok", "messages_deleted": 0, "message": "No leads found"}
 
+            # Log the deletion for audit trail
+            logger.warning(
+                f"[DANGER] clear_messages called for {creator_id}: "
+                f"deleting messages for {len(lead_ids)} leads"
+            )
+
             # Delete all messages for these leads
             deleted_count = (
                 session.query(Message)
@@ -3124,11 +3139,16 @@ async def clear_messages(creator_id: str):
 
             session.commit()
 
+            logger.warning(
+                f"[DANGER] clear_messages completed: {deleted_count} messages deleted for {creator_id}"
+            )
+
             return {
                 "status": "success",
                 "messages_deleted": deleted_count,
                 "leads_count": len(lead_ids),
                 "creator": creator_id,
+                "warning": "Messages permanently deleted. Run sync to re-import.",
             }
 
         finally:

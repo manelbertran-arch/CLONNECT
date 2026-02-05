@@ -2153,11 +2153,17 @@ async def inject_stefano_data():
             # ================================================================
             # Delete existing messages for this creator's leads
             existing_leads = session.query(Lead).filter_by(creator_id=creator_uuid).all()
+            msg_count = 0
             for lead in existing_leads:
-                session.query(Message).filter_by(lead_id=lead.id).delete()
-            session.query(Lead).filter_by(creator_id=creator_uuid).delete()
-            session.query(Product).filter_by(creator_id=creator_uuid).delete()
+                msg_count += session.query(Message).filter_by(lead_id=lead.id).delete()
+            lead_count = session.query(Lead).filter_by(creator_id=creator_uuid).delete()
+            prod_count = session.query(Product).filter_by(creator_id=creator_uuid).delete()
             session.commit()
+
+            logger.warning(
+                f"[InjectStefano] Deleted existing data: {msg_count} messages, "
+                f"{lead_count} leads, {prod_count} products"
+            )
 
             # ================================================================
             # STEP 3: Create REAL products from website
@@ -3383,9 +3389,11 @@ async def manual_setup(request: ManualSetupRequest):
 
 
 @router.delete("/full-reset/{creator_id}")
-async def full_reset_creator(creator_id: str, email: Optional[str] = None):
+async def full_reset_creator(creator_id: str, email: Optional[str] = None, confirm: str = None):
     """
     Delete ALL data for a creator. Use for testing/starting fresh.
+
+    DANGER: Requires confirmation parameter.
 
     Deletes:
     - Creator record from DB
@@ -3400,8 +3408,18 @@ async def full_reset_creator(creator_id: str, email: Optional[str] = None):
     WARNING: This is destructive and cannot be undone!
 
     Usage:
-        DELETE /onboarding/full-reset/stefano_bonanno?email=stefano@fitpackglobal.com
+        DELETE /onboarding/full-reset/stefano_bonanno?confirm=DELETE_EVERYTHING&email=stefano@fitpackglobal.com
     """
+    # SAFETY: Require explicit confirmation
+    if confirm != "DELETE_EVERYTHING":
+        return {
+            "error": "Safety check failed",
+            "usage": f"DELETE /onboarding/full-reset/{creator_id}?confirm=DELETE_EVERYTHING",
+            "warning": "This will PERMANENTLY delete ALL data for this creator. Cannot be undone.",
+        }
+
+    logger.warning(f"[DANGER] full_reset_creator called for {creator_id} (email={email})")
+
     deleted = {
         "creator": False,
         "user": False,
