@@ -4,14 +4,12 @@ Maintenance endpoints for admin tasks like refreshing profile pictures.
 
 import asyncio
 import logging
-from typing import Optional
 
 import httpx
-from fastapi import APIRouter, HTTPException, Query
-from sqlalchemy import or_, text
-
 from api.database import SessionLocal
 from api.models import Creator, Lead
+from fastapi import APIRouter, HTTPException, Query
+from sqlalchemy import or_, text
 
 logger = logging.getLogger(__name__)
 
@@ -78,9 +76,7 @@ async def refresh_profile_pictures(
         query = session.query(Lead).filter(Lead.creator_id == creator.id)
 
         if not force:
-            query = query.filter(
-                or_(Lead.profile_pic_url.is_(None), Lead.profile_pic_url == "")
-            )
+            query = query.filter(or_(Lead.profile_pic_url.is_(None), Lead.profile_pic_url == ""))
 
         leads = query.limit(limit).all()
 
@@ -192,6 +188,86 @@ async def list_leads_without_photo(creator_name: str, limit: int = 20):
                 }
                 for lead in leads
             ],
+        }
+    finally:
+        session.close()
+
+
+# =============================================================================
+# DISMISSED LEADS MANAGEMENT (Blocklist)
+# =============================================================================
+
+
+@router.get("/dismissed-leads/{creator_name}")
+async def list_dismissed_leads(creator_name: str, limit: int = 100):
+    """List all dismissed (deleted) leads for a creator."""
+    session = SessionLocal()
+    try:
+        from api.models import Creator, DismissedLead
+
+        creator = session.query(Creator).filter_by(name=creator_name).first()
+        if not creator:
+            raise HTTPException(status_code=404, detail="Creator not found")
+
+        dismissed = (
+            session.query(DismissedLead)
+            .filter_by(creator_id=creator.id)
+            .order_by(DismissedLead.dismissed_at.desc())
+            .limit(limit)
+            .all()
+        )
+
+        return {
+            "creator": creator_name,
+            "count": len(dismissed),
+            "dismissed_leads": [
+                {
+                    "id": str(d.id),
+                    "platform_user_id": d.platform_user_id,
+                    "username": d.username,
+                    "reason": d.reason,
+                    "dismissed_at": d.dismissed_at.isoformat() if d.dismissed_at else None,
+                }
+                for d in dismissed
+            ],
+        }
+    finally:
+        session.close()
+
+
+@router.delete("/dismissed-leads/{creator_name}/{platform_user_id}")
+async def restore_dismissed_lead(creator_name: str, platform_user_id: str):
+    """
+    Remove a lead from the dismissed blocklist.
+    This allows the lead to be re-imported on next sync.
+    """
+    session = SessionLocal()
+    try:
+        from api.models import Creator, DismissedLead
+
+        creator = session.query(Creator).filter_by(name=creator_name).first()
+        if not creator:
+            raise HTTPException(status_code=404, detail="Creator not found")
+
+        dismissed = (
+            session.query(DismissedLead)
+            .filter_by(creator_id=creator.id, platform_user_id=platform_user_id)
+            .first()
+        )
+
+        if not dismissed:
+            raise HTTPException(status_code=404, detail="Lead not in blocklist")
+
+        username = dismissed.username
+        session.delete(dismissed)
+        session.commit()
+
+        logger.info(f"Restored {platform_user_id} ({username}) from blocklist for {creator_name}")
+
+        return {
+            "status": "ok",
+            "message": f"Lead {platform_user_id} removed from blocklist. Will be re-imported on next sync.",
+            "username": username,
         }
     finally:
         session.close()

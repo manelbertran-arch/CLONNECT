@@ -484,6 +484,21 @@ async def _simple_dm_sync_internal(
                     )
 
                     if not lead:
+                        # Check if this lead is in the dismissed blocklist
+                        # If so, skip - creator previously deleted this conversation
+                        from api.models import DismissedLead
+
+                        is_dismissed = (
+                            session.query(DismissedLead)
+                            .filter_by(creator_id=creator.id, platform_user_id=follower_id)
+                            .first()
+                        )
+                        if is_dismissed:
+                            logger.debug(
+                                f"[DM Sync] Skipping {follower_username}: in dismissed_leads blocklist"
+                            )
+                            continue
+
                         # Build initial context with verified status
                         initial_context = {}
                         if follower_is_verified:
@@ -1200,7 +1215,9 @@ async def instagram_oauth_callback(
             # Step 5: Save to database with ALL collected IDs
             # Convert set to list for JSON storage
             additional_ids_list = list(all_instagram_ids)
-            logger.info(f"Collected {len(additional_ids_list)} Instagram IDs: {additional_ids_list}")
+            logger.info(
+                f"Collected {len(additional_ids_list)} Instagram IDs: {additional_ids_list}"
+            )
 
             await _save_instagram_connection(
                 creator_id=creator_id,

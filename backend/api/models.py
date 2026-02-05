@@ -1218,6 +1218,34 @@ class RelationshipDNAModel(Base):
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
 
 
+class DismissedLead(Base):
+    """
+    Blocklist for leads that were manually deleted by creator.
+    Prevents sync from re-importing deleted conversations.
+
+    When a creator deletes a conversation, we add the lead's platform_user_id
+    to this table. The sync process checks this table before creating new leads.
+    """
+
+    __tablename__ = "dismissed_leads"
+    __table_args__ = (
+        UniqueConstraint(
+            "creator_id", "platform_user_id", name="ix_dismissed_leads_creator_platform"
+        ),
+        Index("ix_dismissed_leads_platform_user_id", "platform_user_id"),
+        {"extend_existing": True},
+    )
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    creator_id = Column(
+        UUID(as_uuid=True), ForeignKey("creators.id", ondelete="CASCADE"), nullable=False
+    )
+    platform_user_id = Column(String(255), nullable=False)
+    username = Column(String(255))  # For debug/reference
+    dismissed_at = Column(DateTime(timezone=True), server_default=func.now())
+    reason = Column(String(50), default="manual_delete")  # manual_delete, spam, blocked
+
+
 class PostContextModel(Base):
     """SQLAlchemy model for temporal context from Instagram posts.
 

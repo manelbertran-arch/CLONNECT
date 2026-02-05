@@ -530,6 +530,21 @@ async def reconcile_messages_for_creator(
                     )
                     continue
 
+                # Check if this lead is in the dismissed blocklist
+                # If so, skip - creator previously deleted this conversation
+                from api.models import DismissedLead
+
+                is_dismissed = (
+                    session.query(DismissedLead)
+                    .filter_by(creator_id=creator.id, platform_user_id=follower_id)
+                    .first()
+                )
+                if is_dismissed:
+                    logger.debug(
+                        f"[Reconciliation] Skipping {follower_id}: in dismissed_leads blocklist"
+                    )
+                    continue
+
                 # Create new lead and try to enrich with profile
                 # Use raw follower_id (no ig_ prefix) for consistency with other services
                 profile_data = await _fetch_profile_for_lead(follower_id, access_token)

@@ -1716,6 +1716,32 @@ def delete_conversation(creator_name: str, conversation_id: str) -> bool:
                 logger.warning("Failed to parse conversation UUID %s: %s", conversation_id, e)
         if lead:
             platform_user_id = lead.platform_user_id
+            lead_username = lead.username
+
+            # Add to dismissed_leads blocklist BEFORE deleting
+            # This prevents sync from re-importing the conversation
+            try:
+                from api.models import DismissedLead
+
+                existing_dismissed = (
+                    session.query(DismissedLead)
+                    .filter_by(creator_id=creator.id, platform_user_id=platform_user_id)
+                    .first()
+                )
+                if not existing_dismissed:
+                    dismissed = DismissedLead(
+                        creator_id=creator.id,
+                        platform_user_id=platform_user_id,
+                        username=lead_username,
+                        reason="manual_delete",
+                    )
+                    session.add(dismissed)
+                    logger.info(
+                        f"Added {platform_user_id} ({lead_username}) to dismissed_leads blocklist"
+                    )
+            except Exception as blocklist_err:
+                logger.warning(f"Failed to add to blocklist: {blocklist_err}")
+
             # Delete all messages first (foreign key constraint)
             session.query(Message).filter_by(lead_id=lead.id).delete()
             # Delete the lead
