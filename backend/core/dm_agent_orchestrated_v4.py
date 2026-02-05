@@ -133,19 +133,22 @@ NO inventes información.
         llm = self._get_llm_service()
 
         if not llm:
+            logger.warning("No LLM service available")
             return "Dale! 😊"
 
         system_prompt = self._build_system_prompt(lead_id, message)
 
         try:
             response = await llm.generate(
+                prompt=message,
                 system_prompt=system_prompt,
-                user_message=message,
                 max_tokens=100,
                 temperature=0.7,
             )
 
-            return response.strip() if response else "Dale! 😊"
+            if response and response.content:
+                return response.content.strip()
+            return "Dale! 😊"
 
         except Exception as e:
             logger.error(f"Error en LLM: {e}")
