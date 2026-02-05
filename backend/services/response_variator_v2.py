@@ -114,6 +114,25 @@ class ResponseVariatorV2:
                 "Ánimo!",
                 "Fuerza!",
             ],
+            "affection": [
+                "Yo a ti! 💙",
+                "Igualmente! ❤️",
+                "Y yo a ti!",
+                "Gracias! Te quiero! 💙",
+                "Yo más! 😊",
+                "Lo mismo! ❤️",
+                "Un abrazo grande! 💙",
+                "Sos un/a crack! 💙",
+            ],
+            "praise": [
+                "Gracias! 😊",
+                "Muchas gracias! 💙",
+                "Qué lindo! 😊",
+                "Me alegro!",
+                "Qué bueno!",
+                "Gracias hermano!",
+                "💙",
+            ],
         }
 
         # Merge with loaded pools
@@ -185,6 +204,17 @@ class ResponseVariatorV2:
         empathy_triggers = ["difícil", "cuesta", "triste", "mal", "complicado"]
         if any(e in msg for e in empathy_triggers):
             return ("empathy", 0.6)
+
+        # Affection (te quiero, te amo)
+        affection_triggers = ["te quiero", "te amo", "eres el mejor", "eres la mejor", "te adoro"]
+        if any(a in msg for a in affection_triggers):
+            return ("affection", 0.9)
+
+        # Praise (positive feedback about Stefan)
+        praise_triggers = ["muy lindo", "estuvo genial", "increíble", "eres hermoso", "sos hermoso", "que crack"]
+        if any(p in msg for p in praise_triggers):
+            if len(msg) > 30:  # Long praise messages
+                return ("praise", 0.85)
 
         return (None, 0.0)
 

@@ -62,6 +62,15 @@ def detect_message_type(lead_message: str) -> str:
     if any(t in msg_lower for t in thanks):
         return "thanks"
 
+    # Affection messages
+    affection = ["te quiero", "te amo", "te adoro"]
+    if any(a in msg_lower for a in affection):
+        return "affection"
+
+    # Praise/compliments (long messages praising Stefan)
+    if len(lead_message) > 50 and any(w in msg_lower for w in ["lindo", "genial", "increíble", "hermoso"]):
+        return "praise"
+
     # Emotional/long messages
     emotional_words = [
         "triste",
@@ -70,12 +79,11 @@ def detect_message_type(lead_message: str) -> str:
         "preocupado",
         "difícil",
         "duro",
-        "increíble",
     ]
-    if any(w in msg_lower for w in emotional_words) or len(lead_message) > 100:
+    if any(w in msg_lower for w in emotional_words):
         return "emotional"
 
-    # Question
+    # Question - keep short answers
     if "?" in lead_message:
         return "question"
 
@@ -93,7 +101,9 @@ def get_max_length(message_type: str, config: LengthConfig = None) -> int:
         "laugh": 10,
         "thanks": config.max_for_confirmation,
         "emotional": config.max_for_emotional,
-        "question": config.max_length + 10,
+        "affection": 20,  # Short warm responses
+        "praise": 20,  # Short thank you
+        "question": config.max_length,  # Direct short answers
         "normal": config.max_length,
     }
 
@@ -175,6 +185,8 @@ SHORT_REPLACEMENTS = {
     "thanks": ["A ti!", "Nada!", "😊", "💙", "De nada!", "Gracias a ti!"],
     "laugh": ["Jaja", "Jajaja", "😂", "🤣", "Jeje"],
     "emoji_only": ["😊", "💙", "👍", "🙌", "❤️", "💪"],
+    "affection": ["Yo a ti! 💙", "Igualmente! ❤️", "Y yo a ti!", "💙", "Un abrazo! 💙"],
+    "praise": ["Gracias! 😊", "Muchas gracias!", "Qué lindo! 😊", "💙", "Gracias!"],
 }
 
 

@@ -45,6 +45,10 @@ class CreatorKnowledge:
         if any(w in query_lower for w in ["quién", "quien", "eres", "haces"]):
             info_parts.append(f"Profesión: {', '.join(self.profession)}")
 
+        if any(w in query_lower for w in ["dura", "duración", "tiempo", "cuánto dura"]):
+            if "duracion" in self.faqs:
+                info_parts.append(f"Duración: {self.faqs['duracion']}")
+
         for question, answer in self.faqs.items():
             if any(word in query_lower for word in question.lower().split()):
                 info_parts.append(f"FAQ: {answer}")

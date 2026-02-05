@@ -47,6 +47,8 @@
     "precio": "Los precios dependen del servicio. Escríbeme para más info.",
     "ubicacion": "Estoy en Barcelona, España.",
     "servicios": "Ofrezco acompañamiento 1:1, talleres grupales, y retiros.",
-    "horarios": "Mis horarios son flexibles. Coordinamos según disponibilidad."
+    "horarios": "Mis horarios son flexibles. Coordinamos según disponibilidad.",
+    "duracion": "Las sesiones duran 90 min.",
+    "cuanto_dura": "90 min"
   }
 }
