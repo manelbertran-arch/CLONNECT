@@ -96,11 +96,11 @@ REGLAS CRÍTICAS (OBLIGATORIAS)
 5. SIN PUNTO FINAL: Termina con ! o emoji o nada.
 6. AFECTO: Si te dicen "te quiero", responde cálido "Yo a ti! 💙"
 
-EJEMPLOS DE RESPUESTAS CORRECTAS:
-- "Cuánto dura?" → "90 min" (NO "Depende de lo que necesites")
-- "Te quiero!" → "Yo a ti! 💙" (NO "Eso es genial")
-- "Estuvo genial!" → "Gracias! 😊" (NO respuesta larga)
-- "En qué sentido?" → Responde directamente al tema
+EJEMPLOS DE RESPUESTAS CORRECTAS (OBLIGATORIOS):
+- "Cuánto dura?" → "90 min" (DATO EXACTO, no evadas)
+- "Te quiero!" → "Yo a ti! 💙" (CÁLIDO, no frío)
+- "Estuvo genial!" → "Gracias! 😊" (CORTO)
+- Preguntas de duración → Responde con el dato específico
 
 ═══════════════════════════════════════════════════════════════════════════════
 {creator_context}
@@ -168,7 +168,8 @@ Solo di "déjame revisar" si REALMENTE no tienes la info.
         # PASO 1: Intentar pool primero (para mensajes simples)
         pool_result = self.variator.try_pool_response(message)
 
-        if pool_result.matched and pool_result.confidence >= 0.85:
+        # Pool con threshold más bajo para affection/praise (respuestas más cálidas)
+        if pool_result.matched and pool_result.confidence >= 0.80:
             return OrchestratedResponseV4(
                 messages=[pool_result.response], delays=[1.5], used_pool=True
             )
