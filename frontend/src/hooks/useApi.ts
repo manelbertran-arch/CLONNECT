@@ -133,8 +133,8 @@ export function useInfiniteConversations(creatorId: string = getCreatorId(), pag
       return undefined;
     },
     initialPageParam: 0,
-    refetchInterval: 30000,
-    staleTime: 15000,
+    refetchInterval: 5000, // Refresh every 5s for near-instant conversation reordering
+    staleTime: 3000,
   });
 }
 
