@@ -104,8 +104,9 @@ async def get_conversations(creator_id: str, limit: int = 50):
     cache_key = f"conversations:{creator_id}:{limit}"
     cached = api_cache.get(cache_key)
     if cached:
-        logger.debug(f"[CONV] {creator_id}: cache HIT")
+        logger.info(f"[CONV] {creator_id}: cache HIT (key={cache_key})")
         return cached
+    logger.info(f"[CONV] {creator_id}: cache MISS (key={cache_key})")
 
     start_time = _time.time()
 
