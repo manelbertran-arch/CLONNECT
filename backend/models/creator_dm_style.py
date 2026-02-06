@@ -122,7 +122,7 @@ STEFAN_DM_STYLE = CreatorDMStyle(
     # Frases características
     common_openers=["Hola!", "Qué tal!", "Hey!", "Genial!"],
     common_closers=["Un abrazo!", "❤️", "💪", "Dale!"],
-    signature_phrases=["crack", "hermano", "te quiero"],
+    signature_phrases=["crack", "bro", "hermano", "amigo", "tío", "te quiero"],
     # Lo que Stefan NUNCA dice
     never_uses=[
         "¿En qué puedo ayudarte?",

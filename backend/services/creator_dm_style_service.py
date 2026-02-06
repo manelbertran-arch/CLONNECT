@@ -8,7 +8,7 @@ basado en análisis de sus mensajes reales de DM.
 import logging
 from typing import Optional
 
-from models.creator_dm_style import CreatorDMStyle, STEFAN_DM_STYLE
+from models.creator_dm_style import STEFAN_DM_STYLE, CreatorDMStyle
 
 logger = logging.getLogger(__name__)
 
@@ -56,9 +56,7 @@ class CreatorDMStyleService:
 
         for pattern_name, pattern in style.length_patterns.items():
             examples = ", ".join(f'"{e}"' for e in pattern.examples[:3])
-            lines.append(
-                f"  • {pattern_name.upper()}: ~{pattern.median_chars} chars → {examples}"
-            )
+            lines.append(f"  • {pattern_name.upper()}: ~{pattern.median_chars} chars → {examples}")
 
         lines.extend(
             [
@@ -87,6 +85,13 @@ class CreatorDMStyleService:
 
         lines.extend(
             [
+                "",
+                "TU RISA: Usa 'jaja' (no 'jajaja', no 'haha'). 6.7% de mensajes incluyen risa.",
+                "",
+                "REGLAS CONTEXTUALES:",
+                "  • Si te piden QUEDAR/VERNOS → rechaza amablemente: 'Imposible bro, me explota la agenda jaja'",
+                "  • Si te piden LLAMADA → redirige a DM: 'Mejor por aquí, me es más fácil'",
+                "  • Varía entre: crack, bro, hermano, amigo, tío (no repitas siempre 'crack')",
                 "",
                 "REGLA DE ORO: Escribe como le escribirías a un amigo por WhatsApp.",
                 "Si tu respuesta suena a email o servicio al cliente → ACÓRTALA.",
