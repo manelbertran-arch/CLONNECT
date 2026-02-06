@@ -132,21 +132,21 @@ def register_startup_handlers(app: "FastAPI"):
         asyncio.create_task(prewarm_creator_caches())
         logger.info("Cache pre-warming scheduled (background task)")
 
-        # Cache refresh task - keeps cache warm continuously
-        async def cache_refresh_task():
-            REFRESH_INTERVAL = 45  # seconds - less frequent to reduce blocking
-            await asyncio.sleep(30)  # Wait for initial warmup to complete
-            logger.info("[CACHE-REFRESH] Started - refreshing every 20s")
-
-            while True:
-                try:
-                    await asyncio.sleep(REFRESH_INTERVAL)
-                    await _do_cache_refresh(SessionLocal)
-                except Exception as e:
-                    logger.error(f"[CACHE-REFRESH] Error: {e}")
-
-        asyncio.create_task(cache_refresh_task())
-        logger.info("Cache refresh task scheduled (every 25 seconds)")
+        # Cache refresh task - DISABLED: was blocking event loop
+        # async def cache_refresh_task():
+        #     REFRESH_INTERVAL = 45  # seconds - less frequent to reduce blocking
+        #     await asyncio.sleep(30)  # Wait for initial warmup to complete
+        #     logger.info("[CACHE-REFRESH] Started - refreshing every 20s")
+        #
+        #     while True:
+        #         try:
+        #             await asyncio.sleep(REFRESH_INTERVAL)
+        #             await _do_cache_refresh(SessionLocal)
+        #         except Exception as e:
+        #             logger.error(f"[CACHE-REFRESH] Error: {e}")
+        #
+        # asyncio.create_task(cache_refresh_task())
+        logger.warning("Cache refresh task DISABLED - was blocking event loop")
 
         # Keep-alive task - SIMPLIFIED: just DB ping to prevent cold starts
         async def keep_alive_task():
