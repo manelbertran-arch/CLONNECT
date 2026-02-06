@@ -366,7 +366,9 @@ export default function CopilotPanel() {
 
   const handleDiscard = (messageId: string) => {
     // INSTANT: Hide immediately via local state (polling can't override this)
+    console.log('[COPILOT] Discard clicked, hiding:', messageId);
     setHiddenIds(prev => new Set([...prev, messageId]));
+    console.log('[COPILOT] Hidden IDs updated, UI should update NOW');
 
     discardMutation.mutate(messageId, {
       onSuccess: () => {

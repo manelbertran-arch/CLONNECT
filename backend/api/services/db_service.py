@@ -292,20 +292,20 @@ def get_leads(creator_name: str, include_archived: bool = False, limit: int = 10
         # Add limit for performance (was loading ALL leads before)
         leads = query.order_by(Lead.last_contact_at.desc()).limit(limit).all()
 
-        # Get last message for each lead (batch query for efficiency)
+        # Get last message for each lead using DISTINCT ON (PostgreSQL optimization)
         lead_ids = [lead.id for lead in leads]
         last_messages = {}
         if lead_ids:
-            max_date_subq = (
-                session.query(Message.lead_id, func.max(Message.created_at).label("max_created_at"))
+            from sqlalchemy import desc
+            from sqlalchemy.dialects.postgresql import aggregate_order_by
+
+            # DISTINCT ON is much faster than subquery + JOIN
+            # It gets the first row for each lead_id when ordered by created_at DESC
+            last_msg_query = (
+                session.query(Message)
                 .filter(Message.lead_id.in_(lead_ids))
-                .group_by(Message.lead_id)
-                .subquery()
-            )
-            last_msg_query = session.query(Message).join(
-                max_date_subq,
-                (Message.lead_id == max_date_subq.c.lead_id)
-                & (Message.created_at == max_date_subq.c.max_created_at),
+                .distinct(Message.lead_id)
+                .order_by(Message.lead_id, desc(Message.created_at))
             )
             for msg in last_msg_query.all():
                 last_messages[msg.lead_id] = msg
