@@ -134,7 +134,7 @@ def register_startup_handlers(app: "FastAPI"):
 
         # Cache refresh task - keeps cache warm continuously
         async def cache_refresh_task():
-            REFRESH_INTERVAL = 20  # seconds (much less than 60s TTL)
+            REFRESH_INTERVAL = 45  # seconds - less frequent to reduce blocking
             await asyncio.sleep(30)  # Wait for initial warmup to complete
             logger.info("[CACHE-REFRESH] Started - refreshing every 20s")
 
