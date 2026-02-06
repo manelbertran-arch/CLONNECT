@@ -193,4 +193,19 @@ STEFAN_RESPONSE_POOLS: Dict[str, ResponsePool] = {
         ],
         weights=[0.2, 0.2, 0.18, 0.15, 0.14, 0.13],
     ),
+    # ─────────────────────────────────────────────────────────────────────────
+    # PROPUESTAS DE QUEDAR (RECHAZAR)
+    # Stefan no puede quedar en persona - siempre rechaza amablemente
+    # ─────────────────────────────────────────────────────────────────────────
+    "meeting_request": ResponsePool(
+        trigger_type="meeting_request",
+        responses=[
+            "Imposible bro, me explota la agenda jaja",
+            "Uf imposible, tengo la agenda llena 😅",
+            "Me es imposible ahora mismo, hermano",
+            "Ahora no puedo, bro. Quizás más adelante! 😊",
+            "Difícil ahora, tengo todo el mes pillado jaja",
+        ],
+        weights=[0.3, 0.25, 0.2, 0.15, 0.1],
+    ),
 }

@@ -29,6 +29,29 @@ class ResponseVariator:
         message_lower = message.lower().strip()
         message_clean = re.sub(r"[^\w\s]", "", message_lower)
 
+        # PROPUESTAS DE QUEDAR - PRIORIDAD MÁXIMA (Stefan siempre rechaza)
+        meeting_words = [
+            "quedar",
+            "quedamos",
+            "vernos",
+            "encontrarnos",
+            "veámonos",
+            "veamonos",
+            "viéndonos",
+            "viendonos",
+            "tomarnos algo",
+            "tomar algo",
+            "un café",
+            "un cafe",
+            "unas birras",
+            "unas cervezas",
+            "podemos vernos",
+            "nos vemos mañana",
+            "nos juntamos",
+        ]
+        if any(m in message_lower for m in meeting_words):
+            return "meeting_request"
+
         # SALUDOS - Alta prioridad
         greetings = [
             "hola",
