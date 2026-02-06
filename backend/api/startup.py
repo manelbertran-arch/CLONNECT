@@ -408,8 +408,9 @@ async def _do_cache_refresh(SessionLocal):
                     # Set for BOTH endpoints (dm.py and messages.py use different keys)
                     api_cache.set(f"conversations:{creator_id}:50:0", cached_result, ttl_seconds=30)  # messages.py
                     api_cache.set(f"conversations:{creator_id}:50", cached_result, ttl_seconds=30)    # dm.py
+                    logger.info(f"[CACHE-REFRESH] {creator_id}: cached {len(conversations)} conversations")
             except Exception as e:
-                logger.debug(f"[CACHE-REFRESH] conversations {creator_id}: {e}")
+                logger.warning(f"[CACHE-REFRESH] conversations {creator_id} FAILED: {e}")
 
             # Refresh leads cache
             try:
