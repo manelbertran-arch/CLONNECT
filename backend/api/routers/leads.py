@@ -71,10 +71,16 @@ def _save_lead_json(creator_id: str, lead_id: str, data: dict):
 
 
 @router.get("/{creator_id}")
-async def get_leads(creator_id: str):
+async def get_leads(creator_id: str, limit: int = 100):
+    """Get leads for a creator.
+
+    Args:
+        creator_id: Creator's name/ID
+        limit: Maximum leads to return (default 100 for performance)
+    """
     if USE_DB:
         try:
-            leads = db_service.get_leads(creator_id)
+            leads = db_service.get_leads(creator_id, limit=limit)
             if leads is not None:
                 adapted = adapt_leads_response(leads)
                 return {"status": "ok", "leads": adapted, "count": len(adapted)}

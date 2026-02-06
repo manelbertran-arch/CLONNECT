@@ -267,7 +267,14 @@ def toggle_bot(name: str, active: bool = None):
         session.close()
 
 
-def get_leads(creator_name: str, include_archived: bool = False):
+def get_leads(creator_name: str, include_archived: bool = False, limit: int = 100):
+    """Get leads for a creator with pagination.
+
+    Args:
+        creator_name: Creator's name
+        include_archived: Include archived/spam leads
+        limit: Maximum leads to return (default 100 for performance)
+    """
     session = get_session()
     if not session:
         return []
@@ -282,7 +289,8 @@ def get_leads(creator_name: str, include_archived: bool = False):
         query = session.query(Lead).filter_by(creator_id=creator.id)
         if not include_archived:
             query = query.filter(not_(Lead.status.in_(["archived", "spam"])))
-        leads = query.order_by(Lead.last_contact_at.desc()).all()
+        # Add limit for performance (was loading ALL leads before)
+        leads = query.order_by(Lead.last_contact_at.desc()).limit(limit).all()
 
         # Get last message for each lead (batch query for efficiency)
         lead_ids = [lead.id for lead in leads]
