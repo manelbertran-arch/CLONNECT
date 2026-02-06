@@ -93,13 +93,15 @@ def register_startup_handlers(app: "FastAPI"):
         logger.info("Test data cleanup scheduled (background task)")
 
         # Start nurturing scheduler
-        try:
-            from api.routers.nurturing import start_scheduler
-
-            start_scheduler()
-            logger.info("Nurturing scheduler started")
-        except Exception as e:
-            logger.error(f"Failed to start nurturing scheduler: {e}")
+        # DISABLED TEMPORARILY - Testing if scheduler causes slow API responses
+        # try:
+        #     from api.routers.nurturing import start_scheduler
+        #
+        #     start_scheduler()
+        #     logger.info("Nurturing scheduler started")
+        # except Exception as e:
+        #     logger.error(f"Failed to start nurturing scheduler: {e}")
+        logger.warning("Nurturing scheduler DISABLED for performance testing")
 
         # DISABLED: Startup reconciliation was making 20+ Instagram API calls
         # causing slow startup and 403 errors. Run manually via /maintenance/reconcile if needed.
