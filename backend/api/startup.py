@@ -102,25 +102,9 @@ def register_startup_handlers(app: "FastAPI"):
         except Exception as e:
             logger.error(f"Failed to start nurturing scheduler: {e}")
 
-        # Run message reconciliation on startup (recover last 24 hours)
-        async def startup_reconciliation():
-            await asyncio.sleep(10)  # Wait for DB to be ready
-            try:
-                from core.message_reconciliation import run_startup_reconciliation
-
-                result = await run_startup_reconciliation()
-                if result.get("total_inserted", 0) > 0:
-                    logger.info(
-                        f"[Reconciliation] Startup: recovered {result['total_inserted']} "
-                        f"messages for {result['creators_processed']} creators"
-                    )
-                else:
-                    logger.info("[Reconciliation] Startup: no missing messages found")
-            except Exception as e:
-                logger.error(f"[Reconciliation] Startup reconciliation failed: {e}")
-
-        asyncio.create_task(startup_reconciliation())
-        logger.info("Message reconciliation scheduled (startup task)")
+        # DISABLED: Startup reconciliation was making 20+ Instagram API calls
+        # causing slow startup and 403 errors. Run manually via /maintenance/reconcile if needed.
+        logger.info("Message reconciliation DISABLED on startup (use /maintenance/reconcile)")
 
         # Hydrate RAG from PostgreSQL
         async def hydrate_rag_background():
