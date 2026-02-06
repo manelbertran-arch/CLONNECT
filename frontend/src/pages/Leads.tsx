@@ -216,6 +216,10 @@ export default function Leads() {
   const deleteTaskMutation = useDeleteLeadTask();
   const deleteActivityMutation = useDeleteLeadActivity();
 
+  // Optimistic UI states for instant feedback
+  const [fadingIds, setFadingIds] = useState<Set<string>>(new Set());
+  const [hiddenIds, setHiddenIds] = useState<Set<string>>(new Set());
+
   // Modal states
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [isViewModalOpen, setIsViewModalOpen] = useState(false);
@@ -340,7 +344,7 @@ export default function Leads() {
     }
   };
 
-  const getLeadsByStatus = (status: LeadStatus) => leads.filter(lead => lead.status === status);
+  const getLeadsByStatus = (status: LeadStatus) => leads.filter(lead => lead.status === status && !hiddenIds.has(lead.id));
 
   // Handlers for Add Lead modal
   const handleOpenAddModal = () => {
@@ -358,27 +362,39 @@ export default function Leads() {
       return;
     }
 
-    try {
-      await createLeadMutation.mutateAsync({
-        name: formData.name,
-        platform: formData.platform,
-        email: formData.email || undefined,
-        phone: formData.phone || undefined,
-        notes: formData.notes || undefined,
-      });
-      toast({
-        title: "Lead creado",
-        description: `${formData.name} agregado al pipeline`,
-      });
-      setIsAddModalOpen(false);
-      setFormData(initialFormState);
-    } catch (err) {
-      toast({
-        title: "Error",
-        description: err instanceof Error ? err.message : "No se pudo crear el lead",
-        variant: "destructive",
-      });
-    }
+    // INSTANT: Close modal immediately for instant feedback
+    const leadName = formData.name;
+    setIsAddModalOpen(false);
+    setFormData(initialFormState);
+
+    // Show instant toast
+    toast({
+      title: "Creando lead...",
+      description: `${leadName} se está agregando`,
+    });
+
+    // BACKGROUND: API call
+    createLeadMutation.mutate({
+      name: leadName,
+      platform: formData.platform,
+      email: formData.email || undefined,
+      phone: formData.phone || undefined,
+      notes: formData.notes || undefined,
+    }, {
+      onSuccess: () => {
+        toast({
+          title: "Lead creado",
+          description: `${leadName} agregado al pipeline`,
+        });
+      },
+      onError: (err) => {
+        toast({
+          title: "Error al crear lead",
+          description: err instanceof Error ? err.message : "No se pudo crear el lead",
+          variant: "destructive",
+        });
+      },
+    });
   };
 
   // Handlers for View/Edit/Delete
@@ -560,21 +576,46 @@ export default function Leads() {
   const handleDeleteLead = async () => {
     if (!selectedLead) return;
 
-    try {
-      await deleteLeadMutation.mutateAsync(selectedLead.id);
-      toast({
-        title: "Lead eliminado",
-        description: `${selectedLead.name || selectedLead.username} eliminado`,
+    const leadId = selectedLead.id;
+    const leadName = selectedLead.name || selectedLead.username;
+
+    // INSTANT: Close dialog and start fade animation
+    setIsDeleteDialogOpen(false);
+    setFadingIds(prev => new Set([...prev, leadId]));
+
+    // Hide after fade animation (150ms)
+    setTimeout(() => {
+      setHiddenIds(prev => new Set([...prev, leadId]));
+      setFadingIds(prev => {
+        const next = new Set(prev);
+        next.delete(leadId);
+        return next;
       });
-      setIsDeleteDialogOpen(false);
-      setSelectedLead(null);
-    } catch (err) {
-      toast({
-        title: "Error",
-        description: err instanceof Error ? err.message : "No se pudo eliminar",
-        variant: "destructive",
-      });
-    }
+    }, 150);
+
+    // BACKGROUND: API call
+    deleteLeadMutation.mutate(leadId, {
+      onSuccess: () => {
+        toast({
+          title: "Lead eliminado",
+          description: `${leadName} eliminado`,
+        });
+        setSelectedLead(null);
+      },
+      onError: (err) => {
+        // Rollback: show the lead again
+        setHiddenIds(prev => {
+          const next = new Set(prev);
+          next.delete(leadId);
+          return next;
+        });
+        toast({
+          title: "Error al eliminar",
+          description: err instanceof Error ? err.message : "No se pudo eliminar",
+          variant: "destructive",
+        });
+      },
+    });
   };
 
   // Loading state
@@ -650,9 +691,10 @@ export default function Leads() {
                       onDragStart={() => handleDragStart(lead)}
                       onClick={() => handleViewLead(lead)}
                       className={cn(
-                        "group p-3 rounded-xl bg-card border border-border/30 cursor-pointer transition-all",
+                        "group p-3 rounded-xl bg-card border border-border/30 cursor-pointer transition-all duration-150",
                         "hover:border-violet-500/50 hover:shadow-md hover:shadow-violet-500/10 hover:bg-card/80",
-                        draggedLead?.id === lead.id && "opacity-50 scale-95"
+                        draggedLead?.id === lead.id && "opacity-50 scale-95",
+                        fadingIds.has(lead.id) && "opacity-0 -translate-x-4 scale-95"
                       )}
                     >
                       <div className="flex items-start gap-3">

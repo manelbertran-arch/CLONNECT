@@ -961,6 +961,10 @@ def update_lead(creator_name: str, lead_id: str, data: dict):
 
 
 def delete_lead(creator_name: str, lead_id: str):
+    """
+    Delete a lead using raw SQL for speed.
+    ORM cascade is slow with many messages - this uses bulk DELETE.
+    """
     session = get_session()
     if not session:
         return False
@@ -968,6 +972,7 @@ def delete_lead(creator_name: str, lead_id: str):
         import uuid
 
         from api.models import Creator, Lead
+        from sqlalchemy import text
 
         creator = session.query(Creator).filter_by(name=creator_name).first()
         if not creator:
@@ -975,28 +980,50 @@ def delete_lead(creator_name: str, lead_id: str):
             return False
 
         # Try to find lead by UUID first, then by platform_user_id
-        lead = None
+        lead_uuid = None
         try:
-            lead = (
-                session.query(Lead).filter_by(creator_id=creator.id, id=uuid.UUID(lead_id)).first()
-            )
+            lead_uuid = uuid.UUID(lead_id)
+            lead = session.query(Lead).filter_by(creator_id=creator.id, id=lead_uuid).first()
         except (ValueError, AttributeError):
-            pass  # Not a valid UUID, try platform_user_id
-
-        if not lead:
             lead = (
                 session.query(Lead)
                 .filter_by(creator_id=creator.id, platform_user_id=lead_id)
                 .first()
             )
 
-        if lead:
-            session.delete(lead)
-            session.commit()
-            logger.info(f"delete_lead: deleted lead {lead_id}")
-            return True
-        logger.warning(f"delete_lead: lead '{lead_id}' not found")
-        return False
+        if not lead:
+            logger.warning(f"delete_lead: lead '{lead_id}' not found")
+            return False
+
+        lead_uuid = lead.id
+        platform_user_id = lead.platform_user_id
+
+        # FAST: Use raw SQL bulk DELETE (not ORM cascade which is slow)
+        # Delete related records first (FK constraints)
+        session.execute(
+            text("DELETE FROM lead_activities WHERE lead_id = :lid"), {"lid": lead_uuid}
+        )
+        session.execute(text("DELETE FROM lead_tasks WHERE lead_id = :lid"), {"lid": lead_uuid})
+        session.execute(text("DELETE FROM messages WHERE lead_id = :lid"), {"lid": lead_uuid})
+
+        # Add to dismissed_leads blocklist so it doesn't reappear on sync
+        session.execute(
+            text(
+                """
+            INSERT INTO dismissed_leads (creator_id, platform_user_id, dismissed_at)
+            VALUES (:cid, :puid, NOW())
+            ON CONFLICT (creator_id, platform_user_id) DO NOTHING
+        """
+            ),
+            {"cid": creator.id, "puid": platform_user_id},
+        )
+
+        # Now delete the lead itself
+        session.execute(text("DELETE FROM leads WHERE id = :lid"), {"lid": lead_uuid})
+
+        session.commit()
+        logger.info(f"delete_lead: deleted lead {lead_id} (fast SQL)")
+        return True
     except Exception as e:
         logger.error(f"delete_lead error: {e}")
         session.rollback()

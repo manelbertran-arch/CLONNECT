@@ -780,13 +780,45 @@ export function useUpdateLead(creatorId: string = getCreatorId()) {
 
 /**
  * Hook to delete a lead
+ * Uses optimistic update for instant UI feedback
  */
 export function useDeleteLead(creatorId: string = getCreatorId()) {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (leadId: string) => deleteLead(creatorId, leadId),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: apiKeys.leads(creatorId) });
+    // Optimistic update: remove from infinite conversations cache immediately
+    onMutate: async (leadId: string) => {
+      // Cancel outgoing refetches
+      await queryClient.cancelQueries({ queryKey: apiKeys.conversations(creatorId) });
+
+      // Snapshot for rollback
+      const previousData = queryClient.getQueryData([...apiKeys.conversations(creatorId), "infinite"]);
+
+      // Optimistically remove from infinite query cache
+      queryClient.setQueryData(
+        [...apiKeys.conversations(creatorId), "infinite"],
+        (old: { pages: Array<{ conversations: Array<{ id?: string; follower_id: string }> }> } | undefined) => {
+          if (!old) return old;
+          return {
+            ...old,
+            pages: old.pages.map(page => ({
+              ...page,
+              conversations: page.conversations.filter(c => c.id !== leadId && c.follower_id !== leadId),
+            })),
+          };
+        }
+      );
+
+      return { previousData };
+    },
+    // Rollback on error
+    onError: (_err, _leadId, context) => {
+      if (context?.previousData) {
+        queryClient.setQueryData([...apiKeys.conversations(creatorId), "infinite"], context.previousData);
+      }
+    },
+    // Always refetch after to ensure consistency
+    onSettled: () => {
       queryClient.invalidateQueries({ queryKey: apiKeys.conversations(creatorId) });
       queryClient.invalidateQueries({ queryKey: apiKeys.dashboard(creatorId) });
     },
@@ -1157,13 +1189,15 @@ export function useApproveAllCopilot(creatorId: string = getCreatorId()) {
 
 /**
  * Hook to fetch lead activities
+ * Optimized with caching for fast modal tabs
  */
 export function useLeadActivities(leadId: string | null, creatorId: string = getCreatorId()) {
   return useQuery({
     queryKey: ["leadActivities", creatorId, leadId],
     queryFn: () => getLeadActivities(creatorId, leadId!),
     enabled: !!leadId,
-    staleTime: 30000,
+    staleTime: 60000, // Data fresh for 60s
+    gcTime: 5 * 60 * 1000, // Keep in cache 5 min
   });
 }
 
@@ -1185,13 +1219,15 @@ export function useCreateLeadActivity(creatorId: string = getCreatorId()) {
 
 /**
  * Hook to fetch lead tasks
+ * Optimized with caching for fast modal tabs
  */
 export function useLeadTasks(leadId: string | null, creatorId: string = getCreatorId(), includeCompleted: boolean = false) {
   return useQuery({
     queryKey: ["leadTasks", creatorId, leadId, includeCompleted],
     queryFn: () => getLeadTasks(creatorId, leadId!, includeCompleted),
     enabled: !!leadId,
-    staleTime: 30000,
+    staleTime: 60000, // Data fresh for 60s
+    gcTime: 5 * 60 * 1000, // Keep in cache 5 min
   });
 }
 
@@ -1255,13 +1291,15 @@ export function useDeleteLeadActivity(creatorId: string = getCreatorId()) {
 
 /**
  * Hook to fetch lead stats for monitoring
+ * Optimized with caching for fast modal tabs
  */
 export function useLeadStats(leadId: string | null, creatorId: string = getCreatorId()) {
   return useQuery({
     queryKey: ["leadStats", creatorId, leadId],
     queryFn: () => getLeadStats(creatorId, leadId!),
     enabled: !!leadId,
-    staleTime: 30000,
+    staleTime: 60000, // Data fresh for 60s
+    gcTime: 5 * 60 * 1000, // Keep in cache 5 min
   });
 }
 
