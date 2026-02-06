@@ -102,7 +102,7 @@ async def get_conversations(creator_id: str, limit: int = 50):
 
     from api.cache import api_cache
 
-    # Check cache first (30s TTL)
+    # Check cache first (60s TTL - matches startup.py cache refresh)
     cache_key = f"conversations:{creator_id}:{limit}"
     cached = api_cache.get(cache_key)
     if cached:
@@ -259,8 +259,8 @@ async def get_conversations(creator_id: str, limit: int = 50):
                         "conversations": conversations,
                         "count": len(conversations),
                     }
-                    # Cache for 10 seconds
-                    api_cache.set(cache_key, result, ttl_seconds=30)
+                    # Cache for 60 seconds (matches startup.py refresh cycle)
+                    api_cache.set(cache_key, result, ttl_seconds=60)
                     return result
                 finally:
                     session.close()
