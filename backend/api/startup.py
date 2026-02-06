@@ -130,6 +130,22 @@ def register_startup_handlers(app: "FastAPI"):
         asyncio.create_task(prewarm_creator_caches())
         logger.info("Cache pre-warming scheduled (background task)")
 
+        # Cache refresh task - keeps cache warm continuously
+        async def cache_refresh_task():
+            REFRESH_INTERVAL = 25  # seconds (less than 30s TTL)
+            await asyncio.sleep(30)  # Wait for initial warmup to complete
+            logger.info("[CACHE-REFRESH] Started - refreshing every 25s")
+
+            while True:
+                try:
+                    await asyncio.sleep(REFRESH_INTERVAL)
+                    await _do_cache_refresh(SessionLocal)
+                except Exception as e:
+                    logger.error(f"[CACHE-REFRESH] Error: {e}")
+
+        asyncio.create_task(cache_refresh_task())
+        logger.info("Cache refresh task scheduled (every 25 seconds)")
+
         # Keep-alive task - SIMPLIFIED: just DB ping to prevent cold starts
         async def keep_alive_task():
             import time
@@ -319,3 +335,88 @@ async def _do_prewarm(SessionLocal):
 
     _t_end = time.time()
     logger.info(f"Pre-warmed caches in {_t_end - _t_start:.2f}s for {active_creators}")
+
+
+async def _do_cache_refresh(SessionLocal):
+    """Refresh cache for active creators - runs periodically to keep cache warm."""
+    try:
+        from api.cache import api_cache
+        from api.models import Creator
+        from api.routers.messages import get_pipeline_score
+        from api.services import db_service
+
+        # Get active creators from DB
+        active_creators = []
+        if SessionLocal:
+            session = SessionLocal()
+            try:
+                creators = session.query(Creator).filter_by(bot_active=True).all()
+                active_creators = [c.name for c in creators if c.name]
+            finally:
+                session.close()
+
+        if not active_creators:
+            active_creators = ["stefano_bonanno"]
+
+        for creator_id in active_creators:
+            # Refresh conversations cache
+            try:
+                result = db_service.get_conversations_with_counts(creator_id, limit=50, offset=0)
+                if result:
+                    conversations_data = result.get("conversations", [])
+                    conversations = []
+                    for c in conversations_data:
+                        lead_status = c.get("status", "new")
+                        intent = c.get("purchase_intent_score", 0)
+                        conversations.append({
+                            "follower_id": c.get("platform_user_id") or c.get("follower_id"),
+                            "id": c.get("id"),
+                            "username": c.get("username"),
+                            "name": c.get("name"),
+                            "profile_pic_url": c.get("profile_pic_url"),
+                            "platform": c.get("platform", "instagram"),
+                            "total_messages": c.get("total_messages", 0),
+                            "purchase_intent": intent,
+                            "purchase_intent_score": round(intent * 100) if intent <= 1 else int(intent),
+                            "lead_status": lead_status,
+                            "status": lead_status,
+                            "pipeline_score": get_pipeline_score(lead_status),
+                            "last_messages": [],
+                            "last_contact": c.get("last_contact"),
+                            "first_contact": c.get("first_contact"),
+                            "last_message_preview": c.get("last_message_preview"),
+                            "last_message_role": c.get("last_message_role"),
+                            "is_unread": c.get("is_unread", False),
+                            "is_verified": c.get("is_verified", False),
+                            "email": c.get("email") or "",
+                            "phone": c.get("phone") or "",
+                            "notes": c.get("notes") or "",
+                            "tags": c.get("tags") or [],
+                            "deal_value": c.get("deal_value"),
+                        })
+                    cached_result = {
+                        "status": "ok",
+                        "conversations": conversations,
+                        "count": len(conversations),
+                        "total_count": result.get("total_count", 0),
+                        "limit": 50,
+                        "offset": 0,
+                        "has_more": result.get("has_more", False),
+                        "product_price": 97.0,
+                    }
+                    api_cache.set(f"conversations:{creator_id}:50:0", cached_result, ttl_seconds=30)
+            except Exception as e:
+                logger.debug(f"[CACHE-REFRESH] conversations {creator_id}: {e}")
+
+            # Refresh leads cache
+            try:
+                leads = db_service.get_leads(creator_id, limit=100)
+                if leads is not None:
+                    cached_result = {"status": "ok", "leads": leads, "count": len(leads)}
+                    api_cache.set(f"leads:{creator_id}:100", cached_result, ttl_seconds=30)
+            except Exception as e:
+                logger.debug(f"[CACHE-REFRESH] leads {creator_id}: {e}")
+
+        logger.debug(f"[CACHE-REFRESH] Refreshed cache for {len(active_creators)} creators")
+    except Exception as e:
+        logger.warning(f"[CACHE-REFRESH] Error: {e}")
