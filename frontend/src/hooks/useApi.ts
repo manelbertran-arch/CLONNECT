@@ -115,6 +115,7 @@ export function useConversations(creatorId: string = getCreatorId(), limit = 50)
     refetchInterval: 30000, // Refresh every 30s
     staleTime: 60000, // Data fresh for 60s (show cached immediately)
     gcTime: 5 * 60 * 1000, // Keep in cache 5 min
+    refetchOnWindowFocus: false, // Don't refetch on tab focus
   });
 }
 
@@ -137,6 +138,7 @@ export function useInfiniteConversations(creatorId: string = getCreatorId(), pag
     refetchInterval: 30000, // Refresh every 30s
     staleTime: 60000, // Data fresh for 60s
     gcTime: 5 * 60 * 1000, // Keep in cache 5 min
+    refetchOnWindowFocus: false, // Don't refetch on tab focus
   });
 }
 
@@ -146,20 +148,14 @@ export function useInfiniteConversations(creatorId: string = getCreatorId(), pag
  * Also invalidates conversations list to keep sidebar in sync
  */
 export function useFollowerDetail(followerId: string | null, creatorId: string = getCreatorId()) {
-  const queryClient = useQueryClient();
-
   return useQuery({
     queryKey: apiKeys.follower(creatorId, followerId || ""),
-    queryFn: async () => {
-      const result = await getFollowerDetail(creatorId, followerId!);
-      // Invalidate conversations to keep sidebar sorted by latest message
-      queryClient.invalidateQueries({ queryKey: apiKeys.conversations(creatorId) });
-      return result;
-    },
+    queryFn: () => getFollowerDetail(creatorId, followerId!),
     enabled: !!followerId, // Only fetch when we have a followerId
-    refetchInterval: 15000, // Refresh every 15s
-    staleTime: 30000, // Data fresh for 30s
+    refetchInterval: 30000, // Refresh every 30s (was 15s - too aggressive)
+    staleTime: 60000, // Data fresh for 60s (was 30s)
     gcTime: 5 * 60 * 1000, // Keep in cache 5 min
+    refetchOnWindowFocus: false, // Don't refetch on tab focus
   });
 }
 
