@@ -201,12 +201,13 @@ class DMResponderAgentV2:
 
         # AUTO-LOAD creator data if not provided
         if personality is None or products is None:
-            self.personality, self.products = self._load_creator_data(
+            self.personality, self.products, self.style_prompt = self._load_creator_data(
                 creator_id, personality, products
             )
         else:
             self.personality = personality
             self.products = products
+            self.style_prompt = ""
 
         # Initialize all services
         self._init_services()
@@ -214,7 +215,8 @@ class DMResponderAgentV2:
         logger.info(
             f"DMResponderAgentV2 initialized for creator {creator_id} "
             f"(personality: {self.personality.get('name', 'default')}, "
-            f"products: {len(self.products)})"
+            f"products: {len(self.products)}, "
+            f"style: {len(self.style_prompt)} chars)"
         )
 
     def _load_creator_data(
@@ -224,13 +226,24 @@ class DMResponderAgentV2:
         products: Optional[List[Dict]],
     ) -> tuple:
         """
-        Load creator personality and products from database.
+        Load creator personality, products, and style from database.
 
         Returns:
-            Tuple of (personality_dict, products_list)
+            Tuple of (personality_dict, products_list, style_prompt)
         """
         loaded_personality = personality or {}
         loaded_products = products or []
+        style_prompt = ""
+
+        # Load style prompt (writing patterns, DM style, tone profile)
+        try:
+            from services.creator_style_loader import get_creator_style_prompt
+
+            style_prompt = get_creator_style_prompt(creator_id)
+            if style_prompt:
+                logger.info(f"Loaded style prompt for {creator_id}: {len(style_prompt)} chars")
+        except Exception as e:
+            logger.warning(f"Could not load style prompt for {creator_id}: {e}")
 
         try:
             from core.creator_data_loader import get_creator_data
@@ -300,14 +313,12 @@ class DMResponderAgentV2:
                             "is_free": True,
                         }
                     )
-                logger.info(
-                    f"Added {len(creator_data.lead_magnets)} lead magnets for {creator_id}"
-                )
+                logger.info(f"Added {len(creator_data.lead_magnets)} lead magnets for {creator_id}")
 
         except Exception as e:
             logger.warning(f"Could not load creator data for {creator_id}: {e}")
 
-        return loaded_personality, loaded_products
+        return loaded_personality, loaded_products, style_prompt
 
     def _init_services(self) -> None:
         """Initialize all required services."""
@@ -386,11 +397,12 @@ class DMResponderAgentV2:
             # Step 4: Get lead stage
             current_stage = self._get_lead_stage(follower, metadata)
 
-            # Step 5: Build prompts - combine RAG and DNA context
+            # Step 5: Build prompts - combine style, RAG and DNA context
             # Include system_prompt_override if provided (for V2 prompt)
+            # PRIORITY: style_prompt first (defines HOW to write)
             prompt_override = metadata.get("system_prompt_override", "")
             combined_context = "\n\n".join(
-                filter(None, [rag_context, dna_context, prompt_override])
+                filter(None, [self.style_prompt, rag_context, dna_context, prompt_override])
             )
             system_prompt = self.prompt_builder.build_system_prompt(
                 products=self.products, custom_instructions=combined_context

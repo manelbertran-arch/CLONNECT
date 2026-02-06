@@ -1,0 +1,150 @@
+"""
+Creator Style Loader - Unified loader for all creator style/pattern data.
+
+Combines:
+- WritingPatterns (from models/writing_patterns.py)
+- CreatorDMStyle (from services/creator_dm_style_service.py)
+- ToneProfile (from core/tone_service.py)
+
+This provides a single entry point for the DMAgent to get all style data
+formatted for prompt injection.
+
+Scalable for N creators - each can have their own patterns stored in DB.
+"""
+
+import logging
+
+logger = logging.getLogger(__name__)
+
+
+def get_creator_style_prompt(creator_id: str) -> str:
+    """
+    Get the complete style prompt for a creator.
+
+    Combines writing patterns, DM style, and any additional style data
+    into a single formatted string for LLM prompt injection.
+
+    Args:
+        creator_id: Creator ID (e.g., 'stefano_bonanno')
+
+    Returns:
+        Formatted style prompt string, or empty string if no data
+    """
+    sections = []
+
+    # 1. Get writing patterns (punctuation, laughs, emojis, etc.)
+    try:
+        from models.writing_patterns import format_writing_patterns_for_prompt
+
+        writing_prompt = format_writing_patterns_for_prompt(creator_id)
+        if writing_prompt:
+            sections.append(writing_prompt)
+            logger.debug(f"Loaded writing patterns for {creator_id}")
+    except Exception as e:
+        logger.warning(f"Could not load writing patterns for {creator_id}: {e}")
+
+    # 2. Get DM style (length patterns, never_uses, etc.)
+    try:
+        from services.creator_dm_style_service import get_creator_dm_style_for_prompt
+
+        dm_style_prompt = get_creator_dm_style_for_prompt(creator_id)
+        if dm_style_prompt:
+            sections.append(dm_style_prompt)
+            logger.debug(f"Loaded DM style for {creator_id}")
+    except Exception as e:
+        logger.warning(f"Could not load DM style for {creator_id}: {e}")
+
+    # 3. Get tone profile prompt section (if exists in DB/JSON)
+    try:
+        from core.tone_service import get_tone_prompt_section
+
+        tone_prompt = get_tone_prompt_section(creator_id)
+        if tone_prompt:
+            sections.append(tone_prompt)
+            logger.debug(f"Loaded tone profile for {creator_id}")
+    except Exception as e:
+        logger.warning(f"Could not load tone profile for {creator_id}: {e}")
+
+    if not sections:
+        logger.info(f"No style data found for {creator_id}")
+        return ""
+
+    combined = "\n\n".join(sections)
+    logger.info(
+        f"Loaded style prompt for {creator_id}: " f"{len(combined)} chars, {len(sections)} sections"
+    )
+
+    return combined
+
+
+def has_style_data(creator_id: str) -> bool:
+    """
+    Check if a creator has any style data configured.
+
+    Args:
+        creator_id: Creator ID
+
+    Returns:
+        True if any style data exists
+    """
+    try:
+        from models.writing_patterns import get_writing_patterns
+
+        if get_writing_patterns(creator_id):
+            return True
+    except Exception:
+        pass
+
+    try:
+        from services.creator_dm_style_service import CreatorDMStyleService
+
+        if CreatorDMStyleService.get_style(creator_id):
+            return True
+    except Exception:
+        pass
+
+    try:
+        from core.tone_service import get_tone_prompt_section
+
+        if get_tone_prompt_section(creator_id):
+            return True
+    except Exception:
+        pass
+
+    return False
+
+
+def list_creators_with_style() -> list:
+    """
+    List all creator IDs that have style data configured.
+
+    Returns:
+        List of creator IDs
+    """
+    creators = set()
+
+    try:
+        from models.writing_patterns import get_writing_patterns
+
+        # Check known creators
+        for cid in ["stefano_bonanno", "5e5c2364-c99a-4484-b986-741bb84a11cf"]:
+            if get_writing_patterns(cid):
+                creators.add(cid)
+    except Exception:
+        pass
+
+    try:
+        from services.creator_dm_style_service import CreatorDMStyleService
+
+        creators.update(CreatorDMStyleService._styles.keys())
+    except Exception:
+        pass
+
+    try:
+        from core.tone_service import list_profiles
+
+        creators.update(list_profiles())
+    except Exception:
+        pass
+
+    return list(creators)

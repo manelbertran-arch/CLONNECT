@@ -2,6 +2,7 @@
 Debug Router - Diagnostic and debugging endpoints
 Extracted from main.py as part of refactoring
 """
+
 import logging
 import os
 
@@ -492,7 +493,7 @@ async def test_telegram_flow():
                 "message_id": "diag_001",
                 "username": "DiagnosticTest",
                 "name": "Test User",
-            }
+            },
         )
 
         steps.append(
@@ -585,6 +586,9 @@ async def debug_agent_config(creator_id: str):
     elif "tutea siempre" in vocab_lower or "amigo de confianza" in vocab_lower:
         detected_preset = "amigo"
 
+    # Get style prompt info
+    style_prompt = getattr(agent, "style_prompt", "")
+
     return {
         "clone_tone": personality.get("tone"),
         "clone_name": personality.get("name"),
@@ -595,6 +599,10 @@ async def debug_agent_config(creator_id: str):
         "personality_keys": list(personality.keys()),
         "products_count": len(getattr(agent, "products", [])),
         "knowledge_about": personality.get("knowledge_about", {}),
+        "style_prompt_length": len(style_prompt),
+        "style_prompt_preview": style_prompt[:500] if style_prompt else "(no style loaded)",
+        "has_writing_patterns": "PATRONES DE ESCRITURA" in style_prompt,
+        "has_dm_style": "TU ESTILO DE MENSAJES" in style_prompt,
     }
 
 
@@ -605,20 +613,28 @@ async def debug_system_prompt(creator_id: str):
 
     agent = DMResponderAgent(creator_id=creator_id)
 
+    # Get style prompt (now included in agent)
+    style_prompt = getattr(agent, "style_prompt", "")
+
     # New V2 API: use prompt_builder service
     if hasattr(agent, "prompt_builder"):
-        prompt = agent.prompt_builder.build_system_prompt(
+        # Build base prompt
+        base_prompt = agent.prompt_builder.build_system_prompt(
             products=getattr(agent, "products", []),
             creator_name=agent.personality.get("name", creator_id),
+            custom_instructions=style_prompt,  # Include style!
         )
     else:
-        prompt = "(prompt_builder not available)"
+        base_prompt = "(prompt_builder not available)"
 
     return {
-        "prompt": prompt[:3000],
+        "prompt": base_prompt[:5000],
+        "prompt_length": len(base_prompt),
         "personality_name": agent.personality.get("name", "NOT SET"),
         "personality_tone": agent.personality.get("tone", "NOT SET"),
         "products_count": len(getattr(agent, "products", [])),
+        "style_prompt_length": len(style_prompt),
+        "has_style": len(style_prompt) > 0,
     }
 
 
