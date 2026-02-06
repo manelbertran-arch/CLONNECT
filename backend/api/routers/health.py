@@ -245,3 +245,25 @@ async def health_llm():
         provider: LLM provider name
     """
     return await check_llm_health()
+
+
+@router.get("/health/cache")
+def health_cache():
+    """Debug endpoint to check API cache stats and contents."""
+    try:
+        from api.cache import api_cache
+
+        stats = api_cache.stats()
+
+        # Get list of cached keys (without values to avoid memory issues)
+        with api_cache._lock:
+            keys = list(api_cache._cache.keys())
+
+        return {
+            "status": "ok",
+            "stats": stats,
+            "cached_keys": keys[:50],  # Limit to first 50 keys
+            "total_keys": len(keys),
+        }
+    except Exception as e:
+        return {"status": "error", "error": str(e)}
