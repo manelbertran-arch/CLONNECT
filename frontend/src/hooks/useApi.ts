@@ -112,8 +112,8 @@ export function useConversations(creatorId: string = getCreatorId(), limit = 50)
   return useQuery({
     queryKey: apiKeys.conversations(creatorId),
     queryFn: () => getConversations(creatorId, limit, 0),
-    refetchInterval: 5000, // Refresh every 5s for near-instant updates
-    staleTime: 3000,
+    refetchInterval: 30000, // Refresh every 30s (reduced from 5s)
+    staleTime: 15000,
   });
 }
 
@@ -133,8 +133,8 @@ export function useInfiniteConversations(creatorId: string = getCreatorId(), pag
       return undefined;
     },
     initialPageParam: 0,
-    refetchInterval: 5000, // Refresh every 5s for near-instant conversation reordering
-    staleTime: 3000,
+    refetchInterval: 30000, // Refresh every 30s (reduced from 5s)
+    staleTime: 15000,
   });
 }
 
@@ -155,8 +155,8 @@ export function useFollowerDetail(followerId: string | null, creatorId: string =
       return result;
     },
     enabled: !!followerId, // Only fetch when we have a followerId
-    refetchInterval: 5000, // Refresh every 5s for real-time messages
-    staleTime: 3000,
+    refetchInterval: 15000, // Refresh every 15s (reduced from 5s)
+    staleTime: 10000,
   });
 }
 
@@ -168,8 +168,8 @@ export function useLeads(creatorId: string = getCreatorId()) {
   return useQuery({
     queryKey: apiKeys.leads(creatorId),
     queryFn: () => getLeads(creatorId),
-    refetchInterval: 10000, // Refetch every 10 seconds
-    staleTime: 5000,
+    refetchInterval: 30000, // Refetch every 30s (reduced from 10s)
+    staleTime: 15000,
   });
 }
 

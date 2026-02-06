@@ -1,3 +1,4 @@
+import { lazy, Suspense } from "react";
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -11,19 +12,11 @@ import Login from "./pages/Login";
 import Register from "./pages/Register";
 import Welcome from "./pages/Welcome";
 
-// Normal imports (no lazy loading)
+// Critical pages - loaded immediately
 import Dashboard from "./pages/Dashboard";
 import Inbox from "./pages/Inbox";
 import Leads from "./pages/Leads";
-import Nurturing from "./pages/Nurturing";
-import Products from "./pages/Products";
-import Bookings from "./pages/Bookings";
-import Settings from "./pages/Settings";
 import Copilot from "./pages/Copilot";
-import Docs from "./pages/Docs";
-import Terms from "./pages/Terms";
-import Privacy from "./pages/Privacy";
-import BookService from "./pages/BookService";
 import Onboarding from "./pages/Onboarding";
 import CrearClon from "./pages/CrearClon";
 import CreandoClon from "./pages/CreandoClon";
@@ -31,9 +24,28 @@ import Felicidades from "./pages/Felicidades";
 import SwitchUser from "./pages/SwitchUser";
 import InboxTest from "./pages/InboxTest";
 import HomeWithConversations from "./pages/HomeWithConversations";
-import { AnalyticsDashboard } from "./pages/Analytics";
-import TuAudiencia from "./pages/TuAudiencia";
-import Personas from "./pages/Personas";
+
+// Lazy-loaded pages - loaded on demand
+const Nurturing = lazy(() => import("./pages/Nurturing"));
+const Products = lazy(() => import("./pages/Products"));
+const Bookings = lazy(() => import("./pages/Bookings"));
+const Settings = lazy(() => import("./pages/Settings"));
+const Docs = lazy(() => import("./pages/Docs"));
+const Terms = lazy(() => import("./pages/Terms"));
+const Privacy = lazy(() => import("./pages/Privacy"));
+const BookService = lazy(() => import("./pages/BookService"));
+const AnalyticsDashboard = lazy(() => import("./pages/Analytics").then(m => ({ default: m.AnalyticsDashboard })));
+const TuAudiencia = lazy(() => import("./pages/TuAudiencia"));
+const Personas = lazy(() => import("./pages/Personas"));
+
+// Loading fallback for lazy-loaded pages
+function PageLoader() {
+  return (
+    <div className="flex items-center justify-center h-[60vh]">
+      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+    </div>
+  );
+}
 
 // Coming Soon placeholder component
 function ComingSoon({ title }: { title: string }) {
@@ -97,17 +109,17 @@ const AppRoutes = () => {
         <Route path="/inbox" element={<Inbox />} />
         <Route path="/copilot" element={<Copilot />} />
         <Route path="/leads" element={<Leads />} />
-        <Route path="/nurturing" element={<Nurturing />} />
-        <Route path="/products" element={<Products />} />
-        <Route path="/bookings" element={<Bookings />} />
-        <Route path="/settings" element={<Settings />} />
-        <Route path="/analytics" element={<AnalyticsDashboard />} />
-        <Route path="/docs" element={<Docs />} />
-        <Route path="/terms" element={<Terms />} />
-        <Route path="/privacy" element={<Privacy />} />
+        <Route path="/nurturing" element={<Suspense fallback={<PageLoader />}><Nurturing /></Suspense>} />
+        <Route path="/products" element={<Suspense fallback={<PageLoader />}><Products /></Suspense>} />
+        <Route path="/bookings" element={<Suspense fallback={<PageLoader />}><Bookings /></Suspense>} />
+        <Route path="/settings" element={<Suspense fallback={<PageLoader />}><Settings /></Suspense>} />
+        <Route path="/analytics" element={<Suspense fallback={<PageLoader />}><AnalyticsDashboard /></Suspense>} />
+        <Route path="/docs" element={<Suspense fallback={<PageLoader />}><Docs /></Suspense>} />
+        <Route path="/terms" element={<Suspense fallback={<PageLoader />}><Terms /></Suspense>} />
+        <Route path="/privacy" element={<Suspense fallback={<PageLoader />}><Privacy /></Suspense>} />
         {/* Sprint 4 Intelligence routes */}
-        <Route path="/tu-audiencia" element={<TuAudiencia />} />
-        <Route path="/personas" element={<Personas />} />
+        <Route path="/tu-audiencia" element={<Suspense fallback={<PageLoader />}><TuAudiencia /></Suspense>} />
+        <Route path="/personas" element={<Suspense fallback={<PageLoader />}><Personas /></Suspense>} />
       </Route>
 
       {/* New Dashboard Routes */}
@@ -124,7 +136,7 @@ const AppRoutes = () => {
       <Route path="/" element={<Welcome />} />
 
       {/* Public booking page - no authentication required */}
-      <Route path="/book/:creatorId/:serviceId" element={<BookService />} />
+      <Route path="/book/:creatorId/:serviceId" element={<Suspense fallback={<PageLoader />}><BookService /></Suspense>} />
 
       <Route path="*" element={<NotFound />} />
     </Routes>
