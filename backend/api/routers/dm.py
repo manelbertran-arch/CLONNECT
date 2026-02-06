@@ -464,6 +464,21 @@ async def get_dm_metrics(creator_id: str):
 @router.get("/follower/{creator_id}/{follower_id}")
 async def get_follower_detail(creator_id: str, follower_id: str):
     """Obtener detalle de un seguidor con mensajes incluyendo metadata"""
+    import time
+    start = time.time()
+
+    # Check cache first (15s TTL - shorter for active conversations)
+    try:
+        from api.cache import api_cache
+        cache_key = f"follower_detail:{creator_id}:{follower_id}"
+        cached = api_cache.get(cache_key)
+        if cached:
+            logger.info(f"[FOLLOWER] {creator_id}/{follower_id}: cache HIT ({time.time()-start:.2f}s)")
+            return cached
+        logger.info(f"[FOLLOWER] {creator_id}/{follower_id}: cache MISS")
+    except Exception as e:
+        logger.warning(f"Cache check failed: {e}")
+
     try:
         agent = get_dm_agent(creator_id)
         detail = await agent.get_follower_detail(follower_id)
@@ -514,7 +529,16 @@ async def get_follower_detail(creator_id: str, follower_id: str):
                 logger.warning(f"Failed to enrich messages with metadata: {e}")
                 # Continue with original detail
 
-        return {"status": "ok", **detail}
+        result = {"status": "ok", **detail}
+
+        # Cache the result (15s TTL)
+        try:
+            api_cache.set(cache_key, result, ttl_seconds=15)
+            logger.info(f"[FOLLOWER] {creator_id}/{follower_id}: cached ({time.time()-start:.2f}s)")
+        except Exception as e:
+            logger.warning(f"Cache set failed: {e}")
+
+        return result
 
     except HTTPException:
         raise
