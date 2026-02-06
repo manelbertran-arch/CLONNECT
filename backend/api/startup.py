@@ -132,9 +132,9 @@ def register_startup_handlers(app: "FastAPI"):
 
         # Cache refresh task - keeps cache warm continuously
         async def cache_refresh_task():
-            REFRESH_INTERVAL = 25  # seconds (less than 30s TTL)
+            REFRESH_INTERVAL = 20  # seconds (much less than 60s TTL)
             await asyncio.sleep(30)  # Wait for initial warmup to complete
-            logger.info("[CACHE-REFRESH] Started - refreshing every 25s")
+            logger.info("[CACHE-REFRESH] Started - refreshing every 20s")
 
             while True:
                 try:
@@ -406,8 +406,9 @@ async def _do_cache_refresh(SessionLocal):
                         "product_price": 97.0,
                     }
                     # Set for BOTH endpoints (dm.py and messages.py use different keys)
-                    api_cache.set(f"conversations:{creator_id}:50:0", cached_result, ttl_seconds=30)  # messages.py
-                    api_cache.set(f"conversations:{creator_id}:50", cached_result, ttl_seconds=30)    # dm.py
+                    # Use 60s TTL to ensure cache survives between refresh cycles (every 20s)
+                    api_cache.set(f"conversations:{creator_id}:50:0", cached_result, ttl_seconds=60)  # messages.py
+                    api_cache.set(f"conversations:{creator_id}:50", cached_result, ttl_seconds=60)    # dm.py
                     logger.info(f"[CACHE-REFRESH] {creator_id}: cached {len(conversations)} conversations")
             except Exception as e:
                 logger.warning(f"[CACHE-REFRESH] conversations {creator_id} FAILED: {e}")
@@ -417,7 +418,7 @@ async def _do_cache_refresh(SessionLocal):
                 leads = db_service.get_leads(creator_id, limit=100)
                 if leads is not None:
                     cached_result = {"status": "ok", "leads": leads, "count": len(leads)}
-                    api_cache.set(f"leads:{creator_id}:100", cached_result, ttl_seconds=30)
+                    api_cache.set(f"leads:{creator_id}:100", cached_result, ttl_seconds=60)
             except Exception as e:
                 logger.debug(f"[CACHE-REFRESH] leads {creator_id}: {e}")
 
