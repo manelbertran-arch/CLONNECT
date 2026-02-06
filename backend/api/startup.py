@@ -147,84 +147,20 @@ def register_startup_handlers(app: "FastAPI"):
         asyncio.create_task(prewarm_creator_caches())
         logger.info("Cache pre-warming scheduled (background task)")
 
-        # Keep-alive task
+        # Keep-alive task - SIMPLIFIED: just DB ping to prevent cold starts
         async def keep_alive_task():
             import time
 
-            KEEP_ALIVE_INTERVAL = 240
+            KEEP_ALIVE_INTERVAL = 240  # 4 minutes
 
             await asyncio.sleep(3)
-            logger.warning(
-                f"[KEEP-ALIVE] ===== STARTED - will ping every {KEEP_ALIVE_INTERVAL}s (4 min) ====="
-            )
+            logger.info("[KEEP-ALIVE] Started - simple DB ping every 4 min")
 
             while True:
                 try:
                     _t_start = time.time()
-                    active_creators = set(["stefano_auto", "stefano_bonanno"])
 
-                    if SessionLocal:
-                        try:
-                            from api.models import Creator
-
-                            session = SessionLocal()
-                            try:
-                                creators = session.query(Creator).filter_by(bot_active=True).all()
-                                for c in creators:
-                                    if c.name:
-                                        active_creators.add(c.name)
-                            finally:
-                                session.close()
-                        except Exception:
-                            pass
-
-                    try:
-                        from core.telegram_registry import get_telegram_registry
-
-                        registry = get_telegram_registry()
-                        for bot in registry.list_bots():
-                            if bot.get("is_active") and bot.get("creator_id"):
-                                active_creators.add(bot["creator_id"])
-                    except Exception:
-                        pass
-
-                    active_creators = list(active_creators)
-
-                    for creator_id in active_creators:
-                        try:
-                            agent = get_dm_agent(creator_id)
-                            cache_age = time.time() - _dm_agent_cache_timestamp.get(creator_id, 0)
-                            if hasattr(agent, "_build_system_prompt"):
-                                _ = agent._build_system_prompt("")
-                            logger.info(
-                                f"[KEEP-ALIVE] Agent for {creator_id} kept warm (cache age: {cache_age:.1f}s)"
-                            )
-                        except Exception as e:
-                            logger.warning(
-                                f"[KEEP-ALIVE] DM agent warm failed for {creator_id}: {e}"
-                            )
-
-                    try:
-                        from core.semantic_memory import ENABLE_SEMANTIC_MEMORY, _get_embeddings
-
-                        if ENABLE_SEMANTIC_MEMORY:
-                            _get_embeddings()
-                    except Exception:
-                        pass
-
-                    try:
-                        from core.citation_service import get_content_index
-                        from core.tone_service import get_tone_prompt_section
-
-                        for creator_id in active_creators:
-                            try:
-                                get_tone_prompt_section(creator_id)
-                                get_content_index(creator_id)
-                            except Exception:
-                                pass
-                    except Exception:
-                        pass
-
+                    # SIMPLE: Just ping the database - no Instagram, no LLM, no heavy ops
                     if SessionLocal:
                         try:
                             from sqlalchemy import text
@@ -232,16 +168,14 @@ def register_startup_handlers(app: "FastAPI"):
                             session = SessionLocal()
                             session.execute(text("SELECT 1"))
                             session.close()
-                        except Exception:
-                            pass
+                        except Exception as e:
+                            logger.warning(f"[KEEP-ALIVE] DB ping failed: {e}")
 
                     _t_end = time.time()
-                    logger.warning(
-                        f"[KEEP-ALIVE] ===== Ping completed in {_t_end - _t_start:.2f}s ====="
-                    )
+                    logger.debug(f"[KEEP-ALIVE] Ping OK in {_t_end - _t_start:.3f}s")
 
                 except Exception as e:
-                    logger.error(f"[KEEP-ALIVE] Error: {e}", exc_info=True)
+                    logger.error(f"[KEEP-ALIVE] Error: {e}")
 
                 await asyncio.sleep(KEEP_ALIVE_INTERVAL)
 
