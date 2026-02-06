@@ -112,10 +112,16 @@ async def discard_response(creator_id: str, message_id: str):
     Returns:
         Confirmación del descarte
     """
+    import time
+
     from core.copilot_service import get_copilot_service
 
+    start = time.time()
     service = get_copilot_service()
     result = await service.discard_response(creator_id, message_id)
+    elapsed = time.time() - start
+
+    logger.info(f"⏱️ Copilot discard took {elapsed:.2f}s for message {message_id}")
 
     if not result.get("success"):
         raise HTTPException(status_code=400, detail=result.get("error", "Failed to discard"))

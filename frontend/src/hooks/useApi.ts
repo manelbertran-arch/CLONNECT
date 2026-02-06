@@ -1001,13 +1001,44 @@ export function useCopilotStatus(creatorId: string = getCreatorId()) {
 
 /**
  * Hook to approve a copilot response
+ * Uses optimistic update for instant UI feedback
  */
 export function useApproveCopilotResponse(creatorId: string = getCreatorId()) {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: ({ messageId, editedText }: { messageId: string; editedText?: string }) =>
       approveCopilotResponse(creatorId, messageId, editedText),
-    onSuccess: () => {
+    // Optimistic update: remove item immediately before server responds
+    onMutate: async ({ messageId }) => {
+      // Cancel outgoing refetches to prevent race conditions
+      await queryClient.cancelQueries({ queryKey: apiKeys.copilotPending(creatorId) });
+
+      // Snapshot previous value for rollback
+      const previousData = queryClient.getQueryData(apiKeys.copilotPending(creatorId));
+
+      // Optimistically remove the item from cache
+      queryClient.setQueryData(
+        apiKeys.copilotPending(creatorId),
+        (old: { pending_responses: Array<{ id: string }>; pending_count: number } | undefined) => {
+          if (!old) return old;
+          return {
+            ...old,
+            pending_responses: old.pending_responses.filter((r) => r.id !== messageId),
+            pending_count: Math.max(0, old.pending_count - 1),
+          };
+        }
+      );
+
+      return { previousData };
+    },
+    // Rollback on error
+    onError: (_err, _variables, context) => {
+      if (context?.previousData) {
+        queryClient.setQueryData(apiKeys.copilotPending(creatorId), context.previousData);
+      }
+    },
+    // Always refetch after success or error to ensure consistency
+    onSettled: () => {
       queryClient.invalidateQueries({ queryKey: apiKeys.copilotPending(creatorId) });
       queryClient.invalidateQueries({ queryKey: apiKeys.copilotStatus(creatorId) });
       queryClient.invalidateQueries({ queryKey: apiKeys.conversations(creatorId) });
@@ -1017,12 +1048,43 @@ export function useApproveCopilotResponse(creatorId: string = getCreatorId()) {
 
 /**
  * Hook to discard a copilot response
+ * Uses optimistic update for instant UI feedback
  */
 export function useDiscardCopilotResponse(creatorId: string = getCreatorId()) {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (messageId: string) => discardCopilotResponse(creatorId, messageId),
-    onSuccess: () => {
+    // Optimistic update: remove item immediately before server responds
+    onMutate: async (messageId: string) => {
+      // Cancel outgoing refetches to prevent race conditions
+      await queryClient.cancelQueries({ queryKey: apiKeys.copilotPending(creatorId) });
+
+      // Snapshot previous value for rollback
+      const previousData = queryClient.getQueryData(apiKeys.copilotPending(creatorId));
+
+      // Optimistically remove the item from cache
+      queryClient.setQueryData(
+        apiKeys.copilotPending(creatorId),
+        (old: { pending_responses: Array<{ id: string }>; pending_count: number } | undefined) => {
+          if (!old) return old;
+          return {
+            ...old,
+            pending_responses: old.pending_responses.filter((r) => r.id !== messageId),
+            pending_count: Math.max(0, old.pending_count - 1),
+          };
+        }
+      );
+
+      return { previousData };
+    },
+    // Rollback on error
+    onError: (_err, _messageId, context) => {
+      if (context?.previousData) {
+        queryClient.setQueryData(apiKeys.copilotPending(creatorId), context.previousData);
+      }
+    },
+    // Always refetch after success or error to ensure consistency
+    onSettled: () => {
       queryClient.invalidateQueries({ queryKey: apiKeys.copilotPending(creatorId) });
       queryClient.invalidateQueries({ queryKey: apiKeys.copilotStatus(creatorId) });
     },
