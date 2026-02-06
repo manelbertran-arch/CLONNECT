@@ -479,6 +479,15 @@ async def update_follower_status(creator_id: str, follower_id: str, data: dict =
 
 @router.get("/conversations/{creator_id}")
 async def get_conversations(creator_id: str, limit: int = 50, offset: int = 0):
+    from api.cache import api_cache
+
+    # Check cache first (10s TTL)
+    cache_key = f"conversations:{creator_id}:{limit}:{offset}"
+    cached = api_cache.get(cache_key)
+    if cached:
+        logger.debug(f"[CONV] {creator_id}: cache HIT")
+        return cached
+
     product_price = 97.0  # Default price
 
     # Try PostgreSQL with OPTIMIZED query (single query with JOIN instead of N+1)
@@ -544,7 +553,7 @@ async def get_conversations(creator_id: str, limit: int = 50, offset: int = 0):
                             "deal_value": c.get("deal_value"),
                         }
                     )
-                return {
+                result = {
                     "status": "ok",
                     "conversations": conversations,
                     "count": len(conversations),
@@ -554,6 +563,9 @@ async def get_conversations(creator_id: str, limit: int = 50, offset: int = 0):
                     "has_more": has_more,
                     "product_price": product_price,
                 }
+                # Cache for 10 seconds
+                api_cache.set(cache_key, result, ttl_seconds=10)
+                return result
         except Exception as e:
             logger.warning(f"Get conversations (PostgreSQL optimized) failed: {e}")
 
