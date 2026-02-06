@@ -1502,17 +1502,13 @@ export default function Leads() {
           </AlertDialogHeader>
           <AlertDialogFooter className="gap-2">
             <AlertDialogCancel className="h-8 text-xs">Cancelar</AlertDialogCancel>
-            <AlertDialogAction
+            <Button
               onClick={handleDeleteLead}
               className="h-8 text-xs bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >
-              {deleteLeadMutation.isPending ? (
-                <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" />
-              ) : (
-                <Trash2 className="w-3.5 h-3.5 mr-1.5" />
-              )}
+              <Trash2 className="w-3.5 h-3.5 mr-1.5" />
               Eliminar
-            </AlertDialogAction>
+            </Button>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
