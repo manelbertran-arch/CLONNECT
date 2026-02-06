@@ -14,8 +14,8 @@ from alembic import op
 from sqlalchemy.dialects.postgresql import JSONB
 
 # revision identifiers, used by Alembic.
-revision = "008"
-down_revision = "007"
+revision = "008b"
+down_revision = "008"
 branch_labels = None
 depends_on = None
 
@@ -34,7 +34,9 @@ def upgrade():
         sa.Column("status", sa.String(20), nullable=False, default="pending"),
         sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.func.now()),
         sa.Column("sent_at", sa.DateTime(timezone=True), nullable=True),
-        sa.Column("extra_data", JSONB, nullable=True, default={}),  # Renamed from metadata - reserved in SQLAlchemy
+        sa.Column(
+            "extra_data", JSONB, nullable=True, default={}
+        ),  # Renamed from metadata - reserved in SQLAlchemy
     )
 
     # Index for getting pending followups by creator (most common query)
