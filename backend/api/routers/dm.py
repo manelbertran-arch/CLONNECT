@@ -100,7 +100,7 @@ async def get_conversations(creator_id: str, limit: int = 50):
     from api.cache import api_cache
     import time as _time
 
-    # Check cache first (10s TTL)
+    # Check cache first (30s TTL)
     cache_key = f"conversations:{creator_id}:{limit}"
     cached = api_cache.get(cache_key)
     if cached:
@@ -255,7 +255,7 @@ async def get_conversations(creator_id: str, limit: int = 50):
                         "count": len(conversations),
                     }
                     # Cache for 10 seconds
-                    api_cache.set(cache_key, result, ttl_seconds=10)
+                    api_cache.set(cache_key, result, ttl_seconds=30)
                     return result
                 finally:
                     session.close()

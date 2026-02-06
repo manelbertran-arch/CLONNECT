@@ -481,7 +481,7 @@ async def update_follower_status(creator_id: str, follower_id: str, data: dict =
 async def get_conversations(creator_id: str, limit: int = 50, offset: int = 0):
     from api.cache import api_cache
 
-    # Check cache first (10s TTL)
+    # Check cache first (30s TTL)
     cache_key = f"conversations:{creator_id}:{limit}:{offset}"
     cached = api_cache.get(cache_key)
     if cached:
@@ -564,7 +564,7 @@ async def get_conversations(creator_id: str, limit: int = 50, offset: int = 0):
                     "product_price": product_price,
                 }
                 # Cache for 10 seconds
-                api_cache.set(cache_key, result, ttl_seconds=10)
+                api_cache.set(cache_key, result, ttl_seconds=30)
                 return result
         except Exception as e:
             logger.warning(f"Get conversations (PostgreSQL optimized) failed: {e}")

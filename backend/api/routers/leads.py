@@ -80,7 +80,7 @@ async def get_leads(creator_id: str, limit: int = 100):
     """
     from api.cache import api_cache
 
-    # Check cache first (10s TTL)
+    # Check cache first (30s TTL)
     cache_key = f"leads:{creator_id}:{limit}"
     cached = api_cache.get(cache_key)
     if cached:
@@ -93,8 +93,8 @@ async def get_leads(creator_id: str, limit: int = 100):
             if leads is not None:
                 adapted = adapt_leads_response(leads)
                 result = {"status": "ok", "leads": adapted, "count": len(adapted)}
-                # Cache for 10 seconds
-                api_cache.set(cache_key, result, ttl_seconds=10)
+                # Cache for 30 seconds (matches frontend polling interval)
+                api_cache.set(cache_key, result, ttl_seconds=30)
                 return result
         except Exception as e:
             logger.error(f"DB get leads failed for {creator_id}: {e}")
@@ -220,11 +220,13 @@ async def create_lead(creator_id: str, data: dict = Body(...)):
 
 @router.post("/{creator_id}/manual")
 async def create_manual_lead(creator_id: str, data: dict = Body(...)):
+    start = time.time()
     # Try PostgreSQL first
     if USE_DB:
         try:
             result = db_service.create_lead(creator_id, data)
             if result:
+                logger.info(f"⏱️ Lead create took {time.time()-start:.2f}s")
                 return {"status": "ok", "lead": adapt_lead_response(result)}
         except Exception as e:
             logger.warning(f"DB create lead failed: {e}")
@@ -298,11 +300,13 @@ async def update_lead(creator_id: str, lead_id: str, data: dict = Body(...)):
 
 @router.delete("/{creator_id}/{lead_id}")
 async def delete_lead(creator_id: str, lead_id: str):
+    start = time.time()
     # Try PostgreSQL first
     if USE_DB:
         try:
             success = db_service.delete_lead(creator_id, lead_id)
             if success:
+                logger.info(f"⏱️ Lead delete took {time.time()-start:.2f}s")
                 return {"status": "ok", "message": "Lead deleted"}
         except Exception as e:
             logger.warning(f"DB delete lead failed: {e}")
