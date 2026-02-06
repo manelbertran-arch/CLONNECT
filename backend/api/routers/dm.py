@@ -467,7 +467,11 @@ async def get_dm_metrics(creator_id: str):
 
 @router.get("/follower/{creator_id}/{follower_id}")
 async def get_follower_detail(creator_id: str, follower_id: str):
-    """Obtener detalle de un seguidor con mensajes incluyendo metadata"""
+    """Obtener detalle de un seguidor con mensajes incluyendo metadata.
+
+    OPTIMIZED: Query DB directly for leads, skip slow JSON file reads.
+    Only fallback to agent for non-leads.
+    """
     import time as _time
 
     from api.cache import api_cache
@@ -483,12 +487,9 @@ async def get_follower_detail(creator_id: str, follower_id: str):
     logger.info(f"[FOLLOWER] {creator_id}/{follower_id}: cache MISS")
 
     try:
-        agent = get_dm_agent(creator_id)
-        detail = await agent.get_follower_detail(follower_id)
-        if not detail:
-            raise HTTPException(status_code=404, detail="Follower not found")
+        detail = None
 
-        # Enrich messages with metadata from PostgreSQL
+        # FAST PATH: Try DB first for leads (skip slow JSON reads)
         if USE_DB:
             try:
                 from api.models import Creator, Lead, Message
@@ -505,8 +506,7 @@ async def get_follower_detail(creator_id: str, follower_id: str):
                                 .first()
                             )
                             if lead:
-                                # OPTIMIZED: Get only last 50 messages from DB (not all)
-                                # Query DESC to get newest first, then reverse for chronological order
+                                # Build detail directly from DB - no JSON file reads!
                                 messages = (
                                     session.query(Message)
                                     .filter_by(lead_id=lead.id)
@@ -514,29 +514,47 @@ async def get_follower_detail(creator_id: str, follower_id: str):
                                     .limit(50)
                                     .all()
                                 )
-                                if messages:
-                                    # Reverse to get chronological order
-                                    messages = messages[::-1]
-                                    detail["last_messages"] = [
+                                messages = messages[::-1]  # Chronological order
+
+                                detail = {
+                                    "follower_id": lead.platform_user_id,
+                                    "username": lead.username,
+                                    "name": lead.name,
+                                    "platform": lead.platform or "instagram",
+                                    "profile_pic_url": lead.profile_pic_url,
+                                    "total_messages": len(messages),
+                                    "purchase_intent_score": lead.purchase_intent_score or 0,
+                                    "is_lead": True,
+                                    "is_customer": lead.status == "cliente",
+                                    "status": lead.status,
+                                    "email": lead.email,
+                                    "phone": lead.phone,
+                                    "notes": lead.notes,
+                                    "deal_value": lead.deal_value,
+                                    "tags": lead.tags or [],
+                                    "last_messages": [
                                         {
                                             "role": m.role,
                                             "content": m.content,
-                                            "timestamp": (
-                                                m.created_at.isoformat() if m.created_at else None
-                                            ),
-                                            "metadata": (
-                                                m.msg_metadata
-                                                if hasattr(m, "msg_metadata") and m.msg_metadata
-                                                else {}
-                                            ),
+                                            "timestamp": m.created_at.isoformat() if m.created_at else None,
+                                            "metadata": m.msg_metadata or {},
                                         }
                                         for m in messages
-                                    ]
+                                    ],
+                                }
+                                logger.info(f"[FOLLOWER] {creator_id}/{follower_id}: DB FAST PATH ({_time.time()-start:.3f}s)")
                     finally:
                         session.close()
             except Exception as e:
-                logger.warning(f"Failed to enrich messages with metadata: {e}")
-                # Continue with original detail
+                logger.warning(f"[FOLLOWER] DB fast path failed: {e}")
+
+        # SLOW PATH: Fallback to agent for non-leads (reads JSON files)
+        if detail is None:
+            agent = get_dm_agent(creator_id)
+            detail = await agent.get_follower_detail(follower_id)
+            if not detail:
+                raise HTTPException(status_code=404, detail="Follower not found")
+            logger.info(f"[FOLLOWER] {creator_id}/{follower_id}: AGENT PATH ({_time.time()-start:.3f}s)")
 
         result = {"status": "ok", **detail}
 
