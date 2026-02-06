@@ -80,6 +80,19 @@ async def get_metrics(creator_id: str):
 
 @router.get("/follower/{creator_id}/{follower_id}")
 async def get_follower_detail(creator_id: str, follower_id: str):
+    import time as _time
+
+    from api.cache import api_cache
+
+    start = _time.time()
+
+    # Check cache first (60s TTL)
+    cache_key = f"follower_detail:{creator_id}:{follower_id}"
+    cached = api_cache.get(cache_key)
+    if cached:
+        logger.info(f"[FOLLOWER] {creator_id}/{follower_id}: cache HIT ({_time.time()-start:.3f}s)")
+        return cached
+
     # Try PostgreSQL first
     if USE_DB:
         try:
@@ -112,52 +125,35 @@ async def get_follower_detail(creator_id: str, follower_id: str):
                                 .first()
                             )
                         if lead:
-                            # Get messages from PostgreSQL
+                            # OPTIMIZED: Get only last 50 messages with LIMIT in query
+                            # Query DESC to get newest, then reverse for chronological
                             messages = (
                                 session.query(Message)
                                 .filter_by(lead_id=lead.id)
-                                .order_by(Message.created_at.asc())
+                                .order_by(Message.created_at.desc())
+                                .limit(50)
                                 .all()
                             )
+                            messages = messages[::-1]  # Reverse for chronological order
                             last_messages = [
                                 {
                                     "role": m.role,
                                     "content": m.content,
                                     "timestamp": m.created_at.isoformat() if m.created_at else None,
-                                    "metadata": (
-                                        m.msg_metadata
-                                        if hasattr(m, "msg_metadata") and m.msg_metadata
-                                        else {}
-                                    ),
+                                    "metadata": m.msg_metadata or {},
                                 }
-                                for m in messages[-50:]  # Last 50 messages
+                                for m in messages
                             ]
+                            # Skip JSON fallback - DB is source of truth
 
-                            # If PostgreSQL has no messages, try JSON fallback
-                            if not last_messages:
-                                try:
-                                    from api.services.data_sync import _load_json
-
-                                    json_data = _load_json(creator_id, follower_id)
-                                    if json_data:
-                                        last_messages = json_data.get("last_messages", [])[-50:]
-                                except Exception as e:
-                                    logger.warning(
-                                        "Failed to load JSON fallback for %s: %s", follower_id, e
-                                    )
-
-                            return {
+                            result = {
                                 "status": "ok",
                                 "follower_id": lead.platform_user_id or str(lead.id),
                                 "username": lead.username,
                                 "name": lead.full_name,
                                 "profile_pic_url": lead.profile_pic_url,
                                 "platform": lead.platform or "instagram",
-                                "total_messages": (
-                                    len(messages)
-                                    if messages
-                                    else len([m for m in last_messages if m.get("role") == "user"])
-                                ),
+                                "total_messages": len(messages),
                                 "purchase_intent": lead.purchase_intent or 0,
                                 "purchase_intent_score": lead.purchase_intent or 0,
                                 "is_lead": True,
@@ -173,6 +169,9 @@ async def get_follower_detail(creator_id: str, follower_id: str):
                                     else None
                                 ),
                             }
+                            api_cache.set(cache_key, result, ttl_seconds=60)
+                            logger.info(f"[FOLLOWER] {creator_id}/{follower_id}: DB path ({_time.time()-start:.3f}s)")
+                            return result
                 finally:
                     session.close()
         except Exception as e:
