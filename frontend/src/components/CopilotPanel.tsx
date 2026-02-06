@@ -5,7 +5,7 @@
  * - Automático (copilot_enabled: false): Bot responds automatically
  * - Manual (copilot_enabled: true): Human reviews and approves responses
  */
-import { useState, useCallback } from "react";
+import { useState } from "react";
 import {
   Bot,
   Check,
@@ -334,7 +334,7 @@ export default function CopilotPanel() {
   // copilot_enabled: false = Automatic mode (bot responds alone)
   const isManualMode = statusData?.copilot_enabled ?? true;
 
-  const handleApprove = useCallback((messageId: string, editedText?: string) => {
+  const handleApprove = (messageId: string, editedText?: string) => {
     // INSTANT: Hide immediately via local state (polling can't override this)
     setHiddenIds(prev => new Set([...prev, messageId]));
 
@@ -362,9 +362,9 @@ export default function CopilotPanel() {
         },
       }
     );
-  }, [approveMutation, toast]);
+  };
 
-  const handleDiscard = useCallback((messageId: string) => {
+  const handleDiscard = (messageId: string) => {
     // INSTANT: Hide immediately via local state (polling can't override this)
     setHiddenIds(prev => new Set([...prev, messageId]));
 
@@ -390,7 +390,7 @@ export default function CopilotPanel() {
         });
       },
     });
-  }, [discardMutation, toast]);
+  };
 
   const handleModeToggle = (manualMode: boolean) => {
     // Prevent action if already loading or same mode
