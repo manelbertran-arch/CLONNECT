@@ -25,8 +25,26 @@ from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Any, Dict, List, Optional
 
+from core.context_detector import detect_all as detect_context
+
+# DETECTORES - Detect frustration, context, sensitive content
+from core.frustration_detector import get_frustration_detector
+
+# VALIDADORES - Output quality
+from core.guardrails import get_response_guardrail
+
 # Import notification service for escalations
 from core.notifications import EscalationNotification, get_notification_service
+
+# RAG AVANZADO - Reranking for better results
+from core.rag.reranker import ENABLE_RERANKING
+from core.rag.reranker import rerank as rag_rerank
+
+# RAZONAMIENTO - Chain of thought for complex queries
+from core.reasoning.chain_of_thought import ChainOfThoughtReasoner
+
+# MEMORIA AVANZADA - Conversation facts tracking
+from models.conversation_memory import ConversationMemory
 
 # Import all services
 from services import (
@@ -43,9 +61,28 @@ from services import (
 
 # Import DNA context integration
 from services.dm_agent_context_integration import get_context_for_dm_agent
+from services.edge_case_handler import get_edge_case_handler
 
 # Re-export Intent for backward compatibility
 from services.intent_service import Intent
+
+# SERVICIOS DE RESPUESTA - Response quality
+from services.length_controller import detect_message_type, enforce_length
+from services.response_variator_v2 import get_response_variator_v2
+
+# =============================================================================
+# COGNITIVE SYSTEMS INTEGRATION (v2.5)
+# =============================================================================
+
+
+
+
+# Feature flags for cognitive systems
+ENABLE_FRUSTRATION_DETECTION = os.getenv("ENABLE_FRUSTRATION_DETECTION", "true").lower() == "true"
+ENABLE_CONTEXT_DETECTION = os.getenv("ENABLE_CONTEXT_DETECTION", "true").lower() == "true"
+ENABLE_CONVERSATION_MEMORY = os.getenv("ENABLE_CONVERSATION_MEMORY", "true").lower() == "true"
+ENABLE_GUARDRAILS = os.getenv("ENABLE_GUARDRAILS", "true").lower() == "true"
+ENABLE_CHAIN_OF_THOUGHT = os.getenv("ENABLE_CHAIN_OF_THOUGHT", "false").lower() == "true"
 
 logger = logging.getLogger(__name__)
 
@@ -348,7 +385,38 @@ class DMResponderAgentV2:
         # Instagram API
         self.instagram_service = InstagramService(access_token=os.getenv("INSTAGRAM_ACCESS_TOKEN"))
 
-        logger.debug("All services initialized")
+        # =============================================================================
+        # COGNITIVE SYSTEMS (v2.5)
+        # =============================================================================
+
+        # Detectores
+        if ENABLE_FRUSTRATION_DETECTION:
+            self.frustration_detector = get_frustration_detector()
+
+        # Edge case handler
+        self.edge_case_handler = get_edge_case_handler()
+
+        # Response variator (pools)
+        self.response_variator = get_response_variator_v2()
+
+        # Guardrails
+        if ENABLE_GUARDRAILS:
+            try:
+                self.guardrails = get_response_guardrail()
+            except Exception as e:
+                logger.warning(f"Could not initialize guardrails: {e}")
+
+        # Chain of thought (disabled by default - expensive)
+        if ENABLE_CHAIN_OF_THOUGHT:
+            try:
+                self.chain_of_thought = ChainOfThoughtReasoner(self.llm_service)
+            except Exception as e:
+                logger.warning(f"Could not initialize chain of thought: {e}")
+
+        # Conversation memory cache (per follower)
+        self._conversation_memories: Dict[str, ConversationMemory] = {}
+
+        logger.debug("All services initialized (including cognitive systems)")
 
     async def process_dm(
         self,
@@ -371,22 +439,87 @@ class DMResponderAgentV2:
             DMResponse with generated content and metadata
         """
         metadata = metadata or {}
+        cognitive_metadata = {}  # Track cognitive system outputs
 
         try:
-            # Step 1: Classify intent
+            # =================================================================
+            # PHASE 1: DETECTION (Frustration, Context, Edge Cases)
+            # =================================================================
+
+            # Step 1a: Detect frustration level
+            frustration_level = 0.0
+            frustration_signals = None
+            if ENABLE_FRUSTRATION_DETECTION and hasattr(self, "frustration_detector"):
+                try:
+                    history = metadata.get("history", [])
+                    prev_messages = [
+                        m.get("content", "") for m in history if m.get("role") == "user"
+                    ]
+                    frustration_signals, frustration_level = (
+                        self.frustration_detector.analyze_message(message, sender_id, prev_messages)
+                    )
+                    if frustration_level > 0.3:
+                        logger.info(f"Frustration detected: {frustration_level:.2f}")
+                        cognitive_metadata["frustration_level"] = frustration_level
+                except Exception as e:
+                    logger.debug(f"Frustration detection failed: {e}")
+
+            # Step 1b: Detect context signals (sarcasm, B2B, etc.)
+            context_signals = None
+            if ENABLE_CONTEXT_DETECTION:
+                try:
+                    history = metadata.get("history", [])
+                    context_signals = detect_context(message, history)
+                    if context_signals and context_signals.alerts:
+                        cognitive_metadata["context_signals"] = context_signals.to_dict()
+                except Exception as e:
+                    logger.debug(f"Context detection failed: {e}")
+
+            # Step 1c: Try pool response for simple messages (fast path)
+            if hasattr(self, "response_variator"):
+                pool_result = self.response_variator.try_pool_response(message)
+                if pool_result.matched and pool_result.confidence >= 0.8:
+                    logger.debug(f"Pool response matched: {pool_result.category}")
+                    return DMResponse(
+                        content=pool_result.response,
+                        intent="pool_response",
+                        lead_stage="unknown",
+                        confidence=pool_result.confidence,
+                        tokens_used=0,
+                        metadata={"pool_category": pool_result.category, "used_pool": True},
+                    )
+
+            # =================================================================
+            # PHASE 2: MEMORY & CONTEXT LOADING
+            # =================================================================
+
+            # Step 2: Classify intent
             intent = self.intent_classifier.classify(message)
             intent_value = intent.value if hasattr(intent, "value") else str(intent)
             logger.debug(f"Intent classified: {intent_value}")
 
-            # Step 2: Get or create follower memory
+            # Step 3: Get or create follower memory
             follower = await self.memory_store.get_or_create(
                 creator_id=self.creator_id,
                 follower_id=sender_id,
                 username=metadata.get("username", sender_id),
             )
 
-            # Step 3: Retrieve relevant context (RAG)
+            # =================================================================
+            # PHASE 3: RAG RETRIEVAL WITH RERANKING
+            # =================================================================
+
+            # Step 4: Retrieve relevant context (RAG)
             rag_results = self.rag_service.retrieve(message, top_k=self.config.rag_top_k)
+
+            # Step 4b: Rerank results if enabled
+            if ENABLE_RERANKING and rag_results:
+                try:
+                    rag_results = rag_rerank(message, rag_results, top_k=3)
+                    cognitive_metadata["rag_reranked"] = True
+                except Exception as e:
+                    logger.debug(f"Reranking failed: {e}")
+
             rag_context = self._format_rag_context(rag_results)
 
             # Step 3b: Get RelationshipDNA context (personalization per lead)
@@ -417,14 +550,57 @@ class DMResponderAgentV2:
                 history=history,
             )
 
-            # Step 6: Generate response via LLM
-            full_prompt = f"{user_context}\n\nMensaje actual: {message}"
+            # =================================================================
+            # PHASE 4: LLM GENERATION
+            # =================================================================
+
+            # Step 6: Inject frustration context if detected
+            if frustration_level > 0.5:
+                full_prompt = (
+                    f"{user_context}\n\n"
+                    f"⚠️ NOTA: El usuario parece frustrado (nivel: {frustration_level:.0%}). "
+                    f"Responde con empatía y ofrece ayuda concreta.\n\n"
+                    f"Mensaje actual: {message}"
+                )
+            else:
+                full_prompt = f"{user_context}\n\nMensaje actual: {message}"
+
             llm_response = await self.llm_service.generate(
                 prompt=full_prompt, system_prompt=system_prompt
             )
 
-            # Step 7: Format response for Instagram
-            formatted_content = self.instagram_service.format_message(llm_response.content)
+            # =================================================================
+            # PHASE 5: POST-PROCESSING (Guardrails, Length Control)
+            # =================================================================
+
+            response_content = llm_response.content
+
+            # Step 7a: Apply guardrails validation
+            if ENABLE_GUARDRAILS and hasattr(self, "guardrails"):
+                try:
+                    guardrail_result = self.guardrails.validate_response(
+                        query=message,
+                        response=response_content,
+                        context={"products": self.products},
+                    )
+                    if not guardrail_result.get("valid", True):
+                        logger.warning(f"Guardrail triggered: {guardrail_result.get('reason')}")
+                        if guardrail_result.get("corrected_response"):
+                            response_content = guardrail_result["corrected_response"]
+                        cognitive_metadata["guardrail_triggered"] = guardrail_result.get("reason")
+                except Exception as e:
+                    logger.debug(f"Guardrails check failed: {e}")
+
+            # Step 7b: Apply length control based on message type
+            try:
+                msg_type = detect_message_type(message)
+                response_content = enforce_length(response_content, msg_type)
+                cognitive_metadata["message_type"] = msg_type
+            except Exception as e:
+                logger.debug(f"Length control failed: {e}")
+
+            # Step 7c: Format response for Instagram
+            formatted_content = self.instagram_service.format_message(response_content)
 
             # Step 8: Update follower memory
             await self._update_follower_memory(follower, message, formatted_content, intent_value)
