@@ -50,6 +50,10 @@ class ResponseVariator:
             "nos vemos",
             "nos juntamos",
             "juntarnos",
+            "invitando",
+            "te invito",
+            "mi bar",
+            "a tomar",
         ]
         if any(m in message_lower for m in meeting_words):
             return "meeting_request"

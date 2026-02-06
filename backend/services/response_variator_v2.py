@@ -181,6 +181,10 @@ class ResponseVariatorV2:
             "nos vemos",
             "nos juntamos",
             "juntarnos",
+            "invitando",
+            "te invito",
+            "mi bar",
+            "a tomar",
         ]
         if any(m in msg for m in meeting_triggers):
             return ("meeting_request", 0.98)
