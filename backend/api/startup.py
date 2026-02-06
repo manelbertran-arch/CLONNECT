@@ -29,7 +29,6 @@ def register_startup_handlers(app: "FastAPI"):
         # Import dependencies here to avoid circular imports
         from api.database import SessionLocal
         from api.init_db import init_database
-        from core.dm_agent_v2 import _dm_agent_cache_timestamp, get_dm_agent
         from core.rag import get_simple_rag
 
         rag = get_simple_rag()
@@ -233,6 +232,121 @@ async def _do_prewarm(SessionLocal):
             get_content_index(creator_id)
         except Exception as e:
             logger.debug(f"CitationIndex not found for {creator_id}: {e}")
+
+    # === NEW: Warm API response cache for conversations and leads ===
+    try:
+        from api.cache import api_cache
+        from api.services import db_service
+
+        for creator_id in active_creators:
+            try:
+                # Warm conversations cache (limit=50, offset=0 - default params)
+                result = db_service.get_conversations_with_counts(creator_id, limit=50, offset=0)
+                if result:
+                    cache_key = f"conversations:{creator_id}:50:0"
+                    # Format like the endpoint does
+                    conversations_data = result.get("conversations", [])
+                    from api.routers.messages import get_pipeline_score
+
+                    conversations = []
+                    for c in conversations_data:
+                        lead_status = c.get("status", "new")
+                        intent = c.get("purchase_intent_score", 0)
+                        conversations.append(
+                            {
+                                "follower_id": c.get("platform_user_id") or c.get("follower_id"),
+                                "id": c.get("id"),
+                                "username": c.get("username"),
+                                "name": c.get("name"),
+                                "profile_pic_url": c.get("profile_pic_url"),
+                                "platform": c.get("platform", "instagram"),
+                                "total_messages": c.get("total_messages", 0),
+                                "purchase_intent": intent,
+                                "purchase_intent_score": (
+                                    round(intent * 100) if intent <= 1 else int(intent)
+                                ),
+                                "lead_status": lead_status,
+                                "status": lead_status,
+                                "pipeline_score": get_pipeline_score(lead_status),
+                                "last_messages": [],
+                                "last_contact": c.get("last_contact"),
+                                "first_contact": c.get("first_contact"),
+                                "last_message_preview": c.get("last_message_preview"),
+                                "last_message_role": c.get("last_message_role"),
+                                "is_unread": c.get("is_unread", False),
+                                "is_verified": c.get("is_verified", False),
+                                "email": c.get("email") or "",
+                                "phone": c.get("phone") or "",
+                                "notes": c.get("notes") or "",
+                                "tags": c.get("tags") or [],
+                                "deal_value": c.get("deal_value"),
+                            }
+                        )
+                    cached_result = {
+                        "status": "ok",
+                        "conversations": conversations,
+                        "count": len(conversations),
+                        "total_count": result.get("total_count", 0),
+                        "limit": 50,
+                        "offset": 0,
+                        "has_more": result.get("has_more", False),
+                        "product_price": 97.0,
+                    }
+                    api_cache.set(
+                        cache_key, cached_result, ttl_seconds=30
+                    )  # 30s for startup warmup
+                    logger.info(
+                        f"[CACHE-WARM] {creator_id}: conversations cached ({len(conversations)} items)"
+                    )
+            except Exception as e:
+                logger.warning(f"[CACHE-WARM] Failed to warm conversations for {creator_id}: {e}")
+
+            try:
+                # Warm leads cache (limit=100 - default param)
+                leads = db_service.get_leads(creator_id, limit=100)
+                if leads is not None:
+                    cache_key = f"leads:{creator_id}:100"
+                    adapted = []
+                    for lead in leads:
+                        lead_status = lead.status or "nuevo"
+                        intent = lead.purchase_intent or 0
+                        adapted.append(
+                            {
+                                "id": str(lead.id),
+                                "platform_user_id": lead.platform_user_id,
+                                "username": lead.username,
+                                "full_name": lead.full_name,
+                                "profile_pic_url": lead.profile_pic_url,
+                                "platform": lead.platform or "instagram",
+                                "status": lead_status,
+                                "purchase_intent": intent,
+                                "purchase_intent_score": (
+                                    round(intent * 100) if intent <= 1 else int(intent)
+                                ),
+                                "last_contact_at": (
+                                    lead.last_contact_at.isoformat()
+                                    if lead.last_contact_at
+                                    else None
+                                ),
+                                "first_contact_at": (
+                                    lead.first_contact_at.isoformat()
+                                    if lead.first_contact_at
+                                    else None
+                                ),
+                                "email": lead.email or "",
+                                "phone": lead.phone or "",
+                                "notes": lead.notes or "",
+                                "tags": lead.tags or [],
+                            }
+                        )
+                    cached_result = {"status": "ok", "leads": adapted, "count": len(adapted)}
+                    api_cache.set(cache_key, cached_result, ttl_seconds=30)
+                    logger.info(f"[CACHE-WARM] {creator_id}: leads cached ({len(adapted)} items)")
+            except Exception as e:
+                logger.warning(f"[CACHE-WARM] Failed to warm leads for {creator_id}: {e}")
+
+    except Exception as e:
+        logger.error(f"[CACHE-WARM] Failed to warm API caches: {e}")
 
     _t_end = time.time()
     logger.info(f"Pre-warmed caches in {_t_end - _t_start:.2f}s for {active_creators}")
