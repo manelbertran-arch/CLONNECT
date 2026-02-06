@@ -152,10 +152,10 @@ def register_startup_handlers(app: "FastAPI"):
         async def keep_alive_task():
             import time
 
-            KEEP_ALIVE_INTERVAL = 240  # 4 minutes
+            KEEP_ALIVE_INTERVAL = 60  # 1 minute - prevent Railway scale-to-zero
 
             await asyncio.sleep(3)
-            logger.info("[KEEP-ALIVE] Started - simple DB ping every 4 min")
+            logger.info("[KEEP-ALIVE] Started - DB ping every 1 min")
 
             while True:
                 try:
@@ -181,7 +181,7 @@ def register_startup_handlers(app: "FastAPI"):
                 await asyncio.sleep(KEEP_ALIVE_INTERVAL)
 
         asyncio.create_task(keep_alive_task())
-        logger.info("Keep-alive task scheduled (every 4 minutes)")
+        logger.info("Keep-alive task scheduled (every 1 minute)")
 
         logger.info("Ready to receive requests!")
 
