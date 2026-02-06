@@ -39,9 +39,10 @@ interface PendingCardProps {
   onApprove: (messageId: string, editedText?: string) => void;
   onDiscard: (messageId: string) => void;
   isLoading: boolean;
+  isFading: boolean;
 }
 
-function PendingCard({ item, onApprove, onDiscard, isLoading }: PendingCardProps) {
+function PendingCard({ item, onApprove, onDiscard, isLoading, isFading }: PendingCardProps) {
   const [isEditing, setIsEditing] = useState(false);
   const [editedText, setEditedText] = useState(item.suggested_response);
 
@@ -68,7 +69,11 @@ function PendingCard({ item, onApprove, onDiscard, isLoading }: PendingCardProps
   const timeAgo = new Date(item.created_at).toLocaleTimeString();
 
   return (
-    <div className="border border-border rounded-lg p-4 space-y-3 bg-card hover:bg-accent/5 transition-colors">
+    <div
+      className={`border border-border rounded-lg p-4 space-y-3 bg-card hover:bg-accent/5 transition-all duration-150 ${
+        isFading ? 'opacity-0 -translate-x-4 scale-95' : 'opacity-100 translate-x-0 scale-100'
+      }`}
+    >
       {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
@@ -321,9 +326,9 @@ export default function CopilotPanel() {
   const toggleMutation = useToggleCopilotMode();
   const approveAllMutation = useApproveAllCopilot();
 
-  // Local state to track items being hidden (for instant UI)
-  // This prevents polling from bringing back items during mutation
+  // Local state for instant UI feedback
   const [hiddenIds, setHiddenIds] = useState<Set<string>>(new Set());
+  const [fadingIds, setFadingIds] = useState<Set<string>>(new Set()); // For exit animation
 
   // Filter out hidden items - this makes discard INSTANT
   const allResponses = pendingData?.pending_responses || [];
@@ -335,8 +340,21 @@ export default function CopilotPanel() {
   const isManualMode = statusData?.copilot_enabled ?? true;
 
   const handleApprove = (messageId: string, editedText?: string) => {
-    // INSTANT: Hide immediately via local state (polling can't override this)
-    setHiddenIds(prev => new Set([...prev, messageId]));
+    // Prevent double-click
+    if (fadingIds.has(messageId) || hiddenIds.has(messageId)) return;
+
+    // Start fade animation
+    setFadingIds(prev => new Set([...prev, messageId]));
+
+    // Hide after animation (150ms)
+    setTimeout(() => {
+      setHiddenIds(prev => new Set([...prev, messageId]));
+      setFadingIds(prev => {
+        const next = new Set(prev);
+        next.delete(messageId);
+        return next;
+      });
+    }, 150);
 
     approveMutation.mutate(
       { messageId, editedText },
@@ -348,7 +366,7 @@ export default function CopilotPanel() {
           });
         },
         onError: (error) => {
-          // Show again on error (remove from hidden set)
+          // Show again on error
           setHiddenIds(prev => {
             const next = new Set(prev);
             next.delete(messageId);
@@ -365,21 +383,31 @@ export default function CopilotPanel() {
   };
 
   const handleDiscard = (messageId: string) => {
-    // INSTANT: Hide immediately via local state (polling can't override this)
-    console.log('[COPILOT] Discard clicked, hiding:', messageId);
-    setHiddenIds(prev => new Set([...prev, messageId]));
-    console.log('[COPILOT] Hidden IDs updated, UI should update NOW');
+    // Prevent double-click
+    if (fadingIds.has(messageId) || hiddenIds.has(messageId)) return;
+
+    // Start fade animation
+    setFadingIds(prev => new Set([...prev, messageId]));
+
+    // Hide after animation (150ms)
+    setTimeout(() => {
+      setHiddenIds(prev => new Set([...prev, messageId]));
+      setFadingIds(prev => {
+        const next = new Set(prev);
+        next.delete(messageId);
+        return next;
+      });
+    }, 150);
 
     discardMutation.mutate(messageId, {
       onSuccess: () => {
-        // Keep hidden (already removed from view)
         toast({
           title: "Respuesta descartada",
           description: "La respuesta sugerida fue descartada",
         });
       },
       onError: (error) => {
-        // Show again on error (remove from hidden set)
+        // Show again on error
         setHiddenIds(prev => {
           const next = new Set(prev);
           next.delete(messageId);
@@ -515,6 +543,7 @@ export default function CopilotPanel() {
                     onApprove={handleApprove}
                     onDiscard={handleDiscard}
                     isLoading={isAnyLoading}
+                    isFading={fadingIds.has(item.id)}
                   />
                 ))}
               </div>

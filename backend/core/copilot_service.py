@@ -208,78 +208,93 @@ class CopilotService:
         return pending
 
     async def get_pending_responses(
-        self, creator_id: str, limit: int = 50, offset: int = 0
+        self, creator_id: str, limit: int = 20, offset: int = 0
     ) -> Dict:
-        """Obtener todas las respuestas pendientes de un creador con paginación"""
+        """Obtener respuestas pendientes - OPTIMIZADO para velocidad"""
         from api.database import SessionLocal
         from api.models import Creator, Lead, Message
 
         session = SessionLocal()
         try:
-            creator = session.query(Creator).filter_by(name=creator_id).first()
+            # Get creator_id directly to avoid extra query
+            creator = session.query(Creator.id).filter_by(name=creator_id).first()
             if not creator:
                 return {"pending": [], "total_count": 0, "has_more": False}
+            creator_db_id = creator[0]
 
-            # Build base query
-            base_query = (
-                session.query(Message, Lead)
+            # OPTIMIZED: Select only needed columns, skip expensive count()
+            # Using with_entities for faster query
+            pending_messages = (
+                session.query(
+                    Message.id,
+                    Message.content,
+                    Message.intent,
+                    Message.created_at,
+                    Message.status,
+                    Message.lead_id,
+                    Lead.platform_user_id,
+                    Lead.platform,
+                    Lead.username,
+                    Lead.full_name,
+                )
                 .join(Lead, Message.lead_id == Lead.id)
                 .filter(
-                    Lead.creator_id == creator.id,
+                    Lead.creator_id == creator_db_id,
                     Message.status == "pending_approval",
                     Message.role == "assistant",
                 )
+                .order_by(Message.created_at.desc())
+                .offset(offset)
+                .limit(limit + 1)  # Fetch one extra to check has_more
+                .all()
             )
 
-            # Get total count
-            total_count = base_query.count()
+            # Check if there are more results
+            has_more = len(pending_messages) > limit
+            if has_more:
+                pending_messages = pending_messages[:limit]
 
-            # Get paginated messages
-            pending_messages = (
-                base_query.order_by(Message.created_at.desc()).offset(offset).limit(limit).all()
-            )
-
-            # OPTIMIZATION: Get latest user message per lead in ONE query
-            # Using DISTINCT ON (PostgreSQL) or simple approach for compatibility
-            lead_ids = [lead.id for _, lead in pending_messages]
+            # Get lead_ids for user message lookup
+            lead_ids = list(set(row.lead_id for row in pending_messages))
             user_msg_lookup = {}
             if lead_ids:
-                # Simple approach: get all user messages for these leads, then pick latest in Python
+                # Get only latest user message content per lead (select minimal columns)
                 user_messages = (
-                    session.query(Message)
+                    session.query(Message.lead_id, Message.content)
                     .filter(Message.lead_id.in_(lead_ids), Message.role == "user")
                     .order_by(Message.lead_id, Message.created_at.desc())
                     .all()
                 )
-                # Keep only the first (latest) message per lead
                 seen_leads = set()
-                for m in user_messages:
-                    if m.lead_id not in seen_leads:
-                        user_msg_lookup[str(m.lead_id)] = m.content
-                        seen_leads.add(m.lead_id)
+                for lead_id, content in user_messages:
+                    if lead_id not in seen_leads:
+                        user_msg_lookup[str(lead_id)] = content
+                        seen_leads.add(lead_id)
 
+            # Build results from tuple rows (faster than ORM objects)
+            # Tuple: (id, content, intent, created_at, status, lead_id, platform_user_id, platform, username, full_name)
             results = []
-            for msg, lead in pending_messages:
+            for row in pending_messages:
                 results.append(
                     {
-                        "id": str(msg.id),
-                        "lead_id": str(lead.id),
-                        "follower_id": lead.platform_user_id,
-                        "platform": lead.platform,
-                        "username": lead.username or "",
-                        "full_name": lead.full_name or "",
-                        "user_message": user_msg_lookup.get(str(lead.id), ""),
-                        "suggested_response": msg.content,
-                        "intent": msg.intent or "",
-                        "created_at": msg.created_at.isoformat() if msg.created_at else "",
-                        "status": msg.status,
+                        "id": str(row.id),
+                        "lead_id": str(row.lead_id),
+                        "follower_id": row.platform_user_id,
+                        "platform": row.platform,
+                        "username": row.username or "",
+                        "full_name": row.full_name or "",
+                        "user_message": user_msg_lookup.get(str(row.lead_id), ""),
+                        "suggested_response": row.content,
+                        "intent": row.intent or "",
+                        "created_at": row.created_at.isoformat() if row.created_at else "",
+                        "status": row.status,
                     }
                 )
 
             return {
                 "pending": results,
-                "total_count": total_count,
-                "has_more": offset + len(results) < total_count,
+                "total_count": len(results),  # Approximate count (skip expensive COUNT query)
+                "has_more": has_more,
             }
 
         except Exception as e:
