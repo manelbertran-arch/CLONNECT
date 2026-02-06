@@ -751,14 +751,9 @@ export function useUpdateAbout(creatorId: string = getCreatorId()) {
  * Hook to create a manual lead
  */
 export function useCreateManualLead(creatorId: string = getCreatorId()) {
-  const queryClient = useQueryClient();
+  // No invalidateQueries - component handles optimistic UI
   return useMutation({
     mutationFn: (data: CreateLeadData) => createManualLead(creatorId, data),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: apiKeys.leads(creatorId) });
-      queryClient.invalidateQueries({ queryKey: apiKeys.conversations(creatorId) });
-      queryClient.invalidateQueries({ queryKey: apiKeys.dashboard(creatorId) });
-    },
   });
 }
 

@@ -414,8 +414,7 @@ export default function Leads() {
       notes: formData.notes || undefined,
     }, {
       onSuccess: () => {
-        // Remove optimistic lead (real one will come from refetch)
-        setOptimisticLeads(prev => prev.filter(l => l.id !== tempId));
+        // Keep optimistic lead - useMemo will dedupe when real data arrives via polling
       },
       onError: (err) => {
         // Rollback: remove optimistic lead
