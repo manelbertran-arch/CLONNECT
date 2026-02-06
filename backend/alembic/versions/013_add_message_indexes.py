@@ -35,16 +35,7 @@ def upgrade():
         if_not_exists=True,
     )
 
-    # Index for conversation queries (if conversation_id is used)
-    op.create_index(
-        "ix_messages_conversation_id",
-        "messages",
-        ["conversation_id"],
-        if_not_exists=True,
-    )
-
 
 def downgrade():
     op.drop_index("ix_messages_lead_id", table_name="messages")
     op.drop_index("ix_messages_lead_id_created_at", table_name="messages")
-    op.drop_index("ix_messages_conversation_id", table_name="messages")
