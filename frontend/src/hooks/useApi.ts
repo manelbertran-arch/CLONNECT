@@ -112,8 +112,9 @@ export function useConversations(creatorId: string = getCreatorId(), limit = 50)
   return useQuery({
     queryKey: apiKeys.conversations(creatorId),
     queryFn: () => getConversations(creatorId, limit, 0),
-    refetchInterval: 30000, // Refresh every 30s (reduced from 5s)
-    staleTime: 15000,
+    refetchInterval: 30000, // Refresh every 30s
+    staleTime: 60000, // Data fresh for 60s (show cached immediately)
+    gcTime: 5 * 60 * 1000, // Keep in cache 5 min
   });
 }
 
@@ -133,8 +134,9 @@ export function useInfiniteConversations(creatorId: string = getCreatorId(), pag
       return undefined;
     },
     initialPageParam: 0,
-    refetchInterval: 30000, // Refresh every 30s (reduced from 5s)
-    staleTime: 15000,
+    refetchInterval: 30000, // Refresh every 30s
+    staleTime: 60000, // Data fresh for 60s
+    gcTime: 5 * 60 * 1000, // Keep in cache 5 min
   });
 }
 
@@ -155,8 +157,9 @@ export function useFollowerDetail(followerId: string | null, creatorId: string =
       return result;
     },
     enabled: !!followerId, // Only fetch when we have a followerId
-    refetchInterval: 15000, // Refresh every 15s (reduced from 5s)
-    staleTime: 10000,
+    refetchInterval: 15000, // Refresh every 15s
+    staleTime: 30000, // Data fresh for 30s
+    gcTime: 5 * 60 * 1000, // Keep in cache 5 min
   });
 }
 
@@ -168,8 +171,9 @@ export function useLeads(creatorId: string = getCreatorId()) {
   return useQuery({
     queryKey: apiKeys.leads(creatorId),
     queryFn: () => getLeads(creatorId),
-    refetchInterval: 30000, // Refetch every 30s (reduced from 10s)
-    staleTime: 15000,
+    refetchInterval: 30000, // Refetch every 30s
+    staleTime: 60000, // Data fresh for 60s
+    gcTime: 5 * 60 * 1000, // Keep in cache 5 min
   });
 }
 
@@ -981,8 +985,9 @@ export function useCopilotPending(creatorId: string = getCreatorId()) {
   return useQuery({
     queryKey: apiKeys.copilotPending(creatorId),
     queryFn: () => getCopilotPending(creatorId),
-    refetchInterval: 15000, // Poll every 15s (was 5s) - prevents accumulation
-    staleTime: 10000, // Data fresh for 10s
+    refetchInterval: 15000, // Poll every 15s
+    staleTime: 30000, // Data fresh for 30s (show cached on mount)
+    gcTime: 5 * 60 * 1000, // Keep in cache 5 min
     refetchIntervalInBackground: false, // Don't poll if tab not visible
   });
 }
@@ -995,8 +1000,9 @@ export function useCopilotStatus(creatorId: string = getCreatorId()) {
   return useQuery({
     queryKey: apiKeys.copilotStatus(creatorId),
     queryFn: () => getCopilotStatus(creatorId),
-    refetchInterval: 30000, // Reduced from 10s to 30s to avoid race conditions
-    staleTime: 15000, // Keep data fresh for 15s
+    refetchInterval: 30000, // Poll every 30s
+    staleTime: 60000, // Data fresh for 60s (show cached on mount)
+    gcTime: 5 * 60 * 1000, // Keep in cache 5 min
     refetchOnWindowFocus: false, // Prevent refetch on window focus
   });
 }
