@@ -2104,6 +2104,15 @@ class InstagramHandler:
 
                 session.commit()
                 logger.info(f"[SaveMsg] Saved messages for {msg.sender_id} (lead_id={lead.id})")
+
+                # Invalidate cache for this creator
+                try:
+                    from api.cache import api_cache
+                    api_cache.invalidate(f"conversations:{self.creator_id}")
+                    api_cache.invalidate(f"leads:{self.creator_id}")
+                except Exception as cache_err:
+                    logger.debug(f"[SaveMsg] Cache invalidation failed: {cache_err}")
+
                 return True
 
             finally:
@@ -2292,6 +2301,15 @@ class InstagramHandler:
                 logger.info(
                     f"[SaveUserMsg] Saved user message for {msg.sender_id} (lead_id={lead.id})"
                 )
+
+                # Invalidate cache for this creator
+                try:
+                    from api.cache import api_cache
+                    api_cache.invalidate(f"conversations:{self.creator_id}")
+                    api_cache.invalidate(f"leads:{self.creator_id}")
+                except Exception as cache_err:
+                    logger.debug(f"[SaveUserMsg] Cache invalidation failed: {cache_err}")
+
                 return True
 
             finally:

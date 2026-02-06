@@ -96,8 +96,16 @@ async def process_dm(payload: ProcessDMRequest):
 
 @router.get("/conversations/{creator_id}")
 async def get_conversations(creator_id: str, limit: int = 50):
-    """Listar conversaciones del creador - OPTIMIZED to avoid N+1 queries"""
+    """Listar conversaciones del creador - OPTIMIZED with caching"""
+    from api.cache import api_cache
     import time as _time
+
+    # Check cache first (10s TTL)
+    cache_key = f"conversations:{creator_id}:{limit}"
+    cached = api_cache.get(cache_key)
+    if cached:
+        logger.debug(f"[CONV] {creator_id}: cache HIT")
+        return cached
 
     start_time = _time.time()
 
@@ -239,13 +247,16 @@ async def get_conversations(creator_id: str, limit: int = 50):
 
                     elapsed = _time.time() - start_time
                     logger.info(
-                        f"[CONV] {creator_id}: {len(conversations)} conversations in {elapsed:.2f}s (optimized)"
+                        f"[CONV] {creator_id}: {len(conversations)} conversations in {elapsed:.2f}s (DB query)"
                     )
-                    return {
+                    result = {
                         "status": "ok",
                         "conversations": conversations,
                         "count": len(conversations),
                     }
+                    # Cache for 10 seconds
+                    api_cache.set(cache_key, result, ttl_seconds=10)
+                    return result
                 finally:
                     session.close()
 

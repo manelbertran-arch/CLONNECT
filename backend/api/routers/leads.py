@@ -72,18 +72,30 @@ def _save_lead_json(creator_id: str, lead_id: str, data: dict):
 
 @router.get("/{creator_id}")
 async def get_leads(creator_id: str, limit: int = 100):
-    """Get leads for a creator.
+    """Get leads for a creator with caching.
 
     Args:
         creator_id: Creator's name/ID
         limit: Maximum leads to return (default 100 for performance)
     """
+    from api.cache import api_cache
+
+    # Check cache first (10s TTL)
+    cache_key = f"leads:{creator_id}:{limit}"
+    cached = api_cache.get(cache_key)
+    if cached:
+        logger.debug(f"[LEADS] {creator_id}: cache HIT")
+        return cached
+
     if USE_DB:
         try:
             leads = db_service.get_leads(creator_id, limit=limit)
             if leads is not None:
                 adapted = adapt_leads_response(leads)
-                return {"status": "ok", "leads": adapted, "count": len(adapted)}
+                result = {"status": "ok", "leads": adapted, "count": len(adapted)}
+                # Cache for 10 seconds
+                api_cache.set(cache_key, result, ttl_seconds=10)
+                return result
         except Exception as e:
             logger.error(f"DB get leads failed for {creator_id}: {e}")
             if not ENABLE_JSON_FALLBACK:
