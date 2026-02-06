@@ -2,6 +2,7 @@
 DM Router - Endpoints for direct message management
 Extracted from main.py as part of refactoring
 """
+
 import json
 import logging
 import os
@@ -22,12 +23,12 @@ except Exception:
     USE_DB = False
     logger.warning("Database service not available in dm router")
 
+import httpx
+
 # Core imports
 from core.dm_agent_v2 import DMResponderAgent
 from core.instagram_handler import get_instagram_handler
 from core.whatsapp import get_whatsapp_handler
-
-import httpx
 
 TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN", "")
 
@@ -77,7 +78,7 @@ async def process_dm(payload: ProcessDMRequest):
         result = await agent.process_dm(
             message=payload.message,
             sender_id=payload.sender_id,
-            metadata={"message_id": payload.message_id}
+            metadata={"message_id": payload.message_id},
         )
 
         return {
@@ -97,8 +98,9 @@ async def process_dm(payload: ProcessDMRequest):
 @router.get("/conversations/{creator_id}")
 async def get_conversations(creator_id: str, limit: int = 50):
     """Listar conversaciones del creador - OPTIMIZED with caching"""
-    from api.cache import api_cache
     import time as _time
+
+    from api.cache import api_cache
 
     # Check cache first (30s TTL)
     cache_key = f"conversations:{creator_id}:{limit}"
@@ -196,7 +198,9 @@ async def get_conversations(creator_id: str, limit: int = 50):
                             ]
                             # Instagram-like UX fields
                             content = last_msg.content or ""
-                            last_message_preview = content[:50] + "..." if len(content) > 50 else content
+                            last_message_preview = (
+                                content[:50] + "..." if len(content) > 50 else content
+                            )
                             last_message_role = last_msg.role
 
                         # is_unread: Check if last user message is after last_read_at
@@ -464,20 +468,19 @@ async def get_dm_metrics(creator_id: str):
 @router.get("/follower/{creator_id}/{follower_id}")
 async def get_follower_detail(creator_id: str, follower_id: str):
     """Obtener detalle de un seguidor con mensajes incluyendo metadata"""
-    import time
-    start = time.time()
+    import time as _time
+
+    from api.cache import api_cache
+
+    start = _time.time()
 
     # Check cache first (15s TTL - shorter for active conversations)
-    try:
-        from api.cache import api_cache
-        cache_key = f"follower_detail:{creator_id}:{follower_id}"
-        cached = api_cache.get(cache_key)
-        if cached:
-            logger.info(f"[FOLLOWER] {creator_id}/{follower_id}: cache HIT ({time.time()-start:.2f}s)")
-            return cached
-        logger.info(f"[FOLLOWER] {creator_id}/{follower_id}: cache MISS")
-    except Exception as e:
-        logger.warning(f"Cache check failed: {e}")
+    cache_key = f"follower_detail:{creator_id}:{follower_id}"
+    cached = api_cache.get(cache_key)
+    if cached:
+        logger.info(f"[FOLLOWER] {creator_id}/{follower_id}: cache HIT ({_time.time()-start:.3f}s)")
+        return cached
+    logger.info(f"[FOLLOWER] {creator_id}/{follower_id}: cache MISS")
 
     try:
         agent = get_dm_agent(creator_id)
@@ -502,26 +505,32 @@ async def get_follower_detail(creator_id: str, follower_id: str):
                                 .first()
                             )
                             if lead:
-                                # Get messages with metadata from PostgreSQL
+                                # OPTIMIZED: Get only last 50 messages from DB (not all)
+                                # Query DESC to get newest first, then reverse for chronological order
                                 messages = (
                                     session.query(Message)
                                     .filter_by(lead_id=lead.id)
-                                    .order_by(Message.created_at.asc())
+                                    .order_by(Message.created_at.desc())
+                                    .limit(50)
                                     .all()
                                 )
                                 if messages:
+                                    # Reverse to get chronological order
+                                    messages = messages[::-1]
                                     detail["last_messages"] = [
                                         {
                                             "role": m.role,
                                             "content": m.content,
-                                            "timestamp": m.created_at.isoformat() if m.created_at else None,
+                                            "timestamp": (
+                                                m.created_at.isoformat() if m.created_at else None
+                                            ),
                                             "metadata": (
                                                 m.msg_metadata
                                                 if hasattr(m, "msg_metadata") and m.msg_metadata
                                                 else {}
                                             ),
                                         }
-                                        for m in messages[-50:]  # Last 50 messages
+                                        for m in messages
                                     ]
                     finally:
                         session.close()
@@ -532,11 +541,8 @@ async def get_follower_detail(creator_id: str, follower_id: str):
         result = {"status": "ok", **detail}
 
         # Cache the result (15s TTL)
-        try:
-            api_cache.set(cache_key, result, ttl_seconds=15)
-            logger.info(f"[FOLLOWER] {creator_id}/{follower_id}: cached ({time.time()-start:.2f}s)")
-        except Exception as e:
-            logger.warning(f"Cache set failed: {e}")
+        api_cache.set(cache_key, result, ttl_seconds=15)
+        logger.info(f"[FOLLOWER] {creator_id}/{follower_id}: CACHED in {_time.time()-start:.3f}s")
 
         return result
 
@@ -950,7 +956,9 @@ async def sync_last_contact_timestamps(creator_id: str):
                         {"last_contact_at": last_msg_time}
                     )
                     updated += 1
-                    logger.info(f"[SyncTimestamps] Updated {username}: {last_contact} -> {last_msg_time}")
+                    logger.info(
+                        f"[SyncTimestamps] Updated {username}: {last_contact} -> {last_msg_time}"
+                    )
 
             session.commit()
             return {
