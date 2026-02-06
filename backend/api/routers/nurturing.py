@@ -717,9 +717,9 @@ async def _run_scheduler_cycle():
 
     # 0a2. Enrich leads without profile (fix ig_XXXX leads)
     try:
-        from core.message_reconciliation import enrich_leads_without_profile
         from api.database import SessionLocal
         from api.models import Creator
+        from core.message_reconciliation import enrich_leads_without_profile
 
         session = SessionLocal()
         try:
@@ -732,18 +732,13 @@ async def _run_scheduler_cycle():
                 )
                 .all()
             )
-            creator_list = [
-                {"name": c.name, "token": c.instagram_token}
-                for c in creators
-            ]
+            creator_list = [{"name": c.name, "token": c.instagram_token} for c in creators]
         finally:
             session.close()
 
         total_enriched = 0
         for c in creator_list:
-            enrich_result = await enrich_leads_without_profile(
-                c["name"], c["token"], limit=5
-            )
+            enrich_result = await enrich_leads_without_profile(c["name"], c["token"], limit=5)
             total_enriched += enrich_result.get("enriched", 0)
 
         if total_enriched > 0:
@@ -790,7 +785,6 @@ async def _run_scheduler_cycle():
     sent_real = 0
     sent_simulated = 0
     error_count = 0
-    modified_creators = set()  # Track which creators need cache flush
 
     for fu in followups:
         try:
@@ -798,9 +792,7 @@ async def _run_scheduler_cycle():
             result = await _try_send_message(fu.creator_id, fu.follower_id, message)
 
             if result["sent"]:
-                # Use skip_save=True to batch saves (PERF: avoid 2000+ JSON writes per followup)
-                manager.mark_as_sent(fu, skip_save=True)
-                modified_creators.add(fu.creator_id)
+                manager.mark_as_sent(fu)
                 processed += 1
                 if result["simulated"]:
                     sent_simulated += 1
@@ -812,10 +804,6 @@ async def _run_scheduler_cycle():
         except Exception as e:
             error_count += 1
             logger.error(f"[NURTURING SCHEDULER] Exception processing {fu.id}: {e}")
-
-    # Flush all modified creators' caches at once (PERF: single save per creator, not per followup)
-    for creator_id in modified_creators:
-        manager.flush_cache(creator_id)
 
     _scheduler_last_run = datetime.now().isoformat()
     _scheduler_run_count += 1

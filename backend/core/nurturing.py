@@ -7,14 +7,14 @@ Gestiona secuencias de mensajes automatizados para:
 - Carritos abandonados (preguntaron cómo comprar pero no lo hicieron)
 """
 
-import os
 import json
 import logging
+import os
+from dataclasses import asdict, dataclass, field
 from datetime import datetime, timedelta
-from typing import Dict, Any, List, Optional
-from dataclasses import dataclass, asdict, field
 from enum import Enum
 from pathlib import Path
+from typing import Any, Dict, List, Optional
 
 logger = logging.getLogger(__name__)
 
@@ -30,6 +30,7 @@ def _get_db_storage():
         _db_storage_checked = True
         try:
             from core.nurturing_db import get_nurturing_db_storage, is_db_storage_enabled
+
             if is_db_storage_enabled():
                 _db_storage = get_nurturing_db_storage()
                 logger.info("[NURTURING] Database storage enabled (NURTURING_USE_DB=true)")
@@ -38,6 +39,7 @@ def _get_db_storage():
         except Exception as e:
             logger.warning(f"[NURTURING] DB storage not available: {e}")
     return _db_storage
+
 
 # Base directory for data files (backend/)
 _BASE_DIR = Path(__file__).resolve().parent.parent
@@ -51,12 +53,14 @@ TESTING_MODE = False  # Production mode - use custom config delays
 # Lazy import for Reflexion to avoid circular imports
 _reflexion_improver = None
 
+
 def _get_reflexion():
     """Lazy load Reflexion improver"""
     global _reflexion_improver
     if _reflexion_improver is None:
         try:
             from core.reasoning import get_reflexion_improver
+
             _reflexion_improver = get_reflexion_improver()
         except Exception as e:
             logger.warning(f"Could not load Reflexion: {e}")
@@ -65,32 +69,34 @@ def _get_reflexion():
 
 class SequenceType(Enum):
     """Tipos de secuencias de nurturing"""
-    INTEREST_COLD = "interest_cold"          # Interés soft sin conversión
-    OBJECTION_PRICE = "objection_price"      # Objeción de precio
-    OBJECTION_TIME = "objection_time"        # Objeción de tiempo
-    OBJECTION_DOUBT = "objection_doubt"      # Dudas generales
-    OBJECTION_LATER = "objection_later"      # "Luego te escribo"
-    ABANDONED = "abandoned"                   # Quiso comprar pero no completó
-    RE_ENGAGEMENT = "re_engagement"          # Sin actividad en X días
-    POST_PURCHASE = "post_purchase"          # Después de comprar
+
+    INTEREST_COLD = "interest_cold"  # Interés soft sin conversión
+    OBJECTION_PRICE = "objection_price"  # Objeción de precio
+    OBJECTION_TIME = "objection_time"  # Objeción de tiempo
+    OBJECTION_DOUBT = "objection_doubt"  # Dudas generales
+    OBJECTION_LATER = "objection_later"  # "Luego te escribo"
+    ABANDONED = "abandoned"  # Quiso comprar pero no completó
+    RE_ENGAGEMENT = "re_engagement"  # Sin actividad en X días
+    POST_PURCHASE = "post_purchase"  # Después de comprar
     # Scarcity/Urgency sequences
-    DISCOUNT_URGENCY = "discount_urgency"    # Descuento con fecha límite
-    SPOTS_LIMITED = "spots_limited"          # Plazas limitadas
-    OFFER_EXPIRING = "offer_expiring"        # Oferta por tiempo limitado
-    FLASH_SALE = "flash_sale"                # Venta flash
+    DISCOUNT_URGENCY = "discount_urgency"  # Descuento con fecha límite
+    SPOTS_LIMITED = "spots_limited"  # Plazas limitadas
+    OFFER_EXPIRING = "offer_expiring"  # Oferta por tiempo limitado
+    FLASH_SALE = "flash_sale"  # Venta flash
 
 
 @dataclass
 class FollowUp:
     """Representa un follow-up programado"""
+
     id: str
     creator_id: str
     follower_id: str
     sequence_type: str
-    step: int                                 # Paso en la secuencia (0, 1, 2...)
-    scheduled_at: str                         # ISO format datetime
+    step: int  # Paso en la secuencia (0, 1, 2...)
+    scheduled_at: str  # ISO format datetime
     message_template: str
-    status: str = "pending"                   # pending, sent, cancelled
+    status: str = "pending"  # pending, sent, cancelled
     created_at: str = field(default_factory=lambda: datetime.now().isoformat())
     sent_at: Optional[str] = None
     metadata: Dict[str, Any] = field(default_factory=dict)
@@ -106,50 +112,101 @@ class FollowUp:
 # Secuencias predefinidas: (delay_hours, mensaje)
 NURTURING_SEQUENCES = {
     SequenceType.INTEREST_COLD.value: [
-        (24, "Ey! Vi que te interesaba {product_name}. ¿Te quedó alguna duda? Estoy aquí para ayudarte 💪"),
-        (72, "¿Qué tal? Solo quería recordarte que {product_name} sigue disponible. Si tienes preguntas, escríbeme sin compromiso."),
-        (168, "Última vez que te escribo sobre esto: {product_name} ha ayudado a +200 personas. Si en algún momento te interesa, aquí estaré. ¡Un abrazo!")
+        (
+            24,
+            "Ey! Vi que te interesaba {product_name}. ¿Te quedó alguna duda? Estoy aquí para ayudarte 💪",
+        ),
+        (
+            72,
+            "¿Qué tal? Solo quería recordarte que {product_name} sigue disponible. Si tienes preguntas, escríbeme sin compromiso.",
+        ),
+        (
+            168,
+            "Última vez que te escribo sobre esto: {product_name} ha ayudado a +200 personas. Si en algún momento te interesa, aquí estaré. ¡Un abrazo!",
+        ),
     ],
     SequenceType.OBJECTION_PRICE.value: [
-        (48, "Hola! Estuve pensando en lo que me dijiste sobre el precio. ¿Sabías que {product_name} tiene garantía de 30 días? Si no ves resultados, te devuelvo el dinero. Sin preguntas."),
+        (
+            48,
+            "Hola! Estuve pensando en lo que me dijiste sobre el precio. ¿Sabías que {product_name} tiene garantía de 30 días? Si no ves resultados, te devuelvo el dinero. Sin preguntas.",
+        ),
     ],
     SequenceType.OBJECTION_TIME.value: [
-        (48, "Ey! Sobre lo del tiempo: {product_name} está diseñado para gente ocupada. Son solo 15 min al día. ¿Te cuento cómo funciona?"),
+        (
+            48,
+            "Ey! Sobre lo del tiempo: {product_name} está diseñado para gente ocupada. Son solo 15 min al día. ¿Te cuento cómo funciona?",
+        ),
     ],
     SequenceType.OBJECTION_DOUBT.value: [
-        (24, "Hola! ¿Pudiste pensar en lo que hablamos? Si tienes más dudas sobre {product_name}, aquí estoy para resolverlas."),
+        (
+            24,
+            "Hola! ¿Pudiste pensar en lo que hablamos? Si tienes más dudas sobre {product_name}, aquí estoy para resolverlas.",
+        ),
     ],
     SequenceType.OBJECTION_LATER.value: [
-        (48, "Ey! ¿Ya tuviste tiempo de pensarlo? {product_name} sigue aquí esperándote. Sin presión, pero si tienes preguntas, escríbeme."),
-        (168, "Hola! Hace una semana hablamos de {product_name}. ¿Sigues interesado? Si cambió algo, cuéntame."),
+        (
+            48,
+            "Ey! ¿Ya tuviste tiempo de pensarlo? {product_name} sigue aquí esperándote. Sin presión, pero si tienes preguntas, escríbeme.",
+        ),
+        (
+            168,
+            "Hola! Hace una semana hablamos de {product_name}. ¿Sigues interesado? Si cambió algo, cuéntame.",
+        ),
     ],
     SequenceType.ABANDONED.value: [
-        (1, "Ey! Vi que estabas a punto de apuntarte a {product_name}. ¿Te surgió algún problema? Te ayudo con lo que necesites."),
-        (24, "Hola! Solo quería asegurarme de que pudiste ver toda la info de {product_name}. Si te quedó alguna duda, escríbeme."),
+        (
+            1,
+            "Ey! Vi que estabas a punto de apuntarte a {product_name}. ¿Te surgió algún problema? Te ayudo con lo que necesites.",
+        ),
+        (
+            24,
+            "Hola! Solo quería asegurarme de que pudiste ver toda la info de {product_name}. Si te quedó alguna duda, escríbeme.",
+        ),
     ],
     SequenceType.RE_ENGAGEMENT.value: [
         (0, "¡Hola! Hace tiempo que no hablamos. ¿Cómo va todo? Si necesitas algo, aquí estoy."),
     ],
     SequenceType.POST_PURCHASE.value: [
-        (24, "¡Gracias por confiar en mí! ¿Ya pudiste empezar con {product_name}? Si tienes dudas, escríbeme."),
+        (
+            24,
+            "¡Gracias por confiar en mí! ¿Ya pudiste empezar con {product_name}? Si tienes dudas, escríbeme.",
+        ),
         (72, "¿Qué tal va todo con {product_name}? ¿Necesitas ayuda con algo?"),
         (168, "¡Una semana ya! ¿Cómo te está yendo? Me encantaría saber tu progreso."),
     ],
     # Scarcity/Urgency sequences
     SequenceType.DISCOUNT_URGENCY.value: [
-        (0, "🔥 ¡Oferta especial solo para ti! {product_name} con {discount}% de descuento. Solo hasta {expires_at}. {product_link}"),
-        (24, "⏰ ¡Último día! El descuento del {discount}% en {product_name} termina hoy. No te lo pierdas 👉 {product_link}"),
+        (
+            0,
+            "🔥 ¡Oferta especial solo para ti! {product_name} con {discount}% de descuento. Solo hasta {expires_at}. {product_link}",
+        ),
+        (
+            24,
+            "⏰ ¡Último día! El descuento del {discount}% en {product_name} termina hoy. No te lo pierdas 👉 {product_link}",
+        ),
     ],
     SequenceType.SPOTS_LIMITED.value: [
         (0, "🎯 Solo quedan {spots_left} plazas para {product_name}. ¿Te reservo una? 👀"),
-        (24, "⚠️ Ya solo quedan {spots_left} plazas... Si lo estás pensando, es ahora o nunca. {product_link}"),
+        (
+            24,
+            "⚠️ Ya solo quedan {spots_left} plazas... Si lo estás pensando, es ahora o nunca. {product_link}",
+        ),
     ],
     SequenceType.OFFER_EXPIRING.value: [
-        (0, "Hey! La oferta de {product_name} termina en {expires_in}. No quiero que te la pierdas 🙌 {product_link}"),
-        (12, "⏳ Quedan solo {expires_in} para aprovechar el precio especial de {product_name}. {product_link}"),
+        (
+            0,
+            "Hey! La oferta de {product_name} termina en {expires_in}. No quiero que te la pierdas 🙌 {product_link}",
+        ),
+        (
+            12,
+            "⏳ Quedan solo {expires_in} para aprovechar el precio especial de {product_name}. {product_link}",
+        ),
     ],
     SequenceType.FLASH_SALE.value: [
-        (0, "⚡ FLASH SALE: {product_name} a mitad de precio solo las próximas {expires_in}. {product_link}"),
+        (
+            0,
+            "⚡ FLASH SALE: {product_name} a mitad de precio solo las próximas {expires_in}. {product_link}",
+        ),
     ],
 }
 
@@ -211,7 +268,7 @@ class NurturingManager:
         file_path = self._get_file_path(creator_id)
         if os.path.exists(file_path):
             try:
-                with open(file_path, 'r', encoding='utf-8') as f:
+                with open(file_path, "r", encoding="utf-8") as f:
                     data = json.load(f)
                     followups = [FollowUp.from_dict(item) for item in data]
                     self._cache[creator_id] = followups
@@ -236,28 +293,15 @@ class NurturingManager:
             except Exception as e:
                 logger.warning(f"[NURTURING] DB save failed: {e}")
 
-        # Save to JSON in background thread to avoid blocking event loop
-        # Only save if DB is not the primary storage (reduce I/O)
-        if not db_saved:
-            file_path = self._get_file_path(creator_id)
-            self._save_json_background(file_path, followups)
-
-    def _save_json_background(self, file_path: str, followups: List[FollowUp]):
-        """Save followups to JSON in background thread (non-blocking)."""
-        import threading
-
-        def _do_save():
-            try:
-                # Serialize without pretty-print for speed (PERF: ~30% faster for large files)
-                data = [fu.to_dict() for fu in followups]
-                with open(file_path, 'w', encoding='utf-8') as f:
-                    json.dump(data, f, ensure_ascii=False)
+        # Always save to JSON as backup (or primary if DB disabled)
+        file_path = self._get_file_path(creator_id)
+        try:
+            with open(file_path, "w", encoding="utf-8") as f:
+                json.dump([fu.to_dict() for fu in followups], f, indent=2, ensure_ascii=False)
+            if not db_saved:
                 logger.info(f"[NURTURING] Saved {len(followups)} followups to {file_path}")
-            except Exception as e:
-                logger.error(f"Error saving followups to {file_path}: {e}")
-
-        thread = threading.Thread(target=_do_save, daemon=True)
-        thread.start()
+        except Exception as e:
+            logger.error(f"Error saving followups for {creator_id}: {e}")
 
     def schedule_followup(
         self,
@@ -265,7 +309,7 @@ class NurturingManager:
         follower_id: str,
         sequence_type: str,
         product_name: str = "",
-        start_step: int = 0
+        start_step: int = 0,
     ) -> List[FollowUp]:
         """
         Programar una secuencia de followups.
@@ -306,10 +350,16 @@ class NurturingManager:
         created = []
         now = datetime.now()
 
-        for step, (delay_hours, message_template) in enumerate(sequence[start_step:], start=start_step):
+        for step, (delay_hours, message_template) in enumerate(
+            sequence[start_step:], start=start_step
+        ):
             scheduled_time = now + timedelta(hours=delay_hours)
-            logger.info(f"[NURTURING] Scheduling step {step}: delay={delay_hours}h, now={now.isoformat()}, scheduled={scheduled_time.isoformat()}")
-            followup_id = f"{creator_id}_{follower_id}_{sequence_type}_{step}_{int(now.timestamp())}"
+            logger.info(
+                f"[NURTURING] Scheduling step {step}: delay={delay_hours}h, now={now.isoformat()}, scheduled={scheduled_time.isoformat()}"
+            )
+            followup_id = (
+                f"{creator_id}_{follower_id}_{sequence_type}_{step}_{int(now.timestamp())}"
+            )
 
             followup = FollowUp(
                 id=followup_id,
@@ -319,7 +369,7 @@ class NurturingManager:
                 step=step,
                 scheduled_at=scheduled_time.isoformat(),
                 message_template=message_template,
-                metadata={"product_name": product_name}
+                metadata={"product_name": product_name},
             )
 
             followups.append(followup)
@@ -378,7 +428,9 @@ class NurturingManager:
             for fu in followups:
                 if fu.status == "pending":
                     scheduled = datetime.fromisoformat(fu.scheduled_at)
-                    logger.info(f"[NURTURING] Followup {fu.id}: scheduled={scheduled}, now={now}, due={scheduled <= now}")
+                    logger.info(
+                        f"[NURTURING] Followup {fu.id}: scheduled={scheduled}, now={now}, due={scheduled <= now}"
+                    )
                     if scheduled <= now:
                         pending.append(fu)
 
@@ -394,46 +446,21 @@ class NurturingManager:
             return [fu for fu in followups if fu.status == status]
         return followups
 
-    def mark_as_sent(self, followup: FollowUp, skip_save: bool = False) -> bool:
-        """Marcar un followup como enviado.
-
-        Args:
-            followup: The followup to mark as sent
-            skip_save: If True, don't save immediately (for batch operations).
-                       Caller must call flush_cache() after batch is complete.
-        """
+    def mark_as_sent(self, followup: FollowUp) -> bool:
+        """Marcar un followup como enviado"""
         followups = self._load_followups(followup.creator_id)
 
         for fu in followups:
             if fu.id == followup.id:
                 fu.status = "sent"
                 fu.sent_at = datetime.now().isoformat()
-                if not skip_save:
-                    self._save_followups(followup.creator_id, followups)
+                self._save_followups(followup.creator_id, followups)
                 logger.info(f"Followup {followup.id} marked as sent")
                 return True
 
         return False
 
-    def flush_cache(self, creator_id: str = None):
-        """Save cached followups to storage. Call after batch mark_as_sent operations.
-
-        Args:
-            creator_id: If provided, only flush for this creator. Otherwise flush all.
-        """
-        if creator_id:
-            if creator_id in self._cache:
-                self._save_followups(creator_id, self._cache[creator_id])
-        else:
-            for cid, followups in self._cache.items():
-                self._save_followups(cid, followups)
-
-    def cancel_followups(
-        self,
-        creator_id: str,
-        follower_id: str,
-        sequence_type: str = None
-    ) -> int:
+    def cancel_followups(self, creator_id: str, follower_id: str, sequence_type: str = None) -> int:
         """
         Cancelar followups pendientes.
 
@@ -475,9 +502,7 @@ class NurturingManager:
         return message
 
     async def get_personalized_followup_message(
-        self,
-        followup: FollowUp,
-        follower_context: Dict[str, Any] = None
+        self, followup: FollowUp, follower_context: Dict[str, Any] = None
     ) -> str:
         """
         Generate personalized followup message using Reflexion.
@@ -510,7 +535,7 @@ class NurturingManager:
                 "products_discussed": follower_context.get("products_discussed", []),
                 "language": follower_context.get("preferred_language", "es"),
                 "sequence_type": followup.sequence_type,
-                "step": followup.step
+                "step": followup.step,
             }
 
             # Use Reflexion to personalize
@@ -518,7 +543,7 @@ class NurturingManager:
                 response=base_message,
                 target_quality="personalizado, empático y natural - no suene robótico",
                 context=context,
-                min_quality=0.6
+                min_quality=0.6,
             )
 
             logger.info(
@@ -539,9 +564,9 @@ class NurturingManager:
         original_count = len(followups)
 
         followups = [
-            fu for fu in followups
-            if fu.status == "pending" or
-               datetime.fromisoformat(fu.created_at) > cutoff
+            fu
+            for fu in followups
+            if fu.status == "pending" or datetime.fromisoformat(fu.created_at) > cutoff
         ]
 
         removed = original_count - len(followups)
@@ -560,7 +585,7 @@ class NurturingManager:
             "pending": len([fu for fu in followups if fu.status == "pending"]),
             "sent": len([fu for fu in followups if fu.status == "sent"]),
             "cancelled": len([fu for fu in followups if fu.status == "cancelled"]),
-            "by_sequence": {}
+            "by_sequence": {},
         }
 
         for fu in followups:
@@ -596,7 +621,7 @@ def _load_creator_nurturing_config(creator_id: str) -> Dict[str, Any]:
 
     if config_path.exists():
         try:
-            with open(config_path, 'r', encoding='utf-8') as f:
+            with open(config_path, "r", encoding="utf-8") as f:
                 config = json.load(f)
                 # Ensure sequences is a dict
                 sequences = config.get("sequences", {})
@@ -631,7 +656,9 @@ def is_sequence_active(creator_id: str, sequence_type: str) -> bool:
         return is_active
 
     # Default: sequences are inactive unless explicitly enabled
-    logger.info(f"[NURTURING] is_sequence_active({creator_id}, {sequence_type}) = False (not in config)")
+    logger.info(
+        f"[NURTURING] is_sequence_active({creator_id}, {sequence_type}) = False (not in config)"
+    )
     return False
 
 
@@ -669,18 +696,16 @@ def get_sequence_steps(creator_id: str, sequence_type: str) -> List[tuple]:
 # Solo las 4 secuencias core: abandoned, interest_cold, re_engagement, post_purchase
 INTENT_TO_SEQUENCE = {
     # Abandoned cart - leads que muestran interés en comprar
-    "question_product": SequenceType.ABANDONED.value,   # Pregunta sobre producto/precio
-    "interest_strong": SequenceType.ABANDONED.value,    # Quiere comprar
-    "want_to_buy": SequenceType.ABANDONED.value,        # Quiere comprar
-    "asking_price": SequenceType.ABANDONED.value,       # Pregunta precio
-
+    "question_product": SequenceType.ABANDONED.value,  # Pregunta sobre producto/precio
+    "interest_strong": SequenceType.ABANDONED.value,  # Quiere comprar
+    "want_to_buy": SequenceType.ABANDONED.value,  # Quiere comprar
+    "asking_price": SequenceType.ABANDONED.value,  # Pregunta precio
     # Cold interest - leads con interés débil
     "interest_soft": SequenceType.INTEREST_COLD.value,
     "interest_weak": SequenceType.INTEREST_COLD.value,
     "question_general": SequenceType.INTEREST_COLD.value,
     "greeting": SequenceType.INTEREST_COLD.value,
     "other": SequenceType.INTEREST_COLD.value,
-
     # Objections (mapped to cold interest for now - simpler flow)
     "objection_price": SequenceType.INTEREST_COLD.value,
     "objection_time": SequenceType.INTEREST_COLD.value,
@@ -690,9 +715,7 @@ INTENT_TO_SEQUENCE = {
 
 
 def should_schedule_nurturing(
-    intent: str,
-    has_purchased: bool = False,
-    creator_id: str = None
+    intent: str, has_purchased: bool = False, creator_id: str = None
 ) -> Optional[str]:
     """
     Determinar si se debe programar nurturing basado en el intent.
@@ -705,7 +728,9 @@ def should_schedule_nurturing(
     Returns:
         Tipo de secuencia a programar, o None
     """
-    logger.info(f"[NURTURING] Checking: intent={intent}, purchased={has_purchased}, creator={creator_id}")
+    logger.info(
+        f"[NURTURING] Checking: intent={intent}, purchased={has_purchased}, creator={creator_id}"
+    )
 
     if has_purchased:
         logger.info(f"[NURTURING] Skipping - user already purchased")
@@ -735,10 +760,10 @@ def should_schedule_nurturing(
 
 # Sequences to activate by default for new creators
 DEFAULT_ACTIVE_SEQUENCES = [
-    "interest_cold",      # Follow up on soft interest
-    "abandoned",          # Recover abandoned carts
-    "booking_reminder",   # Remind about upcoming bookings
-    "re_engagement",      # Reactivate ghost leads automatically
+    "interest_cold",  # Follow up on soft interest
+    "abandoned",  # Recover abandoned carts
+    "booking_reminder",  # Remind about upcoming bookings
+    "re_engagement",  # Reactivate ghost leads automatically
 ]
 
 
@@ -763,7 +788,7 @@ def activate_default_sequences(creator_id: str) -> Dict[str, bool]:
     # Load existing config or create new
     if config_path.exists():
         try:
-            with open(config_path, 'r', encoding='utf-8') as f:
+            with open(config_path, "r", encoding="utf-8") as f:
                 config = json.load(f)
         except Exception:
             config = {"sequences": {}}
@@ -783,7 +808,7 @@ def activate_default_sequences(creator_id: str) -> Dict[str, bool]:
 
     # Save config
     try:
-        with open(config_path, 'w', encoding='utf-8') as f:
+        with open(config_path, "w", encoding="utf-8") as f:
             json.dump(config, f, indent=2, ensure_ascii=False)
         logger.info(f"[NURTURING] Saved default sequences config for {creator_id}")
     except Exception as e:

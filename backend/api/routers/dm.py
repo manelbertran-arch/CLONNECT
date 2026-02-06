@@ -483,79 +483,60 @@ async def get_follower_detail(creator_id: str, follower_id: str):
     logger.info(f"[FOLLOWER] {creator_id}/{follower_id}: cache MISS")
 
     try:
-        # OPTIMIZED: Get everything from DB directly (skip slow JSON file reads)
-        detail = None
-        if USE_DB:
-            from api.models import Creator, Lead, Message
-            from api.services.db_service import get_session
-
-            session = get_session()
-            if session:
-                try:
-                    creator = session.query(Creator).filter_by(name=creator_id).first()
-                    if creator:
-                        lead = (
-                            session.query(Lead)
-                            .filter_by(creator_id=creator.id, platform_user_id=follower_id)
-                            .first()
-                        )
-                        if lead:
-                            # Build detail directly from Lead (no JSON file I/O needed)
-                            detail = {
-                                "follower_id": follower_id,
-                                "username": lead.username,
-                                "name": lead.name,
-                                "platform": "instagram",  # Default
-                                "profile_pic_url": lead.profile_pic_url,
-                                "status": lead.status,
-                                "email": lead.email,
-                                "phone": lead.phone,
-                                "notes": lead.notes,
-                                "deal_value": lead.deal_value,
-                                "tags": lead.tags or [],
-                                "source": lead.source,
-                                "total_messages": 0,
-                                "purchase_intent": lead.score or 0,
-                                "is_lead": True,
-                                "last_messages": [],
-                            }
-
-                            # Get messages (LIMIT 50, newest first, then reverse)
-                            messages = (
-                                session.query(Message)
-                                .filter_by(lead_id=lead.id)
-                                .order_by(Message.created_at.desc())
-                                .limit(50)
-                                .all()
-                            )
-                            if messages:
-                                detail["total_messages"] = len(messages)
-                                # Reverse for chronological order
-                                messages = messages[::-1]
-                                detail["last_messages"] = [
-                                    {
-                                        "role": m.role,
-                                        "content": m.content,
-                                        "timestamp": (
-                                            m.created_at.isoformat() if m.created_at else None
-                                        ),
-                                        "metadata": (
-                                            m.msg_metadata
-                                            if hasattr(m, "msg_metadata") and m.msg_metadata
-                                            else {}
-                                        ),
-                                    }
-                                    for m in messages
-                                ]
-                finally:
-                    session.close()
-
-        # Fallback to agent if DB didn't find the follower (for non-lead followers)
+        agent = get_dm_agent(creator_id)
+        detail = await agent.get_follower_detail(follower_id)
         if not detail:
-            agent = get_dm_agent(creator_id)
-            detail = await agent.get_follower_detail(follower_id)
-            if not detail:
-                raise HTTPException(status_code=404, detail="Follower not found")
+            raise HTTPException(status_code=404, detail="Follower not found")
+
+        # Enrich messages with metadata from PostgreSQL
+        if USE_DB:
+            try:
+                from api.models import Creator, Lead, Message
+                from api.services.db_service import get_session
+
+                session = get_session()
+                if session:
+                    try:
+                        creator = session.query(Creator).filter_by(name=creator_id).first()
+                        if creator:
+                            lead = (
+                                session.query(Lead)
+                                .filter_by(creator_id=creator.id, platform_user_id=follower_id)
+                                .first()
+                            )
+                            if lead:
+                                # OPTIMIZED: Get only last 50 messages from DB (not all)
+                                # Query DESC to get newest first, then reverse for chronological order
+                                messages = (
+                                    session.query(Message)
+                                    .filter_by(lead_id=lead.id)
+                                    .order_by(Message.created_at.desc())
+                                    .limit(50)
+                                    .all()
+                                )
+                                if messages:
+                                    # Reverse to get chronological order
+                                    messages = messages[::-1]
+                                    detail["last_messages"] = [
+                                        {
+                                            "role": m.role,
+                                            "content": m.content,
+                                            "timestamp": (
+                                                m.created_at.isoformat() if m.created_at else None
+                                            ),
+                                            "metadata": (
+                                                m.msg_metadata
+                                                if hasattr(m, "msg_metadata") and m.msg_metadata
+                                                else {}
+                                            ),
+                                        }
+                                        for m in messages
+                                    ]
+                    finally:
+                        session.close()
+            except Exception as e:
+                logger.warning(f"Failed to enrich messages with metadata: {e}")
+                # Continue with original detail
 
         result = {"status": "ok", **detail}
 
