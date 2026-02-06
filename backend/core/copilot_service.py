@@ -239,16 +239,33 @@ class CopilotService:
                 base_query.order_by(Message.created_at.desc()).offset(offset).limit(limit).all()
             )
 
+            # OPTIMIZATION: Get all user messages in ONE query instead of N+1
+            lead_ids = list(set(lead.id for _, lead in pending_messages))
+            if lead_ids:
+                # Subquery to get latest user message per lead
+                from sqlalchemy import func
+                subq = (
+                    session.query(
+                        Message.lead_id,
+                        func.max(Message.created_at).label("max_created")
+                    )
+                    .filter(Message.lead_id.in_(lead_ids), Message.role == "user")
+                    .group_by(Message.lead_id)
+                    .subquery()
+                )
+                user_messages = (
+                    session.query(Message)
+                    .join(subq, (Message.lead_id == subq.c.lead_id) & (Message.created_at == subq.c.max_created))
+                    .filter(Message.role == "user")
+                    .all()
+                )
+                # Create lookup dict: lead_id -> latest user message content
+                user_msg_lookup = {str(m.lead_id): m.content for m in user_messages}
+            else:
+                user_msg_lookup = {}
+
             results = []
             for msg, lead in pending_messages:
-                # Obtener el mensaje del usuario más reciente
-                user_msg = (
-                    session.query(Message)
-                    .filter(Message.lead_id == lead.id, Message.role == "user")
-                    .order_by(Message.created_at.desc())
-                    .first()
-                )
-
                 results.append(
                     {
                         "id": str(msg.id),
@@ -257,7 +274,7 @@ class CopilotService:
                         "platform": lead.platform,
                         "username": lead.username or "",
                         "full_name": lead.full_name or "",
-                        "user_message": user_msg.content if user_msg else "",
+                        "user_message": user_msg_lookup.get(str(lead.id), ""),
                         "suggested_response": msg.content,
                         "intent": msg.intent or "",
                         "created_at": msg.created_at.isoformat() if msg.created_at else "",

@@ -975,13 +975,15 @@ export function useCompleteVisualOnboarding(creatorId: string = getCreatorId()) 
 
 /**
  * Hook to fetch pending copilot responses
+ * Polling reduced to prevent request accumulation when endpoint is slow
  */
 export function useCopilotPending(creatorId: string = getCreatorId()) {
   return useQuery({
     queryKey: apiKeys.copilotPending(creatorId),
     queryFn: () => getCopilotPending(creatorId),
-    refetchInterval: 5000, // Poll every 5 seconds
-    staleTime: 2000,
+    refetchInterval: 15000, // Poll every 15s (was 5s) - prevents accumulation
+    staleTime: 10000, // Data fresh for 10s
+    refetchIntervalInBackground: false, // Don't poll if tab not visible
   });
 }
 
