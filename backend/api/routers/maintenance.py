@@ -235,6 +235,93 @@ async def list_dismissed_leads(creator_name: str, limit: int = 100):
         session.close()
 
 
+@router.get("/db-indexes")
+async def check_db_indexes():
+    """Check which performance indexes exist in the database."""
+    session = SessionLocal()
+    try:
+        # Check for important indexes
+        result = session.execute(
+            text(
+                """
+            SELECT indexname, tablename
+            FROM pg_indexes
+            WHERE tablename IN ('leads', 'messages', 'creators')
+            AND schemaname = 'public'
+            ORDER BY tablename, indexname
+        """
+            )
+        )
+        indexes = [{"table": row[1], "index": row[0]} for row in result.fetchall()]
+
+        # Check alembic version
+        try:
+            version_result = session.execute(text("SELECT version_num FROM alembic_version"))
+            alembic_version = version_result.scalar()
+        except Exception:
+            alembic_version = "not found"
+
+        # Check table sizes
+        size_result = session.execute(
+            text(
+                """
+            SELECT relname, n_live_tup
+            FROM pg_stat_user_tables
+            WHERE relname IN ('leads', 'messages', 'creators')
+            ORDER BY relname
+        """
+            )
+        )
+        table_sizes = {row[0]: row[1] for row in size_result.fetchall()}
+
+        return {
+            "alembic_version": alembic_version,
+            "indexes": indexes,
+            "table_sizes": table_sizes,
+            "expected_indexes": [
+                "idx_leads_creator_id",
+                "idx_messages_lead_id",
+                "ix_messages_lead_id",
+                "ix_messages_lead_id_created_at",
+            ],
+        }
+    finally:
+        session.close()
+
+
+@router.post("/create-indexes")
+async def create_performance_indexes():
+    """Create missing performance indexes (idempotent)."""
+    session = SessionLocal()
+    try:
+        indexes_to_create = [
+            "CREATE INDEX IF NOT EXISTS idx_leads_creator_id ON leads(creator_id)",
+            "CREATE INDEX IF NOT EXISTS idx_leads_creator_status ON leads(creator_id, status)",
+            "CREATE INDEX IF NOT EXISTS idx_messages_lead_id ON messages(lead_id)",
+            "CREATE INDEX IF NOT EXISTS ix_messages_lead_id ON messages(lead_id)",
+            "CREATE INDEX IF NOT EXISTS ix_messages_lead_id_created_at ON messages(lead_id, created_at)",
+            "CREATE INDEX IF NOT EXISTS idx_creators_name ON creators(name)",
+        ]
+
+        created = []
+        for idx_sql in indexes_to_create:
+            try:
+                session.execute(text(idx_sql))
+                session.commit()
+                idx_name = idx_sql.split("IF NOT EXISTS ")[1].split(" ON")[0]
+                created.append(idx_name)
+            except Exception as e:
+                logger.warning(f"Index creation issue: {e}")
+
+        return {
+            "status": "ok",
+            "message": f"Created/verified {len(created)} indexes",
+            "indexes": created,
+        }
+    finally:
+        session.close()
+
+
 @router.delete("/dismissed-leads/{creator_name}/{platform_user_id}")
 async def restore_dismissed_lead(creator_name: str, platform_user_id: str):
     """
