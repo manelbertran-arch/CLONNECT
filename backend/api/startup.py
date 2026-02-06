@@ -355,8 +355,9 @@ async def _do_cache_refresh(SessionLocal):
             finally:
                 session.close()
 
-        if not active_creators:
-            active_creators = ["stefano_bonanno"]
+        # Always include stefano_bonanno (main production creator)
+        if "stefano_bonanno" not in active_creators:
+            active_creators.append("stefano_bonanno")
 
         for creator_id in active_creators:
             # Refresh conversations cache
