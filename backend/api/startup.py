@@ -417,6 +417,6 @@ async def _do_cache_refresh(SessionLocal):
             except Exception as e:
                 logger.debug(f"[CACHE-REFRESH] leads {creator_id}: {e}")
 
-        logger.debug(f"[CACHE-REFRESH] Refreshed cache for {len(active_creators)} creators")
+        logger.info(f"[CACHE-REFRESH] Refreshed cache for {len(active_creators)} creators")
     except Exception as e:
         logger.warning(f"[CACHE-REFRESH] Error: {e}")
