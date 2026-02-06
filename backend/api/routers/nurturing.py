@@ -698,77 +698,90 @@ async def _process_profile_retries(max_per_cycle: int = 10) -> Dict[str, int]:
 
 
 async def _run_scheduler_cycle():
-    """Run a single scheduler cycle - process all due followups across all creators"""
+    """Run a single scheduler cycle - process all due followups across all creators.
+
+    PERF: Heavy operations (Instagram API, enrichment) only run every 6th cycle
+    to avoid blocking the event loop too frequently.
+    """
     global _scheduler_last_run, _scheduler_run_count
 
     manager = get_nurturing_manager()
 
-    # 0a. Run message reconciliation (recover missing messages from Instagram)
-    try:
-        from core.message_reconciliation import run_periodic_reconciliation
+    # PERF: Only run heavy operations every 6th cycle (every 30 min with 5 min interval)
+    # This prevents blocking API requests with Instagram API calls
+    run_heavy_ops = (_scheduler_run_count % 6) == 0
 
-        recon_result = await run_periodic_reconciliation()
-        if recon_result.get("total_inserted", 0) > 0:
-            logger.info(
-                f"[NURTURING SCHEDULER] Reconciliation: {recon_result['total_inserted']} messages recovered"
-            )
-    except Exception as e:
-        logger.error(f"[NURTURING SCHEDULER] Reconciliation error: {e}")
+    if run_heavy_ops:
+        logger.info("[NURTURING SCHEDULER] Running heavy operations (every 6th cycle)")
 
-    # 0a2. Enrich leads without profile (fix ig_XXXX leads)
-    try:
-        from api.database import SessionLocal
-        from api.models import Creator
-        from core.message_reconciliation import enrich_leads_without_profile
-
-        session = SessionLocal()
+        # 0a. Run message reconciliation (recover missing messages from Instagram)
         try:
-            creators = (
-                session.query(Creator)
-                .filter(
-                    Creator.instagram_token.isnot(None),
-                    Creator.instagram_token != "",
-                    Creator.bot_active == True,
+            from core.message_reconciliation import run_periodic_reconciliation
+
+            recon_result = await run_periodic_reconciliation()
+            if recon_result.get("total_inserted", 0) > 0:
+                logger.info(
+                    f"[NURTURING SCHEDULER] Reconciliation: {recon_result['total_inserted']} messages recovered"
                 )
-                .all()
-            )
-            creator_list = [{"name": c.name, "token": c.instagram_token} for c in creators]
-        finally:
-            session.close()
+        except Exception as e:
+            logger.error(f"[NURTURING SCHEDULER] Reconciliation error: {e}")
 
-        total_enriched = 0
-        for c in creator_list:
-            enrich_result = await enrich_leads_without_profile(c["name"], c["token"], limit=5)
-            total_enriched += enrich_result.get("enriched", 0)
+        # 0a2. Enrich leads without profile (fix ig_XXXX leads)
+        try:
+            from api.database import SessionLocal
+            from api.models import Creator
+            from core.message_reconciliation import enrich_leads_without_profile
 
-        if total_enriched > 0:
-            logger.info(f"[NURTURING SCHEDULER] Lead enrichment: {total_enriched} profiles updated")
+            session = SessionLocal()
+            try:
+                creators = (
+                    session.query(Creator)
+                    .filter(
+                        Creator.instagram_token.isnot(None),
+                        Creator.instagram_token != "",
+                        Creator.bot_active == True,
+                    )
+                    .all()
+                )
+                creator_list = [{"name": c.name, "token": c.instagram_token} for c in creators]
+            finally:
+                session.close()
 
-    except Exception as e:
-        logger.error(f"[NURTURING SCHEDULER] Lead enrichment error: {e}")
+            total_enriched = 0
+            for c in creator_list:
+                enrich_result = await enrich_leads_without_profile(c["name"], c["token"], limit=5)
+                total_enriched += enrich_result.get("enriched", 0)
 
-    # 0b. Process pending profile retries (automatic enrichment)
-    try:
-        profile_result = await _process_profile_retries()
-        if profile_result.get("processed", 0) > 0:
-            logger.info(
-                f"[NURTURING SCHEDULER] Profile retry: {profile_result['processed']} processed, "
-                f"{profile_result['success']} success, {profile_result['failed']} failed"
-            )
-    except Exception as e:
-        logger.error(f"[NURTURING SCHEDULER] Profile retry error: {e}")
+            if total_enriched > 0:
+                logger.info(f"[NURTURING SCHEDULER] Lead enrichment: {total_enriched} profiles updated")
 
-    # 1. Run ghost reactivation (find and schedule re-engagement for ghosts)
-    try:
-        from core.ghost_reactivation import run_ghost_reactivation_cycle
+        except Exception as e:
+            logger.error(f"[NURTURING SCHEDULER] Lead enrichment error: {e}")
 
-        ghost_result = await run_ghost_reactivation_cycle()
-        if ghost_result.get("total_scheduled", 0) > 0:
-            logger.info(
-                f"[NURTURING SCHEDULER] Ghost reactivation: {ghost_result['total_scheduled']} scheduled"
-            )
-    except Exception as e:
-        logger.error(f"[NURTURING SCHEDULER] Ghost reactivation error: {e}")
+        # 0b. Process pending profile retries (automatic enrichment)
+        try:
+            profile_result = await _process_profile_retries()
+            if profile_result.get("processed", 0) > 0:
+                logger.info(
+                    f"[NURTURING SCHEDULER] Profile retry: {profile_result['processed']} processed, "
+                    f"{profile_result['success']} success, {profile_result['failed']} failed"
+                )
+        except Exception as e:
+            logger.error(f"[NURTURING SCHEDULER] Profile retry error: {e}")
+
+        # 1. Run ghost reactivation (find and schedule re-engagement for ghosts)
+        try:
+            from core.ghost_reactivation import run_ghost_reactivation_cycle
+
+            ghost_result = await run_ghost_reactivation_cycle()
+            if ghost_result.get("total_scheduled", 0) > 0:
+                logger.info(
+                    f"[NURTURING SCHEDULER] Ghost reactivation: {ghost_result['total_scheduled']} scheduled"
+                )
+        except Exception as e:
+            logger.error(f"[NURTURING SCHEDULER] Ghost reactivation error: {e}")
+    else:
+        logger.debug(f"[NURTURING SCHEDULER] Skipping heavy ops (cycle {_scheduler_run_count})")
 
     # 2. Get ALL pending followups that are due (no creator_id = all creators)
     followups = manager.get_pending_followups()
