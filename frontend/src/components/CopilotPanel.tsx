@@ -5,7 +5,7 @@
  * - Automático (copilot_enabled: false): Bot responds automatically
  * - Manual (copilot_enabled: true): Human reviews and approves responses
  */
-import { useState } from "react";
+import { useState, useCallback } from "react";
 import {
   Bot,
   Check,
@@ -321,14 +321,23 @@ export default function CopilotPanel() {
   const toggleMutation = useToggleCopilotMode();
   const approveAllMutation = useApproveAllCopilot();
 
-  const pendingResponses = pendingData?.pending_responses || [];
-  const pendingCount = pendingData?.pending_count || 0;
+  // Local state to track items being hidden (for instant UI)
+  // This prevents polling from bringing back items during mutation
+  const [hiddenIds, setHiddenIds] = useState<Set<string>>(new Set());
+
+  // Filter out hidden items - this makes discard INSTANT
+  const allResponses = pendingData?.pending_responses || [];
+  const pendingResponses = allResponses.filter(item => !hiddenIds.has(item.id));
+  const pendingCount = pendingResponses.length;
 
   // copilot_enabled: true = Manual mode (human reviews)
   // copilot_enabled: false = Automatic mode (bot responds alone)
   const isManualMode = statusData?.copilot_enabled ?? true;
 
-  const handleApprove = (messageId: string, editedText?: string) => {
+  const handleApprove = useCallback((messageId: string, editedText?: string) => {
+    // INSTANT: Hide immediately via local state (polling can't override this)
+    setHiddenIds(prev => new Set([...prev, messageId]));
+
     approveMutation.mutate(
       { messageId, editedText },
       {
@@ -339,6 +348,12 @@ export default function CopilotPanel() {
           });
         },
         onError: (error) => {
+          // Show again on error (remove from hidden set)
+          setHiddenIds(prev => {
+            const next = new Set(prev);
+            next.delete(messageId);
+            return next;
+          });
           toast({
             title: "Error",
             description: error.message,
@@ -347,17 +362,27 @@ export default function CopilotPanel() {
         },
       }
     );
-  };
+  }, [approveMutation, toast]);
 
-  const handleDiscard = (messageId: string) => {
+  const handleDiscard = useCallback((messageId: string) => {
+    // INSTANT: Hide immediately via local state (polling can't override this)
+    setHiddenIds(prev => new Set([...prev, messageId]));
+
     discardMutation.mutate(messageId, {
       onSuccess: () => {
+        // Keep hidden (already removed from view)
         toast({
           title: "Respuesta descartada",
           description: "La respuesta sugerida fue descartada",
         });
       },
       onError: (error) => {
+        // Show again on error (remove from hidden set)
+        setHiddenIds(prev => {
+          const next = new Set(prev);
+          next.delete(messageId);
+          return next;
+        });
         toast({
           title: "Error",
           description: error.message,
@@ -365,7 +390,7 @@ export default function CopilotPanel() {
         });
       },
     });
-  };
+  }, [discardMutation, toast]);
 
   const handleModeToggle = (manualMode: boolean) => {
     // Prevent action if already loading or same mode
