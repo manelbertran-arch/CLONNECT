@@ -790,6 +790,7 @@ async def _run_scheduler_cycle():
     sent_real = 0
     sent_simulated = 0
     error_count = 0
+    modified_creators = set()  # Track which creators need cache flush
 
     for fu in followups:
         try:
@@ -797,7 +798,9 @@ async def _run_scheduler_cycle():
             result = await _try_send_message(fu.creator_id, fu.follower_id, message)
 
             if result["sent"]:
-                manager.mark_as_sent(fu)
+                # Use skip_save=True to batch saves (PERF: avoid 2000+ JSON writes per followup)
+                manager.mark_as_sent(fu, skip_save=True)
+                modified_creators.add(fu.creator_id)
                 processed += 1
                 if result["simulated"]:
                     sent_simulated += 1
@@ -809,6 +812,10 @@ async def _run_scheduler_cycle():
         except Exception as e:
             error_count += 1
             logger.error(f"[NURTURING SCHEDULER] Exception processing {fu.id}: {e}")
+
+    # Flush all modified creators' caches at once (PERF: single save per creator, not per followup)
+    for creator_id in modified_creators:
+        manager.flush_cache(creator_id)
 
     _scheduler_last_run = datetime.now().isoformat()
     _scheduler_run_count += 1

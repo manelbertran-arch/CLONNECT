@@ -381,19 +381,39 @@ class NurturingManager:
             return [fu for fu in followups if fu.status == status]
         return followups
 
-    def mark_as_sent(self, followup: FollowUp) -> bool:
-        """Marcar un followup como enviado"""
+    def mark_as_sent(self, followup: FollowUp, skip_save: bool = False) -> bool:
+        """Marcar un followup como enviado.
+
+        Args:
+            followup: The followup to mark as sent
+            skip_save: If True, don't save immediately (for batch operations).
+                       Caller must call flush_cache() after batch is complete.
+        """
         followups = self._load_followups(followup.creator_id)
 
         for fu in followups:
             if fu.id == followup.id:
                 fu.status = "sent"
                 fu.sent_at = datetime.now().isoformat()
-                self._save_followups(followup.creator_id, followups)
+                if not skip_save:
+                    self._save_followups(followup.creator_id, followups)
                 logger.info(f"Followup {followup.id} marked as sent")
                 return True
 
         return False
+
+    def flush_cache(self, creator_id: str = None):
+        """Save cached followups to storage. Call after batch mark_as_sent operations.
+
+        Args:
+            creator_id: If provided, only flush for this creator. Otherwise flush all.
+        """
+        if creator_id:
+            if creator_id in self._cache:
+                self._save_followups(creator_id, self._cache[creator_id])
+        else:
+            for cid, followups in self._cache.items():
+                self._save_followups(cid, followups)
 
     def cancel_followups(
         self,
