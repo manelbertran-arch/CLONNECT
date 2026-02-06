@@ -219,6 +219,7 @@ export default function Leads() {
   // Optimistic UI states for instant feedback
   const [fadingIds, setFadingIds] = useState<Set<string>>(new Set());
   const [hiddenIds, setHiddenIds] = useState<Set<string>>(new Set());
+  const [optimisticLeads, setOptimisticLeads] = useState<LeadDisplay[]>([]);
 
   // Modal states
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
@@ -246,9 +247,9 @@ export default function Leads() {
   const leads = useMemo(() => {
     // Flatten all pages from infinite query
     const allConversations = data?.pages?.flatMap(page => page.conversations) || [];
-    if (!allConversations.length) return [];
+    if (!allConversations.length && !optimisticLeads.length) return [];
 
-    return allConversations.map((convo): LeadDisplay => {
+    const realLeads = allConversations.map((convo): LeadDisplay => {
       const platform = convo.platform || detectPlatform(convo.follower_id);
       const displayName = getDisplayName(convo);
       const intent = getPurchaseIntent(convo);
@@ -292,7 +293,12 @@ export default function Leads() {
         followerId: convo.follower_id,
       };
     });
-  }, [data?.pages, localStatusOverrides]);
+
+    // Merge optimistic leads with real leads (optimistic first, filter out duplicates)
+    const realIds = new Set(realLeads.map(l => l.name.toLowerCase()));
+    const uniqueOptimistic = optimisticLeads.filter(ol => !realIds.has(ol.name.toLowerCase()));
+    return [...uniqueOptimistic, ...realLeads];
+  }, [data?.pages, localStatusOverrides, optimisticLeads]);
 
   const handleDragStart = (lead: LeadDisplay) => {
     setDraggedLead(lead);
@@ -362,32 +368,58 @@ export default function Leads() {
       return;
     }
 
-    // INSTANT: Close modal immediately for instant feedback
+    // INSTANT: Close modal immediately
     const leadName = formData.name;
+    const leadPlatform = formData.platform;
     setIsAddModalOpen(false);
     setFormData(initialFormState);
 
-    // Show instant toast
+    // OPTIMISTIC: Create a temporary lead that appears immediately
+    const tempId = `temp-${Date.now()}`;
+    const optimisticLead: LeadDisplay = {
+      id: tempId,
+      name: leadName,
+      username: leadName,
+      instagramUsername: leadName.toLowerCase().replace(/\s+/g, '_'),
+      score: 25, // "nuevo" stage
+      intentScore: 0,
+      value: 0,
+      status: "nuevo",
+      avatar: getInitials(leadName),
+      profilePicUrl: "",
+      platform: leadPlatform,
+      email: formData.email || "",
+      phone: formData.phone || "",
+      notes: formData.notes || "",
+      lastContact: new Date().toISOString(),
+      totalMessages: 0,
+      followerId: tempId,
+    };
+
+    // Add to optimistic leads immediately (will show in "Nuevos" column)
+    setOptimisticLeads(prev => [optimisticLead, ...prev]);
+
+    // Show toast
     toast({
-      title: "Creando lead...",
-      description: `${leadName} se está agregando`,
+      title: "Lead creado",
+      description: `${leadName} agregado al pipeline`,
     });
 
-    // BACKGROUND: API call
+    // BACKGROUND: API call (fire and forget)
     createLeadMutation.mutate({
       name: leadName,
-      platform: formData.platform,
+      platform: leadPlatform,
       email: formData.email || undefined,
       phone: formData.phone || undefined,
       notes: formData.notes || undefined,
     }, {
       onSuccess: () => {
-        toast({
-          title: "Lead creado",
-          description: `${leadName} agregado al pipeline`,
-        });
+        // Remove optimistic lead (real one will come from refetch)
+        setOptimisticLeads(prev => prev.filter(l => l.id !== tempId));
       },
       onError: (err) => {
+        // Rollback: remove optimistic lead
+        setOptimisticLeads(prev => prev.filter(l => l.id !== tempId));
         toast({
           title: "Error al crear lead",
           description: err instanceof Error ? err.message : "No se pudo crear el lead",

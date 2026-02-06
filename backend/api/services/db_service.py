@@ -507,6 +507,8 @@ def get_conversations_with_counts(
 
 
 def create_lead(creator_name: str, data: dict):
+    import time
+    start = time.time()
     session = get_session()
     if not session:
         logger.warning("create_lead: no database session available")
@@ -514,10 +516,12 @@ def create_lead(creator_name: str, data: dict):
     try:
         from api.models import Creator, Lead
 
+        t1 = time.time()
         creator = session.query(Creator).filter_by(name=creator_name).first()
+        logger.info(f"⏱️ create_lead: query creator took {time.time()-t1:.2f}s")
+
         if not creator:
             logger.warning(f"create_lead: creator '{creator_name}' not found, creating it")
-            # Auto-create creator if not exists
             creator = Creator(name=creator_name)
             session.add(creator)
             session.commit()
@@ -545,8 +549,10 @@ def create_lead(creator_name: str, data: dict):
             context=context,
         )
         session.add(lead)
+        t2 = time.time()
         session.commit()
-        logger.info(f"create_lead: created lead {lead.id} for creator {creator_name}")
+        logger.info(f"⏱️ create_lead: commit took {time.time()-t2:.2f}s")
+        logger.info(f"⏱️ create_lead: TOTAL {time.time()-start:.2f}s for {creator_name}")
         return {
             "id": str(lead.id),
             "platform_user_id": lead.platform_user_id,
