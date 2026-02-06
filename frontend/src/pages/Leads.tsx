@@ -297,11 +297,7 @@ export default function Leads() {
     // Merge optimistic leads with real leads (optimistic first, filter out duplicates)
     const realIds = new Set(realLeads.map(l => l.name.toLowerCase()));
     const uniqueOptimistic = optimisticLeads.filter(ol => !realIds.has(ol.name.toLowerCase()));
-    const merged = [...uniqueOptimistic, ...realLeads];
-    if (uniqueOptimistic.length > 0) {
-      console.log("🔄 Leads memo: optimistic=", uniqueOptimistic.length, "real=", realLeads.length, "total=", merged.length);
-    }
-    return merged;
+    return [...uniqueOptimistic, ...realLeads];
   }, [data?.pages, localStatusOverrides, optimisticLeads]);
 
   const handleDragStart = (lead: LeadDisplay) => {
@@ -401,18 +397,12 @@ export default function Leads() {
     };
 
     // Add to optimistic leads immediately (will show in "Nuevos" column)
-    console.log("🚀 Adding optimistic lead:", optimisticLead);
-    setOptimisticLeads(prev => {
-      console.log("🚀 Previous optimistic leads:", prev.length);
-      const next = [optimisticLead, ...prev];
-      console.log("🚀 New optimistic leads:", next.length);
-      return next;
-    });
+    setOptimisticLeads(prev => [optimisticLead, ...prev]);
 
     // Show toast
     toast({
-      title: "✅ Lead creado",
-      description: `${leadName} agregado al pipeline (instantáneo)`,
+      title: "Lead creado",
+      description: `${leadName} agregado al pipeline`,
     });
 
     // BACKGROUND: API call (fire and forget)
