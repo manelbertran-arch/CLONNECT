@@ -293,8 +293,8 @@ async def _do_prewarm(SessionLocal):
                         "product_price": 97.0,
                     }
                     api_cache.set(
-                        cache_key, cached_result, ttl_seconds=30
-                    )  # 30s for startup warmup
+                        cache_key, cached_result, ttl_seconds=60
+                    )  # 60s for startup warmup
                     logger.info(
                         f"[CACHE-WARM] {creator_id}: conversations cached ({len(conversations)} items)"
                     )
@@ -303,45 +303,14 @@ async def _do_prewarm(SessionLocal):
 
             try:
                 # Warm leads cache (limit=100 - default param)
+                # Note: get_leads() returns list of dicts, not Lead objects
                 leads = db_service.get_leads(creator_id, limit=100)
                 if leads is not None:
                     cache_key = f"leads:{creator_id}:100"
-                    adapted = []
-                    for lead in leads:
-                        lead_status = lead.status or "nuevo"
-                        intent = lead.purchase_intent or 0
-                        adapted.append(
-                            {
-                                "id": str(lead.id),
-                                "platform_user_id": lead.platform_user_id,
-                                "username": lead.username,
-                                "full_name": lead.full_name,
-                                "profile_pic_url": lead.profile_pic_url,
-                                "platform": lead.platform or "instagram",
-                                "status": lead_status,
-                                "purchase_intent": intent,
-                                "purchase_intent_score": (
-                                    round(intent * 100) if intent <= 1 else int(intent)
-                                ),
-                                "last_contact_at": (
-                                    lead.last_contact_at.isoformat()
-                                    if lead.last_contact_at
-                                    else None
-                                ),
-                                "first_contact_at": (
-                                    lead.first_contact_at.isoformat()
-                                    if lead.first_contact_at
-                                    else None
-                                ),
-                                "email": lead.email or "",
-                                "phone": lead.phone or "",
-                                "notes": lead.notes or "",
-                                "tags": lead.tags or [],
-                            }
-                        )
-                    cached_result = {"status": "ok", "leads": adapted, "count": len(adapted)}
-                    api_cache.set(cache_key, cached_result, ttl_seconds=30)
-                    logger.info(f"[CACHE-WARM] {creator_id}: leads cached ({len(adapted)} items)")
+                    # get_leads already returns properly formatted dicts
+                    cached_result = {"status": "ok", "leads": leads, "count": len(leads)}
+                    api_cache.set(cache_key, cached_result, ttl_seconds=60)  # 60s for warming
+                    logger.info(f"[CACHE-WARM] {creator_id}: leads cached ({len(leads)} items)")
             except Exception as e:
                 logger.warning(f"[CACHE-WARM] Failed to warm leads for {creator_id}: {e}")
 
