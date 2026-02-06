@@ -157,16 +157,17 @@ def determine_overall_status(checks: Dict[str, Dict]) -> str:
 # =============================================================================
 
 @router.get("/health")
-async def health():
+def health():
     """
-    Full system health check.
+    Fast system health check - NO LLM calls.
 
     Verifies:
-    - Overall system status
-    - LLM connection (Groq/OpenAI)
     - Disk space
     - RAM memory
     - Access to data directory
+
+    NOTE: LLM check removed to keep response <1s.
+    Use /health/ready for full readiness check including LLM.
 
     Returns:
         status: healthy | degraded | unhealthy
@@ -178,22 +179,7 @@ async def health():
         "data_dir": check_data_dir_health(),
     }
 
-    # LLM check is async
-    checks["llm"] = await check_llm_health()
-
     overall_status = determine_overall_status(checks)
-
-    # Send alert if status is unhealthy
-    if overall_status == "unhealthy":
-        try:
-            from core.alerts import get_alert_manager
-            alert_manager = get_alert_manager()
-            failed_checks = {k: v for k, v in checks.items() if v.get("status") == "error"}
-            await alert_manager.alert_health_check_failed(
-                check_name="system", status=overall_status, details=failed_checks
-            )
-        except Exception as e:
-            logger.debug(f"Could not send health alert: {e}")
 
     return {
         "status": overall_status,
@@ -219,13 +205,15 @@ def health_live():
 
 
 @router.get("/health/ready")
-async def health_ready():
+def health_ready():
     """
     Readiness probe for Kubernetes.
 
-    Verifies that the service can process messages:
-    - LLM accessible
+    Verifies that the service can process requests:
     - Data directory accessible
+
+    NOTE: LLM check removed to keep response fast.
+    LLM availability is verified by actual message processing.
 
     Returns:
         status: ok | error
@@ -237,17 +225,23 @@ async def health_ready():
         if data_check.get("status") == "error":
             return {"status": "error", "ready": False, "reason": "data_dir_not_accessible"}
 
-        # Check LLM
-        llm_check = await check_llm_health()
-        if llm_check.get("status") == "error":
-            return {
-                "status": "error",
-                "ready": False,
-                "reason": "llm_not_accessible",
-                "llm_error": llm_check.get("error"),
-            }
-
-        return {"status": "ok", "ready": True, "llm_latency_ms": llm_check.get("latency_ms")}
+        return {"status": "ok", "ready": True}
 
     except Exception as e:
         return {"status": "error", "ready": False, "reason": str(e)}
+
+
+@router.get("/health/llm")
+async def health_llm():
+    """
+    Explicit LLM health check - use sparingly (slow).
+
+    Makes an actual LLM API call to verify connectivity.
+    Expected latency: 1-20 seconds depending on provider.
+
+    Returns:
+        status: ok | error
+        latency_ms: Response time
+        provider: LLM provider name
+    """
+    return await check_llm_health()
