@@ -41,13 +41,15 @@ class ResponseVariator:
             "viendonos",
             "tomarnos algo",
             "tomar algo",
+            "tomamos algo",
             "un café",
             "un cafe",
             "unas birras",
             "unas cervezas",
             "podemos vernos",
-            "nos vemos mañana",
+            "nos vemos",
             "nos juntamos",
+            "juntarnos",
         ]
         if any(m in message_lower for m in meeting_words):
             return "meeting_request"

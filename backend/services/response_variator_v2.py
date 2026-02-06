@@ -173,12 +173,14 @@ class ResponseVariatorV2:
             "veamonos",
             "tomarnos algo",
             "tomar algo",
+            "tomamos algo",
             "un café",
             "un cafe",
             "unas birras",
             "unas cervezas",
-            "nos vemos mañana",
+            "nos vemos",
             "nos juntamos",
+            "juntarnos",
         ]
         if any(m in msg for m in meeting_triggers):
             return ("meeting_request", 0.98)
