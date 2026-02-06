@@ -308,9 +308,9 @@ async def _do_prewarm(SessionLocal):
                         "has_more": result.get("has_more", False),
                         "product_price": 97.0,
                     }
-                    api_cache.set(
-                        cache_key, cached_result, ttl_seconds=60
-                    )  # 60s for startup warmup
+                    # Set for BOTH endpoints (dm.py and messages.py use different keys)
+                    api_cache.set(cache_key, cached_result, ttl_seconds=60)  # messages.py (with offset)
+                    api_cache.set(f"conversations:{creator_id}:50", cached_result, ttl_seconds=60)  # dm.py (no offset)
                     logger.info(
                         f"[CACHE-WARM] {creator_id}: conversations cached ({len(conversations)} items)"
                     )
@@ -405,7 +405,9 @@ async def _do_cache_refresh(SessionLocal):
                         "has_more": result.get("has_more", False),
                         "product_price": 97.0,
                     }
-                    api_cache.set(f"conversations:{creator_id}:50:0", cached_result, ttl_seconds=30)
+                    # Set for BOTH endpoints (dm.py and messages.py use different keys)
+                    api_cache.set(f"conversations:{creator_id}:50:0", cached_result, ttl_seconds=30)  # messages.py
+                    api_cache.set(f"conversations:{creator_id}:50", cached_result, ttl_seconds=30)    # dm.py
             except Exception as e:
                 logger.debug(f"[CACHE-REFRESH] conversations {creator_id}: {e}")
 
