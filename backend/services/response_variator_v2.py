@@ -133,6 +133,14 @@ class ResponseVariatorV2:
                 "Gracias hermano!",
                 "💙",
             ],
+            # PROPUESTAS DE QUEDAR - Stefan siempre rechaza amablemente
+            "meeting_request": [
+                "Imposible bro, me explota la agenda jaja",
+                "Uf imposible, tengo la agenda llena 😅",
+                "Me es imposible ahora mismo, hermano",
+                "Ahora no puedo, bro. Quizás más adelante! 😊",
+                "Difícil ahora, tengo todo el mes pillado jaja",
+            ],
         }
 
         # Merge with loaded pools
@@ -154,6 +162,26 @@ class ResponseVariatorV2:
         """
         msg = message.lower().strip()
         msg_clean = msg.rstrip("!").rstrip(".").rstrip("?")
+
+        # MEETING REQUESTS - HIGHEST PRIORITY (Stefan always declines)
+        meeting_triggers = [
+            "quedar",
+            "quedamos",
+            "vernos",
+            "encontrarnos",
+            "veámonos",
+            "veamonos",
+            "tomarnos algo",
+            "tomar algo",
+            "un café",
+            "un cafe",
+            "unas birras",
+            "unas cervezas",
+            "nos vemos mañana",
+            "nos juntamos",
+        ]
+        if any(m in msg for m in meeting_triggers):
+            return ("meeting_request", 0.98)
 
         # Greetings (high confidence)
         greetings = ["hola", "hey", "buenas", "ey", "hi", "hello"]
