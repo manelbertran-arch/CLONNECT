@@ -239,30 +239,24 @@ class CopilotService:
                 base_query.order_by(Message.created_at.desc()).offset(offset).limit(limit).all()
             )
 
-            # OPTIMIZATION: Get all user messages in ONE query instead of N+1
-            lead_ids = list(set(lead.id for _, lead in pending_messages))
+            # OPTIMIZATION: Get latest user message per lead in ONE query
+            # Using DISTINCT ON (PostgreSQL) or simple approach for compatibility
+            lead_ids = [lead.id for _, lead in pending_messages]
+            user_msg_lookup = {}
             if lead_ids:
-                # Subquery to get latest user message per lead
-                from sqlalchemy import func
-                subq = (
-                    session.query(
-                        Message.lead_id,
-                        func.max(Message.created_at).label("max_created")
-                    )
-                    .filter(Message.lead_id.in_(lead_ids), Message.role == "user")
-                    .group_by(Message.lead_id)
-                    .subquery()
-                )
+                # Simple approach: get all user messages for these leads, then pick latest in Python
                 user_messages = (
                     session.query(Message)
-                    .join(subq, (Message.lead_id == subq.c.lead_id) & (Message.created_at == subq.c.max_created))
-                    .filter(Message.role == "user")
+                    .filter(Message.lead_id.in_(lead_ids), Message.role == "user")
+                    .order_by(Message.lead_id, Message.created_at.desc())
                     .all()
                 )
-                # Create lookup dict: lead_id -> latest user message content
-                user_msg_lookup = {str(m.lead_id): m.content for m in user_messages}
-            else:
-                user_msg_lookup = {}
+                # Keep only the first (latest) message per lead
+                seen_leads = set()
+                for m in user_messages:
+                    if m.lead_id not in seen_leads:
+                        user_msg_lookup[str(m.lead_id)] = m.content
+                        seen_leads.add(m.lead_id)
 
             results = []
             for msg, lead in pending_messages:
