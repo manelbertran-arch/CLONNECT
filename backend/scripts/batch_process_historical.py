@@ -117,27 +117,42 @@ def collect_json_followers(creator_id: str) -> Dict[str, List[Dict]]:
 
 def collect_db_followers(creator_id: str) -> Dict[str, List[Dict]]:
     """
-    Load follower data from PostgreSQL database.
+    Load follower data AND messages from PostgreSQL database.
+
+    Queries both the leads table (metadata) and messages table (full history).
+    Tags each message with source: 'bot', 'human', or 'user'.
 
     Returns:
-        Dict mapping follower_id -> follower data
+        Dict mapping follower_id -> follower data with messages
     """
     if not os.getenv("DATABASE_URL"):
         logger.warning("DATABASE_URL not set, skipping DB collection")
         return {}
 
     try:
-        from api.models import Lead
+        from api.models import Creator, Lead, Message
         from api.services.db_service import get_session
 
         session = get_session()
         if not session:
             return {}
 
-        leads = session.query(Lead).filter(Lead.creator_id == creator_id).all()
+        # Step 0: Resolve creator name to UUID
+        creator = session.query(Creator).filter(Creator.name == creator_id).first()
+        if not creator:
+            logger.warning(f"Creator '{creator_id}' not found in database")
+            session.close()
+            return {}
+        creator_uuid = creator.id
+        logger.info(f"Resolved creator '{creator_id}' -> UUID {creator_uuid}")
+
+        # Step 1: Load all leads with metadata
+        leads = session.query(Lead).filter(Lead.creator_id == creator_uuid).all()
+        lead_map = {}  # lead.id -> lead object
         db_followers = {}
 
         for lead in leads:
+            lead_map[lead.id] = lead
             db_followers[lead.platform_user_id] = {
                 "username": lead.username or lead.platform_user_id,
                 "name": lead.full_name or "",
@@ -145,43 +160,139 @@ def collect_db_followers(creator_id: str) -> Dict[str, List[Dict]]:
                 "email": lead.email,
                 "phone": lead.phone,
                 "profile_pic_url": lead.profile_pic_url,
+                "is_customer": lead.status == "cliente",
+                "messages": [],
+                "total_messages": 0,
+                "first_contact": None,
+                "last_contact": None,
+                "purchase_intent_score": lead.purchase_intent or 0.0,
             }
 
-        session.close()
         logger.info(f"Loaded {len(db_followers)} leads from database")
+
+        # Step 2: Load ALL messages, ordered by lead and time
+        lead_ids = list(lead_map.keys())
+        if not lead_ids:
+            session.close()
+            return db_followers
+
+        total_msgs = 0
+        bot_msgs = 0
+        human_msgs = 0
+        user_msgs = 0
+
+        # Query in batches of 50 leads to avoid huge queries
+        batch_size = 50
+        for i in range(0, len(lead_ids), batch_size):
+            batch_ids = lead_ids[i : i + batch_size]
+            messages = (
+                session.query(Message)
+                .filter(Message.lead_id.in_(batch_ids))
+                .order_by(Message.lead_id, Message.created_at)
+                .all()
+            )
+
+            for msg in messages:
+                lead = lead_map.get(msg.lead_id)
+                if not lead:
+                    continue
+
+                fid = lead.platform_user_id
+
+                # Determine message source
+                source = "user"
+                if msg.role == "assistant":
+                    approved_by = msg.approved_by or ""
+                    metadata = msg.msg_metadata or {}
+                    is_manual = metadata.get("is_manual", False)
+
+                    if approved_by in ("creator_manual", "creator") or is_manual:
+                        # Stefan wrote or approved this himself
+                        source = "human"
+                        human_msgs += 1
+                    elif approved_by == "autopilot" or approved_by == "auto":
+                        # Bot auto-generated and auto-sent
+                        source = "bot"
+                        bot_msgs += 1
+                    elif approved_by == "historical_sync":
+                        # Synced from Instagram - Stefan's real messages
+                        source = "human"
+                        human_msgs += 1
+                    else:
+                        # Unknown origin - likely synced from Instagram (human)
+                        source = "human"
+                        human_msgs += 1
+                else:
+                    user_msgs += 1
+
+                normalized_msg = {
+                    "role": msg.role or "user",
+                    "content": msg.content or "",
+                    "timestamp": msg.created_at.isoformat() if msg.created_at else "",
+                    "source": source,
+                    "intent": msg.intent or "",
+                    "approved_by": msg.approved_by or "",
+                }
+
+                if fid in db_followers:
+                    db_followers[fid]["messages"].append(normalized_msg)
+                    total_msgs += 1
+
+        # Step 3: Set first/last contact and total_messages
+        for fid, data in db_followers.items():
+            msgs = data["messages"]
+            data["total_messages"] = len(msgs)
+            if msgs:
+                data["first_contact"] = msgs[0].get("timestamp", "")
+                data["last_contact"] = msgs[-1].get("timestamp", "")
+
+        session.close()
+
+        logger.info(
+            f"Loaded {total_msgs} messages from database "
+            f"(user={user_msgs}, bot={bot_msgs}, human={human_msgs})"
+        )
         return db_followers
 
     except Exception as e:
         logger.error(f"DB collection failed: {e}")
+        import traceback
+
+        traceback.print_exc()
         return {}
 
 
 def merge_data_sources(json_data: Dict[str, Dict], db_data: Dict[str, Dict]) -> Dict[str, Dict]:
     """
-    Merge JSON and DB data sources, preferring DB for metadata.
+    Merge JSON and DB data sources.
+
+    Priority: DB messages over JSON (DB has full history with source tags).
+    JSON is only used as fallback when DB has no messages for a follower.
 
     Returns:
         Merged follower data dict
     """
     merged = {}
 
-    # Start with JSON data (has message history)
-    for fid, data in json_data.items():
-        merged[fid] = data.copy()
-        # Enrich with DB data if available
-        if fid in db_data:
-            merged[fid].update(
-                {k: v for k, v in db_data[fid].items() if v is not None and k != "messages"}
-            )
-
-    # Add DB-only followers (no JSON file)
+    # Start with DB data (has full message history + source tags)
     for fid, data in db_data.items():
-        if fid not in merged:
-            merged[fid] = {**data, "messages": [], "total_messages": 0}
-            logger.debug(f"DB-only follower (no messages): {fid}")
+        merged[fid] = data.copy()
 
+    # Add JSON-only followers or use JSON messages as fallback
+    for fid, data in json_data.items():
+        if fid not in merged:
+            # JSON-only follower (not in DB)
+            merged[fid] = data.copy()
+        elif not merged[fid].get("messages"):
+            # DB has lead metadata but no messages - use JSON messages
+            merged[fid]["messages"] = data.get("messages", [])
+            merged[fid]["total_messages"] = len(merged[fid]["messages"])
+
+    db_with_msgs = sum(1 for d in db_data.values() if d.get("messages"))
+    json_only = sum(1 for fid in json_data if fid not in db_data)
     logger.info(
-        f"Merged: {len(json_data)} JSON + {len(db_data)} DB = {len(merged)} unique followers"
+        f"Merged: {db_with_msgs} DB (with msgs) + {json_only} JSON-only "
+        f"= {len(merged)} unique followers"
     )
     return merged
 
@@ -490,26 +601,12 @@ def extract_facts(followers: Dict[str, Dict]) -> Dict[str, List[Dict]]:
 # =============================================================================
 
 
-def analyze_writing_patterns(followers: Dict[str, Dict]) -> Dict[str, Any]:
-    """
-    Analyze Stefan's writing patterns from assistant messages.
-
-    Returns:
-        Dict with pattern analysis results
-    """
-    stefan_messages = []
-
-    for _, data in followers.items():
-        for msg in data.get("messages", []):
-            if msg.get("role") == "assistant":
-                stefan_messages.append(msg.get("content", ""))
-
-    if not stefan_messages:
-        logger.warning("No assistant messages found for pattern analysis")
+def _analyze_message_set(messages: List[str], label: str) -> Dict[str, Any]:
+    """Analyze writing patterns for a set of messages."""
+    if not messages:
         return {}
 
-    # Basic analysis
-    lengths = [len(m) for m in stefan_messages]
+    lengths = [len(m) for m in messages if m]
     emoji_pattern = re.compile(
         "["
         "\U0001f600-\U0001f64f"
@@ -520,11 +617,11 @@ def analyze_writing_patterns(followers: Dict[str, Dict]) -> Dict[str, Any]:
         "]+",
         flags=re.UNICODE,
     )
-    emoji_msgs = sum(1 for m in stefan_messages if emoji_pattern.search(m))
+    emoji_msgs = sum(1 for m in messages if emoji_pattern.search(m))
 
-    # Common phrases (3+ occurrences)
+    # Common bigrams (3+ occurrences)
     phrase_counts: Dict[str, int] = {}
-    for msg in stefan_messages:
+    for msg in messages:
         words = msg.lower().split()
         for i in range(len(words) - 1):
             bigram = f"{words[i]} {words[i + 1]}"
@@ -536,31 +633,78 @@ def analyze_writing_patterns(followers: Dict[str, Dict]) -> Dict[str, Any]:
         if count >= 3
     }
 
-    results = {
-        "total_messages": len(stefan_messages),
+    result = {
+        "total_messages": len(messages),
         "avg_length": sum(lengths) / len(lengths) if lengths else 0,
         "min_length": min(lengths) if lengths else 0,
         "max_length": max(lengths) if lengths else 0,
         "median_length": sorted(lengths)[len(lengths) // 2] if lengths else 0,
-        "emoji_frequency": emoji_msgs / len(stefan_messages) if stefan_messages else 0,
+        "emoji_frequency": emoji_msgs / len(messages),
         "common_phrases": common_phrases,
-        "exclamation_rate": (
-            sum(1 for m in stefan_messages if "!" in m) / len(stefan_messages)
-            if stefan_messages
-            else 0
-        ),
-        "question_rate": (
-            sum(1 for m in stefan_messages if "?" in m) / len(stefan_messages)
-            if stefan_messages
-            else 0
-        ),
+        "exclamation_rate": sum(1 for m in messages if "!" in m) / len(messages),
+        "question_rate": sum(1 for m in messages if "?" in m) / len(messages),
     }
 
     logger.info(
-        f"Writing patterns: {results['total_messages']} messages analyzed, "
-        f"avg length={results['avg_length']:.0f} chars, "
-        f"emoji rate={results['emoji_frequency']:.1%}"
+        f"  [{label}] {result['total_messages']} msgs, "
+        f"avg={result['avg_length']:.0f} chars, "
+        f"emoji={result['emoji_frequency']:.1%}, "
+        f"questions={result['question_rate']:.1%}"
     )
+    return result
+
+
+def analyze_writing_patterns(followers: Dict[str, Dict]) -> Dict[str, Any]:
+    """
+    Analyze writing patterns, separating HUMAN Stefan from BOT messages.
+
+    Uses the 'source' field set by collect_db_followers():
+      - source='human' → Stefan wrote this manually (creator_manual/creator)
+      - source='bot'   → Bot generated this (autopilot)
+      - No source tag  → Legacy JSON data (cannot distinguish)
+
+    Returns:
+        Dict with pattern analysis for human, bot, and combined
+    """
+    human_messages = []
+    bot_messages = []
+    all_assistant = []
+
+    for _, data in followers.items():
+        for msg in data.get("messages", []):
+            if msg.get("role") != "assistant":
+                continue
+            content = msg.get("content", "")
+            if not content:
+                continue
+
+            all_assistant.append(content)
+            source = msg.get("source", "")
+
+            if source == "human":
+                human_messages.append(content)
+            elif source == "bot":
+                bot_messages.append(content)
+            # No source tag = legacy JSON, counted in all_assistant only
+
+    logger.info(
+        f"Writing patterns: {len(all_assistant)} total assistant msgs "
+        f"(human={len(human_messages)}, bot={len(bot_messages)}, "
+        f"untagged={len(all_assistant) - len(human_messages) - len(bot_messages)})"
+    )
+
+    results = {
+        "human_stefan": _analyze_message_set(human_messages, "HUMAN Stefan"),
+        "bot": _analyze_message_set(bot_messages, "BOT"),
+        "combined": _analyze_message_set(all_assistant, "ALL assistant"),
+        "breakdown": {
+            "total_assistant": len(all_assistant),
+            "human_count": len(human_messages),
+            "bot_count": len(bot_messages),
+            "untagged_count": len(all_assistant) - len(human_messages) - len(bot_messages),
+            "human_pct": len(human_messages) / len(all_assistant) if all_assistant else 0,
+        },
+    }
 
     return results
 
@@ -948,6 +1092,17 @@ def main():
     print(f"Leads scored:         {report['lead_scoring']['total_scored']}")
     print(f"Processing time:      {elapsed:.1f}s")
     print(f"Mode:                 {'DRY RUN' if dry_run else 'EXECUTED'}")
+
+    # Writing pattern breakdown
+    wp = report.get("writing_patterns", {})
+    breakdown = wp.get("breakdown", {})
+    if breakdown:
+        print("\nMessage Source Breakdown:")
+        print(f"  Human Stefan:       {breakdown.get('human_count', 0)}")
+        print(f"  Bot (autopilot):    {breakdown.get('bot_count', 0)}")
+        print(f"  Untagged (legacy):  {breakdown.get('untagged_count', 0)}")
+        print(f"  Human %:            {breakdown.get('human_pct', 0):.1%}")
+
     print("=" * 60)
 
 
