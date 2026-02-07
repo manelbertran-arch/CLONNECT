@@ -1,0 +1,153 @@
+"""
+Category 4 - DIALOGO MULTI-TURNO: Escalation Handling Tests
+
+Tests that the system correctly detects and handles escalation scenarios:
+crisis/self-harm, high frustration, explicit human-agent requests, and
+that normal conversations do NOT trigger false escalations.
+
+All tests are FAST: no LLM calls, no DB.
+"""
+
+from core.context_detector import detect_frustration
+from core.frustration_detector import FrustrationDetector
+from core.intent_classifier import Intent, IntentClassifier
+from core.sensitive_detector import SensitiveType, detect_sensitive_content, get_crisis_resources
+
+# ---------------------------------------------------------------------------
+# Tests
+# ---------------------------------------------------------------------------
+
+
+class TestEscalacion:
+    """Escalation handling for crisis, frustration, and human requests."""
+
+    def test_escala_crisis(self):
+        """Self-harm message triggers SELF_HARM detection with high confidence.
+
+        The sensitive content detector must identify suicidal ideation
+        and return a result with type SELF_HARM, high confidence, and
+        immediate escalation action.
+        """
+        crisis_messages = [
+            "No quiero vivir mas",
+            "Pienso en suicidarme",
+            "Quiero desaparecer de este mundo",
+            "Me hago dano a mi misma",
+        ]
+
+        for msg in crisis_messages:
+            result = detect_sensitive_content(msg)
+            assert (
+                result.type == SensitiveType.SELF_HARM
+            ), f"Expected SELF_HARM for '{msg}', got {result.type}"
+            assert (
+                result.confidence >= 0.9
+            ), f"Expected confidence >= 0.9 for '{msg}', got {result.confidence}"
+            assert result.action_required == "escalate_immediate"
+
+    def test_escala_queja_grave(self):
+        """High frustration triggers escalation-level signals.
+
+        When the user expresses severe frustration (explicit insults,
+        demanding to talk to a human), the frustration detector should
+        return a high score and explicit_frustration=True, which the
+        system uses to flag for escalation.
+        """
+        detector = FrustrationDetector()
+
+        severe_messages = [
+            "Eres inutil, no sirves para nada",
+            "Esto no funciona, ya te lo dije 5 veces",
+            "No me ayudas nada, quiero hablar con alguien real",
+        ]
+
+        for msg in severe_messages:
+            signals, score = detector.analyze_message(msg, conversation_id="test_conv")
+            assert (
+                signals.explicit_frustration is True
+            ), f"Expected explicit_frustration for '{msg}'"
+            assert score >= 0.3, f"Expected score >= 0.3 for '{msg}', got {score}"
+
+    def test_escala_solicitud_humano(self):
+        """'Quiero hablar con una persona' is detected as human request.
+
+        The intent classifier (via quick patterns) should identify
+        escalation-type messages requesting a human agent.
+        """
+        human_request_messages = [
+            "Quiero hablar con una persona real",
+            "Pasame con un humano",
+            "Eres un bot? Quiero hablar con alguien",
+            "Quiero hablar con un humano de verdad",
+            "Prefiero hablar con un operador",
+        ]
+
+        classifier = IntentClassifier(llm_client=None)
+
+        for msg in human_request_messages:
+            result = classifier._quick_classify(msg)
+            assert result is not None, f"Expected quick classification for '{msg}'"
+            assert (
+                result.intent == Intent.ESCALATION
+            ), f"Expected ESCALATION for '{msg}', got {result.intent}"
+            assert result.confidence >= 0.8
+
+    def test_no_escala_innecesariamente(self):
+        """Normal conversation does not trigger escalation flags.
+
+        Polite greetings, product questions, and positive feedback should
+        NOT be flagged as frustration, self-harm, or escalation requests.
+        """
+        normal_messages = [
+            "Hola, me interesa tu curso",
+            "Cuanto cuesta el programa?",
+            "Gracias por la informacion!",
+            "Suena genial, cuentame mas",
+            "Me lo voy a pensar",
+        ]
+
+        detector = FrustrationDetector()
+
+        for msg in normal_messages:
+            # Sensitive detector should return NONE
+            sensitive = detect_sensitive_content(msg)
+            assert (
+                sensitive.type == SensitiveType.NONE
+            ), f"Unexpected sensitive detection for '{msg}': {sensitive.type}"
+
+            # Frustration should be low
+            signals, score = detector.analyze_message(msg, conversation_id=f"normal_{msg[:10]}")
+            assert signals.explicit_frustration is False, f"Unexpected frustration for '{msg}'"
+
+            # Context detector frustration should be "none"
+            frustration = detect_frustration(msg)
+            assert frustration.level in (
+                "none",
+                "mild",
+            ), f"Unexpected frustration level for '{msg}': {frustration.level}"
+
+    def test_mensaje_escalacion_correcto(self):
+        """Crisis resources include phone numbers for immediate help.
+
+        The get_crisis_resources function must return actionable contact
+        information including telephone numbers.
+        """
+        # Spanish resources
+        resources_es = get_crisis_resources("es")
+        assert "717 003 717" in resources_es, "Missing Telefono de la Esperanza"
+        assert "024" in resources_es, "Missing Telefono contra el Suicidio"
+        assert "900 107 917" in resources_es, "Missing Cruz Roja Escucha"
+
+        # English resources
+        resources_en = get_crisis_resources("en")
+        assert "988" in resources_en, "Missing National Suicide Prevention"
+        assert "741741" in resources_en, "Missing Crisis Text Line"
+
+        # Catalan resources
+        resources_ca = get_crisis_resources("ca")
+        assert "717 003 717" in resources_ca, "Missing Catalan crisis number"
+        assert "024" in resources_ca, "Missing Catalan suicide line"
+
+        # Unknown language should fall back to Spanish
+        resources_unknown = get_crisis_resources("xx")
+        assert "717 003 717" in resources_unknown, "Fallback should use Spanish"
