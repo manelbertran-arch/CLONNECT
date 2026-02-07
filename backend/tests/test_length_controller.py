@@ -5,8 +5,7 @@ from services.length_controller import (
     STEFAN_LENGTH_CONFIG,
     detect_message_type,
     enforce_length,
-    get_max_length,
-    truncate_response,
+    get_soft_max,
 )
 
 
@@ -41,73 +40,57 @@ class TestDetectMessageType:
         assert detect_message_type("Me mudé a Barcelona") == "normal"
 
 
-class TestGetMaxLength:
-    def test_greeting_short(self):
-        assert get_max_length("greeting") == 12
+class TestGetSoftMax:
+    def test_greeting_allows_reasonable_length(self):
+        assert get_soft_max("greeting") == 30
 
-    def test_confirmation_short(self):
-        assert get_max_length("confirmation") == 15
+    def test_confirmation_allows_reasonable_length(self):
+        assert get_soft_max("confirmation") == 25
 
-    def test_emotional_longer(self):
-        assert get_max_length("emotional") == 50
+    def test_emotional_allows_long(self):
+        assert get_soft_max("emotional") == 200
 
-    def test_normal_default(self):
-        assert get_max_length("normal") == 28
-
-
-class TestTruncateResponse:
-    def test_no_truncation_needed(self):
-        assert truncate_response("Hola!", 20) == "Hola!"
-
-    def test_truncates_at_space(self):
-        result = truncate_response("Esto es una respuesta muy larga", 20)
-        assert len(result) <= 20
-        assert " " not in result[-3:]
-
-    def test_preserves_emoji(self):
-        result = truncate_response("Genial hermano que bueno! 😊", 15)
-        assert len(result) <= 15
-
-    def test_adds_punctuation(self):
-        result = truncate_response("Esto es algo que debería cortarse aquí", 15)
-        assert result[-1] in "!.😊💙" or not result[-1].isalnum()
+    def test_normal_allows_long(self):
+        assert get_soft_max("normal") == 150
 
 
 class TestEnforceLength:
-    def test_greeting_enforces_short(self):
-        response = enforce_length("¡Hola! ¿Cómo estás? Espero que todo bien 😊", "Hola")
-        assert len(response) <= 12
+    def test_never_truncates_short_responses(self):
+        """Responses under 200 chars should NEVER be truncated."""
+        response = "Hola! Me alegra que te interese el programa! Es perfecto para ti 😊"
+        result = enforce_length(response, "Hola")
+        assert result == response
 
-    def test_confirmation_enforces_short(self):
-        response = enforce_length("¡Perfecto! Me alegra mucho escuchar eso 💪", "Ok")
-        assert len(response) <= 15
+    def test_never_truncates_mid_sentence(self):
+        """Should never cut a response mid-sentence."""
+        response = "Entiendo hermano, a veces es difícil pero vas a salir adelante 💪"
+        result = enforce_length(response, "Estoy mal")
+        assert result == response
 
-    def test_question_allows_longer(self):
-        response = enforce_length("El precio es de 50 euros por sesión", "¿Cuánto cuesta?")
-        assert len(response) <= 38
+    def test_preserves_price_response(self):
+        """Price responses should be complete even if long."""
+        response = "El programa cuesta 97€ y incluye 12 sesiones de coaching grupal 💪"
+        result = enforce_length(response, "Cuánto cuesta?")
+        assert result == response
 
-    def test_emotional_allows_empathy(self):
-        response = enforce_length(
-            "Entiendo hermano, a veces es difícil pero vas a salir adelante 💪",
-            "Estoy pasando por un momento muy difícil",
-        )
-        assert len(response) <= 50
+    def test_preserves_complete_sentences(self):
+        """Medium responses should stay intact."""
+        response = "Genial crack! El Círculo de Hombres es un espacio de desarrollo personal."
+        result = enforce_length(response, "Qué es el círculo?")
+        assert result == response
 
 
 class TestIntegration:
-    def test_stefan_style_lengths(self):
-        """Verify responses match Stefan's style."""
-        test_cases = [
-            ("Hola!", "Ey! 😊"),
-            ("Ok", "Dale!"),
-            ("Jajaja", "Jaja"),
-            ("Gracias!", "A ti!"),
-        ]
+    def test_stefan_config_exists(self):
+        """Verify Stefan's config is loaded."""
+        assert STEFAN_LENGTH_CONFIG.target_length == 38
+        assert STEFAN_LENGTH_CONFIG.soft_max == 150
 
-        for lead_msg, expected_style in test_cases:
-            msg_type = detect_message_type(lead_msg)
-            max_len = get_max_length(msg_type)
-            assert len(expected_style) <= max_len, f"'{expected_style}' exceeds max for {msg_type}"
+    def test_stefan_style_examples(self):
+        """Verify Stefan's short responses fit within soft limits."""
+        short_responses = ["Ey! 😊", "Dale!", "Jaja", "A ti!", "Genial! 😊"]
+        for resp in short_responses:
+            assert len(resp) <= get_soft_max("greeting")
 
 
 if __name__ == "__main__":

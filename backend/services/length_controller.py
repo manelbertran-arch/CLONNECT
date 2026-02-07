@@ -1,10 +1,10 @@
 """
-Length Controller - Controls response length to match creator style.
+Length Controller - Guides response length to match creator style.
 
 Based on Stefan's metrics:
-- Average length: 22 chars
-- Median length: 18 chars
-- Target for bot: 20-28 chars max
+- Average length: 38 chars
+- Median length: 23 chars
+- These are GUIDELINES, not hard limits. Complete sentences always win.
 """
 
 import random
@@ -17,21 +17,21 @@ class LengthConfig:
     """Length configuration based on creator metrics."""
 
     min_length: int = 5
-    target_length: int = 20
-    max_length: int = 28
-    max_for_greeting: int = 12
-    max_for_confirmation: int = 15
-    max_for_emotional: int = 45
+    target_length: int = 38
+    soft_max: int = 150
+    max_for_greeting: int = 30
+    max_for_confirmation: int = 25
+    max_for_emotional: int = 200
 
 
-# Stefan's configuration based on real data analysis
+# Stefan's configuration based on real data analysis (3,061 human messages)
 STEFAN_LENGTH_CONFIG = LengthConfig(
     min_length=3,
-    target_length=20,
-    max_length=28,
-    max_for_greeting=12,
-    max_for_confirmation=15,
-    max_for_emotional=50,
+    target_length=38,
+    soft_max=150,
+    max_for_greeting=30,
+    max_for_confirmation=25,
+    max_for_emotional=200,
 )
 
 
@@ -68,7 +68,9 @@ def detect_message_type(lead_message: str) -> str:
         return "affection"
 
     # Praise/compliments (long messages praising Stefan)
-    if len(lead_message) > 50 and any(w in msg_lower for w in ["lindo", "genial", "increíble", "hermoso"]):
+    if len(lead_message) > 50 and any(
+        w in msg_lower for w in ["lindo", "genial", "increíble", "hermoso"]
+    ):
         return "praise"
 
     # Emotional/long messages
@@ -90,74 +92,32 @@ def detect_message_type(lead_message: str) -> str:
     return "normal"
 
 
-def get_max_length(message_type: str, config: LengthConfig = None) -> int:
-    """Get max length based on message type."""
+def get_soft_max(message_type: str, config: LengthConfig = None) -> int:
+    """Get soft max length based on message type (guideline, not hard limit)."""
     config = config or STEFAN_LENGTH_CONFIG
 
     length_map = {
         "greeting": config.max_for_greeting,
         "confirmation": config.max_for_confirmation,
-        "emoji_only": 8,
-        "laugh": 10,
+        "emoji_only": 10,
+        "laugh": 15,
         "thanks": config.max_for_confirmation,
         "emotional": config.max_for_emotional,
-        "affection": 20,  # Short warm responses
-        "praise": 20,  # Short thank you
-        "question": config.max_length,  # Direct short answers
-        "normal": config.max_length,
+        "affection": 40,
+        "praise": 40,
+        "question": config.soft_max,
+        "normal": config.soft_max,
     }
 
-    return length_map.get(message_type, config.max_length)
-
-
-def truncate_response(response: str, max_length: int) -> str:
-    """
-    Intelligently truncate response if it exceeds max length.
-    Preserves final emojis and punctuation.
-    """
-    if len(response) <= max_length:
-        return response
-
-    # Extract final emoji if exists
-    final_emoji = ""
-    if response and ord(response[-1]) > 127000:
-        final_emoji = response[-1]
-        response = response[:-1].rstrip()
-
-    # Reserve space for punctuation
-    effective_max = max_length - 1
-
-    # Find natural cut point
-    truncated = response[:effective_max]
-
-    # Try to cut at space
-    last_space = truncated.rfind(" ")
-    if last_space > effective_max * 0.5:
-        truncated = truncated[:last_space]
-
-    # Clean incomplete punctuation
-    truncated = truncated.rstrip(".,!?;: ")
-
-    # Add closing punctuation if needed
-    if truncated and truncated[-1].isalnum():
-        truncated += "!"
-
-    # Final length check - force truncate if still too long
-    if len(truncated) > max_length:
-        truncated = truncated[: max_length - 1] + "!"
-
-    # Restore emoji if it fits
-    if final_emoji and len(truncated) + 1 <= max_length:
-        truncated = (
-            truncated[:-1] + final_emoji if truncated.endswith("!") else truncated + final_emoji
-        )
-
-    return truncated[:max_length]  # Final safety check
+    return length_map.get(message_type, config.soft_max)
 
 
 def enforce_length(response: str, lead_message: str, config: LengthConfig = None) -> str:
     """
-    Adjust response length based on context.
+    Soft length guidance - NEVER truncates mid-sentence.
+
+    Only truncates if response is extremely long (>500 chars),
+    and even then cuts at a sentence boundary.
 
     Args:
         response: Generated response
@@ -165,16 +125,25 @@ def enforce_length(response: str, lead_message: str, config: LengthConfig = None
         config: Length configuration
 
     Returns:
-        Response adjusted to appropriate length
+        Response, possibly shortened but always complete sentences
     """
     config = config or STEFAN_LENGTH_CONFIG
 
-    message_type = detect_message_type(lead_message)
-    max_len = get_max_length(message_type, config)
+    # Never truncate short responses
+    if len(response) <= 200:
+        return response
 
-    if len(response) > max_len:
-        return truncate_response(response, max_len)
+    # Only truncate if excessively long (>500 chars)
+    if len(response) <= 500:
+        return response
 
+    # Find last sentence boundary before 500 chars
+    for boundary in ["! ", "? ", ". ", "!\n", "?\n", ".\n"]:
+        idx = response[:500].rfind(boundary)
+        if idx > 100:
+            return response[: idx + 1].strip()
+
+    # If no sentence boundary found, return as-is (don't truncate mid-sentence)
     return response
 
 

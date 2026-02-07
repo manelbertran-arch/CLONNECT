@@ -140,14 +140,6 @@ def convert_question_to_statement(text: str) -> str:
         if re.search(pattern, text, re.IGNORECASE):
             return re.sub(pattern, replacement, text, flags=re.IGNORECASE)
 
-    # Fallback: convert question marks to exclamation marks
-    # Keep full content, just change punctuation tone
-    if "?" in text:
-        result = text.replace("?", "!")
-        # Clean inverted question marks that no longer make sense
-        result = result.replace("¿", "")
-        # Clean double/triple exclamation
-        result = re.sub(r"!{2,}", "!", result)
-        return result.strip()
-
+    # Fallback: keep the response as-is with its questions
+    # Better to have a natural question than a truncated statement
     return text

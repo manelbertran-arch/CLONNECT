@@ -838,10 +838,10 @@ class DMResponderAgentV2:
                 except Exception as e:
                     logger.debug(f"Guardrails check failed: {e}")
 
-            # Step 7b: Apply length control based on message type
+            # Step 7b: Apply soft length guidance based on message type
             try:
                 msg_type = detect_message_type(message)
-                response_content = enforce_length(response_content, msg_type)
+                response_content = enforce_length(response_content, message)
                 cognitive_metadata["message_type"] = msg_type
             except Exception as e:
                 logger.debug(f"Length control failed: {e}")
