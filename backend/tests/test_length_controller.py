@@ -32,6 +32,8 @@ class TestClassifyLeadContext:
         assert classify_lead_context("Qué incluye el programa?") == "pregunta_producto"
         assert classify_lead_context("Cómo funciona tu programa?") == "pregunta_producto"
         assert classify_lead_context("Dame detalles del curso") == "pregunta_producto"
+        # "hi" in "coaching" should NOT match greeting
+        assert classify_lead_context("Que incluye el coaching?") == "pregunta_producto"
 
     def test_objecion(self):
         assert classify_lead_context("Es un poco caro para mí") == "objecion"

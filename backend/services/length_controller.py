@@ -109,13 +109,17 @@ def classify_lead_context(lead_message: str) -> str:
     ):
         return "story_mention"
 
-    # Greeting
-    greetings = [
+    # Greeting (use word boundaries for short words to avoid "hi" matching "coaching")
+    greeting_phrases = [
         "hola", "hey", "buenas", "que tal", "qué tal",
         "buenos días", "buenos dias", "buenas tardes",
-        "buenas noches", "ey", "hi", "hello", "ola",
+        "buenas noches", "hello",
     ]
-    if any(g in msg for g in greetings) and len(msg) < 40:
+    greeting_short = ["ey", "hi", "ola"]  # Need word-boundary check
+    is_greeting = any(g in msg for g in greeting_phrases)
+    if not is_greeting:
+        is_greeting = any(re.search(rf"\b{g}\b", msg) for g in greeting_short)
+    if is_greeting and len(msg) < 40:
         return "saludo"
 
     # Interest (check BEFORE product - "me interesa el programa" is interest, not product inquiry)
