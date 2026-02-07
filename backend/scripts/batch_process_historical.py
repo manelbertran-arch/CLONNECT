@@ -200,20 +200,22 @@ def collect_db_followers(creator_id: str) -> Dict[str, List[Dict]]:
                 fid = lead.platform_user_id
 
                 # Determine message source
+                # In copilot mode, the bot NEVER auto-sends.
+                # approved_by=NULL + status=sent = Stefan's real Instagram msgs
+                # status=discarded/pending_approval = bot suggestions (never sent)
                 source = "user"
                 if msg.role == "assistant":
-                    approved_by = msg.approved_by or ""
-                    metadata = msg.msg_metadata or {}
-                    is_manual = metadata.get("is_manual", False)
+                    status = getattr(msg, "status", "") or ""
 
-                    if approved_by in ("creator_manual", "creator") or is_manual:
-                        # Stefan wrote or approved this himself
-                        source = "human"
-                        human_msgs += 1
-                    else:
-                        # Everything else: autopilot, auto, None, etc. = bot
+                    if status in ("discarded", "pending_approval"):
+                        # Bot suggestion that was rejected or not yet reviewed
                         source = "bot"
                         bot_msgs += 1
+                    else:
+                        # Sent messages: human Stefan (synced from Instagram
+                        # or approved/written via Clonnect)
+                        source = "human"
+                        human_msgs += 1
                 else:
                     user_msgs += 1
 
@@ -224,6 +226,7 @@ def collect_db_followers(creator_id: str) -> Dict[str, List[Dict]]:
                     "source": source,
                     "intent": msg.intent or "",
                     "approved_by": msg.approved_by or "",
+                    "status": getattr(msg, "status", "") or "",
                 }
 
                 if fid in db_followers:

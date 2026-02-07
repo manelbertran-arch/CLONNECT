@@ -4,8 +4,8 @@
   "username": "fiorelllap",
   "name": "",
   "first_contact": "2026-02-04T19:16:25.419058",
-  "last_contact": "2026-02-04T19:20:52.945043",
-  "total_messages": 7,
+  "last_contact": "2026-02-07T10:50:08.255257",
+  "total_messages": 8,
   "interests": [],
   "products_discussed": [],
   "objections_raised": [],
@@ -84,6 +84,16 @@
       "role": "assistant",
       "content": "Entiendo! 😊 A veces es bueno desconectar un poco. ¿Cuándo te gustaría charlar? Un abrazo! 💪",
       "timestamp": "2026-02-04T19:20:52.945043"
+    },
+    {
+      "role": "user",
+      "content": "En les corts! Algunos días con ganas de irme de la ciudad, moverme a algo más tranqui pero por ahora ahí sigo",
+      "timestamp": "2026-02-07T10:50:08.255257"
+    },
+    {
+      "role": "assistant",
+      "content": "Entiendo! 😊 A veces es!",
+      "timestamp": "2026-02-07T10:50:08.255257"
     }
   ],
   "links_sent_count": 0,
