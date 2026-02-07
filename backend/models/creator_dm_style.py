@@ -4,7 +4,7 @@ CreatorDMStyle - Patrones de estilo de DM del creador.
 A diferencia de RelationshipDNA (per-lead), esto captura el estilo GENERAL
 del creador basado en análisis de TODOS sus mensajes de DM.
 
-Datos basados en análisis real de 3,054 mensajes de Stefan:
+Datos basados en análisis real de 3,061 mensajes HUMANOS de Stefan (bot excluido):
 - Mediana: 22 chars
 - 65% respuestas < 30 chars
 - 85% respuestas < 50 chars
@@ -118,7 +118,7 @@ STEFAN_DM_STYLE = CreatorDMStyle(
     },
     # Emojis
     top_emojis=["😊", "❤️", "💪", "🙏", "😄", "🔥"],
-    emoji_frequency=0.45,  # 45% de mensajes tienen emoji
+    emoji_frequency=0.189,  # 18.9% de mensajes tienen emoji (3,061 msgs analyzed)
     # Frases características
     common_openers=["Hola!", "Qué tal!", "Hey!", "Genial!"],
     common_closers=["Un abrazo!", "❤️", "💪", "Dale!"],

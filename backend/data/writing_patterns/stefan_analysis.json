@@ -1,58 +1,69 @@
 {
-  "total_messages": 3056,
+  "total_messages": 3061,
+  "source": "batch_ingestion_20260207 - HUMAN messages only (bot excluded)",
   "capitalization": {
-    "starts_upper_pct": 0.8658376963350786,
-    "starts_lower_pct": 0.0487565445026178,
-    "all_caps_pct": 0.010143979057591623
+    "starts_upper_pct": 0.866,
+    "starts_lower_pct": 0.049,
+    "all_caps_pct": 0.010
   },
   "punctuation": {
-    "ends_exclamation_pct": 0.15412303664921467,
-    "ends_question_pct": 0.10863874345549739,
-    "ends_period_pct": 0.01112565445026178,
-    "ends_emoji_pct": 0.10078534031413612,
+    "ends_exclamation_pct": 0.154,
+    "ends_question_pct": 0.109,
+    "ends_period_pct": 0.011,
+    "ends_emoji_pct": 0.101,
     "has_ellipsis_pct": 0.0,
-    "double_exclamation_pct": 0.07951570680628273
+    "double_exclamation_pct": 0.080
   },
   "laughs": {
-    "total_pct": 0.06708115183246073,
+    "total_pct": 0.067,
     "patterns": {
-      "jajaja+": 39,
       "jaja": 137,
-      "jeje": 8,
-      "haha": 2,
+      "jajaja+": 39,
       "😂": 16,
-      "🤣": 3
+      "jeje": 8,
+      "🤣": 3,
+      "haha": 2
     }
   },
   "emojis": {
-    "messages_with_emoji_pct": 0.2244764397905759,
+    "messages_with_emoji_pct": 0.189,
     "top_emojis": [
-      "😀",
-      "😊",
-      "❤",
-      "💙",
-      "☺",
-      "🙏🏽",
-      "🙌🏾",
-      "😀😀",
-      "😌",
-      "😂"
+      "😀", "😊", "❤", "💙", "☺", "🙏🏽", "🙌🏾", "😌", "😂", "🌟"
     ],
     "position": {
-      "at_start_pct": 0.07725947521865889,
-      "at_end_pct": 0.8119533527696793,
-      "middle_pct": 0.11078717201166181
+      "at_start_pct": 0.077,
+      "at_end_pct": 0.812,
+      "middle_pct": 0.111
     }
   },
   "length": {
-    "mean": 37.56086387434555,
-    "median": 22.0
+    "mean": 37.8,
+    "median": 23.0,
+    "min": 1,
+    "max": 853
   },
+  "common_phrases": {
+    "gracias por": 79,
+    "lo que": 67,
+    "muchas gracias": 55,
+    "que te": 53,
+    "cómo estás?": 37,
+    "para el": 35,
+    "de la": 34,
+    "en el": 33,
+    "que me": 32,
+    "espero que": 29,
+    "por tu": 29,
+    "nos vemos": 29,
+    "aquí para": 29,
+    "en la": 27,
+    "es un": 27,
+    "bien y": 26
+  },
+  "exclamation_rate": 0.302,
+  "question_rate": 0.145,
   "top_responses": [
-    "[Media/Attachment]",
-    "Mención en story",
     "Jajaja",
-    "[Media]",
     "Cómo estás?",
     "Jaja",
     "Gracias 🙏🏽",
@@ -60,7 +71,6 @@
     "Gracias",
     "Cómo estás??",
     "Gracias hermano!",
-    "Reacción ❤",
     "Hola!!",
     "Hola amigo",
     "Gracias por tu mensaje!",
@@ -68,40 +78,40 @@
     "😍",
     "😀",
     "Jajajaja",
-    "695112016"
+    "Gracias!",
+    "Hola!",
+    "Gracias 💙",
+    "Daleee",
+    "Me encantó"
   ],
   "top_openers": [
-    "[media/attachment]",
-    "mención en story",
-    "jajaja",
-    "gracias por tu",
-    "jaja",
-    "[media]",
-    "cómo estás?",
-    "gracias 🙏🏽",
-    "🫂",
-    "muchas gracias por",
-    "gracias por venir",
-    "gracias",
-    "cómo estás??",
-    "gracias hermano!",
-    "reacción ❤"
+    "Jajaja",
+    "Gracias por tu",
+    "Jaja",
+    "Cómo estás?",
+    "Gracias 🙏🏽",
+    "Muchas gracias por",
+    "Gracias por venir",
+    "Gracias",
+    "Cómo estás??",
+    "Gracias hermano!",
+    "Hola!!",
+    "Espero que estés",
+    "Me alegro que",
+    "Hola amigo"
   ],
   "top_closers": [
-    "[media/attachment]",
     "gracias",
-    "mención en story",
     "jajaja",
     "jaja",
     "muchas gracias",
-    "[media]",
     "cómo estás?",
-    "🫂",
     "por tu mensaje",
-    "gracias ️",
-    "️",
     "gracias!",
     "cómo estás??",
-    "gracias hermano!"
+    "gracias hermano!",
+    "bien y vos??",
+    "hola!!",
+    "buen día!"
   ]
 }

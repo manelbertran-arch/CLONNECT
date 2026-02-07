@@ -1,6 +1,6 @@
 """WritingPatterns - Detailed writing style patterns for a creator.
 
-Based on analysis of 3,056 real messages from Stefan.
+Based on analysis of 3,061 real HUMAN messages from Stefan (bot messages excluded).
 Complements CreatorDMStyle with finer-grained writing details.
 
 Part of PHASE-1: Writing Patterns Analysis.
@@ -65,10 +65,10 @@ class WritingPatterns:
     emoji_only_pct: float = 0.0
 
 
-# Stefan's writing patterns based on 3,056 real messages
+# Stefan's writing patterns based on 3,061 real HUMAN messages (bot excluded)
 STEFAN_WRITING_PATTERNS = WritingPatterns(
     creator_id="5e5c2364-c99a-4484-b986-741bb84a11cf",
-    total_messages_analyzed=3056,
+    total_messages_analyzed=3061,
     # Capitalization: 86.6% start uppercase (formal but friendly)
     starts_upper_pct=0.866,
     starts_lower_pct=0.049,
