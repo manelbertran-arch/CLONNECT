@@ -4,8 +4,8 @@ import sys
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from sqlalchemy import create_engine, text
-from sqlalchemy.orm import Session
+from sqlalchemy import create_engine, text  # noqa: E402
+from sqlalchemy.orm import Session  # noqa: E402
 
 logger = logging.getLogger(__name__)
 
@@ -318,7 +318,7 @@ def init_database():
         )
     except ImportError:
         from database import Base
-        from models import (
+        from models import (  # noqa: F401
             BookingLink,
             BookingSlot,
             CalendarBooking,

@@ -5,7 +5,6 @@ Uses text-embedding-3-small (1536 dimensions) with pgvector for storage.
 Embeddings persist in PostgreSQL - no regeneration on deploy.
 """
 
-import hashlib
 import logging
 import os
 from typing import List, Optional
@@ -141,7 +140,7 @@ def ensure_pgvector_extension():
         db = SessionLocal()
         try:
             # Just verify the table exists (extension must be enabled if table exists)
-            result = db.execute(text("SELECT COUNT(*) FROM content_embeddings LIMIT 1"))
+            db.execute(text("SELECT COUNT(*) FROM content_embeddings LIMIT 1"))
             logger.info("pgvector extension verified (content_embeddings table exists)")
             return True
         finally:

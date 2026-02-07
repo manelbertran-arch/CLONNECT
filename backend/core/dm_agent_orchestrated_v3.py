@@ -8,7 +8,6 @@ Improvements over V2:
 - Post-processing pipeline: questions -> length -> punctuation
 """
 
-import asyncio
 import logging
 from dataclasses import dataclass, field
 from typing import Any, Dict, List, Optional
@@ -18,10 +17,8 @@ from prompts.clone_system_prompt_v2 import (
     CreatorMetrics,
     build_clone_system_prompt,
     build_response_guidelines,
-    get_stefan_prompt,
 )
-from services.bot_orchestrator import BotResponse, get_bot_orchestrator
-from services.length_controller import STEFAN_LENGTH_CONFIG, detect_message_type, enforce_length
+from services.length_controller import detect_message_type, enforce_length
 from services.question_remover import process_questions
 from services.response_variator_v2 import get_response_variator_v2
 
