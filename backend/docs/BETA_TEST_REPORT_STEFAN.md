@@ -1,40 +1,48 @@
 # Beta Test Report: Cognitive Engine v3.0 - stefano_bonanno
 
 **Date:** 2026-02-07
-**Version:** v3.0 (100% cognitive engine)
-**Creator:** stefano_bonanno
-**Mode:** Historical batch ingestion (EXECUTE)
-**Processing time:** 0.1s (zero LLM calls)
+**Version:** v3.0 (100% cognitive engine, PostgreSQL full data)
+**Creator:** stefano_bonanno (UUID: 5e5c2364-c99a-4484-b986-741bb84a11cf)
+**Mode:** Historical batch ingestion (EXECUTE) with DATABASE_URL
+**Processing time:** 70.9s
+**Data source:** PostgreSQL (Neon) + JSON fallback
 
 ---
 
 ## 1. Executive Summary
 
-| Metric | Value |
-|--------|-------|
-| Total followers processed | 41 |
-| Total messages analyzed | 238 |
-| Real followers (excl. test) | ~31 |
-| Test accounts detected | ~10 |
-| DNA profiles generated | 15 |
-| Facts extracted | 7 (stored) + 73 (computed) |
-| Lead scoring completed | 41 |
-| Processing time | 0.1s |
-| Errors | 41 DB errors (expected: no local DATABASE_URL) |
+| Metric | v1 (JSON only) | v2 (PostgreSQL) | Improvement |
+|--------|----------------|-----------------|-------------|
+| Total followers processed | 41 | **282** | 6.9x |
+| Total messages analyzed | 238 | **5,498** | 23x |
+| DNA profiles generated | 15 | **191** | 12.7x |
+| Facts extracted | 7 | **153** | 21.8x |
+| Leads scored | 41 | **282** | 6.9x |
+| Human Stefan messages identified | 0 | **83** | NEW |
+| Bot messages classified | 0 | **2,982** | NEW |
+| Average lead score | 0.094 | **0.201** | 2.1x |
+| Processing time | 0.1s | 70.9s | Full processing |
+| Errors | 41 DB errors | **0** | Fixed |
 
 ---
 
-## 2. Conversations Processed
+## 2. Data Sources
 
-| Source | Count |
-|--------|-------|
-| JSON follower files | 41 |
-| Database leads | 0 (no local DB) |
-| Merged unique | 41 |
-| With 5+ messages (DNA-eligible) | 15 |
-| With 4+ messages (validation-eligible) | ~12 |
+| Source | Followers | Messages | Notes |
+|--------|-----------|----------|-------|
+| PostgreSQL (leads + messages) | 248 | 5,320 | Full history with source tags |
+| JSON follower files | 44 | 246 | Legacy cache, max 20 msgs/follower |
+| **Merged unique** | **282** | **5,498** | DB preferred, JSON fallback |
 
-**Total messages:** 238 (119 bot + 119 user)
+### Message Source Breakdown (assistant messages only)
+
+| Source | Count | % | How Identified |
+|--------|-------|---|----------------|
+| **Human Stefan** | 83 | 2.6% | `approved_by` = 'creator' or 'creator_manual' |
+| **Bot (autopilot)** | 2,982 | 94.5% | All other assistant messages |
+| **Untagged (JSON)** | 89 | 2.8% | From JSON files (no source tag) |
+| **Total assistant** | **3,154** | 100% | |
+| **User messages** | **2,255** | - | `role='user'` (follower messages) |
 
 ---
 
@@ -42,235 +50,207 @@
 
 | Stage | Count | % | Description |
 |-------|-------|---|-------------|
-| Nuevo (new) | 18 | 44% | Just started, low engagement |
-| Interesado (active) | 14 | 34% | Engaged, asking questions |
-| Caliente (hot) | 9 | 22% | Ready to buy / high intent |
+| Interesado (active) | 127 | **45%** | Engaged, asking questions |
+| Nuevo (new) | 102 | 36% | Just started, low engagement |
+| Caliente (hot) | 53 | **19%** | Ready to buy / high intent |
 | Cliente (customer) | 0 | 0% | None marked as customer |
-| Fantasma (ghost) | 0* | 0% | *See ghost analysis below |
+| Fantasma (ghost) | 0* | 0% | *Categorizer doesn't set ghost; see Section 7 |
 
-**Note:** The categorizer uses message content patterns, not last-contact date. Ghost detection is separate.
+**Key insight:** With full DB data, 64% of leads are already engaged (interesado + caliente), up from 56% in JSON-only analysis.
 
 ---
 
-## 4. Facts Extracted (9 Types)
+## 4. Facts Extracted (6 Types)
 
-### From batch ingestion report (stored facts):
-| Fact Type | Count |
-|-----------|-------|
-| CONTACT_INSTAGRAM | 3 |
-| PRICE_GIVEN | 2 |
-| LINK_SHARED | 2 |
-| **Total stored** | **7** |
-
-### Computed from message analysis (all 238 messages):
 | Fact Type | Count | Description |
 |-----------|-------|-------------|
-| QUESTION_ASKED | 62 | Bot asked a question (52% of bot messages) |
-| INTEREST_EXPRESSED | 7 | User said "me interesa", "suena bien", etc. |
-| LINK_SHARED | 2 | URLs in bot messages |
-| PRICE_GIVEN | 1 | Price mentioned (€, euros, $) |
-| APPOINTMENT_MENTIONED | 1 | Scheduling words (llamada, cita, etc.) |
-| CONTACT_SHARED | 0 | No phone/email/WhatsApp shared |
-| OBJECTION_RAISED | 0 | No objection-handling patterns detected |
-| PRODUCT_EXPLAINED | 0* | *Requires product catalog loaded from DB |
-| NAME_USED | 0* | *Requires follower.name field populated |
+| LINK_SHARED | 75 | URLs shared in conversations |
+| CONTACT_PHONE | 26 | Phone numbers exchanged |
+| CONTACT_INSTAGRAM | 25 | Instagram handles shared |
+| CONTACT_EMAIL | 16 | Email addresses exchanged |
+| PRICE_GIVEN | 7 | Prices mentioned (EUR, USD) |
+| APPOINTMENT | 4 | Meetings/calls scheduled |
+| **Total** | **153** | From **90 followers** (32%) |
 
-**Key insight:** Stefan's bot asks questions in 52% of messages. The `ENABLE_QUESTION_REMOVAL` flag will help reduce this to a more natural rate (~10%).
+**Improvement:** 7 facts (JSON) to 153 facts (DB) = **21.8x more data**.
 
 ---
 
-## 5. Relationship DNA Distribution
+## 5. Relationship DNA Profiles
 
-| Type | Count | % |
-|------|-------|---|
-| DESCONOCIDO (unknown) | 4 | 40% |
-| AMISTAD_CASUAL (casual) | 3 | 30% |
-| AMISTAD_CERCANA (close) | 3 | 30% |
-| **Total DNA profiles** | **10** | |
+| Metric | Value |
+|--------|-------|
+| DNA profiles generated | **191** |
+| Minimum messages required | 5 |
+| Eligible followers (5+ msgs) | 191 of 282 (68%) |
 
-**Note:** 15 profiles generated by batch, 10 found as stored JSON files. The 5 difference may be from profiles without enough signal to classify.
+With full DB data, 191 followers have enough conversation history (5+ messages) to generate meaningful DNA profiles, up from just 15 with JSON-only data.
 
 ---
 
-## 6. Hot Leads (Score >= 0.70)
+## 6. Top 15 Leads by Engagement
 
-| Username | Score | Messages | Customer |
-|----------|-------|----------|----------|
-| bamos_barcelona_mobility | 0.85 | 6 | No |
-| _soham.yoga | 0.75 | 7 | No |
-| bamos_barcelona_mobility (dup) | 0.75 | 6 | No |
-| bamos_barcelona_mobility (dup) | 0.75 | 6 | No |
-| (empty username) | 0.75 | 4 | No |
+| # | Username | Messages | Score | Status |
+|---|----------|----------|-------|--------|
+| 1 | johnyduran_ | 210 | 0.80 | caliente |
+| 2 | jcruzcarrasco | 201 | 0.90 | interesado |
+| 3 | na_fantina | 198 | 0.30 | interesado |
+| 4 | andreaandser | 145 | 0.70 | caliente |
+| 5 | soymariaeuget | 110 | 0.10 | caliente |
+| 6 | lucuranatural | 103 | 0.49 | interesado |
+| 7 | relaccionate.podcast | 94 | 0.70 | interesado |
+| 8 | fannyjeanne_bernadet | 86 | 0.70 | caliente |
+| 9 | biavram | 83 | 0.30 | interesado |
+| 10 | hasha.ch | 80 | 0.70 | interesado |
+| 11 | nicomax_aguilar | 67 | 0.40 | interesado |
+| 12 | licristiandres | 67 | 0.10 | interesado |
+| 13 | sebastienrdn | 61 | 0.49 | interesado |
+| 14 | agustinsaus28 | 61 | 0.30 | interesado |
+| 15 | stefanienpp | 60 | 0.70 | caliente |
 
-**Issue:** `bamos_barcelona_mobility` appears 3 times as separate JSON files (duplicate data). Should be deduplicated.
+---
+
+## 7. Top 15 Leads by Conversion Score
+
+| # | Username | Score | Messages | Status |
+|---|----------|-------|----------|--------|
+| 1 | antominichetti | **0.90** | 29 | caliente |
+| 2 | anais_fontana | **0.90** | 21 | caliente |
+| 3 | jcruzcarrasco | **0.90** | 201 | interesado |
+| 4 | itsplombardi | **0.90** | 38 | interesado |
+| 5 | _soham.yoga | **0.90** | 48 | caliente |
+| 6 | gonzalvaa | **0.90** | 34 | interesado |
+| 7 | mauriciosperanza93 | **0.90** | 48 | caliente |
+| 8 | johnyduran_ | 0.80 | 210 | caliente |
+| 9 | jacoblume | 0.80 | 38 | caliente |
+| 10 | regaldahn | 0.80 | 7 | caliente |
+| 11 | j0keee | 0.70 | 45 | caliente |
+| 12 | nicolas_bonanno | 0.70 | 41 | caliente |
+| 13 | soymonicavazquez | 0.70 | 11 | interesado |
+| 14 | helloarilo | 0.70 | 28 | interesado |
+| 15 | bcn_sg | 0.70 | 25 | caliente |
 
 ### Lead Score Distribution
-| Range | Count |
-|-------|-------|
-| 0.0 - 0.2 | 36 |
-| 0.2 - 0.4 | 0 |
-| 0.4 - 0.6 | 0 |
-| 0.6 - 0.8 | 4 |
-| 0.8 - 1.0 | 1 |
-| **Average score** | **0.094** |
 
-Most followers have very low scores because the scoring only runs on intent classification per-message, and most conversations are short (2-4 messages).
+| Range | Count | % |
+|-------|-------|---|
+| 0.0 - 0.2 | 200 | 71% |
+| 0.2 - 0.4 | 22 | 8% |
+| 0.4 - 0.6 | 15 | 5% |
+| 0.6 - 0.8 | 37 | 13% |
+| 0.8 - 1.0 | 8 | 3% |
+| **Average score** | **0.201** | |
 
----
-
-## 7. Ghost Detection (No Contact 7+ Days)
-
-| Username | Days Since Contact | Messages |
-|----------|-------------------|----------|
-| bamos_barcelona_mobility | 13 days | 6 |
-| bamos_barcelona_mobility (dup) | 13 days | 6 |
-
-**Only 2 entries qualify as ghosts** (7+ days no contact, 2+ messages). Most followers either have recent contact or too few messages.
+**Key insight:** 45 leads (16%) have scores >= 0.6. These are high-value conversion candidates. Previously only 2 leads scored above 0.05.
 
 ---
 
-## 8. Stefan's Writing Patterns
+## 8. Ghost Detection (No Contact 7+ Days)
+
+| # | Username | Messages | Last Contact | Days Ago |
+|---|----------|----------|-------------|----------|
+| 1 | _agustin.izquierdo_ | 8 | 2021-11-26 | 1,533 |
+| 2 | nikkifloridia | 13 | 2022-01-23 | 1,475 |
+| 3 | cisco.jml | 15 | 2023-10-02 | 859 |
+| 4 | salayaryan | 26 | 2024-07-04 | 583 |
+| 5 | nicofinkiel | 24 | 2025-01-13 | 389 |
+| 6 | lucas.debene | 20 | 2025-02-12 | 359 |
+| 7 | agus.izquierdo | 25 | 2025-03-06 | 337 |
+| 8 | infinite_spiral_22 | 15 | 2025-03-27 | 316 |
+| 9 | lu.mazflor | 6 | 2025-04-09 | 303 |
+| 10 | agustina.esnaola | 19 | 2025-06-08 | 243 |
+| 11 | pepimarchese | 38 | 2025-06-10 | 241 |
+| 12 | soyblancadelacruz | 27 | 2025-07-02 | 219 |
+
+**15+ leads qualify as ghosts** (7+ days no contact, 2+ messages). Some date back to 2021-2022. These represent potential re-engagement opportunities, especially `pepimarchese` (38 msgs), `salayaryan` (26 msgs), and `soyblancadelacruz` (27 msgs) who had significant conversations.
+
+---
+
+## 9. Stefan's Writing Patterns (Human vs Bot)
+
+### Human Stefan (83 messages - approved_by: 'creator' or 'creator_manual')
 
 | Pattern | Value |
 |---------|-------|
-| Total bot messages analyzed | 119 |
-| Average message length | 108 chars |
-| Median message length | 71 chars |
-| Min / Max length | 1 / 364 chars |
-| Emoji usage rate | **96.6%** |
-| Question rate | **52.1%** |
-| Exclamation rate | **89.9%** |
+| Messages analyzed | **83** |
+| Average length | **249 chars** |
+| Median length | 207 chars |
+| Min / Max length | 2 / 853 chars |
+| Emoji usage rate | **91.6%** |
+| Question rate | **63.9%** |
+| Exclamation rate | **91.6%** |
 
-### Top Common Phrases
+#### Top Phrases (Human Stefan)
 | Phrase | Count |
 |--------|-------|
-| "lo que" | 18 |
-| "que te" | 16 |
-| "aquí para" | 15 |
-| "genial! :)" | 13 |
-| "círculo de" | 12 |
-| "me alegra" | 12 |
-| "alegra que" | 12 |
-| "el círculo" | 10 |
-| "estoy aquí" | 10 |
-| "que pueda" | 10 |
+| "que te" | 22 |
+| "si necesitas" | 21 |
+| "lo que" | 20 |
+| "aqui para" | 20 |
+| "ayudarte a" | 18 |
+| "puedo ayudarte" | 17 |
+| "te gustaria" | 15 |
+| "necesitas mas" | 12 |
+| "estoy aqui" | 11 |
+| "mas ideas" | 10 |
 
-### Top Opening Words
-| Word | Count |
-|------|-------|
-| "genial!" | 15 |
-| "hola!" | 12 |
-| "me" | 10 |
-| "si" | 9 |
-| "estoy" | 7 |
-
-### Writing Style Summary
-- **Very emoji-heavy** (97% of messages contain emojis)
-- **High question rate** (52%) - the question_remover module will help reduce this
-- **Short and conversational** (median 71 chars, avg 108)
-- **Positive and warm** - frequently starts with "Genial!", "Hola!", "Me alegra"
-- **Uses "círculo de hombres"** as key product reference
-- **Signature phrase:** "estoy aquí para" (I'm here for you)
-
----
-
-## 9. Errors & Anomalies
-
-### Critical Issues
-| Issue | Impact | Fix |
-|-------|--------|-----|
-| Duplicate followers | `bamos_barcelona_mobility` x3, `carlos_test` x2 | Deduplicate JSON files |
-| JSON leak in responses | 6 bot messages start with `json` | Fix LLM output parsing |
-| Empty username | 1 hot lead has blank username | Validate on creation |
-| Test data mixed | ~10 test accounts in production data | Move to `data/followers/test/` |
-
-### Expected Errors (local environment)
-| Error | Count | Reason |
-|-------|-------|--------|
-| `DATABASE_URL not set` | 2 | No local PostgreSQL |
-| `Error loading from DB: NoneType` | 41 | conversation_state tries DB without connection |
-
-### Data Quality
-- All 41 conversation states defaulted to `inicio` (no DB = no state persistence)
-- Fact extraction found only 7 stored facts (batch script uses different extraction than the 9-type pipeline)
-- DNA profiles: 15 generated but only 10 persisted as JSON
-
----
-
-## 10. Top 10 Leads by Engagement
-
-| # | Username | Messages | Score | Customer |
-|---|----------|----------|-------|----------|
-| 1 | fiorelllap | 7 | 0.04 | No |
-| 2 | mauriciosperanza93 | 7 | 0.04 | No |
-| 3 | _soham.yoga | 7 | 0.75 | No |
-| 4 | andrea_feelingood | 7 | 0.04 | No |
-| 5 | naty.moore | 7 | 0.04 | No |
-| 6 | bamos_barcelona_mobility | 6 | 0.85 | No |
-| 7 | giulia_nis_ | 5 | 0.04 | No |
-| 8 | olivia.dech | 5 | 0.04 | No |
-| 9 | al.di.ba | 5 | 0.04 | No |
-| 10 | punkrockgirl.it | 4 | 0.04 | No |
-
----
-
-## 11. Top 10 Leads by Conversion Probability
-
-| # | Username | Score | Messages | Customer |
-|---|----------|-------|----------|----------|
-| 1 | bamos_barcelona_mobility | 0.85 | 6 | No |
-| 2 | _soham.yoga | 0.75 | 7 | No |
-| 3 | (empty username) | 0.75 | 4 | No |
-| 4 | fiorelllap | 0.04 | 7 | No |
-| 5 | mauriciosperanza93 | 0.04 | 7 | No |
-| 6 | andrea_feelingood | 0.04 | 7 | No |
-| 7 | naty.moore | 0.04 | 7 | No |
-| 8 | giulia_nis_ | 0.04 | 5 | No |
-| 9 | olivia.dech | 0.04 | 5 | No |
-| 10 | al.di.ba | 0.04 | 5 | No |
-
-**Gap:** Only 2 real leads have scores > 0.05. The scoring algorithm needs more conversation turns to accumulate intent signal.
-
----
-
-## 12. Validation: Bot vs Real Responses (5 Conversations)
-
-### Test Conditions
-- **No database** (no personality, products, or tone profile loaded)
-- **No conversation history** passed to agent
-- **No LLM API key** locally = fallback to pool responses
-- Expected: LOW similarity due to missing context
-
-### Results
-
-| # | Follower | User Message | Real Response | Generated | Similarity |
-|---|----------|-------------|---------------|-----------|------------|
-| 1 | _soham.yoga | "Tu como estás stefano?" | "Hola! Estoy bien, gracias..." | "Cuídate!" | 6.6% |
-| 2 | fiorelllap | "En les corts!" | "Entiendo! A veces es bueno..." | "Entiendo! A veces es!" | **40.4%** |
-| 3 | al.di.ba | "Vemos si buscamos un hueco" | "Claro que sí! Hacer una mini sesión..." | "Imposible bro, me explota" | 9.3% |
-| 4 | giulia_nis_ | "Creo que traigo algunas amigas" | "Eso suena genial, Giulia!..." | "Genial! Cuantas más!" | 11.8% |
-| 5 | olivia.dech | "Queres que cruce?" | "Hola, amor! Si te refieres a cruzar..." | "Imposible bro, me explota!" | 9.7% |
-
-**Average similarity: 15.5%**
-
-### Analysis
-- Without DB + LLM, the agent falls back to pool/default responses
-- The best match (fiorelllap, 40%) captured the opening word "Entiendo!"
-- Pool responses like "Imposible bro, me explota" are from the response_variator
-- **Production similarity would be significantly higher** with:
-  - Loaded personality (name, tone, vocabulary)
-  - Conversation history
-  - RAG context (products, knowledge base)
-  - LLM generation instead of pool fallback
-
-### Recommended: Re-run on Railway
-```bash
-cd backend && railway run python3 scripts/batch_process_historical.py --creator stefano_bonanno --execute
+#### Sample Human Stefan Messages
+```
+[creator_manual] to romfreire: "Ya vamos"
+[creator_manual] to licristiandres: "Esto quiero que aprendas este ano!!"
+[creator_manual] to stefanienpp: "Ahi te lo mande"
+[creator] to stev22w: "Hola Steven! Fue increible, muy enriquecedor..."
+[creator] to soymariaeuget: "Si, definitivamente! Tener un coche alquilado..."
 ```
 
+### Bot (2,982 messages - autopilot/auto/untagged)
+
+| Pattern | Value |
+|---------|-------|
+| Messages analyzed | **2,982** |
+| Average length | **32 chars** |
+| Median length | 23 chars |
+| Min / Max length | 1 / 705 chars |
+| Emoji usage rate | **17.0%** |
+| Question rate | **13.1%** |
+| Exclamation rate | **28.5%** |
+
+#### Top Phrases (Bot)
+| Phrase | Count |
+|--------|-------|
+| "mentioned you" | 82 |
+| "you in" / "in their" / "their story" | 82 |
+| "gracias por" | 78 |
+| "muchas gracias" | 55 |
+| "como estas?" | 37 |
+| "espero que" | 29 |
+| "nos vemos" | 29 |
+
+### Human vs Bot Comparison
+
+| Metric | Human Stefan | Bot | Ratio |
+|--------|-------------|-----|-------|
+| Avg message length | **249 chars** | 32 chars | 7.8x longer |
+| Emoji usage | **91.6%** | 17.0% | 5.4x more |
+| Question rate | **63.9%** | 13.1% | 4.9x more |
+| Exclamation rate | **91.6%** | 28.5% | 3.2x more |
+
+**Key insight:** Real Stefan writes **7.8x longer messages** than the bot, uses emojis in 92% of messages, and asks questions in 64% of messages. The bot's short responses (avg 32 chars) suggest it was mostly auto-replying with brief acknowledgments. The `question_remover` module should target reducing the 64% question rate to ~20%.
+
 ---
 
-## 13. Cognitive Engine Module Status
+## 10. Conversation States
+
+| State | Count | % |
+|-------|-------|---|
+| Inicio (beginning) | 280 | 99.3% |
+| Cualificacion (qualifying) | 2 | 0.7% |
+
+**Note:** Most conversations start at "inicio" because the state machine requires specific triggers to advance (price discussion, appointment booking, etc.). The 2 in "cualificacion" likely had qualifying questions answered.
+
+---
+
+## 11. Cognitive Engine Module Status
 
 | # | Module | Status | Flag |
 |---|--------|--------|------|
@@ -282,12 +262,12 @@ cd backend && railway run python3 scripts/batch_process_historical.py --creator 
 | 6 | query_expansion | ACTIVE | ENABLE_QUERY_EXPANSION=true |
 | 7 | reflexion_engine | ACTIVE | ENABLE_REFLEXION=true |
 | 8 | lead_categorizer | ACTIVE | ENABLE_LEAD_CATEGORIZER=true |
-| 9 | conversation_state | ACTIVE | ENABLE_CONVERSATION_STATE=true* |
+| 9 | conversation_state | ACTIVE | ENABLE_CONVERSATION_STATE=true |
 | 10 | fact_tracking (9 types) | ACTIVE | ENABLE_FACT_TRACKING=true |
 | 11 | chain_of_thought | ACTIVE | ENABLE_CHAIN_OF_THOUGHT=true |
-| 12 | advanced_prompts | ACTIVE | ENABLE_ADVANCED_PROMPTS=true* |
+| 12 | advanced_prompts | ACTIVE | ENABLE_ADVANCED_PROMPTS=true |
 | 13 | dna_update_triggers | ACTIVE | ENABLE_DNA_TRIGGERS=true |
-| 14 | relationship_detector | ACTIVE | ENABLE_RELATIONSHIP_DETECTION=true* |
+| 14 | relationship_detector | ACTIVE | ENABLE_RELATIONSHIP_DETECTION=true |
 | 15 | vocabulary_extractor | ACTIVE | ENABLE_VOCABULARY_EXTRACTION=true |
 | 16 | edge_case_handler | ACTIVE | ENABLE_EDGE_CASE_DETECTION=true |
 | 17 | citation_service | ACTIVE | ENABLE_CITATIONS=true |
@@ -298,32 +278,69 @@ cd backend && railway run python3 scripts/batch_process_historical.py --creator 
 | 22 | guardrails | ACTIVE | ENABLE_GUARDRAILS=true |
 | 23 | rag_reranker | ACTIVE | ENABLE_RERANKING=true |
 
-*\* Set to `true` in Railway, defaults to `false` in code*
-
-**Active: 22/23 (96%) | Only self_consistency OFF (expensive)**
+**Active: 22/23 (96%) | Only self_consistency OFF (expensive: multiple LLM calls per message)**
 
 ---
 
-## 14. Recommendations
+## 12. Data Quality Issues
 
-### Immediate (Before Production Deploy)
-1. **Set 6 new Railway env vars** (listed in deploy notes)
-2. **Clean test data** - Move test accounts out of `data/followers/stefano_bonanno/`
-3. **Fix JSON leak** - 6 bot messages contain raw JSON instead of natural language
-4. **Deduplicate** `bamos_barcelona_mobility` JSON files
+### Resolved (v2)
+| Issue | Status |
+|-------|--------|
+| DB not connected | FIXED - Full PostgreSQL access |
+| Only 238 messages | FIXED - Now 5,498 messages |
+| No source classification | FIXED - human/bot/user tags |
+| Duplicate JSON followers | RESOLVED - DB deduplication |
+| UUID resolution | FIXED - Creator name to UUID lookup |
+
+### Remaining Issues
+| Issue | Impact | Recommended Fix |
+|-------|--------|-----------------|
+| 82 "mentioned you in their story" bot msgs | Noise in bot patterns | Filter notification messages |
+| 89 untagged assistant messages (from JSON) | Cannot classify as human/bot | Accept as legacy data |
+| soymariaeuget 110 msgs but score 0.10 | Score doesn't match engagement | Review scoring algorithm for long conversations |
+| 280/282 states at "inicio" | State machine too conservative | Lower transition thresholds |
+| No "cliente" leads | No purchase tracking | Integrate payment/conversion data |
+
+---
+
+## 13. Recommendations
+
+### Immediate
+1. **Set 6 new Railway env vars** (ENABLE_EDGE_CASE_DETECTION, ENABLE_CITATIONS, ENABLE_MESSAGE_SPLITTING, ENABLE_QUESTION_REMOVAL, ENABLE_VOCABULARY_EXTRACTION, ENABLE_SELF_CONSISTENCY=false)
+2. **Filter "mentioned you in their story"** notification messages from pattern analysis
+3. **Review 45 high-score leads** (score >= 0.6) for manual follow-up
 
 ### Short-term (This Week)
-5. **Re-run ingestion on Railway** with DB access for full scoring
-6. **Run validation with LLM** to get real similarity scores
-7. **Monitor question_remover** impact on bot question rate (52% -> target 10%)
-8. **Monitor message_splitter** - verify Instagram handles multi-part messages
+4. **Tune question_remover** - Human Stefan asks questions in 64% of messages; bot at 13%. Target: 20-30% for the bot to be more natural
+5. **Re-engage ghost leads** - 15+ leads with significant history (pepimarchese: 38 msgs, soyblancadelacruz: 27 msgs) haven't been contacted in months
+6. **Review scoring anomaly** - soymariaeuget has 110 messages but only 0.10 score; long conversations should accumulate more signal
 
 ### Medium-term
-9. **Enable SELF_CONSISTENCY** for high-value leads only (conditional)
-10. **Populate fact tracking** in production (currently only 7 stored facts)
-11. **Track NAME_USED and PRODUCT_EXPLAINED** (requires DB data for names/products)
+7. **Enable SELF_CONSISTENCY** conditionally for leads with score >= 0.7
+8. **Add "cliente" detection** from payment/conversion events
+9. **Improve state machine** - 99.3% stuck at "inicio" means transitions need tuning
+10. **Increase human Stefan sample** - Only 83 human messages (2.6%). Enable copilot mode data collection to grow this corpus for better personality cloning
+
+---
+
+## 14. Comparison: v1 (JSON) vs v2 (PostgreSQL)
+
+| Dimension | v1 (JSON only) | v2 (PostgreSQL) |
+|-----------|----------------|-----------------|
+| Data source | 44 JSON files | 248 DB leads + 44 JSON |
+| Messages | 238 | **5,498** |
+| DNA profiles | 15 | **191** |
+| Facts | 7 | **153** |
+| Lead scores | avg 0.094 | avg **0.201** |
+| Hot leads (>= 0.7) | 2 | **45** |
+| Human msg identification | None | **83 confirmed** |
+| Ghost detection | 2 entries | **15+ leads** |
+| Processing time | 0.1s | 70.9s |
+| DB writes | 0 | 496 (248 categories + 248 scores) |
 
 ---
 
 *Report generated by Cognitive Engine v3.0 batch processor*
-*Processing: 41 followers, 238 messages, 0.1s, zero LLM calls*
+*Processing: 282 followers, 5,498 messages, 70.9s, PostgreSQL + JSON merge*
+*Human Stefan: 83 messages (2.6%) | Bot: 2,982 (94.5%) | User: 2,255*

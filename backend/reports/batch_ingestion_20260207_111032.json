@@ -1,0 +1,150 @@
+{
+  "timestamp": "2026-02-07T11:10:32.418624",
+  "creator_id": "stefano_bonanno",
+  "summary": {
+    "total_followers": 282,
+    "total_messages": 5498,
+    "followers_with_messages": 282,
+    "processing_time_seconds": 70.9
+  },
+  "categorization": {
+    "total_categorized": 282,
+    "distribution": {
+      "caliente": 53,
+      "nuevo": 102,
+      "interesado": 127
+    }
+  },
+  "conversation_states": {
+    "total_reconstructed": 282,
+    "distribution": {
+      "inicio": 280,
+      "cualificacion": 2
+    }
+  },
+  "dna_generation": {
+    "total_generated": 191,
+    "min_messages_required": 5
+  },
+  "fact_extraction": {
+    "total_facts": 153,
+    "followers_with_facts": 90,
+    "by_type": {
+      "CONTACT_PHONE": 26,
+      "LINK_SHARED": 75,
+      "APPOINTMENT": 4,
+      "CONTACT_EMAIL": 16,
+      "CONTACT_INSTAGRAM": 25,
+      "PRICE_GIVEN": 7
+    }
+  },
+  "writing_patterns": {
+    "human_stefan": {
+      "total_messages": 83,
+      "avg_length": 248.95180722891567,
+      "min_length": 2,
+      "max_length": 853,
+      "median_length": 207,
+      "emoji_frequency": 0.9156626506024096,
+      "common_phrases": {
+        "que te": 22,
+        "si necesitas": 21,
+        "lo que": 20,
+        "aquí para": 20,
+        "ayudarte a": 18,
+        "puedo ayudarte": 17,
+        "te gustaría": 15,
+        "¿te gustaría": 12,
+        "necesitas más": 12,
+        "estoy aquí": 11,
+        "de la": 11,
+        "es un": 10,
+        "para ayudarte": 10,
+        "más ideas": 10,
+        "ayuda para": 9,
+        "¡estoy aquí": 9,
+        "ideas o": 9,
+        "o alguna": 8,
+        "información sobre": 8,
+        "necesitas ayuda": 8
+      },
+      "exclamation_rate": 0.9156626506024096,
+      "question_rate": 0.6385542168674698
+    },
+    "bot": {
+      "total_messages": 2982,
+      "avg_length": 31.9027498323273,
+      "min_length": 1,
+      "max_length": 705,
+      "median_length": 23,
+      "emoji_frequency": 0.17002012072434608,
+      "common_phrases": {
+        "mentioned you": 82,
+        "you in": 82,
+        "in their": 82,
+        "their story": 82,
+        "gracias por": 78,
+        "muchas gracias": 55,
+        "lo que": 47,
+        "cómo estás?": 37,
+        "que me": 31,
+        "que te": 31,
+        "para el": 30,
+        "espero que": 29,
+        "por tu": 29,
+        "nos vemos": 29,
+        "en el": 26,
+        "bien y": 26,
+        "y me": 23,
+        "cómo estás??": 23,
+        "de la": 23,
+        "en la": 22
+      },
+      "exclamation_rate": 0.28504359490274983,
+      "question_rate": 0.13145539906103287
+    },
+    "combined": {
+      "total_messages": 3154,
+      "avg_length": 38.35954343690552,
+      "min_length": 1,
+      "max_length": 853,
+      "median_length": 23,
+      "emoji_frequency": 0.21116043119847813,
+      "common_phrases": {
+        "mentioned you": 82,
+        "you in": 82,
+        "in their": 82,
+        "their story": 82,
+        "gracias por": 80,
+        "lo que": 68,
+        "que te": 58,
+        "muchas gracias": 55,
+        "cómo estás?": 37,
+        "para el": 35,
+        "en el": 34,
+        "de la": 34,
+        "que me": 32,
+        "es un": 31,
+        "espero que": 29,
+        "por tu": 29,
+        "círculo de": 29,
+        "nos vemos": 29,
+        "aquí para": 29,
+        "si necesitas": 28
+      },
+      "exclamation_rate": 0.31769181991122386,
+      "question_rate": 0.15630944831959417
+    },
+    "breakdown": {
+      "total_assistant": 3154,
+      "human_count": 83,
+      "bot_count": 2982,
+      "untagged_count": 89,
+      "human_pct": 0.02631578947368421
+    }
+  },
+  "lead_scoring": {
+    "total_scored": 282,
+    "avg_score": 0.20117021276595773
+  }
+}

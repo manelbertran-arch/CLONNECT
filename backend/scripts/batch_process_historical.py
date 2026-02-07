@@ -210,18 +210,10 @@ def collect_db_followers(creator_id: str) -> Dict[str, List[Dict]]:
                         # Stefan wrote or approved this himself
                         source = "human"
                         human_msgs += 1
-                    elif approved_by == "autopilot" or approved_by == "auto":
-                        # Bot auto-generated and auto-sent
+                    else:
+                        # Everything else: autopilot, auto, None, etc. = bot
                         source = "bot"
                         bot_msgs += 1
-                    elif approved_by == "historical_sync":
-                        # Synced from Instagram - Stefan's real messages
-                        source = "human"
-                        human_msgs += 1
-                    else:
-                        # Unknown origin - likely synced from Instagram (human)
-                        source = "human"
-                        human_msgs += 1
                 else:
                     user_msgs += 1
 
