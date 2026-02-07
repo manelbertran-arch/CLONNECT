@@ -10,15 +10,16 @@ Required environment variables:
 - WHATSAPP_VERIFY_TOKEN: Token for webhook verification
 """
 
-import os
-import json
-import aiohttp
 import hashlib
 import hmac
+import json
 import logging
-from typing import Optional, List, Dict, Any
-from dataclasses import dataclass, asdict, field
+import os
+from dataclasses import asdict, dataclass, field
 from datetime import datetime, timezone
+from typing import Any, Dict, List, Optional
+
+import aiohttp
 
 logger = logging.getLogger("clonnect-whatsapp")
 
@@ -27,9 +28,11 @@ logger = logging.getLogger("clonnect-whatsapp")
 # DATA CLASSES
 # =============================================================================
 
+
 @dataclass
 class WhatsAppMessage:
     """Represents a WhatsApp message"""
+
     message_id: str
     sender_id: str  # Phone number (wa_id)
     recipient_id: str
@@ -49,6 +52,7 @@ class WhatsAppMessage:
 @dataclass
 class WhatsAppContact:
     """Represents a WhatsApp contact"""
+
     wa_id: str  # WhatsApp ID (phone number)
     profile_name: str = ""
     phone_number: str = ""
@@ -57,6 +61,7 @@ class WhatsAppContact:
 @dataclass
 class WhatsAppHandlerStatus:
     """Status of the WhatsApp handler"""
+
     connected: bool = False
     phone_number_id: str = ""
     messages_received: int = 0
@@ -73,6 +78,7 @@ class WhatsAppHandlerStatus:
 # WHATSAPP CONNECTOR
 # =============================================================================
 
+
 class WhatsAppConnector:
     """
     Connector for WhatsApp Cloud API.
@@ -87,7 +93,7 @@ class WhatsAppConnector:
         phone_number_id: str = None,
         access_token: str = None,
         verify_token: str = None,
-        app_secret: str = None
+        app_secret: str = None,
     ):
         """
         Initialize WhatsApp connector.
@@ -100,7 +106,7 @@ class WhatsAppConnector:
         """
         self.phone_number_id = phone_number_id or os.getenv("WHATSAPP_PHONE_NUMBER_ID", "")
         self.access_token = access_token or os.getenv("WHATSAPP_ACCESS_TOKEN", "")
-        self.verify_token = verify_token or os.getenv("WHATSAPP_VERIFY_TOKEN", "clonnect_wa_verify_2024")
+        self.verify_token = verify_token or os.getenv("WHATSAPP_VERIFY_TOKEN", "")
         self.app_secret = app_secret or os.getenv("WHATSAPP_APP_SECRET", "")
         self._session: Optional[aiohttp.ClientSession] = None
 
@@ -129,11 +135,7 @@ class WhatsAppConnector:
         if not self.app_secret:
             return True  # Skip in development
 
-        expected = hmac.new(
-            self.app_secret.encode(),
-            payload,
-            hashlib.sha256
-        ).hexdigest()
+        expected = hmac.new(self.app_secret.encode(), payload, hashlib.sha256).hexdigest()
         return hmac.compare_digest(f"sha256={expected}", signature)
 
     def verify_webhook(self, mode: str, token: str, challenge: str) -> Optional[str]:
@@ -151,7 +153,9 @@ class WhatsAppConnector:
         if mode == "subscribe" and token == self.verify_token:
             logger.info("WhatsApp webhook verification successful")
             return challenge
-        logger.warning(f"WhatsApp webhook verification failed: mode={mode}, token_match={token == self.verify_token}")
+        logger.warning(
+            f"WhatsApp webhook verification failed: mode={mode}, token_match={token == self.verify_token}"
+        )
         return None
 
     async def handle_webhook_event(self, payload: dict) -> List[WhatsAppMessage]:
@@ -198,12 +202,14 @@ class WhatsAppConnector:
                                 text = interactive.get("list_reply", {}).get("title", "")
                         elif msg_type in ["image", "audio", "video", "document"]:
                             media = msg.get(msg_type, {})
-                            attachments.append({
-                                "type": msg_type,
-                                "id": media.get("id", ""),
-                                "mime_type": media.get("mime_type", ""),
-                                "caption": media.get("caption", "")
-                            })
+                            attachments.append(
+                                {
+                                    "type": msg_type,
+                                    "id": media.get("id", ""),
+                                    "mime_type": media.get("mime_type", ""),
+                                    "caption": media.get("caption", ""),
+                                }
+                            )
                             text = media.get("caption", f"[{msg_type}]")
 
                         # Get context (if reply)
@@ -211,7 +217,7 @@ class WhatsAppConnector:
                         if "context" in msg:
                             context = {
                                 "message_id": msg["context"].get("id", ""),
-                                "from": msg["context"].get("from", "")
+                                "from": msg["context"].get("from", ""),
                             }
 
                         message = WhatsAppMessage(
@@ -220,12 +226,11 @@ class WhatsAppConnector:
                             recipient_id=self.phone_number_id,
                             text=text,
                             timestamp=datetime.fromtimestamp(
-                                int(msg.get("timestamp", 0)),
-                                tz=timezone.utc
+                                int(msg.get("timestamp", 0)), tz=timezone.utc
                             ),
                             message_type=msg_type,
                             attachments=attachments,
-                            context=context
+                            context=context,
                         )
 
                         if message.text:  # Only process messages with text
@@ -255,12 +260,12 @@ class WhatsAppConnector:
             "recipient_type": "individual",
             "to": recipient,
             "type": "text",
-            "text": {"body": text}
+            "text": {"body": text},
         }
 
         headers = {
             "Authorization": f"Bearer {self.access_token}",
-            "Content-Type": "application/json"
+            "Content-Type": "application/json",
         }
 
         async with session.post(url, json=payload, headers=headers) as resp:
@@ -274,7 +279,7 @@ class WhatsAppConnector:
         recipient: str,
         template_name: str,
         language_code: str = "es",
-        components: List[dict] = None
+        components: List[dict] = None,
     ) -> dict:
         """
         Send a template message (for initiating conversations).
@@ -291,10 +296,7 @@ class WhatsAppConnector:
         session = await self._get_session()
         url = f"{self.BASE_URL}/{self.phone_number_id}/messages"
 
-        template = {
-            "name": template_name,
-            "language": {"code": language_code}
-        }
+        template = {"name": template_name, "language": {"code": language_code}}
 
         if components:
             template["components"] = components
@@ -304,12 +306,12 @@ class WhatsAppConnector:
             "recipient_type": "individual",
             "to": recipient,
             "type": "template",
-            "template": template
+            "template": template,
         }
 
         headers = {
             "Authorization": f"Bearer {self.access_token}",
-            "Content-Type": "application/json"
+            "Content-Type": "application/json",
         }
 
         async with session.post(url, json=payload, headers=headers) as resp:
@@ -324,7 +326,7 @@ class WhatsAppConnector:
         body_text: str,
         buttons: List[Dict[str, str]],
         header_text: str = None,
-        footer_text: str = None
+        footer_text: str = None,
     ) -> dict:
         """
         Send interactive message with buttons.
@@ -351,12 +353,12 @@ class WhatsAppConnector:
                         "type": "reply",
                         "reply": {
                             "id": btn.get("id", btn.get("title", "")[:20]),
-                            "title": btn.get("title", "")[:20]  # Max 20 chars
-                        }
+                            "title": btn.get("title", "")[:20],  # Max 20 chars
+                        },
                     }
                     for btn in buttons[:3]  # Max 3 buttons
                 ]
-            }
+            },
         }
 
         if header_text:
@@ -369,12 +371,12 @@ class WhatsAppConnector:
             "recipient_type": "individual",
             "to": recipient,
             "type": "interactive",
-            "interactive": interactive
+            "interactive": interactive,
         }
 
         headers = {
             "Authorization": f"Bearer {self.access_token}",
-            "Content-Type": "application/json"
+            "Content-Type": "application/json",
         }
 
         async with session.post(url, json=payload, headers=headers) as resp:
@@ -396,15 +398,11 @@ class WhatsAppConnector:
         session = await self._get_session()
         url = f"{self.BASE_URL}/{self.phone_number_id}/messages"
 
-        payload = {
-            "messaging_product": "whatsapp",
-            "status": "read",
-            "message_id": message_id
-        }
+        payload = {"messaging_product": "whatsapp", "status": "read", "message_id": message_id}
 
         headers = {
             "Authorization": f"Bearer {self.access_token}",
-            "Content-Type": "application/json"
+            "Content-Type": "application/json",
         }
 
         async with session.post(url, json=payload, headers=headers) as resp:
@@ -434,6 +432,7 @@ class WhatsAppConnector:
 # WHATSAPP HANDLER
 # =============================================================================
 
+
 class WhatsAppHandler:
     """
     WhatsApp handler for Clonnect DM system.
@@ -447,7 +446,7 @@ class WhatsAppHandler:
         access_token: Optional[str] = None,
         verify_token: Optional[str] = None,
         app_secret: Optional[str] = None,
-        creator_id: str = "manel"
+        creator_id: str = "manel",
     ):
         """
         Initialize WhatsApp handler.
@@ -461,7 +460,7 @@ class WhatsAppHandler:
         """
         self.phone_number_id = phone_number_id or os.getenv("WHATSAPP_PHONE_NUMBER_ID", "")
         self.access_token = access_token or os.getenv("WHATSAPP_ACCESS_TOKEN", "")
-        self.verify_token = verify_token or os.getenv("WHATSAPP_VERIFY_TOKEN", "clonnect_wa_verify_2024")
+        self.verify_token = verify_token or os.getenv("WHATSAPP_VERIFY_TOKEN", "")
         self.app_secret = app_secret or os.getenv("WHATSAPP_APP_SECRET", "")
         self.creator_id = creator_id
 
@@ -480,7 +479,9 @@ class WhatsAppHandler:
     def _init_connector(self):
         """Initialize WhatsApp connector"""
         if not self.access_token or not self.phone_number_id:
-            logger.warning("WhatsApp credentials not configured (WHATSAPP_ACCESS_TOKEN, WHATSAPP_PHONE_NUMBER_ID)")
+            logger.warning(
+                "WhatsApp credentials not configured (WHATSAPP_ACCESS_TOKEN, WHATSAPP_PHONE_NUMBER_ID)"
+            )
             return
 
         try:
@@ -488,7 +489,7 @@ class WhatsAppHandler:
                 phone_number_id=self.phone_number_id,
                 access_token=self.access_token,
                 verify_token=self.verify_token,
-                app_secret=self.app_secret
+                app_secret=self.app_secret,
             )
             self.status.connected = True
             self.status.phone_number_id = self.phone_number_id
@@ -501,6 +502,7 @@ class WhatsAppHandler:
         """Initialize DM agent"""
         try:
             from core.dm_agent_v2 import DMResponderAgent
+
             self.dm_agent = DMResponderAgent(creator_id=self.creator_id)
             logger.info(f"DM Agent initialized for creator: {self.creator_id}")
         except Exception as e:
@@ -529,7 +531,7 @@ class WhatsAppHandler:
         """
         # Verify signature
         if self.connector and self.app_secret and signature:
-            payload_bytes = json.dumps(payload, separators=(',', ':')).encode()
+            payload_bytes = json.dumps(payload, separators=(",", ":")).encode()
             if not self.connector.verify_webhook_signature(payload_bytes, signature):
                 logger.warning("Invalid WhatsApp webhook signature")
                 self.status.errors += 1
@@ -562,28 +564,32 @@ class WhatsAppHandler:
 
                 self._record_response(message, response)
 
-                results.append({
-                    "message_id": message.message_id,
-                    "sender_id": message.sender_id,
-                    "response": response.response_text,
-                    "intent": response.intent.value if hasattr(response.intent, 'value') else str(response.intent),
-                    "confidence": response.confidence
-                })
+                results.append(
+                    {
+                        "message_id": message.message_id,
+                        "sender_id": message.sender_id,
+                        "response": response.response_text,
+                        "intent": (
+                            response.intent.value
+                            if hasattr(response.intent, "value")
+                            else str(response.intent)
+                        ),
+                        "confidence": response.confidence,
+                    }
+                )
 
             except Exception as e:
                 logger.error(f"Error processing WhatsApp message {message.message_id}: {e}")
                 self.status.errors += 1
-                results.append({
-                    "message_id": message.message_id,
-                    "sender_id": message.sender_id,
-                    "error": str(e)
-                })
+                results.append(
+                    {
+                        "message_id": message.message_id,
+                        "sender_id": message.sender_id,
+                        "error": str(e),
+                    }
+                )
 
-        return {
-            "status": "ok",
-            "messages_processed": len(messages),
-            "results": results
-        }
+        return {"status": "ok", "messages_processed": len(messages), "results": results}
 
     async def _extract_messages_fallback(self, payload: Dict[str, Any]) -> List[WhatsAppMessage]:
         """Fallback message extraction when connector not available"""
@@ -594,13 +600,15 @@ class WhatsAppHandler:
                     value = change.get("value", {})
                     for msg in value.get("messages", []):
                         if msg.get("type") == "text":
-                            messages.append(WhatsAppMessage(
-                                message_id=msg.get("id", ""),
-                                sender_id=msg.get("from", ""),
-                                recipient_id=self.phone_number_id,
-                                text=msg.get("text", {}).get("body", ""),
-                                timestamp=datetime.now(timezone.utc)
-                            ))
+                            messages.append(
+                                WhatsAppMessage(
+                                    message_id=msg.get("id", ""),
+                                    sender_id=msg.get("from", ""),
+                                    recipient_id=self.phone_number_id,
+                                    text=msg.get("text", {}).get("body", ""),
+                                    timestamp=datetime.now(timezone.utc),
+                                )
+                            )
         except Exception as e:
             logger.error(f"Error in fallback message extraction: {e}")
         return messages
@@ -628,11 +636,13 @@ class WhatsAppHandler:
             metadata={
                 "message_id": message.message_id,
                 "username": "amigo",
-                "platform": "whatsapp"
-            }
+                "platform": "whatsapp",
+            },
         )
 
-        logger.info(f"[WA:{message.sender_id}] Intent: {response.intent.value} ({response.confidence:.0%})")
+        logger.info(
+            f"[WA:{message.sender_id}] Intent: {response.intent.value} ({response.confidence:.0%})"
+        )
         logger.info(f"[WA:{message.sender_id}] Output: {response.response_text[:100]}...")
 
         return response
@@ -673,7 +683,7 @@ class WhatsAppHandler:
         recipient: str,
         template_name: str,
         language_code: str = "es",
-        components: List[dict] = None
+        components: List[dict] = None,
     ) -> bool:
         """Send a template message"""
         if not self.connector:
@@ -703,7 +713,7 @@ class WhatsAppHandler:
             "sender_id": msg.sender_id,
             "text": msg.text,
             "message_type": msg.message_type,
-            "timestamp": self.status.last_message_time
+            "timestamp": self.status.last_message_time,
         }
         self.recent_messages.append(record)
         if len(self.recent_messages) > 10:
@@ -720,11 +730,13 @@ class WhatsAppHandler:
             "sender_id": msg.sender_id,
             "input": msg.text,
             "response": response.response_text,
-            "intent": response.intent.value if hasattr(response.intent, 'value') else str(response.intent),
+            "intent": (
+                response.intent.value if hasattr(response.intent, "value") else str(response.intent)
+            ),
             "confidence": response.confidence,
             "product": response.product_mentioned,
             "escalate": response.escalate_to_human,
-            "timestamp": datetime.now(timezone.utc).isoformat()
+            "timestamp": datetime.now(timezone.utc).isoformat(),
         }
         self.recent_responses.append(record)
         if len(self.recent_responses) > 10:
@@ -760,14 +772,12 @@ _handler: Optional[WhatsAppHandler] = None
 def get_whatsapp_handler(
     creator_id: str = "manel",
     phone_number_id: Optional[str] = None,
-    access_token: Optional[str] = None
+    access_token: Optional[str] = None,
 ) -> WhatsAppHandler:
     """Get or create WhatsApp handler singleton"""
     global _handler
     if _handler is None:
         _handler = WhatsAppHandler(
-            phone_number_id=phone_number_id,
-            access_token=access_token,
-            creator_id=creator_id
+            phone_number_id=phone_number_id, access_token=access_token, creator_id=creator_id
         )
     return _handler

@@ -182,7 +182,7 @@ Solo di "déjame revisar" si REALMENTE no tienes la info.
 
         # PASO 4: Calcular delay
         msg_type = detect_message_type(message)
-        delay = 2.0 if msg_type in ["greeting", "confirmation"] else 3.0
+        delay = 2.0 if msg_type in ["saludo", "agradecimiento", "casual"] else 3.0
 
         return OrchestratedResponseV4(
             messages=[final_response],

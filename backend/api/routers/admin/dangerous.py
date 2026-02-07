@@ -261,7 +261,8 @@ async def nuclear_reset(confirm: str = "", admin: str = Depends(require_admin)):
             for table in tables:
                 try:
                     validate_table_name(table)
-                    result = session.execute(text(f"DELETE FROM {table}"))
+                    # Table name validated against whitelist; quoted as defense in depth
+                    result = session.execute(text(f'DELETE FROM "{table}"'))
                     deleted[table] = result.rowcount
                 except Exception as e:
                     deleted[table] = f"error: {str(e)[:50]}"
@@ -1028,13 +1029,15 @@ async def force_delete_creator(creator_name: str, admin: str = Depends(require_a
 
                     if needs_lead_subquery:
                         # Delete where FK is in leads for this creator (parameterized)
+                        # Table/column names validated against whitelist; quoted as defense in depth
                         sql = text(
-                            f"DELETE FROM {table} WHERE {fk_col} IN "
+                            f'DELETE FROM "{table}" WHERE "{fk_col}" IN '
                             f"(SELECT id FROM leads WHERE creator_id = :creator_id)"
                         )
                     else:
                         # Delete directly by creator_id (parameterized)
-                        sql = text(f"DELETE FROM {table} WHERE {fk_col} = :creator_id")
+                        # Table/column names validated against whitelist; quoted as defense in depth
+                        sql = text(f'DELETE FROM "{table}" WHERE "{fk_col}" = :creator_id')
 
                     result = session.execute(sql, {"creator_id": creator_id})
                     deleted[table] = result.rowcount

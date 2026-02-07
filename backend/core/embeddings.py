@@ -5,10 +5,10 @@ Uses text-embedding-3-small (1536 dimensions) with pgvector for storage.
 Embeddings persist in PostgreSQL - no regeneration on deploy.
 """
 
-import os
-import logging
-from typing import List, Optional
 import hashlib
+import logging
+import os
+from typing import List, Optional
 
 logger = logging.getLogger(__name__)
 
@@ -27,6 +27,7 @@ def get_openai_client():
     """Get OpenAI client lazily."""
     try:
         from openai import OpenAI
+
         api_key = os.getenv("OPENAI_API_KEY")
         if not api_key:
             logger.warning("OPENAI_API_KEY not set, embeddings disabled")
@@ -57,10 +58,7 @@ def generate_embedding(text: str) -> Optional[List[float]]:
         if len(text) > max_chars:
             text = text[:max_chars]
 
-        response = client.embeddings.create(
-            model=EMBEDDING_MODEL,
-            input=text
-        )
+        response = client.embeddings.create(model=EMBEDDING_MODEL, input=text)
 
         embedding = response.data[0].embedding
         logger.debug(f"Generated embedding: {len(embedding)} dimensions")
@@ -91,10 +89,7 @@ def generate_embeddings_batch(texts: List[str]) -> List[Optional[List[float]]]:
         max_chars = 30000
         truncated = [t[:max_chars] if len(t) > max_chars else t for t in texts]
 
-        response = client.embeddings.create(
-            model=EMBEDDING_MODEL,
-            input=truncated
-        )
+        response = client.embeddings.create(model=EMBEDDING_MODEL, input=truncated)
 
         # Map results by index
         embeddings = [None] * len(texts)
@@ -126,6 +121,7 @@ def cosine_similarity(vec1: List[float], vec2: List[float]) -> float:
 # =============================================================================
 # pgvector Database Operations
 # =============================================================================
+
 
 def ensure_pgvector_extension():
     """
@@ -178,22 +174,33 @@ def store_embedding(chunk_id: str, creator_id: str, content: str, embedding: Lis
 
         db = SessionLocal()
         try:
-            # Convert embedding to pgvector format
-            embedding_str = "[" + ",".join(str(x) for x in embedding) + "]"
+            # Convert embedding to pgvector format with strict validation
+            # Validate that all values are actual floats to prevent SQL injection
+            validated_floats = []
+            for val in embedding:
+                f = float(val)  # Raises ValueError/TypeError if not numeric
+                validated_floats.append(f)
+            embedding_str = "[" + ",".join(str(x) for x in validated_floats) + "]"
 
-            # Upsert embedding - use string formatting for the vector since
-            # psycopg2 doesn't handle the ::vector cast well with parameters
-            db.execute(text(f"""
+            # Upsert embedding - pass vector as a parameter and cast in SQL
+            # The embedding_str is safe because it only contains validated float values
+            db.execute(
+                text(
+                    """
                 INSERT INTO content_embeddings (chunk_id, creator_id, content_preview, embedding)
-                VALUES (:chunk_id, :creator_id, :content_preview, '{embedding_str}'::vector)
+                VALUES (:chunk_id, :creator_id, :content_preview, :embedding::vector)
                 ON CONFLICT (chunk_id) DO UPDATE SET
-                    embedding = '{embedding_str}'::vector,
+                    embedding = :embedding::vector,
                     updated_at = NOW()
-            """), {
-                "chunk_id": chunk_id,
-                "creator_id": creator_id,
-                "content_preview": content[:500]  # Store preview for debugging
-            })
+            """
+                ),
+                {
+                    "chunk_id": chunk_id,
+                    "creator_id": creator_id,
+                    "content_preview": content[:500],  # Store preview for debugging
+                    "embedding": embedding_str,
+                },
+            )
             db.commit()
             return True
 
@@ -207,10 +214,7 @@ def store_embedding(chunk_id: str, creator_id: str, content: str, embedding: Lis
 
 
 def search_similar(
-    query_embedding: List[float],
-    creator_id: str,
-    top_k: int = 5,
-    min_similarity: float = None
+    query_embedding: List[float], creator_id: str, top_k: int = 5, min_similarity: float = None
 ) -> List[dict]:
     """
     Search for similar content using pgvector cosine similarity.
@@ -241,7 +245,9 @@ def search_similar(
 
             # Use pgvector's <=> operator for cosine distance
             # Cosine similarity = 1 - cosine distance
-            results = db.execute(text("""
+            results = db.execute(
+                text(
+                    """
                 SELECT
                     e.chunk_id,
                     c.content,
@@ -255,12 +261,15 @@ def search_similar(
                     AND 1 - (e.embedding <=> :query::vector) >= :min_sim
                 ORDER BY e.embedding <=> :query::vector
                 LIMIT :top_k
-            """), {
-                "query": embedding_str,
-                "creator_id": creator_id,
-                "min_sim": min_similarity,
-                "top_k": top_k
-            })
+            """
+                ),
+                {
+                    "query": embedding_str,
+                    "creator_id": creator_id,
+                    "min_sim": min_similarity,
+                    "top_k": top_k,
+                },
+            )
 
             return [
                 {
@@ -269,7 +278,7 @@ def search_similar(
                     "source_url": row.source_url,
                     "title": row.title,
                     "source_type": row.source_type,
-                    "similarity": float(row.similarity)
+                    "similarity": float(row.similarity),
                 }
                 for row in results
             ]
@@ -294,10 +303,15 @@ def get_embedding_stats(creator_id: str = None) -> dict:
         db = SessionLocal()
         try:
             if creator_id:
-                result = db.execute(text("""
+                result = db.execute(
+                    text(
+                        """
                     SELECT COUNT(*) as count FROM content_embeddings
                     WHERE creator_id = :creator_id
-                """), {"creator_id": creator_id})
+                """
+                    ),
+                    {"creator_id": creator_id},
+                )
             else:
                 result = db.execute(text("SELECT COUNT(*) as count FROM content_embeddings"))
 
@@ -306,7 +320,7 @@ def get_embedding_stats(creator_id: str = None) -> dict:
                 "embeddings_count": row.count if row else 0,
                 "creator_id": creator_id,
                 "model": EMBEDDING_MODEL,
-                "dimensions": EMBEDDING_DIMENSIONS
+                "dimensions": EMBEDDING_DIMENSIONS,
             }
 
         finally:

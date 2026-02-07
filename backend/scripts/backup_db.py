@@ -78,7 +78,8 @@ def export_table_to_json(session, table_name: str, output_dir: Path, limit: int 
         # Validate table name against whitelist (SQL injection prevention)
         _validate_table_name(table_name)
 
-        query = f"SELECT * FROM {table_name}"
+        # Table name validated against whitelist; quoted as defense in depth
+        query = f'SELECT * FROM "{table_name}"'
         if limit:
             # Use parameterized query for limit
             query += " LIMIT :limit"

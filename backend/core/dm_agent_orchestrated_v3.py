@@ -209,7 +209,7 @@ RULE: If your response exceeds 28 characters, SHORTEN IT.
 
         # STEP 4: Calculate natural delay
         msg_type = detect_message_type(message)
-        delay = 2.0 if msg_type in ["greeting", "confirmation"] else 3.0
+        delay = 2.0 if msg_type in ["saludo", "agradecimiento", "casual"] else 3.0
 
         return OrchestratedResponseV3(
             messages=[final_response],

@@ -9,6 +9,126 @@ from sqlalchemy.orm import Session
 
 logger = logging.getLogger(__name__)
 
+# ---- SQL Injection Prevention: Whitelist validation for DDL operations ----
+# Table names, column names, and column types used in run_migrations() are all
+# hardcoded in the migrations list below. These whitelists ensure that even if
+# the list were somehow modified, only known-safe identifiers could be used.
+
+ALLOWED_MIGRATION_TABLES = frozenset(
+    {
+        "creators",
+        "booking_links",
+        "products",
+        "messages",
+        "leads",
+    }
+)
+
+ALLOWED_MIGRATION_COLUMNS = frozenset(
+    {
+        "instagram_page_id",
+        "instagram_user_id",
+        "whatsapp_token",
+        "whatsapp_phone_id",
+        "stripe_api_key",
+        "paypal_token",
+        "paypal_email",
+        "hotmart_token",
+        "calendly_token",
+        "calendly_refresh_token",
+        "calendly_token_expires_at",
+        "zoom_access_token",
+        "zoom_refresh_token",
+        "zoom_token_expires_at",
+        "google_access_token",
+        "google_refresh_token",
+        "google_token_expires_at",
+        "other_payment_methods",
+        "knowledge_about",
+        "onboarding_completed",
+        "clone_status",
+        "clone_progress",
+        "clone_started_at",
+        "clone_completed_at",
+        "clone_error",
+        "price",
+        "payment_link",
+        "status",
+        "suggested_response",
+        "approved_at",
+        "approved_by",
+        "platform_message_id",
+        "copilot_mode",
+        "product_price",
+        "email_capture_config",
+        "source_url",
+        "price_verified",
+        "confidence",
+        "product_type",
+        "short_description",
+        "category",
+        "is_free",
+        "profile_pic_url",
+        "notes",
+        "tags",
+        "email",
+        "phone",
+        "deal_value",
+        "source",
+        "assigned_to",
+        "updated_at",
+    }
+)
+
+# Allowed SQL types for column definitions (prefix-matched for types with defaults)
+ALLOWED_COLUMN_TYPES = frozenset(
+    {
+        "VARCHAR(255)",
+        "VARCHAR(500)",
+        "VARCHAR(300)",
+        "VARCHAR(50)",
+        "VARCHAR(100)",
+        "VARCHAR(20)",
+        "VARCHAR(20) DEFAULT 'pending'",
+        "VARCHAR(50) DEFAULT 'otro'",
+        "VARCHAR(20) DEFAULT 'sent'",
+        "VARCHAR(500) DEFAULT ''",
+        "TEXT",
+        "JSON",
+        "JSON DEFAULT '[]'",
+        "BOOLEAN DEFAULT FALSE",
+        "BOOLEAN DEFAULT TRUE",
+        "FLOAT",
+        "FLOAT DEFAULT 0.0",
+        "FLOAT DEFAULT 97.0",
+        "INTEGER DEFAULT 0",
+        "TIMESTAMPTZ",
+        "TIMESTAMPTZ DEFAULT NOW()",
+    }
+)
+
+
+def _validate_migration_table(table: str) -> str:
+    """Validate table name against whitelist for DDL migrations."""
+    if table not in ALLOWED_MIGRATION_TABLES:
+        raise ValueError(f"Migration table '{table}' not in allowed whitelist")
+    return table
+
+
+def _validate_migration_column(column: str) -> str:
+    """Validate column name against whitelist for DDL migrations."""
+    if column not in ALLOWED_MIGRATION_COLUMNS:
+        raise ValueError(f"Migration column '{column}' not in allowed whitelist")
+    return column
+
+
+def _validate_migration_col_type(col_type: str) -> str:
+    """Validate column type against whitelist for DDL migrations."""
+    if col_type not in ALLOWED_COLUMN_TYPES:
+        raise ValueError(f"Migration column type '{col_type}' not in allowed whitelist")
+    return col_type
+
+
 def setup_pgvector(engine):
     """
     Verify pgvector extension and content_embeddings table exist.
@@ -28,7 +148,11 @@ def run_migrations(engine):
     migrations = [
         # Connection columns for creators table
         ("creators", "instagram_page_id", "VARCHAR(255)"),
-        ("creators", "instagram_user_id", "VARCHAR(255)"),  # Instagram Business Account ID for auto-onboarding
+        (
+            "creators",
+            "instagram_user_id",
+            "VARCHAR(255)",
+        ),  # Instagram Business Account ID for auto-onboarding
         ("creators", "whatsapp_token", "TEXT"),
         ("creators", "whatsapp_phone_id", "VARCHAR(255)"),
         ("creators", "stripe_api_key", "TEXT"),
@@ -106,14 +230,23 @@ def run_migrations(engine):
     with engine.connect() as conn:
         for table, column, col_type in migrations:
             try:
-                # Check if column exists
-                result = conn.execute(text(f"""
-                    SELECT column_name FROM information_schema.columns
-                    WHERE table_name = '{table}' AND column_name = '{column}'
-                """))
+                # Validate all identifiers against whitelists (SQL injection prevention)
+                _validate_migration_table(table)
+                _validate_migration_column(column)
+                _validate_migration_col_type(col_type)
+
+                # Check if column exists (parameterized query for values)
+                result = conn.execute(
+                    text(
+                        "SELECT column_name FROM information_schema.columns "
+                        "WHERE table_name = :table AND column_name = :column"
+                    ),
+                    {"table": table, "column": column},
+                )
                 if result.fetchone() is None:
                     # Column doesn't exist, add it
-                    conn.execute(text(f"ALTER TABLE {table} ADD COLUMN {column} {col_type}"))
+                    # DDL: table/column names validated above, col_type whitelisted
+                    conn.execute(text(f'ALTER TABLE "{table}" ADD COLUMN "{column}" {col_type}'))
                     conn.commit()
                     logger.info("Added column %s to %s", column, table)
             except Exception as e:
@@ -122,19 +255,30 @@ def run_migrations(engine):
         # Apply column type alterations
         for table, column, new_type in alterations:
             try:
-                # Check current column type
-                result = conn.execute(text(f"""
-                    SELECT data_type FROM information_schema.columns
-                    WHERE table_name = '{table}' AND column_name = '{column}'
-                """))
+                # Validate all identifiers against whitelists (SQL injection prevention)
+                _validate_migration_table(table)
+                _validate_migration_column(column)
+                _validate_migration_col_type(new_type)
+
+                # Check current column type (parameterized query for values)
+                result = conn.execute(
+                    text(
+                        "SELECT data_type FROM information_schema.columns "
+                        "WHERE table_name = :table AND column_name = :column"
+                    ),
+                    {"table": table, "column": column},
+                )
                 row = result.fetchone()
-                if row and row[0] != 'text':
-                    # Alter column type to TEXT
-                    conn.execute(text(f"ALTER TABLE {table} ALTER COLUMN {column} TYPE {new_type}"))
+                if row and row[0] != "text":
+                    # Alter column type (DDL: identifiers validated above)
+                    conn.execute(
+                        text(f'ALTER TABLE "{table}" ALTER COLUMN "{column}" TYPE {new_type}')
+                    )
                     conn.commit()
                     logger.info("Altered column %s.%s to %s", table, column, new_type)
             except Exception as e:
                 logger.error("Alteration error for %s.%s: %s", table, column, e)
+
 
 def init_database():
     DATABASE_URL = os.getenv("DATABASE_URL", "")
@@ -150,18 +294,52 @@ def init_database():
     try:
         from api.database import Base
         from api.models import (
-            User, UserCreator, Creator, Lead, LeadActivity, LeadTask, Message, Product,
-            NurturingSequence, KnowledgeBase, BookingLink, CalendarBooking,
-            CreatorAvailability, BookingSlot, UnifiedProfile, PlatformIdentity,
-            EmailAskTracking, RAGDocument, ToneProfile, ContentChunk, InstagramPost
+            BookingLink,
+            BookingSlot,
+            CalendarBooking,
+            ContentChunk,
+            Creator,
+            CreatorAvailability,
+            EmailAskTracking,
+            InstagramPost,
+            KnowledgeBase,
+            Lead,
+            LeadActivity,
+            LeadTask,
+            Message,
+            NurturingSequence,
+            PlatformIdentity,
+            Product,
+            RAGDocument,
+            ToneProfile,
+            UnifiedProfile,
+            User,
+            UserCreator,
         )
     except ImportError:
         from database import Base
         from models import (
-            User, UserCreator, Creator, Lead, LeadActivity, LeadTask, Message, Product,
-            NurturingSequence, KnowledgeBase, BookingLink, CalendarBooking,
-            CreatorAvailability, BookingSlot, UnifiedProfile, PlatformIdentity,
-            EmailAskTracking, RAGDocument, ToneProfile, ContentChunk, InstagramPost
+            BookingLink,
+            BookingSlot,
+            CalendarBooking,
+            ContentChunk,
+            Creator,
+            CreatorAvailability,
+            EmailAskTracking,
+            InstagramPost,
+            KnowledgeBase,
+            Lead,
+            LeadActivity,
+            LeadTask,
+            Message,
+            NurturingSequence,
+            PlatformIdentity,
+            Product,
+            RAGDocument,
+            ToneProfile,
+            UnifiedProfile,
+            User,
+            UserCreator,
         )
 
     logger.info("Creating engine with DATABASE_URL configured: %s", bool(DATABASE_URL))
@@ -184,15 +362,15 @@ def init_database():
     # Only clean up debug test entries if needed
     with engine.connect() as conn:
         try:
-            result = conn.execute(text(
-                "DELETE FROM booking_links WHERE meeting_type = 'debug_test'"
-            ))
+            result = conn.execute(
+                text("DELETE FROM booking_links WHERE meeting_type = 'debug_test'")
+            )
             conn.commit()
             if result.rowcount > 0:
                 logger.info("Deleted %d debug_test booking_links", result.rowcount)
         except Exception as e:
             logger.warning("Could not clean up debug booking_links: %s", e)
-    
+
     with Session(engine) as session:
         # Create default creator 'manel'
         existing = session.query(Creator).filter_by(name="manel").first()
@@ -204,7 +382,7 @@ def init_database():
                 clone_tone="friendly",
                 clone_name="Manel",
                 bot_active=True,
-                copilot_mode=True  # Enable copilot by default
+                copilot_mode=True,  # Enable copilot by default
             )
             session.add(creator)
             session.commit()
@@ -220,7 +398,7 @@ def init_database():
                 clone_tone="professional",
                 clone_name="Stefano Bonanno",
                 bot_active=True,
-                copilot_mode=False  # Default to autopilot (bot responds automatically)
+                copilot_mode=False,  # Default to autopilot (bot responds automatically)
             )
             session.add(stefano)
             session.commit()
@@ -228,7 +406,9 @@ def init_database():
         else:
             # Don't override existing copilot_mode setting
             # The user can toggle this via the API
-            logger.info("Creator 'stefano_auto' already exists with copilot_mode=%s", stefano.copilot_mode)
+            logger.info(
+                "Creator 'stefano_auto' already exists with copilot_mode=%s", stefano.copilot_mode
+            )
 
         # Create demo user for Stefano
         create_demo_user(session)
@@ -239,10 +419,11 @@ def init_database():
 def create_demo_user(session):
     """Create demo user for Stefano with bcrypt password hash"""
     import bcrypt
+
     try:
-        from api.models import User, UserCreator, Creator
+        from api.models import Creator, User, UserCreator
     except ImportError:
-        from models import User, UserCreator, Creator
+        from models import Creator, User, UserCreator
 
     # Check if user exists
     existing_user = session.query(User).filter_by(email="stefano@stefanobonanno.com").first()
@@ -252,7 +433,7 @@ def create_demo_user(session):
 
     # Hash the password
     password = "demo2024"
-    password_hash = bcrypt.hashpw(password.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
+    password_hash = bcrypt.hashpw(password.encode("utf-8"), bcrypt.gensalt()).decode("utf-8")
 
     # Create user
     user = User(
@@ -260,7 +441,7 @@ def create_demo_user(session):
         password_hash=password_hash,
         name="Stefano Bonanno",
         is_active=True,
-        is_admin=False
+        is_admin=False,
     )
     session.add(user)
     session.commit()
@@ -270,19 +451,17 @@ def create_demo_user(session):
     stefano_creator = session.query(Creator).filter_by(name="stefano_auto").first()
     if stefano_creator:
         # Check if link exists
-        existing_link = session.query(UserCreator).filter_by(
-            user_id=user.id,
-            creator_id=stefano_creator.id
-        ).first()
+        existing_link = (
+            session.query(UserCreator)
+            .filter_by(user_id=user.id, creator_id=stefano_creator.id)
+            .first()
+        )
         if not existing_link:
-            user_creator = UserCreator(
-                user_id=user.id,
-                creator_id=stefano_creator.id,
-                role="owner"
-            )
+            user_creator = UserCreator(user_id=user.id, creator_id=stefano_creator.id, role="owner")
             session.add(user_creator)
             session.commit()
             logger.info("Linked user to creator 'stefano_auto'")
+
 
 if __name__ == "__main__":
     init_database()

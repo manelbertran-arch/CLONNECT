@@ -72,9 +72,7 @@ class InstagramHandler:
         self.page_id = page_id or os.getenv("INSTAGRAM_PAGE_ID", "")
         self.ig_user_id = ig_user_id or os.getenv("INSTAGRAM_USER_ID", "")
         self.app_secret = app_secret or os.getenv("INSTAGRAM_APP_SECRET", "")
-        self.verify_token = verify_token or os.getenv(
-            "INSTAGRAM_VERIFY_TOKEN", "clonnect_verify_2024"
-        )
+        self.verify_token = verify_token or os.getenv("INSTAGRAM_VERIFY_TOKEN", "")
         self.creator_id = creator_id
 
         # If credentials not in ENV, try to load from database
