@@ -1,0 +1,7 @@
+[flake8]
+max-line-length = 100
+ignore = E501,W503,E203
+# main.py has 7,198 lines of known tech debt (documented in CLAUDE.md)
+# Excluding from flake8 until refactoring is complete
+per-file-ignores =
+    backend/api/main.py:F401,E402,F541

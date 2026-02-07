@@ -12,13 +12,12 @@ from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional
 
 import httpx
+from api.schemas import CreateCreatorRequest, CreateProductRequest
 from fastapi import Body, Depends, FastAPI, Header, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, HTMLResponse, PlainTextResponse, Response
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
-
-from api.schemas import CreateCreatorRequest, CreateProductRequest
 
 logging.basicConfig(level=logging.INFO)
 
@@ -341,14 +340,19 @@ from api.routers import maintenance as maintenance_router
 
 app.include_router(maintenance_router.router)
 
+# Metrics router (academic metrics dashboard)
+from api.routers import metrics as metrics_router
+
+app.include_router(metrics_router.router)
+
 # Authentication router
 from api.auth import (
-    router as auth_router,
     get_current_creator,
     get_optional_creator,
     require_admin,
     require_creator_or_admin,
 )
+from api.auth import router as auth_router
 
 app.include_router(auth_router)
 
