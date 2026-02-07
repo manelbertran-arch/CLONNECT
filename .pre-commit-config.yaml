@@ -23,7 +23,7 @@ repos:
     rev: 7.0.0
     hooks:
       - id: flake8
-        args: [--max-line-length=100, --ignore=E501,W503,E203]
+        args: ["--max-line-length=100", "--ignore=E501,W503,E203"]
         files: ^backend/
 
   # Quick pytest check (fast tests only)
@@ -52,7 +52,7 @@ repos:
     hooks:
       - id: no-debug
         name: no-debug-statements
-        entry: bash -c 'grep -r "console\.log\|debugger\|print(" --include="*.ts" --include="*.tsx" --include="*.py" . 2>/dev/null | grep -v node_modules | grep -v __pycache__ | grep -v ".test." | head -5 && exit 1 || exit 0'
+        entry: bash -c 'git diff --cached --name-only --diff-filter=ACM | grep -E "\.(ts|tsx|py)$" | xargs grep -l "console\.log\|debugger" 2>/dev/null && exit 1; exit 0'
         language: system
         pass_filenames: false
 

@@ -25,19 +25,24 @@ from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Any, Dict, List, Optional
 
+# P1: QUALITY - Question context, query expansion, reflexion
+from core.bot_question_analyzer import QuestionType, get_bot_question_analyzer, is_short_affirmation
 from core.context_detector import detect_all as detect_context
+from core.conversation_state import get_state_manager
 
 # DETECTORES - Detect frustration, context, sensitive content
 from core.frustration_detector import get_frustration_detector
-from core.sensitive_detector import detect_sensitive_content, get_crisis_resources
 
 # VALIDADORES - Output quality
 from core.guardrails import get_response_guardrail
-from core.output_validator import validate_prices, validate_links
-from core.response_fixes import apply_all_response_fixes
+
+# P2: INTELLIGENCE - Lead categorization, conversation state
+from core.lead_categorizer import get_lead_categorizer
 
 # Import notification service for escalations
 from core.notifications import EscalationNotification, get_notification_service
+from core.output_validator import validate_links, validate_prices
+from core.query_expansion import get_query_expander
 
 # RAG AVANZADO - Reranking for better results
 from core.rag.reranker import ENABLE_RERANKING
@@ -45,6 +50,9 @@ from core.rag.reranker import rerank as rag_rerank
 
 # RAZONAMIENTO - Chain of thought for complex queries
 from core.reasoning.chain_of_thought import ChainOfThoughtReasoner
+from core.reflexion_engine import get_reflexion_engine
+from core.response_fixes import apply_all_response_fixes
+from core.sensitive_detector import detect_sensitive_content, get_crisis_resources
 
 # MEMORIA AVANZADA - Conversation facts tracking
 from models.conversation_memory import ConversationMemory
@@ -64,6 +72,9 @@ from services import (
 
 # Import DNA context integration
 from services.dm_agent_context_integration import get_context_for_dm_agent
+
+# P3: PERSONALIZATION - DNA triggers, relationship detection
+from services.dna_update_triggers import get_dna_triggers
 from services.edge_case_handler import get_edge_case_handler
 
 # Re-export Intent for backward compatibility
@@ -71,13 +82,12 @@ from services.intent_service import Intent
 
 # SERVICIOS DE RESPUESTA - Response quality
 from services.length_controller import detect_message_type, enforce_length
+from services.relationship_type_detector import RelationshipTypeDetector
 from services.response_variator_v2 import get_response_variator_v2
 
 # =============================================================================
 # COGNITIVE SYSTEMS INTEGRATION (v2.5)
 # =============================================================================
-
-
 
 
 # Feature flags for cognitive systems
@@ -88,7 +98,22 @@ ENABLE_CONVERSATION_MEMORY = os.getenv("ENABLE_CONVERSATION_MEMORY", "true").low
 ENABLE_GUARDRAILS = os.getenv("ENABLE_GUARDRAILS", "true").lower() == "true"
 ENABLE_OUTPUT_VALIDATION = os.getenv("ENABLE_OUTPUT_VALIDATION", "true").lower() == "true"
 ENABLE_RESPONSE_FIXES = os.getenv("ENABLE_RESPONSE_FIXES", "true").lower() == "true"
-ENABLE_CHAIN_OF_THOUGHT = os.getenv("ENABLE_CHAIN_OF_THOUGHT", "false").lower() == "true"
+ENABLE_CHAIN_OF_THOUGHT = os.getenv("ENABLE_CHAIN_OF_THOUGHT", "true").lower() == "true"
+
+# P1: Quality
+ENABLE_QUESTION_CONTEXT = os.getenv("ENABLE_QUESTION_CONTEXT", "true").lower() == "true"
+ENABLE_QUERY_EXPANSION = os.getenv("ENABLE_QUERY_EXPANSION", "true").lower() == "true"
+ENABLE_REFLEXION = os.getenv("ENABLE_REFLEXION", "true").lower() == "true"
+# P2: Intelligence
+ENABLE_LEAD_CATEGORIZER = os.getenv("ENABLE_LEAD_CATEGORIZER", "true").lower() == "true"
+ENABLE_CONVERSATION_STATE = os.getenv("ENABLE_CONVERSATION_STATE", "false").lower() == "true"
+ENABLE_FACT_TRACKING = os.getenv("ENABLE_FACT_TRACKING", "true").lower() == "true"
+# P3: Personalization
+ENABLE_ADVANCED_PROMPTS = os.getenv("ENABLE_ADVANCED_PROMPTS", "false").lower() == "true"
+ENABLE_DNA_TRIGGERS = os.getenv("ENABLE_DNA_TRIGGERS", "true").lower() == "true"
+ENABLE_RELATIONSHIP_DETECTION = (
+    os.getenv("ENABLE_RELATIONSHIP_DETECTION", "false").lower() == "true"
+)
 
 logger = logging.getLogger(__name__)
 
@@ -528,6 +553,27 @@ class DMResponderAgentV2:
             intent_value = intent.value if hasattr(intent, "value") else str(intent)
             logger.debug(f"Intent classified: {intent_value}")
 
+            # Step 2b: Analyze bot's last question for short affirmation context
+            if ENABLE_QUESTION_CONTEXT and is_short_affirmation(message):
+                try:
+                    hist = metadata.get("history", [])
+                    last_bot = next(
+                        (
+                            m.get("content", "")
+                            for m in reversed(hist)
+                            if m.get("role") == "assistant"
+                        ),
+                        None,
+                    )
+                    if last_bot:
+                        q_type, q_conf = get_bot_question_analyzer().analyze_with_confidence(
+                            last_bot
+                        )
+                        if q_type != QuestionType.UNKNOWN:
+                            cognitive_metadata["question_context"] = q_type.value
+                except Exception as e:
+                    logger.debug(f"Question context failed: {e}")
+
             # Step 3: Get or create follower memory
             follower = await self.memory_store.get_or_create(
                 creator_id=self.creator_id,
@@ -539,8 +585,17 @@ class DMResponderAgentV2:
             # PHASE 3: RAG RETRIEVAL WITH RERANKING
             # =================================================================
 
-            # Step 4: Retrieve relevant context (RAG)
-            rag_results = self.rag_service.retrieve(message, top_k=self.config.rag_top_k)
+            # Step 4: Retrieve relevant context (RAG) with optional query expansion
+            rag_query = message
+            if ENABLE_QUERY_EXPANSION:
+                try:
+                    expanded = get_query_expander().expand(message, max_expansions=2)
+                    if len(expanded) > 1:
+                        rag_query = " ".join(expanded)
+                        cognitive_metadata["query_expanded"] = True
+                except Exception as e:
+                    logger.debug(f"Query expansion failed: {e}")
+            rag_results = self.rag_service.retrieve(rag_query, top_k=self.config.rag_top_k)
 
             # Step 4b: Rerank results if enabled
             if ENABLE_RERANKING and rag_results:
@@ -552,6 +607,17 @@ class DMResponderAgentV2:
 
             rag_context = self._format_rag_context(rag_results)
 
+            # Step 3a: Detect relationship type (personalization)
+            if ENABLE_RELATIONSHIP_DETECTION:
+                try:
+                    hist = metadata.get("history", [])
+                    if len(hist) >= 2:
+                        rel_result = RelationshipTypeDetector().detect(hist)
+                        if rel_result.get("confidence", 0) > 0.5:
+                            cognitive_metadata["relationship_type"] = rel_result["type"]
+                except Exception as e:
+                    logger.debug(f"Relationship detection failed: {e}")
+
             # Step 3b: Get RelationshipDNA context (personalization per lead)
             dna_context = get_context_for_dm_agent(self.creator_id, sender_id)
             if dna_context:
@@ -560,12 +626,43 @@ class DMResponderAgentV2:
             # Step 4: Get lead stage
             current_stage = self._get_lead_stage(follower, metadata)
 
+            # Step 4c: Get conversation state and phase instructions
+            state_context = ""
+            if ENABLE_CONVERSATION_STATE:
+                try:
+                    state_mgr = get_state_manager()
+                    conv_state = state_mgr.get_state(sender_id, self.creator_id)
+                    state_context = state_mgr.build_enhanced_prompt(conv_state)
+                    cognitive_metadata["conversation_phase"] = conv_state.phase.value
+                except Exception as e:
+                    logger.debug(f"Conversation state failed: {e}")
+
             # Step 5: Build prompts - combine style, RAG and DNA context
             # Include system_prompt_override if provided (for V2 prompt)
             # PRIORITY: style_prompt first (defines HOW to write)
             prompt_override = metadata.get("system_prompt_override", "")
+            # Include advanced prompt sections if enabled
+            advanced_section = ""
+            if ENABLE_ADVANCED_PROMPTS:
+                try:
+                    from core.prompt_builder import build_rules_section
+
+                    creator_name = self.personality.get("name", "el creador")
+                    advanced_section = build_rules_section(creator_name)
+                except Exception as e:
+                    logger.debug(f"Advanced prompts failed: {e}")
             combined_context = "\n\n".join(
-                filter(None, [self.style_prompt, rag_context, dna_context, prompt_override])
+                filter(
+                    None,
+                    [
+                        self.style_prompt,
+                        rag_context,
+                        dna_context,
+                        state_context,
+                        advanced_section,
+                        prompt_override,
+                    ],
+                )
             )
             system_prompt = self.prompt_builder.build_system_prompt(
                 products=self.products, custom_instructions=combined_context
@@ -609,11 +706,17 @@ class DMResponderAgentV2:
             if ENABLE_OUTPUT_VALIDATION:
                 try:
                     # Build known prices from products
-                    known_prices = {p.get("name", ""): p.get("price", 0) for p in self.products if p.get("price")}
+                    known_prices = {
+                        p.get("name", ""): p.get("price", 0)
+                        for p in self.products
+                        if p.get("price")
+                    }
                     price_issues = validate_prices(response_content, known_prices)
                     if price_issues:
                         logger.warning(f"Output validation: {len(price_issues)} price issues")
-                        cognitive_metadata["output_validation_issues"] = [i.details for i in price_issues]
+                        cognitive_metadata["output_validation_issues"] = [
+                            i.details for i in price_issues
+                        ]
                     # Build known links from products
                     known_links = [p.get("url", "") for p in self.products if p.get("url")]
                     link_issues, corrected = validate_links(response_content, known_links)
@@ -632,6 +735,25 @@ class DMResponderAgentV2:
                         response_content = fixed_response
                 except Exception as e:
                     logger.debug(f"Response fixes failed: {e}")
+
+            # Step 7a3: Reflexion analysis for response quality
+            if ENABLE_REFLEXION:
+                try:
+                    prev_bot = [
+                        m.get("content", "")
+                        for m in metadata.get("history", [])
+                        if m.get("role") == "assistant"
+                    ]
+                    r_result = get_reflexion_engine().analyze_response(
+                        response=response_content,
+                        user_message=message,
+                        previous_bot_responses=prev_bot[-5:],
+                    )
+                    if r_result.needs_revision:
+                        cognitive_metadata["reflexion_issues"] = r_result.issues
+                        cognitive_metadata["reflexion_severity"] = r_result.severity
+                except Exception as e:
+                    logger.debug(f"Reflexion failed: {e}")
 
             # Step 7b: Apply guardrails validation
             if ENABLE_GUARDRAILS and hasattr(self, "guardrails"):
@@ -662,6 +784,18 @@ class DMResponderAgentV2:
 
             # Step 8: Update follower memory
             await self._update_follower_memory(follower, message, formatted_content, intent_value)
+
+            # Step 8b: Check DNA update triggers
+            if ENABLE_DNA_TRIGGERS:
+                try:
+                    triggers = get_dna_triggers()
+                    existing_dna = metadata.get("dna_data")
+                    if triggers.should_update(existing_dna, follower.total_messages):
+                        msgs = follower.last_messages[-20:]
+                        triggers.schedule_async_update(self.creator_id, sender_id, msgs)
+                        cognitive_metadata["dna_update_scheduled"] = True
+                except Exception as e:
+                    logger.debug(f"DNA trigger check failed: {e}")
 
             # Step 9: Update lead score
             new_stage = self._update_lead_score(follower, intent_value, metadata)
@@ -710,6 +844,19 @@ class DMResponderAgentV2:
         """Get current lead stage for user."""
         if metadata.get("lead_stage"):
             return metadata["lead_stage"]
+        # Try advanced categorizer first
+        if ENABLE_LEAD_CATEGORIZER:
+            try:
+                messages = follower.last_messages[-20:] if follower.last_messages else []
+                category, score, reason = get_lead_categorizer().categorize(
+                    messages=messages,
+                    is_customer=follower.is_customer,
+                )
+                logger.debug(f"Lead categorizer: {category.value} ({reason})")
+                return category.value
+            except Exception as e:
+                logger.debug(f"Lead categorizer failed: {e}")
+        # Fallback to simple score-based logic
         if follower.is_customer:
             return LeadStage.CLIENTE.value
         if follower.purchase_intent_score >= 0.7:
@@ -760,6 +907,22 @@ class DMResponderAgentV2:
         # Keep only last 20 messages
         follower.last_messages = follower.last_messages[-20:]
 
+        # Track facts in assistant response
+        if ENABLE_FACT_TRACKING:
+            try:
+                import re
+
+                facts = []
+                if re.search(r"\d+\s*€|\d+\s*euros?|\$\d+", assistant_message, re.IGNORECASE):
+                    facts.append("PRICE_GIVEN")
+                if "https://" in assistant_message or "http://" in assistant_message:
+                    facts.append("LINK_SHARED")
+                if facts:
+                    follower.last_messages[-1]["facts"] = facts
+                    logger.debug(f"Facts tracked: {facts}")
+            except Exception as e:
+                logger.debug(f"Fact tracking failed: {e}")
+
         # Update metadata
         follower.total_messages += 1
         follower.last_contact = now
@@ -809,8 +972,8 @@ class DMResponderAgentV2:
         should_notify = intent_lower in escalation_intents
         is_hot_lead = (
             follower.purchase_intent_score
-            and follower.purchase_intent_score >= 0.8
-            and intent_lower == "interest_strong"
+            and follower.purchase_intent_score >= 0.8  # noqa: W503
+            and intent_lower == "interest_strong"  # noqa: W503
         )
 
         if not should_notify and not is_hot_lead:
