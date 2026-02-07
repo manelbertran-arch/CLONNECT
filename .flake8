@@ -5,3 +5,4 @@ ignore = E501,W503,E203
 # Excluding from flake8 until refactoring is complete
 per-file-ignores =
     backend/api/main.py:F401,E402,F541
+    backend/tests/audit/test_audit_*.py:F401
