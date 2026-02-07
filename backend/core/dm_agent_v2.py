@@ -33,6 +33,8 @@ from core.sensitive_detector import detect_sensitive_content, get_crisis_resourc
 
 # VALIDADORES - Output quality
 from core.guardrails import get_response_guardrail
+from core.output_validator import validate_prices, validate_links
+from core.response_fixes import apply_all_response_fixes
 
 # Import notification service for escalations
 from core.notifications import EscalationNotification, get_notification_service
@@ -84,6 +86,8 @@ ENABLE_FRUSTRATION_DETECTION = os.getenv("ENABLE_FRUSTRATION_DETECTION", "true")
 ENABLE_CONTEXT_DETECTION = os.getenv("ENABLE_CONTEXT_DETECTION", "true").lower() == "true"
 ENABLE_CONVERSATION_MEMORY = os.getenv("ENABLE_CONVERSATION_MEMORY", "true").lower() == "true"
 ENABLE_GUARDRAILS = os.getenv("ENABLE_GUARDRAILS", "true").lower() == "true"
+ENABLE_OUTPUT_VALIDATION = os.getenv("ENABLE_OUTPUT_VALIDATION", "true").lower() == "true"
+ENABLE_RESPONSE_FIXES = os.getenv("ENABLE_RESPONSE_FIXES", "true").lower() == "true"
 ENABLE_CHAIN_OF_THOUGHT = os.getenv("ENABLE_CHAIN_OF_THOUGHT", "false").lower() == "true"
 
 logger = logging.getLogger(__name__)
@@ -601,7 +605,35 @@ class DMResponderAgentV2:
 
             response_content = llm_response.content
 
-            # Step 7a: Apply guardrails validation
+            # Step 7a: Output validation (prices, links)
+            if ENABLE_OUTPUT_VALIDATION:
+                try:
+                    # Build known prices from products
+                    known_prices = {p.get("name", ""): p.get("price", 0) for p in self.products if p.get("price")}
+                    price_issues = validate_prices(response_content, known_prices)
+                    if price_issues:
+                        logger.warning(f"Output validation: {len(price_issues)} price issues")
+                        cognitive_metadata["output_validation_issues"] = [i.details for i in price_issues]
+                    # Build known links from products
+                    known_links = [p.get("url", "") for p in self.products if p.get("url")]
+                    link_issues, corrected = validate_links(response_content, known_links)
+                    if link_issues:
+                        logger.warning(f"Output validation: {len(link_issues)} link issues")
+                        response_content = corrected  # Apply corrections
+                except Exception as e:
+                    logger.debug(f"Output validation failed: {e}")
+
+            # Step 7a2: Apply response fixes (typos, formatting, patterns)
+            if ENABLE_RESPONSE_FIXES:
+                try:
+                    fixed_response = apply_all_response_fixes(response_content)
+                    if fixed_response and fixed_response != response_content:
+                        logger.debug("Response fixes applied")
+                        response_content = fixed_response
+                except Exception as e:
+                    logger.debug(f"Response fixes failed: {e}")
+
+            # Step 7b: Apply guardrails validation
             if ENABLE_GUARDRAILS and hasattr(self, "guardrails"):
                 try:
                     guardrail_result = self.guardrails.validate_response(
