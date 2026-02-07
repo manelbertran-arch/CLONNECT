@@ -316,6 +316,76 @@
       "message_id": null,
       "timestamp": "2026-02-05T21:32:17.850272",
       "confidence": 0.95
+    },
+    {
+      "fact_type": "price_given",
+      "content": "150€",
+      "message_id": null,
+      "timestamp": "2026-02-07T08:13:08.132645",
+      "confidence": 0.95
+    },
+    {
+      "fact_type": "price_given",
+      "content": "97€",
+      "message_id": null,
+      "timestamp": "2026-02-07T08:13:08.135615",
+      "confidence": 0.95
+    },
+    {
+      "fact_type": "product_explained",
+      "content": "círculo",
+      "message_id": null,
+      "timestamp": "2026-02-07T08:13:08.135618",
+      "confidence": 0.8
+    },
+    {
+      "fact_type": "product_explained",
+      "content": "sesion",
+      "message_id": null,
+      "timestamp": "2026-02-07T08:13:08.135622",
+      "confidence": 0.8
+    },
+    {
+      "fact_type": "price_given",
+      "content": "150€",
+      "message_id": null,
+      "timestamp": "2026-02-07T08:13:08.136558",
+      "confidence": 0.95
+    },
+    {
+      "fact_type": "price_given",
+      "content": "150€",
+      "message_id": null,
+      "timestamp": "2026-02-07T08:19:47.639000",
+      "confidence": 0.95
+    },
+    {
+      "fact_type": "price_given",
+      "content": "97€",
+      "message_id": null,
+      "timestamp": "2026-02-07T08:19:47.641590",
+      "confidence": 0.95
+    },
+    {
+      "fact_type": "product_explained",
+      "content": "círculo",
+      "message_id": null,
+      "timestamp": "2026-02-07T08:19:47.641593",
+      "confidence": 0.8
+    },
+    {
+      "fact_type": "product_explained",
+      "content": "sesion",
+      "message_id": null,
+      "timestamp": "2026-02-07T08:19:47.641597",
+      "confidence": 0.8
+    },
+    {
+      "fact_type": "price_given",
+      "content": "150€",
+      "message_id": null,
+      "timestamp": "2026-02-07T08:19:47.642478",
+      "confidence": 0.95
     }
   ],
   "info_given": {
@@ -327,6 +397,6 @@
   "pending_questions": [],
   "unanswered_lead_questions": [],
   "last_interaction": null,
-  "total_messages": 55,
+  "total_messages": 67,
   "conversation_started": null
 }

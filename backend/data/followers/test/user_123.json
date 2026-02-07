@@ -4,8 +4,8 @@
   "username": "user_123",
   "name": "",
   "first_contact": "2026-01-28T14:16:32.186230",
-  "last_contact": "2026-02-05T21:20:33.142790",
-  "total_messages": 24,
+  "last_contact": "2026-02-07T08:19:47.891842",
+  "total_messages": 25,
   "interests": [],
   "products_discussed": [],
   "objections_raised": [],
@@ -17,16 +17,6 @@
   "last_messages": [
     {
       "role": "user",
-      "content": "Hola",
-      "timestamp": "2026-02-05T20:31:01.718572"
-    },
-    {
-      "role": "assistant",
-      "content": "Hola! En que puedo ayudarte?",
-      "timestamp": "2026-02-05T20:31:01.718572"
-    },
-    {
-      "role": "user",
       "content": "Cuanto cuesta el curso?",
       "timestamp": "2026-02-05T20:31:01.719915"
     },
@@ -114,6 +104,19 @@
       "role": "assistant",
       "content": "El curso cuesta 97 euros.",
       "timestamp": "2026-02-05T21:20:33.142790"
+    },
+    {
+      "role": "user",
+      "content": "Cuanto cuesta el curso?",
+      "timestamp": "2026-02-07T08:19:47.891842"
+    },
+    {
+      "role": "assistant",
+      "content": "El curso cuesta 97 euros.",
+      "timestamp": "2026-02-07T08:19:47.891842",
+      "facts": [
+        "PRICE_GIVEN"
+      ]
     }
   ],
   "links_sent_count": 0,

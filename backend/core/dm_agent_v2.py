@@ -27,6 +27,9 @@ from typing import Any, Dict, List, Optional
 
 # P1: QUALITY - Question context, query expansion, reflexion
 from core.bot_question_analyzer import QuestionType, get_bot_question_analyzer, is_short_affirmation
+
+# FULL INTEGRATION - Citations, message splitting, question removal, self-consistency
+from core.citation_service import get_citation_prompt_section
 from core.context_detector import detect_all as detect_context
 from core.conversation_state import get_state_manager
 
@@ -50,6 +53,7 @@ from core.rag.reranker import rerank as rag_rerank
 
 # RAZONAMIENTO - Chain of thought for complex queries
 from core.reasoning.chain_of_thought import ChainOfThoughtReasoner
+from core.reasoning.self_consistency import get_self_consistency_validator
 from core.reflexion_engine import get_reflexion_engine
 from core.response_fixes import apply_all_response_fixes
 from core.sensitive_detector import detect_sensitive_content, get_crisis_resources
@@ -82,6 +86,8 @@ from services.intent_service import Intent
 
 # SERVICIOS DE RESPUESTA - Response quality
 from services.length_controller import detect_message_type, enforce_length
+from services.message_splitter import get_message_splitter
+from services.question_remover import process_questions
 from services.relationship_type_detector import RelationshipTypeDetector
 from services.response_variator_v2 import get_response_variator_v2
 
@@ -114,6 +120,13 @@ ENABLE_DNA_TRIGGERS = os.getenv("ENABLE_DNA_TRIGGERS", "true").lower() == "true"
 ENABLE_RELATIONSHIP_DETECTION = (
     os.getenv("ENABLE_RELATIONSHIP_DETECTION", "false").lower() == "true"
 )
+# P4: Full integration
+ENABLE_EDGE_CASE_DETECTION = os.getenv("ENABLE_EDGE_CASE_DETECTION", "true").lower() == "true"
+ENABLE_CITATIONS = os.getenv("ENABLE_CITATIONS", "true").lower() == "true"
+ENABLE_MESSAGE_SPLITTING = os.getenv("ENABLE_MESSAGE_SPLITTING", "true").lower() == "true"
+ENABLE_QUESTION_REMOVAL = os.getenv("ENABLE_QUESTION_REMOVAL", "true").lower() == "true"
+ENABLE_VOCABULARY_EXTRACTION = os.getenv("ENABLE_VOCABULARY_EXTRACTION", "true").lower() == "true"
+ENABLE_SELF_CONSISTENCY = os.getenv("ENABLE_SELF_CONSISTENCY", "false").lower() == "true"
 
 logger = logging.getLogger(__name__)
 
@@ -544,6 +557,26 @@ class DMResponderAgentV2:
                         metadata={"pool_category": pool_result.category, "used_pool": True},
                     )
 
+            # Step 1d: Edge case detection
+            if ENABLE_EDGE_CASE_DETECTION and hasattr(self, "edge_case_handler"):
+                try:
+                    edge_result = self.edge_case_handler.detect(message)
+                    if edge_result.should_escalate:
+                        logger.info(f"Edge case escalation: {edge_result.edge_type}")
+                        return DMResponse(
+                            content=edge_result.suggested_response
+                            or "Entiendo, déjame consultarlo y te respondo.",
+                            intent="edge_case_escalation",
+                            lead_stage="unknown",
+                            confidence=edge_result.confidence,
+                            metadata={
+                                "edge_type": str(edge_result.edge_type),
+                                "escalated": True,
+                            },
+                        )
+                except Exception as e:
+                    logger.debug(f"Edge case detection failed: {e}")
+
             # =================================================================
             # PHASE 2: MEMORY & CONTEXT LOADING
             # =================================================================
@@ -651,6 +684,14 @@ class DMResponderAgentV2:
                     advanced_section = build_rules_section(creator_name)
                 except Exception as e:
                     logger.debug(f"Advanced prompts failed: {e}")
+            # Load citation context
+            citation_context = ""
+            if ENABLE_CITATIONS:
+                try:
+                    citation_context = get_citation_prompt_section(self.creator_id, message)
+                except Exception as e:
+                    logger.debug(f"Citation loading failed: {e}")
+
             combined_context = "\n\n".join(
                 filter(
                     None,
@@ -660,6 +701,7 @@ class DMResponderAgentV2:
                         dna_context,
                         state_context,
                         advanced_section,
+                        citation_context,
                         prompt_override,
                     ],
                 )
@@ -695,6 +737,24 @@ class DMResponderAgentV2:
             llm_response = await self.llm_service.generate(
                 prompt=full_prompt, system_prompt=system_prompt
             )
+
+            # Phase 4b: Self-consistency validation (expensive, default OFF)
+            if ENABLE_SELF_CONSISTENCY:
+                try:
+                    validator = get_self_consistency_validator(self.llm_service)
+                    consistency = await validator.validate_response(
+                        query=message,
+                        response=llm_response.content,
+                        system_prompt=system_prompt,
+                    )
+                    if not consistency.is_consistent and consistency.response:
+                        logger.info(
+                            f"Self-consistency: replaced (conf={consistency.confidence:.2f})"
+                        )
+                        llm_response.content = consistency.response
+                        cognitive_metadata["self_consistency_replaced"] = True
+                except Exception as e:
+                    logger.debug(f"Self-consistency failed: {e}")
 
             # =================================================================
             # PHASE 5: POST-PROCESSING (Guardrails, Length Control)
@@ -735,6 +795,13 @@ class DMResponderAgentV2:
                         response_content = fixed_response
                 except Exception as e:
                     logger.debug(f"Response fixes failed: {e}")
+
+            # Step 7a2b: Question removal
+            if ENABLE_QUESTION_REMOVAL:
+                try:
+                    response_content = process_questions(response_content, message)
+                except Exception as e:
+                    logger.debug(f"Question removal failed: {e}")
 
             # Step 7a3: Reflexion analysis for response quality
             if ENABLE_REFLEXION:
@@ -809,6 +876,18 @@ class DMResponderAgentV2:
                 metadata=metadata,
             )
 
+            # Step 10b: Message splitting (store in metadata for caller)
+            message_parts = None
+            if ENABLE_MESSAGE_SPLITTING:
+                try:
+                    splitter = get_message_splitter()
+                    if splitter.should_split(formatted_content):
+                        parts = splitter.split(formatted_content, message)
+                        message_parts = [{"text": p.text, "delay": p.delay_before} for p in parts]
+                        logger.debug(f"Message split into {len(parts)} parts")
+                except Exception as e:
+                    logger.debug(f"Message splitting failed: {e}")
+
             return DMResponse(
                 content=formatted_content,
                 intent=intent_value,
@@ -820,6 +899,7 @@ class DMResponderAgentV2:
                     "rag_results": len(rag_results),
                     "history_length": len(history),
                     "follower_id": sender_id,
+                    "message_parts": message_parts,
                 },
             )
 
@@ -907,16 +987,67 @@ class DMResponderAgentV2:
         # Keep only last 20 messages
         follower.last_messages = follower.last_messages[-20:]
 
-        # Track facts in assistant response
+        # Track facts in assistant response (9 types)
         if ENABLE_FACT_TRACKING:
             try:
                 import re
 
                 facts = []
+                # Price given
                 if re.search(r"\d+\s*€|\d+\s*euros?|\$\d+", assistant_message, re.IGNORECASE):
                     facts.append("PRICE_GIVEN")
+                # Link shared
                 if "https://" in assistant_message or "http://" in assistant_message:
                     facts.append("LINK_SHARED")
+                # Product explained (match against known products)
+                if self.products:
+                    for prod in self.products:
+                        prod_name = prod.get("name", "").lower()
+                        if (
+                            prod_name
+                            and len(prod_name) > 3
+                            and prod_name in assistant_message.lower()
+                        ):
+                            facts.append("PRODUCT_EXPLAINED")
+                            break
+                # Objection handling
+                if re.search(
+                    r"entiendo tu (duda|preocupación)|es normal|no te preocupes|garantía|devolución",
+                    assistant_message,
+                    re.IGNORECASE,
+                ):
+                    facts.append("OBJECTION_RAISED")
+                # Interest expressed (from user message)
+                if re.search(
+                    r"me interesa|quiero saber|cuéntame|suena bien|me gusta",
+                    user_message,
+                    re.IGNORECASE,
+                ):
+                    facts.append("INTEREST_EXPRESSED")
+                # Appointment/scheduling mentioned
+                if re.search(
+                    r"reserva|agenda|cita|llamada|reunión|calendly|cal\.com",
+                    assistant_message,
+                    re.IGNORECASE,
+                ):
+                    facts.append("APPOINTMENT_MENTIONED")
+                # Contact info shared
+                if re.search(
+                    r"@\w{3,}|[\w.-]+@[\w.-]+\.\w+|\+?\d{9,}|wa\.me|whatsapp",
+                    assistant_message,
+                    re.IGNORECASE,
+                ):
+                    facts.append("CONTACT_SHARED")
+                # Question asked by bot
+                if "?" in assistant_message:
+                    facts.append("QUESTION_ASKED")
+                # Name used (personalization)
+                if (
+                    follower.name
+                    and len(follower.name) > 2
+                    and follower.name.lower() in assistant_message.lower()
+                ):
+                    facts.append("NAME_USED")
                 if facts:
                     follower.last_messages[-1]["facts"] = facts
                     logger.debug(f"Facts tracked: {facts}")
