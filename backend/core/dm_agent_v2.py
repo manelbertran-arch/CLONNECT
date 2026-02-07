@@ -29,6 +29,7 @@ from core.context_detector import detect_all as detect_context
 
 # DETECTORES - Detect frustration, context, sensitive content
 from core.frustration_detector import get_frustration_detector
+from core.sensitive_detector import detect_sensitive_content, get_crisis_resources
 
 # VALIDADORES - Output quality
 from core.guardrails import get_response_guardrail
@@ -78,6 +79,7 @@ from services.response_variator_v2 import get_response_variator_v2
 
 
 # Feature flags for cognitive systems
+ENABLE_SENSITIVE_DETECTION = os.getenv("ENABLE_SENSITIVE_DETECTION", "true").lower() == "true"
 ENABLE_FRUSTRATION_DETECTION = os.getenv("ENABLE_FRUSTRATION_DETECTION", "true").lower() == "true"
 ENABLE_CONTEXT_DETECTION = os.getenv("ENABLE_CONTEXT_DETECTION", "true").lower() == "true"
 ENABLE_CONVERSATION_MEMORY = os.getenv("ENABLE_CONVERSATION_MEMORY", "true").lower() == "true"
@@ -442,6 +444,30 @@ class DMResponderAgentV2:
         cognitive_metadata = {}  # Track cognitive system outputs
 
         try:
+            # =================================================================
+            # PRE-PIPELINE: SENSITIVE CONTENT DETECTION (Security)
+            # =================================================================
+            if ENABLE_SENSITIVE_DETECTION:
+                try:
+                    sensitive_result = detect_sensitive_content(message)
+                    if sensitive_result and sensitive_result.confidence >= 0.7:
+                        logger.warning(f"Sensitive content detected: {sensitive_result.category}")
+                        cognitive_metadata["sensitive_detected"] = True
+                        cognitive_metadata["sensitive_category"] = sensitive_result.category
+                        # Return crisis resources for high-confidence sensitive content
+                        if sensitive_result.confidence >= 0.85:
+                            crisis_response = get_crisis_resources(language="es")
+                            return DMResponse(
+                                content=crisis_response,
+                                intent="sensitive_content",
+                                lead_stage="unknown",
+                                confidence=sensitive_result.confidence,
+                                tokens_used=0,
+                                metadata={"sensitive_category": sensitive_result.category},
+                            )
+                except Exception as e:
+                    logger.debug(f"Sensitive detection failed: {e}")
+
             # =================================================================
             # PHASE 1: DETECTION (Frustration, Context, Edge Cases)
             # =================================================================
