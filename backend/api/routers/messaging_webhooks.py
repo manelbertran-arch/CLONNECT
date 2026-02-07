@@ -69,6 +69,7 @@ async def instagram_webhook_receive(request: Request):
     logger.warning("=" * 60)
 
     try:
+        raw_body = await request.body()
         payload = await request.json()
         signature = request.headers.get("X-Hub-Signature-256", "")
 
@@ -115,7 +116,7 @@ async def instagram_webhook_receive(request: Request):
 
         # 6. Get handler for this creator and process
         handler = get_handler_for_creator(creator_info)
-        result = await handler.handle_webhook(payload, signature)
+        result = await handler.handle_webhook(payload, signature, raw_body=raw_body)
 
         logger.info(f"Instagram webhook processed: {result.get('messages_processed', 0)} messages")
         return {

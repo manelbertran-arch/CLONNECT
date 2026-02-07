@@ -247,22 +247,30 @@ class InstagramHandler:
         )
         return None
 
-    async def handle_webhook(self, payload: Dict[str, Any], signature: str = "") -> Dict[str, Any]:
+    async def handle_webhook(
+        self, payload: Dict[str, Any], signature: str = "", raw_body: bytes = None
+    ) -> Dict[str, Any]:
         """
         Handle incoming webhook from Meta (POST request).
 
         Args:
             payload: Webhook payload from Meta
             signature: X-Hub-Signature-256 header for verification
+            raw_body: Original raw HTTP body bytes for accurate HMAC verification
 
         Returns:
             Processing result with status and responses
         """
         # Verify signature if app_secret is configured
         if self.connector and self.app_secret and signature:
-            import json
+            # Use raw body bytes for HMAC verification (re-serializing JSON
+            # produces different bytes than the original, breaking the signature)
+            if raw_body:
+                payload_bytes = raw_body
+            else:
+                import json
 
-            payload_bytes = json.dumps(payload, separators=(",", ":")).encode()
+                payload_bytes = json.dumps(payload, separators=(",", ":")).encode()
             if not self.connector.verify_webhook_signature(payload_bytes, signature):
                 logger.warning("Invalid webhook signature")
                 self.status.errors += 1
@@ -2108,6 +2116,7 @@ class InstagramHandler:
                 # Invalidate cache for this creator
                 try:
                     from api.cache import api_cache
+
                     api_cache.invalidate(f"conversations:{self.creator_id}")
                     api_cache.invalidate(f"leads:{self.creator_id}")
                 except Exception as cache_err:
@@ -2305,6 +2314,7 @@ class InstagramHandler:
                 # Invalidate cache for this creator
                 try:
                     from api.cache import api_cache
+
                     api_cache.invalidate(f"conversations:{self.creator_id}")
                     api_cache.invalidate(f"leads:{self.creator_id}")
                 except Exception as cache_err:

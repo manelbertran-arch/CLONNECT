@@ -5,20 +5,22 @@ Maneja: OAuth, Webhooks, Send/Receive DMs, Content Ingestion
 Con rate limiting preventivo integrado.
 """
 
-import os
-import json
-import aiohttp
 import hashlib
 import hmac
-from typing import Optional, List, Dict, Any
-from dataclasses import dataclass, asdict
-from datetime import datetime, timezone, timedelta
+import json
 import logging
+import os
+from dataclasses import asdict, dataclass
+from datetime import datetime, timedelta, timezone
+from typing import Any, Dict, List, Optional
+
+import aiohttp
 
 logger = logging.getLogger(__name__)
 
 # Import rate limiter (lazy para evitar circular imports)
 _rate_limiter = None
+
 
 def _get_rate_limiter():
     """Obtener rate limiter de forma lazy"""
@@ -26,6 +28,7 @@ def _get_rate_limiter():
     if _rate_limiter is None:
         try:
             from core.instagram_rate_limiter import get_instagram_rate_limiter
+
             _rate_limiter = get_instagram_rate_limiter()
         except ImportError:
             logger.warning("Instagram rate limiter not available")
@@ -36,6 +39,7 @@ def _get_rate_limiter():
 @dataclass
 class InstagramMessage:
     """Representa un mensaje de Instagram DM"""
+
     message_id: str
     sender_id: str
     recipient_id: str
@@ -55,6 +59,7 @@ class InstagramMessage:
 @dataclass
 class InstagramUser:
     """Representa un usuario de Instagram"""
+
     user_id: str
     username: str
     name: str
@@ -77,14 +82,16 @@ class InstagramConnector:
         ig_user_id: str,
         app_secret: str = None,
         verify_token: str = None,
-        creator_id: str = None
+        creator_id: str = None,
     ):
         self.access_token = access_token
         self.page_id = page_id
         self.ig_user_id = ig_user_id
         self.app_secret = app_secret or os.getenv("INSTAGRAM_APP_SECRET", "")
 
-        self.verify_token = verify_token or os.getenv("INSTAGRAM_VERIFY_TOKEN", "clonnect_verify_2024")
+        self.verify_token = verify_token or os.getenv(
+            "INSTAGRAM_VERIFY_TOKEN", "clonnect_verify_2024"
+        )
         self.creator_id = creator_id or ig_user_id  # Para rate limiting
         self._session: Optional[aiohttp.ClientSession] = None
 
@@ -106,11 +113,7 @@ class InstagramConnector:
             return f"{self.INSTAGRAM_API_URL}/me/messages"
 
     async def _rate_limited_request(
-        self,
-        method: str,
-        url: str,
-        endpoint_name: str,
-        **kwargs
+        self, method: str, url: str, endpoint_name: str, **kwargs
     ) -> dict:
         """
         Hacer request con rate limiting preventivo.
@@ -176,11 +179,7 @@ class InstagramConnector:
         """Verificar firma HMAC del webhook de Meta"""
         if not self.app_secret:
             return True  # Skip en desarrollo
-        expected = hmac.new(
-            self.app_secret.encode(),
-            payload,
-            hashlib.sha256
-        ).hexdigest()
+        expected = hmac.new(self.app_secret.encode(), payload, hashlib.sha256).hexdigest()
         return hmac.compare_digest(f"sha256={expected}", signature)
 
     def verify_webhook_challenge(self, mode: str, token: str, challenge: str) -> Optional[str]:
@@ -202,10 +201,8 @@ class InstagramConnector:
                             sender_id=messaging["sender"]["id"],
                             recipient_id=messaging["recipient"]["id"],
                             text=messaging["message"].get("text", ""),
-                            timestamp=datetime.fromtimestamp(
-                                messaging.get("timestamp", 0) / 1000
-                            ),
-                            attachments=messaging["message"].get("attachments", [])
+                            timestamp=datetime.fromtimestamp(messaging.get("timestamp", 0) / 1000),
+                            attachments=messaging["message"].get("attachments", []),
                         )
                         messages.append(msg)
         except Exception as e:
@@ -225,17 +222,17 @@ class InstagramConnector:
         # Use correct endpoint based on token type
         url = self._get_messaging_url()
 
-        headers = {
-            "Content-Type": "application/json"
-        }
+        headers = {"Content-Type": "application/json"}
 
         payload = {
             "recipient": {"id": recipient_id},
             "message": {"text": text},
-            "access_token": self.access_token
+            "access_token": self.access_token,
         }
 
-        logger.info(f"Sending message to {recipient_id} via {url} (token_type={'PAGE' if self._is_page_token else 'IGAAT'})")
+        logger.info(
+            f"Sending message to {recipient_id} via {url} (token_type={'PAGE' if self._is_page_token else 'IGAAT'})"
+        )
 
         async with session.post(url, json=payload, headers=headers) as resp:
             result = await resp.json()
@@ -246,10 +243,7 @@ class InstagramConnector:
             return result
 
     async def send_message_with_buttons(
-        self,
-        recipient_id: str,
-        text: str,
-        buttons: List[Dict[str, str]]
+        self, recipient_id: str, text: str, buttons: List[Dict[str, str]]
     ) -> dict:
         """Enviar mensaje con botones de respuesta rápida via Instagram Messaging API"""
         session = await self._get_session()
@@ -257,26 +251,21 @@ class InstagramConnector:
         # Use correct endpoint based on token type
         url = self._get_messaging_url()
 
-        headers = {
-            "Content-Type": "application/json"
-        }
+        headers = {"Content-Type": "application/json"}
 
         quick_replies = [
             {
                 "content_type": "text",
                 "title": btn.get("title", ""),
-                "payload": btn.get("payload", btn.get("title", ""))
+                "payload": btn.get("payload", btn.get("title", "")),
             }
             for btn in buttons[:13]  # Máximo 13 quick replies
         ]
 
         payload = {
             "recipient": {"id": recipient_id},
-            "message": {
-                "text": text,
-                "quick_replies": quick_replies
-            },
-            "access_token": self.access_token
+            "message": {"text": text, "quick_replies": quick_replies},
+            "access_token": self.access_token,
         }
 
         async with session.post(url, json=payload, headers=headers) as resp:
@@ -295,7 +284,7 @@ class InstagramConnector:
         params = {
             # Note: is_verified_user may not be available for all token types
             "fields": "id,username,name,profile_pic,is_verified_user",
-            "access_token": self.access_token
+            "access_token": self.access_token,
         }
 
         data = await self._rate_limited_request("GET", url, "get_user_profile", params=params)
@@ -309,7 +298,7 @@ class InstagramConnector:
             username=data.get("username", ""),
             name=data.get("name", ""),
             profile_pic_url=data.get("profile_pic", ""),
-            is_verified=data.get("is_verified_user", False)
+            is_verified=data.get("is_verified_user", False),
         )
 
     async def get_media(self, limit: int = 100) -> List[dict]:
@@ -318,7 +307,7 @@ class InstagramConnector:
         params = {
             "fields": "id,caption,media_type,media_url,timestamp,permalink,like_count,comments_count",
             "limit": limit,
-            "access_token": self.access_token
+            "access_token": self.access_token,
         }
 
         data = await self._rate_limited_request("GET", url, "get_media", params=params)
@@ -338,7 +327,7 @@ class InstagramConnector:
                 "platform": "instagram",
                 "fields": "id,updated_time,participants",
                 "limit": limit,
-                "access_token": self.access_token
+                "access_token": self.access_token,
             }
         else:
             # Instagram API (cuando solo tenemos ig_user_id del Instagram Login)
@@ -346,7 +335,7 @@ class InstagramConnector:
             params = {
                 "fields": "id,updated_time,participants",
                 "limit": limit,
-                "access_token": self.access_token
+                "access_token": self.access_token,
             }
 
         data = await self._rate_limited_request("GET", url, "get_conversations", params=params)
@@ -356,9 +345,7 @@ class InstagramConnector:
         return sorted(conversations, key=lambda c: c.get("updated_time", ""), reverse=True)
 
     async def get_all_conversations(
-        self,
-        max_pages: int = 10,
-        cutoff_date: datetime = None
+        self, max_pages: int = 10, cutoff_date: datetime = None
     ) -> List[dict]:
         """Obtener TODAS las conversaciones con paginación.
 
@@ -378,21 +365,23 @@ class InstagramConnector:
                 "platform": "instagram",
                 "fields": "id,updated_time,participants",
                 "limit": 50,
-                "access_token": self.access_token
+                "access_token": self.access_token,
             }
         else:
             url = f"{self.INSTAGRAM_API_URL}/{self.ig_user_id}/conversations"
             params = {
                 "fields": "id,updated_time,participants",
                 "limit": 50,
-                "access_token": self.access_token
+                "access_token": self.access_token,
             }
 
         while url and page_count < max_pages:
             page_count += 1
 
             if page_count == 1:
-                data = await self._rate_limited_request("GET", url, "get_conversations", params=params)
+                data = await self._rate_limited_request(
+                    "GET", url, "get_conversations", params=params
+                )
             else:
                 # Subsequent pages use the full URL with cursor
                 data = await self._rate_limited_request("GET", url, "get_conversations", params={})
@@ -405,11 +394,19 @@ class InstagramConnector:
                     updated_time_str = conv.get("updated_time", "")
                     if updated_time_str:
                         try:
-                            updated_time = datetime.fromisoformat(updated_time_str.replace('Z', '+00:00'))
+                            updated_time = datetime.fromisoformat(
+                                updated_time_str.replace("Z", "+00:00")
+                            )
                             if updated_time < cutoff_date:
                                 # Conversation is older than cutoff, stop fetching
-                                logger.info(f"[get_all_conversations] Reached cutoff date at page {page_count}")
-                                return sorted(all_conversations, key=lambda c: c.get("updated_time", ""), reverse=True)
+                                logger.info(
+                                    f"[get_all_conversations] Reached cutoff date at page {page_count}"
+                                )
+                                return sorted(
+                                    all_conversations,
+                                    key=lambda c: c.get("updated_time", ""),
+                                    reverse=True,
+                                )
                         except ValueError:
                             pass
 
@@ -422,15 +419,13 @@ class InstagramConnector:
             if not url:
                 break
 
-            logger.info(f"[get_all_conversations] Fetched page {page_count}, total: {len(all_conversations)}")
+            logger.info(
+                f"[get_all_conversations] Fetched page {page_count}, total: {len(all_conversations)}"
+            )
 
         return sorted(all_conversations, key=lambda c: c.get("updated_time", ""), reverse=True)
 
-    async def get_conversation_messages(
-        self,
-        conversation_id: str,
-        limit: int = 50
-    ) -> List[dict]:
+    async def get_conversation_messages(self, conversation_id: str, limit: int = 50) -> List[dict]:
         """Obtener mensajes de una conversación.
 
         Usa la misma API base que se usó para obtener las conversaciones.
@@ -445,17 +440,16 @@ class InstagramConnector:
         params = {
             "fields": "id,message,from,to,created_time",
             "limit": limit,
-            "access_token": self.access_token
+            "access_token": self.access_token,
         }
 
-        data = await self._rate_limited_request("GET", url, "get_conversation_messages", params=params)
+        data = await self._rate_limited_request(
+            "GET", url, "get_conversation_messages", params=params
+        )
         return data.get("data", [])
 
     async def get_all_conversation_messages(
-        self,
-        conversation_id: str,
-        max_pages: int = 20,
-        cutoff_date: datetime = None
+        self, conversation_id: str, max_pages: int = 20, cutoff_date: datetime = None
     ) -> List[dict]:
         """Obtener TODOS los mensajes de una conversación con paginación.
 
@@ -479,16 +473,20 @@ class InstagramConnector:
         params = {
             "fields": "id,message,from,to,created_time",
             "limit": 100,  # Max per page
-            "access_token": self.access_token
+            "access_token": self.access_token,
         }
 
         while url and page_count < max_pages:
             page_count += 1
 
             if page_count == 1:
-                data = await self._rate_limited_request("GET", url, "get_conversation_messages", params=params)
+                data = await self._rate_limited_request(
+                    "GET", url, "get_conversation_messages", params=params
+                )
             else:
-                data = await self._rate_limited_request("GET", url, "get_conversation_messages", params={})
+                data = await self._rate_limited_request(
+                    "GET", url, "get_conversation_messages", params={}
+                )
 
             messages = data.get("data", [])
 
@@ -498,7 +496,9 @@ class InstagramConnector:
                     created_time_str = msg.get("created_time", "")
                     if created_time_str:
                         try:
-                            created_time = datetime.fromisoformat(created_time_str.replace('Z', '+00:00'))
+                            created_time = datetime.fromisoformat(
+                                created_time_str.replace("Z", "+00:00")
+                            )
                             if created_time < cutoff_date:
                                 # Message is older than cutoff, skip but continue
                                 continue
@@ -522,14 +522,12 @@ class InstagramConnector:
         # Use correct endpoint based on token type
         url = self._get_messaging_url()
 
-        headers = {
-            "Content-Type": "application/json"
-        }
+        headers = {"Content-Type": "application/json"}
 
         payload = {
             "recipient": {"id": sender_id},
             "sender_action": "mark_seen",
-            "access_token": self.access_token
+            "access_token": self.access_token,
         }
 
         logger.debug(f"Marking seen for {sender_id} via {url}")
@@ -542,14 +540,12 @@ class InstagramConnector:
         # Use correct endpoint based on token type
         url = self._get_messaging_url()
 
-        headers = {
-            "Content-Type": "application/json"
-        }
+        headers = {"Content-Type": "application/json"}
 
         payload = {
             "recipient": {"id": recipient_id},
             "sender_action": "typing_on" if typing_on else "typing_off",
-            "access_token": self.access_token
+            "access_token": self.access_token,
         }
 
         logger.debug(f"Typing indicator for {recipient_id} via {url}")
@@ -583,16 +579,14 @@ class InstagramContentIngester:
                         "timestamp": item.get("timestamp", ""),
                         "creator_id": self.creator_id,
                         "likes": item.get("like_count", 0),
-                        "comments": item.get("comments_count", 0)
-                    }
+                        "comments": item.get("comments_count", 0),
+                    },
                 }
 
                 try:
-                    if hasattr(self.rag_adapter, 'add_document'):
+                    if hasattr(self.rag_adapter, "add_document"):
                         self.rag_adapter.add_document(
-                            doc_id=doc["id"],
-                            text=doc["text"],
-                            metadata=doc["metadata"]
+                            doc_id=doc["id"], text=doc["text"], metadata=doc["metadata"]
                         )
                     ingested += 1
                 except Exception as e:
@@ -600,16 +594,13 @@ class InstagramContentIngester:
                     errors += 1
 
         logger.info(f"Ingested {ingested} posts for creator {self.creator_id}")
-        return {
-            "ingested": ingested,
-            "errors": errors,
-            "total": len(media)
-        }
+        return {"ingested": ingested, "errors": errors, "total": len(media)}
 
     async def ingest_document(self, file_path: str, doc_type: str = "pdf") -> dict:
         """Ingestar documento adicional (PDF, texto)"""
         try:
             from core.multimodal import MultiModalProcessor
+
             processor = MultiModalProcessor()
 
             if doc_type == "pdf":
@@ -617,12 +608,12 @@ class InstagramContentIngester:
             elif doc_type in ["jpg", "jpeg", "png"]:
                 content = processor.process_image(file_path)
             else:
-                with open(file_path, 'r', encoding='utf-8') as f:
+                with open(file_path, "r", encoding="utf-8") as f:
                     content = f.read()
 
             doc_id = f"doc_{self.creator_id}_{os.path.basename(file_path)}"
 
-            if hasattr(self.rag_adapter, 'add_document'):
+            if hasattr(self.rag_adapter, "add_document"):
                 self.rag_adapter.add_document(
                     doc_id=doc_id,
                     text=content,
@@ -630,8 +621,8 @@ class InstagramContentIngester:
                         "source": "upload",
                         "type": doc_type,
                         "creator_id": self.creator_id,
-                        "filename": os.path.basename(file_path)
-                    }
+                        "filename": os.path.basename(file_path),
+                    },
                 )
 
             return {"status": "ok", "doc_id": doc_id, "chars": len(content)}
@@ -653,7 +644,7 @@ class InstagramContentIngester:
                 text = f"Pregunta: {question}\nRespuesta: {answer}"
 
                 try:
-                    if hasattr(self.rag_adapter, 'add_document'):
+                    if hasattr(self.rag_adapter, "add_document"):
                         self.rag_adapter.add_document(
                             doc_id=doc_id,
                             text=text,
@@ -661,8 +652,8 @@ class InstagramContentIngester:
                                 "source": "faq",
                                 "type": "qa",
                                 "creator_id": self.creator_id,
-                                "question": question
-                            }
+                                "question": question,
+                            },
                         )
                     ingested += 1
                 except Exception as e:
@@ -683,12 +674,17 @@ class InstagramWebhookHandler:
         """Añadir handler para mensajes entrantes"""
         self._message_handlers.append(handler)
 
-    async def process_webhook(self, payload: dict, signature: str = "") -> dict:
+    async def process_webhook(
+        self, payload: dict, signature: str = "", raw_body: bytes = None
+    ) -> dict:
         """Procesar webhook completo"""
 
         # Verificar firma si hay app_secret
         if self.connector.app_secret and signature:
-            payload_bytes = json.dumps(payload).encode()
+            if raw_body:
+                payload_bytes = raw_body
+            else:
+                payload_bytes = json.dumps(payload).encode()
             if not self.connector.verify_webhook_signature(payload_bytes, signature):
                 logger.warning("Invalid webhook signature")
                 return {"status": "error", "reason": "invalid_signature"}
@@ -710,14 +706,16 @@ class InstagramWebhookHandler:
                     response = await self.dm_agent.process_dm(
                         message=message.text,
                         sender_id=message.sender_id,
-                        metadata={"message_id": message.message_id, "platform": "instagram"}
+                        metadata={"message_id": message.message_id, "platform": "instagram"},
                     )
-                    results.append({
-                        "message_id": message.message_id,
-                        "sender_id": message.sender_id,
-                        "response": response.response_text,
-                        "intent": response.intent.value
-                    })
+                    results.append(
+                        {
+                            "message_id": message.message_id,
+                            "sender_id": message.sender_id,
+                            "response": response.response_text,
+                            "intent": response.intent.value,
+                        }
+                    )
                 except Exception as e:
                     logger.error(f"Error processing with DM agent: {e}")
 
@@ -728,8 +726,4 @@ class InstagramWebhookHandler:
                 except Exception as e:
                     logger.error(f"Error in message handler: {e}")
 
-        return {
-            "status": "ok",
-            "messages_processed": len(messages),
-            "results": results
-        }
+        return {"status": "ok", "messages_processed": len(messages), "results": results}
