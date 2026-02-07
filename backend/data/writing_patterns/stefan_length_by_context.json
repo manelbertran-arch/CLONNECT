@@ -1,0 +1,205 @@
+{
+  "total_pairs": 885,
+  "stats_by_context": {
+    "agradecimiento": {
+      "n": 55,
+      "avg": 38.9,
+      "median": 20,
+      "min": 2,
+      "max": 705,
+      "std": 95.8,
+      "p25": 13,
+      "p75": 30,
+      "pct_emoji": 41.8,
+      "pct_question": 14.5
+    },
+    "casual": {
+      "n": 46,
+      "avg": 20.2,
+      "median": 14.0,
+      "min": 4,
+      "max": 96,
+      "std": 16.7,
+      "p25": 9,
+      "p75": 30,
+      "pct_emoji": 17.4,
+      "pct_question": 10.9
+    },
+    "emocional": {
+      "n": 7,
+      "avg": 19.9,
+      "median": 16,
+      "min": 10,
+      "max": 55,
+      "std": 15.8,
+      "p25": 10,
+      "p75": 18,
+      "pct_emoji": 42.9,
+      "pct_question": 14.3
+    },
+    "historia_personal": {
+      "n": 21,
+      "avg": 34.0,
+      "median": 22,
+      "min": 9,
+      "max": 197,
+      "std": 40.5,
+      "p25": 18,
+      "p75": 33,
+      "pct_emoji": 14.3,
+      "pct_question": 9.5
+    },
+    "interes": {
+      "n": 25,
+      "avg": 21.6,
+      "median": 18,
+      "min": 5,
+      "max": 49,
+      "std": 12.8,
+      "p25": 11,
+      "p75": 28,
+      "pct_emoji": 24.0,
+      "pct_question": 8.0
+    },
+    "objecion": {
+      "n": 48,
+      "avg": 30.1,
+      "median": 22.0,
+      "min": 4,
+      "max": 277,
+      "std": 41.9,
+      "p25": 10,
+      "p75": 31,
+      "pct_emoji": 18.8,
+      "pct_question": 4.2
+    },
+    "otro": {
+      "n": 477,
+      "avg": 21.6,
+      "median": 17,
+      "min": 1,
+      "max": 203,
+      "std": 18.4,
+      "p25": 11,
+      "p75": 28,
+      "pct_emoji": 24.3,
+      "pct_question": 7.5
+    },
+    "pregunta_general": {
+      "n": 109,
+      "avg": 26.4,
+      "median": 17,
+      "min": 3,
+      "max": 405,
+      "std": 42.2,
+      "p25": 9,
+      "p75": 29,
+      "pct_emoji": 9.2,
+      "pct_question": 7.3
+    },
+    "pregunta_precio": {
+      "n": 27,
+      "avg": 28.1,
+      "median": 20,
+      "min": 6,
+      "max": 162,
+      "std": 29.7,
+      "p25": 14,
+      "p75": 34,
+      "pct_emoji": 25.9,
+      "pct_question": 3.7
+    },
+    "pregunta_producto": {
+      "n": 48,
+      "avg": 23.7,
+      "median": 20.5,
+      "min": 3,
+      "max": 85,
+      "std": 16.3,
+      "p25": 12,
+      "p75": 33,
+      "pct_emoji": 29.2,
+      "pct_question": 12.5
+    },
+    "saludo": {
+      "n": 22,
+      "avg": 19.3,
+      "median": 17.5,
+      "min": 5,
+      "max": 44,
+      "std": 9.8,
+      "p25": 13,
+      "p75": 22,
+      "pct_emoji": 4.5,
+      "pct_question": 18.2
+    }
+  },
+  "rules": {
+    "agradecimiento": {
+      "target": 20,
+      "soft_min": 13,
+      "soft_max": 30,
+      "hard_max": 705
+    },
+    "casual": {
+      "target": 14,
+      "soft_min": 9,
+      "soft_max": 30,
+      "hard_max": 96
+    },
+    "emocional": {
+      "target": 16,
+      "soft_min": 10,
+      "soft_max": 18,
+      "hard_max": 55
+    },
+    "historia_personal": {
+      "target": 22,
+      "soft_min": 18,
+      "soft_max": 33,
+      "hard_max": 197
+    },
+    "interes": {
+      "target": 18,
+      "soft_min": 11,
+      "soft_max": 28,
+      "hard_max": 49
+    },
+    "objecion": {
+      "target": 22,
+      "soft_min": 10,
+      "soft_max": 31,
+      "hard_max": 277
+    },
+    "otro": {
+      "target": 17,
+      "soft_min": 11,
+      "soft_max": 28,
+      "hard_max": 203
+    },
+    "pregunta_general": {
+      "target": 17,
+      "soft_min": 9,
+      "soft_max": 29,
+      "hard_max": 405
+    },
+    "pregunta_precio": {
+      "target": 20,
+      "soft_min": 14,
+      "soft_max": 34,
+      "hard_max": 162
+    },
+    "pregunta_producto": {
+      "target": 20,
+      "soft_min": 12,
+      "soft_max": 33,
+      "hard_max": 85
+    },
+    "saludo": {
+      "target": 17,
+      "soft_min": 13,
+      "soft_max": 22,
+      "hard_max": 44
+    }
+  }
+}

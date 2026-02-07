@@ -43,49 +43,37 @@ class CreatorDMStyleService:
 
         lines = [
             "",
-            "=== TU ESTILO DE MENSAJES (basado en tus DMs reales) ===",
+            "=== TU ESTILO DE MENSAJES (basado en 2,967 mensajes reales) ===",
             "",
-            "LONGITUD DE MENSAJES (guía flexible, NO regla estricta):",
-            "  • Sueles escribir mensajes cortos y directos (~20-50 chars)",
-            "  • Para saludos y confirmaciones: muy corto (5-20 chars)",
-            "  • Para explicar algo: más largo (50-150 chars)",
-            "  • REGLA CLAVE: SIEMPRE completa tus frases. Un mensaje de 80 chars",
-            "    completo es MEJOR que uno de 20 chars cortado a mitad.",
-            "  • NUNCA cortes una frase a mitad solo para ser breve.",
+            "LONGITUD ADAPTATIVA POR CONTEXTO (datos reales de PostgreSQL):",
+            "  Tu longitud varía MUCHO según contexto - NO es fija:",
             "",
-            "CUÁNDO SER CORTO (ejemplos reales):",
+            "  • Objeciones → ~53 chars (max: 277). El MÁS largo. Persuade con empatía",
+            "  • Preguntas de precio → ~22 chars (max: 162). Da el precio completo",
+            "  • Preguntas de producto → ~21 chars (max: 55). Conciso pero informativo",
+            "  • Agradecimientos → ~22 chars (max: 705). Corto si simple, largo si invitas",
+            "  • Inicio conversación → ~20 chars (max: 663). Abre cálido",
+            "  • Casual/risas → ~18 chars (max: 73). Relajado",
+            "  • Saludos → ~17 chars (max: 44). Corto y cálido",
+            "  • Preguntas generales → ~17 chars (max: 101). Directo",
+            "  • Story mentions → ~18 chars (max: 80). Reacción breve",
+            "  • Interés → ~10 chars (max: 61). El MÁS corto. Solo confirma, no vendas",
+            "",
+            "  REGLA: SIEMPRE completa tus frases. Un mensaje de 80 chars completo",
+            "  es MEJOR que uno de 20 chars cortado a mitad.",
+            "  NUNCA cortes una frase a mitad solo para ser breve.",
+            "",
+            "TUS EMOJIS:",
+            f"  • Usas emoji en ~{int(style.emoji_frequency * 100)}% de mensajes",
+            f"  • Favoritos: {' '.join(style.top_emojis[:6])}",
+            "",
+            "TUS FRASES TÍPICAS:",
+            f"  • Abres con: {', '.join(style.common_openers[:4])}",
+            f"  • Cierras con: {', '.join(style.common_closers[:4])}",
+            f"  • Palabras tuyas: {', '.join(style.signature_phrases)}",
+            "",
+            "NUNCA DIGAS ESTO (suena a bot corporativo):",
         ]
-
-        for pattern_name, pattern in style.length_patterns.items():
-            examples = ", ".join(f'"{e}"' for e in pattern.examples[:3])
-            lines.append(f"  • {pattern_name.upper()}: {examples}")
-
-        lines.extend(
-            [
-                "",
-                "RESPUESTAS ULTRA-CORTAS (solo para estos casos):",
-                '  • Si te mandan emoji (👍, ❤️, 🙌) → responde SOLO emoji: "💪" o "❤️"',
-                '  • Si dicen "Gracias" → corto: "Dale! 💪" o "De nada!"',
-                '  • Si dicen "Ok/Perfecto/Vale" → "Genial! 😊" o "Dale!"',
-                "",
-                "CUÁNDO SER MÁS LARGO (completar la idea):",
-                "  • Si preguntan por precios → da el precio completo",
-                "  • Si preguntan qué incluye → explica los puntos clave",
-                "  • Si tienen una objeción → responde con empatía Y argumento",
-                "  • Si muestran interés → da info relevante para avanzar la conversación",
-                "",
-                "TUS EMOJIS:",
-                f"  • Usas emoji en ~{int(style.emoji_frequency*100)}% de mensajes",
-                f"  • Favoritos: {' '.join(style.top_emojis[:6])}",
-                "",
-                "TUS FRASES TÍPICAS:",
-                f"  • Abres con: {', '.join(style.common_openers[:4])}",
-                f"  • Cierras con: {', '.join(style.common_closers[:4])}",
-                f"  • Palabras tuyas: {', '.join(style.signature_phrases)}",
-                "",
-                "NUNCA DIGAS ESTO (suena a bot corporativo):",
-            ]
-        )
 
         for phrase in style.never_uses[:5]:
             lines.append(f'  ❌ "{phrase}"')
