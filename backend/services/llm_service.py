@@ -317,12 +317,18 @@ class LLMService:
                 return self._parse_anthropic_response(response)
 
         except Exception as e:
-            logger.error(f"[LLMService] API call failed: {e}")
+            logger.error(f"[LLMService] API call failed ({self.provider.value}): {e}")
+
+            # Auto-failover: try other providers
+            failover_result = await self._try_failover(messages, **kwargs)
+            if failover_result:
+                return failover_result
+
             return LLMResponse(
                 content="",
                 model=self.model or "unknown",
                 tokens_used=0,
-                metadata={"error": str(e)},
+                metadata={"error": str(e), "failover_attempted": True},
             )
 
         return LLMResponse(
@@ -331,6 +337,111 @@ class LLMService:
             tokens_used=0,
             metadata={"error": "unknown_provider"},
         )
+
+    async def _try_failover(
+        self,
+        messages: List[Dict[str, str]],
+        **kwargs,
+    ) -> Optional[LLMResponse]:
+        """
+        Try alternative providers when primary fails.
+
+        Iterates through available providers (excluding current)
+        and attempts generation with each.
+
+        Returns:
+            LLMResponse from backup provider, or None if all fail.
+        """
+        original_provider = self.provider
+        original_model = self.model
+        original_key = self._api_key
+        original_client = self._client
+
+        # Provider priority order for failover
+        failover_order = [LLMProvider.OPENAI, LLMProvider.GROQ, LLMProvider.ANTHROPIC]
+
+        for provider in failover_order:
+            if provider == original_provider:
+                continue
+
+            # Check if this provider has an API key configured
+            key_map = {
+                LLMProvider.GROQ: "GROQ_API_KEY",
+                LLMProvider.OPENAI: "OPENAI_API_KEY",
+                LLMProvider.ANTHROPIC: "ANTHROPIC_API_KEY",
+            }
+            api_key = os.getenv(key_map.get(provider, ""))
+            if not api_key:
+                continue
+
+            try:
+                logger.info(f"[LLMService] Failover: trying {provider.value}")
+                self.provider = provider
+                self.model = self.DEFAULT_MODELS.get(provider)
+                self._api_key = api_key
+                self._client = None  # Force new client
+
+                client = self._get_client()
+                if not client:
+                    continue
+
+                temperature = kwargs.get("temperature", self.temperature)
+                max_tokens = kwargs.get("max_tokens", self.max_tokens)
+
+                if provider == LLMProvider.GROQ:
+                    response = await client.chat.completions.create(
+                        model=self.model,
+                        messages=messages,
+                        temperature=temperature,
+                        max_tokens=max_tokens,
+                    )
+                    result = self._parse_groq_response(response)
+                elif provider == LLMProvider.OPENAI:
+                    response = await client.chat.completions.create(
+                        model=self.model,
+                        messages=messages,
+                        temperature=temperature,
+                        max_tokens=max_tokens,
+                    )
+                    result = self._parse_openai_response(response)
+                elif provider == LLMProvider.ANTHROPIC:
+                    system = None
+                    user_messages = []
+                    for msg in messages:
+                        if msg["role"] == "system":
+                            system = msg["content"]
+                        else:
+                            user_messages.append(msg)
+                    response = await client.messages.create(
+                        model=self.model,
+                        system=system or "",
+                        messages=user_messages,
+                        max_tokens=max_tokens,
+                    )
+                    result = self._parse_anthropic_response(response)
+                else:
+                    continue
+
+                result.metadata["failover_from"] = original_provider.value
+                result.metadata["failover_to"] = provider.value
+                logger.info(
+                    f"[LLMService] Failover SUCCESS: {original_provider.value} -> {provider.value}"
+                )
+                return result
+
+            except Exception as e:
+                logger.warning(f"[LLMService] Failover to {provider.value} failed: {e}")
+                continue
+
+            finally:
+                # Restore original provider state
+                self.provider = original_provider
+                self.model = original_model
+                self._api_key = original_key
+                self._client = original_client
+
+        logger.error("[LLMService] All failover providers failed")
+        return None
 
     def _parse_groq_response(self, response: Any) -> LLMResponse:
         """Parse Groq API response."""
