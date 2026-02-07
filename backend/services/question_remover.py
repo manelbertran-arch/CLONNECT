@@ -6,7 +6,6 @@ This post-processor removes generic questions that make the bot sound unnatural.
 """
 
 import re
-from typing import Optional
 
 # Generic questions that should ALWAYS be removed
 BANNED_QUESTIONS = [
@@ -65,7 +64,6 @@ def should_allow_question(lead_message: str, response: str) -> bool:
     2. Information is needed to complete an action
     3. It's sales/service follow-up
     """
-    lead_lower = lead_message.lower()
     response_lower = response.lower()
 
     # If lead asked, we can respond with question
@@ -142,12 +140,14 @@ def convert_question_to_statement(text: str) -> str:
         if re.search(pattern, text, re.IGNORECASE):
             return re.sub(pattern, replacement, text, flags=re.IGNORECASE)
 
-    # Fallback: remove the question part
+    # Fallback: convert question marks to exclamation marks
+    # Keep full content, just change punctuation tone
     if "?" in text:
-        parts = text.split("?")
-        main_part = parts[0].strip()
-        if main_part and main_part[-1].isalnum():
-            main_part += "!"
-        return main_part
+        result = text.replace("?", "!")
+        # Clean inverted question marks that no longer make sense
+        result = result.replace("¿", "")
+        # Clean double/triple exclamation
+        result = re.sub(r"!{2,}", "!", result)
+        return result.strip()
 
     return text
