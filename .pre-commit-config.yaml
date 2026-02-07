@@ -52,7 +52,7 @@ repos:
     hooks:
       - id: no-debug
         name: no-debug-statements
-        entry: bash -c 'git diff --cached --name-only --diff-filter=ACM | grep -E "\.(ts|tsx|py)$" | xargs grep -l "console\.log\|debugger" 2>/dev/null && exit 1; exit 0'
+        entry: bash -c 'FILES=$(git diff --cached --name-only --diff-filter=ACM | grep -E "\.(ts|tsx|py)$"); [ -z "$FILES" ] && exit 0; echo "$FILES" | xargs grep -l "console\.log\|debugger" 2>/dev/null && exit 1; exit 0'
         language: system
         pass_filenames: false
 

@@ -1,0 +1,73 @@
+{
+  "timestamp": "2026-02-07T10:48:11.555184",
+  "creator_id": "stefano_bonanno",
+  "summary": {
+    "total_followers": 41,
+    "total_messages": 238,
+    "followers_with_messages": 41,
+    "processing_time_seconds": 0.1
+  },
+  "categorization": {
+    "total_categorized": 41,
+    "distribution": {
+      "interesado": 14,
+      "nuevo": 18,
+      "caliente": 9
+    }
+  },
+  "conversation_states": {
+    "total_reconstructed": 41,
+    "distribution": {
+      "inicio": 41
+    }
+  },
+  "dna_generation": {
+    "total_generated": 15,
+    "min_messages_required": 5
+  },
+  "fact_extraction": {
+    "total_facts": 7,
+    "followers_with_facts": 3,
+    "by_type": {
+      "PRICE_GIVEN": 2,
+      "CONTACT_INSTAGRAM": 3,
+      "LINK_SHARED": 2
+    }
+  },
+  "writing_patterns": {
+    "total_messages": 119,
+    "avg_length": 108.45378151260505,
+    "min_length": 1,
+    "max_length": 364,
+    "median_length": 71,
+    "emoji_frequency": 0.9663865546218487,
+    "common_phrases": {
+      "lo que": 18,
+      "que te": 16,
+      "aquí para": 15,
+      "genial! 😊": 13,
+      "círculo de": 12,
+      "me alegra": 12,
+      "alegra que": 12,
+      "el círculo": 10,
+      "estoy aquí": 10,
+      "que pueda": 10,
+      "en lo": 9,
+      "algo en": 9,
+      "si necesitas": 9,
+      "de hombres": 8,
+      "para que": 8,
+      "va todo?": 8,
+      "¿hay algo": 8,
+      "hola! 😊": 7,
+      "te gustaría": 7,
+      "un abrazo!": 7
+    },
+    "exclamation_rate": 0.8991596638655462,
+    "question_rate": 0.5210084033613446
+  },
+  "lead_scoring": {
+    "total_scored": 41,
+    "avg_score": 0.09390243902439024
+  }
+}
