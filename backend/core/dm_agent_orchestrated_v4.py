@@ -8,6 +8,7 @@ V4 añade sobre V3:
 """
 
 import logging
+import os
 from dataclasses import dataclass, field
 from typing import Any, Dict, List, Optional
 
@@ -135,14 +136,31 @@ Solo di "déjame revisar" si REALMENTE no tienes la info.
         return response
 
     async def _generate_with_llm(self, message: str, lead_id: str) -> str:
-        """Genera respuesta con LLM + contexto."""
+        """Generate response with LLM + context. Scout primary, OpenAI fallback."""
+        system_prompt = self._build_system_prompt(lead_id, message)
+
+        # 1. Scout model via DeepInfra (primary)
+        if os.getenv("USE_SCOUT_MODEL", "true").lower() == "true":
+            try:
+                from core.providers.deepinfra_provider import generate_scout_production
+
+                scout_messages = [
+                    {"role": "system", "content": system_prompt},
+                    {"role": "user", "content": message},
+                ]
+                result = await generate_scout_production(scout_messages, max_tokens=100)
+                if result:
+                    logger.info(f"V4 using scout-deepinfra (len={len(result)})")
+                    return result.strip()
+            except Exception as e:
+                logger.debug(f"V4 Scout failed: {e}")
+
+        # 2. Fallback to OpenAI
         llm = self._get_llm_service()
 
         if not llm:
             logger.warning("No LLM service available")
             return "Dale! 😊"
-
-        system_prompt = self._build_system_prompt(lead_id, message)
 
         try:
             response = await llm.generate(
