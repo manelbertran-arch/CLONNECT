@@ -41,7 +41,10 @@ instaloader>=4.10.0
 # Semantic Search (RAG) - DISABLED for Railway stability
 # These packages are optional and cause memory/timeout issues on Railway free tier
 # Enable locally with: pip install torch sentence-transformers
-# numpy>=1.24.0  # Only needed if torch is installed
+
+# Response variator dependencies (pool matching)
+numpy>=1.24.0
+scikit-learn>=1.3.0
 
 # Database
 sqlalchemy==2.0.23
