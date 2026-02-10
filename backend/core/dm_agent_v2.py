@@ -68,6 +68,7 @@ from services import (
     LeadService,
     LeadStage,
     LLMProvider,
+    LLMResponse,
     LLMService,
     MemoryStore,
     PromptBuilder,
@@ -127,6 +128,7 @@ ENABLE_MESSAGE_SPLITTING = os.getenv("ENABLE_MESSAGE_SPLITTING", "true").lower()
 ENABLE_QUESTION_REMOVAL = os.getenv("ENABLE_QUESTION_REMOVAL", "true").lower() == "true"
 ENABLE_VOCABULARY_EXTRACTION = os.getenv("ENABLE_VOCABULARY_EXTRACTION", "true").lower() == "true"
 ENABLE_SELF_CONSISTENCY = os.getenv("ENABLE_SELF_CONSISTENCY", "false").lower() == "true"
+ENABLE_FINETUNED_MODEL = os.getenv("ENABLE_FINETUNED_MODEL", "false").lower() == "true"
 
 logger = logging.getLogger(__name__)
 
@@ -545,7 +547,18 @@ class DMResponderAgentV2:
 
             # Step 1c: Try pool response for simple messages (fast path)
             if hasattr(self, "response_variator"):
-                pool_result = self.response_variator.try_pool_response(message)
+                # Classify context for pool routing (v10.2)
+                from services.length_controller import classify_lead_context
+                pool_context = classify_lead_context(message)
+
+                # Pass conv_id for dedup (v10.3) and context for routing (v10.2)
+                conv_id = metadata.get("conversation_id", sender_id)
+                pool_result = self.response_variator.try_pool_response(
+                    message,
+                    conv_id=conv_id,
+                    turn_index=metadata.get("turn_index", 0),
+                    context=pool_context,
+                )
                 if pool_result.matched and pool_result.confidence >= 0.8:
                     logger.debug(f"Pool response matched: {pool_result.category}")
                     return DMResponse(
@@ -670,6 +683,18 @@ class DMResponderAgentV2:
                 except Exception as e:
                     logger.debug(f"Conversation state failed: {e}")
 
+            # Step 4d: Knowledge base lookup for factual queries (v11.2)
+            kb_context = ""
+            try:
+                from services.knowledge_base import get_knowledge_base
+                kb = get_knowledge_base(self.creator_id)
+                kb_result = kb.lookup(message)
+                if kb_result:
+                    kb_context = f"Info factual relevante: {kb_result}"
+                    logger.debug(f"KB hit for message: {message[:50]}")
+            except Exception as e:
+                logger.debug(f"KB lookup failed: {e}")
+
             # Step 5: Build prompts - combine style, RAG and DNA context
             # Include system_prompt_override if provided (for V2 prompt)
             # PRIORITY: style_prompt first (defines HOW to write)
@@ -702,6 +727,7 @@ class DMResponderAgentV2:
                         state_context,
                         advanced_section,
                         citation_context,
+                        kb_context,
                         prompt_override,
                     ],
                 )
@@ -734,9 +760,32 @@ class DMResponderAgentV2:
             else:
                 full_prompt = f"{user_context}\n\nMensaje actual: {message}"
 
-            llm_response = await self.llm_service.generate(
-                prompt=full_prompt, system_prompt=system_prompt
-            )
+            # Fine-tuned model (Together.ai) — try before primary LLM
+            finetuned_content = None
+            if ENABLE_FINETUNED_MODEL:
+                try:
+                    from core.providers.together_provider import generate_finetuned_response
+
+                    ft_messages = [
+                        {"role": "system", "content": system_prompt},
+                        {"role": "user", "content": message},
+                    ]
+                    finetuned_content = await generate_finetuned_response(ft_messages)
+                except Exception as e:
+                    logger.debug(f"Fine-tuned model failed: {e}")
+
+            if finetuned_content:
+                logger.info(f"Using fine-tuned model (len={len(finetuned_content)})")
+                llm_response = LLMResponse(
+                    content=finetuned_content,
+                    model="together-finetuned",
+                    tokens_used=0,
+                    metadata={"provider": "together", "finetuned": True},
+                )
+            else:
+                llm_response = await self.llm_service.generate(
+                    prompt=full_prompt, system_prompt=system_prompt
+                )
 
             # Phase 4b: Self-consistency validation (expensive, default OFF)
             if ENABLE_SELF_CONSISTENCY:
