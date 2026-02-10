@@ -129,6 +129,7 @@ ENABLE_QUESTION_REMOVAL = os.getenv("ENABLE_QUESTION_REMOVAL", "true").lower() =
 ENABLE_VOCABULARY_EXTRACTION = os.getenv("ENABLE_VOCABULARY_EXTRACTION", "true").lower() == "true"
 ENABLE_SELF_CONSISTENCY = os.getenv("ENABLE_SELF_CONSISTENCY", "false").lower() == "true"
 ENABLE_FINETUNED_MODEL = os.getenv("ENABLE_FINETUNED_MODEL", "false").lower() == "true"
+USE_SCOUT_MODEL = os.getenv("USE_SCOUT_MODEL", "true").lower() == "true"
 
 logger = logging.getLogger(__name__)
 
@@ -760,9 +761,27 @@ class DMResponderAgentV2:
             else:
                 full_prompt = f"{user_context}\n\nMensaje actual: {message}"
 
-            # Fine-tuned model (Together.ai) — try before primary LLM
-            finetuned_content = None
-            if ENABLE_FINETUNED_MODEL:
+            # Model priority: Scout (DeepInfra) → Fine-tuned (Together) → Primary LLM (OpenAI)
+            specialist_content = None
+            specialist_model = None
+
+            # 1. Scout model via DeepInfra (primary for all creators when enabled)
+            if USE_SCOUT_MODEL and not specialist_content:
+                try:
+                    from core.providers.deepinfra_provider import generate_scout_production
+
+                    scout_messages = [
+                        {"role": "system", "content": system_prompt},
+                        {"role": "user", "content": message},
+                    ]
+                    specialist_content = await generate_scout_production(scout_messages)
+                    if specialist_content:
+                        specialist_model = "scout-deepinfra"
+                except Exception as e:
+                    logger.debug(f"Scout model failed: {e}")
+
+            # 2. Fine-tuned model via Together.ai (fallback when Scout disabled/fails)
+            if ENABLE_FINETUNED_MODEL and not specialist_content:
                 try:
                     from core.providers.together_provider import generate_finetuned_response
 
@@ -770,17 +789,19 @@ class DMResponderAgentV2:
                         {"role": "system", "content": system_prompt},
                         {"role": "user", "content": message},
                     ]
-                    finetuned_content = await generate_finetuned_response(ft_messages)
+                    specialist_content = await generate_finetuned_response(ft_messages)
+                    if specialist_content:
+                        specialist_model = "together-finetuned"
                 except Exception as e:
                     logger.debug(f"Fine-tuned model failed: {e}")
 
-            if finetuned_content:
-                logger.info(f"Using fine-tuned model (len={len(finetuned_content)})")
+            if specialist_content:
+                logger.info(f"Using {specialist_model} (len={len(specialist_content)})")
                 llm_response = LLMResponse(
-                    content=finetuned_content,
-                    model="together-finetuned",
+                    content=specialist_content,
+                    model=specialist_model,
                     tokens_used=0,
-                    metadata={"provider": "together", "finetuned": True},
+                    metadata={"provider": specialist_model, "specialist": True},
                 )
             else:
                 llm_response = await self.llm_service.generate(
@@ -915,6 +936,32 @@ class DMResponderAgentV2:
 
             # Step 9: Update lead score
             new_stage = self._update_lead_score(follower, intent_value, metadata)
+
+            # Step 9b: Auto-schedule nurturing based on intent
+            try:
+                from core.nurturing import should_schedule_nurturing, get_nurturing_manager
+
+                sequence_type = should_schedule_nurturing(
+                    intent=intent_value,
+                    has_purchased=follower.is_customer,
+                    creator_id=self.creator_id,
+                )
+                if sequence_type:
+                    manager = get_nurturing_manager()
+                    followups = manager.schedule_followup(
+                        creator_id=self.creator_id,
+                        follower_id=sender_id,
+                        sequence_type=sequence_type,
+                        product_name="",
+                    )
+                    if followups:
+                        logger.info(
+                            f"[NURTURING] Auto-scheduled {len(followups)} followups "
+                            f"(type={sequence_type}) for {sender_id}"
+                        )
+                        cognitive_metadata["nurturing_scheduled"] = sequence_type
+            except Exception as e:
+                logger.error(f"[NURTURING] Auto-trigger failed: {e}")
 
             # Step 10: Notify on escalation-worthy intents
             await self._check_and_notify_escalation(

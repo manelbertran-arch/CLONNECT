@@ -700,6 +700,7 @@ INTENT_TO_SEQUENCE = {
     "interest_strong": SequenceType.ABANDONED.value,  # Quiere comprar
     "want_to_buy": SequenceType.ABANDONED.value,  # Quiere comprar
     "asking_price": SequenceType.ABANDONED.value,  # Pregunta precio
+    "purchase_intent": SequenceType.ABANDONED.value,  # Explicit purchase intent
     # Cold interest - leads con interés débil
     "interest_soft": SequenceType.INTEREST_COLD.value,
     "interest_weak": SequenceType.INTEREST_COLD.value,

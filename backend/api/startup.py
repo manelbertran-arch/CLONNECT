@@ -92,16 +92,19 @@ def register_startup_handlers(app: "FastAPI"):
         asyncio.create_task(cleanup_test_data())
         logger.info("Test data cleanup scheduled (background task)")
 
-        # Start nurturing scheduler
-        # DISABLED TEMPORARILY - Testing if scheduler causes slow API responses
-        # try:
-        #     from api.routers.nurturing import start_scheduler
-        #
-        #     start_scheduler()
-        #     logger.info("Nurturing scheduler started")
-        # except Exception as e:
-        #     logger.error(f"Failed to start nurturing scheduler: {e}")
-        logger.warning("Nurturing scheduler DISABLED for performance testing")
+        # Start nurturing scheduler (delayed to avoid competing with startup)
+        async def start_nurturing_delayed():
+            await asyncio.sleep(30)
+            try:
+                from api.routers.nurturing import start_scheduler
+
+                start_scheduler()
+                logger.info("Nurturing scheduler started (delayed 30s)")
+            except Exception as e:
+                logger.error(f"Failed to start nurturing scheduler: {e}")
+
+        asyncio.create_task(start_nurturing_delayed())
+        logger.info("Nurturing scheduler scheduled to start in 30s")
 
         # DISABLED: Startup reconciliation was making 20+ Instagram API calls
         # causing slow startup and 403 errors. Run manually via /maintenance/reconcile if needed.
