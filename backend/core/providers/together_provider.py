@@ -13,7 +13,7 @@ TOGETHER_API_URL = "https://api.together.xyz/v1/chat/completions"
 
 async def generate_finetuned_response(
     messages: list[dict],
-    max_tokens: int = 300,
+    max_tokens: int = 60,
     temperature: float = 0.7,
     api_key: Optional[str] = None,
     model_id: Optional[str] = None,

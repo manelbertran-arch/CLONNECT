@@ -64,6 +64,20 @@ CONTEXT_LENGTH_RULES: Dict[str, ContextLengthRule] = {
 # Default rule for unrecognized contexts
 DEFAULT_RULE = ContextLengthRule(target=23, soft_min=10, soft_max=60, hard_max=300, n_samples=0)
 
+# v10.2: Aliases for new sub-categories that inherit from existing contexts
+CONTEXT_ALIASES = {
+    "humor": "casual",
+    "reaccion": "casual",
+    "reaction": "casual",
+    "apoyo_emocional": "otro",
+    "encouragement": "otro",
+    "compartir_logro": "otro",
+    "continuacion": "casual",
+    "continuation": "casual",
+    "gratitude": "agradecimiento",
+    "greeting": "saludo",
+}
+
 
 # ─── Legacy LengthConfig (backward compatibility) ──────────────────────────
 
@@ -170,10 +184,34 @@ def classify_lead_context(lead_message: str) -> str:
     if any(w in msg for w in thanks_words):
         return "agradecimiento"
 
-    # Casual / informal (emojis, laughs)
-    casual_score = 0
+    # Humor (v10.2) — laughs and funny reactions
     if re.search(r"jaj|hah|jej|😂|🤣", msg):
-        casual_score += 1
+        return "humor"
+
+    # Reaction (v10.2) — positive reactions
+    reaction_words = [
+        "que lindo", "hermoso", "genial", "espectacular",
+        "increíble", "increible", "me encanta", "que bueno", "wow",
+    ]
+    if any(w in msg for w in reaction_words):
+        return "reaccion"
+
+    # Continuation (v10.2) — short affirmations
+    continuations = ["sí", "si", "claro", "dale", "ok", "bueno", "exacto", "totalmente", "tal cual"]
+    msg_stripped = msg.rstrip("!").rstrip(".").strip()
+    if msg_stripped in continuations and len(msg) < 30:
+        return "continuacion"
+
+    # Encouragement (v10.2) — user shares struggle or achievement
+    encourage_words = [
+        "logré", "conseguí", "pude", "empecé", "terminé",
+        "cuesta", "difícil", "dificil", "miedo", "ansiedad",
+    ]
+    if any(w in msg for w in encourage_words):
+        return "apoyo_emocional"
+
+    # Casual / informal (emojis, short)
+    casual_score = 0
     if len(msg) < 15:
         casual_score += 1
     emoji_count = len(re.findall(r"[\U00010000-\U0010ffff]|[\u2600-\u27bf]", msg))
@@ -186,12 +224,22 @@ def classify_lead_context(lead_message: str) -> str:
     if "?" in lead_message:
         return "pregunta_general"
 
+    # Short messages without question marks (v10.2) — reduce "otro"
+    if len(msg) < 40 and "?" not in msg:
+        return "casual"
+
     return "otro"
 
 
 def get_context_rule(context: str) -> ContextLengthRule:
-    """Get the length rule for a conversation context."""
-    return CONTEXT_LENGTH_RULES.get(context, DEFAULT_RULE)
+    """Get the length rule for a conversation context (with v10.2 alias support)."""
+    if context in CONTEXT_LENGTH_RULES:
+        return CONTEXT_LENGTH_RULES[context]
+    # Check aliases for new sub-categories
+    alias = CONTEXT_ALIASES.get(context)
+    if alias and alias in CONTEXT_LENGTH_RULES:
+        return CONTEXT_LENGTH_RULES[alias]
+    return DEFAULT_RULE
 
 
 # ─── Original API (backward compatible) ────────────────────────────────────
