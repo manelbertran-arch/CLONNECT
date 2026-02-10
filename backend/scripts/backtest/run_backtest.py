@@ -289,6 +289,7 @@ async def generate_bot_response(
     turn_index: int = 0,
     conversation_id: str = "",
     use_finetuned: bool = False,
+    model: Optional[str] = None,
 ) -> Dict[str, Any]:
     """
     Generate a bot response for a user message.
@@ -296,6 +297,7 @@ async def generate_bot_response(
     Uses the actual response_variator + prompt pipeline.
     Falls back to a mock if services aren't available.
     When use_finetuned=True, calls Together.ai for non-pool turns.
+    When model="scout", calls Llama 4 Scout via Together.ai for non-pool turns.
     """
     # Pool-eligible contexts: try variator first
     # Direct questions always go to LLM — pools can't answer questions
@@ -327,8 +329,53 @@ async def generate_bot_response(
         except Exception:
             pass
 
-    # Non-pool path: use fine-tuned model or mock
-    if use_finetuned:
+    # Non-pool path: use fine-tuned model, Scout, or mock
+    if model == "scout":
+        try:
+            from core.providers.deepinfra_provider import generate_scout_production
+
+            system_prompt = _build_finetuned_system_prompt(calibration or {})
+            messages = [
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": user_message},
+            ]
+            scout_response = await generate_scout_production(messages)
+            if scout_response:
+                return {
+                    "bot_response": scout_response,
+                    "pool_matched": False,
+                    "pool_category": None,
+                    "confidence": 0.8,
+                    "source": "scout",
+                }
+        except Exception as e:
+            print(f"  [Scout error: {e}] Falling back to mock")
+
+    elif model == "scout-ft":
+        try:
+            from core.providers.together_provider import generate_finetuned_response
+
+            scout_ft_model = os.environ.get("SCOUT_FT_MODEL")
+            system_prompt = _build_finetuned_system_prompt(calibration or {})
+            messages = [
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": user_message},
+            ]
+            ft_response = await generate_finetuned_response(
+                messages, model_id=scout_ft_model,
+            )
+            if ft_response:
+                return {
+                    "bot_response": ft_response,
+                    "pool_matched": False,
+                    "pool_category": None,
+                    "confidence": 0.8,
+                    "source": "scout-ft",
+                }
+        except Exception as e:
+            print(f"  [Scout-FT error: {e}] Falling back to mock")
+
+    elif use_finetuned:
         try:
             from core.providers.together_provider import generate_finetuned_response
 
@@ -554,6 +601,7 @@ async def run_backtest(
     output_dir: str = "./backtest_output",
     calibration_path: Optional[str] = None,
     use_finetuned: bool = False,
+    model: Optional[str] = None,
 ) -> Dict[str, Any]:
     """Run the full backtest pipeline."""
     start_time = time.time()
@@ -602,6 +650,10 @@ async def run_backtest(
     total_turns = len(clean_turns)
     if use_finetuned:
         print(f"Generating responses with fine-tuned model ({total_turns} turns)...")
+    elif model == "scout":
+        print(f"Generating responses with Llama 4 Scout BASE ({total_turns} turns)...")
+    elif model == "scout-ft":
+        print(f"Generating responses with Llama 4 Scout FT ({total_turns} turns)...")
     for i, turn in enumerate(clean_turns):
         conv_id = turn.get("lead_username", "")
         idx = conv_turn_idx.get(conv_id, 0)
@@ -614,8 +666,13 @@ async def run_backtest(
             turn_index=idx,
             conversation_id=conv_id,
             use_finetuned=use_finetuned,
+            model=model,
         )
         turn.update(bot_result)
+
+        # Pace non-pool API calls
+        if model in ("scout", "scout-ft") and not bot_result.get("pool_matched", False):
+            await asyncio.sleep(1.0 if model == "scout-ft" else 0.3)
 
         # Post-processing for non-pool responses (matches dm_agent_v2 Phase 5)
         if not bot_result.get("pool_matched", False):
@@ -633,8 +690,8 @@ async def run_backtest(
             resp = _enforce_calibrated_length(resp, turn["context"], calibration)
             turn["bot_response"] = resp
 
-        # Progress indicator for fine-tuned runs (API calls are slow)
-        if use_finetuned and (i + 1) % 20 == 0:
+        # Progress indicator for API runs (API calls are slow)
+        if (use_finetuned or model in ("scout", "scout-ft")) and (i + 1) % 20 == 0:
             print(f"  Generated {i + 1}/{total_turns} turns...")
 
     # Step 6.5: Global tone enforcement (two-pass)
@@ -646,7 +703,7 @@ async def run_backtest(
 
     # Step 8: Build output
     result = {
-        "version": "v9-finetuned" if use_finetuned else "v9",
+        "version": "v9-scout-ft" if model == "scout-ft" else ("v9-scout" if model == "scout" else ("v9-finetuned" if use_finetuned else "v9")),
         "timestamp": datetime.now().isoformat(),
         "creator_id": creator_id,
         "creator_name": creator_name,
@@ -728,6 +785,10 @@ if __name__ == "__main__":
         "--use-finetuned", action="store_true", default=False,
         help="Use Together.ai fine-tuned model instead of mock for non-pool turns",
     )
+    parser.add_argument(
+        "--model", default=None, choices=["scout", "scout-ft"],
+        help="Use a specific model: 'scout' = Scout BASE via DeepInfra, 'scout-ft' = Scout FT via Together.ai",
+    )
     args = parser.parse_args()
 
     asyncio.run(run_backtest(
@@ -738,4 +799,5 @@ if __name__ == "__main__":
         output_dir=args.output_dir,
         calibration_path=args.calibration,
         use_finetuned=args.use_finetuned,
+        model=args.model,
     ))

@@ -232,10 +232,10 @@ def hide_technical_errors(response: str) -> str:
     if response != original:
         logger.info("[FIX 6] Technical errors hidden from response")
 
-    # If response is now empty or too short, use fallback
-    if len(response.strip()) < 10:
-        logger.warning("[FIX 6] Response empty after error removal, using fallback")
-        return ""  # Let the caller handle the fallback
+        # If response is now empty or too short AFTER removing errors, use fallback
+        if len(response.strip()) < 10:
+            logger.warning("[FIX 6] Response empty after error removal, using fallback")
+            return ""  # Let the caller handle the fallback
 
     return response
 

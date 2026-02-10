@@ -1,0 +1,146 @@
+"""DeepInfra provider for Scout model inference with Groq fallback."""
+
+import asyncio
+import logging
+import os
+import time
+from typing import Optional
+
+import httpx
+
+logger = logging.getLogger(__name__)
+
+DEEPINFRA_API_URL = "https://api.deepinfra.com/v1/openai/chat/completions"
+GROQ_API_URL = "https://api.groq.com/openai/v1/chat/completions"
+
+SCOUT_MODEL_DEEPINFRA = "meta-llama/Llama-4-Scout-17B-16E-Instruct"
+SCOUT_MODEL_GROQ = "meta-llama/llama-4-scout-17b-16e-instruct"
+
+
+async def _call_provider(
+    url: str,
+    api_key: str,
+    model: str,
+    messages: list[dict],
+    max_tokens: int,
+    temperature: float,
+    provider_name: str,
+    max_retries: int = 3,
+) -> Optional[str]:
+    """Call an OpenAI-compatible provider with retry and exponential backoff."""
+    for attempt in range(max_retries):
+        start = time.monotonic()
+        try:
+            async with httpx.AsyncClient(timeout=30.0) as client:
+                resp = await client.post(
+                    url,
+                    headers={"Authorization": f"Bearer {api_key}"},
+                    json={
+                        "model": model,
+                        "messages": messages,
+                        "max_tokens": max_tokens,
+                        "temperature": temperature,
+                    },
+                )
+                latency_ms = int((time.monotonic() - start) * 1000)
+
+                if resp.status_code == 429:
+                    wait = 2 ** attempt + 1
+                    logger.warning(
+                        "%s rate limited, waiting %ds (attempt %d/%d)",
+                        provider_name, wait, attempt + 1, max_retries,
+                    )
+                    await asyncio.sleep(wait)
+                    continue
+
+                resp.raise_for_status()
+                data = resp.json()
+                content = data["choices"][0]["message"]["content"].strip()
+
+                usage = data.get("usage", {})
+                logger.info(
+                    "%s OK: model=%s latency=%dms tokens_in=%d tokens_out=%d len=%d",
+                    provider_name, model, latency_ms,
+                    usage.get("prompt_tokens", 0),
+                    usage.get("completion_tokens", 0),
+                    len(content),
+                )
+                return content
+
+        except httpx.TimeoutException:
+            logger.warning(
+                "%s timeout (attempt %d/%d)", provider_name, attempt + 1, max_retries,
+            )
+            await asyncio.sleep(2)
+        except httpx.HTTPStatusError as e:
+            if e.response.status_code == 429:
+                wait = 2 ** attempt + 1
+                await asyncio.sleep(wait)
+                continue
+            logger.error("%s HTTP error: %s", provider_name, e)
+            return None
+        except Exception as e:
+            logger.error("%s error: %s", provider_name, e)
+            return None
+
+    return None
+
+
+async def generate_response_deepinfra(
+    messages: list[dict],
+    max_tokens: int = 60,
+    temperature: float = 0.7,
+) -> Optional[str]:
+    """Call Scout via DeepInfra."""
+    api_key = os.getenv("DEEPINFRA_API_KEY")
+    if not api_key:
+        logger.error("DEEPINFRA_API_KEY not set")
+        return None
+
+    model = os.getenv("SCOUT_MODEL", SCOUT_MODEL_DEEPINFRA)
+    return await _call_provider(
+        DEEPINFRA_API_URL, api_key, model, messages, max_tokens, temperature, "DeepInfra",
+    )
+
+
+async def generate_response_groq(
+    messages: list[dict],
+    max_tokens: int = 60,
+    temperature: float = 0.7,
+) -> Optional[str]:
+    """Call Scout via Groq (fallback)."""
+    api_key = os.getenv("GROQ_API_KEY")
+    if not api_key:
+        logger.error("GROQ_API_KEY not set")
+        return None
+
+    return await _call_provider(
+        GROQ_API_URL, api_key, SCOUT_MODEL_GROQ, messages, max_tokens, temperature, "Groq",
+    )
+
+
+async def generate_scout_production(
+    messages: list[dict],
+    max_tokens: int = 60,
+    temperature: float = 0.7,
+) -> Optional[str]:
+    """Production Scout inference: DeepInfra primary, Groq fallback.
+
+    Returns response string or None if both providers fail.
+    """
+    provider = os.getenv("SCOUT_PROVIDER", "deepinfra")
+
+    if provider == "groq":
+        result = await generate_response_groq(messages, max_tokens, temperature)
+        if result:
+            return result
+        logger.warning("Groq failed, falling back to DeepInfra")
+        return await generate_response_deepinfra(messages, max_tokens, temperature)
+
+    # Default: DeepInfra primary → Groq fallback
+    result = await generate_response_deepinfra(messages, max_tokens, temperature)
+    if result:
+        return result
+
+    logger.warning("DeepInfra failed, falling back to Groq")
+    return await generate_response_groq(messages, max_tokens, temperature)
