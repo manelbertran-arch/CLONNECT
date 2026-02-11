@@ -71,31 +71,51 @@ async def generate_finetuned_response(
     api_key: Optional[str] = None,
     model_id: Optional[str] = None,
 ) -> Optional[str]:
-    """Call Together.ai fine-tuned model. Returns response string or None on failure."""
-    api_key = api_key or os.getenv("TOGETHER_API_KEY")
-    model_id = model_id or os.getenv("TOGETHER_MODEL_ID")
+    """Call fine-tuned model via Together.ai or DeepInfra (LoRA).
 
-    if not api_key or not model_id:
-        return None
+    Set SCOUT_FT_PROVIDER=deepinfra to route to DeepInfra LoRA serving.
+    """
+    provider = os.getenv("SCOUT_FT_PROVIDER", "together").lower()
+
+    if provider == "deepinfra":
+        api_key = api_key or os.getenv("DEEPINFRA_API_KEY")
+        lora_adapter = model_id or os.getenv("SCOUT_FT_MODEL")
+        api_url = DEEPINFRA_API_URL
+        if not api_key or not lora_adapter:
+            return None
+        payload = {
+            "model": SCOUT_MODEL,
+            "lora_adapter": lora_adapter,
+            "messages": messages,
+            "max_tokens": max_tokens,
+            "temperature": temperature,
+        }
+    else:
+        api_key = api_key or os.getenv("TOGETHER_API_KEY")
+        model_id = model_id or os.getenv("TOGETHER_MODEL_ID")
+        api_url = TOGETHER_API_URL
+        if not api_key or not model_id:
+            return None
+        payload = {
+            "model": model_id,
+            "messages": messages,
+            "max_tokens": max_tokens,
+            "temperature": temperature,
+            "stop": ["<|eot_id|>"],
+        }
 
     try:
-        async with httpx.AsyncClient(timeout=15.0) as client:
+        async with httpx.AsyncClient(timeout=30.0) as client:
             resp = await client.post(
-                TOGETHER_API_URL,
+                api_url,
                 headers={"Authorization": f"Bearer {api_key}"},
-                json={
-                    "model": model_id,
-                    "messages": messages,
-                    "max_tokens": max_tokens,
-                    "temperature": temperature,
-                    "stop": ["<|eot_id|>"],
-                },
+                json=payload,
             )
             resp.raise_for_status()
             return resp.json()["choices"][0]["message"]["content"].strip()
     except httpx.TimeoutException:
-        logger.error("Together.ai timeout")
+        logger.error("%s timeout (provider=%s)", provider, provider)
         return None
     except Exception as e:
-        logger.error("Together.ai error: %s", e)
+        logger.error("%s error (provider=%s): %s", provider, provider, e)
         return None
