@@ -1,0 +1,14 @@
+Backtest Results - Stefano Bonanno
+==================================================
+Date: 2026-02-10T20:12:39.992215
+Conversations: 100
+Clean turns: 571
+Excluded turns: 1
+
+OVERALL SCORE: 96.2
+
+  length    :  92.1  (weight 25%)
+  tone      :  95.6  (weight 25%)
+  pool      :  94.9  (weight 15%)
+  safety    : 100.0  (weight 20%)
+  intent    : 100.0  (weight 15%)
