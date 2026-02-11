@@ -26,21 +26,25 @@ async def _call_provider(
     temperature: float,
     provider_name: str,
     max_retries: int = 3,
+    lora_adapter: Optional[str] = None,
 ) -> Optional[str]:
     """Call an OpenAI-compatible provider with retry and exponential backoff."""
     for attempt in range(max_retries):
         start = time.monotonic()
         try:
+            payload = {
+                "model": model,
+                "messages": messages,
+                "max_tokens": max_tokens,
+                "temperature": temperature,
+            }
+            if lora_adapter:
+                payload["lora_adapter"] = lora_adapter
             async with httpx.AsyncClient(timeout=30.0) as client:
                 resp = await client.post(
                     url,
                     headers={"Authorization": f"Bearer {api_key}"},
-                    json={
-                        "model": model,
-                        "messages": messages,
-                        "max_tokens": max_tokens,
-                        "temperature": temperature,
-                    },
+                    json=payload,
                 )
                 latency_ms = int((time.monotonic() - start) * 1000)
 
@@ -58,9 +62,10 @@ async def _call_provider(
                 content = data["choices"][0]["message"]["content"].strip()
 
                 usage = data.get("usage", {})
+                lora_tag = f" lora={lora_adapter}" if lora_adapter else ""
                 logger.info(
-                    "%s OK: model=%s latency=%dms tokens_in=%d tokens_out=%d len=%d",
-                    provider_name, model, latency_ms,
+                    "%s OK: model=%s%s latency=%dms tokens_in=%d tokens_out=%d len=%d",
+                    provider_name, model, lora_tag, latency_ms,
                     usage.get("prompt_tokens", 0),
                     usage.get("completion_tokens", 0),
                     len(content),
@@ -91,15 +96,19 @@ async def generate_response_deepinfra(
     max_tokens: int = 60,
     temperature: float = 0.7,
 ) -> Optional[str]:
-    """Call Scout via DeepInfra."""
+    """Call Scout via DeepInfra, with optional LoRA adapter."""
     api_key = os.getenv("DEEPINFRA_API_KEY")
     if not api_key:
         logger.error("DEEPINFRA_API_KEY not set")
         return None
 
     model = os.getenv("SCOUT_MODEL", SCOUT_MODEL_DEEPINFRA)
+    lora_adapter = os.getenv("SCOUT_LORA_ADAPTER")
+    if lora_adapter:
+        logger.info("DeepInfra using LoRA adapter: %s", lora_adapter)
     return await _call_provider(
-        DEEPINFRA_API_URL, api_key, model, messages, max_tokens, temperature, "DeepInfra",
+        DEEPINFRA_API_URL, api_key, model, messages, max_tokens, temperature,
+        "DeepInfra", lora_adapter=lora_adapter,
     )
 
 
