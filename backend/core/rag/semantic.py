@@ -24,7 +24,7 @@ logger = logging.getLogger(__name__)
 
 # Cross-encoder reranking: improves relevance but adds ~100-200ms
 # Default: FALSE - Railway can timeout downloading models on cold start
-ENABLE_RERANKING = os.getenv("ENABLE_RERANKING", "false").lower() == "true"
+ENABLE_RERANKING = os.getenv("ENABLE_RERANKING", "true").lower() == "true"
 
 # BM25 hybrid search: combines semantic + lexical search
 # Default: FALSE - Disable to simplify cold start

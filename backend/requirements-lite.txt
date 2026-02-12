@@ -38,9 +38,8 @@ python-telegram-bot>=20.0
 # Instagram Scraping
 instaloader>=4.10.0
 
-# Semantic Search (RAG) - DISABLED for Railway stability
-# These packages are optional and cause memory/timeout issues on Railway free tier
-# Enable locally with: pip install torch sentence-transformers
+# Semantic Search (RAG) - Cross-Encoder reranking
+sentence-transformers>=2.2.0
 
 # Response variator dependencies (pool matching)
 numpy>=1.24.0
