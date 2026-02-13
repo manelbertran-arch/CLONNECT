@@ -207,6 +207,8 @@ def build_data_section(
     """
     sections = [
         "=== DATOS VERIFICADOS (SOLO USA ESTA INFORMACIÓN) ===",
+        "IMPORTANTE: Usa SIEMPRE los nombres y precios EXACTOS de los productos.",
+        "NO inventes precios, NO redondees, NO cambies nombres de productos.",
         "",
     ]
 

@@ -293,8 +293,8 @@ def enforce_length(
     if resp_len <= rule.hard_max:
         return response
 
-    # Allow 1.5x headroom above hard_max (bot may need more than Stefan)
-    headroom = max(int(rule.hard_max * 1.5), 200)
+    # Allow 1.2x headroom above hard_max (tightened for DeepSeek V3.1)
+    headroom = max(int(rule.hard_max * 1.2), 150)
     if resp_len <= headroom:
         return response
 
