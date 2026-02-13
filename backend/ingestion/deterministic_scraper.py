@@ -10,25 +10,23 @@ Anti-hallucination principles:
 3. No creative interpretation - just structured extraction
 """
 
+import logging
 import os
 import re
-import ssl
 import time
-import logging
-from typing import List, Dict, Optional, Any
 from dataclasses import dataclass, field
+from datetime import datetime
+from typing import Any, Dict, List, Optional
 from urllib.parse import urljoin, urlparse
 from urllib.robotparser import RobotFileParser
-from datetime import datetime
 
 import httpx
 import pybreaker
-
 from core.metrics import (
-    record_page_scraped,
-    record_page_failed,
     observe_scrape_duration,
-    record_ingestion_error
+    record_ingestion_error,
+    record_page_failed,
+    record_page_scraped,
 )
 
 logger = logging.getLogger(__name__)
@@ -95,12 +93,13 @@ class RobotsTxtChecker:
         try:
             # Use httpx for consistency (sync version for robotparser compatibility)
             import httpx
+
             response = httpx.get(
                 robots_url,
                 timeout=5.0,
                 follow_redirects=True,
                 verify=VERIFY_SSL,
-                headers={"User-Agent": f"Mozilla/5.0 (compatible; {self.user_agent}/1.0)"}
+                headers={"User-Agent": f"Mozilla/5.0 (compatible; {self.user_agent}/1.0)"},
             )
 
             if response.status_code == 200:
@@ -210,7 +209,9 @@ class ScraperCircuitBreakerListener(pybreaker.CircuitBreakerListener):
 
     def failure(self, cb, exc):
         """Log failures tracked by circuit breaker."""
-        logger.debug(f"Circuit [{self.name}] recorded failure ({cb.fail_counter}/{cb.fail_max}): {exc}")
+        logger.debug(
+            f"Circuit [{self.name}] recorded failure ({cb.fail_counter}/{cb.fail_max}): {exc}"
+        )
 
 
 # Circuit breaker for web scraping
@@ -218,18 +219,20 @@ scraper_circuit_breaker = pybreaker.CircuitBreaker(
     fail_max=SCRAPER_CIRCUIT_FAILURE_THRESHOLD,
     reset_timeout=SCRAPER_CIRCUIT_RECOVERY_TIMEOUT,
     listeners=[ScraperCircuitBreakerListener("web_scraper")],
-    name="web_scraper"
+    name="web_scraper",
 )
 
 
 class ScraperCircuitBreakerOpenError(Exception):
     """Raised when scraper circuit breaker is open."""
+
     pass
 
 
 @dataclass
 class ScrapedPage:
     """Represents a scraped page with its raw content."""
+
     url: str
     title: str
     main_content: str
@@ -252,22 +255,55 @@ class DeterministicScraper:
 
     # URLs/patterns to skip
     SKIP_PATTERNS = [
-        r'/login', r'/signin', r'/signup', r'/register',
-        r'/cart', r'/checkout', r'/account', r'/admin',
-        r'/privacy', r'/terms', r'/legal', r'/cookie',
-        r'facebook\.com', r'twitter\.com', r'instagram\.com',
-        r'youtube\.com', r'linkedin\.com', r'tiktok\.com',
-        r'\.pdf$', r'\.zip$', r'\.exe$', r'\.dmg$', r'\.mp4$', r'\.mp3$'
+        r"/login",
+        r"/signin",
+        r"/signup",
+        r"/register",
+        r"/cart",
+        r"/checkout",
+        r"/account",
+        r"/admin",
+        r"/privacy",
+        r"/terms",
+        r"/legal",
+        r"/cookie",
+        r"facebook\.com",
+        r"twitter\.com",
+        r"instagram\.com",
+        r"youtube\.com",
+        r"linkedin\.com",
+        r"tiktok\.com",
+        r"\.pdf$",
+        r"\.zip$",
+        r"\.exe$",
+        r"\.dmg$",
+        r"\.mp4$",
+        r"\.mp3$",
     ]
 
     # Elements to remove (noise)
     # NOTE: Don't remove 'button' - accordion FAQs often use buttons for titles
     NOISE_ELEMENTS = [
-        'script', 'style', 'noscript', 'iframe', 'nav', 'footer',
-        'header', 'aside', 'form', 'input', 'select',
-        '[class*="cookie"]', '[class*="popup"]', '[class*="modal"]',
-        '[class*="sidebar"]', '[class*="menu"]', '[class*="nav"]',
-        '[id*="cookie"]', '[id*="popup"]', '[id*="modal"]'
+        "script",
+        "style",
+        "noscript",
+        "iframe",
+        "nav",
+        "footer",
+        "header",
+        "aside",
+        "form",
+        "input",
+        "select",
+        '[class*="cookie"]',
+        '[class*="popup"]',
+        '[class*="modal"]',
+        '[class*="sidebar"]',
+        '[class*="menu"]',
+        '[class*="nav"]',
+        '[id*="cookie"]',
+        '[id*="popup"]',
+        '[id*="modal"]',
     ]
 
     def __init__(self, timeout: float = 15.0, max_pages: int = 100):
@@ -282,10 +318,10 @@ class DeterministicScraper:
     def _clean_text(self, text: str) -> str:
         """Clean extracted text."""
         # Normalize whitespace
-        text = re.sub(r'\s+', ' ', text)
+        text = re.sub(r"\s+", " ", text)
         # Remove common noise
-        text = re.sub(r'Cookie\s+Policy.*?Accept', '', text, flags=re.I)
-        text = re.sub(r'We use cookies.*?\.', '', text, flags=re.I)
+        text = re.sub(r"Cookie\s+Policy.*?Accept", "", text, flags=re.I)
+        text = re.sub(r"We use cookies.*?\.", "", text, flags=re.I)
         return text.strip()
 
     def _extract_text_from_soup(self, soup) -> str:
@@ -296,19 +332,19 @@ class DeterministicScraper:
                 element.decompose()
 
         # PRE-PROCESO: Añadir marcador a elementos de lista para preservar separación
-        for li in soup.find_all('li'):
+        for li in soup.find_all("li"):
             li_text = li.get_text(strip=True)
             if li_text:
                 # Añadir marcador temporal al final
-                li.append(' ◆')
+                li.append(" ◆")
 
         # Get text
-        text = soup.get_text(separator=' ', strip=True)
+        text = soup.get_text(separator=" ", strip=True)
 
         # POST-PROCESO: Convertir marcador a coma antes de mayúscula
-        text = re.sub(r' ◆(?=\s*[A-ZÁÉÍÓÚÑ])', ',', text)
+        text = re.sub(r" ◆(?=\s*[A-ZÁÉÍÓÚÑ])", ",", text)
         # Limpiar marcadores residuales (al final o antes de minúscula)
-        text = re.sub(r' ◆', '', text)
+        text = re.sub(r" ◆", "", text)
 
         return self._clean_text(text)
 
@@ -317,7 +353,7 @@ class DeterministicScraper:
         sections = []
 
         # Find all heading elements
-        for heading in soup.find_all(['h1', 'h2', 'h3', 'h4']):
+        for heading in soup.find_all(["h1", "h2", "h3", "h4"]):
             heading_text = heading.get_text(strip=True)
             if not heading_text or len(heading_text) < 3:
                 continue
@@ -325,18 +361,20 @@ class DeterministicScraper:
             # Get content after heading until next heading
             content_parts = []
             for sibling in heading.find_next_siblings():
-                if sibling.name in ['h1', 'h2', 'h3', 'h4']:
+                if sibling.name in ["h1", "h2", "h3", "h4"]:
                     break
                 text = sibling.get_text(strip=True)
                 if text:
                     content_parts.append(text)
 
             if content_parts:
-                sections.append({
-                    'heading': heading_text,
-                    'content': ' '.join(content_parts),
-                    'level': heading.name
-                })
+                sections.append(
+                    {
+                        "heading": heading_text,
+                        "content": " ".join(content_parts),
+                        "level": heading.name,
+                    }
+                )
 
         return sections
 
@@ -345,11 +383,11 @@ class DeterministicScraper:
         links = []
         parsed_base = urlparse(base_url)
 
-        for a in soup.find_all('a', href=True):
-            href = a['href']
+        for a in soup.find_all("a", href=True):
+            href = a["href"]
 
             # Skip anchors and javascript
-            if href.startswith('#') or href.startswith('javascript:'):
+            if href.startswith("#") or href.startswith("javascript:"):
                 continue
 
             # Convert to absolute URL
@@ -362,7 +400,7 @@ class DeterministicScraper:
 
             # Clean URL (remove fragment and query)
             clean_url = f"{parsed.scheme}://{parsed.netloc}{parsed.path}"
-            clean_url = clean_url.rstrip('/')
+            clean_url = clean_url.rstrip("/")
 
             if clean_url and clean_url not in links and not self._should_skip_url(clean_url):
                 links.append(clean_url)
@@ -409,7 +447,7 @@ class DeterministicScraper:
             if html is None:
                 return None
 
-            soup = BeautifulSoup(html, 'html.parser')
+            soup = BeautifulSoup(html, "html.parser")
 
             # Extract title (will be overridden by Readability if successful)
             title = ""
@@ -428,7 +466,11 @@ class DeterministicScraper:
             readability_used = False
 
             try:
-                from ingestion.content_extractor import extract_with_readability, is_readability_available
+                from ingestion.content_extractor import (
+                    extract_with_readability,
+                    is_readability_available,
+                )
+
                 if is_readability_available():
                     r_title, r_content, r_success = extract_with_readability(html, response_url)
                     if r_success and r_content:
@@ -445,7 +487,7 @@ class DeterministicScraper:
             # Fallback to manual extraction if Readability didn't work
             if not readability_used:
                 # Find main content area
-                main_soup = soup.find('main') or soup.find('article') or soup.find('body')
+                main_soup = soup.find("main") or soup.find("article") or soup.find("body")
                 if not main_soup:
                     main_soup = soup
 
@@ -455,28 +497,36 @@ class DeterministicScraper:
 
             # Extract metadata
             metadata = {}
-            meta_desc = soup.find('meta', attrs={'name': 'description'})
-            if meta_desc and meta_desc.get('content'):
-                metadata['description'] = meta_desc['content']
+            meta_desc = soup.find("meta", attrs={"name": "description"})
+            if meta_desc and meta_desc.get("content"):
+                metadata["description"] = meta_desc["content"]
 
-            og_image = soup.find('meta', attrs={'property': 'og:image'})
-            if og_image and og_image.get('content'):
-                metadata['og_image'] = og_image['content']
+            og_image = soup.find("meta", attrs={"property": "og:image"})
+            if og_image and og_image.get("content"):
+                metadata["og_image"] = og_image["content"]
 
             # Track extraction method used
             if readability_used:
-                metadata['extracted_by'] = 'readability'
+                metadata["extracted_by"] = "readability"
 
             # Check if content is too short - might need JavaScript rendering
             if not main_content or len(main_content) < 100:
-                logger.info(f"Content too short ({len(main_content) if main_content else 0} chars), trying Playwright for {url}")
+                logger.info(
+                    f"Content too short ({len(main_content) if main_content else 0} chars), trying Playwright for {url}"
+                )
                 try:
-                    from ingestion.playwright_scraper import get_playwright_scraper, is_playwright_available
+                    from ingestion.playwright_scraper import (
+                        get_playwright_scraper,
+                        is_playwright_available,
+                    )
+
                     if is_playwright_available():
                         playwright_scraper = get_playwright_scraper()
                         playwright_result = await playwright_scraper.scrape_page(url, creator_id)
                         if playwright_result and playwright_result.has_content:
-                            logger.info(f"Playwright fallback successful for {url}: {len(playwright_result.main_content)} chars")
+                            logger.info(
+                                f"Playwright fallback successful for {url}: {len(playwright_result.main_content)} chars"
+                            )
                             return playwright_result
                 except ImportError:
                     logger.debug("Playwright not available for fallback")
@@ -494,7 +544,7 @@ class DeterministicScraper:
                 main_content=main_content,
                 sections=sections,
                 links=links,
-                metadata=metadata
+                metadata=metadata,
             )
 
         except pybreaker.CircuitBreakerError:
@@ -522,10 +572,8 @@ class DeterministicScraper:
         Returns:
             Tuple of (html_content, final_url) or (None, None) if failed
         """
-        return await scraper_circuit_breaker.call_async(
-            self._fetch_page_html,
-            url
-        )
+        # Direct call — pybreaker.call_async has a bug ('gen' not defined)
+        return await self._fetch_page_html(url)
 
     async def _fetch_page_html(self, url: str) -> tuple:
         """
@@ -542,7 +590,7 @@ class DeterministicScraper:
             verify=VERIFY_SSL,  # Use global SSL config (BUG-004 FIX)
             headers={
                 "User-Agent": "Mozilla/5.0 (compatible; ClonnectBot/1.0; +https://clonnect.com)"
-            }
+            },
         ) as client:
             response = await client.get(url)
 
@@ -558,8 +606,8 @@ class DeterministicScraper:
                 logger.warning(f"Got status {response.status_code} for {url}")
                 return (None, url)
 
-            content_type = response.headers.get('content-type', '')
-            if 'text/html' not in content_type:
+            content_type = response.headers.get("content-type", "")
+            if "text/html" not in content_type:
                 return (None, url)
 
             return (response.text, str(response.url))
@@ -589,7 +637,9 @@ class DeterministicScraper:
             page = await self.scrape_page(current_url)
             if page and page.has_content:
                 pages.append(page)
-                logger.info(f"Scraped {current_url}: {len(page.main_content)} chars, {len(page.sections)} sections")
+                logger.info(
+                    f"Scraped {current_url}: {len(page.main_content)} chars, {len(page.sections)} sections"
+                )
 
                 # Add discovered links to queue (check robots.txt first)
                 robots_checker = get_robots_checker()
@@ -607,6 +657,7 @@ class DeterministicScraper:
 
 # Singleton
 _scraper: Optional[DeterministicScraper] = None
+
 
 def get_deterministic_scraper(max_pages: int = 100) -> DeterministicScraper:
     """Get or create scraper instance."""
