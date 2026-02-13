@@ -23,16 +23,17 @@ Usage:
         # Returns: "RELEVANT HISTORY:\n- User said: 'I have an online clothing store'"
 """
 
-import os
 import logging
-from typing import List, Dict, Any, Optional
-from datetime import datetime
+import os
+from typing import Any, Dict, List, Optional
 
 logger = logging.getLogger("clonnect.semantic_memory_pgvector")
 
 # Feature flag - separate from ENABLE_SEMANTIC_MEMORY (ChromaDB version)
 # Set to "true" to enable pgvector-based semantic memory
-ENABLE_SEMANTIC_MEMORY_PGVECTOR = os.getenv("ENABLE_SEMANTIC_MEMORY_PGVECTOR", "false").lower() == "true"
+ENABLE_SEMANTIC_MEMORY_PGVECTOR = (
+    os.getenv("ENABLE_SEMANTIC_MEMORY_PGVECTOR", "false").lower() == "true"
+)
 
 # Minimum message length to store (avoid storing greetings like "hola", "ok")
 MIN_MESSAGE_LENGTH = 20
@@ -64,12 +65,7 @@ class SemanticMemoryPgvector:
         self.creator_id = creator_id
         self.follower_id = follower_id
 
-    def add_message(
-        self,
-        role: str,
-        content: str,
-        metadata: Optional[Dict] = None
-    ) -> bool:
+    def add_message(self, role: str, content: str, metadata: Optional[Dict] = None) -> bool:
         """
         Add a message to semantic memory.
 
@@ -93,8 +89,8 @@ class SemanticMemoryPgvector:
             return False
 
         try:
-            from core.embeddings import generate_embedding
             from api.database import get_db_session
+            from core.embeddings import generate_embedding
             from sqlalchemy import text
 
             # Generate embedding
@@ -108,18 +104,23 @@ class SemanticMemoryPgvector:
 
             # Store in database
             with get_db_session() as db:
-                db.execute(text("""
+                db.execute(
+                    text(
+                        """
                     INSERT INTO conversation_embeddings
                     (creator_id, follower_id, message_role, content, embedding, msg_metadata)
-                    VALUES (:creator_id, :follower_id, :role, :content, :embedding::vector, :metadata)
-                """), {
-                    "creator_id": self.creator_id,
-                    "follower_id": self.follower_id,
-                    "role": role,
-                    "content": content,
-                    "embedding": embedding_str,
-                    "metadata": metadata or {}
-                })
+                    VALUES (:creator_id, :follower_id, :role, :content, CAST(:embedding AS vector), :metadata)
+                """
+                    ),
+                    {
+                        "creator_id": self.creator_id,
+                        "follower_id": self.follower_id,
+                        "role": role,
+                        "content": content,
+                        "embedding": embedding_str,
+                        "metadata": metadata or {},
+                    },
+                )
                 db.commit()
 
             logger.debug(f"Saved message to semantic memory: {content[:50]}...")
@@ -130,10 +131,7 @@ class SemanticMemoryPgvector:
             return False
 
     def search(
-        self,
-        query: str,
-        k: int = 5,
-        min_similarity: float = DEFAULT_MIN_SIMILARITY
+        self, query: str, k: int = 5, min_similarity: float = DEFAULT_MIN_SIMILARITY
     ) -> List[Dict[str, Any]]:
         """
         Search for relevant messages in conversation history.
@@ -153,8 +151,8 @@ class SemanticMemoryPgvector:
             return []
 
         try:
-            from core.embeddings import generate_embedding
             from api.database import get_db_session
+            from core.embeddings import generate_embedding
             from sqlalchemy import text
 
             # Generate embedding for query
@@ -169,36 +167,43 @@ class SemanticMemoryPgvector:
             with get_db_session() as db:
                 # Search using cosine similarity
                 # cosine_distance = 1 - cosine_similarity, so similarity = 1 - distance
-                results = db.execute(text("""
+                results = db.execute(
+                    text(
+                        """
                     SELECT
                         content,
                         message_role,
                         msg_metadata,
                         created_at,
-                        1 - (embedding <=> :query::vector) as similarity
+                        1 - (embedding <=> CAST(:query AS vector)) as similarity
                     FROM conversation_embeddings
                     WHERE creator_id = :creator_id
                       AND follower_id = :follower_id
-                      AND 1 - (embedding <=> :query::vector) >= :min_sim
-                    ORDER BY embedding <=> :query::vector
+                      AND 1 - (embedding <=> CAST(:query AS vector)) >= :min_sim
+                    ORDER BY embedding <=> CAST(:query AS vector)
                     LIMIT :k
-                """), {
-                    "query": embedding_str,
-                    "creator_id": self.creator_id,
-                    "follower_id": self.follower_id,
-                    "min_sim": min_similarity,
-                    "k": k
-                })
+                """
+                    ),
+                    {
+                        "query": embedding_str,
+                        "creator_id": self.creator_id,
+                        "follower_id": self.follower_id,
+                        "min_sim": min_similarity,
+                        "k": k,
+                    },
+                )
 
                 matches = []
                 for row in results:
-                    matches.append({
-                        "content": row.content,
-                        "role": row.message_role,
-                        "similarity": round(float(row.similarity), 3),
-                        "created_at": row.created_at.isoformat() if row.created_at else None,
-                        "metadata": row.msg_metadata or {}
-                    })
+                    matches.append(
+                        {
+                            "content": row.content,
+                            "role": row.message_role,
+                            "similarity": round(float(row.similarity), 3),
+                            "created_at": row.created_at.isoformat() if row.created_at else None,
+                            "metadata": row.msg_metadata or {},
+                        }
+                    )
 
                 return matches
 
@@ -210,7 +215,7 @@ class SemanticMemoryPgvector:
         self,
         current_message: str,
         recent_messages: Optional[List[Dict]] = None,
-        max_context_chars: int = 2000
+        max_context_chars: int = 2000,
     ) -> str:
         """
         Generate enriched context for LLM response.
@@ -245,8 +250,7 @@ class SemanticMemoryPgvector:
                         recent_contents.add(content[:100])  # First 100 chars for comparison
 
             unique_history = [
-                h for h in relevant_history
-                if h["content"][:100] not in recent_contents
+                h for h in relevant_history if h["content"][:100] not in recent_contents
             ]
 
             if not unique_history:
@@ -262,7 +266,7 @@ class SemanticMemoryPgvector:
                 if len(h["content"]) > 300:
                     content_preview += "..."
 
-                line = f"- {role_label} dijo: \"{content_preview}\""
+                line = f'- {role_label} dijo: "{content_preview}"'
 
                 if chars_used + len(line) > max_context_chars:
                     break
@@ -295,7 +299,9 @@ class SemanticMemoryPgvector:
 
             with get_db_session() as db:
                 # Get message stats
-                result = db.execute(text("""
+                result = db.execute(
+                    text(
+                        """
                     SELECT
                         COUNT(*) as total,
                         MIN(created_at) as first_contact,
@@ -304,17 +310,19 @@ class SemanticMemoryPgvector:
                     WHERE creator_id = :creator_id
                       AND follower_id = :follower_id
                       AND message_role = 'user'
-                """), {
-                    "creator_id": self.creator_id,
-                    "follower_id": self.follower_id
-                })
+                """
+                    ),
+                    {"creator_id": self.creator_id, "follower_id": self.follower_id},
+                )
 
                 row = result.fetchone()
                 if not row or not row.total:
                     return {"total_messages": 0}
 
                 # Get sample messages for topics
-                samples = db.execute(text("""
+                samples = db.execute(
+                    text(
+                        """
                     SELECT content
                     FROM conversation_embeddings
                     WHERE creator_id = :creator_id
@@ -322,10 +330,10 @@ class SemanticMemoryPgvector:
                       AND message_role = 'user'
                     ORDER BY created_at DESC
                     LIMIT 5
-                """), {
-                    "creator_id": self.creator_id,
-                    "follower_id": self.follower_id
-                })
+                """
+                    ),
+                    {"creator_id": self.creator_id, "follower_id": self.follower_id},
+                )
 
                 sample_topics = [r.content[:100] for r in samples]
 
@@ -333,7 +341,7 @@ class SemanticMemoryPgvector:
                     "total_messages": row.total,
                     "first_contact": row.first_contact.isoformat() if row.first_contact else None,
                     "last_contact": row.last_contact.isoformat() if row.last_contact else None,
-                    "sample_topics": sample_topics
+                    "sample_topics": sample_topics,
                 }
 
         except Exception as e:
@@ -380,6 +388,7 @@ def clear_memory_cache():
 # Utility Functions
 # =============================================================================
 
+
 def get_memory_stats(creator_id: Optional[str] = None) -> Dict[str, Any]:
     """
     Get statistics about stored conversation embeddings.
@@ -399,30 +408,35 @@ def get_memory_stats(creator_id: Optional[str] = None) -> Dict[str, Any]:
 
         with get_db_session() as db:
             if creator_id:
-                result = db.execute(text("""
+                result = db.execute(
+                    text(
+                        """
                     SELECT
                         COUNT(*) as total,
                         COUNT(DISTINCT follower_id) as followers
                     FROM conversation_embeddings
                     WHERE creator_id = :creator_id
-                """), {"creator_id": creator_id})
+                """
+                    ),
+                    {"creator_id": creator_id},
+                )
             else:
-                result = db.execute(text("""
+                result = db.execute(
+                    text(
+                        """
                     SELECT
                         COUNT(*) as total,
                         COUNT(DISTINCT creator_id) as creators,
                         COUNT(DISTINCT follower_id) as followers
                     FROM conversation_embeddings
-                """))
+                """
+                    )
+                )
 
             row = result.fetchone()
             if row:
-                stats = {
-                    "enabled": True,
-                    "total_embeddings": row.total,
-                    "followers": row.followers
-                }
-                if not creator_id and hasattr(row, 'creators'):
+                stats = {"enabled": True, "total_embeddings": row.total, "followers": row.followers}
+                if not creator_id and hasattr(row, "creators"):
                     stats["creators"] = row.creators
                 return stats
 
