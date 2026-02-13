@@ -71,167 +71,54 @@ class ToneProfile:
         """
         Genera la seccion del system prompt que define el tono.
         Se inyecta en cada llamada al LLM.
-        IMPORTANTE: Este prompt tiene MAXIMA PRIORIDAD.
+        Compact format to minimize prompt tokens — emojis/length handled elsewhere.
         """
         prompt_parts = []
 
-        # CRITICAL: Strong header to ensure LLM follows
-        prompt_parts.append("\n🚨🚨🚨 REGLAS OBLIGATORIAS DEL CREADOR (MÁXIMA PRIORIDAD) 🚨🚨🚨")
-        prompt_parts.append(
-            "DEBES imitar EXACTAMENTE este estilo. NO suenes como un bot corporativo."
-        )
-
-        # REGLA DE IDIOMA - Basado en primary_language
+        # Language rule
         language_name = {
-            "es": "ESPAÑOL",
-            "en": "INGLÉS",
-            "pt": "PORTUGUÉS",
-            "fr": "FRANCÉS",
-            "de": "ALEMÁN",
-            "it": "ITALIANO",
+            "es": "ESPAÑOL", "en": "INGLÉS", "pt": "PORTUGUÉS",
+            "fr": "FRANCÉS", "de": "ALEMÁN", "it": "ITALIANO",
         }.get(self.primary_language, "ESPAÑOL")
 
-        prompt_parts.append(f"\n📌 REGLA 1 - IDIOMA (OBLIGATORIO):")
-        prompt_parts.append(f"SIEMPRE responde en {language_name}. NUNCA cambies de idioma.")
-        prompt_parts.append(
-            f"Aunque el usuario escriba en otro idioma, TÚ respondes en {language_name}."
-        )
+        prompt_parts.append(f"\n=== TONO CREADOR ===")
+        prompt_parts.append(f"IDIOMA: Responde SIEMPRE en {language_name}.")
 
-        # REGLA DE TUTEO/VOSEO/USTED - Basado en formality y dialect
-        prompt_parts.append(f"\n📌 REGLA 2 - FORMALIDAD Y DIALECTO (OBLIGATORIO):")
-
-        # Primero verificar si usa VOSEO (rioplatense/argentino)
+        # Dialect/formality — compact voseo rules
         if self.dialect == "rioplatense":
             prompt_parts.append(
-                "🇦🇷 SIEMPRE debes usar VOSEO ARGENTINO. Esta regla es INNEGOCIABLE."
+                "VOSEO OBLIGATORIO: vos/tenés/podés/querés/contame/escribime/agendá. "
+                "PROHIBIDO: tú/tienes/puedes/quieres/cuéntame/escríbeme/usted."
             )
-            prompt_parts.append(
-                "✅ OBLIGATORIO: vos, te, tenés, podés, querés, sentís, dejás, sabés, sos"
-            )
-            prompt_parts.append(
-                "✅ IMPERATIVOS: contame, escribime, agendá, mirá, pensá, decime, fijate"
-            )
-            prompt_parts.append(
-                "❌ PROHIBIDO TUTEO ESPAÑOL: tú, tienes, puedes, quieres, sientes, dejas, sabes, eres"
-            )
-            prompt_parts.append(
-                "❌ PROHIBIDO IMPERATIVOS ESPAÑOLES: cuéntame, escríbeme, agenda, mira, piensa, dime, fíjate"
-            )
-            prompt_parts.append("❌ PROHIBIDO: usted, le, su")
-            prompt_parts.append("Ejemplos de VOSEO correcto:")
-            prompt_parts.append('- ❌ "¿Tú tienes dudas?" → ✅ "¿Vos tenés dudas?"')
-            prompt_parts.append('- ❌ "¿Quieres saber más?" → ✅ "¿Querés saber más?"')
-            prompt_parts.append('- ❌ "Cuéntame qué te interesa" → ✅ "Contame qué te interesa"')
-            prompt_parts.append('- ❌ "Escríbeme por privado" → ✅ "Escribime por privado"')
-            prompt_parts.append('- ❌ "¿Puedes?" → ✅ "¿Podés?"')
         elif self.formality in ["muy_informal", "informal"]:
-            prompt_parts.append("SIEMPRE debes TUTEAR al usuario. Esta regla es INNEGOCIABLE.")
-            prompt_parts.append(
-                "✅ OBLIGATORIO: tú, te, ti, tu, tus, contigo, quieres, tienes, puedes"
-            )
-            prompt_parts.append(
-                "❌ PROHIBIDO: usted, le, su, sus, consigo, quiere, tiene, puede, desea, podría"
-            )
-            prompt_parts.append("Ejemplos:")
-            prompt_parts.append('- ❌ "¿Le gustaría saber más?" → ✅ "¿Te gustaría saber más?"')
-            prompt_parts.append('- ❌ "¿En qué puedo ayudarle?" → ✅ "¿En qué puedo ayudarte?"')
+            prompt_parts.append("TUTEO: tú/te/ti/quieres/tienes. PROHIBIDO: usted/le/su.")
         elif self.formality in ["formal", "muy_formal"]:
-            prompt_parts.append("SIEMPRE debes usar USTED. Esta regla es INNEGOCIABLE.")
-            prompt_parts.append("✅ OBLIGATORIO: usted, le, su, sus, consigo, quiere, tiene, puede")
-            prompt_parts.append(
-                "❌ PROHIBIDO: tú, te, ti, tu, tus, contigo, quieres, tienes, puedes"
-            )
-            prompt_parts.append("Ejemplos:")
-            prompt_parts.append('- ❌ "¿Te gustaría saber más?" → ✅ "¿Le gustaría saber más?"')
-            prompt_parts.append('- ❌ "¿En qué puedo ayudarte?" → ✅ "¿En qué puedo ayudarle?"')
-        else:  # neutral
-            prompt_parts.append("Tutea de forma natural y cercana, pero con respeto.")
-            prompt_parts.append("✅ USA: tú, te, ti (informal pero educado)")
-            prompt_parts.append("❌ EVITA: sonar demasiado formal o corporativo")
-
-        prompt_parts.append("\n🚨🚨🚨 FIN REGLAS OBLIGATORIAS 🚨🚨🚨")
-
-        # Energia y calidez
-        if self.energy in ["alta", "muy_alta"]:
-            prompt_parts.append("- Sé ENERGICO y entusiasta. Transmite pasion.")
-        if self.warmth in ["calido", "muy_calido"]:
-            prompt_parts.append("- Sé CALIDO y cercano. Como hablando con un amigo.")
-
-        # Frases caracteristicas - MUY IMPORTANTE
-        if self.signature_phrases:
-            prompt_parts.append("\n📌 FRASES QUE DEBES USAR (son tu marca personal):")
-            for phrase in self.signature_phrases[:8]:
-                prompt_parts.append(f'   "{phrase}"')
-            prompt_parts.append("   Integra estas frases de forma NATURAL en tus respuestas.")
-
-        # Saludos - directos
-        if self.common_greetings:
-            prompt_parts.append(f"\n👋 SALUDA ASI: {', '.join(self.common_greetings[:3])}")
-
-        # Despedidas
-        if self.common_closings:
-            prompt_parts.append(f"👋 DESPIDETE ASI: {', '.join(self.common_closings[:3])}")
-
-        # Muletillas - muy importante para sonar natural
-        if self.filler_words:
-            prompt_parts.append(f"\n💬 USA ESTAS MULETILLAS: {', '.join(self.filler_words[:8])}")
-            prompt_parts.append("   (ej: 'mira, lo que te digo es...', 'bueno, pues...')")
-
-        # Emojis - CRITICO
-        prompt_parts.append("\n😀 EMOJIS:")
-        if self.uses_emojis and self.favorite_emojis:
-            freq_text = {
-                "muy_alta": "USA MUCHOS (2-3 por mensaje)",
-                "alta": "USA FRECUENTEMENTE (1-2 por mensaje)",
-                "media": "USA MODERADAMENTE (1 por mensaje)",
-                "baja": "USA POCOS (ocasionalmente)",
-                "ninguna": "NO USES emojis",
-            }.get(self.emoji_frequency, "USA MODERADAMENTE")
-            prompt_parts.append(f"   {freq_text}")
-            prompt_parts.append(f"   Emojis favoritos: {' '.join(self.favorite_emojis[:8])}")
+            prompt_parts.append("USTED: usted/le/su. PROHIBIDO: tú/te/ti.")
         else:
-            prompt_parts.append("   NO USES emojis o muy raramente")
+            prompt_parts.append("Tutea natural y cercano.")
 
-        # Formato
-        if self.average_message_length in ["corta", "muy_corta"]:
-            prompt_parts.append("\n📝 MENSAJES CORTOS: 1-2 lineas maximo. Directo al grano.")
-        elif self.average_message_length in ["larga", "muy_larga"]:
-            prompt_parts.append("\n📝 PUEDES extenderte si es necesario explicar algo.")
-
-        if self.uses_caps_emphasis:
-            prompt_parts.append("   USA MAYUSCULAS para ENFATIZAR palabras importantes")
-
-        # Comportamiento
-        if self.asks_questions:
-            prompt_parts.append(
-                "\n❓ PREGUNTA al usuario para conocerle mejor y mantener la conversacion."
-            )
+        # Energy and warmth in one line
+        traits = []
+        if self.energy in ["alta", "muy_alta"]:
+            traits.append("energético")
+        if self.warmth in ["calido", "muy_calido"]:
+            traits.append("cálido")
         if self.uses_humor:
-            prompt_parts.append("😄 USA HUMOR de forma natural cuando sea apropiado.")
+            traits.append("con humor")
+        if self.asks_questions:
+            traits.append("pregunta para conocer al usuario")
+        if traits:
+            prompt_parts.append(f"TONO: {', '.join(traits)}.")
 
-        # Expresiones regionales
+        # Filler words (unique to this section)
+        if self.filler_words:
+            prompt_parts.append(f"MULETILLAS: {', '.join(self.filler_words[:6])}")
+
+        # Regional expressions
         if self.regional_expressions:
-            prompt_parts.append(
-                f"\n🌍 EXPRESIONES LOCALES: {', '.join(self.regional_expressions[:5])}"
-            )
+            prompt_parts.append(f"EXPRESIONES: {', '.join(self.regional_expressions[:4])}")
 
-        # RECORDATORIO FINAL FUERTE para voseo
-        if self.dialect == "rioplatense":
-            prompt_parts.append("\n" + "=" * 50)
-            prompt_parts.append("🚨 RECORDATORIO FINAL - VOSEO OBLIGATORIO 🚨")
-            prompt_parts.append("ANTES de enviar tu respuesta, REVISA que:")
-            prompt_parts.append("- NO uses 'tú' → USA 'vos'")
-            prompt_parts.append("- NO uses 'tienes' → USA 'tenés'")
-            prompt_parts.append("- NO uses 'puedes' → USA 'podés'")
-            prompt_parts.append("- NO uses 'quieres' → USA 'querés'")
-            prompt_parts.append("- NO uses 'cuéntame' → USA 'contame'")
-            prompt_parts.append("- NO uses 'escríbeme' → USA 'escribime'")
-            prompt_parts.append(
-                "Si escribiste alguna de las palabras PROHIBIDAS, CORRÍGELAS ahora."
-            )
-            prompt_parts.append("=" * 50)
-
-        prompt_parts.append("\n=== FIN ESTILO CREADOR ===\n")
+        prompt_parts.append("=== FIN TONO ===\n")
 
         return "\n".join(prompt_parts)
 

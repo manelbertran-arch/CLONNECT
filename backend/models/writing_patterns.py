@@ -198,48 +198,18 @@ def format_writing_patterns_for_prompt(creator_id: str) -> str:
     if not patterns:
         return ""
 
+    # Compact format — essential patterns only (reduces prompt tokens)
+    top_responses = '", "'.join(patterns.common_responses[:5])
+    top_emojis = ' '.join(patterns.top_emojis[:6])
     lines = [
         "",
-        "=== PATRONES DE ESCRITURA (análisis de tus mensajes reales) ===",
+        "=== PATRONES DE ESCRITURA ===",
+        f"PUNTUACIÓN: NO termines con punto (suena frío). Usa ! o emoji. Risa: \"{patterns.preferred_laugh}\"",
+        f"EMOJIS: {top_emojis} (pon al FINAL del mensaje)",
+        f"ABREVIACIONES: \"q\" en lugar de \"que\"",
+        f'RESPUESTAS FRECUENTES: "{top_responses}"',
+        "=== FIN PATRONES ===",
         "",
-        "CAPITALIZACIÓN:",
-        f"  • {int(patterns.starts_upper_pct*100)}% empiezas con mayúscula",
-        f"  • {int(patterns.all_caps_pct*100)}% en MAYÚSCULAS (muy poco)",
-        "",
-        "PUNTUACIÓN (IMPORTANTE):",
-        f"  • {int(patterns.ends_exclamation_pct*100)}% termina con '!' (tu favorito)",
-        f"  • {int(patterns.ends_question_pct*100)}% termina con '?'",
-        f"  • {int(patterns.ends_period_pct*100)}% termina con '.' (CASI NUNCA usas punto)",
-        f"  • {int(patterns.double_exclamation_pct*100)}% usa '!!' (entusiasmo)",
-        f"  • {int(patterns.double_question_pct*100)}% usa '??' (curiosidad)",
-        "  → NO termines con punto (suena frío). Usa ! o emoji",
-        "",
-        "RISAS:",
-        f"  • Usas risa en ~{int(patterns.laugh_frequency_pct*100)}% de mensajes",
-        f'  • Tu risa favorita: "{patterns.preferred_laugh}" (no "jajajaja" largo)',
-        "  • Si algo es gracioso: 'Jaja' o 'Jajaja' (máx 3 'ja')",
-        "",
-        "EMOJIS:",
-        f"  • Usas emoji en {int(patterns.emoji_frequency_pct*100)}% de mensajes",
-        f"  • {int(patterns.emoji_at_end_pct*100)}% van al FINAL del mensaje",
-        f"  • Favoritos: {' '.join(patterns.top_emojis[:6])}",
-        "  → Pon el emoji al final, no al inicio ni en medio",
-        "",
-        "RESPUESTAS FRECUENTES (úsalas tal cual):",
     ]
-
-    for resp in patterns.common_responses[:10]:
-        lines.append(f'  • "{resp}"')
-
-    lines.extend(
-        [
-            "",
-            "ABREVIACIONES QUE USAS:",
-            '  • "q" en lugar de "que" (89 veces en tus DMs)',
-            "",
-            "=== FIN PATRONES ESCRITURA ===",
-            "",
-        ]
-    )
 
     return "\n".join(lines)
