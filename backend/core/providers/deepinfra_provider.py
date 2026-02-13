@@ -40,7 +40,10 @@ async def _call_provider(
             }
             if lora_adapter:
                 payload["lora_adapter"] = lora_adapter
-            async with httpx.AsyncClient(timeout=30.0) as client:
+            if os.getenv("DEEPINFRA_INCLUDE_REASONING", "").lower() == "false":
+                payload["include_reasoning"] = False
+            _timeout = float(os.getenv("DEEPINFRA_TIMEOUT", "30"))
+            async with httpx.AsyncClient(timeout=_timeout) as client:
                 resp = await client.post(
                     url,
                     headers={"Authorization": f"Bearer {api_key}"},
@@ -59,7 +62,11 @@ async def _call_provider(
 
                 resp.raise_for_status()
                 data = resp.json()
-                content = data["choices"][0]["message"]["content"].strip()
+                msg = data["choices"][0]["message"]
+                content = (msg.get("content") or "").strip()
+                # Reasoning models may put output in reasoning_content
+                if not content and msg.get("reasoning_content"):
+                    content = msg["reasoning_content"].strip()
 
                 usage = data.get("usage", {})
                 lora_tag = f" lora={lora_adapter}" if lora_adapter else ""
@@ -103,7 +110,7 @@ async def generate_response_deepinfra(
         return None
 
     model = os.getenv("SCOUT_MODEL", SCOUT_MODEL_DEEPINFRA)
-    lora_adapter = os.getenv("SCOUT_LORA_ADAPTER")
+    lora_adapter = (os.getenv("SCOUT_LORA_ADAPTER") or "").strip() or None
     if lora_adapter:
         logger.info("DeepInfra using LoRA adapter: %s", lora_adapter)
     return await _call_provider(
@@ -150,6 +157,10 @@ async def generate_scout_production(
     result = await generate_response_deepinfra(messages, max_tokens, temperature)
     if result:
         return result
+
+    if os.getenv("DEEPINFRA_NO_FALLBACK", "").lower() == "true":
+        logger.warning("DeepInfra failed, fallback disabled (DEEPINFRA_NO_FALLBACK=true)")
+        return None
 
     logger.warning("DeepInfra failed, falling back to Groq")
     return await generate_response_groq(messages, max_tokens, temperature)
