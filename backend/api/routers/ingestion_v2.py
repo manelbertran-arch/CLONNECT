@@ -371,11 +371,47 @@ async def ingest_instagram_v2_endpoint(request: InstagramV2Request):
     try:
         from ingestion.v2.instagram_ingestion import ingest_instagram_v2
 
+        # Auto-lookup creator's IG OAuth credentials from DB
+        access_token = None
+        instagram_business_id = None
+        try:
+            from api.database import get_db_session
+            from api.models import Creator
+            from sqlalchemy import or_
+
+            with get_db_session() as db:
+                creator = (
+                    db.query(Creator)
+                    .filter(
+                        or_(
+                            Creator.name == request.creator_id,
+                            (
+                                Creator.id == request.creator_id
+                                if len(request.creator_id) > 20
+                                else False
+                            ),
+                        )
+                    )
+                    .first()
+                )
+                if creator and creator.instagram_token:
+                    access_token = creator.instagram_token
+                    instagram_business_id = creator.instagram_page_id
+                    logger.info(f"Found IG OAuth credentials for {request.creator_id}")
+                else:
+                    logger.info(
+                        f"No IG OAuth credentials for {request.creator_id}, " "will use Instaloader"
+                    )
+        except Exception as e:
+            logger.warning(f"Could not lookup IG credentials: {e}")
+
         result = await ingest_instagram_v2(
             creator_id=request.creator_id,
             instagram_username=request.instagram_username,
             max_posts=request.max_posts,
             clean_before=request.clean_before,
+            access_token=access_token,
+            instagram_business_id=instagram_business_id,
         )
 
         return InstagramV2Response(
