@@ -181,15 +181,15 @@ def store_embedding(chunk_id: str, creator_id: str, content: str, embedding: Lis
                 validated_floats.append(f)
             embedding_str = "[" + ",".join(str(x) for x in validated_floats) + "]"
 
-            # Upsert embedding - pass vector as a parameter and cast in SQL
-            # The embedding_str is safe because it only contains validated float values
+            # Upsert embedding - use CAST() instead of ::vector to avoid
+            # SQLAlchemy interpreting :: as a bind parameter delimiter
             db.execute(
                 text(
                     """
                 INSERT INTO content_embeddings (chunk_id, creator_id, content_preview, embedding)
-                VALUES (:chunk_id, :creator_id, :content_preview, :embedding::vector)
+                VALUES (:chunk_id, :creator_id, :content_preview, CAST(:embedding AS vector))
                 ON CONFLICT (chunk_id) DO UPDATE SET
-                    embedding = :embedding::vector,
+                    embedding = CAST(:embedding AS vector),
                     updated_at = NOW()
             """
                 ),
@@ -244,6 +244,7 @@ def search_similar(
 
             # Use pgvector's <=> operator for cosine distance
             # Cosine similarity = 1 - cosine distance
+            # Use CAST() instead of ::vector to avoid SQLAlchemy bind param conflict
             results = db.execute(
                 text(
                     """
@@ -253,12 +254,12 @@ def search_similar(
                     c.source_url,
                     c.title,
                     c.source_type,
-                    1 - (e.embedding <=> :query::vector) as similarity
+                    1 - (e.embedding <=> CAST(:query AS vector)) as similarity
                 FROM content_embeddings e
                 JOIN content_chunks c ON e.chunk_id = c.chunk_id
                 WHERE e.creator_id = :creator_id
-                    AND 1 - (e.embedding <=> :query::vector) >= :min_sim
-                ORDER BY e.embedding <=> :query::vector
+                    AND 1 - (e.embedding <=> CAST(:query AS vector)) >= :min_sim
+                ORDER BY e.embedding <=> CAST(:query AS vector)
                 LIMIT :top_k
             """
                 ),
