@@ -603,6 +603,7 @@ class DMResponderAgentV2:
             intent = self.intent_classifier.classify(message)
             intent_value = intent.value if hasattr(intent, "value") else str(intent)
             logger.debug(f"Intent classified: {intent_value}")
+            _t1a = time.monotonic()
 
             # Step 2b: Analyze bot's last question for short affirmation context
             if ENABLE_QUESTION_CONTEXT and is_short_affirmation(message):
@@ -632,6 +633,9 @@ class DMResponderAgentV2:
                 username=metadata.get("username", sender_id),
             )
 
+            _t1b = time.monotonic()
+            logger.info(f"[TIMING] Phase 2 sub: intent={int((_t1a - _t1) * 1000)}ms memory={int((_t1b - _t1a) * 1000)}ms")
+
             # =================================================================
             # PHASE 3: RAG RETRIEVAL WITH RERANKING
             # =================================================================
@@ -657,6 +661,8 @@ class DMResponderAgentV2:
                     logger.debug(f"Reranking failed: {e}")
 
             rag_context = self._format_rag_context(rag_results)
+            _t1c = time.monotonic()
+            logger.info(f"[TIMING] Phase 3 sub: RAG={int((_t1c - _t1b) * 1000)}ms")
 
             # Step 3a: Detect relationship type (personalization)
             if ENABLE_RELATIONSHIP_DETECTION:
@@ -743,6 +749,8 @@ class DMResponderAgentV2:
 
             # Get conversation history from follower memory
             history = self._get_history_from_follower(follower)
+            _t1d = time.monotonic()
+            logger.info(f"[TIMING] Phase 3 sub: context+prompt={int((_t1d - _t1c) * 1000)}ms")
 
             user_context = self.prompt_builder.build_user_context(
                 username=follower.username or sender_id,
