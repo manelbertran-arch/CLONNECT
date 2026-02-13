@@ -16,6 +16,30 @@ GROQ_API_URL = "https://api.groq.com/openai/v1/chat/completions"
 SCOUT_MODEL_DEEPINFRA = "meta-llama/Llama-4-Scout-17B-16E-Instruct"
 SCOUT_MODEL_GROQ = "meta-llama/llama-4-scout-17b-16e-instruct"
 
+# Persistent HTTP clients — reuse TCP/TLS connections across requests
+_deepinfra_client: Optional[httpx.AsyncClient] = None
+_groq_client: Optional[httpx.AsyncClient] = None
+
+
+def _get_client(provider: str) -> httpx.AsyncClient:
+    """Get or create a persistent HTTP client for the given provider."""
+    global _deepinfra_client, _groq_client
+    _timeout = float(os.getenv("DEEPINFRA_TIMEOUT", "30"))
+    limits = httpx.Limits(max_connections=10, max_keepalive_connections=5)
+
+    if provider == "deepinfra":
+        if _deepinfra_client is None or _deepinfra_client.is_closed:
+            _deepinfra_client = httpx.AsyncClient(
+                timeout=_timeout, limits=limits,
+            )
+        return _deepinfra_client
+    else:
+        if _groq_client is None or _groq_client.is_closed:
+            _groq_client = httpx.AsyncClient(
+                timeout=_timeout, limits=limits,
+            )
+        return _groq_client
+
 
 async def _call_provider(
     url: str,
@@ -42,42 +66,46 @@ async def _call_provider(
                 payload["lora_adapter"] = lora_adapter
             if os.getenv("DEEPINFRA_INCLUDE_REASONING", "").lower() == "false":
                 payload["include_reasoning"] = False
-            _timeout = float(os.getenv("DEEPINFRA_TIMEOUT", "30"))
-            async with httpx.AsyncClient(timeout=_timeout) as client:
-                resp = await client.post(
-                    url,
-                    headers={"Authorization": f"Bearer {api_key}"},
-                    json=payload,
+
+            client = _get_client(provider_name.lower())
+            resp = await client.post(
+                url,
+                headers={"Authorization": f"Bearer {api_key}"},
+                json=payload,
+            )
+            latency_ms = int((time.monotonic() - start) * 1000)
+
+            if resp.status_code == 429:
+                wait = 2 ** attempt + 1
+                logger.warning(
+                    "%s rate limited, waiting %ds (attempt %d/%d)",
+                    provider_name, wait, attempt + 1, max_retries,
                 )
-                latency_ms = int((time.monotonic() - start) * 1000)
+                await asyncio.sleep(wait)
+                continue
 
-                if resp.status_code == 429:
-                    wait = 2 ** attempt + 1
-                    logger.warning(
-                        "%s rate limited, waiting %ds (attempt %d/%d)",
-                        provider_name, wait, attempt + 1, max_retries,
-                    )
-                    await asyncio.sleep(wait)
-                    continue
+            resp.raise_for_status()
+            data = resp.json()
+            msg = data["choices"][0]["message"]
+            content = (msg.get("content") or "").strip()
+            # Reasoning models may put output in reasoning_content
+            if not content and msg.get("reasoning_content"):
+                content = msg["reasoning_content"].strip()
 
-                resp.raise_for_status()
-                data = resp.json()
-                msg = data["choices"][0]["message"]
-                content = (msg.get("content") or "").strip()
-                # Reasoning models may put output in reasoning_content
-                if not content and msg.get("reasoning_content"):
-                    content = msg["reasoning_content"].strip()
-
-                usage = data.get("usage", {})
-                lora_tag = f" lora={lora_adapter}" if lora_adapter else ""
-                logger.info(
-                    "%s OK: model=%s%s latency=%dms tokens_in=%d tokens_out=%d len=%d",
-                    provider_name, model, lora_tag, latency_ms,
-                    usage.get("prompt_tokens", 0),
-                    usage.get("completion_tokens", 0),
-                    len(content),
-                )
-                return content
+            usage = data.get("usage", {})
+            lora_tag = f" lora={lora_adapter}" if lora_adapter else ""
+            # Log with prompt cache info if available
+            cached_tokens = usage.get("prompt_cache_hit_tokens", 0)
+            cache_tag = f" cached={cached_tokens}" if cached_tokens else ""
+            logger.info(
+                "%s OK: model=%s%s latency=%dms tokens_in=%d tokens_out=%d%s len=%d",
+                provider_name, model, lora_tag, latency_ms,
+                usage.get("prompt_tokens", 0),
+                usage.get("completion_tokens", 0),
+                cache_tag,
+                len(content),
+            )
+            return content
 
         except httpx.TimeoutException:
             logger.warning(
