@@ -105,25 +105,34 @@ async def build_context_prompt(
     except Exception as e:
         logger.error(f"Error getting writing patterns: {e}")
 
-    # 2. Get RelationshipDNA (per-lead personalization)
+    # 2+3. Parallel DB calls for RelationshipDNA + PostContext (non-blocking)
+    import asyncio
+
+    dna = None
+    post_ctx = None
     try:
-        dna = get_relationship_dna(creator_id, lead_id)
-        if dna:
+        dna, post_ctx = await asyncio.gather(
+            asyncio.to_thread(get_relationship_dna, creator_id, lead_id),
+            asyncio.to_thread(get_post_context, creator_id),
+        )
+    except Exception as e:
+        logger.error(f"Error in parallel DB lookups: {e}")
+
+    if dna:
+        try:
             dna_section = _format_dna_for_prompt(dna)
             if dna_section:
                 sections.append(dna_section)
-    except Exception as e:
-        logger.error(f"Error formatting DNA: {e}")
+        except Exception as e:
+            logger.error(f"Error formatting DNA: {e}")
 
-    # 3. Get PostContext (temporal context from posts)
-    try:
-        post_ctx = get_post_context(creator_id)
-        if post_ctx:
+    if post_ctx:
+        try:
             post_section = _format_post_context_for_prompt(post_ctx)
             if post_section:
                 sections.append(post_section)
-    except Exception as e:
-        logger.error(f"Error formatting post context: {e}")
+        except Exception as e:
+            logger.error(f"Error formatting post context: {e}")
 
     if not sections:
         return "Sin contexto especial disponible."
