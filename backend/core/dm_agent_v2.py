@@ -21,6 +21,7 @@ Architecture: Orchestrator Pattern
 
 import logging
 import os
+import time
 from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Any, Dict, List, Optional
@@ -487,6 +488,7 @@ class DMResponderAgentV2:
         """
         metadata = metadata or {}
         cognitive_metadata = {}  # Track cognitive system outputs
+        _t0 = time.monotonic()  # Pipeline timing
 
         try:
             # =================================================================
@@ -594,6 +596,8 @@ class DMResponderAgentV2:
             # =================================================================
             # PHASE 2: MEMORY & CONTEXT LOADING
             # =================================================================
+            _t1 = time.monotonic()
+            logger.info(f"[TIMING] Phase 1 (detection): {int((_t1 - _t0) * 1000)}ms")
 
             # Step 2: Classify intent
             intent = self.intent_classifier.classify(message)
@@ -749,6 +753,8 @@ class DMResponderAgentV2:
             # =================================================================
             # PHASE 4: LLM GENERATION
             # =================================================================
+            _t2 = time.monotonic()
+            logger.info(f"[TIMING] Phase 2-3 (context+RAG+prompt): {int((_t2 - _t1) * 1000)}ms")
 
             # Step 6: Inject frustration context if detected
             if frustration_level > 0.5:
@@ -760,6 +766,9 @@ class DMResponderAgentV2:
                 )
             else:
                 full_prompt = f"{user_context}\n\nMensaje actual: {message}"
+
+            # Log prompt size for latency diagnosis
+            logger.info(f"[TIMING] System prompt: {len(system_prompt)} chars (~{len(system_prompt) // 4} tokens)")
 
             # Model priority: Scout (DeepInfra) → Fine-tuned (Together) → Primary LLM (OpenAI)
             specialist_content = None
@@ -795,6 +804,8 @@ class DMResponderAgentV2:
                 except Exception as e:
                     logger.debug(f"Fine-tuned model failed: {e}")
 
+            _t3 = time.monotonic()
+            logger.info(f"[TIMING] LLM call: {int((_t3 - _t2) * 1000)}ms")
             if specialist_content:
                 logger.info(f"Using {specialist_model} (len={len(specialist_content)})")
                 llm_response = LLMResponse(
@@ -918,6 +929,8 @@ class DMResponderAgentV2:
 
             # Step 7c: Format response for Instagram
             formatted_content = self.instagram_service.format_message(response_content)
+            _t4 = time.monotonic()
+            logger.info(f"[TIMING] Phase 5 (post-processing): {int((_t4 - _t3) * 1000)}ms")
 
             # Step 8: Update follower memory
             await self._update_follower_memory(follower, message, formatted_content, intent_value)
@@ -984,6 +997,13 @@ class DMResponderAgentV2:
                 except Exception as e:
                     logger.debug(f"Message splitting failed: {e}")
 
+            _t5 = time.monotonic()
+            logger.info(
+                f"[TIMING] TOTAL: {int((_t5 - _t0) * 1000)}ms "
+                f"(detect={int((_t1 - _t0) * 1000)} ctx+rag={int((_t2 - _t1) * 1000)} "
+                f"llm={int((_t3 - _t2) * 1000)} post={int((_t4 - _t3) * 1000)} "
+                f"mem+nurture={int((_t5 - _t4) * 1000)})"
+            )
             return DMResponse(
                 content=formatted_content,
                 intent=intent_value,
