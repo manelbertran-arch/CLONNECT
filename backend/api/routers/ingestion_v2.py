@@ -747,3 +747,228 @@ async def debug_scraper_test(url: str = "https://www.stefanobonanno.com"):
         results["final_status"] = "failed"
 
     return results
+
+
+# =============================================================================
+# Full Refresh Endpoint
+# =============================================================================
+
+
+class FullRefreshRequest(BaseModel):
+    """Request for full content refresh."""
+
+    creator_id: str
+    instagram_username: str = ""
+    website_url: str = ""
+    max_ig_posts: int = 30
+    clean_ig_before: bool = False  # Append by default
+
+
+@router.post("/full-refresh/{creator_id}")
+async def full_refresh(creator_id: str, request: FullRefreshRequest = None):
+    """
+    Full content refresh for a creator.
+
+    Runs Instagram ingestion + website ingestion + RAG re-hydration.
+    SAFE: Never touches messages, leads, follower_memories, conversation_states.
+    IDEMPOTENT: Can be run multiple times without duplicating data (upsert logic).
+
+    If instagram_username or website_url are not provided, tries to look them up.
+    """
+    if request is None:
+        request = FullRefreshRequest(creator_id=creator_id)
+
+    results = {
+        "creator_id": creator_id,
+        "instagram": None,
+        "website": None,
+        "rag_rehydrated": False,
+        "errors": [],
+    }
+
+    # Look up creator data from DB
+    ig_username = request.instagram_username
+    website_url = request.website_url
+    access_token = None
+    instagram_business_id = None
+
+    try:
+        from api.database import get_db_session
+        from api.models import Creator
+        from sqlalchemy import or_
+
+        with get_db_session() as db:
+            creator = (
+                db.query(Creator)
+                .filter(
+                    or_(
+                        Creator.name == creator_id,
+                        Creator.id == creator_id if len(creator_id) > 20 else False,
+                    )
+                )
+                .first()
+            )
+            if creator:
+                if creator.instagram_token:
+                    access_token = creator.instagram_token
+                    instagram_business_id = creator.instagram_page_id
+    except Exception as e:
+        logger.warning(f"Could not lookup creator data: {e}")
+
+    # Step 1: Instagram ingestion
+    if ig_username:
+        try:
+            from ingestion.v2.instagram_ingestion import ingest_instagram_v2
+
+            ig_result = await ingest_instagram_v2(
+                creator_id=creator_id,
+                instagram_username=ig_username,
+                max_posts=request.max_ig_posts,
+                clean_before=request.clean_ig_before,
+                access_token=access_token,
+                instagram_business_id=instagram_business_id,
+            )
+            results["instagram"] = {
+                "success": ig_result.success,
+                "posts_scraped": ig_result.posts_scraped,
+                "posts_saved_db": ig_result.posts_saved_db,
+                "rag_chunks_created": ig_result.rag_chunks_created,
+            }
+            logger.info(
+                f"[FULL-REFRESH] IG done for {creator_id}: "
+                f"{ig_result.posts_saved_db} posts saved"
+            )
+        except Exception as e:
+            logger.error(f"[FULL-REFRESH] IG failed for {creator_id}: {e}")
+            results["errors"].append(f"instagram: {e}")
+            results["instagram"] = {"success": False, "error": str(e)}
+
+    # Step 2: Website ingestion
+    if website_url:
+        try:
+            from ingestion.v2 import IngestionV2Pipeline
+
+            db_session = None
+            try:
+                from api.database import SessionLocal
+
+                db_session = SessionLocal()
+            except Exception:
+                pass
+
+            pipeline = IngestionV2Pipeline(db_session=db_session, max_pages=10)
+            web_result = await pipeline.run(
+                creator_id=creator_id,
+                website_url=website_url,
+                clean_before=True,
+                re_verify=True,
+            )
+            results["website"] = {
+                "success": web_result.success,
+                "pages_scraped": web_result.pages_scraped,
+                "products_verified": web_result.products_verified,
+                "products_saved": web_result.products_saved,
+                "rag_docs_saved": web_result.rag_docs_saved,
+            }
+            logger.info(
+                f"[FULL-REFRESH] Website done for {creator_id}: "
+                f"{web_result.products_saved} products, {web_result.rag_docs_saved} docs"
+            )
+
+            if db_session:
+                db_session.close()
+        except Exception as e:
+            logger.error(f"[FULL-REFRESH] Website failed for {creator_id}: {e}")
+            results["errors"].append(f"website: {e}")
+            results["website"] = {"success": False, "error": str(e)}
+
+    # Step 3: Re-hydrate RAG from DB
+    try:
+        from core.rag import get_simple_rag
+
+        rag = get_simple_rag()
+        loaded = rag.load_from_db()
+        results["rag_rehydrated"] = True
+        results["rag_documents"] = loaded
+        logger.info(f"[FULL-REFRESH] RAG re-hydrated with {loaded} documents")
+    except Exception as e:
+        logger.warning(f"[FULL-REFRESH] RAG re-hydration failed: {e}")
+        results["errors"].append(f"rag: {e}")
+
+    return results
+
+
+@router.get("/data-status/{creator_id}")
+async def get_data_status(creator_id: str):
+    """
+    Get current data status for a creator.
+
+    Returns counts of all content tables (safe SELECT COUNT queries only).
+    Useful to verify data before/after re-ingestion.
+
+    NEVER touches: messages, leads, follower_memories, conversation_states.
+    """
+    try:
+        from api.database import SessionLocal
+        from sqlalchemy import text
+
+        session = SessionLocal()
+        try:
+            # Resolve creator UUID
+            creator_row = session.execute(
+                text("""
+                    SELECT id, name FROM creators
+                    WHERE id::text = :cid OR name = :cid
+                """),
+                {"cid": creator_id},
+            ).fetchone()
+
+            if not creator_row:
+                raise HTTPException(status_code=404, detail=f"Creator {creator_id} not found")
+
+            creator_uuid, creator_name = creator_row
+
+            # Count content tables (safe read-only queries)
+            counts = {}
+            queries = {
+                "instagram_posts": "SELECT COUNT(*) FROM instagram_posts WHERE creator_id = :cid",
+                "content_chunks": "SELECT COUNT(*) FROM content_chunks WHERE creator_id = :cid",
+                "products": "SELECT COUNT(*) FROM products WHERE creator_id = :uuid",
+                "leads": "SELECT COUNT(*) FROM leads WHERE creator_id = :uuid",
+                "messages": "SELECT COUNT(*) FROM messages WHERE creator_id = :uuid",
+                "conversation_embeddings": "SELECT COUNT(*) FROM conversation_embeddings WHERE creator_id = :uuid",
+                "follower_memories": "SELECT COUNT(*) FROM follower_memories WHERE creator_id = :cid",
+            }
+
+            for table, query in queries.items():
+                try:
+                    param = {"cid": creator_id} if ":cid" in query else {"uuid": str(creator_uuid)}
+                    result = session.execute(text(query), param).scalar()
+                    counts[table] = result
+                except Exception as e:
+                    counts[table] = f"error: {e}"
+
+            return {
+                "creator_id": creator_id,
+                "creator_name": creator_name,
+                "counts": counts,
+                "safe_to_refresh": [
+                    "instagram_posts",
+                    "content_chunks",
+                    "products",
+                ],
+                "never_touched": [
+                    "leads",
+                    "messages",
+                    "conversation_embeddings",
+                    "follower_memories",
+                ],
+            }
+        finally:
+            session.close()
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Data status error: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
