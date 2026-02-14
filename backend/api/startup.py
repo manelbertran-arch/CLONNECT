@@ -127,7 +127,8 @@ def register_startup_handlers(app: "FastAPI"):
             await asyncio.sleep(10)
             try:
                 from core.rag.reranker import warmup_reranker
-                warmup_reranker()
+                # Run in thread to avoid blocking event loop during model load
+                await asyncio.to_thread(warmup_reranker)
             except Exception as e:
                 logger.warning(f"Reranker warmup failed: {e}")
 

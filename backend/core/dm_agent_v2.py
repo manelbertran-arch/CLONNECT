@@ -980,7 +980,7 @@ class DMResponderAgentV2:
             # Step 9: Update lead score (synchronous - needed for response)
             new_stage = self._update_lead_score(follower, intent_value, metadata)
 
-            # Steps 8, 8b, 9b, 10: Run in background (non-blocking)
+            # Steps 8, 8b, 9b: Run in background thread (non-blocking)
             asyncio.create_task(
                 self._background_post_response(
                     follower=follower,
@@ -990,6 +990,17 @@ class DMResponderAgentV2:
                     sender_id=sender_id,
                     metadata=metadata,
                     cognitive_metadata=cognitive_metadata,
+                )
+            )
+
+            # Step 10: Escalation notification (async, lightweight)
+            asyncio.create_task(
+                self._check_and_notify_escalation(
+                    intent_value=intent_value,
+                    follower=follower,
+                    sender_id=sender_id,
+                    message=message,
+                    metadata=metadata,
                 )
             )
 
@@ -1092,61 +1103,116 @@ class DMResponderAgentV2:
         metadata: Dict,
         cognitive_metadata: Dict,
     ) -> None:
-        """Run memory save, nurturing, DNA triggers, and escalation in background."""
+        """Run memory save, nurturing, DNA triggers, and escalation in background thread."""
         try:
-            # Step 8: Update follower memory
-            await self._update_follower_memory(follower, message, formatted_content, intent_value)
-
-            # Step 8b: Check DNA update triggers
-            if ENABLE_DNA_TRIGGERS:
-                try:
-                    triggers = get_dna_triggers()
-                    existing_dna = metadata.get("dna_data")
-                    if triggers.should_update(existing_dna, follower.total_messages):
-                        msgs = follower.last_messages[-20:]
-                        triggers.schedule_async_update(self.creator_id, sender_id, msgs)
-                        cognitive_metadata["dna_update_scheduled"] = True
-                except Exception as e:
-                    logger.debug(f"DNA trigger check failed: {e}")
-
-            # Step 9b: Auto-schedule nurturing based on intent
-            try:
-                from core.nurturing import should_schedule_nurturing, get_nurturing_manager
-
-                sequence_type = should_schedule_nurturing(
-                    intent=intent_value,
-                    has_purchased=follower.is_customer,
-                    creator_id=self.creator_id,
-                )
-                if sequence_type:
-                    manager = get_nurturing_manager()
-                    followups = manager.schedule_followup(
-                        creator_id=self.creator_id,
-                        follower_id=sender_id,
-                        sequence_type=sequence_type,
-                        product_name="",
-                    )
-                    if followups:
-                        logger.info(
-                            f"[NURTURING] Auto-scheduled {len(followups)} followups "
-                            f"(type={sequence_type}) for {sender_id}"
-                        )
-                        cognitive_metadata["nurturing_scheduled"] = sequence_type
-            except Exception as e:
-                logger.error(f"[NURTURING] Auto-trigger failed: {e}")
-
-            # Step 10: Notify on escalation-worthy intents
-            await self._check_and_notify_escalation(
-                intent_value=intent_value,
-                follower=follower,
-                sender_id=sender_id,
-                message=message,
-                metadata=metadata,
+            # Run all sync-heavy operations in thread pool to avoid blocking event loop
+            await asyncio.to_thread(
+                self._sync_post_response,
+                follower, message, formatted_content, intent_value,
+                sender_id, metadata, cognitive_metadata,
             )
-
             logger.debug(f"[BACKGROUND] Post-response tasks completed for {sender_id}")
         except Exception as e:
             logger.error(f"[BACKGROUND] Post-response tasks failed: {e}", exc_info=True)
+
+    def _sync_post_response(
+        self,
+        follower,
+        message: str,
+        formatted_content: str,
+        intent_value: str,
+        sender_id: str,
+        metadata: Dict,
+        cognitive_metadata: Dict,
+    ) -> None:
+        """Synchronous post-response tasks (runs in thread pool)."""
+        # Step 8: Update follower memory (in-memory + JSON file save)
+        now = datetime.now().isoformat()
+        follower.last_messages.append(
+            {"role": "user", "content": message, "timestamp": now}
+        )
+        follower.last_messages.append(
+            {"role": "assistant", "content": formatted_content, "timestamp": now}
+        )
+        follower.last_messages = follower.last_messages[-20:]
+        follower.total_messages += 1
+        follower.last_contact = now
+
+        # Fact tracking
+        if ENABLE_FACT_TRACKING:
+            try:
+                import re
+                facts = []
+                if re.search(r"\d+\s*€|\d+\s*euros?|\$\d+", formatted_content, re.IGNORECASE):
+                    facts.append("PRICE_GIVEN")
+                if "https://" in formatted_content or "http://" in formatted_content:
+                    facts.append("LINK_SHARED")
+                if self.products:
+                    for prod in self.products:
+                        prod_name = prod.get("name", "").lower()
+                        if prod_name and len(prod_name) > 3 and prod_name in formatted_content.lower():
+                            facts.append("PRODUCT_EXPLAINED")
+                            break
+                if re.search(r"entiendo tu (duda|preocupación)|es normal|no te preocupes|garantía|devolución", formatted_content, re.IGNORECASE):
+                    facts.append("OBJECTION_RAISED")
+                if re.search(r"me interesa|quiero saber|cuéntame|suena bien|me gusta", message, re.IGNORECASE):
+                    facts.append("INTEREST_EXPRESSED")
+                if re.search(r"reserva|agenda|cita|llamada|reunión|calendly|cal\.com", formatted_content, re.IGNORECASE):
+                    facts.append("APPOINTMENT_MENTIONED")
+                if re.search(r"@\w{3,}|[\w.-]+@[\w.-]+\.\w+|\+?\d{9,}|wa\.me|whatsapp", formatted_content, re.IGNORECASE):
+                    facts.append("CONTACT_SHARED")
+                if "?" in formatted_content:
+                    facts.append("QUESTION_ASKED")
+                if follower.name and len(follower.name) > 2 and follower.name.lower() in formatted_content.lower():
+                    facts.append("NAME_USED")
+                if facts:
+                    follower.last_messages[-1]["facts"] = facts
+            except Exception as e:
+                logger.debug(f"Fact tracking failed: {e}")
+
+        # Save to JSON storage (sync file I/O)
+        try:
+            self.memory_store._save_to_json(follower)
+        except Exception as e:
+            logger.debug(f"Memory save failed: {e}")
+
+        # Step 8b: Check DNA update triggers
+        if ENABLE_DNA_TRIGGERS:
+            try:
+                triggers = get_dna_triggers()
+                existing_dna = metadata.get("dna_data")
+                if triggers.should_update(existing_dna, follower.total_messages):
+                    msgs = follower.last_messages[-20:]
+                    triggers.schedule_async_update(self.creator_id, sender_id, msgs)
+                    cognitive_metadata["dna_update_scheduled"] = True
+            except Exception as e:
+                logger.debug(f"DNA trigger check failed: {e}")
+
+        # Step 9b: Auto-schedule nurturing based on intent (sync DB operations)
+        try:
+            from core.nurturing import should_schedule_nurturing, get_nurturing_manager
+
+            sequence_type = should_schedule_nurturing(
+                intent=intent_value,
+                has_purchased=follower.is_customer,
+                creator_id=self.creator_id,
+            )
+            if sequence_type:
+                manager = get_nurturing_manager()
+                followups = manager.schedule_followup(
+                    creator_id=self.creator_id,
+                    follower_id=sender_id,
+                    sequence_type=sequence_type,
+                    product_name="",
+                )
+                if followups:
+                    logger.info(
+                        f"[NURTURING] Auto-scheduled {len(followups)} followups "
+                        f"(type={sequence_type}) for {sender_id}"
+                    )
+                    cognitive_metadata["nurturing_scheduled"] = sequence_type
+        except Exception as e:
+            logger.error(f"[NURTURING] Auto-trigger failed: {e}")
 
     async def _update_follower_memory(
         self,
