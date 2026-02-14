@@ -15,8 +15,10 @@ import logging
 from datetime import datetime, timezone
 from typing import List, Optional
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
+
+from api.auth import require_creator_access
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/copilot", tags=["copilot"])
@@ -34,7 +36,7 @@ class ToggleRequest(BaseModel):
 # GET /copilot/{creator_id}/pending
 # =============================================================================
 @router.get("/{creator_id}/pending")
-async def get_pending_responses(creator_id: str, limit: int = 50, offset: int = 0):
+async def get_pending_responses(creator_id: str, limit: int = 50, offset: int = 0, _auth: str = Depends(require_creator_access)):
     """
     Obtener todas las respuestas pendientes de aprobación con paginación.
 
@@ -74,7 +76,7 @@ async def get_pending_responses(creator_id: str, limit: int = 50, offset: int = 
 # POST /copilot/{creator_id}/approve/{message_id}
 # =============================================================================
 @router.post("/{creator_id}/approve/{message_id}")
-async def approve_response(creator_id: str, message_id: str, request: ApproveRequest = None):
+async def approve_response(creator_id: str, message_id: str, request: ApproveRequest = None, _auth: str = Depends(require_creator_access)):
     """
     Aprobar una respuesta sugerida y enviarla.
 
@@ -102,7 +104,7 @@ async def approve_response(creator_id: str, message_id: str, request: ApproveReq
 # POST /copilot/{creator_id}/discard/{message_id}
 # =============================================================================
 @router.post("/{creator_id}/discard/{message_id}")
-async def discard_response(creator_id: str, message_id: str):
+async def discard_response(creator_id: str, message_id: str, _auth: str = Depends(require_creator_access)):
     """
     Descartar una respuesta sin enviarla.
 
@@ -133,7 +135,7 @@ async def discard_response(creator_id: str, message_id: str):
 # GET /copilot/{creator_id}/status
 # =============================================================================
 @router.get("/{creator_id}/status")
-async def get_copilot_status(creator_id: str):
+async def get_copilot_status(creator_id: str, _auth: str = Depends(require_creator_access)):
     """
     Obtener estado del modo copilot para un creador.
 
@@ -174,7 +176,7 @@ async def get_copilot_status(creator_id: str):
 # PUT /copilot/{creator_id}/toggle
 # =============================================================================
 @router.put("/{creator_id}/toggle")
-async def toggle_copilot_mode(creator_id: str, request: ToggleRequest):
+async def toggle_copilot_mode(creator_id: str, request: ToggleRequest, _auth: str = Depends(require_creator_access)):
     """
     Activar o desactivar el modo copilot.
 
@@ -223,7 +225,7 @@ async def toggle_copilot_mode(creator_id: str, request: ToggleRequest):
 # GET /copilot/{creator_id}/notifications
 # =============================================================================
 @router.get("/{creator_id}/notifications")
-async def get_notifications(creator_id: str, since: Optional[str] = None):
+async def get_notifications(creator_id: str, since: Optional[str] = None, _auth: str = Depends(require_creator_access)):
     """
     Endpoint de polling para notificaciones en tiempo real.
 
@@ -366,7 +368,7 @@ async def get_notifications(creator_id: str, since: Optional[str] = None):
 # POST /copilot/{creator_id}/approve-all
 # =============================================================================
 @router.post("/{creator_id}/approve-all")
-async def approve_all_pending(creator_id: str):
+async def approve_all_pending(creator_id: str, _auth: str = Depends(require_creator_access)):
     """
     Aprobar todas las respuestas pendientes de una vez.
     Útil para modo "confiar en el bot".

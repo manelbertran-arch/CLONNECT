@@ -56,36 +56,35 @@ async def get_ingestion_status(creator_id: str):
             cid = str(creator_row[0])
             creator_name = creator_row[1]
 
-            # Count all relevant tables
+            # Count all relevant tables (parameterized queries to prevent SQL injection)
             counts = {}
             tables = [
-                ("instagram_posts", f"SELECT COUNT(*) FROM instagram_posts WHERE creator_id = '{cid}'"),
-                ("content_chunks", f"SELECT COUNT(*) FROM content_chunks WHERE creator_id = '{cid}'"),
-                ("products", f"SELECT COUNT(*) FROM products WHERE creator_id = '{cid}'"),
-                ("leads", f"SELECT COUNT(*) FROM leads WHERE creator_id = '{cid}'"),
-                ("messages", f"SELECT COUNT(*) FROM messages m JOIN leads l ON m.lead_id = l.id WHERE l.creator_id = '{cid}'"),
+                ("instagram_posts", "SELECT COUNT(*) FROM instagram_posts WHERE creator_id = :cid", {"cid": cid}),
+                ("content_chunks", "SELECT COUNT(*) FROM content_chunks WHERE creator_id = :cid", {"cid": cid}),
+                ("products", "SELECT COUNT(*) FROM products WHERE creator_id = :cid", {"cid": cid}),
+                ("leads", "SELECT COUNT(*) FROM leads WHERE creator_id = :cid", {"cid": cid}),
+                ("messages", "SELECT COUNT(*) FROM messages m JOIN leads l ON m.lead_id = l.id WHERE l.creator_id = :cid", {"cid": cid}),
             ]
 
             # Optional tables that may not exist
             # follower_memories and conversation_embeddings use creator name, not UUID
-            creator_name_val = creator_name.replace("'", "''")
             optional_tables = [
-                ("follower_memories", f"SELECT COUNT(*) FROM follower_memories WHERE creator_id = '{creator_name_val}'"),
-                ("conversation_embeddings", f"SELECT COUNT(*) FROM conversation_embeddings WHERE creator_id = '{creator_name_val}'"),
-                ("nurturing_followups", f"SELECT COUNT(*) FROM nurturing_followups WHERE creator_id = '{cid}'"),
+                ("follower_memories", "SELECT COUNT(*) FROM follower_memories WHERE creator_id = :creator_name", {"creator_name": creator_name}),
+                ("conversation_embeddings", "SELECT COUNT(*) FROM conversation_embeddings WHERE creator_id = :creator_name", {"creator_name": creator_name}),
+                ("nurturing_followups", "SELECT COUNT(*) FROM nurturing_followups WHERE creator_id = :cid", {"cid": cid}),
             ]
 
-            for name, query in tables:
+            for name, query, params in tables:
                 try:
-                    result = session.execute(text(query)).scalar()
+                    result = session.execute(text(query), params).scalar()
                     counts[name] = result
                 except Exception:
                     session.rollback()
                     counts[name] = -1
 
-            for name, query in optional_tables:
+            for name, query, params in optional_tables:
                 try:
-                    result = session.execute(text(query)).scalar()
+                    result = session.execute(text(query), params).scalar()
                     counts[name] = result
                 except Exception:
                     session.rollback()
@@ -94,7 +93,8 @@ async def get_ingestion_status(creator_id: str):
             # Latest IG post date
             try:
                 latest_post = session.execute(
-                    text(f"SELECT MAX(posted_at) FROM instagram_posts WHERE creator_id = '{cid}'")
+                    text("SELECT MAX(posted_at) FROM instagram_posts WHERE creator_id = :cid"),
+                    {"cid": cid},
                 ).scalar()
                 counts["latest_ig_post"] = latest_post.isoformat() if latest_post else None
             except Exception:

@@ -1443,7 +1443,7 @@ async def start_sync(creator_id: str, background_tasks: BackgroundTasks):
 
 
 @router.get("/sync-status/{creator_id}")
-async def sync_status(creator_id: str):
+async def sync_status(creator_id: str, admin: str = Depends(require_admin)):
     """
     Obtiene el estado actual del sync.
 

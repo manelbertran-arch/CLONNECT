@@ -137,6 +137,7 @@ DEFAULT_CORS_ORIGINS = [
     "https://clonnectapp.com",
     "http://localhost:3000",
     "http://localhost:5173",
+    "http://localhost:5174",
     "http://127.0.0.1:5173",
     "http://localhost:8080",
     "http://localhost:8081",
@@ -211,9 +212,10 @@ app.include_router(leads.router)
 app.include_router(products.router)
 
 # Additional routers
-from api.routers import calendar, messages, nurturing, payments
+from api.routers import calendar, nurturing, payments
 
-app.include_router(messages.router)
+# messages.router removed: all its endpoints are duplicated in dm.router
+# (get_metrics, get_follower_detail, send_message, update_follower_status, get_conversations)
 app.include_router(payments.router)
 app.include_router(calendar.router)
 app.include_router(nurturing.router)

@@ -351,50 +351,29 @@ async def generate_bot_response(
         except Exception as e:
             print(f"  [Scout error: {e}] Falling back to mock")
 
-    elif model == "scout-ft":
+    elif model == "scout-ft" or use_finetuned:
+        # Legacy: together_provider removed. Scout FT now runs via deepinfra_provider
+        # with SCOUT_LORA_ADAPTER env var (same as production).
         try:
-            from core.providers.together_provider import generate_finetuned_response
+            from core.providers.deepinfra_provider import generate_scout_production
 
-            scout_ft_model = os.environ.get("SCOUT_FT_MODEL")
             system_prompt = _build_finetuned_system_prompt(calibration or {})
             messages = [
                 {"role": "system", "content": system_prompt},
                 {"role": "user", "content": user_message},
             ]
-            ft_response = await generate_finetuned_response(
-                messages, model_id=scout_ft_model,
-            )
+            ft_response = await generate_scout_production(messages)
+            source = "scout-ft" if model == "scout-ft" else "finetuned"
             if ft_response:
                 return {
                     "bot_response": ft_response,
                     "pool_matched": False,
                     "pool_category": None,
                     "confidence": 0.8,
-                    "source": "scout-ft",
+                    "source": source,
                 }
         except Exception as e:
             print(f"  [Scout-FT error: {e}] Falling back to mock")
-
-    elif use_finetuned:
-        try:
-            from core.providers.together_provider import generate_finetuned_response
-
-            system_prompt = _build_finetuned_system_prompt(calibration or {})
-            messages = [
-                {"role": "system", "content": system_prompt},
-                {"role": "user", "content": user_message},
-            ]
-            ft_response = await generate_finetuned_response(messages)
-            if ft_response:
-                return {
-                    "bot_response": ft_response,
-                    "pool_matched": False,
-                    "pool_category": None,
-                    "confidence": 0.8,
-                    "source": "finetuned",
-                }
-        except Exception as e:
-            print(f"  [FT error: {e}] Falling back to mock")
 
     # Fallback: mock LLM response
     return _mock_llm_response(user_message, context, calibration, turn_index)

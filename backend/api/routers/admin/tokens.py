@@ -11,7 +11,8 @@ Handles Instagram/Facebook token operations:
 
 import logging
 
-from fastapi import APIRouter, HTTPException
+from api.auth import require_admin
+from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import text
 
 logger = logging.getLogger(__name__)
@@ -19,7 +20,7 @@ router = APIRouter(prefix="/admin", tags=["admin"])
 
 
 @router.get("/oauth/status/{creator_id}")
-async def get_oauth_status(creator_id: str):
+async def get_oauth_status(creator_id: str, admin: str = Depends(require_admin)):
     """
     Get OAuth token status for a creator.
 
@@ -431,7 +432,7 @@ async def fix_instagram_ids(creator_id: str):
 
 
 @router.post("/instagram/subscribe-feed")
-async def subscribe_to_feed_webhooks():
+async def subscribe_to_feed_webhooks(admin: str = Depends(require_admin)):
     """
     Subscribe to Instagram feed webhooks (SPEC-004B).
 

@@ -184,18 +184,6 @@ async def _process_feed_event_safe(creator_info: dict, entry: dict):
         )
 
 
-# Legacy endpoint (backwards compatibility)
-@router.get("/instagram/webhook")
-async def instagram_webhook_verify_legacy(request: Request):
-    """Legacy endpoint - redirect to /webhook/instagram"""
-    return await instagram_webhook_verify(request)
-
-
-@router.post("/instagram/webhook")
-async def instagram_webhook_receive_legacy(request: Request):
-    """Legacy endpoint - redirect to /webhook/instagram"""
-    return await instagram_webhook_receive(request)
-
 
 @router.get("/instagram/status")
 async def instagram_status():

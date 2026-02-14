@@ -345,7 +345,9 @@ def get_length_guidance_prompt(lead_message: str, context: Optional[str] = None)
         "otro": "normal conversation - keep it natural and concise",
     }
 
-    description = context_descriptions.get(context, "normal conversation")
+    # v10.2: Check aliases for sub-categories (e.g., "humor" -> "casual")
+    resolved = CONTEXT_ALIASES.get(context, context)
+    description = context_descriptions.get(context) or context_descriptions.get(resolved, "normal conversation")
 
     return (
         f"[Length: You're {description}. "

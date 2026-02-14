@@ -45,56 +45,8 @@ async def create_creator_config(config_data: dict):
         raise HTTPException(status_code=400, detail=str(e))
 
 
-@router.get("/creator/config/{creator_id}")
-async def get_creator_config(creator_id: str):
-    """Obtener configuracion de creador"""
-    # PostgreSQL first - auto-create if doesn't exist
-    if USE_DB and db_service:
-        try:
-            config = db_service.get_or_create_creator(creator_id)
-            if config:
-                return {"status": "ok", "config": config}
-            logger.warning(f"get_or_create_creator returned None for {creator_id}")
-        except Exception as e:
-            logger.error(f"Error getting creator config from DB: {e}")
-
-    # Fallback to JSON config manager
-    config = config_manager.get_config(creator_id)
-    if config:
-        return {"status": "ok", "config": config.to_dict()}
-
-    # Ultimate fallback - return default config instead of 404
-    logger.warning(f"Returning default config for creator '{creator_id}'")
-    return {
-        "status": "ok",
-        "config": {
-            "id": creator_id,
-            "name": creator_id,
-            "email": None,
-            "bot_active": True,
-            "clone_tone": "friendly",
-            "clone_style": "",
-            "clone_name": creator_id,
-            "clone_vocabulary": "",
-            "welcome_message": "",
-            "other_payment_methods": {},
-            "knowledge_about": {},
-        },
-    }
-
-
-@router.put("/creator/config/{creator_id}")
-async def update_creator_config(creator_id: str, updates: dict = Body(...)):
-    """Actualizar configuracion de creador"""
-    config = config_manager.update_config(creator_id, updates)
-    # PostgreSQL first
-    if USE_DB and db_service:
-        success = db_service.update_creator(creator_id, updates)
-        if success:
-            return {"status": "ok", "message": "Config updated"}
-    if not config:
-        raise HTTPException(status_code=404, detail="Creator not found")
-    return {"status": "ok", "config": config.to_dict()}
+# GET /creator/config/{creator_id} and PUT /creator/config/{creator_id}
+# are defined in config.py (with auth via require_creator_access)
 
 
 @router.delete("/creator/config/{creator_id}")

@@ -1,7 +1,9 @@
 """Products endpoints with frontend compatibility"""
-from fastapi import APIRouter, HTTPException, Body
+from fastapi import APIRouter, Depends, HTTPException, Body
 import logging
 import os
+
+from api.auth import require_creator_access
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/creator", tags=["products"])
@@ -30,7 +32,7 @@ def _invalidate_bot_cache(creator_id: str):
         logger.warning(f"[CACHE] Failed to invalidate bot cache: {e}")
 
 @router.get("/{creator_id}/products")
-async def get_products(creator_id: str, active_only: bool = True):
+async def get_products(creator_id: str, active_only: bool = True, _auth: str = Depends(require_creator_access)):
     if USE_DB:
         try:
             products = db_service.get_products(creator_id)
@@ -44,7 +46,7 @@ async def get_products(creator_id: str, active_only: bool = True):
     return {"status": "ok", "products": [], "count": 0}
 
 @router.post("/{creator_id}/products")
-async def create_product(creator_id: str, data: dict = Body(...)):
+async def create_product(creator_id: str, data: dict = Body(...), _auth: str = Depends(require_creator_access)):
     if USE_DB:
         try:
             result = db_service.create_product(creator_id, data)
@@ -56,7 +58,7 @@ async def create_product(creator_id: str, data: dict = Body(...)):
     raise HTTPException(status_code=500, detail="Failed to create product")
 
 @router.put("/{creator_id}/products/{product_id}")
-async def update_product(creator_id: str, product_id: str, data: dict = Body(...)):
+async def update_product(creator_id: str, product_id: str, data: dict = Body(...), _auth: str = Depends(require_creator_access)):
     logger.info(f"=== ROUTER UPDATE PRODUCT ===")
     logger.info(f"Creator: {creator_id}, Product ID: {product_id}")
     logger.info(f"Data received: {data}")
@@ -72,7 +74,7 @@ async def update_product(creator_id: str, product_id: str, data: dict = Body(...
     raise HTTPException(status_code=404, detail="Product not found")
 
 @router.delete("/{creator_id}/products/{product_id}")
-async def delete_product(creator_id: str, product_id: str):
+async def delete_product(creator_id: str, product_id: str, _auth: str = Depends(require_creator_access)):
     if USE_DB:
         try:
             success = db_service.delete_product(creator_id, product_id)

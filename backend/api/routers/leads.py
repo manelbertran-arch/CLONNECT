@@ -7,7 +7,9 @@ import time
 from datetime import datetime
 from pathlib import Path
 
-from fastapi import APIRouter, Body, HTTPException
+from fastapi import APIRouter, Body, Depends, HTTPException
+
+from api.auth import require_creator_access
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/dm/leads", tags=["leads"])
@@ -71,7 +73,7 @@ def _save_lead_json(creator_id: str, lead_id: str, data: dict):
 
 
 @router.get("/{creator_id}")
-async def get_leads(creator_id: str, limit: int = 100):
+async def get_leads(creator_id: str, limit: int = 100, _auth: str = Depends(require_creator_access)):
     """Get leads for a creator with caching.
 
     Args:
@@ -110,7 +112,7 @@ async def get_leads(creator_id: str, limit: int = 100):
 
 
 @router.get("/{creator_id}/escalations")
-async def get_escalation_alerts(creator_id: str, limit: int = 50, unread_only: bool = False):
+async def get_escalation_alerts(creator_id: str, limit: int = 50, unread_only: bool = False, _auth: str = Depends(require_creator_access)):
     """
     Get escalation alerts for a creator.
     Returns leads that need human attention (requested escalation, high intent, etc.)
@@ -144,7 +146,7 @@ async def get_escalation_alerts(creator_id: str, limit: int = 50, unread_only: b
 
 
 @router.put("/{creator_id}/escalations/{follower_id}/read")
-async def mark_escalation_read(creator_id: str, follower_id: str):
+async def mark_escalation_read(creator_id: str, follower_id: str, _auth: str = Depends(require_creator_access)):
     """Mark an escalation as read"""
     # For now, just return OK - in production this would update the file/DB
     logger.info(f"Marked escalation read: {creator_id}/{follower_id}")
@@ -157,7 +159,7 @@ async def mark_escalation_read(creator_id: str, follower_id: str):
 
 
 @router.get("/{creator_id}/{lead_id}")
-async def get_lead(creator_id: str, lead_id: str):
+async def get_lead(creator_id: str, lead_id: str, _auth: str = Depends(require_creator_access)):
     if USE_DB:
         try:
             lead = db_service.get_lead_by_id(creator_id, lead_id)
@@ -178,7 +180,7 @@ async def get_lead(creator_id: str, lead_id: str):
 
 
 @router.post("/{creator_id}")
-async def create_lead(creator_id: str, data: dict = Body(...)):
+async def create_lead(creator_id: str, data: dict = Body(...), _auth: str = Depends(require_creator_access)):
     # Try PostgreSQL first
     if USE_DB:
         try:
@@ -219,7 +221,7 @@ async def create_lead(creator_id: str, data: dict = Body(...)):
 
 
 @router.post("/{creator_id}/manual")
-async def create_manual_lead(creator_id: str, data: dict = Body(...)):
+async def create_manual_lead(creator_id: str, data: dict = Body(...), _auth: str = Depends(require_creator_access)):
     start = time.time()
     # Try PostgreSQL first
     if USE_DB:
@@ -262,7 +264,7 @@ async def create_manual_lead(creator_id: str, data: dict = Body(...)):
 
 
 @router.put("/{creator_id}/{lead_id}")
-async def update_lead(creator_id: str, lead_id: str, data: dict = Body(...)):
+async def update_lead(creator_id: str, lead_id: str, data: dict = Body(...), _auth: str = Depends(require_creator_access)):
     # Try PostgreSQL first
     if USE_DB:
         try:
@@ -299,7 +301,7 @@ async def update_lead(creator_id: str, lead_id: str, data: dict = Body(...)):
 
 
 @router.delete("/{creator_id}/{lead_id}")
-async def delete_lead(creator_id: str, lead_id: str):
+async def delete_lead(creator_id: str, lead_id: str, _auth: str = Depends(require_creator_access)):
     start = time.time()
     # Try PostgreSQL first
     if USE_DB:
@@ -327,7 +329,7 @@ async def delete_lead(creator_id: str, lead_id: str):
 
 
 @router.put("/{creator_id}/{lead_id}/status")
-async def update_lead_status(creator_id: str, lead_id: str, data: dict = Body(...)):
+async def update_lead_status(creator_id: str, lead_id: str, data: dict = Body(...), _auth: str = Depends(require_creator_access)):
     """
     Quick status update for drag & drop in Pipeline.
     Also creates an activity log entry.
@@ -416,7 +418,7 @@ async def update_lead_status(creator_id: str, lead_id: str, data: dict = Body(..
 
 
 @router.get("/{creator_id}/{lead_id}/activities")
-async def get_lead_activities(creator_id: str, lead_id: str, limit: int = 50, offset: int = 0):
+async def get_lead_activities(creator_id: str, lead_id: str, limit: int = 50, offset: int = 0, _auth: str = Depends(require_creator_access)):
     """Get activity history for a lead with pagination"""
     if USE_DB:
         try:
@@ -492,7 +494,7 @@ async def get_lead_activities(creator_id: str, lead_id: str, limit: int = 50, of
 
 
 @router.post("/{creator_id}/{lead_id}/activities")
-async def create_lead_activity(creator_id: str, lead_id: str, data: dict = Body(...)):
+async def create_lead_activity(creator_id: str, lead_id: str, data: dict = Body(...), _auth: str = Depends(require_creator_access)):
     """Create a new activity for a lead (note, call, email, etc.)"""
     if USE_DB:
         try:
@@ -570,7 +572,7 @@ async def create_lead_activity(creator_id: str, lead_id: str, data: dict = Body(
 
 
 @router.delete("/{creator_id}/{lead_id}/activities/{activity_id}")
-async def delete_lead_activity(creator_id: str, lead_id: str, activity_id: str):
+async def delete_lead_activity(creator_id: str, lead_id: str, activity_id: str, _auth: str = Depends(require_creator_access)):
     """Delete an activity from lead history"""
     if USE_DB:
         try:
@@ -607,7 +609,7 @@ async def delete_lead_activity(creator_id: str, lead_id: str, activity_id: str):
 
 
 @router.get("/{creator_id}/{lead_id}/tasks")
-async def get_lead_tasks(creator_id: str, lead_id: str, include_completed: bool = False):
+async def get_lead_tasks(creator_id: str, lead_id: str, include_completed: bool = False, _auth: str = Depends(require_creator_access)):
     """Get tasks for a lead"""
     if USE_DB:
         try:
@@ -674,7 +676,7 @@ async def get_lead_tasks(creator_id: str, lead_id: str, include_completed: bool 
 
 
 @router.post("/{creator_id}/{lead_id}/tasks")
-async def create_lead_task(creator_id: str, lead_id: str, data: dict = Body(...)):
+async def create_lead_task(creator_id: str, lead_id: str, data: dict = Body(...), _auth: str = Depends(require_creator_access)):
     """Create a new task for a lead"""
     if not data.get("title"):
         raise HTTPException(status_code=400, detail="title is required")
@@ -769,7 +771,7 @@ async def create_lead_task(creator_id: str, lead_id: str, data: dict = Body(...)
 
 
 @router.put("/{creator_id}/{lead_id}/tasks/{task_id}")
-async def update_lead_task(creator_id: str, lead_id: str, task_id: str, data: dict = Body(...)):
+async def update_lead_task(creator_id: str, lead_id: str, task_id: str, data: dict = Body(...), _auth: str = Depends(require_creator_access)):
     """Update a task"""
     if USE_DB:
         try:
@@ -849,7 +851,7 @@ async def update_lead_task(creator_id: str, lead_id: str, task_id: str, data: di
 
 
 @router.delete("/{creator_id}/{lead_id}/tasks/{task_id}")
-async def delete_lead_task(creator_id: str, lead_id: str, task_id: str):
+async def delete_lead_task(creator_id: str, lead_id: str, task_id: str, _auth: str = Depends(require_creator_access)):
     """Delete a task"""
     if USE_DB:
         try:
@@ -886,7 +888,7 @@ async def delete_lead_task(creator_id: str, lead_id: str, task_id: str):
 
 
 @router.get("/{creator_id}/{lead_id}/stats")
-async def get_lead_stats(creator_id: str, lead_id: str):
+async def get_lead_stats(creator_id: str, lead_id: str, _auth: str = Depends(require_creator_access)):
     """
     Get INTELLIGENT monitoring stats for a lead using the signals system.
     Analyzes conversation to predict sale probability, detect product interest, and suggest next steps.

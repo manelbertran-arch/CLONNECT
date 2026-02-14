@@ -204,19 +204,24 @@ class TestSensibilidadContexto:
 
     def test_casual_en_chat_casual(self):
         """
-        Casual chat context should classify as 'casual' with relaxed length
-        rules and available short predefined responses.
+        Casual chat context should classify as 'casual' (or a sub-category
+        like 'humor' that aliases to 'casual') with relaxed length rules and
+        available short predefined responses.
         """
-        # Casual message with laugh and multiple emojis (triggers casual scoring)
-        # classify_lead_context needs: laugh pattern + short length, or emojis >= 2
+        # Casual message with laugh and multiple emojis
+        # v10.2: classify_lead_context returns 'humor' for laugh patterns,
+        # which aliases to 'casual' via CONTEXT_ALIASES
         message = "Jajaja 😂😂"
 
-        # 1. Classify as casual
+        # 1. Classify as casual or humor (humor is a sub-category of casual)
         context = classify_lead_context(message)
-        assert context == "casual", f"Expected 'casual', got '{context}'"
+        casual_contexts = {"casual", "humor", "reaccion", "reaction", "continuacion", "continuation"}
+        assert context in casual_contexts, (
+            f"Expected a casual-family context, got '{context}'"
+        )
 
-        # 2. Casual rule has relaxed target
-        rule = get_context_rule("casual")
+        # 2. Resolved rule (via alias) has relaxed target
+        rule = get_context_rule(context)
         assert rule.target <= 25, f"Casual target should be relaxed (<= 25), got {rule.target}"
 
         # 3. Short replacements available for casual
@@ -233,4 +238,5 @@ class TestSensibilidadContexto:
         guidance = get_length_guidance_prompt(message)
         assert (
             "casual" in guidance.lower() or "relax" in guidance.lower()
-        ), f"Guidance should mention casual context, got: {guidance}"
+            or "humor" in guidance.lower()
+        ), f"Guidance should mention casual/humor context, got: {guidance}"

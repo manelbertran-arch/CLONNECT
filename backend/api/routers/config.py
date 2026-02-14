@@ -1,7 +1,9 @@
 """Creator config endpoints"""
-from fastapi import APIRouter, HTTPException, Body
+from fastapi import APIRouter, Depends, HTTPException, Body
 import logging
 import os
+
+from api.auth import require_creator_access
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/creator/config", tags=["config"])
@@ -14,7 +16,7 @@ if USE_DB:
         from api import db_service
 
 @router.get("/{creator_id}")
-async def get_creator_config(creator_id: str):
+async def get_creator_config(creator_id: str, _auth: str = Depends(require_creator_access)):
     if USE_DB:
         try:
             # Use get_or_create_creator to auto-create if not exists
@@ -26,7 +28,7 @@ async def get_creator_config(creator_id: str):
     raise HTTPException(status_code=404, detail="Creator not found")
 
 @router.put("/{creator_id}")
-async def update_creator_config(creator_id: str, updates: dict = Body(...)):
+async def update_creator_config(creator_id: str, updates: dict = Body(...), _auth: str = Depends(require_creator_access)):
     if USE_DB:
         try:
             success = db_service.update_creator(creator_id, updates)
@@ -42,7 +44,7 @@ async def update_creator_config(creator_id: str, updates: dict = Body(...)):
 # =============================================================================
 
 @router.get("/{creator_id}/product-price")
-async def get_product_price(creator_id: str):
+async def get_product_price(creator_id: str, _auth: str = Depends(require_creator_access)):
     """
     Get product price configuration for lead scoring.
 
@@ -70,7 +72,7 @@ async def get_product_price(creator_id: str):
 
 
 @router.post("/{creator_id}/product-price")
-async def update_product_price(creator_id: str, data: dict = Body(...)):
+async def update_product_price(creator_id: str, data: dict = Body(...), _auth: str = Depends(require_creator_access)):
     """
     Update product price for lead scoring.
 
@@ -114,7 +116,7 @@ async def update_product_price(creator_id: str, data: dict = Body(...)):
 # =============================================================================
 
 @router.get("/{creator_id}/email-capture")
-async def get_email_capture_config(creator_id: str):
+async def get_email_capture_config(creator_id: str, _auth: str = Depends(require_creator_access)):
     """
     Get email capture configuration for a creator.
 
@@ -148,7 +150,7 @@ async def get_email_capture_config(creator_id: str):
 
 
 @router.post("/{creator_id}/email-capture")
-async def update_email_capture_config(creator_id: str, config: dict = Body(...)):
+async def update_email_capture_config(creator_id: str, config: dict = Body(...), _auth: str = Depends(require_creator_access)):
     """
     Update email capture configuration for a creator.
 

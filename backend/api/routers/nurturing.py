@@ -9,8 +9,10 @@ from typing import Any, Dict, List, Optional
 
 import httpx
 from core.nurturing import NURTURING_SEQUENCES, SequenceType, get_nurturing_manager
-from fastapi import APIRouter, Body, HTTPException
+from fastapi import APIRouter, Body, Depends, HTTPException
 from pydantic import BaseModel
+
+from api.auth import require_creator_access
 
 # Telegram proxy config
 TELEGRAM_PROXY_URL = os.getenv("TELEGRAM_PROXY_URL", "")
@@ -160,14 +162,14 @@ def _get_sequences_with_stats(creator_id: str) -> List[Dict[str, Any]]:
 
 
 @router.get("/{creator_id}/sequences")
-async def get_nurturing_sequences(creator_id: str):
+async def get_nurturing_sequences(creator_id: str, _auth: str = Depends(require_creator_access)):
     """Get all nurturing sequences with configuration and stats"""
     sequences = _get_sequences_with_stats(creator_id)
     return {"status": "ok", "creator_id": creator_id, "sequences": sequences}
 
 
 @router.get("/{creator_id}/followups")
-async def get_nurturing_followups(creator_id: str, status: Optional[str] = None, limit: int = 50):
+async def get_nurturing_followups(creator_id: str, status: Optional[str] = None, limit: int = 50, _auth: str = Depends(require_creator_access)):
     """Get all followups for a creator"""
     manager = get_nurturing_manager()
     followups = manager.get_all_followups(creator_id, status)
@@ -185,7 +187,7 @@ async def get_nurturing_followups(creator_id: str, status: Optional[str] = None,
 
 @router.get("/{creator_id}/stats")
 @router.get("/{creator_id}/status")  # Alias for /stats
-async def get_nurturing_stats(creator_id: str):
+async def get_nurturing_stats(creator_id: str, _auth: str = Depends(require_creator_access)):
     """Get nurturing statistics"""
     manager = get_nurturing_manager()
     stats = manager.get_stats(creator_id)
@@ -220,7 +222,7 @@ async def get_nurturing_stats(creator_id: str):
 
 @router.post("/{creator_id}/sequences/{sequence_type}/toggle")
 async def toggle_nurturing_sequence(
-    creator_id: str, sequence_type: str, data: Optional[ToggleSequenceRequest] = Body(default=None)
+    creator_id: str, sequence_type: str, data: Optional[ToggleSequenceRequest] = Body(default=None), _auth: str = Depends(require_creator_access)
 ):
     """Toggle a nurturing sequence on/off"""
     config = _load_sequences_config(creator_id)
@@ -250,7 +252,7 @@ async def toggle_nurturing_sequence(
 
 @router.put("/{creator_id}/sequences/{sequence_type}")
 async def update_nurturing_sequence(
-    creator_id: str, sequence_type: str, data: UpdateSequenceRequest
+    creator_id: str, sequence_type: str, data: UpdateSequenceRequest, _auth: str = Depends(require_creator_access)
 ):
     """Update nurturing sequence steps"""
     config = _load_sequences_config(creator_id)
@@ -279,7 +281,7 @@ async def update_nurturing_sequence(
 
 
 @router.get("/{creator_id}/sequences/{sequence_type}/enrolled")
-async def get_enrolled_followers(creator_id: str, sequence_type: str):
+async def get_enrolled_followers(creator_id: str, sequence_type: str, _auth: str = Depends(require_creator_access)):
     """Get followers enrolled in a specific sequence"""
     manager = get_nurturing_manager()
     followups = manager.get_all_followups(creator_id, status="pending")
@@ -326,7 +328,7 @@ async def get_enrolled_followers(creator_id: str, sequence_type: str):
 
 
 @router.delete("/{creator_id}/cancel/{follower_id}")
-async def cancel_nurturing(creator_id: str, follower_id: str, sequence_type: Optional[str] = None):
+async def cancel_nurturing(creator_id: str, follower_id: str, sequence_type: Optional[str] = None, _auth: str = Depends(require_creator_access)):
     """Cancel nurturing for a follower"""
     manager = get_nurturing_manager()
     cancelled = manager.cancel_followups(creator_id, follower_id, sequence_type)
@@ -340,7 +342,7 @@ async def cancel_nurturing(creator_id: str, follower_id: str, sequence_type: Opt
 
 # Legacy endpoint for backwards compatibility
 @router.delete("/{creator_id}/followers/{follower_id}/nurturing")
-async def cancel_nurturing_legacy(creator_id: str, follower_id: str):
+async def cancel_nurturing_legacy(creator_id: str, follower_id: str, _auth: str = Depends(require_creator_access)):
     """Cancel all nurturing for a follower (legacy endpoint)"""
     return await cancel_nurturing(creator_id, follower_id, None)
 
@@ -596,6 +598,7 @@ async def run_nurturing_followups(
     dry_run: Optional[bool] = None,  # P0 FIX: Now uses NURTURING_DRY_RUN env var as default
     limit: int = 50,
     force_due: bool = False,
+    _auth: str = Depends(require_creator_access),
 ):
     """
     Execute pending nurturing followups for a creator.

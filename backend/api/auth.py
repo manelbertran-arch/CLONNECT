@@ -465,6 +465,58 @@ async def require_admin(x_api_key: Optional[str] = Header(None, alias="X-API-Key
     raise HTTPException(status_code=403, detail="Admin privileges required for this operation.")
 
 
+async def require_creator_access(
+    creator_id: str,
+    credentials: Optional[HTTPAuthorizationCredentials] = Depends(security),
+    x_api_key: Optional[str] = Header(None, alias="X-API-Key"),
+    db: Session = Depends(get_db),
+) -> str:
+    """
+    Combined auth dependency for creator-scoped endpoints.
+    Accepts either JWT Bearer token or X-API-Key.
+    Validates that the authenticated entity has access to creator_id.
+    Returns the validated creator_id.
+    """
+    # Try JWT Bearer first
+    if credentials and credentials.credentials:
+        payload = decode_token(credentials.credentials)
+        if payload:
+            user_id = payload.get("sub")
+            if user_id:
+                user = db.query(User).filter(User.id == user_id, User.is_active == True).first()
+                if user:
+                    # Check if user has access to this creator
+                    creators = get_user_creators(db, str(user.id))
+                    creator_names = [c["name"] for c in creators]
+                    if creator_id in creator_names:
+                        return creator_id
+                    raise HTTPException(
+                        status_code=403,
+                        detail="You don't have access to this creator's data.",
+                    )
+
+    # Try X-API-Key
+    if x_api_key:
+        if is_admin_key(x_api_key):
+            return creator_id  # Admin has access to everything
+        key_creator_id = validate_api_key(x_api_key)
+        if key_creator_id:
+            if key_creator_id == creator_id:
+                return creator_id
+            raise HTTPException(
+                status_code=403,
+                detail="API key doesn't have access to this creator.",
+            )
+        raise HTTPException(status_code=401, detail="Invalid API key.")
+
+    # No auth provided
+    raise HTTPException(
+        status_code=401,
+        detail="Authentication required. Provide Authorization Bearer token or X-API-Key header.",
+        headers={"WWW-Authenticate": "Bearer"},
+    )
+
+
 async def require_creator_or_admin(
     creator_id: str, x_api_key: Optional[str] = Header(None, alias="X-API-Key")
 ) -> str:

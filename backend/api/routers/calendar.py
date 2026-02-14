@@ -6,6 +6,8 @@ import logging
 import uuid
 import httpx
 
+from api.auth import require_creator_access
+
 try:
     from api.database import get_db
     from api.models import BookingLink, CalendarBooking, Creator, BookingSlot
@@ -17,7 +19,7 @@ logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/calendar", tags=["calendar"])
 
 @router.get("/{creator_id}/bookings")
-async def get_bookings(creator_id: str, upcoming: bool = True, db: Session = Depends(get_db)):
+async def get_bookings(creator_id: str, upcoming: bool = True, db: Session = Depends(get_db), _auth: str = Depends(require_creator_access)):
     """Get all bookings for a creator."""
     import time as _time
     start = _time.time()
@@ -69,7 +71,7 @@ async def get_bookings(creator_id: str, upcoming: bool = True, db: Session = Dep
         return {"status": "ok", "creator_id": creator_id, "bookings": [], "count": 0}
 
 @router.get("/{creator_id}/stats")
-async def get_calendar_stats(creator_id: str, days: int = 30, db: Session = Depends(get_db)):
+async def get_calendar_stats(creator_id: str, days: int = 30, db: Session = Depends(get_db), _auth: str = Depends(require_creator_access)):
     """Get calendar statistics for a creator"""
     import time as _time
     start = _time.time()
@@ -121,7 +123,7 @@ async def get_calendar_stats(creator_id: str, days: int = 30, db: Session = Depe
         return {"status": "ok", "creator_id": creator_id, "total_bookings": 0, "completed": 0, "cancelled": 0, "upcoming": 0}
 
 @router.get("/{creator_id}/links")
-async def get_booking_links(creator_id: str, db: Session = Depends(get_db)):
+async def get_booking_links(creator_id: str, db: Session = Depends(get_db), _auth: str = Depends(require_creator_access)):
     """Get all booking links for a creator from PostgreSQL"""
     try:
         links = db.query(BookingLink).filter(
@@ -158,7 +160,7 @@ MAX_BOOKING_LINKS = 5
 
 
 @router.post("/{creator_id}/links")
-async def create_booking_link(creator_id: str, data: dict = Body(...), db: Session = Depends(get_db)):
+async def create_booking_link(creator_id: str, data: dict = Body(...), db: Session = Depends(get_db), _auth: str = Depends(require_creator_access)):
     """
     Create a new booking link in PostgreSQL.
     Supports Google Meet (auto-creates links) and manual platforms.
@@ -249,7 +251,7 @@ async def create_booking_link(creator_id: str, data: dict = Body(...), db: Sessi
         raise HTTPException(status_code=500, detail=f"Failed to create link: {str(e)}")
 
 @router.put("/{creator_id}/links/{link_id}")
-async def update_booking_link(creator_id: str, link_id: str, data: dict = Body(...), db: Session = Depends(get_db)):
+async def update_booking_link(creator_id: str, link_id: str, data: dict = Body(...), db: Session = Depends(get_db), _auth: str = Depends(require_creator_access)):
     """Update a booking link"""
     try:
         link = db.query(BookingLink).filter(
@@ -277,7 +279,7 @@ async def update_booking_link(creator_id: str, link_id: str, data: dict = Body(.
         raise HTTPException(status_code=500, detail=f"Failed to update link: {str(e)}")
 
 @router.delete("/{creator_id}/links/{link_id}")
-async def delete_booking_link(creator_id: str, link_id: str, db: Session = Depends(get_db)):
+async def delete_booking_link(creator_id: str, link_id: str, db: Session = Depends(get_db), _auth: str = Depends(require_creator_access)):
     """Delete a booking link and all associated booking slots"""
     try:
         # Convert to UUID
@@ -319,7 +321,7 @@ async def delete_booking_link(creator_id: str, link_id: str, db: Session = Depen
 
 
 @router.delete("/{creator_id}/bookings/reset")
-async def reset_bookings(creator_id: str, db: Session = Depends(get_db)):
+async def reset_bookings(creator_id: str, db: Session = Depends(get_db), _auth: str = Depends(require_creator_access)):
     """Delete all bookings for a creator (for testing/reset purposes)"""
     try:
         # First, get all booking IDs that will be deleted
@@ -359,7 +361,7 @@ async def reset_bookings(creator_id: str, db: Session = Depends(get_db)):
 
 
 @router.delete("/{creator_id}/bookings/{booking_id}")
-async def cancel_booking(creator_id: str, booking_id: str, db: Session = Depends(get_db)):
+async def cancel_booking(creator_id: str, booking_id: str, db: Session = Depends(get_db), _auth: str = Depends(require_creator_access)):
     """Cancel/delete a scheduled booking"""
     try:
         from datetime import datetime, timezone
@@ -399,7 +401,7 @@ async def cancel_booking(creator_id: str, booking_id: str, db: Session = Depends
 
 
 @router.delete("/{creator_id}/history")
-async def clear_history(creator_id: str, db: Session = Depends(get_db)):
+async def clear_history(creator_id: str, db: Session = Depends(get_db), _auth: str = Depends(require_creator_access)):
     """Clear booking history (delete completed and cancelled bookings)"""
     try:
         # First, get all booking IDs that will be deleted
@@ -435,7 +437,7 @@ async def clear_history(creator_id: str, db: Session = Depends(get_db)):
 
 
 @router.delete("/{creator_id}/history/{booking_id}")
-async def delete_history_item(creator_id: str, booking_id: str, db: Session = Depends(get_db)):
+async def delete_history_item(creator_id: str, booking_id: str, db: Session = Depends(get_db), _auth: str = Depends(require_creator_access)):
     """Delete a single history item (completed or cancelled booking)"""
     try:
         import uuid as uuid_module
@@ -479,7 +481,7 @@ async def delete_history_item(creator_id: str, booking_id: str, db: Session = De
 # =============================================================================
 
 @router.get("/{creator_id}/sync/status")
-async def get_sync_status(creator_id: str, db: Session = Depends(get_db)):
+async def get_sync_status(creator_id: str, db: Session = Depends(get_db), _auth: str = Depends(require_creator_access)):
     """Check if Google Calendar is connected and return sync status"""
     try:
         creator = db.query(Creator).filter(Creator.name == creator_id).first()
@@ -517,7 +519,7 @@ async def get_sync_status(creator_id: str, db: Session = Depends(get_db)):
 
 
 @router.post("/{creator_id}/update-status")
-async def update_booking_status(creator_id: str, db: Session = Depends(get_db)):
+async def update_booking_status(creator_id: str, db: Session = Depends(get_db), _auth: str = Depends(require_creator_access)):
     """
     Update status of past bookings:
     - scheduled -> completed (if scheduled_at < now)
@@ -556,7 +558,7 @@ async def update_booking_status(creator_id: str, db: Session = Depends(get_db)):
 # =============================================================================
 
 @router.get("/{creator_id}/link/{meeting_type}")
-async def get_booking_link(creator_id: str, meeting_type: str, db: Session = Depends(get_db)):
+async def get_booking_link(creator_id: str, meeting_type: str, db: Session = Depends(get_db), _auth: str = Depends(require_creator_access)):
     """
     Get booking link for a specific meeting type.
 
@@ -602,7 +604,7 @@ async def get_booking_link(creator_id: str, meeting_type: str, db: Session = Dep
 # =============================================================================
 
 @router.post("/{creator_id}/bookings/{booking_id}/complete")
-async def mark_booking_completed(creator_id: str, booking_id: str, db: Session = Depends(get_db)):
+async def mark_booking_completed(creator_id: str, booking_id: str, db: Session = Depends(get_db), _auth: str = Depends(require_creator_access)):
     """Mark a booking as completed"""
     try:
         booking = db.query(CalendarBooking).filter(
@@ -627,7 +629,7 @@ async def mark_booking_completed(creator_id: str, booking_id: str, db: Session =
 
 
 @router.post("/{creator_id}/bookings/{booking_id}/no-show")
-async def mark_booking_no_show(creator_id: str, booking_id: str, db: Session = Depends(get_db)):
+async def mark_booking_no_show(creator_id: str, booking_id: str, db: Session = Depends(get_db), _auth: str = Depends(require_creator_access)):
     """Mark a booking as no-show"""
     try:
         booking = db.query(CalendarBooking).filter(
