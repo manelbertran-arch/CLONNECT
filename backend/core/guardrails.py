@@ -163,7 +163,7 @@ class ResponseGuardrail:
         return issues
 
     def _check_urls(self, response: str, allowed_urls: List[str]) -> List[str]:
-        """Check that URLs in response are authorized"""
+        """Check that URLs in response are authorized."""
         issues = []
 
         # Find URLs in response
@@ -173,7 +173,7 @@ class ResponseGuardrail:
         if not found_urls:
             return issues
 
-        # Default allowed domains if none specified
+        # Default allowed domains
         default_allowed = [
             "stripe.com",
             "hotmart.com",
@@ -185,9 +185,16 @@ class ResponseGuardrail:
             "t.me",
             "youtube.com",
             "youtu.be",
+            "revolut.me",
+            "paypal.me",
+            "paypal.com",
+            "clonnectapp.com",
         ]
 
-        allowed = allowed_urls if allowed_urls else default_allowed
+        # Merge default + explicitly allowed URLs/domains
+        allowed = list(default_allowed)
+        if allowed_urls:
+            allowed.extend(allowed_urls)
 
         for url in found_urls:
             # Check if URL contains any allowed domain

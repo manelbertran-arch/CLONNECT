@@ -48,7 +48,8 @@ from core.notifications import EscalationNotification, get_notification_service
 from core.output_validator import validate_links, validate_prices
 from core.query_expansion import get_query_expander
 
-# RAG AVANZADO - Reranking for better results
+# RAG AVANZADO - Semantic search + Reranking
+from core.rag.semantic import get_semantic_rag
 from core.rag.reranker import ENABLE_RERANKING
 from core.rag.reranker import rerank as rag_rerank
 
@@ -416,8 +417,13 @@ class DMResponderAgentV2:
         # Memory management (follower-based)
         self.memory_store = MemoryStore()
 
-        # RAG retrieval
-        self.rag_service = RAGService(similarity_threshold=self.config.rag_similarity_threshold)
+        # RAG retrieval — use SemanticRAG (OpenAI embeddings + pgvector)
+        self.semantic_rag = get_semantic_rag()
+        try:
+            loaded = self.semantic_rag.load_from_db(self.creator_id)
+            logger.info(f"[RAG] SemanticRAG loaded {loaded} docs for {self.creator_id}")
+        except Exception as e:
+            logger.warning(f"[RAG] Could not hydrate SemanticRAG: {e}")
 
         # LLM generation
         self.llm_service = LLMService(
@@ -677,7 +683,13 @@ class DMResponderAgentV2:
                         cognitive_metadata["query_expanded"] = True
                 except Exception as e:
                     logger.debug(f"Query expansion failed: {e}")
-            rag_results = self.rag_service.retrieve(rag_query, top_k=self.config.rag_top_k)
+            rag_results = self.semantic_rag.search(
+                rag_query, top_k=self.config.rag_top_k, creator_id=self.creator_id
+            )
+            if rag_results:
+                logger.info(f"[RAG] query='{rag_query[:50]}' results={len(rag_results)}")
+            else:
+                logger.debug(f"[RAG] query='{rag_query[:50]}' results=0")
 
             if ENABLE_RERANKING and rag_results:
                 try:
@@ -922,10 +934,28 @@ class DMResponderAgentV2:
             # Step 7b: Apply guardrails validation
             if ENABLE_GUARDRAILS and hasattr(self, "guardrails"):
                 try:
+                    # Build allowed URLs from creator's products and booking links
+                    creator_urls = []
+                    for p in self.products:
+                        url = p.get("url", "")
+                        if url:
+                            creator_urls.append(url)
+                    # Extract unique domains from product URLs for whitelist
+                    creator_domains = set()
+                    for u in creator_urls:
+                        # Extract domain: "https://www.example.com/path" -> "example.com"
+                        try:
+                            domain = u.split("//")[-1].split("/")[0].replace("www.", "")
+                            creator_domains.add(domain)
+                        except Exception:
+                            pass
                     guardrail_result = self.guardrails.validate_response(
                         query=message,
                         response=response_content,
-                        context={"products": self.products},
+                        context={
+                            "products": self.products,
+                            "allowed_urls": list(creator_domains),
+                        },
                     )
                     if not guardrail_result.get("valid", True):
                         logger.warning(f"Guardrail triggered: {guardrail_result.get('reason')}")
@@ -1320,7 +1350,12 @@ class DMResponderAgentV2:
         Returns:
             Document ID
         """
-        return self.rag_service.add_document(content, metadata)
+        self.semantic_rag.add_document(
+            doc_id=f"manual_{len(self.semantic_rag._documents)}",
+            text=content,
+            metadata=metadata or {},
+        )
+        return f"manual_{len(self.semantic_rag._documents) - 1}"
 
     def add_knowledge_batch(self, documents: List[Dict[str, Any]]) -> List[str]:
         """
@@ -1334,13 +1369,19 @@ class DMResponderAgentV2:
         """
         doc_ids = []
         for doc in documents:
-            doc_id = self.rag_service.add_document(doc.get("content", ""), doc.get("metadata", {}))
+            self.semantic_rag.add_document(
+                doc_id=f"batch_{len(self.semantic_rag._documents)}",
+                text=doc.get("content", ""),
+                metadata=doc.get("metadata", {}),
+            )
+            doc_id = f"batch_{len(self.semantic_rag._documents) - 1}"
             doc_ids.append(doc_id)
         return doc_ids
 
     def clear_knowledge(self) -> None:
         """Clear all knowledge from RAG index."""
-        self.rag_service.clear_index()
+        self.semantic_rag._documents.clear()
+        self.semantic_rag._doc_list.clear()
 
     def get_stats(self) -> Dict[str, Any]:
         """
@@ -1357,7 +1398,7 @@ class DMResponderAgentV2:
                 "temperature": self.config.temperature,
             },
             "llm": self.llm_service.get_stats(),
-            "rag": self.rag_service.get_stats(),
+            "rag": {"total_documents": self.semantic_rag.count()},
             "memory": {
                 "cache_size": self.memory_store.get_cache_size(),
             },
@@ -1375,7 +1416,7 @@ class DMResponderAgentV2:
             "intent_classifier": self.intent_classifier is not None,
             "prompt_builder": self.prompt_builder is not None,
             "memory_store": self.memory_store is not None,
-            "rag_service": self.rag_service is not None,
+            "rag_service": self.semantic_rag is not None,
             "llm_service": self.llm_service is not None,
             "lead_service": self.lead_service is not None,
             "instagram_service": self.instagram_service is not None,

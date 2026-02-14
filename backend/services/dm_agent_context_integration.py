@@ -9,7 +9,7 @@ Part of POST-CONTEXT-DETECTION feature (Layer 4).
 """
 
 import logging
-from typing import Any, Dict, Optional
+from typing import Any, Dict, List, Optional
 
 from models.post_context import PostContext
 from models.writing_patterns import format_writing_patterns_for_prompt
@@ -230,6 +230,34 @@ def _format_dna_for_prompt(dna: Dict[str, Any]) -> Optional[str]:
     return "\n".join(parts)
 
 
+def _normalize_topic_list(items: List) -> List[str]:
+    """Normalize a list that may contain strings or dicts to a list of strings.
+
+    Handles both formats stored in post_contexts.recent_topics:
+    - List of strings: ["yoga", "breathwork"] -> returned as-is
+    - List of dicts: [{"topic": "yoga", "count": 5}] -> extracts "topic" key
+    """
+    if not items:
+        return []
+    normalized = []
+    for item in items:
+        if isinstance(item, str):
+            normalized.append(item)
+        elif isinstance(item, dict):
+            # Try common keys: topic, name, product
+            for key in ("topic", "name", "product"):
+                if key in item:
+                    normalized.append(str(item[key]))
+                    break
+            else:
+                # Last resort: use first string value
+                for v in item.values():
+                    if isinstance(v, str):
+                        normalized.append(v)
+                        break
+    return normalized
+
+
 def _format_post_context_for_prompt(ctx: Dict[str, Any]) -> Optional[str]:
     """Format PostContext for prompt.
 
@@ -242,14 +270,21 @@ def _format_post_context_for_prompt(ctx: Dict[str, Any]) -> Optional[str]:
     if not ctx:
         return None
 
+    # Normalize recent_topics: handle both list of strings and list of dicts
+    raw_topics = ctx.get("recent_topics", [])
+    normalized_topics = _normalize_topic_list(raw_topics)
+
+    raw_products = ctx.get("recent_products", [])
+    normalized_products = _normalize_topic_list(raw_products)
+
     # Use the PostContext model for formatting
     try:
         post_context = PostContext(
             creator_id=ctx.get("creator_id", ""),
             active_promotion=ctx.get("active_promotion"),
             promotion_urgency=ctx.get("promotion_urgency"),
-            recent_topics=ctx.get("recent_topics", []),
-            recent_products=ctx.get("recent_products", []),
+            recent_topics=normalized_topics,
+            recent_products=normalized_products,
             availability_hint=ctx.get("availability_hint"),
             context_instructions=ctx.get("context_instructions", "Sin contexto especial."),
             expires_at=ctx.get("expires_at"),
@@ -267,9 +302,8 @@ def _format_post_context_for_prompt(ctx: Dict[str, Any]) -> Optional[str]:
         if promo:
             parts.append(f"- Promoción activa: {promo}")
 
-        topics = ctx.get("recent_topics", [])
-        if topics:
-            parts.append(f"- Temas recientes: {', '.join(topics[:5])}")
+        if normalized_topics:
+            parts.append(f"- Temas recientes: {', '.join(normalized_topics[:5])}")
 
         instructions = ctx.get("context_instructions")
         if instructions:
