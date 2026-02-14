@@ -15,6 +15,8 @@ class ConnectionStatus(BaseModel):
     connected: bool
     username: Optional[str] = None
     masked_token: Optional[str] = None  # Show last 4 chars only
+    token_expires_at: Optional[str] = None
+    days_remaining: Optional[int] = None
 
 
 class AllConnections(BaseModel):
@@ -75,11 +77,22 @@ async def get_connections(creator_id: str) -> AllConnections:
                     # Return empty connections instead of 404
                     return empty_connections
 
+                # Calculate Instagram token expiry
+                ig_expires_at = getattr(creator, 'instagram_token_expires_at', None)
+                ig_days_remaining = None
+                if ig_expires_at:
+                    from datetime import datetime
+                    now = datetime.utcnow()
+                    exp = ig_expires_at.replace(tzinfo=None) if ig_expires_at.tzinfo else ig_expires_at
+                    ig_days_remaining = (exp - now).days
+
                 result = AllConnections(
                     instagram=ConnectionStatus(
                         connected=bool(creator.instagram_token and len(creator.instagram_token) > 10),
                         username=creator.instagram_page_id if creator.instagram_token else None,
-                        masked_token=mask_token(creator.instagram_token)
+                        masked_token=mask_token(creator.instagram_token),
+                        token_expires_at=ig_expires_at.isoformat() if ig_expires_at else None,
+                        days_remaining=ig_days_remaining,
                     ),
                     telegram=ConnectionStatus(
                         connected=bool(creator.telegram_bot_token and len(creator.telegram_bot_token) > 10),

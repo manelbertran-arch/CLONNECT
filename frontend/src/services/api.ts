@@ -2059,6 +2059,8 @@ export interface ConnectionStatus {
   connected: boolean;
   username?: string;
   masked_token?: string;
+  token_expires_at?: string;
+  days_remaining?: number;
 }
 
 export interface AllConnections {

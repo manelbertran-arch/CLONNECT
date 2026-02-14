@@ -67,6 +67,7 @@ class Creator(Base):
     # Channel connections
     telegram_bot_token = Column(String(255))
     instagram_token = Column(Text)
+    instagram_token_expires_at = Column(DateTime(timezone=True))
     instagram_page_id = Column(
         String(255), index=True
     )  # Facebook Page ID (indexed for webhook routing)

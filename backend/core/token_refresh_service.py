@@ -256,6 +256,7 @@ async def refresh_all_creator_tokens(db_session) -> Dict[str, Any]:
     Revisa todos los creators con token de Instagram y refresca los que expiran pronto.
 
     Diseñado para ser llamado por un cron job diario.
+    Sends Telegram alerts for tokens that are expiring and couldn't be renewed.
 
     Args:
         db_session: Sesión de SQLAlchemy
@@ -264,6 +265,9 @@ async def refresh_all_creator_tokens(db_session) -> Dict[str, Any]:
         Dict con estadísticas del proceso
     """
     from sqlalchemy import text
+    from core.alerts import get_alert_manager, AlertLevel
+
+    alert_manager = get_alert_manager()
 
     stats = {
         "total_creators": 0,
@@ -271,6 +275,7 @@ async def refresh_all_creator_tokens(db_session) -> Dict[str, Any]:
         "refreshed": 0,
         "skipped": 0,
         "failed": 0,
+        "alerts_sent": 0,
         "details": []
     }
 
@@ -293,11 +298,42 @@ async def refresh_all_creator_tokens(db_session) -> Dict[str, Any]:
                 check_result = await check_and_refresh_if_needed(str(creator_id), db_session)
                 stats["checked"] += 1
 
+                days_remaining = check_result.get("days_until_expiry")
+
                 if check_result["action"] == "refresh":
                     if check_result["success"]:
                         stats["refreshed"] += 1
+                        logger.info(f"Token refreshed for {creator_name}")
                     else:
                         stats["failed"] += 1
+                        # Send alert based on urgency
+                        if days_remaining is not None and days_remaining < 5:
+                            await alert_manager.send_telegram_alert(
+                                message=f"Token expires in {days_remaining} days and refresh FAILED.\nManual intervention required immediately.",
+                                level=AlertLevel.CRITICAL,
+                                title="OAuth Token CRITICAL",
+                                creator_id=str(creator_id),
+                                metadata={"creator_name": creator_name, "days_remaining": days_remaining},
+                            )
+                            stats["alerts_sent"] += 1
+                        elif days_remaining is not None and days_remaining < 15:
+                            await alert_manager.send_telegram_alert(
+                                message=f"Token expires in {days_remaining} days and auto-refresh failed.\nPlease re-authenticate via OAuth.",
+                                level=AlertLevel.ERROR,
+                                title="OAuth Token Expiring",
+                                creator_id=str(creator_id),
+                                metadata={"creator_name": creator_name, "days_remaining": days_remaining},
+                            )
+                            stats["alerts_sent"] += 1
+                        else:
+                            await alert_manager.send_telegram_alert(
+                                message=f"Token auto-refresh failed ({days_remaining} days remaining).\nWill retry tomorrow.",
+                                level=AlertLevel.WARNING,
+                                title="OAuth Token Refresh Failed",
+                                creator_id=str(creator_id),
+                                metadata={"creator_name": creator_name, "days_remaining": days_remaining},
+                            )
+                            stats["alerts_sent"] += 1
                 elif check_result["action"] == "skip":
                     stats["skipped"] += 1
 
@@ -317,6 +353,13 @@ async def refresh_all_creator_tokens(db_session) -> Dict[str, Any]:
     except Exception as e:
         logger.error(f"Error in refresh_all_creator_tokens: {e}")
         stats["error"] = str(e)
+
+    # Summary log
+    logger.info(
+        f"[TOKEN-REFRESH] Done: {stats['checked']} checked, "
+        f"{stats['refreshed']} refreshed, {stats['skipped']} skipped, "
+        f"{stats['failed']} failed, {stats['alerts_sent']} alerts sent"
+    )
 
     return stats
 

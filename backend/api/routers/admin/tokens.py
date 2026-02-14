@@ -17,6 +17,77 @@ logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/admin", tags=["admin"])
 
 
+@router.get("/oauth/status/{creator_id}")
+async def get_oauth_status(creator_id: str):
+    """
+    Get OAuth token status for a creator.
+
+    Returns token validity, expiration date, and days remaining.
+    """
+    try:
+        from datetime import datetime
+
+        from api.database import SessionLocal
+
+        session = SessionLocal()
+        try:
+            result = session.execute(
+                text("""
+                    SELECT name, instagram_token, instagram_token_expires_at
+                    FROM creators
+                    WHERE id::text = :cid OR name = :cid
+                """),
+                {"cid": creator_id},
+            ).fetchone()
+
+            if not result:
+                raise HTTPException(status_code=404, detail=f"Creator {creator_id} not found")
+
+            creator_name, token, expires_at = result
+
+            if not token:
+                return {
+                    "creator": creator_name,
+                    "token_valid": False,
+                    "token_present": False,
+                    "expires_at": None,
+                    "days_remaining": None,
+                }
+
+            days_remaining = None
+            token_expired = False
+            if expires_at:
+                now = datetime.utcnow()
+                if expires_at.tzinfo:
+                    expires_at_naive = expires_at.replace(tzinfo=None)
+                else:
+                    expires_at_naive = expires_at
+                days_remaining = (expires_at_naive - now).days
+                token_expired = days_remaining < 0
+
+            return {
+                "creator": creator_name,
+                "token_valid": not token_expired,
+                "token_present": True,
+                "token_prefix": token[:15] + "..." if token else None,
+                "token_type": (
+                    "PAGE (EAA)" if token.startswith("EAA")
+                    else "INSTAGRAM (IGAAT)" if token.startswith("IGAAT")
+                    else "UNKNOWN"
+                ),
+                "expires_at": expires_at.isoformat() if expires_at else None,
+                "days_remaining": days_remaining,
+            }
+        finally:
+            session.close()
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"OAuth status check failed for {creator_id}: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 @router.post("/refresh-all-tokens")
 async def refresh_all_instagram_tokens():
     """

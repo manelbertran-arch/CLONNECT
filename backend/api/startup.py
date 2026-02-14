@@ -106,6 +106,34 @@ def register_startup_handlers(app: "FastAPI"):
         asyncio.create_task(start_nurturing_delayed())
         logger.info("Nurturing scheduler scheduled to start in 30s")
 
+        # Start daily OAuth token refresh scheduler
+        async def start_token_refresh_scheduler():
+            """Check and refresh OAuth tokens once daily (every 24h)."""
+            await asyncio.sleep(60)  # Wait for DB to be ready
+            logger.info("[TOKEN-REFRESH] Scheduler started — runs every 24h")
+
+            while True:
+                try:
+                    from core.token_refresh_service import refresh_all_creator_tokens
+
+                    session = SessionLocal()
+                    try:
+                        stats = await refresh_all_creator_tokens(session)
+                        logger.info(
+                            f"[TOKEN-REFRESH] Completed: "
+                            f"{stats.get('refreshed', 0)} refreshed, "
+                            f"{stats.get('failed', 0)} failed"
+                        )
+                    finally:
+                        session.close()
+                except Exception as e:
+                    logger.error(f"[TOKEN-REFRESH] Scheduler error: {e}")
+
+                await asyncio.sleep(86400)  # 24 hours
+
+        asyncio.create_task(start_token_refresh_scheduler())
+        logger.info("Token refresh scheduler scheduled (every 24h)")
+
         # DISABLED: Startup reconciliation was making 20+ Instagram API calls
         # causing slow startup and 403 errors. Run manually via /maintenance/reconcile if needed.
         logger.info("Message reconciliation DISABLED on startup (use /maintenance/reconcile)")

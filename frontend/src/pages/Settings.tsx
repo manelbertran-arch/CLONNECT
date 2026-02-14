@@ -901,6 +901,19 @@ export default function Settings() {
                                   ? (status?.username || status?.masked_token || "Connected")
                                   : conn.description}
                               </p>
+                              {isConnected && status?.days_remaining != null && (
+                                <span className={`text-xs font-medium mt-0.5 inline-block px-2 py-0.5 rounded-full ${
+                                  status.days_remaining < 5
+                                    ? "bg-destructive/10 text-destructive"
+                                    : status.days_remaining < 15
+                                    ? "bg-destructive/10 text-orange-600 dark:text-orange-400"
+                                    : status.days_remaining < 30
+                                    ? "bg-yellow-500/10 text-yellow-600 dark:text-yellow-400"
+                                    : "bg-success/10 text-success"
+                                }`}>
+                                  Token expira en {status.days_remaining} días
+                                </span>
+                              )}
                             </div>
                           </div>
                           <div className="flex items-center gap-2">
