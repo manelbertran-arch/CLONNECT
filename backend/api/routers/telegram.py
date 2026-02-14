@@ -354,5 +354,71 @@ async def telegram_network_test():
     return results
 
 
+# ---------------------------------------------------------
+# TELEGRAM TEST ENDPOINT
+# ---------------------------------------------------------
+class TestMessageRequest(BaseModel):
+    """Request to simulate a Telegram message for pipeline testing."""
+
+    creator_id: str
+    chat_id: str = "123456789"
+    sender_id: str = "123456789"
+    sender_name: str = "Test User"
+    text: str = "Hola, me interesa tu curso"
+
+
+@router.post("/test-message")
+async def telegram_test_message(request: TestMessageRequest):
+    """
+    Simulate a Telegram message through the full DM pipeline.
+
+    Use this to test the Telegram flow E2E without needing a real bot.
+    The message goes through DMResponderAgent just like a real webhook,
+    but the response is returned in the API response instead of being
+    sent to Telegram.
+    """
+    from core.dm_agent_v2 import get_dm_agent
+
+    try:
+        agent = get_dm_agent(request.creator_id)
+
+        response = await agent.process_dm(
+            message=request.text,
+            sender_id=f"tg_{request.sender_id}",
+            metadata={
+                "message_id": "test_0",
+                "username": request.sender_name,
+                "name": request.sender_name,
+                "platform": "telegram",
+            },
+        )
+
+        return {
+            "status": "ok",
+            "test_mode": True,
+            "creator_id": request.creator_id,
+            "input": {
+                "chat_id": request.chat_id,
+                "sender_id": request.sender_id,
+                "sender_name": request.sender_name,
+                "text": request.text,
+            },
+            "pipeline_response": {
+                "response_text": response.content if hasattr(response, "content") else str(response),
+                "intent": response.intent if hasattr(response, "intent") else "unknown",
+                "confidence": response.confidence if hasattr(response, "confidence") else None,
+                "product_mentioned": response.product_mentioned if hasattr(response, "product_mentioned") else None,
+                "escalate_to_human": response.escalate_to_human if hasattr(response, "escalate_to_human") else False,
+            },
+            "note": "Response NOT sent to Telegram - test mode only",
+        }
+
+    except Exception as e:
+        logger.error(f"Error in Telegram test message: {e}")
+        import traceback
+        logger.error(traceback.format_exc())
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 # Note: /telegram/webhook legacy endpoint is kept in main.py since it references
 # the telegram_webhook function which has complex dependencies
