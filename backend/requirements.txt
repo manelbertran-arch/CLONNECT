@@ -14,17 +14,10 @@ aiohttp>=3.9.0
 
 # Embeddings y busqueda
 # NOTE: Using OpenAI Embeddings API + pgvector instead of local models
-# sentence-transformers and faiss-cpu caused OOM on Railway free tier (~2GB RAM)
+# Cross-Encoder reranking (previously disabled for OOM on free tier, now OK)
 numpy>=1.24.0
 scikit-learn>=1.3.0
-# sentence-transformers>=2.2.0
-# faiss-cpu>=1.7.4
-
-# Cross-Encoder Reranking + Semantic Memory (OPTIONAL - requires more RAM)
-# Enable with ENABLE_RERANKING=true and ENABLE_SEMANTIC_MEMORY=true
-# Install manually on machines with >4GB RAM:
-#   pip install sentence-transformers>=2.2.0 chromadb>=0.4.22
-# These modules gracefully degrade if dependencies are not installed
+sentence-transformers>=2.2.0
 
 # Dashboard
 streamlit>=1.28.0
