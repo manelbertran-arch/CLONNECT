@@ -1,0 +1,266 @@
+"""Onboarding checklist and progress status endpoints."""
+
+import logging
+import os
+
+from fastapi import APIRouter
+
+from core.creator_config import CreatorConfigManager
+from core.products import ProductManager
+
+logger = logging.getLogger(__name__)
+router = APIRouter(prefix="/onboarding", tags=["onboarding"])
+
+
+# =============================================================================
+# EXISTING HELPER FUNCTIONS
+# =============================================================================
+
+
+async def check_instagram_connected(creator_id: str) -> bool:
+    """Check if Instagram is connected for this creator"""
+    try:
+        # Check database first
+        from api.database import DATABASE_URL, SessionLocal
+
+        if DATABASE_URL and SessionLocal:
+            session = SessionLocal()
+            try:
+                from api.models import Creator
+
+                creator = session.query(Creator).filter_by(name=creator_id).first()
+                if creator and creator.instagram_token:
+                    return len(creator.instagram_token) > 10
+            finally:
+                session.close()
+    except Exception as e:
+        logger.warning(f"DB check failed for instagram: {e}")
+    return False
+
+
+async def check_telegram_connected(creator_id: str) -> bool:
+    """Check if Telegram bot is configured for this creator"""
+    try:
+        # Check database first
+        from api.database import DATABASE_URL, SessionLocal
+
+        if DATABASE_URL and SessionLocal:
+            session = SessionLocal()
+            try:
+                from api.models import Creator
+
+                creator = session.query(Creator).filter_by(name=creator_id).first()
+                if creator and creator.telegram_bot_token:
+                    return len(creator.telegram_bot_token) > 10
+            finally:
+                session.close()
+    except Exception as e:
+        logger.warning(f"DB check failed for telegram: {e}")
+    return False
+
+
+async def check_whatsapp_connected(creator_id: str) -> bool:
+    """Check if WhatsApp is configured - checks DB first, then env vars"""
+    # First check if creator has WhatsApp configured in DB
+    try:
+        from api.database import DATABASE_URL, SessionLocal
+
+        if DATABASE_URL and SessionLocal:
+            session = SessionLocal()
+            try:
+                from api.models import Creator
+
+                creator = session.query(Creator).filter_by(name=creator_id).first()
+                if creator and creator.whatsapp_token and creator.whatsapp_phone_id:
+                    return True
+            finally:
+                session.close()
+    except Exception as e:
+        logger.warning(f"DB check failed for whatsapp: {e}")
+
+    # Fallback to env vars (account-level config)
+    token = os.getenv("WHATSAPP_ACCESS_TOKEN", "")
+    phone_id = os.getenv("WHATSAPP_PHONE_NUMBER_ID", "")  # Consistent with core/whatsapp.py
+    return bool(token and phone_id and len(token) > 10)
+
+
+async def check_has_products(creator_id: str) -> bool:
+    """Check if creator has at least 1 product"""
+    try:
+        product_manager = ProductManager()
+        products = product_manager.get_products(creator_id)
+        return len(products) > 0
+    except Exception as e:
+        logger.warning(f"Error checking products: {e}")
+        return False
+
+
+async def check_personality_configured(creator_id: str) -> bool:
+    """Check if personality/config is set up"""
+    try:
+        config_manager = CreatorConfigManager()
+        config = config_manager.get_config(creator_id)
+        # Check for essential fields
+        has_name = bool(config.get("name"))
+        has_personality = bool(config.get("personality")) or bool(config.get("tone"))
+        return has_name and has_personality
+    except Exception:
+        return False
+
+
+async def check_bot_active(creator_id: str) -> bool:
+    """Check if bot is activated"""
+    try:
+        config_manager = CreatorConfigManager()
+        return config_manager.is_bot_active(creator_id)
+    except Exception:
+        return False  # Default to inactive (paused)
+
+
+@router.get("/{creator_id}/status")
+async def get_onboarding_status(creator_id: str):
+    """Get onboarding checklist status"""
+
+    # Check each step
+    steps = {
+        "connect_instagram": await check_instagram_connected(creator_id),
+        "connect_telegram": await check_telegram_connected(creator_id),
+        "connect_whatsapp": await check_whatsapp_connected(creator_id),
+        "add_product": await check_has_products(creator_id),
+        "configure_personality": await check_personality_configured(creator_id),
+        "activate_bot": await check_bot_active(creator_id),
+    }
+
+    # At least one messaging channel connected
+    has_channel = (
+        steps["connect_instagram"] or steps["connect_telegram"] or steps["connect_whatsapp"]
+    )
+
+    # Core steps (required for basic functionality)
+    core_steps = {
+        "connect_channel": has_channel,
+        "add_product": steps["add_product"],
+        "configure_personality": steps["configure_personality"],
+        "activate_bot": steps["activate_bot"],
+    }
+
+    completed = sum(1 for v in core_steps.values() if v)
+    total = len(core_steps)
+
+    return {
+        "status": "ok",
+        "steps": steps,
+        "core_steps": core_steps,
+        "completed": completed,
+        "total": total,
+        "percentage": int((completed / total) * 100),
+        "is_complete": completed == total,
+        "next_step": _get_next_step(core_steps),
+    }
+
+
+def _get_next_step(steps: dict) -> dict:
+    """Get the next step to complete"""
+    step_info = {
+        "connect_channel": {
+            "label": "Conectar un canal de mensajes",
+            "description": "Conecta Instagram, Telegram o WhatsApp",
+            "link": "/settings?tab=connections",
+        },
+        "add_product": {
+            "label": "Añadir un producto",
+            "description": "Añade al menos un producto para vender",
+            "link": "/settings?tab=products",
+        },
+        "configure_personality": {
+            "label": "Configurar personalidad",
+            "description": "Define cómo habla tu clon de IA",
+            "link": "/settings?tab=personality",
+        },
+        "activate_bot": {
+            "label": "Activar el bot",
+            "description": "Activa las respuestas automáticas",
+            "link": "/settings?tab=bot",
+        },
+    }
+
+    for step_key, is_complete in steps.items():
+        if not is_complete:
+            return {
+                "key": step_key,
+                **step_info.get(step_key, {"label": step_key, "link": "/settings"}),
+            }
+
+    return {"key": None, "label": "Completado", "link": "/dashboard"}
+
+
+@router.post("/{creator_id}/skip")
+async def skip_onboarding(creator_id: str):
+    """Mark onboarding as skipped (user will configure later)"""
+    # Could store in database/file that user skipped onboarding
+    return {"status": "ok", "message": "Onboarding skipped"}
+
+
+@router.get("/{creator_id}/visual-status")
+async def get_visual_onboarding_status(creator_id: str):
+    """Check if the visual onboarding tour has been completed"""
+    try:
+        from api.database import DATABASE_URL, SessionLocal
+
+        if DATABASE_URL and SessionLocal:
+            session = SessionLocal()
+            try:
+                from api.models import Creator
+
+                creator = session.query(Creator).filter_by(name=creator_id).first()
+                if creator:
+                    return {
+                        "status": "ok",
+                        "onboarding_completed": creator.onboarding_completed or False,
+                    }
+            finally:
+                session.close()
+    except Exception as e:
+        logger.warning(f"Error checking visual onboarding status: {e}")
+
+    return {"status": "ok", "onboarding_completed": False}
+
+
+@router.post("/{creator_id}/complete")
+async def complete_visual_onboarding(creator_id: str):
+    """Mark the visual onboarding tour as completed"""
+    try:
+        from api.database import DATABASE_URL, SessionLocal
+
+        if DATABASE_URL and SessionLocal:
+            session = SessionLocal()
+            try:
+                from api.models import Creator
+
+                creator = session.query(Creator).filter_by(name=creator_id).first()
+                if creator:
+                    creator.onboarding_completed = True
+                    session.commit()
+                    logger.info(f"Visual onboarding completed for creator: {creator_id}")
+                    return {"status": "ok", "message": "Onboarding completed"}
+                else:
+                    # Creator doesn't exist in DB yet - create them
+                    import uuid
+
+                    new_creator = Creator(
+                        id=uuid.uuid4(),
+                        name=creator_id,
+                        email=f"{creator_id}@clonnect.io",
+                        onboarding_completed=True,
+                    )
+                    session.add(new_creator)
+                    session.commit()
+                    logger.info(f"Created creator and completed onboarding: {creator_id}")
+                    return {"status": "ok", "message": "Onboarding completed"}
+            finally:
+                session.close()
+    except Exception as e:
+        logger.error(f"Error completing visual onboarding: {e}")
+        return {"status": "error", "message": str(e)}
+
+    return {"status": "ok", "message": "Onboarding completed"}
