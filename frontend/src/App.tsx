@@ -5,6 +5,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider } from "@/context/AuthContext";
+import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { DashboardLayout } from "./components/layout/DashboardLayout";
 import { DashboardLayoutClean } from "./components/layout/DashboardLayoutClean";
 import NotFound from "./pages/NotFound";
@@ -81,30 +82,37 @@ const queryClient = new QueryClient({
 const AppRoutes = () => {
   return (
     <Routes>
-      {/* Auth routes */}
+      {/* Public auth routes */}
       <Route path="/login" element={<Login />} />
       <Route path="/register" element={<Register />} />
 
-      {/* Onboarding routes */}
+      {/* Public onboarding routes */}
       <Route path="/onboarding" element={<Onboarding />} />
       <Route path="/crear-clon" element={<CrearClon />} />
       <Route path="/creando-clon" element={<CreandoClon />} />
       <Route path="/new/onboarding" element={<NewOnboarding />} />
       <Route path="/felicidades" element={<Felicidades />} />
-      <Route path="/switch-user/:creatorId" element={<SwitchUser />} />
 
-      {/* Minimal test route to isolate Inbox slowness */}
+      {/* Public legal pages */}
+      <Route path="/terms" element={<Suspense fallback={<PageLoader />}><Terms /></Suspense>} />
+      <Route path="/privacy" element={<Suspense fallback={<PageLoader />}><Privacy /></Suspense>} />
+
+      {/* Public booking page */}
+      <Route path="/book/:creatorId/:serviceId" element={<Suspense fallback={<PageLoader />}><BookService /></Suspense>} />
+
+      {/* Debug/test routes (no auth) */}
       <Route path="/inbox-test" element={<InboxTest />} />
-
-      {/* Clean layout test - no Sidebar/MobileNav */}
       <Route element={<DashboardLayoutClean />}>
         <Route path="/clean-inbox-test" element={<HomeWithConversations />} />
       </Route>
+      <Route path="/home-conv-test" element={<HomeWithConversations />} />
 
-      {/* Dashboard routes */}
-      <Route element={<DashboardLayout />}>
+      {/* Protected: switch user */}
+      <Route path="/switch-user/:creatorId" element={<ProtectedRoute><SwitchUser /></ProtectedRoute>} />
+
+      {/* Protected: old dashboard routes */}
+      <Route element={<ProtectedRoute><DashboardLayout /></ProtectedRoute>}>
         <Route path="/dashboard" element={<Dashboard />} />
-        <Route path="/home-conv-test" element={<HomeWithConversations />} />
         <Route path="/dashboard/:creatorId" element={<Dashboard />} />
         <Route path="/inbox" element={<Inbox />} />
         <Route path="/copilot" element={<Copilot />} />
@@ -115,15 +123,13 @@ const AppRoutes = () => {
         <Route path="/settings" element={<Suspense fallback={<PageLoader />}><Settings /></Suspense>} />
         <Route path="/analytics" element={<Suspense fallback={<PageLoader />}><AnalyticsDashboard /></Suspense>} />
         <Route path="/docs" element={<Suspense fallback={<PageLoader />}><Docs /></Suspense>} />
-        <Route path="/terms" element={<Suspense fallback={<PageLoader />}><Terms /></Suspense>} />
-        <Route path="/privacy" element={<Suspense fallback={<PageLoader />}><Privacy /></Suspense>} />
         {/* Sprint 4 Intelligence routes */}
         <Route path="/tu-audiencia" element={<Suspense fallback={<PageLoader />}><TuAudiencia /></Suspense>} />
         <Route path="/personas" element={<Suspense fallback={<PageLoader />}><Personas /></Suspense>} />
       </Route>
 
-      {/* New Dashboard Routes */}
-      <Route path="/new" element={<NewLayout />}>
+      {/* Protected: new dashboard routes */}
+      <Route path="/new" element={<ProtectedRoute><NewLayout /></ProtectedRoute>}>
         <Route index element={<Navigate to="/new/inicio" replace />} />
         <Route path="inicio" element={<Inicio />} />
         <Route path="mensajes" element={<Mensajes />} />
@@ -134,9 +140,6 @@ const AppRoutes = () => {
 
       {/* Root shows welcome page */}
       <Route path="/" element={<Welcome />} />
-
-      {/* Public booking page - no authentication required */}
-      <Route path="/book/:creatorId/:serviceId" element={<Suspense fallback={<PageLoader />}><BookService /></Suspense>} />
 
       <Route path="*" element={<NotFound />} />
     </Routes>
