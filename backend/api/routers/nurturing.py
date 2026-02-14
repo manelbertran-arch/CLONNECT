@@ -548,7 +548,7 @@ async def _try_send_message(creator_id: str, follower_id: str, message: str) -> 
     # Instagram (explicit ig_ prefix or unknown/legacy IDs)
     if channel in ("instagram", "unknown"):
         try:
-            creator_info = _get_creator_info_by_name(creator_id)
+            creator_info = await asyncio.to_thread(_get_creator_info_by_name, creator_id)
             if not creator_info:
                 logger.error(f"[NURTURING] Creator {creator_id} not found or no IG token")
                 return {
@@ -682,7 +682,7 @@ async def run_nurturing_followups(
 
         # 24h window check (only when sending real messages - Meta policy)
         if NURTURING_SEND_REAL:
-            hours_since = _check_message_window(creator_id, fu.follower_id)
+            hours_since = await asyncio.to_thread(_check_message_window, creator_id, fu.follower_id)
             if hours_since is None:
                 manager.mark_as_window_expired(fu, reason="no_prior_inbound_message")
                 window_expired_count += 1
@@ -712,7 +712,7 @@ async def run_nurturing_followups(
                     sent_real += 1
                     by_sequence[seq_type]["sent"] += 1
                     # Save real sent message to DB for inbox visibility
-                    _save_nurturing_message_to_db(creator_id, fu.follower_id, message)
+                    await asyncio.to_thread(_save_nurturing_message_to_db, creator_id, fu.follower_id, message)
 
                 logger.info(f"Followup {fu.id} marked as sent (simulated={result['simulated']})")
             else:
@@ -916,26 +916,31 @@ async def _run_scheduler_cycle():
         except Exception as e:
             logger.error(f"[NURTURING SCHEDULER] Reconciliation error: {e}")
 
+        await asyncio.sleep(0)  # Yield to event loop between heavy operations
+
         # 0a2. Enrich leads without profile (fix ig_XXXX leads)
         try:
             from api.database import SessionLocal
             from api.models import Creator
             from core.message_reconciliation import enrich_leads_without_profile
 
-            session = SessionLocal()
-            try:
-                creators = (
-                    session.query(Creator)
-                    .filter(
-                        Creator.instagram_token.isnot(None),
-                        Creator.instagram_token != "",
-                        Creator.bot_active == True,
+            def _get_enrichment_creators():
+                session = SessionLocal()
+                try:
+                    creators = (
+                        session.query(Creator)
+                        .filter(
+                            Creator.instagram_token.isnot(None),
+                            Creator.instagram_token != "",
+                            Creator.bot_active == True,
+                        )
+                        .all()
                     )
-                    .all()
-                )
-                creator_list = [{"name": c.name, "token": c.instagram_token} for c in creators]
-            finally:
-                session.close()
+                    return [{"name": c.name, "token": c.instagram_token} for c in creators]
+                finally:
+                    session.close()
+
+            creator_list = await asyncio.to_thread(_get_enrichment_creators)
 
             total_enriched = 0
             for c in creator_list:
@@ -948,6 +953,8 @@ async def _run_scheduler_cycle():
         except Exception as e:
             logger.error(f"[NURTURING SCHEDULER] Lead enrichment error: {e}")
 
+        await asyncio.sleep(0)  # Yield to event loop between heavy operations
+
         # 0b. Process pending profile retries (automatic enrichment)
         try:
             profile_result = await _process_profile_retries()
@@ -958,6 +965,8 @@ async def _run_scheduler_cycle():
                 )
         except Exception as e:
             logger.error(f"[NURTURING SCHEDULER] Profile retry error: {e}")
+
+        await asyncio.sleep(0)  # Yield to event loop between heavy operations
 
         # 1. Run ghost reactivation (find and schedule re-engagement for ghosts)
         try:
@@ -970,11 +979,13 @@ async def _run_scheduler_cycle():
                 )
         except Exception as e:
             logger.error(f"[NURTURING SCHEDULER] Ghost reactivation error: {e}")
+
+        await asyncio.sleep(0)  # Yield to event loop after heavy operations
     else:
         logger.debug(f"[NURTURING SCHEDULER] Skipping heavy ops (cycle {_scheduler_run_count})")
 
     # 2. Get ALL pending followups that are due (no creator_id = all creators)
-    followups = manager.get_pending_followups()
+    followups = await asyncio.to_thread(manager.get_pending_followups)
 
     if not followups:
         logger.info("[NURTURING SCHEDULER] No due followups found")
@@ -1017,7 +1028,7 @@ async def _run_scheduler_cycle():
 
         # 24h window check (only when sending real - Meta messaging policy)
         if NURTURING_SEND_REAL:
-            hours_since = _check_message_window(creator_id, fu.follower_id)
+            hours_since = await asyncio.to_thread(_check_message_window, creator_id, fu.follower_id)
             if hours_since is None:
                 manager.mark_as_window_expired(fu, reason="no_prior_inbound_message")
                 window_expired_count += 1
@@ -1048,7 +1059,7 @@ async def _run_scheduler_cycle():
                 else:
                     sent_real += 1
                     # Save real sent message to DB for inbox visibility
-                    _save_nurturing_message_to_db(creator_id, fu.follower_id, message)
+                    await asyncio.to_thread(_save_nurturing_message_to_db, creator_id, fu.follower_id, message)
             else:
                 error_count += 1
                 logger.error(
@@ -1057,6 +1068,10 @@ async def _run_scheduler_cycle():
         except Exception as e:
             error_count += 1
             logger.error(f"[NURTURING SCHEDULER] Exception processing {fu.id}: {e}")
+
+        # Yield to event loop every 5 followups to avoid blocking
+        if (processed + error_count + window_expired_count) % 5 == 0:
+            await asyncio.sleep(0)
 
     _scheduler_last_run = datetime.now().isoformat()
     _scheduler_run_count += 1

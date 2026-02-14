@@ -8,6 +8,7 @@ Este servicio:
 3. Evita spam: solo 1 mensaje de reactivación por lead
 """
 
+import asyncio
 import logging
 from datetime import datetime, timezone, timedelta
 from typing import Dict, Any, List, Optional
@@ -88,8 +89,8 @@ def get_ghost_leads_for_reactivation(creator_id: str) -> List[Dict[str, Any]]:
                 logger.warning(f"[GHOST] Creator not found: {creator_id}")
                 return []
 
-            # Get all leads
-            leads = session.query(Lead).filter_by(creator_id=creator.id).all()
+            # Get leads (limit to 500 — only 5 ghosts returned per cycle)
+            leads = session.query(Lead).filter_by(creator_id=creator.id).limit(500).all()
 
             ghosts = []
             now = datetime.now(timezone.utc)
@@ -177,8 +178,8 @@ async def reactivate_ghost_leads(creator_id: str, dry_run: bool = False) -> Dict
         "details": []
     }
 
-    # Get ghost leads
-    ghosts = get_ghost_leads_for_reactivation(creator_id)
+    # Get ghost leads (run sync DB query in thread to avoid blocking event loop)
+    ghosts = await asyncio.to_thread(get_ghost_leads_for_reactivation, creator_id)
     result["ghosts_found"] = len(ghosts)
 
     if not ghosts:
@@ -270,25 +271,27 @@ async def run_ghost_reactivation_cycle():
             logger.debug("[GHOST] Database not configured, skipping reactivation cycle")
             return {"status": "no_database", **results}
 
-        session = SessionLocal()
-        try:
-            # Get all creators with Instagram token (active creators)
-            creators = session.query(Creator).filter(
-                Creator.instagram_token != None
-            ).all()
+        def _get_active_creator_names():
+            session = SessionLocal()
+            try:
+                creators = session.query(Creator).filter(
+                    Creator.instagram_token != None
+                ).all()
+                return [c.name for c in creators]
+            finally:
+                session.close()
 
-            for creator in creators:
-                try:
-                    result = await reactivate_ghost_leads(creator.name)
-                    results["total_ghosts"] += result.get("ghosts_found", 0)
-                    results["total_scheduled"] += result.get("scheduled", 0)
-                    results["creators_processed"] += 1
-                except Exception as e:
-                    results["errors"] += 1
-                    logger.error(f"[GHOST] Error for creator {creator.name}: {e}")
+        creator_names = await asyncio.to_thread(_get_active_creator_names)
 
-        finally:
-            session.close()
+        for creator_name in creator_names:
+            try:
+                result = await reactivate_ghost_leads(creator_name)
+                results["total_ghosts"] += result.get("ghosts_found", 0)
+                results["total_scheduled"] += result.get("scheduled", 0)
+                results["creators_processed"] += 1
+            except Exception as e:
+                results["errors"] += 1
+                logger.error(f"[GHOST] Error for creator {creator_name}: {e}")
 
     except Exception as e:
         logger.error(f"[GHOST] Error in reactivation cycle: {e}")
