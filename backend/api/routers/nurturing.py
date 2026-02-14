@@ -767,122 +767,161 @@ async def _process_profile_retries(max_per_cycle: int = 10) -> Dict[str, int]:
 
     result = {"processed": 0, "success": 0, "failed": 0}
 
-    session = SessionLocal()
-    try:
-        # Get pending profile retries
-        pending = (
-            session.query(SyncQueue)
-            .filter(
-                SyncQueue.conversation_id.like("profile_retry:%"),
-                SyncQueue.status == "pending",
-                SyncQueue.attempts < 5,  # Max 5 attempts
-            )
-            .order_by(SyncQueue.created_at)
-            .limit(max_per_cycle)
-            .all()
-        )
-
-        if not pending:
-            return result
-
-        for item in pending:
-            result["processed"] += 1
-
-            # Extract sender_id from conversation_id
-            sender_id = item.conversation_id.replace("profile_retry:", "")
-
-            # Get creator info
-            creator = session.query(Creator).filter_by(name=item.creator_id).first()
-            if not creator or not creator.instagram_token:
-                item.status = "failed"
-                item.last_error = "Creator not found or no token"
-                session.commit()
-                result["failed"] += 1
-                continue
-
-            # Try to fetch profile
-            try:
-                profile_result = await fetch_instagram_profile_with_retry(
-                    sender_id, creator.instagram_token
+    def _get_pending_retries():
+        """Get pending profile retries from DB (sync)."""
+        session = SessionLocal()
+        try:
+            pending = (
+                session.query(SyncQueue)
+                .filter(
+                    SyncQueue.conversation_id.like("profile_retry:%"),
+                    SyncQueue.status == "pending",
+                    SyncQueue.attempts < 5,
                 )
+                .order_by(SyncQueue.created_at)
+                .limit(max_per_cycle)
+                .all()
+            )
+            # Extract data we need before closing session
+            items = []
+            for item in pending:
+                sender_id = item.conversation_id.replace("profile_retry:", "")
+                creator = session.query(Creator).filter_by(name=item.creator_id).first()
+                items.append({
+                    "queue_id": item.id,
+                    "sender_id": sender_id,
+                    "creator_id": item.creator_id,
+                    "creator_uuid": creator.id if creator else None,
+                    "token": creator.instagram_token if creator else None,
+                    "attempts": item.attempts,
+                })
+            return items
+        finally:
+            session.close()
 
-                if profile_result.success and profile_result.profile:
-                    profile = profile_result.profile
+    pending_items = await asyncio.to_thread(_get_pending_retries)
+    if not pending_items:
+        return result
 
-                    # Find and update lead
-                    lead = (
-                        session.query(Lead)
-                        .filter(
-                            Lead.creator_id == creator.id,
-                            Lead.platform_user_id == f"ig_{sender_id}",
+    for item_info in pending_items:
+        result["processed"] += 1
+        sender_id = item_info["sender_id"]
+
+        if not item_info["creator_uuid"] or not item_info["token"]:
+            def _mark_no_token(queue_id):
+                session = SessionLocal()
+                try:
+                    item = session.query(SyncQueue).get(queue_id)
+                    if item:
+                        item.status = "failed"
+                        item.last_error = "Creator not found or no token"
+                        session.commit()
+                finally:
+                    session.close()
+            await asyncio.to_thread(_mark_no_token, item_info["queue_id"])
+            result["failed"] += 1
+            continue
+
+        try:
+            profile_result = await fetch_instagram_profile_with_retry(
+                sender_id, item_info["token"]
+            )
+
+            def _update_after_fetch(queue_id, creator_uuid, profile_res):
+                """Update DB after profile fetch (sync)."""
+                session = SessionLocal()
+                try:
+                    queue_item = session.query(SyncQueue).get(queue_id)
+                    if not queue_item:
+                        return False
+
+                    if profile_res.success and profile_res.profile:
+                        profile = profile_res.profile
+
+                        lead = (
+                            session.query(Lead)
+                            .filter(
+                                Lead.creator_id == creator_uuid,
+                                Lead.platform_user_id == f"ig_{sender_id}",
+                            )
+                            .first()
                         )
-                        .first()
-                    )
 
-                    if lead:
-                        # Update lead with profile data
-                        if profile.get("username"):
-                            lead.username = profile["username"]
-                        if profile.get("name"):
-                            lead.full_name = profile["name"]
+                        if lead:
+                            if profile.get("username"):
+                                lead.username = profile["username"]
+                            if profile.get("name"):
+                                lead.full_name = profile["name"]
 
-                        # Upload profile pic to Cloudinary
-                        if profile.get("profile_pic"):
-                            cloudinary_svc = get_cloudinary_service()
-                            if cloudinary_svc.is_configured:
-                                cloud_result = cloudinary_svc.upload_from_url(
-                                    url=profile["profile_pic"],
-                                    media_type="image",
-                                    folder=f"clonnect/{item.creator_id}/profiles",
-                                    public_id=f"profile_{sender_id}",
-                                )
-                                if cloud_result.success and cloud_result.url:
-                                    lead.profile_pic_url = cloud_result.url
+                            if profile.get("profile_pic"):
+                                cloudinary_svc = get_cloudinary_service()
+                                if cloudinary_svc.is_configured:
+                                    cloud_result = cloudinary_svc.upload_from_url(
+                                        url=profile["profile_pic"],
+                                        media_type="image",
+                                        folder=f"clonnect/{item_info['creator_id']}/profiles",
+                                        public_id=f"profile_{sender_id}",
+                                    )
+                                    if cloud_result.success and cloud_result.url:
+                                        lead.profile_pic_url = cloud_result.url
+                                    else:
+                                        lead.profile_pic_url = profile["profile_pic"]
                                 else:
                                     lead.profile_pic_url = profile["profile_pic"]
+
+                            if lead.context:
+                                lead.context.pop("profile_pending", None)
+                                lead.context.pop("profile_retry_at", None)
                             else:
-                                lead.profile_pic_url = profile["profile_pic"]
+                                lead.context = {}
 
-                        # Clear pending flag from context
-                        if lead.context:
-                            lead.context.pop("profile_pending", None)
-                            lead.context.pop("profile_retry_at", None)
-                        else:
-                            lead.context = {}
+                            session.commit()
+                            logger.info(
+                                f"[ProfileRetry] Success for {sender_id}: @{profile.get('username', 'N/A')}"
+                            )
 
+                        queue_item.status = "done"
+                        queue_item.processed_at = datetime.now()
                         session.commit()
-                        logger.info(
-                            f"[ProfileRetry] Success for {sender_id}: @{profile.get('username', 'N/A')}"
-                        )
+                        return True
+                    else:
+                        queue_item.attempts += 1
+                        queue_item.last_error = profile_res.error_message or "Unknown error"
+                        if queue_item.attempts >= 5:
+                            queue_item.status = "failed"
+                            logger.warning(f"[ProfileRetry] Giving up on {sender_id} after 5 attempts")
+                        session.commit()
+                        return False
+                finally:
+                    session.close()
 
-                    # Mark queue item as done
-                    item.status = "done"
-                    item.processed_at = datetime.now()
-                    session.commit()
-                    result["success"] += 1
-
-                else:
-                    # Failed - increment attempts
-                    item.attempts += 1
-                    item.last_error = profile_result.error_message or "Unknown error"
-
-                    if item.attempts >= 5:
-                        item.status = "failed"
-                        logger.warning(f"[ProfileRetry] Giving up on {sender_id} after 5 attempts")
-                    session.commit()
-                    result["failed"] += 1
-
-            except Exception as e:
-                item.attempts += 1
-                item.last_error = str(e)
-                if item.attempts >= 5:
-                    item.status = "failed"
-                session.commit()
+            success = await asyncio.to_thread(
+                _update_after_fetch, item_info["queue_id"], item_info["creator_uuid"], profile_result
+            )
+            if success:
+                result["success"] += 1
+            else:
                 result["failed"] += 1
-                logger.error(f"[ProfileRetry] Error for {sender_id}: {e}")
 
-    finally:
-        session.close()
+        except Exception as e:
+            def _mark_error(queue_id, error_msg, attempts):
+                session = SessionLocal()
+                try:
+                    item = session.query(SyncQueue).get(queue_id)
+                    if item:
+                        item.attempts = attempts + 1
+                        item.last_error = error_msg
+                        if item.attempts >= 5:
+                            item.status = "failed"
+                        session.commit()
+                finally:
+                    session.close()
+            await asyncio.to_thread(_mark_error, item_info["queue_id"], str(e), item_info["attempts"])
+            result["failed"] += 1
+            logger.error(f"[ProfileRetry] Error for {sender_id}: {e}")
+
+        # Yield between items
+        await asyncio.sleep(0)
 
     return result
 

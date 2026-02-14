@@ -209,12 +209,13 @@ async def reactivate_ghost_leads(creator_id: str, dry_run: bool = False) -> Dict
                 })
                 continue
 
-            # Schedule RE_ENGAGEMENT nurturing
-            followups = manager.schedule_followup(
+            # Schedule RE_ENGAGEMENT nurturing (run in thread — saves 520+ rows to DB)
+            followups = await asyncio.to_thread(
+                manager.schedule_followup,
                 creator_id=creator_id,
                 follower_id=follower_id,
                 sequence_type=SequenceType.RE_ENGAGEMENT.value,
-                product_name="",  # No product for reactivation
+                product_name="",
                 start_step=0
             )
 

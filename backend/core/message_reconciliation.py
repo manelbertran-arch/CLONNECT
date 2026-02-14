@@ -370,44 +370,38 @@ async def get_db_message_ids(
     Returns:
         Set of platform_message_ids
     """
-    from api.database import SessionLocal
-    from api.models import Creator, Lead, Message
+    def _query_message_ids():
+        from api.database import SessionLocal
+        from api.models import Creator, Lead, Message
 
-    message_ids = set()
+        message_ids = set()
+        session = SessionLocal()
+        try:
+            creator = session.query(Creator).filter_by(name=creator_id).first()
+            if not creator:
+                logger.warning(f"[Reconciliation] Creator {creator_id} not found")
+                return message_ids
 
-    session = SessionLocal()
-    try:
-        # Get creator
-        creator = session.query(Creator).filter_by(name=creator_id).first()
-        if not creator:
-            logger.warning(f"[Reconciliation] Creator {creator_id} not found")
+            leads = session.query(Lead).filter_by(creator_id=creator.id).all()
+            lead_ids = [lead.id for lead in leads]
+            if not lead_ids:
+                return message_ids
+
+            query = session.query(Message.platform_message_id).filter(
+                Message.lead_id.in_(lead_ids),
+                Message.platform_message_id.isnot(None),
+            )
+            if since:
+                query = query.filter(Message.created_at >= since)
+
+            results = query.all()
+            message_ids = {r[0] for r in results if r[0]}
+            logger.debug(f"[Reconciliation] Found {len(message_ids)} existing messages in DB")
             return message_ids
+        finally:
+            session.close()
 
-        # Get all leads for this creator
-        leads = session.query(Lead).filter_by(creator_id=creator.id).all()
-        lead_ids = [lead.id for lead in leads]
-
-        if not lead_ids:
-            return message_ids
-
-        # Get message IDs
-        query = session.query(Message.platform_message_id).filter(
-            Message.lead_id.in_(lead_ids),
-            Message.platform_message_id.isnot(None),
-        )
-
-        if since:
-            query = query.filter(Message.created_at >= since)
-
-        results = query.all()
-        message_ids = {r[0] for r in results if r[0]}
-
-        logger.debug(f"[Reconciliation] Found {len(message_ids)} existing messages in DB")
-
-    finally:
-        session.close()
-
-    return message_ids
+    return await asyncio.to_thread(_query_message_ids)
 
 
 async def reconcile_messages_for_creator(
@@ -461,13 +455,29 @@ async def reconcile_messages_for_creator(
     if not conversations:
         return result
 
+    def _get_creator_with_ids():
+        session = SessionLocal()
+        try:
+            creator = session.query(Creator).filter_by(name=creator_id).first()
+            if not creator:
+                return None
+            return {
+                "id": creator.id,
+                "instagram_user_id": creator.instagram_user_id,
+                "instagram_page_id": creator.instagram_page_id,
+            }
+        finally:
+            session.close()
+
+    creator_data = await asyncio.to_thread(_get_creator_with_ids)
+    if not creator_data:
+        result["errors"].append(f"Creator {creator_id} not found")
+        return result
+
     session = SessionLocal()
     try:
-        # Get creator
-        creator = session.query(Creator).filter_by(name=creator_id).first()
-        if not creator:
-            result["errors"].append(f"Creator {creator_id} not found")
-            return result
+        # Load creator ORM object for FK references
+        creator = session.query(Creator).get(creator_data["id"])
 
         for conv in conversations:
             conv_id = conv.get("id", "")
@@ -758,6 +768,9 @@ async def reconcile_messages_for_creator(
                     result["errors"].append(f"Failed to insert {msg_id}: {str(e)}")
                     logger.error(f"[Reconciliation] Failed to insert message: {e}")
 
+            # Yield to event loop between conversations
+            await asyncio.sleep(0)
+
     except Exception as e:
         result["errors"].append(str(e))
         logger.error(f"[Reconciliation] Error: {e}")
@@ -796,31 +809,31 @@ async def run_reconciliation_cycle(lookback_hours: int = 1) -> Dict[str, Any]:
         "by_creator": [],
     }
 
-    session = SessionLocal()
-    try:
-        # Get all creators with Instagram connections
-        creators = (
-            session.query(Creator)
-            .filter(
-                Creator.instagram_token.isnot(None),
-                Creator.instagram_token != "",
-                Creator.bot_active.is_(True),
+    def _get_active_ig_creators():
+        session = SessionLocal()
+        try:
+            creators = (
+                session.query(Creator)
+                .filter(
+                    Creator.instagram_token.isnot(None),
+                    Creator.instagram_token != "",
+                    Creator.bot_active.is_(True),
+                )
+                .all()
             )
-            .all()
-        )
+            return [
+                {
+                    "name": c.name,
+                    "token": c.instagram_token,
+                    "ig_user_id": c.instagram_user_id or c.instagram_page_id,
+                }
+                for c in creators
+                if c.instagram_user_id or c.instagram_page_id
+            ]
+        finally:
+            session.close()
 
-        creator_infos = [
-            {
-                "name": c.name,
-                "token": c.instagram_token,
-                "ig_user_id": c.instagram_user_id or c.instagram_page_id,
-            }
-            for c in creators
-            if c.instagram_user_id or c.instagram_page_id
-        ]
-
-    finally:
-        session.close()
+    creator_infos = await asyncio.to_thread(_get_active_ig_creators)
 
     if not creator_infos:
         logger.debug("[Reconciliation] No active creators with Instagram found")
