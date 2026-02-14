@@ -3,72 +3,253 @@ description: Core development rules for Clonnect. Applicable to all AI agents (C
 alwaysApply: true
 ---
 
-# Clonnect - Base Development Standards
+# Clonnect - Development Standards
 
-## 1. Core Principles
+## 1. Project Overview
 
-- **Small tasks, one at a time**: Always work in baby steps. Never go forward more than one step.
-- **Test-Driven Development**: Start with failing tests for any new functionality.
-- **Type Safety**: All Python code must use type hints. All TypeScript code must avoid `any`.
-- **Clear Naming**: Use clear, descriptive names for all variables and functions.
-- **Incremental Changes**: Prefer small, focused changes over large modifications.
-- **Question Assumptions**: Always question assumptions and inferences.
-- **Pattern Detection**: Detect and highlight repeated code patterns.
+Clonnect is an AI-powered DM automation platform for content creators. It connects to Instagram, WhatsApp, and Telegram, auto-responds to followers using a fine-tuned LLM (Scout FT v2), manages leads through a CRM pipeline, handles bookings/payments, and provides audience intelligence — all via a React dashboard.
 
-## 2. Language Standards
+## 2. Stack
 
-- **English Only** for all technical artifacts:
-  - Code (variables, functions, classes, comments, error messages, logs)
-  - Documentation (README, guides, API docs)
-  - Git commit messages
-  - Test names and descriptions
-  - Database schema and migrations
+| Layer | Technology |
+|-------|------------|
+| **Backend** | Python 3.11, FastAPI, SQLAlchemy 2.0, Alembic |
+| **Database** | PostgreSQL + pgvector (Neon) |
+| **LLM (DM)** | Scout FT v2 via DeepInfra LoRA (primary), Groq fallback (BASE) |
+| **LLM (fallback)** | GPT-4o-mini via OpenAI |
+| **LLM (generation)** | Gemini 2.5 Flash-Lite |
+| **Frontend** | React 18.3, Vite 5.4, TypeScript 5.8, Tailwind 3.4, shadcn/ui |
+| **State** | TanStack React Query 5, React Context |
+| **Deploy** | Railway (single service: backend serves frontend SPA) |
+| **CI/CD** | GitHub Actions (test, lint, auto-merge claude branches) |
 
-- **Spanish Allowed** only for:
-  - User-facing content (UI text, error messages shown to users)
-  - Business domain terms when they have no English equivalent
+## 3. Directory Structure
 
-## 3. Output Standards
+```
+Clonnect/
+├── backend/
+│   ├── api/
+│   │   ├── main.py              (465 LOC — FastAPI app, CORS, routers)
+│   │   ├── auth.py              (JWT auth, get_current_creator)
+│   │   ├── models.py            (1,310 LOC — 40 SQLAlchemy models)
+│   │   ├── database.py          (DB connection, SessionLocal)
+│   │   ├── startup.py           (startup events, scheduler)
+│   │   ├── static_serving.py    (SPA catch-all)
+│   │   ├── routers/             (40 router files)
+│   │   │   ├── admin/           (9 files, 5,816 LOC — already split)
+│   │   │   ├── onboarding.py    (4,565 LOC — largest router)
+│   │   │   ├── oauth.py         (2,347 LOC)
+│   │   │   ├── leads.py         (1,047 LOC)
+│   │   │   ├── dm.py            (993 LOC)
+│   │   │   └── ... (35 more)
+│   │   ├── services/
+│   │   │   └── db_service.py    (2,015 LOC)
+│   │   ├── middleware/          (rate limiting)
+│   │   ├── schemas/             (Pydantic models)
+│   │   └── utils/
+│   ├── core/
+│   │   ├── dm_agent_v2.py       (1,830 LOC — DM pipeline, Scout model)
+│   │   ├── instagram_handler.py (2,494 LOC)
+│   │   ├── payments.py          (1,129 LOC)
+│   │   ├── calendar.py          (1,064 LOC)
+│   │   ├── nurturing.py         (818 LOC — sequences, ghost reactivation)
+│   │   ├── providers/
+│   │   │   ├── deepinfra_provider.py  (Scout + LoRA)
+│   │   │   ├── gemini_provider.py     (Gemini 2.5 Flash-Lite)
+│   │   │   └── together_provider.py
+│   │   ├── intelligence/        (audience intelligence engine)
+│   │   ├── analytics/
+│   │   ├── rag/                 (pgvector + BM25 hybrid search)
+│   │   └── reasoning/
+│   ├── alembic/versions/        (16 migration files)
+│   ├── scripts/                 (backtest, e2e tests, batch processing)
+│   ├── tests/
+│   └── static/                  (built frontend SPA — committed to git)
+├── frontend/
+│   └── src/
+│       ├── App.tsx              (router, 35 routes)
+│       ├── services/api.ts      (2,380 LOC — all API calls)
+│       ├── hooks/useApi.ts      (1,312 LOC — 118+ React Query hooks)
+│       ├── context/AuthContext.tsx (JWT auth)
+│       ├── components/          (72 files: 51 shadcn/ui + 21 custom)
+│       ├── pages/               (30 page components)
+│       │   ├── Leads.tsx        (1,548 LOC — full CRM pipeline)
+│       │   ├── Settings.tsx     (1,687 LOC)
+│       │   ├── Bookings.tsx     (1,179 LOC)
+│       │   └── new/             (redesigned dashboard, 5 pages)
+│       └── types/api.ts         (415 LOC — TypeScript types)
+├── CLAUDE.md → ai-specs/specs/base-standards.mdc (this file)
+├── railway.json                 (Nixpacks deploy config)
+└── nixpacks.toml                (Python 3.11, requirements-lite.txt)
+```
 
-- **Always markdown monolithic copy-paste**: All outputs must be complete, self-contained markdown.
-- **Tables for comparisons**: Use markdown tables for comparing options or states.
-- **Code blocks with language**: Always specify language in code blocks (```python, ```typescript).
-- **No excessive emojis**: Use sparingly, only when they add clarity.
+## 4. Codebase Metrics
 
-## 4. Git Standards
+**Last verified:** 2026-02-14 (commit `72c44053`)
 
-- **Branch naming**: `feature/description`, `fix/description`, `refactor/description`
-- **Commit messages**: Conventional commits format
-  - `feat:` new feature
-  - `fix:` bug fix
-  - `refactor:` code restructuring
-  - `test:` adding tests
-  - `docs:` documentation
-- **Small commits**: One logical change per commit
-- **Tests must pass**: Never commit code that breaks tests
-
-## 5. Specific Standards
-
-For detailed standards specific to different areas:
-
-- [Backend Standards](./backend-standards.mdc) - Python, FastAPI, SQLAlchemy, testing
-- [Frontend Standards](./frontend-standards.mdc) - React, TypeScript, component patterns
-- [Refactor Standards](./refactor-standards.mdc) - How to refactor this codebase
-
-## 6. Current Project State
-
-**Last verified:** 2026-02-14 (commit `876a2c0e`)
+### Backend
 
 | Metric | Value |
 |--------|-------|
-| `api/main.py` | 465 lines |
-| `core/dm_agent_v2.py` | 1,830 lines |
-| `api/routers/admin/` | 5,816 lines (9 files) |
-| `api/routers/onboarding.py` | 4,565 lines |
-| Production Python files | 292 files, 105,146 LOC |
-| Database tables | 41 (16 Alembic migrations) |
-| API endpoints | 383 |
-| `print()` statements | 30 (target: 0, use logging) |
-| Bare `except:` clauses | 0 |
+| Production files (api/ + core/ + services/) | 209 files, 86,370 LOC |
+| All Python files (excl .venv) | 623 files, 174,770 LOC |
+| Database tables | 41 (40 in `api/models.py` + 1 in `core/nurturing_db.py`) |
+| Alembic migrations | 16 files |
+| API endpoints | 383 (372 @router + 10 auth + 1 @app) |
+| Router files | 49 (40 in `routers/` + 9 in `routers/admin/`) |
+| `print()` in production | 10 (target: 0, use `logging`) |
+| Bare `except:` | 0 |
 
-When making changes, avoid increasing `print()` count — use `logging` instead.
+### Frontend
+
+| Metric | Value |
+|--------|-------|
+| Source files (.tsx/.ts/.css) | 150 files, 33,611 LOC |
+| Routes | 35 |
+| React Query hooks | 118+ |
+| Backend endpoints called | 118 of 383 (30.8%) |
+| Test files | 15 (~10% coverage) |
+| Build output | 1.1 MB JS + 135 KB CSS |
+
+### Files > 500 LOC (Backend)
+
+| File | LOC |
+|------|-----|
+| `api/routers/onboarding.py` | 4,565 |
+| `api/routers/admin/sync.py` | 2,640 |
+| `core/instagram_handler.py` | 2,494 |
+| `api/routers/oauth.py` | 2,347 |
+| `api/services/db_service.py` | 2,015 |
+| `core/dm_agent_v2.py` | 1,830 |
+| `api/models.py` | 1,310 |
+| `core/payments.py` | 1,129 |
+| `api/routers/admin/dangerous.py` | 1,070 |
+| `core/calendar.py` | 1,064 |
+| `api/routers/leads.py` | 1,047 |
+| `core/message_reconciliation.py` | 1,027 |
+| `api/routers/instagram.py` | 1,021 |
+| `core/context_detector.py` | 1,007 |
+| `api/routers/dm.py` | 993 |
+| `core/auto_configurator.py` | 958 |
+| `api/routers/nurturing.py` | 947 |
+| `core/gdpr.py` | 859 |
+| `core/nurturing.py` | 818 |
+| `api/routers/admin/debug.py` | 787 |
+| `core/whatsapp.py` | 783 |
+| `core/prompt_builder.py` | 781 |
+| `core/citation_service.py` | 771 |
+| `core/creator_data_loader.py` | 758 |
+| `api/routers/ingestion_v2.py` | 749 |
+| `core/output_validator.py` | 740 |
+| `core/audience_aggregator.py` | 740 |
+| `core/intelligence/engine.py` | 737 |
+| `core/instagram.py` | 729 |
+
+### Files > 500 LOC (Frontend)
+
+| File | LOC |
+|------|-----|
+| `services/api.ts` | 2,380 |
+| `pages/Settings.tsx` | 1,687 |
+| `pages/Leads.tsx` | 1,548 |
+| `hooks/useApi.ts` | 1,312 |
+| `pages/Bookings.tsx` | 1,179 |
+| `components/chat/MessageRenderer.tsx` | 903 |
+| `components/OnboardingDesktop.tsx` | 865 |
+| `pages/Inbox.tsx` | 695 |
+| `components/ui/sidebar.tsx` | 637 |
+| `pages/Nurturing.tsx` | 584 |
+| `components/CopilotPanel.tsx` | 568 |
+| `pages/BookService.tsx` | 553 |
+| `pages/new/ajustes/TuClonSection.tsx` | 544 |
+
+## 5. Routers (Endpoint Count)
+
+| Router | Endpoints | LOC |
+|--------|-----------|-----|
+| `onboarding.py` | 27 | 4,565 |
+| `admin/sync.py` | 20 | 2,640 |
+| `leads.py` | 17 | 1,047 |
+| `dm.py` | 16 | 993 |
+| `oauth.py` | 15 | 2,347 |
+| `nurturing.py` | 15 | 947 |
+| `calendar.py` | 15 | — |
+| `admin/dangerous.py` | 12 | 1,070 |
+| `content.py` | 12 | — |
+| `messaging_webhooks.py` | 11 | — |
+| `instagram.py` | 11 | 1,021 |
+| `telegram.py` | 10 | — |
+| `knowledge.py` | 9 | — |
+| `ingestion_v2.py` | 8 | 749 |
+| `dm_orchestrated.py` | 8 | — |
+| `debug.py` | 8 | — |
+| `connections.py` | 8 | — |
+| `audiencia.py` | 8 | — |
+| `admin/leads.py` | 8 | 478 |
+| `tone.py` | 7 | — |
+| `maintenance.py` | 7 | — |
+| `gdpr.py` | 7 | — |
+| `copilot.py` | 7 | — |
+| `config.py` | 7 | — |
+| `booking.py` | 7 | — |
+| `intelligence.py` | 6 | — |
+| `creator.py` | 6 | — |
+| `admin/tokens.py` | 6 | 358 |
+| `admin/creators.py` | 6 | 212 |
+| Others (13 routers) | 3-5 each | — |
+
+## 6. Key Conventions
+
+- **async/await** everywhere — FastAPI endpoints and all I/O
+- **UUID** for all primary keys (PostgreSQL `uuid_generate_v4()`)
+- **Feature flags** via environment variables: `ENABLE_*`, `USE_*` booleans
+- **Creator-scoped** — almost every endpoint takes `{creator_id}` path parameter
+- **Dual storage** — ToneProfiles in PostgreSQL (primary) + JSON (backup)
+- **Logging** — use `logging` module, never `print()` in production
+- **Conventional commits** — `feat:`, `fix:`, `refactor:`, `test:`, `docs:`
+
+## 7. Deploy
+
+```
+Railway (Nixpacks) → uvicorn api.main:app
+├── API: /dm/*, /copilot/*, /auth/*, etc.
+└── SPA: /* → backend/static/index.html
+```
+
+- **Build frontend:** `cd frontend && npm run build && cp -r dist/* ../backend/static/`
+- **Deploy:** `git push origin main` → Railway auto-deploys
+- **Health:** `/health/live`, `/health/ready`
+- **Production:** `https://www.clonnectapp.com`
+
+## 8. DM Pipeline
+
+```
+Webhook (IG/WA/TG) → DMResponderAgent.process_dm()
+  → Pool matching (response_variator_v2)
+  → Scout FT v2 via DeepInfra LoRA
+  → GPT-4o-mini fallback (via OpenAI)
+  → Post-processing (response_fixes, calibration)
+  → Step 9b: auto-schedule nurturing (if intent matches)
+```
+
+## 9. Development Rules
+
+### Core Principles
+- **Small tasks, one at a time.** Never go forward more than one step.
+- **Test-Driven Development.** Start with failing tests for any new functionality.
+- **Type Safety.** Python: type hints. TypeScript: avoid `any`.
+- **Incremental Changes.** Prefer small, focused changes over large modifications.
+
+### Language Standards
+- **English Only** for code, comments, logs, docs, git messages, tests, schema
+- **Spanish Allowed** only for user-facing UI text
+
+### Git Standards
+- Branch naming: `feature/description`, `fix/description`, `refactor/description`
+- Conventional commits: `feat:`, `fix:`, `refactor:`, `test:`, `docs:`
+- One logical change per commit. Tests must pass.
+
+### Specific Standards
+- [Backend Standards](./backend-standards.mdc)
+- [Frontend Standards](./frontend-standards.mdc)
+- [Refactor Standards](./refactor-standards.mdc)
