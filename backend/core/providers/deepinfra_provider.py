@@ -163,19 +163,64 @@ async def generate_response_groq(
     )
 
 
+async def _openai_fallback(
+    messages: list[dict],
+    max_tokens: int = 60,
+    temperature: float = 0.7,
+) -> Optional[str]:
+    """Final fallback: GPT-4o-mini via OpenAI."""
+    api_key = os.getenv("OPENAI_API_KEY")
+    if not api_key:
+        logger.error("OPENAI_API_KEY not set, cannot use GPT-4o-mini fallback")
+        return None
+
+    model = os.getenv("LLM_FALLBACK_MODEL", "gpt-4o-mini")
+    start = time.monotonic()
+    try:
+        from openai import AsyncOpenAI
+
+        client = AsyncOpenAI(api_key=api_key)
+        response = await asyncio.wait_for(
+            client.chat.completions.create(
+                model=model,
+                messages=messages,
+                max_tokens=max_tokens,
+                temperature=temperature,
+            ),
+            timeout=float(os.getenv("LLM_FALLBACK_TIMEOUT", "10")),
+        )
+        content = (response.choices[0].message.content or "").strip()
+        latency_ms = int((time.monotonic() - start) * 1000)
+        usage = response.usage
+        logger.info(
+            "OpenAI fallback OK: model=%s latency=%dms tokens_in=%d tokens_out=%d len=%d",
+            model, latency_ms,
+            usage.prompt_tokens if usage else 0,
+            usage.completion_tokens if usage else 0,
+            len(content),
+        )
+        return content if content else None
+    except asyncio.TimeoutError:
+        logger.error("OpenAI fallback timeout after %ds", float(os.getenv("LLM_FALLBACK_TIMEOUT", "10")))
+        return None
+    except Exception as e:
+        logger.error("OpenAI fallback error: %s", e)
+        return None
+
+
 async def generate_scout_production(
     messages: list[dict],
     max_tokens: int = 60,
     temperature: float = 0.7,
 ) -> Optional[str]:
-    """Production Scout inference with configurable provider.
+    """Production Scout inference with configurable provider and GPT-4o-mini final fallback.
 
     SCOUT_PROVIDER env var controls routing:
-      - "gemini"   → Google Gemini (Flash-Lite), fallback to DeepInfra
-      - "deepinfra" → DeepInfra (default), fallback to Groq
-      - "groq"     → Groq primary, fallback to DeepInfra
+      - "gemini"   → Gemini (Flash-Lite) → DeepInfra → GPT-4o-mini
+      - "deepinfra" → DeepInfra (default) → Groq → GPT-4o-mini
+      - "groq"     → Groq → DeepInfra → GPT-4o-mini
 
-    Returns response string or None if all providers fail.
+    Returns response string or None if ALL providers fail (including GPT-4o-mini).
     """
     provider = os.getenv("SCOUT_PROVIDER", "deepinfra")
 
@@ -186,16 +231,24 @@ async def generate_scout_production(
         if result:
             return result
         logger.warning("Gemini failed, falling back to DeepInfra")
-        return await generate_response_deepinfra(messages, max_tokens, temperature)
+        result = await generate_response_deepinfra(messages, max_tokens, temperature)
+        if result:
+            return result
+        logger.warning("LLM failover: gemini + deepinfra failed -> gpt-4o-mini")
+        return await _openai_fallback(messages, max_tokens, temperature)
 
     if provider == "groq":
         result = await generate_response_groq(messages, max_tokens, temperature)
         if result:
             return result
         logger.warning("Groq failed, falling back to DeepInfra")
-        return await generate_response_deepinfra(messages, max_tokens, temperature)
+        result = await generate_response_deepinfra(messages, max_tokens, temperature)
+        if result:
+            return result
+        logger.warning("LLM failover: groq + deepinfra failed -> gpt-4o-mini")
+        return await _openai_fallback(messages, max_tokens, temperature)
 
-    # Default: DeepInfra primary → Groq fallback
+    # Default: DeepInfra primary → Groq fallback → GPT-4o-mini final
     result = await generate_response_deepinfra(messages, max_tokens, temperature)
     if result:
         return result
@@ -205,4 +258,9 @@ async def generate_scout_production(
         return None
 
     logger.warning("DeepInfra failed, falling back to Groq")
-    return await generate_response_groq(messages, max_tokens, temperature)
+    result = await generate_response_groq(messages, max_tokens, temperature)
+    if result:
+        return result
+
+    logger.warning("LLM failover: deepinfra + groq failed -> gpt-4o-mini")
+    return await _openai_fallback(messages, max_tokens, temperature)
