@@ -134,6 +134,18 @@ def register_startup_handlers(app: "FastAPI"):
         asyncio.create_task(start_token_refresh_scheduler())
         logger.info("Token refresh scheduler scheduled (every 24h)")
 
+        # Start daily content refresh scheduler (re-scrape IG posts, chunk, embed)
+        async def start_content_refresh_scheduler():
+            try:
+                from services.content_refresh import content_refresh_loop
+
+                await content_refresh_loop()
+            except Exception as e:
+                logger.error(f"[CONTENT-REFRESH] Scheduler crashed: {e}")
+
+        asyncio.create_task(start_content_refresh_scheduler())
+        logger.info("Content refresh scheduler scheduled (every 24h, 120s delay)")
+
         # DISABLED: Startup reconciliation was making 20+ Instagram API calls
         # causing slow startup and 403 errors. Run manually via /maintenance/reconcile if needed.
         logger.info("Message reconciliation DISABLED on startup (use /maintenance/reconcile)")

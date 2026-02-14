@@ -341,3 +341,54 @@ async def full_refresh(
             })
 
     return results
+
+
+@router.post("/content/refresh/{creator_id}")
+async def trigger_content_refresh(creator_id: str):
+    """
+    Manually trigger content refresh for a creator.
+
+    Re-scrapes recent Instagram posts via Graph API, chunks, embeds,
+    and adds to pgvector. Appends only — never deletes existing content.
+
+    SAFE: Never touches messages, leads, follower_memories, conversation_states.
+
+    Returns:
+        { success, new_posts, new_chunks, new_embeddings, errors }
+    """
+    try:
+        from services.content_refresh import refresh_creator_content
+
+        result = await refresh_creator_content(creator_id)
+
+        return RefreshResult(
+            success=result["success"],
+            operation="content-refresh",
+            details={
+                "new_posts": result["new_posts"],
+                "new_chunks": result["new_chunks"],
+                "new_embeddings": result["new_embeddings"],
+                "errors": result["errors"][:5],
+            },
+            error=result["errors"][0] if result["errors"] and not result["success"] else None,
+        )
+
+    except Exception as e:
+        logger.error(f"Content refresh failed for {creator_id}: {e}")
+        return RefreshResult(success=False, operation="content-refresh", error=str(e))
+
+
+@router.get("/content/refresh/status")
+async def get_content_refresh_status():
+    """
+    Get content refresh scheduler configuration and status.
+    """
+    import os
+
+    return {
+        "enabled": os.getenv("CONTENT_REFRESH_ENABLED", "true").lower() == "true",
+        "interval_seconds": int(os.getenv("CONTENT_REFRESH_INTERVAL_SECONDS", "86400")),
+        "interval_hours": int(os.getenv("CONTENT_REFRESH_INTERVAL_SECONDS", "86400")) // 3600,
+        "max_posts_per_creator": int(os.getenv("CONTENT_REFRESH_MAX_POSTS", "20")),
+        "initial_delay_seconds": int(os.getenv("CONTENT_REFRESH_INITIAL_DELAY", "120")),
+    }
