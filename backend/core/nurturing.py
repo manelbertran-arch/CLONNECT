@@ -460,6 +460,21 @@ class NurturingManager:
 
         return False
 
+    def mark_as_window_expired(self, followup: FollowUp, reason: str = "") -> bool:
+        """Mark a followup as window_expired (outside Meta 24h messaging window)"""
+        followups = self._load_followups(followup.creator_id)
+
+        for fu in followups:
+            if fu.id == followup.id:
+                fu.status = "window_expired"
+                if reason:
+                    fu.metadata["expire_reason"] = reason
+                self._save_followups(followup.creator_id, followups)
+                logger.info(f"Followup {followup.id} marked as window_expired: {reason}")
+                return True
+
+        return False
+
     def cancel_followups(self, creator_id: str, follower_id: str, sequence_type: str = None) -> int:
         """
         Cancelar followups pendientes.

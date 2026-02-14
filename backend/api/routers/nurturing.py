@@ -27,6 +27,11 @@ _scheduler_interval = int(os.getenv("NURTURING_SCHEDULER_INTERVAL", "300"))  # 5
 # P0 FIX: Nurturing dry_run controlled by env var, defaults to FALSE (messages WILL send)
 NURTURING_DRY_RUN = os.getenv("NURTURING_DRY_RUN", "false").lower() == "true"
 
+# SPEC-006: Real sending controls
+NURTURING_SEND_REAL = os.getenv("NURTURING_SEND_REAL", "false").lower() == "true"
+NURTURING_MAX_PER_CYCLE = int(os.getenv("NURTURING_MAX_PER_CYCLE", "5"))
+NURTURING_WINDOW_HOURS = int(os.getenv("NURTURING_WINDOW_HOURS", "24"))
+
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/nurturing", tags=["nurturing"])
 
@@ -386,15 +391,148 @@ async def _send_telegram_via_proxy(chat_id: str, text: str) -> bool:
         return False
 
 
+def _get_creator_info_by_name(creator_id: str) -> Optional[Dict[str, Any]]:
+    """Get creator Instagram credentials from DB by creator name."""
+    try:
+        from api.database import SessionLocal
+        from api.models import Creator
+
+        session = SessionLocal()
+        try:
+            creator = session.query(Creator).filter(Creator.name == creator_id).first()
+            if not creator or not creator.instagram_token:
+                return None
+            return {
+                "creator_id": creator.name,
+                "creator_uuid": str(creator.id),
+                "instagram_token": creator.instagram_token,
+                "instagram_page_id": creator.instagram_page_id,
+                "instagram_user_id": creator.instagram_user_id,
+            }
+        finally:
+            session.close()
+    except Exception as e:
+        logger.error(f"[NURTURING] Error getting creator info: {e}")
+        return None
+
+
+def _check_message_window(creator_id: str, follower_id: str) -> Optional[float]:
+    """
+    Check if follower's last inbound message is within Meta's messaging window.
+
+    Returns hours since last inbound message, or None if no messages found.
+    """
+    try:
+        from datetime import timezone
+
+        from api.database import SessionLocal
+        from api.models import Creator, Lead, Message
+
+        session = SessionLocal()
+        try:
+            creator = session.query(Creator).filter(Creator.name == creator_id).first()
+            if not creator:
+                return None
+
+            lead = (
+                session.query(Lead)
+                .filter(Lead.creator_id == creator.id, Lead.platform_user_id == follower_id)
+                .first()
+            )
+            if not lead:
+                return None
+
+            last_msg = (
+                session.query(Message)
+                .filter(Message.lead_id == lead.id, Message.role == "user")
+                .order_by(Message.created_at.desc())
+                .first()
+            )
+            if not last_msg or not last_msg.created_at:
+                return None
+
+            now = datetime.now(timezone.utc)
+            msg_time = last_msg.created_at
+            if msg_time.tzinfo is None:
+                msg_time = msg_time.replace(tzinfo=timezone.utc)
+
+            delta = now - msg_time
+            return delta.total_seconds() / 3600
+        finally:
+            session.close()
+    except Exception as e:
+        logger.error(f"[NURTURING] Error checking message window: {e}")
+        return None
+
+
+def _save_nurturing_message_to_db(creator_id: str, follower_id: str, message_text: str) -> bool:
+    """Save sent nurturing message to messages table for inbox visibility."""
+    try:
+        import uuid as uuid_mod
+
+        from api.database import SessionLocal
+        from api.models import Creator, Lead, Message
+
+        session = SessionLocal()
+        try:
+            creator = session.query(Creator).filter(Creator.name == creator_id).first()
+            if not creator:
+                logger.warning(f"[NURTURING] Creator {creator_id} not found for message save")
+                return False
+
+            lead = (
+                session.query(Lead)
+                .filter(Lead.creator_id == creator.id, Lead.platform_user_id == follower_id)
+                .first()
+            )
+            if not lead:
+                logger.warning(f"[NURTURING] Lead {follower_id} not found for message save")
+                return False
+
+            msg = Message(
+                id=uuid_mod.uuid4(),
+                lead_id=lead.id,
+                role="assistant",
+                content=message_text,
+                status="sent",
+                msg_metadata={"source": "nurturing"},
+            )
+            session.add(msg)
+
+            lead.last_contact_at = datetime.now()
+
+            session.commit()
+            logger.info(f"[NURTURING] Saved nurturing message to DB for {follower_id}")
+            return True
+        except Exception as e:
+            session.rollback()
+            logger.error(f"[NURTURING] Error saving message to DB: {e}")
+            return False
+        finally:
+            session.close()
+    except Exception as e:
+        logger.error(f"[NURTURING] Error in save_nurturing_message: {e}")
+        return False
+
+
 async def _try_send_message(creator_id: str, follower_id: str, message: str) -> dict:
     """
     Try to send message via available integrations (async).
     Returns {"sent": bool, "simulated": bool, "error": str|None}
+
+    When NURTURING_SEND_REAL=false (default), all sends are simulated.
+    When NURTURING_SEND_REAL=true, messages are sent via the real platform API.
     """
     channel = _guess_channel(follower_id)
-    logger.info(f"[NURTURING] Sending to {follower_id} via {channel}")
 
-    # Try Telegram
+    # If not sending real messages, simulate all sends
+    if not NURTURING_SEND_REAL:
+        logger.info(f"[NURTURING] [SIMULATED] Would send to {follower_id}: {message[:50]}...")
+        return {"sent": True, "simulated": True, "error": None}
+
+    logger.info(f"[NURTURING] Sending REAL to {follower_id} via {channel}")
+
+    # Telegram
     if channel == "telegram":
         try:
             chat_id = follower_id.replace("tg_", "")
@@ -407,21 +545,48 @@ async def _try_send_message(creator_id: str, follower_id: str, message: str) -> 
             logger.error(f"[NURTURING] Telegram send exception: {e}")
             return {"sent": False, "simulated": False, "error": str(e)}
 
-    # Try Instagram
-    if channel == "instagram":
+    # Instagram (explicit ig_ prefix or unknown/legacy IDs)
+    if channel in ("instagram", "unknown"):
         try:
-            from core.instagram_handler import send_instagram_dm
+            creator_info = _get_creator_info_by_name(creator_id)
+            if not creator_info:
+                logger.error(f"[NURTURING] Creator {creator_id} not found or no IG token")
+                return {
+                    "sent": False,
+                    "simulated": False,
+                    "error": f"Creator {creator_id} not found or no Instagram token",
+                }
 
-            ig_user_id = follower_id.replace("ig_", "")
-            result = await send_instagram_dm(creator_id, ig_user_id, message)
-            if result:
+            from api.routers.instagram import get_handler_for_creator
+
+            handler = get_handler_for_creator(creator_info)
+
+            if not handler or not handler.connector:
+                return {"sent": False, "simulated": False, "error": "Instagram handler not initialized"}
+
+            # send_response handles ig_ prefix stripping internally
+            sent = await handler.send_response(follower_id, message)
+
+            if sent:
+                logger.info(f"[NURTURING] REAL message sent to {follower_id} via Instagram")
                 return {"sent": True, "simulated": False, "error": None}
+            else:
+                return {
+                    "sent": False,
+                    "simulated": False,
+                    "error": "Instagram send_response returned False",
+                }
         except Exception as e:
-            logger.debug(f"[NURTURING] Instagram send failed: {e}")
+            logger.error(f"[NURTURING] Instagram send error: {e}")
+            return {"sent": False, "simulated": False, "error": str(e)}
 
-    # No real integration available - simulate send
-    logger.info(f"[NURTURING] [SIMULATED] Would send to {follower_id}: {message[:50]}...")
-    return {"sent": True, "simulated": True, "error": None}
+    # WhatsApp - not implemented for nurturing yet
+    if channel == "whatsapp":
+        logger.info(f"[NURTURING] [SIMULATED] WhatsApp nurturing not yet implemented")
+        return {"sent": True, "simulated": True, "error": None}
+
+    logger.warning(f"[NURTURING] Unknown channel {channel} for {follower_id}")
+    return {"sent": False, "simulated": False, "error": f"Unknown channel: {channel}"}
 
 
 @router.post("/{creator_id}/run")
@@ -500,13 +665,35 @@ async def run_nurturing_followups(
     processed = 0
     sent_real = 0
     sent_simulated = 0
+    window_expired_count = 0
     errors = []
     by_sequence: Dict[str, Dict[str, int]] = {}
 
     for fu in followups:
         seq_type = fu.sequence_type
         if seq_type not in by_sequence:
-            by_sequence[seq_type] = {"processed": 0, "sent": 0, "simulated": 0, "errors": 0}
+            by_sequence[seq_type] = {
+                "processed": 0,
+                "sent": 0,
+                "simulated": 0,
+                "window_expired": 0,
+                "errors": 0,
+            }
+
+        # 24h window check (only when sending real messages - Meta policy)
+        if NURTURING_SEND_REAL:
+            hours_since = _check_message_window(creator_id, fu.follower_id)
+            if hours_since is None:
+                manager.mark_as_window_expired(fu, reason="no_prior_inbound_message")
+                window_expired_count += 1
+                by_sequence[seq_type]["window_expired"] += 1
+                continue
+
+            if hours_since > NURTURING_WINDOW_HOURS:
+                manager.mark_as_window_expired(fu, reason=f"last_msg_{hours_since:.0f}h_ago")
+                window_expired_count += 1
+                by_sequence[seq_type]["window_expired"] += 1
+                continue
 
         try:
             message = manager.get_followup_message(fu)
@@ -524,6 +711,8 @@ async def run_nurturing_followups(
                 else:
                     sent_real += 1
                     by_sequence[seq_type]["sent"] += 1
+                    # Save real sent message to DB for inbox visibility
+                    _save_nurturing_message_to_db(creator_id, fu.follower_id, message)
 
                 logger.info(f"Followup {fu.id} marked as sent (simulated={result['simulated']})")
             else:
@@ -547,6 +736,7 @@ async def run_nurturing_followups(
         "processed": processed,
         "sent": sent_real,
         "simulated": sent_simulated,
+        "window_expired": window_expired_count,
         "errors": errors,
         "by_sequence": by_sequence,
         "stats_after": {
@@ -787,33 +977,83 @@ async def _run_scheduler_cycle():
     followups = manager.get_pending_followups()
 
     if not followups:
-        logger.info(f"[NURTURING SCHEDULER] No due followups found")
+        logger.info("[NURTURING SCHEDULER] No due followups found")
         _scheduler_last_run = datetime.now().isoformat()
         _scheduler_run_count += 1
-        return {"pending": 0, "processed": 0, "sent": 0, "simulated": 0, "errors": 0}
+        return {
+            "pending": 0,
+            "processed": 0,
+            "sent": 0,
+            "simulated": 0,
+            "window_expired": 0,
+            "rate_limited": 0,
+            "errors": 0,
+        }
 
-    logger.info(f"[NURTURING SCHEDULER] Found {len(followups)} due followups")
+    logger.info(
+        f"[NURTURING SCHEDULER] Found {len(followups)} due followups (send_real={NURTURING_SEND_REAL})"
+    )
 
     processed = 0
     sent_real = 0
     sent_simulated = 0
+    window_expired_count = 0
+    rate_limited_count = 0
     error_count = 0
 
+    # Rate limit tracking per creator
+    sends_per_creator: Dict[str, int] = {}
+
     for fu in followups:
+        creator_id = fu.creator_id
+
+        # Rate limit check per creator (only when sending real)
+        if NURTURING_SEND_REAL and sends_per_creator.get(creator_id, 0) >= NURTURING_MAX_PER_CYCLE:
+            rate_limited_count += 1
+            logger.debug(
+                f"[NURTURING SCHEDULER] Rate limited for {creator_id} (max {NURTURING_MAX_PER_CYCLE}/cycle)"
+            )
+            continue
+
+        # 24h window check (only when sending real - Meta messaging policy)
+        if NURTURING_SEND_REAL:
+            hours_since = _check_message_window(creator_id, fu.follower_id)
+            if hours_since is None:
+                manager.mark_as_window_expired(fu, reason="no_prior_inbound_message")
+                window_expired_count += 1
+                logger.info(
+                    f"[NURTURING SCHEDULER] Window expired for {fu.id}: no prior inbound message"
+                )
+                continue
+
+            if hours_since > NURTURING_WINDOW_HOURS:
+                manager.mark_as_window_expired(fu, reason=f"last_msg_{hours_since:.0f}h_ago")
+                window_expired_count += 1
+                logger.info(
+                    f"[NURTURING SCHEDULER] Window expired for {fu.id}: {hours_since:.0f}h since last msg"
+                )
+                continue
+
         try:
             message = manager.get_followup_message(fu)
-            result = await _try_send_message(fu.creator_id, fu.follower_id, message)
+            result = await _try_send_message(creator_id, fu.follower_id, message)
 
             if result["sent"]:
                 manager.mark_as_sent(fu)
                 processed += 1
+                sends_per_creator[creator_id] = sends_per_creator.get(creator_id, 0) + 1
+
                 if result["simulated"]:
                     sent_simulated += 1
                 else:
                     sent_real += 1
+                    # Save real sent message to DB for inbox visibility
+                    _save_nurturing_message_to_db(creator_id, fu.follower_id, message)
             else:
                 error_count += 1
-                logger.error(f"[NURTURING SCHEDULER] Failed to send {fu.id}: {result.get('error')}")
+                logger.error(
+                    f"[NURTURING SCHEDULER] Failed to send {fu.id}: {result.get('error')}"
+                )
         except Exception as e:
             error_count += 1
             logger.error(f"[NURTURING SCHEDULER] Exception processing {fu.id}: {e}")
@@ -822,7 +1062,9 @@ async def _run_scheduler_cycle():
     _scheduler_run_count += 1
 
     logger.info(
-        f"[NURTURING SCHEDULER] Completed: {processed} processed, {sent_real} sent, {sent_simulated} simulated, {error_count} errors"
+        f"[NURTURING SCHEDULER] Completed: {processed} processed, {sent_real} sent, "
+        f"{sent_simulated} simulated, {window_expired_count} expired, "
+        f"{rate_limited_count} rate_limited, {error_count} errors"
     )
 
     return {
@@ -830,6 +1072,8 @@ async def _run_scheduler_cycle():
         "processed": processed,
         "sent": sent_real,
         "simulated": sent_simulated,
+        "window_expired": window_expired_count,
+        "rate_limited": rate_limited_count,
         "errors": error_count,
     }
 
