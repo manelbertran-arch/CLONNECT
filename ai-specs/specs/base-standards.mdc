@@ -57,11 +57,18 @@ For detailed standards specific to different areas:
 
 ## 6. Current Project State
 
-**IMPORTANT**: This codebase has technical debt that we are actively addressing:
+**Last verified:** 2026-02-14 (commit `876a2c0e`)
 
-- `main.py` has 7,198 lines (target: <500)
-- `dm_agent.py` has 7,463 lines (target: <800)
-- 542 print() statements (target: 0, use logging)
-- 20+ bare except: clauses (target: 0)
+| Metric | Value |
+|--------|-------|
+| `api/main.py` | 465 lines |
+| `core/dm_agent_v2.py` | 1,830 lines |
+| `api/routers/admin/` | 5,816 lines (9 files) |
+| `api/routers/onboarding.py` | 4,565 lines |
+| Production Python files | 292 files, 105,146 LOC |
+| Database tables | 41 (16 Alembic migrations) |
+| API endpoints | 383 |
+| `print()` statements | 30 (target: 0, use logging) |
+| Bare `except:` clauses | 0 |
 
-When making changes, prioritize reducing these numbers, not increasing them.
+When making changes, avoid increasing `print()` count — use `logging` instead.
