@@ -7,6 +7,7 @@ Embeddings persist in PostgreSQL - no regeneration on deploy.
 
 import logging
 import os
+import time
 from typing import List, Optional
 
 logger = logging.getLogger(__name__)
@@ -14,6 +15,10 @@ logger = logging.getLogger(__name__)
 # OpenAI embedding model config
 EMBEDDING_MODEL = "text-embedding-3-small"
 EMBEDDING_DIMENSIONS = 1536
+
+# Embedding cache: avoid repeated OpenAI API calls for same query
+_embedding_cache: dict = {}
+EMBEDDING_CACHE_TTL = 600  # 10 minutes
 
 # Similarity threshold for semantic search
 # Raised from 0.3 to 0.5 to reduce noise in RAG results
@@ -40,6 +45,7 @@ def get_openai_client():
 def generate_embedding(text: str) -> Optional[List[float]]:
     """
     Generate embedding for a single text using OpenAI API.
+    Results are cached in-memory with TTL to avoid repeated API calls.
 
     Args:
         text: Text to embed (max ~8000 tokens for text-embedding-3-small)
@@ -47,6 +53,14 @@ def generate_embedding(text: str) -> Optional[List[float]]:
     Returns:
         List of 1536 floats, or None if failed
     """
+    # Check cache first
+    cache_key = text.strip().lower()
+    now = time.time()
+    cached = _embedding_cache.get(cache_key)
+    if cached and (now - cached["ts"]) < EMBEDDING_CACHE_TTL:
+        logger.info(f"[EMBEDDING] Cache hit: '{text[:50]}'")
+        return cached["embedding"]
+
     client = get_openai_client()
     if not client:
         return None
@@ -60,7 +74,8 @@ def generate_embedding(text: str) -> Optional[List[float]]:
         response = client.embeddings.create(model=EMBEDDING_MODEL, input=text)
 
         embedding = response.data[0].embedding
-        logger.debug(f"Generated embedding: {len(embedding)} dimensions")
+        _embedding_cache[cache_key] = {"embedding": embedding, "ts": now}
+        logger.info(f"[EMBEDDING] Cache miss, stored: '{text[:50]}'")
         return embedding
 
     except Exception as e:

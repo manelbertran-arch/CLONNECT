@@ -12,11 +12,16 @@ v2.0.0 - Enhanced with optional Reranking and BM25 Hybrid Search
 """
 
 import os
+import time
 from typing import List, Dict, Any, Optional
 from dataclasses import dataclass
 import logging
 
 logger = logging.getLogger(__name__)
+
+# RAG results cache: avoid repeating full search pipeline for same query
+_rag_cache: dict = {}
+RAG_CACHE_TTL = 300  # 5 minutes
 
 # =============================================================================
 # FEATURE FLAGS - All OFF by default to minimize latency
@@ -99,6 +104,7 @@ class SemanticRAG:
     def search(self, query: str, top_k: int = 5, creator_id: str = None) -> List[Dict]:
         """
         Search for relevant documents using semantic similarity.
+        Results are cached by query+creator_id with TTL.
 
         Enhanced search pipeline:
         1. Semantic search (OpenAI embeddings + pgvector)
@@ -117,22 +123,45 @@ class SemanticRAG:
             logger.warning("search() called without creator_id")
             return []
 
+        # Check RAG results cache
+        cache_key = f"{creator_id}:{query.strip().lower()}"
+        now = time.time()
+        cached = _rag_cache.get(cache_key)
+        if cached and (now - cached["ts"]) < RAG_CACHE_TTL:
+            logger.info(f"[RAG] Cache hit: '{query[:50]}'")
+            return cached["results"]
+
+        t0 = time.time()
+
         # Get more results initially if we're going to rerank
         # Cap at 12 to keep reranking fast (cross-encoder is O(n))
         initial_top_k = min(top_k * 2, 12) if ENABLE_RERANKING else top_k
 
-        # Step 1: Semantic search
+        # Step 1: Semantic search (embedding API + pgvector)
         semantic_results = self._semantic_search(query, initial_top_k, creator_id)
+        t1 = time.time()
 
         # Step 2: BM25 hybrid fusion (optional)
         if ENABLE_BM25_HYBRID and semantic_results:
             semantic_results = self._hybrid_with_bm25(query, semantic_results, creator_id, initial_top_k)
+        t2 = time.time()
 
         # Step 3: Reranking (optional)
         if ENABLE_RERANKING and semantic_results:
             semantic_results = self._rerank_results(query, semantic_results, top_k)
         else:
             semantic_results = semantic_results[:top_k]
+        t3 = time.time()
+
+        logger.info(
+            f"[RAG_TIMING] semantic={int((t1-t0)*1000)}ms "
+            f"bm25={int((t2-t1)*1000)}ms "
+            f"rerank={int((t3-t2)*1000)}ms "
+            f"total={int((t3-t0)*1000)}ms"
+        )
+
+        # Store in cache
+        _rag_cache[cache_key] = {"results": semantic_results, "ts": now}
 
         return semantic_results
 
@@ -289,6 +318,27 @@ class SemanticRAG:
 
         return results[:top_k]
 
+    def _prebuild_bm25_indexes(self) -> None:
+        """Pre-build BM25 indexes for all creators from loaded documents."""
+        try:
+            from core.rag.bm25 import get_bm25_retriever
+
+            # Group documents by creator_id
+            creators: dict = {}
+            for doc_id, doc in self._documents.items():
+                cid = doc.metadata.get("creator_id") if doc.metadata else None
+                if cid:
+                    creators.setdefault(cid, []).append(doc)
+
+            for cid, docs in creators.items():
+                bm25 = get_bm25_retriever(cid)
+                if bm25.corpus_size == 0:
+                    for doc in docs:
+                        bm25.add_document(doc.doc_id, doc.text, doc.metadata)
+                    logger.info(f"[BM25] Pre-built index for {cid}: {bm25.corpus_size} docs")
+        except Exception as e:
+            logger.warning(f"[BM25] Pre-build failed: {e}")
+
     def _fallback_search(self, query: str, top_k: int, creator_id: str) -> List[Dict]:
         """Simple keyword-based fallback search."""
         results = []
@@ -395,6 +445,11 @@ class SemanticRAG:
 
                 logger.info(f"RAG hydrated: loaded {loaded} documents from PostgreSQL" +
                            (f" for {creator_id}" if creator_id else ""))
+
+                # Pre-build BM25 indexes for all creators to avoid first-search penalty
+                if ENABLE_BM25_HYBRID and loaded > 0:
+                    self._prebuild_bm25_indexes()
+
                 return loaded
 
             finally:
