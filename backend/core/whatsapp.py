@@ -501,9 +501,9 @@ class WhatsAppHandler:
     def _init_agent(self):
         """Initialize DM agent"""
         try:
-            from core.dm_agent_v2 import DMResponderAgent
+            from core.dm_agent_v2 import get_dm_agent
 
-            self.dm_agent = DMResponderAgent(creator_id=self.creator_id)
+            self.dm_agent = get_dm_agent(self.creator_id)
             logger.info(f"DM Agent initialized for creator: {self.creator_id}")
         except Exception as e:
             logger.error(f"Failed to initialize DM agent: {e}")
@@ -554,9 +554,12 @@ class WhatsAppHandler:
             try:
                 # Process with DM agent
                 response = await self.process_message(message)
+                response_text = response.content if hasattr(response, "content") else str(response)
+                intent = str(response.intent) if hasattr(response, "intent") else "unknown"
+                confidence = response.confidence if hasattr(response, "confidence") else 0.0
 
                 # Send response
-                await self.send_response(message.sender_id, response.response_text)
+                await self.send_response(message.sender_id, response_text)
 
                 # Mark as read
                 if self.connector:
@@ -568,13 +571,9 @@ class WhatsAppHandler:
                     {
                         "message_id": message.message_id,
                         "sender_id": message.sender_id,
-                        "response": response.response_text,
-                        "intent": (
-                            response.intent.value
-                            if hasattr(response.intent, "value")
-                            else str(response.intent)
-                        ),
-                        "confidence": response.confidence,
+                        "response": response_text,
+                        "intent": intent,
+                        "confidence": confidence,
                     }
                 )
 
@@ -640,10 +639,11 @@ class WhatsAppHandler:
             },
         )
 
-        logger.info(
-            f"[WA:{message.sender_id}] Intent: {response.intent.value} ({response.confidence:.0%})"
-        )
-        logger.info(f"[WA:{message.sender_id}] Output: {response.response_text[:100]}...")
+        intent = str(response.intent) if hasattr(response, "intent") else "unknown"
+        confidence = response.confidence if hasattr(response, "confidence") else 0.0
+        response_text = response.content if hasattr(response, "content") else str(response)
+        logger.info(f"[WA:{message.sender_id}] Intent: {intent} ({confidence:.0%})")
+        logger.info(f"[WA:{message.sender_id}] Output: {response_text[:100]}...")
 
         return response
 
@@ -729,13 +729,11 @@ class WhatsAppHandler:
             "follower_id": f"wa_{msg.sender_id}",
             "sender_id": msg.sender_id,
             "input": msg.text,
-            "response": response.response_text,
-            "intent": (
-                response.intent.value if hasattr(response.intent, "value") else str(response.intent)
-            ),
-            "confidence": response.confidence,
-            "product": response.product_mentioned,
-            "escalate": response.escalate_to_human,
+            "response": response.content if hasattr(response, "content") else str(response),
+            "intent": str(response.intent) if hasattr(response, "intent") else "unknown",
+            "confidence": response.confidence if hasattr(response, "confidence") else 0.0,
+            "product": response.metadata.get("product_mentioned") if hasattr(response, "metadata") else None,
+            "escalate": response.metadata.get("escalate_to_human", False) if hasattr(response, "metadata") else False,
             "timestamp": datetime.now(timezone.utc).isoformat(),
         }
         self.recent_responses.append(record)

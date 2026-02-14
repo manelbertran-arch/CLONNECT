@@ -220,8 +220,10 @@ async def whatsapp_webhook_receive(request: Request):
     """
     Receive WhatsApp webhook events (POST).
     Processes incoming messages with DMResponderAgent and sends automatic responses.
+    Supports copilot mode (suggested responses) and autopilot mode (auto-send).
     """
-    from core.whatsapp import get_whatsapp_handler
+    from core.dm_agent_v2 import get_dm_agent
+    from core.whatsapp import WhatsAppConnector, WhatsAppMessage
 
     logger.warning("========== WHATSAPP WEBHOOK HIT ==========")
 
@@ -229,15 +231,146 @@ async def whatsapp_webhook_receive(request: Request):
         payload = await request.json()
         signature = request.headers.get("X-Hub-Signature-256", "")
 
-        handler = get_whatsapp_handler()
-        result = await handler.handle_webhook(payload, signature)
+        # Parse messages from webhook payload
+        connector = WhatsAppConnector()
+        messages = await connector.handle_webhook_event(payload)
 
-        logger.info(f"WhatsApp webhook processed: {result.get('messages_processed', 0)} messages")
-        return result
+        if not messages:
+            return {"status": "ok", "messages_processed": 0}
+
+        # Determine creator (for now, single-creator from env; multi-creator TBD)
+        creator_id = os.getenv("WHATSAPP_CREATOR_ID", "stefano_bonanno")
+
+        results = []
+        for message in messages:
+            sender_id = f"wa_{message.sender_id}"
+            logger.info(f"[WA:{message.sender_id}] Input: {message.text[:100]}")
+
+            try:
+                agent = get_dm_agent(creator_id)
+                response = await agent.process_dm(
+                    message=message.text,
+                    sender_id=sender_id,
+                    metadata={
+                        "message_id": message.message_id,
+                        "username": message.sender_id,
+                        "platform": "whatsapp",
+                    },
+                )
+
+                bot_reply = response.content if hasattr(response, "content") else str(response)
+                intent = str(response.intent) if hasattr(response, "intent") else "unknown"
+                confidence = response.confidence if hasattr(response, "confidence") else 0.0
+
+                logger.info(f"[WA:{message.sender_id}] Intent: {intent} ({confidence:.0%})")
+
+                # Check copilot mode
+                copilot_enabled = _get_copilot_mode_cached(creator_id)
+
+                if copilot_enabled:
+                    logger.info("[WA] COPILOT MODE - creating pending response")
+                    try:
+                        from core.copilot_service import get_copilot_service
+                        copilot = get_copilot_service()
+                        pending = await copilot.create_pending_response(
+                            creator_id=creator_id,
+                            lead_id="",
+                            follower_id=sender_id,
+                            platform="whatsapp",
+                            user_message=message.text,
+                            user_message_id=message.message_id,
+                            suggested_response=bot_reply,
+                            intent=intent,
+                            confidence=confidence,
+                            username=message.sender_id,
+                            full_name=message.sender_id,
+                        )
+                        results.append({
+                            "message_id": message.message_id,
+                            "sender_id": message.sender_id,
+                            "intent": intent,
+                            "copilot_mode": True,
+                            "pending_response_id": pending.id,
+                            "response_sent": False,
+                        })
+                    except Exception as copilot_err:
+                        logger.error(f"[WA] Copilot error: {copilot_err}")
+                        results.append({
+                            "message_id": message.message_id,
+                            "sender_id": message.sender_id,
+                            "error": f"copilot: {copilot_err}",
+                        })
+                else:
+                    # AUTOPILOT MODE - send response via WhatsApp
+                    logger.info("[WA] AUTOPILOT MODE - sending auto-reply")
+                    sent = False
+                    wa_token = os.getenv("WHATSAPP_ACCESS_TOKEN", "")
+                    wa_phone_id = os.getenv("WHATSAPP_PHONE_NUMBER_ID", "")
+
+                    if bot_reply and wa_token and wa_phone_id:
+                        try:
+                            send_connector = WhatsAppConnector(
+                                phone_number_id=wa_phone_id,
+                                access_token=wa_token,
+                            )
+                            send_result = await send_connector.send_message(
+                                message.sender_id, bot_reply
+                            )
+                            await send_connector.close()
+                            if "error" not in send_result:
+                                sent = True
+                                logger.info(f"[WA] Response sent to {message.sender_id}")
+                            else:
+                                logger.error(f"[WA] Send error: {send_result['error']}")
+                        except Exception as send_err:
+                            logger.error(f"[WA] Send error: {send_err}")
+
+                    # Mark as read
+                    if wa_token and wa_phone_id:
+                        try:
+                            read_connector = WhatsAppConnector(
+                                phone_number_id=wa_phone_id,
+                                access_token=wa_token,
+                            )
+                            await read_connector.mark_as_read(message.message_id)
+                            await read_connector.close()
+                        except Exception:
+                            pass
+
+                    results.append({
+                        "message_id": message.message_id,
+                        "sender_id": message.sender_id,
+                        "response": bot_reply[:100],
+                        "intent": intent,
+                        "confidence": confidence,
+                        "copilot_mode": False,
+                        "response_sent": sent,
+                    })
+
+            except Exception as e:
+                logger.error(f"[WA] Error processing message {message.message_id}: {e}")
+                import traceback
+                logger.error(traceback.format_exc())
+                results.append({
+                    "message_id": message.message_id,
+                    "sender_id": message.sender_id,
+                    "error": str(e),
+                })
+
+        logger.info(f"WhatsApp webhook processed: {len(messages)} messages")
+        return {
+            "status": "ok",
+            "messages_processed": len(messages),
+            "creator_id": creator_id,
+            "results": results,
+        }
 
     except Exception as e:
         logger.error(f"Error processing WhatsApp webhook: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        import traceback
+        logger.error(traceback.format_exc())
+        # Return 200 to acknowledge receipt (prevents infinite retries from Meta)
+        return {"status": "error", "error": str(e)}
 
 
 @router.get("/whatsapp/status")
@@ -261,6 +394,80 @@ async def whatsapp_status():
             "webhook_url": "/webhook/whatsapp",
             "error": str(e),
         }
+
+
+# =============================================================================
+# WHATSAPP TEST ENDPOINT
+# =============================================================================
+
+
+@router.post("/admin/whatsapp/test-message")
+async def whatsapp_test_message(request: Request):
+    """
+    Simulate a WhatsApp message through the full DM pipeline.
+
+    Use this to test the WhatsApp flow E2E without needing WhatsApp Business API.
+    The message goes through DMResponderAgent just like a real webhook,
+    but the response is returned in the API response instead of being
+    sent to WhatsApp.
+
+    Body: { "creator_id": "stefano_bonanno", "phone": "+34612345678", "text": "Hola" }
+    """
+    from core.dm_agent_v2 import get_dm_agent
+
+    try:
+        body = await request.json()
+        creator_id = body.get("creator_id", "stefano_bonanno")
+        phone = body.get("phone", "+34600000000")
+        text = body.get("text", "Hola, me interesa tu servicio")
+
+        # Strip + and spaces for consistent sender_id
+        phone_clean = phone.replace("+", "").replace(" ", "")
+
+        agent = get_dm_agent(creator_id)
+
+        response = await agent.process_dm(
+            message=text,
+            sender_id=f"wa_{phone_clean}",
+            metadata={
+                "message_id": "test_wa_0",
+                "username": phone,
+                "name": phone,
+                "platform": "whatsapp",
+            },
+        )
+
+        response_text = response.content if hasattr(response, "content") else str(response)
+        intent = str(response.intent) if hasattr(response, "intent") else "unknown"
+        confidence = response.confidence if hasattr(response, "confidence") else None
+
+        return {
+            "status": "ok",
+            "test_mode": True,
+            "creator_id": creator_id,
+            "input": {
+                "phone": phone,
+                "sender_id": f"wa_{phone_clean}",
+                "text": text,
+            },
+            "pipeline_response": {
+                "response_text": response_text,
+                "intent": intent,
+                "confidence": confidence,
+            },
+            "note": "Response NOT sent to WhatsApp - test mode only",
+            "env_check": {
+                "WHATSAPP_PHONE_NUMBER_ID": bool(os.getenv("WHATSAPP_PHONE_NUMBER_ID")),
+                "WHATSAPP_ACCESS_TOKEN": bool(os.getenv("WHATSAPP_ACCESS_TOKEN")),
+                "WHATSAPP_VERIFY_TOKEN": bool(os.getenv("WHATSAPP_VERIFY_TOKEN")),
+            },
+        }
+
+    except Exception as e:
+        logger.error(f"Error in WhatsApp test message: {e}")
+        import traceback
+        logger.error(traceback.format_exc())
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 # =============================================================================
