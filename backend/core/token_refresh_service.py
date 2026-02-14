@@ -142,7 +142,7 @@ async def refresh_long_lived_token(current_token: str) -> Optional[Dict[str, Any
 async def check_and_refresh_if_needed(
     creator_id: str,
     db_session,
-    refresh_threshold_days: int = 7
+    refresh_threshold_days: int = 30
 ) -> Dict[str, Any]:
     """
     Verifica si el token está por expirar y lo refresca automáticamente.
