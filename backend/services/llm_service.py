@@ -20,6 +20,7 @@ class LLMProvider(str, Enum):
     GROQ = "groq"
     OPENAI = "openai"
     ANTHROPIC = "anthropic"
+    GEMINI = "gemini"
 
 
 @dataclass
@@ -60,6 +61,7 @@ class LLMService:
         LLMProvider.GROQ: "llama-3.3-70b-versatile",
         LLMProvider.OPENAI: "gpt-4o-mini",
         LLMProvider.ANTHROPIC: "claude-3-haiku-20240307",
+        LLMProvider.GEMINI: "gemini-2.5-flash-lite",
     }
 
     # Available models per provider
@@ -80,6 +82,11 @@ class LLMService:
             "claude-3-opus-20240229",
             "claude-3-sonnet-20240229",
             "claude-3-haiku-20240307",
+        ],
+        LLMProvider.GEMINI: [
+            "gemini-2.5-flash-lite",
+            "gemini-2.0-flash",
+            "gemini-2.5-pro",
         ],
     }
 
@@ -119,6 +126,7 @@ class LLMService:
             LLMProvider.GROQ: "GROQ_API_KEY",
             LLMProvider.OPENAI: "OPENAI_API_KEY",
             LLMProvider.ANTHROPIC: "ANTHROPIC_API_KEY",
+            LLMProvider.GEMINI: "GOOGLE_API_KEY",
         }
         env_var = key_map.get(self.provider, "")
         return os.getenv(env_var)
@@ -138,6 +146,9 @@ class LLMService:
             elif self.provider == LLMProvider.ANTHROPIC:
                 from anthropic import AsyncAnthropic
                 self._client = AsyncAnthropic(api_key=self._api_key)
+            elif self.provider == LLMProvider.GEMINI:
+                # Gemini uses httpx directly (no SDK needed), store key as marker
+                self._client = self._api_key
         except ImportError as e:
             logger.warning(f"[LLMService] Provider SDK not installed: {e}")
             self._client = None
@@ -316,6 +327,18 @@ class LLMService:
                 )
                 return self._parse_anthropic_response(response)
 
+            elif self.provider == LLMProvider.GEMINI:
+                from core.providers.gemini_provider import generate_response_gemini
+                content = await generate_response_gemini(
+                    messages, max_tokens=max_tokens, temperature=temperature,
+                )
+                return LLMResponse(
+                    content=content or "",
+                    model=self.model or "gemini-2.5-flash-lite",
+                    tokens_used=0,
+                    metadata={"provider": "gemini"},
+                )
+
         except Exception as e:
             logger.error(f"[LLMService] API call failed ({self.provider.value}): {e}")
 
@@ -358,7 +381,7 @@ class LLMService:
         original_client = self._client
 
         # Provider priority order for failover
-        failover_order = [LLMProvider.OPENAI, LLMProvider.GROQ, LLMProvider.ANTHROPIC]
+        failover_order = [LLMProvider.OPENAI, LLMProvider.GROQ, LLMProvider.ANTHROPIC, LLMProvider.GEMINI]
 
         for provider in failover_order:
             if provider == original_provider:
@@ -369,6 +392,7 @@ class LLMService:
                 LLMProvider.GROQ: "GROQ_API_KEY",
                 LLMProvider.OPENAI: "OPENAI_API_KEY",
                 LLMProvider.ANTHROPIC: "ANTHROPIC_API_KEY",
+                LLMProvider.GEMINI: "GOOGLE_API_KEY",
             }
             api_key = os.getenv(key_map.get(provider, ""))
             if not api_key:
@@ -419,6 +443,17 @@ class LLMService:
                         max_tokens=max_tokens,
                     )
                     result = self._parse_anthropic_response(response)
+                elif provider == LLMProvider.GEMINI:
+                    from core.providers.gemini_provider import generate_response_gemini
+                    content = await generate_response_gemini(
+                        messages, max_tokens=max_tokens, temperature=temperature,
+                    )
+                    result = LLMResponse(
+                        content=content or "",
+                        model=self.model or "gemini-2.5-flash-lite",
+                        tokens_used=0,
+                        metadata={"provider": "gemini"},
+                    )
                 else:
                     continue
 

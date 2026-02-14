@@ -32,7 +32,7 @@ logger = logging.getLogger("clonnect.semantic_memory_pgvector")
 # Feature flag - separate from ENABLE_SEMANTIC_MEMORY (ChromaDB version)
 # Set to "true" to enable pgvector-based semantic memory
 ENABLE_SEMANTIC_MEMORY_PGVECTOR = (
-    os.getenv("ENABLE_SEMANTIC_MEMORY_PGVECTOR", "false").lower() == "true"
+    os.getenv("ENABLE_SEMANTIC_MEMORY_PGVECTOR", "true").lower() == "true"
 )
 
 # Minimum message length to store (avoid storing greetings like "hola", "ok")

@@ -114,13 +114,13 @@ ENABLE_QUERY_EXPANSION = os.getenv("ENABLE_QUERY_EXPANSION", "true").lower() == 
 ENABLE_REFLEXION = os.getenv("ENABLE_REFLEXION", "true").lower() == "true"
 # P2: Intelligence
 ENABLE_LEAD_CATEGORIZER = os.getenv("ENABLE_LEAD_CATEGORIZER", "true").lower() == "true"
-ENABLE_CONVERSATION_STATE = os.getenv("ENABLE_CONVERSATION_STATE", "false").lower() == "true"
+ENABLE_CONVERSATION_STATE = os.getenv("ENABLE_CONVERSATION_STATE", "true").lower() == "true"
 ENABLE_FACT_TRACKING = os.getenv("ENABLE_FACT_TRACKING", "true").lower() == "true"
 # P3: Personalization
-ENABLE_ADVANCED_PROMPTS = os.getenv("ENABLE_ADVANCED_PROMPTS", "false").lower() == "true"
+ENABLE_ADVANCED_PROMPTS = os.getenv("ENABLE_ADVANCED_PROMPTS", "true").lower() == "true"
 ENABLE_DNA_TRIGGERS = os.getenv("ENABLE_DNA_TRIGGERS", "true").lower() == "true"
 ENABLE_RELATIONSHIP_DETECTION = (
-    os.getenv("ENABLE_RELATIONSHIP_DETECTION", "false").lower() == "true"
+    os.getenv("ENABLE_RELATIONSHIP_DETECTION", "true").lower() == "true"
 )
 # P4: Full integration
 ENABLE_EDGE_CASE_DETECTION = os.getenv("ENABLE_EDGE_CASE_DETECTION", "true").lower() == "true"

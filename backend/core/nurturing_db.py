@@ -24,7 +24,7 @@ from api.database import Base, get_db_session, SessionLocal
 logger = logging.getLogger(__name__)
 
 # Feature flag for PostgreSQL storage
-NURTURING_USE_DB = os.getenv("NURTURING_USE_DB", "false").lower() == "true"
+NURTURING_USE_DB = os.getenv("NURTURING_USE_DB", "true").lower() == "true"
 
 
 class NurturingFollowupDB(Base):
