@@ -19,7 +19,7 @@ export default function SwitchUser() {
       localStorage.setItem('clonnect_selected_creator', creatorId);
 
       // Clear any cached data by doing a hard redirect
-      window.location.href = '/inbox';
+      window.location.href = '/new/mensajes';
     } else {
       navigate('/');
     }

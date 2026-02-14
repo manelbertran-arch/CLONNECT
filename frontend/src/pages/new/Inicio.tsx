@@ -233,7 +233,7 @@ export default function Inicio() {
                 </span>
               </CardTitle>
               <Link
-                to="/leads"
+                to="/new/clientes"
                 className="text-sm text-purple-500 hover:text-purple-400"
               >
                 Ver todos

@@ -6,7 +6,6 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider } from "@/context/AuthContext";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
-import { DashboardLayout } from "./components/layout/DashboardLayout";
 import { DashboardLayoutClean } from "./components/layout/DashboardLayoutClean";
 import NotFound from "./pages/NotFound";
 import Login from "./pages/Login";
@@ -14,9 +13,6 @@ import Register from "./pages/Register";
 import Welcome from "./pages/Welcome";
 
 // Critical pages - loaded immediately
-import Dashboard from "./pages/Dashboard";
-import Inbox from "./pages/Inbox";
-import Leads from "./pages/Leads";
 import Copilot from "./pages/Copilot";
 import Onboarding from "./pages/Onboarding";
 import CrearClon from "./pages/CrearClon";
@@ -110,25 +106,7 @@ const AppRoutes = () => {
       {/* Protected: switch user */}
       <Route path="/switch-user/:creatorId" element={<ProtectedRoute><SwitchUser /></ProtectedRoute>} />
 
-      {/* Protected: old dashboard routes */}
-      <Route element={<ProtectedRoute><DashboardLayout /></ProtectedRoute>}>
-        <Route path="/dashboard" element={<Dashboard />} />
-        <Route path="/dashboard/:creatorId" element={<Dashboard />} />
-        <Route path="/inbox" element={<Inbox />} />
-        <Route path="/copilot" element={<Copilot />} />
-        <Route path="/leads" element={<Leads />} />
-        <Route path="/nurturing" element={<Suspense fallback={<PageLoader />}><Nurturing /></Suspense>} />
-        <Route path="/products" element={<Suspense fallback={<PageLoader />}><Products /></Suspense>} />
-        <Route path="/bookings" element={<Suspense fallback={<PageLoader />}><Bookings /></Suspense>} />
-        <Route path="/settings" element={<Suspense fallback={<PageLoader />}><Settings /></Suspense>} />
-        <Route path="/analytics" element={<Suspense fallback={<PageLoader />}><AnalyticsDashboard /></Suspense>} />
-        <Route path="/docs" element={<Suspense fallback={<PageLoader />}><Docs /></Suspense>} />
-        {/* Sprint 4 Intelligence routes */}
-        <Route path="/tu-audiencia" element={<Suspense fallback={<PageLoader />}><TuAudiencia /></Suspense>} />
-        <Route path="/personas" element={<Suspense fallback={<PageLoader />}><Personas /></Suspense>} />
-      </Route>
-
-      {/* Protected: new dashboard routes */}
+      {/* Protected: unified dashboard (NewLayout) */}
       <Route path="/new" element={<ProtectedRoute><NewLayout /></ProtectedRoute>}>
         <Route index element={<Navigate to="/new/inicio" replace />} />
         <Route path="inicio" element={<Inicio />} />
@@ -136,7 +114,31 @@ const AppRoutes = () => {
         <Route path="mensajes/:conversationId" element={<Mensajes />} />
         <Route path="clientes" element={<Clientes />} />
         <Route path="ajustes" element={<Ajustes />} />
+        {/* Features migrated from old dashboard */}
+        <Route path="copilot" element={<Copilot />} />
+        <Route path="products" element={<Suspense fallback={<PageLoader />}><Products /></Suspense>} />
+        <Route path="nurturing" element={<Suspense fallback={<PageLoader />}><Nurturing /></Suspense>} />
+        <Route path="bookings" element={<Suspense fallback={<PageLoader />}><Bookings /></Suspense>} />
+        <Route path="analytics" element={<Suspense fallback={<PageLoader />}><AnalyticsDashboard /></Suspense>} />
+        <Route path="audiencia" element={<Suspense fallback={<PageLoader />}><TuAudiencia /></Suspense>} />
+        <Route path="personas" element={<Suspense fallback={<PageLoader />}><Personas /></Suspense>} />
+        <Route path="docs" element={<Suspense fallback={<PageLoader />}><Docs /></Suspense>} />
       </Route>
+
+      {/* Redirects: old dashboard routes → new layout */}
+      <Route path="/dashboard" element={<Navigate to="/new/inicio" replace />} />
+      <Route path="/dashboard/:creatorId" element={<Navigate to="/new/inicio" replace />} />
+      <Route path="/inbox" element={<Navigate to="/new/mensajes" replace />} />
+      <Route path="/copilot" element={<Navigate to="/new/copilot" replace />} />
+      <Route path="/leads" element={<Navigate to="/new/clientes" replace />} />
+      <Route path="/products" element={<Navigate to="/new/products" replace />} />
+      <Route path="/nurturing" element={<Navigate to="/new/nurturing" replace />} />
+      <Route path="/settings" element={<Navigate to="/new/ajustes" replace />} />
+      <Route path="/analytics" element={<Navigate to="/new/analytics" replace />} />
+      <Route path="/bookings" element={<Navigate to="/new/bookings" replace />} />
+      <Route path="/tu-audiencia" element={<Navigate to="/new/audiencia" replace />} />
+      <Route path="/personas" element={<Navigate to="/new/personas" replace />} />
+      <Route path="/docs" element={<Navigate to="/new/docs" replace />} />
 
       {/* Root shows welcome page */}
       <Route path="/" element={<Welcome />} />
