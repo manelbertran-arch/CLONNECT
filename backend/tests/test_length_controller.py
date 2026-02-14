@@ -49,8 +49,8 @@ class TestClassifyLeadContext:
         assert classify_lead_context("Muchas gracias hermano") == "agradecimiento"
 
     def test_casual(self):
-        assert classify_lead_context("Jajaja") == "casual"
-        assert classify_lead_context("😂🤣") == "casual"
+        assert classify_lead_context("Jajaja") == "humor"
+        assert classify_lead_context("😂🤣") == "humor"
 
     def test_story_mention(self):
         assert classify_lead_context("Mentioned you in their story") == "story_mention"
@@ -59,7 +59,7 @@ class TestClassifyLeadContext:
         assert classify_lead_context("Cómo te fue en el viaje?") == "pregunta_general"
 
     def test_otro(self):
-        assert classify_lead_context("Me mudé a Barcelona") == "otro"
+        assert classify_lead_context("Me mudé a Barcelona") == "casual"
 
     def test_inicio_conversacion(self):
         assert classify_lead_context("") == "inicio_conversacion"

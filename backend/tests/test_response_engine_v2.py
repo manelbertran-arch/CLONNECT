@@ -147,12 +147,12 @@ class TestConversationContext:
         )
         prompt = context.to_system_prompt()
 
-        # Check that tone elements are incorporated (format may vary)
-        assert "vamos crack" in prompt  # signature phrase should be present
-        # Energy manifests as ENERGICO or similar in prompt
-        assert "ENERGICO" in prompt or "casual" in prompt.lower()
-        # Formality="informal" results in tuteo rules
-        assert "TUTEAR" in prompt or "informal" in prompt.lower()
+        # Check that tone elements are incorporated (compact format)
+        assert "TONO CREADOR" in prompt
+        # Energy="alta" produces "energético" trait
+        assert "energético" in prompt or "TONO:" in prompt
+        # Formality="informal" results in TUTEO rules
+        assert "TUTEO" in prompt
 
     def test_to_system_prompt_with_citations(self):
         follower = FollowerContext(follower_id="test")
@@ -488,8 +488,8 @@ class TestBuildMagicSlicePrompt:
         prompt = build_magic_slice_prompt(tone_profile=tone)
 
         assert "ESTILO DE COMUNICACIÓN" in prompt
-        # Check for informal style indicator (may use "TUTEAR" or "informal")
-        assert "TUTEAR" in prompt or "informal" in prompt
+        # Check for informal style indicator (compact format uses "TUTEO")
+        assert "TUTEO" in prompt
 
     def test_with_citations_only(self):
         citations = [
@@ -525,7 +525,7 @@ class TestBuildMagicSlicePrompt:
         tone = ToneProfile(
             creator_id="test",
             formality="informal",
-            signature_phrases=["vamos crack"]
+            filler_words=["vamos crack"]
         )
         citations = [
             Citation(ContentType.YOUTUBE_VIDEO, "1", None, "Mi video", "contenido", 0.85)

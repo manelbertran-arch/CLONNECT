@@ -68,7 +68,7 @@ class TestSearchSimilarThreshold:
         mock_session = MagicMock()
         mock_session.execute.return_value = []
 
-        with patch("core.embeddings.SessionLocal", return_value=mock_session):
+        with patch("api.database.SessionLocal", return_value=mock_session):
             # Call without min_similarity parameter
             search_similar(
                 query_embedding=[0.1] * 1536,
@@ -89,7 +89,7 @@ class TestSearchSimilarThreshold:
         mock_session = MagicMock()
         mock_session.execute.return_value = []
 
-        with patch("core.embeddings.SessionLocal", return_value=mock_session):
+        with patch("api.database.SessionLocal", return_value=mock_session):
             search_similar(
                 query_embedding=[0.1] * 1536,
                 creator_id="test",
@@ -124,7 +124,7 @@ class TestThresholdFiltering:
         mock_session = MagicMock()
         mock_session.execute.return_value = [mock_high, mock_medium]
 
-        with patch("core.embeddings.SessionLocal", return_value=mock_session):
+        with patch("api.database.SessionLocal", return_value=mock_session):
             results = search_similar(
                 query_embedding=[0.1] * 1536,
                 creator_id="test",
@@ -156,7 +156,7 @@ class TestThresholdFiltering:
         # Simulate: with 0.5 threshold, noise is filtered at DB level
         mock_session.execute.return_value = []  # Nothing passes 0.5
 
-        with patch("core.embeddings.SessionLocal", return_value=mock_session):
+        with patch("api.database.SessionLocal", return_value=mock_session):
             results = search_similar(
                 query_embedding=[0.1] * 1536,
                 creator_id="test",

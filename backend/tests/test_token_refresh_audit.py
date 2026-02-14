@@ -156,8 +156,8 @@ class TestCheckAndRefreshIntegration:
 
         mock_session = MagicMock()
 
-        # Simulate a creator whose token expires in 30 days (well above threshold)
-        future_expiry = datetime.utcnow() + timedelta(days=30)
+        # Simulate a creator whose token expires in 45 days (well above 30-day threshold)
+        future_expiry = datetime.utcnow() + timedelta(days=45)
         mock_row = (
             "uuid-123",  # id
             "test_creator",  # name
@@ -170,7 +170,7 @@ class TestCheckAndRefreshIntegration:
 
         assert result["action"] == "skip"
         assert result["success"] is True
-        assert result["days_until_expiry"] >= 29
+        assert result["days_until_expiry"] >= 44
 
     @pytest.mark.asyncio
     async def test_creator_not_found(self):

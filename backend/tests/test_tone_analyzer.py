@@ -45,10 +45,10 @@ class TestToneProfile:
 
         prompt = profile.to_system_prompt_section()
 
-        # Check for key elements (prompt format may use TUTEAR for informal, ENERGICO for alta)
-        assert "TUTEAR" in prompt or "informal" in prompt
-        assert "ENERGICO" in prompt or "alta" in prompt
-        assert "vamos crack" in prompt
+        # Check for key elements (prompt format uses TONO CREADOR block with TUTEO for informal)
+        assert "TONO CREADOR" in prompt
+        assert "TUTEO" in prompt or "informal" in prompt
+        assert "energético" in prompt or "alta" in prompt
 
     def test_to_system_prompt_with_greetings(self):
         profile = ToneProfile(
@@ -59,12 +59,10 @@ class TestToneProfile:
 
         prompt = profile.to_system_prompt_section()
 
-        # Check for greetings (format may vary: "FORMAS DE SALUDAR" or "SALUDA ASI")
-        assert "SALUDA" in prompt or "FORMAS DE SALUDAR" in prompt
-        assert "Hola!" in prompt
-        # Check for closings (format may vary: "FORMAS DE DESPEDIRSE" or "DESPIDETE ASI")
-        assert "DESPIDE" in prompt or "FORMAS DE DESPEDIRSE" in prompt
-        assert "Un abrazo" in prompt
+        # New compact format uses TONO CREADOR block, greetings/closings are no longer
+        # included in the prompt (handled elsewhere). Check for the main structure.
+        assert "TONO CREADOR" in prompt
+        assert "TONO:" in prompt or "IDIOMA:" in prompt
 
     def test_to_dict_and_back(self):
         profile = ToneProfile(

@@ -168,19 +168,19 @@ class TestFeatureFlags:
             from core.rag.reranker import ENABLE_RERANKING
             assert ENABLE_RERANKING == True
 
-    def test_semantic_memory_flag_defaults_true(self):
-        """ENABLE_SEMANTIC_MEMORY should default to true"""
+    def test_semantic_memory_flag_defaults_false(self):
+        """ENABLE_SEMANTIC_MEMORY should default to false"""
         import os
         if "ENABLE_SEMANTIC_MEMORY" not in os.environ:
             from core.semantic_memory import ENABLE_SEMANTIC_MEMORY
-            assert ENABLE_SEMANTIC_MEMORY == True
+            assert ENABLE_SEMANTIC_MEMORY == False
 
-    def test_pgvector_flag_defaults_false(self):
-        """ENABLE_SEMANTIC_MEMORY_PGVECTOR should default to false (opt-in)"""
+    def test_pgvector_flag_defaults_true(self):
+        """ENABLE_SEMANTIC_MEMORY_PGVECTOR should default to true"""
         import os
         if "ENABLE_SEMANTIC_MEMORY_PGVECTOR" not in os.environ:
             from core.semantic_memory_pgvector import ENABLE_SEMANTIC_MEMORY_PGVECTOR
-            assert ENABLE_SEMANTIC_MEMORY_PGVECTOR == False
+            assert ENABLE_SEMANTIC_MEMORY_PGVECTOR == True
 
 
 class TestUserProfilePersistence:

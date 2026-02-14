@@ -63,8 +63,8 @@ class TestToneServiceUnit:
 
         section = profile.to_system_prompt_section()
 
-        # Check for style indicators (may use various formats)
-        assert "REGLAS OBLIGATORIAS" in section or "ESTILO" in section or "TUTEAR" in section
+        # Check for style indicators (new compact format uses TONO CREADOR block)
+        assert "TONO CREADOR" in section or "TUTEO" in section
         assert len(section) > 50  # Debe tener contenido sustancial
 
 
@@ -137,7 +137,7 @@ class TestToneServiceIntegration:
         try:
             result = tone_service.get_tone_prompt_section("cached_creator")
             assert len(result) > 0
-            assert "informal" in result or "ESTILO" in result
+            assert "TONO CREADOR" in result or "TUTEO" in result
         finally:
             tone_service.clear_cache("cached_creator")
 

@@ -39,7 +39,7 @@ class TestMigrationImports:
         assert hasattr(agent, 'intent_classifier')
         assert hasattr(agent, 'prompt_builder')
         assert hasattr(agent, 'memory_store')
-        assert hasattr(agent, 'rag_service')
+        assert hasattr(agent, 'semantic_rag')
         assert hasattr(agent, 'llm_service')
         assert hasattr(agent, 'lead_service')
         assert hasattr(agent, 'instagram_service')
