@@ -168,11 +168,25 @@ async def generate_scout_production(
     max_tokens: int = 60,
     temperature: float = 0.7,
 ) -> Optional[str]:
-    """Production Scout inference: DeepInfra primary, Groq fallback.
+    """Production Scout inference with configurable provider.
 
-    Returns response string or None if both providers fail.
+    SCOUT_PROVIDER env var controls routing:
+      - "gemini"   → Google Gemini (Flash-Lite), fallback to DeepInfra
+      - "deepinfra" → DeepInfra (default), fallback to Groq
+      - "groq"     → Groq primary, fallback to DeepInfra
+
+    Returns response string or None if all providers fail.
     """
     provider = os.getenv("SCOUT_PROVIDER", "deepinfra")
+
+    if provider == "gemini":
+        from core.providers.gemini_provider import generate_response_gemini
+
+        result = await generate_response_gemini(messages, max_tokens, temperature)
+        if result:
+            return result
+        logger.warning("Gemini failed, falling back to DeepInfra")
+        return await generate_response_deepinfra(messages, max_tokens, temperature)
 
     if provider == "groq":
         result = await generate_response_groq(messages, max_tokens, temperature)
