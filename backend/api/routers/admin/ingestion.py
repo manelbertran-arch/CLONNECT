@@ -63,13 +63,15 @@ async def get_ingestion_status(creator_id: str):
                 ("content_chunks", f"SELECT COUNT(*) FROM content_chunks WHERE creator_id = '{cid}'"),
                 ("products", f"SELECT COUNT(*) FROM products WHERE creator_id = '{cid}'"),
                 ("leads", f"SELECT COUNT(*) FROM leads WHERE creator_id = '{cid}'"),
-                ("messages", f"SELECT COUNT(*) FROM messages WHERE creator_id = '{cid}'"),
+                ("messages", f"SELECT COUNT(*) FROM messages m JOIN leads l ON m.lead_id = l.id WHERE l.creator_id = '{cid}'"),
             ]
 
             # Optional tables that may not exist
+            # follower_memories and conversation_embeddings use creator name, not UUID
+            creator_name_val = creator_name.replace("'", "''")
             optional_tables = [
-                ("follower_memories", f"SELECT COUNT(*) FROM follower_memories WHERE creator_id = '{cid}'"),
-                ("conversation_embeddings", f"SELECT COUNT(*) FROM conversation_embeddings WHERE creator_id = '{cid}'"),
+                ("follower_memories", f"SELECT COUNT(*) FROM follower_memories WHERE creator_id = '{creator_name_val}'"),
+                ("conversation_embeddings", f"SELECT COUNT(*) FROM conversation_embeddings WHERE creator_id = '{creator_name_val}'"),
                 ("nurturing_followups", f"SELECT COUNT(*) FROM nurturing_followups WHERE creator_id = '{cid}'"),
             ]
 
@@ -78,6 +80,7 @@ async def get_ingestion_status(creator_id: str):
                     result = session.execute(text(query)).scalar()
                     counts[name] = result
                 except Exception:
+                    session.rollback()
                     counts[name] = -1
 
             for name, query in optional_tables:
@@ -85,6 +88,7 @@ async def get_ingestion_status(creator_id: str):
                     result = session.execute(text(query)).scalar()
                     counts[name] = result
                 except Exception:
+                    session.rollback()
                     counts[name] = 0  # Table may not exist
 
             # Latest IG post date

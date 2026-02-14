@@ -935,8 +935,8 @@ async def get_data_status(creator_id: str):
                 "content_chunks": "SELECT COUNT(*) FROM content_chunks WHERE creator_id = :cid",
                 "products": "SELECT COUNT(*) FROM products WHERE creator_id = :uuid",
                 "leads": "SELECT COUNT(*) FROM leads WHERE creator_id = :uuid",
-                "messages": "SELECT COUNT(*) FROM messages WHERE creator_id = :uuid",
-                "conversation_embeddings": "SELECT COUNT(*) FROM conversation_embeddings WHERE creator_id = :uuid",
+                "messages": "SELECT COUNT(*) FROM messages m JOIN leads l ON m.lead_id = l.id WHERE l.creator_id = :uuid",
+                "conversation_embeddings": "SELECT COUNT(*) FROM conversation_embeddings WHERE creator_id = :cid",
                 "follower_memories": "SELECT COUNT(*) FROM follower_memories WHERE creator_id = :cid",
             }
 
@@ -946,6 +946,7 @@ async def get_data_status(creator_id: str):
                     result = session.execute(text(query), param).scalar()
                     counts[table] = result
                 except Exception as e:
+                    session.rollback()
                     counts[table] = f"error: {e}"
 
             return {
