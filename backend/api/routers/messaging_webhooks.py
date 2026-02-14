@@ -49,12 +49,12 @@ async def instagram_webhook_verify(request: Request):
 async def instagram_webhook_receive(request: Request):
     """
     Receive Instagram webhook events (POST).
-    Processes incoming DMs with DMResponderAgent and sends automatic responses.
 
-    V8: Multi-creator routing with robust ID matching.
-    - Extracts ALL possible Instagram IDs from payload
-    - Searches by page_id, user_id, and additional_ids
-    - Saves unmatched webhooks for debugging
+    V9: Handles both messaging (DMs) and feed (new posts) events.
+    - Messaging: Processed via DMResponderAgent (existing flow)
+    - Feed: New post/reel detected → background task for real-time ingestion (SPEC-004B)
+
+    Multi-creator routing with robust ID matching.
     """
     from api.routers.instagram import get_handler_for_creator
     from core.webhook_routing import (
@@ -65,7 +65,7 @@ async def instagram_webhook_receive(request: Request):
     )
 
     logger.warning("=" * 60)
-    logger.warning("========== INSTAGRAM WEBHOOK HIT V8 (ROBUST ROUTING) ==========")
+    logger.warning("========== INSTAGRAM WEBHOOK HIT V9 (MESSAGING + FEED) ==========")
     logger.warning("=" * 60)
 
     try:
@@ -103,18 +103,54 @@ async def instagram_webhook_receive(request: Request):
         # 4. Update webhook stats for this creator
         update_creator_webhook_stats(creator_id)
 
-        # 5. Check if bot is active
+        # 5. Check for feed events (new posts/reels) — SPEC-004B
+        #    Process in background so webhook returns 200 instantly
+        feed_events_found = 0
+        for entry in payload.get("entry", []):
+            has_feed = any(
+                c.get("field") == "feed"
+                for c in entry.get("changes", [])
+            )
+            if has_feed:
+                feed_events_found += 1
+                asyncio.create_task(
+                    _process_feed_event_safe(creator_info, entry)
+                )
+
+        if feed_events_found > 0:
+            logger.info(
+                f"[FEED-WEBHOOK] Dispatched {feed_events_found} feed event(s) "
+                f"for {creator_id} to background processing"
+            )
+
+        # 6. Check if bot is active (for DM processing)
+        has_messaging = any(
+            "messaging" in entry
+            for entry in payload.get("entry", [])
+        )
+
+        if not has_messaging:
+            # Pure feed event — no DM to process
+            return {
+                "status": "ok",
+                "creator_id": creator_id,
+                "matched_id": matched_id,
+                "messages_processed": 0,
+                "feed_events_dispatched": feed_events_found,
+            }
+
         if not creator_info.get("bot_active", False):
-            logger.info(f"Bot not active for creator {creator_id}, skipping processing")
+            logger.info(f"Bot not active for creator {creator_id}, skipping DM processing")
             return {
                 "status": "ok",
                 "info": "bot_paused",
                 "creator_id": creator_id,
                 "matched_id": matched_id,
                 "messages_processed": 0,
+                "feed_events_dispatched": feed_events_found,
             }
 
-        # 6. Get handler for this creator and process
+        # 7. Get handler for this creator and process DMs
         handler = get_handler_for_creator(creator_info)
         result = await handler.handle_webhook(payload, signature, raw_body=raw_body)
 
@@ -123,6 +159,7 @@ async def instagram_webhook_receive(request: Request):
             **result,
             "creator_id": creator_id,
             "matched_id": matched_id,
+            "feed_events_dispatched": feed_events_found,
         }
 
     except Exception as e:
@@ -132,6 +169,19 @@ async def instagram_webhook_receive(request: Request):
         logger.error(traceback.format_exc())
         # Return 200 to acknowledge receipt (prevents infinite retries from Meta)
         return {"status": "error", "error": str(e)}
+
+
+async def _process_feed_event_safe(creator_info: dict, entry: dict):
+    """Wrapper to safely run feed webhook processing in background."""
+    try:
+        from services.feed_webhook_handler import process_feed_webhook
+
+        await process_feed_webhook(creator_info, entry)
+    except Exception as e:
+        logger.error(
+            f"[FEED-WEBHOOK] Background processing failed for "
+            f"{creator_info.get('creator_id', '?')}: {e}"
+        )
 
 
 # Legacy endpoint (backwards compatibility)

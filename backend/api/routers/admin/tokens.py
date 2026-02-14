@@ -6,6 +6,7 @@ Handles Instagram/Facebook token operations:
 - Token exchange (short-lived to long-lived)
 - Token setting and configuration
 - Instagram ID fixes
+- Webhook subscription management (SPEC-004B)
 """
 
 import logging
@@ -427,3 +428,84 @@ async def fix_instagram_ids(creator_id: str):
         raise HTTPException(status_code=500, detail=str(e))
     finally:
         session.close()
+
+
+@router.post("/instagram/subscribe-feed")
+async def subscribe_to_feed_webhooks():
+    """
+    Subscribe to Instagram feed webhooks (SPEC-004B).
+
+    Calls the Meta Graph API to subscribe the app to "feed" events
+    in addition to "messaging". This enables real-time content ingestion
+    when a creator publishes a new post/reel.
+
+    Requires env vars: META_APP_ID, META_APP_SECRET (for app access token).
+
+    Alternative: Subscribe manually via Meta Developer Dashboard →
+    App → Webhooks → Instagram → feed → Subscribe.
+    """
+    import os
+
+    import httpx
+
+    app_id = os.getenv("META_APP_ID", "")
+    app_secret = os.getenv("META_APP_SECRET", "")
+    verify_token = os.getenv("INSTAGRAM_VERIFY_TOKEN", "clonnect_verify_2024")
+    callback_url = "https://www.clonnectapp.com/webhook/instagram"
+
+    if not app_id or not app_secret:
+        return {
+            "status": "error",
+            "error": "META_APP_ID and META_APP_SECRET env vars required",
+            "manual_instructions": {
+                "step1": "Go to Meta Developer → Your App → Webhooks",
+                "step2": "Select 'Instagram' object",
+                "step3": "Subscribe to 'feed' field",
+                "step4": f"Callback URL: {callback_url}",
+                "step5": f"Verify token: {verify_token}",
+            },
+        }
+
+    # Get app access token
+    app_access_token = f"{app_id}|{app_secret}"
+
+    url = f"https://graph.facebook.com/v21.0/{app_id}/subscriptions"
+    params = {
+        "object": "instagram",
+        "callback_url": callback_url,
+        "fields": "feed,messaging",
+        "verify_token": verify_token,
+        "access_token": app_access_token,
+    }
+
+    try:
+        async with httpx.AsyncClient(timeout=15.0) as client:
+            resp = await client.post(url, params=params)
+
+            if resp.status_code == 200:
+                data = resp.json()
+                logger.info(f"[FEED-WEBHOOK] Subscribed to feed+messaging: {data}")
+                return {
+                    "status": "subscribed",
+                    "fields": ["feed", "messaging"],
+                    "callback_url": callback_url,
+                    "response": data,
+                }
+
+            logger.error(f"[FEED-WEBHOOK] Subscription failed: {resp.status_code} {resp.text}")
+            return {
+                "status": "error",
+                "http_status": resp.status_code,
+                "error": resp.text[:500],
+                "manual_instructions": {
+                    "step1": "Go to Meta Developer → Your App → Webhooks",
+                    "step2": "Select 'Instagram' object",
+                    "step3": "Subscribe to 'feed' field",
+                    "step4": f"Callback URL: {callback_url}",
+                    "step5": f"Verify token: {verify_token}",
+                },
+            }
+
+    except Exception as e:
+        logger.error(f"[FEED-WEBHOOK] Subscription request failed: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
