@@ -24,6 +24,7 @@ from .leads import router as leads_router
 from .stats import router as stats_router
 from .sync import router as sync_router
 from .tokens import router as tokens_router
+from .ingestion import router as ingestion_router
 
 # Main router that combines all admin sub-routers
 # Note: All sub-routers have prefix="/admin", so we don't add one here
@@ -37,6 +38,7 @@ router.include_router(debug_router)
 router.include_router(leads_router)
 router.include_router(stats_router)
 router.include_router(sync_router)
+router.include_router(ingestion_router)
 
 __all__ = [
     "router",
@@ -47,4 +49,5 @@ __all__ = [
     "leads_router",
     "stats_router",
     "sync_router",
+    "ingestion_router",
 ]
