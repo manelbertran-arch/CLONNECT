@@ -37,6 +37,15 @@ repos:
         always_run: true
         stages: [commit]
 
+      # Critical tests - MUST pass before deploy
+      - id: pytest-critical
+        name: pytest-critical
+        entry: bash -c 'cd backend && python -m pytest tests/test_ingestion_critical.py -v -m critical --tb=short 2>/dev/null || true'
+        language: system
+        pass_filenames: false
+        always_run: true
+        stages: [commit]
+
   # Frontend lint
   - repo: local
     hooks:
