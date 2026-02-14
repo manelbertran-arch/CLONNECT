@@ -1,4 +1,12 @@
-"""Google Gemini provider for Flash-Lite model inference."""
+"""Google Gemini provider for Flash-Lite model inference.
+
+Production DM pipeline:
+  PRIMARY:  Gemini 2.0 Flash-Lite (via Google AI API)
+  FALLBACK: GPT-4o-mini (via OpenAI API)
+  Nothing else in the active path.
+
+Entry point: generate_dm_response() — called from dm_agent_v2.py
+"""
 
 import asyncio
 import logging
@@ -119,3 +127,102 @@ async def generate_response_gemini(
         model, api_key, system_prompt, user_message,
         max_tokens, temperature,
     )
+
+
+# =============================================================================
+# GPT-4o-mini fallback (used only when Gemini fails)
+# =============================================================================
+
+async def _call_openai_mini(
+    messages: list[dict],
+    max_tokens: int = 60,
+    temperature: float = 0.7,
+) -> Optional[str]:
+    """Call GPT-4o-mini via OpenAI as fallback."""
+    api_key = os.getenv("OPENAI_API_KEY")
+    if not api_key:
+        logger.error("OPENAI_API_KEY not set, GPT-4o-mini fallback unavailable")
+        return None
+
+    model = os.getenv("LLM_FALLBACK_MODEL", "gpt-4o-mini")
+    timeout = float(os.getenv("LLM_FALLBACK_TIMEOUT", "10"))
+    start = time.monotonic()
+
+    try:
+        from openai import AsyncOpenAI
+
+        client = AsyncOpenAI(api_key=api_key)
+        response = await asyncio.wait_for(
+            client.chat.completions.create(
+                model=model,
+                messages=messages,
+                max_tokens=max_tokens,
+                temperature=temperature,
+            ),
+            timeout=timeout,
+        )
+        content = (response.choices[0].message.content or "").strip()
+        latency_ms = int((time.monotonic() - start) * 1000)
+        usage = response.usage
+        logger.info(
+            "OpenAI fallback OK: model=%s latency=%dms tokens_in=%d tokens_out=%d len=%d",
+            model, latency_ms,
+            usage.prompt_tokens if usage else 0,
+            usage.completion_tokens if usage else 0,
+            len(content),
+        )
+        return content if content else None
+    except asyncio.TimeoutError:
+        logger.error("OpenAI fallback timeout after %.0fs", timeout)
+        return None
+    except Exception as e:
+        logger.error("OpenAI fallback error: %s", e)
+        return None
+
+
+# =============================================================================
+# Production DM response: Flash-Lite → GPT-4o-mini → None
+# =============================================================================
+
+async def generate_dm_response(
+    messages: list[dict],
+    max_tokens: int = 60,
+    temperature: float = 0.7,
+) -> Optional[str]:
+    """Generate DM response with two-provider cascade.
+
+    Pipeline:
+      1. Gemini Flash-Lite (primary) — timeout via LLM_PRIMARY_TIMEOUT env (default 8s)
+      2. GPT-4o-mini (fallback) — timeout via LLM_FALLBACK_TIMEOUT env (default 10s)
+      3. None if both fail
+
+    Called from dm_agent_v2.py for all DM responses.
+    """
+    # 1. PRIMARY: Gemini Flash-Lite
+    try:
+        primary_timeout = float(os.getenv("LLM_PRIMARY_TIMEOUT", "8"))
+        response = await asyncio.wait_for(
+            generate_response_gemini(messages, max_tokens, temperature),
+            timeout=primary_timeout,
+        )
+        if response:
+            return response
+        logger.warning("Flash-Lite returned empty, falling back to GPT-4o-mini")
+    except asyncio.TimeoutError:
+        logger.warning("Flash-Lite timeout after %.0fs, falling back to GPT-4o-mini",
+                        float(os.getenv("LLM_PRIMARY_TIMEOUT", "8")))
+    except Exception as e:
+        logger.warning("Flash-Lite failed: %s, falling back to GPT-4o-mini", e)
+
+    # 2. FALLBACK: GPT-4o-mini
+    try:
+        response = await _call_openai_mini(messages, max_tokens, temperature)
+        if response:
+            return response
+        logger.error("GPT-4o-mini returned empty")
+    except Exception as e:
+        logger.error("GPT-4o-mini fallback failed: %s", e)
+
+    # 3. Both failed
+    logger.error("All LLM providers failed (Flash-Lite + GPT-4o-mini)")
+    return None

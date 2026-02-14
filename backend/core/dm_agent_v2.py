@@ -797,51 +797,29 @@ class DMResponderAgentV2:
             # Log prompt size for latency diagnosis
             logger.info(f"[TIMING] System prompt: {len(system_prompt)} chars (~{len(system_prompt) // 4} tokens)")
 
-            # Model priority: Scout (DeepInfra) → Fine-tuned (Together) → Primary LLM (OpenAI)
-            specialist_content = None
-            specialist_model = None
+            # LLM generation: Flash-Lite → GPT-4o-mini (2 providers, nothing else)
+            # Path: webhook → process_dm() → generate_dm_response() → gemini/openai
+            from core.providers.gemini_provider import generate_dm_response
 
-            # 1. Scout model via DeepInfra (primary for all creators when enabled)
-            if USE_SCOUT_MODEL and not specialist_content:
-                try:
-                    from core.providers.deepinfra_provider import generate_scout_production
-
-                    scout_messages = [
-                        {"role": "system", "content": system_prompt},
-                        {"role": "user", "content": message},
-                    ]
-                    specialist_content = await generate_scout_production(scout_messages)
-                    if specialist_content:
-                        specialist_model = "scout-deepinfra"
-                except Exception as e:
-                    logger.debug(f"Scout model failed: {e}")
-
-            # 2. Fine-tuned model via Together.ai (fallback when Scout disabled/fails)
-            if ENABLE_FINETUNED_MODEL and not specialist_content:
-                try:
-                    from core.providers.together_provider import generate_finetuned_response
-
-                    ft_messages = [
-                        {"role": "system", "content": system_prompt},
-                        {"role": "user", "content": message},
-                    ]
-                    specialist_content = await generate_finetuned_response(ft_messages)
-                    if specialist_content:
-                        specialist_model = "together-finetuned"
-                except Exception as e:
-                    logger.debug(f"Fine-tuned model failed: {e}")
+            llm_messages = [
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": message},
+            ]
+            llm_content = await generate_dm_response(llm_messages)
 
             _t3 = time.monotonic()
             logger.info(f"[TIMING] LLM call: {int((_t3 - _t2) * 1000)}ms")
-            if specialist_content:
-                logger.info(f"Using {specialist_model} (len={len(specialist_content)})")
+
+            if llm_content:
                 llm_response = LLMResponse(
-                    content=specialist_content,
-                    model=specialist_model,
+                    content=llm_content,
+                    model="gemini-flash-lite",
                     tokens_used=0,
-                    metadata={"provider": specialist_model, "specialist": True},
+                    metadata={"provider": "gemini-cascade"},
                 )
             else:
+                # Both Flash-Lite and GPT-4o-mini failed — emergency fallback
+                logger.error("Primary cascade failed, using llm_service emergency fallback")
                 llm_response = await self.llm_service.generate(
                     prompt=full_prompt, system_prompt=system_prompt
                 )

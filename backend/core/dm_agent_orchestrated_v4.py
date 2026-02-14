@@ -136,24 +136,23 @@ Solo di "déjame revisar" si REALMENTE no tienes la info.
         return response
 
     async def _generate_with_llm(self, message: str, lead_id: str) -> str:
-        """Generate response with LLM + context. Scout primary, OpenAI fallback."""
+        """Generate response with LLM. Flash-Lite primary, GPT-4o-mini fallback."""
         system_prompt = self._build_system_prompt(lead_id, message)
 
-        # 1. Scout model via DeepInfra (primary)
-        if os.getenv("USE_SCOUT_MODEL", "true").lower() == "true":
-            try:
-                from core.providers.deepinfra_provider import generate_scout_production
+        # Flash-Lite → GPT-4o-mini cascade (same as dm_agent_v2)
+        try:
+            from core.providers.gemini_provider import generate_dm_response
 
-                scout_messages = [
-                    {"role": "system", "content": system_prompt},
-                    {"role": "user", "content": message},
-                ]
-                result = await generate_scout_production(scout_messages, max_tokens=100)
-                if result:
-                    logger.info(f"V4 using scout-deepinfra (len={len(result)})")
-                    return result.strip()
-            except Exception as e:
-                logger.debug(f"V4 Scout failed: {e}")
+            llm_messages = [
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": message},
+            ]
+            result = await generate_dm_response(llm_messages, max_tokens=100)
+            if result:
+                logger.info(f"V4 using gemini-cascade (len={len(result)})")
+                return result.strip()
+        except Exception as e:
+            logger.debug(f"V4 gemini cascade failed: {e}")
 
         # 2. Fallback to OpenAI
         llm = self._get_llm_service()
