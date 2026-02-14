@@ -898,6 +898,9 @@ class PaymentManager:
 
                 logger.info(f"Follower {follower_id} marked as customer")
 
+            # Update lead status to 'cliente' in PostgreSQL
+            await self._update_lead_status_to_cliente(creator_id, follower_id)
+
             # Cancel nurturing sequences
             await self._cancel_nurturing_for_customer(creator_id, follower_id)
 
@@ -927,6 +930,33 @@ class PaymentManager:
 
         except Exception as e:
             logger.error(f"Error cancelling nurturing: {e}")
+
+    async def _update_lead_status_to_cliente(self, creator_id: str, follower_id: str):
+        """Update lead status to 'cliente' in PostgreSQL after payment."""
+        try:
+            from sqlalchemy import text
+
+            from api.database import get_db_session
+
+            with get_db_session() as db:
+                result = db.execute(
+                    text("""
+                        UPDATE leads SET status = 'cliente', updated_at = NOW()
+                        WHERE follower_id = :follower_id
+                          AND creator_id IN (
+                            SELECT id FROM creators WHERE id::text = :cid OR name = :cid
+                          )
+                          AND status != 'cliente'
+                    """),
+                    {"follower_id": follower_id, "cid": creator_id},
+                )
+                db.commit()
+
+                if result.rowcount > 0:
+                    logger.info(f"Lead {follower_id} status updated to 'cliente'")
+
+        except Exception as e:
+            logger.error(f"Error updating lead status to cliente: {e}")
 
     async def _check_bot_attribution(self, creator_id: str, follower_id: str) -> bool:
         """Check if purchase should be attributed to bot"""
