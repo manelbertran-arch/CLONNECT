@@ -122,6 +122,18 @@ def register_startup_handlers(app: "FastAPI"):
         asyncio.create_task(hydrate_rag_background())
         logger.info("RAG hydration scheduled (background task)")
 
+        # Warm up reranker model (background, after RAG)
+        async def warmup_reranker_background():
+            await asyncio.sleep(10)
+            try:
+                from core.rag.reranker import warmup_reranker
+                warmup_reranker()
+            except Exception as e:
+                logger.warning(f"Reranker warmup failed: {e}")
+
+        asyncio.create_task(warmup_reranker_background())
+        logger.info("Reranker warmup scheduled (background task)")
+
         # Pre-warm caches
         async def prewarm_creator_caches():
             await asyncio.sleep(2)

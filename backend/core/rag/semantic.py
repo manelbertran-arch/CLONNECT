@@ -118,7 +118,8 @@ class SemanticRAG:
             return []
 
         # Get more results initially if we're going to rerank
-        initial_top_k = top_k * 4 if ENABLE_RERANKING else top_k
+        # Cap at 12 to keep reranking fast (cross-encoder is O(n))
+        initial_top_k = min(top_k * 2, 12) if ENABLE_RERANKING else top_k
 
         # Step 1: Semantic search
         semantic_results = self._semantic_search(query, initial_top_k, creator_id)

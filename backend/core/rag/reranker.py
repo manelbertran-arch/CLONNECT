@@ -39,6 +39,19 @@ def get_reranker():
     return _reranker
 
 
+def warmup_reranker() -> None:
+    """Pre-load model and run a dummy prediction to warm up the JIT/caches."""
+    if not ENABLE_RERANKING:
+        return
+    reranker = get_reranker()
+    if reranker:
+        try:
+            reranker.predict([("warmup query", "warmup document")])
+            logger.info("Reranker warmed up successfully")
+        except Exception as e:
+            logger.warning(f"Reranker warmup failed: {e}")
+
+
 def rerank(
     query: str,
     docs: List[Dict[str, Any]],
