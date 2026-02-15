@@ -1,7 +1,7 @@
 import { Navigate } from "react-router-dom";
 
 const Index = () => {
-  return <Navigate to="/new/inicio" replace />;
+  return <Navigate to="/dashboard" replace />;
 };
 
 export default Index;

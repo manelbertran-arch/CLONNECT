@@ -450,13 +450,9 @@ export default function Settings() {
     setIsGeneratingAI(true);
     try {
       // Call AI endpoint to generate rules
-      const token = localStorage.getItem("clonnect_auth_token");
-      const response = await fetch(`${API_URL}/api/ai/generate-rules`, {
+      const response = await fetch("/api/ai/generate-rules", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          ...(token ? { Authorization: `Bearer ${token}` } : {}),
-        },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ prompt: aiPrompt }),
       });
 
@@ -651,13 +647,9 @@ export default function Settings() {
     setIsGeneratingKnowledge(true);
     try {
       // Use new endpoint that generates both FAQs and About
-      const token = localStorage.getItem("clonnect_auth_token");
       const response = await fetch(`${API_URL}/api/ai/generate-knowledge-full`, {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          ...(token ? { Authorization: `Bearer ${token}` } : {}),
-        },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ content: aiKnowledgePrompt }),
       });
 
@@ -909,19 +901,6 @@ export default function Settings() {
                                   ? (status?.username || status?.masked_token || "Connected")
                                   : conn.description}
                               </p>
-                              {isConnected && status?.days_remaining != null && (
-                                <span className={`text-xs font-medium mt-0.5 inline-block px-2 py-0.5 rounded-full ${
-                                  status.days_remaining < 5
-                                    ? "bg-destructive/10 text-destructive"
-                                    : status.days_remaining < 15
-                                    ? "bg-destructive/10 text-orange-600 dark:text-orange-400"
-                                    : status.days_remaining < 30
-                                    ? "bg-yellow-500/10 text-yellow-600 dark:text-yellow-400"
-                                    : "bg-success/10 text-success"
-                                }`}>
-                                  Token expira en {status.days_remaining} días
-                                </span>
-                              )}
                             </div>
                           </div>
                           <div className="flex items-center gap-2">
@@ -942,7 +921,7 @@ export default function Settings() {
                             ) : conn.oauth ? (
                               <Button
                                 size="sm"
-                                onClick={() => startOAuth(conn.key).then(r => window.location.href = r.auth_url).catch((err) => { console.error('OAuth error:', err); })}
+                                onClick={() => startOAuth(conn.key).then(r => window.location.href = r.auth_url)}
                               >
                                 Connect
                               </Button>
@@ -1043,7 +1022,7 @@ export default function Settings() {
                           ) : (
                             <Button
                               size="sm"
-                              onClick={() => startOAuth(conn.key).then(r => window.location.href = r.auth_url).catch((err) => { console.error('OAuth error:', err); })}
+                              onClick={() => startOAuth(conn.key).then(r => window.location.href = r.auth_url)}
                             >
                               Connect
                             </Button>
@@ -1231,7 +1210,7 @@ export default function Settings() {
                           ) : (
                             <Button
                               size="sm"
-                              onClick={() => startOAuth(conn.key).then(r => window.location.href = r.auth_url).catch((err) => { console.error('OAuth error:', err); })}
+                              onClick={() => startOAuth(conn.key).then(r => window.location.href = r.auth_url)}
                             >
                               Connect
                             </Button>

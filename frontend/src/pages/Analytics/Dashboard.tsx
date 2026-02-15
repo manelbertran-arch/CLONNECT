@@ -156,7 +156,7 @@ export default function AnalyticsDashboard() {
 
               {predictions?.hot_leads && predictions.hot_leads.length > 4 && (
                 <button
-                  onClick={() => navigate('/new/clientes?filter=hot')}
+                  onClick={() => navigate('/leads?filter=hot')}
                   className="mt-5 w-full py-3 text-indigo-600 font-semibold hover:bg-indigo-50 rounded-xl transition-colors flex items-center justify-center gap-2"
                 >
                   Ver todos los {predictions.total_hot_leads} leads <ArrowRight className="w-4 h-4" />
@@ -249,7 +249,7 @@ export default function AnalyticsDashboard() {
                 </div>
 
                 <button
-                  onClick={() => navigate('/new/clientes?filter=at-risk')}
+                  onClick={() => navigate('/leads?filter=at-risk')}
                   className="mt-4 w-full py-2.5 bg-amber-600 text-white font-semibold rounded-xl hover:bg-amber-700 transition-colors"
                 >
                   Ver todos y recuperar

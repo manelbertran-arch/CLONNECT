@@ -334,7 +334,7 @@ export default function Onboarding() {
 
           {/* CTA */}
           <Button
-            onClick={() => navigate('/new/inicio')}
+            onClick={() => navigate('/dashboard')}
             size="lg"
             className="w-full h-14 text-lg bg-gradient-to-r from-purple-600 to-fuchsia-500 hover:from-purple-700 hover:to-fuchsia-600 transition-all"
           >

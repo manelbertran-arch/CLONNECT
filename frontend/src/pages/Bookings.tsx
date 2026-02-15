@@ -838,7 +838,7 @@ export default function Bookings() {
                 <Button
                   size="sm"
                   variant="outline"
-                  onClick={() => navigate("/new/ajustes?section=conexiones")}
+                  onClick={() => navigate("/settings?tab=connections")}
                 >
                   <Settings className="w-4 h-4 mr-2" />
                   Go to Settings
