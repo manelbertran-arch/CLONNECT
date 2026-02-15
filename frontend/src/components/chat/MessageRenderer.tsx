@@ -200,7 +200,27 @@ const IG_GRADIENT_STORY = 'bg-gradient-to-tr from-violet-500 via-purple-500 to-v
 export function MessageRenderer({ message, isLastInGroup = true }: MessageRendererProps) {
   const isOutgoing = message.role === 'assistant';
   const metadata = message.metadata || {};
-  const msgType = metadata.type || 'text';
+
+  // Determine message type: prefer metadata.type, fallback to content-based detection
+  // for old messages that lack metadata (e.g. from reconciliation)
+  let msgType = metadata.type || 'text';
+  if (msgType === 'text') {
+    const c = (message.content || '').toLowerCase();
+    if (c === '[media/attachment]' || c === '[media]' || c === 'sent an attachment'
+      || c === 'shared content' || c === 'shared a post' || c === 'shared a reel') {
+      msgType = 'share';
+    } else if (c === 'sent a photo') {
+      msgType = 'image';
+    } else if (c === 'sent a video') {
+      msgType = 'video';
+    } else if (c === 'sent a voice message') {
+      msgType = 'audio';
+    } else if (c === 'sent a gif') {
+      msgType = 'gif';
+    } else if (c === 'sent a sticker') {
+      msgType = 'sticker';
+    }
+  }
 
   // Determine which component to render based on type
   switch (msgType) {
