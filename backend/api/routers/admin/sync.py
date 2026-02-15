@@ -2416,19 +2416,47 @@ async def fix_instagram_page_id(creator_id: str):
             ig_user_id = data.get("id")
             ig_username = data.get("username")
 
-            # For IGAAT tokens, we don't have a Facebook page_id
-            # The ig_user_id IS what Meta sends in webhooks as the recipient
-            # So we should use ig_user_id as the "page_id" for routing
+            # For IGAAT tokens, the ig_user_id is what Meta sends as recipient
+            # Update DB: set ig_user_id AND add Facebook page ID to additional_ids
+            old_page_id = creator.instagram_page_id
+            old_user_id = creator.instagram_user_id
+
+            creator.instagram_user_id = ig_user_id
+            # Keep page_id as ig_user_id for primary routing match
+            if not creator.instagram_page_id or creator.instagram_page_id != ig_user_id:
+                creator.instagram_page_id = ig_user_id
+
+            # Add the Facebook Page ID (from env var) to additional_ids
+            # so webhooks with the FB page ID also route correctly
+            import os
+            fb_page_id = os.getenv("FACEBOOK_PAGE_ID", "") or os.getenv("INSTAGRAM_PAGE_ID", "")
+            additional_ids = creator.instagram_additional_ids or []
+            added_ids = []
+            for extra_id in [fb_page_id, old_page_id]:
+                if extra_id and extra_id != ig_user_id and extra_id not in additional_ids:
+                    additional_ids.append(extra_id)
+                    added_ids.append(extra_id)
+            if added_ids:
+                creator.instagram_additional_ids = additional_ids
+
+            session.commit()
+
+            # Clear routing cache
+            from core.webhook_routing import clear_routing_cache
+            clear_routing_cache()
+
             return {
                 "status": "ok",
-                "message": "IGAAT token - using Instagram User ID for webhook routing",
+                "message": "IGAAT token - updated Instagram routing IDs",
                 "instagram_user_id": ig_user_id,
                 "instagram_username": ig_username,
-                "current_stored_user_id": creator.instagram_user_id,
-                "current_stored_page_id": creator.instagram_page_id,
+                "old_page_id": old_page_id,
+                "old_user_id": old_user_id,
+                "new_page_id": creator.instagram_page_id,
+                "new_user_id": ig_user_id,
+                "additional_ids_added": added_ids,
+                "all_additional_ids": additional_ids,
                 "token_debug": token_debug,
-                "action_needed": "For IGAAT tokens, the instagram_user_id should be used for routing. Check if webhooks send this ID.",
-                "recommendation": f"Set instagram_page_id = '{ig_user_id}' to match webhook routing",
             }
 
         elif is_page_token:
@@ -2510,6 +2538,19 @@ async def fix_instagram_page_id(creator_id: str):
         raise HTTPException(status_code=500, detail=str(e))
     finally:
         session.close()
+
+
+@router.post("/add-instagram-id/{creator_id}/{instagram_id}")
+async def add_instagram_id(creator_id: str, instagram_id: str):
+    """Add an Instagram ID to a creator's additional_ids for webhook routing."""
+    from core.webhook_routing import add_instagram_id_to_creator, clear_routing_cache
+
+    success = add_instagram_id_to_creator(creator_id, instagram_id)
+    if not success:
+        raise HTTPException(status_code=404, detail=f"Creator {creator_id} not found")
+
+    clear_routing_cache()
+    return {"status": "ok", "creator_id": creator_id, "added_id": instagram_id}
 
 
 @router.post("/fix-lead-duplicates")
