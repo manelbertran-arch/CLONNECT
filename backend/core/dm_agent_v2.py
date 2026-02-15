@@ -554,28 +554,39 @@ class DMResponderAgentV2:
 
             # Step 1c: Try pool response for simple messages (fast path)
             if hasattr(self, "response_variator"):
-                # Classify context for pool routing (v10.2)
-                from services.length_controller import classify_lead_context
-                pool_context = classify_lead_context(message)
+                # Skip pool if message mentions a product name (needs LLM)
+                msg_lower = message.lower()
+                mentions_product = False
+                if self.products:
+                    for p in self.products:
+                        pname = (p.get("name") or "").lower()
+                        if pname and len(pname) > 3 and pname in msg_lower:
+                            mentions_product = True
+                            break
 
-                # Pass conv_id for dedup (v10.3) and context for routing (v10.2)
-                conv_id = metadata.get("conversation_id", sender_id)
-                pool_result = self.response_variator.try_pool_response(
-                    message,
-                    conv_id=conv_id,
-                    turn_index=metadata.get("turn_index", 0),
-                    context=pool_context,
-                )
-                if pool_result.matched and pool_result.confidence >= 0.8:
-                    logger.debug(f"Pool response matched: {pool_result.category}")
-                    return DMResponse(
-                        content=pool_result.response,
-                        intent="pool_response",
-                        lead_stage="unknown",
-                        confidence=pool_result.confidence,
-                        tokens_used=0,
-                        metadata={"pool_category": pool_result.category, "used_pool": True},
+                if not mentions_product:
+                    # Classify context for pool routing (v10.2)
+                    from services.length_controller import classify_lead_context
+                    pool_context = classify_lead_context(message)
+
+                    # Pass conv_id for dedup (v10.3) and context for routing (v10.2)
+                    conv_id = metadata.get("conversation_id", sender_id)
+                    pool_result = self.response_variator.try_pool_response(
+                        message,
+                        conv_id=conv_id,
+                        turn_index=metadata.get("turn_index", 0),
+                        context=pool_context,
                     )
+                    if pool_result.matched and pool_result.confidence >= 0.8:
+                        logger.debug(f"Pool response matched: {pool_result.category}")
+                        return DMResponse(
+                            content=pool_result.response,
+                            intent="pool_response",
+                            lead_stage="unknown",
+                            confidence=pool_result.confidence,
+                            tokens_used=0,
+                            metadata={"pool_category": pool_result.category, "used_pool": True},
+                        )
 
             # Step 1d: Edge case detection
             if ENABLE_EDGE_CASE_DETECTION and hasattr(self, "edge_case_handler"):

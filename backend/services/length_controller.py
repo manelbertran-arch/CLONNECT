@@ -176,13 +176,15 @@ def classify_lead_context(lead_message: str) -> str:
         return "objecion"
 
     # Thanks / appreciation
+    # Guard: messages with "?" are questions, not thanks (e.g. "suena genial, ¿cuál?")
     thanks_words = [
         "gracias", "genial", "perfecto", "increíble", "increible",
         "muchas gracias", "mil gracias", "te agradezco", "agradecido",
         "thanks", "thank",
     ]
     if any(w in msg for w in thanks_words):
-        return "agradecimiento"
+        if "?" not in msg or len(msg) < 30:
+            return "agradecimiento"
 
     # Humor (v10.2) — laughs and funny reactions
     if re.search(r"jaj|hah|jej|😂|🤣", msg):

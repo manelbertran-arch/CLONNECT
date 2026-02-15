@@ -341,18 +341,27 @@ class ResponseVariatorV2:
                     return "gratitude", 0.88
                 return "thanks", 0.85
 
-        # Farewell
+        # Re-engagement → always LLM (needs personalized response)
+        re_engagement = ["hace mucho", "hace tiempo", "cuánto tiempo", "cuanto tiempo",
+                         "tanto tiempo", "no hablamos", "desaparecí", "desapareci"]
+        if any(r in msg for r in re_engagement):
+            return None, 0.0
+
+        # Farewell — only short, genuine farewells (not "hace mucho que no hablamos")
         farewells = ["abrazo", "chao", "bye", "cuídate", "hablamos", "hasta"]
-        if any(f in msg for f in farewells):
+        if any(f in msg for f in farewells) and len(msg) < 40:
             return "farewell", 0.80
 
         # Celebration / Reaction (v10)
+        # Guard: long messages or questions with reaction words are NOT simple
+        # reactions — they need LLM (e.g. "suena genial, pero ¿cuál elegir?")
         reaction_words = ["que lindo", "hermoso", "genial", "espectacular",
                           "increíble", "me encanta", "que bueno", "wow"]
         if any(w in msg for w in reaction_words):
-            if "reaction" in self.pools:
-                return "reaction", 0.82
-            return "celebration", 0.70
+            if len(msg) <= 40 and "?" not in msg:
+                if "reaction" in self.pools:
+                    return "reaction", 0.82
+                return "celebration", 0.70
 
         # Encouragement (v10) - user shares struggle/achievement
         if any(w in msg for w in ["logré", "pude", "cuesta", "difícil", "miedo"]):
