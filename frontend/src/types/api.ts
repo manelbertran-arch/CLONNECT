@@ -64,6 +64,8 @@ export interface Conversation {
   last_message_role?: "user" | "assistant"; // Who sent last message
   is_unread?: boolean; // True if last message is from user (awaiting response)
   is_verified?: boolean; // Instagram verified badge
+  // Multi-factor score (0-100) from lead_scoring.py
+  score?: number;
   // AI Intent Score (computed from conversation analysis)
   purchase_intent?: number;       // 0.0 to 1.0
   purchase_intent_score?: number; // 0 to 100 (derived)
@@ -88,6 +90,8 @@ export interface Lead {
   username?: string;
   name?: string;
   platform?: string;
+  // Multi-factor score (0-100) from lead_scoring.py
+  score?: number;
   // Backend uses purchase_intent (0.0 to 1.0)
   purchase_intent?: number;
   purchase_intent_score?: number; // Alias for compatibility
@@ -213,6 +217,7 @@ export interface FollowerDetailResponse {
   name?: string;
   platform?: string;
   total_messages: number;
+  score?: number;
   purchase_intent?: number;
   is_lead?: boolean;
   is_customer?: boolean;
@@ -234,8 +239,13 @@ export interface Escalation {
   priority: "high" | "medium" | "low";
 }
 
-// Helper to get purchase intent from either field
-export function getPurchaseIntent(item: { purchase_intent?: number; purchase_intent_score?: number }): number {
+// Helper to get lead score as 0.0-1.0 value.
+// Prefers multi-factor score (0-100) over legacy purchase_intent (0.0-1.0).
+export function getPurchaseIntent(item: { score?: number; purchase_intent?: number; purchase_intent_score?: number }): number {
+  // Multi-factor score (0-100) is the authoritative source
+  if (item.score != null && item.score > 0) {
+    return item.score / 100;
+  }
   return item.purchase_intent ?? item.purchase_intent_score ?? 0;
 }
 

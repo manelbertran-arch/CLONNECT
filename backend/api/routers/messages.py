@@ -396,9 +396,17 @@ async def update_follower_status(creator_id: str, follower_id: str, data: dict =
                             # Track old status for activity log
                             old_status = lead.status
 
-                            # Update both status column AND purchase_intent
+                            # Recalculate multi-factor score, then override status with user's choice
+                            try:
+                                from services.lead_scoring import recalculate_lead_score
+                                recalculate_lead_score(session, str(lead.id))
+                            except Exception as se:
+                                logger.warning(f"Scoring failed: {se}")
+                                lead.purchase_intent = new_intent
+                                lead.score = max(0, min(100, int(new_intent * 100)))
+
+                            # User's manual status choice takes precedence over scoring thresholds
                             lead.status = db_status
-                            lead.purchase_intent = new_intent
                             if new_status in ("customer", "cliente"):
                                 if not lead.context:
                                     lead.context = {}

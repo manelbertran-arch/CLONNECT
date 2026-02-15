@@ -353,23 +353,26 @@ class DMHistoryService:
                 session.add(db_msg)
                 result["messages_imported"] += 1
 
-            # Calcular score inicial
-            if total_user_messages > 0:
-                raw_score = purchase_signals / max(total_user_messages, 1)
-                purchase_intent = min(1.0, max(0.0, 0.25 + (raw_score * 0.5)))
-            else:
-                purchase_intent = 0.1
-
-            # Actualizar lead
-            lead.purchase_intent = purchase_intent
-
-            # Determinar status basado en score
-            if purchase_intent >= 0.6:
-                lead.status = "hot"
-            elif purchase_intent >= 0.35:
-                lead.status = "active"
-            else:
-                lead.status = "new"
+            # Recalculate multi-factor score after messages are imported
+            try:
+                from services.lead_scoring import recalculate_lead_score
+                recalculate_lead_score(session, str(lead.id))
+            except Exception as se:
+                logger.warning(f"[DMHistory] Scoring failed: {se}")
+                # Fallback: simple scoring
+                if total_user_messages > 0:
+                    raw_score = purchase_signals / max(total_user_messages, 1)
+                    purchase_intent = min(1.0, max(0.0, 0.25 + (raw_score * 0.5)))
+                else:
+                    purchase_intent = 0.1
+                lead.purchase_intent = purchase_intent
+                lead.score = max(0, min(100, int(purchase_intent * 100)))
+                if purchase_intent >= 0.6:
+                    lead.status = "caliente"
+                elif purchase_intent >= 0.35:
+                    lead.status = "interesado"
+                else:
+                    lead.status = "nuevo"
 
             # Actualizar timestamps
             if messages_sorted:

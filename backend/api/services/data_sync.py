@@ -137,22 +137,13 @@ def sync_json_to_postgres(creator_name: str, follower_id: str) -> Optional[str]:
             ).first()
 
             if lead:
-                # P0 FIX: ALWAYS sync purchase_intent_score from JSON to PostgreSQL
-                old_score = lead.purchase_intent or 0.0
-                new_score = json_data.get("purchase_intent_score", 0.0)
-                if new_score != old_score:
-                    lead.purchase_intent = new_score
-                    logger.info(f"[P0-SYNC] purchase_intent: {old_score:.2f} → {new_score:.2f} for {follower_id}")
-
-                # P0 FIX: Also sync status from JSON to ensure lead_status persists
-                json_status = json_data.get("status")
-                if json_status and json_status != lead.status:
-                    status_order = {"new": 0, "active": 1, "hot": 2, "customer": 3}
-                    # Only upgrade status (never downgrade via sync)
-                    if status_order.get(json_status, 0) > status_order.get(lead.status, 0):
-                        old_status = lead.status
-                        lead.status = json_status
-                        logger.info(f"[P0-SYNC] status: {old_status} → {json_status} for {follower_id}")
+                # Recalculate score using multi-factor algorithm (single source of truth)
+                # Previous P0 FIX synced JSON→DB directly, but this overwrote multi-factor scores
+                try:
+                    from services.lead_scoring import recalculate_lead_score
+                    recalculate_lead_score(session, str(lead.id))
+                except Exception as score_err:
+                    logger.warning(f"[P0-SYNC] Scoring recalculation failed for {follower_id}: {score_err}")
 
                 # Update existing lead with JSON data if JSON is newer
                 json_last_contact = json_data.get("last_contact")
@@ -200,11 +191,21 @@ def sync_json_to_postgres(creator_name: str, follower_id: str) -> Optional[str]:
                     username=json_data.get("username", ""),
                     full_name=json_data.get("name", ""),
                     status=json_status,
-                    purchase_intent=json_data.get("purchase_intent_score", 0.0),
+                    purchase_intent=0.0,
+                    score=0,
                     context={"is_customer": json_data.get("is_customer", False)}
                 )
                 session.add(lead)
                 session.commit()
+
+                # Recalculate score using multi-factor algorithm
+                try:
+                    from services.lead_scoring import recalculate_lead_score
+                    recalculate_lead_score(session, str(lead.id))
+                    session.commit()
+                except Exception as score_err:
+                    logger.warning(f"[P0-SYNC] Initial scoring failed for {follower_id}: {score_err}")
+
                 logger.info(f"Created Lead from JSON: {creator_name}/{follower_id}")
                 return str(lead.id)
         finally:
@@ -431,7 +432,8 @@ def sync_messages_from_json(creator_name: str) -> Dict[str, int]:
                                 username=json_data.get("username", ""),
                                 full_name=json_data.get("name", ""),
                                 status="new",
-                                purchase_intent=json_data.get("purchase_intent_score", 0.0)
+                                purchase_intent=0.0,
+                                score=0,
                             )
                             session.add(lead)
                             session.commit()
@@ -498,16 +500,18 @@ def sync_messages_from_json(creator_name: str) -> Dict[str, int]:
     return stats
 
 
-def update_lead_score_direct(creator_name: str, follower_id: str, purchase_intent: float, status: str = None) -> bool:
+def update_lead_score_direct(creator_name: str, follower_id: str, purchase_intent: float = None, status: str = None) -> bool:
     """
-    P0 FIX: Direct update of purchase_intent and status to PostgreSQL.
-    This is a backup method that updates PostgreSQL directly without reading JSON.
+    Recalculate lead score using multi-factor algorithm.
+
+    The purchase_intent parameter is ignored — scoring is always recalculated
+    from actual data (message count, recency, engagement, intents, content).
 
     Args:
         creator_name: Creator name (e.g., "manel")
         follower_id: Follower ID (e.g., "tg_123456")
-        purchase_intent: Purchase intent score (0.0 to 1.0)
-        status: Optional status to set (new/active/hot/customer)
+        purchase_intent: DEPRECATED — ignored, kept for API compat
+        status: Optional status override (e.g., "cliente" to force customer)
 
     Returns:
         True if updated successfully, False otherwise
@@ -518,6 +522,7 @@ def update_lead_score_direct(creator_name: str, follower_id: str, purchase_inten
     try:
         from api.services.db_service import get_session
         from api.models import Creator, Lead
+        from services.lead_scoring import recalculate_lead_score
 
         session = get_session()
         if not session:
@@ -538,16 +543,16 @@ def update_lead_score_direct(creator_name: str, follower_id: str, purchase_inten
                 logger.warning(f"[P0-DIRECT] Lead not found: {follower_id}")
                 return False
 
-            old_score = lead.purchase_intent or 0.0
-            old_status = lead.status
-
-            lead.purchase_intent = purchase_intent
+            # Force status if explicitly provided (e.g., marking as "cliente")
             if status:
                 lead.status = status
 
+            result = recalculate_lead_score(session, str(lead.id))
             session.commit()
 
-            logger.info(f"[P0-DIRECT] Updated {follower_id}: score {old_score:.2f}→{purchase_intent:.2f}, status {old_status}→{status or old_status}")
+            if result:
+                new_intent, new_status = result
+                logger.info(f"[P0-DIRECT] Recalculated {follower_id}: score={lead.score}, intent={new_intent:.2f}, status={new_status}")
             return True
 
         finally:

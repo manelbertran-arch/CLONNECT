@@ -159,9 +159,11 @@ class Lead(Base):
     username = Column(String(255))
     full_name = Column(String(255))
     profile_pic_url = Column(Text)  # Instagram/platform profile picture URL (long CDN URLs)
-    status = Column(String(50), default="nuevo")  # nuevo, interesado, caliente, cliente, fantasma
+    status = Column(String(50), default="nuevo")  # nuevo, interesado, caliente, cliente, fantasma, amigo, colaborador, fan
     score = Column(Integer, default=0)
     purchase_intent = Column(Float, default=0.0)
+    relationship_type = Column(String(30), default="nuevo")  # cliente, lead_caliente, lead_tibio, curioso, amigo, colaborador, fan, nuevo, fantasma
+    score_updated_at = Column(DateTime(timezone=True))  # Last time score was recalculated
     context = Column(JSON, default=dict)
     first_contact_at = Column(DateTime(timezone=True), server_default=func.now())
     last_contact_at = Column(DateTime(timezone=True), server_default=func.now())

@@ -120,7 +120,14 @@ async def rescore_leads(creator_id: str):
                 old_intent = lead.purchase_intent
 
                 lead.status = new_status
-                lead.purchase_intent = resultado.intent_score
+                # Recalculate multi-factor score
+                try:
+                    from services.lead_scoring import recalculate_lead_score
+                    recalculate_lead_score(session, str(lead.id))
+                except Exception as se:
+                    logger.warning(f"Scoring failed: {se}")
+                    lead.purchase_intent = resultado.intent_score
+                    lead.score = max(0, min(100, int(resultado.intent_score * 100)))
 
                 stats["leads_updated"] += 1
                 stats["por_categoria"][resultado.categoria] += 1

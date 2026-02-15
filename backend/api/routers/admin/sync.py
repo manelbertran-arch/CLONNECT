@@ -1204,12 +1204,16 @@ async def simple_dm_sync(creator_id: str, max_convs: int = 10):
 
                                 # Actualizar lead
                                 new_status = categoria_a_status_legacy(cat_result.categoria)
-                                if (
-                                    lead.status != new_status
-                                    or lead.purchase_intent != cat_result.intent_score
-                                ):
+                                if lead.status != new_status:
                                     lead.status = new_status
-                                    lead.purchase_intent = cat_result.intent_score
+                                    # Recalculate multi-factor score
+                                    try:
+                                        from services.lead_scoring import recalculate_lead_score
+                                        recalculate_lead_score(session, str(lead.id))
+                                    except Exception as se:
+                                        logger.warning(f"Scoring failed: {se}")
+                                        lead.purchase_intent = cat_result.intent_score
+                                        lead.score = max(0, min(100, int(cat_result.intent_score * 100)))
                                     session.commit()
                                     logger.info(
                                         f"Lead {lead.username} auto-categorizado: {cat_result.categoria} (intent: {cat_result.intent_score:.2f})"
@@ -2038,7 +2042,14 @@ async def sync_leads_from_conversations(
                 # Update lead
                 old_status = lead.status
                 lead.status = new_status
-                lead.purchase_intent = result.intent_score
+                # Recalculate multi-factor score
+                try:
+                    from services.lead_scoring import recalculate_lead_score
+                    recalculate_lead_score(session, str(lead.id))
+                except Exception as se:
+                    logger.warning(f"Scoring failed: {se}")
+                    lead.purchase_intent = result.intent_score
+                    lead.score = max(0, min(100, int(result.intent_score * 100)))
 
                 results["updated"] += 1
                 results["categorized"][result.categoria] += 1

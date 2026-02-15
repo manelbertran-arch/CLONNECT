@@ -303,7 +303,14 @@ async def process_single_conversation(
                     new_status = categoria_a_status_legacy(cat_result.categoria)
                     if lead.status != new_status:
                         lead.status = new_status
-                        lead.purchase_intent = cat_result.intent_score
+                        # Recalculate multi-factor score
+                        try:
+                            from services.lead_scoring import recalculate_lead_score
+                            recalculate_lead_score(session, str(lead.id))
+                        except Exception as se:
+                            logger.warning(f"Scoring failed: {se}")
+                            lead.purchase_intent = cat_result.intent_score
+                            lead.score = max(0, min(100, int(cat_result.intent_score * 100)))
                         session.commit()
                         logger.info(
                             f"Lead {lead.username} auto-categorizado: {cat_result.categoria} (intent: {cat_result.intent_score:.2f})"

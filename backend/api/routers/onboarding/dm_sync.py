@@ -363,13 +363,21 @@ async def sync_instagram_dms(request: InstagramDMSyncRequest):
                                 intent_score += 0.1
                             intent_score = min(intent_score, 1.0)
 
-                            lead.purchase_intent = intent_score
-                            if intent_score >= 0.6:
-                                lead.status = "hot"
-                            elif intent_score >= 0.35:
-                                lead.status = "active"
-                            else:
-                                lead.status = "new"
+                            # Recalculate multi-factor score after messages are synced
+                            try:
+                                from services.lead_scoring import recalculate_lead_score
+                                recalculate_lead_score(session, str(lead.id))
+                            except Exception as se:
+                                logger.warning(f"[DMSync] Scoring failed: {se}")
+                                lead.purchase_intent = intent_score
+                                lead.score = max(0, min(100, int(intent_score * 100)))
+                                # Use Spanish status values (consistent with frontend)
+                                if intent_score >= 0.6:
+                                    lead.status = "caliente"
+                                elif intent_score >= 0.35:
+                                    lead.status = "interesado"
+                                else:
+                                    lead.status = "nuevo"
 
                             session.commit()
 
