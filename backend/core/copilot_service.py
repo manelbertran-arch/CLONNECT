@@ -103,6 +103,7 @@ class CopilotService:
         confidence: float,
         username: str = "",
         full_name: str = "",
+        msg_metadata: dict = None,
     ) -> PendingResponse:
         """
         Crear una respuesta pendiente de aprobación.
@@ -178,6 +179,7 @@ class CopilotService:
                 intent=intent,
                 status="sent",
                 platform_message_id=user_message_id,
+                msg_metadata=msg_metadata,
             )
             session.add(user_msg)
 

@@ -468,18 +468,43 @@ class InstagramHandler:
 
                     copilot = get_copilot_service()
 
+                    # Extract media info for attachment messages (same as _save_user_message_to_db)
+                    copilot_user_msg = message.text
+                    copilot_msg_metadata = {}
+                    if message.attachments:
+                        media_info = self._extract_media_info(message.attachments)
+                        if media_info:
+                            copilot_msg_metadata["type"] = media_info.get("type", "unknown")
+                            if media_info.get("url"):
+                                copilot_msg_metadata["url"] = media_info["url"]
+                            if not copilot_user_msg:
+                                media_type = media_info.get("type", "media")
+                                copilot_user_msg = {
+                                    "image": "Sent a photo",
+                                    "video": "Sent a video",
+                                    "audio": "Sent a voice message",
+                                    "gif": "Sent a GIF",
+                                    "sticker": "Sent a sticker",
+                                    "story_mention": "Mentioned you in their story",
+                                    "share": "Shared a post",
+                                    "shared_reel": "Shared a reel",
+                                }.get(media_type, "Sent an attachment")
+                    if not copilot_user_msg:
+                        copilot_user_msg = "[Media/Attachment]"
+
                     pending = await copilot.create_pending_response(
                         creator_id=self.creator_id,
                         lead_id="",  # Will be set by service
                         follower_id=message.sender_id,
                         platform="instagram",
-                        user_message=message.text,
+                        user_message=copilot_user_msg,
                         user_message_id=message.message_id,
                         suggested_response=response_text,
                         intent=intent_str,
                         confidence=response.confidence,
                         username=username,
                         full_name=full_name,
+                        msg_metadata=copilot_msg_metadata if copilot_msg_metadata else None,
                     )
 
                     logger.info(
