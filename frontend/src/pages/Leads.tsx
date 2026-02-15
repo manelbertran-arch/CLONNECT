@@ -144,12 +144,18 @@ function openInstagramProfile(username: string, e: React.MouseEvent) {
 
 /**
  * Clasificar lead según embudo estándar
- * Backend returns: new, active, hot, customer, ghost
- * Frontend uses: nuevo, interesado, caliente, cliente, fantasma
+ * Backend returns Spanish status: nuevo, interesado, caliente, cliente, fantasma
+ * Legacy English values also supported for backwards compatibility
  */
 function getLeadStatus(convo: Conversation): LeadStatus {
-  // Map backend status (English) to frontend status (Spanish)
   const statusMap: Record<string, LeadStatus> = {
+    // Spanish (current DB values)
+    "nuevo": "nuevo",
+    "interesado": "interesado",
+    "caliente": "caliente",
+    "cliente": "cliente",
+    "fantasma": "fantasma",
+    // English (legacy compatibility)
     "new": "nuevo",
     "active": "interesado",
     "hot": "caliente",
