@@ -164,6 +164,60 @@ def register_startup_handlers(app: "FastAPI"):
         asyncio.create_task(start_profile_pic_refresh_scheduler())
         logger.info("Profile pic refresh scheduler scheduled (every 24h)")
 
+        # Start periodic media capture (capture expiring CDN URLs before they expire)
+        async def start_media_capture_scheduler():
+            from services.media_capture_job import (
+                ENABLE_MEDIA_CAPTURE,
+                MEDIA_CAPTURE_INITIAL_DELAY,
+                MEDIA_CAPTURE_INTERVAL,
+            )
+
+            await asyncio.sleep(MEDIA_CAPTURE_INITIAL_DELAY)
+            if not ENABLE_MEDIA_CAPTURE:
+                logger.info("[MEDIA_CAPTURE] Disabled via env var")
+                return
+            logger.info(
+                f"[MEDIA_CAPTURE] Scheduler started — runs every "
+                f"{MEDIA_CAPTURE_INTERVAL // 3600}h"
+            )
+
+            while True:
+                try:
+                    from services.media_capture_job import media_capture_job
+
+                    await media_capture_job()
+                except Exception as e:
+                    logger.error(f"[MEDIA_CAPTURE] Scheduler error: {e}")
+
+                await asyncio.sleep(MEDIA_CAPTURE_INTERVAL)
+
+        asyncio.create_task(start_media_capture_scheduler())
+        logger.info("Media capture scheduler scheduled (every 6h, 180s delay)")
+
+        # Start periodic post context refresh (refresh expired post contexts)
+        async def start_post_context_refresh_scheduler():
+            await asyncio.sleep(150)  # Wait for DB + other jobs to be ready
+            logger.info("[POST_CONTEXT] Scheduler started — runs every 12h")
+
+            while True:
+                try:
+                    from services.post_context_scheduler import (
+                        refresh_expired_contexts,
+                    )
+
+                    stats = await refresh_expired_contexts()
+                    logger.info(
+                        f"[POST_CONTEXT] Done: {stats['refreshed']} refreshed, "
+                        f"{stats['errors']} errors"
+                    )
+                except Exception as e:
+                    logger.error(f"[POST_CONTEXT] Scheduler error: {e}")
+
+                await asyncio.sleep(43200)  # 12 hours
+
+        asyncio.create_task(start_post_context_refresh_scheduler())
+        logger.info("Post context refresh scheduler scheduled (every 12h)")
+
         # DISABLED: Startup reconciliation was making 20+ Instagram API calls
         # causing slow startup and 403 errors. Run manually via /maintenance/reconcile if needed.
         logger.info("Message reconciliation DISABLED on startup (use /maintenance/reconcile)")

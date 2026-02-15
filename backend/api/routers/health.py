@@ -267,3 +267,104 @@ def health_cache():
         }
     except Exception as e:
         return {"status": "error", "error": str(e)}
+
+
+@router.get("/health/scheduler")
+def health_scheduler():
+    """List all background scheduled jobs and their status.
+
+    Returns each job's name, interval, and whether it's enabled.
+    """
+    jobs = []
+
+    # 1. Token refresh (24h)
+    jobs.append({
+        "name": "token_refresh",
+        "interval": "24h",
+        "initial_delay": "60s",
+        "enabled": True,
+        "description": "Refreshes Instagram OAuth tokens expiring within 30 days",
+    })
+
+    # 2. Profile pic refresh (24h)
+    enabled_pics = os.getenv("ENABLE_PROFILE_PIC_REFRESH", "true").lower() == "true"
+    jobs.append({
+        "name": "profile_pic_refresh",
+        "interval": "24h",
+        "initial_delay": "90s",
+        "enabled": enabled_pics,
+        "description": "Refreshes Instagram CDN profile picture URLs expiring within 48h",
+    })
+
+    # 3. Nurturing scheduler (5min)
+    try:
+        from api.routers.nurturing import (
+            _scheduler_interval,
+            _scheduler_last_run,
+            _scheduler_run_count,
+            _scheduler_running,
+        )
+
+        jobs.append({
+            "name": "nurturing",
+            "interval": f"{_scheduler_interval}s",
+            "initial_delay": "30s",
+            "enabled": True,
+            "running": _scheduler_running,
+            "last_run": _scheduler_last_run,
+            "total_runs": _scheduler_run_count,
+            "description": "Processes nurturing follow-up sequences",
+        })
+    except ImportError:
+        jobs.append({
+            "name": "nurturing",
+            "interval": "300s",
+            "enabled": True,
+            "running": "unknown",
+            "description": "Processes nurturing follow-up sequences",
+        })
+
+    # 4. Content refresh (24h)
+    enabled_content = os.getenv("CONTENT_REFRESH_ENABLED", "true").lower() == "true"
+    jobs.append({
+        "name": "content_refresh",
+        "interval": os.getenv("CONTENT_REFRESH_INTERVAL_SECONDS", "86400") + "s",
+        "initial_delay": os.getenv("CONTENT_REFRESH_INITIAL_DELAY", "120") + "s",
+        "enabled": enabled_content,
+        "description": "Re-scrapes Instagram posts, chunks, and generates embeddings",
+    })
+
+    # 5. Media capture (6h)
+    enabled_media = os.getenv("ENABLE_MEDIA_CAPTURE", "true").lower() == "true"
+    jobs.append({
+        "name": "media_capture",
+        "interval": os.getenv("MEDIA_CAPTURE_INTERVAL_SECONDS", "21600") + "s",
+        "initial_delay": os.getenv("MEDIA_CAPTURE_INITIAL_DELAY", "180") + "s",
+        "enabled": enabled_media,
+        "description": "Captures expiring CDN media URLs as base64 before they expire",
+    })
+
+    # 6. Post context refresh (12h)
+    jobs.append({
+        "name": "post_context_refresh",
+        "interval": "12h",
+        "initial_delay": "150s",
+        "enabled": True,
+        "description": "Refreshes expired post contexts for creator content",
+    })
+
+    # 7. Keep-alive (1min)
+    jobs.append({
+        "name": "keep_alive",
+        "interval": "60s",
+        "initial_delay": "3s",
+        "enabled": True,
+        "description": "DB ping to prevent Railway scale-to-zero",
+    })
+
+    return {
+        "status": "ok",
+        "timestamp": datetime.now(timezone.utc).isoformat(),
+        "total_jobs": len(jobs),
+        "jobs": jobs,
+    }
