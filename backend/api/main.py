@@ -322,6 +322,11 @@ from api.routers import metrics as metrics_router
 
 app.include_router(metrics_router.router)
 
+# SSE events router (real-time notifications)
+from api.routers import events as events_router
+
+app.include_router(events_router.router)
+
 # Authentication router
 from api.auth import router as auth_router
 

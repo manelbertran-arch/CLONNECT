@@ -22,7 +22,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { cn } from "@/lib/utils";
-import { useInfiniteConversations, useFollowerDetail, useSendMessage, useArchiveConversation, useMarkConversationSpam, useDeleteConversation, useArchivedConversations, useRestoreConversation } from "@/hooks/useApi";
+import { useInfiniteConversations, useFollowerDetail, useSendMessage, useArchiveConversation, useMarkConversationSpam, useDeleteConversation, useArchivedConversations, useRestoreConversation, useEventStream } from "@/hooks/useApi";
 import { useToast } from "@/hooks/use-toast";
 import type { Conversation, Message } from "@/types/api";
 import { getPurchaseIntent, detectPlatform, getFriendlyName, extractNameFromMessages, getMessages } from "@/types/api";
@@ -123,6 +123,9 @@ function getSmartDisplayName(
 }
 
 export default function Inbox() {
+  // SSE: real-time updates from backend when new messages arrive
+  useEventStream();
+
   // Read conversation ID from URL query param (?id=xxx)
   const [searchParams, setSearchParams] = useSearchParams();
   const urlConversationId = searchParams.get("id");

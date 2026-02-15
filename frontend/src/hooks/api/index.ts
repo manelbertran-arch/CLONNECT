@@ -10,3 +10,4 @@ export * from './useNurturing';
 export * from './useKnowledge';
 export * from './useConnections';
 export * from './useOnboarding';
+export * from './useEventStream';

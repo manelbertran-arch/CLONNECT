@@ -200,6 +200,27 @@ class CopilotService:
             cache_key = f"{creator_id}:{pending.id}"
             self._pending_responses[cache_key] = pending
 
+            # Invalidate conversation caches so new user message appears
+            try:
+                from api.cache import api_cache
+
+                api_cache.invalidate(f"conversations:{creator_id}")
+                api_cache.invalidate(f"follower_detail:{creator_id}:{follower_id}")
+            except Exception as cache_err:
+                logger.debug(f"[Copilot] Cache invalidation failed: {cache_err}")
+
+            # Notify frontend via SSE
+            try:
+                from api.routers.events import notify_creator
+
+                await notify_creator(
+                    creator_id,
+                    "new_message",
+                    {"follower_id": follower_id, "role": "user"},
+                )
+            except Exception as sse_err:
+                logger.debug(f"[Copilot] SSE notification failed: {sse_err}")
+
             logger.info(f"[Copilot] Created pending response {pending.id} for {follower_id}")
 
         except Exception as e:
@@ -358,6 +379,30 @@ class CopilotService:
             lead.last_contact_at = datetime.now(timezone.utc)
 
             session.commit()
+
+            # Invalidate caches so approved message appears in conversation
+            try:
+                from api.cache import api_cache
+
+                api_cache.invalidate(f"conversations:{creator_id}")
+                api_cache.invalidate(f"follower_detail:{creator_id}:{lead.platform_user_id}")
+            except Exception as cache_err:
+                logger.debug(f"[Copilot] Cache invalidation failed: {cache_err}")
+
+            # Notify frontend via SSE
+            try:
+                from api.routers.events import notify_creator
+
+                await notify_creator(
+                    creator_id,
+                    "message_approved",
+                    {
+                        "follower_id": lead.platform_user_id,
+                        "message_id": str(msg.id),
+                    },
+                )
+            except Exception as sse_err:
+                logger.debug(f"[Copilot] SSE notification failed: {sse_err}")
 
             logger.info(
                 f"[Copilot] Approved and sent message {message_id} to {lead.platform_user_id}"

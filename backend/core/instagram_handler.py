@@ -853,8 +853,24 @@ class InstagramHandler:
                             continue
 
                         # Determine role (is this from the creator or the follower?)
-                        is_from_creator = msg_from.get("id") in [self.page_id, self.ig_user_id]
-                        role = "assistant" if is_from_creator else "user"
+                        # Primary check: if sender matches the follower's ID, it's from the follower
+                        # This is more reliable than checking against page_id/ig_user_id
+                        # which may not match the ID format in the Conversations API
+                        msg_sender_id = str(msg_from.get("id", ""))
+                        is_from_follower = msg_sender_id == str(sender_id)
+                        is_from_creator = (
+                            not is_from_follower
+                            and msg_sender_id in [self.page_id, self.ig_user_id]
+                        ) if msg_sender_id else False
+
+                        # If sender is follower → "user", if sender is creator → "assistant"
+                        # If neither matched, use fallback: non-follower = creator
+                        if is_from_follower:
+                            role = "user"
+                        elif is_from_creator or (msg_sender_id and not is_from_follower):
+                            role = "assistant"
+                        else:
+                            role = "user"  # Default to user if no ID available
 
                         # Parse timestamp
                         created_at = None
@@ -1181,6 +1197,31 @@ class InstagramHandler:
                 lead.last_contact_at = datetime.now(timezone.utc)
                 session.commit()
 
+                # Invalidate cache and notify frontend
+                try:
+                    from api.cache import api_cache
+
+                    api_cache.invalidate(f"conversations:{self.creator_id}")
+                    api_cache.invalidate(
+                        f"follower_detail:{self.creator_id}:{lead.platform_user_id}"
+                    )
+                except Exception:
+                    pass
+
+                try:
+                    from api.routers.events import notify_creator
+
+                    await notify_creator(
+                        self.creator_id,
+                        "new_message",
+                        {
+                            "follower_id": lead.platform_user_id,
+                            "role": "assistant",
+                        },
+                    )
+                except Exception:
+                    pass
+
                 logger.info(f"[Echo] Recorded creator manual response to {follower_id}")
                 return True
 
@@ -1323,6 +1364,31 @@ class InstagramHandler:
                                 f"[Reaction] {role} reacted {emoji} to {reacted_to_mid} "
                                 f"(lead={lead.username})"
                             )
+
+                            # Invalidate cache and notify frontend
+                            try:
+                                from api.cache import api_cache
+
+                                api_cache.invalidate(f"conversations:{self.creator_id}")
+                                api_cache.invalidate(
+                                    f"follower_detail:{self.creator_id}:{lead.platform_user_id}"
+                                )
+                            except Exception:
+                                pass
+
+                            try:
+                                from api.routers.events import notify_creator
+
+                                await notify_creator(
+                                    self.creator_id,
+                                    "new_message",
+                                    {
+                                        "follower_id": lead.platform_user_id,
+                                        "role": role,
+                                    },
+                                )
+                            except Exception:
+                                pass
                         finally:
                             session.close()
                     except Exception as e:
@@ -2263,8 +2329,26 @@ class InstagramHandler:
 
                     api_cache.invalidate(f"conversations:{self.creator_id}")
                     api_cache.invalidate(f"leads:{self.creator_id}")
+                    api_cache.invalidate(
+                        f"follower_detail:{self.creator_id}:{lead.platform_user_id}"
+                    )
                 except Exception as cache_err:
                     logger.debug(f"[SaveMsg] Cache invalidation failed: {cache_err}")
+
+                # Notify frontend via SSE
+                try:
+                    from api.routers.events import notify_creator
+
+                    await notify_creator(
+                        self.creator_id,
+                        "new_message",
+                        {
+                            "follower_id": lead.platform_user_id,
+                            "role": "user",
+                        },
+                    )
+                except Exception as sse_err:
+                    logger.debug(f"[SaveMsg] SSE notification failed: {sse_err}")
 
                 return True
 
@@ -2461,8 +2545,26 @@ class InstagramHandler:
 
                     api_cache.invalidate(f"conversations:{self.creator_id}")
                     api_cache.invalidate(f"leads:{self.creator_id}")
+                    api_cache.invalidate(
+                        f"follower_detail:{self.creator_id}:{lead.platform_user_id}"
+                    )
                 except Exception as cache_err:
                     logger.debug(f"[SaveUserMsg] Cache invalidation failed: {cache_err}")
+
+                # Notify frontend via SSE
+                try:
+                    from api.routers.events import notify_creator
+
+                    await notify_creator(
+                        self.creator_id,
+                        "new_message",
+                        {
+                            "follower_id": lead.platform_user_id,
+                            "role": "user",
+                        },
+                    )
+                except Exception as sse_err:
+                    logger.debug(f"[SaveUserMsg] SSE notification failed: {sse_err}")
 
                 return True
 
