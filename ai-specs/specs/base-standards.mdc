@@ -18,7 +18,7 @@ Clonnect is an AI-powered DM automation platform for content creators. It connec
 | **LLM (DM)** | Scout FT v2 via DeepInfra LoRA (primary), Groq fallback (BASE) |
 | **LLM (fallback)** | GPT-4o-mini via OpenAI |
 | **LLM (generation)** | Gemini 2.5 Flash-Lite |
-| **Frontend** | React 18.3, Vite 5.4, TypeScript 5.8, Tailwind 3.4, shadcn/ui |
+| **Frontend** | React 18.3, Vite 6.4, TypeScript 5.8, Tailwind 3.4, shadcn/ui |
 | **State** | TanStack React Query 5, React Context |
 | **Deploy** | Railway (single service: backend serves frontend SPA) |
 | **CI/CD** | GitHub Actions (test, lint, auto-merge claude branches) |
@@ -36,8 +36,8 @@ Clonnect/
 │   │   ├── startup.py           (startup events, scheduler)
 │   │   ├── static_serving.py    (SPA catch-all)
 │   │   ├── routers/             (40 router files)
-│   │   │   ├── admin/           (9 files, 5,816 LOC — already split)
-│   │   │   ├── onboarding.py    (4,565 LOC — largest router)
+│   │   │   ├── admin/           (9 files, 5,816 LOC — split)
+│   │   │   ├── onboarding/      (11 files, 4,648 LOC — split)
 │   │   │   ├── oauth.py         (2,347 LOC)
 │   │   │   ├── leads.py         (1,047 LOC)
 │   │   │   ├── dm.py            (993 LOC)
@@ -55,8 +55,7 @@ Clonnect/
 │   │   ├── nurturing.py         (818 LOC — sequences, ghost reactivation)
 │   │   ├── providers/
 │   │   │   ├── deepinfra_provider.py  (Scout + LoRA)
-│   │   │   ├── gemini_provider.py     (Gemini 2.5 Flash-Lite)
-│   │   │   └── together_provider.py
+│   │   │   └── gemini_provider.py     (Gemini 2.5 Flash-Lite)
 │   │   ├── intelligence/        (audience intelligence engine)
 │   │   ├── analytics/
 │   │   ├── rag/                 (pgvector + BM25 hybrid search)
@@ -96,7 +95,7 @@ Clonnect/
 | Database tables | 41 (40 in `api/models.py` + 1 in `core/nurturing_db.py`) |
 | Alembic migrations | 16 files |
 | API endpoints | 383 (372 @router + 10 auth + 1 @app) |
-| Router files | 49 (40 in `routers/` + 9 in `routers/admin/`) |
+| Router files | 59 (40 in `routers/` + 9 in `routers/admin/` + 10 in `routers/onboarding/`) |
 | `print()` in production | 10 (target: 0, use `logging`) |
 | Bare `except:` | 0 |
 
@@ -115,7 +114,10 @@ Clonnect/
 
 | File | LOC |
 |------|-----|
-| `api/routers/onboarding.py` | 4,565 |
+| `api/routers/onboarding/seed_data.py` | 862 |
+| `api/routers/onboarding/dm_sync.py` | 769 |
+| `api/routers/onboarding/setup.py` | 634 |
+| `api/routers/onboarding/clone.py` | 589 |
 | `api/routers/admin/sync.py` | 2,640 |
 | `core/instagram_handler.py` | 2,494 |
 | `api/routers/oauth.py` | 2,347 |
@@ -167,7 +169,7 @@ Clonnect/
 
 | Router | Endpoints | LOC |
 |--------|-----------|-----|
-| `onboarding.py` | 27 | 4,565 |
+| `onboarding/` (11 files) | 27 | 4,648 |
 | `admin/sync.py` | 20 | 2,640 |
 | `leads.py` | 17 | 1,047 |
 | `dm.py` | 16 | 993 |
@@ -178,7 +180,7 @@ Clonnect/
 | `content.py` | 12 | — |
 | `messaging_webhooks.py` | 11 | — |
 | `instagram.py` | 11 | 1,021 |
-| `telegram.py` | 10 | — |
+| `telegram.py` | 11 | — |
 | `knowledge.py` | 9 | — |
 | `ingestion_v2.py` | 8 | 749 |
 | `dm_orchestrated.py` | 8 | — |
