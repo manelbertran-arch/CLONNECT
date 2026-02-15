@@ -443,7 +443,7 @@ export default function Inbox() {
                       </div>
                       <p className={`text-xs truncate mt-0.5 ${convo.is_unread ? 'text-white font-medium' : 'text-muted-foreground'}`}>
                         {convo.last_message_role === 'assistant' ? 'You: ' : ''}
-                        {convo.last_message_preview || lastMessage?.content || `${convo.total_messages || 0} messages`}
+                        {convo.last_message_preview || lastMessage?.content || (convo.total_messages ? `${convo.total_messages} mensajes` : "Sin mensajes")}
                       </p>
                       <div className="mt-2 flex items-center gap-2">
                         <span className={cn(
