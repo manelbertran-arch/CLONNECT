@@ -10,7 +10,7 @@ Analyzes patterns across all data sources and generates:
 import os
 import logging
 import json
-from datetime import datetime, date, timedelta
+from datetime import datetime, date, timedelta, timezone
 from typing import Dict, List, Any, Optional
 from collections import Counter
 
@@ -237,7 +237,7 @@ class IntelligenceEngine:
             leads = db.execute(leads_query, {"creator_id": self.creator_id}).fetchall()
 
             predictions = []
-            now = datetime.now()
+            now = datetime.now(timezone.utc)
 
             for lead in leads:
                 base_score = float(lead[3] or 0.3)
@@ -321,7 +321,7 @@ class IntelligenceEngine:
             leads = db.execute(query, {"creator_id": self.creator_id}).fetchall()
 
             churn_risks = []
-            now = datetime.now()
+            now = datetime.now(timezone.utc)
 
             for lead in leads:
                 last_activity = lead[4]

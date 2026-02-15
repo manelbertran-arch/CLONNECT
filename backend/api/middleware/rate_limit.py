@@ -75,6 +75,14 @@ class RateLimitBucket:
 
         # Consume tokens
         self.buckets[key] = (tokens_min - cost, tokens_hour - cost, now)
+
+        # Evict stale entries to prevent memory leak (every 500 entries)
+        if len(self.buckets) > 500:
+            stale_cutoff = now - 3600  # Remove entries inactive for 1h
+            stale_keys = [k for k, (_, _, ts) in self.buckets.items() if ts < stale_cutoff]
+            for k in stale_keys:
+                del self.buckets[k]
+
         return True, "OK", headers
 
     def reset(self, key: str):

@@ -8,7 +8,8 @@ import os
 import re
 
 import httpx
-from fastapi import APIRouter, Body, HTTPException
+from fastapi import APIRouter, Body, Depends, HTTPException
+from api.auth import get_current_user
 
 logger = logging.getLogger(__name__)
 
@@ -19,7 +20,7 @@ router = APIRouter(prefix="/api/ai", tags=["ai"])
 # AI PERSONALITY GENERATION
 # ---------------------------------------------------------
 @router.post("/generate-rules")
-async def generate_ai_rules(request: dict = Body(...)):
+async def generate_ai_rules(request: dict = Body(...), _user=Depends(get_current_user)):
     """Generate bot personality rules using AI (Grok)"""
     prompt = request.get("prompt", "")
 
@@ -76,7 +77,7 @@ async def generate_ai_rules(request: dict = Body(...)):
 
 
 @router.post("/generate-knowledge-full")
-async def generate_knowledge_full(request: dict = Body(...)):
+async def generate_knowledge_full(request: dict = Body(...), _user=Depends(get_current_user)):
     """Generate FAQs + extract 'About' info from content"""
     content = request.get("content", "") or request.get("prompt", "")
 
@@ -260,7 +261,7 @@ def generate_fallback_about(content: str) -> dict:
 
 
 @router.post("/generate-knowledge")
-async def generate_ai_knowledge(request: dict = Body(...)):
+async def generate_ai_knowledge(request: dict = Body(...), _user=Depends(get_current_user)):
     """Generate knowledge base content using AI (Grok)"""
     prompt = request.get("prompt", "")
     content_type = request.get("type", "faqs")  # "faqs" or "about"

@@ -274,7 +274,7 @@ class NurturingSequence(Base):
     type = Column(String(50), nullable=False)
     name = Column(String(255))
     is_active = Column(Boolean, default=True)
-    steps = Column(JSON, default=[])
+    steps = Column(JSON, default=list)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
 
@@ -541,7 +541,6 @@ class SyncQueue(Base):
     """
 
     __tablename__ = "sync_queue"
-    __table_args__ = {"extend_existing": True}
 
     id = Column(Integer, primary_key=True, autoincrement=True)
     creator_id = Column(String(100), nullable=False, index=True)
@@ -552,8 +551,10 @@ class SyncQueue(Base):
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     processed_at = Column(DateTime(timezone=True))
 
-    # Unique constraint para evitar duplicados
-    __table_args__ = ({"extend_existing": True},)
+    __table_args__ = (
+        UniqueConstraint("creator_id", "conversation_id", name="uq_sync_queue_creator_conversation"),
+        {"extend_existing": True},
+    )
 
 
 class SyncState(Base):

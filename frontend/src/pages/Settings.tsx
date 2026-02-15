@@ -450,9 +450,13 @@ export default function Settings() {
     setIsGeneratingAI(true);
     try {
       // Call AI endpoint to generate rules
-      const response = await fetch("/api/ai/generate-rules", {
+      const token = localStorage.getItem("clonnect_auth_token");
+      const response = await fetch(`${API_URL}/api/ai/generate-rules`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
         body: JSON.stringify({ prompt: aiPrompt }),
       });
 
@@ -647,9 +651,13 @@ export default function Settings() {
     setIsGeneratingKnowledge(true);
     try {
       // Use new endpoint that generates both FAQs and About
+      const token = localStorage.getItem("clonnect_auth_token");
       const response = await fetch(`${API_URL}/api/ai/generate-knowledge-full`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
         body: JSON.stringify({ content: aiKnowledgePrompt }),
       });
 

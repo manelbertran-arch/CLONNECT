@@ -13,11 +13,10 @@ def get_session():
     if not DATABASE_URL:
         return None
     try:
-        from sqlalchemy import create_engine
-        from sqlalchemy.orm import Session
-
-        engine = create_engine(DATABASE_URL)
-        return Session(engine)
+        from api.database import SessionLocal
+        if SessionLocal is None:
+            return None
+        return SessionLocal()
     except Exception:
         return None
 

@@ -60,9 +60,12 @@ class ContextMemoryService:
 
     def _get_engine(self):
         if self._engine is None:
-            from sqlalchemy import create_engine
-
-            self._engine = create_engine(self.db_url)
+            from api.database import engine as shared_engine
+            if shared_engine is not None:
+                self._engine = shared_engine
+            else:
+                from sqlalchemy import create_engine
+                self._engine = create_engine(self.db_url)
         return self._engine
 
     def load_conversation_context(

@@ -15,7 +15,7 @@ from datetime import datetime, timedelta
 from typing import Dict, Any, List, Optional
 from contextlib import contextmanager
 
-from sqlalchemy import Column, String, Integer, Text, DateTime, and_, or_
+from sqlalchemy import Column, String, Integer, Text, DateTime, and_, or_, func
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.exc import SQLAlchemyError
 
@@ -39,9 +39,9 @@ class NurturingFollowupDB(Base):
     scheduled_at = Column(DateTime(timezone=True), nullable=False)
     message_template = Column(Text, nullable=False)
     status = Column(String(20), nullable=False, default="pending")
-    created_at = Column(DateTime(timezone=True), default=datetime.utcnow)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
     sent_at = Column(DateTime(timezone=True), nullable=True)
-    extra_data = Column(JSONB, nullable=True, default={})  # Renamed from metadata - reserved in SQLAlchemy
+    extra_data = Column(JSONB, nullable=True, default=dict)  # Renamed from metadata - reserved in SQLAlchemy
 
     def to_dict(self) -> Dict[str, Any]:
         """Convert to dictionary format matching FollowUp dataclass."""
@@ -191,7 +191,8 @@ class NurturingDBStorage:
             List of due followup dictionaries, sorted by scheduled_at
         """
         try:
-            now = datetime.now()
+            from datetime import timezone
+            now = datetime.now(timezone.utc)
             with self._get_session() as session:
                 query = session.query(NurturingFollowupDB).filter(
                     and_(

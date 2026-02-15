@@ -924,8 +924,8 @@ class DMResponderAgentV2:
                         try:
                             domain = u.split("//")[-1].split("/")[0].replace("www.", "")
                             creator_domains.add(domain)
-                        except Exception:
-                            pass
+                        except Exception as e:
+                            logger.warning(f"Failed to parse URL domain '{u}': {e}")
                     guardrail_result = self.guardrails.validate_response(
                         query=message,
                         response=response_content,

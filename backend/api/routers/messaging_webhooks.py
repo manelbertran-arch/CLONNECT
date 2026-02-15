@@ -4,6 +4,7 @@ Extracted from main.py following TDD methodology.
 """
 
 import asyncio
+import json
 import logging
 import os
 from typing import Dict
@@ -266,11 +267,17 @@ async def whatsapp_webhook_receive(request: Request):
     logger.warning("========== WHATSAPP WEBHOOK HIT ==========")
 
     try:
-        payload = await request.json()
+        body = await request.body()
+        payload = json.loads(body)
         signature = request.headers.get("X-Hub-Signature-256", "")
 
-        # Parse messages from webhook payload
+        # Verify webhook signature
         connector = WhatsAppConnector()
+        if not connector.verify_webhook_signature(body, signature):
+            logger.warning("WhatsApp webhook signature verification failed")
+            raise HTTPException(status_code=403, detail="Invalid signature")
+
+        # Parse messages from webhook payload
         messages = await connector.handle_webhook_event(payload)
 
         if not messages:

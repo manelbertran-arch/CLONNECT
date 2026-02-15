@@ -11,7 +11,7 @@ import json
 import logging
 import os
 from dataclasses import asdict, dataclass, field
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from enum import Enum
 from pathlib import Path
 from typing import Any, Dict, List, Optional
@@ -348,7 +348,7 @@ class NurturingManager:
 
         followups = self._load_followups(creator_id)
         created = []
-        now = datetime.now()
+        now = datetime.now(timezone.utc)
 
         for step, (delay_hours, message_template) in enumerate(
             sequence[start_step:], start=start_step
@@ -403,7 +403,7 @@ class NurturingManager:
 
         # Fallback to JSON file scanning
         pending = []
-        now = datetime.now()
+        now = datetime.now(timezone.utc)
 
         if creator_id:
             creators = [creator_id]
@@ -453,7 +453,7 @@ class NurturingManager:
         for fu in followups:
             if fu.id == followup.id:
                 fu.status = "sent"
-                fu.sent_at = datetime.now().isoformat()
+                fu.sent_at = datetime.now(timezone.utc).isoformat()
                 self._save_followups(followup.creator_id, followups)
                 logger.info(f"Followup {followup.id} marked as sent")
                 return True
@@ -575,7 +575,7 @@ class NurturingManager:
     def cleanup_old_followups(self, creator_id: str, days: int = 30) -> int:
         """Eliminar followups antiguos (enviados o cancelados)"""
         followups = self._load_followups(creator_id)
-        cutoff = datetime.now() - timedelta(days=days)
+        cutoff = datetime.now(timezone.utc) - timedelta(days=days)
         original_count = len(followups)
 
         followups = [

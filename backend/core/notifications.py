@@ -9,7 +9,7 @@ import logging
 import asyncio
 from typing import Dict, Any, Optional, List
 from dataclasses import dataclass, asdict
-from datetime import datetime
+from datetime import datetime, timezone
 from enum import Enum
 
 logger = logging.getLogger(__name__)
@@ -187,6 +187,7 @@ class NotificationService:
         # Historial de notificaciones (en memoria, para evitar duplicados)
         self._sent_notifications: Dict[str, datetime] = {}
         self._cooldown_seconds = 300  # 5 minutos entre notificaciones del mismo follower
+        self._max_entries = 1000  # Max entries before cleanup
 
     async def notify_escalation(
         self,
@@ -208,7 +209,7 @@ class NotificationService:
         cooldown_key = f"{notification.creator_id}:{notification.follower_id}"
         if cooldown_key in self._sent_notifications:
             last_sent = self._sent_notifications[cooldown_key]
-            elapsed = (datetime.now() - last_sent).total_seconds()
+            elapsed = (datetime.now(timezone.utc) - last_sent).total_seconds()
             if elapsed < self._cooldown_seconds:
                 logger.info(f"Notification skipped (cooldown): {cooldown_key}")
                 return {"skipped": True, "reason": "cooldown"}
@@ -242,7 +243,17 @@ class NotificationService:
                 results[channel] = False
 
         # Registrar envío
-        self._sent_notifications[cooldown_key] = datetime.now()
+        self._sent_notifications[cooldown_key] = datetime.now(timezone.utc)
+
+        # Evict expired entries to prevent memory leak
+        if len(self._sent_notifications) > self._max_entries:
+            now = datetime.now(timezone.utc)
+            expired = [
+                k for k, v in self._sent_notifications.items()
+                if (now - v).total_seconds() > self._cooldown_seconds
+            ]
+            for k in expired:
+                del self._sent_notifications[k]
 
         return results
 

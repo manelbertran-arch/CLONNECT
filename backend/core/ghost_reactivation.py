@@ -58,10 +58,27 @@ def _was_recently_reactivated(creator_id: str, lead_id: str) -> bool:
     return datetime.now(timezone.utc) - last_reactivation < cooldown
 
 
+def _cleanup_expired_entries():
+    """Remove expired entries from the reactivation tracking dict to prevent memory leaks."""
+    cooldown = timedelta(days=REACTIVATION_CONFIG["cooldown_days"])
+    now = datetime.now(timezone.utc)
+    expired_keys = [
+        key for key, ts in _reactivated_leads.items()
+        if now - ts >= cooldown
+    ]
+    for key in expired_keys:
+        del _reactivated_leads[key]
+    if expired_keys:
+        logger.info(f"Cleaned up {len(expired_keys)} expired reactivation entries")
+
+
 def _mark_as_reactivated(creator_id: str, lead_id: str):
     """Marca un lead como reactivado."""
     key = _get_reactivation_key(creator_id, lead_id)
     _reactivated_leads[key] = datetime.now(timezone.utc)
+    # Periodically clean up expired entries (every 100 entries)
+    if len(_reactivated_leads) > 100:
+        _cleanup_expired_entries()
 
 
 def get_ghost_leads_for_reactivation(creator_id: str) -> List[Dict[str, Any]]:

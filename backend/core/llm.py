@@ -13,6 +13,7 @@ logger = logging.getLogger(__name__)
 # Default provider - OpenAI gpt-4o-mini
 DEFAULT_PROVIDER = "openai"
 DEFAULT_OPENAI_MODEL = "gpt-4o-mini"
+DEFAULT_GROQ_MODEL = "llama-3.1-70b-versatile"
 
 
 class LLMClient(ABC):
