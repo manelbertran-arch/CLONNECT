@@ -56,6 +56,7 @@ async def profile_picture_stats(creator_name: str):
 async def refresh_profile_pictures(
     creator_name: str,
     limit: int = Query(default=50, description="Maximum leads to process"),
+    offset: int = Query(default=0, description="Offset for pagination"),
     force: bool = Query(default=False, description="Refresh even if already has photo"),
 ):
     """
@@ -78,7 +79,7 @@ async def refresh_profile_pictures(
         if not force:
             query = query.filter(or_(Lead.profile_pic_url.is_(None), Lead.profile_pic_url == ""))
 
-        leads = query.limit(limit).all()
+        leads = query.order_by(Lead.last_contact_at.desc()).offset(offset).limit(limit).all()
 
         if not leads:
             return {"message": "No leads to update", "updated": 0, "failed": 0}
