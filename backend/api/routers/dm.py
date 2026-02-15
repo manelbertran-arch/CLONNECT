@@ -149,9 +149,10 @@ async def get_conversations(creator_id: str, limit: int = 50, offset: int = 0):
                         return {"status": "ok", "conversations": [], "count": 0}
 
                     # OPTIMIZED: Single query for leads with message counts
+                    # FIX: Only count sent/edited messages (consistent with last_msg query)
                     msg_count_subq = (
                         session.query(Message.lead_id, func.count(Message.id).label("msg_count"))
-                        .filter(Message.role == "user")
+                        .filter(Message.role == "user", Message.status.in_(["sent", "edited"]))
                         .group_by(Message.lead_id)
                         .subquery()
                     )

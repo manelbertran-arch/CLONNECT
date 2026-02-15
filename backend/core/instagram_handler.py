@@ -471,12 +471,35 @@ class InstagramHandler:
                     # Extract media info for attachment messages (same as _save_user_message_to_db)
                     copilot_user_msg = message.text
                     copilot_msg_metadata = {}
-                    if message.attachments:
+
+                    # Handle story messages first (story data is separate from attachments)
+                    if message.story:
+                        story_data = message.story
+                        if story_data.get("reply_to"):
+                            copilot_msg_metadata["type"] = "story_reply"
+                            copilot_msg_metadata["link"] = story_data["reply_to"].get("link", "")
+                        elif story_data.get("mention"):
+                            copilot_msg_metadata["type"] = "story_mention"
+                            copilot_msg_metadata["link"] = story_data["mention"].get("link", "")
+                        # Extract CDN URL from attachments for stories
+                        if message.attachments:
+                            att = message.attachments[0]
+                            cdn_url = (
+                                att.get("video_data", {}).get("url")
+                                or att.get("image_data", {}).get("url")
+                                or (att.get("payload", {}).get("url") if isinstance(att.get("payload"), dict) else None)
+                                or att.get("url")
+                            )
+                            if cdn_url:
+                                copilot_msg_metadata["url"] = cdn_url
+                    elif message.attachments:
                         media_info = self._extract_media_info(message.attachments)
                         if media_info:
                             copilot_msg_metadata["type"] = media_info.get("type", "unknown")
                             if media_info.get("url"):
                                 copilot_msg_metadata["url"] = media_info["url"]
+                            if media_info.get("permalink"):
+                                copilot_msg_metadata["permalink"] = media_info["permalink"]
                             if not copilot_user_msg:
                                 media_type = media_info.get("type", "media")
                                 copilot_user_msg = {
@@ -1534,6 +1557,26 @@ class InstagramHandler:
         for att in attachments:
             att_type = (att.get("type") or "").lower()
 
+            # Handle share/reel attachments first — these have permalink, not CDN media
+            # Instagram share webhook format: {"type": "share", "share": {"link": "https://instagram.com/p/..."}}
+            if att_type in ("share", "reel"):
+                share_data = att.get("share", {})
+                share_link = share_data.get("link", "") if isinstance(share_data, dict) else ""
+                if share_link and "reel" in share_link.lower():
+                    media_type = "shared_reel"
+                elif att_type == "reel":
+                    media_type = "shared_reel"
+                else:
+                    media_type = "share"
+
+                result = {
+                    "type": media_type,
+                    "captured_at": datetime.now(timezone.utc).isoformat(),
+                }
+                if share_link:
+                    result["permalink"] = share_link
+                return result
+
             # Try new payload format first (Instagram Messaging API)
             payload = att.get("payload", {})
             payload_url = payload.get("url") if isinstance(payload, dict) else None
@@ -1563,7 +1606,8 @@ class InstagramHandler:
                     or att.get("src")
                     or att.get("source")
                     or att.get("link")
-                    # Try nested structures
+                    # Try nested structures (share.link for shares that reach here)
+                    or att.get("share", {}).get("link")
                     or att.get("target", {}).get("url")
                     or att.get("media", {}).get("url")
                     or att.get("media", {}).get("source")
@@ -2250,16 +2294,44 @@ class InstagramHandler:
                 )
 
                 if not existing_user_msg:
-                    # Extract media info if present
+                    # Extract media/story info if present
                     media_info = None
                     msg_metadata = {}
                     content = msg.text
-                    if msg.attachments:
+
+                    # Handle story messages first (story data is separate from attachments)
+                    if msg.story:
+                        story_data = msg.story
+                        if story_data.get("reply_to"):
+                            msg_metadata["type"] = "story_reply"
+                            msg_metadata["link"] = story_data["reply_to"].get("link", "")
+                        elif story_data.get("mention"):
+                            msg_metadata["type"] = "story_mention"
+                            msg_metadata["link"] = story_data["mention"].get("link", "")
+                        # Extract CDN URL from attachments for stories
+                        if msg.attachments:
+                            att = msg.attachments[0]
+                            cdn_url = (
+                                att.get("video_data", {}).get("url")
+                                or att.get("image_data", {}).get("url")
+                                or (att.get("payload", {}).get("url") if isinstance(att.get("payload"), dict) else None)
+                                or att.get("url")
+                            )
+                            if cdn_url:
+                                msg_metadata["url"] = cdn_url
+                        if not content:
+                            content = {
+                                "story_reply": "Respuesta a story",
+                                "story_mention": "Mención en story",
+                            }.get(msg_metadata.get("type", ""), "Story")
+                    elif msg.attachments:
                         media_info = self._extract_media_info(msg.attachments)
                         if media_info:
                             msg_metadata["type"] = media_info.get("type", "unknown")
                             if media_info.get("url"):
                                 msg_metadata["url"] = media_info["url"]
+                            if media_info.get("permalink"):
+                                msg_metadata["permalink"] = media_info["permalink"]
                             # Use descriptive content if no text
                             if not content:
                                 media_type = media_info.get("type", "media")

@@ -549,9 +549,14 @@ function UnknownMediaMessage({ message, isOutgoing, isLastInGroup }: { message: 
   const metadata = message.metadata || {};
   const mediaUrl = metadata.url;
 
-  // If we have a URL, try to display it as an image
-  if (mediaUrl) {
+  // If we have a renderable media URL (not an Instagram permalink), try to display it
+  if (mediaUrl && !isInstagramPermalink(mediaUrl)) {
     return <MediaMessage message={message} isOutgoing={isOutgoing} isLastInGroup={isLastInGroup} type="image" />;
+  }
+
+  // If we have an Instagram permalink, render as shared post
+  if (mediaUrl && isInstagramPermalink(mediaUrl)) {
+    return <SharedPostMessage message={message} isOutgoing={isOutgoing} isLastInGroup={isLastInGroup} />;
   }
 
   // No URL - show nice placeholder
@@ -714,6 +719,12 @@ function AudioMessage({ message, isOutgoing, isLastInGroup }: { message: Message
   );
 }
 
+// Helper: Check if URL is an Instagram permalink (not renderable as media)
+function isInstagramPermalink(url?: string): boolean {
+  if (!url) return false;
+  return /^https?:\/\/(www\.)?(instagram\.com|instagr\.am)\//i.test(url);
+}
+
 // Shared Post/Reel Message
 function SharedPostMessage({ message, isOutgoing, isLastInGroup }: { message: Message; isOutgoing: boolean; isLastInGroup: boolean }) {
   const [mediaLoaded, setMediaLoaded] = useState(false);
@@ -723,13 +734,17 @@ function SharedPostMessage({ message, isOutgoing, isLastInGroup }: { message: Me
 
   // For thumbnails: use CDN URL, permanent URL, or base64
   // NOTE: CDN URLs can be image OR video - we try image first, fallback to video
-  const thumbnailSrc = metadata.url
+  // IMPORTANT: Instagram permalinks (instagram.com/p/...) are NOT renderable as img/video
+  const rawUrl = metadata.url;
+  const mediaUrl = isInstagramPermalink(rawUrl) ? undefined : rawUrl;
+  const thumbnailSrc = mediaUrl
     || metadata.permanent_url
     || (metadata.thumbnail_base64
       ? (metadata.thumbnail_base64.startsWith('data:') ? metadata.thumbnail_base64 : `data:image/jpeg;base64,${metadata.thumbnail_base64}`)
       : metadata.thumbnail_url || metadata.preview_url);
 
-  const permalink = metadata.permalink || metadata.url;
+  // Permalink: explicit permalink field, or Instagram URL, or fallback to media URL
+  const permalink = metadata.permalink || (isInstagramPermalink(rawUrl) ? rawUrl : undefined) || metadata.url;
   const authorUsername = metadata.author_username;
   const isReel = metadata.type === 'shared_reel' || metadata.type === 'reel';
 
