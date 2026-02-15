@@ -943,61 +943,11 @@ async def _run_scheduler_cycle():
     # This prevents blocking API requests with Instagram API calls
     run_heavy_ops = (_scheduler_run_count % 6) == 0
 
+    # NOTE: Reconciliation, lead enrichment, and ghost reactivation have been
+    # moved to their own dedicated startup jobs (12, 13, 14) so they don't
+    # depend on the nurturing scheduler being alive.
     if run_heavy_ops:
-        logger.info("[NURTURING SCHEDULER] Running heavy operations (every 6th cycle)")
-
-        # 0a. Run message reconciliation (recover missing messages from Instagram)
-        try:
-            from core.message_reconciliation import run_periodic_reconciliation
-
-            recon_result = await run_periodic_reconciliation()
-            if recon_result.get("total_inserted", 0) > 0:
-                logger.info(
-                    f"[NURTURING SCHEDULER] Reconciliation: {recon_result['total_inserted']} messages recovered"
-                )
-        except Exception as e:
-            logger.error(f"[NURTURING SCHEDULER] Reconciliation error: {e}")
-
-        await asyncio.sleep(0)  # Yield to event loop between heavy operations
-
-        # 0a2. Enrich leads without profile (fix ig_XXXX leads)
-        try:
-            from api.database import SessionLocal
-            from api.models import Creator
-            from core.message_reconciliation import enrich_leads_without_profile
-
-            def _get_enrichment_creators():
-                session = SessionLocal()
-                try:
-                    creators = (
-                        session.query(Creator)
-                        .filter(
-                            Creator.instagram_token.isnot(None),
-                            Creator.instagram_token != "",
-                            Creator.bot_active == True,
-                        )
-                        .all()
-                    )
-                    return [{"name": c.name, "token": c.instagram_token} for c in creators]
-                finally:
-                    session.close()
-
-            creator_list = await asyncio.to_thread(_get_enrichment_creators)
-
-            total_enriched = 0
-            for c in creator_list:
-                enrich_result = await enrich_leads_without_profile(c["name"], c["token"], limit=5)
-                total_enriched += enrich_result.get("enriched", 0)
-
-            if total_enriched > 0:
-                logger.info(f"[NURTURING SCHEDULER] Lead enrichment: {total_enriched} profiles updated")
-
-        except Exception as e:
-            logger.error(f"[NURTURING SCHEDULER] Lead enrichment error: {e}")
-
-        await asyncio.sleep(0)  # Yield to event loop between heavy operations
-
-        # 0b. Process pending profile retries (automatic enrichment)
+        # Process pending profile retries (lightweight, nurturing-specific)
         try:
             profile_result = await _process_profile_retries()
             if profile_result.get("processed", 0) > 0:
@@ -1007,24 +957,6 @@ async def _run_scheduler_cycle():
                 )
         except Exception as e:
             logger.error(f"[NURTURING SCHEDULER] Profile retry error: {e}")
-
-        await asyncio.sleep(0)  # Yield to event loop between heavy operations
-
-        # 1. Run ghost reactivation (find and schedule re-engagement for ghosts)
-        try:
-            from core.ghost_reactivation import run_ghost_reactivation_cycle
-
-            ghost_result = await run_ghost_reactivation_cycle()
-            if ghost_result.get("total_scheduled", 0) > 0:
-                logger.info(
-                    f"[NURTURING SCHEDULER] Ghost reactivation: {ghost_result['total_scheduled']} scheduled"
-                )
-        except Exception as e:
-            logger.error(f"[NURTURING SCHEDULER] Ghost reactivation error: {e}")
-
-        await asyncio.sleep(0)  # Yield to event loop after heavy operations
-    else:
-        logger.debug(f"[NURTURING SCHEDULER] Skipping heavy ops (cycle {_scheduler_run_count})")
 
     # 2. Get ALL pending followups that are due (no creator_id = all creators)
     followups = await asyncio.to_thread(manager.get_pending_followups)

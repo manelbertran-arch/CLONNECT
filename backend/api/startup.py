@@ -218,9 +218,276 @@ def register_startup_handlers(app: "FastAPI"):
         asyncio.create_task(start_post_context_refresh_scheduler())
         logger.info("Post context refresh scheduler scheduled (every 12h)")
 
-        # DISABLED: Startup reconciliation was making 20+ Instagram API calls
-        # causing slow startup and 403 errors. Run manually via /maintenance/reconcile if needed.
-        logger.info("Message reconciliation DISABLED on startup (use /maintenance/reconcile)")
+        # JOB 8: Score decay — recalculate lead scores daily so ghost
+        # scores drop naturally via the recency component.
+        async def start_score_decay_scheduler():
+            enable = os.getenv("ENABLE_SCORE_DECAY", "true").lower() == "true"
+            await asyncio.sleep(210)
+            if not enable:
+                logger.info("[SCORE_DECAY] Disabled via ENABLE_SCORE_DECAY=false")
+                return
+            logger.info("[SCORE_DECAY] Scheduler started — runs every 24h")
+
+            while True:
+                try:
+                    from api.models import Creator
+                    from services.lead_scoring import batch_recalculate_scores
+
+                    session = SessionLocal()
+                    try:
+                        creators = (
+                            session.query(Creator)
+                            .filter(Creator.bot_active.is_(True))
+                            .all()
+                        )
+                        total_updated = 0
+                        for creator in creators:
+                            result = batch_recalculate_scores(session, str(creator.id))
+                            total_updated += result.get("updated", 0)
+                        logger.info(
+                            f"[SCORE_DECAY] Done: {total_updated} leads "
+                            f"recalculated across {len(creators)} creators"
+                        )
+                    finally:
+                        session.close()
+                except Exception as e:
+                    logger.error(f"[SCORE_DECAY] Scheduler error: {e}")
+
+                await asyncio.sleep(86400)  # 24 hours
+
+        asyncio.create_task(start_score_decay_scheduler())
+        logger.info("Score decay scheduler scheduled (every 24h, 210s delay)")
+
+        # JOB 9: Cleanup old nurturing followups (sent/cancelled/failed > 30 days)
+        async def start_followup_cleanup_scheduler():
+            enable = os.getenv("ENABLE_FOLLOWUP_CLEANUP", "true").lower() == "true"
+            await asyncio.sleep(240)
+            if not enable:
+                logger.info("[FOLLOWUP_CLEANUP] Disabled via env var")
+                return
+            logger.info("[FOLLOWUP_CLEANUP] Scheduler started — runs every 24h")
+
+            while True:
+                try:
+                    from sqlalchemy import text
+
+                    session = SessionLocal()
+                    try:
+                        result = session.execute(
+                            text(
+                                "DELETE FROM nurturing_followups "
+                                "WHERE status NOT IN ('pending','scheduled') "
+                                "AND created_at < NOW() - INTERVAL '30 days'"
+                            )
+                        )
+                        session.commit()
+                        deleted = result.rowcount
+                        if deleted > 0:
+                            logger.info(f"[FOLLOWUP_CLEANUP] Deleted {deleted} old followups")
+                        else:
+                            logger.debug("[FOLLOWUP_CLEANUP] Nothing to clean")
+                    finally:
+                        session.close()
+                except Exception as e:
+                    logger.error(f"[FOLLOWUP_CLEANUP] Scheduler error: {e}")
+
+                await asyncio.sleep(86400)  # 24 hours
+
+        asyncio.create_task(start_followup_cleanup_scheduler())
+        logger.info("Followup cleanup scheduler scheduled (every 24h, 240s delay)")
+
+        # JOB 10: Cleanup old lead_activities (> 90 days)
+        async def start_activities_cleanup_scheduler():
+            enable = os.getenv("ENABLE_ACTIVITIES_CLEANUP", "true").lower() == "true"
+            await asyncio.sleep(270)
+            if not enable:
+                logger.info("[ACTIVITIES_CLEANUP] Disabled via env var")
+                return
+            logger.info("[ACTIVITIES_CLEANUP] Scheduler started — runs every 24h")
+
+            while True:
+                try:
+                    from sqlalchemy import text
+
+                    session = SessionLocal()
+                    try:
+                        result = session.execute(
+                            text(
+                                "DELETE FROM lead_activities "
+                                "WHERE created_at < NOW() - INTERVAL '90 days'"
+                            )
+                        )
+                        session.commit()
+                        deleted = result.rowcount
+                        if deleted > 0:
+                            logger.info(f"[ACTIVITIES_CLEANUP] Deleted {deleted} old activities")
+                        else:
+                            logger.debug("[ACTIVITIES_CLEANUP] Nothing to clean")
+                    finally:
+                        session.close()
+                except Exception as e:
+                    logger.error(f"[ACTIVITIES_CLEANUP] Scheduler error: {e}")
+
+                await asyncio.sleep(86400)  # 24 hours
+
+        asyncio.create_task(start_activities_cleanup_scheduler())
+        logger.info("Activities cleanup scheduler scheduled (every 24h, 270s delay)")
+
+        # JOB 11: Cleanup unmatched_webhooks + sync_queue (> 7 days)
+        async def start_queue_cleanup_scheduler():
+            enable = os.getenv("ENABLE_QUEUE_CLEANUP", "true").lower() == "true"
+            await asyncio.sleep(300)
+            if not enable:
+                logger.info("[QUEUE_CLEANUP] Disabled via env var")
+                return
+            logger.info("[QUEUE_CLEANUP] Scheduler started — runs every 24h")
+
+            while True:
+                try:
+                    from sqlalchemy import text
+
+                    session = SessionLocal()
+                    try:
+                        r1 = session.execute(
+                            text(
+                                "DELETE FROM unmatched_webhooks "
+                                "WHERE received_at < NOW() - INTERVAL '7 days'"
+                            )
+                        )
+                        r2 = session.execute(
+                            text(
+                                "DELETE FROM sync_queue "
+                                "WHERE created_at < NOW() - INTERVAL '7 days'"
+                            )
+                        )
+                        session.commit()
+                        total = r1.rowcount + r2.rowcount
+                        if total > 0:
+                            logger.info(
+                                f"[QUEUE_CLEANUP] Deleted {r1.rowcount} webhooks, "
+                                f"{r2.rowcount} sync items"
+                            )
+                    finally:
+                        session.close()
+                except Exception as e:
+                    logger.error(f"[QUEUE_CLEANUP] Scheduler error: {e}")
+
+                await asyncio.sleep(86400)  # 24 hours
+
+        asyncio.create_task(start_queue_cleanup_scheduler())
+        logger.info("Queue cleanup scheduler scheduled (every 24h, 300s delay)")
+
+        # JOB 12: Periodic message reconciliation (separated from nurturing)
+        async def start_reconciliation_scheduler():
+            enable = os.getenv("ENABLE_RECONCILIATION", "true").lower() == "true"
+            await asyncio.sleep(330)
+            if not enable:
+                logger.info("[RECONCILIATION] Disabled via env var")
+                return
+            logger.info("[RECONCILIATION] Scheduler started — runs every 30min")
+
+            while True:
+                try:
+                    from core.message_reconciliation import (
+                        run_periodic_reconciliation,
+                    )
+
+                    result = await run_periodic_reconciliation()
+                    inserted = result.get("total_inserted", 0)
+                    if inserted > 0:
+                        logger.info(
+                            f"[RECONCILIATION] Recovered {inserted} missing messages"
+                        )
+                except Exception as e:
+                    logger.error(f"[RECONCILIATION] Scheduler error: {e}")
+
+                await asyncio.sleep(1800)  # 30 minutes
+
+        asyncio.create_task(start_reconciliation_scheduler())
+        logger.info("Reconciliation scheduler scheduled (every 30min, 330s delay)")
+
+        # JOB 13: Enrich leads without profile (fix ig_XXXX leads)
+        async def start_lead_enrichment_scheduler():
+            enable = os.getenv("ENABLE_LEAD_ENRICHMENT", "true").lower() == "true"
+            await asyncio.sleep(360)
+            if not enable:
+                logger.info("[LEAD_ENRICHMENT] Disabled via env var")
+                return
+            logger.info("[LEAD_ENRICHMENT] Scheduler started — runs every 6h")
+
+            while True:
+                try:
+                    from api.models import Creator
+                    from core.message_reconciliation import (
+                        enrich_leads_without_profile,
+                    )
+
+                    session = SessionLocal()
+                    try:
+                        creators = (
+                            session.query(Creator)
+                            .filter(
+                                Creator.instagram_token.isnot(None),
+                                Creator.bot_active.is_(True),
+                            )
+                            .all()
+                        )
+                        creator_list = [
+                            {"name": c.name, "token": c.instagram_token}
+                            for c in creators
+                        ]
+                    finally:
+                        session.close()
+
+                    total_enriched = 0
+                    for c in creator_list:
+                        result = await enrich_leads_without_profile(
+                            c["name"], c["token"], limit=10
+                        )
+                        total_enriched += result.get("enriched", 0)
+
+                    if total_enriched > 0:
+                        logger.info(
+                            f"[LEAD_ENRICHMENT] Enriched {total_enriched} profiles"
+                        )
+                except Exception as e:
+                    logger.error(f"[LEAD_ENRICHMENT] Scheduler error: {e}")
+
+                await asyncio.sleep(21600)  # 6 hours
+
+        asyncio.create_task(start_lead_enrichment_scheduler())
+        logger.info("Lead enrichment scheduler scheduled (every 6h, 360s delay)")
+
+        # JOB 14: Ghost reactivation (find and schedule re-engagement)
+        async def start_ghost_reactivation_scheduler():
+            enable = os.getenv("ENABLE_GHOST_REACTIVATION", "true").lower() == "true"
+            await asyncio.sleep(390)
+            if not enable:
+                logger.info("[GHOST_REACTIVATION] Disabled via env var")
+                return
+            logger.info("[GHOST_REACTIVATION] Scheduler started — runs every 24h")
+
+            while True:
+                try:
+                    from core.ghost_reactivation import (
+                        run_ghost_reactivation_cycle,
+                    )
+
+                    result = await run_ghost_reactivation_cycle()
+                    scheduled = result.get("total_scheduled", 0)
+                    if scheduled > 0:
+                        logger.info(
+                            f"[GHOST_REACTIVATION] Scheduled {scheduled} re-engagements"
+                        )
+                except Exception as e:
+                    logger.error(f"[GHOST_REACTIVATION] Scheduler error: {e}")
+
+                await asyncio.sleep(86400)  # 24 hours
+
+        asyncio.create_task(start_ghost_reactivation_scheduler())
+        logger.info("Ghost reactivation scheduler scheduled (every 24h, 390s delay)")
+
+        logger.info("Message reconciliation on startup DISABLED (use /maintenance/reconcile)")
 
         # Hydrate RAG from PostgreSQL
         async def hydrate_rag_background():

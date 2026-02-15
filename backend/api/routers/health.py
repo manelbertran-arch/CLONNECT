@@ -362,6 +362,69 @@ def health_scheduler():
         "description": "DB ping to prevent Railway scale-to-zero",
     })
 
+    # 8. Score decay (24h)
+    jobs.append({
+        "name": "score_decay",
+        "interval": "24h",
+        "initial_delay": "210s",
+        "enabled": os.getenv("ENABLE_SCORE_DECAY", "true").lower() == "true",
+        "description": "Recalculates lead scores so ghost scores decay via recency",
+    })
+
+    # 9. Followup cleanup (24h)
+    jobs.append({
+        "name": "followup_cleanup",
+        "interval": "24h",
+        "initial_delay": "240s",
+        "enabled": os.getenv("ENABLE_FOLLOWUP_CLEANUP", "true").lower() == "true",
+        "description": "Deletes sent/cancelled/failed nurturing followups older than 30 days",
+    })
+
+    # 10. Activities cleanup (24h)
+    jobs.append({
+        "name": "activities_cleanup",
+        "interval": "24h",
+        "initial_delay": "270s",
+        "enabled": os.getenv("ENABLE_ACTIVITIES_CLEANUP", "true").lower() == "true",
+        "description": "Deletes lead_activities older than 90 days",
+    })
+
+    # 11. Queue cleanup (24h)
+    jobs.append({
+        "name": "queue_cleanup",
+        "interval": "24h",
+        "initial_delay": "300s",
+        "enabled": os.getenv("ENABLE_QUEUE_CLEANUP", "true").lower() == "true",
+        "description": "Purges unmatched_webhooks and sync_queue older than 7 days",
+    })
+
+    # 12. Reconciliation (30min)
+    jobs.append({
+        "name": "reconciliation",
+        "interval": "30min",
+        "initial_delay": "330s",
+        "enabled": os.getenv("ENABLE_RECONCILIATION", "true").lower() == "true",
+        "description": "Recovers missing Instagram messages (1h lookback)",
+    })
+
+    # 13. Lead enrichment (6h)
+    jobs.append({
+        "name": "lead_enrichment",
+        "interval": "6h",
+        "initial_delay": "360s",
+        "enabled": os.getenv("ENABLE_LEAD_ENRICHMENT", "true").lower() == "true",
+        "description": "Enriches leads without profile info (fixes ig_XXXX leads)",
+    })
+
+    # 14. Ghost reactivation (24h)
+    jobs.append({
+        "name": "ghost_reactivation",
+        "interval": "24h",
+        "initial_delay": "390s",
+        "enabled": os.getenv("ENABLE_GHOST_REACTIVATION", "true").lower() == "true",
+        "description": "Finds ghost leads and schedules re-engagement nurturing",
+    })
+
     return {
         "status": "ok",
         "timestamp": datetime.now(timezone.utc).isoformat(),
