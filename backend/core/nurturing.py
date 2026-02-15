@@ -303,6 +303,31 @@ class NurturingManager:
         except Exception as e:
             logger.error(f"Error saving followups for {creator_id}: {e}")
 
+    def _save_single_followup(self, creator_id: str, followup: FollowUp):
+        """Save only a single changed followup (DB upsert + cache update + JSON backup).
+
+        This avoids re-saving ALL followups when only one changed,
+        preventing the event loop from blocking on 957+ DB merges.
+        """
+        # Update cache in-place (already done by caller mutating the object)
+        # Save single record to DB
+        if self._db_storage:
+            try:
+                self._db_storage.save_followup(followup)
+                logger.debug(f"[NURTURING] Saved single followup {followup.id} to DB")
+            except Exception as e:
+                logger.warning(f"[NURTURING] DB single save failed: {e}")
+
+        # Save full list to JSON backup (fast local I/O)
+        cached = self._cache.get(creator_id)
+        if cached is not None:
+            file_path = self._get_file_path(creator_id)
+            try:
+                with open(file_path, "w", encoding="utf-8") as f:
+                    json.dump([fu.to_dict() for fu in cached], f, indent=2, ensure_ascii=False)
+            except Exception as e:
+                logger.error(f"Error saving JSON backup for {creator_id}: {e}")
+
     def schedule_followup(
         self,
         creator_id: str,
@@ -454,7 +479,7 @@ class NurturingManager:
             if fu.id == followup.id:
                 fu.status = "sent"
                 fu.sent_at = datetime.now(timezone.utc).isoformat()
-                self._save_followups(followup.creator_id, followups)
+                self._save_single_followup(followup.creator_id, fu)
                 logger.info(f"Followup {followup.id} marked as sent")
                 return True
 
@@ -469,7 +494,7 @@ class NurturingManager:
                 fu.status = "window_expired"
                 if reason:
                     fu.metadata["expire_reason"] = reason
-                self._save_followups(followup.creator_id, followups)
+                self._save_single_followup(followup.creator_id, fu)
                 logger.info(f"Followup {followup.id} marked as window_expired: {reason}")
                 return True
 

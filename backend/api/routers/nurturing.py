@@ -1072,7 +1072,7 @@ async def _run_scheduler_cycle():
         if NURTURING_SEND_REAL:
             hours_since = await asyncio.to_thread(_check_message_window, creator_id, fu.follower_id)
             if hours_since is None:
-                manager.mark_as_window_expired(fu, reason="no_prior_inbound_message")
+                await asyncio.to_thread(manager.mark_as_window_expired, fu, "no_prior_inbound_message")
                 window_expired_count += 1
                 logger.info(
                     f"[NURTURING SCHEDULER] Window expired for {fu.id}: no prior inbound message"
@@ -1080,7 +1080,7 @@ async def _run_scheduler_cycle():
                 continue
 
             if hours_since > NURTURING_WINDOW_HOURS:
-                manager.mark_as_window_expired(fu, reason=f"last_msg_{hours_since:.0f}h_ago")
+                await asyncio.to_thread(manager.mark_as_window_expired, fu, f"last_msg_{hours_since:.0f}h_ago")
                 window_expired_count += 1
                 logger.info(
                     f"[NURTURING SCHEDULER] Window expired for {fu.id}: {hours_since:.0f}h since last msg"
@@ -1092,7 +1092,7 @@ async def _run_scheduler_cycle():
             result = await _try_send_message(creator_id, fu.follower_id, message)
 
             if result["sent"]:
-                manager.mark_as_sent(fu)
+                await asyncio.to_thread(manager.mark_as_sent, fu)
                 processed += 1
                 sends_per_creator[creator_id] = sends_per_creator.get(creator_id, 0) + 1
 
