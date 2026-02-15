@@ -198,7 +198,7 @@ const IG_GRADIENT = 'bg-gradient-to-br from-violet-600 to-purple-600';
 const IG_GRADIENT_STORY = 'bg-gradient-to-tr from-violet-500 via-purple-500 to-violet-600';
 
 export function MessageRenderer({ message, isLastInGroup = true }: MessageRendererProps) {
-  const isOutgoing = message.role === 'user';
+  const isOutgoing = message.role === 'assistant';
   const metadata = message.metadata || {};
   const msgType = metadata.type || 'text';
 

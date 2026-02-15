@@ -129,7 +129,10 @@ async def get_follower_detail(creator_id: str, follower_id: str):
                             # Query DESC to get newest, then reverse for chronological
                             messages = (
                                 session.query(Message)
-                                .filter_by(lead_id=lead.id)
+                                .filter(
+                                    Message.lead_id == lead.id,
+                                    Message.status.in_(["sent", "edited"]),
+                                )
                                 .order_by(Message.created_at.desc())
                                 .limit(50)
                                 .all()

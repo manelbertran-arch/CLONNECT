@@ -300,9 +300,13 @@ def get_leads(creator_name: str, include_archived: bool = False, limit: int = 10
 
             # DISTINCT ON is much faster than subquery + JOIN
             # It gets the first row for each lead_id when ordered by created_at DESC
+            # Only include sent/edited messages (exclude pending_approval copilot drafts)
             last_msg_query = (
                 session.query(Message)
-                .filter(Message.lead_id.in_(lead_ids))
+                .filter(
+                    Message.lead_id.in_(lead_ids),
+                    Message.status.in_(["sent", "edited"]),
+                )
                 .distinct(Message.lead_id)
                 .order_by(Message.lead_id, desc(Message.created_at))
             )
@@ -428,7 +432,10 @@ def get_conversations_with_counts(
 
             max_date_subq = (
                 session.query(Message.lead_id, func.max(Message.created_at).label("max_created_at"))
-                .filter(Message.lead_id.in_(lead_ids))
+                .filter(
+                    Message.lead_id.in_(lead_ids),
+                    Message.status.in_(["sent", "edited"]),
+                )
                 .group_by(Message.lead_id)
                 .subquery()
             )

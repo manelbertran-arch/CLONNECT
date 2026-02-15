@@ -161,12 +161,15 @@ async def get_conversations(creator_id: str, limit: int = 50, offset: int = 0):
                     # OPTIMIZED: Get last message for each lead in ONE query
                     lead_ids = [lead.id for lead, _ in results]
 
-                    # Subquery to get the latest message per lead
+                    # Subquery to get the latest SENT message per lead
                     last_msg_subq = (
                         session.query(
                             Message.lead_id, func.max(Message.created_at).label("max_date")
                         )
-                        .filter(Message.lead_id.in_(lead_ids))
+                        .filter(
+                            Message.lead_id.in_(lead_ids),
+                            Message.status.in_(["sent", "edited"]),
+                        )
                         .group_by(Message.lead_id)
                         .subquery()
                     )
@@ -523,7 +526,10 @@ async def get_follower_detail(creator_id: str, follower_id: str):
                                 # Build detail directly from DB - no JSON file reads!
                                 messages = (
                                     session.query(Message)
-                                    .filter_by(lead_id=lead.id)
+                                    .filter(
+                                        Message.lead_id == lead.id,
+                                        Message.status.in_(["sent", "edited"]),
+                                    )
                                     .order_by(Message.created_at.desc())
                                     .limit(50)
                                     .all()
