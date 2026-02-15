@@ -447,7 +447,7 @@ def load_creator_data(creator_id: str) -> CreatorData:
         products = session.query(Product).filter_by(creator_id=creator_uuid, is_active=True).all()
         for p in products:
             product_info = ProductInfo.from_db_row(p)
-            if product_info.is_free or product_info.price == 0:
+            if product_info.is_free:
                 data.lead_magnets.append(product_info)
             else:
                 data.products.append(product_info)

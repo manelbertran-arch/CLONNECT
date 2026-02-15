@@ -960,6 +960,20 @@ class DMResponderAgentV2:
 
             # Step 7c: Format response for Instagram
             formatted_content = self.instagram_service.format_message(response_content)
+
+            # Step 7d: Inject payment link for purchase_intent if missing
+            if intent_value.lower() in ("purchase_intent", "want_to_buy") and self.products:
+                msg_lower = message.lower()
+                resp_lower = formatted_content.lower()
+                for p in self.products:
+                    pname = (p.get("name") or "").lower()
+                    plink = p.get("payment_link") or p.get("url") or ""
+                    if (pname and len(pname) > 3 and pname in msg_lower
+                            and plink and plink not in resp_lower):
+                        formatted_content = f"{formatted_content}\n\n{plink}"
+                        cognitive_metadata["payment_link_injected"] = plink
+                        break
+
             _t4 = time.monotonic()
             logger.info(f"[TIMING] Phase 5 (post-processing): {int((_t4 - _t3) * 1000)}ms")
 
