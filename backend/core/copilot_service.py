@@ -164,12 +164,21 @@ class CopilotService:
                 session.commit()
                 pending.lead_id = str(lead.id)
 
-            # Update lead scoring based on intent
-            lead.purchase_intent = self._calculate_purchase_intent(
-                current_intent=lead.purchase_intent or 0.0, message_intent=intent
-            )
-            lead.status = self._calculate_lead_status(lead.purchase_intent)
+            # Update last contact time (must be set before scoring)
             lead.last_contact_at = now
+
+            # Comprehensive lead scoring (considers message count, recency, etc.)
+            try:
+                from services.lead_scoring import recalculate_lead_score
+
+                recalculate_lead_score(session, str(lead.id))
+            except Exception as score_err:
+                logger.warning(f"[Copilot] Scoring failed, using fallback: {score_err}")
+                # Fallback to old intent-based scoring
+                lead.purchase_intent = self._calculate_purchase_intent(
+                    current_intent=lead.purchase_intent or 0.0, message_intent=intent
+                )
+                lead.status = self._calculate_lead_status(lead.purchase_intent)
 
             # Guardar mensaje del usuario
             user_msg = Message(

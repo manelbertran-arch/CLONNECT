@@ -2414,8 +2414,15 @@ class InstagramHandler:
                 )
                 session.add(bot_msg)
 
-                # Update lead's last_contact
+                # Update lead's last_contact and recalculate score
                 lead.last_contact_at = datetime.now(timezone.utc)
+
+                try:
+                    from services.lead_scoring import recalculate_lead_score
+
+                    recalculate_lead_score(session, str(lead.id))
+                except Exception as score_err:
+                    logger.warning(f"[SaveMsg] Scoring failed: {score_err}")
 
                 session.commit()
                 logger.info(f"[SaveMsg] Saved messages for {msg.sender_id} (lead_id={lead.id})")
@@ -2628,8 +2635,15 @@ class InstagramHandler:
                 )
                 session.add(user_msg)
 
-                # Update lead's last_contact
+                # Update lead's last_contact and recalculate score
                 lead.last_contact_at = datetime.now(timezone.utc)
+
+                try:
+                    from services.lead_scoring import recalculate_lead_score
+
+                    recalculate_lead_score(session, str(lead.id))
+                except Exception as score_err:
+                    logger.warning(f"[SaveUserMsg] Scoring failed: {score_err}")
 
                 session.commit()
                 logger.info(

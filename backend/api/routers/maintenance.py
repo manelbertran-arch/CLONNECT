@@ -359,3 +359,25 @@ async def restore_dismissed_lead(creator_name: str, platform_user_id: str):
         }
     finally:
         session.close()
+
+
+@router.post("/recalculate-scores/{creator_name}")
+async def recalculate_lead_scores(creator_name: str):
+    """
+    Recalculate lead scores for all leads of a creator.
+
+    Uses the comprehensive scoring algorithm that considers
+    message count, recency, engagement ratio, intents, and content signals.
+    """
+    from services.lead_scoring import batch_recalculate_scores
+
+    session = SessionLocal()
+    try:
+        result = batch_recalculate_scores(session, creator_name)
+
+        if "error" in result:
+            raise HTTPException(status_code=404, detail=result["error"])
+
+        return result
+    finally:
+        session.close()
