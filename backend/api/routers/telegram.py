@@ -222,6 +222,7 @@ async def fix_telegram_webhook(bot_id: str):
 # TELEGRAM MULTI-BOT MANAGEMENT
 # ---------------------------------------------------------
 @router.get("/bots")
+@router.get("/registered-bots")
 async def list_telegram_bots():
     """List all registered Telegram bots."""
     registry = get_telegram_registry()
