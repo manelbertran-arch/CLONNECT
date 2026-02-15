@@ -153,6 +153,16 @@ async def mark_escalation_read(creator_id: str, follower_id: str, _auth: str = D
     return {"status": "ok", "message": "Escalation marked as read"}
 
 
+@router.delete("/{creator_id}/escalations")
+async def clear_escalations(creator_id: str, _auth: str = Depends(require_creator_access)):
+    """Clear all escalation alerts for a creator."""
+    log_file = Path(f"data/escalations/{creator_id}_escalations.jsonl")
+    if log_file.exists():
+        log_file.unlink()
+        logger.info(f"Cleared escalations for {creator_id}")
+    return {"status": "ok", "message": f"Escalations cleared for {creator_id}"}
+
+
 # =============================================================================
 # INDIVIDUAL LEAD ROUTES - /{creator_id}/{lead_id} pattern
 # =============================================================================
