@@ -335,6 +335,7 @@ def get_leads(creator_name: str, include_archived: bool = False, limit: int = 10
                     "platform": lead.platform,
                     "username": lead.username,
                     "full_name": lead.full_name,
+                    "profile_pic_url": lead.profile_pic_url,
                     "status": lead.status,
                     "score": lead.score,
                     "purchase_intent": lead.purchase_intent,
