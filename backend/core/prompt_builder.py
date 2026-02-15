@@ -364,6 +364,8 @@ def build_actions_section(creator_data: CreatorData, creator_name: str) -> str:
     lines.extend([
         "💰 PRECIO (usuario pregunta cuánto cuesta):",
         "→ Da el precio EXACTO de la lista de PRODUCTOS",
+        "→ Si dice 'precios' sin especificar, lista los precios de TODOS los productos",
+        "→ Si pregunta por un producto específico, da precio + qué incluye + duración",
         "→ NUNCA inventes un precio",
         "",
         "🆘 ESCALACIÓN (usuario pide humano o no puedes responder):",
