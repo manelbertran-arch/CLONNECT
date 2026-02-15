@@ -146,6 +146,24 @@ def register_startup_handlers(app: "FastAPI"):
         asyncio.create_task(start_content_refresh_scheduler())
         logger.info("Content refresh scheduler scheduled (every 24h, 120s delay)")
 
+        # Start daily profile picture refresh (every 24h, delayed 90s)
+        async def start_profile_pic_refresh_scheduler():
+            await asyncio.sleep(90)  # Wait for DB + other jobs to be ready
+            logger.info("[PROFILE_PICS] Scheduler started — runs every 24h")
+
+            while True:
+                try:
+                    from services.profile_pic_refresh import refresh_profile_pics_job
+
+                    await refresh_profile_pics_job()
+                except Exception as e:
+                    logger.error(f"[PROFILE_PICS] Scheduler error: {e}")
+
+                await asyncio.sleep(86400)  # 24 hours
+
+        asyncio.create_task(start_profile_pic_refresh_scheduler())
+        logger.info("Profile pic refresh scheduler scheduled (every 24h)")
+
         # DISABLED: Startup reconciliation was making 20+ Instagram API calls
         # causing slow startup and 403 errors. Run manually via /maintenance/reconcile if needed.
         logger.info("Message reconciliation DISABLED on startup (use /maintenance/reconcile)")
