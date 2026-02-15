@@ -152,7 +152,7 @@ def register_static_routes(app: "FastAPI"):
             "analytics/", "admin/", "connections/", "oauth/", "booking/",
             "tone/", "citations/", "config/", "telegram/", "instagram/",
             "whatsapp/", "metrics", "docs", "openapi.json", "redoc",
-            "ingestion/", "maintenance/", "gdpr/",
+            "ingestion/", "maintenance/", "gdpr/", "events/",
         )
         if full_path.startswith(api_prefixes):
             raise HTTPException(status_code=404, detail="API route not found")

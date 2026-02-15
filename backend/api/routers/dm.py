@@ -34,6 +34,30 @@ TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN", "")
 router = APIRouter(prefix="/dm", tags=["dm"])
 
 
+def _media_description(metadata: dict | None) -> str:
+    """Generate descriptive text for media messages with no text content."""
+    if not metadata:
+        return ""
+    meta_type = metadata.get("type", "")
+    return {
+        "image": "Sent a photo",
+        "video": "Sent a video",
+        "audio": "Sent a voice message",
+        "gif": "Sent a GIF",
+        "sticker": "Sent a sticker",
+        "story_mention": "Mentioned you in their story",
+        "story_reply": "Replied to your story",
+        "story_reaction": f"Reacted {metadata.get('emoji', '❤️')} to your story",
+        "share": "Shared a post",
+        "shared_post": "Shared a post",
+        "shared_reel": "Shared a reel",
+        "shared_video": "Shared a video",
+        "reel": "Shared a reel",
+        "reaction": metadata.get("emoji", "❤️"),
+        "link_preview": "Sent a link",
+    }.get(meta_type, "Sent an attachment" if meta_type else "")
+
+
 # ---------------------------------------------------------
 # PYDANTIC MODELS
 # ---------------------------------------------------------
@@ -199,21 +223,29 @@ async def get_conversations(creator_id: str, limit: int = 50, offset: int = 0):
                         last_message_role = None
 
                         if last_msg:
+                            # Generate descriptive text for media messages
+                            display_content = (
+                                last_msg.content
+                                or _media_description(last_msg.msg_metadata)
+                            )
+
                             last_messages = [
                                 {
                                     "role": last_msg.role,
-                                    "content": last_msg.content[:200] if last_msg.content else "",
+                                    "content": display_content[:200],
                                     "timestamp": (
                                         last_msg.created_at.isoformat()
                                         if last_msg.created_at
                                         else None
                                     ),
+                                    "metadata": last_msg.msg_metadata or {},
                                 }
                             ]
                             # Instagram-like UX fields
-                            content = last_msg.content or ""
                             last_message_preview = (
-                                content[:50] + "..." if len(content) > 50 else content
+                                display_content[:50] + "..."
+                                if len(display_content) > 50
+                                else display_content
                             )
                             last_message_role = last_msg.role
 
@@ -556,11 +588,12 @@ async def get_follower_detail(creator_id: str, follower_id: str):
                                     "last_messages": [
                                         {
                                             "role": m.role,
-                                            "content": m.content,
+                                            "content": m.content or _media_description(m.msg_metadata),
                                             "timestamp": m.created_at.isoformat() if m.created_at else None,
                                             "metadata": m.msg_metadata or {},
                                         }
                                         for m in messages
+                                        if m.content or m.msg_metadata  # Skip truly empty messages
                                     ],
                                 }
                                 logger.info(f"[FOLLOWER] {creator_id}/{follower_id}: DB FAST PATH ({_time.time()-start:.3f}s)")
