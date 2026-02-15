@@ -517,11 +517,11 @@ async def get_follower_detail(creator_id: str, follower_id: str):
                                 detail = {
                                     "follower_id": lead.platform_user_id,
                                     "username": lead.username,
-                                    "name": lead.name,
+                                    "name": lead.full_name or lead.username,
                                     "platform": lead.platform or "instagram",
                                     "profile_pic_url": lead.profile_pic_url,
                                     "total_messages": len(messages),
-                                    "purchase_intent_score": lead.purchase_intent_score or 0,
+                                    "purchase_intent_score": lead.purchase_intent or 0,
                                     "is_lead": True,
                                     "is_customer": lead.status == "cliente",
                                     "status": lead.status,
