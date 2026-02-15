@@ -140,11 +140,12 @@ class TestLeadScoring:
         service = DMHistoryService()
         source = inspect.getsource(service._import_conversation)
 
-        # Debe asignar status basado en score
+        # Debe asignar status basado en score (V2 uses recalculate_lead_score + Spanish status)
         assert 'status' in source
-        assert 'hot' in source
-        assert 'active' in source
-        assert 'new' in source
+        assert 'recalculate_lead_score' in source
+        assert 'caliente' in source
+        assert 'interesado' in source
+        assert 'nuevo' in source
 
 
 class TestConversationSummary:
