@@ -2,9 +2,8 @@
 Tests para el sistema inteligente de señales y predicción de venta
 """
 
-import pytest
 from dataclasses import dataclass
-from datetime import datetime, timezone, timedelta
+from datetime import datetime
 from typing import Optional
 
 

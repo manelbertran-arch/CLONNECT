@@ -4,7 +4,6 @@ Tests for AudienceAggregator
 SPRINT4-T4.1: TDD tests written BEFORE implementation
 """
 import pytest
-from datetime import datetime, timedelta, timezone
 from unittest.mock import MagicMock
 from sqlalchemy.orm import Session
 

@@ -54,7 +54,6 @@ class BotInstructionsGenerator:
 
     def __init__(self):
         """Initialize the generator."""
-        pass
 
     def generate(self, dna_data: Dict) -> str:
         """Generate bot instructions from DNA data.

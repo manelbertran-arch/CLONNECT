@@ -2,7 +2,6 @@
 Extended debug router tests - Written BEFORE implementation (TDD).
 Tests for citations debug endpoint.
 """
-import pytest
 
 
 class TestDebugRouterEndpoints:

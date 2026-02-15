@@ -16,8 +16,7 @@ Uses existing pipeline:
 import asyncio
 import logging
 import os
-from datetime import datetime, timezone
-from typing import Dict, List, Optional
+from typing import Dict
 
 logger = logging.getLogger(__name__)
 
@@ -285,7 +284,7 @@ async def content_refresh_loop():
     """
     await asyncio.sleep(CONTENT_REFRESH_INITIAL_DELAY)
     logger.info(
-        f"[CONTENT-REFRESH] Scheduler started — "
+        "[CONTENT-REFRESH] Scheduler started — "
         f"runs every {CONTENT_REFRESH_INTERVAL}s ({CONTENT_REFRESH_INTERVAL // 3600}h), "
         f"max {CONTENT_REFRESH_MAX_POSTS} posts/creator"
     )
@@ -295,7 +294,7 @@ async def content_refresh_loop():
             try:
                 summary = await refresh_all_active_creators()
                 logger.info(
-                    f"[CONTENT-REFRESH] Cycle complete: "
+                    "[CONTENT-REFRESH] Cycle complete: "
                     f"{summary['refreshed']} refreshed, {summary['failed']} failed"
                 )
             except Exception as e:

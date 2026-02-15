@@ -27,7 +27,7 @@ async def get_oauth_status(creator_id: str, admin: str = Depends(require_admin))
     Returns token validity, expiration date, and days remaining.
     """
     try:
-        from datetime import datetime
+        from datetime import datetime, timezone
 
         from api.database import SessionLocal
 
@@ -59,12 +59,9 @@ async def get_oauth_status(creator_id: str, admin: str = Depends(require_admin))
             days_remaining = None
             token_expired = False
             if expires_at:
-                now = datetime.utcnow()
-                if expires_at.tzinfo:
-                    expires_at_naive = expires_at.replace(tzinfo=None)
-                else:
-                    expires_at_naive = expires_at
-                days_remaining = (expires_at_naive - now).days
+                now = datetime.now(timezone.utc)
+                expires_at_aware = expires_at.replace(tzinfo=timezone.utc) if not expires_at.tzinfo else expires_at
+                days_remaining = (expires_at_aware - now).days
                 token_expired = days_remaining < 0
 
             return {
@@ -415,8 +412,8 @@ async def fix_instagram_ids(creator_id: str):
 
             _creator_by_page_id_cache.clear()
             results["cache_cleared"] = True
-        except Exception:
-            pass
+        except Exception as e:
+            logger.warning("Suppressed error in from api.routers.instagram import _creator_by_p...: %s", e)
 
         results["status"] = "ok"
         return results

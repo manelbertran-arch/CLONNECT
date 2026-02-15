@@ -9,7 +9,7 @@ import asyncio
 import logging
 from collections import deque
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Callable, Coroutine, Dict, List, Optional
 
 logger = logging.getLogger(__name__)
@@ -25,7 +25,7 @@ class QueuedMessage:
     platform: str = "instagram"  # instagram or whatsapp
     attempts: int = 0
     max_retries: int = 5
-    created_at: datetime = field(default_factory=datetime.utcnow)
+    created_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
     last_error: Optional[str] = None
 
 

@@ -149,7 +149,7 @@ class TestThresholdFiltering:
 
         # With 0.3 threshold, a 0.35 score would pass
         # With 0.5 threshold, a 0.35 score is rejected
-        mock_noise = MagicMock(chunk_id="noise", content="Noise", source_url="http://n", title="N", source_type="web", similarity=0.35)
+        _mock_noise = MagicMock(chunk_id="noise", content="Noise", source_url="http://n", title="N", source_type="web", similarity=0.35)
 
         mock_session = MagicMock()
 

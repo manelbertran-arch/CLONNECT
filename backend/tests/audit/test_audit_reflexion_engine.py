@@ -1,6 +1,6 @@
 """Audit tests for core/reflexion_engine.py"""
 
-from core.reflexion_engine import ReflexionEngine, ReflexionResult, get_reflexion_engine
+from core.reflexion_engine import ReflexionEngine, get_reflexion_engine
 
 
 class TestAuditReflexionEngine:

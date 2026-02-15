@@ -67,7 +67,6 @@ class RelationshipTypeDetector:
 
     def __init__(self):
         """Initialize the detector."""
-        pass
 
     def detect(self, messages: List[Dict]) -> Dict:
         """Detect relationship type from messages.

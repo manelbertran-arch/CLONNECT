@@ -5,7 +5,6 @@ API endpoints para gestion de contenido y citaciones.
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 from typing import List, Optional
-from datetime import datetime
 
 from core.citation_service import (
     get_content_index,

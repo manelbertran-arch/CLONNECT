@@ -8,7 +8,7 @@ from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
 
 from api.auth import require_admin
 
-from .helpers import FullOnboardRequest, PostInput, QuickOnboardRequest, setup_status
+from .helpers import FullOnboardRequest, QuickOnboardRequest, setup_status
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/onboarding", tags=["onboarding"])

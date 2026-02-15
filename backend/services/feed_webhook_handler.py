@@ -17,7 +17,6 @@ The 24h cron (SPEC-004) is kept as fallback for missed webhooks.
 
 import hashlib
 import logging
-from datetime import datetime, timezone
 from typing import Any, Dict, Optional
 
 import httpx
@@ -88,7 +87,7 @@ async def _process_single_post(creator_info: Dict[str, Any], webhook_value: dict
       6. Hydrate in-memory RAG
     """
     creator_id = creator_info["creator_id"]
-    creator_uuid = creator_info.get("creator_uuid", creator_id)
+    _creator_uuid = creator_info.get("creator_uuid", creator_id)
     access_token = creator_info.get("instagram_token", "")
     post_id = webhook_value.get("post_id", "")
     item_type = webhook_value.get("item", "post")

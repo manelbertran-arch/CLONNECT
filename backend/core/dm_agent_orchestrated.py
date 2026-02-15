@@ -12,7 +12,7 @@ import logging
 from dataclasses import dataclass
 from typing import Any, Dict, List, Optional
 
-from services.bot_orchestrator import BotResponse, get_bot_orchestrator
+from services.bot_orchestrator import get_bot_orchestrator
 
 logger = logging.getLogger(__name__)
 

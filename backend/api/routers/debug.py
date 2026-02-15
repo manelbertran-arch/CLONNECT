@@ -7,7 +7,7 @@ import logging
 import os
 
 import httpx
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter
 
 logger = logging.getLogger(__name__)
 
@@ -214,7 +214,6 @@ async def full_diagnosis():
     COMPLETE SYSTEM DIAGNOSIS - Shows everything about the system state.
     Open this URL in browser to see what's happening.
     """
-    import subprocess
     from datetime import datetime, timezone
 
     diagnosis = {

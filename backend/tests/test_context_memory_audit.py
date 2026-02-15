@@ -1,6 +1,6 @@
 """Audit tests for services/context_memory_service.py."""
 
-from datetime import datetime
+from datetime import datetime, timezone
 from unittest.mock import MagicMock, patch
 
 from services.context_memory_service import (
@@ -125,7 +125,7 @@ class TestContextRetrieval:
         mock_engine.connect.return_value.__exit__ = MagicMock(return_value=False)
         mock_create_engine.return_value = mock_engine
 
-        now = datetime.utcnow()
+        now = datetime.now(timezone.utc)
         mock_conn.execute.side_effect = [
             MagicMock(fetchone=lambda: ("user1", "User One")),
             MagicMock(

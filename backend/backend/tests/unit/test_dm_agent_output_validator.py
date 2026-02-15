@@ -4,7 +4,6 @@ Step 2 of cognitive module integration.
 Module: core/output_validator.py
 Location: PHASE 5 (post-LLM, before guardrails)
 """
-import pytest
 
 
 class TestOutputValidatorModule:

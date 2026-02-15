@@ -15,7 +15,6 @@ Usage:
 import logging
 import logging.config
 import os
-import sys
 from typing import Optional
 
 

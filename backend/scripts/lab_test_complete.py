@@ -33,7 +33,7 @@ import json
 import asyncio
 import argparse
 from datetime import datetime, timezone
-from typing import Dict, List, Any, Tuple
+from typing import Dict, List, Any
 from dataclasses import dataclass, asdict
 import traceback
 
@@ -113,9 +113,9 @@ class LabTestSuite:
             # Initialize components
             product_manager = ProductManager()
             config_manager = CreatorConfigManager()
-            memory_store = MemoryStore()
-            rag = SimpleRAG()
-            llm_client = get_llm_client()
+            _memory_store = MemoryStore()
+            _rag = SimpleRAG()
+            _llm_client = get_llm_client()
 
             # Create test creator config
             from core.creator_config import CreatorConfig
@@ -1168,7 +1168,7 @@ class LabTestSuite:
         print("=" * 50)
 
         try:
-            from core.notifications import get_notification_service, EscalationNotification, NotificationType
+            from core.notifications import get_notification_service, EscalationNotification
 
             service = get_notification_service()
 
@@ -1222,7 +1222,7 @@ class LabTestSuite:
                     "Send hot lead notification",
                     "notifications",
                     isinstance(hot_lead_result, dict),
-                    f"Hot lead notification sent"
+                    "Hot lead notification sent"
                 )
             except Exception as e:
                 self.add_result(

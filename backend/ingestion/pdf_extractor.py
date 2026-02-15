@@ -17,7 +17,7 @@ import hashlib
 import logging
 import tempfile
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Dict, List, Optional
 
@@ -52,7 +52,7 @@ class PDFDocument:
     subject: str = ""
     keywords: List[str] = field(default_factory=list)
     creation_date: Optional[str] = None
-    extracted_at: str = field(default_factory=lambda: datetime.now().isoformat())
+    extracted_at: str = field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
 
     @property
     def document_id(self) -> str:
@@ -114,7 +114,6 @@ class PDFExtractor:
 
     def __init__(self):
         """Inicializa el extractor."""
-        pass
 
     async def extract_file(self, file_path: str) -> Optional[PDFDocument]:
         """

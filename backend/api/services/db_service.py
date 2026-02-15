@@ -128,7 +128,7 @@ def get_instagram_credentials(creator_id: str):
             return {
                 "success": False,
                 "error": f"Creator '{creator.name}' has no Instagram token configured. "
-                f"Please connect Instagram via OAuth at /connect/instagram",
+                "Please connect Instagram via OAuth at /connect/instagram",
                 "creator_name": creator.name,
                 "creator_uuid": str(creator.id),
                 "token": None,
@@ -162,7 +162,7 @@ def get_or_create_creator(name: str):
     """Get creator by name, or create if doesn't exist"""
     session = get_session()
     if not session:
-        logger.error(f"get_or_create_creator: no session available")
+        logger.error("get_or_create_creator: no session available")
         return None
     try:
         from api.models import Creator
@@ -219,7 +219,7 @@ def update_creator(name: str, data: dict):
     try:
         from api.models import Creator
 
-        logger.info(f"=== UPDATE_CREATOR DEBUG ===")
+        logger.info("=== UPDATE_CREATOR DEBUG ===")
         logger.info(f"Creator: {name}, Data keys: {list(data.keys())}")
         if "other_payment_methods" in data:
             logger.info(f"other_payment_methods value: {data['other_payment_methods']}")
@@ -280,7 +280,7 @@ def get_leads(creator_name: str, include_archived: bool = False, limit: int = 10
         return []
     try:
         from api.models import Creator, Lead, Message
-        from sqlalchemy import func, not_
+        from sqlalchemy import not_
 
         creator = session.query(Creator).filter_by(name=creator_name).first()
         if not creator:
@@ -297,7 +297,6 @@ def get_leads(creator_name: str, include_archived: bool = False, limit: int = 10
         last_messages = {}
         if lead_ids:
             from sqlalchemy import desc
-            from sqlalchemy.dialects.postgresql import aggregate_order_by
 
             # DISTINCT ON is much faster than subquery + JOIN
             # It gets the first row for each lead_id when ordered by created_at DESC
@@ -424,7 +423,7 @@ def get_conversations_with_counts(
         last_messages = {}
         if lead_ids:
             # Subquery to get the max created_at for each lead
-            from sqlalchemy.orm import aliased
+            pass
 
             max_date_subq = (
                 session.query(Message.lead_id, func.max(Message.created_at).label("max_created_at"))
@@ -808,7 +807,7 @@ def create_product(creator_name: str, data: dict):
         session.add(product)
         session.commit()
         return {"id": str(product.id), "name": product.name, "status": "created"}
-    except Exception as e:
+    except Exception as _e:
         session.rollback()
         return None
     finally:
@@ -885,7 +884,7 @@ def delete_product(creator_name: str, product_id: str):
             session.commit()
             return True
         return False
-    except Exception as e:
+    except Exception as _e:
         session.rollback()
         return False
     finally:
@@ -926,7 +925,7 @@ def update_lead(creator_name: str, lead_id: str, data: dict):
             logger.info(f"update_lead: lead {lead_id} found")
 
             # CRM fields are now direct columns on Lead model
-            crm_fields = ["email", "phone", "notes", "tags", "deal_value", "source", "assigned_to"]
+            _crm_fields = ["email", "phone", "notes", "tags", "deal_value", "source", "assigned_to"]
 
             for key, value in data.items():
                 if hasattr(lead, key):

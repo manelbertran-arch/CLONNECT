@@ -132,8 +132,8 @@ async def refresh_profile_pictures(
                             error_data = response.json()
                             if "error" in error_data:
                                 error_msg += f" - {error_data['error'].get('message', '')}"
-                        except Exception:
-                            pass
+                        except Exception as e:
+                            logger.warning("Suppressed error in error_data = response.json(): %s", e)
                         errors.append(error_msg)
 
                     # Rate limiting - wait 100ms between requests

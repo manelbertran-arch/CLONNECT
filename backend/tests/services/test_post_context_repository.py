@@ -7,7 +7,6 @@ Part of POST-CONTEXT-DETECTION feature (Layer 4).
 from datetime import datetime, timedelta, timezone
 from unittest.mock import MagicMock, patch
 
-import pytest
 
 from models.post_context import PostContext
 
@@ -171,5 +170,5 @@ class TestPostContextRepository:
 
         with patch("api.models.PostContextModel") as MockModel:
             MockModel.return_value = MagicMock()
-            result = _context_to_model(ctx)
+            _result = _context_to_model(ctx)
             assert MockModel.called

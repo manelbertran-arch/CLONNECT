@@ -24,7 +24,7 @@ import logging
 import os
 import time
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional
 
 # P1: QUALITY - Question context, query expansion, reflexion
@@ -52,7 +52,6 @@ from core.query_expansion import get_query_expander
 # RAG AVANZADO - Semantic search + Reranking
 from core.rag.semantic import get_semantic_rag
 from core.rag.reranker import ENABLE_RERANKING
-from core.rag.reranker import rerank as rag_rerank
 
 # RAZONAMIENTO - Chain of thought for complex queries
 from core.reasoning.chain_of_thought import ChainOfThoughtReasoner
@@ -75,11 +74,9 @@ from services import (
     LLMService,
     MemoryStore,
     PromptBuilder,
-    RAGService,
 )
 
 # Import DNA context integration
-from services.dm_agent_context_integration import get_context_for_dm_agent
 
 # P3: PERSONALIZATION - DNA triggers, relationship detection
 from services.dna_update_triggers import get_dna_triggers
@@ -242,7 +239,7 @@ class DMResponse:
     confidence: float
     tokens_used: int = 0
     metadata: Dict[str, Any] = field(default_factory=dict)
-    created_at: datetime = field(default_factory=datetime.utcnow)
+    created_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
 
     def to_dict(self) -> Dict[str, Any]:
         """Convert to dictionary."""
@@ -1105,7 +1102,7 @@ class DMResponderAgentV2:
     ) -> None:
         """Synchronous post-response tasks (runs in thread pool)."""
         # Step 8: Update follower memory (in-memory + JSON file save)
-        now = datetime.now().isoformat()
+        now = datetime.now(timezone.utc).isoformat()
         follower.last_messages.append(
             {"role": "user", "content": message, "timestamp": now}
         )
@@ -1201,7 +1198,7 @@ class DMResponderAgentV2:
     ) -> None:
         """Update follower memory with new messages."""
         # Add messages to history
-        now = datetime.now().isoformat()
+        now = datetime.now(timezone.utc).isoformat()
 
         follower.last_messages.append(
             {
@@ -1667,7 +1664,7 @@ class DMResponderAgentV2:
                 return False
 
             # Add the message to history
-            timestamp = datetime.now().isoformat()
+            timestamp = datetime.now(timezone.utc).isoformat()
             follower.last_messages.append(
                 {
                     "role": "assistant",

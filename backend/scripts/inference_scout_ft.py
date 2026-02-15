@@ -13,7 +13,6 @@ Usage:
 """
 
 import argparse
-import json
 
 BASE_MODEL = "meta-llama/Llama-4-Scout-17B-16E-Instruct"
 MAX_SEQ_LENGTH = 2048

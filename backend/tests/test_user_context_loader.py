@@ -5,7 +5,7 @@ Tests the User Context Loader module that provides unified user data loading
 for LLM personalization.
 """
 
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
 
 import pytest
 
@@ -307,7 +307,6 @@ class TestFormatters:
 
     def test_format_user_context_for_prompt_with_data(self):
         from core.user_context_loader import (
-            ConversationMessage,
             LeadInfo,
             UserContext,
             format_user_context_for_prompt,

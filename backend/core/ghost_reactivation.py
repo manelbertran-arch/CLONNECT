@@ -11,7 +11,7 @@ Este servicio:
 import asyncio
 import logging
 from datetime import datetime, timezone, timedelta
-from typing import Dict, Any, List, Optional
+from typing import Dict, Any, List
 
 logger = logging.getLogger(__name__)
 
@@ -90,7 +90,7 @@ def get_ghost_leads_for_reactivation(creator_id: str) -> List[Dict[str, Any]]:
     """
     try:
         from api.database import SessionLocal
-        from api.models import Creator, Lead, Message
+        from api.models import Creator, Lead
         from sqlalchemy import text
 
         session = SessionLocal()
@@ -114,6 +114,12 @@ def get_ghost_leads_for_reactivation(creator_id: str) -> List[Dict[str, Any]]:
             min_days = REACTIVATION_CONFIG["min_days_ghost"]
             max_days = REACTIVATION_CONFIG["max_days_ghost"]
 
+            # Pre-fetch pending nurturing followups ONCE outside the loop (was N+1)
+            from core.nurturing import get_nurturing_manager
+            manager = get_nurturing_manager()
+            existing_followups = manager.get_all_followups(creator_id, status="pending")
+            pending_follower_ids = {fu.follower_id for fu in existing_followups}
+
             for lead in leads:
                 # Skip if no first_contact
                 if not lead.first_contact_at:
@@ -136,15 +142,8 @@ def get_ghost_leads_for_reactivation(creator_id: str) -> List[Dict[str, Any]]:
                 if _was_recently_reactivated(creator_id, str(lead.id)):
                     continue
 
-                # Check if has pending nurturing
-                from core.nurturing import get_nurturing_manager
-                manager = get_nurturing_manager()
-                existing = manager.get_all_followups(creator_id, status="pending")
-                has_pending = any(
-                    fu.follower_id == lead.platform_user_id
-                    for fu in existing
-                )
-                if has_pending:
+                # Check if has pending nurturing (uses pre-fetched set, no longer N+1)
+                if lead.platform_user_id in pending_follower_ids:
                     continue
 
                 ghosts.append({
@@ -207,7 +206,6 @@ async def reactivate_ghost_leads(creator_id: str, dry_run: bool = False) -> Dict
 
     # Schedule reactivation for each
     from core.nurturing import get_nurturing_manager, SequenceType
-    import random
 
     manager = get_nurturing_manager()
 

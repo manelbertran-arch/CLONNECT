@@ -10,8 +10,7 @@ Goal: GET /dm/follower/{creator_id}/{follower_id} returns unified profile from:
 - user_profiles (weighted interests, preferences)
 """
 import pytest
-from unittest.mock import AsyncMock, MagicMock, patch
-from datetime import datetime
+from unittest.mock import AsyncMock, MagicMock
 
 # Import the schema we'll create
 # from api.schemas.audience import FollowerDetailResponse  # Will fail until implemented
@@ -113,8 +112,6 @@ class TestFollowerDetailEndpoint:
     @pytest.mark.asyncio
     async def test_endpoint_returns_unified_profile(self):
         """Endpoint should return data from all 4 tables unified."""
-        from fastapi.testclient import TestClient
-        from unittest.mock import patch, MagicMock
 
         # This test will need the actual endpoint to be updated
         # For now, we test the structure of the expected response
@@ -138,13 +135,11 @@ class TestFollowerDetailEndpoint:
     async def test_endpoint_returns_404_when_not_found(self):
         """Endpoint should return 404 if follower doesn't exist."""
         # Will be implemented with actual endpoint test
-        pass
 
     @pytest.mark.asyncio
     async def test_endpoint_handles_partial_data(self):
         """Endpoint should work even if some tables have no data for follower."""
         # follower_memory exists but leads/conversation_states/user_profiles don't
-        pass
 
 
 class TestFollowerDetailQuery:
@@ -153,11 +148,9 @@ class TestFollowerDetailQuery:
     def test_query_uses_joins_not_n_plus_1(self):
         """Query should use JOINs to avoid N+1 queries."""
         # This will be tested by checking the actual query or using query counting
-        pass
 
     def test_query_handles_missing_related_records(self):
         """Query should use LEFT JOINs so missing records don't break it."""
-        pass
 
 
 class TestDMAgentV2GetFollowerDetail:

@@ -5,8 +5,7 @@ All fixtures are documented and can be imported from this file.
 import pytest
 import os
 from datetime import datetime, timedelta
-from typing import Dict, List, Any
-from unittest.mock import MagicMock, AsyncMock, patch
+from unittest.mock import MagicMock
 
 # Set test environment variables before importing app
 os.environ["DATABASE_URL"] = ""

@@ -1,6 +1,6 @@
 """Audit tests for core/semantic_chunker.py"""
 
-from core.semantic_chunker import SemanticChunk, SemanticChunker, get_semantic_chunker
+from core.semantic_chunker import SemanticChunker, get_semantic_chunker
 
 
 class TestAuditSemanticChunker:

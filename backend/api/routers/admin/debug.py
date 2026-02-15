@@ -399,7 +399,6 @@ async def debug_orphaned_messages(creator_id: str):
     try:
         from api.database import SessionLocal
         from api.models import Creator, Lead, Message
-        from sqlalchemy import text
 
         session = SessionLocal()
         try:

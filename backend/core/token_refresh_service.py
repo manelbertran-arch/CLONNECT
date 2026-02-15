@@ -11,7 +11,7 @@ Flujo:
 3. Cron diario -> check_and_refresh_if_needed() -> extiende 60 días más
 """
 import logging
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Optional, Dict, Any
 import os
 
@@ -48,7 +48,8 @@ async def exchange_for_long_lived_token(short_lived_token: str) -> Optional[Dict
     }
 
     try:
-        async with aiohttp.ClientSession() as session:
+        timeout = aiohttp.ClientTimeout(total=30)
+        async with aiohttp.ClientSession(timeout=timeout) as session:
             async with session.get(url, params=params) as response:
                 data = await response.json()
 
@@ -61,7 +62,7 @@ async def exchange_for_long_lived_token(short_lived_token: str) -> Optional[Dict
                 return {
                     "token": data["access_token"],
                     "expires_in": expires_in,
-                    "expires_at": datetime.utcnow() + timedelta(seconds=expires_in)
+                    "expires_at": datetime.now(timezone.utc) + timedelta(seconds=expires_in)
                 }
     except Exception as e:
         logger.error(f"Exception exchanging token: {e}")
@@ -108,7 +109,7 @@ async def refresh_long_lived_token(current_token: str) -> Optional[Dict[str, Any
             return {
                 "token": current_token,
                 "expires_in": 5184000,
-                "expires_at": datetime.utcnow() + timedelta(days=60)
+                "expires_at": datetime.now(timezone.utc) + timedelta(days=60)
             }
     else:
         # Instagram token (IGAAT) - use Instagram refresh endpoint
@@ -119,7 +120,8 @@ async def refresh_long_lived_token(current_token: str) -> Optional[Dict[str, Any
         }
 
     try:
-        async with aiohttp.ClientSession() as session:
+        timeout = aiohttp.ClientTimeout(total=30)
+        async with aiohttp.ClientSession(timeout=timeout) as session:
             async with session.get(url, params=params) as response:
                 data = await response.json()
 
@@ -132,7 +134,7 @@ async def refresh_long_lived_token(current_token: str) -> Optional[Dict[str, Any
                 return {
                     "token": data["access_token"],
                     "expires_in": expires_in,
-                    "expires_at": datetime.utcnow() + timedelta(seconds=expires_in)
+                    "expires_at": datetime.now(timezone.utc) + timedelta(seconds=expires_in)
                 }
     except Exception as e:
         logger.error(f"Exception refreshing token: {e}")
@@ -192,10 +194,10 @@ async def check_and_refresh_if_needed(
         # Si no hay fecha de expiración, asumir que necesita refresh
         if not expires_at:
             logger.info(f"No expiry date for {creator_name}, assuming needs refresh")
-            expires_at = datetime.utcnow() - timedelta(days=1)  # Forzar refresh
+            expires_at = datetime.now(timezone.utc) - timedelta(days=1)  # Forzar refresh
 
         # Calcular días hasta expiración
-        now = datetime.utcnow()
+        now = datetime.now(timezone.utc)
         if expires_at.tzinfo:
             expires_at = expires_at.replace(tzinfo=None)
 

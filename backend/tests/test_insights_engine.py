@@ -4,8 +4,7 @@ Tests for InsightsEngine
 SPRINT3-T3.1: TDD tests written BEFORE implementation
 """
 import pytest
-from datetime import datetime, timedelta, timezone
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
 from sqlalchemy.orm import Session
 
 from core.insights_engine import InsightsEngine

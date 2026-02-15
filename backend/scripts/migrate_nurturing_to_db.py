@@ -16,20 +16,18 @@ Environment:
     DATABASE_URL    PostgreSQL connection string (required)
 """
 
-import os
 import sys
 import json
 import argparse
 import logging
 from pathlib import Path
-from datetime import datetime
 
 # Add backend to path
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from api.database import SessionLocal, engine
+from api.database import SessionLocal
 from core.nurturing import FollowUp
-from core.nurturing_db import NurturingFollowupDB, NurturingDBStorage
+from core.nurturing_db import NurturingFollowupDB
 
 logging.basicConfig(
     level=logging.INFO,

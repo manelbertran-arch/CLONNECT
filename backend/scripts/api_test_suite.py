@@ -7,7 +7,6 @@ Comprehensive test suite for all API endpoints
 import os
 import sys
 import json
-import time
 import argparse
 import requests
 from datetime import datetime
@@ -109,7 +108,7 @@ def test_endpoint(
         else:
             try:
                 error_detail = response.json().get("detail", response.text[:100])
-            except:
+            except Exception:
                 error_detail = response.text[:100]
             return False, actual_status, error_detail
 
@@ -278,23 +277,23 @@ def run_tests():
     section_header("D. CONVERSACIONES Y LEADS")
 
     # #22 List conversations
-    passed, status, msg = test_endpoint(22, "GET", f"/dm/conversations/manel", 200, description="Listar conversaciones")
+    passed, status, msg = test_endpoint(22, "GET", "/dm/conversations/manel", 200, description="Listar conversaciones")
     print_result(22, "GET", "/dm/conversations/manel", "Listar conversaciones", passed, status, msg)
 
     # #23 List leads
-    passed, status, msg = test_endpoint(23, "GET", f"/dm/leads/manel", 200, description="Listar leads")
+    passed, status, msg = test_endpoint(23, "GET", "/dm/leads/manel", 200, description="Listar leads")
     print_result(23, "GET", "/dm/leads/manel", "Listar leads", passed, status, msg)
 
     # #24 DM metrics
-    passed, status, msg = test_endpoint(24, "GET", f"/dm/metrics/manel", 200, description="Métricas DM")
+    passed, status, msg = test_endpoint(24, "GET", "/dm/metrics/manel", 200, description="Métricas DM")
     print_result(24, "GET", "/dm/metrics/manel", "Métricas DM", passed, status, msg)
 
     # #25 Follower detail
-    passed, status, msg = test_endpoint(25, "GET", f"/dm/follower/manel/test1", 200, description="Detalle seguidor")
+    passed, status, msg = test_endpoint(25, "GET", "/dm/follower/manel/test1", 200, description="Detalle seguidor")
     print_result(25, "GET", "/dm/follower/manel/test1", "Detalle seguidor", passed, status, msg)
 
     # #26 Dashboard overview
-    passed, status, msg = test_endpoint(26, "GET", f"/dashboard/manel/overview", 200, description="Dashboard")
+    passed, status, msg = test_endpoint(26, "GET", "/dashboard/manel/overview", 200, description="Dashboard")
     print_result(26, "GET", "/dashboard/manel/overview", "Dashboard", passed, status, msg)
 
     # =========================================================================
@@ -327,7 +326,7 @@ def run_tests():
     section_header("F. GDPR")
 
     # #32 Export data
-    passed, status, msg = test_endpoint(32, "GET", f"/gdpr/manel/export/test1", 200, description="Exportar datos")
+    passed, status, msg = test_endpoint(32, "GET", "/gdpr/manel/export/test1", 200, description="Exportar datos")
     print_result(32, "GET", "/gdpr/manel/export/test1", "Exportar datos", passed, status, msg)
 
     # #33 Delete data (on test follower)
@@ -339,21 +338,21 @@ def run_tests():
     print_result(34, "POST", f"/gdpr/{TEST_CREATOR_ID}/anonymize/{TEST_FOLLOWER_ID}", "Anonimizar", passed, status, msg)
 
     # #35 Get consent
-    passed, status, msg = test_endpoint(35, "GET", f"/gdpr/manel/consent/test1", 200, description="Ver consentimiento")
+    passed, status, msg = test_endpoint(35, "GET", "/gdpr/manel/consent/test1", 200, description="Ver consentimiento")
     print_result(35, "GET", "/gdpr/manel/consent/test1", "Ver consentimiento", passed, status, msg)
 
     # #36 Record consent
-    passed, status, msg = test_endpoint(36, "POST", f"/gdpr/manel/consent/test1", 200,
+    passed, status, msg = test_endpoint(36, "POST", "/gdpr/manel/consent/test1", 200,
                                         query_params={"consent_type": "data_processing", "granted": "true"},
                                         description="Registrar consentimiento")
     print_result(36, "POST", "/gdpr/manel/consent/test1", "Registrar consentimiento", passed, status, msg)
 
     # #37 Data inventory
-    passed, status, msg = test_endpoint(37, "GET", f"/gdpr/manel/inventory/test1", 200, description="Inventario")
+    passed, status, msg = test_endpoint(37, "GET", "/gdpr/manel/inventory/test1", 200, description="Inventario")
     print_result(37, "GET", "/gdpr/manel/inventory/test1", "Inventario", passed, status, msg)
 
     # #38 Audit log
-    passed, status, msg = test_endpoint(38, "GET", f"/gdpr/manel/audit/test1", 200, description="Audit log")
+    passed, status, msg = test_endpoint(38, "GET", "/gdpr/manel/audit/test1", 200, description="Audit log")
     print_result(38, "GET", "/gdpr/manel/audit/test1", "Audit log", passed, status, msg)
 
     # =========================================================================
@@ -393,19 +392,19 @@ def run_tests():
     print_result(40, "POST", "/webhook/hotmart", "Webhook Hotmart", passed, status, msg)
 
     # #41 List purchases
-    passed, status, msg = test_endpoint(41, "GET", f"/payments/manel/purchases", 200, description="Listar compras")
+    passed, status, msg = test_endpoint(41, "GET", "/payments/manel/purchases", 200, description="Listar compras")
     print_result(41, "GET", "/payments/manel/purchases", "Listar compras", passed, status, msg)
 
     # #42 Customer purchases
-    passed, status, msg = test_endpoint(42, "GET", f"/payments/manel/customer/test1", 200, description="Compras cliente")
+    passed, status, msg = test_endpoint(42, "GET", "/payments/manel/customer/test1", 200, description="Compras cliente")
     print_result(42, "GET", "/payments/manel/customer/test1", "Compras cliente", passed, status, msg)
 
     # #43 Revenue stats
-    passed, status, msg = test_endpoint(43, "GET", f"/payments/manel/revenue", 200, description="Stats revenue")
+    passed, status, msg = test_endpoint(43, "GET", "/payments/manel/revenue", 200, description="Stats revenue")
     print_result(43, "GET", "/payments/manel/revenue", "Stats revenue", passed, status, msg)
 
     # #44 Attribute sale
-    passed, status, msg = test_endpoint(44, "POST", f"/payments/manel/attribute", 200,
+    passed, status, msg = test_endpoint(44, "POST", "/payments/manel/attribute", 200,
                                         query_params={"purchase_id": "test", "follower_id": "test1"},
                                         description="Atribuir venta")
     print_result(44, "POST", "/payments/manel/attribute", "Atribuir venta", passed, status, msg)
@@ -441,19 +440,19 @@ def run_tests():
     print_result(46, "POST", "/webhook/calcom", "Webhook Cal.com", passed, status, msg)
 
     # #47 List bookings
-    passed, status, msg = test_endpoint(47, "GET", f"/calendar/manel/bookings", 200, description="Listar bookings")
+    passed, status, msg = test_endpoint(47, "GET", "/calendar/manel/bookings", 200, description="Listar bookings")
     print_result(47, "GET", "/calendar/manel/bookings", "Listar bookings", passed, status, msg)
 
     # #48 Get booking link
-    passed, status, msg = test_endpoint(48, "GET", f"/calendar/manel/link/discovery", 200, description="Obtener link")
+    passed, status, msg = test_endpoint(48, "GET", "/calendar/manel/link/discovery", 200, description="Obtener link")
     print_result(48, "GET", "/calendar/manel/link/discovery", "Obtener link", passed, status, msg)
 
     # #49 List all links
-    passed, status, msg = test_endpoint(49, "GET", f"/calendar/manel/links", 200, description="Listar links")
+    passed, status, msg = test_endpoint(49, "GET", "/calendar/manel/links", 200, description="Listar links")
     print_result(49, "GET", "/calendar/manel/links", "Listar links", passed, status, msg)
 
     # #50 Create booking link
-    link_data = {
+    _link_data = {
         "meeting_type": "test",
         "duration": 30,
         "title": "Test Meeting",
@@ -461,13 +460,13 @@ def run_tests():
         "url": "https://test.com/book",
         "platform": "manual"
     }
-    passed, status, msg = test_endpoint(50, "POST", f"/calendar/manel/links", 200,
+    passed, status, msg = test_endpoint(50, "POST", "/calendar/manel/links", 200,
                                         query_params={"meeting_type": "test", "duration": "30", "title": "Test"},
                                         description="Crear link")
     print_result(50, "POST", "/calendar/manel/links", "Crear link", passed, status, msg)
 
     # #51 Calendar stats
-    passed, status, msg = test_endpoint(51, "GET", f"/calendar/manel/stats", 200, description="Stats calendario")
+    passed, status, msg = test_endpoint(51, "GET", "/calendar/manel/stats", 200, description="Stats calendario")
     print_result(51, "GET", "/calendar/manel/stats", "Stats calendario", passed, status, msg)
 
     # #52 Mark booking completed (may 404 if no booking exists)

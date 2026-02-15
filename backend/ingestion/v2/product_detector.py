@@ -16,7 +16,7 @@ Si > 20 productos → ABORTAR (algo está mal)
 import re
 import time
 import logging
-from typing import List, Dict, Optional, Set
+from typing import List, Dict, Optional
 from dataclasses import dataclass, field
 from enum import Enum
 
@@ -289,7 +289,6 @@ def extraer_payment_link(page_url: str, page_content: str) -> str:
 
 class SuspiciousExtractionError(Exception):
     """Se lanza cuando la extracción parece sospechosa."""
-    pass
 
 
 class ProductDetector:
@@ -414,7 +413,6 @@ class ProductDetector:
         Raises:
             SuspiciousExtractionError: Si se detectan > MAX_PRODUCTS
         """
-        from ..deterministic_scraper import ScrapedPage
         start_time = time.time()
 
         # 1. Identificar páginas de servicio

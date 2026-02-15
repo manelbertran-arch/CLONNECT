@@ -7,10 +7,10 @@ Provides:
 - Recommendations: Content, actions, products
 - Weekly Reports: LLM-generated comprehensive insights
 """
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, Query
 from sqlalchemy.orm import Session
 from typing import Optional
-from datetime import date, datetime, timedelta
+from datetime import date, datetime, timezone
 import logging
 
 from api.database import get_db
@@ -60,7 +60,7 @@ async def get_intelligent_dashboard(
     return {
         "status": "ok",
         "creator_id": creator_id,
-        "generated_at": datetime.utcnow().isoformat(),
+        "generated_at": datetime.now(timezone.utc).isoformat(),
         "analysis_period_days": days,
         "patterns": patterns,
         "predictions": {
@@ -102,7 +102,7 @@ async def get_predictions(
     response = {
         "status": "ok",
         "creator_id": creator_id,
-        "generated_at": datetime.utcnow().isoformat()
+        "generated_at": datetime.now(timezone.utc).isoformat()
     }
 
     if prediction_type is None or prediction_type == "conversion":

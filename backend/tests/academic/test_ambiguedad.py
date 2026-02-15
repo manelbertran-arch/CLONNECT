@@ -104,12 +104,12 @@ class TestAmbiguedad:
 
         # This is a common Spanish expression, NOT a crisis signal
         assert sensitive.type != SensitiveType.SELF_HARM, (
-            f"Colloquial 'me muero por saber' should NOT be flagged as "
+            "Colloquial 'me muero por saber' should NOT be flagged as "
             f"self-harm, got type={sensitive.type}"
         )
         # Should be detected as purchase interest (mentions 'precio')
         assert intent_simple in ("purchase", "interest_strong", "interest_soft"), (
-            f"Expected purchase/interest intent for price inquiry, " f"got '{intent_simple}'"
+            "Expected purchase/interest intent for price inquiry, " f"got '{intent_simple}'"
         )
 
     def test_responde_pregunta_abierta(self):
@@ -131,7 +131,7 @@ class TestAmbiguedad:
 
         # Should get a valid classification, not crash
         assert intent_simple in ("other", "greeting", "question_product", "interest_soft"), (
-            f"Open-ended question should be 'other' or question-like, " f"got '{intent_simple}'"
+            "Open-ended question should be 'other' or question-like, " f"got '{intent_simple}'"
         )
 
         # Context should be valid and neutral
@@ -140,5 +140,5 @@ class TestAmbiguedad:
 
         # Should not be sensitive content
         assert sensitive.type == SensitiveType.NONE, (
-            f"Open-ended question should not be sensitive, " f"got type={sensitive.type}"
+            "Open-ended question should not be sensitive, " f"got type={sensitive.type}"
         )

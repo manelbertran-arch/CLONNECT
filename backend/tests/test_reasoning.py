@@ -2,8 +2,7 @@
 Tests for reasoning modules: SelfConsistency, ChainOfThought, Reflexion
 """
 
-import pytest
-from unittest.mock import AsyncMock, MagicMock
+from unittest.mock import MagicMock
 
 
 class TestSelfConsistency:

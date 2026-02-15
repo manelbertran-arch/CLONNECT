@@ -2,7 +2,6 @@
 Test de integracion: Verifica que todos los modulos de personalizacion
 trabajan juntos correctamente.
 """
-import pytest
 from unittest.mock import patch, MagicMock
 
 

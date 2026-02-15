@@ -2,7 +2,6 @@
 Tests for RAG modules: BM25Retriever and HybridRAG
 """
 
-import pytest
 
 
 class TestBM25Retriever:

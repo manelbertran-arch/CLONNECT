@@ -1,7 +1,6 @@
 """Seed demo data and Stefano data injection endpoints."""
 
 import logging
-from typing import Dict, List
 
 from fastapi import APIRouter
 from pydantic import BaseModel
@@ -295,16 +294,14 @@ async def seed_demo_data(request: SeedDemoRequest):
 
     Use this when manual-setup fails due to Instagram rate limiting.
     """
-    errors = []
+    _errors = []
     details = {"leads_created": 0, "products_created": 0}
 
     try:
-        import random
         import uuid as uuid_module
-        from datetime import datetime, timedelta
 
         from api.database import DATABASE_URL, SessionLocal
-        from api.models import Creator, Lead, Product
+        from api.models import Creator, Product
 
         if not DATABASE_URL or not SessionLocal:
             return {"success": False, "error": "Database not configured"}
@@ -421,10 +418,9 @@ async def inject_stefano_data():
     errors = []
 
     try:
-        import json
         import random
         import uuid as uuid_module
-        from datetime import datetime, timedelta
+        from datetime import datetime, timedelta, timezone
 
         from api.database import DATABASE_URL, SessionLocal
         from api.models import Creator, Lead, Message, Product
@@ -685,8 +681,8 @@ async def inject_stefano_data():
                     purchase_intent=lead_data["intent"],
                     status=lead_data["status"],
                     score=int(lead_data["intent"] * 100),
-                    first_contact_at=datetime.utcnow() - timedelta(days=random.randint(5, 30)),
-                    last_contact_at=datetime.utcnow() - timedelta(hours=random.randint(1, 72)),
+                    first_contact_at=datetime.now(timezone.utc) - timedelta(days=random.randint(5, 30)),
+                    last_contact_at=datetime.now(timezone.utc) - timedelta(hours=random.randint(1, 72)),
                 )
                 session.add(new_lead)
                 session.flush()  # Get the ID
@@ -700,7 +696,7 @@ async def inject_stefano_data():
                         role=msg["role"],
                         content=msg["content"],
                         status="sent",
-                        created_at=datetime.utcnow() - timedelta(hours=len(conv["messages"]) - i),
+                        created_at=datetime.now(timezone.utc) - timedelta(hours=len(conv["messages"]) - i),
                     )
                     session.add(new_message)
                     details["messages_created"] += 1
@@ -713,7 +709,7 @@ async def inject_stefano_data():
             creator.clone_name = STEFANO_DATA["creator"]["name"]
 
             # Store tone profile as JSON in a field if available
-            tone_data = STEFANO_DATA["tone_profile"]
+            _tone_data = STEFANO_DATA["tone_profile"]
 
             session.commit()
             logger.info(
@@ -840,7 +836,7 @@ Instagram: {bio['instagram']}"""
             )
             await save_tone_profile(profile)
             details["tone_profile"] = True
-            logger.info(f"[InjectStefano] ToneProfile saved")
+            logger.info("[InjectStefano] ToneProfile saved")
 
         except Exception as e:
             errors.append(f"ToneProfile failed: {str(e)}")

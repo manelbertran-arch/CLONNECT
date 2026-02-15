@@ -89,7 +89,7 @@ class TestBulkInsertChunks:
 
         with patch("core.citation_service.SessionLocal", return_value=mock_db_session):
             with patch("core.citation_service.ContentChunk"):
-                result = _save_chunks_to_db("test_creator", sample_chunks)
+                _result = _save_chunks_to_db("test_creator", sample_chunks)
 
         # Should use bulk operations
         assert mock_db_session.bulk_insert_mappings.called or mock_db_session.bulk_update_mappings.called
@@ -120,7 +120,7 @@ class TestBulkInsertChunks:
 
         with patch("core.citation_service.SessionLocal", return_value=mock_session):
             with patch("core.citation_service.ContentChunk"):
-                result = _save_chunks_to_db("stress_test_creator", large_chunks)
+                _result = _save_chunks_to_db("stress_test_creator", large_chunks)
 
         elapsed_time = time.time() - start_time
 
@@ -151,7 +151,7 @@ class TestBulkInsertChunks:
 
         with patch("core.citation_service.SessionLocal", return_value=mock_db_session):
             with patch("core.citation_service.ContentChunk"):
-                result = _save_chunks_to_db("test_creator", sample_chunks)
+                _result = _save_chunks_to_db("test_creator", sample_chunks)
 
         # Should call bulk_update for existing chunks
         assert mock_db_session.bulk_update_mappings.called
@@ -217,7 +217,7 @@ class TestIndexCreatorPostsIntegration:
                 mock_save.return_value = True
                 mock_json.return_value = True
 
-                result = await index_creator_posts(
+                _result = await index_creator_posts(
                     creator_id="test_creator",
                     posts=sample_posts,
                     save=True

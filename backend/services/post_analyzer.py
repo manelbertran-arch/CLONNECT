@@ -56,7 +56,6 @@ Formato de respuesta JSON:
 
     def __init__(self):
         """Initialize the analyzer."""
-        pass
 
     async def analyze_posts(self, posts: List[Dict[str, Any]]) -> Dict[str, Any]:
         """Analyze posts with LLM and extract context.

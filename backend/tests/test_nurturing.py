@@ -3,9 +3,7 @@
 
 from fastapi.testclient import TestClient
 from api.main import app
-import time
 import os
-import json
 
 client = TestClient(app)
 

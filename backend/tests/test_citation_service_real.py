@@ -9,8 +9,6 @@ Flujo RAG:
 4. get_citation_prompt_section() genera string para inyectar en prompt
 """
 import pytest
-from unittest.mock import patch, MagicMock
-from datetime import datetime
 
 
 class TestCreatorContentIndex:

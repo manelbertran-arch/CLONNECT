@@ -22,7 +22,7 @@ st.set_page_config(
 )
 
 # Import utilities and pages
-from admin.utils import t, get_language, set_language, language_selector, get_creators
+from admin.utils import t, get_language, set_language, get_creators
 
 from admin.pages import home, inbox, leads, nurturing, revenue, calendar, settings
 

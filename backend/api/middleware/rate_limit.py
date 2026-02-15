@@ -5,9 +5,8 @@ Implements per-IP and per-user rate limiting using token bucket algorithm.
 import os
 import time
 import logging
-from typing import Dict, Tuple, Optional
-from collections import defaultdict
-from fastapi import Request, HTTPException
+from typing import Dict, Tuple
+from fastapi import Request
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.responses import JSONResponse
 

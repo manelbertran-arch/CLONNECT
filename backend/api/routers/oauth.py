@@ -44,7 +44,6 @@ async def _auto_onboard_after_instagram_oauth(
     try:
         from api.database import SessionLocal
         from api.models import Creator
-        from core.dm_history_service import get_dm_history_service
         from core.onboarding_service import OnboardingRequest, get_onboarding_service
         from ingestion import MetaGraphAPIScraper
 
@@ -157,7 +156,7 @@ async def _auto_onboard_after_instagram_oauth(
         url_to_scrape = website_url  # Use provided URL first
         try:
             if not url_to_scrape:
-                logger.info(f"[AutoOnboard] No website_url provided, checking Instagram bio...")
+                logger.info("[AutoOnboard] No website_url provided, checking Instagram bio...")
                 import httpx
                 from core.website_scraper import extract_url_from_text
 
@@ -200,7 +199,7 @@ async def _auto_onboard_after_instagram_oauth(
                 finally:
                     session.close()
             else:
-                logger.info(f"[AutoOnboard] No website found")
+                logger.info("[AutoOnboard] No website found")
         except Exception as web_error:
             logger.warning(f"[AutoOnboard] Could not scrape website: {web_error}")
 
@@ -249,7 +248,7 @@ async def _auto_onboard_after_instagram_oauth(
 
                 flag_modified(creator, "clone_progress")
                 session.commit()
-                logger.info(f"[AutoOnboard] Progress updated to 100%")
+                logger.info("[AutoOnboard] Progress updated to 100%")
         finally:
             session.close()
 
@@ -458,8 +457,8 @@ async def _simple_dm_sync_internal(
                                 all_timestamps.append(ts)
                                 if msg.get("from", {}).get("id") not in creator_ids:
                                     user_timestamps.append(ts)
-                            except ValueError:
-                                pass
+                            except ValueError as e:
+                                logger.debug("Ignored ValueError in ts = datetime.fromisoformat(: %s", e)
 
                     first_contact = min(all_timestamps) if all_timestamps else None
                     last_contact = max(user_timestamps) if user_timestamps else first_contact
@@ -777,8 +776,8 @@ async def _simple_dm_sync_internal(
                                 )
                                 if msg_time < days_limit_ago:
                                     continue
-                            except ValueError:
-                                pass
+                            except ValueError as e:
+                                logger.debug("Ignored ValueError in msg_time = datetime.fromisoformat(: %s", e)
 
                         # Check for duplicate
                         existing = (
@@ -1119,7 +1118,7 @@ async def instagram_oauth_callback(
 
             # Step 3: Get Instagram user info first
             user_response = await client.get(
-                f"https://graph.instagram.com/v21.0/me",
+                "https://graph.instagram.com/v21.0/me",
                 params={
                     "fields": "user_id,username,name,account_type,profile_picture_url",
                     "access_token": access_token,
@@ -1209,7 +1208,7 @@ async def instagram_oauth_callback(
 
             if not final_access_token.startswith("EAA"):
                 logger.warning(
-                    f"⚠️ Token is NOT a Page token! Using Instagram token - messaging endpoint will use graph.instagram.com"
+                    "⚠️ Token is NOT a Page token! Using Instagram token - messaging endpoint will use graph.instagram.com"
                 )
 
             # Step 5: Save to database with ALL collected IDs
@@ -1329,7 +1328,7 @@ async def whatsapp_oauth_callback(
     creator_id = state.split(":")[0] if ":" in state else "manel"
 
     try:
-        async with httpx.AsyncClient() as client:
+        async with httpx.AsyncClient(timeout=30.0) as client:
             # Exchange code for access token
             token_response = await client.get(
                 "https://graph.facebook.com/v21.0/oauth/access_token",
@@ -1414,7 +1413,7 @@ async def stripe_oauth_start(creator_id: str):
     logger.info(f"Starting Stripe Connect for creator: {creator_id}")
 
     try:
-        async with httpx.AsyncClient() as client:
+        async with httpx.AsyncClient(timeout=30.0) as client:
             # Step 1: Create a Stripe Express connected account
             account_response = await client.post(
                 "https://api.stripe.com/v1/accounts",
@@ -1473,7 +1472,7 @@ async def stripe_oauth_callback(creator_id: str = Query("manel"), account_id: st
         )
 
     try:
-        async with httpx.AsyncClient() as client:
+        async with httpx.AsyncClient(timeout=30.0) as client:
             # Verify the account status
             account_response = await client.get(
                 f"https://api.stripe.com/v1/accounts/{account_id}",
@@ -1518,7 +1517,7 @@ async def stripe_oauth_refresh(creator_id: str = Query("manel"), account_id: str
         )
 
     try:
-        async with httpx.AsyncClient() as client:
+        async with httpx.AsyncClient(timeout=30.0) as client:
             # Create a new Account Link
             link_response = await client.post(
                 "https://api.stripe.com/v1/account_links",
@@ -1602,7 +1601,7 @@ async def paypal_oauth_callback(code: str = Query(...), state: str = Query("")):
             f"{PAYPAL_CLIENT_ID}:{PAYPAL_CLIENT_SECRET}".encode()
         ).decode()
 
-        async with httpx.AsyncClient() as client:
+        async with httpx.AsyncClient(timeout=30.0) as client:
             # Exchange code for access token
             token_response = await client.post(
                 f"{base_url}/v1/oauth2/token",
@@ -1726,7 +1725,7 @@ async def google_oauth_callback(code: str = Query(...), state: str = Query("")):
     )
 
     try:
-        async with httpx.AsyncClient() as client:
+        async with httpx.AsyncClient(timeout=30.0) as client:
             # Build the request data - use urlencode explicitly for proper form encoding
             token_params = {
                 "code": code,
@@ -1969,14 +1968,14 @@ async def get_oauth_status(creator_id: str):
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"Error getting OAuth status: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        from api.utils.error_helpers import safe_error_detail
+
+        raise HTTPException(status_code=500, detail=safe_error_detail(e, "OAuth status check"))
 
 
 @router.post("/refresh/google/{creator_id}")
 async def force_refresh_google(creator_id: str):
     """Force refresh Google token"""
-    from datetime import datetime, timezone
 
     try:
         new_token = await refresh_google_token(creator_id)
@@ -1995,8 +1994,9 @@ async def force_refresh_google(creator_id: str):
             "expires_at": expires_at.isoformat() if expires_at else None,
         }
     except Exception as e:
-        logger.error(f"Error refreshing Google token: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        from api.utils.error_helpers import safe_error_detail
+
+        raise HTTPException(status_code=500, detail=safe_error_detail(e, "Google token refresh"))
 
 
 async def _save_google_connection(
@@ -2059,7 +2059,7 @@ async def refresh_google_token(creator_id: str) -> str:
                 raise Exception("No Google refresh token available - user must reconnect")
 
             # Call Google token endpoint
-            async with httpx.AsyncClient() as client:
+            async with httpx.AsyncClient(timeout=30.0) as client:
                 token_response = await client.post(
                     "https://oauth2.googleapis.com/token",
                     headers={
@@ -2197,7 +2197,7 @@ async def create_google_meet_event(
         if guest_email:
             event["attendees"] = [{"email": guest_email, "displayName": guest_name or ""}]
 
-        async with httpx.AsyncClient() as client:
+        async with httpx.AsyncClient(timeout=30.0) as client:
             response = await client.post(
                 "https://www.googleapis.com/calendar/v3/calendars/primary/events",
                 params={
@@ -2254,7 +2254,7 @@ async def delete_google_calendar_event(creator_id: str, event_id: str) -> bool:
     try:
         access_token = await get_valid_google_token(creator_id)
 
-        async with httpx.AsyncClient() as client:
+        async with httpx.AsyncClient(timeout=30.0) as client:
             response = await client.delete(
                 f"https://www.googleapis.com/calendar/v3/calendars/primary/events/{event_id}",
                 params={"sendUpdates": "all"},  # Notify attendees
@@ -2308,7 +2308,7 @@ async def get_google_freebusy(creator_id: str, start_time, end_time) -> list:
             "items": [{"id": "primary"}],  # Query primary calendar
         }
 
-        async with httpx.AsyncClient() as client:
+        async with httpx.AsyncClient(timeout=30.0) as client:
             response = await client.post(
                 "https://www.googleapis.com/calendar/v3/freeBusy",
                 headers={

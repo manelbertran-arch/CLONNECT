@@ -4,12 +4,12 @@ import asyncio
 import json
 import logging
 import os
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional
 
 import httpx
-from core.nurturing import NURTURING_SEQUENCES, SequenceType, get_nurturing_manager
-from fastapi import APIRouter, Body, Depends, HTTPException
+from core.nurturing import NURTURING_SEQUENCES, get_nurturing_manager
+from fastapi import APIRouter, Body, Depends
 from pydantic import BaseModel
 
 from api.auth import require_creator_access
@@ -501,7 +501,7 @@ def _save_nurturing_message_to_db(creator_id: str, follower_id: str, message_tex
             )
             session.add(msg)
 
-            lead.last_contact_at = datetime.now()
+            lead.last_contact_at = datetime.now(timezone.utc)
 
             session.commit()
             logger.info(f"[NURTURING] Saved nurturing message to DB for {follower_id}")
@@ -584,7 +584,7 @@ async def _try_send_message(creator_id: str, follower_id: str, message: str) -> 
 
     # WhatsApp - not implemented for nurturing yet
     if channel == "whatsapp":
-        logger.info(f"[NURTURING] [SIMULATED] WhatsApp nurturing not yet implemented")
+        logger.info("[NURTURING] [SIMULATED] WhatsApp nurturing not yet implemented")
         return {"sent": True, "simulated": True, "error": None}
 
     logger.warning(f"[NURTURING] Unknown channel {channel} for {follower_id}")
@@ -619,7 +619,7 @@ async def run_nurturing_followups(
     if dry_run is None:
         dry_run = NURTURING_DRY_RUN
     manager = get_nurturing_manager()
-    now = datetime.now()
+    _now = datetime.now(timezone.utc)
 
     # Get followups based on due_only and force_due
     if force_due:
@@ -884,7 +884,7 @@ async def _process_profile_retries(max_per_cycle: int = 10) -> Dict[str, int]:
                             )
 
                         queue_item.status = "done"
-                        queue_item.processed_at = datetime.now()
+                        queue_item.processed_at = datetime.now(timezone.utc)
                         session.commit()
                         return True
                     else:
@@ -1031,7 +1031,7 @@ async def _run_scheduler_cycle():
 
     if not followups:
         logger.info("[NURTURING SCHEDULER] No due followups found")
-        _scheduler_last_run = datetime.now().isoformat()
+        _scheduler_last_run = datetime.now(timezone.utc).isoformat()
         _scheduler_run_count += 1
         return {
             "pending": 0,
@@ -1115,7 +1115,7 @@ async def _run_scheduler_cycle():
         if (processed + error_count + window_expired_count) % 5 == 0:
             await asyncio.sleep(0)
 
-    _scheduler_last_run = datetime.now().isoformat()
+    _scheduler_last_run = datetime.now(timezone.utc).isoformat()
     _scheduler_run_count += 1
 
     logger.info(

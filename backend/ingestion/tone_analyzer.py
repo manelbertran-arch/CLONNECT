@@ -10,8 +10,8 @@ import logging
 import re
 from collections import Counter
 from dataclasses import asdict, dataclass, field
-from datetime import datetime
-from typing import Dict, List, Optional
+from datetime import datetime, timezone
+from typing import Dict, List
 
 logger = logging.getLogger(__name__)
 
@@ -64,7 +64,7 @@ class ToneProfile:
 
     # Metadata
     analyzed_posts_count: int = 0
-    last_updated: datetime = field(default_factory=datetime.utcnow)
+    last_updated: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
     confidence_score: float = 0.0  # 0-1, basado en cantidad de datos
 
     def to_system_prompt_section(self) -> str:
@@ -498,7 +498,7 @@ IMPORTANTE:
             # Metadata
             analyzed_posts_count=posts_count,
             confidence_score=confidence,
-            last_updated=datetime.utcnow(),
+            last_updated=datetime.now(timezone.utc),
         )
 
     def _create_default_profile(self, creator_id: str) -> ToneProfile:

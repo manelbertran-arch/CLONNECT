@@ -10,7 +10,7 @@ Supports two chunking modes (via CHUNKING_MODE env var):
 import os
 from typing import List, Dict, Optional
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import datetime, timezone
 import hashlib
 import logging
 
@@ -187,7 +187,7 @@ def create_chunks_from_content(
             chunk_index=i,
             total_chunks=len(text_chunks),
             metadata=metadata or {},
-            created_at=datetime.utcnow()
+            created_at=datetime.now(timezone.utc)
         )
         chunks.append(chunk)
 

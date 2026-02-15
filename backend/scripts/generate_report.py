@@ -15,7 +15,6 @@ import os
 import sys
 import json
 import argparse
-from datetime import datetime, timedelta, timezone
 
 # Add parent directory to path for imports
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -92,7 +91,7 @@ def generate_weekly_report(creator_id: str):
     analytics = get_analytics_manager()
     weekly = analytics.get_weekly_stats(creator_id)
 
-    print_header(f"WEEKLY REPORT")
+    print_header("WEEKLY REPORT")
     print(f"Creator: {creator_id}")
     print(f"Period:  {weekly['start_date']} to {weekly['end_date']}")
 
@@ -234,7 +233,7 @@ def generate_full_report(creator_id: str, output_file: str = None):
     analytics = get_analytics_manager()
     summary = analytics.get_summary(creator_id)
 
-    print_header(f"FULL ANALYTICS REPORT")
+    print_header("FULL ANALYTICS REPORT")
     print(f"Creator: {creator_id}")
     print(f"Generated: {summary['generated_at']}")
 

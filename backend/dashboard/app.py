@@ -6,8 +6,6 @@ Dashboard mejorado para gestionar el clon de IA
 import streamlit as st
 import requests
 import os
-from datetime import datetime, timedelta
-import json
 
 # Configuracion
 API_BASE_URL = os.getenv("API_BASE_URL", "http://localhost:8000")
@@ -634,7 +632,7 @@ elif st.session_state.page == "products":
                     if product.get("is_featured"):
                         st.success("⭐ Destacado")
 
-                    if st.button(f"🗑️ Eliminar", key=f"del_{product.get('id')}"):
+                    if st.button("🗑️ Eliminar", key=f"del_{product.get('id')}"):
                         api_delete(f"/creator/{st.session_state.creator_id}/products/{product.get('id')}")
                         st.rerun()
 

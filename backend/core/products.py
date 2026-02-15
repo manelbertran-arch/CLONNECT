@@ -4,9 +4,9 @@ Gestión de productos y servicios del creador
 
 import os
 import json
-from typing import List, Optional, Dict, Any
+from typing import List, Optional, Dict
 from dataclasses import dataclass, asdict, field
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 import logging
 
@@ -35,8 +35,8 @@ class Product:
     is_active: bool = True
     is_featured: bool = False
     stock: int = -1  # -1 = ilimitado
-    created_at: str = field(default_factory=lambda: datetime.now().isoformat())
-    updated_at: str = field(default_factory=lambda: datetime.now().isoformat())
+    created_at: str = field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
+    updated_at: str = field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
 
     def to_dict(self) -> dict:
         return asdict(self)
@@ -191,7 +191,7 @@ class ProductManager:
                 for key, value in updates.items():
                     if hasattr(p, key):
                         setattr(p, key, value)
-                p.updated_at = datetime.now().isoformat()
+                p.updated_at = datetime.now(timezone.utc).isoformat()
                 self._save_products(creator_id, products)
                 return p
         return None
@@ -416,7 +416,7 @@ class SalesTracker:
             "type": "click",
             "product_id": product_id,
             "follower_id": follower_id,
-            "timestamp": datetime.now().isoformat()
+            "timestamp": datetime.now(timezone.utc).isoformat()
         })
         self._save_sales(creator_id, sales)
 
@@ -436,7 +436,7 @@ class SalesTracker:
             "follower_id": follower_id,
             "amount": amount,
             "currency": currency,
-            "timestamp": datetime.now().isoformat()
+            "timestamp": datetime.now(timezone.utc).isoformat()
         })
         self._save_sales(creator_id, sales)
 

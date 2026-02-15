@@ -14,24 +14,23 @@ import os
 import random
 import uuid
 from datetime import datetime, timedelta
-from typing import List, Dict, Any, Optional
+from typing import List, Dict, Any
 
 # Add parent directory to path for imports
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from sqlalchemy.orm import Session
-from api.database import SessionLocal, engine
+from api.database import SessionLocal
 from api.models import (
     Creator, Lead, Message, Product, KnowledgeBase,
-    CalendarBooking, BookingLink, FollowerMemoryDB,
-    ConversationStateDB, UserProfileDB,
+    CalendarBooking, FollowerMemoryDB, ConversationStateDB,
+    UserProfileDB,
 )
 
 # Import demo data modules
 from scripts.demo_data.config import (
-    CREATOR_ID, SEGMENT_DISTRIBUTION, PRODUCTS, METRICS,
-    WEEKLY_INSIGHTS, TODAY_BOOKINGS, SEGMENT_CHARACTERISTICS,
-    HOT_LEADS_DATA,
+    CREATOR_ID, SEGMENT_DISTRIBUTION, PRODUCTS, TODAY_BOOKINGS,
+    SEGMENT_CHARACTERISTICS,
 )
 from scripts.demo_data.names import (
     generate_full_name, generate_username, generate_email, generate_phone,
@@ -40,7 +39,7 @@ from scripts.demo_data.messages import (
     get_conversation_for_segment, generate_extended_conversation,
 )
 from scripts.demo_data.interests import (
-    TOPICS, PURCHASE_OBJECTIONS, INTERESTS_WEIGHTS,
+    INTERESTS_WEIGHTS,
 )
 
 
@@ -146,7 +145,7 @@ def clear_existing_data(db: Session, creator_id: str):
         print(f"   - KnowledgeBase: {kb_count}")
 
         db.delete(creator)
-        print(f"   - Creator: 1")
+        print("   - Creator: 1")
 
         db.commit()
     else:

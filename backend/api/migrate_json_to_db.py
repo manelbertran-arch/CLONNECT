@@ -1,10 +1,8 @@
 """
 Script para migrar datos JSON a PostgreSQL
 """
-import os
 import json
 import glob
-from datetime import datetime
 
 def migrate_followers():
     """Migrar followers de JSON a PostgreSQL"""

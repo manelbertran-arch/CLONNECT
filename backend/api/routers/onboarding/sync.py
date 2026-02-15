@@ -1,7 +1,7 @@
 """Instagram API sync endpoint for posts."""
 
 import logging
-from typing import Dict, List, Optional
+from typing import List
 
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
@@ -80,7 +80,7 @@ async def sync_instagram_from_api(request: InstagramAPISyncRequest):
         # Fetch posts from Instagram API
         logger.info(f"[InstagramAPISync] Fetching posts for {request.creator_id}")
 
-        async with httpx.AsyncClient() as client:
+        async with httpx.AsyncClient(timeout=30.0) as client:
             response = await client.get(
                 "https://graph.instagram.com/v21.0/me/media",
                 params={
@@ -209,7 +209,7 @@ async def sync_instagram_from_api(request: InstagramAPISyncRequest):
                 tone_profile = await analyzer.analyze(request.creator_id, posts_for_tone)
                 await save_tone_profile(tone_profile)
                 tone_profile_updated = True
-                logger.info(f"[InstagramAPISync] ToneProfile updated")
+                logger.info("[InstagramAPISync] ToneProfile updated")
 
         except Exception as e:
             errors.append(f"ToneProfile update failed: {str(e)}")

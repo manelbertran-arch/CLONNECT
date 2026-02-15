@@ -235,7 +235,7 @@ class Message(Base):
     suggested_response = Column(Text)  # Original bot suggestion (before edit)
     approved_at = Column(DateTime(timezone=True))
     approved_by = Column(String(50))  # "creator" or "auto"
-    platform_message_id = Column(String(255))  # ID del mensaje en Instagram/Telegram
+    platform_message_id = Column(String(255), index=True)  # ID del mensaje en Instagram/Telegram (indexed for dedup checks)
     msg_metadata = Column(
         JSON, default=dict
     )  # {type: "story_mention", url: "...", emoji_type: "camera"}
@@ -245,7 +245,7 @@ class Message(Base):
 class Product(Base):
     __tablename__ = "products"
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    creator_id = Column(UUID(as_uuid=True), ForeignKey("creators.id"))
+    creator_id = Column(UUID(as_uuid=True), ForeignKey("creators.id"), index=True)  # Indexed: filtered in every product endpoint
     name = Column(String(255), nullable=False)
     description = Column(Text)
     short_description = Column(String(300))  # Descripción corta para cards
@@ -270,7 +270,7 @@ class Product(Base):
 class NurturingSequence(Base):
     __tablename__ = "nurturing_sequences"
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    creator_id = Column(UUID(as_uuid=True), ForeignKey("creators.id"))
+    creator_id = Column(UUID(as_uuid=True), ForeignKey("creators.id"), index=True)  # Indexed: filtered in nurturing queries
     type = Column(String(50), nullable=False)
     name = Column(String(255))
     is_active = Column(Boolean, default=True)
@@ -281,7 +281,7 @@ class NurturingSequence(Base):
 class KnowledgeBase(Base):
     __tablename__ = "knowledge_base"
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    creator_id = Column(UUID(as_uuid=True), ForeignKey("creators.id"))
+    creator_id = Column(UUID(as_uuid=True), ForeignKey("creators.id"), index=True)  # Indexed: filtered in knowledge endpoints
     question = Column(Text, nullable=False)
     answer = Column(Text, nullable=False)
     created_at = Column(DateTime(timezone=True), server_default=func.now())

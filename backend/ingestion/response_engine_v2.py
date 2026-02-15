@@ -16,10 +16,10 @@ Habilita los 3 WOWs:
 import logging
 from typing import Optional, Dict, Any, List
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import datetime, timezone
 
 from .tone_analyzer import ToneProfile
-from .content_citation import CitationContext, Citation, should_cite_content
+from .content_citation import CitationContext, should_cite_content
 
 logger = logging.getLogger(__name__)
 
@@ -91,7 +91,7 @@ class ConversationContext:
 
     # Metadata
     platform: str = "instagram"
-    created_at: datetime = field(default_factory=datetime.utcnow)
+    created_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
 
     def to_system_prompt(self) -> str:
         """
@@ -211,7 +211,7 @@ class ResponseEngineV2:
                     "model": model or self.default_model,
                     "temperature": self.temperature,
                     "response_length": len(processed_response),
-                    "generated_at": datetime.utcnow().isoformat()
+                    "generated_at": datetime.now(timezone.utc).isoformat()
                 }
             }
 

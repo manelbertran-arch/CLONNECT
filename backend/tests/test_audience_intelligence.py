@@ -10,9 +10,8 @@ Goal: Build audience profiles with:
 - Objection suggestions
 """
 import pytest
-from datetime import datetime, timedelta
-from unittest.mock import MagicMock, AsyncMock, patch
-from typing import Optional
+from datetime import datetime
+from unittest.mock import MagicMock, AsyncMock
 
 
 class TestAudienceProfileBuilderImport:

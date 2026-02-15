@@ -20,7 +20,7 @@ Usage:
 
 import logging
 import threading
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Any, Dict, Optional, Tuple
 
 logger = logging.getLogger(__name__)
@@ -40,7 +40,7 @@ class SimpleCache:
         with self._lock:
             if key in self._cache:
                 value, expires_at = self._cache[key]
-                if datetime.utcnow() < expires_at:
+                if datetime.now(timezone.utc) < expires_at:
                     self._hits += 1
                     return value
                 else:
@@ -52,7 +52,7 @@ class SimpleCache:
     def set(self, key: str, value: Any, ttl_seconds: int = 10):
         """Set value in cache with TTL."""
         with self._lock:
-            expires_at = datetime.utcnow() + timedelta(seconds=ttl_seconds)
+            expires_at = datetime.now(timezone.utc) + timedelta(seconds=ttl_seconds)
             self._cache[key] = (value, expires_at)
 
     def invalidate(self, key_prefix: str):

@@ -146,7 +146,6 @@ class IntentClassifier:
 
     def __init__(self) -> None:
         """Initialize the intent classifier."""
-        pass
 
     # v10.2: New category patterns
     HUMOR_KEYWORDS = ["jaja", "jeje", "ajaj", "😂", "🤣", "gracioso", "morí de risa"]

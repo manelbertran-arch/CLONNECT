@@ -339,7 +339,7 @@ Tercera oración que debería tener overlap. Cuarta oración después del overla
 
         if len(result) > 1:
             # Check if any chunk has overlap metadata
-            has_overlap = any(c.metadata.get("has_overlap") for c in result)
+            _has_overlap = any(c.metadata.get("has_overlap") for c in result)
             # Overlap is added when sections match and size permits
             # This is optional based on content structure
 

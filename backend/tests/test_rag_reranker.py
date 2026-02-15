@@ -8,9 +8,7 @@ Tests:
 4. Reciprocal Rank Fusion (RRF)
 """
 
-import pytest
-import os
-from unittest.mock import patch, MagicMock
+from unittest.mock import patch
 
 
 class TestRerankerModule:
@@ -18,7 +16,7 @@ class TestRerankerModule:
 
     def test_import(self):
         """Test that module can be imported"""
-        from core.rag.reranker import rerank, rerank_with_threshold, get_reranker, ENABLE_RERANKING
+        from core.rag.reranker import rerank, rerank_with_threshold, get_reranker
         assert rerank is not None
         assert rerank_with_threshold is not None
         assert get_reranker is not None
@@ -313,7 +311,6 @@ class TestSearchPipelineIntegration:
         """Test that initial_top_k is multiplied when reranking enabled"""
         # This is a design test - when ENABLE_RERANKING=true,
         # initial_top_k should be top_k * 4 to get more candidates
-        from core.rag.semantic import ENABLE_RERANKING
 
         # When enabled, search should fetch 4x more initial results
         # This is tested by checking the code structure

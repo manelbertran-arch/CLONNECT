@@ -5,8 +5,8 @@ Displays revenue metrics, transactions, and funnel analysis.
 import streamlit as st
 from datetime import datetime
 from admin.utils import t, format_time_ago
-from admin.utils import get_revenue_metrics, load_payments
-from admin.components import metric_card, metric_card_small, empty_state
+from admin.utils import get_revenue_metrics
+from admin.components import metric_card_small, empty_state
 
 
 def render(creator_id: str):

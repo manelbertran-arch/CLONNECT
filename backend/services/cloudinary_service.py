@@ -9,7 +9,7 @@ for permanent storage.
 import logging
 import os
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import datetime, timezone
 from enum import Enum
 from typing import Any, Dict, Optional
 
@@ -196,7 +196,7 @@ class CloudinaryService:
                 public_id=result.get("public_id"),
                 resource_type=result.get("resource_type"),
                 original_url=url,
-                uploaded_at=datetime.utcnow(),
+                uploaded_at=datetime.now(timezone.utc),
             )
 
         except Exception as e:
@@ -272,7 +272,7 @@ class CloudinaryService:
                 public_id=result.get("public_id"),
                 resource_type=result.get("resource_type"),
                 original_url=file_path,
-                uploaded_at=datetime.utcnow(),
+                uploaded_at=datetime.now(timezone.utc),
             )
 
         except Exception as e:
@@ -315,8 +315,8 @@ class CloudinaryService:
             try:
                 import cloudinary
                 cloud_name = cloudinary.config().cloud_name or "not_set"
-            except Exception:
-                pass
+            except Exception as e:
+                logger.warning("Suppressed error in import cloudinary: %s", e)
         return {
             "configured": self._configured,
             "cloud_name": cloud_name,

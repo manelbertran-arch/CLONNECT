@@ -6,9 +6,10 @@ Configura un nuevo creador de forma interactiva
 
 import os
 import sys
-import json
 import re
 from pathlib import Path
+import logging
+logger = logging.getLogger(__name__)
 
 # Agregar el directorio raiz al path
 sys.path.insert(0, str(Path(__file__).parent.parent))
@@ -62,8 +63,8 @@ def get_choice(prompt: str, options: list, default: int = 1) -> str:
             idx = int(choice)
             if 1 <= idx <= len(options):
                 return options[idx - 1]
-        except ValueError:
-            pass
+        except ValueError as e:
+            logger.debug("Ignored ValueError in idx = int(choice): %s", e)
         print("  Opcion no valida. Intenta de nuevo.")
 
 
@@ -156,7 +157,7 @@ def main():
     print("PASO 3: Tu Negocio")
     print("-" * 40)
 
-    business_description = get_input(
+    _business_description = get_input(
         "Describe brevemente tu negocio/nicho",
         "Creador de contenido"
     )

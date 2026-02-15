@@ -11,7 +11,7 @@ Dependencias: chromadb>=0.4.22, sentence-transformers>=2.2.0
 import os
 import json
 import logging
-from typing import List, Dict, Any, Optional
+from typing import List, Dict, Any
 from pathlib import Path
 from datetime import datetime, timezone
 

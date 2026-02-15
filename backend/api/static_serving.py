@@ -7,7 +7,7 @@ The catch-all route will match any path not already matched.
 """
 import logging
 import os
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import TYPE_CHECKING
 
 from fastapi import HTTPException
@@ -128,7 +128,7 @@ def register_static_routes(app: "FastAPI"):
 
         return {
             "status": "ok",
-            "timestamp": datetime.now().isoformat(),
+            "timestamp": datetime.now(timezone.utc).isoformat(),
             "static_dir": _static_dir,
             "static_dir_exists": os.path.exists(_static_dir),
             "static_files": static_files,

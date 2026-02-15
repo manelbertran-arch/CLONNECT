@@ -6,8 +6,7 @@ Soporta múltiples canales: webhook, email, Telegram.
 import os
 import json
 import logging
-import asyncio
-from typing import Dict, Any, Optional, List
+from typing import Dict, Any, List
 from dataclasses import dataclass, asdict
 from datetime import datetime, timezone
 from enum import Enum
@@ -42,7 +41,7 @@ class EscalationNotification:
 
     def __post_init__(self):
         if self.timestamp is None:
-            self.timestamp = datetime.now().isoformat()
+            self.timestamp = datetime.now(timezone.utc).isoformat()
         # Sanitize None values to prevent comparison errors
         if self.purchase_intent_score is None:
             self.purchase_intent_score = 0.0
@@ -272,7 +271,8 @@ class NotificationService:
                 # Formato genérico JSON
                 payload = notification.to_dict()
 
-            async with aiohttp.ClientSession() as session:
+            timeout = aiohttp.ClientTimeout(total=30)
+            async with aiohttp.ClientSession(timeout=timeout) as session:
                 async with session.post(
                     self.webhook_url,
                     json=payload,
@@ -307,7 +307,8 @@ class NotificationService:
                 "parse_mode": "Markdown"
             }
 
-            async with aiohttp.ClientSession() as session:
+            timeout = aiohttp.ClientTimeout(total=30)
+            async with aiohttp.ClientSession(timeout=timeout) as session:
                 async with session.post(url, json=payload, timeout=aiohttp.ClientTimeout(total=10)) as response:
                     success = response.status == 200
                     if success:
@@ -346,7 +347,8 @@ class NotificationService:
                 "html": notification.to_email_html()
             }
 
-            async with aiohttp.ClientSession() as session:
+            timeout = aiohttp.ClientTimeout(total=30)
+            async with aiohttp.ClientSession(timeout=timeout) as session:
                 async with session.post(url, json=payload, headers=headers, timeout=aiohttp.ClientTimeout(total=10)) as response:
                     success = response.status in [200, 201]
                     if success:
@@ -504,7 +506,8 @@ class NotificationService:
                 "html": html_content
             }
 
-            async with aiohttp.ClientSession() as session:
+            timeout = aiohttp.ClientTimeout(total=30)
+            async with aiohttp.ClientSession(timeout=timeout) as session:
                 async with session.post(url, json=payload, headers=headers, timeout=aiohttp.ClientTimeout(total=10)) as response:
                     success = response.status in [200, 201]
                     if success:

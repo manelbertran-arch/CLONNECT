@@ -17,8 +17,7 @@ Funcion helper: auto_configure_clone()
 Resultado: AutoConfigResult
 """
 import pytest
-from unittest.mock import AsyncMock, patch, MagicMock
-from datetime import datetime, timezone
+from unittest.mock import MagicMock
 
 
 class TestAutoConfiguratorPipeline:
@@ -84,7 +83,6 @@ class TestAutoConfiguratorPipeline:
     @pytest.mark.asyncio
     async def test_step3_scrape_website_uses_signal_detection(self):
         """Paso 3: Product detection usa sistema de senales, NO LLM"""
-        from ingestion.v2.pipeline import IngestionV2Pipeline
         from ingestion.v2.product_detector import ProductDetector
 
         # Verificar que ProductDetector existe y no usa LLM
@@ -110,7 +108,7 @@ class TestAutoConfiguratorPipeline:
         # Mock para verificar que DELETE se ejecuta
         mock_db.query.return_value.filter.return_value.delete.return_value = 5
 
-        stats = pipeline._clean_creator_data("test_creator")
+        _stats = pipeline._clean_creator_data("test_creator")
 
         # Deberia haber llamado a delete en products y rag_documents
         assert mock_db.query.called

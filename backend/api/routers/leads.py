@@ -4,7 +4,7 @@ import json
 import logging
 import os
 import time
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 
 from fastapi import APIRouter, Body, Depends, HTTPException
@@ -47,8 +47,8 @@ def adapt_lead_response(x):
 
 try:
     from api.utils.response_adapter import adapt_lead_response, adapt_leads_response
-except ImportError:
-    pass
+except ImportError as e:
+    logger.debug("Ignored ImportError in from api.utils.response_adapter import adapt_le...: %s", e)
 
 
 def _get_json_path(creator_id: str, lead_id: str) -> Path:
@@ -130,8 +130,8 @@ async def get_escalation_alerts(creator_id: str, limit: int = 50, unread_only: b
                         if unread_only and alert.get("read", False):
                             continue
                         alerts.append(alert)
-                    except json.JSONDecodeError:
-                        pass
+                    except json.JSONDecodeError as e:
+                        logger.debug("Ignored json.JSONDecodeError in alert = json.loads(line.strip()): %s", e)
 
         return {
             "status": "ok",
@@ -193,7 +193,7 @@ async def create_lead(creator_id: str, data: dict = Body(...), _auth: str = Depe
     # Fallback to JSON
     try:
         lead_id = data.get("platform_user_id") or f"manual_{int(time.time())}"
-        now = datetime.now().isoformat()
+        now = datetime.now(timezone.utc).isoformat()
         new_lead = {
             "follower_id": lead_id,
             "creator_id": creator_id,
@@ -236,7 +236,7 @@ async def create_manual_lead(creator_id: str, data: dict = Body(...), _auth: str
     # Fallback to JSON
     try:
         lead_id = data.get("platform_user_id") or f"manual_{int(time.time())}"
-        now = datetime.now().isoformat()
+        now = datetime.now(timezone.utc).isoformat()
         new_lead = {
             "follower_id": lead_id,
             "creator_id": creator_id,
@@ -369,8 +369,8 @@ async def update_lead_status(creator_id: str, lead_id: str, data: dict = Body(..
                         from uuid import UUID
 
                         lead = session.query(Lead).filter_by(id=UUID(lead_id)).first()
-                    except ValueError:
-                        pass
+                    except ValueError as e:
+                        logger.debug("Ignored ValueError in from uuid import UUID: %s", e)
 
                 if not lead:
                     raise HTTPException(status_code=404, detail="Lead not found in database")
@@ -406,8 +406,9 @@ async def update_lead_status(creator_id: str, lead_id: str, data: dict = Body(..
         except HTTPException:
             raise
         except Exception as e:
-            logger.error(f"DB update lead status failed: {e}")
-            raise HTTPException(status_code=500, detail=str(e))
+            from api.utils.error_helpers import safe_error_detail
+
+            raise HTTPException(status_code=500, detail=safe_error_detail(e, "lead status update"))
 
     raise HTTPException(status_code=500, detail="Database not configured")
 
@@ -443,8 +444,8 @@ async def get_lead_activities(creator_id: str, lead_id: str, limit: int = 50, of
                         from uuid import UUID
 
                         lead = session.query(Lead).filter_by(id=UUID(lead_id)).first()
-                    except ValueError:
-                        pass
+                    except ValueError as e:
+                        logger.debug("Ignored ValueError in from uuid import UUID: %s", e)
 
                 if not lead:
                     raise HTTPException(status_code=404, detail="Lead not found for activities")
@@ -487,8 +488,9 @@ async def get_lead_activities(creator_id: str, lead_id: str, limit: int = 50, of
         except HTTPException:
             raise
         except Exception as e:
-            logger.error(f"Get activities failed: {e}")
-            raise HTTPException(status_code=500, detail=str(e))
+            from api.utils.error_helpers import safe_error_detail
+
+            raise HTTPException(status_code=500, detail=safe_error_detail(e, "get activities"))
 
     return {"status": "ok", "activities": []}
 
@@ -519,8 +521,8 @@ async def create_lead_activity(creator_id: str, lead_id: str, data: dict = Body(
                         from uuid import UUID
 
                         lead = session.query(Lead).filter_by(id=UUID(lead_id)).first()
-                    except ValueError:
-                        pass
+                    except ValueError as e:
+                        logger.debug("Ignored ValueError in from uuid import UUID: %s", e)
 
                 if not lead:
                     raise HTTPException(
@@ -540,7 +542,7 @@ async def create_lead_activity(creator_id: str, lead_id: str, data: dict = Body(
                 # If it's a note, also update the lead's notes field
                 if data.get("activity_type") == "note" and data.get("description"):
                     existing_notes = lead.notes or ""
-                    timestamp = datetime.now().strftime("%Y-%m-%d %H:%M")
+                    timestamp = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M")
                     new_note = f"[{timestamp}] {data['description']}"
                     lead.notes = (
                         f"{new_note}\n\n{existing_notes}".strip() if existing_notes else new_note
@@ -565,8 +567,9 @@ async def create_lead_activity(creator_id: str, lead_id: str, data: dict = Body(
         except HTTPException:
             raise
         except Exception as e:
-            logger.error(f"Create activity failed: {e}")
-            raise HTTPException(status_code=500, detail=str(e))
+            from api.utils.error_helpers import safe_error_detail
+
+            raise HTTPException(status_code=500, detail=safe_error_detail(e, "create activity"))
 
     raise HTTPException(status_code=500, detail="Database not configured")
 
@@ -597,8 +600,9 @@ async def delete_lead_activity(creator_id: str, lead_id: str, activity_id: str, 
         except HTTPException:
             raise
         except Exception as e:
-            logger.error(f"Delete activity failed: {e}")
-            raise HTTPException(status_code=500, detail=str(e))
+            from api.utils.error_helpers import safe_error_detail
+
+            raise HTTPException(status_code=500, detail=safe_error_detail(e, "delete activity"))
 
     raise HTTPException(status_code=500, detail="Database not configured")
 
@@ -634,8 +638,8 @@ async def get_lead_tasks(creator_id: str, lead_id: str, include_completed: bool 
                         from uuid import UUID
 
                         lead = session.query(Lead).filter_by(id=UUID(lead_id)).first()
-                    except ValueError:
-                        pass
+                    except ValueError as e:
+                        logger.debug("Ignored ValueError in from uuid import UUID: %s", e)
 
                 if not lead:
                     raise HTTPException(status_code=404, detail="Lead not found for tasks")
@@ -669,8 +673,9 @@ async def get_lead_tasks(creator_id: str, lead_id: str, include_completed: bool 
         except HTTPException:
             raise
         except Exception as e:
-            logger.error(f"Get tasks failed: {e}")
-            raise HTTPException(status_code=500, detail=str(e))
+            from api.utils.error_helpers import safe_error_detail
+
+            raise HTTPException(status_code=500, detail=safe_error_detail(e, "get tasks"))
 
     return {"status": "ok", "tasks": []}
 
@@ -706,8 +711,8 @@ async def create_lead_task(creator_id: str, lead_id: str, data: dict = Body(...)
                         from uuid import UUID
 
                         lead = session.query(Lead).filter_by(id=UUID(lead_id)).first()
-                    except ValueError:
-                        pass
+                    except ValueError as e:
+                        logger.debug("Ignored ValueError in from uuid import UUID: %s", e)
 
                 if not lead:
                     raise HTTPException(status_code=404, detail="Lead not found for task creation")
@@ -717,8 +722,8 @@ async def create_lead_task(creator_id: str, lead_id: str, data: dict = Body(...)
                 if data.get("due_date"):
                     try:
                         due_date = dt.fromisoformat(data["due_date"].replace("Z", "+00:00"))
-                    except ValueError:
-                        pass
+                    except ValueError as e:
+                        logger.debug("Ignored ValueError in due_date = dt.fromisoformat(data['due_date'].re...: %s", e)
 
                 task = LeadTask(
                     lead_id=lead.id,
@@ -764,8 +769,9 @@ async def create_lead_task(creator_id: str, lead_id: str, data: dict = Body(...)
         except HTTPException:
             raise
         except Exception as e:
-            logger.error(f"Create task failed: {e}")
-            raise HTTPException(status_code=500, detail=str(e))
+            from api.utils.error_helpers import safe_error_detail
+
+            raise HTTPException(status_code=500, detail=safe_error_detail(e, "create task"))
 
     raise HTTPException(status_code=500, detail="Database not configured")
 
@@ -820,8 +826,8 @@ async def update_lead_task(creator_id: str, lead_id: str, task_id: str, data: di
                             task.due_date = dt.fromisoformat(
                                 data["due_date"].replace("Z", "+00:00")
                             )
-                        except ValueError:
-                            pass
+                        except ValueError as e:
+                            logger.debug("Ignored ValueError in task.due_date = dt.fromisoformat(: %s", e)
                     else:
                         task.due_date = None
                 if "assigned_to" in data:
@@ -844,8 +850,9 @@ async def update_lead_task(creator_id: str, lead_id: str, task_id: str, data: di
         except HTTPException:
             raise
         except Exception as e:
-            logger.error(f"Update task failed: {e}")
-            raise HTTPException(status_code=500, detail=str(e))
+            from api.utils.error_helpers import safe_error_detail
+
+            raise HTTPException(status_code=500, detail=safe_error_detail(e, "update task"))
 
     raise HTTPException(status_code=500, detail="Database not configured")
 
@@ -876,8 +883,9 @@ async def delete_lead_task(creator_id: str, lead_id: str, task_id: str, _auth: s
         except HTTPException:
             raise
         except Exception as e:
-            logger.error(f"Delete task failed: {e}")
-            raise HTTPException(status_code=500, detail=str(e))
+            from api.utils.error_helpers import safe_error_detail
+
+            raise HTTPException(status_code=500, detail=safe_error_detail(e, "delete task"))
 
     raise HTTPException(status_code=500, detail="Database not configured")
 
@@ -919,8 +927,8 @@ async def get_lead_stats(creator_id: str, lead_id: str, _auth: str = Depends(req
                         from uuid import UUID
 
                         lead = session.query(Lead).filter_by(id=UUID(lead_id)).first()
-                    except ValueError:
-                        pass
+                    except ValueError as e:
+                        logger.debug("Ignored ValueError in from uuid import UUID: %s", e)
 
                 if not lead:
                     raise HTTPException(status_code=404, detail="Lead not found")
@@ -1012,8 +1020,9 @@ async def get_lead_stats(creator_id: str, lead_id: str, _auth: str = Depends(req
         except HTTPException:
             raise
         except Exception as e:
-            logger.error(f"Get lead stats failed: {e}")
-            raise HTTPException(status_code=500, detail=str(e))
+            from api.utils.error_helpers import safe_error_detail
+
+            raise HTTPException(status_code=500, detail=safe_error_detail(e, "get lead stats"))
 
     # Fallback for no DB
     return {

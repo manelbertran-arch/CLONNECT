@@ -11,12 +11,10 @@ Usage:
     python -m scripts.migrate_follower_memory --creator fitpack_global
 """
 
-import os
 import sys
 import json
 import argparse
 from pathlib import Path
-from datetime import datetime
 
 # Add parent directory to path for imports
 sys.path.insert(0, str(Path(__file__).parent.parent))

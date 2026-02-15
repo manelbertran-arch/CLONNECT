@@ -8,7 +8,7 @@ from datetime import datetime, timedelta, timezone
 from typing import List, Optional
 from collections import Counter
 
-from sqlalchemy import func, and_, or_, desc, text
+from sqlalchemy import func, desc
 from sqlalchemy.orm import Session
 
 from api.schemas.insights import (
@@ -192,8 +192,8 @@ class InsightsEngine:
                     try:
                         last_contact = datetime.fromisoformat(follower.last_contact.replace("Z", "+00:00"))
                         hours_ago = int((datetime.now(timezone.utc) - last_contact).total_seconds() / 3600)
-                    except (ValueError, TypeError):
-                        pass
+                    except (ValueError, TypeError) as e:
+                        logger.debug("Ignored (ValueError, TypeError) in last_contact = datetime.fromisoformat(follower....: %s", e)
 
                 # Get last message
                 last_message = ""
@@ -602,8 +602,8 @@ class InsightsEngine:
 
             if creator and creator.product_price:
                 return float(creator.product_price)
-        except Exception:
-            pass
+        except Exception as e:
+            logger.warning("Suppressed error in from api.models import Creator: %s", e)
 
         # Default value
         return 97.0

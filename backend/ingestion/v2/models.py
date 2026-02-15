@@ -5,7 +5,7 @@ Every piece of data must have provenance (source_url + source_html)
 
 from dataclasses import dataclass, field
 from typing import List, Optional, Dict, Any
-from datetime import datetime
+from datetime import datetime, timezone
 from enum import Enum
 
 
@@ -26,7 +26,7 @@ class ScrapedPage:
     url: str
     raw_html: str
     extracted_text: str
-    scraped_at: datetime = field(default_factory=datetime.utcnow)
+    scraped_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
     checksum: str = ""
 
 
@@ -101,7 +101,7 @@ class IngestionResult:
     sanity_checks: List[CheckResult]
     status: str  # 'success', 'needs_review', 'failed', 'aborted'
     errors: List[str] = field(default_factory=list)
-    started_at: datetime = field(default_factory=datetime.utcnow)
+    started_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
     completed_at: Optional[datetime] = None
 
     def to_dict(self) -> Dict[str, Any]:

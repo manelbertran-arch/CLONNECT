@@ -61,7 +61,9 @@ def personalize_results(
             max_interest = max(interests.values()) if interests else 1
             interest_score = min(interest_score / (max_interest * 3), 1.0)
 
-        content_pref_normalized = 1 / (1 + math.exp(-content_pref_score / 5))
+        # Clamp sigmoid input to prevent overflow with large values
+        clamped_input = max(-500, min(500, -content_pref_score / 5))
+        content_pref_normalized = 1 / (1 + math.exp(clamped_input))
 
         # Combinar: personal_score = promedio de interest + content_pref
         personal_score = (interest_score + content_pref_normalized) / 2

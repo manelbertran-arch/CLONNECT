@@ -12,7 +12,7 @@ Tests cover:
 
 import pytest
 import os
-from unittest.mock import Mock, patch, MagicMock
+from unittest.mock import Mock, patch
 
 
 # =============================================================================

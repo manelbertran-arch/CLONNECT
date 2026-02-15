@@ -8,7 +8,7 @@ Storage: JSON files in data/sales/
 import os
 import json
 import logging
-from typing import List, Dict, Any, Optional
+from typing import List, Dict, Optional
 from datetime import datetime, timezone
 from collections import defaultdict
 

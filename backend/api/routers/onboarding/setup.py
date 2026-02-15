@@ -3,7 +3,7 @@
 import logging
 from typing import Dict, List, Optional
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends
 from pydantic import BaseModel
 
 from api.auth import require_admin
@@ -153,7 +153,7 @@ async def manual_setup(request: ManualSetupRequest):
     # ==========================================================================
     posts = []
     try:
-        from ingestion.instagram_scraper import InstagramScraperError, InstaloaderScraper
+        from ingestion.instagram_scraper import InstaloaderScraper
 
         scraper = InstaloaderScraper()
         posts = scraper.get_posts(
@@ -290,12 +290,10 @@ async def manual_setup(request: ManualSetupRequest):
     # ==========================================================================
     if steps_completed["posts_scraped"] or steps_completed["tone_profile_generated"]:
         try:
-            import random
             import uuid as uuid_module
-            from datetime import datetime, timedelta
 
             from api.database import DATABASE_URL, SessionLocal
-            from api.models import Creator, Lead, Product
+            from api.models import Creator, Product
 
             if DATABASE_URL and SessionLocal:
                 session = SessionLocal()

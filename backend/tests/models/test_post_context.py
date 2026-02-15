@@ -6,7 +6,6 @@ Part of POST-CONTEXT-DETECTION feature (Layer 4).
 
 from datetime import datetime, timedelta, timezone
 
-import pytest
 
 
 class TestPostContext:

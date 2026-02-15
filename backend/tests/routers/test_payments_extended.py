@@ -2,7 +2,6 @@
 Extended payments router tests - Written BEFORE implementation (TDD).
 Tests for customer purchase and attribution endpoints.
 """
-import pytest
 
 
 class TestPaymentsCustomerEndpoints:

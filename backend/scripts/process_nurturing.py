@@ -23,8 +23,7 @@ from datetime import datetime
 # Añadir directorio raíz al path
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from core.nurturing import get_nurturing_manager, FollowUp
-from core.dm_agent_v2 import DMResponderAgent
+from core.nurturing import get_nurturing_manager
 
 # Configurar logging
 logging.basicConfig(
@@ -81,7 +80,7 @@ async def send_followup_message(
             # Plataforma desconocida - log para revisión manual
             logger.warning(f"Unknown platform for follower {follower_id}")
             # Guardar en archivo para envío manual
-            manual_file = f"data/nurturing/manual_sends.txt"
+            manual_file = "data/nurturing/manual_sends.txt"
             os.makedirs(os.path.dirname(manual_file), exist_ok=True)
             with open(manual_file, 'a', encoding='utf-8') as f:
                 f.write(f"{datetime.now().isoformat()}|{creator_id}|{follower_id}|{message}\n")
@@ -147,10 +146,10 @@ async def process_pending_followups(
                 if not dry_run:
                     nurturing.mark_as_sent(followup)
                 stats["sent"] += 1
-                logger.info(f"  ✅ Sent successfully")
+                logger.info("  ✅ Sent successfully")
             else:
                 stats["failed"] += 1
-                logger.error(f"  ❌ Failed to send")
+                logger.error("  ❌ Failed to send")
 
         except Exception as e:
             logger.error(f"Error processing followup {followup.id}: {e}")

@@ -8,7 +8,7 @@ Permite al bot:
 - Rastrear temas pendientes
 """
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import datetime, timezone
 from enum import Enum
 from typing import Dict, List, Optional
 
@@ -55,7 +55,7 @@ class ConversationFact:
             timestamp=(
                 datetime.fromisoformat(data["timestamp"])
                 if data.get("timestamp")
-                else datetime.now()
+                else datetime.now(timezone.utc)
             ),
             confidence=data.get("confidence", 0.9),
         )
@@ -110,7 +110,7 @@ class ConversationMemory:
         """Días desde última interacción."""
         if not self.last_interaction:
             return None
-        delta = datetime.now() - self.last_interaction
+        delta = datetime.now(timezone.utc) - self.last_interaction
         return delta.days
 
     def get_context_summary(self) -> str:

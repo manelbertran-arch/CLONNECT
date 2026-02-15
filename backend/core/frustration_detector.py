@@ -12,8 +12,7 @@ Analyzes messages to detect signs of frustration like:
 import logging
 import re
 from typing import Dict, List, Optional, Tuple
-from dataclasses import dataclass, field
-from datetime import datetime
+from dataclasses import dataclass
 
 logger = logging.getLogger(__name__)
 

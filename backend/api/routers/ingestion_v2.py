@@ -853,8 +853,8 @@ async def full_refresh(creator_id: str, request: FullRefreshRequest = None):
                 from api.database import SessionLocal
 
                 db_session = SessionLocal()
-            except Exception:
-                pass
+            except Exception as e:
+                logger.warning("Suppressed error in from api.database import SessionLocal: %s", e)
 
             pipeline = IngestionV2Pipeline(db_session=db_session, max_pages=10)
             web_result = await pipeline.run(

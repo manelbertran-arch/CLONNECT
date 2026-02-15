@@ -5,10 +5,8 @@ Uses UPSERT logic to avoid duplicates.
 """
 import json
 import os
-import sys
 import uuid
 from datetime import datetime
-from typing import Optional
 
 import psycopg2
 from psycopg2.extras import execute_values

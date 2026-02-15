@@ -13,7 +13,6 @@ import logging
 from datetime import datetime, timezone
 from typing import Dict, List, Optional
 
-from models.relationship_dna import RelationshipType
 from services.bot_instructions_generator import BotInstructionsGenerator
 from services.relationship_dna_repository import (
     create_relationship_dna,

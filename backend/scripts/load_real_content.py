@@ -6,7 +6,6 @@ This replaces fake/generated content with actual scraped website content.
 """
 
 import re
-import json
 import httpx
 import sys
 

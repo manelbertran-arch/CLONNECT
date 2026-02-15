@@ -3,8 +3,6 @@
 TDD: Tests written FIRST before implementation.
 Part of RELATIONSHIP-DNA feature.
 """
-import pytest
-from datetime import datetime, timezone
 
 
 class TestRelationshipDNAModel:

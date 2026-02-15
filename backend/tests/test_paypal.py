@@ -11,8 +11,7 @@ Tests:
 import pytest
 import json
 import os
-from unittest.mock import patch, AsyncMock, MagicMock
-from datetime import datetime, timezone
+from unittest.mock import patch, MagicMock
 
 # Set test environment
 os.environ["DATABASE_URL"] = ""
@@ -20,7 +19,7 @@ os.environ["TESTING"] = "true"
 
 from fastapi.testclient import TestClient
 from api.main import app
-from core.payments import PaymentManager, PaymentPlatform, PurchaseStatus
+from core.payments import PaymentManager, PaymentPlatform
 
 
 @pytest.fixture

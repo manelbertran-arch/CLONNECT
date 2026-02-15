@@ -11,7 +11,7 @@ Estrategias:
 
 import logging
 import re
-from typing import Dict, List, Optional, Tuple
+from typing import Dict, List, Optional
 from collections import defaultdict
 
 logger = logging.getLogger(__name__)
@@ -127,7 +127,7 @@ class VariationEngine:
         response = self._vary_closing(response, conversation_id)
 
         if response != original:
-            logger.info(f"[VARIATION] Applied variations to response")
+            logger.info("[VARIATION] Applied variations to response")
             logger.debug(f"[VARIATION] Original: {original[:100]}...")
             logger.debug(f"[VARIATION] Varied: {response[:100]}...")
 
@@ -139,7 +139,7 @@ class VariationEngine:
             match = pattern.match(response)
             if match:
                 # Found a greeting at the start
-                current_greeting = match.group(0).strip()
+                _current_greeting = match.group(0).strip()
                 new_greeting = self._get_least_used_variant(
                     self.GREETING_VARIANTS, conv_id, "greeting"
                 )

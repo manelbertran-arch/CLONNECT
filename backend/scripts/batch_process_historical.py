@@ -744,8 +744,8 @@ def update_lead_scores(followers: Dict[str, Dict], dry_run: bool = True) -> Dict
                     intent=intent_val.upper(),
                     has_direct_purchase_keywords=False,
                 )
-            except Exception:
-                pass
+            except Exception as e:
+                logger.warning("Suppressed error in intent = classifier.classify(msg.get('content',...: %s", e)
 
         results[fid] = score
         original = data.get("purchase_intent_score", 0.0)

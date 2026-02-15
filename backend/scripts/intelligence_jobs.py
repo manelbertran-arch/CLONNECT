@@ -16,7 +16,6 @@ Uso manual:
 import asyncio
 import argparse
 import logging
-from datetime import date, timedelta
 import sys
 import os
 
@@ -64,7 +63,7 @@ async def get_active_creators(db) -> list:
             """)
             results = db.execute(query).fetchall()
             return [r[0] for r in results]
-        except:
+        except Exception:
             return []
 
 

@@ -36,7 +36,7 @@ async def check_llm_health() -> Dict[str, Any]:
         llm_client = get_llm_client()
 
         # Make a simple test call
-        response = await llm_client.generate(prompt="Responde solo 'ok'", max_tokens=5)
+        _response = await llm_client.generate(prompt="Responde solo 'ok'", max_tokens=5)
 
         latency_ms = int((time.time() - start) * 1000)
 

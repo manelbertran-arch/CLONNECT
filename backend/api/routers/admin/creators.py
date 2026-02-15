@@ -88,7 +88,6 @@ async def admin_list_creators():
     [ADMIN] Listar todos los creadores con estadísticas básicas.
     Requiere CLONNECT_ADMIN_KEY.
     """
-    from api.auth import require_admin
     from api.routers.dm import get_dm_agent
     from core.creator_config import CreatorConfigManager
 

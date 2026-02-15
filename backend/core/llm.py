@@ -4,7 +4,7 @@ Soporta Groq (default), OpenAI y Anthropic
 """
 
 import os
-from typing import Optional, List, Dict, Any
+from typing import List, Dict
 from abc import ABC, abstractmethod
 import logging
 

@@ -2,7 +2,6 @@
 """
 Contract tests para Meta Webhook verification y signatures.
 """
-import pytest
 from pydantic import BaseModel
 import hashlib
 import hmac

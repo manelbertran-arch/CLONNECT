@@ -11,15 +11,14 @@ NOTE: These tests use mocked data and don't require external resources.
 """
 
 import pytest
-import asyncio
 import os
 import sys
-from unittest.mock import Mock, patch, MagicMock, AsyncMock
+from unittest.mock import Mock
 
 # Add parent to path
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from core.intent_classifier import IntentClassifier, Intent, IntentResult
+from core.intent_classifier import IntentClassifier, Intent
 from core.memory import MemoryStore
 
 
@@ -296,7 +295,7 @@ class TestMemoryFlow:
         """Test async get method"""
         store = MemoryStore()
         # Should not raise, returns None for non-existent
-        result = await store.get("test_creator", "test_follower")
+        _result = await store.get("test_creator", "test_follower")
         # Returns None for non-existent follower
 
 

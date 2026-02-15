@@ -66,7 +66,7 @@ class TestLatencia:
         # Combined pipeline overhead must be < 100ms
         assert elapsed_ms < 100, (
             f"Context detection + intent classification took {elapsed_ms:.1f}ms "
-            f"(expected < 100ms)"
+            "(expected < 100ms)"
         )
 
     def test_respuesta_bajo_3_segundos(self):
@@ -86,7 +86,7 @@ class TestLatencia:
         for msg in messages:
             _, elapsed = _time_ms(classify_intent_simple, msg)
             assert elapsed < 50, (
-                f"classify_intent_simple('{msg}') took {elapsed:.1f}ms " f"(expected < 50ms)"
+                f"classify_intent_simple('{msg}') took {elapsed:.1f}ms " "(expected < 50ms)"
             )
 
     def test_no_timeout(self):

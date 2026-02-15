@@ -3,9 +3,8 @@ Leads Page - Visual CRM Pipeline
 Kanban-style pipeline board for lead management.
 """
 import streamlit as st
-from admin.utils import t, format_time_ago
+from admin.utils import t
 from admin.utils import get_pipeline_data, get_platform_icon, load_products
-from admin.components import empty_state
 
 
 def render(creator_id: str):

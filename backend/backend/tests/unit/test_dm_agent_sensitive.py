@@ -4,7 +4,6 @@ Step 1 of cognitive module integration.
 Module: core/sensitive_detector.py
 Location: PRE-PIPELINE (before Phase 1)
 """
-import pytest
 
 
 class TestSensitiveDetectorModule:

@@ -9,13 +9,11 @@ Provides endpoints for audience intelligence:
 """
 import logging
 import os
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List
 
 from fastapi import APIRouter, HTTPException, Query
 
 from core.audience_intelligence import (
-    AudienceProfile,
-    AudienceProfileBuilder,
     get_audience_profile_builder,
 )
 
@@ -57,10 +55,9 @@ async def get_segment_counts(creator_id: str) -> List[Dict[str, Any]]:
     try:
         # Try database approach first
         if os.getenv("DATABASE_URL"):
-            from api.models import Lead, FollowerMemoryDB
+            from api.models import Lead
             from api.services.db_service import get_session
-            from datetime import datetime, timedelta
-            from sqlalchemy import func, and_
+            from datetime import datetime, timedelta, timezone
 
             session = get_session()
             if session:
@@ -73,7 +70,7 @@ async def get_segment_counts(creator_id: str) -> List[Dict[str, Any]]:
                         return [{"segment": s, "count": 0} for s in segments_to_count]
 
                     # Count by segment rules
-                    total_leads = session.query(Lead).filter_by(creator_id=creator.id).count()
+                    _total_leads = session.query(Lead).filter_by(creator_id=creator.id).count()
 
                     # Hot leads: purchase_intent > 0.7 and status in propuesta/cierre phases
                     hot_count = (
@@ -98,7 +95,7 @@ async def get_segment_counts(creator_id: str) -> List[Dict[str, Any]]:
                     )
 
                     # Ghost: last_contact > 7 days ago
-                    seven_days_ago = datetime.utcnow() - timedelta(days=7)
+                    seven_days_ago = datetime.now(timezone.utc) - timedelta(days=7)
                     ghost_count = (
                         session.query(Lead)
                         .filter(
@@ -177,7 +174,7 @@ async def get_profiles_by_segment(
         if os.getenv("DATABASE_URL"):
             from api.models import Lead, Creator
             from api.services.db_service import get_session
-            from datetime import datetime, timedelta
+            from datetime import datetime, timedelta, timezone
 
             session = get_session()
             if session:
@@ -200,7 +197,7 @@ async def get_profiles_by_segment(
                             Lead.purchase_intent <= 0.7,
                         )
                     elif segment_name == "ghost":
-                        seven_days_ago = datetime.utcnow() - timedelta(days=7)
+                        seven_days_ago = datetime.now(timezone.utc) - timedelta(days=7)
                         query = query.filter(Lead.last_contact_at < seven_days_ago)
                     elif segment_name == "customer":
                         query = query.filter(Lead.status == "cliente")

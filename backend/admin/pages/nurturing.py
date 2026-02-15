@@ -5,15 +5,14 @@ Visual sequence editor and progress tracking.
 import streamlit as st
 from admin.utils import t
 from admin.utils import load_nurturing_followups, load_followers
-from admin.components import empty_state
 
 
 def render(creator_id: str):
     """Render the nurturing page."""
 
     # Load data
-    followups = load_nurturing_followups(creator_id)
-    followers = load_followers(creator_id)
+    _followups = load_nurturing_followups(creator_id)
+    _followers = load_followers(creator_id)
 
     # Header
     col1, col2 = st.columns([3, 1])

@@ -2,7 +2,6 @@
 Intent Service tests - Written BEFORE implementation (TDD).
 Run these tests FIRST - they should FAIL until service is created.
 """
-import pytest
 
 
 class TestIntentServiceImport:

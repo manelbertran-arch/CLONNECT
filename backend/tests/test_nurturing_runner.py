@@ -160,7 +160,7 @@ def test_run_with_force_due_marks_as_sent():
     stats_after = resp_after.json()
 
     assert stats_after.get("pending", 0) == 0, f"pending should be 0, got {stats_after.get('pending')}"
-    assert stats_after.get("sent", 0) == sent_before + 2, f"sent should increase by 2"
+    assert stats_after.get("sent", 0) == sent_before + 2, "sent should increase by 2"
 
     _cleanup(creator_id)
 

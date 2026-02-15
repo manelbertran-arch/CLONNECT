@@ -20,7 +20,7 @@ import re
 import logging
 from enum import Enum
 from typing import List, Dict, Optional, Tuple
-from datetime import datetime, timezone, timedelta
+from datetime import datetime, timezone
 from dataclasses import dataclass
 
 logger = logging.getLogger(__name__)

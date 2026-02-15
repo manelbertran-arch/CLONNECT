@@ -11,10 +11,8 @@ Tests cover:
 """
 
 import pytest
-import asyncio
 import os
-from unittest.mock import Mock, patch, AsyncMock, MagicMock
-from datetime import datetime
+from unittest.mock import Mock, patch, AsyncMock
 
 
 # =============================================================================
@@ -442,7 +440,6 @@ class TestSSLConfiguration:
     def test_ssl_verification_used_in_fetch(self):
         """Should use VERIFY_SSL config in HTTP requests."""
         from ingestion.deterministic_scraper import DeterministicScraper
-        import httpx
 
         # Check that the code uses VERIFY_SSL
         import inspect

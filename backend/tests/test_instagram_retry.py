@@ -14,7 +14,6 @@ Run with: pytest tests/test_instagram_retry.py -v
 
 import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
-from datetime import datetime
 
 import httpx
 
@@ -48,7 +47,7 @@ class TestRateLimitRetry:
     @pytest.mark.asyncio
     async def test_rate_limit_triggers_retry(self):
         """Verify that 429 response triggers retry."""
-        from ingestion.instagram_scraper import MetaGraphAPIScraper, RateLimitError
+        from ingestion.instagram_scraper import MetaGraphAPIScraper
 
         scraper = MetaGraphAPIScraper(
             access_token="test_token",
@@ -81,7 +80,7 @@ class TestRateLimitRetry:
             mock_client.return_value = mock_instance
 
             # Should succeed after retries
-            posts = await scraper.get_posts(limit=10)
+            _posts = await scraper.get_posts(limit=10)
 
             # Verify multiple attempts were made
             assert call_count == 3  # 2 rate limits + 1 success
@@ -282,7 +281,7 @@ class TestTimeoutRetry:
             mock_instance.__aexit__ = AsyncMock(return_value=None)
             mock_client.return_value = mock_instance
 
-            posts = await scraper.get_posts(limit=10)
+            _posts = await scraper.get_posts(limit=10)
 
             # Should have retried twice before succeeding
             assert call_count == 3

@@ -205,7 +205,7 @@ def render(creator_id: str):
 
         # WhatsApp
         with col3:
-            wa_connected = False
+            _wa_connected = False
 
             st.markdown(f"""
             <div style="

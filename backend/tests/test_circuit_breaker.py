@@ -17,6 +17,8 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pybreaker
 import pytest
+import logging
+logger = logging.getLogger(__name__)
 
 
 class TestCircuitBreakerConfiguration:
@@ -136,8 +138,8 @@ class TestInstagramCircuitBreaker:
             for i in range(CIRCUIT_FAILURE_THRESHOLD):
                 try:
                     await scraper.get_posts(limit=10)
-                except Exception:
-                    pass
+                except Exception as e:
+                    logger.debug("Suppressed error in await scraper.get_posts(limit=10): %s", e)
 
             # Circuit should now be open
             assert instagram_circuit_breaker.current_state == pybreaker.STATE_OPEN
@@ -176,8 +178,8 @@ class TestInstagramCircuitBreaker:
             for i in range(CIRCUIT_FAILURE_THRESHOLD + 5):
                 try:
                     await scraper.get_posts(limit=10)
-                except AuthenticationError:
-                    pass
+                except AuthenticationError as e:
+                    logger.debug("Suppressed error in await scraper.get_posts(limit=10): %s", e)
 
             # Circuit should still be CLOSED (auth errors excluded)
             assert instagram_circuit_breaker.current_state == pybreaker.STATE_CLOSED
@@ -187,8 +189,7 @@ class TestInstagramCircuitBreaker:
         """Verify successful request resets failure counter."""
         from ingestion.instagram_scraper import (
             MetaGraphAPIScraper,
-            instagram_circuit_breaker,
-            CIRCUIT_FAILURE_THRESHOLD
+            instagram_circuit_breaker
         )
 
         scraper = MetaGraphAPIScraper(
@@ -219,8 +220,8 @@ class TestInstagramCircuitBreaker:
             for i in range(3):
                 try:
                     await scraper.get_posts(limit=10)
-                except Exception:
-                    pass
+                except Exception as e:
+                    logger.debug("Suppressed error in await scraper.get_posts(limit=10): %s", e)
 
             # Should have 3 failures but circuit still closed
             assert instagram_circuit_breaker.fail_counter <= 3
@@ -307,7 +308,6 @@ class TestScraperCircuitBreaker:
         """Verify scraper returns None gracefully when circuit is open."""
         from ingestion.deterministic_scraper import (
             DeterministicScraper,
-            scraper_circuit_breaker,
             SCRAPER_CIRCUIT_FAILURE_THRESHOLD
         )
 
@@ -349,8 +349,8 @@ class TestCircuitBreakerStateTransitions:
         for _ in range(2):
             try:
                 cb.call(lambda: 1/0)
-            except ZeroDivisionError:
-                pass
+            except ZeroDivisionError as e:
+                logger.debug("Suppressed error in cb.call(lambda: 1/0): %s", e)
 
         assert cb.current_state == pybreaker.STATE_OPEN
 
@@ -368,8 +368,8 @@ class TestCircuitBreakerStateTransitions:
         for _ in range(2):
             try:
                 cb.call(lambda: 1/0)
-            except ZeroDivisionError:
-                pass
+            except ZeroDivisionError as e:
+                logger.debug("Suppressed error in cb.call(lambda: 1/0): %s", e)
 
         # Wait for half-open
         time.sleep(0.15)
@@ -387,8 +387,8 @@ class TestCircuitBreakerStateTransitions:
         for _ in range(2):
             try:
                 cb.call(lambda: 1/0)
-            except ZeroDivisionError:
-                pass
+            except ZeroDivisionError as e:
+                logger.debug("Suppressed error in cb.call(lambda: 1/0): %s", e)
 
         # Wait for half-open
         time.sleep(0.15)
@@ -396,8 +396,8 @@ class TestCircuitBreakerStateTransitions:
         # Fail again in half-open
         try:
             cb.call(lambda: 1/0)
-        except ZeroDivisionError:
-            pass
+        except ZeroDivisionError as e:
+            logger.debug("Suppressed error in cb.call(lambda: 1/0): %s", e)
 
         # Should be back to open
         assert cb.current_state == pybreaker.STATE_OPEN

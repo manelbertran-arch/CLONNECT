@@ -6,7 +6,6 @@ No database required - just shows detection results.
 import asyncio
 import sys
 import os
-import json
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 async def run_preview(website_url: str, max_pages: int = 10):
@@ -14,7 +13,7 @@ async def run_preview(website_url: str, max_pages: int = 10):
     from ingestion.v2 import IngestionV2Pipeline
 
     print(f"\n{'='*80}")
-    print(f"V2 INGESTION PREVIEW")
+    print("V2 INGESTION PREVIEW")
     print(f"URL: {website_url}")
     print(f"Max Pages: {max_pages}")
     print(f"{'='*80}\n")
@@ -65,7 +64,7 @@ async def run_preview(website_url: str, max_pages: int = 10):
     # SANITY CHECKS
     # =========================================================================
     print(f"\n{'#'*80}")
-    print(f"# SANITY CHECKS")
+    print("# SANITY CHECKS")
     print(f"{'#'*80}\n")
 
     for check in result.sanity_checks:
@@ -77,7 +76,7 @@ async def run_preview(website_url: str, max_pages: int = 10):
     # =========================================================================
     if result.errors:
         print(f"\n{'#'*80}")
-        print(f"# ERRORS")
+        print("# ERRORS")
         print(f"{'#'*80}\n")
         for error in result.errors:
             print(f"  ❌ {error}")
@@ -86,7 +85,7 @@ async def run_preview(website_url: str, max_pages: int = 10):
     # SUMMARY
     # =========================================================================
     print(f"\n{'#'*80}")
-    print(f"# SUMMARY")
+    print("# SUMMARY")
     print(f"{'#'*80}")
     print(f"Status: {result.status}")
     print(f"Success: {result.success}")

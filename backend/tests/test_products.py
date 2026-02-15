@@ -2,10 +2,8 @@
 Tests para gestion de productos
 """
 
-import pytest
 import tempfile
 import shutil
-import os
 from core.products import ProductManager, Product, SalesTracker
 
 

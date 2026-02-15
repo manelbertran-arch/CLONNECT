@@ -460,8 +460,8 @@ async def sync_dms():
                             # Track newest for last_contact_at
                             if newest_date is None or created_at > newest_date:
                                 newest_date = created_at
-                        except Exception:
-                            pass
+                        except Exception as e:
+                            logger.warning("Suppressed error in created_at = datetime.fromisoformat(: %s", e)
 
                     valid_messages.append(
                         {

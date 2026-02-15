@@ -3,7 +3,6 @@
 TDD: Tests written FIRST before implementation.
 Part of RELATIONSHIP-DNA feature.
 """
-import pytest
 
 
 class TestRelationshipType:

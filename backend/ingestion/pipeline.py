@@ -17,8 +17,8 @@ Anti-hallucination guarantees:
 
 import logging
 from dataclasses import dataclass, field
-from datetime import datetime
-from typing import Any, Dict, Optional
+from datetime import datetime, timezone
+from typing import Any, Dict
 
 logger = logging.getLogger(__name__)
 
@@ -49,7 +49,7 @@ class IngestionResult:
     # Errors
     errors: list = field(default_factory=list)
     # Metadata
-    completed_at: datetime = field(default_factory=datetime.utcnow)
+    completed_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
 
 
 class IngestionPipeline:

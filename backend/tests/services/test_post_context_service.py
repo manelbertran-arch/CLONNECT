@@ -5,11 +5,10 @@ Part of POST-CONTEXT-DETECTION feature (Layer 4).
 """
 
 from datetime import datetime, timedelta, timezone
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, patch
 
 import pytest
 
-from models.post_context import PostContext
 
 
 class TestPostContextService:

@@ -573,7 +573,7 @@ class TestAutoConfiguratorIntegration:
                     to_dict=lambda: {"success": True, "posts_scraped": 5}
                 )
 
-                result = await configurator._scrape_instagram(
+                _result = await configurator._scrape_instagram(
                     creator_id="test_creator",
                     instagram_username="test_user",
                     max_posts=10
@@ -613,7 +613,7 @@ class TestAutoConfiguratorIntegration:
                     to_dict=lambda: {"success": True, "posts_scraped": 3}
                 )
 
-                result = await configurator._scrape_instagram(
+                _result = await configurator._scrape_instagram(
                     creator_id="no_oauth_creator",
                     instagram_username="test_user",
                     max_posts=10

@@ -81,9 +81,9 @@ async def get_connections(creator_id: str) -> AllConnections:
                 ig_expires_at = getattr(creator, 'instagram_token_expires_at', None)
                 ig_days_remaining = None
                 if ig_expires_at:
-                    from datetime import datetime
-                    now = datetime.utcnow()
-                    exp = ig_expires_at.replace(tzinfo=None) if ig_expires_at.tzinfo else ig_expires_at
+                    from datetime import datetime, timezone
+                    now = datetime.now(timezone.utc)
+                    exp = ig_expires_at.replace(tzinfo=timezone.utc) if not ig_expires_at.tzinfo else ig_expires_at
                     ig_days_remaining = (exp - now).days
 
                 result = AllConnections(

@@ -12,7 +12,7 @@ v2.0.0 - PostgreSQL Persistence (Phase 2.3)
 import os
 import json
 import logging
-from typing import List, Dict, Any, Optional, Tuple
+from typing import List, Dict, Any, Tuple
 from pathlib import Path
 from datetime import datetime, timezone
 
@@ -95,8 +95,6 @@ class UserProfile:
             return
 
         try:
-            from api.database import SessionLocal
-            from api.models import UserProfileDB
             self._db_available = True
             logger.debug("[UserProfile] PostgreSQL persistence enabled")
         except ImportError as e:

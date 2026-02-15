@@ -6,10 +6,9 @@ Uses realistic conversation data based on Stefan's actual communication style.
 Part of RELATIONSHIP-DNA feature.
 """
 
-from datetime import datetime, timezone
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 
-from models.relationship_dna import RelationshipDNA, RelationshipType
+from models.relationship_dna import RelationshipType
 
 
 class TestFullFlowNewLead:
@@ -77,7 +76,6 @@ class TestFlowIntimaRelationship:
     def test_flow_intima_relationship(self):
         """Should detect and handle INTIMA relationship correctly."""
         from services.relationship_analyzer import RelationshipAnalyzer
-        from services.relationship_dna_service import RelationshipDNAService
 
         # Simulated Nadia conversation
         nadia_messages = [

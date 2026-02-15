@@ -2,7 +2,7 @@
 
 import tempfile
 
-from core.auth import APIKey, AuthManager
+from core.auth import AuthManager
 
 
 class TestAuditAuth:

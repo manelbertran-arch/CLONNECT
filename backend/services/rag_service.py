@@ -8,7 +8,7 @@ import hashlib
 import logging
 import re
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional, Tuple
 
 logger = logging.getLogger(__name__)
@@ -31,7 +31,7 @@ class DocumentChunk:
     metadata: Dict[str, Any] = field(default_factory=dict)
     chunk_id: Optional[str] = None
     embedding: Optional[List[float]] = None
-    created_at: datetime = field(default_factory=datetime.utcnow)
+    created_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
 
     def __post_init__(self) -> None:
         """Generate chunk_id if not provided."""
@@ -41,7 +41,7 @@ class DocumentChunk:
     def _generate_id(self) -> str:
         """Generate unique ID based on content hash."""
         content_hash = hashlib.md5(self.content.encode()).hexdigest()[:12]
-        timestamp = datetime.utcnow().strftime("%Y%m%d%H%M%S%f")[:14]
+        timestamp = datetime.now(timezone.utc).strftime("%Y%m%d%H%M%S%f")[:14]
         return f"chunk_{content_hash}_{timestamp}"
 
 

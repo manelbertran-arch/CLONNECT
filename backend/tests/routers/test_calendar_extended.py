@@ -2,7 +2,6 @@
 Extended calendar router tests - Written BEFORE implementation (TDD).
 Tests for unique calendar endpoints that need to move from main.py to calendar.py.
 """
-import pytest
 
 
 class TestCalendarRouterEndpoints:

@@ -15,7 +15,7 @@ Part of refactor/context-injection-v2
 import logging
 import re
 from dataclasses import dataclass, field
-from typing import Any, Dict, List, Optional, Set, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 
 from core.context_detector import DetectedContext
 from core.creator_data_loader import CreatorData
@@ -272,8 +272,8 @@ def validate_links(
                 parts = domain.split(".")
                 if len(parts) >= 2:
                     domains.add(".".join(parts[-2:]))
-        except Exception:
-            pass
+        except Exception as e:
+            logger.warning("Suppressed error in match = re.search(r'https?://([^/]+)', link): %s", e)
 
     # Extract URLs from response
     found_urls = extract_urls_from_text(response)
@@ -627,7 +627,7 @@ def validate_response(
     if price_issues:
         result.is_valid = False
         result.should_escalate = True
-        logger.warning(f"Price hallucination detected - should escalate")
+        logger.warning("Price hallucination detected - should escalate")
 
     # 2. Validate links
     known_links = creator_data.get_known_links()
@@ -714,7 +714,7 @@ def get_safe_response(
 
         creator_name = creator_data.profile.name or "el creador"
         return (
-            f"Déjame verificar esa información y te respondo correctamente. "
+            "Déjame verificar esa información y te respondo correctamente. "
             f"Si prefieres, puedo pasarte con {creator_name} directamente 🙌"
         )
 

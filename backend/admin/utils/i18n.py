@@ -4,7 +4,7 @@ Supports ES and EN languages.
 """
 import json
 from pathlib import Path
-from typing import Dict, Any, Optional
+from typing import Dict, Any
 import streamlit as st
 
 LOCALES_DIR = Path(__file__).parent.parent / "locales"

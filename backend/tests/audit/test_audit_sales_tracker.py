@@ -2,7 +2,7 @@
 
 import tempfile
 
-from core.sales_tracker import SalesTracker, get_sales_tracker
+from core.sales_tracker import SalesTracker
 
 
 class TestAuditSalesTracker:

@@ -157,8 +157,8 @@ class ResponseGuardrail:
                     issues.append(f"Unknown price mentioned: {price_str}")
                 else:
                     logger.debug(f"Price '{price_str}' matches known products")
-            except ValueError:
-                pass
+            except ValueError as e:
+                logger.debug("Ignored ValueError in float_price = float(normalized): %s", e)
 
         return issues
 

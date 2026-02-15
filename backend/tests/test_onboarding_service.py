@@ -9,7 +9,6 @@ from unittest.mock import AsyncMock, MagicMock, patch
 from core.onboarding_service import (
     OnboardingService,
     OnboardingRequest,
-    OnboardingResult,
     get_onboarding_service
 )
 

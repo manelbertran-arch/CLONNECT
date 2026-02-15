@@ -40,8 +40,8 @@ async def dashboard_overview(creator_id: str):
     if config_manager:
         try:
             bot_active = config_manager.is_bot_active(creator_id)
-        except Exception:
-            pass
+        except Exception as e:
+            logger.warning("Suppressed error in bot_active = config_manager.is_bot_active(creat...: %s", e)
 
     return adapt_dashboard_response({
         "status": "ok",

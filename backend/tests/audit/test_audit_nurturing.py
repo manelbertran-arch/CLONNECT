@@ -3,10 +3,8 @@
 import tempfile
 
 from core.nurturing import (
-    FollowUp,
     NurturingManager,
     SequenceType,
-    get_nurturing_manager,
     render_template,
 )
 

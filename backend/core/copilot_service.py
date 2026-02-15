@@ -12,7 +12,7 @@ import logging
 import uuid
 from dataclasses import dataclass
 from datetime import datetime, timezone
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, Optional
 
 logger = logging.getLogger(__name__)
 
@@ -37,6 +37,9 @@ class PendingResponse:
 
 class CopilotService:
     """Servicio para manejar el modo Copilot"""
+
+    _MAX_CACHE_ENTRIES = 500  # Prevent unbounded growth
+    _CACHE_EVICTION_TTL = 3600  # Evict entries older than 1 hour
 
     def __init__(self):
         self._pending_responses: Dict[str, PendingResponse] = {}  # In-memory cache
@@ -426,7 +429,7 @@ class CopilotService:
         ig_user_id = creator.instagram_user_id or os.getenv("INSTAGRAM_USER_ID", "")
 
         # DEBUG: Log all values to identify 'auto' issue
-        logger.info(f"[Copilot] _send_instagram_message DEBUG:")
+        logger.info("[Copilot] _send_instagram_message DEBUG:")
         logger.info(f"[Copilot]   creator.name = {creator.name}")
         logger.info(f"[Copilot]   creator.instagram_page_id = {creator.instagram_page_id}")
         logger.info(f"[Copilot]   creator.instagram_user_id = {creator.instagram_user_id}")
@@ -498,7 +501,7 @@ class CopilotService:
 
         url = f"https://api.telegram.org/bot{bot_token}/sendMessage"
 
-        async with httpx.AsyncClient() as client:
+        async with httpx.AsyncClient(timeout=30.0) as client:
             response = await client.post(url, json={"chat_id": chat_id, "text": text})
             result = response.json()
 
@@ -509,6 +512,26 @@ class CopilotService:
                 "success": True,
                 "message_id": str(result.get("result", {}).get("message_id", "")),
             }
+
+    def _evict_stale_cache_entries(self, now: float):
+        """Remove cache entries older than _CACHE_EVICTION_TTL and enforce max size."""
+        if len(self._copilot_mode_cache) <= self._MAX_CACHE_ENTRIES:
+            return
+        # Evict entries older than eviction TTL
+        stale_keys = [
+            k for k, t in self._copilot_mode_cache_ttl.items()
+            if now - t > self._CACHE_EVICTION_TTL
+        ]
+        for k in stale_keys:
+            self._copilot_mode_cache.pop(k, None)
+            self._copilot_mode_cache_ttl.pop(k, None)
+        # If still over limit, evict oldest entries
+        if len(self._copilot_mode_cache) > self._MAX_CACHE_ENTRIES:
+            sorted_keys = sorted(self._copilot_mode_cache_ttl, key=self._copilot_mode_cache_ttl.get)
+            excess = len(self._copilot_mode_cache) - self._MAX_CACHE_ENTRIES
+            for k in sorted_keys[:excess]:
+                self._copilot_mode_cache.pop(k, None)
+                self._copilot_mode_cache_ttl.pop(k, None)
 
     def is_copilot_enabled(self, creator_id: str) -> bool:
         """
@@ -537,6 +560,9 @@ class CopilotService:
                     result = True  # Default to True if NULL
             else:
                 result = True
+
+            # Evict stale entries before adding new one
+            self._evict_stale_cache_entries(now)
 
             # Update cache
             self._copilot_mode_cache[creator_id] = result

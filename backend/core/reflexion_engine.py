@@ -11,7 +11,7 @@ This is NOT a full LLM reflexion loop - it's rule-based for speed.
 
 import logging
 import re
-from typing import Dict, List, Optional, Tuple
+from typing import Dict, List, Optional
 from dataclasses import dataclass, field
 
 logger = logging.getLogger(__name__)

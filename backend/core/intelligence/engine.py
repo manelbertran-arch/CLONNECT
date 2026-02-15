@@ -11,8 +11,7 @@ import os
 import logging
 import json
 from datetime import datetime, date, timedelta, timezone
-from typing import Dict, List, Any, Optional
-from collections import Counter
+from typing import Dict, List, Any
 
 from sqlalchemy import text
 from sqlalchemy.orm import Session

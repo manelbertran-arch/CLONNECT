@@ -1,7 +1,7 @@
 """Tests for ResponseVariatorV2."""
 
 import pytest
-from services.response_variator_v2 import ResponseVariatorV2, get_response_variator_v2
+from services.response_variator_v2 import ResponseVariatorV2
 
 
 @pytest.fixture

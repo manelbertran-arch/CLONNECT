@@ -10,11 +10,8 @@ Tests:
 """
 
 import pytest
-import os
 import tempfile
 import shutil
-from unittest.mock import patch, MagicMock
-from datetime import datetime, timezone
 
 
 class TestUserProfilePersistence:

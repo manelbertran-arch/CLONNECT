@@ -16,9 +16,7 @@ import argparse
 import json
 import re
 import statistics
-import sys
 from collections import Counter
-from pathlib import Path
 
 
 def detect_language(text: str) -> str:

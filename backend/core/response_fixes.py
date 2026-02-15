@@ -128,7 +128,7 @@ def fix_identity_claim(response: str, creator_name: str = None) -> str:
         response = re.sub(pattern, replacement, response)
 
     if response != original:
-        logger.info(f"[FIX 4] Identity claim fixed")
+        logger.info("[FIX 4] Identity claim fixed")
 
     return response
 

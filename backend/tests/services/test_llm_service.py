@@ -2,8 +2,6 @@
 LLM Service tests - Written BEFORE implementation (TDD).
 Run these tests FIRST - they should FAIL until service is created.
 """
-import pytest
-from unittest.mock import Mock, patch, AsyncMock
 
 
 class TestLLMServiceImport:

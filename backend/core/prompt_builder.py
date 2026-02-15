@@ -359,7 +359,7 @@ def build_actions_section(creator_data: CreatorData, creator_name: str) -> str:
         "→ Da el precio EXACTO de la lista de PRODUCTOS",
         "→ NUNCA inventes un precio",
         "",
-        f"🆘 ESCALACIÓN (usuario pide humano o no puedes responder):",
+        "🆘 ESCALACIÓN (usuario pide humano o no puedes responder):",
         f"→ Di: 'Te paso con {creator_name} directamente'",
         "→ NO intentes resolver si el usuario está frustrado y pide humano",
         "",
@@ -756,7 +756,7 @@ def build_vocabulary_hint(
     words_str = ", ".join(vocab[:15])
     return (
         f"Palabras que {name} usa frecuentemente: {words_str}. "
-        f"Intégralas naturalmente en tus respuestas."
+        "Intégralas naturalmente en tus respuestas."
     )
 
 
@@ -775,7 +775,7 @@ def build_question_hint(
     if q_pct >= 8:
         return (
             f"Pregunta naturalmente en ~{int(q_pct)}% de respuestas. "
-            f"Ejemplos: '¿Cómo estás?', '¿En serio?', '¿Todo bien?'"
+            "Ejemplos: '¿Cómo estás?', '¿En serio?', '¿Todo bien?'"
         )
 
     return ""

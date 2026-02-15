@@ -7,7 +7,7 @@ Provides Instagram API integration, message formatting, and webhook parsing.
 
 import logging
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any, Dict, Optional
 
 logger = logging.getLogger(__name__)
@@ -36,7 +36,7 @@ class WebhookMessage:
     sender_id: str
     recipient_id: str = ""
     timestamp: int = 0
-    received_at: datetime = field(default_factory=datetime.utcnow)
+    received_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
 
 
 class InstagramService:
@@ -65,7 +65,7 @@ class InstagramService:
         self.access_token = access_token
         self.rate_limit = rate_limit
         self._request_count = 0
-        self._window_start = datetime.utcnow()
+        self._window_start = datetime.now(timezone.utc)
 
         logger.info("[InstagramService] Initialized")
 
@@ -119,7 +119,7 @@ class InstagramService:
             True if rate limit exceeded, False otherwise
         """
         # Reset window if expired
-        now = datetime.utcnow()
+        now = datetime.now(timezone.utc)
         elapsed = (now - self._window_start).total_seconds()
 
         if elapsed >= RATE_LIMIT_WINDOW:

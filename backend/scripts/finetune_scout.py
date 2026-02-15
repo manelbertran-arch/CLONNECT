@@ -20,7 +20,6 @@ Disk: 300GB+ recommended for model + checkpoints
 import argparse
 import json
 import os
-from pathlib import Path
 
 # ─── Configuration ────────────────────────────────────────────────────────────
 
@@ -165,7 +164,7 @@ def main():
     print("TRAINING COMPLETE")
     print("=" * 60)
     print(f"Base model:      {BASE_MODEL}")
-    print(f"Method:          QLoRA 4-bit (NF4)")
+    print("Method:          QLoRA 4-bit (NF4)")
     print(f"LoRA rank:       {LORA_RANK}")
     print(f"LoRA alpha:      {LORA_ALPHA}")
     print(f"Target modules:  {TARGET_MODULES}")

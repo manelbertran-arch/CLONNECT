@@ -2,7 +2,6 @@
 Context Memory Service - Proporciona contexto de conversación al bot.
 """
 
-import json
 import logging
 import os
 from dataclasses import dataclass, field

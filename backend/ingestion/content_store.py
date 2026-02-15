@@ -9,9 +9,7 @@ Anti-hallucination principles:
 
 import hashlib
 import logging
-from typing import List, Dict, Optional, Any
-from datetime import datetime
-from uuid import UUID
+from typing import List, Dict, Any
 
 logger = logging.getLogger(__name__)
 
@@ -56,7 +54,6 @@ class ContentStore:
         Returns:
             Stats dict with counts
         """
-        from .structured_extractor import ExtractedProduct
 
         stats = {"created": 0, "updated": 0, "skipped": 0}
 
@@ -226,7 +223,6 @@ class ContentStore:
         """
         Store testimonials as RAG documents for retrieval.
         """
-        from .structured_extractor import ExtractedTestimonial
 
         chunks = []
         for t in testimonials:
@@ -253,7 +249,6 @@ class ContentStore:
         """
         Store FAQs as RAG documents for retrieval.
         """
-        from .structured_extractor import ExtractedFAQ
 
         chunks = []
         for faq in faqs:

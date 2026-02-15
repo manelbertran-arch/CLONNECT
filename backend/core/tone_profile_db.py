@@ -3,10 +3,9 @@ Tone Profile Database Service - PostgreSQL persistence for ToneProfiles.
 Replaces JSON file-based storage with proper database persistence.
 """
 
-import json
 import logging
 from typing import Optional, Dict, List, Any
-from datetime import datetime
+from datetime import datetime, timezone
 
 logger = logging.getLogger(__name__)
 
@@ -53,7 +52,7 @@ async def save_tone_profile_db(creator_id: str, profile_data: dict) -> bool:
                 existing.profile_data = profile_data
                 existing.analyzed_posts_count = analyzed_count
                 existing.confidence_score = confidence
-                existing.updated_at = datetime.utcnow()
+                existing.updated_at = datetime.now(timezone.utc)
                 logger.info(f"Updated ToneProfile in DB for {creator_id}")
             else:
                 # Insert new

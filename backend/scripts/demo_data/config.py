@@ -1,6 +1,5 @@
 """Configuration and constants for demo data generation."""
 
-from datetime import datetime, timedelta
 from typing import Dict, List, Any
 
 # Creator ID for demo

@@ -65,7 +65,7 @@ def check_env_vars():
         val = os.getenv(var)
         if not val:
             if var == "GROQ_API_KEY" and os.getenv("OPENAI_API_KEY"):
-                ok(f"OPENAI_API_KEY set (alternative to GROQ_API_KEY)")
+                ok("OPENAI_API_KEY set (alternative to GROQ_API_KEY)")
             else:
                 error(f"{var} not set ({desc})")
                 issues.append(f"Set {var}")
@@ -228,7 +228,7 @@ def check_instagram_token(creator_id: str = None):
             async def test_token():
                 async with httpx.AsyncClient(timeout=10.0) as client:
                     resp = await client.get(
-                        f"https://graph.facebook.com/v21.0/me",
+                        "https://graph.facebook.com/v21.0/me",
                         params={"access_token": token}
                     )
                     return resp.status_code, resp.json()
@@ -325,7 +325,7 @@ def check_content_index(creator_id: str = None):
         else:
             ok(f"{chunks} content chunks indexed")
 
-    except Exception as e:
+    except Exception as _e:
         # Fallback to JSON
         index_path = Path(f"data/content_index/{creator_id}/chunks.json")
         if index_path.exists():

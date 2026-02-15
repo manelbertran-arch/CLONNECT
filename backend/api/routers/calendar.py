@@ -4,7 +4,6 @@ from sqlalchemy.orm import Session
 from datetime import datetime, timezone
 import logging
 import uuid
-import httpx
 
 from api.auth import require_creator_access
 
@@ -246,9 +245,10 @@ async def create_booking_link(creator_id: str, data: dict = Body(...), db: Sessi
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"Error creating booking link: {e}")
+        from api.utils.error_helpers import safe_error_detail
+
         db.rollback()
-        raise HTTPException(status_code=500, detail=f"Failed to create link: {str(e)}")
+        raise HTTPException(status_code=500, detail=safe_error_detail(e, "create booking link"))
 
 @router.put("/{creator_id}/links/{link_id}")
 async def update_booking_link(creator_id: str, link_id: str, data: dict = Body(...), db: Session = Depends(get_db), _auth: str = Depends(require_creator_access)):
@@ -274,9 +274,10 @@ async def update_booking_link(creator_id: str, link_id: str, data: dict = Body(.
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"Error updating booking link: {e}")
+        from api.utils.error_helpers import safe_error_detail
+
         db.rollback()
-        raise HTTPException(status_code=500, detail=f"Failed to update link: {str(e)}")
+        raise HTTPException(status_code=500, detail=safe_error_detail(e, "update booking link"))
 
 @router.delete("/{creator_id}/links/{link_id}")
 async def delete_booking_link(creator_id: str, link_id: str, db: Session = Depends(get_db), _auth: str = Depends(require_creator_access)):
@@ -315,9 +316,10 @@ async def delete_booking_link(creator_id: str, link_id: str, db: Session = Depen
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"Error deleting booking link: {e}")
+        from api.utils.error_helpers import safe_error_detail
+
         db.rollback()
-        raise HTTPException(status_code=500, detail=f"Failed to delete link: {str(e)}")
+        raise HTTPException(status_code=500, detail=safe_error_detail(e, "delete booking link"))
 
 
 @router.delete("/{creator_id}/bookings/reset")
@@ -355,9 +357,10 @@ async def reset_bookings(creator_id: str, db: Session = Depends(get_db), _auth: 
             "deleted_count": deleted_count
         }
     except Exception as e:
-        logger.error(f"Error resetting bookings: {e}")
+        from api.utils.error_helpers import safe_error_detail
+
         db.rollback()
-        raise HTTPException(status_code=500, detail=f"Failed to reset bookings: {str(e)}")
+        raise HTTPException(status_code=500, detail=safe_error_detail(e, "reset bookings"))
 
 
 @router.delete("/{creator_id}/bookings/{booking_id}")
@@ -395,9 +398,10 @@ async def cancel_booking(creator_id: str, booking_id: str, db: Session = Depends
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"Error cancelling booking: {e}")
+        from api.utils.error_helpers import safe_error_detail
+
         db.rollback()
-        raise HTTPException(status_code=500, detail=f"Failed to cancel booking: {str(e)}")
+        raise HTTPException(status_code=500, detail=safe_error_detail(e, "cancel booking"))
 
 
 @router.delete("/{creator_id}/history")
@@ -431,9 +435,10 @@ async def clear_history(creator_id: str, db: Session = Depends(get_db), _auth: s
 
         return {"status": "ok", "message": f"Cleared {deleted_count} history items", "deleted_count": deleted_count}
     except Exception as e:
-        logger.error(f"Error clearing history: {e}")
+        from api.utils.error_helpers import safe_error_detail
+
         db.rollback()
-        raise HTTPException(status_code=500, detail=f"Failed to clear history: {str(e)}")
+        raise HTTPException(status_code=500, detail=safe_error_detail(e, "clear history"))
 
 
 @router.delete("/{creator_id}/history/{booking_id}")
@@ -471,9 +476,10 @@ async def delete_history_item(creator_id: str, booking_id: str, db: Session = De
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"Error deleting history item: {e}")
+        from api.utils.error_helpers import safe_error_detail
+
         db.rollback()
-        raise HTTPException(status_code=500, detail=f"Failed to delete history item: {str(e)}")
+        raise HTTPException(status_code=500, detail=safe_error_detail(e, "delete history item"))
 
 
 # =============================================================================
@@ -548,9 +554,10 @@ async def update_booking_status(creator_id: str, db: Session = Depends(get_db), 
             "updated": updated_count
         }
     except Exception as e:
-        logger.error(f"Error updating booking status: {e}")
+        from api.utils.error_helpers import safe_error_detail
+
         db.rollback()
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=safe_error_detail(e, "update booking status"))
 
 
 # =============================================================================
@@ -595,8 +602,9 @@ async def get_booking_link(creator_id: str, meeting_type: str, db: Session = Dep
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"Error getting booking link: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        from api.utils.error_helpers import safe_error_detail
+
+        raise HTTPException(status_code=500, detail=safe_error_detail(e, "get booking link"))
 
 
 # =============================================================================
@@ -623,9 +631,10 @@ async def mark_booking_completed(creator_id: str, booking_id: str, db: Session =
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"Error marking booking complete: {e}")
+        from api.utils.error_helpers import safe_error_detail
+
         db.rollback()
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=safe_error_detail(e, "mark booking complete"))
 
 
 @router.post("/{creator_id}/bookings/{booking_id}/no-show")
@@ -648,8 +657,9 @@ async def mark_booking_no_show(creator_id: str, booking_id: str, db: Session = D
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"Error marking booking no-show: {e}")
+        from api.utils.error_helpers import safe_error_detail
+
         db.rollback()
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=safe_error_detail(e, "mark booking no-show"))
 
 

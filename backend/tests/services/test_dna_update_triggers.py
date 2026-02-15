@@ -10,9 +10,8 @@ Triggers determine WHEN to re-analyze DNA based on:
 """
 
 from datetime import datetime, timedelta, timezone
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 
-from models.relationship_dna import RelationshipType
 
 
 class TestDNAUpdateTriggers:

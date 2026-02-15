@@ -10,8 +10,8 @@ Categorías:
 """
 
 import logging
-from datetime import datetime, timedelta, timezone
-from typing import List, Dict, Optional, Tuple
+from datetime import datetime, timezone
+from typing import List, Dict, Optional
 from dataclasses import dataclass
 
 logger = logging.getLogger(__name__)

@@ -106,7 +106,7 @@ def test_endpoint(
 
         try:
             result["response_body"] = response.json()
-        except:
+        except Exception:
             result["response_body"] = {"raw_text": response.text[:1000]}
 
     except requests.exceptions.Timeout:
@@ -657,7 +657,7 @@ def generate_html_report():
         # Add each test in the category
         for test in sorted(cat["tests"], key=lambda x: x["test_num"]):
             test_id = f"test_{test['test_num']}"
-            status_class = "text-green-400" if test["passed"] else "text-red-400"
+            _status_class = "text-green-400" if test["passed"] else "text-red-400"
             status_icon = "✅" if test["passed"] else "❌"
             status_code = test["actual_status"] or "ERR"
             status_bg = f"status-{test['actual_status']}" if test["actual_status"] else "status-0"

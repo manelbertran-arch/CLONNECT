@@ -13,7 +13,7 @@ async def show_raw_content(website_url: str, max_pages: int = 10):
     from ingestion.deterministic_scraper import DeterministicScraper
 
     print(f"\n{'='*80}")
-    print(f"RAW SCRAPED CONTENT")
+    print("RAW SCRAPED CONTENT")
     print(f"URL: {website_url}")
     print(f"{'='*80}\n")
 
@@ -38,7 +38,7 @@ async def show_raw_content(website_url: str, max_pages: int = 10):
 
     # Specific search for testimonials
     print(f"\n{'#'*80}")
-    print(f"# SEARCHING FOR TESTIMONIALS")
+    print("# SEARCHING FOR TESTIMONIALS")
     print(f"{'#'*80}\n")
 
     testimonial_page = None

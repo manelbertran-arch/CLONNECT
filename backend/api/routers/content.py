@@ -5,7 +5,7 @@ Extracted from main.py as part of refactoring
 import hashlib
 import logging
 import os
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List
 
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
@@ -241,8 +241,8 @@ async def content_stats(creator_id: str = None):
 
             stats = get_embedding_stats(creator_id)
             embedding_count = stats.get("embeddings_count", 0)
-        except Exception:
-            pass
+        except Exception as e:
+            logger.warning("Suppressed error in from core.embeddings import get_embedding_stats: %s", e)
 
         return {
             "status": "ok",
@@ -381,7 +381,6 @@ async def generate_embeddings_for_existing(creator_id: str, batch_size: int = 10
         Number of embeddings generated
     """
     try:
-        from api.models import ContentChunk
         from core.embeddings import generate_embeddings_batch, store_embedding
         from sqlalchemy import text
 

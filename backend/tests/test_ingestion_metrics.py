@@ -12,7 +12,7 @@ Run with: pytest tests/test_ingestion_metrics.py -v
 """
 
 import time
-from unittest.mock import patch, MagicMock
+from unittest.mock import patch
 
 import pytest
 
@@ -74,7 +74,7 @@ class TestHelperFunctions:
 
     def test_record_page_scraped(self):
         """Verify record_page_scraped increments counter."""
-        from core.metrics import record_page_scraped, INGESTION_PAGES_SCRAPED
+        from core.metrics import record_page_scraped
 
         # This should not raise an error
         record_page_scraped("test_creator")

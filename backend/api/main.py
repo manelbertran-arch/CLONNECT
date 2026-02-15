@@ -3,21 +3,11 @@ Clonnect Creators API
 API simplificada para el clon de IA de creadores de contenido
 """
 
-import asyncio
-import json
 import logging
 import os
-import time
-from datetime import datetime, timezone
-from typing import Any, Dict, List, Optional
 
-import httpx
-from api.schemas import CreateCreatorRequest, CreateProductRequest
-from fastapi import Body, Depends, FastAPI, Header, HTTPException, Request
+from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse, HTMLResponse, PlainTextResponse, Response
-from fastapi.staticfiles import StaticFiles
-from pydantic import BaseModel
 
 logging.basicConfig(level=logging.INFO)
 
@@ -56,10 +46,7 @@ CalendarBookingModel = None
 DATABASE_URL = None
 
 try:
-    from api.database import DATABASE_URL, SessionLocal, get_db
-    from api.init_db import init_database
-    from api.models import BookingLink as BookingLinkModel
-    from api.models import CalendarBooking as CalendarBookingModel
+    from api.database import DATABASE_URL, SessionLocal
 
     if DATABASE_URL:
         # NOTE: init_database() moved to startup_event to not block healthcheck
@@ -76,7 +63,7 @@ except Exception as e:
 
 # Database service
 try:
-    from api import db_service
+    pass
 
     USE_DB = True
     logging.info("Database service loaded")
@@ -87,27 +74,16 @@ except Exception as e:
 logging.warning("=" * 60)
 logging.warning("========== API MAIN V7 LOADED ==========")
 
-from core.alerts import get_alert_manager
-from core.calendar import get_calendar_manager
-from core.creator_config import CreatorConfig, CreatorConfigManager
-from core.dm_agent_v2 import DMResponderAgent
-from core.gdpr import ConsentType, get_gdpr_manager
-from core.instagram_handler import InstagramHandler, get_instagram_handler
-from core.llm import get_llm_client
+from core.creator_config import CreatorConfigManager
 from core.memory import MemoryStore
 from core.metrics import (
     PROMETHEUS_AVAILABLE,
     MetricsMiddleware,
-    record_message_processed,
-    update_health_status,
 )
-from core.payments import get_payment_manager
 
 # Core imports
-from core.products import Product, ProductManager
+from core.products import ProductManager
 from core.rag import get_simple_rag
-from core.telegram_registry import get_telegram_registry
-from core.whatsapp import get_whatsapp_handler
 
 logging.warning("=" * 60)
 
@@ -129,19 +105,23 @@ app = FastAPI(
 # =============================================================================
 # CORS CONFIGURATION
 # =============================================================================
-# Allow production domain + localhost for development
+# Production origins only; localhost added conditionally below
 DEFAULT_CORS_ORIGINS = [
     "https://web-production-9f69.up.railway.app",
     "https://clonnect-stagging-production.up.railway.app",
     "https://www.clonnectapp.com",
     "https://clonnectapp.com",
-    "http://localhost:3000",
-    "http://localhost:5173",
-    "http://localhost:5174",
-    "http://127.0.0.1:5173",
-    "http://localhost:8080",
-    "http://localhost:8081",
 ]
+# Only include localhost origins in non-production environments
+if os.getenv("ENVIRONMENT", "production") != "production":
+    DEFAULT_CORS_ORIGINS.extend([
+        "http://localhost:3000",
+        "http://localhost:5173",
+        "http://localhost:5174",
+        "http://127.0.0.1:5173",
+        "http://localhost:8080",
+        "http://localhost:8081",
+    ])
 
 CORS_ORIGINS_ENV = os.getenv("CORS_ORIGINS", "")
 if CORS_ORIGINS_ENV:
@@ -156,9 +136,14 @@ app.add_middleware(
     CORSMiddleware,
     allow_origins=CORS_ORIGINS,
     allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"],
-    allow_headers=["*"],
+    allow_headers=["Authorization", "Content-Type", "X-API-Key", "X-Requested-With", "Accept", "Origin"],
     allow_credentials=True,
 )
+
+# Security Headers Middleware (after CORS so headers are added to all responses)
+from api.middleware.security_headers import SecurityHeadersMiddleware
+
+app.add_middleware(SecurityHeadersMiddleware)
 
 # Rate Limiting Middleware
 RATE_LIMIT_ENABLED = os.getenv("RATE_LIMIT_ENABLED", "true").lower() == "true"
@@ -184,7 +169,7 @@ from fastapi.responses import JSONResponse
 @app.exception_handler(RequestValidationError)
 async def validation_exception_handler(request: Request, exc: RequestValidationError):
     logger = logging.getLogger("api.validation")
-    logger.error(f"=== VALIDATION ERROR 422 ===")
+    logger.error("=== VALIDATION ERROR 422 ===")
     logger.error(f"URL: {request.url}")
     logger.error(f"Method: {request.method}")
     logger.error(f"Errors: {exc.errors()}")
@@ -338,12 +323,6 @@ from api.routers import metrics as metrics_router
 app.include_router(metrics_router.router)
 
 # Authentication router
-from api.auth import (
-    get_current_creator,
-    get_optional_creator,
-    require_admin,
-    require_creator_or_admin,
-)
 from api.auth import router as auth_router
 
 app.include_router(auth_router)
@@ -441,8 +420,9 @@ async def get_booking_links_public(creator_name: str):
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"Error getting booking links: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        from api.utils.error_helpers import safe_error_detail
+
+        raise HTTPException(status_code=500, detail=safe_error_detail(e, "fetching booking links"))
 
 
 # ---------------------------------------------------------

@@ -6,7 +6,6 @@ Part of POST-CONTEXT-DETECTION feature (Layer 4).
 
 import os
 
-import pytest
 
 
 class TestPostContextMigration:

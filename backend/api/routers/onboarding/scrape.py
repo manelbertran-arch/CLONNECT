@@ -3,7 +3,7 @@
 import logging
 from typing import Dict, List, Optional
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter
 from pydantic import BaseModel
 
 from core.creator_config import CreatorConfigManager
@@ -107,7 +107,7 @@ async def scrape_instagram_onboarding(request: ScrapeInstagramRequest):
         # Step 2: Generate ToneProfile
         try:
             from core.tone_service import save_tone_profile
-            from ingestion.tone_analyzer import ToneAnalyzer, ToneProfile
+            from ingestion.tone_analyzer import ToneAnalyzer
 
             # Convert posts to dict format for analyzer
             posts_data = [
@@ -182,7 +182,7 @@ async def scrape_instagram_onboarding(request: ScrapeInstagramRequest):
         # Step 3: Index content for citations
         try:
             import json
-            from datetime import datetime
+            from datetime import datetime, timezone
             from pathlib import Path
 
             # Create chunks from posts
@@ -228,7 +228,7 @@ async def scrape_instagram_onboarding(request: ScrapeInstagramRequest):
                     "created_at": (
                         post.timestamp.isoformat()
                         if post.timestamp
-                        else datetime.utcnow().isoformat()
+                        else datetime.now(timezone.utc).isoformat()
                     ),
                 }
                 chunks.append(chunk)

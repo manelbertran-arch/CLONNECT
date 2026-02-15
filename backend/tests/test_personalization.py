@@ -1,9 +1,7 @@
 """Tests para módulos de personalización"""
-import pytest
 import tempfile
 import shutil
 import sys
-import os
 from pathlib import Path
 
 # Add backend to path

@@ -15,7 +15,7 @@ import os
 import re
 import time
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional
 from urllib.parse import urljoin, urlparse
 from urllib.robotparser import RobotFileParser
@@ -226,7 +226,6 @@ scraper_circuit_breaker = pybreaker.CircuitBreaker(
 class ScraperCircuitBreakerOpenError(Exception):
     """Raised when scraper circuit breaker is open."""
 
-    pass
 
 
 @dataclass
@@ -239,7 +238,7 @@ class ScrapedPage:
     sections: List[Dict[str, str]] = field(default_factory=list)  # [{heading, content}]
     links: List[str] = field(default_factory=list)
     metadata: Dict[str, Any] = field(default_factory=dict)
-    scraped_at: datetime = field(default_factory=datetime.utcnow)
+    scraped_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
 
     @property
     def has_content(self) -> bool:
@@ -550,7 +549,7 @@ class DeterministicScraper:
         except pybreaker.CircuitBreakerError:
             logger.warning(
                 f"Circuit breaker OPEN - skipping {url}. "
-                f"Too many consecutive scraping failures."
+                "Too many consecutive scraping failures."
             )
             record_page_failed(creator_id, "circuit_breaker_open")
             return None

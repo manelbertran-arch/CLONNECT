@@ -9,10 +9,9 @@ v2.0.0 - PostgreSQL Persistence (Phase 2.1)
 import os
 from enum import Enum
 from typing import Optional, Dict, List
-from dataclasses import dataclass, field, asdict
-from datetime import datetime
+from dataclasses import dataclass, field
+from datetime import datetime, timezone
 import logging
-import re
 
 logger = logging.getLogger(__name__)
 
@@ -68,7 +67,7 @@ class ConversationState:
     phase: ConversationPhase = ConversationPhase.INICIO
     context: UserContext = field(default_factory=UserContext)
     message_count: int = 0
-    updated_at: datetime = field(default_factory=datetime.utcnow)
+    updated_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
 
 
 class StateManager:
@@ -138,8 +137,6 @@ FASE: ESCALAR - Tu objetivo es pasar a humano.
             return
 
         try:
-            from api.database import SessionLocal
-            from api.models import ConversationStateDB
             self._db_available = True
             logger.info("[StateManager] PostgreSQL persistence enabled")
         except ImportError as e:
@@ -186,7 +183,7 @@ FASE: ESCALAR - Tu objetivo es pasar a humano.
                         phase=phase,
                         context=user_context,
                         message_count=db_state.message_count or 0,
-                        updated_at=db_state.updated_at or datetime.utcnow()
+                        updated_at=db_state.updated_at or datetime.now(timezone.utc)
                     )
                 return None
             finally:
@@ -229,7 +226,7 @@ FASE: ESCALAR - Tu objetivo es pasar a humano.
                     db_state.phase = state.phase.value
                     db_state.message_count = state.message_count
                     db_state.context = context_dict
-                    db_state.updated_at = datetime.utcnow()
+                    db_state.updated_at = datetime.now(timezone.utc)
                 else:
                     # Create new
                     db_state = ConversationStateDB(
@@ -282,7 +279,7 @@ FASE: ESCALAR - Tu objetivo es pasar a humano.
                 message = str(message) if message else ""
 
         state.message_count += 1
-        state.updated_at = datetime.utcnow()
+        state.updated_at = datetime.now(timezone.utc)
 
         # Extraer contexto del mensaje
         self._extract_context(state, message)

@@ -11,7 +11,7 @@ to rank documents based on term frequency and document length.
 import math
 import re
 import logging
-from typing import List, Dict, Any, Optional, Tuple
+from typing import List, Dict, Any, Tuple
 from dataclasses import dataclass
 from collections import Counter
 

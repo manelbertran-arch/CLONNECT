@@ -55,7 +55,7 @@ class TestEmpatia:
                 f"Message '{msg}' should produce frustration score > 0.2, " f"got {score:.2f}"
             )
             assert signals.explicit_frustration or signals.negative_markers > 0, (
-                f"Message '{msg}' should trigger explicit_frustration or " f"negative_markers"
+                f"Message '{msg}' should trigger explicit_frustration or " "negative_markers"
             )
 
         # Also verify via context_detector.detect_frustration
@@ -123,7 +123,7 @@ class TestEmpatia:
             dismissive_phrases = ["no es para tanto", "tranquilo", "calmate"]
             for phrase in dismissive_phrases:
                 assert phrase not in context_lower, (
-                    f"Frustration context should not contain dismissive " f"phrase '{phrase}'"
+                    "Frustration context should not contain dismissive " f"phrase '{phrase}'"
                 )
 
             # SHOULD contain empathetic directives
@@ -193,5 +193,5 @@ class TestEmpatia:
             # Alerts should mention purchase facilitation
             alerts_text = " ".join(ctx.alerts).lower()
             assert "compra" in alerts_text or "pago" in alerts_text or "reserva" in alerts_text, (
-                f"Purchase alerts should mention compra/pago/reserva, " f"got: {ctx.alerts}"
+                "Purchase alerts should mention compra/pago/reserva, " f"got: {ctx.alerts}"
             )

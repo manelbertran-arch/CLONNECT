@@ -603,8 +603,8 @@ class FAQExtractor:
             if json_match:
                 try:
                     return json.loads(json_match.group())
-                except json.JSONDecodeError:
-                    pass
+                except json.JSONDecodeError as e:
+                    logger.debug("Ignored json.JSONDecodeError in return json.loads(json_match.group()): %s", e)
             return None
 
     def to_dict(self, faq: ExtractedFAQ) -> dict:

@@ -9,8 +9,6 @@ Features:
 """
 
 from typing import List, Dict, Any, Optional
-from datetime import datetime, timezone
-from functools import lru_cache
 import hashlib
 import logging
 import time
@@ -270,7 +268,6 @@ def invalidate_cache_for_lead(lead_id: str):
     """Invalidate all cache entries (called when new message arrives)"""
     # For now, we don't track by lead_id, so this is a no-op
     # The TTL handles cache invalidation naturally
-    pass
 
 
 # =============================================================================

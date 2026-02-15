@@ -1,5 +1,4 @@
 """Integration tests for frontend-backend compatibility"""
-import pytest
 import os
 
 os.environ["DATABASE_URL"] = ""

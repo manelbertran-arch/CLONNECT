@@ -7,7 +7,7 @@ Part of POST-CONTEXT-DETECTION feature (Layer 4).
 """
 
 import logging
-from typing import Any, Dict, List
+from typing import Any, Dict
 
 from services.post_context_repository import get_expired_contexts
 from services.post_context_service import PostContextService

@@ -7,7 +7,6 @@ SPRINT1-T1.1: Extended follower detail response unifying:
 - conversation_states (sales funnel)
 - user_profiles (weighted interests)
 """
-from datetime import datetime
 from typing import Any, Dict, List, Optional
 
 from pydantic import BaseModel, Field

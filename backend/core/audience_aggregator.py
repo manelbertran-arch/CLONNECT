@@ -6,10 +6,9 @@ SPRINT4-T4.1: Aggregation logic for 7 tabs
 import logging
 import re
 from datetime import datetime, timedelta, timezone
-from typing import List, Dict, Optional
+from typing import List, Dict
 from collections import Counter
 
-from sqlalchemy import func, and_, desc
 from sqlalchemy.orm import Session
 
 from api.schemas.audiencia import (

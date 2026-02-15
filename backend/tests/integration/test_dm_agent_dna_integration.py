@@ -9,7 +9,7 @@ IMPORTANT: These tests verify that:
 3. No regression in existing functionality
 """
 
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 
 from models.relationship_dna import RelationshipType
 

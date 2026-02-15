@@ -13,7 +13,7 @@ import logging
 import os
 import re
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Dict, List, Literal, Optional
 
@@ -30,25 +30,21 @@ logger = logging.getLogger(__name__)
 class InstagramScraperError(Exception):
     """Error base para el scraper."""
 
-    pass
 
 
 class RateLimitError(InstagramScraperError):
     """Error de rate limit."""
 
-    pass
 
 
 class AuthenticationError(InstagramScraperError):
     """Error de autenticacion."""
 
-    pass
 
 
 class CircuitBreakerOpenError(InstagramScraperError):
     """Raised when circuit breaker is open and rejecting requests."""
 
-    pass
 
 
 # =============================================================================
@@ -191,7 +187,7 @@ class MetaGraphAPIScraper:
             data = await self._fetch_posts_with_circuit_breaker(limit)
         except pybreaker.CircuitBreakerError:
             raise CircuitBreakerOpenError(
-                f"Circuit breaker OPEN for Instagram API. "
+                "Circuit breaker OPEN for Instagram API. "
                 f"Too many consecutive failures. Try again in {CIRCUIT_RECOVERY_TIMEOUT} seconds."
             )
 
@@ -392,7 +388,7 @@ class InstaloaderScraper:
             )
         except pybreaker.CircuitBreakerError:
             raise CircuitBreakerOpenError(
-                f"Circuit breaker OPEN for Instaloader. "
+                "Circuit breaker OPEN for Instaloader. "
                 f"Too many consecutive failures. Try again in {CIRCUIT_RECOVERY_TIMEOUT * 2} seconds."
             )
 
@@ -557,7 +553,7 @@ class ManualJSONScraper:
                     caption=caption,
                     permalink=item.get("url", ""),
                     timestamp=datetime.fromisoformat(
-                        item.get("timestamp", datetime.now().isoformat())
+                        item.get("timestamp", datetime.now(timezone.utc).isoformat())
                     ),
                     likes_count=item.get("likes"),
                     comments_count=item.get("comments"),
@@ -597,7 +593,7 @@ class ManualJSONScraper:
             elif isinstance(timestamp_str, str):
                 timestamp = datetime.fromisoformat(timestamp_str.replace("Z", "+00:00"))
             else:
-                timestamp = datetime.now()
+                timestamp = datetime.now(timezone.utc)
 
             return InstagramPost(
                 post_id=str(item.get("id", hash(caption)))[:20],

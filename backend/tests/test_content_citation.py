@@ -1,7 +1,6 @@
 """Tests para Content Citation."""
 
-import pytest
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from ingestion.content_citation import (
     Citation,
     CitationContext,
@@ -44,7 +43,7 @@ class TestCitation:
         assert "post" in ref.lower()
 
     def test_to_natural_reference_with_recent_date(self):
-        recent_date = datetime.utcnow() - timedelta(days=3)
+        recent_date = datetime.now(timezone.utc) - timedelta(days=3)
         citation = Citation(
             content_type=ContentType.INSTAGRAM_REEL,
             source_id="123",
@@ -59,7 +58,7 @@ class TestCitation:
         assert "dias" in ref
 
     def test_to_natural_reference_with_old_date(self):
-        old_date = datetime.utcnow() - timedelta(days=100)
+        old_date = datetime.now(timezone.utc) - timedelta(days=100)
         citation = Citation(
             content_type=ContentType.INSTAGRAM_POST,
             source_id="123",

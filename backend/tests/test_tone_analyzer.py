@@ -1,6 +1,5 @@
 """Tests para Tone Analyzer."""
 
-import pytest
 from datetime import datetime
 from ingestion.tone_analyzer import (
     ToneProfile,

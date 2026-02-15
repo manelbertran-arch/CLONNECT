@@ -103,7 +103,7 @@ async def process_single_conversation(
     from datetime import datetime
 
     import httpx
-    from api.models import Lead, Message, SyncState
+    from api.models import Lead, Message
 
     result = {"success": False, "messages_saved": 0, "lead_created": False, "error": None}
 
@@ -325,7 +325,6 @@ async def process_single_conversation(
 class RateLimitError(Exception):
     """Error cuando Instagram API devuelve rate limit."""
 
-    pass
 
 
 async def run_sync_worker_iteration(session, creator_id: str) -> Dict[str, Any]:
@@ -333,7 +332,7 @@ async def run_sync_worker_iteration(session, creator_id: str) -> Dict[str, Any]:
     Ejecuta una iteración del worker para un creator específico.
     Procesa jobs hasta completar o hit rate limit.
     """
-    from api.models import Creator, SyncQueue, SyncState
+    from api.models import Creator
 
     result = {
         "jobs_processed": 0,
@@ -468,7 +467,7 @@ async def start_sync_for_creator(creator_id: str) -> Dict[str, Any]:
     """
     import httpx
     from api.database import SessionLocal
-    from api.models import Creator, SyncState
+    from api.models import Creator
 
     result = {"status": "error", "conversations_queued": 0, "message": ""}
 

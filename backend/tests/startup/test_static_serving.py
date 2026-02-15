@@ -1,7 +1,6 @@
 """
 Static file serving module tests - Written BEFORE implementation (TDD).
 """
-import pytest
 
 
 class TestStaticServingModuleImport:

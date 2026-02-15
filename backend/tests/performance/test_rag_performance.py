@@ -6,7 +6,6 @@ Verifican tiempos de respuesta y eficiencia.
 import pytest
 import time
 import statistics
-from unittest.mock import patch, MagicMock
 import asyncio
 
 # Configuración de umbrales

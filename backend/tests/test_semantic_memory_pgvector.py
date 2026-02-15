@@ -5,7 +5,6 @@ Tests the SemanticMemoryPgvector class which provides long-term
 conversation memory using PostgreSQL with pgvector for semantic search.
 """
 
-import pytest
 from unittest.mock import patch, MagicMock
 from datetime import datetime
 

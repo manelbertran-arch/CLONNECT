@@ -22,14 +22,12 @@ import sys
 from collections import defaultdict
 from pathlib import Path
 from collections import Counter
-from typing import Any, Dict, List, Optional, Set, Tuple
+from typing import Any, Dict, List, Tuple
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from scripts.backtest.contamination_filter import (
-    detect_contaminated_conversations,
     filter_turns,
-    is_bot_response,
 )
 from services.length_controller import classify_lead_context
 

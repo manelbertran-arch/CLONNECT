@@ -6,7 +6,7 @@ import os
 import json
 import logging
 from datetime import datetime, timezone
-from typing import Optional, Dict, Any
+from typing import Optional, Dict
 from pathlib import Path
 
 logger = logging.getLogger(__name__)
@@ -391,7 +391,6 @@ def sync_messages_from_json(creator_name: str) -> Dict[str, int]:
     try:
         from api.services.db_service import get_session
         from api.models import Creator, Lead, Message
-        import uuid
 
         session = get_session()
         if not session:
@@ -438,7 +437,7 @@ def sync_messages_from_json(creator_name: str) -> Dict[str, int]:
                             session.commit()
 
                         # Check existing messages count for this lead
-                        existing_count = session.query(Message).filter_by(lead_id=lead.id).count()
+                        _existing_count = session.query(Message).filter_by(lead_id=lead.id).count()
 
                         # Sync messages from JSON
                         last_messages = json_data.get("last_messages", [])

@@ -7,8 +7,7 @@ Uses mocking to avoid requiring a real database connection.
 
 import pytest
 from datetime import datetime, timedelta
-from unittest.mock import Mock, MagicMock, patch
-from dataclasses import asdict
+from unittest.mock import MagicMock, patch
 
 import sys
 from pathlib import Path

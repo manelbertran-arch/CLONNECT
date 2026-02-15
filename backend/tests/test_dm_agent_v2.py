@@ -3,7 +3,7 @@ DM Agent V2 tests - Written BEFORE implementation (TDD).
 Tests the new slim orchestrator using modular services.
 """
 import pytest
-from unittest.mock import Mock, AsyncMock, patch
+from unittest.mock import AsyncMock
 
 
 class TestDMAgentV2Import:

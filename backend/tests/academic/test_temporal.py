@@ -77,7 +77,7 @@ class TestTemporal:
 
         # The context should reflect high purchase intent
         assert ctx.interest_level == "strong" or interest == "strong", (
-            f"Urgent context should show strong interest, "
+            "Urgent context should show strong interest, "
             f"ctx.interest_level={ctx.interest_level}, interest={interest}"
         )
 
@@ -127,7 +127,7 @@ class TestTemporal:
 
         # Purchase intent score should be relatively high after this journey
         assert analysis["purchase_intent_score"] > 0.0, (
-            f"Conversation with purchase signals should have positive score, "
+            "Conversation with purchase signals should have positive score, "
             f"got {analysis['purchase_intent_score']}"
         )
 

@@ -8,7 +8,7 @@ import re
 from collections import deque
 from typing import Optional, Tuple
 
-from models.response_variations import STEFAN_RESPONSE_POOLS, ResponsePool
+from models.response_variations import STEFAN_RESPONSE_POOLS
 
 
 class ResponseVariator:

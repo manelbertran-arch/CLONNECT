@@ -6,7 +6,7 @@ import os
 import json
 from typing import List, Optional, Dict, Any
 from dataclasses import dataclass, asdict, field
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 import logging
 
@@ -103,8 +103,8 @@ class CreatorConfig:
     # Estado
     is_active: bool = False  # Start paused by default
     pause_reason: str = ""
-    created_at: str = field(default_factory=lambda: datetime.now().isoformat())
-    updated_at: str = field(default_factory=lambda: datetime.now().isoformat())
+    created_at: str = field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
+    updated_at: str = field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
 
     def to_dict(self) -> dict:
         return asdict(self)
@@ -162,7 +162,7 @@ class CreatorConfigManager:
             if hasattr(config, key):
                 setattr(config, key, value)
 
-        config.updated_at = datetime.now().isoformat()
+        config.updated_at = datetime.now(timezone.utc).isoformat()
         self.create_config(config)
         return config
 
@@ -195,7 +195,7 @@ class CreatorConfigManager:
 
         config.is_active = active
         config.pause_reason = reason if not active else ""
-        config.updated_at = datetime.now().isoformat()
+        config.updated_at = datetime.now(timezone.utc).isoformat()
         self.create_config(config)
         return True
 

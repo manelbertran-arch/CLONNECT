@@ -3,9 +3,6 @@ Tests para Phase 2 Media Connectors - Transcriber, YouTube, Podcast, PDF.
 """
 
 import pytest
-from datetime import datetime
-from unittest.mock import AsyncMock, MagicMock, patch
-from pathlib import Path
 
 # ============================================================================
 # TESTS - TRANSCRIBER
@@ -243,7 +240,7 @@ class TestYouTubeConnector:
     async def test_get_channel_videos_requires_id_or_url(self):
         """Falla sin channel_id ni channel_url."""
         try:
-            import yt_dlp
+            pass
         except ImportError:
             pytest.skip("yt-dlp not installed")
 

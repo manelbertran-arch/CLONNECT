@@ -1,7 +1,7 @@
 """Wizard onboarding and clone creation endpoints."""
 
 import logging
-from typing import Dict, List, Optional
+from typing import List, Optional
 
 from fastapi import APIRouter, BackgroundTasks, HTTPException
 from pydantic import BaseModel
@@ -463,7 +463,7 @@ async def _run_clone_creation(creator_id: str, website_url: str = None):
 
                     # Log results
                     logger.info(
-                        f"[CloneCreation] Website ingestion complete: "
+                        "[CloneCreation] Website ingestion complete: "
                         f"pages={result.pages_scraped}, "
                         f"products_detected={result.products_detected}, "
                         f"products_saved={result.products_saved}, "
@@ -482,7 +482,7 @@ async def _run_clone_creation(creator_id: str, website_url: str = None):
                 except Exception as e:
                     logger.error("[CloneCreation] Website ingestion failed: %s", e, exc_info=True)
             else:
-                logger.info(f"[CloneCreation] Step 2: No website provided, skipping")
+                logger.info("[CloneCreation] Step 2: No website provided, skipping")
 
             _update_clone_progress(creator_id, step="website", step_status="completed", percent=45)
 
@@ -556,7 +556,7 @@ async def _run_clone_creation(creator_id: str, website_url: str = None):
             _update_clone_progress(creator_id, percent=90)
 
             # Step 5: Activate bot and mark complete
-            logger.info(f"[CloneCreation] Step 5: Activating bot")
+            logger.info("[CloneCreation] Step 5: Activating bot")
 
             # Refresh creator from DB
             session.expire(creator)

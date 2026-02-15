@@ -11,7 +11,6 @@ Endpoints:
 """
 import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
-from fastapi.testclient import TestClient
 
 
 class TestAudienceRouterImport:
@@ -155,7 +154,7 @@ class TestSegmentUsersEndpoint:
             # Return 5 profiles
             mock_get.return_value = [{"follower_id": f"ig_{i}"} for i in range(5)]
 
-            result = await get_segment_users("test_creator", "ghost", limit=3)
+            _result = await get_segment_users("test_creator", "ghost", limit=3)
 
             # The mock was called with limit
             mock_get.assert_called_once()

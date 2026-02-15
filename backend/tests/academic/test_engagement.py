@@ -160,7 +160,7 @@ class TestEngagement:
 
         found = sum(1 for phrase in continuation_indicators if phrase in all_instructions)
         assert found >= 3, (
-            f"Instructions should contain at least 3 continuation indicators, " f"found {found}"
+            "Instructions should contain at least 3 continuation indicators, " f"found {found}"
         )
 
     def test_no_cierra_conversacion_pronto(self):

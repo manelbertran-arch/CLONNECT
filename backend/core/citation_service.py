@@ -23,13 +23,10 @@ from ingestion import (
     Citation,
     CitationContext,
     ContentChunk,
-    ContentCitationEngine,
     ContentType,
     create_chunks_from_content,
     extract_topics_from_query,
     normalize_text,
-    should_cite_content,
-    split_text,
 )
 
 logger = logging.getLogger(__name__)
@@ -304,7 +301,7 @@ class CreatorContentIndex:
         (En produccion usar embeddings + FAISS)
         """
         if not self.chunks:
-            logger.debug(f"No chunks loaded for search")
+            logger.debug("No chunks loaded for search")
             return []
 
         # Extraer keywords de la query (ya normalizadas sin acentos)
@@ -549,8 +546,8 @@ async def find_relevant_citations(
                     published_date = datetime.fromisoformat(result["published_date"])
                 else:
                     published_date = result["published_date"]
-            except Exception:
-                pass
+            except Exception as e:
+                logger.warning("Suppressed error in if isinstance(result['published_date'], str):: %s", e)
 
         citation = Citation(
             content_type=content_type,
@@ -574,7 +571,6 @@ def get_citation_prompt_section(creator_id: str, query: str, min_relevance: floa
     Returns:
         String para inyectar en system prompt, o vacio si no hay citas relevantes
     """
-    import asyncio
 
     try:
         # Obtener indice y buscar
@@ -610,8 +606,8 @@ def get_citation_prompt_section(creator_id: str, query: str, min_relevance: floa
                         published_date = datetime.fromisoformat(result["published_date"])
                     else:
                         published_date = result["published_date"]
-                except Exception:
-                    pass
+                except Exception as e:
+                    logger.warning("Suppressed error in if isinstance(result['published_date'], str):: %s", e)
 
             citation = Citation(
                 content_type=content_type,

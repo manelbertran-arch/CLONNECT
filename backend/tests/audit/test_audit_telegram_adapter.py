@@ -1,6 +1,6 @@
 """Audit tests for core/telegram_adapter.py"""
 
-from core.telegram_adapter import TelegramAdapter, TelegramBotStatus, TelegramMessage
+from core.telegram_adapter import TelegramAdapter, TelegramMessage
 
 
 class TestAuditTelegramAdapter:

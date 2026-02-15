@@ -20,7 +20,7 @@ Anti-hallucination methods:
 import logging
 import os
 from dataclasses import asdict, dataclass, field
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional
 
 logger = logging.getLogger(__name__)
@@ -252,7 +252,7 @@ class CreatorData:
     lead_magnets: List[ProductInfo] = field(default_factory=list)
     faqs: List[FAQInfo] = field(default_factory=list)
     tone_profile: ToneProfileInfo = field(default_factory=ToneProfileInfo)
-    loaded_at: str = field(default_factory=lambda: datetime.utcnow().isoformat())
+    loaded_at: str = field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
 
     # --- Anti-hallucination validation methods ---
 
@@ -419,8 +419,8 @@ def load_creator_data(creator_id: str) -> CreatorData:
                     .params(cid=creator_id)
                     .first()
                 )
-            except Exception:
-                pass
+            except Exception as e:
+                logger.warning("Suppressed error in creator = (: %s", e)
 
         if not creator:
             logger.warning(f"Creator '{creator_id}' not found in database")

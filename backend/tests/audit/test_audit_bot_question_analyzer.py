@@ -2,7 +2,6 @@
 
 from core.bot_question_analyzer import (
     BotQuestionAnalyzer,
-    QuestionType,
     get_bot_question_analyzer,
     is_short_affirmation,
 )

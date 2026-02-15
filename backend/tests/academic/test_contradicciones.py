@@ -88,7 +88,7 @@ class TestContradicciones:
         # The context detector should pick up the objection
         ctx_after = detect_all(msg_not_interested, is_first_message=False)
         assert ctx_after.intent == Intent.OBJECTION, (
-            f"Changed-mind context should have OBJECTION intent, " f"got {ctx_after.intent}"
+            "Changed-mind context should have OBJECTION intent, " f"got {ctx_after.intent}"
         )
 
     def test_no_confunde_con_contradiccion(self):
@@ -117,7 +117,7 @@ class TestContradicciones:
 
         # This should NOT trigger frustration (it's a reasonable concern)
         assert ctx.frustration_level == "none", (
-            f"Nuanced feedback should not trigger frustration, "
+            "Nuanced feedback should not trigger frustration, "
             f"got level='{ctx.frustration_level}'"
         )
 

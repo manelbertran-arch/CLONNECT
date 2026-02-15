@@ -1,6 +1,6 @@
 """Audit tests for core/instagram_handler.py"""
 
-from core.instagram_handler import InstagramHandler, InstagramHandlerStatus
+from core.instagram_handler import InstagramHandler
 
 
 class TestAuditInstagramHandler:

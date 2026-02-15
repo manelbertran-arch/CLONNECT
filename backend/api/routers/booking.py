@@ -4,7 +4,6 @@ from sqlalchemy.orm import Session
 from datetime import datetime, date, time, timedelta, timezone
 import logging
 import uuid
-import httpx
 
 try:
     from api.database import get_db
@@ -59,8 +58,9 @@ async def get_availability(creator_id: str, db: Session = Depends(get_db)):
             "availability": days
         }
     except Exception as e:
-        logger.error(f"[AVAILABILITY] Error after {_time.time() - start:.2f}s: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        from api.utils.error_helpers import safe_error_detail
+
+        raise HTTPException(status_code=500, detail=safe_error_detail(e, "get availability"))
 
 
 @router.post("/availability/{creator_id}")
@@ -106,9 +106,10 @@ async def set_availability(creator_id: str, data: list = Body(...), db: Session 
             "days_set": len(data)
         }
     except Exception as e:
-        logger.error(f"Error setting availability: {e}")
+        from api.utils.error_helpers import safe_error_detail
+
         db.rollback()
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=safe_error_detail(e, "set availability"))
 
 
 # =============================================================================
@@ -307,8 +308,9 @@ async def get_available_slots(
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"Error getting slots: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        from api.utils.error_helpers import safe_error_detail
+
+        raise HTTPException(status_code=500, detail=safe_error_detail(e, "get slots"))
 
 
 @router.post("/{creator_id}/reserve")
@@ -394,7 +396,7 @@ async def reserve_slot(creator_id: str, data: dict = Body(...), db: Session = De
 
             # Check for refresh_token - access_token will be refreshed if needed
             if creator and creator.google_refresh_token:
-                logger.info(f"Creating Google Calendar event for booking...")
+                logger.info("Creating Google Calendar event for booking...")
                 try:
                     from api.routers.oauth import create_google_meet_event
                 except ImportError:
@@ -494,9 +496,10 @@ async def reserve_slot(creator_id: str, data: dict = Body(...), db: Session = De
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"Error reserving slot: {e}")
+        from api.utils.error_helpers import safe_error_detail
+
         db.rollback()
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=safe_error_detail(e, "reserve slot"))
 
 
 # =============================================================================
@@ -548,8 +551,9 @@ async def get_public_service_info(creator_id: str, service_id: str, db: Session 
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"Error getting public service info: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        from api.utils.error_helpers import safe_error_detail
+
+        raise HTTPException(status_code=500, detail=safe_error_detail(e, "get service info"))
 
 
 @router.get("/{creator_id}/public/{service_id}/available-dates")
@@ -610,8 +614,9 @@ async def get_available_dates(
         }
 
     except Exception as e:
-        logger.error(f"Error getting available dates: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        from api.utils.error_helpers import safe_error_detail
+
+        raise HTTPException(status_code=500, detail=safe_error_detail(e, "get available dates"))
 
 
 @router.post("/{creator_id}/cancel/{booking_id}")
@@ -660,6 +665,7 @@ async def cancel_booking(creator_id: str, booking_id: str, db: Session = Depends
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"Error cancelling booking: {e}")
+        from api.utils.error_helpers import safe_error_detail
+
         db.rollback()
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=safe_error_detail(e, "cancel booking"))

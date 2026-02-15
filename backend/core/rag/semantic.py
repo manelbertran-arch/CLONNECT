@@ -495,9 +495,7 @@ def get_hybrid_rag() -> SemanticRAG:
 # Backward compatibility stubs (no longer needed with OpenAI + pgvector)
 class MockEmbedder:
     """Deprecated: OpenAI embeddings used instead."""
-    pass
 
 
 class MockIndex:
     """Deprecated: pgvector used instead."""
-    pass

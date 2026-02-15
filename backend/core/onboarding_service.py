@@ -8,8 +8,8 @@ Combina:
 """
 
 import logging
-from datetime import datetime
-from typing import Optional, List, Dict, Any
+from datetime import datetime, timezone
+from typing import Optional, List, Dict
 from dataclasses import dataclass, field
 
 from ingestion import (
@@ -17,8 +17,8 @@ from ingestion import (
     ToneProfile,
     ToneAnalyzer
 )
-from core.tone_service import save_tone_profile, get_tone_profile
-from core.citation_service import index_creator_posts, get_content_index
+from core.tone_service import save_tone_profile
+from core.citation_service import index_creator_posts
 
 logger = logging.getLogger(__name__)
 
@@ -87,7 +87,7 @@ class OnboardingService:
                     len(request.manual_posts) if request.manual_posts else 0,
                     request.instagram_username)
 
-        start_time = datetime.now()
+        start_time = datetime.now(timezone.utc)
         errors: List[str] = []
         posts: List[Dict] = []
         tone_profile: Optional[ToneProfile] = None
@@ -165,7 +165,7 @@ class OnboardingService:
                     "post_id": post.get("post_id", f"manual_{i}"),
                     "caption": caption,
                     "post_type": post.get("post_type", post.get("media_type", "image")),
-                    "timestamp": post.get("timestamp", datetime.now().isoformat()),
+                    "timestamp": post.get("timestamp", datetime.now(timezone.utc).isoformat()),
                     "permalink": post.get("permalink", post.get("url", "")),
                     "media_url": post.get("media_url"),
                     "likes_count": post.get("likes_count", 0),
@@ -178,9 +178,7 @@ class OnboardingService:
         """Scraping de Instagram segun metodo configurado."""
         try:
             from ingestion import (
-                MetaGraphAPIScraper,
-                ManualJSONScraper,
-                get_instagram_scraper
+                MetaGraphAPIScraper
             )
 
             if request.scraping_method == "meta_api" and request.instagram_access_token:
@@ -258,7 +256,7 @@ class OnboardingService:
             return {
                 "posts_indexed": result.get("posts_indexed", 0),
                 "total_chunks": result.get("total_chunks", 0),
-                "indexed_at": datetime.now().isoformat()
+                "indexed_at": datetime.now(timezone.utc).isoformat()
             }
         except Exception as e:
             logger.error("[Onboarding] Error indexing content: %s", e, exc_info=True)
@@ -275,7 +273,7 @@ class OnboardingService:
         citation_stats: Optional[Dict] = None
     ) -> OnboardingResult:
         """Construye el resultado del onboarding."""
-        duration = (datetime.now() - start_time).total_seconds()
+        duration = (datetime.now(timezone.utc) - start_time).total_seconds()
 
         tone_summary = None
         if tone_profile:

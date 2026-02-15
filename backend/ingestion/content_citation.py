@@ -10,7 +10,7 @@ import re
 import unicodedata
 from typing import List, Dict, Optional
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import datetime, timezone
 from enum import Enum
 
 logger = logging.getLogger(__name__)
@@ -152,7 +152,7 @@ class Citation:
 
         # Anadir contexto temporal si hay fecha
         if self.published_date:
-            days_ago = (datetime.utcnow() - self.published_date).days
+            days_ago = (datetime.now(timezone.utc) - self.published_date).days
             if days_ago < 7:
                 time_ref = "hace unos dias"
             elif days_ago < 30:

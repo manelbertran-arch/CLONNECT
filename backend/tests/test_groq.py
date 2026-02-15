@@ -7,14 +7,12 @@ Skip if groq package not installed or API key not configured.
 import pytest
 import os
 import sys
-import asyncio
 
 # Add parent to path
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 # Check if groq is available
 try:
-    import groq
     GROQ_AVAILABLE = True
 except ImportError:
     GROQ_AVAILABLE = False

@@ -3,7 +3,6 @@ Webhooks Router - Payment and Calendar webhook endpoints
 Extracted from main.py as part of refactoring
 """
 import logging
-from typing import Optional
 
 from fastapi import APIRouter, HTTPException, Request
 

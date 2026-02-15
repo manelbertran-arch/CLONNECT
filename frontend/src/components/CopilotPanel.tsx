@@ -5,7 +5,7 @@
  * - Automático (copilot_enabled: false): Bot responds automatically
  * - Manual (copilot_enabled: true): Human reviews and approves responses
  */
-import { useState } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
 import {
   Bot,
   Check,
@@ -330,6 +330,14 @@ export default function CopilotPanel() {
   const [hiddenIds, setHiddenIds] = useState<Set<string>>(new Set());
   const [fadingIds, setFadingIds] = useState<Set<string>>(new Set()); // For exit animation
 
+  // Track animation timers for cleanup on unmount
+  const animationTimersRef = useRef<Set<ReturnType<typeof setTimeout>>>(new Set());
+  useEffect(() => {
+    return () => {
+      animationTimersRef.current.forEach(timer => clearTimeout(timer));
+    };
+  }, []);
+
   // Filter out hidden items - this makes discard INSTANT
   const allResponses = pendingData?.pending_responses || [];
   const pendingResponses = allResponses.filter(item => !hiddenIds.has(item.id));
@@ -347,7 +355,8 @@ export default function CopilotPanel() {
     setFadingIds(prev => new Set([...prev, messageId]));
 
     // Hide after animation (150ms)
-    setTimeout(() => {
+    const timer = setTimeout(() => {
+      animationTimersRef.current.delete(timer);
       setHiddenIds(prev => new Set([...prev, messageId]));
       setFadingIds(prev => {
         const next = new Set(prev);
@@ -355,6 +364,7 @@ export default function CopilotPanel() {
         return next;
       });
     }, 150);
+    animationTimersRef.current.add(timer);
 
     approveMutation.mutate(
       { messageId, editedText },
@@ -390,7 +400,8 @@ export default function CopilotPanel() {
     setFadingIds(prev => new Set([...prev, messageId]));
 
     // Hide after animation (150ms)
-    setTimeout(() => {
+    const timer = setTimeout(() => {
+      animationTimersRef.current.delete(timer);
       setHiddenIds(prev => new Set([...prev, messageId]));
       setFadingIds(prev => {
         const next = new Set(prev);
@@ -398,6 +409,7 @@ export default function CopilotPanel() {
         return next;
       });
     }, 150);
+    animationTimersRef.current.add(timer);
 
     discardMutation.mutate(messageId, {
       onSuccess: () => {

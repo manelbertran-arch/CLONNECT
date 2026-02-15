@@ -1,7 +1,7 @@
 """Full auto-setup V2 endpoints with background processing."""
 
 import logging
-from typing import Dict, List, Optional
+from typing import Optional
 
 from fastapi import APIRouter, BackgroundTasks, HTTPException
 from pydantic import BaseModel
@@ -303,9 +303,9 @@ async def _run_full_auto_setup_background(
                 if "result" not in status:
                     status["result"] = {}
                 status["result"]["bio"] = {"loaded": True}
-                logger.info(f"[FullAutoSetup-BG] Bio extracted successfully")
+                logger.info("[FullAutoSetup-BG] Bio extracted successfully")
             else:
-                logger.info(f"[FullAutoSetup-BG] Bio extraction skipped")
+                logger.info("[FullAutoSetup-BG] Bio extraction skipped")
         except Exception as e:
             logger.warning(f"[FullAutoSetup-BG] Bio extraction error: {e}")
             status["warnings"].append(f"Bio extraction: {str(e)}")
@@ -325,7 +325,7 @@ async def _run_full_auto_setup_background(
                 status["result"]["faqs"] = {"generated": faqs_created}
                 logger.info(f"[FullAutoSetup-BG] Generated {faqs_created} FAQs")
             else:
-                logger.info(f"[FullAutoSetup-BG] No new FAQs generated")
+                logger.info("[FullAutoSetup-BG] No new FAQs generated")
         except Exception as e:
             logger.warning(f"[FullAutoSetup-BG] FAQ generation error: {e}")
             status["warnings"].append(f"FAQ generation: {str(e)}")
@@ -345,7 +345,7 @@ async def _run_full_auto_setup_background(
                 .get("confidence", 0.0),
             )
             status["steps_completed"].append("creator_updated")
-            logger.info(f"[FullAutoSetup-BG] Creator updated")
+            logger.info("[FullAutoSetup-BG] Creator updated")
         except Exception as e:
             logger.warning(f"[FullAutoSetup-BG] Creator update error: {e}")
             status["warnings"].append(f"Creator update: {str(e)}")

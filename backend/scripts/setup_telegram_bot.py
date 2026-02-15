@@ -185,7 +185,7 @@ def main():
     print("  2. Send a message to your bot on Telegram")
     print("  3. Check /telegram/status on the backend for status")
     print("  4. Check /telegram/diagnose for webhook health")
-    print(f"  5. Verify lead appears in the CRM with platform=telegram")
+    print("  5. Verify lead appears in the CRM with platform=telegram")
 
 
 if __name__ == "__main__":

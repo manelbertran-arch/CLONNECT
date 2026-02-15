@@ -37,7 +37,6 @@ async def rescore_leads(creator_id: str):
         from api.database import SessionLocal
         from api.models import Creator, Lead, Message
         from core.lead_categorization import (
-            CATEGORIAS_CONFIG,
             calcular_categoria,
             categoria_a_status_legacy,
         )
@@ -73,6 +72,8 @@ async def rescore_leads(creator_id: str):
                 "details": [],
             }
 
+            # TODO: N+1 query - batch this. Should pre-fetch all messages grouped by lead_id
+            # in a single query instead of querying per-lead. Low priority since this is an admin endpoint.
             for lead in leads:
                 messages = (
                     session.query(Message)

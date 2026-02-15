@@ -942,7 +942,7 @@ export default function Settings() {
                             ) : conn.oauth ? (
                               <Button
                                 size="sm"
-                                onClick={() => startOAuth(conn.key).then(r => window.location.href = r.auth_url)}
+                                onClick={() => startOAuth(conn.key).then(r => window.location.href = r.auth_url).catch((err) => { console.error('OAuth error:', err); })}
                               >
                                 Connect
                               </Button>
@@ -1043,7 +1043,7 @@ export default function Settings() {
                           ) : (
                             <Button
                               size="sm"
-                              onClick={() => startOAuth(conn.key).then(r => window.location.href = r.auth_url)}
+                              onClick={() => startOAuth(conn.key).then(r => window.location.href = r.auth_url).catch((err) => { console.error('OAuth error:', err); })}
                             >
                               Connect
                             </Button>
@@ -1231,7 +1231,7 @@ export default function Settings() {
                           ) : (
                             <Button
                               size="sm"
-                              onClick={() => startOAuth(conn.key).then(r => window.location.href = r.auth_url)}
+                              onClick={() => startOAuth(conn.key).then(r => window.location.href = r.auth_url).catch((err) => { console.error('OAuth error:', err); })}
                             >
                               Connect
                             </Button>

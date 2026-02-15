@@ -21,7 +21,6 @@ import re
 import logging
 from typing import List, Dict, Optional, Any
 from dataclasses import dataclass, field
-from datetime import datetime
 
 logger = logging.getLogger(__name__)
 
@@ -183,7 +182,6 @@ class StructuredExtractor:
         """
         Extract products/services from scraped pages.
         """
-        from .deterministic_scraper import ScrapedPage
 
         products = []
         seen_names = set()
@@ -247,7 +245,7 @@ class StructuredExtractor:
 
         for page in pages:
             # Check if this is a testimonials page
-            is_testimonial_page = any(
+            _is_testimonial_page = any(
                 re.search(p, page.url, re.I) or re.search(p, page.title, re.I)
                 for p in self.TESTIMONIAL_PATTERNS
             )

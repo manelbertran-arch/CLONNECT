@@ -1,7 +1,6 @@
 """Link Preview endpoints - Screenshot service for link previews"""
 from fastapi import APIRouter, Query, HTTPException
 from fastapi.responses import JSONResponse
-from typing import Optional
 import logging
 
 from api.services.screenshot_service import (

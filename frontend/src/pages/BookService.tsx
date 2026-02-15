@@ -69,9 +69,13 @@ export default function BookService() {
 
   // Load service info on mount
   useEffect(() => {
+    const controller = new AbortController();
+
     async function loadServiceInfo() {
       try {
-        const response = await fetch(`${API_URL}/booking/${creatorId}/public/${serviceId}`);
+        const response = await fetch(`${API_URL}/booking/${creatorId}/public/${serviceId}`, {
+          signal: controller.signal,
+        });
         const data = await response.json();
 
         if (data.status === "ok") {
@@ -84,6 +88,7 @@ export default function BookService() {
           setStep("error");
         }
       } catch (err) {
+        if ((err as Error).name === 'AbortError') return;
         setError("Could not load service information");
         setStep("error");
       }
@@ -92,6 +97,8 @@ export default function BookService() {
     if (creatorId && serviceId) {
       loadServiceInfo();
     }
+
+    return () => controller.abort();
   }, [creatorId, serviceId]);
 
   // Load available dates for a month

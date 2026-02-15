@@ -124,7 +124,6 @@ class PodcastConnector:
 
     def __init__(self):
         """Inicializa el conector."""
-        pass
 
     async def get_show_info(self, feed_url: str) -> Optional[PodcastShow]:
         """
@@ -372,8 +371,8 @@ class PodcastConnector:
                     from time import mktime
                     dt = datetime.fromtimestamp(mktime(getattr(entry, f'{field}_parsed')))
                     return dt.isoformat()
-                except Exception:
-                    pass
+                except Exception as e:
+                    logger.warning("Suppressed error in from time import mktime: %s", e)
 
             if hasattr(entry, field) and getattr(entry, field):
                 return getattr(entry, field)
@@ -417,8 +416,8 @@ class PodcastConnector:
         if hasattr(entry, 'itunes_episode'):
             try:
                 return int(entry.itunes_episode)
-            except (ValueError, TypeError):
-                pass
+            except (ValueError, TypeError) as e:
+                logger.debug("Ignored (ValueError, TypeError) in return int(entry.itunes_episode): %s", e)
         return None
 
     def _get_season_number(self, entry) -> Optional[int]:
@@ -426,8 +425,8 @@ class PodcastConnector:
         if hasattr(entry, 'itunes_season'):
             try:
                 return int(entry.itunes_season)
-            except (ValueError, TypeError):
-                pass
+            except (ValueError, TypeError) as e:
+                logger.debug("Ignored (ValueError, TypeError) in return int(entry.itunes_season): %s", e)
         return None
 
     def _get_audio_extension(self, url: str) -> str:

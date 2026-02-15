@@ -1,7 +1,6 @@
 """Payments and revenue endpoints"""
 from fastapi import APIRouter, Body, HTTPException
-from datetime import datetime, timedelta
-from typing import Optional
+from datetime import datetime, timedelta, timezone
 import logging
 
 from core.payments import get_payment_manager
@@ -23,7 +22,7 @@ async def get_revenue_stats(creator_id: str, days: int = 30):
 
     # Generate daily revenue placeholder
     daily_revenue = [
-        {"date": (datetime.now() - timedelta(days=days-i-1)).strftime("%Y-%m-%d"), "revenue": 0, "purchases": 0}
+        {"date": (datetime.now(timezone.utc) - timedelta(days=days-i-1)).strftime("%Y-%m-%d"), "revenue": 0, "purchases": 0}
         for i in range(days)
     ]
 

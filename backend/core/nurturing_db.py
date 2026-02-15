@@ -11,11 +11,11 @@ Feature Flag:
 
 import os
 import logging
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Dict, Any, List, Optional
 from contextlib import contextmanager
 
-from sqlalchemy import Column, String, Integer, Text, DateTime, and_, or_, func
+from sqlalchemy import Column, String, Integer, Text, DateTime, and_, func
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.exc import SQLAlchemyError
 
@@ -256,7 +256,7 @@ class NurturingDBStorage:
 
                 if followup:
                     followup.status = "sent"
-                    followup.sent_at = datetime.now()
+                    followup.sent_at = datetime.now(timezone.utc)
                     session.commit()
                     logger.info(f"[NURTURING_DB] Marked {followup_id} as sent")
                     return True
@@ -323,7 +323,7 @@ class NurturingDBStorage:
             Number of followups deleted
         """
         try:
-            cutoff = datetime.now() - timedelta(days=days)
+            cutoff = datetime.now(timezone.utc) - timedelta(days=days)
             with self._get_session() as session:
                 deleted = session.query(NurturingFollowupDB).filter(
                     and_(

@@ -13,7 +13,7 @@ Ejemplo:
 
 import logging
 import re
-from typing import Optional, Tuple
+from typing import Tuple
 from enum import Enum
 
 logger = logging.getLogger(__name__)
@@ -223,7 +223,7 @@ class BotQuestionAnalyzer:
         # Si no hay pregunta (?) pero hay statement que espera feedback → INTEREST
         for pattern in self._statement_patterns:
             if pattern.search(bot_message):
-                logger.debug(f"BotQuestionAnalyzer: Statement expecting response detected → INTEREST")
+                logger.debug("BotQuestionAnalyzer: Statement expecting response detected → INTEREST")
                 return QuestionType.INTEREST
 
         return QuestionType.UNKNOWN

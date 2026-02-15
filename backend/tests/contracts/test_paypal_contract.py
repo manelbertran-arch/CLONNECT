@@ -3,8 +3,7 @@
 Contract tests para PayPal API.
 Verifican que los payloads de webhooks y orders cumplen el contrato esperado.
 """
-import pytest
-from pydantic import BaseModel, ValidationError
+from pydantic import BaseModel
 from typing import Optional, List
 from enum import Enum
 

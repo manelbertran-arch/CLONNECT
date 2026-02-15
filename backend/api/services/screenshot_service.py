@@ -10,13 +10,12 @@ import logging
 import re
 import httpx
 from typing import Optional, Dict
-from contextlib import asynccontextmanager
 
 logger = logging.getLogger(__name__)
 
 # Playwright import con fallback
 try:
-    from playwright.async_api import async_playwright, Browser, BrowserContext
+    from playwright.async_api import async_playwright
     PLAYWRIGHT_AVAILABLE = True
 except ImportError:
     PLAYWRIGHT_AVAILABLE = False
@@ -84,7 +83,6 @@ class ScreenshotService:
     @classmethod
     async def close(cls):
         """No-op for compatibility. Each capture manages its own browser."""
-        pass
 
     @staticmethod
     async def capture(
@@ -178,8 +176,8 @@ class ScreenshotService:
             for selector in ['[aria-label="Close"]', '[data-testid="cookie-close"]', '.cookie-banner button']:
                 try:
                     await page.click(selector, timeout=1000)
-                except Exception:
-                    pass
+                except Exception as e:
+                    logger.warning("Suppressed error in await page.click(selector, timeout=1000): %s", e)
 
             # Capturar screenshot
             screenshot = await page.screenshot(
@@ -198,18 +196,18 @@ class ScreenshotService:
             if context:
                 try:
                     await context.close()
-                except Exception:
-                    pass
+                except Exception as e:
+                    logger.warning("Suppressed error in await context.close(): %s", e)
             if browser:
                 try:
                     await browser.close()
-                except Exception:
-                    pass
+                except Exception as e:
+                    logger.warning("Suppressed error in await browser.close(): %s", e)
             if playwright:
                 try:
                     await playwright.stop()
-                except Exception:
-                    pass
+                except Exception as e:
+                    logger.warning("Suppressed error in await playwright.stop(): %s", e)
 
     @staticmethod
     async def capture_instagram_post(url: str) -> Optional[Dict]:

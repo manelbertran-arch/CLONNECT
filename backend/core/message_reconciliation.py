@@ -939,8 +939,8 @@ async def check_message_gaps() -> Dict[str, Any]:
                     if created_time:
                         try:
                             ig_latest = datetime.fromisoformat(created_time.replace("Z", "+00:00"))
-                        except Exception:
-                            pass
+                        except Exception as e:
+                            logger.warning("Suppressed error in ig_latest = datetime.fromisoformat(created_time...: %s", e)
 
             # Detect gap
             if ig_latest and db_latest:

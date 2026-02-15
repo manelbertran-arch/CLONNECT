@@ -64,7 +64,7 @@ async def sync_instagram_dms(request: InstagramDMSyncRequest):
     - Retry automatico en rate limits
     """
     import asyncio
-    from datetime import datetime
+    from datetime import datetime, timezone
 
     import httpx
     from core.instagram_rate_limiter import (
@@ -315,8 +315,8 @@ async def sync_instagram_dms(request: InstagramDMSyncRequest):
                                         created_at = datetime.fromisoformat(
                                             msg_time.replace("+0000", "+00:00")
                                         )
-                                    except ValueError:
-                                        pass
+                                    except ValueError as e:
+                                        logger.debug("Ignored ValueError in created_at = datetime.fromisoformat(: %s", e)
 
                                 new_msg = Message(
                                     lead_id=lead.id,
@@ -455,7 +455,7 @@ async def _background_dm_sync(
     Updates dm_sync_status with progress.
     """
     import asyncio
-    from datetime import datetime
+    from datetime import datetime, timezone
 
     import httpx
     from core.instagram_rate_limiter import (
@@ -468,7 +468,7 @@ async def _background_dm_sync(
     dm_sync_status[job_id] = {
         "status": "running",
         "creator_id": creator_id,
-        "started_at": datetime.now().isoformat(),
+        "started_at": datetime.now(timezone.utc).isoformat(),
         "conversations_fetched": 0,
         "messages_saved": 0,
         "leads_created": 0,
@@ -679,8 +679,8 @@ async def _background_dm_sync(
                                             new_msg.created_at = datetime.fromisoformat(
                                                 msg["created_time"].replace("Z", "+00:00")
                                             )
-                                        except ValueError:
-                                            pass
+                                        except ValueError as e:
+                                            logger.debug("Ignored ValueError in new_msg.created_at = datetime.fromisoformat(: %s", e)
                                     session.add(new_msg)
                                     messages_saved += 1
                                     dm_sync_status[job_id]["messages_saved"] = messages_saved
@@ -704,7 +704,7 @@ async def _background_dm_sync(
             session.close()
 
         dm_sync_status[job_id]["status"] = "completed"
-        dm_sync_status[job_id]["completed_at"] = datetime.now().isoformat()
+        dm_sync_status[job_id]["completed_at"] = datetime.now(timezone.utc).isoformat()
         dm_sync_status[job_id]["errors"] = errors
         logger.info(f"[BGSync] Complete: {conversations_fetched} convs, {messages_saved} msgs")
 
@@ -712,7 +712,7 @@ async def _background_dm_sync(
         logger.error(f"[BGSync] Error: {e}")
         dm_sync_status[job_id]["status"] = "failed"
         dm_sync_status[job_id]["errors"].append(str(e))
-        dm_sync_status[job_id]["completed_at"] = datetime.now().isoformat()
+        dm_sync_status[job_id]["completed_at"] = datetime.now(timezone.utc).isoformat()
 
 
 @router.post("/sync-instagram-dms-background")
@@ -724,7 +724,7 @@ async def sync_instagram_dms_background(
     Returns immediately with a job_id to check status.
     """
     import uuid
-    from datetime import datetime
+    from datetime import datetime, timezone
 
     job_id = f"dmsync_{request.creator_id}_{uuid.uuid4().hex[:8]}"
 
@@ -741,7 +741,7 @@ async def sync_instagram_dms_background(
         "job_id": job_id,
         "creator_id": request.creator_id,
         "check_status_url": f"/onboarding/sync-instagram-dms-status/{job_id}",
-        "started_at": datetime.now().isoformat(),
+        "started_at": datetime.now(timezone.utc).isoformat(),
     }
 
 

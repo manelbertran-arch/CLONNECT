@@ -1,7 +1,6 @@
 """Link Preview Service - Obtiene thumbnails de posts/reels compartidos"""
 import logging
 import httpx
-import asyncio
 from typing import Optional, Dict
 
 logger = logging.getLogger(__name__)

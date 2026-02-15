@@ -12,11 +12,10 @@ Combina:
 Diseñado para zero-hallucination y contenido citable.
 """
 
-import asyncio
 import logging
-from typing import Optional, Dict, List, Any
+from typing import Optional, List
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import datetime, timezone
 
 logger = logging.getLogger(__name__)
 
@@ -351,12 +350,12 @@ class AutoConfigurator:
                     if access_token and instagram_business_id:
                         logger.info(
                             f"[AutoConfig] Credenciales OAuth encontradas para {creator_id}, "
-                            f"usando Meta Graph API"
+                            "usando Meta Graph API"
                         )
                     else:
                         logger.info(
                             f"[AutoConfig] No hay credenciales OAuth completas para {creator_id}, "
-                            f"usando Instaloader"
+                            "usando Instaloader"
                         )
 
         except Exception as e:
@@ -512,7 +511,7 @@ class AutoConfigurator:
             # Análisis simple del tono
             profile_data = self._analyze_tone(captions)
             profile_data['analyzed_posts_count'] = len(captions)
-            profile_data['generated_at'] = datetime.utcnow().isoformat()
+            profile_data['generated_at'] = datetime.now(timezone.utc).isoformat()
 
             # Guardar en DB
             saved = await save_tone_profile_db(creator_id, profile_data)

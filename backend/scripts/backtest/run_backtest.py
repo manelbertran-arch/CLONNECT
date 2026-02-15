@@ -29,13 +29,14 @@ from collections import defaultdict
 from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, List, Optional
+import logging
+logger = logging.getLogger(__name__)
 
 # Add backend to path
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
 from core.response_fixes import apply_all_response_fixes
 from scripts.backtest.contamination_filter import (
-    detect_contaminated_conversations,
     filter_turns,
 )
 from scripts.backtest.evaluator import evaluate_all
@@ -326,8 +327,8 @@ async def generate_bot_response(
                     "pool_category": pool_result.category,
                     "confidence": pool_result.confidence,
                 }
-        except Exception:
-            pass
+        except Exception as e:
+            logger.warning("Suppressed error in from services.response_variator_v2 import get_r...: %s", e)
 
     # Non-pool path: use fine-tuned model, Scout, or mock
     if model == "scout":

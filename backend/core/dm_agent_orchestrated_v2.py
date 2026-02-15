@@ -1,15 +1,13 @@
 """
 DMAgentOrchestrated V2 - Con prompt universal mejorado.
 """
-import asyncio
 from typing import Optional, List, Dict, Any
 from dataclasses import dataclass
 import logging
 
-from services.bot_orchestrator import get_bot_orchestrator, BotResponse
+from services.bot_orchestrator import get_bot_orchestrator
 from prompts.clone_system_prompt_v2 import (
-    get_stefan_prompt, 
-    build_clone_system_prompt,
+    build_clone_system_prompt, 
     build_response_guidelines,
     STEFAN_METRICS,
     CreatorMetrics
@@ -94,7 +92,7 @@ CONTEXTO DE ESTA CONVERSACIÓN
 ═══════════════════════════════════════════════════════════════════════════════
 {memory_context if memory_context else "Primera interacción con este lead."}
 
-{f"⚠️ El lead hace referencia a conversación pasada." if references_past else ""}
+{"⚠️ El lead hace referencia a conversación pasada." if references_past else ""}
 {edge_guidance if edge_guidance else ""}
 ═══════════════════════════════════════════════════════════════════════════════
 MENSAJE DEL LEAD

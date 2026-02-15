@@ -5,7 +5,6 @@ Si algo es sospechoso, RECHAZA todo.
 Re-verifica cada producto fetching la URL original.
 """
 
-import re
 import logging
 from typing import List, Dict, Optional
 from dataclasses import dataclass, field
@@ -63,10 +62,9 @@ class SanityChecker:
         Returns:
             VerificationResult con estado y detalles
         """
-        from .product_detector import DetectedProduct
 
         checks = []
-        verified_products = []
+        _verified_products = []
         rejected_products = []
 
         # Check 1: Número razonable de productos
@@ -359,7 +357,6 @@ class SanityChecker:
                 if price_str not in content and f"€{price_str}" not in content:
                     logger.warning(f"Precio €{product.price} no encontrado en {product.source_url}")
                     # No rechazar solo por esto, el precio podría estar formateado diferente
-                    pass
 
             return True
 

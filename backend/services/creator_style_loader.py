@@ -92,24 +92,24 @@ def has_style_data(creator_id: str) -> bool:
 
         if get_writing_patterns(creator_id):
             return True
-    except Exception:
-        pass
+    except Exception as e:
+        logger.warning("Suppressed error in from models.writing_patterns import get_writing...: %s", e)
 
     try:
         from services.creator_dm_style_service import CreatorDMStyleService
 
         if CreatorDMStyleService.get_style(creator_id):
             return True
-    except Exception:
-        pass
+    except Exception as e:
+        logger.warning("Suppressed error in from services.creator_dm_style_service import C...: %s", e)
 
     try:
         from core.tone_service import get_tone_prompt_section
 
         if get_tone_prompt_section(creator_id):
             return True
-    except Exception:
-        pass
+    except Exception as e:
+        logger.warning("Suppressed error in from core.tone_service import get_tone_prompt_s...: %s", e)
 
     return False
 
@@ -130,21 +130,21 @@ def list_creators_with_style() -> list:
         for cid in ["stefano_bonanno", "5e5c2364-c99a-4484-b986-741bb84a11cf"]:
             if get_writing_patterns(cid):
                 creators.add(cid)
-    except Exception:
-        pass
+    except Exception as e:
+        logger.warning("Suppressed error in from models.writing_patterns import get_writing...: %s", e)
 
     try:
         from services.creator_dm_style_service import CreatorDMStyleService
 
         creators.update(CreatorDMStyleService._styles.keys())
-    except Exception:
-        pass
+    except Exception as e:
+        logger.warning("Suppressed error in from services.creator_dm_style_service import C...: %s", e)
 
     try:
         from core.tone_service import list_profiles
 
         creators.update(list_profiles())
-    except Exception:
-        pass
+    except Exception as e:
+        logger.warning("Suppressed error in from core.tone_service import list_profiles: %s", e)
 
     return list(creators)

@@ -404,7 +404,7 @@ class CalendarManager:
             if not event_type_uri:
                 return []
 
-            async with httpx.AsyncClient() as client:
+            async with httpx.AsyncClient(timeout=30.0) as client:
                 response = await client.get(
                     f"{self.calendly_base_url}/event_type_available_times",
                     headers={
@@ -450,7 +450,7 @@ class CalendarManager:
             if not event_type_id:
                 return []
 
-            async with httpx.AsyncClient() as client:
+            async with httpx.AsyncClient(timeout=30.0) as client:
                 response = await client.get(
                     f"{self.calcom_base_url}/slots",
                     headers={
@@ -721,7 +721,7 @@ class CalendarManager:
             guest_name = attendee.get("name", "")
 
             scheduled_at = booking_data.get("startTime", "")
-            end_time = booking_data.get("endTime", "")
+            _end_time = booking_data.get("endTime", "")
             meeting_url = booking_data.get("metadata", {}).get("videoCallUrl", "")
 
             external_id = str(booking_data.get("id", ""))

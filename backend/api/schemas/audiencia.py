@@ -4,7 +4,7 @@ Audiencia API Schemas
 SPRINT4-T4.1: Schemas for aggregated audience data endpoints
 """
 from pydantic import BaseModel
-from typing import List, Optional
+from typing import List
 
 
 class TopicAggregation(BaseModel):

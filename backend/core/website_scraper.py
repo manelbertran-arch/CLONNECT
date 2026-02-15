@@ -8,7 +8,7 @@ con información del sitio web del creator.
 import re
 import logging
 from typing import Optional, List, Dict, Any
-from urllib.parse import urljoin, urlparse
+from urllib.parse import urlparse
 import httpx
 
 logger = logging.getLogger(__name__)

@@ -21,7 +21,6 @@ import time
 import logging
 import asyncio
 from typing import Optional
-from dataclasses import dataclass
 
 logger = logging.getLogger(__name__)
 
@@ -131,8 +130,7 @@ class PlaywrightScraper:
         from ingestion.deterministic_scraper import (
             ScrapedPage,
             get_robots_checker,
-            scraper_circuit_breaker,
-            VERIFY_SSL
+            scraper_circuit_breaker
         )
         from core.metrics import (
             record_page_scraped,

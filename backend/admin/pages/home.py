@@ -4,7 +4,7 @@ The main dashboard with key metrics and urgent actions.
 """
 import streamlit as st
 from admin.utils import t, get_greeting, format_time_ago
-from admin.utils import get_dashboard_metrics, load_creator_config, get_platform_icon
+from admin.utils import get_dashboard_metrics, load_creator_config
 from admin.components import metric_card_money, metric_card_small, action_card, empty_state
 
 

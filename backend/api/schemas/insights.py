@@ -5,7 +5,6 @@ SPRINT3-T3.1: Schemas for InsightsEngine and /insights/* endpoints
 """
 from pydantic import BaseModel
 from typing import List, Optional
-from datetime import datetime
 
 
 class HotLeadAction(BaseModel):

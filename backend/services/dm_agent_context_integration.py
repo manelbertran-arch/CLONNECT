@@ -348,7 +348,7 @@ def get_context_for_dm_agent(
 # ═══════════════════════════════════════════════════════════════════════════════
 
 from models.conversation_memory import ConversationMemory
-from services.memory_service import ConversationMemoryService, get_conversation_memory_service
+from services.memory_service import get_conversation_memory_service
 
 
 async def get_conversation_memory(lead_id: str, creator_id: str) -> ConversationMemory:
@@ -386,7 +386,7 @@ def get_memory_context_for_prompt(memory: ConversationMemory) -> str:
 # BOT ORCHESTRATOR INTEGRATION (Final Integration)
 # ═══════════════════════════════════════════════════════════════════════════════
 
-from services.bot_orchestrator import BotOrchestrator, BotResponse, get_bot_orchestrator
+from services.bot_orchestrator import BotResponse, get_bot_orchestrator
 
 
 async def process_with_orchestrator(

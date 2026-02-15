@@ -4,7 +4,6 @@ Step 3 of cognitive module integration.
 Module: core/response_fixes.py
 Location: PHASE 5 (after output_validator, before guardrails)
 """
-import pytest
 
 
 class TestResponseFixesModule:

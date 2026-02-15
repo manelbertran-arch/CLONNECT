@@ -10,9 +10,9 @@ import hmac
 import json
 import logging
 import os
-from dataclasses import asdict, dataclass
-from datetime import datetime, timedelta, timezone
-from typing import Any, Dict, List, Optional
+from dataclasses import dataclass
+from datetime import datetime
+from typing import Dict, List, Optional
 
 import aiohttp
 
@@ -158,7 +158,7 @@ class InstagramConnector:
 
             return data
 
-        except Exception as e:
+        except Exception as _e:
             # Registrar error
             if rate_limiter:
                 rate_limiter.record_call(self.creator_id, endpoint_name, 500)
@@ -167,7 +167,8 @@ class InstagramConnector:
     async def _get_session(self) -> aiohttp.ClientSession:
         """Obtener o crear sesión HTTP"""
         if self._session is None or self._session.closed:
-            self._session = aiohttp.ClientSession()
+            timeout = aiohttp.ClientTimeout(total=30)
+            self._session = aiohttp.ClientSession(timeout=timeout)
         return self._session
 
     async def close(self):
@@ -407,8 +408,8 @@ class InstagramConnector:
                                     key=lambda c: c.get("updated_time", ""),
                                     reverse=True,
                                 )
-                        except ValueError:
-                            pass
+                        except ValueError as e:
+                            logger.debug("Ignored ValueError in updated_time = datetime.fromisoformat(: %s", e)
 
                 all_conversations.append(conv)
 
@@ -502,8 +503,8 @@ class InstagramConnector:
                             if created_time < cutoff_date:
                                 # Message is older than cutoff, skip but continue
                                 continue
-                        except ValueError:
-                            pass
+                        except ValueError as e:
+                            logger.debug("Ignored ValueError in created_time = datetime.fromisoformat(: %s", e)
 
                 all_messages.append(msg)
 

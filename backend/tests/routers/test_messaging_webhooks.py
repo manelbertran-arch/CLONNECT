@@ -2,7 +2,6 @@
 Messaging webhooks router tests - Written BEFORE implementation (TDD).
 Run these tests FIRST - they should FAIL until router is created.
 """
-import pytest
 
 
 class TestMessagingWebhooksRouterImport:

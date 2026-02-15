@@ -3,7 +3,7 @@ Tests para el clasificador de intencion
 """
 
 import pytest
-from core.intent_classifier import IntentClassifier, Intent, IntentResult
+from core.intent_classifier import IntentClassifier, Intent
 
 
 class TestIntentClassifier:

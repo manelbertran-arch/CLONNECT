@@ -12,11 +12,10 @@ Dependencias:
 - httpx (para descargas)
 """
 
-import asyncio
 import logging
 import tempfile
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import datetime, timezone
 from enum import Enum
 from pathlib import Path
 from typing import Dict, List, Optional
@@ -66,7 +65,7 @@ class Transcript:
     segments: List[TranscriptSegment] = field(default_factory=list)
     language: str = "es"
     duration_seconds: float = 0.0
-    transcribed_at: str = field(default_factory=lambda: datetime.now().isoformat())
+    transcribed_at: str = field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
     model_used: str = "whisper-1"
 
     def to_dict(self) -> Dict:

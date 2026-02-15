@@ -66,7 +66,7 @@ async def download_media(url: str, timeout: float = DOWNLOAD_TIMEOUT_SECONDS) ->
         Media bytes or None if failed
     """
     try:
-        async with httpx.AsyncClient() as client:
+        async with httpx.AsyncClient(timeout=30.0) as client:
             response = await client.get(
                 url,
                 timeout=timeout,
@@ -166,7 +166,7 @@ async def capture_media_from_url(
 
     # Strategy 2: Base64 encoding
     try:
-        async with httpx.AsyncClient() as client:
+        async with httpx.AsyncClient(timeout=30.0) as client:
             response = await client.get(
                 url,
                 timeout=DOWNLOAD_TIMEOUT_SECONDS,

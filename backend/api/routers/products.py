@@ -59,7 +59,7 @@ async def create_product(creator_id: str, data: dict = Body(...), _auth: str = D
 
 @router.put("/{creator_id}/products/{product_id}")
 async def update_product(creator_id: str, product_id: str, data: dict = Body(...), _auth: str = Depends(require_creator_access)):
-    logger.info(f"=== ROUTER UPDATE PRODUCT ===")
+    logger.info("=== ROUTER UPDATE PRODUCT ===")
     logger.info(f"Creator: {creator_id}, Product ID: {product_id}")
     logger.info(f"Data received: {data}")
     if USE_DB:

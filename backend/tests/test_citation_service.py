@@ -1,15 +1,13 @@
 """Tests para Citation Service."""
 
 import pytest
-from datetime import datetime
 from core.citation_service import (
     CreatorContentIndex,
     get_content_index,
     find_relevant_citations,
     index_creator_posts,
     get_citation_prompt_section,
-    clear_index_cache,
-    _index_cache
+    clear_index_cache
 )
 
 

@@ -6,9 +6,9 @@ Provides lead scoring, stage management, and funnel analytics.
 """
 import logging
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import datetime, timezone
 from enum import Enum
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict
 
 logger = logging.getLogger(__name__)
 
@@ -37,7 +37,7 @@ class LeadScore:
     score: int
     stage: LeadStage
     factors: Dict[str, int] = field(default_factory=dict)
-    calculated_at: datetime = field(default_factory=datetime.utcnow)
+    calculated_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
 
 
 class LeadService:

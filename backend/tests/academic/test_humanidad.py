@@ -98,7 +98,7 @@ class TestHumanidad:
         # Within the same conversation, the engine tracks usage and picks
         # the least-used greeting variant each time, producing variety
         assert len(outputs) >= 2, (
-            f"VariationEngine should produce varied outputs within a "
+            "VariationEngine should produce varied outputs within a "
             f"conversation, got {len(outputs)} unique output(s)"
         )
 

@@ -6,14 +6,13 @@ import streamlit as st
 from datetime import datetime
 from admin.utils import t
 from admin.utils import load_bookings
-from admin.components import empty_state
 
 
 def render(creator_id: str):
     """Render the calendar page."""
 
     # Load data
-    bookings = load_bookings(creator_id)
+    _bookings = load_bookings(creator_id)
 
     # Header
     col1, col2 = st.columns([3, 1])

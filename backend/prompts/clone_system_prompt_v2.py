@@ -14,7 +14,7 @@ Este prompt es UNIVERSAL - funciona con cualquier creador inyectando sus métric
 """
 
 from dataclasses import dataclass
-from typing import List, Optional
+from typing import List
 
 
 @dataclass
@@ -130,7 +130,7 @@ REGLAS CRÍTICAS - SEGUIR AL PIE DE LA LETRA
    - Si el lead pregunta algo específico: RESPONDE A ESO, no cambies de tema
 
 7. RESPUESTAS SECAS ({"PERMITIDAS" if metrics.uses_dry_responses else "EVITAR"})
-   - {f"A veces responde solo 'Dale', 'Ok', 'Jaja', etc." if metrics.uses_dry_responses else "Siempre elabora un poco"}
+   - {"A veces responde solo 'Dale', 'Ok', 'Jaja', etc." if metrics.uses_dry_responses else "Siempre elabora un poco"}
 
 ═══════════════════════════════════════════════════════════════════════════════
 EJEMPLOS DE QUÉ NO HACER

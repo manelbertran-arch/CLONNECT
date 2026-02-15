@@ -1,7 +1,6 @@
 """Audit tests for core/context_detector.py"""
 
 from core.context_detector import (
-    B2BResult,
     FrustrationResult,
     SarcasmResult,
     detect_frustration,

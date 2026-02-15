@@ -5,7 +5,7 @@ Usa LLM para clasificar la intención del mensaje del seguidor
 
 import json
 from typing import Optional, Dict, Any, List
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from enum import Enum
 import logging
 

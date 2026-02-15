@@ -17,7 +17,7 @@ import os
 from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional
 
-from fastapi import APIRouter, HTTPException, Query, Request, Response
+from fastapi import APIRouter, HTTPException, Query, Request
 from fastapi.responses import PlainTextResponse
 
 logger = logging.getLogger("clonnect-instagram")
@@ -399,7 +399,7 @@ async def set_ice_breakers(creator_id: str, ice_breakers: List[Dict[str, str]]):
         ]
 
         # Set ice breakers via Meta API
-        async with httpx.AsyncClient() as client:
+        async with httpx.AsyncClient(timeout=30.0) as client:
             response = await client.post(
                 f"https://graph.facebook.com/v21.0/{page_id}/messenger_profile",
                 params={"access_token": access_token},
@@ -455,7 +455,7 @@ async def get_ice_breakers(creator_id: str):
             session.close()
 
         # Get ice breakers via Meta API
-        async with httpx.AsyncClient() as client:
+        async with httpx.AsyncClient(timeout=30.0) as client:
             response = await client.get(
                 f"https://graph.facebook.com/v21.0/{page_id}/messenger_profile",
                 params={"access_token": access_token, "fields": "ice_breakers"},
@@ -497,7 +497,7 @@ async def delete_ice_breakers(creator_id: str):
         if not access_token or not page_id:
             return {"status": "ok", "info": "No Instagram connection"}
 
-        async with httpx.AsyncClient() as client:
+        async with httpx.AsyncClient(timeout=30.0) as client:
             response = await client.delete(
                 f"https://graph.facebook.com/v21.0/{page_id}/messenger_profile",
                 params={"access_token": access_token},
@@ -569,7 +569,7 @@ async def set_persistent_menu(creator_id: str, menu_items: List[Dict[str, Any]])
             {"locale": "default", "composer_input_disabled": False, "call_to_actions": menu_items}
         ]
 
-        async with httpx.AsyncClient() as client:
+        async with httpx.AsyncClient(timeout=30.0) as client:
             response = await client.post(
                 f"https://graph.facebook.com/v21.0/{page_id}/messenger_profile",
                 params={"access_token": access_token},
@@ -747,7 +747,7 @@ async def _handle_story_reply(
 
         # Create message object
         message = InstagramMessage(
-            message_id=f"story_reply_{datetime.now().timestamp()}",
+            message_id=f"story_reply_{datetime.now(timezone.utc).timestamp()}",
             sender_id=sender_id,
             recipient_id=creator_info.get("instagram_page_id", ""),
             text=reply_text,

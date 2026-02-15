@@ -105,7 +105,7 @@ def api_call(method: str, path: str, data: Optional[Dict] = None,
 
         try:
             body = response.json()
-        except:
+        except Exception:
             body = {"raw": response.text[:500]}
 
         result = {
@@ -206,7 +206,7 @@ def scenario_1_onboarding():
         if isinstance(products, dict):
             products = products.get("products", [])
         assert len(products) >= 2, f"Expected 2+ products, got {len(products)}"
-        return f"2 productos listados correctamente"
+        return "2 productos listados correctamente"
     verify_products()
 
     @step("1.5 Crear API key para María", "Key de producción para integraciones")

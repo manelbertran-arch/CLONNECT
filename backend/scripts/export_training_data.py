@@ -21,7 +21,6 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from scripts.backtest.contamination_filter import (
-    detect_contaminated_conversations,
     filter_turns,
 )
 
@@ -110,7 +109,7 @@ def export_training_data(
     # Format for fine-tuning (OpenAI chat format)
     system_msg = (
         f"Eres {creator_name}. Responde como el: breve, calido, "
-        f"con su tono personal. Mensajes cortos y naturales."
+        "con su tono personal. Mensajes cortos y naturales."
     )
 
     training_data = []

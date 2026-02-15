@@ -18,7 +18,6 @@ import argparse
 # Add parent directory to path
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from datetime import datetime, timezone
 from typing import Dict, List
 
 from core.lead_categorization import calcular_categoria, categoria_a_status_legacy
@@ -59,7 +58,7 @@ def recategorize_leads(dry_run: bool = False):
         return
 
     try:
-        from api.models import Lead, Message
+        from api.models import Lead
 
         # Get all leads with message counts
         leads = session.query(Lead).all()

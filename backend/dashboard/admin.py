@@ -6,8 +6,6 @@ Panel de administracion para supervisar TODOS los creadores
 import streamlit as st
 import requests
 import os
-from datetime import datetime
-import json
 
 # Configuracion
 st.set_page_config(
@@ -170,7 +168,7 @@ def page_overview():
                     creator_id = creator.get("creator_id")
 
                     if creator.get("is_active"):
-                        if st.button(f"⏸️ Pausar", key=f"pause_{creator_id}"):
+                        if st.button("⏸️ Pausar", key=f"pause_{creator_id}"):
                             result = api_request(
                                 f"/admin/creators/{creator_id}/pause",
                                 method="POST",
@@ -180,7 +178,7 @@ def page_overview():
                                 st.success(f"Bot pausado para {creator_id}")
                                 st.rerun()
                     else:
-                        if st.button(f"▶️ Reanudar", key=f"resume_{creator_id}"):
+                        if st.button("▶️ Reanudar", key=f"resume_{creator_id}"):
                             result = api_request(
                                 f"/admin/creators/{creator_id}/resume",
                                 method="POST"
@@ -340,11 +338,11 @@ def page_system():
         status = health.get("status", "unknown")
 
         if status == "healthy":
-            st.success(f"✅ Sistema Saludable")
+            st.success("✅ Sistema Saludable")
         elif status == "degraded":
-            st.warning(f"⚠️ Sistema Degradado")
+            st.warning("⚠️ Sistema Degradado")
         else:
-            st.error(f"🔴 Sistema No Saludable")
+            st.error("🔴 Sistema No Saludable")
 
         st.json(health)
 
@@ -402,7 +400,7 @@ def page_api_keys():
                     st.write(f"**Activa:** {'Si' if active else 'No'}")
 
                     if active:
-                        if st.button(f"🗑️ Revocar", key=f"revoke_{prefix}"):
+                        if st.button("🗑️ Revocar", key=f"revoke_{prefix}"):
                             result = api_request(
                                 f"/auth/keys/{prefix}",
                                 method="DELETE"

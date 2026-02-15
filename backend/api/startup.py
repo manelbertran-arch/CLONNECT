@@ -120,7 +120,7 @@ def register_startup_handlers(app: "FastAPI"):
                     try:
                         stats = await refresh_all_creator_tokens(session)
                         logger.info(
-                            f"[TOKEN-REFRESH] Completed: "
+                            "[TOKEN-REFRESH] Completed: "
                             f"{stats.get('refreshed', 0)} refreshed, "
                             f"{stats.get('failed', 0)} failed"
                         )
@@ -272,8 +272,8 @@ async def _do_prewarm(SessionLocal):
         for bot in registry.list_bots():
             if bot.get("is_active") and bot.get("creator_id"):
                 active_creators.add(bot["creator_id"])
-    except Exception:
-        pass
+    except Exception as e:
+        logger.warning("Suppressed error in from core.telegram_registry import get_telegram...: %s", e)
 
     if not active_creators:
         active_creators = {"stefano_auto"}

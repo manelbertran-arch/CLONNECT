@@ -30,7 +30,6 @@ import json
 import logging
 import os
 import random
-import re
 from dataclasses import dataclass
 from typing import Dict, List, Optional, Set, Tuple
 
@@ -106,8 +105,8 @@ class ResponseVariatorV2:
         try:
             with open(path, "r", encoding="utf-8") as f:
                 self.pools = json.load(f)
-        except Exception:
-            pass
+        except Exception as e:
+            logger.warning("Suppressed error in with open(path, 'r', encoding='utf-8') as f:: %s", e)
 
     def _setup_fallback_pools(self) -> None:
         """Setup fallback pools if no data exists."""

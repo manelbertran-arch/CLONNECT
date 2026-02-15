@@ -17,10 +17,8 @@ try:
         Counter,
         Histogram,
         Gauge,
-        CollectorRegistry,
         generate_latest,
         CONTENT_TYPE_LATEST,
-        multiprocess,
         REGISTRY
     )
     PROMETHEUS_AVAILABLE = True

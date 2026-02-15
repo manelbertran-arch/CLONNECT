@@ -2,7 +2,6 @@
 Router import tests.
 Verifies all routers can be imported and have correct structure.
 """
-import pytest
 
 
 class TestRouterImports:

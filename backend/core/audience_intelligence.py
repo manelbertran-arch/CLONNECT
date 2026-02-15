@@ -12,7 +12,7 @@ actionable insights for creators.
 """
 import logging
 from dataclasses import dataclass, field
-from datetime import datetime, timedelta
+from datetime import datetime, timezone
 from typing import Any, Callable, Dict, List, Optional, Tuple
 
 logger = logging.getLogger(__name__)
@@ -440,7 +440,7 @@ class AudienceProfileBuilder:
         """
         try:
             from api.database import SessionLocal
-            from api.models import FollowerMemoryDB, Lead, ConversationStateDB, UserProfileDB
+            from api.models import FollowerMemoryDB, Lead, ConversationStateDB
 
             db = SessionLocal()
             if not db:
@@ -527,11 +527,11 @@ class AudienceProfileBuilder:
             else:
                 last_dt = datetime.fromisoformat(last_contact)
 
-            # Make naive if needed for comparison
-            if last_dt.tzinfo:
-                last_dt = last_dt.replace(tzinfo=None)
+            # Make timezone-aware for comparison
+            if not last_dt.tzinfo:
+                last_dt = last_dt.replace(tzinfo=timezone.utc)
 
-            delta = datetime.now() - last_dt
+            delta = datetime.now(timezone.utc) - last_dt
             return max(0, delta.days)
 
         except Exception as e:

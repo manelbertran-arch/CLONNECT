@@ -8,7 +8,7 @@ import json
 import logging
 import os
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional
 
 logger = logging.getLogger(__name__)
@@ -283,7 +283,7 @@ class MemoryStore:
             return memory
 
         # Create new memory
-        now = datetime.now().isoformat()
+        now = datetime.now(timezone.utc).isoformat()
         memory = FollowerMemory(
             follower_id=follower_id,
             creator_id=creator_id,
@@ -521,11 +521,11 @@ class ConversationMemoryService:
                 if "precio" not in q.lower() and "cuánto" not in q.lower()
             ]
 
-        memory.last_interaction = datetime.now()
+        memory.last_interaction = datetime.now(timezone.utc)
         memory.total_messages += 2
 
         if not memory.conversation_started:
-            memory.conversation_started = datetime.now()
+            memory.conversation_started = datetime.now(timezone.utc)
 
         return memory
 

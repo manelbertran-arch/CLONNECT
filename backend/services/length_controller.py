@@ -352,7 +352,7 @@ def get_length_guidance_prompt(lead_message: str, context: Optional[str] = None)
     return (
         f"[Length: You're {description}. "
         f"Target ~{rule.target} chars (range {rule.soft_min}-{rule.soft_max}). "
-        f"Complete sentences always win over length targets.]"
+        "Complete sentences always win over length targets.]"
     )
 
 

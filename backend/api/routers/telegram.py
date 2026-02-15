@@ -8,7 +8,7 @@ import socket
 from typing import Optional
 
 import httpx
-from fastapi import APIRouter, HTTPException, Request
+from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 
 logger = logging.getLogger(__name__)
@@ -83,7 +83,7 @@ async def telegram_diagnose():
     DIAGNOSTIC ENDPOINT - Check webhook status for ALL registered bots.
     Use this to verify that webhooks are correctly pointing to Railway.
     """
-    from api.db_service import SessionLocal
+    from api.database import SessionLocal
 
     results = {"bots": [], "expected_webhook_url": ""}
 
@@ -215,7 +215,7 @@ async def fix_telegram_webhook(bot_id: str):
                 }
     except Exception as e:
         logger.error(f"Error fixing webhook: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="Internal error fixing Telegram webhook")
 
 
 # ---------------------------------------------------------
@@ -418,7 +418,7 @@ async def telegram_test_message(request: TestMessageRequest):
         logger.error(f"Error in Telegram test message: {e}")
         import traceback
         logger.error(traceback.format_exc())
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="Internal error processing Telegram test message")
 
 
 # Note: /telegram/webhook legacy endpoint is kept in main.py since it references

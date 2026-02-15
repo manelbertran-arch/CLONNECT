@@ -4,7 +4,6 @@ TDD: Tests written FIRST before implementation.
 Part of RELATIONSHIP-DNA feature.
 """
 
-from unittest.mock import MagicMock, patch
 
 from models.relationship_dna import RelationshipType
 

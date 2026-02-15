@@ -1,5 +1,5 @@
 from typing import Protocol, Dict, Any, List, Optional
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 import logging
 
 logger = logging.getLogger("clonnect.analytics.sales_tracker")
@@ -17,11 +17,11 @@ class SalesTracker:
         return f"sales:{creator_id}"
 
     async def record_click(self, creator_id: str, product_id: str, follower_id: str, conversation_id: Optional[str] = None, metadata: Optional[Dict[str, Any]] = None) -> None:
-        event = {"type": "click", "product_id": product_id, "follower_id": follower_id, "conversation_id": conversation_id, "metadata": metadata or {}, "timestamp": datetime.utcnow().isoformat()}
+        event = {"type": "click", "product_id": product_id, "follower_id": follower_id, "conversation_id": conversation_id, "metadata": metadata or {}, "timestamp": datetime.now(timezone.utc).isoformat()}
         await self.storage.append(self._get_key(creator_id), event)
 
     async def record_sale(self, creator_id: str, product_id: str, follower_id: str, amount: float, currency: str = "EUR", payment_id: Optional[str] = None, conversation_id: Optional[str] = None, metadata: Optional[Dict[str, Any]] = None) -> None:
-        event = {"type": "sale", "product_id": product_id, "follower_id": follower_id, "amount": amount, "currency": currency, "payment_id": payment_id, "conversation_id": conversation_id, "metadata": metadata or {}, "timestamp": datetime.utcnow().isoformat()}
+        event = {"type": "sale", "product_id": product_id, "follower_id": follower_id, "amount": amount, "currency": currency, "payment_id": payment_id, "conversation_id": conversation_id, "metadata": metadata or {}, "timestamp": datetime.now(timezone.utc).isoformat()}
         await self.storage.append(self._get_key(creator_id), event)
 
     async def get_stats(self, creator_id: str, product_id: Optional[str] = None, days: Optional[int] = None) -> Dict[str, Any]:
@@ -29,7 +29,7 @@ class SalesTracker:
         if product_id:
             events = [e for e in events if e.get("product_id") == product_id]
         if days:
-            cutoff = datetime.utcnow() - timedelta(days=days)
+            cutoff = datetime.now(timezone.utc) - timedelta(days=days)
             events = [e for e in events if datetime.fromisoformat(e.get("timestamp", "2000-01-01")) >= cutoff]
         clicks = [e for e in events if e.get("type") == "click"]
         sales = [e for e in events if e.get("type") == "sale"]

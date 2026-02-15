@@ -5,7 +5,7 @@ WhatsApp-style conversation list and chat view.
 import streamlit as st
 from admin.utils import t, format_time_ago
 from admin.utils import load_followers, load_escalations, get_platform_icon, get_platform_name
-from admin.components import chat_message, conversation_list_item, follower_profile_card, empty_state
+from admin.components import chat_message, follower_profile_card, empty_state
 
 
 def render(creator_id: str):
@@ -121,7 +121,7 @@ def render(creator_id: str):
             else:
                 status = "normal"
 
-            is_selected = st.session_state.selected_conversation == follower_id
+            _is_selected = st.session_state.selected_conversation == follower_id
 
             # Create a button for each conversation
             if st.button(
@@ -241,15 +241,15 @@ def render(creator_id: str):
                 btn_col1, btn_col2, btn_col3 = st.columns(3)
 
                 with btn_col1:
-                    if st.button(f"🏷️ Tags", use_container_width=True):
+                    if st.button("🏷️ Tags", use_container_width=True):
                         st.info("Gestión de tags (próximamente)")
 
                 with btn_col2:
-                    if st.button(f"💰 Marcar venta", use_container_width=True):
+                    if st.button("💰 Marcar venta", use_container_width=True):
                         st.success("Venta registrada (demo)")
 
                 with btn_col3:
-                    if st.button(f"⏸️ Pausar bot", use_container_width=True):
+                    if st.button("⏸️ Pausar bot", use_container_width=True):
                         st.info("Bot pausado para este usuario (demo)")
 
                 # Follower profile sidebar

@@ -7,8 +7,7 @@ from ingestion.instagram_scraper import (
     ManualJSONScraper,
     MetaGraphAPIScraper,
     InstaloaderScraper,
-    get_instagram_scraper,
-    InstagramScraperError
+    get_instagram_scraper
 )
 
 

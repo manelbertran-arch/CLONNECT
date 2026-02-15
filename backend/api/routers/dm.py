@@ -7,7 +7,6 @@ import json
 import logging
 import os
 from datetime import datetime, timezone
-from typing import Dict, Optional
 
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
@@ -16,7 +15,7 @@ logger = logging.getLogger(__name__)
 
 # Database availability check
 try:
-    from api import db_service
+    pass
 
     USE_DB = True
 except Exception:
@@ -116,7 +115,7 @@ async def get_conversations(creator_id: str, limit: int = 50):
         if USE_DB:
             from api.models import Creator, Lead, Message
             from api.services.db_service import get_session
-            from sqlalchemy import desc, func, not_
+            from sqlalchemy import func, not_
 
             session = get_session()
             if session:
@@ -345,7 +344,6 @@ async def debug_messages(creator_id: str):
     try:
         from api.models import Creator, Lead, Message
         from api.services.db_service import get_session
-        from sqlalchemy import func
 
         session = get_session()
         if not session:
@@ -611,7 +609,7 @@ async def send_manual_message(creator_id: str, request: SendMessageRequest):
         if platform == "telegram" and TELEGRAM_BOT_TOKEN:
             try:
                 telegram_api = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendMessage"
-                async with httpx.AsyncClient() as client:
+                async with httpx.AsyncClient(timeout=30.0) as client:
                     resp = await client.post(
                         telegram_api,
                         json={"chat_id": int(chat_id), "text": message_text, "parse_mode": "HTML"},
@@ -831,7 +829,6 @@ async def get_archived_conversations(creator_id: str):
     if USE_DB:
         try:
             from api.models import Creator, Lead, Message
-            from api.services import db_service
             from api.services.db_service import get_session
 
             session = get_session()

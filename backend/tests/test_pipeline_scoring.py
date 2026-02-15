@@ -1,8 +1,7 @@
 # backend/tests/test_pipeline_scoring.py
 # Tests for the pipeline scoring and auto-transition logic
 
-import pytest
-from unittest.mock import Mock, patch
+from unittest.mock import Mock
 
 
 # Pipeline scoring values by status

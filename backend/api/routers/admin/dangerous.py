@@ -135,8 +135,8 @@ async def reset_all_data(admin: str = Depends(require_admin)):
                             config["is_active"] = False
                             config.pop("products", None)
                             json_file.write_text(json.dumps(config, indent=2))
-                        except (json.JSONDecodeError, IOError):
-                            pass
+                        except (json.JSONDecodeError, IOError) as e:
+                            logger.debug("Ignored (json.JSONDecodeError, IOError) in with open(json_file) as f:: %s", e)
                     else:
                         json_file.write_text("{}")
                     json_deleted += 1
@@ -649,8 +649,8 @@ async def reset_creator(creator_id: str, admin: str = Depends(require_admin)):
                         from uuid import UUID
 
                         creator = session.query(Creator).filter_by(id=UUID(creator_id)).first()
-                    except ValueError:
-                        pass
+                    except ValueError as e:
+                        logger.debug("Ignored ValueError in from uuid import UUID: %s", e)
 
                 if creator:
                     creator_uuid = creator.id
@@ -1032,7 +1032,7 @@ async def force_delete_creator(creator_name: str, admin: str = Depends(require_a
                         # Table/column names validated against whitelist; quoted as defense in depth
                         sql = text(
                             f'DELETE FROM "{table}" WHERE "{fk_col}" IN '
-                            f"(SELECT id FROM leads WHERE creator_id = :creator_id)"
+                            "(SELECT id FROM leads WHERE creator_id = :creator_id)"
                         )
                     else:
                         # Delete directly by creator_id (parameterized)

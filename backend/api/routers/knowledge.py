@@ -117,7 +117,7 @@ async def update_about(creator_id: str, data: dict = Body(...)):
 async def add_knowledge_legacy(creator_id: str, data: dict = Body(...)):
     """Legacy: Add knowledge (auto-parse Q&A format)"""
     text = data.get("text", "").strip()
-    doc_type = data.get("doc_type", "faq")
+    _doc_type = data.get("doc_type", "faq")
 
     if not text:
         raise HTTPException(status_code=400, detail="Text is required")

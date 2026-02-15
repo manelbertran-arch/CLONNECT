@@ -2,7 +2,6 @@
 Migration tests - Verify dm_agent_v2 works as drop-in replacement.
 Written BEFORE migration (TDD).
 """
-import pytest
 
 
 class TestMigrationImports:

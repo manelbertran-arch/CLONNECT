@@ -3,7 +3,7 @@ import pytest
 from datetime import datetime, timedelta
 
 from services.memory_service import ConversationMemoryService
-from models.conversation_memory import ConversationMemory, ConversationFact, FactType
+from models.conversation_memory import ConversationMemory, FactType
 
 
 @pytest.fixture

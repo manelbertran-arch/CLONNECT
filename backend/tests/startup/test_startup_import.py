@@ -2,7 +2,6 @@
 Startup module tests - Written BEFORE implementation (TDD).
 Tests for startup handlers extracted from main.py.
 """
-import pytest
 
 
 class TestStartupModuleImport:

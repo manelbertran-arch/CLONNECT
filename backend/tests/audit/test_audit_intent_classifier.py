@@ -2,7 +2,7 @@
 
 import asyncio
 
-from core.intent_classifier import Intent, IntentClassifier, IntentResult
+from core.intent_classifier import IntentClassifier, IntentResult
 
 
 class TestAuditIntentClassifier:

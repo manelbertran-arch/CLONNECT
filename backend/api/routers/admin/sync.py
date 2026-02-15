@@ -12,12 +12,10 @@ import json
 import logging
 import os
 import re
-import shutil
-from pathlib import Path
 from typing import Dict, Optional
 
 from api.auth import require_admin
-from fastapi import APIRouter, BackgroundTasks, Depends, Header, HTTPException
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
 
 logger = logging.getLogger(__name__)
 
@@ -106,7 +104,7 @@ async def test_full_sync_conversation(creator_id: str, username: str):
 
     Ejemplo: POST /admin/test-full-sync/manel_bertran_luque/stefanobonanno
     """
-    from datetime import datetime, timedelta
+    from datetime import datetime, timedelta, timezone
 
     import httpx
     from api.database import SessionLocal
@@ -371,7 +369,7 @@ async def test_full_sync_conversation(creator_id: str, username: str):
                             msg_text = "[Archivo]"
                             metadata["type"] = "file"
                         metadata["url"] = att_url
-                        metadata["captured_at"] = datetime.utcnow().isoformat() + "Z"
+                        metadata["captured_at"] = datetime.now(timezone.utc).isoformat()
                     else:
                         msg_text = "[Adjunto]"
                         metadata["type"] = "attachment"
@@ -457,8 +455,8 @@ async def test_full_sync_conversation(creator_id: str, username: str):
                         if msg_time < days_limit_ago:
                             skipped_old += 1
                             continue
-                    except ValueError:
-                        pass
+                    except ValueError as e:
+                        logger.debug("Ignored ValueError in msg_time = datetime.fromisoformat(: %s", e)
 
                 # Check for duplicate - but UPDATE if existing has type="unknown"
                 existing = session.query(Message).filter_by(platform_message_id=msg_id).first()
@@ -652,7 +650,7 @@ async def clean_and_sync(creator_id: str, max_convs: int = 10):
     """
     try:
         from api.database import SessionLocal
-        from api.models import Creator, Lead, Message
+        from api.models import Creator, Message
 
         session = SessionLocal()
         results = {"cleaned": {"orphaned_messages": 0}, "sync": {}}
@@ -889,8 +887,8 @@ async def simple_dm_sync(creator_id: str, max_convs: int = 10):
                                 conv_updated_time = datetime.fromisoformat(
                                     conv["updated_time"].replace("+0000", "+00:00")
                                 )
-                            except ValueError:
-                                pass
+                            except ValueError as e:
+                                logger.debug("Ignored ValueError in conv_updated_time = datetime.fromisoformat(: %s", e)
 
                         # Parse message timestamps for first/last contact
                         all_msg_timestamps = []
@@ -908,8 +906,8 @@ async def simple_dm_sync(creator_id: str, max_convs: int = 10):
                                     from_id = msg.get("from", {}).get("id")
                                     if from_id and from_id != ig_user_id:
                                         user_msg_timestamps.append(ts)
-                                except ValueError:
-                                    pass
+                                except ValueError as e:
+                                    logger.debug("Ignored ValueError in ts = datetime.fromisoformat(: %s", e)
 
                         first_msg_time = (
                             min(all_msg_timestamps) if all_msg_timestamps else conv_updated_time
@@ -1123,8 +1121,8 @@ async def simple_dm_sync(creator_id: str, max_convs: int = 10):
                                     if msg_timestamp < days_limit_ago:
                                         results["messages_filtered_180days"] += 1
                                         continue  # Skip messages older than 180 days
-                                except ValueError:
-                                    pass
+                                except ValueError as e:
+                                    logger.debug("Ignored ValueError in msg_timestamp = datetime.fromisoformat(: %s", e)
 
                             # Track attachment processing
                             if msg_text.startswith("[") and msg_text.endswith("]"):
@@ -1166,8 +1164,8 @@ async def simple_dm_sync(creator_id: str, max_convs: int = 10):
                                     new_msg.created_at = datetime.fromisoformat(
                                         msg_time.replace("+0000", "+00:00")
                                     )
-                                except ValueError:
-                                    pass
+                                except ValueError as e:
+                                    logger.debug("Ignored ValueError in new_msg.created_at = datetime.fromisoformat(: %s", e)
 
                             session.add(new_msg)
                             results["messages_saved"] += 1
@@ -1252,7 +1250,6 @@ async def generate_thumbnails(creator_id: str, limit: int = 10):
     try:
         from api.database import DATABASE_URL, SessionLocal
         from api.models import Creator, Lead, Message
-        from sqlalchemy import and_
 
         if not DATABASE_URL or not SessionLocal:
             return {"error": "Database not configured"}
@@ -1536,6 +1533,9 @@ async def fix_lead_timestamps(creator_id: str):
                 "details": [],
             }
 
+            # TODO: N+1 query - batch this. Should pre-fetch all messages grouped by lead_id
+            # in a single query (like the pattern in recategorize_leads below) instead of
+            # querying per-lead. Low priority since this is an admin maintenance endpoint.
             for lead in leads:
                 messages = (
                     session.query(Message)
@@ -1791,7 +1791,6 @@ async def generate_link_previews(creator_id: str, limit: int = 50):
         {"updated": 10, "failed": 2, "no_urls": 38, "total": 50}
     """
     import asyncio
-    import re
 
     from api.database import SessionLocal
     from api.models import Creator, Lead, Message
@@ -1934,12 +1933,11 @@ async def sync_leads_from_conversations(
             "details": [...]
         }
     """
-    from datetime import timezone
 
     from api.database import SessionLocal
     from api.models import Creator, Lead, Message
     from core.lead_categorization import calcular_categoria, categoria_a_status_legacy
-    from sqlalchemy import func, text
+    from sqlalchemy import text
 
     session = SessionLocal()
     try:
@@ -2574,7 +2572,7 @@ async def fix_lead_duplicates():
             # Keep the first one (most messages), delete the rest
             keep_id = leads[0][0]
             keep_username = leads[0][1]
-            keep_msg_count = leads[0][2]
+            _keep_msg_count = leads[0][2]
 
             for lead in leads[1:]:
                 delete_id = lead[0]

@@ -6,9 +6,8 @@ Part of RELATIONSHIP-DNA feature.
 Migration script analyzes existing conversations and creates DNA for leads.
 """
 
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 
-from models.relationship_dna import RelationshipType
 
 
 class TestMigrateExistingLeads:

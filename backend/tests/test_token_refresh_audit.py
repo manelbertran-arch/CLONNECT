@@ -1,6 +1,6 @@
 """Audit tests for core/token_refresh_service.py."""
 
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -157,7 +157,7 @@ class TestCheckAndRefreshIntegration:
         mock_session = MagicMock()
 
         # Simulate a creator whose token expires in 45 days (well above 30-day threshold)
-        future_expiry = datetime.utcnow() + timedelta(days=45)
+        future_expiry = datetime.now(timezone.utc) + timedelta(days=45)
         mock_row = (
             "uuid-123",  # id
             "test_creator",  # name

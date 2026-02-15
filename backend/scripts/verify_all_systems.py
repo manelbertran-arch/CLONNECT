@@ -10,15 +10,13 @@ Usage:
     DATABASE_URL="postgresql://..." python -m scripts.verify_all_systems
 """
 
-import asyncio
-import json
 import os
 import sys
 from collections import defaultdict
 from dataclasses import dataclass
-from datetime import datetime, timedelta
+from datetime import datetime
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple
+from typing import List
 
 import sqlalchemy as sa
 from sqlalchemy import text

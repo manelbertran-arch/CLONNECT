@@ -66,7 +66,7 @@ class PromptBuilder:
             Complete system prompt string
         """
         tone_key = self.personality.get("tone", self.default_tone)
-        tone_config = self.TONES.get(tone_key, self.TONES["friendly"])
+        _tone_config = self.TONES.get(tone_key, self.TONES["friendly"])
         name = self.personality.get("name", self.default_name)
 
         prompt_parts = []

@@ -26,7 +26,6 @@ from core.context_detector import (
     format_alerts_for_prompt,
     get_context_summary,
 )
-from core.intent_classifier import Intent
 
 
 class TestFrustrationResult:

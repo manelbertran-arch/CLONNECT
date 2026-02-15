@@ -52,7 +52,7 @@ class TestInferencia:
             or sensitive.type == SensitiveType.ECONOMIC_DISTRESS
         )
         assert price_detected, (
-            f"Budget signal not detected. "
+            "Budget signal not detected. "
             f"intent_simple={intent_simple}, objection_type={objection}, "
             f"ctx.objection_type={ctx.objection_type}"
         )
@@ -77,7 +77,7 @@ class TestInferencia:
         ), f"Expected 'interest_strong' for urgent message, got '{intent_simple}'"
         # Interest level should reflect the urgency
         assert interest == "strong" or ctx.interest_level == "strong", (
-            f"Expected strong interest for urgent context, "
+            "Expected strong interest for urgent context, "
             f"got interest={interest}, ctx.interest_level={ctx.interest_level}"
         )
 
@@ -101,7 +101,7 @@ class TestInferencia:
         ), f"Expected 'question_product' for beginner question, got '{intent_simple}'"
         # The context should reflect this is a question, not a purchase signal
         assert ctx.intent in (Intent.QUESTION_PRODUCT, Intent.OTHER), (
-            f"Expected QUESTION_PRODUCT or OTHER for beginner question, " f"got {ctx.intent}"
+            "Expected QUESTION_PRODUCT or OTHER for beginner question, " f"got {ctx.intent}"
         )
 
     def test_infiere_motivacion(self):
@@ -123,14 +123,14 @@ class TestInferencia:
 
         # 'me interesa' is in interest_soft keywords
         assert intent_simple == "interest_soft", (
-            f"Business motivation with 'me interesa' should be 'interest_soft', "
+            "Business motivation with 'me interesa' should be 'interest_soft', "
             f"got '{intent_simple}'"
         )
         assert interest == "soft", (
-            f"Business motivation interest level should be 'soft', " f"got '{interest}'"
+            "Business motivation interest level should be 'soft', " f"got '{interest}'"
         )
         assert ctx.interest_level == "soft", (
-            f"Context interest_level should be 'soft', " f"got '{ctx.interest_level}'"
+            "Context interest_level should be 'soft', " f"got '{ctx.interest_level}'"
         )
 
     def test_infiere_objecion_implicita(self):
@@ -151,12 +151,12 @@ class TestInferencia:
 
         # 'no estoy seguro' is in objection keywords
         assert intent_simple == "objection", (
-            f"Hesitation 'no estoy seguro' should be 'objection', " f"got '{intent_simple}'"
+            "Hesitation 'no estoy seguro' should be 'objection', " f"got '{intent_simple}'"
         )
         # 'no estoy seguro' maps to trust objection type
         assert objection == "trust", (
-            f"'No estoy seguro' should be 'trust' objection, " f"got '{objection}'"
+            "'No estoy seguro' should be 'trust' objection, " f"got '{objection}'"
         )
         assert ctx.objection_type == "trust", (
-            f"Context objection_type should be 'trust', " f"got '{ctx.objection_type}'"
+            "Context objection_type should be 'trust', " f"got '{ctx.objection_type}'"
         )

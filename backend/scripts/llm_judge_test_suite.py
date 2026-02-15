@@ -16,7 +16,7 @@ import sys
 import uuid
 import re
 from dataclasses import dataclass, field
-from typing import List, Dict, Optional
+from typing import List, Dict
 from enum import Enum
 from datetime import datetime
 

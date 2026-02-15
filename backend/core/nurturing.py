@@ -97,7 +97,7 @@ class FollowUp:
     scheduled_at: str  # ISO format datetime
     message_template: str
     status: str = "pending"  # pending, sent, cancelled
-    created_at: str = field(default_factory=lambda: datetime.now().isoformat())
+    created_at: str = field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
     sent_at: Optional[str] = None
     metadata: Dict[str, Any] = field(default_factory=dict)
 
@@ -749,7 +749,7 @@ def should_schedule_nurturing(
     )
 
     if has_purchased:
-        logger.info(f"[NURTURING] Skipping - user already purchased")
+        logger.info("[NURTURING] Skipping - user already purchased")
         return None
 
     sequence_type = INTENT_TO_SEQUENCE.get(intent)

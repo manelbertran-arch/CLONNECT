@@ -180,7 +180,7 @@ async def _process_feed_event_safe(creator_info: dict, entry: dict):
         await process_feed_webhook(creator_info, entry)
     except Exception as e:
         logger.error(
-            f"[FEED-WEBHOOK] Background processing failed for "
+            "[FEED-WEBHOOK] Background processing failed for "
             f"{creator_info.get('creator_id', '?')}: {e}"
         )
 
@@ -226,7 +226,7 @@ async def instagram_comments_webhook(request: Request):
 
     except Exception as e:
         logger.error(f"Error processing Instagram comments webhook: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="Internal error processing webhook")
 
 
 # =============================================================================
@@ -262,7 +262,7 @@ async def whatsapp_webhook_receive(request: Request):
     Supports copilot mode (suggested responses) and autopilot mode (auto-send).
     """
     from core.dm_agent_v2 import get_dm_agent
-    from core.whatsapp import WhatsAppConnector, WhatsAppMessage
+    from core.whatsapp import WhatsAppConnector
 
     logger.warning("========== WHATSAPP WEBHOOK HIT ==========")
 
@@ -379,8 +379,8 @@ async def whatsapp_webhook_receive(request: Request):
                             )
                             await read_connector.mark_as_read(message.message_id)
                             await read_connector.close()
-                        except Exception:
-                            pass
+                        except Exception as e:
+                            logger.warning("Suppressed error in read_connector = WhatsAppConnector(: %s", e)
 
                     results.append({
                         "message_id": message.message_id,
@@ -512,7 +512,7 @@ async def whatsapp_test_message(request: Request):
         logger.error(f"Error in WhatsApp test message: {e}")
         import traceback
         logger.error(traceback.format_exc())
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="Internal error processing WhatsApp message")
 
 
 # =============================================================================
@@ -532,6 +532,28 @@ TELEGRAM_DEDUP_TTL = 60  # seconds
 # Copilot mode cache
 _copilot_mode_cache: Dict[str, tuple] = {}
 _COPILOT_CACHE_TTL = 300  # 5 minutes
+_COPILOT_MAX_CACHE_ENTRIES = 500  # Prevent unbounded growth
+_COPILOT_EVICTION_TTL = 3600  # Evict entries older than 1 hour
+
+
+def _evict_stale_copilot_cache(current_time: float):
+    """Remove stale copilot cache entries and enforce max size."""
+    global _copilot_mode_cache
+    if len(_copilot_mode_cache) <= _COPILOT_MAX_CACHE_ENTRIES:
+        return
+    # Evict entries older than eviction TTL
+    stale_keys = [
+        k for k, (_, t) in _copilot_mode_cache.items()
+        if current_time - t > _COPILOT_EVICTION_TTL
+    ]
+    for k in stale_keys:
+        _copilot_mode_cache.pop(k, None)
+    # If still over limit, evict oldest
+    if len(_copilot_mode_cache) > _COPILOT_MAX_CACHE_ENTRIES:
+        sorted_keys = sorted(_copilot_mode_cache, key=lambda k: _copilot_mode_cache[k][1])
+        excess = len(_copilot_mode_cache) - _COPILOT_MAX_CACHE_ENTRIES
+        for k in sorted_keys[:excess]:
+            _copilot_mode_cache.pop(k, None)
 
 
 def _get_copilot_mode_cached(creator_id: str) -> bool:
@@ -570,6 +592,8 @@ def _get_copilot_mode_cached(creator_id: str) -> bool:
     except Exception as e:
         logger.error(f"[COPILOT-CACHE] DB error: {e} - defaulting to copilot_mode=True")
 
+    # Evict stale entries before adding new one
+    _evict_stale_copilot_cache(current_time)
     _copilot_mode_cache[creator_id] = (copilot_enabled, current_time)
     return copilot_enabled
 
@@ -606,7 +630,7 @@ async def send_telegram_direct(
     if reply_markup:
         payload["reply_markup"] = reply_markup
 
-    async with httpx.AsyncClient() as client:
+    async with httpx.AsyncClient(timeout=30.0) as client:
         response = await client.post(telegram_api, json=payload)
         return response.json()
 
@@ -671,6 +695,13 @@ async def telegram_webhook(request: Request):
     Receive Telegram webhook updates (POST).
     Supports multi-bot setup via telegram registry.
     """
+    # Verify Telegram webhook secret token if configured
+    secret_token = os.getenv("TELEGRAM_WEBHOOK_SECRET")
+    if secret_token:
+        header_token = request.headers.get("X-Telegram-Bot-Api-Secret-Token", "")
+        if header_token != secret_token:
+            raise HTTPException(status_code=403, detail="Invalid secret token")
+
     from core.dm_agent_v2 import get_dm_agent
     from core.telegram_registry import get_telegram_registry
 
@@ -850,11 +881,11 @@ async def telegram_webhook(request: Request):
             import traceback
 
             logger.error(f"Traceback: {traceback.format_exc()}")
-            return {"status": "error", "detail": str(e)}
+            return {"status": "error", "detail": "Internal error processing message"}
 
     except Exception as e:
         logger.error(f"Error in Telegram webhook: {type(e).__name__}: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="Internal error processing Telegram webhook")
 
 
 @router.post("/telegram/webhook")

@@ -3,7 +3,6 @@
 import pytest
 from services.length_controller import (
     CONTEXT_LENGTH_RULES,
-    ContextLengthRule,
     STEFAN_LENGTH_CONFIG,
     classify_lead_context,
     detect_message_type,

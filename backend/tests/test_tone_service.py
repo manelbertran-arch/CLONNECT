@@ -1,10 +1,8 @@
 """Tests para Tone Service - Integracion con Magic Slice."""
 
 import pytest
-import json
 import tempfile
 from pathlib import Path
-from unittest.mock import patch, MagicMock
 
 # Mock the ingestion imports before importing tone_service
 import sys

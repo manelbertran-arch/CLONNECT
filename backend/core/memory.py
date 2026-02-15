@@ -13,9 +13,9 @@ All classes here re-export from dm_agent.py for compatibility.
 import os
 import json
 import warnings
-from typing import Optional, List, Dict, Any
+from typing import Optional, List, Dict
 from dataclasses import dataclass, asdict, field
-from datetime import datetime
+from datetime import datetime, timezone
 import logging
 
 logger = logging.getLogger(__name__)
@@ -160,8 +160,8 @@ class MemoryStore:
                 creator_id=creator_id,
                 username=username,
                 name=name,
-                first_contact=datetime.now().isoformat(),
-                last_contact=datetime.now().isoformat()
+                first_contact=datetime.now(timezone.utc).isoformat(),
+                last_contact=datetime.now(timezone.utc).isoformat()
             )
             await self.save(memory)
 
@@ -177,18 +177,18 @@ class MemoryStore:
     ):
         """Actualizar memoria despues de una interaccion"""
         memory.total_messages += 1
-        memory.last_contact = datetime.now().isoformat()
+        memory.last_contact = datetime.now(timezone.utc).isoformat()
 
         # Actualizar ultimos mensajes (mantener ultimos 10)
         memory.last_messages.append({
             "role": "user",
             "content": user_message,
-            "timestamp": datetime.now().isoformat()
+            "timestamp": datetime.now(timezone.utc).isoformat()
         })
         memory.last_messages.append({
             "role": "assistant",
             "content": bot_response,
-            "timestamp": datetime.now().isoformat()
+            "timestamp": datetime.now(timezone.utc).isoformat()
         })
         memory.last_messages = memory.last_messages[-20:]  # Mantener ultimos 20
 

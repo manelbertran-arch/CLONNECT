@@ -1,7 +1,6 @@
 """Tests para Response Engine v2."""
 
 import pytest
-from datetime import datetime, timedelta
 from ingestion.response_engine_v2 import (
     FollowerContext,
     ConversationContext,

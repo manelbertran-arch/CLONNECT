@@ -18,8 +18,6 @@ Status basado en score:
 - score < 0.35 -> "new"
 """
 import pytest
-from datetime import datetime, timedelta, timezone
-from unittest.mock import patch, MagicMock, AsyncMock
 
 
 class TestDMHistoryServiceConfig:

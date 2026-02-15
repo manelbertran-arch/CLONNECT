@@ -136,7 +136,7 @@ def show_all_content(creator_name: str = "stefano_auto"):
     # SUMMARY
     # =========================================================================
     print(f"\n{'#'*80}")
-    print(f"# SUMMARY")
+    print("# SUMMARY")
     print(f"{'#'*80}")
     print(f"Products: {len(products)}")
     print(f"RAG Documents: {total_rag}")

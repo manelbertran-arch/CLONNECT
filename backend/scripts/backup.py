@@ -4,7 +4,6 @@ Clonnect Creators - Backup Script
 Crea backups comprimidos del directorio data/
 """
 
-import os
 import sys
 import shutil
 import tarfile

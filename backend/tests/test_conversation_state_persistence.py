@@ -11,8 +11,7 @@ Tests:
 
 import pytest
 import os
-from unittest.mock import patch, MagicMock
-from datetime import datetime
+from unittest.mock import patch
 
 
 class TestConversationStatePersistence:
@@ -78,7 +77,7 @@ class TestConversationStatePersistence:
 
     def test_state_deserialization(self):
         """UserContext should deserialize from dict correctly."""
-        from core.conversation_state import UserContext, ConversationState, ConversationPhase
+        from core.conversation_state import UserContext
 
         context_data = {
             'name': "Juan",

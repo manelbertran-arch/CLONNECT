@@ -10,7 +10,7 @@ Usage:
 """
 import logging
 import os
-from dataclasses import asdict, dataclass, field
+from dataclasses import asdict, dataclass
 from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional
 
@@ -159,7 +159,7 @@ class InstagramHandler:
 
         try:
             # Get pages connected to this token
-            url = f"https://graph.facebook.com/v18.0/me/accounts"
+            url = "https://graph.facebook.com/v18.0/me/accounts"
             params = {"access_token": self.access_token}
 
             response = requests.get(url, params=params, timeout=10)
@@ -505,7 +505,7 @@ class InstagramHandler:
                         # BUT still save user message to database!
                         logger.info(
                             f"[AntiDup] Skipping autopilot response to {message.sender_id} - "
-                            f"creator already responded"
+                            "creator already responded"
                         )
 
                         # Save user message even if bot doesn't respond
@@ -682,8 +682,8 @@ class InstagramHandler:
                         )
                         if oldest_date is None or created_time < oldest_date:
                             oldest_date = created_time
-                    except Exception:
-                        pass
+                    except Exception as e:
+                        logger.warning("Suppressed error in created_time = datetime.fromisoformat(: %s", e)
 
             logger.info(
                 f"[LeadHistory] Found {len(messages)} messages for {sender_id}, "
@@ -809,7 +809,7 @@ class InstagramHandler:
                     session.rollback()
                     if "uq_lead_creator_platform" in str(e) or "duplicate" in str(e).lower():
                         logger.info(
-                            f"[LeadHistory] Lead already exists (race condition), fetching..."
+                            "[LeadHistory] Lead already exists (race condition), fetching..."
                         )
                         lead = (
                             session.query(Lead)
@@ -821,7 +821,7 @@ class InstagramHandler:
                         )
                         if not lead:
                             logger.error(
-                                f"[LeadHistory] Could not find lead after constraint error"
+                                "[LeadHistory] Could not find lead after constraint error"
                             )
                             return None
                     else:
@@ -859,8 +859,8 @@ class InstagramHandler:
                                 created_at = datetime.fromisoformat(
                                     msg_time_str.replace("Z", "+00:00").replace("+0000", "+00:00")
                                 )
-                            except Exception:
-                                pass
+                            except Exception as e:
+                                logger.warning("Suppressed error in created_at = datetime.fromisoformat(: %s", e)
 
                         # Generate link preview if message has URLs
                         msg_metadata = None
@@ -871,8 +871,8 @@ class InstagramHandler:
                                 if preview:
                                     msg_metadata = {"link_preview": preview}
                                     previews_generated += 1
-                            except Exception:
-                                pass
+                            except Exception as e:
+                                logger.warning("Suppressed error in preview = await extract_link_preview(urls[0]): %s", e)
 
                         new_msg = Message(
                             lead_id=lead.id,
@@ -1406,14 +1406,14 @@ class InstagramHandler:
                         # CRITICAL: Skip echo messages (messages sent BY the page/bot)
                         # Meta sends is_echo=true for messages we sent
                         if message_data.get("is_echo"):
-                            logger.info(f"Skipping echo message (sent by bot)")
+                            logger.info("Skipping echo message (sent by bot)")
                             continue
 
                         # Skip if sender is same as recipient (edge case)
                         sender_id = messaging.get("sender", {}).get("id", "")
                         recipient_id = messaging.get("recipient", {}).get("id", "")
                         if sender_id == recipient_id:
-                            logger.info(f"Skipping message where sender==recipient")
+                            logger.info("Skipping message where sender==recipient")
                             continue
 
                         msg = InstagramMessage(
@@ -1987,7 +1987,7 @@ class InstagramHandler:
                         session.rollback()
                         if "uq_lead_creator_platform" in str(e) or "duplicate" in str(e).lower():
                             logger.info(
-                                f"[SaveMsg] Lead already exists (race condition), fetching..."
+                                "[SaveMsg] Lead already exists (race condition), fetching..."
                             )
                             lead = (
                                 session.query(Lead)
@@ -2001,7 +2001,7 @@ class InstagramHandler:
                             )
                             if not lead:
                                 logger.error(
-                                    f"[SaveMsg] Could not find lead after constraint error"
+                                    "[SaveMsg] Could not find lead after constraint error"
                                 )
                                 return False
                         else:
@@ -2203,7 +2203,7 @@ class InstagramHandler:
                         session.rollback()
                         if "uq_lead_creator_platform" in str(e) or "duplicate" in str(e).lower():
                             logger.info(
-                                f"[SaveUserMsg] Lead already exists (race condition), fetching..."
+                                "[SaveUserMsg] Lead already exists (race condition), fetching..."
                             )
                             lead = (
                                 session.query(Lead)
@@ -2217,7 +2217,7 @@ class InstagramHandler:
                             )
                             if not lead:
                                 logger.error(
-                                    f"[SaveUserMsg] Could not find lead after constraint error"
+                                    "[SaveUserMsg] Could not find lead after constraint error"
                                 )
                                 return False
                         else:

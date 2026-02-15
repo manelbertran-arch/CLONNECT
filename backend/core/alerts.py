@@ -5,11 +5,10 @@ Sistema de alertas via Telegram para errores criticos
 
 import os
 import logging
-import asyncio
 from typing import Optional, Dict, Any
 from datetime import datetime, timezone
 from enum import Enum
-from dataclasses import dataclass, asdict
+from dataclasses import dataclass
 import aiohttp
 
 logger = logging.getLogger(__name__)
@@ -155,7 +154,8 @@ class AlertManager:
                 "disable_notification": level == AlertLevel.INFO
             }
 
-            async with aiohttp.ClientSession() as session:
+            timeout = aiohttp.ClientTimeout(total=30)
+            async with aiohttp.ClientSession(timeout=timeout) as session:
                 async with session.post(url, json=payload) as response:
                     if response.status == 200:
                         logger.info(f"Telegram alert sent: {title}")
@@ -230,7 +230,7 @@ class AlertManager:
         """Alerta de rate limit alcanzado"""
         await self.warning(
             title="Rate Limit",
-            message=f"Rate limit alcanzado para conversacion",
+            message="Rate limit alcanzado para conversacion",
             creator_id=creator_id,
             metadata={
                 "follower_id": follower_id,

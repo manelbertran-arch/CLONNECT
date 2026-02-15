@@ -285,8 +285,8 @@ def clear_cache(creator_id: Optional[str] = None):
     try:
         from core.tone_profile_db import clear_cache as clear_db_cache
         clear_db_cache(creator_id)
-    except Exception:
-        pass
+    except Exception as e:
+        logger.warning("Suppressed error in from core.tone_profile_db import clear_cache as...: %s", e)
 
 
 def list_profiles() -> List[str]:

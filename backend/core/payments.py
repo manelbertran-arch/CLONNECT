@@ -515,7 +515,7 @@ class PaymentManager:
                 f"{self.paypal_client_id}:{self.paypal_client_secret}".encode()
             ).decode()
 
-            async with httpx.AsyncClient() as client:
+            async with httpx.AsyncClient(timeout=30.0) as client:
                 # Get access token
                 token_response = await client.post(
                     f"{base_url}/v1/oauth2/token",
@@ -1116,7 +1116,7 @@ class PaymentManager:
         purchases = self._load_purchases(creator_id)
 
         # Filter by date if needed
-        cutoff = datetime.now(timezone.utc).isoformat()[:10]  # Just use all for now
+        _cutoff = datetime.now(timezone.utc).isoformat()[:10]  # Just use all for now
 
         stats = RevenueStats()
         stats.by_platform = {}

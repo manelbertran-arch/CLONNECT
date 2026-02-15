@@ -40,19 +40,19 @@ class TestCausal:
         ctx = detect_all(message, is_first_message=False)
 
         assert objection_type == "price", (
-            f"'Es muy caro' should trigger price objection, " f"got '{objection_type}'"
+            "'Es muy caro' should trigger price objection, " f"got '{objection_type}'"
         )
         assert (
             ctx.intent == Intent.OBJECTION
         ), f"Price complaint should have OBJECTION intent, got {ctx.intent}"
         assert ctx.objection_type == "price", (
-            f"Context should have price objection_type, " f"got '{ctx.objection_type}'"
+            "Context should have price objection_type, " f"got '{ctx.objection_type}'"
         )
 
         # Verify the alerts system generates actionable guidance for price
         alerts_text = format_alerts_for_prompt(ctx)
         assert "precio" in alerts_text.lower() or "valor" in alerts_text.lower(), (
-            f"Price objection alert should mention precio/valor, " f"got: {alerts_text}"
+            "Price objection alert should mention precio/valor, " f"got: {alerts_text}"
         )
 
         # Product keywords should include price terms for categorization
@@ -115,7 +115,7 @@ class TestCausal:
 
         # The conversation shows interest keywords ('tienes', 'que incluye')
         assert result.categoria in ("interesado", "caliente"), (
-            f"Need-to-solution conversation should be 'interesado' or 'caliente', "
+            "Need-to-solution conversation should be 'interesado' or 'caliente', "
             f"got '{result.categoria}'"
         )
         assert (
@@ -128,7 +128,7 @@ class TestCausal:
             if intent in ("interest_soft", "question_product"):
                 status = get_lead_status_from_intent(intent)
                 assert status == "active", (
-                    f"Interest/question intent should map to 'active' status, " f"got '{status}'"
+                    "Interest/question intent should map to 'active' status, " f"got '{status}'"
                 )
 
     def test_justifica_recomendacion(self):
@@ -164,7 +164,7 @@ class TestCausal:
             or "pago" in alerts_text.lower()
             or "reserva" in alerts_text.lower()
         ), (
-            f"Strong purchase intent should generate purchase-related alerts, "
+            "Strong purchase intent should generate purchase-related alerts, "
             f"got: {alerts_text}"
         )
 
@@ -172,7 +172,7 @@ class TestCausal:
         messages = [{"role": "user", "content": message}]
         cat_result = calcular_categoria(messages)
         assert cat_result.categoria == "caliente", (
-            f"Purchase intent should categorize as 'caliente', " f"got '{cat_result.categoria}'"
+            "Purchase intent should categorize as 'caliente', " f"got '{cat_result.categoria}'"
         )
 
     def test_responde_por_que(self):
@@ -193,12 +193,12 @@ class TestCausal:
 
         # A bare 'por que?' is just a question, not an objection
         assert objection_type == "", (
-            f"Bare 'Por que?' should not be a specific objection type, " f"got '{objection_type}'"
+            "Bare 'Por que?' should not be a specific objection type, " f"got '{objection_type}'"
         )
 
         # Should NOT trigger frustration
         assert ctx.frustration_level == "none", (
-            f"Bare 'Por que?' should not trigger frustration, "
+            "Bare 'Por que?' should not trigger frustration, "
             f"got level='{ctx.frustration_level}'"
         )
 
