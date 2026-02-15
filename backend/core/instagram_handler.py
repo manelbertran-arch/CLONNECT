@@ -282,6 +282,9 @@ class InstagramHandler:
             if await self._record_creator_manual_response(echo_msg):
                 echo_recorded += 1
 
+        # Record message reactions (❤️ on a message) — don't trigger bot response
+        reactions_recorded = await self._process_reaction_events(payload)
+
         # Extract messages from webhook
         messages = await self._extract_messages(payload)
 
@@ -290,6 +293,7 @@ class InstagramHandler:
                 "status": "ok",
                 "messages_processed": 0,
                 "echo_messages_recorded": echo_recorded,
+                "reactions_recorded": reactions_recorded,
                 "results": [],
             }
 
@@ -1186,6 +1190,148 @@ class InstagramHandler:
         except Exception as e:
             logger.error(f"[Echo] Error recording creator response: {e}")
             return False
+
+    async def _process_reaction_events(self, payload: Dict[str, Any]) -> int:
+        """
+        Process message reaction events from webhook.
+
+        Instagram sends reactions as:
+        {
+            "sender": {"id": "user_123"},
+            "recipient": {"id": "page_123"},
+            "timestamp": 1704067200000,
+            "reaction": {
+                "mid": "mid.abc123",       # message being reacted to
+                "action": "react",          # "react" or "unreact"
+                "reaction": "love",         # reaction type
+                "emoji": "❤️"               # emoji (may not always be present)
+            }
+        }
+
+        Reactions are saved as messages with metadata.type="reaction" so the
+        frontend can render them as small emoji bubbles. They do NOT trigger
+        the bot response pipeline.
+        """
+        recorded = 0
+
+        try:
+            for entry in payload.get("entry", []):
+                for messaging in entry.get("messaging", []):
+                    if "reaction" not in messaging:
+                        continue
+
+                    reaction_data = messaging["reaction"]
+                    action = reaction_data.get("action", "")
+
+                    # Only process "react" (ignore "unreact" — we don't delete messages)
+                    if action != "react":
+                        continue
+
+                    sender_id = messaging.get("sender", {}).get("id", "")
+                    recipient_id = messaging.get("recipient", {}).get("id", "")
+
+                    # Determine emoji
+                    emoji = reaction_data.get("emoji", "")
+                    if not emoji:
+                        # Map reaction type names to emojis
+                        reaction_type = reaction_data.get("reaction", "love")
+                        emoji_map = {
+                            "love": "❤️",
+                            "haha": "😂",
+                            "wow": "😮",
+                            "sad": "😢",
+                            "angry": "😠",
+                            "like": "👍",
+                        }
+                        emoji = emoji_map.get(reaction_type, "❤️")
+
+                    # Ensure heart has variation selector
+                    if emoji == "❤" or emoji == "\u2764":
+                        emoji = "❤️"
+
+                    reacted_to_mid = reaction_data.get("mid", "")
+
+                    # Determine role: if sender is a known creator ID, it's from the creator
+                    known_ids = getattr(self, "known_creator_ids", set())
+                    if not known_ids:
+                        known_ids = {self.page_id, self.ig_user_id}
+                    role = "assistant" if sender_id in known_ids else "user"
+
+                    # The follower_id is the other party
+                    follower_id = recipient_id if role == "user" else sender_id
+                    # Wait, if role=user (follower reacted), sender=follower, recipient=page
+                    # If role=assistant (creator reacted), sender=page, recipient=follower
+                    follower_id = sender_id if role == "user" else recipient_id
+
+                    # Save to DB
+                    try:
+                        from api.database import SessionLocal
+                        from api.models import Creator, Lead, Message
+
+                        session = SessionLocal()
+                        try:
+                            creator = session.query(Creator).filter_by(name=self.creator_id).first()
+                            if not creator:
+                                continue
+
+                            lead = (
+                                session.query(Lead)
+                                .filter_by(creator_id=creator.id, platform_user_id=follower_id)
+                                .first()
+                            )
+                            if not lead:
+                                lead = (
+                                    session.query(Lead)
+                                    .filter_by(creator_id=creator.id, platform_user_id=f"ig_{follower_id}")
+                                    .first()
+                                )
+                            if not lead:
+                                logger.debug(f"[Reaction] Lead not found for {follower_id}")
+                                continue
+
+                            # Check if we already recorded this exact reaction
+                            # Use reacted_to_mid + emoji + sender as uniqueness key
+                            existing = (
+                                session.query(Message)
+                                .filter(
+                                    Message.lead_id == lead.id,
+                                    Message.msg_metadata["type"].astext == "reaction",
+                                    Message.msg_metadata["reacted_to_mid"].astext == reacted_to_mid,
+                                    Message.role == role,
+                                )
+                                .first()
+                            )
+                            if existing:
+                                logger.debug(f"[Reaction] Already recorded reaction on {reacted_to_mid}")
+                                continue
+
+                            msg = Message(
+                                lead_id=lead.id,
+                                role=role,
+                                content=emoji,
+                                status="sent",
+                                msg_metadata={
+                                    "type": "reaction",
+                                    "emoji": emoji,
+                                    "reacted_to_mid": reacted_to_mid,
+                                },
+                            )
+                            session.add(msg)
+                            session.commit()
+                            recorded += 1
+                            logger.info(
+                                f"[Reaction] {role} reacted {emoji} to {reacted_to_mid} "
+                                f"(lead={lead.username})"
+                            )
+                        finally:
+                            session.close()
+                    except Exception as e:
+                        logger.error(f"[Reaction] Error saving reaction: {e}")
+
+        except Exception as e:
+            logger.error(f"[Reaction] Error processing reaction events: {e}")
+
+        return recorded
 
     async def _has_creator_responded_recently(
         self, follower_id: str, window_seconds: int = 300
