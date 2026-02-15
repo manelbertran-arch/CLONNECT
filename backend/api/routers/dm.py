@@ -95,14 +95,14 @@ async def process_dm(payload: ProcessDMRequest):
 
 
 @router.get("/conversations/{creator_id}")
-async def get_conversations(creator_id: str, limit: int = 50):
+async def get_conversations(creator_id: str, limit: int = 50, offset: int = 0):
     """Listar conversaciones del creador - OPTIMIZED with caching"""
     import time as _time
 
     from api.cache import api_cache
 
     # Check cache first (60s TTL - matches startup.py cache refresh)
-    cache_key = f"conversations:{creator_id}:{limit}"
+    cache_key = f"conversations:{creator_id}:{limit}:{offset}"
     cached = api_cache.get(cache_key)
     if cached:
         logger.info(f"[CONV] {creator_id}: cache HIT (key={cache_key})")
@@ -132,6 +132,16 @@ async def get_conversations(creator_id: str, limit: int = 50):
                         .subquery()
                     )
 
+                    # Count total for pagination
+                    total_count = (
+                        session.query(func.count(Lead.id))
+                        .filter(
+                            Lead.creator_id == creator.id,
+                            not_(Lead.status.in_(["archived", "spam"])),
+                        )
+                        .scalar()
+                    )
+
                     results = (
                         session.query(
                             Lead,
@@ -143,6 +153,7 @@ async def get_conversations(creator_id: str, limit: int = 50):
                             not_(Lead.status.in_(["archived", "spam"])),
                         )
                         .order_by(Lead.last_contact_at.desc())
+                        .offset(offset)
                         .limit(limit)
                         .all()
                     )
@@ -253,10 +264,15 @@ async def get_conversations(creator_id: str, limit: int = 50):
                     logger.info(
                         f"[CONV] {creator_id}: {len(conversations)} conversations in {elapsed:.2f}s (DB query)"
                     )
+                    has_more = (offset + limit) < total_count
                     result = {
                         "status": "ok",
                         "conversations": conversations,
                         "count": len(conversations),
+                        "total": total_count,
+                        "has_more": has_more,
+                        "offset": offset,
+                        "limit": limit,
                     }
                     # Cache for 60 seconds (matches startup.py refresh cycle)
                     api_cache.set(cache_key, result, ttl_seconds=60)
