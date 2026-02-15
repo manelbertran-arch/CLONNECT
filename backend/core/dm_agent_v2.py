@@ -955,6 +955,20 @@ class DMResponderAgentV2:
             # Step 9: Update lead score (synchronous - needed for response)
             new_stage = self._update_lead_score(follower, intent_value, metadata)
 
+            # Step 9c: Email capture (non-blocking)
+            try:
+                formatted_content = self._step_email_capture(
+                    message=message,
+                    formatted_content=formatted_content,
+                    intent_value=intent_value,
+                    sender_id=sender_id,
+                    follower=follower,
+                    platform=metadata.get("platform", "instagram"),
+                    cognitive_metadata=cognitive_metadata,
+                )
+            except Exception as e:
+                logger.warning(f"Email capture step failed (non-blocking): {e}")
+
             # Steps 8, 8b, 9b: Run in background thread (non-blocking)
             asyncio.create_task(
                 self._background_post_response(
@@ -1308,6 +1322,90 @@ class DMResponderAgentV2:
             days_since_contact=metadata.get("days_since_contact", 0),
             is_customer=follower.is_customer,
         )
+
+    # Intents where we should NOT ask for email
+    _EMAIL_SKIP_INTENTS = frozenset({
+        "escalation", "support", "sensitive", "crisis",
+        "feedback_negative", "spam", "other",
+    })
+
+    def _step_email_capture(
+        self,
+        message: str,
+        formatted_content: str,
+        intent_value: str,
+        sender_id: str,
+        follower,
+        platform: str,
+        cognitive_metadata: dict,
+    ) -> str:
+        """
+        Step 9c: Email capture logic.
+
+        1. Check if incoming message contains an email → capture it
+        2. If no email found, check if we should ask for one → append CTA
+        3. Non-blocking: caller wraps in try/except
+
+        Returns formatted_content (possibly with email ask appended).
+        """
+        from core.unified_profile_service import (
+            extract_email,
+            process_email_capture,
+            should_ask_email,
+            record_email_ask,
+        )
+
+        # 1. Try to detect email in user message
+        detected_email = extract_email(message)
+        if detected_email:
+            result = process_email_capture(
+                email=detected_email,
+                platform=platform,
+                platform_user_id=sender_id,
+                creator_id=self.creator_id,
+                name=follower.name,
+            )
+            if not result.get("error"):
+                # Update lead.email in DB
+                try:
+                    from api.services.db_service import update_lead
+                    update_lead(self.creator_id, sender_id, {"email": detected_email})
+                except Exception as e:
+                    logger.debug(f"Failed to update lead email: {e}")
+
+                cognitive_metadata["email_captured"] = detected_email
+                logger.info(f"[EMAIL] Captured {detected_email} for {sender_id}")
+                # Replace response with capture confirmation
+                capture_response = result.get("response")
+                if capture_response:
+                    return self.instagram_service.format_message(capture_response)
+            return formatted_content
+
+        # 2. Skip asking on sensitive intents
+        if intent_value.lower() in self._EMAIL_SKIP_INTENTS:
+            return formatted_content
+
+        # 3. Check if we should ask for email
+        decision = should_ask_email(
+            platform=platform,
+            platform_user_id=sender_id,
+            creator_id=self.creator_id,
+            intent=intent_value,
+            message_count=follower.total_messages,
+        )
+
+        if decision.should_ask and decision.message:
+            # Append email ask CTA to the response
+            formatted_content = f"{formatted_content}\n\n{decision.message}"
+            record_email_ask(
+                platform=platform,
+                platform_user_id=sender_id,
+                creator_id=self.creator_id,
+            )
+            cognitive_metadata["email_asked"] = decision.reason
+            logger.info(f"[EMAIL] Ask appended for {sender_id} (reason={decision.reason})")
+
+        return formatted_content
 
     async def _check_and_notify_escalation(
         self,
