@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useRef, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Instagram, MoreHorizontal, Plus, Loader2, AlertCircle, MessageCircle, Send, Eye, Pencil, Trash2, Users, Flame, Star, CheckCircle, Ghost, Clock, ExternalLink, ListTodo, History, StickyNote, CheckSquare, Square, Phone, Mail, Calendar, Activity, TrendingUp, Tag, ShoppingBag } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -220,6 +220,14 @@ export default function Leads() {
   const [fadingIds, setFadingIds] = useState<Set<string>>(new Set());
   const [hiddenIds, setHiddenIds] = useState<Set<string>>(new Set());
   const [optimisticLeads, setOptimisticLeads] = useState<LeadDisplay[]>([]);
+
+  // Track animation timers for cleanup on unmount
+  const animationTimersRef = useRef<Set<ReturnType<typeof setTimeout>>>(new Set());
+  useEffect(() => {
+    return () => {
+      animationTimersRef.current.forEach(timer => clearTimeout(timer));
+    };
+  }, []);
 
   // Modal states
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
@@ -479,7 +487,8 @@ export default function Leads() {
     if (newStatus === "completed") {
       setCompletingTaskId(taskId);
       // Wait for animation before actually completing
-      setTimeout(async () => {
+      const timer = setTimeout(async () => {
+        animationTimersRef.current.delete(timer);
         try {
           await updateTaskMutation.mutateAsync({
             leadId: selectedLead.followerId,
@@ -493,6 +502,7 @@ export default function Leads() {
           setCompletingTaskId(null);
         }
       }, 800);
+      animationTimersRef.current.add(timer);
     } else {
       // Uncompleting - do immediately
       try {
@@ -615,7 +625,8 @@ export default function Leads() {
     setFadingIds(prev => new Set([...prev, leadId]));
 
     // Hide after fade animation (150ms)
-    setTimeout(() => {
+    const timer = setTimeout(() => {
+      animationTimersRef.current.delete(timer);
       setHiddenIds(prev => new Set([...prev, leadId]));
       setFadingIds(prev => {
         const next = new Set(prev);
@@ -623,6 +634,7 @@ export default function Leads() {
         return next;
       });
     }, 150);
+    animationTimersRef.current.add(timer);
 
     // BACKGROUND: API call
     deleteLeadMutation.mutate(leadId, {

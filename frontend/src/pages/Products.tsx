@@ -184,10 +184,15 @@ export default function Products() {
       toast({ title: "Sin enlace", description: "Este producto no tiene enlace de compra", variant: "destructive" });
       return;
     }
-    await navigator.clipboard.writeText(product.purchase_url);
-    setCopiedId(product.id);
-    toast({ title: "¡Copiado!", description: "Enlace copiado al portapapeles" });
-    setTimeout(() => setCopiedId(null), 2000);
+    try {
+      await navigator.clipboard.writeText(product.purchase_url);
+      setCopiedId(product.id);
+      toast({ title: "Copiado", description: "Enlace copiado al portapapeles" });
+      setTimeout(() => setCopiedId(null), 2000);
+    } catch (err) {
+      console.error('Failed to copy:', err);
+      toast({ title: "Error", description: "No se pudo copiar al portapapeles", variant: "destructive" });
+    }
   };
 
   return (

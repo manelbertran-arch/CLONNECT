@@ -1,6 +1,6 @@
 import { useState } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
-import { api, setCreatorId } from '../services/api';
+import { useNavigate, useLocation, Link } from 'react-router-dom';
+import { useAuth } from '@/context/AuthContext';
 import { Zap } from 'lucide-react';
 
 export default function Login() {
@@ -9,6 +9,11 @@ export default function Login() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const navigate = useNavigate();
+  const location = useLocation();
+  const { login } = useAuth();
+
+  // Redirect to the page the user was trying to access, or /dashboard
+  const from = (location.state as { from?: string })?.from || '/dashboard';
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -16,15 +21,8 @@ export default function Login() {
     setError('');
 
     try {
-      const response = await api.post('/auth/login', { email, password });
-      localStorage.setItem('token', response.data.access_token);
-
-      // Get creator NAME (not UUID) from user.creators array
-      const creatorName = response.data.user?.creators?.[0]?.name || 'stefano_bonanno';
-      setCreatorId(creatorName);
-
-      // Login siempre va al dashboard (el clon ya está creado)
-      navigate('/dashboard');
+      await login(email, password);
+      navigate(from, { replace: true });
     } catch (err) {
       setError('Credenciales incorrectas');
     } finally {
@@ -33,33 +31,18 @@ export default function Login() {
   };
 
   const handleDemoLogin = async () => {
-    setEmail('sbonanno92@gmail.com');
-    setPassword('demo2024');
-
     setLoading(true);
+    setError('');
+
     try {
-      const response = await api.post('/auth/login', {
-        email: 'sbonanno92@gmail.com',
-        password: 'demo2024'
-      });
-      localStorage.setItem('token', response.data.access_token);
-
-      // Get creator NAME (not UUID) from user.creators array
-      const creatorName = response.data.user?.creators?.[0]?.name || 'stefano_bonanno';
-      setCreatorId(creatorName);
-
-      // Login siempre va al dashboard
-      navigate('/dashboard');
+      await login('sbonanno92@gmail.com', 'demo2024');
+      navigate(from, { replace: true });
     } catch (err) {
       setError('Error en demo login');
     } finally {
       setLoading(false);
     }
   };
-
-  // NO HAY useEffect que verifique sesión
-  // NO HAY auto-redirect
-  // SIEMPRE mostrar el formulario
 
   return (
     <div
