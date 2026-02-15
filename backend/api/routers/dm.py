@@ -139,7 +139,7 @@ async def get_conversations(creator_id: str, limit: int = 50, offset: int = 0):
         if USE_DB:
             from api.models import Creator, Lead, Message
             from api.services.db_service import get_session
-            from sqlalchemy import func, not_
+            from sqlalchemy import cast, func, not_, or_, String as SAString
 
             session = get_session()
             if session:
@@ -186,6 +186,11 @@ async def get_conversations(creator_id: str, limit: int = 50, offset: int = 0):
                     lead_ids = [lead.id for lead, _ in results]
 
                     # Subquery to get the latest SENT message per lead
+                    # Skip truly empty messages (no content AND empty metadata)
+                    has_content = or_(
+                        (Message.content.isnot(None)) & (Message.content != ""),
+                        func.coalesce(cast(Message.msg_metadata, SAString), "{}") != "{}",
+                    )
                     last_msg_subq = (
                         session.query(
                             Message.lead_id, func.max(Message.created_at).label("max_date")
@@ -193,6 +198,7 @@ async def get_conversations(creator_id: str, limit: int = 50, offset: int = 0):
                         .filter(
                             Message.lead_id.in_(lead_ids),
                             Message.status.in_(["sent", "edited"]),
+                            has_content,
                         )
                         .group_by(Message.lead_id)
                         .subquery()
@@ -205,7 +211,13 @@ async def get_conversations(creator_id: str, limit: int = 50, offset: int = 0):
                             (Message.lead_id == last_msg_subq.c.lead_id)
                             & (Message.created_at == last_msg_subq.c.max_date),
                         )
-                        .filter(Message.status.in_(["sent", "edited"]))
+                        .filter(
+                            Message.status.in_(["sent", "edited"]),
+                            or_(
+                                (Message.content.isnot(None)) & (Message.content != ""),
+                                func.coalesce(cast(Message.msg_metadata, SAString), "{}") != "{}",
+                            ),
+                        )
                         .all()
                     )
 
