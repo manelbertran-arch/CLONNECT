@@ -376,12 +376,36 @@ async def fix_instagram_ids(creator_id: str):
         # because Meta webhooks send this ID as the recipient
         creator.instagram_user_id = real_ig_user_id
         creator.instagram_page_id = real_ig_user_id  # Same ID for routing
+
+        # Also add Facebook Page ID to additional_ids for webhook routing
+        # Meta sends the FB page ID as entry.id in webhooks
+        import os
+        fb_page_id = os.getenv("FACEBOOK_PAGE_ID", "") or os.getenv("INSTAGRAM_PAGE_ID", "")
+        additional_ids = creator.instagram_additional_ids or []
+        added_ids = []
+        old_page_id = results["old_values"].get("instagram_page_id")
+        for extra_id in [fb_page_id, old_page_id]:
+            if extra_id and extra_id != real_ig_user_id and extra_id not in additional_ids:
+                additional_ids.append(extra_id)
+                added_ids.append(extra_id)
+        if added_ids:
+            creator.instagram_additional_ids = additional_ids
+
         session.commit()
+
+        # Clear webhook routing cache
+        try:
+            from core.webhook_routing import clear_routing_cache
+            clear_routing_cache()
+        except Exception:
+            pass
 
         results["new_values"] = {
             "instagram_user_id": real_ig_user_id,
             "instagram_page_id": real_ig_user_id,
             "instagram_username": ig_username,
+            "additional_ids_added": added_ids,
+            "all_additional_ids": additional_ids,
         }
 
         # Delete ghost leads (0 messages)
