@@ -26,27 +26,40 @@ import { useInfiniteConversations, useFollowerDetail, useSendMessage, useArchive
 import { useToast } from "@/hooks/use-toast";
 import type { Conversation, Message } from "@/types/api";
 import { getPurchaseIntent, detectPlatform, getFriendlyName, extractNameFromMessages, getMessages } from "@/types/api";
+import { RelationshipBadge } from "@/components/RelationshipBadge";
 
-// Status colors matching Pipeline (solid colors for visibility)
+// Status colors matching Pipeline (Spanish DB values + English legacy)
 const statusColors: Record<string, string> = {
+  nuevo: "bg-blue-500/20 text-blue-400 border-blue-400/30",
+  interesado: "bg-amber-500/20 text-amber-400 border-amber-400/30",
+  caliente: "bg-red-500/20 text-red-400 border-red-400/30",
+  cliente: "bg-emerald-500/20 text-emerald-400 border-emerald-400/30",
+  fantasma: "bg-gray-500/20 text-gray-400 border-gray-400/30",
+  archived: "bg-gray-500/20 text-gray-400 border-gray-400/30",
+  spam: "bg-red-500/20 text-red-400 border-red-400/30",
+  // Legacy English keys
   new: "bg-blue-500/20 text-blue-400 border-blue-400/30",
   active: "bg-amber-500/20 text-amber-400 border-amber-400/30",
   hot: "bg-red-500/20 text-red-400 border-red-400/30",
   customer: "bg-emerald-500/20 text-emerald-400 border-emerald-400/30",
   ghost: "bg-gray-500/20 text-gray-400 border-gray-400/30",
-  archived: "bg-gray-500/20 text-gray-400 border-gray-400/30",
-  spam: "bg-red-500/20 text-red-400 border-red-400/30",
 };
 
-// Status names in Spanish (matching Pipeline)
+// Status names in Spanish
 const statusNames: Record<string, string> = {
+  nuevo: "Nuevo",
+  interesado: "Interesado",
+  caliente: "Caliente",
+  cliente: "Cliente",
+  fantasma: "Fantasma",
+  archived: "Archivado",
+  spam: "Spam",
+  // Legacy English keys
   new: "Nuevo",
   active: "Interesado",
   hot: "Caliente",
   customer: "Cliente",
   ghost: "Fantasma",
-  archived: "Archivado",
-  spam: "Spam",
 };
 
 const platformIcons: Record<string, React.ReactNode> = {
@@ -147,6 +160,7 @@ export default function Inbox() {
 
   const [message, setMessage] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
+  const [showOnlyLeads, setShowOnlyLeads] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [activeTab, setActiveTab] = useState<"all" | "archived">("all");
   const { toast } = useToast();
@@ -265,11 +279,17 @@ export default function Inbox() {
       );
     }
 
+    // Filter to show only real leads (exclude amigos, fans, colaboradores)
+    if (showOnlyLeads) {
+      const leadTypes = ['cliente', 'lead_caliente', 'lead_tibio', 'curioso', 'nuevo'];
+      filtered = filtered.filter(c => leadTypes.includes(c.relationship_type || 'nuevo'));
+    }
+
     // Sort by last contact (most recent first)
     return filtered.sort((a, b) =>
       new Date(b.last_contact || 0).getTime() - new Date(a.last_contact || 0).getTime()
     );
-  }, [data?.pages, archivedData, searchQuery, activeTab]);
+  }, [data?.pages, archivedData, searchQuery, activeTab, showOnlyLeads]);
 
   const archivedCount = archivedData?.length || 0;
 
@@ -365,7 +385,7 @@ export default function Inbox() {
           </button>
         </div>
 
-        <div className="mb-4">
+        <div className="mb-4 space-y-2">
           <div className="relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
             <Input
@@ -375,6 +395,17 @@ export default function Inbox() {
               onChange={(e) => setSearchQuery(e.target.value)}
             />
           </div>
+          <button
+            onClick={() => setShowOnlyLeads(!showOnlyLeads)}
+            className={cn(
+              "text-xs px-3 py-1 rounded-full border transition-colors",
+              showOnlyLeads
+                ? "bg-violet-500/20 text-violet-400 border-violet-400/30"
+                : "bg-secondary text-muted-foreground border-border/50 hover:text-foreground"
+            )}
+          >
+            {showOnlyLeads ? "Solo leads" : "Todos"}
+          </button>
         </div>
 
         <div className="flex-1 overflow-auto space-y-1">
@@ -446,6 +477,7 @@ export default function Inbox() {
                         {convo.last_message_preview || lastMessage?.content || "Sin mensajes"}
                       </p>
                       <div className="mt-2 flex items-center gap-2">
+                        <RelationshipBadge type={convo.relationship_type || convo.status} />
                         <span className={cn(
                           "status-badge text-[10px] border",
                           isArchived
@@ -582,6 +614,8 @@ export default function Inbox() {
                         {selectedConversation.platform || detectPlatform(selectedConversation.follower_id)}
                       </>
                     )}
+                    <span>•</span>
+                    <RelationshipBadge type={(followerData as Conversation)?.relationship_type || selectedConversation?.relationship_type} />
                     <span>• Score: {Math.round(getPurchaseIntent(followerData || selectedConversation) * 100)}%</span>
                   </div>
                 </div>

@@ -64,8 +64,10 @@ export interface Conversation {
   last_message_role?: "user" | "assistant"; // Who sent last message
   is_unread?: boolean; // True if last message is from user (awaiting response)
   is_verified?: boolean; // Instagram verified badge
-  // Multi-factor score (0-100) from lead_scoring.py
+  // Multi-factor score (0-100) from lead_scoring.py V2
   score?: number;
+  // V2 relationship classification
+  relationship_type?: string;
   // AI Intent Score (computed from conversation analysis)
   purchase_intent?: number;       // 0.0 to 1.0
   purchase_intent_score?: number; // 0 to 100 (derived)
@@ -90,8 +92,10 @@ export interface Lead {
   username?: string;
   name?: string;
   platform?: string;
-  // Multi-factor score (0-100) from lead_scoring.py
+  // Multi-factor score (0-100) from lead_scoring.py V2
   score?: number;
+  // V2 relationship classification
+  relationship_type?: string;
   // Backend uses purchase_intent (0.0 to 1.0)
   purchase_intent?: number;
   purchase_intent_score?: number; // Alias for compatibility
@@ -218,6 +222,7 @@ export interface FollowerDetailResponse {
   platform?: string;
   total_messages: number;
   score?: number;
+  relationship_type?: string;
   purchase_intent?: number;
   is_lead?: boolean;
   is_customer?: boolean;

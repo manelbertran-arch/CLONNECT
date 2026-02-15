@@ -279,7 +279,9 @@ async def get_conversations(creator_id: str, limit: int = 50, offset: int = 0):
                                 "total_messages": msg_count,
                                 "purchase_intent": lead.purchase_intent or 0.0,
                                 "purchase_intent_score": lead.purchase_intent or 0.0,
-                                "status": lead.status or "new",
+                                "score": lead.score or 0,
+                                "status": lead.status or "nuevo",
+                                "relationship_type": lead.relationship_type or "nuevo",
                                 "is_lead": True,
                                 "last_contact": (
                                     lead.last_contact_at.isoformat()
@@ -580,6 +582,8 @@ async def get_follower_detail(creator_id: str, follower_id: str):
                                     "profile_pic_url": lead.profile_pic_url,
                                     "total_messages": len(messages),
                                     "purchase_intent_score": lead.purchase_intent or 0,
+                                    "score": lead.score or 0,
+                                    "relationship_type": lead.relationship_type or "nuevo",
                                     "is_lead": True,
                                     "is_customer": lead.status == "cliente",
                                     "status": lead.status,
@@ -924,6 +928,8 @@ async def get_archived_conversations(creator_id: str):
                             "name": lead.full_name,
                             "platform": lead.platform or "instagram",
                             "status": lead.status,
+                            "score": lead.score or 0,
+                            "relationship_type": lead.relationship_type or "nuevo",
                             "total_messages": msg_count,
                             "purchase_intent": lead.purchase_intent or 0.0,
                             "last_contact": (

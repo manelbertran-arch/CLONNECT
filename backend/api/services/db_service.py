@@ -343,6 +343,7 @@ def get_leads(creator_name: str, include_archived: bool = False, limit: int = 10
                     "status": lead.status,
                     "score": lead.score,
                     "purchase_intent": lead.purchase_intent,
+                    "relationship_type": lead.relationship_type or "nuevo",
                     "last_contact_at": (
                         lead.last_contact_at.isoformat() if lead.last_contact_at else None
                     ),
@@ -569,6 +570,7 @@ def create_lead(creator_name: str, data: dict):
             "status": lead.status,
             "score": lead.score,
             "purchase_intent": lead.purchase_intent,
+            "relationship_type": lead.relationship_type or "nuevo",
             "email": context.get("email"),
             "phone": context.get("phone"),
             "notes": context.get("notes"),
@@ -957,6 +959,7 @@ def update_lead(creator_name: str, lead_id: str, data: dict):
                 "status": lead.status,
                 "score": lead.score,
                 "purchase_intent": lead.purchase_intent,
+                "relationship_type": lead.relationship_type or "nuevo",
                 "email": lead.email,
                 "phone": lead.phone,
                 "notes": lead.notes,
@@ -1084,6 +1087,7 @@ def get_lead_by_id(creator_name: str, lead_id: str):
                 "status": lead.status,
                 "score": lead.score,
                 "purchase_intent": lead.purchase_intent,
+                "relationship_type": lead.relationship_type or "nuevo",
                 # CRM fields from direct columns
                 "email": lead.email,
                 "phone": lead.phone,

@@ -43,6 +43,7 @@ import { useInfiniteConversations, useUpdateLeadStatus, useCreateManualLead, use
 import { useToast } from "@/hooks/use-toast";
 import type { Conversation } from "@/types/api";
 import { getPurchaseIntent, detectPlatform, getDisplayName } from "@/types/api";
+import { RelationshipBadge } from "@/components/RelationshipBadge";
 
 // Sistema de Embudo Estándar
 type LeadStatus = "nuevo" | "interesado" | "caliente" | "cliente" | "fantasma";
@@ -305,6 +306,7 @@ export default function Leads() {
         lastContact: convo.last_contact || "",
         totalMessages: convo.total_messages || 0,
         followerId: convo.follower_id,
+        relationshipType: convo.relationship_type || "nuevo",
       };
     });
 
@@ -790,10 +792,13 @@ export default function Leads() {
                               <ExternalLink className="w-3 h-3 text-muted-foreground/50 opacity-0 group-hover:opacity-100" />
                             )}
                           </div>
-                          <p className="text-xs text-muted-foreground flex items-center gap-1">
-                            {platformIcons[lead.platform] || platformIcons.instagram}
-                            <span className="truncate">@{lead.username.replace(/^@/, "")}</span>
-                          </p>
+                          <div className="flex items-center gap-1.5 mt-0.5">
+                            <p className="text-xs text-muted-foreground flex items-center gap-1">
+                              {platformIcons[lead.platform] || platformIcons.instagram}
+                              <span className="truncate">@{lead.username.replace(/^@/, "")}</span>
+                            </p>
+                            <RelationshipBadge type={lead.relationshipType} />
+                          </div>
                         </div>
 
                         {/* Messages & Time (instead of € values) */}
