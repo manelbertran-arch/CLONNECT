@@ -730,27 +730,67 @@ function SharedPostMessage({ message, isOutgoing, isLastInGroup }: { message: Me
   const [mediaLoaded, setMediaLoaded] = useState(false);
   const [useVideoFallback, setUseVideoFallback] = useState(false);
   const [mediaError, setMediaError] = useState(false);
+  const [sourceIndex, setSourceIndex] = useState(0);
   const metadata = message.metadata || {};
 
-  // For thumbnails: use CDN URL, permanent URL, or base64
-  // NOTE: CDN URLs can be image OR video - we try image first, fallback to video
-  // IMPORTANT: Instagram permalinks (instagram.com/p/...) are NOT renderable as img/video
+  // Build ordered list of media sources to try (cascade on failure)
+  // Skip Instagram permalinks — they're not renderable as img/video
   const rawUrl = metadata.url;
-  const mediaUrl = isInstagramPermalink(rawUrl) ? undefined : rawUrl;
-  const thumbnailSrc = mediaUrl
-    || metadata.permanent_url
-    || (metadata.thumbnail_base64
-      ? (metadata.thumbnail_base64.startsWith('data:') ? metadata.thumbnail_base64 : `data:image/jpeg;base64,${metadata.thumbnail_base64}`)
-      : metadata.thumbnail_url || metadata.preview_url);
+  const mediaSources: string[] = [];
+  if (rawUrl && !isInstagramPermalink(rawUrl)) mediaSources.push(rawUrl);
+  if (metadata.permanent_url) mediaSources.push(metadata.permanent_url);
+  if (metadata.thumbnail_base64) {
+    mediaSources.push(
+      metadata.thumbnail_base64.startsWith('data:') ? metadata.thumbnail_base64 : `data:image/jpeg;base64,${metadata.thumbnail_base64}`
+    );
+  }
+  if (metadata.thumbnail_url) mediaSources.push(metadata.thumbnail_url);
+  if (metadata.preview_url) mediaSources.push(metadata.preview_url);
+
+  // Current source to try (advances on failure via sourceIndex)
+  const thumbnailSrc = mediaSources[sourceIndex] || undefined;
+
+  // When all sources exhausted, show placeholder
+  const allSourcesFailed = mediaError || sourceIndex >= mediaSources.length;
 
   // Permalink: explicit permalink field, or Instagram URL, or fallback to media URL
   const permalink = metadata.permalink || (isInstagramPermalink(rawUrl) ? rawUrl : undefined) || metadata.url;
   const authorUsername = metadata.author_username;
   const isReel = metadata.type === 'shared_reel' || metadata.type === 'reel';
 
-  // Detect video: by type, explicit extension, or fallback from failed image
+  // Detect video: by type, explicit extension, data:video URI, or fallback from failed image
   const isVideo = metadata.type === 'shared_video' || isReel || metadata.type === 'clip' || metadata.type === 'igtv'
-    || isExplicitVideoUrl(thumbnailSrc) || useVideoFallback;
+    || isExplicitVideoUrl(thumbnailSrc) || thumbnailSrc?.startsWith('data:video/') || useVideoFallback;
+
+  // Advance to next source when current one fails
+  const handleImageError = () => {
+    if (useVideoFallback) {
+      // Video also failed — try next source
+      setUseVideoFallback(false);
+      setMediaLoaded(false);
+      if (sourceIndex + 1 < mediaSources.length) {
+        setSourceIndex(sourceIndex + 1);
+      } else {
+        setMediaError(true);
+        setMediaLoaded(true);
+      }
+    } else {
+      // Image failed — try as video first
+      setUseVideoFallback(true);
+    }
+  };
+
+  const handleVideoError = () => {
+    // Video failed — try next source
+    setUseVideoFallback(false);
+    setMediaLoaded(false);
+    if (sourceIndex + 1 < mediaSources.length) {
+      setSourceIndex(sourceIndex + 1);
+    } else {
+      setMediaError(true);
+      setMediaLoaded(true);
+    }
+  };
 
   // Platform-specific label
   const platformLabel = metadata.platform === 'youtube' ? 'YouTube'
@@ -762,7 +802,7 @@ function SharedPostMessage({ message, isOutgoing, isLastInGroup }: { message: Me
       <div className={`max-w-[75%] bg-[#262626] rounded-2xl ${isLastInGroup ? (isOutgoing ? 'rounded-br-md' : 'rounded-bl-md') : ''} overflow-hidden`}>
         {/* Post Preview */}
         <a href={permalink} target="_blank" rel="noopener noreferrer" className="block">
-          {thumbnailSrc && !mediaError ? (
+          {thumbnailSrc && !allSourcesFailed ? (
             <div className="relative">
               {!mediaLoaded && (
                 <div className="w-full h-48 bg-[#363636] flex items-center justify-center">
@@ -779,7 +819,7 @@ function SharedPostMessage({ message, isOutgoing, isLastInGroup }: { message: Me
                   autoPlay
                   loop
                   onLoadedData={() => setMediaLoaded(true)}
-                  onError={() => { setMediaError(true); setMediaLoaded(true); }}
+                  onError={handleVideoError}
                 />
               ) : (
                 <img
@@ -788,7 +828,7 @@ function SharedPostMessage({ message, isOutgoing, isLastInGroup }: { message: Me
                   className={`w-full max-h-80 object-cover ${mediaLoaded ? '' : 'hidden'}`}
                   style={{ imageRendering: 'auto' }}
                   onLoad={() => setMediaLoaded(true)}
-                  onError={() => setUseVideoFallback(true)}  // Fallback: try as video
+                  onError={handleImageError}
                 />
               )}
               {isReel && !isVideo && (
