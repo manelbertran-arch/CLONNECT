@@ -293,10 +293,11 @@ export default function Leads() {
   const [editingTaskTitle, setEditingTaskTitle] = useState("");
   const [completingTaskId, setCompletingTaskId] = useState<string | null>(null);
 
-  // Fetch activities, tasks, and stats for selected lead
-  const { data: activitiesData } = useLeadActivities(selectedLead?.followerId || null);
-  const { data: tasksData } = useLeadTasks(selectedLead?.followerId || null);
-  const { data: statsData, isLoading: statsLoading } = useLeadStats(selectedLead?.followerId || null);
+  // Fetch activities, tasks, and stats ONLY when CRM modal is open
+  const modalLeadId = isViewModalOpen && selectedLead ? selectedLead.followerId : null;
+  const { data: activitiesData } = useLeadActivities(modalLeadId);
+  const { data: tasksData } = useLeadTasks(modalLeadId);
+  const { data: statsData, isLoading: statsLoading, isError: statsError } = useLeadStats(modalLeadId);
 
 
   const leads = useMemo(() => {
@@ -1034,7 +1035,10 @@ export default function Leads() {
       </Dialog>
 
       {/* View Lead Modal - CRM Enhanced */}
-      <Dialog open={isViewModalOpen} onOpenChange={setIsViewModalOpen}>
+      <Dialog open={isViewModalOpen} onOpenChange={(open) => {
+        setIsViewModalOpen(open);
+        if (!open) setSelectedLead(null);
+      }}>
         <DialogContent className="sm:max-w-[500px] max-h-[90vh] overflow-hidden flex flex-col">
           {selectedLead && (
             <>
@@ -1199,6 +1203,11 @@ export default function Leads() {
                   {statsLoading ? (
                     <div className="flex items-center justify-center py-8">
                       <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
+                    </div>
+                  ) : statsError ? (
+                    <div className="flex flex-col items-center justify-center py-8 gap-2">
+                      <AlertCircle className="w-5 h-5 text-destructive/70" />
+                      <p className="text-sm text-muted-foreground">No se pudo cargar la actividad</p>
                     </div>
                   ) : statsData?.stats ? (
                     <>

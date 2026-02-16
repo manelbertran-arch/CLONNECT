@@ -943,13 +943,15 @@ async def get_lead_stats(creator_id: str, lead_id: str, _auth: str = Depends(req
                 if not lead:
                     raise HTTPException(status_code=404, detail="Lead not found")
 
-                # Get all messages ordered by time
+                # Get recent messages ordered by time (limit to 200 for performance)
                 messages = (
                     session.query(Message)
                     .filter_by(lead_id=lead.id)
-                    .order_by(Message.created_at.asc())
+                    .order_by(Message.created_at.desc())
+                    .limit(200)
                     .all()
                 )
+                messages.reverse()  # Back to chronological order
 
                 # Use the intelligent signals analyzer
                 analysis = analyze_conversation_signals(messages, lead.status)

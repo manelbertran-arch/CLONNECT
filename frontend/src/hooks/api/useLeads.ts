@@ -65,6 +65,7 @@ export function useLeadActivities(leadId: string | null, creatorId: string = get
     queryKey: ["leadActivities", creatorId, leadId],
     queryFn: () => getLeadActivities(creatorId, leadId!),
     enabled: !!leadId,
+    retry: false,
     staleTime: 60000,
     gcTime: 5 * 60 * 1000,
   });
@@ -97,6 +98,7 @@ export function useLeadTasks(leadId: string | null, creatorId: string = getCreat
     queryKey: ["leadTasks", creatorId, leadId, includeCompleted],
     queryFn: () => getLeadTasks(creatorId, leadId!, includeCompleted),
     enabled: !!leadId,
+    retry: false,
     staleTime: 60000,
     gcTime: 5 * 60 * 1000,
   });
@@ -139,6 +141,7 @@ export function useLeadStats(leadId: string | null, creatorId: string = getCreat
     queryKey: ["leadStats", creatorId, leadId],
     queryFn: () => getLeadStats(creatorId, leadId!),
     enabled: !!leadId,
+    retry: false,
     staleTime: 60000,
     gcTime: 5 * 60 * 1000,
   });
