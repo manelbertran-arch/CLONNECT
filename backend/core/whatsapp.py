@@ -39,6 +39,7 @@ class WhatsAppMessage:
     text: str
     timestamp: datetime
     message_type: str = "text"  # text, image, audio, video, document, etc.
+    sender_name: str = ""  # Profile name from contacts[].profile.name
     attachments: List[dict] = None
     context: Dict[str, Any] = None  # Reply context
 
@@ -230,6 +231,7 @@ class WhatsAppConnector:
                                 int(msg.get("timestamp", 0)), tz=timezone.utc
                             ),
                             message_type=msg_type,
+                            sender_name=contacts.get(sender_id, ""),
                             attachments=attachments,
                             context=context,
                         )

@@ -289,7 +289,8 @@ async def whatsapp_webhook_receive(request: Request):
         results = []
         for message in messages:
             sender_id = f"wa_{message.sender_id}"
-            logger.info(f"[WA:{message.sender_id}] Input: {message.text[:100]}")
+            display_name = message.sender_name or message.sender_id
+            logger.info(f"[WA:{message.sender_id}] ({display_name}) Input: {message.text[:100]}")
 
             try:
                 agent = get_dm_agent(creator_id)
@@ -298,7 +299,8 @@ async def whatsapp_webhook_receive(request: Request):
                     sender_id=sender_id,
                     metadata={
                         "message_id": message.message_id,
-                        "username": message.sender_id,
+                        "username": display_name,
+                        "name": message.sender_name,
                         "platform": "whatsapp",
                     },
                 )
@@ -327,8 +329,8 @@ async def whatsapp_webhook_receive(request: Request):
                             suggested_response=bot_reply,
                             intent=intent,
                             confidence=confidence,
-                            username=message.sender_id,
-                            full_name=message.sender_id,
+                            username=display_name,
+                            full_name=message.sender_name or message.sender_id,
                         )
                         results.append({
                             "message_id": message.message_id,
