@@ -12,8 +12,8 @@ export function useConversations(creatorId: string = getCreatorId(), limit = 50)
     queryKey: apiKeys.conversations(creatorId),
     queryFn: () => getConversations(creatorId, limit, 0),
     refetchInterval: 30000,
-    staleTime: 60000,
-    gcTime: 5 * 60 * 1000,
+    staleTime: 300000,
+    gcTime: 10 * 60 * 1000,
     refetchOnWindowFocus: false,
   });
 }
@@ -30,8 +30,8 @@ export function useInfiniteConversations(creatorId: string = getCreatorId(), pag
     },
     initialPageParam: 0,
     refetchInterval: 30000,
-    staleTime: 60000,
-    gcTime: 5 * 60 * 1000,
+    staleTime: 300000,
+    gcTime: 10 * 60 * 1000,
     refetchOnWindowFocus: false,
   });
 }
@@ -42,8 +42,8 @@ export function useFollowerDetail(followerId: string | null, creatorId: string =
     queryFn: () => getFollowerDetail(creatorId, followerId!),
     enabled: !!followerId,
     refetchInterval: 30000,
-    staleTime: 60000,
-    gcTime: 5 * 60 * 1000,
+    staleTime: 300000,
+    gcTime: 10 * 60 * 1000,
     refetchOnWindowFocus: false,
   });
 }

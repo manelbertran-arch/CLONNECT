@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo, useEffect, useCallback } from "react";
 import { useSearchParams } from "react-router-dom";
 import { Search, Send, MoreHorizontal, Loader2, AlertCircle, Instagram, MessageCircle, Archive, Trash2, AlertTriangle, RotateCcw, ArrowLeft } from "lucide-react";
 import { MessageRenderer } from "@/components/chat/MessageRenderer";
@@ -22,7 +22,9 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { cn } from "@/lib/utils";
+import { useQueryClient } from "@tanstack/react-query";
 import { useInfiniteConversations, useFollowerDetail, useSendMessage, useArchiveConversation, useMarkConversationSpam, useDeleteConversation, useArchivedConversations, useRestoreConversation, useEventStream } from "@/hooks/useApi";
+import { getFollowerDetail, apiKeys, getCreatorId } from "@/services/api";
 import { useToast } from "@/hooks/use-toast";
 import type { Conversation, Message } from "@/types/api";
 import { getPurchaseIntent, detectPlatform, getFriendlyName, extractNameFromMessages, getMessages } from "@/types/api";
@@ -98,6 +100,17 @@ function getSmartDisplayName(
 export default function Inbox() {
   // SSE: real-time updates from backend when new messages arrive
   useEventStream();
+  const queryClient = useQueryClient();
+  const creatorId = getCreatorId();
+
+  // Prefetch follower detail on hover — loads messages before user clicks
+  const handleConversationHover = useCallback((followerId: string) => {
+    queryClient.prefetchQuery({
+      queryKey: apiKeys.follower(creatorId, followerId),
+      queryFn: () => getFollowerDetail(creatorId, followerId),
+      staleTime: 300000,
+    });
+  }, [queryClient, creatorId]);
 
   // Read conversation ID from URL query param (?id=xxx)
   const [searchParams, setSearchParams] = useSearchParams();
@@ -390,8 +403,16 @@ export default function Inbox() {
 
         <div className="flex-1 overflow-auto space-y-1">
           {(activeTab === "archived" ? archivedLoading : isLoading) ? (
-            <div className="flex items-center justify-center py-8">
-              <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
+            <div className="space-y-2 animate-pulse">
+              {Array.from({ length: 8 }).map((_, i) => (
+                <div key={i} className="flex items-center gap-3 p-3 rounded-lg">
+                  <div className="w-10 h-10 rounded-full bg-muted/40 shrink-0" />
+                  <div className="flex-1 space-y-1.5">
+                    <div className="h-4 w-28 rounded bg-muted/40" />
+                    <div className="h-3 w-40 rounded bg-muted/30" />
+                  </div>
+                </div>
+              ))}
             </div>
           ) : conversations.length === 0 ? (
             <div className="text-center py-8 text-muted-foreground">
@@ -408,6 +429,7 @@ export default function Inbox() {
               return (
                 <div
                   key={convo.follower_id}
+                  onMouseEnter={() => handleConversationHover(convo.follower_id)}
                   className={cn(
                     "w-full p-3 rounded-xl text-left transition-all hover:bg-secondary",
                     selectedId === convo.follower_id && "bg-secondary"
@@ -599,8 +621,15 @@ export default function Inbox() {
             {/* Messages */}
             <div className="flex-1 overflow-auto p-4 space-y-4">
               {messagesLoading ? (
-                <div className="flex items-center justify-center h-full">
-                  <Loader2 className="w-6 h-6 animate-spin text-primary" />
+                <div className="flex-1 space-y-4 py-4 animate-pulse">
+                  {Array.from({ length: 6 }).map((_, i) => (
+                    <div key={i} className={cn("flex", i % 2 === 0 ? "" : "justify-end")}>
+                      <div className={cn(
+                        "rounded-2xl bg-muted/20",
+                        i % 2 === 0 ? "w-2/3 h-12" : "w-1/2 h-10"
+                      )} />
+                    </div>
+                  ))}
                 </div>
               ) : messages.length > 0 ? (
                 messages.map((msg, idx) => (
