@@ -314,7 +314,7 @@ class InsightsEngine:
             # Count followers inactive for 7+ days
             query = self.db.query(func.count(FollowerMemoryDB.id)).filter(
                 FollowerMemoryDB.creator_id == self.creator_id,
-                FollowerMemoryDB.status.in_(["ghost", "fantasma", "frío", "active", "interesado", "caliente", "amigo"]),
+                FollowerMemoryDB.status.in_(["frío", "caliente", "amigo", "colaborador", "nuevo", "fantasma", "interesado"]),
                 FollowerMemoryDB.is_customer == False,
                 FollowerMemoryDB.last_contact < week_ago_str,
             )
