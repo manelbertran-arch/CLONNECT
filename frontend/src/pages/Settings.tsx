@@ -219,6 +219,7 @@ export default function Settings() {
   // Connection form state
   const [editingConnection, setEditingConnection] = useState<string | null>(null);
   const [connectionForm, setConnectionForm] = useState<Record<string, string>>({});
+  const [disconnectConfirm, setDisconnectConfirm] = useState<string | null>(null);
 
   // Local form state
   const [botName, setBotName] = useState("");
@@ -967,7 +968,8 @@ export default function Settings() {
                                 <Button
                                   variant="outline"
                                   size="sm"
-                                  onClick={() => disconnectMutation.mutate(conn.key)}
+                                  onClick={() => setDisconnectConfirm(conn.key)}
+                                  disabled={disconnectMutation.isPending}
                                   className="text-destructive hover:bg-destructive/10"
                                 >
                                   Disconnect
@@ -1068,7 +1070,8 @@ export default function Settings() {
                               <Button
                                 variant="outline"
                                 size="sm"
-                                onClick={() => disconnectMutation.mutate(conn.key)}
+                                onClick={() => setDisconnectConfirm(conn.key)}
+                                  disabled={disconnectMutation.isPending}
                                 className="text-destructive hover:bg-destructive/10"
                               >
                                 Disconnect
@@ -1256,7 +1259,8 @@ export default function Settings() {
                               <Button
                                 variant="outline"
                                 size="sm"
-                                onClick={() => disconnectMutation.mutate(conn.key)}
+                                onClick={() => setDisconnectConfirm(conn.key)}
+                                  disabled={disconnectMutation.isPending}
                                 className="text-destructive hover:bg-destructive/10"
                               >
                                 Disconnect
@@ -1281,6 +1285,32 @@ export default function Settings() {
               </div>
             </div>
           )}
+
+          {/* Disconnect confirmation dialog */}
+          <Dialog open={!!disconnectConfirm} onOpenChange={(open) => { if (!open) setDisconnectConfirm(null); }}>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Desconectar {disconnectConfirm ? disconnectConfirm.charAt(0).toUpperCase() + disconnectConfirm.slice(1) : ""}?</DialogTitle>
+                <DialogDescription>
+                  Se eliminara el token y la conexion. Puedes volver a conectar en cualquier momento.
+                </DialogDescription>
+              </DialogHeader>
+              <DialogFooter>
+                <Button variant="outline" onClick={() => setDisconnectConfirm(null)}>Cancelar</Button>
+                <Button
+                  variant="destructive"
+                  disabled={disconnectMutation.isPending}
+                  onClick={() => {
+                    if (disconnectConfirm) {
+                      disconnectMutation.mutate(disconnectConfirm, { onSettled: () => setDisconnectConfirm(null) });
+                    }
+                  }}
+                >
+                  {disconnectMutation.isPending ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> Desconectando...</> : "Desconectar"}
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
         </TabsContent>
 
         {/* Knowledge Base Tab - Complete Redesign */}
