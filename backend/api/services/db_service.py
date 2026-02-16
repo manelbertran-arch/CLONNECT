@@ -1018,6 +1018,7 @@ def delete_lead(creator_name: str, lead_id: str):
             text("DELETE FROM lead_activities WHERE lead_id = :lid"), {"lid": lead_uuid}
         )
         session.execute(text("DELETE FROM lead_tasks WHERE lead_id = :lid"), {"lid": lead_uuid})
+        session.execute(text("DELETE FROM csat_ratings WHERE lead_id = :lid"), {"lid": lead_uuid})
         session.execute(text("DELETE FROM messages WHERE lead_id = :lid"), {"lid": lead_uuid})
 
         # Add to dismissed_leads blocklist so it doesn't reappear on sync

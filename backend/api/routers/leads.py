@@ -317,18 +317,45 @@ async def update_lead(creator_id: str, lead_id: str, data: dict = Body(...), _au
 
 @router.delete("/{creator_id}/{lead_id}")
 async def delete_lead(creator_id: str, lead_id: str, _auth: str = Depends(require_creator_access)):
+    from api.cache import api_cache
+
     start = time.time()
     # Try PostgreSQL first
     if USE_DB:
         try:
             success = db_service.delete_lead(creator_id, lead_id)
             if success:
+                api_cache.invalidate(f"conversations:{creator_id}")
                 logger.info(f"⏱️ Lead delete took {time.time()-start:.2f}s")
-                return {"status": "ok", "message": "Lead deleted"}
+                return {"status": "ok", "message": "Lead deleted", "deleted": lead_id}
+
+            # Lead not found — check if already deleted (dismissed)
+            from api.database import SessionLocal
+            from api.models import Creator, DismissedLead
+
+            session = SessionLocal()
+            try:
+                creator = session.query(Creator).filter_by(name=creator_id).first()
+                if creator:
+                    dismissed = (
+                        session.query(DismissedLead)
+                        .filter_by(creator_id=creator.id, platform_user_id=lead_id)
+                        .first()
+                    )
+                    if dismissed:
+                        api_cache.invalidate(f"conversations:{creator_id}")
+                        return {"status": "ok", "message": "Lead already deleted", "deleted": lead_id}
+            finally:
+                session.close()
+
+            raise HTTPException(status_code=404, detail="Lead not found")
+        except HTTPException:
+            raise
         except Exception as e:
             logger.warning(f"DB delete lead failed: {e}")
+            raise HTTPException(status_code=500, detail=f"Delete failed: {e}")
 
-    # Fallback to JSON
+    # Fallback to JSON (non-DB setups only)
     path = _get_json_path(creator_id, lead_id)
     if os.path.exists(path):
         os.remove(path)
