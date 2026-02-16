@@ -100,8 +100,8 @@ async def get_connections(creator_id: str) -> AllConnections:
                         masked_token=mask_token(creator.telegram_bot_token)
                     ),
                     whatsapp=ConnectionStatus(
-                        connected=bool(creator.whatsapp_token and creator.whatsapp_phone_id),
-                        username=creator.whatsapp_phone_id if creator.whatsapp_token else None,
+                        connected=bool(creator.whatsapp_token and len(creator.whatsapp_token or "") > 10),
+                        username=(creator.whatsapp_phone_id or "WhatsApp Business") if creator.whatsapp_token else None,
                         masked_token=mask_token(creator.whatsapp_token)
                     ),
                     stripe=ConnectionStatus(
