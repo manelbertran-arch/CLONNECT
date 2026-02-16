@@ -184,11 +184,13 @@ export interface ConversationsResponse {
   conversations: Conversation[];
   count: number;
   // Pagination fields (optional for backwards compatibility)
+  total?: number;
   total_count?: number;
   limit?: number;
   offset?: number;
   has_more?: boolean;
   product_price?: number;
+  counts_by_status?: Record<string, number>;
 }
 
 export interface LeadsResponse {

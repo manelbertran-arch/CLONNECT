@@ -1,4 +1,4 @@
-import { useState, useMemo, useRef, useEffect } from "react";
+import { useState, useMemo, useRef, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { Instagram, MoreHorizontal, Plus, Loader2, AlertCircle, MessageCircle, Send, Eye, Pencil, Trash2, Users, Flame, Heart, Handshake, CheckCircle, Snowflake, Clock, ExternalLink, ListTodo, History, StickyNote, CheckSquare, Square, Phone, Mail, Calendar, Activity, TrendingUp, Tag, ShoppingBag } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -299,6 +299,28 @@ export default function Leads() {
   const { data: tasksData } = useLeadTasks(modalLeadId);
   const { data: statsData, isLoading: statsLoading, isError: statsError } = useLeadStats(modalLeadId);
 
+  // Real counts from backend (all leads, not just current page)
+  const countsByStatus = useMemo(() => {
+    return data?.pages?.[0]?.counts_by_status || {};
+  }, [data?.pages]);
+
+  // Infinite scroll: auto-fetch next page when sentinel is visible
+  const loadMoreRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!loadMoreRef.current || !hasNextPage || isFetchingNextPage) return;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting && hasNextPage && !isFetchingNextPage) {
+          fetchNextPage();
+        }
+      },
+      { threshold: 0.1 }
+    );
+
+    observer.observe(loadMoreRef.current);
+    return () => observer.disconnect();
+  }, [hasNextPage, isFetchingNextPage, fetchNextPage]);
 
   const leads = useMemo(() => {
     // Flatten all pages from infinite query
@@ -756,7 +778,7 @@ export default function Leads() {
       {/* Summary Cards */}
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
         {columns.map((col) => {
-          const count = leads.filter(l => l.status === col.status && !hiddenIds.has(l.id)).length;
+          const count = countsByStatus[col.status] || 0;
           const isActive = activeFilter === col.status;
 
           return (
@@ -922,26 +944,12 @@ export default function Leads() {
         )}
       </div>
 
-      {/* Load More Button */}
-      {hasNextPage && (
-        <div className="flex justify-center py-4">
-          <Button
-            variant="outline"
-            onClick={() => fetchNextPage()}
-            disabled={isFetchingNextPage}
-            className="w-full max-w-xs"
-          >
-            {isFetchingNextPage ? (
-              <>
-                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                Cargando...
-              </>
-            ) : (
-              "Cargar más leads"
-            )}
-          </Button>
-        </div>
-      )}
+      {/* Infinite scroll sentinel */}
+      <div ref={loadMoreRef} className="h-10 flex items-center justify-center">
+        {isFetchingNextPage && (
+          <div className="animate-spin w-5 h-5 border-2 border-zinc-600 border-t-zinc-300 rounded-full" />
+        )}
+      </div>
 
       {/* Add Lead Modal */}
       <Dialog open={isAddModalOpen} onOpenChange={setIsAddModalOpen}>

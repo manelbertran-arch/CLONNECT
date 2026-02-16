@@ -306,6 +306,19 @@ async def get_conversations(creator_id: str, limit: int = 50, offset: int = 0):
                         f"[CONV] {creator_id}: {len(conversations)} conversations in {elapsed:.2f}s (DB query)"
                     )
                     has_more = (offset + limit) < total_count
+
+                    # Counts by status for summary cards (single GROUP BY)
+                    counts_rows = (
+                        session.query(Lead.status, func.count(Lead.id))
+                        .filter(
+                            Lead.creator_id == creator.id,
+                            not_(Lead.status.in_(["archived", "spam"])),
+                        )
+                        .group_by(Lead.status)
+                        .all()
+                    )
+                    counts_by_status = {s: c for s, c in counts_rows}
+
                     result = {
                         "status": "ok",
                         "conversations": conversations,
@@ -314,6 +327,7 @@ async def get_conversations(creator_id: str, limit: int = 50, offset: int = 0):
                         "has_more": has_more,
                         "offset": offset,
                         "limit": limit,
+                        "counts_by_status": counts_by_status,
                     }
                     # Cache for 60 seconds (matches startup.py refresh cycle)
                     api_cache.set(cache_key, result, ttl_seconds=60)
