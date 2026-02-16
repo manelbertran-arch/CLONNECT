@@ -306,13 +306,13 @@ export default function Inbox() {
     return (
       <div className="flex h-[80vh]">
         {/* Conversation list skeleton */}
-        <div className="w-80 border-r border-border/30 p-3 space-y-2">
-          {Array.from({ length: 10 }).map((_, i) => (
-            <div key={i} className="flex items-center gap-3 p-3 rounded-lg">
-              <div className="w-10 h-10 rounded-full bg-muted/40 animate-pulse shrink-0" />
-              <div className="flex-1 space-y-1.5">
+        <div className="w-80 border-r border-border/30 p-3 space-y-1">
+          {Array.from({ length: 8 }).map((_, i) => (
+            <div key={i} className="flex items-center gap-3 px-4 py-3 min-h-[72px] rounded-xl">
+              <div className="w-14 h-14 rounded-full bg-muted/40 animate-pulse shrink-0" />
+              <div className="flex-1 space-y-2">
                 <div className="h-4 w-28 rounded bg-muted/40 animate-pulse" />
-                <div className="h-3 w-40 rounded bg-muted/30 animate-pulse" />
+                <div className="h-3.5 w-40 rounded bg-muted/30 animate-pulse" />
               </div>
             </div>
           ))}
@@ -403,13 +403,13 @@ export default function Inbox() {
 
         <div className="flex-1 overflow-auto space-y-1">
           {(activeTab === "archived" ? archivedLoading : isLoading) ? (
-            <div className="space-y-2 animate-pulse">
+            <div className="space-y-1 animate-pulse">
               {Array.from({ length: 8 }).map((_, i) => (
-                <div key={i} className="flex items-center gap-3 p-3 rounded-lg">
-                  <div className="w-10 h-10 rounded-full bg-muted/40 shrink-0" />
-                  <div className="flex-1 space-y-1.5">
+                <div key={i} className="flex items-center gap-3 px-4 py-3 min-h-[72px] rounded-xl">
+                  <div className="w-14 h-14 rounded-full bg-muted/40 shrink-0" />
+                  <div className="flex-1 space-y-2">
                     <div className="h-4 w-28 rounded bg-muted/40" />
-                    <div className="h-3 w-40 rounded bg-muted/30" />
+                    <div className="h-3.5 w-40 rounded bg-muted/30" />
                   </div>
                 </div>
               ))}
@@ -431,11 +431,11 @@ export default function Inbox() {
                   key={convo.follower_id}
                   onMouseEnter={() => handleConversationHover(convo.follower_id)}
                   className={cn(
-                    "w-full p-3 rounded-xl text-left transition-all hover:bg-secondary",
+                    "w-full px-4 py-3 min-h-[72px] text-left transition-all hover:bg-secondary rounded-xl",
                     selectedId === convo.follower_id && "bg-secondary"
                   )}
                 >
-                  <div className="flex items-start gap-3">
+                  <div className="flex items-center gap-3">
                     <button
                       onClick={() => setSelectedId(convo.follower_id)}
                       className="shrink-0"
@@ -444,7 +444,7 @@ export default function Inbox() {
                         <img
                           src={convo.profile_pic_url}
                           alt={convo.username || ""}
-                          className="w-10 h-10 rounded-full object-cover"
+                          className="w-14 h-14 rounded-full object-cover"
                           onError={(e) => {
                             e.currentTarget.style.display = "none";
                             e.currentTarget.nextElementSibling?.classList.remove("hidden");
@@ -452,7 +452,7 @@ export default function Inbox() {
                         />
                       ) : null}
                       <div className={cn(
-                        "w-10 h-10 rounded-full bg-gradient-to-br from-primary/60 to-accent/60 flex items-center justify-center text-xs font-semibold",
+                        "w-14 h-14 rounded-full bg-gradient-to-br from-primary/60 to-accent/60 flex items-center justify-center text-sm font-semibold",
                         convo.profile_pic_url && "hidden"
                       )}>
                         {initials}
@@ -465,15 +465,15 @@ export default function Inbox() {
                       <div className="flex items-center justify-between gap-2">
                         <div className="flex items-center gap-1.5 min-w-0">
                           <RelationshipDot type={convo.relationship_type || convo.status} />
-                          <span className={`font-medium text-sm truncate ${convo.is_unread ? 'text-white' : ''}`}>{listDisplayName}</span>
+                          <span className={cn("text-[15px] font-semibold truncate", convo.is_unread ? 'text-white' : '')}>{listDisplayName}</span>
                           {convo.is_verified && <span className="text-[#0095F6] text-xs shrink-0">✓</span>}
                         </div>
                         <div className="flex items-center gap-1.5 shrink-0">
                           <span className="text-xs text-muted-foreground">{formatTimeAgo(convo.last_contact)}</span>
-                          {convo.is_unread && <div className="w-2 h-2 rounded-full bg-[#0095F6]"></div>}
+                          {convo.is_unread && <div className="w-2.5 h-2.5 rounded-full bg-[#0095F6]"></div>}
                         </div>
                       </div>
-                      <p className={`text-xs truncate mt-0.5 ${convo.is_unread ? 'text-white font-medium' : 'text-muted-foreground'}`}>
+                      <p className={cn("text-sm truncate mt-0.5", convo.is_unread ? 'text-white font-medium' : 'text-zinc-400')}>
                         {convo.last_message_role === 'assistant' ? 'Tú: ' : ''}
                         {formatPreview(convo.last_message_preview || lastMessage?.content, convo.name || convo.username)}
                       </p>
