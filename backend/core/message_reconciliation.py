@@ -751,10 +751,12 @@ async def reconcile_messages_for_creator(
                     )
                     session.add(new_msg)
 
-                    # Update lead's last_contact_at so conversation rises to top
-                    if role == "user":
-                        lead.last_contact_at = datetime.now(timezone.utc)
-                        session.add(lead)
+                    # Update lead's last_contact_at using the message's original timestamp
+                    # (not datetime.now()) so conversation order matches Instagram
+                    if role == "user" and created_at:
+                        if not lead.last_contact_at or created_at > lead.last_contact_at:
+                            lead.last_contact_at = created_at
+                            session.add(lead)
 
                     session.commit()
 
