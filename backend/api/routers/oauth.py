@@ -1280,8 +1280,9 @@ async def whatsapp_oauth_start(creator_id: str):
     WhatsApp Business uses Facebook Login with specific scopes for
     WhatsApp Business Management API access.
     """
-    if not META_APP_ID:
-        raise HTTPException(status_code=500, detail="META_APP_ID not configured")
+    whatsapp_app_id = os.getenv("WHATSAPP_META_APP_ID", META_APP_ID)
+    if not whatsapp_app_id:
+        raise HTTPException(status_code=500, detail="WHATSAPP_META_APP_ID not configured")
 
     # Store state for CSRF protection
     state = f"{creator_id}:{secrets.token_urlsafe(16)}"
@@ -1289,7 +1290,7 @@ async def whatsapp_oauth_start(creator_id: str):
     # WhatsApp Business scopes - requires approved Meta Business app
     # Reference: https://developers.facebook.com/docs/whatsapp/embedded-signup/
     params = {
-        "client_id": META_APP_ID,
+        "client_id": whatsapp_app_id,
         "redirect_uri": WHATSAPP_REDIRECT_URI,
         "scope": "whatsapp_business_management,whatsapp_business_messaging,business_management",
         "response_type": "code",
@@ -1326,7 +1327,9 @@ async def whatsapp_oauth_callback(
         logger.error("WhatsApp OAuth: No code received")
         return RedirectResponse(f"{FRONTEND_URL}/settings?tab=connections&error=whatsapp_no_code")
 
-    if not META_APP_ID or not META_APP_SECRET:
+    whatsapp_app_id = os.getenv("WHATSAPP_META_APP_ID", META_APP_ID)
+    whatsapp_app_secret = os.getenv("WHATSAPP_APP_SECRET", META_APP_SECRET)
+    if not whatsapp_app_id or not whatsapp_app_secret:
         return RedirectResponse(
             f"{FRONTEND_URL}/settings?tab=connections&error=whatsapp_not_configured"
         )
@@ -1340,8 +1343,8 @@ async def whatsapp_oauth_callback(
             token_response = await client.get(
                 "https://graph.facebook.com/v21.0/oauth/access_token",
                 params={
-                    "client_id": META_APP_ID,
-                    "client_secret": META_APP_SECRET,
+                    "client_id": whatsapp_app_id,
+                    "client_secret": whatsapp_app_secret,
                     "redirect_uri": WHATSAPP_REDIRECT_URI,
                     "code": code,
                 },
