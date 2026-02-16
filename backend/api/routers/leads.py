@@ -944,9 +944,13 @@ async def get_lead_stats(creator_id: str, lead_id: str, _auth: str = Depends(req
                     raise HTTPException(status_code=404, detail="Lead not found")
 
                 # Get recent messages ordered by time (limit to 200 for performance)
+                # Only load role/content/created_at — skip msg_metadata (heavy JSON blobs)
+                from sqlalchemy.orm import load_only
+
                 messages = (
                     session.query(Message)
                     .filter_by(lead_id=lead.id)
+                    .options(load_only(Message.role, Message.content, Message.created_at))
                     .order_by(Message.created_at.desc())
                     .limit(200)
                     .all()
