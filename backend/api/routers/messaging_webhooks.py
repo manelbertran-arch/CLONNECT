@@ -283,8 +283,45 @@ async def whatsapp_webhook_receive(request: Request):
         if not messages:
             return {"status": "ok", "messages_processed": 0}
 
-        # Determine creator (for now, single-creator from env; multi-creator TBD)
+        # Multi-tenant: resolve creator from phone_number_id in webhook payload
         creator_id = os.getenv("WHATSAPP_CREATOR_ID", "stefano_bonanno")
+        wa_token_db = ""
+        wa_phone_id_db = ""
+        try:
+            # Extract phone_number_id from Meta webhook payload
+            webhook_phone_id = ""
+            for entry in payload.get("entry", []):
+                for change in entry.get("changes", []):
+                    metadata = change.get("value", {}).get("metadata", {})
+                    if metadata.get("phone_number_id"):
+                        webhook_phone_id = metadata["phone_number_id"]
+                        break
+                if webhook_phone_id:
+                    break
+
+            if webhook_phone_id:
+                from api.database import SessionLocal
+                from api.models import Creator
+                session = SessionLocal()
+                try:
+                    creator_row = session.query(Creator).filter(
+                        Creator.whatsapp_phone_id == webhook_phone_id
+                    ).first()
+                    if creator_row:
+                        creator_id = creator_row.name
+                        wa_token_db = creator_row.whatsapp_token or ""
+                        wa_phone_id_db = creator_row.whatsapp_phone_id or ""
+                        logger.info(f"[WA] Multi-tenant: routed to creator '{creator_id}' via phone_number_id={webhook_phone_id}")
+                    else:
+                        logger.warning(f"[WA] No creator found for phone_number_id={webhook_phone_id}, fallback to env var creator '{creator_id}'")
+                finally:
+                    session.close()
+        except Exception as mt_err:
+            logger.warning(f"[WA] Multi-tenant lookup failed, using fallback: {mt_err}")
+
+        # Per-creator credentials with env var fallback
+        wa_token = wa_token_db or os.getenv("WHATSAPP_ACCESS_TOKEN", "")
+        wa_phone_id = wa_phone_id_db or os.getenv("WHATSAPP_PHONE_NUMBER_ID", "")
 
         results = []
         for message in messages:
@@ -364,8 +401,6 @@ async def whatsapp_webhook_receive(request: Request):
                     # AUTOPILOT MODE - send response via WhatsApp
                     logger.info("[WA] AUTOPILOT MODE - sending auto-reply")
                     sent = False
-                    wa_token = os.getenv("WHATSAPP_ACCESS_TOKEN", "")
-                    wa_phone_id = os.getenv("WHATSAPP_PHONE_NUMBER_ID", "")
 
                     if bot_reply and wa_token and wa_phone_id:
                         try:

@@ -467,6 +467,8 @@ class CopilotService:
                 return await self._send_instagram_message(creator, lead, text)
             elif lead.platform == "telegram":
                 return await self._send_telegram_message(creator, lead, text)
+            elif lead.platform == "whatsapp":
+                return await self._send_whatsapp_message(creator, lead, text)
             else:
                 return {"success": False, "error": f"Unknown platform: {lead.platform}"}
         except Exception as e:
@@ -568,6 +570,54 @@ class CopilotService:
                 "success": True,
                 "message_id": str(result.get("result", {}).get("message_id", "")),
             }
+
+    async def _send_whatsapp_message(self, creator, lead, text: str) -> Dict[str, Any]:
+        """Enviar mensaje via WhatsApp Cloud API"""
+        import os
+
+        from core.whatsapp import WhatsAppConnector
+
+        # Per-creator credentials with env var fallback
+        wa_token = creator.whatsapp_token or os.getenv("WHATSAPP_ACCESS_TOKEN", "")
+        wa_phone_id = creator.whatsapp_phone_id or os.getenv("WHATSAPP_PHONE_NUMBER_ID", "")
+
+        if not wa_token or not wa_phone_id:
+            return {"success": False, "error": "WhatsApp not connected"}
+
+        # Extract phone number from follower_id (format: wa_34612345678)
+        recipient = lead.platform_user_id
+        if recipient.startswith("wa_"):
+            recipient = recipient[3:]
+
+        if not recipient or len(recipient) < 5:
+            return {"success": False, "error": f"Invalid WhatsApp recipient: '{recipient}'"}
+
+        connector = WhatsAppConnector(
+            phone_number_id=wa_phone_id,
+            access_token=wa_token,
+        )
+
+        try:
+            logger.info(f"[Copilot] Sending WhatsApp message to {recipient} via connector")
+            result = await connector.send_message(recipient, text)
+            logger.info(f"[Copilot] WhatsApp API response: {result}")
+
+            if "error" in result:
+                error_info = result["error"]
+                if isinstance(error_info, dict):
+                    error_msg = f"{error_info.get('message', 'Unknown error')} (code: {error_info.get('code', 'N/A')})"
+                else:
+                    error_msg = str(error_info)
+                logger.error(f"[Copilot] WhatsApp send error: {error_msg}")
+                return {"success": False, "error": error_msg}
+
+            msg_id = ""
+            if "messages" in result and result["messages"]:
+                msg_id = result["messages"][0].get("id", "")
+
+            return {"success": True, "message_id": msg_id}
+        finally:
+            await connector.close()
 
     def _evict_stale_cache_entries(self, now: float):
         """Remove cache entries older than _CACHE_EVICTION_TTL and enforce max size."""

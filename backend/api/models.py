@@ -81,7 +81,7 @@ class Creator(Base):
     webhook_last_received = Column(DateTime(timezone=True))
     webhook_count = Column(Integer, default=0)
     whatsapp_token = Column(Text)
-    whatsapp_phone_id = Column(String(255))
+    whatsapp_phone_id = Column(String(255), index=True)  # Indexed for multi-tenant webhook routing
     # Payment connections
     stripe_api_key = Column(Text)
     paypal_token = Column(Text)
