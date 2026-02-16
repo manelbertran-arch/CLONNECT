@@ -1156,8 +1156,21 @@ class InstagramHandler:
                             sender_id = messaging.get("sender", {}).get("id", "")
                             recipient_id = messaging.get("recipient", {}).get("id", "")
                             text = message_data.get("text", "")
+                            attachments = message_data.get("attachments", [])
 
-                            if text:  # Only record text messages
+                            # Derive display text for attachment-only echoes
+                            if not text and attachments:
+                                att_type = attachments[0].get("type", "attachment")
+                                text = {
+                                    "image": "Sent a photo",
+                                    "video": "Sent a video",
+                                    "audio": "Sent a voice message",
+                                    "share": "Shared content",
+                                    "template": "Shared content",
+                                    "fallback": "Shared content",
+                                }.get(att_type, "Sent an attachment")
+
+                            if text:  # Record text AND attachment echo messages
                                 echo_messages.append(
                                     {
                                         "message_id": message_data.get("mid", ""),
