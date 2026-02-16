@@ -471,11 +471,29 @@ export default function CopilotPanel() {
 
   const isAnyLoading = approveMutation.isPending || discardMutation.isPending;
 
-  // Show loading state while fetching initial status
+  // Show skeleton while fetching initial status
   if (isStatusLoading) {
     return (
-      <div className="flex items-center justify-center py-12">
-        <Loader2 className="w-8 h-8 animate-spin text-primary" />
+      <div className="space-y-6 animate-pulse">
+        {/* Header skeleton */}
+        <div>
+          <div className="h-7 w-64 bg-muted/40 rounded mb-2" />
+          <div className="h-4 w-80 bg-muted/30 rounded" />
+        </div>
+        {/* Mode cards skeleton */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div className="h-52 rounded-xl bg-muted/20 border border-border/30" />
+          <div className="h-52 rounded-xl bg-muted/20 border border-border/30" />
+        </div>
+        {/* Pending section skeleton */}
+        <div className="border-t pt-6">
+          <div className="h-5 w-48 bg-muted/30 rounded mb-4" />
+          <div className="space-y-4">
+            {[1, 2, 3].map(i => (
+              <div key={i} className="h-40 rounded-lg bg-muted/15 border border-border/20" />
+            ))}
+          </div>
+        </div>
       </div>
     );
   }
@@ -535,8 +553,10 @@ export default function CopilotPanel() {
             </h3>
 
             {isPendingLoading ? (
-              <div className="flex items-center justify-center py-12">
-                <Loader2 className="w-8 h-8 animate-spin text-primary" />
+              <div className="space-y-4 animate-pulse">
+                {[1, 2, 3].map(i => (
+                  <div key={i} className="h-40 rounded-lg bg-muted/15 border border-border/20" />
+                ))}
               </div>
             ) : pendingResponses.length === 0 ? (
               <div className="text-center py-12 bg-secondary/20 rounded-lg">

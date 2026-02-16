@@ -128,11 +128,20 @@ export default function Nurturing() {
   const [editingSequenceName, setEditingSequenceName] = useState<string>('');
   const [editSteps, setEditSteps] = useState<Array<{ delay_hours: number; message: string }>>([]);
 
-  // Loading state
+  // Loading state — skeleton
   if (sequencesLoading || statsLoading) {
     return (
-      <div className="flex items-center justify-center h-[60vh]">
-        <Loader2 className="w-8 h-8 animate-spin text-primary" />
+      <div className="space-y-6 animate-pulse">
+        <div>
+          <div className="h-7 w-36 bg-muted/40 rounded mb-2" />
+          <div className="h-4 w-64 bg-muted/30 rounded" />
+        </div>
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          {[1, 2, 3, 4].map(i => <div key={i} className="h-24 rounded-2xl bg-muted/20 border border-border/20" />)}
+        </div>
+        <div className="space-y-3">
+          {[1, 2, 3].map(i => <div key={i} className="h-28 rounded-xl bg-muted/15 border border-border/20" />)}
+        </div>
       </div>
     );
   }

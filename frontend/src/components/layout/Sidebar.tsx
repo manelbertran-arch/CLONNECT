@@ -17,7 +17,17 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/context/AuthContext";
-import { getConversations, getDashboardOverview, apiKeys, getCreatorId } from "@/services/api";
+import {
+  getConversations,
+  getDashboardOverview,
+  getProducts,
+  getCalendarStats,
+  getBookings,
+  getCreatorConfig,
+  getCopilotStatus,
+  apiKeys,
+  getCreatorId,
+} from "@/services/api";
 
 type NavItemType = "link" | "section" | "divider";
 
@@ -70,6 +80,43 @@ const prefetchByPath: Record<string, (qc: ReturnType<typeof useQueryClient>) => 
     qc.prefetchQuery({
       queryKey: apiKeys.dashboard(cid),
       queryFn: () => getDashboardOverview(cid),
+      staleTime: 300000,
+    });
+  },
+  "/bookings": (qc) => {
+    const cid = getCreatorId();
+    qc.prefetchQuery({
+      queryKey: apiKeys.calendarStats(cid),
+      queryFn: () => getCalendarStats(cid),
+      staleTime: 300000,
+    });
+    qc.prefetchQuery({
+      queryKey: apiKeys.bookings(cid, true),
+      queryFn: () => getBookings(cid, undefined, true),
+      staleTime: 300000,
+    });
+  },
+  "/products": (qc) => {
+    const cid = getCreatorId();
+    qc.prefetchQuery({
+      queryKey: apiKeys.products(cid),
+      queryFn: () => getProducts(cid),
+      staleTime: 300000,
+    });
+  },
+  "/copilot": (qc) => {
+    const cid = getCreatorId();
+    qc.prefetchQuery({
+      queryKey: apiKeys.copilotStatus(cid),
+      queryFn: () => getCopilotStatus(cid),
+      staleTime: 300000,
+    });
+  },
+  "/settings": (qc) => {
+    const cid = getCreatorId();
+    qc.prefetchQuery({
+      queryKey: apiKeys.config(cid),
+      queryFn: () => getCreatorConfig(cid),
       staleTime: 300000,
     });
   },

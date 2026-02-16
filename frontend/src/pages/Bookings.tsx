@@ -508,11 +508,47 @@ export default function Bookings() {
     }
   };
 
-  // Loading state
+  // Loading state — skeleton
   if (statsLoading) {
     return (
-      <div className="flex items-center justify-center h-[60vh]">
-        <Loader2 className="w-8 h-8 animate-spin text-primary" />
+      <div className="space-y-6 animate-pulse">
+        {/* Header skeleton */}
+        <div>
+          <div className="h-7 w-32 bg-muted/40 rounded mb-2" />
+          <div className="h-4 w-60 bg-muted/30 rounded" />
+        </div>
+        {/* Stats cards skeleton */}
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          {[1, 2, 3, 4].map(i => (
+            <div key={i} className="p-5 rounded-2xl bg-muted/20 border border-border/30">
+              <div className="w-10 h-10 rounded-lg bg-muted/30 mb-3" />
+              <div className="h-8 w-12 bg-muted/40 rounded mb-1" />
+              <div className="h-3 w-20 bg-muted/30 rounded" />
+            </div>
+          ))}
+        </div>
+        {/* Upcoming calls skeleton */}
+        <div className="p-5 rounded-2xl bg-muted/15 border border-border/20">
+          <div className="h-5 w-32 bg-muted/30 rounded mb-4" />
+          <div className="space-y-3">
+            {[1, 2].map(i => <div key={i} className="h-32 rounded-lg bg-muted/20" />)}
+          </div>
+        </div>
+        {/* Services skeleton */}
+        <div className="p-5 rounded-2xl bg-muted/15 border border-border/20">
+          <div className="h-5 w-28 bg-muted/30 rounded mb-4" />
+          <div className="space-y-2">
+            {[1, 2].map(i => (
+              <div key={i} className="flex items-center gap-3 p-3 rounded-lg bg-muted/20">
+                <div className="w-10 h-10 rounded-lg bg-muted/30" />
+                <div className="flex-1">
+                  <div className="h-4 w-32 bg-muted/40 rounded mb-1" />
+                  <div className="h-3 w-20 bg-muted/30 rounded" />
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
       </div>
     );
   }
@@ -608,8 +644,8 @@ export default function Bookings() {
       <div className="metric-card">
         <h3 className="font-semibold mb-4">Upcoming Calls</h3>
         {bookingsLoading ? (
-          <div className="flex justify-center py-8">
-            <Loader2 className="w-6 h-6 animate-spin text-primary" />
+          <div className="space-y-3 animate-pulse">
+            {[1, 2].map(i => <div key={i} className="h-32 rounded-lg bg-muted/20 border border-border/20" />)}
           </div>
         ) : bookings.filter(b => b.status === "scheduled" && new Date(b.scheduled_at) > new Date()).length === 0 ? (
           <div className="text-center py-8 text-muted-foreground">
@@ -722,8 +758,8 @@ export default function Bookings() {
           )}
         </div>
         {bookingsLoading ? (
-          <div className="flex justify-center py-4">
-            <Loader2 className="w-6 h-6 animate-spin text-primary" />
+          <div className="space-y-2 animate-pulse">
+            {[1, 2].map(i => <div key={i} className="h-16 rounded-lg bg-muted/20 border border-border/20" />)}
           </div>
         ) : bookings.filter(b => b.status === "cancelled" || b.status === "completed").length === 0 ? (
           <div className="text-center py-6 text-muted-foreground">
@@ -955,8 +991,16 @@ export default function Bookings() {
         )}
 
         {linksLoading ? (
-          <div className="flex justify-center py-8">
-            <Loader2 className="w-6 h-6 animate-spin text-primary" />
+          <div className="space-y-2 animate-pulse">
+            {[1, 2].map(i => (
+              <div key={i} className="flex items-center gap-3 p-3 rounded-lg bg-muted/20 border border-border/20">
+                <div className="w-10 h-10 rounded-lg bg-muted/30" />
+                <div className="flex-1">
+                  <div className="h-4 w-32 bg-muted/40 rounded mb-1" />
+                  <div className="h-3 w-20 bg-muted/30 rounded" />
+                </div>
+              </div>
+            ))}
           </div>
         ) : links.length === 0 && !showCreateForm ? (
           <div className="text-center py-12">
@@ -1035,8 +1079,13 @@ export default function Bookings() {
         </div>
 
         {availabilityLoading ? (
-          <div className="flex justify-center py-8">
-            <Loader2 className="w-6 h-6 animate-spin text-primary" />
+          <div className="animate-pulse">
+            <div className="grid grid-cols-3 gap-3 mb-4">
+              {[1, 2, 3].map(i => <div key={i} className="h-24 rounded-xl bg-muted/20 border border-border/20" />)}
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              {[1, 2].map(i => <div key={i} className="h-24 rounded-xl bg-muted/20 border border-border/20" />)}
+            </div>
           </div>
         ) : (
           <>

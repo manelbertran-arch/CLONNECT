@@ -249,8 +249,17 @@ export default function Products() {
         <h3 className="text-sm font-medium mb-4">Catálogo</h3>
 
         {isLoading ? (
-          <div className="flex justify-center py-8">
-            <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
+          <div className="space-y-2 animate-pulse">
+            {[1, 2, 3].map(i => (
+              <div key={i} className="flex items-center gap-4 p-4 rounded-xl border border-border/30">
+                <div className="w-10 h-10 rounded-lg bg-muted/40" />
+                <div className="flex-1">
+                  <div className="h-4 w-40 bg-muted/40 rounded mb-2" />
+                  <div className="h-3 w-24 bg-muted/30 rounded" />
+                </div>
+                <div className="h-4 w-12 bg-muted/30 rounded" />
+              </div>
+            ))}
           </div>
         ) : products.length === 0 ? (
           <div className="text-center py-12">
@@ -331,8 +340,19 @@ export default function Products() {
           </div>
 
           {purchasesLoading ? (
-            <div className="flex justify-center py-4">
-              <Loader2 className="w-5 h-5 animate-spin text-primary" />
+            <div className="space-y-3 animate-pulse">
+              {[1, 2, 3].map(i => (
+                <div key={i} className="flex items-center justify-between p-3 rounded-lg bg-muted/20">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-full bg-muted/40" />
+                    <div>
+                      <div className="h-4 w-28 bg-muted/40 rounded mb-1" />
+                      <div className="h-3 w-20 bg-muted/30 rounded" />
+                    </div>
+                  </div>
+                  <div className="h-4 w-12 bg-muted/30 rounded" />
+                </div>
+              ))}
             </div>
           ) : (
             <div className="space-y-3">

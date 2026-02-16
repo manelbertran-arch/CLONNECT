@@ -38,8 +38,30 @@ export default function Dashboard() {
 
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center h-[60vh]">
-        <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
+      <div className="space-y-8 animate-pulse">
+        {/* Header skeleton */}
+        <div className="flex items-start justify-between">
+          <div>
+            <div className="h-4 w-24 bg-muted/40 rounded mb-2" />
+            <div className="h-7 w-40 bg-muted/40 rounded" />
+          </div>
+          <div className="h-9 w-24 bg-muted/40 rounded-lg" />
+        </div>
+        {/* KPI cards skeleton */}
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+          <div className="col-span-2 h-28 rounded-2xl bg-muted/30" />
+          <div className="h-28 rounded-2xl bg-muted/30" />
+          <div className="h-28 rounded-2xl bg-muted/30" />
+        </div>
+        {/* Secondary metrics skeleton */}
+        <div className="grid grid-cols-3 gap-4">
+          {[1, 2, 3].map(i => <div key={i} className="h-20 rounded-xl bg-muted/20" />)}
+        </div>
+        {/* Chart + leads skeleton */}
+        <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
+          <div className="lg:col-span-3 h-52 rounded-2xl bg-muted/20" />
+          <div className="lg:col-span-2 h-52 rounded-2xl bg-muted/20" />
+        </div>
       </div>
     );
   }

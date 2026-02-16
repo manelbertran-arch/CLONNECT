@@ -1,10 +1,82 @@
+import { useEffect, useRef } from "react";
 import { Outlet } from "react-router-dom";
+import { useQueryClient } from "@tanstack/react-query";
 import { Sidebar } from "./Sidebar";
 import { MobileNav } from "./MobileNav";
+import {
+  apiKeys,
+  getCreatorId,
+  getDashboardOverview,
+  getConversations,
+  getProducts,
+  getCalendarStats,
+  getBookings,
+  getCreatorConfig,
+  getCopilotStatus,
+} from "@/services/api";
 
 export function DashboardLayout() {
-  // REMOVED: useVisualOnboardingStatus check that was causing issues
-  // Onboarding redirect should be handled at login or app level, not here
+  const queryClient = useQueryClient();
+  const prefetched = useRef(false);
+
+  // Prefetch ALL page data on mount — eliminates loading spinners on navigation
+  useEffect(() => {
+    if (prefetched.current) return;
+    prefetched.current = true;
+
+    const cid = getCreatorId();
+    if (!cid) return;
+
+    const staleTime = 300000; // 5 min
+
+    // Dashboard
+    queryClient.prefetchQuery({
+      queryKey: apiKeys.dashboard(cid),
+      queryFn: () => getDashboardOverview(cid),
+      staleTime,
+    });
+
+    // Inbox + Leads (shared data)
+    queryClient.prefetchInfiniteQuery({
+      queryKey: [...apiKeys.conversations(cid), "infinite"],
+      queryFn: () => getConversations(cid, 50, 0),
+      initialPageParam: 0,
+      staleTime,
+    });
+
+    // Products
+    queryClient.prefetchQuery({
+      queryKey: apiKeys.products(cid),
+      queryFn: () => getProducts(cid),
+      staleTime,
+    });
+
+    // Bookings
+    queryClient.prefetchQuery({
+      queryKey: apiKeys.calendarStats(cid),
+      queryFn: () => getCalendarStats(cid),
+      staleTime,
+    });
+    queryClient.prefetchQuery({
+      queryKey: apiKeys.bookings(cid, true),
+      queryFn: () => getBookings(cid, undefined, true),
+      staleTime,
+    });
+
+    // Settings
+    queryClient.prefetchQuery({
+      queryKey: apiKeys.config(cid),
+      queryFn: () => getCreatorConfig(cid),
+      staleTime,
+    });
+
+    // Copilot
+    queryClient.prefetchQuery({
+      queryKey: apiKeys.copilotStatus(cid),
+      queryFn: () => getCopilotStatus(cid),
+      staleTime,
+    });
+  }, [queryClient]);
 
   return (
     <div className="min-h-screen bg-background">
