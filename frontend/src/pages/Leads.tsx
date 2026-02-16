@@ -1,6 +1,6 @@
 import { useState, useMemo, useRef, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { Instagram, MoreHorizontal, Plus, Loader2, AlertCircle, MessageCircle, Send, Eye, Pencil, Trash2, Users, Flame, Star, CheckCircle, Ghost, Clock, ExternalLink, ListTodo, History, StickyNote, CheckSquare, Square, Phone, Mail, Calendar, Activity, TrendingUp, Tag, ShoppingBag } from "lucide-react";
+import { Instagram, MoreHorizontal, Plus, Loader2, AlertCircle, MessageCircle, Send, Eye, Pencil, Trash2, Users, Flame, Heart, Handshake, CheckCircle, Snowflake, Clock, ExternalLink, ListTodo, History, StickyNote, CheckSquare, Square, Phone, Mail, Calendar, Activity, TrendingUp, Tag, ShoppingBag } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -45,15 +45,16 @@ import type { Conversation } from "@/types/api";
 import { getPurchaseIntent, detectPlatform, getDisplayName } from "@/types/api";
 import { RelationshipBadge } from "@/components/RelationshipBadge";
 
-// Sistema de Embudo Estándar
-type LeadStatus = "nuevo" | "interesado" | "caliente" | "cliente" | "fantasma";
+// V3 — 6 Category System
+type LeadStatus = "cliente" | "caliente" | "colaborador" | "amigo" | "nuevo" | "frío";
 
 // Scoring por etapa del funnel
 const STAGE_SCORING: Record<LeadStatus, number> = {
-  fantasma: 0,
-  nuevo: 25,
-  interesado: 50,
-  caliente: 75,
+  "frío": 0,
+  nuevo: 20,
+  amigo: 40,
+  colaborador: 60,
+  caliente: 80,
   cliente: 100,
 };
 
@@ -62,9 +63,10 @@ const DEFAULT_PRODUCT_PRICE = 97;
 
 // Colors for each status (for value display)
 const STATUS_COLORS: Record<LeadStatus, string> = {
-  fantasma: "text-gray-500",
+  "frío": "text-gray-500",
   nuevo: "text-blue-400",
-  interesado: "text-amber-400",
+  amigo: "text-cyan-400",
+  colaborador: "text-purple-400",
   caliente: "text-red-400",
   cliente: "text-emerald-400",
 };
@@ -87,16 +89,46 @@ interface LeadDisplay {
   lastContact: string;   // Last contact timestamp
   totalMessages: number; // Total messages in conversation
   followerId: string;    // For navigation to inbox
+  lastMessage: string;   // Last message preview text
+  relationshipType: string; // Relationship type for badge
 }
 
-// Configuración de columnas del Pipeline (todo en español)
+// Configuración de columnas del Pipeline (V3 — 6 categories)
 const columns: { status: LeadStatus; title: string; description: string; icon: React.ReactNode; color: string; gradient: string }[] = [
   { status: "nuevo", title: "Nuevos", description: "Primer contacto", icon: <Users className="w-4 h-4" />, color: "text-blue-400", gradient: "from-blue-500/20 to-blue-600/10" },
-  { status: "interesado", title: "Interesados", description: "Mostró interés", icon: <Star className="w-4 h-4" />, color: "text-amber-400", gradient: "from-amber-500/20 to-amber-600/10" },
+  { status: "amigo", title: "Amigos", description: "Relación social", icon: <Heart className="w-4 h-4" />, color: "text-cyan-400", gradient: "from-cyan-500/20 to-cyan-600/10" },
+  { status: "colaborador", title: "Colaboradores", description: "Propuesta de collab", icon: <Handshake className="w-4 h-4" />, color: "text-purple-400", gradient: "from-purple-500/20 to-purple-600/10" },
   { status: "caliente", title: "Calientes", description: "Listo para comprar", icon: <Flame className="w-4 h-4" />, color: "text-red-400", gradient: "from-red-500/20 to-red-600/10" },
   { status: "cliente", title: "Clientes", description: "Ya compró", icon: <CheckCircle className="w-4 h-4" />, color: "text-emerald-400", gradient: "from-emerald-500/20 to-emerald-600/10" },
-  { status: "fantasma", title: "Fantasmas", description: "+7 días sin respuesta", icon: <Ghost className="w-4 h-4" />, color: "text-gray-500", gradient: "from-gray-500/20 to-gray-600/10" },
+  { status: "frío", title: "Fríos", description: "+14 días sin respuesta", icon: <Snowflake className="w-4 h-4" />, color: "text-gray-500", gradient: "from-gray-500/20 to-gray-600/10" },
 ];
+
+const COLUMN_EMOJI: Record<LeadStatus, string> = {
+  nuevo: "\u{1F195}",
+  amigo: "\u{1F499}",
+  colaborador: "\u{1F91D}",
+  caliente: "\u{1F525}",
+  cliente: "\u2705",
+  "frío": "\u2744\uFE0F",
+};
+
+const COLUMN_BG: Record<LeadStatus, string> = {
+  nuevo: "border-blue-500/50 bg-blue-500/10",
+  amigo: "border-cyan-500/50 bg-cyan-500/10",
+  colaborador: "border-purple-500/50 bg-purple-500/10",
+  caliente: "border-red-500/50 bg-red-500/10",
+  cliente: "border-emerald-500/50 bg-emerald-500/10",
+  "frío": "border-gray-500/50 bg-gray-500/10",
+};
+
+const STATUS_DOT: Record<LeadStatus, string> = {
+  nuevo: "bg-blue-400",
+  amigo: "bg-cyan-400",
+  colaborador: "bg-purple-400",
+  caliente: "bg-red-400",
+  cliente: "bg-emerald-400",
+  "frío": "bg-gray-400",
+};
 
 const platformIcons: Record<string, React.ReactNode> = {
   instagram: <Instagram className="w-3 h-3" />,
@@ -144,24 +176,28 @@ function openInstagramProfile(username: string, e: React.MouseEvent) {
 }
 
 /**
- * Clasificar lead según embudo estándar
- * Backend returns Spanish status: nuevo, interesado, caliente, cliente, fantasma
- * Legacy English values also supported for backwards compatibility
+ * Classify lead using V3 6-category system.
+ * Backend returns: cliente, caliente, colaborador, amigo, nuevo, frío
+ * Legacy values mapped for backwards compatibility.
  */
 function getLeadStatus(convo: Conversation): LeadStatus {
   const statusMap: Record<string, LeadStatus> = {
-    // Spanish (current DB values)
-    "nuevo": "nuevo",
-    "interesado": "interesado",
-    "caliente": "caliente",
+    // V3 categories
     "cliente": "cliente",
-    "fantasma": "fantasma",
-    // English (legacy compatibility)
+    "caliente": "caliente",
+    "colaborador": "colaborador",
+    "amigo": "amigo",
+    "nuevo": "nuevo",
+    "frío": "frío",
+    // Legacy Spanish
+    "interesado": "caliente",
+    "fantasma": "frío",
+    // Legacy English
     "new": "nuevo",
-    "active": "interesado",
+    "active": "caliente",
     "hot": "caliente",
     "customer": "cliente",
-    "ghost": "fantasma",
+    "ghost": "frío",
   };
 
   // Priority 1: Use backend status if available
@@ -176,7 +212,7 @@ function getLeadStatus(convo: Conversation): LeadStatus {
   // Priority 3: Fallback to intent-based calculation
   const intent = getPurchaseIntent(convo);
   if (intent >= 0.50) return "caliente";
-  if (intent >= 0.20) return "interesado";
+  if (intent >= 0.20) return "amigo";
   return "nuevo";
 }
 
@@ -189,13 +225,14 @@ function calculateLeadValue(status: LeadStatus, productPrice: number): number {
   return Math.round(productPrice * (scoring / 100));
 }
 
-// Mapeo de status UI a status backend (nuevo embudo)
+// Mapeo de status UI a status backend (V3)
 const statusToBackend: Record<LeadStatus, string> = {
-  nuevo: "nuevo",
-  interesado: "interesado",
-  caliente: "caliente",
   cliente: "cliente",
-  fantasma: "fantasma",
+  caliente: "caliente",
+  colaborador: "colaborador",
+  amigo: "amigo",
+  nuevo: "nuevo",
+  "frío": "frío",
 };
 
 // Initial form state for adding/editing leads
@@ -222,6 +259,9 @@ export default function Leads() {
   const updateTaskMutation = useUpdateLeadTask();
   const deleteTaskMutation = useDeleteLeadTask();
   const deleteActivityMutation = useDeleteLeadActivity();
+
+  // Filter state for summary cards
+  const [activeFilter, setActiveFilter] = useState<LeadStatus | null>(null);
 
   // Optimistic UI states for instant feedback
   const [fadingIds, setFadingIds] = useState<Set<string>>(new Set());
@@ -306,6 +346,7 @@ export default function Leads() {
         lastContact: convo.last_contact || "",
         totalMessages: convo.total_messages || 0,
         followerId: convo.follower_id,
+        lastMessage: convo.last_message_preview || "",
         relationshipType: convo.relationship_type || "nuevo",
       };
     });
@@ -315,6 +356,12 @@ export default function Leads() {
     const uniqueOptimistic = optimisticLeads.filter(ol => !realIds.has(ol.name.toLowerCase()));
     return [...uniqueOptimistic, ...realLeads];
   }, [data?.pages, localStatusOverrides, optimisticLeads]);
+
+  const filteredLeads = useMemo(() => {
+    const visible = leads.filter(l => !hiddenIds.has(l.id));
+    if (!activeFilter) return visible;
+    return visible.filter(l => l.status === activeFilter);
+  }, [leads, activeFilter, hiddenIds]);
 
   const handleDragStart = (lead: LeadDisplay) => {
     setDraggedLead(lead);
@@ -410,6 +457,8 @@ export default function Leads() {
       lastContact: new Date().toISOString(),
       totalMessages: 0,
       followerId: tempId,
+      lastMessage: "",
+      relationshipType: "nuevo",
     };
 
     // Add to optimistic leads immediately (will show in "Nuevos" column)
@@ -703,159 +752,173 @@ export default function Leads() {
         </Button>
       </div>
 
-      {/* Kanban Board */}
-      <div className="overflow-x-auto pb-4 -mx-4 px-4 md:mx-0 md:px-0">
-        <div className="flex md:grid md:grid-cols-5 gap-3 h-[calc(100vh-12rem)] min-w-max md:min-w-0">
-        {columns.map((column) => {
-          const columnLeads = getLeadsByStatus(column.status);
+      {/* Summary Cards */}
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
+        {columns.map((col) => {
+          const count = leads.filter(l => l.status === col.status && !hiddenIds.has(l.id)).length;
+          const isActive = activeFilter === col.status;
 
           return (
-            <div
-              key={column.status}
-              className="flex flex-col rounded-2xl overflow-hidden w-64 md:w-auto shrink-0 md:shrink bg-card/50 border border-border/50"
+            <button
+              key={col.status}
+              onClick={() => setActiveFilter(isActive ? null : col.status)}
               onDragOver={handleDragOver}
-              onDrop={() => handleDrop(column.status)}
+              onDrop={() => handleDrop(col.status)}
+              className={cn(
+                "flex flex-col items-center gap-1 p-3 rounded-xl border transition-all duration-150 cursor-pointer",
+                "hover:shadow-md",
+                isActive
+                  ? COLUMN_BG[col.status]
+                  : "border-border/50 bg-card/50 hover:border-border"
+              )}
             >
-              {/* Column Header */}
-              <div className="px-4 py-3 border-b border-border/30">
-                <div className="flex items-center gap-2">
-                  <span className={cn("opacity-80", column.color)}>{column.icon}</span>
-                  <span className={cn("font-semibold text-sm", column.color)}>{column.title}</span>
-                  <span className={cn("text-xs font-semibold px-2 py-0.5 rounded-full ml-auto", column.color, "bg-current/10")}>
-                    {columnLeads.length}
-                  </span>
-                </div>
-                <p className="text-xs text-muted-foreground mt-1">{column.description}</p>
-              </div>
-
-              {/* Cards */}
-              <div className="flex-1 overflow-auto p-2 space-y-2">
-                {columnLeads.length === 0 ? (
-                  <div className="text-center py-16 text-muted-foreground/40 text-xs">
-                    Sin leads
-                  </div>
-                ) : (
-                  columnLeads.map((lead) => (
-                    <div
-                      key={lead.id}
-                      draggable
-                      onDragStart={() => handleDragStart(lead)}
-                      onClick={() => handleViewLead(lead)}
-                      className={cn(
-                        "group p-3 rounded-xl bg-card border border-border/30 cursor-pointer transition-all duration-150",
-                        "hover:border-violet-500/50 hover:shadow-md hover:shadow-violet-500/10 hover:bg-card/80",
-                        draggedLead?.id === lead.id && "opacity-50 scale-95",
-                        fadingIds.has(lead.id) && "opacity-0 -translate-x-4 scale-95"
-                      )}
-                    >
-                      <div className="flex items-start gap-3">
-                        {/* Avatar - Clickable for Instagram */}
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation(); // Always stop propagation
-                            if (lead.platform === "instagram" && lead.instagramUsername) {
-                              window.open(`https://instagram.com/${lead.instagramUsername}`, "_blank");
-                            }
-                          }}
-                          className={cn(
-                            "w-10 h-10 rounded-full shrink-0 overflow-hidden",
-                            lead.platform === "instagram" && "hover:ring-2 hover:ring-violet-500 cursor-pointer",
-                            lead.platform !== "instagram" && "cursor-default"
-                          )}
-                          title={lead.platform === "instagram" ? `Abrir @${lead.instagramUsername}` : undefined}
-                        >
-                          {lead.profilePicUrl ? (
-                            <img
-                              src={lead.profilePicUrl}
-                              alt={lead.username}
-                              className="w-full h-full object-cover"
-                              onError={(e) => {
-                                // Fallback to initials on error
-                                (e.target as HTMLImageElement).style.display = "none";
-                                (e.target as HTMLImageElement).nextElementSibling?.classList.remove("hidden");
-                              }}
-                            />
-                          ) : null}
-                          <div className={cn(
-                            "w-full h-full bg-gradient-to-br from-violet-600 to-purple-600 flex items-center justify-center text-white text-xs font-medium",
-                            lead.profilePicUrl && "hidden"
-                          )}>
-                            {lead.avatar}
-                          </div>
-                        </button>
-
-                        {/* Name, Username & Time */}
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-2">
-                            <p className="font-medium text-sm truncate">{lead.name || lead.username}</p>
-                            {lead.platform === "instagram" && (
-                              <ExternalLink className="w-3 h-3 text-muted-foreground/50 opacity-0 group-hover:opacity-100" />
-                            )}
-                          </div>
-                          <div className="flex items-center gap-1.5 mt-0.5">
-                            <p className="text-xs text-muted-foreground flex items-center gap-1">
-                              {platformIcons[lead.platform] || platformIcons.instagram}
-                              <span className="truncate">@{lead.username.replace(/^@/, "")}</span>
-                            </p>
-                            <RelationshipBadge type={lead.relationshipType} />
-                          </div>
-                        </div>
-
-                        {/* Messages & Time (instead of € values) */}
-                        <div className="flex flex-col items-end shrink-0 text-muted-foreground">
-                          {lead.totalMessages > 0 && (
-                            <span className="flex items-center gap-1 text-xs">
-                              <MessageCircle className="w-3 h-3" />
-                              {lead.totalMessages}
-                            </span>
-                          )}
-                          {lead.lastContact && (
-                            <span className="text-[10px]">
-                              {formatTimeAgo(lead.lastContact)}
-                            </span>
-                          )}
-                        </div>
-
-                        {/* Menu */}
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              className="h-7 w-7 opacity-0 group-hover:opacity-100 transition-opacity shrink-0"
-                              onClick={(e) => e.stopPropagation()}
-                            >
-                              <MoreHorizontal className="w-4 h-4" />
-                            </Button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end" className="w-36">
-                            <DropdownMenuItem onClick={(e) => { e.stopPropagation(); handleViewLead(lead); }}>
-                              <Eye className="w-4 h-4 mr-2" />
-                              Ver detalles
-                            </DropdownMenuItem>
-                            <DropdownMenuItem onClick={(e) => { e.stopPropagation(); navigate(`/inbox?id=${lead.followerId}`); }}>
-                              <MessageCircle className="w-4 h-4 mr-2" />
-                              Ir al chat
-                            </DropdownMenuItem>
-                            <DropdownMenuSeparator />
-                            <DropdownMenuItem
-                              onClick={(e) => { e.stopPropagation(); handleOpenDeleteDialog(lead); }}
-                              className="text-destructive focus:text-destructive"
-                            >
-                              <Trash2 className="w-4 h-4 mr-2" />
-                              Eliminar
-                            </DropdownMenuItem>
-                          </DropdownMenuContent>
-                        </DropdownMenu>
-                      </div>
-                    </div>
-                  ))
-                )}
-              </div>
-            </div>
+              <span className="text-xl">{COLUMN_EMOJI[col.status]}</span>
+              <span className={cn("text-2xl font-bold tabular-nums", col.color)}>{count}</span>
+              <span className="text-xs text-muted-foreground">{col.title}</span>
+            </button>
           );
         })}
+      </div>
+
+      {/* Active filter indicator */}
+      {activeFilter && (
+        <div className="flex items-center gap-2">
+          <span className="text-sm text-muted-foreground">
+            Filtrando por: <span className={cn("font-semibold capitalize", STATUS_COLORS[activeFilter])}>{activeFilter}</span>
+          </span>
+          <Button variant="ghost" size="sm" className="h-6 px-2 text-xs" onClick={() => setActiveFilter(null)}>
+            Limpiar
+          </Button>
         </div>
+      )}
+
+      {/* Table */}
+      <div className="rounded-xl border border-border/50 bg-card/50 overflow-hidden">
+        {/* Table Header */}
+        <div className="grid grid-cols-[1fr_80px] md:grid-cols-[1fr_200px_100px_80px] gap-4 px-4 py-2.5 border-b border-border/30 text-xs text-muted-foreground uppercase tracking-wide">
+          <span>Contacto</span>
+          <span className="hidden md:block">Último mensaje</span>
+          <span className="hidden md:block">Tipo</span>
+          <span className="text-right">Tiempo</span>
+        </div>
+
+        {/* Table Rows */}
+        {filteredLeads.length === 0 ? (
+          <div className="text-center py-16 text-muted-foreground/40 text-sm">
+            {activeFilter ? "Sin leads en esta categoría" : "Sin leads"}
+          </div>
+        ) : (
+          <div className="divide-y divide-border/20">
+            {filteredLeads.map((lead) => (
+              <div
+                key={lead.id}
+                draggable
+                onDragStart={() => handleDragStart(lead)}
+                onClick={() => handleViewLead(lead)}
+                className={cn(
+                  "group grid grid-cols-[1fr_80px] md:grid-cols-[1fr_200px_100px_80px] gap-4 px-4 py-3 items-center cursor-pointer transition-all duration-150",
+                  "hover:bg-muted/30",
+                  draggedLead?.id === lead.id && "opacity-50 scale-[0.99]",
+                  fadingIds.has(lead.id) && "opacity-0 -translate-x-4 scale-95"
+                )}
+              >
+                {/* Contact: Avatar + Name + Username */}
+                <div className="flex items-center gap-3 min-w-0">
+                  <div className="relative shrink-0">
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        if (lead.platform === "instagram" && lead.instagramUsername) {
+                          window.open(`https://instagram.com/${lead.instagramUsername}`, "_blank");
+                        }
+                      }}
+                      className={cn(
+                        "w-9 h-9 rounded-full overflow-hidden",
+                        lead.platform === "instagram" && "hover:ring-2 hover:ring-violet-500 cursor-pointer",
+                        lead.platform !== "instagram" && "cursor-default"
+                      )}
+                      title={lead.platform === "instagram" ? `Abrir @${lead.instagramUsername}` : undefined}
+                    >
+                      {lead.profilePicUrl ? (
+                        <img
+                          src={lead.profilePicUrl}
+                          alt={lead.username}
+                          className="w-full h-full object-cover"
+                          onError={(e) => {
+                            (e.target as HTMLImageElement).style.display = "none";
+                            (e.target as HTMLImageElement).nextElementSibling?.classList.remove("hidden");
+                          }}
+                        />
+                      ) : null}
+                      <div className={cn(
+                        "w-full h-full bg-gradient-to-br from-violet-600 to-purple-600 flex items-center justify-center text-white text-[10px] font-medium",
+                        lead.profilePicUrl && "hidden"
+                      )}>
+                        {lead.avatar}
+                      </div>
+                    </button>
+                    {/* Status dot */}
+                    <span className={cn("absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full border-2 border-card", STATUS_DOT[lead.status])} />
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <p className="font-medium text-sm truncate">{lead.name || lead.username}</p>
+                    <p className="text-xs text-muted-foreground truncate flex items-center gap-1">
+                      {platformIcons[lead.platform] || platformIcons.instagram}
+                      @{lead.username.replace(/^@/, "")}
+                    </p>
+                  </div>
+                  {/* 3-dot menu */}
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-7 w-7 opacity-0 group-hover:opacity-100 transition-opacity shrink-0"
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        <MoreHorizontal className="w-4 h-4" />
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end" className="w-36">
+                      <DropdownMenuItem onClick={(e) => { e.stopPropagation(); handleViewLead(lead); }}>
+                        <Eye className="w-4 h-4 mr-2" />
+                        Ver detalles
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={(e) => { e.stopPropagation(); navigate(`/inbox?id=${lead.followerId}`); }}>
+                        <MessageCircle className="w-4 h-4 mr-2" />
+                        Ir al chat
+                      </DropdownMenuItem>
+                      <DropdownMenuSeparator />
+                      <DropdownMenuItem
+                        onClick={(e) => { e.stopPropagation(); handleOpenDeleteDialog(lead); }}
+                        className="text-destructive focus:text-destructive"
+                      >
+                        <Trash2 className="w-4 h-4 mr-2" />
+                        Eliminar
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                </div>
+
+                {/* Last Message (hidden on mobile) */}
+                <span className="hidden md:block text-xs text-muted-foreground truncate">
+                  {lead.lastMessage || "—"}
+                </span>
+
+                {/* Relationship Badge (hidden on mobile) */}
+                <span className="hidden md:block">
+                  <RelationshipBadge type={lead.relationshipType} />
+                </span>
+
+                {/* Time */}
+                <span className="text-xs text-muted-foreground text-right flex items-center justify-end gap-1">
+                  <Clock className="w-3 h-3" />
+                  {formatTimeAgo(lead.lastContact) || "—"}
+                </span>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
 
       {/* Load More Button */}
