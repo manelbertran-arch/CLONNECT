@@ -1380,14 +1380,17 @@ class InstagramHandler:
 
                             # Check if we already recorded this exact reaction
                             # Use reacted_to_mid + emoji + sender as uniqueness key
+                            # msg_metadata is JSON (not JSONB), so use text() for ->> operator
+                            from sqlalchemy import text as sa_text
                             existing = (
                                 session.query(Message)
                                 .filter(
                                     Message.lead_id == lead.id,
-                                    Message.msg_metadata["type"].astext == "reaction",
-                                    Message.msg_metadata["reacted_to_mid"].astext == reacted_to_mid,
+                                    sa_text("msg_metadata->>'type' = 'reaction'"),
+                                    sa_text("msg_metadata->>'reacted_to_mid' = :mid"),
                                     Message.role == role,
                                 )
+                                .params(mid=reacted_to_mid)
                                 .first()
                             )
                             if existing:
