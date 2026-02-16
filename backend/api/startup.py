@@ -543,20 +543,22 @@ def register_startup_handlers(app: "FastAPI"):
         # asyncio.create_task(cache_refresh_task())
         logger.warning("Cache refresh task DISABLED - was blocking event loop")
 
-        # Keep-alive task - DB ping + warm conversations cache
+        # Keep-alive task - DB ping to keep connection pool alive
+        # NOTE: Cache warming is done at startup (_do_prewarm) + naturally by
+        # frontend polling (refetchInterval=30s). Keep-alive must NOT call
+        # get_conversations() — it uses synchronous DB calls that block the event loop.
         async def keep_alive_task():
             import time
 
             KEEP_ALIVE_INTERVAL = 60  # 1 minute - prevent Railway scale-to-zero
 
             await asyncio.sleep(3)
-            logger.info("[KEEP-ALIVE] Started - DB ping + cache warm every 1 min")
+            logger.info("[KEEP-ALIVE] Started - DB ping every 1 min")
 
             while True:
                 try:
                     _t_start = time.time()
 
-                    # 1. Ping DB (keeps connection pool alive)
                     if SessionLocal:
                         try:
                             from sqlalchemy import text
@@ -567,30 +569,8 @@ def register_startup_handlers(app: "FastAPI"):
                         except Exception as e:
                             logger.warning(f"[KEEP-ALIVE] DB ping failed: {e}")
 
-                    # 2. Warm conversations cache for active creators
-                    try:
-                        from api.routers.dm import get_conversations
-
-                        if SessionLocal:
-                            from api.models import Creator
-
-                            session = SessionLocal()
-                            try:
-                                creators = session.query(Creator.name).filter_by(bot_active=True).all()
-                            finally:
-                                session.close()
-
-                            for (name,) in creators:
-                                if name:
-                                    try:
-                                        await get_conversations(name, limit=50, offset=0)
-                                    except Exception:
-                                        pass
-                    except Exception as e:
-                        logger.debug(f"[KEEP-ALIVE] Cache warm skipped: {e}")
-
                     _t_end = time.time()
-                    logger.debug(f"[KEEP-ALIVE] OK in {_t_end - _t_start:.3f}s")
+                    logger.debug(f"[KEEP-ALIVE] Ping OK in {_t_end - _t_start:.3f}s")
 
                 except Exception as e:
                     logger.error(f"[KEEP-ALIVE] Error: {e}")
