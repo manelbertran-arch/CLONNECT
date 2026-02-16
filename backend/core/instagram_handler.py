@@ -1276,6 +1276,7 @@ class InstagramHandler:
                                         "recipient_id": recipient_id,  # This is the follower
                                         "text": text,
                                         "timestamp": messaging.get("timestamp", 0),
+                                        "attachments": attachments,  # Pass raw attachments for media capture
                                     }
                                 )
                                 logger.info(
@@ -1340,6 +1341,65 @@ class InstagramHandler:
                     session.commit()
                     return True
 
+                # Extract media info from echo attachments (if any)
+                msg_meta: Dict[str, Any] = {"source": "instagram_echo", "is_manual": True}
+                attachments = echo_msg.get("attachments", [])
+                if attachments:
+                    media_info = self._extract_media_info(attachments)
+                    if media_info:
+                        media_url = media_info.get("url")
+                        media_type = media_info.get("type", "unknown")
+
+                        # Capture CDN media permanently before it expires
+                        if media_url:
+                            try:
+                                from services.media_capture_service import capture_media_from_url, is_cdn_url
+
+                                cloudinary_svc = get_cloudinary_service()
+                                if cloudinary_svc.is_configured:
+                                    folder = f"clonnect/{self.creator_id or 'unknown'}/media"
+                                    result = cloudinary_svc.upload_from_url(
+                                        url=media_url,
+                                        media_type=media_type,
+                                        folder=folder,
+                                        tags=["instagram", "echo", f"creator_{self.creator_id}"],
+                                    )
+                                    if result.success:
+                                        media_info["original_url"] = media_url
+                                        media_info["url"] = result.url
+                                        media_info["cloudinary_id"] = result.public_id
+                                        logger.info(f"[Echo] Media uploaded to Cloudinary: {result.public_id}")
+                                    elif is_cdn_url(media_url):
+                                        captured = await capture_media_from_url(
+                                            url=media_url,
+                                            media_type=media_type,
+                                            creator_id=self.creator_id,
+                                            use_cloudinary=False,
+                                        )
+                                        if captured and captured.startswith("data:"):
+                                            media_info["thumbnail_base64"] = captured
+                                elif is_cdn_url(media_url):
+                                    captured = await capture_media_from_url(
+                                        url=media_url,
+                                        media_type=media_type,
+                                        creator_id=self.creator_id,
+                                        use_cloudinary=False,
+                                    )
+                                    if captured:
+                                        if captured.startswith("data:"):
+                                            media_info["thumbnail_base64"] = captured
+                                        else:
+                                            media_info["permanent_url"] = captured
+                            except Exception as e:
+                                logger.warning(f"[Echo] Media capture failed: {e}")
+
+                        # Merge media fields into msg_metadata (outside media_url check
+                        # so share attachments with only permalink/type also get merged)
+                        for key in ("type", "url", "permanent_url", "thumbnail_base64",
+                                    "original_url", "cloudinary_id", "permalink"):
+                            if key in media_info:
+                                msg_meta[key] = media_info[key]
+
                 # Record the creator's manual response
                 msg = Message(
                     lead_id=lead.id,
@@ -1348,7 +1408,7 @@ class InstagramHandler:
                     status="sent",
                     approved_by="creator_manual",  # Mark as manually sent by creator
                     platform_message_id=echo_msg["message_id"],
-                    msg_metadata={"source": "instagram_echo", "is_manual": True},
+                    msg_metadata=msg_meta,
                 )
                 session.add(msg)
 
