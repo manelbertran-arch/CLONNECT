@@ -241,7 +241,6 @@ async def get_conversations(creator_id: str, limit: int = 50, offset: int = 0):
                                         if last_msg.created_at
                                         else None
                                     ),
-                                    "metadata": last_msg.msg_metadata or {},
                                 }
                             ]
                             # Instagram-like UX fields
