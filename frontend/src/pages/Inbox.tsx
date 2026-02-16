@@ -26,41 +26,7 @@ import { useInfiniteConversations, useFollowerDetail, useSendMessage, useArchive
 import { useToast } from "@/hooks/use-toast";
 import type { Conversation, Message } from "@/types/api";
 import { getPurchaseIntent, detectPlatform, getFriendlyName, extractNameFromMessages, getMessages } from "@/types/api";
-import { RelationshipBadge } from "@/components/RelationshipBadge";
-
-// Status colors matching Pipeline (Spanish DB values + English legacy)
-const statusColors: Record<string, string> = {
-  nuevo: "bg-blue-500/20 text-blue-400 border-blue-400/30",
-  interesado: "bg-amber-500/20 text-amber-400 border-amber-400/30",
-  caliente: "bg-red-500/20 text-red-400 border-red-400/30",
-  cliente: "bg-emerald-500/20 text-emerald-400 border-emerald-400/30",
-  fantasma: "bg-gray-500/20 text-gray-400 border-gray-400/30",
-  archived: "bg-gray-500/20 text-gray-400 border-gray-400/30",
-  spam: "bg-red-500/20 text-red-400 border-red-400/30",
-  // Legacy English keys
-  new: "bg-blue-500/20 text-blue-400 border-blue-400/30",
-  active: "bg-amber-500/20 text-amber-400 border-amber-400/30",
-  hot: "bg-red-500/20 text-red-400 border-red-400/30",
-  customer: "bg-emerald-500/20 text-emerald-400 border-emerald-400/30",
-  ghost: "bg-gray-500/20 text-gray-400 border-gray-400/30",
-};
-
-// Status names in Spanish
-const statusNames: Record<string, string> = {
-  nuevo: "Nuevo",
-  interesado: "Interesado",
-  caliente: "Caliente",
-  cliente: "Cliente",
-  fantasma: "Fantasma",
-  archived: "Archivado",
-  spam: "Spam",
-  // Legacy English keys
-  new: "Nuevo",
-  active: "Interesado",
-  hot: "Caliente",
-  customer: "Cliente",
-  ghost: "Fantasma",
-};
+import { RelationshipBadge, RelationshipDot } from "@/components/RelationshipBadge";
 
 const platformIcons: Record<string, React.ReactNode> = {
   instagram: <Instagram className="w-3 h-3" />,
@@ -85,24 +51,6 @@ function getInitials(name?: string, username?: string, id?: string): string {
   return "??";
 }
 
-function getStatus(convo: Conversation): string {
-  // Priority 1: Use backend status if available
-  // Backend categories: nuevo→new, interesado→active, caliente→hot, cliente→customer, fantasma→ghost
-  const backendStatus = (convo as { status?: string }).status || convo.lead_status;
-  if (backendStatus && ["hot", "active", "new", "customer", "ghost", "archived", "spam"].includes(backendStatus)) {
-    return backendStatus;
-  }
-
-  // Priority 2: Check if customer
-  if (convo.is_customer) return "customer";
-
-  // Priority 3: Fallback to score-based calculation (only if no backend status)
-  const score = getPurchaseIntent(convo);
-  if (score >= 0.50) return "hot";
-  if (score >= 0.25) return "active";
-  return "new";
-}
-
 function formatTimeAgo(timestamp: string | undefined): string {
   if (!timestamp) return "";
   const date = new Date(timestamp);
@@ -116,6 +64,18 @@ function formatTimeAgo(timestamp: string | undefined): string {
   if (diffMins < 60) return `${diffMins}m`;
   if (diffHours < 24) return `${diffHours}h`;
   return `${diffDays}d`;
+}
+
+function formatPreview(content?: string, _name?: string): string {
+  if (!content) return "";
+  const lower = content.toLowerCase().trim();
+  if (lower === "shared content") return "Compartió contenido";
+  if (lower.includes("mentioned you in their story")) return "Te mencionó en su story";
+  if (lower === "sent an attachment") return "Envió un archivo";
+  if (lower.includes("shared a post")) return "Compartió una publicación";
+  if (lower.includes("shared a reel")) return "Compartió un reel";
+  if (lower.includes("story reply")) return "Respondió a tu historia";
+  return content;
 }
 
 // Get smart display name - tries to extract from messages if not available
@@ -420,8 +380,6 @@ export default function Inbox() {
             </div>
           ) : (
             conversations.map((convo) => {
-              const status = activeTab === "archived" ? (convo.status || "archived") : getStatus(convo);
-              const platform = convo.platform || detectPlatform(convo.follower_id);
               const listDisplayName = convo.name || convo.username || getFriendlyName(convo.follower_id);
               const initials = getInitials(convo.name, convo.username, convo.follower_id);
               const lastMessage = convo.last_messages?.[convo.last_messages.length - 1];
@@ -462,50 +420,21 @@ export default function Inbox() {
                       onClick={() => setSelectedId(convo.follower_id)}
                       className="flex-1 min-w-0 text-left"
                     >
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-1">
+                      <div className="flex items-center justify-between gap-2">
+                        <div className="flex items-center gap-1.5 min-w-0">
+                          <RelationshipDot type={convo.relationship_type || convo.status} />
                           <span className={`font-medium text-sm truncate ${convo.is_unread ? 'text-white' : ''}`}>{listDisplayName}</span>
-                          {convo.is_verified && <span className="text-[#0095F6] text-xs">✓</span>}
+                          {convo.is_verified && <span className="text-[#0095F6] text-xs shrink-0">✓</span>}
                         </div>
-                        <div className="flex items-center gap-2">
+                        <div className="flex items-center gap-1.5 shrink-0">
                           <span className="text-xs text-muted-foreground">{formatTimeAgo(convo.last_contact)}</span>
                           {convo.is_unread && <div className="w-2 h-2 rounded-full bg-[#0095F6]"></div>}
                         </div>
                       </div>
                       <p className={`text-xs truncate mt-0.5 ${convo.is_unread ? 'text-white font-medium' : 'text-muted-foreground'}`}>
                         {convo.last_message_role === 'assistant' ? 'Tú: ' : ''}
-                        {convo.last_message_preview || lastMessage?.content || "Sin mensajes"}
+                        {formatPreview(convo.last_message_preview || lastMessage?.content, convo.name || convo.username)}
                       </p>
-                      <div className="mt-2 flex items-center gap-2">
-                        <RelationshipBadge type={convo.relationship_type || convo.status} />
-                        <span className={cn(
-                          "status-badge text-[10px] border",
-                          isArchived
-                            ? status === "spam" ? "bg-destructive/10 text-destructive border-destructive/20" : "bg-muted/10 text-muted-foreground border-muted/20"
-                            : statusColors[status]
-                        )}>
-                          {statusNames[status] || status}
-                        </span>
-                        {platform === "instagram" ? (
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              const username = (convo.username || convo.follower_id).replace(/^@/, "").replace(/^ig_/, "");
-                              window.open(`https://instagram.com/${username}`, "_blank");
-                            }}
-                            className="text-[10px] text-muted-foreground flex items-center gap-1 hover:text-violet-400 transition-colors"
-                            title={`Abrir @${(convo.username || "").replace(/^@/, "")}`}
-                          >
-                            <Instagram className="w-3 h-3" />
-                            {platform}
-                          </button>
-                        ) : (
-                          <span className="text-[10px] text-muted-foreground flex items-center gap-1">
-                            {platformIcons[platform]}
-                            {platform}
-                          </span>
-                        )}
-                      </div>
                     </button>
                     {isArchived && (
                       <Button

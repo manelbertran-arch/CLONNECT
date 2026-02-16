@@ -10,6 +10,7 @@ const RELATIONSHIP_BADGES: Record<string, { label: string; color: string; bg: st
   'fantasma':       { label: 'Fantasma',     color: '#4b5563', bg: '#4b556320' },
 };
 
+/** Full badge with text — use in headers and detail views */
 export function RelationshipBadge({ type }: { type?: string }) {
   const badge = RELATIONSHIP_BADGES[type || 'nuevo'] || RELATIONSHIP_BADGES['nuevo'];
   return (
@@ -26,6 +27,24 @@ export function RelationshipBadge({ type }: { type?: string }) {
     >
       {badge.label}
     </span>
+  );
+}
+
+/** Compact color dot — use in conversation lists */
+export function RelationshipDot({ type }: { type?: string }) {
+  const badge = RELATIONSHIP_BADGES[type || 'nuevo'] || RELATIONSHIP_BADGES['nuevo'];
+  return (
+    <span
+      title={badge.label}
+      style={{
+        width: 8,
+        height: 8,
+        borderRadius: '50%',
+        backgroundColor: badge.color,
+        display: 'inline-block',
+        flexShrink: 0,
+      }}
+    />
   );
 }
 
