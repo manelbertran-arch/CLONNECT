@@ -409,6 +409,35 @@ class InstagramHandler:
                     # Remove oldest entries (convert to list, slice, back to set)
                     self._processed_message_ids = set(list(self._processed_message_ids)[-500:])
 
+                # PERSISTENT DEDUP: Check if message already exists in DB
+                # (survives redeploys, unlike the in-memory set above)
+                if message.message_id:
+                    try:
+                        from api.database import SessionLocal
+                        from api.models import Message as MsgModel
+
+                        _dedup_session = SessionLocal()
+                        try:
+                            existing_in_db = (
+                                _dedup_session.query(MsgModel.id)
+                                .filter(MsgModel.platform_message_id == message.message_id)
+                                .first()
+                            )
+                            if existing_in_db:
+                                logger.info(
+                                    f"[DEDUP:DB] Message {message.message_id} already in DB — skipping"
+                                )
+                                results.append({
+                                    "message_id": message.message_id,
+                                    "sender_id": message.sender_id,
+                                    "status": "duplicate_db_skipped",
+                                })
+                                continue
+                        finally:
+                            _dedup_session.close()
+                    except Exception as e:
+                        logger.warning(f"[DEDUP:DB] Check failed: {e}")
+
                 # Process with DM agent to get suggested response
                 response = await self.process_message(message)
 
@@ -467,6 +496,75 @@ class InstagramHandler:
                     from core.copilot_service import get_copilot_service
 
                     copilot = get_copilot_service()
+
+                    # --- Anti-zombie check #1: Creator already responded? ---
+                    creator_already_responded = await self._has_creator_responded_recently(
+                        message.sender_id, window_seconds=1800  # 30 min window
+                    )
+                    if creator_already_responded:
+                        logger.info(
+                            f"[Copilot:AntiZombie] Skipping suggestion for {message.sender_id} — "
+                            "creator already responded"
+                        )
+                        # Still save user message to DB
+                        await self._save_user_message_to_db(
+                            msg=message, username=username, full_name=full_name,
+                        )
+                        results.append({
+                            "message_id": message.message_id,
+                            "sender_id": message.sender_id,
+                            "copilot_mode": True,
+                            "status": "skipped_creator_responded",
+                        })
+                        continue
+
+                    # --- Anti-zombie check #2: Already has pending suggestion? ---
+                    try:
+                        from api.database import SessionLocal
+                        from api.models import Creator, Lead, Message as MsgModel
+
+                        _session = SessionLocal()
+                        try:
+                            _creator = _session.query(Creator).filter_by(name=self.creator_id).first()
+                            if _creator:
+                                _lead = (
+                                    _session.query(Lead)
+                                    .filter(
+                                        Lead.creator_id == _creator.id,
+                                        Lead.platform_user_id.in_([message.sender_id, f"ig_{message.sender_id}"]),
+                                    )
+                                    .first()
+                                )
+                                if _lead:
+                                    existing_pending = (
+                                        _session.query(MsgModel)
+                                        .filter(
+                                            MsgModel.lead_id == _lead.id,
+                                            MsgModel.role == "assistant",
+                                            MsgModel.status == "pending_approval",
+                                        )
+                                        .first()
+                                    )
+                                    if existing_pending:
+                                        logger.info(
+                                            f"[Copilot:AntiZombie] Skipping — already has pending "
+                                            f"suggestion {existing_pending.id} for {message.sender_id}"
+                                        )
+                                        # Still save user message
+                                        await self._save_user_message_to_db(
+                                            msg=message, username=username, full_name=full_name,
+                                        )
+                                        results.append({
+                                            "message_id": message.message_id,
+                                            "sender_id": message.sender_id,
+                                            "copilot_mode": True,
+                                            "status": "skipped_existing_pending",
+                                        })
+                                        continue
+                        finally:
+                            _session.close()
+                    except Exception as e:
+                        logger.warning(f"[Copilot:AntiZombie] Pending check failed: {e}")
 
                     # Extract media info for attachment messages (same as _save_user_message_to_db)
                     copilot_user_msg = message.text
