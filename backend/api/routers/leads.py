@@ -234,12 +234,15 @@ async def create_lead(creator_id: str, data: dict = Body(...), _auth: str = Depe
 
 @router.post("/{creator_id}/manual")
 async def create_manual_lead(creator_id: str, data: dict = Body(...), _auth: str = Depends(require_creator_access)):
+    from api.cache import api_cache
+
     start = time.time()
     # Try PostgreSQL first
     if USE_DB:
         try:
             result = db_service.create_lead(creator_id, data)
             if result:
+                api_cache.invalidate(f"conversations:{creator_id}")
                 logger.info(f"⏱️ Lead create took {time.time()-start:.2f}s")
                 return {"status": "ok", "lead": adapt_lead_response(result)}
         except Exception as e:

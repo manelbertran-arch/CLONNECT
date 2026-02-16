@@ -19,7 +19,14 @@ export function useLeads(creatorId: string = getCreatorId()) {
 }
 
 export function useCreateManualLead(creatorId: string = getCreatorId()) {
-  return useMutation({ mutationFn: (data: CreateLeadData) => createManualLead(creatorId, data) });
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (data: CreateLeadData) => createManualLead(creatorId, data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: apiKeys.conversations(creatorId) });
+      queryClient.invalidateQueries({ queryKey: apiKeys.leads(creatorId) });
+    },
+  });
 }
 
 export function useUpdateLead(creatorId: string = getCreatorId()) {
