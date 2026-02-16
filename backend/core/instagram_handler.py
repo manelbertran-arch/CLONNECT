@@ -1355,8 +1355,9 @@ class InstagramHandler:
                             try:
                                 from services.media_capture_service import capture_media_from_url, is_cdn_url
 
+                                uploaded = False
                                 cloudinary_svc = get_cloudinary_service()
-                                if cloudinary_svc.is_configured:
+                                if cloudinary_svc.is_configured and is_cdn_url(media_url):
                                     folder = f"clonnect/{self.creator_id or 'unknown'}/media"
                                     result = cloudinary_svc.upload_from_url(
                                         url=media_url,
@@ -1368,17 +1369,11 @@ class InstagramHandler:
                                         media_info["original_url"] = media_url
                                         media_info["url"] = result.url
                                         media_info["cloudinary_id"] = result.public_id
+                                        uploaded = True
                                         logger.info(f"[Echo] Media uploaded to Cloudinary: {result.public_id}")
-                                    elif is_cdn_url(media_url):
-                                        captured = await capture_media_from_url(
-                                            url=media_url,
-                                            media_type=media_type,
-                                            creator_id=self.creator_id,
-                                            use_cloudinary=False,
-                                        )
-                                        if captured and captured.startswith("data:"):
-                                            media_info["thumbnail_base64"] = captured
-                                elif is_cdn_url(media_url):
+
+                                # Fallback: base64 or permanent_url
+                                if not uploaded and is_cdn_url(media_url):
                                     captured = await capture_media_from_url(
                                         url=media_url,
                                         media_type=media_type,
