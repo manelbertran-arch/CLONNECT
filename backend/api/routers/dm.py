@@ -845,6 +845,8 @@ async def update_follower_status(
 
 @router.post("/conversations/{creator_id}/{conversation_id}/archive")
 async def archive_conversation_endpoint(creator_id: str, conversation_id: str):
+    from api.cache import api_cache
+
     # Try PostgreSQL first
     USE_DB = bool(os.getenv("DATABASE_URL"))
     if USE_DB:
@@ -853,6 +855,7 @@ async def archive_conversation_endpoint(creator_id: str, conversation_id: str):
 
             success = db_service.archive_conversation(creator_id, conversation_id)
             if success:
+                api_cache.invalidate(f"conversations:{creator_id}")
                 return {"status": "ok", "archived": True}
         except Exception as e:
             logger.warning(f"PostgreSQL archive failed: {e}")
@@ -874,6 +877,8 @@ async def archive_conversation_endpoint(creator_id: str, conversation_id: str):
 
 @router.post("/conversations/{creator_id}/{conversation_id}/spam")
 async def mark_conversation_spam_endpoint(creator_id: str, conversation_id: str):
+    from api.cache import api_cache
+
     # Try PostgreSQL first
     USE_DB = bool(os.getenv("DATABASE_URL"))
     if USE_DB:
@@ -882,6 +887,7 @@ async def mark_conversation_spam_endpoint(creator_id: str, conversation_id: str)
 
             success = db_service.mark_conversation_spam(creator_id, conversation_id)
             if success:
+                api_cache.invalidate(f"conversations:{creator_id}")
                 return {"status": "ok", "spam": True}
         except Exception as e:
             logger.warning(f"PostgreSQL spam failed: {e}")
@@ -908,6 +914,8 @@ async def mark_conversation_spam_endpoint(creator_id: str, conversation_id: str)
 
 @router.delete("/conversations/{creator_id}/{conversation_id}")
 async def delete_conversation_endpoint(creator_id: str, conversation_id: str):
+    from api.cache import api_cache
+
     # Try PostgreSQL first
     USE_DB = bool(os.getenv("DATABASE_URL"))
     if USE_DB:
@@ -916,11 +924,35 @@ async def delete_conversation_endpoint(creator_id: str, conversation_id: str):
 
             success = db_service.delete_conversation(creator_id, conversation_id)
             if success:
+                api_cache.invalidate(f"conversations:{creator_id}")
                 return {"status": "ok", "deleted": conversation_id}
+
+            # Lead not found — check if already deleted (dismissed)
+            from api.database import SessionLocal
+            from api.models import Creator, DismissedLead
+
+            session = SessionLocal()
+            try:
+                creator = session.query(Creator).filter_by(name=creator_id).first()
+                if creator:
+                    dismissed = (
+                        session.query(DismissedLead)
+                        .filter_by(creator_id=creator.id, platform_user_id=conversation_id)
+                        .first()
+                    )
+                    if dismissed:
+                        api_cache.invalidate(f"conversations:{creator_id}")
+                        return {"status": "ok", "deleted": conversation_id, "already_deleted": True}
+            finally:
+                session.close()
+
+            raise HTTPException(status_code=404, detail="Conversation not found")
+        except HTTPException:
+            raise
         except Exception as e:
             logger.error(f"PostgreSQL delete failed for {conversation_id}: {e}")
             raise HTTPException(status_code=500, detail=f"Delete failed: {e}")
-    # Fallback to JSON files
+    # Fallback to JSON files (non-DB setups only)
     try:
         file_path = f"data/followers/{creator_id}/{conversation_id}.json"
         if not os.path.exists(file_path):
@@ -1000,6 +1032,8 @@ async def get_archived_conversations(creator_id: str):
 @router.post("/conversations/{creator_id}/{conversation_id}/restore")
 async def restore_conversation(creator_id: str, conversation_id: str):
     """Restore an archived/spam conversation back to 'new' status"""
+    from api.cache import api_cache
+
     USE_DB = bool(os.getenv("DATABASE_URL"))
     if USE_DB:
         try:
@@ -1007,6 +1041,7 @@ async def restore_conversation(creator_id: str, conversation_id: str):
 
             count = db_service.reset_conversation_status(creator_id, conversation_id)
             if count > 0:
+                api_cache.invalidate(f"conversations:{creator_id}")
                 return {"status": "ok", "restored": True}
             return {"status": "error", "message": "Conversation not found or not archived/spam"}
         except Exception as e:
