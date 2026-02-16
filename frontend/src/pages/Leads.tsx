@@ -66,7 +66,7 @@ const DEFAULT_PRODUCT_PRICE = 97;
 // Colors for each status (for value display)
 const STATUS_COLORS: Record<LeadStatus, string> = {
   "frío": "text-gray-500",
-  nuevo: "text-blue-400",
+  nuevo: "text-indigo-400",
   amigo: "text-cyan-400",
   colaborador: "text-purple-400",
   caliente: "text-red-400",
@@ -97,7 +97,7 @@ interface LeadDisplay {
 
 // Configuración de columnas del Pipeline (V3 — 6 categories)
 const columns: { status: LeadStatus; title: string; description: string; icon: React.ReactNode; color: string; gradient: string }[] = [
-  { status: "nuevo", title: "Nuevos", description: "Primer contacto", icon: <Users className="w-4 h-4" />, color: "text-blue-400", gradient: "from-blue-500/20 to-blue-600/10" },
+  { status: "nuevo", title: "Nuevos", description: "Primer contacto", icon: <Users className="w-4 h-4" />, color: "text-indigo-400", gradient: "from-indigo-500/20 to-indigo-600/10" },
   { status: "amigo", title: "Amigos", description: "Relación social", icon: <Heart className="w-4 h-4" />, color: "text-cyan-400", gradient: "from-cyan-500/20 to-cyan-600/10" },
   { status: "colaborador", title: "Colaboradores", description: "Propuesta de collab", icon: <Handshake className="w-4 h-4" />, color: "text-purple-400", gradient: "from-purple-500/20 to-purple-600/10" },
   { status: "caliente", title: "Calientes", description: "Listo para comprar", icon: <Flame className="w-4 h-4" />, color: "text-red-400", gradient: "from-red-500/20 to-red-600/10" },
@@ -115,7 +115,7 @@ const COLUMN_EMOJI: Record<LeadStatus, string> = {
 };
 
 const COLUMN_BG: Record<LeadStatus, string> = {
-  nuevo: "border-blue-500/50 bg-blue-500/10",
+  nuevo: "border-indigo-500/50 bg-indigo-500/10",
   amigo: "border-cyan-500/50 bg-cyan-500/10",
   colaborador: "border-purple-500/50 bg-purple-500/10",
   caliente: "border-red-500/50 bg-red-500/10",
@@ -124,7 +124,7 @@ const COLUMN_BG: Record<LeadStatus, string> = {
 };
 
 const STATUS_DOT: Record<LeadStatus, string> = {
-  nuevo: "bg-blue-400",
+  nuevo: "bg-indigo-400",
   amigo: "bg-cyan-400",
   colaborador: "bg-purple-400",
   caliente: "bg-red-400",

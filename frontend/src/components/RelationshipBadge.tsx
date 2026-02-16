@@ -3,7 +3,7 @@ const RELATIONSHIP_BADGES: Record<string, { label: string; color: string; bg: st
   'caliente':    { label: 'Caliente',    color: '#ef4444', bg: '#ef444420' },
   'colaborador': { label: 'Colaborador', color: '#a855f7', bg: '#a855f720' },
   'amigo':       { label: 'Amigo',       color: '#06b6d4', bg: '#06b6d420' },
-  'nuevo':       { label: 'Nuevo',       color: '#3b82f6', bg: '#3b82f620' },
+  'nuevo':       { label: 'Nuevo',       color: '#818cf8', bg: '#818cf820' },
   'frío':        { label: 'Frío',        color: '#6b7280', bg: '#6b728020' },
 };
 
