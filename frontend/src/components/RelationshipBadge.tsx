@@ -1,10 +1,10 @@
 const RELATIONSHIP_BADGES: Record<string, { label: string; color: string; bg: string }> = {
-  'cliente':     { label: 'Cliente',     color: '#10b981', bg: '#10b98120' },
-  'caliente':    { label: 'Caliente',    color: '#ef4444', bg: '#ef444420' },
-  'colaborador': { label: 'Colaborador', color: '#a855f7', bg: '#a855f720' },
-  'amigo':       { label: 'Amigo',       color: '#06b6d4', bg: '#06b6d420' },
-  'nuevo':       { label: 'Nuevo',       color: '#818cf8', bg: '#818cf820' },
-  'frío':        { label: 'Frío',        color: '#6b7280', bg: '#6b728020' },
+  'cliente':     { label: 'Cliente',     color: '#22C55E', bg: '#22C55E20' },
+  'caliente':    { label: 'Caliente',    color: '#EF4444', bg: '#EF444420' },
+  'colaborador': { label: 'Colaborador', color: '#F59E0B', bg: '#F59E0B20' },
+  'amigo':       { label: 'Amigo',       color: '#3B82F6', bg: '#3B82F620' },
+  'nuevo':       { label: 'Nuevo',       color: '#9CA3AF', bg: '#9CA3AF20' },
+  'frío':        { label: 'Frío',        color: '#06B6D4', bg: '#06B6D420' },
 };
 
 /** Full badge with text — use in headers and detail views */
