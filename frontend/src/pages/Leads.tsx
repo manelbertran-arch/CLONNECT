@@ -138,6 +138,12 @@ const platformIcons: Record<string, React.ReactNode> = {
   whatsapp: <MessageCircle className="w-3 h-3" />,
 };
 
+const avatarGradients: Record<string, string> = {
+  instagram: "from-violet-600 to-purple-600",
+  whatsapp: "from-emerald-500 to-green-600",
+  telegram: "from-sky-400 to-blue-500",
+};
+
 function getInitials(name?: string, username?: string, id?: string): string {
   if (name && name.trim()) {
     return name.split(" ").map(n => n[0]).join("").slice(0, 2).toUpperCase();
@@ -890,7 +896,8 @@ export default function Leads() {
                         />
                       ) : null}
                       <div className={cn(
-                        "w-full h-full bg-gradient-to-br from-violet-600 to-purple-600 flex items-center justify-center text-white text-[10px] font-medium",
+                        "w-full h-full bg-gradient-to-br flex items-center justify-center text-white text-[10px] font-medium",
+                        avatarGradients[lead.platform] || avatarGradients.instagram,
                         lead.profilePicUrl && "hidden"
                       )}>
                         {lead.avatar}
@@ -1074,7 +1081,8 @@ export default function Leads() {
                     />
                   ) : null}
                   <div className={cn(
-                    "w-full h-full bg-gradient-to-br from-violet-600 to-purple-600 flex items-center justify-center text-white text-lg font-medium",
+                    "w-full h-full bg-gradient-to-br flex items-center justify-center text-white text-lg font-medium",
+                    avatarGradients[selectedLead.platform] || avatarGradients.instagram,
                     selectedLead.profilePicUrl && "hidden"
                   )}>
                     {selectedLead.avatar}

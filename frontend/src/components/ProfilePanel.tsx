@@ -110,8 +110,12 @@ export function ProfilePanel({
                 className="w-12 h-12 rounded-full object-cover"
               />
             ) : (
-              <div className="w-12 h-12 rounded-full bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center text-white font-semibold text-lg">
-                {(profile.name || profile.username || "?")[0].toUpperCase()}
+              <div className={`w-12 h-12 rounded-full bg-gradient-to-br flex items-center justify-center text-white font-semibold text-lg ${
+                profile.platform === "whatsapp" ? "from-emerald-500 to-green-600"
+                : profile.platform === "telegram" ? "from-sky-400 to-blue-500"
+                : "from-purple-500 to-pink-500"
+              }`}>
+                {(profile.name || profile.username || "?").split(" ").map((n: string) => n[0]).join("").slice(0, 2).toUpperCase()}
               </div>
             )}
             <div>

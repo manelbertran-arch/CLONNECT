@@ -36,6 +36,12 @@ const platformIcons: Record<string, React.ReactNode> = {
   whatsapp: <MessageCircle className="w-3 h-3" />,
 };
 
+const avatarGradients: Record<string, string> = {
+  instagram: "from-primary/60 to-accent/60",
+  whatsapp: "from-emerald-500/60 to-green-600/60",
+  telegram: "from-sky-400/60 to-blue-500/60",
+};
+
 function getInitials(name?: string, username?: string, id?: string): string {
   if (name && name.trim()) {
     return name.split(" ").map(n => n[0]).join("").slice(0, 2).toUpperCase();
@@ -448,7 +454,8 @@ export default function Inbox() {
                         />
                       ) : null}
                       <div className={cn(
-                        "w-14 h-14 rounded-full bg-gradient-to-br from-primary/60 to-accent/60 flex items-center justify-center text-sm font-semibold",
+                        "w-14 h-14 rounded-full bg-gradient-to-br flex items-center justify-center text-sm font-semibold",
+                        avatarGradients[convo.platform || detectPlatform(convo.follower_id)] || avatarGradients.instagram,
                         convo.profile_pic_url && "hidden"
                       )}>
                         {initials}
@@ -532,7 +539,8 @@ export default function Inbox() {
                   />
                 ) : null}
                 <div className={cn(
-                  "w-10 h-10 rounded-full bg-gradient-to-br from-primary/60 to-accent/60 flex items-center justify-center text-sm font-semibold",
+                  "w-10 h-10 rounded-full bg-gradient-to-br flex items-center justify-center text-sm font-semibold",
+                  avatarGradients[selectedConversation.platform || detectPlatform(selectedConversation.follower_id)] || avatarGradients.instagram,
                   selectedConversation.profile_pic_url && "hidden"
                 )}>
                   {getInitials(displayName, undefined, selectedConversation.follower_id)}
