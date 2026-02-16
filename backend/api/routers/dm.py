@@ -329,8 +329,8 @@ async def get_conversations(creator_id: str, limit: int = 50, offset: int = 0):
                         "limit": limit,
                         "counts_by_status": counts_by_status,
                     }
-                    # Cache for 60 seconds (matches startup.py refresh cycle)
-                    api_cache.set(cache_key, result, ttl_seconds=60)
+                    # Cache for 300 seconds (5 min) — keep-alive re-warms every 60s
+                    api_cache.set(cache_key, result, ttl_seconds=300)
                     return result
                 finally:
                     session.close()
@@ -636,8 +636,8 @@ async def get_follower_detail(creator_id: str, follower_id: str):
 
         result = {"status": "ok", **detail}
 
-        # Cache the result (15s TTL)
-        api_cache.set(cache_key, result, ttl_seconds=60)
+        # Cache the result (5 min TTL — keep-alive re-warms every 60s)
+        api_cache.set(cache_key, result, ttl_seconds=300)
         logger.info(f"[FOLLOWER] {creator_id}/{follower_id}: CACHED in {_time.time()-start:.3f}s")
 
         return result

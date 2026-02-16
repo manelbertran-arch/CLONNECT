@@ -39,10 +39,12 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { cn } from "@/lib/utils";
+import { useQueryClient } from "@tanstack/react-query";
 import { useInfiniteConversations, useUpdateLeadStatus, useCreateManualLead, useUpdateLead, useDeleteLead, useLeadActivities, useLeadTasks, useCreateLeadTask, useUpdateLeadTask, useDeleteLeadTask, useDeleteLeadActivity, useLeadStats } from "@/hooks/useApi";
 import { useToast } from "@/hooks/use-toast";
 import type { Conversation } from "@/types/api";
 import { getPurchaseIntent, detectPlatform, getDisplayName } from "@/types/api";
+import { getFollowerDetail, apiKeys, getCreatorId } from "@/services/api";
 import { RelationshipBadge } from "@/components/RelationshipBadge";
 
 // V3 — 6 Category System
@@ -247,6 +249,8 @@ const initialFormState = {
 export default function Leads() {
   // Use conversations endpoint to get ALL followers (not just leads with is_lead=true)
   const { data, isLoading, error, fetchNextPage, hasNextPage, isFetchingNextPage } = useInfiniteConversations();
+  const queryClient = useQueryClient();
+  const creatorId = getCreatorId();
   const [draggedLead, setDraggedLead] = useState<LeadDisplay | null>(null);
   const [localStatusOverrides, setLocalStatusOverrides] = useState<Record<string, LeadStatus>>({});
   const { toast } = useToast();
@@ -741,11 +745,35 @@ export default function Leads() {
     });
   };
 
-  // Loading state
+  // Loading state — skeleton
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center h-[60vh]">
-        <Loader2 className="w-6 h-6 animate-spin text-primary" />
+      <div className="space-y-4 p-4">
+        {/* Skeleton summary cards */}
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
+          {Array.from({ length: 6 }).map((_, i) => (
+            <div key={i} className="flex flex-col items-center gap-2 p-3 rounded-xl border border-border/30 bg-card/30">
+              <div className="w-8 h-8 rounded-full bg-muted/40 animate-pulse" />
+              <div className="w-10 h-6 rounded bg-muted/40 animate-pulse" />
+              <div className="w-16 h-3 rounded bg-muted/30 animate-pulse" />
+            </div>
+          ))}
+        </div>
+        {/* Skeleton table rows */}
+        <div className="rounded-xl border border-border/30 bg-card/30 overflow-hidden">
+          <div className="h-10 border-b border-border/20 bg-muted/10" />
+          {Array.from({ length: 8 }).map((_, i) => (
+            <div key={i} className="flex items-center gap-3 px-4 py-3 border-b border-border/10">
+              <div className="w-9 h-9 rounded-full bg-muted/40 animate-pulse shrink-0" />
+              <div className="flex-1 space-y-1.5">
+                <div className="w-32 h-4 rounded bg-muted/40 animate-pulse" />
+                <div className="w-20 h-3 rounded bg-muted/30 animate-pulse" />
+              </div>
+              <div className="hidden md:block w-40 h-3 rounded bg-muted/30 animate-pulse" />
+              <div className="w-12 h-3 rounded bg-muted/30 animate-pulse" />
+            </div>
+          ))}
+        </div>
       </div>
     );
   }
@@ -838,6 +866,13 @@ export default function Leads() {
                 draggable
                 onDragStart={() => handleDragStart(lead)}
                 onClick={() => handleViewLead(lead)}
+                onMouseEnter={() => {
+                  queryClient.prefetchQuery({
+                    queryKey: apiKeys.follower(creatorId, lead.followerId),
+                    queryFn: () => getFollowerDetail(creatorId, lead.followerId),
+                    staleTime: 60000,
+                  });
+                }}
                 className={cn(
                   "group grid grid-cols-[1fr_80px] md:grid-cols-[1fr_200px_100px_80px] gap-4 px-4 py-3 items-center cursor-pointer transition-all duration-150",
                   "hover:bg-muted/30",

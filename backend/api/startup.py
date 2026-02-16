@@ -543,20 +543,20 @@ def register_startup_handlers(app: "FastAPI"):
         # asyncio.create_task(cache_refresh_task())
         logger.warning("Cache refresh task DISABLED - was blocking event loop")
 
-        # Keep-alive task - SIMPLIFIED: just DB ping to prevent cold starts
+        # Keep-alive task - DB ping + warm conversations cache
         async def keep_alive_task():
             import time
 
             KEEP_ALIVE_INTERVAL = 60  # 1 minute - prevent Railway scale-to-zero
 
             await asyncio.sleep(3)
-            logger.info("[KEEP-ALIVE] Started - DB ping every 1 min")
+            logger.info("[KEEP-ALIVE] Started - DB ping + cache warm every 1 min")
 
             while True:
                 try:
                     _t_start = time.time()
 
-                    # SIMPLE: Just ping the database - no Instagram, no LLM, no heavy ops
+                    # 1. Ping DB (keeps connection pool alive)
                     if SessionLocal:
                         try:
                             from sqlalchemy import text
@@ -567,8 +567,30 @@ def register_startup_handlers(app: "FastAPI"):
                         except Exception as e:
                             logger.warning(f"[KEEP-ALIVE] DB ping failed: {e}")
 
+                    # 2. Warm conversations cache for active creators
+                    try:
+                        from api.routers.dm import get_conversations
+
+                        if SessionLocal:
+                            from api.models import Creator
+
+                            session = SessionLocal()
+                            try:
+                                creators = session.query(Creator.name).filter_by(bot_active=True).all()
+                            finally:
+                                session.close()
+
+                            for (name,) in creators:
+                                if name:
+                                    try:
+                                        await get_conversations(name, limit=50, offset=0)
+                                    except Exception:
+                                        pass
+                    except Exception as e:
+                        logger.debug(f"[KEEP-ALIVE] Cache warm skipped: {e}")
+
                     _t_end = time.time()
-                    logger.debug(f"[KEEP-ALIVE] Ping OK in {_t_end - _t_start:.3f}s")
+                    logger.debug(f"[KEEP-ALIVE] OK in {_t_end - _t_start:.3f}s")
 
                 except Exception as e:
                     logger.error(f"[KEEP-ALIVE] Error: {e}")
@@ -646,87 +668,16 @@ async def _do_prewarm(SessionLocal):
         except Exception as e:
             logger.debug(f"CitationIndex not found for {creator_id}: {e}")
 
-    # === NEW: Warm API response cache for conversations and leads ===
+    # === Warm conversations cache by calling the real endpoint logic ===
     try:
-        from api.cache import api_cache
-        from api.services import db_service
+        from api.routers.dm import get_conversations
 
         for creator_id in active_creators:
             try:
-                # Warm conversations cache (limit=50, offset=0 - default params)
-                result = db_service.get_conversations_with_counts(creator_id, limit=50, offset=0)
-                if result:
-                    cache_key = f"conversations:{creator_id}:50:0"
-                    # Format like the endpoint does
-                    conversations_data = result.get("conversations", [])
-                    from api.routers.messages import get_pipeline_score
-
-                    conversations = []
-                    for c in conversations_data:
-                        lead_status = c.get("status", "new")
-                        intent = c.get("purchase_intent_score", 0)
-                        conversations.append(
-                            {
-                                "follower_id": c.get("platform_user_id") or c.get("follower_id"),
-                                "id": c.get("id"),
-                                "username": c.get("username"),
-                                "name": c.get("name"),
-                                "profile_pic_url": c.get("profile_pic_url"),
-                                "platform": c.get("platform", "instagram"),
-                                "total_messages": c.get("total_messages", 0),
-                                "purchase_intent": intent,
-                                "purchase_intent_score": (
-                                    round(intent * 100) if intent <= 1 else int(intent)
-                                ),
-                                "lead_status": lead_status,
-                                "status": lead_status,
-                                "pipeline_score": get_pipeline_score(lead_status),
-                                "last_messages": [],
-                                "last_contact": c.get("last_contact"),
-                                "first_contact": c.get("first_contact"),
-                                "last_message_preview": c.get("last_message_preview"),
-                                "last_message_role": c.get("last_message_role"),
-                                "is_unread": c.get("is_unread", False),
-                                "is_verified": c.get("is_verified", False),
-                                "email": c.get("email") or "",
-                                "phone": c.get("phone") or "",
-                                "notes": c.get("notes") or "",
-                                "tags": c.get("tags") or [],
-                                "deal_value": c.get("deal_value"),
-                            }
-                        )
-                    cached_result = {
-                        "status": "ok",
-                        "conversations": conversations,
-                        "count": len(conversations),
-                        "total_count": result.get("total_count", 0),
-                        "limit": 50,
-                        "offset": 0,
-                        "has_more": result.get("has_more", False),
-                        "product_price": 97.0,
-                    }
-                    # Set for BOTH endpoints (dm.py and messages.py use different keys)
-                    api_cache.set(cache_key, cached_result, ttl_seconds=60)  # messages.py (with offset)
-                    api_cache.set(f"conversations:{creator_id}:50", cached_result, ttl_seconds=60)  # dm.py (no offset)
-                    logger.info(
-                        f"[CACHE-WARM] {creator_id}: conversations cached ({len(conversations)} items)"
-                    )
+                await get_conversations(creator_id, limit=50, offset=0)
+                logger.info(f"[CACHE-WARM] {creator_id}: conversations cached")
             except Exception as e:
-                logger.warning(f"[CACHE-WARM] Failed to warm conversations for {creator_id}: {e}")
-
-            try:
-                # Warm leads cache (limit=100 - default param)
-                # Note: get_leads() returns list of dicts, not Lead objects
-                leads = db_service.get_leads(creator_id, limit=100)
-                if leads is not None:
-                    cache_key = f"leads:{creator_id}:100"
-                    # get_leads already returns properly formatted dicts
-                    cached_result = {"status": "ok", "leads": leads, "count": len(leads)}
-                    api_cache.set(cache_key, cached_result, ttl_seconds=60)  # 60s for warming
-                    logger.info(f"[CACHE-WARM] {creator_id}: leads cached ({len(leads)} items)")
-            except Exception as e:
-                logger.warning(f"[CACHE-WARM] Failed to warm leads for {creator_id}: {e}")
-
+                logger.warning(f"[CACHE-WARM] Failed for {creator_id}: {e}")
     except Exception as e:
         logger.error(f"[CACHE-WARM] Failed to warm API caches: {e}")
 
