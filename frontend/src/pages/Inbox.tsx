@@ -23,7 +23,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { cn } from "@/lib/utils";
 import { useQueryClient } from "@tanstack/react-query";
-import { useInfiniteConversations, useFollowerDetail, useSendMessage, useArchiveConversation, useMarkConversationSpam, useDeleteConversation, useArchivedConversations, useRestoreConversation, useEventStream } from "@/hooks/useApi";
+import { useConversations, useFollowerDetail, useSendMessage, useArchiveConversation, useMarkConversationSpam, useDeleteConversation, useArchivedConversations, useRestoreConversation, useEventStream } from "@/hooks/useApi";
 import { getFollowerDetail, apiKeys, getCreatorId } from "@/services/api";
 import { useToast } from "@/hooks/use-toast";
 import type { Conversation, Message } from "@/types/api";
@@ -122,10 +122,7 @@ export default function Inbox() {
     isLoading,
     error,
     isSuccess,
-    fetchNextPage,
-    hasNextPage,
-    isFetchingNextPage
-  } = useInfiniteConversations();
+  } = useConversations(getCreatorId(), 500);
   const { data: archivedData, isLoading: archivedLoading } = useArchivedConversations(undefined, {
     enabled: isSuccess // Only load AFTER conversations finishes
   });
@@ -236,8 +233,7 @@ export default function Inbox() {
   };
 
   const conversations = useMemo(() => {
-    // Flatten all pages from infinite query
-    const allConversations = data?.pages?.flatMap(page => page.conversations) || [];
+    const allConversations = data?.conversations || [];
     const sourceData = activeTab === "archived" ? archivedData : allConversations;
     if (!sourceData) return [];
 
@@ -262,7 +258,7 @@ export default function Inbox() {
     return filtered.sort((a, b) =>
       new Date(b.last_contact || 0).getTime() - new Date(a.last_contact || 0).getTime()
     );
-  }, [data?.pages, archivedData, searchQuery, activeTab, showOnlyLeads]);
+  }, [data?.conversations, archivedData, searchQuery, activeTab, showOnlyLeads]);
 
   const archivedCount = archivedData?.length || 0;
 
@@ -502,27 +498,6 @@ export default function Inbox() {
             })
           )}
 
-          {/* Load More Button for infinite scroll */}
-          {activeTab === "all" && hasNextPage && (
-            <div className="py-4 flex justify-center">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => fetchNextPage()}
-                disabled={isFetchingNextPage}
-                className="w-full max-w-xs"
-              >
-                {isFetchingNextPage ? (
-                  <>
-                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                    Loading...
-                  </>
-                ) : (
-                  "Load more conversations"
-                )}
-              </Button>
-            </div>
-          )}
         </div>
       </div>
 
