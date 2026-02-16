@@ -241,7 +241,6 @@ async def get_conversations(creator_id: str, limit: int = 50, offset: int = 0):
                                         if last_msg.created_at
                                         else None
                                     ),
-                                    "metadata": last_msg.msg_metadata or {},
                                 }
                             ]
                             # Instagram-like UX fields
@@ -601,7 +600,6 @@ async def get_follower_detail(creator_id: str, follower_id: str):
                                                 or "Sent an attachment"
                                             ),
                                             "timestamp": m.created_at.isoformat() if m.created_at else None,
-                                            "metadata": m.msg_metadata or {},
                                         }
                                         for m in messages
                                     ],

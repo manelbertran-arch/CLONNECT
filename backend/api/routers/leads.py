@@ -944,8 +944,11 @@ async def get_lead_stats(creator_id: str, lead_id: str, _auth: str = Depends(req
                     raise HTTPException(status_code=404, detail="Lead not found")
 
                 # Get recent messages ordered by time (limit to 200 for performance)
+                # Only load columns needed by signals analyzer (skip msg_metadata blobs)
                 messages = (
-                    session.query(Message)
+                    session.query(
+                        Message.role, Message.content, Message.created_at
+                    )
                     .filter_by(lead_id=lead.id)
                     .order_by(Message.created_at.desc())
                     .limit(200)
