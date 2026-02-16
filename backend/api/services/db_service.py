@@ -1809,8 +1809,22 @@ def delete_conversation(creator_name: str, conversation_id: str) -> bool:
             except Exception as blocklist_err:
                 logger.warning(f"Failed to add to blocklist: {blocklist_err}")
 
-            # Delete all messages first (foreign key constraint)
+            # Delete all dependent records first (foreign key constraints)
+            from api.models import LeadActivity, LeadTask, CSATRating
+
+            session.query(LeadActivity).filter_by(lead_id=lead.id).delete()
+            session.query(LeadTask).filter_by(lead_id=lead.id).delete()
+            session.query(CSATRating).filter_by(lead_id=lead.id).delete()
             session.query(Message).filter_by(lead_id=lead.id).delete()
+            # Also clean up nurturing followups (no FK but stale data)
+            try:
+                from core.nurturing_db import NurturingFollowupDB
+
+                session.query(NurturingFollowupDB).filter_by(
+                    follower_id=platform_user_id
+                ).delete()
+            except Exception:
+                pass  # Table may not exist
             # Delete the lead
             session.delete(lead)
             session.commit()

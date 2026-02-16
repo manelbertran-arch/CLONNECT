@@ -918,16 +918,21 @@ async def delete_conversation_endpoint(creator_id: str, conversation_id: str):
             if success:
                 return {"status": "ok", "deleted": conversation_id}
         except Exception as e:
-            logger.warning(f"PostgreSQL delete failed: {e}")
+            logger.error(f"PostgreSQL delete failed for {conversation_id}: {e}")
+            raise HTTPException(status_code=500, detail=f"Delete failed: {e}")
     # Fallback to JSON files
     try:
         file_path = f"data/followers/{creator_id}/{conversation_id}.json"
         if not os.path.exists(file_path):
-            return {"status": "error", "message": "Conversation not found"}
+            raise HTTPException(
+                status_code=404, detail="Conversation not found"
+            )
         os.remove(file_path)
         return {"status": "ok", "deleted": conversation_id}
+    except HTTPException:
+        raise
     except Exception as e:
-        return {"status": "error", "message": str(e)}
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 # ============ ARCHIVED/SPAM MANAGEMENT ============
