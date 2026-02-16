@@ -367,10 +367,8 @@ class DMHistoryService:
                     purchase_intent = 0.1
                 lead.purchase_intent = purchase_intent
                 lead.score = max(0, min(100, int(purchase_intent * 100)))
-                if purchase_intent >= 0.6:
+                if purchase_intent >= 0.35:
                     lead.status = "caliente"
-                elif purchase_intent >= 0.35:
-                    lead.status = "interesado"
                 else:
                     lead.status = "nuevo"
 

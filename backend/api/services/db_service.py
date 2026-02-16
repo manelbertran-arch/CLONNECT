@@ -641,12 +641,10 @@ def get_dashboard_metrics(creator_name: str):
         )
         total_leads = len(leads)
 
-        # Categorize leads by intent (in-memory, no extra queries)
-        hot_leads = len([l for l in leads if l.purchase_intent and l.purchase_intent >= 0.5])
-        warm_leads = len(
-            [l for l in leads if l.purchase_intent and 0.25 <= l.purchase_intent < 0.5]
-        )
-        cold_leads = len([l for l in leads if not l.purchase_intent or l.purchase_intent < 0.25])
+        # Categorize leads by V3 status (in-memory, no extra queries)
+        hot_leads = len([l for l in leads if l.status in ("cliente", "caliente")])
+        warm_leads = len([l for l in leads if l.status in ("colaborador", "amigo")])
+        cold_leads = len([l for l in leads if l.status in ("nuevo", "frío") or l.status is None])
         customers = len([l for l in leads if l.context and l.context.get("is_customer")])
 
         # Get ALL message counts in SINGLE AGGREGATED QUERY (fixes N+1)

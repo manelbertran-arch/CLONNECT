@@ -389,8 +389,8 @@ def _analyze_conversation_signals_internal(messages: List[Any], lead_status: str
         probability = 100  # Ya compró
     elif lead_status == "caliente":
         probability = max(probability, 60)  # Mínimo 60% si está caliente
-    elif lead_status == "fantasma" and probability > 30:
-        probability = max(30, probability - 20)  # Reducir si es fantasma
+    elif lead_status in ("frío", "fantasma") and probability > 30:
+        probability = max(30, probability - 20)  # Reducir si es frío/inactivo
 
     # Determinar confianza
     signal_count = len(detected_signals)

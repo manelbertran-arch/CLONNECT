@@ -72,7 +72,7 @@ export interface Conversation {
   purchase_intent?: number;       // 0.0 to 1.0
   purchase_intent_score?: number; // 0 to 100 (derived)
   // Pipeline Status (persisted in Lead.status)
-  lead_status?: "new" | "active" | "hot" | "customer";
+  lead_status?: "cliente" | "caliente" | "colaborador" | "amigo" | "nuevo" | "frío";
   // Pipeline Score (stage-based, deterministic)
   // new=25, active=50, hot=75, customer=100
   pipeline_score?: number;

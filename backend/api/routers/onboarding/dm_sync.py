@@ -372,10 +372,8 @@ async def sync_instagram_dms(request: InstagramDMSyncRequest):
                                 lead.purchase_intent = intent_score
                                 lead.score = max(0, min(100, int(intent_score * 100)))
                                 # Use Spanish status values (consistent with frontend)
-                                if intent_score >= 0.6:
+                                if intent_score >= 0.35:
                                     lead.status = "caliente"
-                                elif intent_score >= 0.35:
-                                    lead.status = "interesado"
                                 else:
                                     lead.status = "nuevo"
 

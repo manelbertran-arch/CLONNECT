@@ -431,7 +431,7 @@ def _load_from_lead_table(context: UserContext):
             # Update customer status from lead status
             if lead.status == "cliente":
                 context.is_customer = True
-            if lead.status in ["interesado", "caliente", "cliente"]:
+            if lead.status in ["caliente", "cliente", "colaborador", "interesado"]:
                 context.is_lead = True
 
             logger.debug(f"Loaded Lead info for {context.follower_id}: status={lead.status}")

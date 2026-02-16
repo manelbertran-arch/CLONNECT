@@ -1,25 +1,21 @@
 """
-Lead Classification + Scoring V2 — Intelligent Relationship-Based Scoring.
+Lead Classification + Scoring V3 — 6-Category Flat System.
 
 Architecture:
-  1. extract_signals(session, lead) → Dict of conversation signals
-  2. classify_relationship(signals) → Relationship type string
-  3. calculate_score(relationship_type, signals) → Score 0-100
+  1. extract_signals(session, lead) -> Dict of conversation signals
+  2. classify_lead(signals) -> Status string (one of 6 categories)
+  3. calculate_score(status, signals) -> Score 0-100
+
+Categories:
+  cliente     — Existing customer (preserved, never auto-downgraded)
+  caliente    — Purchase/scheduling/interest signals from follower
+  colaborador — Collaboration keywords >= 2
+  amigo       — High bidirectionality + social engagement
+  nuevo       — Default / recent / low signal
+  frio        — Inactive 14+ days with prior activity (cold lead)
 
 Key insight: WHO says what matters. Only follower keywords count for
 purchase intent. Creator mentioning "precio" is a sales pitch, not a signal.
-
-Relationship types:
-  cliente, lead_caliente, lead_tibio, curioso, amigo, colaborador,
-  fan, nuevo, fantasma
-
-Status mapping (for CRM pipeline):
-  cliente → cliente
-  lead_caliente → caliente
-  lead_tibio → interesado
-  curioso → interesado
-  amigo, colaborador, fan, nuevo → nuevo
-  fantasma → fantasma
 """
 
 import logging
@@ -73,30 +69,14 @@ NEGATIVE_KEYWORDS = [
     "not interested", "too expensive", "can't afford",
 ]
 
-# Status mapping: relationship_type → CRM status
-RELATIONSHIP_TO_STATUS = {
-    "cliente": "cliente",
-    "lead_caliente": "caliente",
-    "lead_tibio": "interesado",
-    "curioso": "interesado",
-    "amigo": "nuevo",
-    "colaborador": "nuevo",
-    "fan": "nuevo",
-    "nuevo": "nuevo",
-    "fantasma": "fantasma",
-}
-
-# Score ranges by relationship type: (min, max)
+# Score ranges by status: (min, max)
 SCORE_RANGES = {
     "cliente": (75, 100),
-    "lead_caliente": (55, 85),
-    "lead_tibio": (30, 60),
-    "curioso": (15, 35),
-    "amigo": (10, 25),
-    "colaborador": (10, 25),
-    "fan": (3, 15),
-    "nuevo": (0, 15),
-    "fantasma": (0, 10),
+    "caliente": (45, 85),
+    "colaborador": (30, 60),
+    "amigo": (15, 45),
+    "nuevo": (0, 25),
+    "frío": (0, 10),
 }
 
 
@@ -237,59 +217,56 @@ def extract_signals(session, lead) -> Dict[str, Any]:
 
 
 # =============================================================================
-# STEP 2: Classify Relationship
+# STEP 2: Classify Lead (V3 — 6 Categories)
 # =============================================================================
 
-def classify_relationship(signals: Dict[str, Any]) -> str:
+def classify_lead(signals: Dict[str, Any]) -> str:
     """
-    Classify the lead's relationship type based on extracted signals.
+    Classify the lead into one of 6 categories based on extracted signals.
 
     Priority order (first match wins):
-      1. cliente — already marked as customer
-      2. lead_caliente — follower uses strong purchase keywords
-      3. lead_tibio — follower shows soft interest
-      4. colaborador — collaboration keywords present
-      5. amigo — high bidirectionality + social signals
-      6. fan — mostly short reactions / story replies
-      7. curioso — some engagement but no clear intent
-      8. fantasma — inactive 14+ days
-      9. nuevo — default
+      1. cliente     — already marked as customer (never auto-downgraded)
+      2. caliente    — follower uses purchase/scheduling/interest keywords
+      3. colaborador — collaboration keywords >= 2
+      4. amigo       — high bidirectionality + social signals OR story reactions
+      5. frio        — inactive 14+ days with prior activity
+      6. nuevo       — default
     """
     # 1. CLIENTE — preserve existing customer status
     if signals["is_existing_customer"]:
         return "cliente"
 
-    # 2. LEAD_CALIENTE — follower actively asking about purchase/scheduling
+    # 2. CALIENTE — follower actively asking about purchase/scheduling/interest
     if signals["follower_purchase_hits"] >= 2 or (
         signals["follower_purchase_hits"] >= 1
         and signals["follower_scheduling_hits"] >= 1
     ):
-        return "lead_caliente"
+        return "caliente"
 
     if (
         signals["strong_intents"] >= 2
         and signals["follower_purchase_hits"] >= 1
     ):
-        return "lead_caliente"
+        return "caliente"
 
-    # 3. LEAD_TIBIO — follower shows interest
+    # Also caliente for softer interest signals (was lead_tibio)
     if signals["follower_interest_hits"] >= 2 or (
         signals["follower_interest_hits"] >= 1
         and signals["follower_purchase_hits"] >= 1
     ):
-        return "lead_tibio"
+        return "caliente"
 
     if (
         signals["follower_scheduling_hits"] >= 1
         and signals["follower_interest_hits"] >= 1
     ):
-        return "lead_tibio"
+        return "caliente"
 
-    # 4. COLABORADOR — collaboration signals
+    # 3. COLABORADOR — collaboration signals
     if signals["collaboration_hits"] >= 2:
         return "colaborador"
 
-    # 5. AMIGO — high bidirectionality + social + volume
+    # 4. AMIGO — high bidirectionality + social + volume
     is_bidirectional = signals["bidirectional_ratio"] >= 0.4
     has_social = signals["social_hits"] >= 3
     has_volume = signals["total_messages"] >= 10
@@ -301,27 +278,21 @@ def classify_relationship(signals: Dict[str, Any]) -> str:
     if signals["bidirectional_ratio"] >= 0.6 and signals["total_messages"] >= 20:
         return "amigo"
 
-    # 6. FAN — mostly reactions, story replies, short messages
+    # Also amigo for fans/story reactors with social engagement
     if signals["follower_messages"] >= 3:
         reaction_ratio = (
             (signals["short_reactions"] + signals["story_replies"])
             / max(signals["follower_messages"], 1)
         )
         if reaction_ratio >= 0.6 and signals["follower_purchase_hits"] == 0:
-            return "fan"
+            if signals["social_hits"] >= 1 or signals["story_replies"] >= 2:
+                return "amigo"
 
-    # 7. CURIOSO — some messages, soft signals, but no purchase intent
-    if signals["follower_messages"] >= 3 and (
-        signals["soft_intents"] >= 1
-        or signals["follower_interest_hits"] >= 1
-    ):
-        return "curioso"
-
-    # 8. FANTASMA — inactive 14+ days with prior activity
+    # 5. FRIO — inactive 14+ days with prior activity
     if signals["days_since_last"] >= 14 and signals["total_messages"] >= 2:
-        return "fantasma"
+        return "frío"
 
-    # 9. NUEVO — default
+    # 6. NUEVO — default
     return "nuevo"
 
 
@@ -329,20 +300,20 @@ def classify_relationship(signals: Dict[str, Any]) -> str:
 # STEP 3: Calculate Score Within Type
 # =============================================================================
 
-def calculate_score(relationship_type: str, signals: Dict[str, Any]) -> int:
+def calculate_score(status: str, signals: Dict[str, Any]) -> int:
     """
-    Calculate a score within the type's fixed range based on signal quality.
+    Calculate a score within the status's fixed range based on signal quality.
 
-    Each type has a (min, max) range. A 0.0-1.0 quality factor determines
+    Each status has a (min, max) range. A 0.0-1.0 quality factor determines
     where within that range the lead falls.
     """
-    min_score, max_score = SCORE_RANGES.get(relationship_type, (0, 15))
+    min_score, max_score = SCORE_RANGES.get(status, (0, 25))
     range_size = max_score - min_score
 
-    # Calculate quality factor (0.0-1.0) based on type
+    # Calculate quality factor (0.0-1.0) based on status
     quality = 0.5
 
-    if relationship_type == "cliente":
+    if status == "cliente":
         quality = 0.7
         if signals["days_since_last"] <= 7:
             quality += 0.2
@@ -351,62 +322,40 @@ def calculate_score(relationship_type: str, signals: Dict[str, Any]) -> int:
         if signals["follower_messages"] >= 10:
             quality += 0.1
 
-    elif relationship_type == "lead_caliente":
+    elif status == "caliente":
         quality = 0.5
         quality += min(0.2, signals["follower_purchase_hits"] * 0.1)
         quality += min(0.15, signals["follower_scheduling_hits"] * 0.075)
         quality += min(0.1, signals["strong_intents"] * 0.05)
+        quality += min(0.1, signals["follower_interest_hits"] * 0.05)
         if signals["days_since_last"] <= 3:
             quality += 0.1
         if signals["follower_negative_hits"] > 0:
             quality -= 0.15
 
-    elif relationship_type == "lead_tibio":
-        quality = 0.4
-        quality += min(0.2, signals["follower_interest_hits"] * 0.1)
-        quality += min(0.15, signals["soft_intents"] * 0.05)
-        quality += min(0.1, signals["follower_purchase_hits"] * 0.1)
-        if signals["days_since_last"] <= 7:
-            quality += 0.1
-        if signals["follower_negative_hits"] > 0:
-            quality -= 0.2
-
-    elif relationship_type == "curioso":
-        quality = 0.3
-        quality += min(0.3, signals["follower_messages"] * 0.03)
-        if signals["soft_intents"] >= 2:
-            quality += 0.15
-        if signals["days_since_last"] <= 7:
-            quality += 0.15
-
-    elif relationship_type == "amigo":
-        quality = 0.3
-        quality += min(0.3, signals["social_hits"] * 0.03)
-        quality += min(0.2, signals["total_messages"] * 0.005)
-        if signals["bidirectional_ratio"] >= 0.6:
-            quality += 0.1
-
-    elif relationship_type == "colaborador":
+    elif status == "colaborador":
         quality = 0.5
         quality += min(0.2, signals["collaboration_hits"] * 0.1)
         if signals["total_messages"] >= 10:
             quality += 0.15
 
-    elif relationship_type == "fan":
+    elif status == "amigo":
         quality = 0.3
-        quality += min(0.3, signals["story_replies"] * 0.1)
-        quality += min(0.2, signals["follower_messages"] * 0.02)
-        if signals["days_since_last"] <= 7:
-            quality += 0.15
+        quality += min(0.3, signals["social_hits"] * 0.03)
+        quality += min(0.2, signals["total_messages"] * 0.005)
+        if signals["bidirectional_ratio"] >= 0.6:
+            quality += 0.1
+        if signals["story_replies"] >= 2:
+            quality += 0.1
 
-    elif relationship_type == "fantasma":
+    elif status == "frío":
         quality = 0.5
         if signals["days_since_last"] >= 60:
             quality = 0.2
         elif signals["days_since_last"] >= 30:
             quality = 0.3
 
-    elif relationship_type == "nuevo":
+    elif status == "nuevo":
         quality = 0.3
         quality += min(0.3, signals["follower_messages"] * 0.1)
         if signals["days_since_last"] <= 3:
@@ -420,17 +369,17 @@ def calculate_score(relationship_type: str, signals: Dict[str, Any]) -> int:
 
 
 # =============================================================================
-# MAIN ENTRY POINT — Same signature as V1 for backward compatibility
+# MAIN ENTRY POINT
 # =============================================================================
 
 def recalculate_lead_score(session, lead_id: str) -> Optional[Tuple[float, str]]:
     """
-    Recalculate a lead's score using V2 intelligent classification.
+    Recalculate a lead's score using V3 6-category classification.
 
     This is the SINGLE SOURCE OF TRUTH for lead scoring.
     All code paths that need to update a lead's score should call this function.
 
-    Pipeline: extract_signals → classify_relationship → calculate_score
+    Pipeline: extract_signals -> classify_lead -> calculate_score
 
     Args:
         session: SQLAlchemy session
@@ -444,35 +393,32 @@ def recalculate_lead_score(session, lead_id: str) -> Optional[Tuple[float, str]]
     try:
         lead = session.query(Lead).filter_by(id=lead_id).first()
     except Exception as e:
-        logger.error(f"[SCORING-V2] DB query failed for lead_id={lead_id}: {e}")
+        logger.error(f"[SCORING-V3] DB query failed for lead_id={lead_id}: {e}")
         return None
 
     if not lead:
-        logger.warning(f"[SCORING-V2] Lead not found: {lead_id}")
+        logger.warning(f"[SCORING-V3] Lead not found: {lead_id}")
         return None
 
     # Step 1: Extract signals
     signals = extract_signals(session, lead)
 
-    # Step 2: Classify relationship
-    relationship_type = classify_relationship(signals)
+    # Step 2: Classify lead (returns status directly)
+    status = classify_lead(signals)
 
     # Step 3: Calculate score within type range
-    score = calculate_score(relationship_type, signals)
+    score = calculate_score(status, signals)
 
-    # Determine CRM status
-    new_status = RELATIONSHIP_TO_STATUS.get(relationship_type, "nuevo")
-
-    # Update lead
-    lead.relationship_type = relationship_type
+    # Update lead — status is the single source of truth
+    lead.status = status
+    lead.relationship_type = status  # Mirror for backwards compat
     lead.score = score
-    lead.purchase_intent = score / 100.0
-    lead.status = new_status
+    lead.purchase_intent = score / 100.0  # Derived from score for backwards compat
     lead.score_updated_at = datetime.now(timezone.utc)
 
     logger.info(
-        f"[SCORING-V2] {lead.username or lead.platform_user_id}: "
-        f"type={relationship_type}, score={score}, status={new_status} "
+        f"[SCORING-V3] {lead.username or lead.platform_user_id}: "
+        f"status={status}, score={score} "
         f"(msgs={signals['total_messages']}, follower={signals['follower_messages']}, "
         f"purchase_kw={signals['follower_purchase_hits']}, "
         f"interest_kw={signals['follower_interest_hits']}, "
@@ -480,14 +426,14 @@ def recalculate_lead_score(session, lead_id: str) -> Optional[Tuple[float, str]]
         f"bidir={signals['bidirectional_ratio']:.2f})"
     )
 
-    return score / 100.0, new_status
+    return score / 100.0, status
 
 
 def batch_recalculate_scores(session, creator_id: str) -> dict:
     """
-    Recalculate scores for all leads of a creator using V2 algorithm.
+    Recalculate scores for all leads of a creator using V3 algorithm.
 
-    Returns distribution by relationship_type for verification.
+    Returns distribution by status for verification.
     """
     from api.models import Creator, Lead
 
@@ -506,7 +452,6 @@ def batch_recalculate_scores(session, creator_id: str) -> dict:
         "total": len(leads),
         "updated": 0,
         "by_status": {},
-        "by_relationship_type": {},
     }
 
     for lead in leads:
@@ -515,16 +460,12 @@ def batch_recalculate_scores(session, creator_id: str) -> dict:
             results["updated"] += 1
             _, status = result
             results["by_status"][status] = results["by_status"].get(status, 0) + 1
-            rt = lead.relationship_type or "unknown"
-            results["by_relationship_type"][rt] = (
-                results["by_relationship_type"].get(rt, 0) + 1
-            )
 
     session.commit()
 
     logger.info(
-        f"[SCORING-V2] Batch complete: {results['updated']}/{results['total']} leads. "
-        f"Types: {results['by_relationship_type']} | Status: {results['by_status']}"
+        f"[SCORING-V3] Batch complete: {results['updated']}/{results['total']} leads. "
+        f"Status: {results['by_status']}"
     )
 
     return results

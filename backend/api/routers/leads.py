@@ -348,7 +348,7 @@ async def update_lead_status(creator_id: str, lead_id: str, data: dict = Body(..
     if not new_status:
         raise HTTPException(status_code=400, detail="status is required")
 
-    valid_statuses = ["nuevo", "interesado", "caliente", "cliente", "fantasma"]
+    valid_statuses = ["cliente", "caliente", "colaborador", "amigo", "nuevo", "frío"]
     if new_status not in valid_statuses:
         raise HTTPException(
             status_code=400, detail=f"Invalid status. Must be one of: {valid_statuses}"

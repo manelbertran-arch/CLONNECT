@@ -64,10 +64,11 @@ async def rescore_leads(creator_id: str):
                 "leads_updated": 0,
                 "por_categoria": {
                     "nuevo": 0,
-                    "interesado": 0,
+                    "amigo": 0,
+                    "colaborador": 0,
                     "caliente": 0,
                     "cliente": 0,
-                    "fantasma": 0,
+                    "frío": 0,
                 },
                 "details": [],
             }

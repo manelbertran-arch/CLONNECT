@@ -364,10 +364,10 @@ async def restore_dismissed_lead(creator_name: str, platform_user_id: str):
 @router.post("/recalculate-scores/{creator_name}")
 async def recalculate_lead_scores(creator_name: str):
     """
-    Recalculate lead scores for all leads of a creator using V2 algorithm.
+    Recalculate lead scores for all leads of a creator using V3 algorithm.
 
-    V2 pipeline: extract_signals → classify_relationship → calculate_score.
-    Returns distribution by relationship_type and CRM status.
+    V3 pipeline: extract_signals -> classify_lead -> calculate_score.
+    Returns distribution by status (6 categories).
     """
     from services.lead_scoring import batch_recalculate_scores
 

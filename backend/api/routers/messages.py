@@ -14,25 +14,30 @@ USE_DB = bool(os.getenv("DATABASE_URL"))
 def get_pipeline_score(status: str) -> int:
     """
     Convert pipeline status to a fixed score.
-    Embudo estándar:
-    - nuevo → 10
-    - interesado → 35
-    - caliente → 70
+    V3 categories:
     - cliente → 100
-    - fantasma → 5
+    - caliente → 70
+    - colaborador → 50
+    - amigo → 35
+    - nuevo → 10
+    - frío → 5
     Legacy mapping (backward compat):
-    - new → 10, active → 35, hot → 70, customer → 100
+    - interesado → 50, fantasma → 5
+    - new → 10, active → 50, hot → 70, customer → 100
     """
     scores = {
-        # Nuevo embudo
-        "nuevo": 10,
-        "interesado": 35,
-        "caliente": 70,
+        # V3 categories
         "cliente": 100,
-        "fantasma": 5,
+        "caliente": 70,
+        "colaborador": 50,
+        "amigo": 35,
+        "nuevo": 10,
+        "frío": 5,
         # Legacy (backward compat)
+        "interesado": 50,
+        "fantasma": 5,
         "new": 10,
-        "active": 35,
+        "active": 50,
         "hot": 70,
         "customer": 100,
     }
@@ -327,40 +332,38 @@ async def send_message(creator_id: str, data: dict = Body(...)):
 async def update_follower_status(creator_id: str, follower_id: str, data: dict = Body(...)):
     new_status = data.get("status", "nuevo")
 
-    # Embudo estándar - status directos
-    # Frontend envía: nuevo, interesado, caliente, cliente, fantasma
-    # Legacy mapping para compatibilidad
+    # V3 categories — 6 flat statuses
+    # Legacy mapping for backward compatibility
     api_to_db_status = {
-        # Nuevo embudo (directo)
-        "nuevo": "nuevo",
-        "interesado": "interesado",
-        "caliente": "caliente",
+        # V3 categories
         "cliente": "cliente",
-        "fantasma": "fantasma",
-        # Legacy (backward compat)
+        "caliente": "caliente",
+        "colaborador": "colaborador",
+        "amigo": "amigo",
+        "nuevo": "nuevo",
+        "frío": "frío",
+        # Legacy
+        "interesado": "caliente",
+        "fantasma": "frío",
         "cold": "nuevo",
-        "warm": "interesado",
+        "warm": "caliente",
         "hot": "caliente",
         "customer": "cliente",
         "new": "nuevo",
-        "active": "interesado",
+        "active": "caliente",
     }
     db_status = api_to_db_status.get(new_status, "nuevo")
 
     # Map status to purchase_intent score
     status_to_intent = {
-        "nuevo": 0.1,
-        "interesado": 0.35,
-        "caliente": 0.7,
         "cliente": 1.0,
-        "fantasma": 0.05,
-        # Legacy
-        "cold": 0.1,
-        "warm": 0.35,
-        "hot": 0.7,
-        "customer": 1.0,
+        "caliente": 0.7,
+        "colaborador": 0.5,
+        "amigo": 0.35,
+        "nuevo": 0.1,
+        "frío": 0.05,
     }
-    new_intent = status_to_intent.get(new_status, 0.1)
+    new_intent = status_to_intent.get(db_status, 0.1)
 
     if USE_DB:
         try:
