@@ -40,7 +40,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { cn } from "@/lib/utils";
 import { useQueryClient } from "@tanstack/react-query";
-import { useInfiniteConversations, useUpdateLeadStatus, useCreateManualLead, useUpdateLead, useDeleteLead, useLeadActivities, useLeadTasks, useCreateLeadTask, useUpdateLeadTask, useDeleteLeadTask, useDeleteLeadActivity, useLeadStats } from "@/hooks/useApi";
+import { useConversations, useUpdateLeadStatus, useCreateManualLead, useUpdateLead, useDeleteLead, useLeadActivities, useLeadTasks, useCreateLeadTask, useUpdateLeadTask, useDeleteLeadTask, useDeleteLeadActivity, useLeadStats } from "@/hooks/useApi";
 import { useToast } from "@/hooks/use-toast";
 import type { Conversation } from "@/types/api";
 import { getPurchaseIntent, detectPlatform, getDisplayName } from "@/types/api";
@@ -248,7 +248,7 @@ const initialFormState = {
 
 export default function Leads() {
   // Use conversations endpoint to get ALL followers (not just leads with is_lead=true)
-  const { data, isLoading, error, fetchNextPage, hasNextPage, isFetchingNextPage } = useInfiniteConversations();
+  const { data, isLoading, error } = useConversations(getCreatorId(), 500);
   const queryClient = useQueryClient();
   const creatorId = getCreatorId();
   const [draggedLead, setDraggedLead] = useState<LeadDisplay | null>(null);
@@ -305,30 +305,11 @@ export default function Leads() {
 
   // Real counts from backend (all leads, not just current page)
   const countsByStatus = useMemo(() => {
-    return data?.pages?.[0]?.counts_by_status || {};
-  }, [data?.pages]);
-
-  // Infinite scroll: auto-fetch next page when sentinel is visible
-  const loadMoreRef = useRef<HTMLDivElement>(null);
-  useEffect(() => {
-    if (!loadMoreRef.current || !hasNextPage || isFetchingNextPage) return;
-
-    const observer = new IntersectionObserver(
-      (entries) => {
-        if (entries[0].isIntersecting && hasNextPage && !isFetchingNextPage) {
-          fetchNextPage();
-        }
-      },
-      { threshold: 0.1 }
-    );
-
-    observer.observe(loadMoreRef.current);
-    return () => observer.disconnect();
-  }, [hasNextPage, isFetchingNextPage, fetchNextPage]);
+    return data?.counts_by_status || {};
+  }, [data?.counts_by_status]);
 
   const leads = useMemo(() => {
-    // Flatten all pages from infinite query
-    const allConversations = data?.pages?.flatMap(page => page.conversations) || [];
+    const allConversations = data?.conversations || [];
     if (!allConversations.length && !optimisticLeads.length) return [];
 
     const realLeads = allConversations.map((convo): LeadDisplay => {
@@ -382,7 +363,7 @@ export default function Leads() {
     const realIds = new Set(realLeads.map(l => l.name.toLowerCase()));
     const uniqueOptimistic = optimisticLeads.filter(ol => !realIds.has(ol.name.toLowerCase()));
     return [...uniqueOptimistic, ...realLeads];
-  }, [data?.pages, localStatusOverrides, optimisticLeads]);
+  }, [data?.conversations, localStatusOverrides, optimisticLeads]);
 
   const filteredLeads = useMemo(() => {
     const visible = leads.filter(l => !hiddenIds.has(l.id));
@@ -976,13 +957,6 @@ export default function Leads() {
               </div>
             ))}
           </div>
-        )}
-      </div>
-
-      {/* Infinite scroll sentinel */}
-      <div ref={loadMoreRef} className="h-10 flex items-center justify-center">
-        {isFetchingNextPage && (
-          <div className="animate-spin w-5 h-5 border-2 border-zinc-600 border-t-zinc-300 rounded-full" />
         )}
       </div>
 
