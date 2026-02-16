@@ -8,8 +8,10 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 from fastapi import APIRouter, Body, Depends, HTTPException
+from sqlalchemy.orm import Session
 
 from api.auth import require_creator_access
+from api.database import get_db
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/dm/leads", tags=["leads"])
@@ -906,7 +908,12 @@ async def delete_lead_task(creator_id: str, lead_id: str, task_id: str, _auth: s
 
 
 @router.get("/{creator_id}/{lead_id}/stats")
-async def get_lead_stats(creator_id: str, lead_id: str, _auth: str = Depends(require_creator_access)):
+async def get_lead_stats(
+    creator_id: str,
+    lead_id: str,
+    _auth: str = Depends(require_creator_access),
+    db: Session = Depends(get_db),
+):
     """
     Get INTELLIGENT monitoring stats for a lead using the signals system.
     Analyzes conversation to predict sale probability, detect product interest, and suggest next steps.
@@ -915,124 +922,119 @@ async def get_lead_stats(creator_id: str, lead_id: str, _auth: str = Depends(req
         try:
             from datetime import datetime, timezone
 
-            from api.database import SessionLocal
+            from sqlalchemy.orm import load_only
+
             from api.models import Creator, Lead, Message
             from api.services.signals import analyze_conversation_signals
 
-            session = SessionLocal()
-            try:
-                creator = session.query(Creator).filter_by(name=creator_id).first()
-                if not creator:
-                    raise HTTPException(status_code=404, detail="Creator not found")
+            creator = db.query(Creator).filter_by(name=creator_id).first()
+            if not creator:
+                raise HTTPException(status_code=404, detail="Creator not found")
 
-                # Find lead by platform_user_id or UUID
-                lead = (
-                    session.query(Lead)
-                    .filter_by(creator_id=creator.id, platform_user_id=lead_id)
-                    .first()
-                )
+            # Find lead by platform_user_id or UUID
+            lead = (
+                db.query(Lead)
+                .filter_by(creator_id=creator.id, platform_user_id=lead_id)
+                .first()
+            )
 
-                if not lead:
-                    try:
-                        from uuid import UUID
+            if not lead:
+                try:
+                    from uuid import UUID
 
-                        lead = session.query(Lead).filter_by(id=UUID(lead_id)).first()
-                    except ValueError as e:
-                        logger.debug("Ignored ValueError in from uuid import UUID: %s", e)
+                    lead = db.query(Lead).filter_by(id=UUID(lead_id)).first()
+                except ValueError as e:
+                    logger.debug("Ignored ValueError in from uuid import UUID: %s", e)
 
-                if not lead:
-                    raise HTTPException(status_code=404, detail="Lead not found")
+            if not lead:
+                raise HTTPException(status_code=404, detail="Lead not found")
 
-                # Get recent messages ordered by time (limit to 200 for performance)
-                # Only load role/content/created_at — skip msg_metadata (heavy JSON blobs)
-                from sqlalchemy.orm import load_only
+            # Get recent messages ordered by time (limit to 200 for performance)
+            # Only load role/content/created_at — skip msg_metadata (heavy JSON blobs)
+            messages = (
+                db.query(Message)
+                .filter_by(lead_id=lead.id)
+                .options(load_only(Message.role, Message.content, Message.created_at))
+                .order_by(Message.created_at.desc())
+                .limit(200)
+                .all()
+            )
+            messages.reverse()  # Back to chronological order
 
-                messages = (
-                    session.query(Message)
-                    .filter_by(lead_id=lead.id)
-                    .options(load_only(Message.role, Message.content, Message.created_at))
-                    .order_by(Message.created_at.desc())
-                    .limit(200)
-                    .all()
-                )
-                messages.reverse()  # Back to chronological order
+            # Use the intelligent signals analyzer
+            analysis = analyze_conversation_signals(messages, lead.status)
 
-                # Use the intelligent signals analyzer
-                analysis = analyze_conversation_signals(messages, lead.status)
+            # Calculate engagement level
+            metrics = analysis["metricas_comportamiento"]
+            lead_msg_count = metrics["total_mensajes_lead"]
 
-                # Calculate engagement level
-                metrics = analysis["metricas_comportamiento"]
-                lead_msg_count = metrics["total_mensajes_lead"]
+            hours_since_response = None
+            if lead.last_contact_at:
+                lc = lead.last_contact_at
+                if lc.tzinfo is None:
+                    lc = lc.replace(tzinfo=timezone.utc)
+                hours_since_response = (datetime.now(timezone.utc) - lc).total_seconds() / 3600
 
-                hours_since_response = None
-                if lead.last_contact_at:
-                    lc = lead.last_contact_at
-                    if lc.tzinfo is None:
-                        lc = lc.replace(tzinfo=timezone.utc)
-                    hours_since_response = (datetime.now(timezone.utc) - lc).total_seconds() / 3600
-
-                if (
-                    lead_msg_count > 10
-                    and hours_since_response is not None
-                    and hours_since_response < 24
-                ):
-                    engagement = "Alto"
-                    engagement_detalle = f"{lead_msg_count} mensajes · última respuesta hace {int(hours_since_response)}h"
-                elif lead_msg_count >= 3 or (
-                    hours_since_response is not None and 24 <= hours_since_response <= 168
-                ):
-                    engagement = "Medio"
-                    if hours_since_response and hours_since_response >= 24:
-                        days = int(hours_since_response / 24)
-                        engagement_detalle = (
-                            f"{lead_msg_count} mensajes · última respuesta hace {days} días"
-                        )
-                    else:
-                        engagement_detalle = f"{lead_msg_count} mensajes"
+            if (
+                lead_msg_count > 10
+                and hours_since_response is not None
+                and hours_since_response < 24
+            ):
+                engagement = "Alto"
+                engagement_detalle = f"{lead_msg_count} mensajes · última respuesta hace {int(hours_since_response)}h"
+            elif lead_msg_count >= 3 or (
+                hours_since_response is not None and 24 <= hours_since_response <= 168
+            ):
+                engagement = "Medio"
+                if hours_since_response and hours_since_response >= 24:
+                    days = int(hours_since_response / 24)
+                    engagement_detalle = (
+                        f"{lead_msg_count} mensajes · última respuesta hace {days} días"
+                    )
                 else:
-                    engagement = "Bajo"
-                    if hours_since_response and hours_since_response > 168:
-                        days = int(hours_since_response / 24)
-                        engagement_detalle = (
-                            f"{lead_msg_count} mensajes · última respuesta hace {days} días"
-                        )
-                    else:
-                        engagement_detalle = f"{lead_msg_count} mensajes"
+                    engagement_detalle = f"{lead_msg_count} mensajes"
+            else:
+                engagement = "Bajo"
+                if hours_since_response and hours_since_response > 168:
+                    days = int(hours_since_response / 24)
+                    engagement_detalle = (
+                        f"{lead_msg_count} mensajes · última respuesta hace {days} días"
+                    )
+                else:
+                    engagement_detalle = f"{lead_msg_count} mensajes"
 
-                # Build response with all the intelligent analysis
-                return {
-                    "status": "ok",
-                    "stats": {
-                        # Core prediction
-                        "probabilidad_venta": analysis["probabilidad_venta"],
-                        "confianza_prediccion": analysis["confianza_prediccion"],
-                        "producto_detectado": analysis["producto_detectado"],
-                        "valor_estimado": analysis["valor_estimado"],
-                        # Signals
-                        "senales_detectadas": analysis["senales_detectadas"],
-                        "senales_por_categoria": analysis["senales_por_categoria"],
-                        "total_senales": analysis["total_senales"],
-                        # Next step
-                        "siguiente_paso": analysis["siguiente_paso"],
-                        # Engagement
-                        "engagement": engagement,
-                        "engagement_detalle": engagement_detalle,
-                        # Metrics
-                        "metricas": metrics,
-                        "mensajes_lead": metrics["total_mensajes_lead"],
-                        "mensajes_bot": metrics["total_mensajes_bot"],
-                        # Timeline
-                        "primer_contacto": (
-                            lead.first_contact_at.isoformat() if lead.first_contact_at else None
-                        ),
-                        "ultimo_contacto": (
-                            lead.last_contact_at.isoformat() if lead.last_contact_at else None
-                        ),
-                        "current_stage": lead.status,
-                    },
-                }
-            finally:
-                session.close()
+            # Build response with all the intelligent analysis
+            return {
+                "status": "ok",
+                "stats": {
+                    # Core prediction
+                    "probabilidad_venta": analysis["probabilidad_venta"],
+                    "confianza_prediccion": analysis["confianza_prediccion"],
+                    "producto_detectado": analysis["producto_detectado"],
+                    "valor_estimado": analysis["valor_estimado"],
+                    # Signals
+                    "senales_detectadas": analysis["senales_detectadas"],
+                    "senales_por_categoria": analysis["senales_por_categoria"],
+                    "total_senales": analysis["total_senales"],
+                    # Next step
+                    "siguiente_paso": analysis["siguiente_paso"],
+                    # Engagement
+                    "engagement": engagement,
+                    "engagement_detalle": engagement_detalle,
+                    # Metrics
+                    "metricas": metrics,
+                    "mensajes_lead": metrics["total_mensajes_lead"],
+                    "mensajes_bot": metrics["total_mensajes_bot"],
+                    # Timeline
+                    "primer_contacto": (
+                        lead.first_contact_at.isoformat() if lead.first_contact_at else None
+                    ),
+                    "ultimo_contacto": (
+                        lead.last_contact_at.isoformat() if lead.last_contact_at else None
+                    ),
+                    "current_stage": lead.status,
+                },
+            }
         except HTTPException:
             raise
         except Exception as e:
