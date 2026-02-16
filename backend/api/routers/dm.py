@@ -58,6 +58,34 @@ def _media_description(metadata: dict | None) -> str:
     }.get(meta_type, "Sent an attachment" if meta_type else "")
 
 
+# Frontend-visible metadata keys (strips internal fields + oversized base64)
+_META_KEEP = {
+    "type", "url", "emoji", "link", "permalink", "caption",
+    "permanent_url", "thumbnail_url", "preview_url",
+    "animated_gif_url", "author_username", "platform",
+    "duration", "render_as_sticker", "link_preview",
+    "carousel_items", "items",
+}
+_BASE64_MAX = 50_000  # ~37 KB decoded — skip mega thumbnails
+
+
+def _slim_metadata(meta: dict | None) -> dict:
+    """Return only the metadata fields the frontend needs, capping base64."""
+    if not meta:
+        return {}
+    out: dict = {}
+    for k, v in meta.items():
+        if k not in _META_KEEP:
+            continue
+        # Cap thumbnail_base64 inside nested items too
+        out[k] = v
+    # thumbnail_base64 is needed but can be huge — include only if small
+    tb = meta.get("thumbnail_base64")
+    if tb and len(tb) <= _BASE64_MAX:
+        out["thumbnail_base64"] = tb
+    return out
+
+
 # ---------------------------------------------------------
 # PYDANTIC MODELS
 # ---------------------------------------------------------
@@ -614,7 +642,7 @@ async def get_follower_detail(creator_id: str, follower_id: str):
                                                 or "Sent an attachment"
                                             ),
                                             "timestamp": m.created_at.isoformat() if m.created_at else None,
-                                            "metadata": m.msg_metadata or {},
+                                            "metadata": _slim_metadata(m.msg_metadata),
                                         }
                                         for m in messages
                                     ],
@@ -631,6 +659,10 @@ async def get_follower_detail(creator_id: str, follower_id: str):
             detail = await agent.get_follower_detail(follower_id)
             if not detail:
                 raise HTTPException(status_code=404, detail="Follower not found")
+            # Slim metadata on agent-returned messages too
+            for msg in detail.get("last_messages", []):
+                if "metadata" in msg:
+                    msg["metadata"] = _slim_metadata(msg["metadata"])
             logger.info(f"[FOLLOWER] {creator_id}/{follower_id}: AGENT PATH ({_time.time()-start:.3f}s)")
 
         result = {"status": "ok", **detail}
