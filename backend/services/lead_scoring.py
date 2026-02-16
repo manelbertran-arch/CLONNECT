@@ -10,9 +10,18 @@ Categories:
   cliente     — Existing customer (preserved, never auto-downgraded)
   caliente    — Purchase/scheduling/interest signals from follower
   colaborador — Collaboration keywords >= 2
-  amigo       — High bidirectionality + social engagement
+  amigo       — High bidirectionality + social engagement (both sides)
   nuevo       — Default / recent / low signal
   frio        — Inactive 14+ days with prior activity (cold lead)
+
+Priority order:
+  1. cliente (preserved)
+  2. caliente STRONG (purchase keywords — clear buying intent)
+  3. colaborador (collab keywords)
+  4. amigo (bidirectional social — friends, fans, community)
+  5. frio (inactive 14+ days)
+  6. caliente SOFT (interest keywords only — no purchase, no social)
+  7. nuevo (default)
 
 Key insight: WHO says what matters. Only follower keywords count for
 purchase intent. Creator mentioning "precio" is a sales pitch, not a signal.
@@ -51,10 +60,11 @@ FOLLOWER_SCHEDULING_KEYWORDS = [
 ]
 
 SOCIAL_KEYWORDS = [
-    "jaja", "jeje", "haha", "hehe",
-    "amigo", "hermano", "bro", "crack", "capo", "leyenda",
-    "abrazo", "tío", "tio", "pana", "compa", "wey", "máquina",
-    "un abrazo", "te quiero", "cuídate",
+    "jaja", "jeje", "haha", "hehe", "jajaja", "jajajaja",
+    "amigo", "amiga", "hermano", "hermana", "bro", "crack",
+    "capo", "leyenda", "abrazo", "tío", "tio", "pana", "compa",
+    "wey", "máquina", "un abrazo", "te quiero", "cuídate",
+    "love", "love u", "love you",
 ]
 
 COLLABORATION_KEYWORDS = [
@@ -90,6 +100,7 @@ def extract_signals(session, lead) -> Dict[str, Any]:
 
     Distinguishes between follower messages (role="user") and
     creator messages (role="assistant") for keyword analysis.
+    Tracks social keywords per-side for bidirectional friendship detection.
     """
     from api.models import Message
 
@@ -117,8 +128,10 @@ def extract_signals(session, lead) -> Dict[str, Any]:
         "follower_interest_hits": 0,
         "follower_scheduling_hits": 0,
         "follower_negative_hits": 0,
-        # Social signals (both sides)
-        "social_hits": 0,
+        # Social signals — tracked PER SIDE for bidirectional detection
+        "follower_social_hits": 0,
+        "creator_social_hits": 0,
+        "social_hits": 0,  # Combined (kept for scoring)
         "collaboration_hits": 0,
         # Content patterns
         "follower_avg_length": 0.0,
@@ -181,13 +194,20 @@ def extract_signals(session, lead) -> Dict[str, Any]:
             elif intent in ("interest_soft", "question_product", "product_question"):
                 signals["soft_intents"] += 1
 
+            # Social keywords (follower side)
+            if any(kw in text for kw in SOCIAL_KEYWORDS):
+                signals["follower_social_hits"] += 1
+                signals["social_hits"] += 1
+
         elif role == "assistant":
             signals["creator_messages"] += 1
 
-        # Social and collaboration keywords (both sides count)
-        if any(kw in text for kw in SOCIAL_KEYWORDS):
-            signals["social_hits"] += 1
+            # Social keywords (creator side)
+            if any(kw in text for kw in SOCIAL_KEYWORDS):
+                signals["creator_social_hits"] += 1
+                signals["social_hits"] += 1
 
+        # Collaboration keywords (both sides count)
         if any(kw in text for kw in COLLABORATION_KEYWORDS):
             signals["collaboration_hits"] += 1
 
@@ -225,19 +245,30 @@ def classify_lead(signals: Dict[str, Any]) -> str:
     Classify the lead into one of 6 categories based on extracted signals.
 
     Priority order (first match wins):
-      1. cliente     — already marked as customer (never auto-downgraded)
-      2. caliente    — follower uses purchase/scheduling/interest keywords
-      3. colaborador — collaboration keywords >= 2
-      4. amigo       — high bidirectionality + social signals OR story reactions
-      5. frio        — inactive 14+ days with prior activity
-      6. nuevo       — default
+      1. cliente       — already marked as customer (never auto-downgraded)
+      2. caliente HARD — purchase keywords, scheduling, strong intents
+      3. colaborador   — collaboration keywords >= 2
+      4. amigo         — bidirectional social signals (BOTH sides)
+      5. frio          — inactive 14+ days with prior activity
+      6. caliente SOFT — interest keywords only (no purchase, checked late)
+      7. nuevo         — default
+
+    The key split: "caliente HARD" (purchase intent) checks before amigo,
+    but "caliente SOFT" (interest-only keywords like "info", "necesito")
+    checks AFTER amigo — because friends say those words constantly.
     """
     # 1. CLIENTE — preserve existing customer status
     if signals["is_existing_customer"]:
         return "cliente"
 
-    # 2. CALIENTE — follower actively asking about purchase/scheduling/interest
-    if signals["follower_purchase_hits"] >= 2 or (
+    # ------------------------------------------------------------------
+    # 2. CALIENTE (HARD) — clear purchase/scheduling intent
+    #    These signals are unambiguous: the follower wants to buy/book.
+    # ------------------------------------------------------------------
+    if signals["follower_purchase_hits"] >= 2:
+        return "caliente"
+
+    if (
         signals["follower_purchase_hits"] >= 1
         and signals["follower_scheduling_hits"] >= 1
     ):
@@ -249,8 +280,67 @@ def classify_lead(signals: Dict[str, Any]) -> str:
     ):
         return "caliente"
 
-    # Also caliente for softer interest signals (was lead_tibio)
-    if signals["follower_interest_hits"] >= 2 or (
+    # 3. COLABORADOR — collaboration signals
+    if signals["collaboration_hits"] >= 2:
+        return "colaborador"
+
+    # ------------------------------------------------------------------
+    # 4. AMIGO — bidirectional social engagement
+    #    Requires BOTH sides using social keywords (not just one side).
+    #    This catches friends, fans, community members.
+    # ------------------------------------------------------------------
+    has_bidirectional_social = (
+        signals["follower_social_hits"] >= 1
+        and signals["creator_social_hits"] >= 1
+    )
+    has_volume = signals["total_messages"] >= 6
+    is_bidirectional = signals["bidirectional_ratio"] >= 0.3
+
+    # Path A: Both sides use social language + decent volume
+    if has_bidirectional_social and has_volume and is_bidirectional:
+        return "amigo"
+
+    # Path B: Very high volume + bidirectionality (even without keywords)
+    if signals["bidirectional_ratio"] >= 0.5 and signals["total_messages"] >= 20:
+        return "amigo"
+
+    # Path C: High social from follower side + story engagement
+    if (
+        signals["follower_social_hits"] >= 2
+        and signals["story_replies"] >= 1
+        and signals["follower_purchase_hits"] == 0
+    ):
+        return "amigo"
+
+    # Path D: Mostly reactions/story replies with some social (fan-like)
+    if signals["follower_messages"] >= 3:
+        reaction_ratio = (
+            (signals["short_reactions"] + signals["story_replies"])
+            / max(signals["follower_messages"], 1)
+        )
+        if (
+            reaction_ratio >= 0.5
+            and signals["follower_purchase_hits"] == 0
+            and (signals["social_hits"] >= 1 or signals["story_replies"] >= 2)
+        ):
+            return "amigo"
+
+    # ------------------------------------------------------------------
+    # 5. FRIO — inactive 14+ days with prior activity
+    #    Checked BEFORE soft caliente so inactive leads don't stay "hot".
+    # ------------------------------------------------------------------
+    if signals["days_since_last"] >= 14 and signals["total_messages"] >= 2:
+        return "frío"
+
+    # ------------------------------------------------------------------
+    # 6. CALIENTE (SOFT) — interest keywords only (no purchase keywords)
+    #    These are ambiguous words ("info", "necesito") that friends also use.
+    #    Only classified as caliente if NOT already caught by amigo above.
+    # ------------------------------------------------------------------
+    if signals["follower_interest_hits"] >= 2:
+        return "caliente"
+
+    if (
         signals["follower_interest_hits"] >= 1
         and signals["follower_purchase_hits"] >= 1
     ):
@@ -262,37 +352,7 @@ def classify_lead(signals: Dict[str, Any]) -> str:
     ):
         return "caliente"
 
-    # 3. COLABORADOR — collaboration signals
-    if signals["collaboration_hits"] >= 2:
-        return "colaborador"
-
-    # 4. AMIGO — high bidirectionality + social + volume
-    is_bidirectional = signals["bidirectional_ratio"] >= 0.4
-    has_social = signals["social_hits"] >= 3
-    has_volume = signals["total_messages"] >= 10
-
-    if is_bidirectional and has_social and has_volume:
-        return "amigo"
-
-    # Also amigo if very high bidirectionality and volume
-    if signals["bidirectional_ratio"] >= 0.6 and signals["total_messages"] >= 20:
-        return "amigo"
-
-    # Also amigo for fans/story reactors with social engagement
-    if signals["follower_messages"] >= 3:
-        reaction_ratio = (
-            (signals["short_reactions"] + signals["story_replies"])
-            / max(signals["follower_messages"], 1)
-        )
-        if reaction_ratio >= 0.6 and signals["follower_purchase_hits"] == 0:
-            if signals["social_hits"] >= 1 or signals["story_replies"] >= 2:
-                return "amigo"
-
-    # 5. FRIO — inactive 14+ days with prior activity
-    if signals["days_since_last"] >= 14 and signals["total_messages"] >= 2:
-        return "frío"
-
-    # 6. NUEVO — default
+    # 7. NUEVO — default
     return "nuevo"
 
 
@@ -422,7 +482,8 @@ def recalculate_lead_score(session, lead_id: str) -> Optional[Tuple[float, str]]
         f"(msgs={signals['total_messages']}, follower={signals['follower_messages']}, "
         f"purchase_kw={signals['follower_purchase_hits']}, "
         f"interest_kw={signals['follower_interest_hits']}, "
-        f"social={signals['social_hits']}, "
+        f"social={signals['social_hits']} "
+        f"[f={signals['follower_social_hits']}/c={signals['creator_social_hits']}], "
         f"bidir={signals['bidirectional_ratio']:.2f})"
     )
 
