@@ -327,6 +327,10 @@ from api.routers import events as events_router
 
 app.include_router(events_router.router)
 
+from api.routers import unified_leads as unified_leads_router
+
+app.include_router(unified_leads_router.router)
+
 # Authentication router
 from api.auth import router as auth_router
 

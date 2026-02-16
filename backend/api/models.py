@@ -141,6 +141,34 @@ class UnmatchedWebhook(Base):
     notes = Column(Text)
 
 
+class UnifiedLead(Base):
+    """
+    Cross-platform identity: groups leads from different channels (IG, WA, TG)
+    that belong to the same real person.
+    """
+
+    __tablename__ = "unified_leads"
+    __table_args__ = (
+        Index("idx_unified_creator", "creator_id"),
+        Index("idx_unified_email", "creator_id", "email"),
+        Index("idx_unified_phone", "creator_id", "phone"),
+        {"extend_existing": True},
+    )
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    creator_id = Column(UUID(as_uuid=True), ForeignKey("creators.id"), nullable=False)
+    display_name = Column(String(255))
+    email = Column(String(255))
+    phone = Column(String(50))
+    profile_pic_url = Column(Text)
+    unified_score = Column(Float, default=0)
+    status = Column(String(50), default="nuevo")
+    first_contact_at = Column(DateTime(timezone=True))
+    last_contact_at = Column(DateTime(timezone=True))
+    merge_history = Column(JSON, default=list)  # Audit log of merges
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+
+
 class Lead(Base):
     __tablename__ = "leads"
     __table_args__ = (
@@ -152,6 +180,7 @@ class Lead(Base):
     creator_id = Column(
         UUID(as_uuid=True), ForeignKey("creators.id"), index=True
     )  # FIX P1: Added index
+    unified_lead_id = Column(UUID(as_uuid=True), ForeignKey("unified_leads.id"), nullable=True, index=True)
     platform = Column(String(20), nullable=False)
     platform_user_id = Column(
         String(255), nullable=False, index=True

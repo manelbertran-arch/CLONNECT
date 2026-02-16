@@ -311,6 +311,19 @@ async def whatsapp_webhook_receive(request: Request):
 
                 logger.info(f"[WA:{message.sender_id}] Intent: {intent} ({confidence:.0%})")
 
+                # Fire-and-forget identity resolution
+                try:
+                    from core.identity_resolver import resolve_identity
+                    from api.services.db_service import get_or_create_lead
+                    lead_result = get_or_create_lead(
+                        creator_id, sender_id, platform="whatsapp",
+                        username=display_name, full_name=message.sender_name,
+                    )
+                    if lead_result:
+                        asyncio.create_task(resolve_identity(creator_id, lead_result["id"], "whatsapp"))
+                except Exception as ir_err:
+                    logger.debug(f"[WA] Identity resolution skipped: {ir_err}")
+
                 # Check copilot mode
                 copilot_enabled = _get_copilot_mode_cached(creator_id)
 
@@ -793,6 +806,19 @@ async def telegram_webhook(request: Request):
             logger.info(
                 f"Telegram DM from {sender_name} ({sender_id}): '{text[:50]}' -> intent={intent}"
             )
+
+            # Fire-and-forget identity resolution
+            try:
+                from core.identity_resolver import resolve_identity
+                from api.services.db_service import get_or_create_lead
+                tg_lead = get_or_create_lead(
+                    creator_id, f"tg_{sender_id}", platform="telegram",
+                    username=sender_name, full_name=full_name,
+                )
+                if tg_lead:
+                    asyncio.create_task(resolve_identity(creator_id, tg_lead["id"], "telegram"))
+            except Exception as ir_err:
+                logger.debug(f"[TG] Identity resolution skipped: {ir_err}")
 
             _t_copilot_start = time.time()
             copilot_enabled = _get_copilot_mode_cached(creator_id)

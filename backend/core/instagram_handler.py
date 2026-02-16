@@ -2188,6 +2188,13 @@ class InstagramHandler:
                 logger.info(
                     f"[IG:{sender_id}] Updated lead profile: pic={'yes' if profile_pic_url else 'no'}, verified={is_verified}"
                 )
+                # Fire-and-forget identity resolution
+                try:
+                    import asyncio
+                    from core.identity_resolver import resolve_identity
+                    asyncio.create_task(resolve_identity(self.creator_id, result["id"], "instagram"))
+                except Exception as ir_err:
+                    logger.debug(f"[IG] Identity resolution skipped: {ir_err}")
         except Exception as e:
             logger.warning(f"Could not update lead profile: {e}")
 

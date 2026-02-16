@@ -1458,6 +1458,9 @@ class DMResponderAgentV2:
                 except Exception as e:
                     logger.debug(f"Failed to update lead email: {e}")
 
+                # Trigger identity resolution after email capture
+                self._trigger_identity_resolution(sender_id, platform)
+
                 cognitive_metadata["email_captured"] = detected_email
                 logger.info(f"[EMAIL] Captured {detected_email} for {sender_id}")
                 # Replace response with capture confirmation
@@ -1586,6 +1589,37 @@ class DMResponderAgentV2:
             confidence=0.0,
             metadata={"error": error},
         )
+
+    def _trigger_identity_resolution(self, sender_id: str, platform: str) -> None:
+        """Fire-and-forget identity resolution for a lead."""
+        try:
+            from api.services.db_service import get_session
+            from api.models import Lead
+
+            session = get_session()
+            if not session:
+                return
+            try:
+                from api.models import Creator
+                creator = session.query(Creator).filter_by(name=self.creator_id).first()
+                if not creator:
+                    return
+                lead = (
+                    session.query(Lead)
+                    .filter(Lead.creator_id == creator.id, Lead.platform_user_id == sender_id)
+                    .first()
+                )
+                if not lead:
+                    return
+                lead_id = str(lead.id)
+            finally:
+                session.close()
+
+            import asyncio
+            from core.identity_resolver import resolve_identity
+            asyncio.create_task(resolve_identity(self.creator_id, lead_id, platform))
+        except Exception as e:
+            logger.debug(f"[IDENTITY] trigger failed: {e}")
 
     # ═══════════════════════════════════════════════════════════════════════
     # PUBLIC API METHODS
