@@ -4,6 +4,7 @@
  * SPRINT3-T3.3: Updated structure with sections
  */
 import { NavLink, useLocation, useNavigate } from "react-router-dom";
+import { useQueryClient } from "@tanstack/react-query";
 import {
   Home,
   MessageSquare,
@@ -16,6 +17,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/context/AuthContext";
+import { getConversations, getDashboardOverview, apiKeys, getCreatorId } from "@/services/api";
 
 type NavItemType = "link" | "section" | "divider";
 
@@ -43,9 +45,40 @@ const navItems: NavItem[] = [
   { path: "/settings", label: "Ajustes", icon: Settings },
 ];
 
+// Prefetch functions by route — loads data before user clicks
+const prefetchByPath: Record<string, (qc: ReturnType<typeof useQueryClient>) => void> = {
+  "/inbox": (qc) => {
+    const cid = getCreatorId();
+    qc.prefetchInfiniteQuery({
+      queryKey: [...apiKeys.conversations(cid), "infinite"],
+      queryFn: () => getConversations(cid, 50, 0),
+      initialPageParam: 0,
+      staleTime: 300000,
+    });
+  },
+  "/leads": (qc) => {
+    const cid = getCreatorId();
+    qc.prefetchInfiniteQuery({
+      queryKey: [...apiKeys.conversations(cid), "infinite"],
+      queryFn: () => getConversations(cid, 50, 0),
+      initialPageParam: 0,
+      staleTime: 300000,
+    });
+  },
+  "/dashboard": (qc) => {
+    const cid = getCreatorId();
+    qc.prefetchQuery({
+      queryKey: apiKeys.dashboard(cid),
+      queryFn: () => getDashboardOverview(cid),
+      staleTime: 300000,
+    });
+  },
+};
+
 export function Sidebar() {
   const location = useLocation();
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const { user, creatorId, logout } = useAuth();
 
   const handleLogout = () => {
@@ -104,6 +137,10 @@ export function Sidebar() {
                 <NavLink
                   to={item.disabled ? "#" : item.path!}
                   onClick={item.disabled ? (e) => e.preventDefault() : undefined}
+                  onMouseEnter={() => {
+                    const prefetch = item.path ? prefetchByPath[item.path] : undefined;
+                    if (prefetch) prefetch(queryClient);
+                  }}
                   className={cn(
                     "sidebar-item flex items-center gap-3",
                     isActive && "sidebar-item-active",

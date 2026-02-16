@@ -68,12 +68,12 @@ import Clientes from "./pages/new/Clientes";
 import Ajustes from "./pages/new/Ajustes";
 import NewOnboarding from "./pages/new/Onboarding";
 
-// Configure QueryClient with optimized settings
+// Configure QueryClient — 5min staleTime prevents refetch on page navigation
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
-      staleTime: 30000, // 30 seconds before refetch
-      gcTime: 300000, // 5 minutes cache
+      staleTime: 300000, // 5 minutes — data stays fresh across page switches
+      gcTime: 600000, // 10 minutes in cache
       refetchOnWindowFocus: false,
       retry: 1,
     },

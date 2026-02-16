@@ -288,11 +288,31 @@ export default function Inbox() {
     return getSmartDisplayName(selectedConversation, messages);
   }, [selectedConversation, messages]);
 
-  // Loading state
+  // Loading state — skeleton
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center h-[60vh]">
-        <Loader2 className="w-8 h-8 animate-spin text-primary" />
+      <div className="flex h-[80vh]">
+        {/* Conversation list skeleton */}
+        <div className="w-80 border-r border-border/30 p-3 space-y-2">
+          {Array.from({ length: 10 }).map((_, i) => (
+            <div key={i} className="flex items-center gap-3 p-3 rounded-lg">
+              <div className="w-10 h-10 rounded-full bg-muted/40 animate-pulse shrink-0" />
+              <div className="flex-1 space-y-1.5">
+                <div className="h-4 w-28 rounded bg-muted/40 animate-pulse" />
+                <div className="h-3 w-40 rounded bg-muted/30 animate-pulse" />
+              </div>
+            </div>
+          ))}
+        </div>
+        {/* Chat area skeleton */}
+        <div className="flex-1 flex flex-col p-6">
+          <div className="h-10 w-48 rounded bg-muted/40 animate-pulse mb-6" />
+          <div className="flex-1 space-y-3">
+            {Array.from({ length: 5 }).map((_, i) => (
+              <div key={i} className={`h-10 ${i % 2 ? "w-48 ml-auto" : "w-64"} rounded-lg bg-muted/20 animate-pulse`} />
+            ))}
+          </div>
+        </div>
       </div>
     );
   }
