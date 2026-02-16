@@ -19,6 +19,17 @@ BANNED_QUESTIONS = [
     r"¿cómo te va\?",
     r"¿qué hay\?",
     r"¿qué onda\?",
+    # Muletilla #1 del copiloto — 36% de respuestas malas
+    r"¿qué te llamó la atención\?",
+    r"¿qué fue lo que te llamó la atención\?",
+    r"¿qué te llamó más la atención\?",
+    r"¿qué fue lo que más te llamó la atención\?",
+    r"¿algo en particular que te llamó la atención\?",
+    # Muletilla #2 — asistente genérico
+    r"¿en qué puedo ayudarte\?",
+    r"¿hay algo en lo que pueda ayudarte\?",
+    r"¿te puedo ayudar en algo\?",
+    r"¿en qué te puedo ayudar\?",
 ]
 
 # Replacements for removed questions
@@ -30,6 +41,15 @@ QUESTION_REPLACEMENTS = {
     "¿y vos?": "",
     "¿qué cuentas?": "",
     "¿cómo te va?": "",
+    "¿qué te llamó la atención?": "",
+    "¿qué fue lo que te llamó la atención?": "",
+    "¿qué te llamó más la atención?": "",
+    "¿qué fue lo que más te llamó la atención?": "",
+    "¿algo en particular que te llamó la atención?": "",
+    "¿en qué puedo ayudarte?": "",
+    "¿hay algo en lo que pueda ayudarte?": "",
+    "¿te puedo ayudar en algo?": "",
+    "¿en qué te puedo ayudar?": "",
 }
 
 

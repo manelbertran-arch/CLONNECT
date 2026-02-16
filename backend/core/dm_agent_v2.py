@@ -618,8 +618,9 @@ class DMResponderAgentV2:
                             mentions_product = True
                             break
 
-                if not mentions_product:
+                if not mentions_product and len(message.strip()) <= 80:
                     # Classify context for pool routing (v10.2)
+                    # Skip pool for messages > 80 chars — they need LLM context
                     from services.length_controller import classify_lead_context
                     pool_context = classify_lead_context(message)
 
@@ -865,9 +866,9 @@ class DMResponderAgentV2:
 
             llm_messages = [
                 {"role": "system", "content": system_prompt},
-                {"role": "user", "content": message},
+                {"role": "user", "content": full_prompt},
             ]
-            llm_content = await generate_dm_response(llm_messages)
+            llm_content = await generate_dm_response(llm_messages, max_tokens=150)
 
             _t3 = time.monotonic()
             logger.info(f"[TIMING] LLM call: {int((_t3 - _t2) * 1000)}ms")
