@@ -1292,7 +1292,7 @@ async def whatsapp_oauth_start(creator_id: str):
     params = {
         "client_id": whatsapp_app_id,
         "redirect_uri": WHATSAPP_REDIRECT_URI,
-        "scope": "whatsapp_business_management,whatsapp_business_messaging,business_management",
+        "scope": "whatsapp_business_management,whatsapp_business_messaging",
         "response_type": "code",
         "state": state,
         "config_id": os.getenv("WHATSAPP_CONFIG_ID", ""),  # Embedded Signup config
