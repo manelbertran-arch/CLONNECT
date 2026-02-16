@@ -257,9 +257,15 @@ export function MessageRenderer({ message, isLastInGroup = true }: MessageRender
       return <CarouselMessage message={message} isOutgoing={isOutgoing} isLastInGroup={isLastInGroup} />;
 
     case 'unknown':
+    case 'unsupported_type':
+    case 'file':
       return <UnknownMediaMessage message={message} isOutgoing={isOutgoing} isLastInGroup={isLastInGroup} />;
 
     default:
+      // If metadata has a renderable URL, try UnknownMediaMessage instead of plain text
+      if (metadata.url || metadata.permanent_url || metadata.thumbnail_base64) {
+        return <UnknownMediaMessage message={message} isOutgoing={isOutgoing} isLastInGroup={isLastInGroup} />;
+      }
       return <TextMessage message={message} isOutgoing={isOutgoing} isLastInGroup={isLastInGroup} />;
   }
 }

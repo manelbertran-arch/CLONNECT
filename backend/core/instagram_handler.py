@@ -1740,7 +1740,8 @@ class InstagramHandler:
             elif "image" in att_type or "photo" in att_type or has_image:
                 media_type = "image"
             else:
-                media_type = att_type or "file"
+                # Instagram sends "unsupported_type" for various media — treat as unknown renderable
+                media_type = "unknown" if att_type == "unsupported_type" else (att_type or "file")
 
             if media_url:
                 return {
