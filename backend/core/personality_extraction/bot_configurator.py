@@ -74,6 +74,22 @@ UNIVERSAL_BLACKLIST = [
     "Espero que tengas un excelente día.",
     "Estoy a tu disposición para cualquier consulta.",
     "Saludos cordiales.",
+    # Formal/automated phrases
+    "Adjunto encontrará la información solicitada",
+    "Confirmación de su solicitud",
+    "Esperamos que esta información le sea útil",
+    "Este es un mensaje automático, por favor no responda",
+    "Estimado usuario",
+    "Gracias por elegir nuestros servicios",
+    "Gracias por su comprensión",
+    "Hemos recibido su mensaje",
+    "Le deseamos un excelente día",
+    "Le mantendremos informado sobre cualquier novedad",
+    "Nos pondremos en contacto a la brevedad",
+    "Nuestro equipo de soporte está disponible para ayudarle",
+    "Para cancelar su suscripción, haga clic aquí",
+    "Para más información, visite nuestro sitio web",
+    "Reciba un cordial saludo",
 ]
 
 # ── Metadata message filter (Bug 11) ───────────────────────────────
@@ -114,6 +130,10 @@ PROTECTED_WORDS = {
     # Greeting/farewell words that IGNORECASE can capture as "names"
     "tardes", "noches", "mañana", "como", "cómo", "buen", "buenos",
     "días", "dias", "hola", "buenas", "tales",
+    # Articles/prepositions/short words that should never be treated as names
+    "un", "una", "uno", "el", "la", "los", "las", "de", "del", "en",
+    "con", "por", "para", "que", "qué", "tal", "más", "muy", "son",
+    "van", "hay", "mis", "tus", "sus", "nos", "les",
 }
 
 # ── Sales direction filter (Bug 18) ─────────────────────────────────
@@ -412,6 +432,9 @@ def _extract_real_templates(
 
     def _flush_burst(burst: list[str], username: str) -> None:
         if len(burst) >= 2:
+            # Skip bursts where all messages are identical (bug: repeated sends)
+            if len(set(m.lower().strip() for m in burst)) == 1:
+                return
             multi_bubble.append(MultiBubbleTemplate(
                 template_id=f"mb_{len(multi_bubble)}",
                 intent="multi-bubble response",
@@ -666,7 +689,10 @@ async def generate_system_prompt(profile: PersonalityProfile) -> str:
         ("VOCAB+SALES+PROHIBITIONS", vocab_result),
     ]:
         if result:
-            parts.append(_strip_code_blocks(result))
+            cleaned = _strip_code_blocks(result)
+            # Sanitize: remove repetition loops (e.g. "iiiiii..." from LLM glitch)
+            cleaned = re.sub(r'(.)\1{20,}', '', cleaned)
+            parts.append(cleaned)
         else:
             logger.warning("System prompt section %s returned empty", label)
 
