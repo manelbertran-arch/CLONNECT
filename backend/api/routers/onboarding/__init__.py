@@ -14,6 +14,7 @@ Structure:
 - auto_setup.py: Full auto-setup V2 with background (3 endpoints)
 - sync.py: Instagram API post sync (1 endpoint)
 - dm_sync.py: Instagram DM history sync (4 endpoints)
+- extraction.py: Personality extraction pipeline (3 endpoints)
 """
 
 from fastapi import APIRouter
@@ -22,6 +23,7 @@ from fastapi import APIRouter
 from .auto_setup import router as auto_setup_router
 from .clone import router as clone_router
 from .dm_sync import router as dm_sync_router
+from .extraction import router as extraction_router
 from .pipeline import router as pipeline_router
 from .progress import router as progress_router
 from .scrape import router as scrape_router
@@ -43,6 +45,7 @@ router.include_router(setup_router)
 router.include_router(auto_setup_router)
 router.include_router(sync_router)
 router.include_router(dm_sync_router)
+router.include_router(extraction_router)
 
 __all__ = [
     "router",
@@ -55,4 +58,5 @@ __all__ = [
     "auto_setup_router",
     "sync_router",
     "dm_sync_router",
+    "extraction_router",
 ]
