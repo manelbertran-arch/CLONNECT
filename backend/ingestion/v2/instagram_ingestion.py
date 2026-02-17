@@ -329,18 +329,28 @@ class InstagramIngestionV2:
                 logger.warning(f"Meta Graph API falló: {e}. Intentando Instaloader...")
 
         # OPCIÓN 2: Fallback a Instaloader (scraping público)
+        # IMPORTANT: Instaloader is synchronous and uses time.sleep() internally.
+        # Must run in a thread to avoid blocking the asyncio event loop.
         try:
+            import asyncio
             from ingestion.instagram_scraper import InstaloaderScraper
 
             logger.info(f"Usando Instaloader para @{username} (scraping público)")
             scraper = InstaloaderScraper()
-            posts = scraper.get_posts(
-                username,
-                limit=max_posts,
-                delay_between_posts=3.0  # 3 seconds between posts to avoid rate limits
+            posts = await asyncio.wait_for(
+                asyncio.to_thread(
+                    scraper.get_posts,
+                    username,
+                    limit=max_posts,
+                    delay_between_posts=3.0,  # 3 seconds between posts to avoid rate limits
+                ),
+                timeout=120,  # 2 min max — abort if Instaloader rate-limited
             )
             return posts
 
+        except asyncio.TimeoutError:
+            logger.warning(f"Instaloader timeout for @{username} (>120s, likely rate-limited)")
+            return []
         except Exception as e:
             logger.error(f"Error scrapeando Instagram: {e}")
             raise
