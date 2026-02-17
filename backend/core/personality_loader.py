@@ -56,6 +56,28 @@ class ExtractionData:
     multi_bubble: List[MultiBubbleTemplate] = field(default_factory=list)
 
 
+def _find_doc_path(creator_id: str) -> Optional[str]:
+    """Find doc_d_bot_configuration.md for a creator_id (slug or UUID).
+
+    Checks: 1) exact match, 2) scan subdirectories for any containing a match.
+    This handles the case where the DM agent uses slugs (e.g. 'stefano_bonanno')
+    but extractions are stored under UUIDs.
+    """
+    # Direct match
+    direct = os.path.join(EXTRACTIONS_DIR, creator_id, "doc_d_bot_configuration.md")
+    if os.path.isfile(direct):
+        return direct
+
+    # Scan all subdirectories
+    if os.path.isdir(EXTRACTIONS_DIR):
+        for entry in os.listdir(EXTRACTIONS_DIR):
+            candidate = os.path.join(EXTRACTIONS_DIR, entry, "doc_d_bot_configuration.md")
+            if os.path.isfile(candidate):
+                return candidate
+
+    return None
+
+
 def load_extraction(creator_id: str) -> Optional[ExtractionData]:
     """Load and cache personality extraction for a creator.
 
@@ -64,8 +86,8 @@ def load_extraction(creator_id: str) -> Optional[ExtractionData]:
     if creator_id in _cache:
         return _cache[creator_id]
 
-    doc_path = os.path.join(EXTRACTIONS_DIR, creator_id, "doc_d_bot_configuration.md")
-    if not os.path.isfile(doc_path):
+    doc_path = _find_doc_path(creator_id)
+    if not doc_path:
         _cache[creator_id] = None
         return None
 
