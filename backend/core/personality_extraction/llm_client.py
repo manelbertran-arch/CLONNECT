@@ -18,6 +18,31 @@ logger = logging.getLogger(__name__)
 
 GEMINI_API_URL = "https://generativelanguage.googleapis.com/v1beta/models"
 
+
+def _fix_double_encoding(text: str) -> str:
+    """Fix double-encoded UTF-8 (UTF-8 bytes interpreted as Latin-1 then re-encoded)."""
+    if "\u00c3" not in text:  # Ã — signature of double-encoding
+        return text
+    try:
+        fixed = text.encode("latin-1").decode("utf-8")
+        logger.info("Fixed double-encoded UTF-8 in LLM response (%d chars)", len(text))
+        return fixed
+    except (UnicodeDecodeError, UnicodeEncodeError):
+        return text
+
+
+def _strip_code_blocks(text: str) -> str:
+    """Strip markdown code blocks from LLM response."""
+    text = text.strip()
+    if text.startswith("```"):
+        # Remove first line if it's just ``` or ```markdown etc.
+        first_nl = text.find("\n")
+        if first_nl > 0:
+            text = text[first_nl + 1:]
+    if text.endswith("```"):
+        text = text[:-3].rstrip()
+    return text
+
 # Use Flash (not Flash-Lite) for extraction — better quality, 1M context, 65K output
 DEFAULT_EXTRACTION_MODEL = "gemini-2.5-flash"
 
@@ -78,14 +103,17 @@ async def call_gemini_extraction(
                     return None
 
                 content = candidates[0]["content"]["parts"][0]["text"].strip()
+                content = _fix_double_encoding(content)
                 usage = data.get("usageMetadata", {})
+                finish_reason = candidates[0].get("finishReason", "UNKNOWN")
 
                 logger.info(
-                    "Extraction LLM OK: model=%s latency=%dms tokens_in=%d tokens_out=%d len=%d",
+                    "Extraction LLM OK: model=%s latency=%dms tokens_in=%d tokens_out=%d len=%d finish=%s",
                     model, latency_ms,
                     usage.get("promptTokenCount", 0),
                     usage.get("candidatesTokenCount", 0),
                     len(content),
+                    finish_reason,
                 )
                 return content
 
@@ -144,6 +172,8 @@ async def call_openai_extraction(
         )
 
         content = response.choices[0].message.content
+        if content:
+            content = _fix_double_encoding(content)
         latency_ms = int((time.monotonic() - start) * 1000)
 
         logger.info(

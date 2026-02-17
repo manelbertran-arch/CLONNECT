@@ -149,6 +149,8 @@ class WritingStyle:
     primary_language: str = "es"
     dialect: str = ""
     language_mix: dict = field(default_factory=dict)
+    vowel_repetitions: list[dict] = field(default_factory=list)  # [{word, count}]
+    dialect_details: dict = field(default_factory=dict)  # {voseo_matches, lunfardo_matches, tuteo_matches}
 
 
 @dataclass

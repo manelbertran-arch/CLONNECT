@@ -34,6 +34,7 @@ from core.personality_extraction.lead_analyzer import (
 )
 from core.personality_extraction.models import ExtractionResult
 from core.personality_extraction.personality_profiler import (
+    compute_creator_dictionary,
     compute_writing_style,
     generate_doc_c,
     generate_personality_profile,
@@ -148,8 +149,14 @@ class PersonalityExtractor:
             _save_document(out_dir / "doc_b_lead_analysis.md", doc_b)
 
             # ── Phase 3: Doc C — Personality Profile ──────────────
-            logger.info("═══ PHASE 3: Computing Writing Style + Personality Profile (Doc C) ═══")
+            logger.info("═══ PHASE 3: Computing Writing Style + Dictionary + Personality Profile (Doc C) ═══")
             writing_style = compute_writing_style(conversations)
+            dictionary = compute_creator_dictionary(conversations)
+            logger.info(
+                "Dictionary computed: %d greetings, %d farewells, %d gratitude, %d questions",
+                len(dictionary.greetings), len(dictionary.farewells),
+                len(dictionary.gratitude), len(dictionary.frequent_questions),
+            )
 
             # Calculate months covered
             all_dates = []
@@ -179,14 +186,15 @@ class PersonalityExtractor:
                     leads_analyzed=stats.total_leads,
                     months_covered=months_covered,
                     writing_style=writing_style,
+                    dictionary=dictionary,
                     confidence=confidence,
                 )
-                doc_c_text = "# Doc C: Writing style computed, LLM synthesis SKIPPED"
             else:
                 result.personality_profile = await generate_personality_profile(
                     conversations=conversations,
                     lead_analyses_text=doc_b,
                     writing_style=writing_style,
+                    dictionary=dictionary,
                     creator_name=creator_name,
                 )
 
@@ -206,6 +214,7 @@ class PersonalityExtractor:
                 logger.info("═══ PHASE 4: Generating Bot Configuration (Doc D) ═══")
                 result.bot_configuration = await generate_bot_configuration(
                     result.personality_profile,
+                    conversations=conversations,
                 )
                 doc_d = generate_doc_d(result.bot_configuration)
                 logger.info(

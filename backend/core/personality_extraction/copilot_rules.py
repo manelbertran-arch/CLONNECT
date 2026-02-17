@@ -122,7 +122,7 @@ async def generate_copilot_rules(
     result = await extract_with_llm(
         system_prompt=COPILOT_RULES_SYSTEM_PROMPT,
         user_message=user_message,
-        max_tokens=4096,
+        max_tokens=8192,
         temperature=0.3,
     )
 
