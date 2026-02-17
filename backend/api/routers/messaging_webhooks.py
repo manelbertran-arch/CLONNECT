@@ -955,3 +955,150 @@ async def telegram_webhook(request: Request):
 async def telegram_webhook_legacy(request: Request):
     """Legacy endpoint - redirects to /webhook/telegram"""
     return await telegram_webhook(request)
+
+
+# =============================================================================
+# EVOLUTION API WEBHOOK (WhatsApp via Baileys)
+# =============================================================================
+
+# Instance name → creator_id mapping
+# TODO: Move to DB once multi-creator is needed
+EVOLUTION_INSTANCE_MAP: Dict[str, str] = {
+    "stefano-fitpack": "stefano_bonanno",
+}
+
+
+@router.post("/webhook/whatsapp/evolution")
+async def evolution_webhook(request: Request):
+    """
+    Receive webhook events from Evolution API (WhatsApp via Baileys).
+
+    Events handled:
+    - messages.upsert: New incoming message → process via DM agent → reply
+    - connection.update: Instance connected/disconnected
+    - qrcode.updated: New QR code generated
+
+    All other events are acknowledged but ignored.
+    """
+    try:
+        payload = await request.json()
+    except Exception:
+        return {"status": "ok", "ignored": "invalid_json"}
+
+    event = payload.get("event", "")
+    instance = payload.get("instance", "")
+
+    # Log non-message events briefly
+    if event == "connection.update":
+        state = payload.get("data", {}).get("state", "unknown")
+        logger.info(f"[EVO:{instance}] Connection update: {state}")
+        return {"status": "ok", "event": event, "state": state}
+
+    if event == "qrcode.updated":
+        logger.info(f"[EVO:{instance}] QR code updated")
+        return {"status": "ok", "event": event}
+
+    # Only process incoming messages
+    if event != "messages.upsert":
+        return {"status": "ok", "ignored": event}
+
+    data = payload.get("data", {})
+    key = data.get("key", {})
+
+    # Skip our own outgoing messages
+    if key.get("fromMe", False):
+        return {"status": "ok", "ignored": "from_me"}
+
+    # Extract message text (multiple possible locations in Baileys format)
+    message_obj = data.get("message", {})
+    text = (
+        message_obj.get("conversation")
+        or (message_obj.get("extendedTextMessage") or {}).get("text")
+        or (message_obj.get("imageMessage") or {}).get("caption")
+        or (message_obj.get("videoMessage") or {}).get("caption")
+        or ""
+    )
+
+    if not text.strip():
+        return {"status": "ok", "ignored": "no_text"}
+
+    # Extract sender info
+    remote_jid = key.get("remoteJid", "")
+    sender_number = remote_jid.replace("@s.whatsapp.net", "").replace("@g.us", "")
+    push_name = data.get("pushName", "")
+    message_id = key.get("id", "")
+
+    # Resolve creator from instance
+    creator_id = EVOLUTION_INSTANCE_MAP.get(instance)
+    if not creator_id:
+        logger.warning(f"[EVO:{instance}] Unknown instance, no creator mapping")
+        return {"status": "ok", "ignored": "unknown_instance"}
+
+    logger.info(
+        f"[EVO:{instance}] Message from {push_name} ({sender_number}): {text[:80]}"
+    )
+
+    # Process with DM agent in background so webhook returns 200 fast
+    asyncio.create_task(
+        _process_evolution_message_safe(
+            instance=instance,
+            creator_id=creator_id,
+            sender_number=sender_number,
+            push_name=push_name,
+            text=text,
+            message_id=message_id,
+        )
+    )
+
+    return {
+        "status": "ok",
+        "event": event,
+        "instance": instance,
+        "sender": sender_number,
+        "processing": True,
+    }
+
+
+async def _process_evolution_message_safe(
+    instance: str,
+    creator_id: str,
+    sender_number: str,
+    push_name: str,
+    text: str,
+    message_id: str,
+):
+    """Process an Evolution API message and send reply. Runs in background."""
+    try:
+        from core.dm_agent_v2 import get_dm_agent
+        from services.evolution_api import send_evolution_message
+
+        agent = get_dm_agent(creator_id)
+        response = await agent.process_dm(
+            message=text,
+            sender_id=f"wa_{sender_number}",
+            metadata={
+                "message_id": message_id,
+                "username": push_name or "amigo",
+                "platform": "whatsapp",
+                "source": "evolution",
+            },
+        )
+
+        response_text = response.content if hasattr(response, "content") else str(response)
+        intent = str(response.intent) if hasattr(response, "intent") else "unknown"
+        confidence = response.confidence if hasattr(response, "confidence") else 0.0
+
+        logger.info(
+            f"[EVO:{instance}] Reply to {sender_number}: "
+            f"intent={intent} conf={confidence:.0%} text={response_text[:80]}"
+        )
+
+        # Send reply via Evolution API
+        await send_evolution_message(instance, sender_number, response_text)
+
+    except Exception as e:
+        logger.error(
+            f"[EVO:{instance}] Error processing message from {sender_number}: {e}"
+        )
+        import traceback
+        logger.error(traceback.format_exc())
