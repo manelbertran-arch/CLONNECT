@@ -16,7 +16,7 @@ if [ -d /app/data ]; then
     echo "Fixing data directory permissions..."
     mkdir -p /app/data/followers /app/data/products /app/data/creators /app/data/analytics \
              /app/data/nurturing /app/data/gdpr /app/data/payments /app/data/calendar /app/data/escalations \
-             /app/data/content_index /app/data/tone_profiles
+             /app/data/content_index /app/data/tone_profiles /app/data/personality_extractions
 
     # Copy initial data from image if not already in volume
     # This handles the case where Railway mounts a persistent volume
@@ -50,6 +50,12 @@ if [ -d /app/data ]; then
         if [ -d /app/initial_data/products ]; then
             cp -r /app/initial_data/products/* /app/data/products/ 2>/dev/null || true
             echo "  - Synced products"
+        fi
+
+        # Copy personality extractions (Doc D) - FORCE sync to update extraction files
+        if [ -d /app/initial_data/personality_extractions ]; then
+            cp -rf /app/initial_data/personality_extractions/* /app/data/personality_extractions/ 2>/dev/null || true
+            echo "  - Synced personality_extractions (force overwrite)"
         fi
 
         # Copy nurturing configs - FORCE sync to update sequence configs
