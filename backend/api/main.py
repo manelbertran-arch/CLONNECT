@@ -107,10 +107,10 @@ app = FastAPI(
 # =============================================================================
 # Production origins only; localhost added conditionally below
 DEFAULT_CORS_ORIGINS = [
-    "https://web-production-9f69.up.railway.app",
-    "https://clonnect-stagging-production.up.railway.app",
     "https://www.clonnectapp.com",
     "https://clonnectapp.com",
+    "https://api.clonnectapp.com",
+    "https://web-production-9f69.up.railway.app",  # Legacy Railway URL — keep for transition
 ]
 # Only include localhost origins in non-production environments
 if os.getenv("ENVIRONMENT", "production") != "production":
