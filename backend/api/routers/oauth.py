@@ -1360,6 +1360,26 @@ async def whatsapp_oauth_callback(
 
             access_token = token_data.get("access_token")
 
+            # Exchange short-lived token (1h) for long-lived token (60 days)
+            try:
+                ll_response = await client.get(
+                    "https://graph.facebook.com/v21.0/oauth/access_token",
+                    params={
+                        "grant_type": "fb_exchange_token",
+                        "client_id": whatsapp_app_id,
+                        "client_secret": whatsapp_app_secret,
+                        "fb_exchange_token": access_token,
+                    },
+                )
+                ll_data = ll_response.json()
+                if ll_data.get("access_token"):
+                    access_token = ll_data["access_token"]
+                    logger.info(f"WhatsApp: exchanged for long-lived token ({len(access_token)} chars)")
+                else:
+                    logger.warning(f"WhatsApp long-lived token exchange failed: {ll_data}")
+            except Exception as e:
+                logger.warning(f"WhatsApp long-lived token exchange error: {e}")
+
             # Discover WhatsApp Business Account and Phone Number ID
             phone_number_id = None
             waba_id = None
