@@ -572,17 +572,8 @@ class CopilotService:
             }
 
     async def _send_whatsapp_message(self, creator, lead, text: str) -> Dict[str, Any]:
-        """Enviar mensaje via WhatsApp Cloud API"""
+        """Enviar mensaje via Evolution API (Baileys) or WhatsApp Cloud API fallback."""
         import os
-
-        from core.whatsapp import WhatsAppConnector
-
-        # Per-creator credentials with env var fallback
-        wa_token = creator.whatsapp_token or os.getenv("WHATSAPP_ACCESS_TOKEN", "")
-        wa_phone_id = creator.whatsapp_phone_id or os.getenv("WHATSAPP_PHONE_NUMBER_ID", "")
-
-        if not wa_token or not wa_phone_id:
-            return {"success": False, "error": "WhatsApp not connected"}
 
         # Extract phone number from follower_id (format: wa_34612345678)
         recipient = lead.platform_user_id
@@ -592,13 +583,42 @@ class CopilotService:
         if not recipient or len(recipient) < 5:
             return {"success": False, "error": f"Invalid WhatsApp recipient: '{recipient}'"}
 
+        # Try Evolution API first (Baileys)
+        try:
+            from api.routers.messaging_webhooks import EVOLUTION_INSTANCE_MAP
+            from services.evolution_api import send_evolution_message
+
+            evo_instance = None
+            for inst_name, cid in EVOLUTION_INSTANCE_MAP.items():
+                if cid == creator.name:
+                    evo_instance = inst_name
+                    break
+
+            if evo_instance:
+                logger.info(f"[Copilot] Sending WhatsApp via Evolution [{evo_instance}] to {recipient}")
+                result = await send_evolution_message(evo_instance, recipient, text)
+                msg_id = result.get("key", {}).get("id", "")
+                logger.info(f"[Copilot] Evolution API response: {result}")
+                return {"success": True, "message_id": msg_id}
+        except Exception as evo_err:
+            logger.warning(f"[Copilot] Evolution API send failed, trying Cloud API: {evo_err}")
+
+        # Fallback to official WhatsApp Cloud API
+        from core.whatsapp import WhatsAppConnector
+
+        wa_token = creator.whatsapp_token or os.getenv("WHATSAPP_ACCESS_TOKEN", "")
+        wa_phone_id = creator.whatsapp_phone_id or os.getenv("WHATSAPP_PHONE_NUMBER_ID", "")
+
+        if not wa_token or not wa_phone_id:
+            return {"success": False, "error": "WhatsApp not connected (no Evolution instance or Cloud API)"}
+
         connector = WhatsAppConnector(
             phone_number_id=wa_phone_id,
             access_token=wa_token,
         )
 
         try:
-            logger.info(f"[Copilot] Sending WhatsApp message to {recipient} via connector")
+            logger.info(f"[Copilot] Sending WhatsApp message to {recipient} via Cloud API")
             result = await connector.send_message(recipient, text)
             logger.info(f"[Copilot] WhatsApp API response: {result}")
 

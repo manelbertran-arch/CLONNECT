@@ -998,7 +998,8 @@ async def evolution_webhook(request: Request):
     Receive webhook events from Evolution API (WhatsApp via Baileys).
 
     Events handled:
-    - messages.upsert: New incoming message → process via DM agent → reply
+    - messages.upsert: New incoming message → generate suggestion → save as pending
+      (COPILOT mode: does NOT auto-send. Creator approves from dashboard.)
     - connection.update: Instance connected/disconnected
     - qrcode.updated: New QR code generated
 
@@ -1095,15 +1096,24 @@ async def _process_evolution_message_safe(
     text: str,
     message_id: str,
 ):
-    """Process an Evolution API message and send reply. Runs in background."""
-    try:
-        from core.dm_agent_v2 import get_dm_agent
-        from services.evolution_api import send_evolution_message
+    """
+    Process an incoming Evolution API message in COPILOT mode.
 
+    - Generates a suggested response via the DM agent
+    - Saves user message + suggestion as pending_approval in DB
+    - Does NOT auto-send — creator approves from dashboard
+    """
+    try:
+        from core.copilot_service import get_copilot_service
+        from core.dm_agent_v2 import get_dm_agent
+
+        follower_id = f"wa_{sender_number}"
+
+        # Generate suggestion via DM agent
         agent = get_dm_agent(creator_id)
         response = await agent.process_dm(
             message=text,
-            sender_id=f"wa_{sender_number}",
+            sender_id=follower_id,
             metadata={
                 "message_id": message_id,
                 "username": push_name or "amigo",
@@ -1116,13 +1126,26 @@ async def _process_evolution_message_safe(
         intent = str(response.intent) if hasattr(response, "intent") else "unknown"
         confidence = response.confidence if hasattr(response, "confidence") else 0.0
 
-        logger.info(
-            f"[EVO:{instance}] Reply to {sender_number}: "
-            f"intent={intent} conf={confidence:.0%} text={response_text[:80]}"
+        # Save as pending response (copilot mode — no auto-send)
+        copilot = get_copilot_service()
+        pending = await copilot.create_pending_response(
+            creator_id=creator_id,
+            lead_id="",
+            follower_id=follower_id,
+            platform="whatsapp",
+            user_message=text,
+            user_message_id=message_id,
+            suggested_response=response_text,
+            intent=intent,
+            confidence=confidence,
+            username=push_name or "",
+            full_name=push_name or "",
         )
 
-        # Send reply via Evolution API
-        await send_evolution_message(instance, sender_number, response_text)
+        logger.info(
+            f"[EVO:{instance}] Pending response {pending.id} for {sender_number}: "
+            f"intent={intent} conf={confidence:.0%} text={response_text[:80]}"
+        )
 
     except Exception as e:
         logger.error(

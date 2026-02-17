@@ -748,13 +748,31 @@ async def send_manual_message(creator_id: str, request: SendMessageRequest):
                 logger.error(f"Error sending Instagram message: {e}")
 
         elif platform == "whatsapp":
+            # Try Evolution API first (Baileys), fall back to Cloud API
             try:
-                wa_handler = get_whatsapp_handler()
-                if wa_handler and wa_handler.connector:
-                    result = await wa_handler.connector.send_message(phone, message_text)
-                    sent = "error" not in result
+                from services.evolution_api import send_evolution_message
+                from api.routers.messaging_webhooks import EVOLUTION_INSTANCE_MAP
+
+                # Find Evolution instance for this creator
+                evo_instance = None
+                for inst_name, cid in EVOLUTION_INSTANCE_MAP.items():
+                    if cid == creator_id:
+                        evo_instance = inst_name
+                        break
+
+                if evo_instance:
+                    result = await send_evolution_message(evo_instance, phone, message_text)
+                    sent = "error" not in str(result).lower()
                     if sent:
-                        logger.info(f"Manual message sent to WhatsApp {phone}")
+                        logger.info(f"Manual message sent via Evolution [{evo_instance}] to {phone}")
+                else:
+                    # Fall back to official WhatsApp Cloud API
+                    wa_handler = get_whatsapp_handler()
+                    if wa_handler and wa_handler.connector:
+                        result = await wa_handler.connector.send_message(phone, message_text)
+                        sent = "error" not in result
+                        if sent:
+                            logger.info(f"Manual message sent to WhatsApp {phone}")
             except Exception as e:
                 logger.error(f"Error sending WhatsApp message: {e}")
 
