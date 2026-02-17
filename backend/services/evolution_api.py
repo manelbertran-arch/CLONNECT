@@ -45,12 +45,10 @@ async def send_evolution_message(
     url = f"{EVOLUTION_API_URL}/message/sendText/{instance}"
     payload = {
         "number": to_number,
+        "text": text,
         "options": {
             "delay": 1200,
             "presence": "composing",
-        },
-        "textMessage": {
-            "text": text,
         },
     }
 
