@@ -1384,48 +1384,70 @@ async def whatsapp_oauth_callback(
             phone_number_id = None
             waba_id = None
 
-            # Strategy 1: me/businesses → owned_whatsapp_business_accounts → phone_numbers
-            # Requires business_management scope
+            # Strategy 1: debug_token → granular_scopes → WABA ID → phone_numbers
+            # Uses app token (app_id|app_secret) — works without business_management scope
             try:
-                waba_response = await client.get(
-                    "https://graph.facebook.com/v21.0/me/businesses",
-                    params={"access_token": access_token},
+                app_token = f"{whatsapp_app_id}|{whatsapp_app_secret}"
+                debug_response = await client.get(
+                    "https://graph.facebook.com/v21.0/debug_token",
+                    params={"input_token": access_token, "access_token": app_token},
                 )
-                waba_data = waba_response.json()
+                debug_data = debug_response.json()
 
-                if waba_data.get("error"):
-                    logger.warning(f"WhatsApp me/businesses failed: {waba_data['error']}")
-                elif waba_data.get("data"):
-                    business_id = waba_data["data"][0]["id"]
-                    logger.info(f"Found business ID: {business_id}")
+                if debug_data.get("data", {}).get("granular_scopes"):
+                    for scope in debug_data["data"]["granular_scopes"]:
+                        if scope.get("scope") == "whatsapp_business_management" and scope.get("target_ids"):
+                            waba_id = scope["target_ids"][0]
+                            logger.info(f"Found WABA ID via debug_token: {waba_id}")
+                            break
 
-                    owned_wabas = await client.get(
-                        f"https://graph.facebook.com/v21.0/{business_id}/owned_whatsapp_business_accounts",
+                if waba_id:
+                    phones_response = await client.get(
+                        f"https://graph.facebook.com/v21.0/{waba_id}/phone_numbers",
                         params={"access_token": access_token},
                     )
-                    owned_data = owned_wabas.json()
+                    phones_data = phones_response.json()
 
-                    if owned_data.get("error"):
-                        logger.warning(f"WhatsApp owned_wabas failed: {owned_data['error']}")
-                    elif owned_data.get("data"):
-                        waba_id = owned_data["data"][0]["id"]
-                        logger.info(f"Found WABA ID: {waba_id}")
+                    if phones_data.get("data"):
+                        phone_number_id = phones_data["data"][0]["id"]
+                        logger.info(f"Found WhatsApp phone number ID: {phone_number_id}")
+                    elif phones_data.get("error"):
+                        logger.warning(f"WhatsApp phone_numbers failed: {phones_data['error']}")
+                else:
+                    logger.warning(f"WhatsApp: no WABA ID in debug_token granular_scopes: {debug_data}")
+            except Exception as e:
+                logger.warning(f"WhatsApp debug_token discovery failed: {e}")
 
-                        phones_response = await client.get(
-                            f"https://graph.facebook.com/v21.0/{waba_id}/phone_numbers",
+            # Strategy 2 (fallback): me/businesses → owned_whatsapp_business_accounts
+            # Requires business_management scope (may not be approved)
+            if not phone_number_id:
+                try:
+                    waba_response = await client.get(
+                        "https://graph.facebook.com/v21.0/me/businesses",
+                        params={"access_token": access_token},
+                    )
+                    waba_data = waba_response.json()
+
+                    if waba_data.get("data"):
+                        business_id = waba_data["data"][0]["id"]
+                        owned_wabas = await client.get(
+                            f"https://graph.facebook.com/v21.0/{business_id}/owned_whatsapp_business_accounts",
                             params={"access_token": access_token},
                         )
-                        phones_data = phones_response.json()
+                        owned_data = owned_wabas.json()
 
-                        if phones_data.get("error"):
-                            logger.warning(f"WhatsApp phone_numbers failed: {phones_data['error']}")
-                        elif phones_data.get("data"):
-                            phone_number_id = phones_data["data"][0]["id"]
-                            logger.info(f"Found WhatsApp phone number ID: {phone_number_id}")
-                else:
-                    logger.warning("WhatsApp me/businesses returned empty data")
-            except Exception as e:
-                logger.warning(f"WhatsApp business discovery failed: {e}")
+                        if owned_data.get("data"):
+                            waba_id = owned_data["data"][0]["id"]
+                            phones_response = await client.get(
+                                f"https://graph.facebook.com/v21.0/{waba_id}/phone_numbers",
+                                params={"access_token": access_token},
+                            )
+                            phones_data = phones_response.json()
+                            if phones_data.get("data"):
+                                phone_number_id = phones_data["data"][0]["id"]
+                                logger.info(f"Found phone number ID via me/businesses: {phone_number_id}")
+                except Exception as e:
+                    logger.warning(f"WhatsApp me/businesses fallback failed: {e}")
 
             # Save token (even without phone_number_id — user can add it manually)
             await _save_connection(creator_id, "whatsapp", access_token, phone_number_id)
