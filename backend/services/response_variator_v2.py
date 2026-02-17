@@ -60,6 +60,9 @@ class ResponseVariatorV2:
     ):
         self.pools: Dict[str, List[str]] = {}
         self._used_responses: Dict[str, Set[str]] = {}  # conv_id -> used responses (v10.3)
+        self._extraction_pools: Dict[str, Dict[str, List[str]]] = {}  # creator_id -> pools
+        self._extraction_modes: Dict[str, Dict[str, str]] = {}  # creator_id -> cat -> mode
+        self._extraction_multi_bubble: Dict[str, list] = {}  # creator_id -> MultiBubbleTemplate list
 
         # Try loading from calibration first
         if calibration_path:
@@ -206,6 +209,94 @@ class ResponseVariatorV2:
         else:
             self._vectorizer = None
             self._tfidf_matrix = None
+
+    def _load_extraction_pools(self, creator_id: str) -> None:
+        """Load pool data from personality extraction (Doc D §4.4-4.5) for a creator."""
+        if creator_id in self._extraction_pools:
+            return  # Already loaded
+
+        try:
+            from core.personality_loader import load_extraction
+
+            extraction = load_extraction(creator_id)
+            if not extraction:
+                self._extraction_pools[creator_id] = {}
+                return
+
+            # Convert TemplateEntry list → flat string list
+            pools: Dict[str, List[str]] = {}
+            modes: Dict[str, str] = {}
+            for cat, entries in extraction.template_pools.items():
+                mode = extraction.template_modes.get(cat, "AUTO")
+                modes[cat] = mode
+                # Only use AUTO pools in the variator (DRAFT/MANUAL need human approval)
+                if mode == "AUTO":
+                    pools[cat] = [e.text for e in entries]
+
+            self._extraction_pools[creator_id] = pools
+            self._extraction_modes[creator_id] = modes
+            self._extraction_multi_bubble[creator_id] = extraction.multi_bubble
+
+            total = sum(len(v) for v in pools.values())
+            mb_count = len(extraction.multi_bubble)
+            logger.info(
+                "Loaded extraction pools for %s: %d cats, %d templates, %d multi-bubble",
+                creator_id, len(pools), total, mb_count,
+            )
+        except Exception as e:
+            logger.warning("Could not load extraction pools for %s: %s", creator_id, e)
+            self._extraction_pools[creator_id] = {}
+
+    def get_pools_for_creator(self, category: str, creator_id: str = "") -> List[str]:
+        """Get pool for a category, preferring extraction pools over defaults."""
+        if creator_id:
+            self._load_extraction_pools(creator_id)
+            ext_pools = self._extraction_pools.get(creator_id, {})
+            if category in ext_pools and ext_pools[category]:
+                return ext_pools[category]
+        return self.pools.get(category, [])
+
+    def try_multi_bubble(
+        self,
+        lead_message: str,
+        creator_id: str = "",
+        conv_id: str = "",
+    ) -> Optional[List[str]]:
+        """Try to match a multi-bubble template from Doc D §4.5.
+
+        Returns a list of bubble strings if matched, None otherwise.
+        Only returns AUTO-mode templates.
+        """
+        if not creator_id:
+            return None
+
+        self._load_extraction_pools(creator_id)
+        templates = self._extraction_multi_bubble.get(creator_id, [])
+        if not templates:
+            return None
+
+        # Only use AUTO-mode multi-bubble templates
+        auto_templates = [t for t in templates if t.mode == "AUTO"]
+        if not auto_templates:
+            return None
+
+        # Filter out already-used templates for this conversation
+        if conv_id and conv_id in self._used_responses:
+            used = self._used_responses[conv_id]
+            available = [t for t in auto_templates if t.id not in used]
+            if not available:
+                available = auto_templates
+        else:
+            available = auto_templates
+
+        # Random selection (multi-bubble is rare, no need for TF-IDF)
+        template = random.choice(available)
+
+        # Mark as used
+        if conv_id:
+            self._mark_used(template.id, conv_id)
+
+        return template.bubbles
 
     @staticmethod
     def _engagement_score(response: str) -> float:
@@ -450,6 +541,7 @@ class ResponseVariatorV2:
         turn_index: int = 0,
         conv_id: str = "",
         context: Optional[str] = None,
+        creator_id: str = "",
     ) -> PoolMatch:
         """
         Try to generate response from pool.
@@ -459,13 +551,15 @@ class ResponseVariatorV2:
         - Conversation dedup (v10.3)
         - Calibration-driven pool loading
         - Pre-classified context support (v10.2)
+        - Personality extraction pools (v12) — highest priority
         """
         category, confidence = self._detect_category(lead_message, context)
 
         if category is None or confidence < min_confidence:
             return PoolMatch(matched=False)
 
-        pool = self.pools.get(category, [])
+        # v12: Prefer extraction pools over defaults
+        pool = self.get_pools_for_creator(category, creator_id)
         if not pool:
             return PoolMatch(matched=False)
 

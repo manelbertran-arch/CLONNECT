@@ -21,8 +21,9 @@ def get_creator_style_prompt(creator_id: str) -> str:
     """
     Get the complete style prompt for a creator.
 
-    Combines writing patterns, DM style, and any additional style data
-    into a single formatted string for LLM prompt injection.
+    Priority: If a personality extraction (Doc D) exists, its system prompt
+    replaces all legacy sources (WritingPatterns, DMStyle, ToneProfile).
+    Otherwise falls back to the 3 legacy sources.
 
     Args:
         creator_id: Creator ID (e.g., 'stefano_bonanno')
@@ -30,6 +31,21 @@ def get_creator_style_prompt(creator_id: str) -> str:
     Returns:
         Formatted style prompt string, or empty string if no data
     """
+    # Priority 1: Personality extraction (Doc D §4.1) — replaces all legacy sources
+    try:
+        from core.personality_loader import load_extraction
+
+        extraction = load_extraction(creator_id)
+        if extraction and extraction.system_prompt:
+            logger.info(
+                "Using personality extraction for %s: %d chars (replaces legacy sources)",
+                creator_id, len(extraction.system_prompt),
+            )
+            return extraction.system_prompt
+    except Exception as e:
+        logger.warning("Could not load personality extraction for %s: %s", creator_id, e)
+
+    # Priority 2: Legacy sources (WritingPatterns + DMStyle + ToneProfile)
     sections = []
 
     # 1. Get writing patterns (punctuation, laughs, emojis, etc.)
@@ -87,6 +103,14 @@ def has_style_data(creator_id: str) -> bool:
     Returns:
         True if any style data exists
     """
+    try:
+        from core.personality_loader import load_extraction
+
+        if load_extraction(creator_id):
+            return True
+    except Exception:
+        pass
+
     try:
         from models.writing_patterns import get_writing_patterns
 

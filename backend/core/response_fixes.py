@@ -245,18 +245,118 @@ def hide_technical_errors(response: str) -> str:
 # =============================================================================
 
 
+def apply_blacklist_filter(response: str, creator_id: str = None) -> str:
+    """
+    FIX 7: Remove blacklisted phrases from personality extraction (Doc D §4.2).
+
+    Case-insensitive substring match. If the response contains a blacklisted
+    phrase, it is removed. If the result is empty, returns original.
+    """
+    if not response or not creator_id:
+        return response
+
+    try:
+        from core.personality_loader import load_extraction
+
+        extraction = load_extraction(creator_id)
+        if not extraction or not extraction.blacklist_phrases:
+            return response
+    except Exception:
+        return response
+
+    original = response
+    for phrase in extraction.blacklist_phrases:
+        if not phrase:
+            continue
+        # Case-insensitive removal, preserving surrounding whitespace
+        pattern = re.compile(re.escape(phrase), re.IGNORECASE)
+        response = pattern.sub("", response)
+
+    if response != original:
+        # Clean up leftover whitespace
+        response = re.sub(r"\s{2,}", " ", response).strip()
+        removed = len(original) - len(response)
+        logger.info("[FIX 7] Blacklist filter removed %d chars for %s", removed, creator_id)
+
+    # Don't return empty response
+    if not response.strip():
+        return original
+
+    return response
+
+
+_EMOJI_RE = re.compile(
+    "["
+    "\U0001F600-\U0001F64F"  # emoticons
+    "\U0001F300-\U0001F5FF"  # symbols & pictographs
+    "\U0001F680-\U0001F6FF"  # transport & map
+    "\U0001F1E0-\U0001F1FF"  # flags
+    "\U00002702-\U000027B0"
+    "\U000024C2-\U0001F251"
+    "\U0001F900-\U0001F9FF"  # supplemental
+    "\U0001FA00-\U0001FA6F"
+    "\U0001FA70-\U0001FAFF"
+    "\U00002600-\U000026FF"
+    "]"
+    "[\U0000FE0F\U0000200D\U0001F3FB-\U0001F3FF]*",  # optional modifiers (variation, ZWJ, skin tone)
+    flags=re.UNICODE,
+)
+
+
+def apply_emoji_limit(response: str, creator_id: str = None) -> str:
+    """
+    FIX 8: Limit emoji count per message from Doc D §4.3 calibration.
+
+    If max_emojis_per_message is set, removes excess emojis from the end.
+    """
+    if not response or not creator_id:
+        return response
+
+    try:
+        from core.personality_loader import get_calibration_override
+
+        override = get_calibration_override(creator_id)
+        if not override:
+            return response
+        max_emojis = override.get("max_emojis_per_message")
+        if max_emojis is None:
+            return response
+    except Exception:
+        return response
+
+    emoji_matches = list(_EMOJI_RE.finditer(response))
+    emoji_count = len(emoji_matches)
+
+    if emoji_count <= max_emojis:
+        return response
+
+    # Remove excess emojis from the end
+    to_remove = emoji_count - max_emojis
+    for match in reversed(emoji_matches):
+        if to_remove <= 0:
+            break
+        response = response[:match.start()] + response[match.end():]
+        to_remove -= 1
+
+    response = response.strip()
+    logger.info("[FIX 8] Emoji limit applied: %d -> %d for %s", emoji_count, max_emojis, creator_id)
+    return response
+
+
 def apply_all_response_fixes(
     response: str,
     creator_name: str = None,
-    products: List[Dict[str, Any]] = None
+    products: List[Dict[str, Any]] = None,
+    creator_id: str = None,
 ) -> str:
     """
-    Apply all v1.5.2 technical fixes to a response.
+    Apply all technical fixes to a response.
 
     Args:
         response: The LLM-generated response text
         creator_name: Optional creator name for identity fix
         products: Optional products list (not used for response text, but logged)
+        creator_id: Optional creator ID for personality extraction blacklist
 
     Returns:
         Fixed response text
@@ -270,6 +370,12 @@ def apply_all_response_fixes(
     response = fix_identity_claim(response, creator_name)
     response = clean_raw_ctas(response)
     response = hide_technical_errors(response)
+
+    # FIX 7: Personality extraction blacklist (after all other fixes)
+    response = apply_blacklist_filter(response, creator_id)
+
+    # FIX 8: Emoji limit from calibration
+    response = apply_emoji_limit(response, creator_id)
 
     return response
 

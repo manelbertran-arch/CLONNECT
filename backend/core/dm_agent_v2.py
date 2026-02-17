@@ -626,11 +626,34 @@ class DMResponderAgentV2:
 
                     # Pass conv_id for dedup (v10.3) and context for routing (v10.2)
                     conv_id = metadata.get("conversation_id", sender_id)
+
+                    # v12: Try multi-bubble match first (Doc D §4.5)
+                    multi_bubbles = self.response_variator.try_multi_bubble(
+                        message, creator_id=self.creator_id, conv_id=conv_id,
+                    )
+                    if multi_bubbles:
+                        logger.debug(f"Multi-bubble matched: {len(multi_bubbles)} bubbles")
+                        return DMResponse(
+                            content=multi_bubbles[0],
+                            intent="pool_response",
+                            lead_stage="unknown",
+                            confidence=0.85,
+                            tokens_used=0,
+                            metadata={
+                                "pool_category": "multi_bubble",
+                                "used_pool": True,
+                                "message_parts": [
+                                    {"text": b, "delay": 0.8} for b in multi_bubbles
+                                ],
+                            },
+                        )
+
                     pool_result = self.response_variator.try_pool_response(
                         message,
                         conv_id=conv_id,
                         turn_index=metadata.get("turn_index", 0),
                         context=pool_context,
+                        creator_id=self.creator_id,
                     )
                     if pool_result.matched and pool_result.confidence >= 0.8:
                         logger.debug(f"Pool response matched: {pool_result.category}")
@@ -938,7 +961,9 @@ class DMResponderAgentV2:
             # Step 7a2: Apply response fixes (typos, formatting, patterns)
             if ENABLE_RESPONSE_FIXES:
                 try:
-                    fixed_response = apply_all_response_fixes(response_content)
+                    fixed_response = apply_all_response_fixes(
+                        response_content, creator_id=self.creator_id,
+                    )
                     if fixed_response and fixed_response != response_content:
                         logger.debug("Response fixes applied")
                         response_content = fixed_response

@@ -712,12 +712,27 @@ def validate_prompt(prompt: str) -> List[str]:
 def get_calibration_soft_max(
     calibration: Optional[dict] = None,
     context: Optional[str] = None,
+    creator_id: Optional[str] = None,
 ) -> int:
     """
     Get soft_max from calibration, per-context if available (v9.2).
 
+    v12: If a personality extraction exists, uses max_message_length_chars
+    as the soft_max override (highest priority).
+
     Falls back to baseline soft_max, then to 60.
     """
+    # v12: Personality extraction override (highest priority)
+    if creator_id:
+        try:
+            from core.personality_loader import get_calibration_override
+
+            override = get_calibration_override(creator_id)
+            if override and "max_message_length_chars" in override:
+                return override["max_message_length_chars"]
+        except Exception:
+            pass
+
     if not calibration:
         return 60
 
