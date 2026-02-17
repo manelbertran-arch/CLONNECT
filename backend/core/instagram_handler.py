@@ -1575,6 +1575,10 @@ class InstagramHandler:
                                 },
                             )
                             session.add(msg)
+
+                            # Update last_contact so conversation rises to top of Inbox
+                            lead.last_contact_at = datetime.now(timezone.utc)
+
                             session.commit()
                             recorded += 1
                             logger.info(
