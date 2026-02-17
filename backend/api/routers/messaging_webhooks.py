@@ -968,6 +968,29 @@ EVOLUTION_INSTANCE_MAP: Dict[str, str] = {
     "manel-test": "stefano_bonanno",  # Test instance using Manel's WhatsApp
 }
 
+# Dedup: Evolution/Baileys sends messages.upsert twice per message.
+# Track processed message IDs with timestamps to skip duplicates.
+_evo_processed_messages: Dict[str, float] = {}
+_EVO_DEDUP_TTL = 60  # seconds
+
+
+def _evo_is_duplicate(message_id: str) -> bool:
+    """Return True if this message_id was already processed (dedup)."""
+    import time
+
+    now = time.time()
+
+    # Purge expired entries every call (dict is small, O(n) is fine)
+    expired = [k for k, t in _evo_processed_messages.items() if now - t > _EVO_DEDUP_TTL]
+    for k in expired:
+        del _evo_processed_messages[k]
+
+    if message_id in _evo_processed_messages:
+        return True
+
+    _evo_processed_messages[message_id] = now
+    return False
+
 
 @router.post("/webhook/whatsapp/evolution")
 async def evolution_webhook(request: Request):
@@ -1028,6 +1051,10 @@ async def evolution_webhook(request: Request):
     sender_number = remote_jid.replace("@s.whatsapp.net", "").replace("@g.us", "")
     push_name = data.get("pushName", "")
     message_id = key.get("id", "")
+
+    # Dedup: Baileys sends messages.upsert twice per message
+    if not message_id or _evo_is_duplicate(message_id):
+        return {"status": "ok", "ignored": "duplicate"}
 
     # Resolve creator from instance
     creator_id = EVOLUTION_INSTANCE_MAP.get(instance)
