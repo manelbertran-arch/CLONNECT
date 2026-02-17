@@ -2119,6 +2119,39 @@ export async function startOAuth(
   return apiFetch(`/oauth/${platform}/start?creator_id=${creatorId}`);
 }
 
+// WhatsApp Embedded Signup
+export interface WhatsAppEmbeddedSignupResponse {
+  success: boolean;
+  phone_number_id: string;
+  waba_id: string;
+}
+
+export async function exchangeWhatsAppEmbeddedSignup(
+  code: string,
+  wabaId: string,
+  phoneNumberId: string,
+  creatorId: string = CREATOR_ID
+): Promise<WhatsAppEmbeddedSignupResponse> {
+  return apiFetch(`/oauth/whatsapp/embedded-signup`, {
+    method: "POST",
+    body: JSON.stringify({
+      code,
+      waba_id: wabaId,
+      phone_number_id: phoneNumberId,
+      creator_id: creatorId,
+    }),
+  });
+}
+
+export interface WhatsAppConfigResponse {
+  app_id: string;
+  config_id: string;
+}
+
+export async function getWhatsAppConfig(): Promise<WhatsAppConfigResponse> {
+  return apiFetch(`/oauth/whatsapp/config`);
+}
+
 // =============================================================================
 // VISUAL ONBOARDING
 // =============================================================================

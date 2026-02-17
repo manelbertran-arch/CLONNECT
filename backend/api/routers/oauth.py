@@ -1469,6 +1469,157 @@ async def whatsapp_oauth_callback(
         return RedirectResponse(f"{FRONTEND_URL}/settings?tab=connections&error=whatsapp_failed")
 
 
+@router.get("/whatsapp/config")
+async def whatsapp_get_config():
+    """
+    Return WhatsApp Embedded Signup configuration for the frontend.
+
+    Returns app_id and config_id needed to initialize FB.login().
+    """
+    app_id = os.getenv("WHATSAPP_META_APP_ID", META_APP_ID)
+    config_id = os.getenv("WHATSAPP_CONFIG_ID", "")
+    return {"app_id": app_id or "", "config_id": config_id}
+
+
+@router.post("/whatsapp/embedded-signup")
+async def whatsapp_embedded_signup(payload: dict):
+    """
+    Handle WhatsApp Embedded Signup exchange.
+
+    Receives code (+ optional waba_id, phone_number_id) from frontend
+    after FB.login() popup completes.
+
+    Flow:
+      1. Exchange code -> access_token (short -> long-lived)
+      2. If waba_id/phone_number_id not provided, discover via debug_token
+      3. Register phone number on Cloud API
+      4. Subscribe WABA to webhooks
+      5. Save token + phone_number_id to Creator model
+    """
+    import httpx
+
+    code = payload.get("code")
+    waba_id = payload.get("waba_id", "")
+    phone_number_id = payload.get("phone_number_id", "")
+    creator_id = payload.get("creator_id", "manel")
+
+    if not code:
+        raise HTTPException(status_code=400, detail="Missing authorization code")
+
+    whatsapp_app_id = os.getenv("WHATSAPP_META_APP_ID", META_APP_ID)
+    whatsapp_app_secret = os.getenv("WHATSAPP_APP_SECRET", META_APP_SECRET)
+    if not whatsapp_app_id or not whatsapp_app_secret:
+        raise HTTPException(status_code=500, detail="WhatsApp not configured on server")
+
+    try:
+        async with httpx.AsyncClient(timeout=30.0) as client:
+            # Step 1: Exchange code for access token
+            token_response = await client.get(
+                "https://graph.facebook.com/v21.0/oauth/access_token",
+                params={
+                    "client_id": whatsapp_app_id,
+                    "client_secret": whatsapp_app_secret,
+                    "code": code,
+                },
+            )
+            token_data = token_response.json()
+
+            if "error" in token_data:
+                logger.error(f"WhatsApp Embedded Signup token error: {token_data}")
+                raise HTTPException(status_code=400, detail=f"Token exchange failed: {token_data['error'].get('message', 'Unknown error')}")
+
+            access_token = token_data.get("access_token")
+
+            # Exchange for long-lived token (60 days)
+            try:
+                ll_response = await client.get(
+                    "https://graph.facebook.com/v21.0/oauth/access_token",
+                    params={
+                        "grant_type": "fb_exchange_token",
+                        "client_id": whatsapp_app_id,
+                        "client_secret": whatsapp_app_secret,
+                        "fb_exchange_token": access_token,
+                    },
+                )
+                ll_data = ll_response.json()
+                if ll_data.get("access_token"):
+                    access_token = ll_data["access_token"]
+                    logger.info(f"WhatsApp ES: long-lived token obtained ({len(access_token)} chars)")
+            except Exception as e:
+                logger.warning(f"WhatsApp ES: long-lived token exchange failed: {e}")
+
+            # Step 2: Discover WABA + phone_number_id if not provided
+            if not waba_id or not phone_number_id:
+                logger.info("WhatsApp ES: waba_id/phone_number_id not in payload, discovering via debug_token...")
+
+                try:
+                    app_token = f"{whatsapp_app_id}|{whatsapp_app_secret}"
+                    debug_response = await client.get(
+                        "https://graph.facebook.com/v21.0/debug_token",
+                        params={"input_token": access_token, "access_token": app_token},
+                    )
+                    debug_data = debug_response.json()
+
+                    if debug_data.get("data", {}).get("granular_scopes"):
+                        for scope in debug_data["data"]["granular_scopes"]:
+                            if scope.get("scope") == "whatsapp_business_management" and scope.get("target_ids"):
+                                waba_id = scope["target_ids"][0]
+                                logger.info(f"WhatsApp ES: found WABA ID via debug_token: {waba_id}")
+                                break
+
+                    if waba_id and not phone_number_id:
+                        phones_response = await client.get(
+                            f"https://graph.facebook.com/v21.0/{waba_id}/phone_numbers",
+                            params={"access_token": access_token},
+                        )
+                        phones_data = phones_response.json()
+                        if phones_data.get("data"):
+                            phone_number_id = phones_data["data"][0]["id"]
+                            logger.info(f"WhatsApp ES: found phone_number_id: {phone_number_id}")
+                except Exception as e:
+                    logger.warning(f"WhatsApp ES: discovery failed: {e}")
+
+            # Step 3: Register phone number (if we have it)
+            if phone_number_id:
+                try:
+                    from core.whatsapp import register_phone_number
+                    reg_result = await register_phone_number(phone_number_id, access_token)
+                    if "error" in reg_result:
+                        logger.warning(f"WhatsApp ES: phone registration returned error (may already be registered): {reg_result['error']}")
+                except Exception as e:
+                    logger.warning(f"WhatsApp ES: phone registration failed: {e}")
+
+            # Step 4: Subscribe WABA to webhooks (if we have it)
+            if waba_id:
+                try:
+                    from core.whatsapp import subscribe_waba_webhooks
+                    sub_result = await subscribe_waba_webhooks(waba_id, access_token)
+                    if "error" in sub_result:
+                        logger.warning(f"WhatsApp ES: webhook subscription error: {sub_result['error']}")
+                except Exception as e:
+                    logger.warning(f"WhatsApp ES: webhook subscription failed: {e}")
+
+            # Step 5: Save to database
+            await _save_connection(creator_id, "whatsapp", access_token, phone_number_id)
+
+            logger.info(
+                f"WhatsApp Embedded Signup complete for {creator_id}: "
+                f"waba_id={waba_id}, phone_number_id={phone_number_id}"
+            )
+
+            return {
+                "success": True,
+                "phone_number_id": phone_number_id or "",
+                "waba_id": waba_id or "",
+            }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"WhatsApp Embedded Signup error: {e}")
+        raise HTTPException(status_code=500, detail=f"WhatsApp signup failed: {str(e)}")
+
+
 # =============================================================================
 # STRIPE CONNECT (using Account Links API - modern approach)
 # =============================================================================

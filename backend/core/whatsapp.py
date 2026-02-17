@@ -432,6 +432,77 @@ class WhatsAppConnector:
 
 
 # =============================================================================
+# EMBEDDED SIGNUP HELPERS
+# =============================================================================
+
+
+async def register_phone_number(
+    phone_number_id: str, access_token: str, pin: str = None
+) -> dict:
+    """
+    Register a phone number for WhatsApp Cloud API.
+
+    Required after Embedded Signup to activate the number.
+    POST /{phone_number_id}/register
+
+    Args:
+        phone_number_id: WhatsApp phone number ID from Embedded Signup
+        access_token: System User Access Token
+        pin: Optional 2FA PIN (6 digits). If not provided, uses default.
+
+    Returns:
+        API response dict
+    """
+    url = f"https://graph.facebook.com/v21.0/{phone_number_id}/register"
+    payload = {
+        "messaging_product": "whatsapp",
+        "pin": pin or "000000",
+    }
+    headers = {
+        "Authorization": f"Bearer {access_token}",
+        "Content-Type": "application/json",
+    }
+
+    async with aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=30)) as session:
+        async with session.post(url, json=payload, headers=headers) as resp:
+            result = await resp.json()
+            if "error" in result:
+                logger.error(f"Phone registration failed for {phone_number_id}: {result['error']}")
+            else:
+                logger.info(f"Phone {phone_number_id} registered successfully")
+            return result
+
+
+async def subscribe_waba_webhooks(waba_id: str, access_token: str) -> dict:
+    """
+    Subscribe the app to receive webhooks for a WhatsApp Business Account.
+
+    POST /{waba_id}/subscribed_apps
+
+    Args:
+        waba_id: WhatsApp Business Account ID
+        access_token: System User Access Token
+
+    Returns:
+        API response dict
+    """
+    url = f"https://graph.facebook.com/v21.0/{waba_id}/subscribed_apps"
+    headers = {
+        "Authorization": f"Bearer {access_token}",
+        "Content-Type": "application/json",
+    }
+
+    async with aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=30)) as session:
+        async with session.post(url, headers=headers) as resp:
+            result = await resp.json()
+            if "error" in result:
+                logger.error(f"WABA webhook subscription failed for {waba_id}: {result['error']}")
+            else:
+                logger.info(f"WABA {waba_id} webhook subscription successful")
+            return result
+
+
+# =============================================================================
 # WHATSAPP HANDLER
 # =============================================================================
 

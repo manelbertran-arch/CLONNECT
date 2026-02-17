@@ -83,7 +83,7 @@ import { Switch } from "@/components/ui/switch";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
 import { useCreatorConfig, useProducts, useUpdateConfig, useAddProduct, useUpdateProduct, useDeleteProduct, useKnowledge, useAddFAQ, useDeleteFAQ, useUpdateFAQ, useGenerateKnowledge, useUpdateAbout, useConnections, useUpdateConnection, useDisconnectPlatform } from "@/hooks/useApi";
-import { startOAuth, API_URL } from "@/services/api";
+import { startOAuth, API_URL, exchangeWhatsAppEmbeddedSignup, getWhatsAppConfig } from "@/services/api";
 import { useToast } from "@/hooks/use-toast";
 import type { Product } from "@/types/api";
 
@@ -420,6 +420,137 @@ export default function Settings() {
     }
   };
 
+
+  // WhatsApp Embedded Signup state
+  const [waConnecting, setWaConnecting] = useState(false);
+
+  const connectWhatsAppEmbedded = async () => {
+    setWaConnecting(true);
+    try {
+      // Fetch config_id and app_id from backend
+      const waConfig = await getWhatsAppConfig();
+      if (!waConfig.app_id || !waConfig.config_id) {
+        toast({
+          title: "WhatsApp not configured",
+          description: "Missing META_APP_ID or WHATSAPP_CONFIG_ID on server.",
+          variant: "destructive",
+        });
+        setWaConnecting(false);
+        return;
+      }
+
+      // Initialize FB SDK if not already done
+      const FB = (window as any).FB;
+      if (!FB) {
+        // FB SDK not loaded yet — fall back to OAuth redirect
+        console.warn("FB SDK not loaded, falling back to OAuth redirect");
+        const r = await startOAuth("whatsapp");
+        window.location.href = r.auth_url;
+        return;
+      }
+
+      FB.init({
+        appId: waConfig.app_id,
+        cookie: true,
+        xfbml: false,
+        version: "v21.0",
+      });
+
+      // Launch Embedded Signup popup
+      FB.login(
+        (response: any) => {
+          if (response.authResponse) {
+            const code = response.authResponse.code;
+
+            // Decode sessionInfo (base64 JSON) to extract waba_id + phone_number_id
+            let wabaId = "";
+            let phoneNumberId = "";
+
+            // sessionInfoVersion 3 sends data in authResponse directly
+            // or via decoding the session info nonce
+            if (response.authResponse.declinedPermissions) {
+              // User declined some permissions
+              console.warn("Some permissions declined:", response.authResponse.declinedPermissions);
+            }
+
+            // Try to extract from the response (Meta returns these for Embedded Signup)
+            // The waba_id and phone_number_id come via the sessionInfo callback
+            // For now, send the code and let backend discover via debug_token
+            exchangeWhatsAppEmbeddedSignup(code, wabaId, phoneNumberId)
+              .then(() => {
+                toast({
+                  title: "WhatsApp conectado",
+                  description: "Tu cuenta de WhatsApp Business se ha conectado correctamente.",
+                });
+                queryClient.invalidateQueries({ queryKey: ["connections"] });
+              })
+              .catch((err) => {
+                console.error("WhatsApp exchange error:", err);
+                toast({
+                  title: "Error al conectar WhatsApp",
+                  description: err.message || "No se pudo completar la conexion.",
+                  variant: "destructive",
+                });
+              })
+              .finally(() => setWaConnecting(false));
+            return; // Don't setWaConnecting(false) here — the promise handles it
+          } else {
+            // User cancelled or error
+            console.log("WhatsApp Embedded Signup cancelled or failed:", response);
+            toast({
+              title: "Conexion cancelada",
+              description: "No se completo el proceso de WhatsApp.",
+              variant: "destructive",
+            });
+          }
+          setWaConnecting(false);
+        },
+        {
+          config_id: waConfig.config_id,
+          response_type: "code",
+          override_default_response_type: true,
+          extras: {
+            feature: "whatsapp_embedded_signup",
+            featureType: "whatsapp_business_app_onboarding",
+            sessionInfoVersion: 3,
+          },
+        }
+      );
+
+      // Listen for sessionInfo message event (waba_id + phone_number_id)
+      const sessionInfoListener = (event: MessageEvent) => {
+        if (event.origin !== "https://www.facebook.com" && event.origin !== "https://web.facebook.com") return;
+        try {
+          const data = JSON.parse(event.data);
+          if (data.type === "WA_EMBEDDED_SIGNUP") {
+            // data contains: { type, data: { waba_id, phone_number_id } }
+            console.log("WA Embedded Signup session info:", data);
+          }
+        } catch {
+          // Not JSON, ignore
+        }
+      };
+      window.addEventListener("message", sessionInfoListener);
+      // Cleanup after 5 minutes
+      setTimeout(() => window.removeEventListener("message", sessionInfoListener), 300000);
+
+    } catch (err) {
+      console.error("WhatsApp Embedded Signup error:", err);
+      // Fallback to OAuth redirect
+      try {
+        const r = await startOAuth("whatsapp");
+        window.location.href = r.auth_url;
+      } catch (e) {
+        console.error("OAuth fallback also failed:", e);
+        toast({
+          title: "Error",
+          description: "No se pudo iniciar la conexion de WhatsApp.",
+          variant: "destructive",
+        });
+      }
+      setWaConnecting(false);
+    }
+  };
 
   const generatePreview = () => {
     const previews = {
@@ -978,6 +1109,18 @@ export default function Settings() {
                                   <Check className="w-4 h-4" /> Connected
                                 </span>
                               </>
+                            ) : conn.key === "whatsapp" ? (
+                              <Button
+                                size="sm"
+                                disabled={waConnecting}
+                                onClick={connectWhatsAppEmbedded}
+                              >
+                                {waConnecting ? (
+                                  <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> Connecting...</>
+                                ) : (
+                                  "Connect"
+                                )}
+                              </Button>
                             ) : conn.oauth ? (
                               <Button
                                 size="sm"
