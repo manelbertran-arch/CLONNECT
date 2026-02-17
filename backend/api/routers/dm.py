@@ -64,7 +64,7 @@ _META_KEEP = {
     "permanent_url", "thumbnail_url", "preview_url",
     "animated_gif_url", "author_username", "platform",
     "duration", "render_as_sticker", "link_preview",
-    "carousel_items", "items",
+    "carousel_items", "items", "reacted_to_mid",
 }
 _BASE64_MAX = 50_000  # ~37 KB decoded — skip mega thumbnails
 
@@ -252,13 +252,18 @@ async def get_conversations(creator_id: str, limit: int = 50, offset: int = 0):
                         last_message_role = None
 
                         if last_msg:
-                            # Generate descriptive text for media messages
-                            # Fallback chain: text → media description → generic attachment label
-                            display_content = (
-                                last_msg.content
-                                or _media_description(last_msg.msg_metadata)
-                                or "Sent an attachment"
-                            )
+                            # Reactions: show descriptive text instead of raw emoji
+                            meta = last_msg.msg_metadata or {}
+                            if meta.get("type") == "reaction":
+                                emoji = meta.get("emoji", "❤️")
+                                display_content = f"Reaccionó {emoji} a tu mensaje"
+                            else:
+                                # Fallback chain: text → media description → generic attachment label
+                                display_content = (
+                                    last_msg.content
+                                    or _media_description(last_msg.msg_metadata)
+                                    or "Sent an attachment"
+                                )
 
                             last_messages = [
                                 {
@@ -642,6 +647,7 @@ async def get_follower_detail(creator_id: str, follower_id: str):
                                                 or "Sent an attachment"
                                             ),
                                             "timestamp": m.created_at.isoformat() if m.created_at else None,
+                                            "platform_message_id": m.platform_message_id,
                                             "metadata": _slim_metadata(m.msg_metadata),
                                         }
                                         for m in messages

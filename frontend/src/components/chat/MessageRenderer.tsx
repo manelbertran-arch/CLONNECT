@@ -188,16 +188,22 @@ interface Message {
   metadata?: MessageMetadata;
 }
 
+interface ReactionBadge {
+  emoji: string;
+  isOutgoing: boolean;
+}
+
 interface MessageRendererProps {
   message: Message;
   isLastInGroup?: boolean;
+  reactions?: ReactionBadge[];
 }
 
 // Violet gradient for outgoing messages (matches UI theme)
 const IG_GRADIENT = 'bg-gradient-to-br from-violet-600 to-purple-600';
 const IG_GRADIENT_STORY = 'bg-gradient-to-tr from-violet-500 via-purple-500 to-violet-600';
 
-export function MessageRenderer({ message, isLastInGroup = true }: MessageRendererProps) {
+export function MessageRenderer({ message, isLastInGroup = true, reactions }: MessageRendererProps) {
   const isOutgoing = message.role === 'assistant';
   const metadata = message.metadata || {};
 
@@ -223,25 +229,31 @@ export function MessageRenderer({ message, isLastInGroup = true }: MessageRender
   }
 
   // Determine which component to render based on type
+  let content: React.ReactNode;
   switch (msgType) {
     case 'story_mention':
     case 'story_reply':
     case 'story_reaction':
-      return <StoryMessage message={message} isOutgoing={isOutgoing} isLastInGroup={isLastInGroup} />;
+      content = <StoryMessage message={message} isOutgoing={isOutgoing} isLastInGroup={isLastInGroup} />;
+      break;
 
     case 'reaction':
+      // Orphan reaction (target not in view) — render inline fallback, no overlay needed
       return <ReactionMessage message={message} isOutgoing={isOutgoing} />;
 
     case 'image':
     case 'gif':
     case 'sticker':
-      return <MediaMessage message={message} isOutgoing={isOutgoing} isLastInGroup={isLastInGroup} type="image" />;
+      content = <MediaMessage message={message} isOutgoing={isOutgoing} isLastInGroup={isLastInGroup} type="image" />;
+      break;
 
     case 'video':
-      return <MediaMessage message={message} isOutgoing={isOutgoing} isLastInGroup={isLastInGroup} type="video" />;
+      content = <MediaMessage message={message} isOutgoing={isOutgoing} isLastInGroup={isLastInGroup} type="video" />;
+      break;
 
     case 'audio':
-      return <AudioMessage message={message} isOutgoing={isOutgoing} isLastInGroup={isLastInGroup} />;
+      content = <AudioMessage message={message} isOutgoing={isOutgoing} isLastInGroup={isLastInGroup} />;
+      break;
 
     case 'share':
     case 'shared_post':
@@ -251,23 +263,38 @@ export function MessageRenderer({ message, isLastInGroup = true }: MessageRender
     case 'clip':
     case 'igtv':
     case 'link_preview':
-      return <SharedPostMessage message={message} isOutgoing={isOutgoing} isLastInGroup={isLastInGroup} />;
+      content = <SharedPostMessage message={message} isOutgoing={isOutgoing} isLastInGroup={isLastInGroup} />;
+      break;
 
     case 'carousel':
-      return <CarouselMessage message={message} isOutgoing={isOutgoing} isLastInGroup={isLastInGroup} />;
+      content = <CarouselMessage message={message} isOutgoing={isOutgoing} isLastInGroup={isLastInGroup} />;
+      break;
 
     case 'unknown':
     case 'unsupported_type':
     case 'file':
-      return <UnknownMediaMessage message={message} isOutgoing={isOutgoing} isLastInGroup={isLastInGroup} />;
+      content = <UnknownMediaMessage message={message} isOutgoing={isOutgoing} isLastInGroup={isLastInGroup} />;
+      break;
 
     default:
-      // If metadata has a renderable URL, try UnknownMediaMessage instead of plain text
       if (metadata.url || metadata.permanent_url || metadata.thumbnail_base64) {
-        return <UnknownMediaMessage message={message} isOutgoing={isOutgoing} isLastInGroup={isLastInGroup} />;
+        content = <UnknownMediaMessage message={message} isOutgoing={isOutgoing} isLastInGroup={isLastInGroup} />;
+      } else {
+        content = <TextMessage message={message} isOutgoing={isOutgoing} isLastInGroup={isLastInGroup} />;
       }
-      return <TextMessage message={message} isOutgoing={isOutgoing} isLastInGroup={isLastInGroup} />;
   }
+
+  // Wrap with reaction badges if this message has reactions
+  if (reactions && reactions.length > 0) {
+    return (
+      <div>
+        {content}
+        <ReactionsOverlay reactions={reactions} isOutgoing={isOutgoing} />
+      </div>
+    );
+  }
+
+  return <>{content}</>;
 }
 
 // Text Message - Instagram style bubble
@@ -537,14 +564,37 @@ function StoryMessage({ message, isOutgoing, isLastInGroup }: { message: Message
 
 // Reaction Message - Small emoji bubble
 function ReactionMessage({ message, isOutgoing }: { message: Message; isOutgoing: boolean }) {
+  // Reactions are now rendered as overlays on their target message.
+  // This fallback only shows for orphan reactions (target message not in view).
   const emoji = message.metadata?.emoji || '❤️';
 
   return (
     <div className={`flex ${isOutgoing ? 'justify-end' : 'justify-start'}`}>
-      <div className="inline-flex items-center justify-center p-2 rounded-full bg-[#262626]">
-        <span className="text-2xl" style={{ filter: 'none', color: 'initial' }}>
-          {emoji}
-        </span>
+      <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-[#262626]/60 text-xs text-zinc-400">
+        <span className="text-base" style={{ filter: 'none', color: 'initial' }}>{emoji}</span>
+        <span>Reaccionó a un mensaje</span>
+      </div>
+    </div>
+  );
+}
+
+// Reaction badges overlay — renders emoji pills below a message bubble (Instagram-style)
+function ReactionsOverlay({ reactions, isOutgoing }: { reactions: ReactionBadge[]; isOutgoing: boolean }) {
+  // Deduplicate: group same emojis, show count if > 1
+  const grouped = new Map<string, number>();
+  for (const r of reactions) {
+    grouped.set(r.emoji, (grouped.get(r.emoji) || 0) + 1);
+  }
+
+  return (
+    <div className={`flex ${isOutgoing ? 'justify-end' : 'justify-start'} -mt-2 ${isOutgoing ? 'mr-1' : 'ml-1'}`}>
+      <div className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full bg-[#262626] border border-[#363636] shadow-sm">
+        {Array.from(grouped.entries()).map(([emoji, count]) => (
+          <span key={emoji} className="inline-flex items-center">
+            <span className="text-sm" style={{ filter: 'none', color: 'initial' }}>{emoji}</span>
+            {count > 1 && <span className="text-[10px] text-zinc-400 ml-0.5">{count}</span>}
+          </span>
+        ))}
       </div>
     </div>
   );

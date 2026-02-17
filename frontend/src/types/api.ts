@@ -32,6 +32,7 @@ export interface MessageMetadata {
   permalink?: string;
   caption?: string;
   platform?: string;
+  reacted_to_mid?: string;
   link_preview?: {
     url: string;
     title?: string;
@@ -48,6 +49,7 @@ export interface Message {
   content: string;
   timestamp: string;
   metadata?: MessageMetadata;
+  platform_message_id?: string;
 }
 
 export interface Conversation {

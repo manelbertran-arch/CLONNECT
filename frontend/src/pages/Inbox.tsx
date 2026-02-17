@@ -77,6 +77,7 @@ function formatTimeAgo(timestamp: string | undefined): string {
 function formatPreview(content?: string, _name?: string): string {
   if (!content) return "";
   const lower = content.toLowerCase().trim();
+  if (lower.startsWith("reaccionó ")) return content; // Already formatted by backend
   if (lower === "shared content") return "Compartió contenido";
   if (lower.includes("mentioned you in their story")) return "Te mencionó en su story";
   if (lower === "sent an attachment") return "Envió un archivo";
@@ -292,10 +293,23 @@ export default function Inbox() {
     return conversations.find(c => c.follower_id === selectedId) || null;
   }, [selectedId, conversations]);
 
-  // Messages from the follower detail API (uses last_messages field)
-  const messages: Message[] = useMemo(() => {
-    return getMessages(followerData);
-  }, [followerData]);
+  // Messages from the follower detail API — separate reactions from regular messages
+  const allMessages: Message[] = useMemo(() => getMessages(followerData), [followerData]);
+
+  const { messages, reactionsByMid } = useMemo(() => {
+    const reactions = new Map<string, { emoji: string; isOutgoing: boolean }[]>();
+    const visible: Message[] = [];
+    for (const msg of allMessages) {
+      if (msg.metadata?.type === 'reaction' && msg.metadata?.reacted_to_mid) {
+        const mid = msg.metadata.reacted_to_mid;
+        if (!reactions.has(mid)) reactions.set(mid, []);
+        reactions.get(mid)!.push({ emoji: msg.metadata.emoji || '❤️', isOutgoing: msg.role === 'assistant' });
+      } else {
+        visible.push(msg);
+      }
+    }
+    return { messages: visible, reactionsByMid: reactions };
+  }, [allMessages]);
 
   // Get smart display name for selected conversation
   const displayName = useMemo(() => {
@@ -620,6 +634,7 @@ export default function Inbox() {
                     key={idx}
                     message={msg}
                     isLastInGroup={idx === messages.length - 1 || messages[idx + 1]?.role !== msg.role}
+                    reactions={msg.platform_message_id ? reactionsByMid.get(msg.platform_message_id) : undefined}
                   />
                 ))
               ) : (
