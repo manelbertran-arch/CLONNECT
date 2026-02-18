@@ -1133,10 +1133,8 @@ async def _save_evolution_outgoing_message(
 
         db = SessionLocal()
         try:
-            # Find the creator
-            creator = db.query(Creator).filter(
-                Creator.creator_id == creator_id
-            ).first()
+            # Find the creator (Creator.name stores the creator_id string)
+            creator = db.query(Creator).filter_by(name=creator_id).first()
             if not creator:
                 logger.warning(f"[EVO:{instance}] Outgoing: creator {creator_id} not found")
                 return
