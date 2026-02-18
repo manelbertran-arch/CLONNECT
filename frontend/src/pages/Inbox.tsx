@@ -30,10 +30,17 @@ import type { Conversation, Message } from "@/types/api";
 import { getPurchaseIntent, detectPlatform, getFriendlyName, extractNameFromMessages, getMessages } from "@/types/api";
 import { RelationshipBadge, RelationshipDot } from "@/components/RelationshipBadge";
 
+// Brand colors
+const BRAND_COLORS = {
+  instagram: '#E1306C',
+  whatsapp: '#25D366',
+  telegram: '#0088cc',
+};
+
 const platformIcons: Record<string, React.ReactNode> = {
-  instagram: <Instagram className="w-3 h-3" />,
-  telegram: <Send className="w-3 h-3" />,
-  whatsapp: <MessageCircle className="w-3 h-3" />,
+  instagram: <Instagram className="w-4 h-4" style={{ color: BRAND_COLORS.instagram }} />,
+  telegram: <Send className="w-4 h-4" style={{ color: BRAND_COLORS.telegram }} />,
+  whatsapp: <MessageCircle className="w-4 h-4" style={{ color: BRAND_COLORS.whatsapp }} />,
 };
 
 const avatarGradients: Record<string, string> = {
@@ -422,13 +429,13 @@ export default function Inbox() {
               className={cn(
                 "px-3 py-1.5 rounded-full text-sm font-medium transition-all whitespace-nowrap flex items-center gap-1.5",
                 platformFilter === "instagram" && activeTab !== "archived"
-                  ? "bg-violet-500/20 text-violet-400 ring-1 ring-violet-400/30"
-                  : "text-muted-foreground hover:text-foreground"
+                  ? "bg-[#E1306C]/20 ring-1 ring-[#E1306C]/30"
+                  : "hover:bg-secondary"
               )}
             >
-              <Instagram className="w-3.5 h-3.5" />
+              <Instagram className="w-4 h-4" style={{ color: BRAND_COLORS.instagram }} />
               {unreadCounts.instagram > 0 && (
-                <span className="bg-violet-500/30 text-violet-300 text-[11px] px-1.5 py-0.5 rounded-full min-w-[18px] text-center">{unreadCounts.instagram}</span>
+                <span className="bg-[#E1306C]/30 text-[#E1306C] text-[11px] px-1.5 py-0.5 rounded-full min-w-[18px] text-center">{unreadCounts.instagram}</span>
               )}
             </button>
             <button
@@ -436,13 +443,13 @@ export default function Inbox() {
               className={cn(
                 "px-3 py-1.5 rounded-full text-sm font-medium transition-all whitespace-nowrap flex items-center gap-1.5",
                 platformFilter === "whatsapp" && activeTab !== "archived"
-                  ? "bg-emerald-500/20 text-emerald-400 ring-1 ring-emerald-400/30"
-                  : "text-muted-foreground hover:text-foreground"
+                  ? "bg-[#25D366]/20 ring-1 ring-[#25D366]/30"
+                  : "hover:bg-secondary"
               )}
             >
-              <MessageCircle className="w-3.5 h-3.5" />
+              <MessageCircle className="w-4 h-4" style={{ color: BRAND_COLORS.whatsapp }} />
               {unreadCounts.whatsapp > 0 && (
-                <span className="bg-emerald-500/30 text-emerald-300 text-[11px] px-1.5 py-0.5 rounded-full min-w-[18px] text-center">{unreadCounts.whatsapp}</span>
+                <span className="bg-[#25D366]/30 text-[#25D366] text-[11px] px-1.5 py-0.5 rounded-full min-w-[18px] text-center">{unreadCounts.whatsapp}</span>
               )}
             </button>
             <button
@@ -450,13 +457,13 @@ export default function Inbox() {
               className={cn(
                 "px-3 py-1.5 rounded-full text-sm font-medium transition-all whitespace-nowrap flex items-center gap-1.5",
                 platformFilter === "telegram" && activeTab !== "archived"
-                  ? "bg-sky-500/20 text-sky-400 ring-1 ring-sky-400/30"
-                  : "text-muted-foreground hover:text-foreground"
+                  ? "bg-[#0088cc]/20 ring-1 ring-[#0088cc]/30"
+                  : "hover:bg-secondary"
               )}
             >
-              <Send className="w-3.5 h-3.5" />
+              <Send className="w-4 h-4" style={{ color: BRAND_COLORS.telegram }} />
               {unreadCounts.telegram > 0 && (
-                <span className="bg-sky-500/30 text-sky-300 text-[11px] px-1.5 py-0.5 rounded-full min-w-[18px] text-center">{unreadCounts.telegram}</span>
+                <span className="bg-[#0088cc]/30 text-[#0088cc] text-[11px] px-1.5 py-0.5 rounded-full min-w-[18px] text-center">{unreadCounts.telegram}</span>
               )}
             </button>
           </div>
@@ -565,15 +572,9 @@ export default function Inbox() {
                           <RelationshipDot type={convo.relationship_type || convo.status} />
                           <span className={cn("text-[15px] font-semibold truncate", convo.is_unread ? 'text-white' : '')}>{listDisplayName}</span>
                           {convo.is_verified && <span className="text-[#0095F6] text-xs shrink-0">✓</span>}
-                          {platformFilter === "all" && (
-                            <span className={cn("shrink-0 opacity-60",
-                              convoPlatform === 'whatsapp' ? 'text-emerald-400' :
-                              convoPlatform === 'telegram' ? 'text-sky-400' :
-                              'text-violet-400'
-                            )}>
-                              {platformIcons[convoPlatform]}
-                            </span>
-                          )}
+                          <span className="shrink-0">
+                            {platformIcons[convoPlatform]}
+                          </span>
                         </div>
                         <div className="flex items-center gap-1.5 shrink-0">
                           <span className="text-xs text-muted-foreground">{formatTimeAgo(convo.last_contact)}</span>
