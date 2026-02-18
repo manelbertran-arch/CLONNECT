@@ -94,6 +94,42 @@ async def get_qr_code(instance: str) -> Dict[str, Any]:
             return await resp.json()
 
 
+async def fetch_profile_picture(instance: str, number: str) -> Optional[str]:
+    """
+    Fetch a WhatsApp contact's profile picture URL via Evolution API.
+
+    Args:
+        instance: Instance name (e.g. "manel-test")
+        number: Phone number with country code, no + (e.g. "34612345678")
+
+    Returns:
+        Profile picture URL string, or None if not available.
+    """
+    if not EVOLUTION_API_URL or not number:
+        return None
+
+    url = f"{EVOLUTION_API_URL}/chat/fetchProfilePictureUrl/{instance}"
+    payload = {"number": number}
+
+    try:
+        async with aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=10)) as session:
+            async with session.post(url, json=payload, headers=_headers()) as resp:
+                if resp.status >= 400:
+                    logger.warning(
+                        "Evolution profile pic failed [%s, %s]: HTTP %d",
+                        instance, number, resp.status,
+                    )
+                    return None
+                result = await resp.json()
+                pic_url = result.get("profilePictureUrl") or result.get("url") or None
+                if pic_url:
+                    logger.info("Evolution profile pic fetched [%s, %s]", instance, number)
+                return pic_url
+    except Exception as e:
+        logger.warning("Evolution profile pic error [%s, %s]: %s", instance, number, e)
+        return None
+
+
 async def fetch_instances() -> list:
     """List all Evolution API instances."""
     url = f"{EVOLUTION_API_URL}/instance/fetchInstances"

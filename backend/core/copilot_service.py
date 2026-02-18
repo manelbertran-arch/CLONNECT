@@ -151,18 +151,27 @@ class CopilotService:
 
             if not lead:
                 # Crear lead si no existe
+                # Extract phone number for WhatsApp leads
+                phone_number = None
+                if platform == "whatsapp" and follower_id.startswith("wa_"):
+                    phone_number = "+" + follower_id[3:]  # wa_34639066982 → +34639066982
+
                 lead = Lead(
                     creator_id=creator.id,
                     platform=platform,
                     platform_user_id=follower_id,
                     username=username,
                     full_name=full_name,
+                    phone=phone_number,
                     status="new",
                     purchase_intent=0.0,
                 )
                 session.add(lead)
                 session.commit()
                 pending.lead_id = str(lead.id)
+            elif platform == "whatsapp" and not lead.phone and follower_id.startswith("wa_"):
+                # Backfill phone for existing WhatsApp leads that are missing it
+                lead.phone = "+" + follower_id[3:]
 
             # Update last contact time (must be set before scoring)
             lead.last_contact_at = now

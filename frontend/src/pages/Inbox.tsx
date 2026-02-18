@@ -576,6 +576,11 @@ export default function Inbox() {
                         <Instagram className="w-3 h-3" />
                         instagram
                       </button>
+                    ) : (selectedConversation.platform || detectPlatform(selectedConversation.follower_id)) === "whatsapp" ? (
+                      <>
+                        {platformIcons.whatsapp}
+                        {selectedConversation.phone || (selectedConversation.follower_id.startsWith("wa_") ? "+" + selectedConversation.follower_id.slice(3) : "whatsapp")}
+                      </>
                     ) : (
                       <>
                         {platformIcons[selectedConversation.platform || detectPlatform(selectedConversation.follower_id)]}

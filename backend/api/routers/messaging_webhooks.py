@@ -1142,6 +1142,28 @@ async def _process_evolution_message_safe(
             full_name=push_name or "",
         )
 
+        # Fetch and save WhatsApp profile picture (fire-and-forget style)
+        try:
+            from api.database import SessionLocal
+            from api.models import Lead
+            from services.evolution_api import fetch_profile_picture
+
+            pic_url = await fetch_profile_picture(instance, sender_number)
+            if pic_url:
+                db = SessionLocal()
+                try:
+                    lead = db.query(Lead).filter(
+                        Lead.platform_user_id == follower_id
+                    ).first()
+                    if lead and not lead.profile_pic_url:
+                        lead.profile_pic_url = pic_url
+                        db.commit()
+                        logger.info(f"[EVO:{instance}] Saved profile pic for {sender_number}")
+                finally:
+                    db.close()
+        except Exception as pic_err:
+            logger.debug(f"[EVO:{instance}] Profile pic fetch skipped: {pic_err}")
+
         logger.info(
             f"[EVO:{instance}] Pending response {pending.id} for {sender_number}: "
             f"intent={intent} conf={confidence:.0%} text={response_text[:80]}"

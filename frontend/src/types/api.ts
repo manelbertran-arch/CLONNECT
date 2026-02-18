@@ -284,7 +284,7 @@ export function getFriendlyName(followerId: string): string {
   }
   if (followerId.startsWith("wa_")) {
     const id = followerId.replace("wa_", "");
-    return `WhatsApp User ${id.slice(-4)}`;
+    return `+${id}`;
   }
   return followerId;
 }
