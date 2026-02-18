@@ -1549,12 +1549,15 @@ class DMResponderAgentV2:
             return formatted_content
 
         # 3. Check if we should ask for email
+        # A8: Pass friend/customer context to suppress email capture
         decision = should_ask_email(
             platform=platform,
             platform_user_id=sender_id,
             creator_id=self.creator_id,
             intent=intent_value,
             message_count=follower.total_messages,
+            is_friend=cognitive_metadata.get("relationship_type") == "amigo",
+            is_customer=getattr(follower, "is_customer", False),
         )
 
         if decision.should_ask and decision.message:

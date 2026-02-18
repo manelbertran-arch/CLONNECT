@@ -485,7 +485,9 @@ def should_ask_email(
     platform_user_id: str,
     creator_id: str,
     intent: str,
-    message_count: int
+    message_count: int,
+    is_friend: bool = False,
+    is_customer: bool = False,
 ) -> EmailAskDecision:
     """
     Decide si debemos pedir email.
@@ -493,6 +495,12 @@ def should_ask_email(
     Returns:
         EmailAskDecision con should_ask, message, reason
     """
+    # A8: Never ask friends or customers for email
+    if is_friend:
+        return EmailAskDecision(False, "", "friend_relationship")
+    if is_customer:
+        return EmailAskDecision(False, "", "already_customer")
+
     # Get config
     config = get_creator_email_config(creator_id)
 
