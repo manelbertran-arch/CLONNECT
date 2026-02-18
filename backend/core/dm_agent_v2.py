@@ -799,6 +799,9 @@ class DMResponderAgentV2:
                 except Exception as e:
                     logger.debug(f"Relationship detection failed: {e}")
 
+            # A1 FIX: Detect friend relationship to suppress acquisition behavior
+            is_friend = cognitive_metadata.get("relationship_type") == "amigo"
+
             # Lead stage (depends on follower)
             current_stage = self._get_lead_stage(follower, metadata)
 
@@ -836,11 +839,23 @@ class DMResponderAgentV2:
                 except Exception as e:
                     logger.debug(f"Citation loading failed: {e}")
 
+            # A1 FIX: Suppress acquisition/sales for friends
+            friend_context = ""
+            if is_friend:
+                friend_context = (
+                    "IMPORTANTE: Esta persona es un AMIGO/A del creador, NO un lead. "
+                    "NO intentes vender, ofrecer productos, ni hacer preguntas de cualificación. "
+                    "Habla de forma natural, personal y relajada como con un amigo cercano. "
+                    "NO uses frases como 'contame qué te trae por acá' ni similares."
+                )
+                logger.info("[A1] Friend detected — suppressing acquisition behavior")
+
             combined_context = "\n\n".join(
                 filter(
                     None,
                     [
                         self.style_prompt,
+                        friend_context,
                         rag_context,
                         dna_context,
                         state_context,
@@ -851,8 +866,10 @@ class DMResponderAgentV2:
                     ],
                 )
             )
+            # A1: Skip products for friends to avoid LLM injecting sales language
+            prompt_products = [] if is_friend else self.products
             system_prompt = self.prompt_builder.build_system_prompt(
-                products=self.products, custom_instructions=combined_context
+                products=prompt_products, custom_instructions=combined_context
             )
 
             # Get conversation history from follower memory
@@ -894,17 +911,21 @@ class DMResponderAgentV2:
                 {"role": "system", "content": system_prompt},
                 {"role": "user", "content": full_prompt},
             ]
-            llm_content = await generate_dm_response(llm_messages, max_tokens=150)
+            # A4/A5: generate_dm_response returns dict with model/provider/latency
+            llm_result = await generate_dm_response(llm_messages, max_tokens=150)
 
             _t3 = time.monotonic()
             logger.info(f"[TIMING] LLM call: {int((_t3 - _t2) * 1000)}ms")
 
-            if llm_content:
+            if llm_result:
                 llm_response = LLMResponse(
-                    content=llm_content,
-                    model="gemini-flash-lite",
+                    content=llm_result["content"],
+                    model=llm_result.get("model", "unknown"),
                     tokens_used=0,
-                    metadata={"provider": "gemini-cascade"},
+                    metadata={
+                        "provider": llm_result.get("provider", "unknown"),
+                        "latency_ms": llm_result.get("latency_ms", 0),
+                    },
                 )
             else:
                 # Both Flash-Lite and GPT-4o-mini failed — emergency fallback
@@ -936,6 +957,28 @@ class DMResponderAgentV2:
             # =================================================================
 
             response_content = llm_response.content
+
+            # A2 FIX: Detect and break repetitive loops
+            try:
+                recent_bot_msgs = [
+                    m["content"] for m in history
+                    if m.get("role") == "assistant" and m.get("content")
+                ][-3:]
+                if recent_bot_msgs and response_content:
+                    resp_norm = response_content.strip().lower()[:50]
+                    for prev in recent_bot_msgs:
+                        prev_norm = prev.strip().lower()[:50]
+                        if resp_norm and prev_norm and resp_norm == prev_norm:
+                            logger.warning(
+                                "[A2] Repetitive loop detected — response matches recent message"
+                            )
+                            cognitive_metadata["loop_detected"] = True
+                            # Break the loop with a short, generic continuation
+                            response_content = "Contame más"
+                            llm_response.content = response_content
+                            break
+            except Exception as e:
+                logger.debug(f"Loop detection failed: {e}")
 
             # Step 7a: Output validation (prices, links)
             if ENABLE_OUTPUT_VALIDATION:
@@ -1125,6 +1168,8 @@ class DMResponderAgentV2:
                 f"llm={int((_t3 - _t2) * 1000)} post={int((_t4 - _t3) * 1000)} "
                 f"mem+nurture={int((_t5 - _t4) * 1000)})"
             )
+            # A4: Include model/provider/latency in metadata for auditing
+            llm_meta = llm_response.metadata or {}
             return DMResponse(
                 content=formatted_content,
                 intent=intent_value,
@@ -1133,6 +1178,8 @@ class DMResponderAgentV2:
                 tokens_used=llm_response.tokens_used,
                 metadata={
                     "model": llm_response.model,
+                    "provider": llm_meta.get("provider", "unknown"),
+                    "latency_ms": llm_meta.get("latency_ms", 0),
                     "rag_results": len(rag_results),
                     "history_length": len(history),
                     "follower_id": sender_id,
