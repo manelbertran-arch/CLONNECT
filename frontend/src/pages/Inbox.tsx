@@ -49,6 +49,12 @@ const avatarGradients: Record<string, string> = {
   telegram: "from-sky-400/60 to-blue-500/60",
 };
 
+// WhatsApp-style doodle background pattern (icons: phone, chat, heart, clock, camera, envelope, smiley, music, star, plane, lock, pin, laptop, calendar, globe)
+const WA_DOODLE_PATTERN = (() => {
+  const svg = `<svg xmlns='http://www.w3.org/2000/svg' width='250' height='250'><g opacity='0.06' fill='white'><rect x='15' y='12' width='12' height='20' rx='2'/><path d='M62 15h16c2 0 3 1 3 3v10c0 2-1 3-3 3H70l-4 4v-4h-4c-2 0-3-1-3-3V18c0-2 1-3 3-3z'/><path d='M132 20c2-5 10-5 10 1s-10 12-10 12-10-6-10-12 8-6 10-1z'/><circle cx='200' cy='22' r='9'/><rect x='18' y='77' width='18' height='13' rx='2'/><circle cx='27' cy='83' r='4'/><rect x='80' y='75' width='18' height='12' rx='1'/><circle cx='150' cy='82' r='9'/><circle cx='218' cy='86' r='4'/><rect x='222' y='70' width='2' height='16'/><path d='M28 148l4 8 8 1-6 5 1 8-7-4-7 4 1-8-6-5 8-1z'/><path d='M82 140l22 8-22 8 4-8z'/><rect x='148' y='145' width='12' height='10' rx='2'/><path d='M218 140a7 7 0 00-7 7c0 8 7 14 7 14s7-6 7-14a7 7 0 00-7-7z'/><rect x='14' y='212' width='20' height='13' rx='1'/><rect x='80' y='210' width='16' height='14' rx='2'/><circle cx='152' cy='218' r='9'/><path d='M210 225h10v-10l-4-6h-6v12z'/></g></svg>`;
+  return `url("data:image/svg+xml,${encodeURIComponent(svg)}")`;
+})();
+
 function getInitials(name?: string, username?: string, id?: string): string {
   if (name && name.trim()) {
     return name.split(" ").map(n => n[0]).join("").slice(0, 2).toUpperCase();
@@ -572,9 +578,6 @@ export default function Inbox() {
                           <RelationshipDot type={convo.relationship_type || convo.status} />
                           <span className={cn("text-[15px] font-semibold truncate", convo.is_unread ? 'text-white' : '')}>{listDisplayName}</span>
                           {convo.is_verified && <span className="text-[#0095F6] text-xs shrink-0">✓</span>}
-                          <span className="shrink-0">
-                            {platformIcons[convoPlatform]}
-                          </span>
                         </div>
                         <div className="flex items-center gap-1.5 shrink-0">
                           <span className="text-xs text-muted-foreground">{formatTimeAgo(convo.last_contact)}</span>
@@ -724,7 +727,11 @@ export default function Inbox() {
               "flex-1 overflow-auto p-4 space-y-4",
               chatPlatform === 'whatsapp' ? 'bg-[#0b141a]' :
               chatPlatform === 'telegram' ? 'bg-[#0e1621]' : ''
-            )}>
+            )}
+            style={chatPlatform === 'whatsapp' ? {
+              backgroundImage: WA_DOODLE_PATTERN,
+              backgroundSize: '250px 250px',
+            } : undefined}>
               {messagesLoading ? (
                 <div className="flex-1 space-y-4 py-4 animate-pulse">
                   {Array.from({ length: 6 }).map((_, i) => (
@@ -775,7 +782,7 @@ export default function Inbox() {
                   className={cn(
                     "flex-1 border-0",
                     chatPlatform === 'whatsapp' ? 'bg-[#2a3942] text-[#e9edef] placeholder:text-[#8696a0]' :
-                    chatPlatform === 'telegram' ? 'bg-[#242f3d] text-white placeholder:text-[#6c7883]' :
+                    chatPlatform === 'telegram' ? 'bg-[#17212b] text-white placeholder:text-[#6c7883]' :
                     'bg-secondary'
                   )}
                   disabled={sendMessageMutation.isPending}
