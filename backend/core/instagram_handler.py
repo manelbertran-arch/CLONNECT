@@ -1730,7 +1730,7 @@ class InstagramHandler:
         for att in attachments:
             att_type = (att.get("type") or "").lower()
 
-            # Handle share/reel attachments first — these have permalink, not CDN media
+            # Handle share/reel attachments — these have permalink + sometimes a CDN thumbnail
             # Instagram share webhook format: {"type": "share", "share": {"link": "https://instagram.com/p/..."}}
             if att_type in ("share", "reel"):
                 share_data = att.get("share", {})
@@ -1742,12 +1742,24 @@ class InstagramHandler:
                 else:
                     media_type = "share"
 
-                result = {
+                result: Dict[str, Any] = {
                     "type": media_type,
                     "captured_at": datetime.now(timezone.utc).isoformat(),
                 }
                 if share_link:
                     result["permalink"] = share_link
+
+                # Extract CDN thumbnail URL if present (payload.url, image_data, etc.)
+                payload = att.get("payload", {})
+                cdn_url = (
+                    (payload.get("url") if isinstance(payload, dict) else None)
+                    or att.get("image_data", {}).get("url")
+                    or att.get("video_data", {}).get("url")
+                    or att.get("url")
+                )
+                if cdn_url:
+                    result["url"] = cdn_url
+
                 return result
 
             # Try new payload format first (Instagram Messaging API)
