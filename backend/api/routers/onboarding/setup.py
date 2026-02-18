@@ -262,20 +262,31 @@ async def manual_setup(request: ManualSetupRequest):
     # ==========================================================================
     if request.website_url:
         try:
-            from core.website_scraper import scrape_and_index_website
+            from api.database import SessionLocal
+            from ingestion.v2.pipeline import ingest_website_v2
 
-            result = await scrape_and_index_website(
-                creator_id=request.creator_id, url=request.website_url
-            )
-
-            if result.get("success"):
-                steps_completed["website_scraped"] = True
-                details["website_pages"] = result.get("pages_indexed", 0)
-                logger.info(
-                    f"[ManualSetup] Website scraped: {result.get('pages_indexed', 0)} pages"
+            db_session = SessionLocal()
+            try:
+                v2_result = await ingest_website_v2(
+                    creator_id=request.creator_id,
+                    website_url=request.website_url,
+                    db_session=db_session,
+                    max_pages=10,
+                    clean_before=False,
+                    re_verify=True,
                 )
-            else:
-                errors.append(f"Website scraping: {result.get('error', 'Unknown error')}")
+                if v2_result.success:
+                    steps_completed["website_scraped"] = True
+                    details["website_pages"] = v2_result.pages_scraped
+                    details["products_detected"] = v2_result.products_detected
+                    logger.info(
+                        f"[ManualSetup] Website scraped (V2): {v2_result.pages_scraped} pages, "
+                        f"{v2_result.products_detected} products"
+                    )
+                else:
+                    errors.append(f"Website scraping: {v2_result.status}")
+            finally:
+                db_session.close()
 
         except Exception as e:
             errors.append(f"Website scraping failed: {str(e)}")
