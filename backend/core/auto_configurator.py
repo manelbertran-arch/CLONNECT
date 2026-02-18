@@ -479,125 +479,51 @@ class AutoConfigurator:
             }
 
     async def _generate_tone_profile(self, creator_id: str) -> dict:
-        """Genera ToneProfile desde posts indexados."""
+        """Genera ToneProfile usando ToneAnalyzer (LLM-based).
+
+        Delegates to ToneAnalyzer for rich, LLM-powered tone analysis.
+        The old heuristic _analyze_tone() has been removed.
+        """
         result = {
             'success': False,
             'confidence': 0.0
         }
 
         try:
-            from core.tone_profile_db import (
-                get_instagram_posts_db,
-                save_tone_profile_db
-            )
+            from core.tone_profile_db import get_instagram_posts_db
+            from core.tone_service import save_tone_profile
+            from ingestion.tone_analyzer import ToneAnalyzer
 
-            # Obtener posts
+            # Get posts from DB
             posts = await get_instagram_posts_db(creator_id)
             if not posts:
                 logger.warning("No posts found for ToneProfile generation")
                 return result
 
-            # Extraer captions
-            captions = [
-                p.get('caption', '')
-                for p in posts
-                if len(p.get('caption', '')) > 20
-            ]
-
-            if len(captions) < 5:
-                logger.warning(f"Not enough captions ({len(captions)}) for reliable ToneProfile")
+            # Filter posts with meaningful captions
+            valid_posts = [p for p in posts if len(p.get('caption', '')) > 20]
+            if len(valid_posts) < 5:
+                logger.warning(f"Not enough posts ({len(valid_posts)}) for ToneProfile")
                 return result
 
-            # Análisis simple del tono
-            profile_data = self._analyze_tone(captions)
-            profile_data['analyzed_posts_count'] = len(captions)
-            profile_data['generated_at'] = datetime.now(timezone.utc).isoformat()
+            # Use ToneAnalyzer (LLM-based, same as OnboardingService)
+            analyzer = ToneAnalyzer()
+            profile = await analyzer.analyze(
+                creator_id=creator_id,
+                posts=valid_posts,
+                max_posts=30,
+            )
 
-            # Guardar en DB
-            saved = await save_tone_profile_db(creator_id, profile_data)
-
-            result['success'] = saved
-            result['confidence'] = profile_data.get('confidence_score', 0.0)
+            if profile:
+                await save_tone_profile(profile)
+                result['success'] = True
+                result['confidence'] = 0.8
+                logger.info(f"[AutoConfig] ToneProfile generated via ToneAnalyzer for {creator_id}")
 
         except Exception as e:
             logger.error(f"ToneProfile generation error: {e}")
 
         return result
-
-    def _analyze_tone(self, captions: List[str]) -> dict:
-        """Análisis básico de tono desde captions."""
-        import re
-        from collections import Counter
-
-        all_text = ' '.join(captions)
-
-        # Extraer emojis
-        emoji_pattern = re.compile(
-            "["
-            "\U0001F600-\U0001F64F"
-            "\U0001F300-\U0001F5FF"
-            "\U0001F680-\U0001F6FF"
-            "\U0001F1E0-\U0001F1FF"
-            "\U00002702-\U000027B0"
-            "\U0001F900-\U0001F9FF"
-            "]+",
-            flags=re.UNICODE
-        )
-        emojis = emoji_pattern.findall(all_text)
-        emoji_counts = Counter(emojis)
-        top_emojis = [e for e, _ in emoji_counts.most_common(10)]
-
-        # Calcular longitud promedio
-        avg_length = sum(len(c) for c in captions) / len(captions)
-
-        # Detectar formalidad (simple heuristic)
-        formal_indicators = ['usted', 'estimado', 'cordialmente', 'atentamente']
-        informal_indicators = ['tú', 'tu', 'hey', 'hola', '!', '😊', '🙌']
-
-        formal_count = sum(1 for w in formal_indicators if w in all_text.lower())
-        informal_count = sum(1 for w in informal_indicators if w in all_text.lower())
-
-        formality = formal_count / (formal_count + informal_count + 1)
-
-        # Extraer palabras frecuentes (excluir stopwords)
-        stopwords = {
-            'de', 'la', 'que', 'el', 'en', 'y', 'a', 'los', 'del', 'se',
-            'las', 'por', 'un', 'para', 'con', 'no', 'una', 'su', 'al',
-            'es', 'lo', 'como', 'más', 'pero', 'sus', 'le', 'ya', 'o',
-            'este', 'si', 'porque', 'esta', 'son', 'entre', 'cuando',
-            'muy', 'sin', 'sobre', 'también', 'me', 'hasta', 'hay',
-            'donde', 'quien', 'desde', 'todo', 'nos', 'durante', 'te'
-        }
-
-        words = re.findall(r'\b[a-záéíóúñü]+\b', all_text.lower())
-        words = [w for w in words if w not in stopwords and len(w) > 3]
-        word_counts = Counter(words)
-        top_words = [w for w, _ in word_counts.most_common(20)]
-
-        # Detectar temas
-        fitness_words = ['fitness', 'entreno', 'ejercicio', 'gym', 'deporte', 'fuerza']
-        mindset_words = ['mente', 'mindset', 'mentalidad', 'propósito', 'energía']
-        nutrition_words = ['nutrición', 'dieta', 'comida', 'alimentación', 'proteína']
-
-        topics = []
-        if any(w in all_text.lower() for w in fitness_words):
-            topics.append('fitness')
-        if any(w in all_text.lower() for w in mindset_words):
-            topics.append('mindset')
-        if any(w in all_text.lower() for w in nutrition_words):
-            topics.append('nutrition')
-
-        # Confidence basado en cantidad de datos
-        confidence = min(1.0, len(captions) / 30)
-
-        return {
-            'emoji_style': top_emojis,
-            'avg_message_length': round(avg_length),
-            'formality': round(formality, 2),
-            'frequent_words': top_words,
-            'topics': topics,
-            'confidence_score': round(confidence, 2)
-        }
 
     async def _update_creator(
         self,
@@ -791,11 +717,14 @@ class AutoConfigurator:
         return result
 
     async def _generate_faqs(self, creator_id: str) -> dict:
-        """
-        Genera FAQs automáticas basadas en el contenido scrapeado.
+        """Generate FAQs with FAQExtractor (primary) + template fallback.
 
-        IMPORTANTE: Si ya existen FAQs en KnowledgeBase (del V2 pipeline),
-        NO genera nuevas para evitar duplicados/parafraseados.
+        Hierarchy:
+          1. PRIMARY: FAQExtractor (LLM-based, from IngestionV2 pipeline).
+             If the V2 pipeline already ran during website scraping,
+             FAQs are already saved — skip generation entirely.
+          2. FALLBACK: Template-based FAQs from products/bio data.
+             Only runs if FAQExtractor produced fewer than 3 FAQs.
         """
         result = {
             'faqs_created': 0,
@@ -804,10 +733,8 @@ class AutoConfigurator:
 
         try:
             from api.database import get_db_session
-            from api.models import Creator, KnowledgeBase, Product, ContentChunk
+            from api.models import Creator, KnowledgeBase, Product
             from sqlalchemy import or_
-
-            faqs_to_create = []
 
             with get_db_session() as db:
                 creator = db.query(Creator).filter(
@@ -820,43 +747,25 @@ class AutoConfigurator:
                 if not creator:
                     return result
 
-                # SKIP if FAQs already exist from V2 pipeline (literal extraction)
+                # PRIMARY: Check if FAQExtractor (V2 pipeline) already produced FAQs
                 existing_faq_count = db.query(KnowledgeBase).filter(
                     KnowledgeBase.creator_id == creator.id
                 ).count()
 
-                if existing_faq_count >= 10:
+                if existing_faq_count >= 3:
                     logger.info(
-                        f"[AutoConfig] Skipping FAQ generation - {existing_faq_count} FAQs already exist from V2 pipeline"
+                        f"[AutoConfig] FAQExtractor already produced {existing_faq_count} FAQs — skipping templates"
                     )
                     result['faqs_created'] = existing_faq_count
-                    result['source'] = ['v2_pipeline_existing']
+                    result['source'] = ['faq_extractor_existing']
                     return result
 
+                # FALLBACK: Template-based FAQs from products and bio
+                logger.info("[AutoConfig] FAQExtractor insufficient — generating template FAQs")
                 creator_uuid = creator.id
+                faqs_to_create = []
 
-                # 1. Buscar FAQs ya extraídas del website (source_type='faq')
-                existing_faqs = db.query(ContentChunk).filter(
-                    ContentChunk.creator_id == str(creator_uuid),
-                    ContentChunk.source_type == 'faq'
-                ).all()
-
-                for chunk in existing_faqs:
-                    # El contenido debería tener formato "Q: ... A: ..."
-                    content = chunk.content or ''
-                    if 'Q:' in content or '?' in content:
-                        parts = content.split('\n', 1)
-                        if len(parts) >= 2:
-                            question = parts[0].replace('Q:', '').strip()
-                            answer = parts[1].replace('A:', '').strip()
-                            if question and answer and len(answer) > 10:
-                                faqs_to_create.append({
-                                    'question': question if question.endswith('?') else f"{question}?",
-                                    'answer': answer,
-                                    'source': 'website'
-                                })
-
-                # 2. Generar FAQs basadas en productos
+                # Product-based FAQs
                 products = db.query(Product).filter(
                     Product.creator_id == creator_uuid,
                     Product.is_active == True
@@ -864,31 +773,28 @@ class AutoConfigurator:
 
                 for product in products:
                     if product.price and product.name:
-                        # FAQ sobre precio
                         faqs_to_create.append({
-                            'question': f"¿Cuánto cuesta {product.name}?",
+                            'question': f"\u00bfCu\u00e1nto cuesta {product.name}?",
                             'answer': f"{product.name} tiene un precio de {product.price:.0f} {product.currency}. {product.description[:200] if product.description else ''}".strip(),
                             'source': 'products'
                         })
-
-                        # FAQ sobre qué incluye
                         if product.description and len(product.description) > 50:
                             faqs_to_create.append({
-                                'question': f"¿Qué incluye {product.name}?",
+                                'question': f"\u00bfQu\u00e9 incluye {product.name}?",
                                 'answer': product.description[:500],
                                 'source': 'products'
                             })
 
-                # 3. Generar FAQs genéricas basadas en knowledge_about
+                # Bio-based FAQ
                 about = creator.knowledge_about or {}
                 if about.get('bio'):
                     faqs_to_create.append({
-                        'question': f"¿Quién es {about.get('name', creator.name)}?",
+                        'question': f"\u00bfQui\u00e9n es {about.get('name', creator.name)}?",
                         'answer': about.get('bio', ''),
                         'source': 'bio'
                     })
 
-                # 4. Eliminar duplicados y guardar
+                # Deduplicate and save
                 seen_questions = set()
                 for faq in faqs_to_create:
                     question_key = faq['question'].lower()
@@ -896,7 +802,6 @@ class AutoConfigurator:
                         continue
                     seen_questions.add(question_key)
 
-                    # Verificar si ya existe
                     existing = db.query(KnowledgeBase).filter(
                         KnowledgeBase.creator_id == creator_uuid,
                         KnowledgeBase.question.ilike(f"%{faq['question'][:50]}%")
@@ -915,12 +820,10 @@ class AutoConfigurator:
 
                 db.commit()
 
-            logger.info(f"[AutoConfig] Generated {result['faqs_created']} FAQs from sources: {result['source']}")
+            logger.info(f"[AutoConfig] Template FAQs: {result['faqs_created']} from {result['source']}")
 
         except Exception as e:
             logger.error(f"[AutoConfig] FAQ generation error: {e}")
-            import traceback
-            traceback.print_exc()
 
         return result
 
