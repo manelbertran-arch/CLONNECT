@@ -443,8 +443,10 @@ class CopilotService:
         finally:
             session.close()
 
-    async def discard_response(self, creator_id: str, message_id: str) -> Dict[str, Any]:
-        """Descartar una respuesta sin enviarla"""
+    async def discard_response(
+        self, creator_id: str, message_id: str, discard_reason: str = None
+    ) -> Dict[str, Any]:
+        """Descartar una respuesta sin enviarla."""
         from api.database import SessionLocal
         from api.models import Message
 
@@ -457,9 +459,17 @@ class CopilotService:
             msg.status = "discarded"
             msg.approved_at = datetime.now(timezone.utc)
             msg.approved_by = "creator"
+
+            # A10: Persist discard_reason in msg_metadata (no migration needed)
+            if discard_reason:
+                meta = msg.msg_metadata or {}
+                meta["discard_reason"] = discard_reason
+                meta["discarded_at"] = datetime.now(timezone.utc).isoformat()
+                msg.msg_metadata = meta
+
             session.commit()
 
-            logger.info(f"[Copilot] Discarded message {message_id}")
+            logger.info(f"[Copilot] Discarded message {message_id} reason={discard_reason}")
             return {"success": True, "message_id": str(msg.id)}
 
         except Exception as e:

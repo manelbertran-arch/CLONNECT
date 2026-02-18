@@ -103,13 +103,24 @@ async def approve_response(creator_id: str, message_id: str, request: ApproveReq
 # =============================================================================
 # POST /copilot/{creator_id}/discard/{message_id}
 # =============================================================================
+class DiscardRequest(BaseModel):
+    """Optional body for discard with reason."""
+    reason: Optional[str] = None
+
+
 @router.post("/{creator_id}/discard/{message_id}")
-async def discard_response(creator_id: str, message_id: str, _auth: str = Depends(require_creator_access)):
+async def discard_response(
+    creator_id: str,
+    message_id: str,
+    body: Optional[DiscardRequest] = None,
+    _auth: str = Depends(require_creator_access),
+):
     """
     Descartar una respuesta sin enviarla.
 
     Args:
         message_id: ID del mensaje pendiente
+        body: Optional — { "reason": "wrong tone" }
 
     Returns:
         Confirmación del descarte
@@ -120,10 +131,11 @@ async def discard_response(creator_id: str, message_id: str, _auth: str = Depend
 
     start = time.time()
     service = get_copilot_service()
-    result = await service.discard_response(creator_id, message_id)
+    discard_reason = body.reason if body else None
+    result = await service.discard_response(creator_id, message_id, discard_reason=discard_reason)
     elapsed = time.time() - start
 
-    logger.info(f"⏱️ Copilot discard took {elapsed:.2f}s for message {message_id}")
+    logger.info(f"Copilot discard took {elapsed:.2f}s for message {message_id} reason={discard_reason}")
 
     if not result.get("success"):
         raise HTTPException(status_code=400, detail=result.get("error", "Failed to discard"))
