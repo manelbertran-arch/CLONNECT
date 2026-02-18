@@ -49,10 +49,75 @@ const statusNames: Record<string, string> = {
   spam: "Spam",
 };
 
+// Platform brand colors
+const platformColors = {
+  instagram: {
+    gradient: "linear-gradient(45deg, #f09433, #e6683c, #dc2743, #cc2366, #bc1888)",
+    primary: "#E1306C",
+    bg: "bg-gradient-to-r from-[#f09433] via-[#dc2743] to-[#bc1888]",
+    bgLight: "bg-[#E1306C]/10",
+    text: "text-[#E1306C]",
+    border: "border-[#E1306C]",
+  },
+  whatsapp: {
+    gradient: "linear-gradient(45deg, #25D366, #128C7E)",
+    primary: "#25D366",
+    bg: "bg-[#25D366]",
+    bgLight: "bg-[#25D366]/10",
+    text: "text-[#25D366]",
+    border: "border-[#25D366]",
+  },
+  telegram: {
+    gradient: "linear-gradient(45deg, #0088cc, #229ED9)",
+    primary: "#0088cc",
+    bg: "bg-[#0088cc]",
+    bgLight: "bg-[#0088cc]/10",
+    text: "text-[#0088cc]",
+    border: "border-[#0088cc]",
+  },
+};
+
+// Platform icons with brand colors (always colored)
+const PlatformIcon = ({ platform, size = "sm" }: { platform: string; size?: "sm" | "md" | "lg" }) => {
+  const sizeClasses = {
+    sm: "w-4 h-4",
+    md: "w-6 h-6",
+    lg: "w-8 h-8",
+  };
+  const iconSize = sizeClasses[size];
+
+  switch (platform) {
+    case "instagram":
+      return (
+        <div className="relative" style={{ width: size === "lg" ? 32 : size === "md" ? 24 : 16, height: size === "lg" ? 32 : size === "md" ? 24 : 16 }}>
+          <Instagram className={`${iconSize}`} style={{ stroke: "url(#instagram-gradient)" }} />
+          <svg width="0" height="0" className="absolute">
+            <defs>
+              <linearGradient id="instagram-gradient" x1="0%" y1="0%" x2="100%" y2="100%">
+                <stop offset="0%" stopColor="#f09433" />
+                <stop offset="25%" stopColor="#e6683c" />
+                <stop offset="50%" stopColor="#dc2743" />
+                <stop offset="75%" stopColor="#cc2366" />
+                <stop offset="100%" stopColor="#bc1888" />
+              </linearGradient>
+            </defs>
+          </svg>
+        </div>
+      );
+    case "whatsapp":
+      return <MessageCircle className={`${iconSize} text-[#25D366]`} />;
+    case "telegram":
+      return <Send className={`${iconSize} text-[#0088cc]`} />;
+    default:
+      return <MessageCircle className={`${iconSize} text-muted-foreground`} />;
+  }
+};
+
+// Legacy platformIcons for backwards compatibility
 const platformIcons: Record<string, React.ReactNode> = {
-  instagram: <Instagram className="w-3 h-3" />,
-  telegram: <Send className="w-3 h-3" />,
-  whatsapp: <MessageCircle className="w-3 h-3" />,
+  instagram: <Instagram className="w-4 h-4 text-[#E1306C]" />,
+  telegram: <Send className="w-4 h-4 text-[#0088cc]" />,
+  whatsapp: <MessageCircle className="w-4 h-4 text-[#25D366]" />,
 };
 
 function getInitials(name?: string, username?: string, id?: string): string {
@@ -146,6 +211,7 @@ export default function Inbox() {
   const [searchQuery, setSearchQuery] = useState("");
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [activeTab, setActiveTab] = useState<"all" | "archived">("all");
+  const [platformFilter, setPlatformFilter] = useState<"all" | "instagram" | "whatsapp" | "telegram">("all");
   const { toast } = useToast();
   const sendMessageMutation = useSendMessage();
   const archiveMutation = useArchiveConversation();
@@ -253,6 +319,14 @@ export default function Inbox() {
 
     let filtered = Array.isArray(sourceData) ? sourceData : [];
 
+    // Filter by platform
+    if (platformFilter !== "all") {
+      filtered = filtered.filter(c => {
+        const platform = c.platform || detectPlatform(c.follower_id);
+        return platform === platformFilter;
+      });
+    }
+
     if (searchQuery) {
       const query = searchQuery.toLowerCase();
       filtered = filtered.filter(c =>
@@ -266,7 +340,7 @@ export default function Inbox() {
     return filtered.sort((a, b) =>
       new Date(b.last_contact || 0).getTime() - new Date(a.last_contact || 0).getTime()
     );
-  }, [data?.pages, archivedData, searchQuery, activeTab]);
+  }, [data?.pages, archivedData, searchQuery, activeTab, platformFilter]);
 
   const archivedCount = archivedData?.length || 0;
 
@@ -335,30 +409,66 @@ export default function Inbox() {
         "w-full md:w-80 flex flex-col",
         showMobileChat ? "hidden md:flex" : "flex"
       )}>
-        {/* Tabs */}
-        <div className="flex gap-2 mb-4">
+        {/* Platform Tabs - Always show brand colors */}
+        <div className="flex gap-1 mb-3 overflow-x-auto pb-1">
           <button
-            onClick={() => setActiveTab("all")}
+            onClick={() => { setPlatformFilter("all"); setActiveTab("all"); }}
             className={cn(
-              "flex-1 py-2 px-3 rounded-lg text-sm font-medium transition-all",
-              activeTab === "all"
+              "flex items-center gap-2 py-2 px-3 rounded-lg text-sm font-medium transition-all whitespace-nowrap",
+              platformFilter === "all" && activeTab === "all"
                 ? "bg-primary text-primary-foreground"
-                : "bg-secondary text-muted-foreground hover:text-foreground"
+                : "bg-secondary/50 text-muted-foreground hover:text-foreground hover:bg-secondary"
             )}
           >
             All
           </button>
           <button
-            onClick={() => setActiveTab("archived")}
+            onClick={() => { setPlatformFilter("instagram"); setActiveTab("all"); }}
             className={cn(
-              "flex-1 py-2 px-3 rounded-lg text-sm font-medium transition-all flex items-center justify-center gap-2",
+              "flex items-center gap-2 py-2 px-3 rounded-lg text-sm font-medium transition-all whitespace-nowrap",
+              platformFilter === "instagram"
+                ? "bg-[#E1306C]/20 text-white border border-[#E1306C]/50"
+                : "bg-secondary/50 text-muted-foreground hover:text-foreground hover:bg-secondary"
+            )}
+          >
+            <Instagram className="w-5 h-5" style={{ color: "#E1306C" }} />
+            <span className={platformFilter === "instagram" ? "text-[#E1306C]" : ""}>Instagram</span>
+          </button>
+          <button
+            onClick={() => { setPlatformFilter("whatsapp"); setActiveTab("all"); }}
+            className={cn(
+              "flex items-center gap-2 py-2 px-3 rounded-lg text-sm font-medium transition-all whitespace-nowrap",
+              platformFilter === "whatsapp"
+                ? "bg-[#25D366]/20 text-white border border-[#25D366]/50"
+                : "bg-secondary/50 text-muted-foreground hover:text-foreground hover:bg-secondary"
+            )}
+          >
+            <MessageCircle className="w-5 h-5 text-[#25D366]" />
+            <span className={platformFilter === "whatsapp" ? "text-[#25D366]" : ""}>WhatsApp</span>
+          </button>
+          <button
+            onClick={() => { setPlatformFilter("telegram"); setActiveTab("all"); }}
+            className={cn(
+              "flex items-center gap-2 py-2 px-3 rounded-lg text-sm font-medium transition-all whitespace-nowrap",
+              platformFilter === "telegram"
+                ? "bg-[#0088cc]/20 text-white border border-[#0088cc]/50"
+                : "bg-secondary/50 text-muted-foreground hover:text-foreground hover:bg-secondary"
+            )}
+          >
+            <Send className="w-5 h-5 text-[#0088cc]" />
+            <span className={platformFilter === "telegram" ? "text-[#0088cc]" : ""}>Telegram</span>
+          </button>
+          <button
+            onClick={() => { setActiveTab("archived"); setPlatformFilter("all"); }}
+            className={cn(
+              "flex items-center gap-2 py-2 px-3 rounded-lg text-sm font-medium transition-all whitespace-nowrap ml-auto",
               activeTab === "archived"
-                ? "bg-primary text-primary-foreground"
-                : "bg-secondary text-muted-foreground hover:text-foreground"
+                ? "bg-muted text-foreground"
+                : "bg-secondary/50 text-muted-foreground hover:text-foreground hover:bg-secondary"
             )}
           >
             <Archive className="w-4 h-4" />
-            Archived {archivedCount > 0 && `(${archivedCount})`}
+            {archivedCount > 0 && <span className="text-xs">({archivedCount})</span>}
           </button>
         </div>
 
@@ -458,12 +568,22 @@ export default function Inbox() {
                               const username = (convo.username || convo.follower_id).replace(/^@/, "").replace(/^ig_/, "");
                               window.open(`https://instagram.com/${username}`, "_blank");
                             }}
-                            className="text-[10px] text-muted-foreground flex items-center gap-1 hover:text-violet-400 transition-colors"
+                            className="text-[10px] flex items-center gap-1 hover:opacity-80 transition-opacity"
                             title={`Abrir @${(convo.username || "").replace(/^@/, "")}`}
                           >
-                            <Instagram className="w-3 h-3" />
-                            {platform}
+                            <Instagram className="w-4 h-4" style={{ color: "#E1306C" }} />
+                            <span className="text-[#E1306C]">{platform}</span>
                           </button>
+                        ) : platform === "whatsapp" ? (
+                          <span className="text-[10px] flex items-center gap-1">
+                            <MessageCircle className="w-4 h-4 text-[#25D366]" />
+                            <span className="text-[#25D366]">{platform}</span>
+                          </span>
+                        ) : platform === "telegram" ? (
+                          <span className="text-[10px] flex items-center gap-1">
+                            <Send className="w-4 h-4 text-[#0088cc]" />
+                            <span className="text-[#0088cc]">{platform}</span>
+                          </span>
                         ) : (
                           <span className="text-[10px] text-muted-foreground flex items-center gap-1">
                             {platformIcons[platform]}
@@ -560,26 +680,46 @@ export default function Inbox() {
                   <p className="font-semibold">
                     {displayName}
                   </p>
-                  <div className="text-xs text-muted-foreground flex items-center gap-1">
-                    {(selectedConversation.platform || detectPlatform(selectedConversation.follower_id)) === "instagram" ? (
-                      <button
-                        onClick={() => {
-                          const username = (selectedConversation.username || selectedConversation.follower_id).replace(/^@/, "").replace(/^ig_/, "");
-                          window.open(`https://instagram.com/${username}`, "_blank");
-                        }}
-                        className="flex items-center gap-1 hover:text-violet-400 transition-colors"
-                        title={`Abrir @${(selectedConversation.username || "").replace(/^@/, "")}`}
-                      >
-                        <Instagram className="w-3 h-3" />
-                        instagram
-                      </button>
-                    ) : (
-                      <>
-                        {platformIcons[selectedConversation.platform || detectPlatform(selectedConversation.follower_id)]}
-                        {selectedConversation.platform || detectPlatform(selectedConversation.follower_id)}
-                      </>
-                    )}
-                    <span>• Score: {Math.round(getPurchaseIntent(followerData || selectedConversation) * 100)}%</span>
+                  <div className="text-xs flex items-center gap-1">
+                    {(() => {
+                      const platform = selectedConversation.platform || detectPlatform(selectedConversation.follower_id);
+                      if (platform === "instagram") {
+                        return (
+                          <button
+                            onClick={() => {
+                              const username = (selectedConversation.username || selectedConversation.follower_id).replace(/^@/, "").replace(/^ig_/, "");
+                              window.open(`https://instagram.com/${username}`, "_blank");
+                            }}
+                            className="flex items-center gap-1 hover:opacity-80 transition-opacity"
+                            title={`Abrir @${(selectedConversation.username || "").replace(/^@/, "")}`}
+                          >
+                            <Instagram className="w-4 h-4" style={{ color: "#E1306C" }} />
+                            <span className="text-[#E1306C] font-medium">Instagram</span>
+                          </button>
+                        );
+                      } else if (platform === "whatsapp") {
+                        return (
+                          <span className="flex items-center gap-1">
+                            <MessageCircle className="w-4 h-4 text-[#25D366]" />
+                            <span className="text-[#25D366] font-medium">WhatsApp</span>
+                          </span>
+                        );
+                      } else if (platform === "telegram") {
+                        return (
+                          <span className="flex items-center gap-1">
+                            <Send className="w-4 h-4 text-[#0088cc]" />
+                            <span className="text-[#0088cc] font-medium">Telegram</span>
+                          </span>
+                        );
+                      }
+                      return (
+                        <span className="flex items-center gap-1 text-muted-foreground">
+                          {platformIcons[platform]}
+                          {platform}
+                        </span>
+                      );
+                    })()}
+                    <span className="text-muted-foreground">• Score: {Math.round(getPurchaseIntent(followerData || selectedConversation) * 100)}%</span>
                   </div>
                 </div>
               </div>
@@ -610,53 +750,74 @@ export default function Inbox() {
               </DropdownMenu>
             </div>
 
-            {/* Messages */}
-            <div className="flex-1 overflow-auto p-4 space-y-4">
-              {messagesLoading ? (
-                <div className="flex items-center justify-center h-full">
-                  <Loader2 className="w-6 h-6 animate-spin text-primary" />
-                </div>
-              ) : messages.length > 0 ? (
-                messages.map((msg, idx) => (
-                  <MessageRenderer
-                    key={idx}
-                    message={msg}
-                    isLastInGroup={idx === messages.length - 1 || messages[idx + 1]?.role !== msg.role}
-                  />
-                ))
-              ) : (
-                <div className="text-center py-8 text-muted-foreground">
-                  <p>No messages in this conversation</p>
-                  <p className="text-sm mt-1">Total messages: {selectedConversation.total_messages || 0}</p>
-                </div>
-              )}
-            </div>
-
-            {/* Input */}
-            <div className="p-4 border-t border-border/50">
-              <div className="flex gap-3">
-                <Input
-                  value={message}
-                  onChange={(e) => setMessage(e.target.value)}
-                  onKeyDown={handleKeyDown}
-                  placeholder="Type a message..."
-                  className="flex-1 bg-secondary border-0"
-                  disabled={sendMessageMutation.isPending}
-                />
-                <Button
-                  type="button"
-                  onClick={handleSend}
-                  disabled={!selectedId || !message.trim() || sendMessageMutation.isPending}
-                  className="bg-gradient-to-r from-primary to-accent hover:opacity-90 transition-opacity"
-                >
-                  {sendMessageMutation.isPending ? (
-                    <Loader2 className="w-4 h-4 animate-spin" />
+            {/* Messages - Platform-specific background */}
+            {(() => {
+              const platform = selectedConversation.platform || detectPlatform(selectedConversation.follower_id);
+              const chatBgClass = platform === "whatsapp"
+                ? "bg-[#0B141A]"
+                : platform === "telegram"
+                ? "bg-[#0E1621]"
+                : ""; // Instagram uses default bg-card
+              return (
+                <div className={cn("flex-1 overflow-auto p-4 space-y-4", chatBgClass)}>
+                  {messagesLoading ? (
+                    <div className="flex items-center justify-center h-full">
+                      <Loader2 className="w-6 h-6 animate-spin text-primary" />
+                    </div>
+                  ) : messages.length > 0 ? (
+                    messages.map((msg, idx) => (
+                      <MessageRenderer
+                        key={idx}
+                        message={msg}
+                        isLastInGroup={idx === messages.length - 1 || messages[idx + 1]?.role !== msg.role}
+                        platform={platform as "instagram" | "whatsapp" | "telegram"}
+                      />
+                    ))
                   ) : (
-                    <Send className="w-4 h-4" />
+                    <div className="text-center py-8 text-muted-foreground">
+                      <p>No messages in this conversation</p>
+                      <p className="text-sm mt-1">Total messages: {selectedConversation.total_messages || 0}</p>
+                    </div>
                   )}
-                </Button>
-              </div>
-            </div>
+                </div>
+              );
+            })()}
+
+            {/* Input - Platform-specific send button */}
+            {(() => {
+              const platform = selectedConversation.platform || detectPlatform(selectedConversation.follower_id);
+              const sendButtonClass = platform === "whatsapp"
+                ? "bg-[#25D366] hover:bg-[#20BD5A]"
+                : platform === "telegram"
+                ? "bg-[#0088cc] hover:bg-[#0077B5]"
+                : "bg-gradient-to-r from-[#833AB4] via-[#E1306C] to-[#F77737] hover:opacity-90";
+              return (
+                <div className="p-4 border-t border-border/50">
+                  <div className="flex gap-3">
+                    <Input
+                      value={message}
+                      onChange={(e) => setMessage(e.target.value)}
+                      onKeyDown={handleKeyDown}
+                      placeholder="Type a message..."
+                      className="flex-1 bg-secondary border-0"
+                      disabled={sendMessageMutation.isPending}
+                    />
+                    <Button
+                      type="button"
+                      onClick={handleSend}
+                      disabled={!selectedId || !message.trim() || sendMessageMutation.isPending}
+                      className={cn(sendButtonClass, "transition-opacity")}
+                    >
+                      {sendMessageMutation.isPending ? (
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                      ) : (
+                        <Send className="w-4 h-4" />
+                      )}
+                    </Button>
+                  </div>
+                </div>
+              );
+            })()}
           </>
         ) : (
           <div className="flex-1 flex items-center justify-center text-muted-foreground">

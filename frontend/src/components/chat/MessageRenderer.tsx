@@ -191,37 +191,77 @@ interface Message {
 interface MessageRendererProps {
   message: Message;
   isLastInGroup?: boolean;
+  platform?: "instagram" | "whatsapp" | "telegram";
 }
 
-// Violet gradient for outgoing messages (matches UI theme)
+// Platform-specific theme configurations
+const platformThemes = {
+  instagram: {
+    outgoingGradient: "bg-gradient-to-br from-[#833AB4] via-[#E1306C] to-[#F77737]",
+    outgoingBg: "bg-gradient-to-br from-violet-600 to-purple-600",
+    incomingBg: "bg-[#262626]",
+    chatBg: "bg-black",
+    timestampOutgoing: "text-white/60",
+    timestampIncoming: "text-gray-500",
+    linkOutgoing: "text-blue-200 underline hover:text-white",
+    linkIncoming: "text-blue-400 underline hover:text-blue-300",
+  },
+  whatsapp: {
+    outgoingGradient: "bg-[#005C4B]",
+    outgoingBg: "bg-[#005C4B]",
+    incomingBg: "bg-[#202C33]",
+    chatBg: "bg-[#0B141A]",
+    timestampOutgoing: "text-[#8696A0]",
+    timestampIncoming: "text-[#8696A0]",
+    linkOutgoing: "text-[#53BDEB] underline hover:text-[#7FCCED]",
+    linkIncoming: "text-[#53BDEB] underline hover:text-[#7FCCED]",
+  },
+  telegram: {
+    outgoingGradient: "bg-[#2B5278]",
+    outgoingBg: "bg-[#2B5278]",
+    incomingBg: "bg-[#182533]",
+    chatBg: "bg-[#0E1621]",
+    timestampOutgoing: "text-[#6BB3E0]/70",
+    timestampIncoming: "text-[#6BB3E0]/70",
+    linkOutgoing: "text-[#6BB3E0] underline hover:text-[#8ECDF7]",
+    linkIncoming: "text-[#6BB3E0] underline hover:text-[#8ECDF7]",
+  },
+};
+
+const getTheme = (platform?: string) => {
+  return platformThemes[platform as keyof typeof platformThemes] || platformThemes.instagram;
+};
+
+// Default gradient for outgoing messages (Instagram style)
 const IG_GRADIENT = 'bg-gradient-to-br from-violet-600 to-purple-600';
 const IG_GRADIENT_STORY = 'bg-gradient-to-tr from-violet-500 via-purple-500 to-violet-600';
 
-export function MessageRenderer({ message, isLastInGroup = true }: MessageRendererProps) {
+export function MessageRenderer({ message, isLastInGroup = true, platform = "instagram" }: MessageRendererProps) {
   const isOutgoing = message.role === 'user';
   const metadata = message.metadata || {};
   const msgType = metadata.type || 'text';
+  const theme = getTheme(platform);
 
   // Determine which component to render based on type
   switch (msgType) {
     case 'story_mention':
     case 'story_reply':
     case 'story_reaction':
-      return <StoryMessage message={message} isOutgoing={isOutgoing} isLastInGroup={isLastInGroup} />;
+      return <StoryMessage message={message} isOutgoing={isOutgoing} isLastInGroup={isLastInGroup} theme={theme} />;
 
     case 'reaction':
-      return <ReactionMessage message={message} isOutgoing={isOutgoing} />;
+      return <ReactionMessage message={message} isOutgoing={isOutgoing} theme={theme} />;
 
     case 'image':
     case 'gif':
     case 'sticker':
-      return <MediaMessage message={message} isOutgoing={isOutgoing} isLastInGroup={isLastInGroup} type="image" />;
+      return <MediaMessage message={message} isOutgoing={isOutgoing} isLastInGroup={isLastInGroup} type="image" theme={theme} />;
 
     case 'video':
-      return <MediaMessage message={message} isOutgoing={isOutgoing} isLastInGroup={isLastInGroup} type="video" />;
+      return <MediaMessage message={message} isOutgoing={isOutgoing} isLastInGroup={isLastInGroup} type="video" theme={theme} />;
 
     case 'audio':
-      return <AudioMessage message={message} isOutgoing={isOutgoing} isLastInGroup={isLastInGroup} />;
+      return <AudioMessage message={message} isOutgoing={isOutgoing} isLastInGroup={isLastInGroup} theme={theme} />;
 
     case 'share':
     case 'shared_post':
@@ -231,27 +271,30 @@ export function MessageRenderer({ message, isLastInGroup = true }: MessageRender
     case 'clip':
     case 'igtv':
     case 'link_preview':
-      return <SharedPostMessage message={message} isOutgoing={isOutgoing} isLastInGroup={isLastInGroup} />;
+      return <SharedPostMessage message={message} isOutgoing={isOutgoing} isLastInGroup={isLastInGroup} theme={theme} />;
 
     case 'carousel':
-      return <CarouselMessage message={message} isOutgoing={isOutgoing} isLastInGroup={isLastInGroup} />;
+      return <CarouselMessage message={message} isOutgoing={isOutgoing} isLastInGroup={isLastInGroup} theme={theme} />;
 
     case 'unknown':
-      return <UnknownMediaMessage message={message} isOutgoing={isOutgoing} isLastInGroup={isLastInGroup} />;
+      return <UnknownMediaMessage message={message} isOutgoing={isOutgoing} isLastInGroup={isLastInGroup} theme={theme} />;
 
     default:
-      return <TextMessage message={message} isOutgoing={isOutgoing} isLastInGroup={isLastInGroup} />;
+      return <TextMessage message={message} isOutgoing={isOutgoing} isLastInGroup={isLastInGroup} theme={theme} />;
   }
 }
 
-// Text Message - Instagram style bubble
-function TextMessage({ message, isOutgoing, isLastInGroup }: { message: Message; isOutgoing: boolean; isLastInGroup: boolean }) {
+// Theme type for components
+type Theme = typeof platformThemes.instagram;
+
+// Text Message - Platform-themed bubble
+function TextMessage({ message, isOutgoing, isLastInGroup, theme }: { message: Message; isOutgoing: boolean; isLastInGroup: boolean; theme: Theme }) {
   const metadata = message.metadata || {};
   const linkPreview = metadata.link_preview;
 
   const bubbleClass = isOutgoing
-    ? `${IG_GRADIENT} text-white`
-    : 'bg-[#262626] text-white';
+    ? `${theme.outgoingBg} text-white`
+    : `${theme.incomingBg} text-white`;
 
   const radiusClass = isOutgoing
     ? `rounded-2xl ${isLastInGroup ? 'rounded-br-md' : ''}`
@@ -277,7 +320,7 @@ function TextMessage({ message, isOutgoing, isLastInGroup }: { message: Message;
           </div>
         )}
         {linkPreview && <LinkPreviewCard preview={linkPreview} />}
-        <Timestamp timestamp={message.timestamp} isOutgoing={isOutgoing} className="px-4 pb-2" />
+        <Timestamp timestamp={message.timestamp} isOutgoing={isOutgoing} className="px-4 pb-2" theme={theme} />
       </div>
     </div>
   );
@@ -352,7 +395,7 @@ function isCdnUrl(url?: string): boolean {
 }
 
 // Story Message - With gradient border and thumbnail preview
-function StoryMessage({ message, isOutgoing, isLastInGroup }: { message: Message; isOutgoing: boolean; isLastInGroup: boolean }) {
+function StoryMessage({ message, isOutgoing, isLastInGroup, theme }: { message: Message; isOutgoing: boolean; isLastInGroup: boolean; theme: Theme }) {
   const [mediaLoaded, setMediaLoaded] = useState(false);
   const [useVideoFallback, setUseVideoFallback] = useState(false);
   const [mediaError, setMediaError] = useState(false);
@@ -386,8 +429,8 @@ function StoryMessage({ message, isOutgoing, isLastInGroup }: { message: Message
   const isVideo = isExplicitVideoUrl(thumbnailSrc) || useVideoFallback;
 
   const bubbleClass = isOutgoing
-    ? `${IG_GRADIENT} text-white`
-    : 'bg-[#262626] text-white';
+    ? `${theme.outgoingBg} text-white`
+    : `${theme.incomingBg} text-white`;
 
   return (
     <div className={`flex ${isOutgoing ? 'justify-end' : 'justify-start'}`}>
@@ -503,19 +546,19 @@ function StoryMessage({ message, isOutgoing, isLastInGroup }: { message: Message
           </div>
         )}
 
-        <Timestamp timestamp={message.timestamp} isOutgoing={isOutgoing} className="px-4 pb-2" />
+        <Timestamp timestamp={message.timestamp} isOutgoing={isOutgoing} className="px-4 pb-2" theme={theme} />
       </div>
     </div>
   );
 }
 
 // Reaction Message - Small emoji bubble
-function ReactionMessage({ message, isOutgoing }: { message: Message; isOutgoing: boolean }) {
+function ReactionMessage({ message, isOutgoing, theme }: { message: Message; isOutgoing: boolean; theme: Theme }) {
   const emoji = message.metadata?.emoji || '❤️';
 
   return (
     <div className={`flex ${isOutgoing ? 'justify-end' : 'justify-start'}`}>
-      <div className="inline-flex items-center justify-center p-2 rounded-full bg-[#262626]">
+      <div className={`inline-flex items-center justify-center p-2 rounded-full ${theme.incomingBg}`}>
         <span className="text-2xl" style={{ filter: 'none', color: 'initial' }}>
           {emoji}
         </span>
@@ -525,19 +568,19 @@ function ReactionMessage({ message, isOutgoing }: { message: Message; isOutgoing
 }
 
 // Unknown Media Message - Nice placeholder for media that couldn't be loaded
-function UnknownMediaMessage({ message, isOutgoing, isLastInGroup }: { message: Message; isOutgoing: boolean; isLastInGroup: boolean }) {
+function UnknownMediaMessage({ message, isOutgoing, isLastInGroup, theme }: { message: Message; isOutgoing: boolean; isLastInGroup: boolean; theme: Theme }) {
   const metadata = message.metadata || {};
   const mediaUrl = metadata.url;
 
   // If we have a URL, try to display it as an image
   if (mediaUrl) {
-    return <MediaMessage message={message} isOutgoing={isOutgoing} isLastInGroup={isLastInGroup} type="image" />;
+    return <MediaMessage message={message} isOutgoing={isOutgoing} isLastInGroup={isLastInGroup} type="image" theme={theme} />;
   }
 
   // No URL - show nice placeholder
   const bubbleClass = isOutgoing
-    ? `${IG_GRADIENT} text-white`
-    : 'bg-[#262626] text-white';
+    ? `${theme.outgoingBg} text-white`
+    : `${theme.incomingBg} text-white`;
 
   const radiusClass = isOutgoing
     ? `rounded-2xl ${isLastInGroup ? 'rounded-br-md' : ''}`
@@ -554,14 +597,14 @@ function UnknownMediaMessage({ message, isOutgoing, isLastInGroup }: { message: 
             <span className="text-gray-300 text-sm">Contenido multimedia no disponible</span>
           </div>
         </div>
-        <Timestamp timestamp={message.timestamp} isOutgoing={isOutgoing} className="px-4 pb-2" />
+        <Timestamp timestamp={message.timestamp} isOutgoing={isOutgoing} className="px-4 pb-2" theme={theme} />
       </div>
     </div>
   );
 }
 
 // Media Message - Image/GIF/Sticker/Video with video fallback
-function MediaMessage({ message, isOutgoing, isLastInGroup, type }: { message: Message; isOutgoing: boolean; isLastInGroup: boolean; type: 'image' | 'video' }) {
+function MediaMessage({ message, isOutgoing, isLastInGroup, type, theme }: { message: Message; isOutgoing: boolean; isLastInGroup: boolean; type: 'image' | 'video'; theme: Theme }) {
   const [loaded, setLoaded] = useState(false);
   const [useVideoFallback, setUseVideoFallback] = useState(false);
   const metadata = message.metadata || {};
@@ -579,16 +622,16 @@ function MediaMessage({ message, isOutgoing, isLastInGroup, type }: { message: M
   const isPlayableVideo = (type === 'video' || useVideoFallback || isExplicitVideoUrl(mediaUrl)) && mediaUrl;
 
   if (!mediaUrl) {
-    return <TextMessage message={message} isOutgoing={isOutgoing} isLastInGroup={isLastInGroup} />;
+    return <TextMessage message={message} isOutgoing={isOutgoing} isLastInGroup={isLastInGroup} theme={theme} />;
   }
 
   // Render inline video player if we have a direct video URL or fallback triggered
   if (isPlayableVideo) {
     return (
       <div className={`flex ${isOutgoing ? 'justify-end' : 'justify-start'}`}>
-        <div className="max-w-[70%] rounded-2xl overflow-hidden bg-black">
+        <div className={`max-w-[70%] rounded-2xl overflow-hidden ${theme.chatBg}`}>
           {!loaded && (
-            <div className="w-48 h-48 bg-[#262626] rounded-2xl flex items-center justify-center">
+            <div className={`w-48 h-48 ${theme.incomingBg} rounded-2xl flex items-center justify-center`}>
               <Film className="w-8 h-8 text-gray-500 animate-pulse" />
             </div>
           )}
@@ -602,7 +645,7 @@ function MediaMessage({ message, isOutgoing, isLastInGroup, type }: { message: M
             onLoadedData={() => setLoaded(true)}
             onError={() => setLoaded(true)}
           />
-          <Timestamp timestamp={message.timestamp} isOutgoing={isOutgoing} className="mt-1" />
+          <Timestamp timestamp={message.timestamp} isOutgoing={isOutgoing} className="mt-1" theme={theme} />
         </div>
       </div>
     );
@@ -614,7 +657,7 @@ function MediaMessage({ message, isOutgoing, isLastInGroup, type }: { message: M
       <div className={`max-w-[70%] ${isSticker ? '' : 'rounded-2xl overflow-hidden'}`}>
         <a href={mediaUrl} target="_blank" rel="noopener noreferrer" className="block relative cursor-pointer hover:opacity-90 transition-opacity">
           {!loaded && (
-            <div className="w-48 h-48 bg-[#262626] rounded-2xl flex items-center justify-center">
+            <div className={`w-48 h-48 ${theme.incomingBg} rounded-2xl flex items-center justify-center`}>
               <ImageIcon className="w-8 h-8 text-gray-500 animate-pulse" />
             </div>
           )}
@@ -634,18 +677,18 @@ function MediaMessage({ message, isOutgoing, isLastInGroup, type }: { message: M
             </div>
           )}
         </a>
-        <Timestamp timestamp={message.timestamp} isOutgoing={isOutgoing} className="mt-1" />
+        <Timestamp timestamp={message.timestamp} isOutgoing={isOutgoing} className="mt-1" theme={theme} />
       </div>
     </div>
   );
 }
 
 // Audio Message - with inline playback support
-function AudioMessage({ message, isOutgoing, isLastInGroup }: { message: Message; isOutgoing: boolean; isLastInGroup: boolean }) {
+function AudioMessage({ message, isOutgoing, isLastInGroup, theme }: { message: Message; isOutgoing: boolean; isLastInGroup: boolean; theme: Theme }) {
   const metadata = message.metadata || {};
   const audioUrl = metadata.url;
   const duration = metadata.duration;
-  const bubbleClass = isOutgoing ? IG_GRADIENT : 'bg-[#262626]';
+  const bubbleClass = isOutgoing ? theme.outgoingBg : theme.incomingBg;
 
   // Format duration as mm:ss
   const formatDuration = (seconds?: number) => {
@@ -688,14 +731,14 @@ function AudioMessage({ message, isOutgoing, isLastInGroup }: { message: Message
             )}
           </div>
         </div>
-        <Timestamp timestamp={message.timestamp} isOutgoing={isOutgoing} />
+        <Timestamp timestamp={message.timestamp} isOutgoing={isOutgoing} theme={theme} />
       </div>
     </div>
   );
 }
 
 // Shared Post/Reel Message
-function SharedPostMessage({ message, isOutgoing, isLastInGroup }: { message: Message; isOutgoing: boolean; isLastInGroup: boolean }) {
+function SharedPostMessage({ message, isOutgoing, isLastInGroup, theme }: { message: Message; isOutgoing: boolean; isLastInGroup: boolean; theme: Theme }) {
   const [mediaLoaded, setMediaLoaded] = useState(false);
   const [useVideoFallback, setUseVideoFallback] = useState(false);
   const [mediaError, setMediaError] = useState(false);
@@ -724,13 +767,13 @@ function SharedPostMessage({ message, isOutgoing, isLastInGroup }: { message: Me
 
   return (
     <div className={`flex ${isOutgoing ? 'justify-end' : 'justify-start'}`}>
-      <div className={`max-w-[75%] bg-[#262626] rounded-2xl ${isLastInGroup ? (isOutgoing ? 'rounded-br-md' : 'rounded-bl-md') : ''} overflow-hidden`}>
+      <div className={`max-w-[75%] ${theme.incomingBg} rounded-2xl ${isLastInGroup ? (isOutgoing ? 'rounded-br-md' : 'rounded-bl-md') : ''} overflow-hidden`}>
         {/* Post Preview */}
         <a href={permalink} target="_blank" rel="noopener noreferrer" className="block">
           {thumbnailSrc && !mediaError ? (
             <div className="relative">
               {!mediaLoaded && (
-                <div className="w-full h-48 bg-[#363636] flex items-center justify-center">
+                <div className={`w-full h-48 ${theme.chatBg} flex items-center justify-center`}>
                   <Share2 className="w-8 h-8 text-gray-500 animate-pulse" />
                 </div>
               )}
@@ -790,14 +833,14 @@ function SharedPostMessage({ message, isOutgoing, isLastInGroup }: { message: Me
           </div>
         </a>
 
-        <Timestamp timestamp={message.timestamp} isOutgoing={isOutgoing} className="px-3 pb-2" />
+        <Timestamp timestamp={message.timestamp} isOutgoing={isOutgoing} className="px-3 pb-2" theme={theme} />
       </div>
     </div>
   );
 }
 
 // Carousel Message - Shows first image with count indicator
-function CarouselMessage({ message, isOutgoing, isLastInGroup }: { message: Message; isOutgoing: boolean; isLastInGroup: boolean }) {
+function CarouselMessage({ message, isOutgoing, isLastInGroup, theme }: { message: Message; isOutgoing: boolean; isLastInGroup: boolean; theme: Theme }) {
   const [loaded, setLoaded] = useState(false);
   const [imageError, setImageError] = useState(false);
   const metadata = message.metadata || {};
@@ -811,7 +854,7 @@ function CarouselMessage({ message, isOutgoing, isLastInGroup }: { message: Mess
   const imageUrl = firstItem?.url || metadata.url || metadata.thumbnail_url;
 
   if (!imageUrl) {
-    return <TextMessage message={message} isOutgoing={isOutgoing} isLastInGroup={isLastInGroup} />;
+    return <TextMessage message={message} isOutgoing={isOutgoing} isLastInGroup={isLastInGroup} theme={theme} />;
   }
 
   return (
@@ -819,12 +862,12 @@ function CarouselMessage({ message, isOutgoing, isLastInGroup }: { message: Mess
       <div className="max-w-[70%] rounded-2xl overflow-hidden">
         <a href={metadata.permalink || imageUrl} target="_blank" rel="noopener noreferrer" className="block relative cursor-pointer hover:opacity-90 transition-opacity">
           {!loaded && !imageError && (
-            <div className="w-48 h-48 bg-[#262626] rounded-2xl flex items-center justify-center">
+            <div className={`w-48 h-48 ${theme.incomingBg} rounded-2xl flex items-center justify-center`}>
               <ImageIcon className="w-8 h-8 text-gray-500 animate-pulse" />
             </div>
           )}
           {imageError ? (
-            <div className="w-48 h-48 bg-[#262626] rounded-2xl flex items-center justify-center">
+            <div className={`w-48 h-48 ${theme.incomingBg} rounded-2xl flex items-center justify-center`}>
               <ImageIcon className="w-8 h-8 text-gray-500" />
             </div>
           ) : (
@@ -852,14 +895,14 @@ function CarouselMessage({ message, isOutgoing, isLastInGroup }: { message: Mess
             </div>
           )}
         </a>
-        <Timestamp timestamp={message.timestamp} isOutgoing={isOutgoing} className="mt-1" />
+        <Timestamp timestamp={message.timestamp} isOutgoing={isOutgoing} className="mt-1" theme={theme} />
       </div>
     </div>
   );
 }
 
 // Timestamp component - shows day for non-today messages
-function Timestamp({ timestamp, isOutgoing, className = '' }: { timestamp?: string; isOutgoing: boolean; className?: string }) {
+function Timestamp({ timestamp, isOutgoing, className = '', theme }: { timestamp?: string; isOutgoing: boolean; className?: string; theme?: Theme }) {
   if (!timestamp) return null;
 
   const msgDate = new Date(timestamp);
@@ -893,8 +936,12 @@ function Timestamp({ timestamp, isOutgoing, className = '' }: { timestamp?: stri
     display = `${dateStr} ${time}`;
   }
 
+  const colorClass = theme
+    ? (isOutgoing ? theme.timestampOutgoing : theme.timestampIncoming)
+    : (isOutgoing ? 'text-white/60' : 'text-gray-500');
+
   return (
-    <p className={`text-[10px] ${isOutgoing ? 'text-white/60' : 'text-gray-500'} text-right ${className}`}>
+    <p className={`text-[10px] ${colorClass} text-right ${className}`}>
       {display}
     </p>
   );
