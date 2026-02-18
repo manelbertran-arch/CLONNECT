@@ -1029,9 +1029,7 @@ async def evolution_webhook(request: Request):
     data = payload.get("data", {})
     key = data.get("key", {})
 
-    # Skip our own outgoing messages
-    if key.get("fromMe", False):
-        return {"status": "ok", "ignored": "from_me"}
+    from_me = key.get("fromMe", False)
 
     # Extract message text (multiple possible locations in Baileys format)
     message_obj = data.get("message", {})
@@ -1062,6 +1060,31 @@ async def evolution_webhook(request: Request):
         logger.warning(f"[EVO:{instance}] Unknown instance, no creator mapping")
         return {"status": "ok", "ignored": "unknown_instance"}
 
+    # fromMe=true → Creator's own outgoing message. Save to DB but do NOT
+    # generate a DM agent response (it's not an incoming lead message).
+    if from_me:
+        follower_id = f"wa_{sender_number}"
+        logger.info(
+            f"[EVO:{instance}] Outgoing (fromMe) to {sender_number}: {text[:80]}"
+        )
+        asyncio.create_task(
+            _save_evolution_outgoing_message(
+                instance=instance,
+                creator_id=creator_id,
+                follower_id=follower_id,
+                text=text,
+                message_id=message_id,
+                push_name=push_name,
+            )
+        )
+        return {
+            "status": "ok",
+            "event": event,
+            "instance": instance,
+            "sender": sender_number,
+            "saved_outgoing": True,
+        }
+
     logger.info(
         f"[EVO:{instance}] Message from {push_name} ({sender_number}): {text[:80]}"
     )
@@ -1085,6 +1108,94 @@ async def evolution_webhook(request: Request):
         "sender": sender_number,
         "processing": True,
     }
+
+
+async def _save_evolution_outgoing_message(
+    instance: str,
+    creator_id: str,
+    follower_id: str,
+    text: str,
+    message_id: str,
+    push_name: str,
+):
+    """
+    Save a creator's outgoing WhatsApp message (fromMe=true) to the DB.
+
+    This captures messages the creator sends directly from their phone so the
+    dashboard shows the complete conversation (incoming + outgoing).
+    No DM agent processing — this is not a lead message.
+    """
+    try:
+        from datetime import datetime, timezone
+
+        from api.database import SessionLocal
+        from api.models import Creator, Lead, Message
+
+        db = SessionLocal()
+        try:
+            # Find the creator
+            creator = db.query(Creator).filter(
+                Creator.creator_id == creator_id
+            ).first()
+            if not creator:
+                logger.warning(f"[EVO:{instance}] Outgoing: creator {creator_id} not found")
+                return
+
+            # Find or create the lead for this remoteJid
+            lead = db.query(Lead).filter(
+                Lead.creator_id == creator.id,
+                Lead.platform_user_id == follower_id,
+            ).first()
+
+            if not lead:
+                import uuid
+
+                sender_number = follower_id.removeprefix("wa_")
+                lead = Lead(
+                    id=uuid.uuid4(),
+                    creator_id=creator.id,
+                    platform="whatsapp",
+                    platform_user_id=follower_id,
+                    username=push_name or sender_number,
+                    full_name=push_name or "",
+                    phone=f"+{sender_number}" if sender_number else None,
+                    status="nuevo",
+                    purchase_intent=0.0,
+                )
+                db.add(lead)
+                db.flush()
+                logger.info(f"[EVO:{instance}] Outgoing: created lead {follower_id}")
+
+            # Save the outgoing message (role=assistant, same as creator manual sends)
+            import uuid
+
+            msg = Message(
+                id=uuid.uuid4(),
+                lead_id=lead.id,
+                role="assistant",
+                content=text,
+                status="sent",
+                approved_by="creator_manual",
+                platform_message_id=message_id,
+                msg_metadata={"source": "evolution_outgoing", "platform": "whatsapp"},
+            )
+            db.add(msg)
+
+            # Update last_contact_at so the lead appears fresh in the dashboard
+            lead.last_contact_at = datetime.now(timezone.utc)
+
+            db.commit()
+            logger.info(
+                f"[EVO:{instance}] Saved outgoing msg {message_id} for {follower_id}: "
+                f"{text[:60]}"
+            )
+        finally:
+            db.close()
+
+    except Exception as e:
+        logger.error(f"[EVO:{instance}] Error saving outgoing message: {e}")
+        import traceback
+        logger.error(traceback.format_exc())
 
 
 async def _process_evolution_message_safe(

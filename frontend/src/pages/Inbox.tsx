@@ -38,9 +38,9 @@ const BRAND_COLORS = {
 };
 
 const platformIcons: Record<string, React.ReactNode> = {
-  instagram: <Instagram className="w-4 h-4" style={{ color: BRAND_COLORS.instagram }} />,
-  telegram: <Send className="w-4 h-4" style={{ color: BRAND_COLORS.telegram }} />,
-  whatsapp: <MessageCircle className="w-4 h-4" style={{ color: BRAND_COLORS.whatsapp }} />,
+  instagram: <Instagram className="w-5 h-5" style={{ color: BRAND_COLORS.instagram }} />,
+  telegram: <Send className="w-5 h-5" style={{ color: BRAND_COLORS.telegram }} />,
+  whatsapp: <MessageCircle className="w-5 h-5" style={{ color: BRAND_COLORS.whatsapp }} />,
 };
 
 const avatarGradients: Record<string, string> = {
@@ -439,7 +439,7 @@ export default function Inbox() {
                   : "hover:bg-secondary"
               )}
             >
-              <Instagram className="w-4 h-4" style={{ color: BRAND_COLORS.instagram }} />
+              <Instagram className="w-5 h-5" style={{ color: BRAND_COLORS.instagram }} />
               {unreadCounts.instagram > 0 && (
                 <span className="bg-[#E1306C]/30 text-[#E1306C] text-[11px] px-1.5 py-0.5 rounded-full min-w-[18px] text-center">{unreadCounts.instagram}</span>
               )}
@@ -453,7 +453,7 @@ export default function Inbox() {
                   : "hover:bg-secondary"
               )}
             >
-              <MessageCircle className="w-4 h-4" style={{ color: BRAND_COLORS.whatsapp }} />
+              <MessageCircle className="w-5 h-5" style={{ color: BRAND_COLORS.whatsapp }} />
               {unreadCounts.whatsapp > 0 && (
                 <span className="bg-[#25D366]/30 text-[#25D366] text-[11px] px-1.5 py-0.5 rounded-full min-w-[18px] text-center">{unreadCounts.whatsapp}</span>
               )}
@@ -467,7 +467,7 @@ export default function Inbox() {
                   : "hover:bg-secondary"
               )}
             >
-              <Send className="w-4 h-4" style={{ color: BRAND_COLORS.telegram }} />
+              <Send className="w-5 h-5" style={{ color: BRAND_COLORS.telegram }} />
               {unreadCounts.telegram > 0 && (
                 <span className="bg-[#0088cc]/30 text-[#0088cc] text-[11px] px-1.5 py-0.5 rounded-full min-w-[18px] text-center">{unreadCounts.telegram}</span>
               )}
@@ -724,7 +724,7 @@ export default function Inbox() {
 
             {/* Messages */}
             <div className={cn(
-              "flex-1 overflow-auto p-4 space-y-4",
+              "flex-1 overflow-auto p-4",
               chatPlatform === 'whatsapp' ? 'bg-[#0b141a]' :
               chatPlatform === 'telegram' ? 'bg-[#0e1621]' : ''
             )}
@@ -744,16 +744,20 @@ export default function Inbox() {
                   ))}
                 </div>
               ) : messages.length > 0 ? (
-                messages.map((msg, idx) => (
-                  <MessageRenderer
-                    key={idx}
-                    message={msg}
-                    platform={chatPlatform}
-                    isFirstInGroup={idx === 0 || messages[idx - 1]?.role !== msg.role}
-                    isLastInGroup={idx === messages.length - 1 || messages[idx + 1]?.role !== msg.role}
-                    reactions={msg.platform_message_id ? reactionsByMid.get(msg.platform_message_id) : undefined}
-                  />
-                ))
+                messages.map((msg, idx) => {
+                  const isFirstInGroup = idx === 0 || messages[idx - 1]?.role !== msg.role;
+                  return (
+                    <div key={idx} style={idx === 0 ? undefined : { marginTop: isFirstInGroup ? 16 : 3 }}>
+                      <MessageRenderer
+                        message={msg}
+                        platform={chatPlatform}
+                        isFirstInGroup={isFirstInGroup}
+                        isLastInGroup={idx === messages.length - 1 || messages[idx + 1]?.role !== msg.role}
+                        reactions={msg.platform_message_id ? reactionsByMid.get(msg.platform_message_id) : undefined}
+                      />
+                    </div>
+                  );
+                })
               ) : (
                 <div className="text-center py-8 text-muted-foreground">
                   <p>No messages in this conversation</p>
