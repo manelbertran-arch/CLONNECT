@@ -60,5 +60,8 @@ sentry-sdk[fastapi]>=1.39.0
 prometheus_client>=0.19.0
 gunicorn>=21.0.0
 
+# Media storage (permanent CDN URLs for Instagram media)
+cloudinary>=1.36.0
+
 # Screenshot service for link previews and JavaScript rendering
 playwright>=1.40.0
