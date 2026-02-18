@@ -580,6 +580,118 @@ def register_startup_handlers(app: "FastAPI"):
         asyncio.create_task(keep_alive_task())
         logger.info("Keep-alive task scheduled (every 1 minute)")
 
+        # =====================================================================
+        # Job 15: Evolution API health check (WhatsApp 401 monitoring)
+        # =====================================================================
+        enable_evolution_check = os.getenv(
+            "ENABLE_EVOLUTION_HEALTH_CHECK", "true"
+        ).lower() == "true"
+
+        if enable_evolution_check:
+            async def start_evolution_health_check():
+                await asyncio.sleep(420)  # 7 min after boot
+                logger.info("[EVOLUTION_HEALTH] Started — checks every 5 min")
+
+                last_state = {}  # instance -> "ok" | "error"
+
+                while True:
+                    try:
+                        from api.routers.messaging_webhooks import (
+                            EVOLUTION_INSTANCE_MAP,
+                        )
+                        from services.evolution_api import (
+                            EVOLUTION_API_URL,
+                            get_instance_status,
+                        )
+
+                        if not EVOLUTION_API_URL:
+                            await asyncio.sleep(300)
+                            continue
+
+                        for instance, creator_id in EVOLUTION_INSTANCE_MAP.items():
+                            try:
+                                status = await get_instance_status(instance)
+                                state = (
+                                    status.get("instance", {}).get("state", "unknown")
+                                )
+
+                                if state == "open":
+                                    if last_state.get(instance) == "error":
+                                        logger.info(
+                                            f"[EVOLUTION_HEALTH] {instance} reconnected"
+                                        )
+                                    last_state[instance] = "ok"
+                                else:
+                                    logger.warning(
+                                        f"[EVOLUTION_HEALTH] {instance} state={state}"
+                                    )
+                                    if last_state.get(instance) != "error":
+                                        last_state[instance] = "error"
+                                        try:
+                                            from core.alerts import get_alert_manager
+
+                                            mgr = get_alert_manager()
+                                            await mgr.critical(
+                                                title="Evolution API Disconnected",
+                                                message=(
+                                                    f"Instance {instance} state={state}. "
+                                                    f"WhatsApp messages may be lost."
+                                                ),
+                                                creator_id=creator_id,
+                                                metadata={
+                                                    "instance": instance,
+                                                    "state": state,
+                                                },
+                                            )
+                                        except Exception as alert_err:
+                                            logger.error(
+                                                f"[EVOLUTION_HEALTH] Alert failed: {alert_err}"
+                                            )
+
+                            except Exception as inst_err:
+                                err_str = str(inst_err)
+                                is_401 = "401" in err_str or "Unauthorized" in err_str
+                                logger.error(
+                                    f"[EVOLUTION_HEALTH] {instance} check failed: {inst_err}"
+                                )
+                                if last_state.get(instance) != "error":
+                                    last_state[instance] = "error"
+                                    try:
+                                        from core.alerts import get_alert_manager
+
+                                        mgr = get_alert_manager()
+                                        await mgr.critical(
+                                            title=(
+                                                "Evolution API 401 Unauthorized"
+                                                if is_401
+                                                else "Evolution API Error"
+                                            ),
+                                            message=(
+                                                f"Instance {instance}: {err_str[:200]}. "
+                                                f"Check EVOLUTION_API_KEY."
+                                            ),
+                                            creator_id=creator_id,
+                                            metadata={
+                                                "instance": instance,
+                                                "error": err_str[:200],
+                                                "is_401": is_401,
+                                            },
+                                        )
+                                    except Exception as alert_err:
+                                        logger.error(
+                                            f"[EVOLUTION_HEALTH] Alert failed: {alert_err}"
+                                        )
+
+                    except Exception as e:
+                        logger.error(f"[EVOLUTION_HEALTH] Scheduler error: {e}")
+
+                    await asyncio.sleep(300)  # 5 minutes
+
+            asyncio.create_task(start_evolution_health_check())
+            logger.info(
+                "Evolution API health check scheduled (every 5min, 420s delay)"
+            )
+
         logger.info("Ready to receive requests!")
 
 
