@@ -72,7 +72,12 @@ async def _call_gemini(
                     usage.get("candidatesTokenCount", 0),
                     len(content),
                 )
-                return content
+                return {
+                    "content": content,
+                    "model": model,
+                    "provider": "gemini",
+                    "latency_ms": latency_ms,
+                }
 
         except httpx.TimeoutException:
             logger.warning(
@@ -123,10 +128,11 @@ async def generate_response_gemini(
         logger.error("Gemini: no user message found in messages")
         return None
 
-    return await _call_gemini(
+    result = await _call_gemini(
         model, api_key, system_prompt, user_message,
         max_tokens, temperature,
     )
+    return result  # dict or None
 
 
 # =============================================================================
@@ -171,7 +177,14 @@ async def _call_openai_mini(
             usage.completion_tokens if usage else 0,
             len(content),
         )
-        return content if content else None
+        if not content:
+            return None
+        return {
+            "content": content,
+            "model": model,
+            "provider": "openai",
+            "latency_ms": latency_ms,
+        }
     except asyncio.TimeoutError:
         logger.error("OpenAI fallback timeout after %.0fs", timeout)
         return None
@@ -188,7 +201,7 @@ async def generate_dm_response(
     messages: list[dict],
     max_tokens: int = 60,
     temperature: float = 0.7,
-) -> Optional[str]:
+) -> Optional[dict]:
     """Generate DM response with two-provider cascade.
 
     Pipeline:
@@ -196,17 +209,20 @@ async def generate_dm_response(
       2. GPT-4o-mini (fallback) — timeout via LLM_FALLBACK_TIMEOUT env (default 10s)
       3. None if both fail
 
+    Returns:
+        dict with {content, model, provider, latency_ms} or None if all fail.
+
     Called from dm_agent_v2.py for all DM responses.
     """
     # 1. PRIMARY: Gemini Flash-Lite
     try:
         primary_timeout = float(os.getenv("LLM_PRIMARY_TIMEOUT", "8"))
-        response = await asyncio.wait_for(
+        result = await asyncio.wait_for(
             generate_response_gemini(messages, max_tokens, temperature),
             timeout=primary_timeout,
         )
-        if response:
-            return response
+        if result:
+            return result
         logger.warning("Flash-Lite returned empty, falling back to GPT-4o-mini")
     except asyncio.TimeoutError:
         logger.warning("Flash-Lite timeout after %.0fs, falling back to GPT-4o-mini",
@@ -216,9 +232,9 @@ async def generate_dm_response(
 
     # 2. FALLBACK: GPT-4o-mini
     try:
-        response = await _call_openai_mini(messages, max_tokens, temperature)
-        if response:
-            return response
+        result = await _call_openai_mini(messages, max_tokens, temperature)
+        if result:
+            return result
         logger.error("GPT-4o-mini returned empty")
     except Exception as e:
         logger.error("GPT-4o-mini fallback failed: %s", e)
