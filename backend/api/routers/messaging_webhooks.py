@@ -965,7 +965,6 @@ async def telegram_webhook_legacy(request: Request):
 # TODO: Move to DB once multi-creator is needed
 EVOLUTION_INSTANCE_MAP: Dict[str, str] = {
     "stefano-fitpack": "stefano_bonanno",
-    "manel-test": "stefano_bonanno",  # Test instance using Manel's WhatsApp
 }
 
 # Dedup: Evolution/Baileys sends messages.upsert twice per message.
