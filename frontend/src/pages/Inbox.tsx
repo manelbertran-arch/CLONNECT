@@ -1,7 +1,7 @@
 import { useState, useMemo, useEffect, useCallback } from "react";
 import { useSearchParams } from "react-router-dom";
 import { Search, Send, MoreHorizontal, Loader2, AlertCircle, Instagram, MessageCircle, Archive, Trash2, AlertTriangle, RotateCcw, ArrowLeft } from "lucide-react";
-import { MessageRenderer } from "@/components/chat/MessageRenderer";
+import { MessageRenderer, type ChatPlatform } from "@/components/chat/MessageRenderer";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import {
@@ -140,6 +140,7 @@ export default function Inbox() {
   const [showOnlyLeads, setShowOnlyLeads] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [activeTab, setActiveTab] = useState<"all" | "archived">("all");
+  const [platformFilter, setPlatformFilter] = useState<"all" | "instagram" | "whatsapp" | "telegram">("all");
   const { toast } = useToast();
   const sendMessageMutation = useSendMessage();
   const archiveMutation = useArchiveConversation();
@@ -239,12 +240,36 @@ export default function Inbox() {
     }
   };
 
+  // Compute unread counts per platform
+  const unreadCounts = useMemo(() => {
+    const all = data?.conversations || [];
+    const counts = { all: 0, instagram: 0, whatsapp: 0, telegram: 0 };
+    for (const c of all) {
+      if (c.is_unread) {
+        counts.all++;
+        const p = c.platform || detectPlatform(c.follower_id);
+        if (p === 'instagram') counts.instagram++;
+        else if (p === 'whatsapp') counts.whatsapp++;
+        else if (p === 'telegram') counts.telegram++;
+      }
+    }
+    return counts;
+  }, [data?.conversations]);
+
   const conversations = useMemo(() => {
     const allConversations = data?.conversations || [];
     const sourceData = activeTab === "archived" ? archivedData : allConversations;
     if (!sourceData) return [];
 
     let filtered = Array.isArray(sourceData) ? sourceData : [];
+
+    // Platform filter
+    if (platformFilter !== "all" && activeTab !== "archived") {
+      filtered = filtered.filter(c => {
+        const p = c.platform || detectPlatform(c.follower_id);
+        return p === platformFilter;
+      });
+    }
 
     if (searchQuery) {
       const query = searchQuery.toLowerCase();
@@ -265,7 +290,7 @@ export default function Inbox() {
     return filtered.sort((a, b) =>
       new Date(b.last_contact || 0).getTime() - new Date(a.last_contact || 0).getTime()
     );
-  }, [data?.conversations, archivedData, searchQuery, activeTab, showOnlyLeads]);
+  }, [data?.conversations, archivedData, searchQuery, activeTab, showOnlyLeads, platformFilter]);
 
   const archivedCount = archivedData?.length || 0;
 
@@ -317,6 +342,14 @@ export default function Inbox() {
     return getSmartDisplayName(selectedConversation, messages);
   }, [selectedConversation, messages]);
 
+  // Determine platform for chat styling
+  const chatPlatform: ChatPlatform = useMemo(() => {
+    if (!selectedConversation) return 'instagram';
+    const p = selectedConversation.platform || detectPlatform(selectedConversation.follower_id);
+    if (p === 'whatsapp' || p === 'telegram') return p;
+    return 'instagram';
+  }, [selectedConversation]);
+
   // Loading state — skeleton
   if (isLoading) {
     return (
@@ -367,30 +400,77 @@ export default function Inbox() {
         "w-full md:w-80 flex flex-col",
         showMobileChat ? "hidden md:flex" : "flex"
       )}>
-        {/* Tabs */}
-        <div className="flex gap-2 mb-4">
+        {/* Platform Tabs */}
+        <div className="flex items-center gap-1.5 mb-4">
+          <div className="flex gap-1 flex-1 overflow-x-auto">
+            <button
+              onClick={() => { setPlatformFilter("all"); setActiveTab("all"); }}
+              className={cn(
+                "px-3 py-1.5 rounded-full text-sm font-medium transition-all whitespace-nowrap flex items-center gap-1.5",
+                platformFilter === "all" && activeTab !== "archived"
+                  ? "bg-white/10 text-white ring-1 ring-white/20"
+                  : "text-muted-foreground hover:text-foreground"
+              )}
+            >
+              Todos
+              {unreadCounts.all > 0 && (
+                <span className="bg-white/20 text-[11px] px-1.5 py-0.5 rounded-full min-w-[18px] text-center">{unreadCounts.all}</span>
+              )}
+            </button>
+            <button
+              onClick={() => { setPlatformFilter("instagram"); setActiveTab("all"); }}
+              className={cn(
+                "px-3 py-1.5 rounded-full text-sm font-medium transition-all whitespace-nowrap flex items-center gap-1.5",
+                platformFilter === "instagram" && activeTab !== "archived"
+                  ? "bg-violet-500/20 text-violet-400 ring-1 ring-violet-400/30"
+                  : "text-muted-foreground hover:text-foreground"
+              )}
+            >
+              <Instagram className="w-3.5 h-3.5" />
+              {unreadCounts.instagram > 0 && (
+                <span className="bg-violet-500/30 text-violet-300 text-[11px] px-1.5 py-0.5 rounded-full min-w-[18px] text-center">{unreadCounts.instagram}</span>
+              )}
+            </button>
+            <button
+              onClick={() => { setPlatformFilter("whatsapp"); setActiveTab("all"); }}
+              className={cn(
+                "px-3 py-1.5 rounded-full text-sm font-medium transition-all whitespace-nowrap flex items-center gap-1.5",
+                platformFilter === "whatsapp" && activeTab !== "archived"
+                  ? "bg-emerald-500/20 text-emerald-400 ring-1 ring-emerald-400/30"
+                  : "text-muted-foreground hover:text-foreground"
+              )}
+            >
+              <MessageCircle className="w-3.5 h-3.5" />
+              {unreadCounts.whatsapp > 0 && (
+                <span className="bg-emerald-500/30 text-emerald-300 text-[11px] px-1.5 py-0.5 rounded-full min-w-[18px] text-center">{unreadCounts.whatsapp}</span>
+              )}
+            </button>
+            <button
+              onClick={() => { setPlatformFilter("telegram"); setActiveTab("all"); }}
+              className={cn(
+                "px-3 py-1.5 rounded-full text-sm font-medium transition-all whitespace-nowrap flex items-center gap-1.5",
+                platformFilter === "telegram" && activeTab !== "archived"
+                  ? "bg-sky-500/20 text-sky-400 ring-1 ring-sky-400/30"
+                  : "text-muted-foreground hover:text-foreground"
+              )}
+            >
+              <Send className="w-3.5 h-3.5" />
+              {unreadCounts.telegram > 0 && (
+                <span className="bg-sky-500/30 text-sky-300 text-[11px] px-1.5 py-0.5 rounded-full min-w-[18px] text-center">{unreadCounts.telegram}</span>
+              )}
+            </button>
+          </div>
           <button
-            onClick={() => setActiveTab("all")}
+            onClick={() => setActiveTab(activeTab === "archived" ? "all" : "archived")}
             className={cn(
-              "flex-1 py-2 px-3 rounded-lg text-sm font-medium transition-all",
-              activeTab === "all"
-                ? "bg-primary text-primary-foreground"
-                : "bg-secondary text-muted-foreground hover:text-foreground"
-            )}
-          >
-            All
-          </button>
-          <button
-            onClick={() => setActiveTab("archived")}
-            className={cn(
-              "flex-1 py-2 px-3 rounded-lg text-sm font-medium transition-all flex items-center justify-center gap-2",
+              "p-2 rounded-lg transition-all shrink-0",
               activeTab === "archived"
                 ? "bg-primary text-primary-foreground"
-                : "bg-secondary text-muted-foreground hover:text-foreground"
+                : "text-muted-foreground hover:text-foreground hover:bg-secondary"
             )}
+            title={activeTab === "archived" ? "Volver a conversaciones" : `Archivadas (${archivedCount})`}
           >
             <Archive className="w-4 h-4" />
-            Archived {archivedCount > 0 && `(${archivedCount})`}
           </button>
         </div>
 
@@ -441,6 +521,7 @@ export default function Inbox() {
               const initials = getInitials(convo.name, convo.username, convo.follower_id);
               const lastMessage = convo.last_messages?.[convo.last_messages.length - 1];
               const isArchived = activeTab === "archived";
+              const convoPlatform = convo.platform || detectPlatform(convo.follower_id);
 
               return (
                 <div
@@ -484,6 +565,15 @@ export default function Inbox() {
                           <RelationshipDot type={convo.relationship_type || convo.status} />
                           <span className={cn("text-[15px] font-semibold truncate", convo.is_unread ? 'text-white' : '')}>{listDisplayName}</span>
                           {convo.is_verified && <span className="text-[#0095F6] text-xs shrink-0">✓</span>}
+                          {platformFilter === "all" && (
+                            <span className={cn("shrink-0 opacity-60",
+                              convoPlatform === 'whatsapp' ? 'text-emerald-400' :
+                              convoPlatform === 'telegram' ? 'text-sky-400' :
+                              'text-violet-400'
+                            )}>
+                              {platformIcons[convoPlatform]}
+                            </span>
+                          )}
                         </div>
                         <div className="flex items-center gap-1.5 shrink-0">
                           <span className="text-xs text-muted-foreground">{formatTimeAgo(convo.last_contact)}</span>
@@ -524,13 +614,21 @@ export default function Inbox() {
 
       {/* Chat View - hidden on mobile when no chat selected */}
       <div className={cn(
-        "flex-1 flex flex-col bg-card rounded-2xl border border-border/50 overflow-hidden",
-        showMobileChat ? "flex" : "hidden md:flex"
+        "flex-1 flex flex-col rounded-2xl border overflow-hidden",
+        showMobileChat ? "flex" : "hidden md:flex",
+        chatPlatform === 'whatsapp' ? 'bg-[#0b141a] border-[#2a3942]' :
+        chatPlatform === 'telegram' ? 'bg-[#0e1621] border-[#1e2c3a]' :
+        'bg-card border-border/50'
       )}>
         {selectedConversation ? (
           <>
             {/* Chat Header */}
-            <div className="p-4 border-b border-border/50 flex items-center justify-between">
+            <div className={cn(
+              "p-4 border-b flex items-center justify-between",
+              chatPlatform === 'whatsapp' ? 'bg-[#202c33] border-[#2a3942]' :
+              chatPlatform === 'telegram' ? 'bg-[#17212b] border-[#1e2c3a]' :
+              'border-border/50'
+            )}>
               <div className="flex items-center gap-3">
                 {/* Mobile back button */}
                 <Button
@@ -621,7 +719,11 @@ export default function Inbox() {
             </div>
 
             {/* Messages */}
-            <div className="flex-1 overflow-auto p-4 space-y-4">
+            <div className={cn(
+              "flex-1 overflow-auto p-4 space-y-4",
+              chatPlatform === 'whatsapp' ? 'bg-[#0b141a]' :
+              chatPlatform === 'telegram' ? 'bg-[#0e1621]' : ''
+            )}>
               {messagesLoading ? (
                 <div className="flex-1 space-y-4 py-4 animate-pulse">
                   {Array.from({ length: 6 }).map((_, i) => (
@@ -638,6 +740,8 @@ export default function Inbox() {
                   <MessageRenderer
                     key={idx}
                     message={msg}
+                    platform={chatPlatform}
+                    isFirstInGroup={idx === 0 || messages[idx - 1]?.role !== msg.role}
                     isLastInGroup={idx === messages.length - 1 || messages[idx + 1]?.role !== msg.role}
                     reactions={msg.platform_message_id ? reactionsByMid.get(msg.platform_message_id) : undefined}
                   />
@@ -651,21 +755,40 @@ export default function Inbox() {
             </div>
 
             {/* Input */}
-            <div className="p-4 border-t border-border/50">
+            <div className={cn(
+              "p-4 border-t",
+              chatPlatform === 'whatsapp' ? 'bg-[#202c33] border-[#2a3942]' :
+              chatPlatform === 'telegram' ? 'bg-[#17212b] border-[#1e2c3a]' :
+              'border-border/50'
+            )}>
               <div className="flex gap-3">
                 <Input
                   value={message}
                   onChange={(e) => setMessage(e.target.value)}
                   onKeyDown={handleKeyDown}
-                  placeholder="Type a message..."
-                  className="flex-1 bg-secondary border-0"
+                  placeholder={
+                    chatPlatform === 'whatsapp' ? 'Escribe un mensaje...' :
+                    chatPlatform === 'telegram' ? 'Escribe un mensaje...' :
+                    'Type a message...'
+                  }
+                  className={cn(
+                    "flex-1 border-0",
+                    chatPlatform === 'whatsapp' ? 'bg-[#2a3942] text-[#e9edef] placeholder:text-[#8696a0]' :
+                    chatPlatform === 'telegram' ? 'bg-[#242f3d] text-white placeholder:text-[#6c7883]' :
+                    'bg-secondary'
+                  )}
                   disabled={sendMessageMutation.isPending}
                 />
                 <Button
                   type="button"
                   onClick={handleSend}
                   disabled={!selectedId || !message.trim() || sendMessageMutation.isPending}
-                  className="bg-gradient-to-r from-primary to-accent hover:opacity-90 transition-opacity"
+                  className={cn(
+                    "hover:opacity-90 transition-opacity",
+                    chatPlatform === 'whatsapp' ? 'bg-[#00a884] hover:bg-[#00a884]' :
+                    chatPlatform === 'telegram' ? 'bg-[#3390ec] hover:bg-[#3390ec]' :
+                    'bg-gradient-to-r from-primary to-accent'
+                  )}
                 >
                   {sendMessageMutation.isPending ? (
                     <Loader2 className="w-4 h-4 animate-spin" />
