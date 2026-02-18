@@ -175,6 +175,7 @@ def _update_clone_progress(
                     "instagram": "pending",
                     "website": "pending",
                     "training": "pending",
+                    "personality": "pending",
                     "activating": "pending",
                 },
                 "percent": 0,
@@ -234,8 +235,9 @@ async def start_clone_creation(request: StartCloneRequest, background_tasks: Bac
     1. Scrape Instagram posts
     2. Scrape website (if provided)
     3. Generate tone profile (Magic Slice)
-    4. Index content in RAG
-    5. Activate the bot
+    4. Sync DM history
+    5. Personality extraction (analyze DMs → generate bot config)
+    6. Activate the bot
 
     Progress is persisted in database (not in-memory) for reliability.
     """
@@ -267,6 +269,7 @@ async def start_clone_creation(request: StartCloneRequest, background_tasks: Bac
                     "instagram": "active",
                     "website": "pending",
                     "training": "pending",
+                    "personality": "pending",
                     "activating": "pending",
                 },
                 "percent": 0,
@@ -522,11 +525,11 @@ async def _run_clone_creation(creator_id: str, website_url: str = None):
             else:
                 logger.info("[CloneCreation] No posts to train with, skipping")
 
-            _update_clone_progress(creator_id, step="training", step_status="completed", percent=70)
+            _update_clone_progress(creator_id, step="training", step_status="completed", percent=60)
             logger.debug("[CloneCreation] Training step completed, moving to DM sync")
 
             # Step 4: Sync DM history (with pagination)
-            _update_clone_progress(creator_id, step="activating", step_status="active", percent=75)
+            _update_clone_progress(creator_id, step="activating", step_status="active", percent=65)
             logger.info("[CloneCreation] Step 4: Syncing DM history")
 
             try:
@@ -553,10 +556,50 @@ async def _run_clone_creation(creator_id: str, website_url: str = None):
             except Exception as e:
                 logger.warning("[CloneCreation] DM sync failed: %s", e, exc_info=True)
 
-            _update_clone_progress(creator_id, percent=90)
+            _update_clone_progress(creator_id, percent=75)
 
-            # Step 5: Activate bot and mark complete
-            logger.info("[CloneCreation] Step 5: Activating bot")
+            # Step 5: Personality Extraction (analyze DM history → generate bot config)
+            _update_clone_progress(creator_id, step="personality", step_status="active", percent=78)
+            logger.info("[CloneCreation] Step 5: Running Personality Extraction")
+
+            try:
+                from core.personality_extraction.extractor import PersonalityExtractor
+
+                extraction_db = SessionLocal()
+                try:
+                    extractor = PersonalityExtractor(extraction_db)
+                    extraction_result = await extractor.run(
+                        creator_id=creator_id,
+                        creator_name=creator_id,
+                    )
+                    if extraction_result.errors:
+                        logger.warning(
+                            "[CloneCreation] Personality extraction completed with errors: %s",
+                            extraction_result.errors,
+                        )
+                    else:
+                        logger.info(
+                            "[CloneCreation] Personality extraction complete in %.1fs: "
+                            "%d messages analyzed, confidence=%s",
+                            extraction_result.duration_seconds,
+                            extraction_result.personality_profile.messages_analyzed,
+                            extraction_result.personality_profile.confidence,
+                        )
+                finally:
+                    extraction_db.close()
+            except Exception as e:
+                logger.warning(
+                    "[CloneCreation] Personality extraction failed (non-blocking): %s",
+                    e,
+                    exc_info=True,
+                )
+
+            _update_clone_progress(
+                creator_id, step="personality", step_status="completed", percent=92
+            )
+
+            # Step 6: Activate bot and mark complete
+            logger.info("[CloneCreation] Step 6: Activating bot")
 
             # Refresh creator from DB
             session.expire(creator)
