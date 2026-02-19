@@ -1046,7 +1046,7 @@ async def evolution_webhook(request: Request):
 
     # Extract sender info
     remote_jid = key.get("remoteJid", "")
-    sender_number = remote_jid.replace("@s.whatsapp.net", "").replace("@g.us", "")
+    sender_number = remote_jid.replace("@s.whatsapp.net", "").replace("@g.us", "").replace("@lid", "")
     push_name = data.get("pushName", "")
     message_id = key.get("id", "")
 

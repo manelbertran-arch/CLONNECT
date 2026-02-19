@@ -264,3 +264,31 @@ class TestWhatsAppRateLimitAndStatus:
 
             assert len(handler.get_recent_messages(limit=3)) == 3
             assert len(handler.get_recent_messages(limit=10)) == 5
+
+
+class TestEvolutionWebhookLidFix:
+    """Test that @lid suffix is stripped from Evolution API JIDs."""
+
+    def test_lid_suffix_stripped(self):
+        """remoteJid with @lid should produce a clean phone number."""
+        remote_jid = "34639066982@lid"
+        sender_number = remote_jid.replace("@s.whatsapp.net", "").replace("@g.us", "").replace("@lid", "")
+        assert sender_number == "34639066982"
+
+    def test_standard_suffix_stripped(self):
+        """remoteJid with @s.whatsapp.net should still work."""
+        remote_jid = "34639066982@s.whatsapp.net"
+        sender_number = remote_jid.replace("@s.whatsapp.net", "").replace("@g.us", "").replace("@lid", "")
+        assert sender_number == "34639066982"
+
+    def test_group_suffix_stripped(self):
+        """remoteJid with @g.us should still work."""
+        remote_jid = "120363123456789@g.us"
+        sender_number = remote_jid.replace("@s.whatsapp.net", "").replace("@g.us", "").replace("@lid", "")
+        assert sender_number == "120363123456789"
+
+    def test_plain_number_unchanged(self):
+        """A plain number without suffix should remain unchanged."""
+        remote_jid = "34639066982"
+        sender_number = remote_jid.replace("@s.whatsapp.net", "").replace("@g.us", "").replace("@lid", "")
+        assert sender_number == "34639066982"
