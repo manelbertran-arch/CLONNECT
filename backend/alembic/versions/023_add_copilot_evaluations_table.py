@@ -22,26 +22,29 @@ depends_on: Union[str, Sequence[str], None] = None
 
 
 def upgrade() -> None:
-    op.create_table(
-        'copilot_evaluations',
-        sa.Column('id', sa.dialects.postgresql.UUID(as_uuid=True), primary_key=True,
-                  server_default=sa.text('uuid_generate_v4()')),
-        sa.Column('creator_id', sa.dialects.postgresql.UUID(as_uuid=True),
-                  sa.ForeignKey('creators.id'), nullable=False, index=True),
-        sa.Column('eval_type', sa.String(20), nullable=False),  # daily, weekly
-        sa.Column('eval_date', sa.Date, nullable=False),
-        sa.Column('metrics', sa.JSON, nullable=False),  # approval_rate, edit_rate, etc.
-        sa.Column('patterns', sa.JSON),  # detected patterns
-        sa.Column('recommendations', sa.JSON),  # suggested threshold changes
-        sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.func.now()),
-    )
-    # Unique constraint: one evaluation per creator per type per date
-    op.create_index(
-        'ix_copilot_evaluations_unique',
-        'copilot_evaluations',
-        ['creator_id', 'eval_type', 'eval_date'],
-        unique=True,
-    )
+    # Use raw SQL with IF NOT EXISTS to handle table already created by SQLAlchemy auto-create
+    op.execute("""
+        CREATE TABLE IF NOT EXISTS copilot_evaluations (
+            id UUID DEFAULT uuid_generate_v4() NOT NULL PRIMARY KEY,
+            creator_id UUID NOT NULL REFERENCES creators(id),
+            eval_type VARCHAR(20) NOT NULL,
+            eval_date DATE NOT NULL,
+            metrics JSON NOT NULL,
+            patterns JSON,
+            recommendations JSON,
+            created_at TIMESTAMP WITH TIME ZONE DEFAULT now()
+        )
+    """)
+    # Create index only if it doesn't exist
+    op.execute("""
+        CREATE UNIQUE INDEX IF NOT EXISTS ix_copilot_evaluations_unique
+        ON copilot_evaluations (creator_id, eval_type, eval_date)
+    """)
+    # Ensure creator_id index exists
+    op.execute("""
+        CREATE INDEX IF NOT EXISTS ix_copilot_evaluations_creator_id
+        ON copilot_evaluations (creator_id)
+    """)
 
 
 def downgrade() -> None:
