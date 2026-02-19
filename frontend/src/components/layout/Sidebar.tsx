@@ -13,6 +13,7 @@ import {
   Calendar,
   Settings,
   Bot,
+  Zap,
   LogOut,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -49,6 +50,7 @@ const navItems: NavItem[] = [
   { path: "/bookings", label: "Reservas", icon: Calendar },
   { path: "/products", label: "Productos", icon: ShoppingBag },
   { path: "/copilot", label: "Copiloto", icon: Bot },
+  { path: "/nurturing", label: "Nurturing", icon: Zap },
 
   // Divider before settings
   { type: "divider", label: "" },
