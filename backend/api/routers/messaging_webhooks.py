@@ -1041,26 +1041,49 @@ async def evolution_webhook(request: Request):
         or ""
     )
 
-    # Detect audio/voice messages (audioMessage or pttMessage = push-to-talk voice note)
+    # Detect ALL media types from Baileys message object
     audio_obj = message_obj.get("audioMessage") or message_obj.get("pttMessage")
-    is_audio = bool(audio_obj)
-    audio_transcription = None
+    image_obj = message_obj.get("imageMessage")
+    video_obj = message_obj.get("videoMessage")
+    sticker_obj = message_obj.get("stickerMessage")
+    document_obj = message_obj.get("documentMessage")
 
-    audio_result = None
-    if is_audio and not text.strip():
-        # Audio message with no caption — download, upload to Cloudinary, transcribe
+    # Determine the primary media type (priority: audio > video > image > sticker > document)
+    detected_media_type = None
+    if audio_obj:
+        detected_media_type = "audio"
+    elif video_obj:
+        detected_media_type = "video"
+    elif image_obj:
+        detected_media_type = "image"
+    elif sticker_obj:
+        detected_media_type = "sticker"
+    elif document_obj:
+        detected_media_type = "document"
+
+    # Process media: download from WhatsApp CDN → Cloudinary → (transcribe if audio)
+    media_result = None
+    audio_transcription = None
+    if detected_media_type:
         try:
-            audio_result = await _transcribe_evolution_audio(instance, data)
-            if audio_result.get("transcription"):
-                audio_transcription = audio_result["transcription"]
-                text = f"[🎤 Audio]: {audio_transcription}"
-                logger.info(f"[EVO:{instance}] Audio transcribed: {audio_transcription[:80]}")
+            media_result = await _download_evolution_media(instance, data, detected_media_type)
+            if detected_media_type == "audio" and media_result.get("transcription"):
+                audio_transcription = media_result["transcription"]
+        except Exception as media_err:
+            logger.error(f"[EVO:{instance}] Media processing failed ({detected_media_type}): {media_err}")
+
+        # If no text yet, set a descriptive placeholder so the message isn't dropped
+        if not text.strip():
+            if detected_media_type == "audio":
+                text = f"[🎤 Audio]: {audio_transcription}" if audio_transcription else "[🎤 Audio message]"
             else:
-                text = "[🎤 Audio message]"
-                logger.warning(f"[EVO:{instance}] Audio transcription returned empty")
-        except Exception as transcribe_err:
-            text = "[🎤 Audio message]"
-            logger.error(f"[EVO:{instance}] Audio transcription failed: {transcribe_err}")
+                placeholder_map = {
+                    "image": "[📷 Photo]",
+                    "video": "[🎬 Video]",
+                    "sticker": "[🏷️ Sticker]",
+                    "document": "[📄 Document]",
+                }
+                text = placeholder_map.get(detected_media_type, "[📎 Media]")
 
     if not text.strip():
         return {"status": "ok", "ignored": "no_text"}
@@ -1110,22 +1133,38 @@ async def evolution_webhook(request: Request):
         f"[EVO:{instance}] Message from {push_name} ({sender_number}): {text[:80]}"
     )
 
-    # Build metadata for audio messages
+    # Build metadata for media messages
     msg_metadata = None
-    if is_audio:
-        msg_metadata = {"type": "audio", "platform": "whatsapp", "source": "evolution"}
-        if audio_transcription:
-            msg_metadata["transcription"] = audio_transcription
+    if detected_media_type:
+        msg_metadata = {
+            "type": detected_media_type,
+            "platform": "whatsapp",
+            "source": "evolution",
+        }
         # Cloudinary permanent URL (preferred) or WhatsApp CDN URL (expires)
-        if audio_result and audio_result.get("url"):
-            msg_metadata["url"] = audio_result["url"]
-        elif isinstance(audio_obj, dict) and audio_obj.get("url"):
-            msg_metadata["url"] = audio_obj["url"]
-        # Audio duration from Baileys payload
-        if isinstance(audio_obj, dict):
-            duration = audio_obj.get("seconds") or audio_obj.get("duration")
+        if media_result and media_result.get("url"):
+            msg_metadata["url"] = media_result["url"]
+        # Audio-specific fields
+        if detected_media_type == "audio":
+            if audio_transcription:
+                msg_metadata["transcription"] = audio_transcription
+            if isinstance(audio_obj, dict):
+                duration = audio_obj.get("seconds") or audio_obj.get("duration")
+                if duration:
+                    msg_metadata["duration"] = duration
+        # Video duration
+        elif detected_media_type == "video" and isinstance(video_obj, dict):
+            duration = video_obj.get("seconds") or video_obj.get("duration")
             if duration:
                 msg_metadata["duration"] = duration
+        # Sticker → render as sticker (smaller display)
+        elif detected_media_type == "sticker":
+            msg_metadata["render_as_sticker"] = True
+        # Document filename
+        elif detected_media_type == "document" and isinstance(document_obj, dict):
+            filename = document_obj.get("fileName") or document_obj.get("title")
+            if filename:
+                msg_metadata["filename"] = filename
 
     # Process with DM agent in background so webhook returns 200 fast
     asyncio.create_task(
@@ -1149,24 +1188,30 @@ async def evolution_webhook(request: Request):
     }
 
 
-async def _transcribe_evolution_audio(instance: str, data: dict) -> dict:
+async def _download_evolution_media(instance: str, data: dict, media_type: str) -> dict:
     """
-    Download, upload to Cloudinary, and transcribe an audio/voice message.
+    Download any media type from Evolution API, upload to Cloudinary,
+    and optionally transcribe (audio only).
 
-    Uses Evolution's getBase64FromMediaMessage endpoint to fetch the audio,
-    uploads to Cloudinary for permanent storage, then transcribes via Whisper.
+    Uses Evolution's getBase64FromMediaMessage endpoint to fetch media bytes,
+    uploads to Cloudinary for permanent storage, then transcribes audio via Whisper.
 
-    Returns dict with keys: transcription (str), url (str|None), mimetype (str)
+    Args:
+        instance: Evolution API instance name
+        data: Full webhook payload (contains message + key)
+        media_type: "audio", "image", "video", "sticker", "document"
+
+    Returns dict with keys: url (str|None), mimetype (str), transcription (str, audio only)
     """
     import base64
     import tempfile
 
     from services.evolution_api import EVOLUTION_API_KEY, EVOLUTION_API_URL
 
-    result = {"transcription": "", "url": None, "mimetype": "audio/ogg"}
+    result = {"transcription": "", "url": None, "mimetype": "application/octet-stream"}
 
     if not EVOLUTION_API_URL:
-        logger.warning(f"[EVO:{instance}] Cannot fetch audio: EVOLUTION_API_URL not set")
+        logger.warning(f"[EVO:{instance}] Cannot fetch media: EVOLUTION_API_URL not set")
         return result
 
     message_obj = data.get("message", {})
@@ -1179,41 +1224,55 @@ async def _transcribe_evolution_audio(instance: str, data: dict) -> dict:
     headers = {"apikey": EVOLUTION_API_KEY, "Content-Type": "application/json"}
 
     try:
-        async with httpx.AsyncClient(timeout=30.0) as client:
+        async with httpx.AsyncClient(timeout=60.0) as client:
             resp = await client.post(url, json=media_payload, headers=headers)
 
             if resp.status_code >= 400:
                 logger.error(
-                    f"[EVO:{instance}] getBase64FromMediaMessage failed: "
+                    f"[EVO:{instance}] getBase64FromMediaMessage failed ({media_type}): "
                     f"HTTP {resp.status_code} {resp.text[:200]}"
                 )
                 return result
 
             resp_data = resp.json()
             b64_data = resp_data.get("base64", "")
-            mimetype = resp_data.get("mimetype", "audio/ogg")
+            mimetype = resp_data.get("mimetype", "application/octet-stream")
             result["mimetype"] = mimetype
 
             if not b64_data:
-                logger.warning(f"[EVO:{instance}] No base64 data in audio response")
+                logger.warning(f"[EVO:{instance}] No base64 data in {media_type} response")
                 return result
 
             # Determine file extension from mimetype
             ext_map = {
+                # Audio
                 "audio/ogg": ".ogg",
                 "audio/ogg; codecs=opus": ".ogg",
                 "audio/mpeg": ".mp3",
                 "audio/mp4": ".m4a",
                 "audio/wav": ".wav",
                 "audio/webm": ".webm",
+                # Image
+                "image/jpeg": ".jpg",
+                "image/png": ".png",
+                "image/webp": ".webp",
+                "image/gif": ".gif",
+                # Video
+                "video/mp4": ".mp4",
+                "video/3gpp": ".3gp",
+                "video/webm": ".webm",
+                # Document
+                "application/pdf": ".pdf",
+                "application/msword": ".doc",
+                "application/vnd.openxmlformats-officedocument.wordprocessingml.document": ".docx",
             }
-            ext = ext_map.get(mimetype.split(";")[0].strip(), ".ogg")
+            ext = ext_map.get(mimetype.split(";")[0].strip(), ".bin")
 
             # Decode base64 and write to temp file
-            audio_bytes = base64.b64decode(b64_data)
+            media_bytes = base64.b64decode(b64_data)
 
             with tempfile.NamedTemporaryFile(delete=False, suffix=ext) as tmp:
-                tmp.write(audio_bytes)
+                tmp.write(media_bytes)
                 tmp_path = tmp.name
 
             try:
@@ -1224,30 +1283,42 @@ async def _transcribe_evolution_audio(instance: str, data: dict) -> dict:
                     cloud = get_cloudinary_service()
                     if cloud.is_configured:
                         sender = key.get("remoteJid", "unknown").replace("@s.whatsapp.net", "")
+                        # Cloudinary maps: audio→video, sticker→image, document→raw
+                        cloud_media_type = media_type
+                        if media_type == "sticker":
+                            cloud_media_type = "image"
+                        elif media_type == "document":
+                            cloud_media_type = "raw"
+
                         upload = cloud.upload_from_file(
                             file_path=tmp_path,
-                            media_type="audio",
-                            folder=f"clonnect/{instance}/audio",
-                            tags=["whatsapp", "audio", sender],
+                            media_type=cloud_media_type,
+                            folder=f"clonnect/{instance}/{media_type}",
+                            tags=["whatsapp", media_type, sender],
                         )
                         if upload.success and upload.url:
                             result["url"] = upload.url
-                            logger.info(f"[EVO:{instance}] Audio uploaded to Cloudinary: {upload.url}")
+                            logger.info(
+                                f"[EVO:{instance}] {media_type} uploaded to Cloudinary: {upload.url}"
+                            )
                         else:
-                            logger.warning(f"[EVO:{instance}] Cloudinary upload failed: {upload.error}")
+                            logger.warning(
+                                f"[EVO:{instance}] Cloudinary upload failed ({media_type}): {upload.error}"
+                            )
                 except Exception as cloud_err:
                     logger.warning(f"[EVO:{instance}] Cloudinary upload skipped: {cloud_err}")
 
-                # Transcribe with Whisper
-                try:
-                    from ingestion.transcriber import get_transcriber
+                # Transcribe audio with Whisper (audio only)
+                if media_type == "audio":
+                    try:
+                        from ingestion.transcriber import get_transcriber
 
-                    transcriber = get_transcriber()
-                    transcript = await transcriber.transcribe_file(tmp_path, language="es")
-                    if transcript and transcript.full_text.strip():
-                        result["transcription"] = transcript.full_text.strip()
-                except Exception as whisper_err:
-                    logger.error(f"[EVO:{instance}] Whisper transcription failed: {whisper_err}")
+                        transcriber = get_transcriber()
+                        transcript = await transcriber.transcribe_file(tmp_path, language="es")
+                        if transcript and transcript.full_text.strip():
+                            result["transcription"] = transcript.full_text.strip()
+                    except Exception as whisper_err:
+                        logger.error(f"[EVO:{instance}] Whisper transcription failed: {whisper_err}")
 
                 return result
             finally:
@@ -1257,7 +1328,7 @@ async def _transcribe_evolution_audio(instance: str, data: dict) -> dict:
                     pass
 
     except Exception as e:
-        logger.error(f"[EVO:{instance}] Audio download/transcription error: {e}")
+        logger.error(f"[EVO:{instance}] Media download error ({media_type}): {e}")
         return result
 
 

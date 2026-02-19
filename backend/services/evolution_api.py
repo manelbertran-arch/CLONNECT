@@ -149,6 +149,60 @@ async def fetch_profile_picture(instance: str, number: str) -> Optional[str]:
         return None
 
 
+async def send_evolution_media(
+    instance: str,
+    to_number: str,
+    media_url: str,
+    media_type: str = "image",
+    caption: str = "",
+    approved: bool = False,
+) -> Dict[str, Any]:
+    """
+    Send a media message via Evolution API — GUARDED by send_guard.
+
+    Args:
+        instance: Instance name (e.g. "stefano-fitpack")
+        to_number: Phone number with country code, no + (e.g. "34612345678")
+        media_url: Public URL of the media (Cloudinary)
+        media_type: "image", "video", "audio", "document"
+        caption: Optional caption text
+        approved: True if message was explicitly approved by creator
+
+    Returns:
+        API response dict
+    """
+    from core.send_guard import SendBlocked, check_send_permission
+
+    creator_id = _resolve_creator_from_instance(instance)
+    try:
+        check_send_permission(creator_id, approved=approved, caller="evolution_api.send_media")
+    except SendBlocked:
+        return {"error": "Message blocked — not approved by creator", "blocked": True}
+
+    url = f"{EVOLUTION_API_URL}/message/sendMedia/{instance}"
+    payload = {
+        "number": to_number,
+        "mediatype": media_type,
+        "media": media_url,
+        "caption": caption,
+    }
+
+    async with aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=30)) as session:
+        async with session.post(url, json=payload, headers=_headers()) as resp:
+            result = await resp.json()
+            if resp.status >= 400:
+                logger.error(
+                    "Evolution media send failed [%s -> %s]: %s",
+                    instance, to_number, result,
+                )
+            else:
+                logger.info(
+                    "Evolution media sent [%s -> %s]: %s (%s)",
+                    instance, to_number, media_type, media_url[:60],
+                )
+            return result
+
+
 async def fetch_instances() -> list:
     """List all Evolution API instances."""
     url = f"{EVOLUTION_API_URL}/instance/fetchInstances"

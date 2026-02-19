@@ -20,6 +20,7 @@ export interface DashboardMetrics {
 export interface MessageMetadata {
   type?: string;
   url?: string;
+  permanent_url?: string;
   emoji?: string;
   thumbnail_url?: string;
   thumbnail_base64?: string;
@@ -35,6 +36,7 @@ export interface MessageMetadata {
   reacted_to_mid?: string;
   duration?: number;
   transcription?: string;
+  filename?: string;
   link_preview?: {
     url: string;
     title?: string;
@@ -44,6 +46,8 @@ export interface MessageMetadata {
     platform?: string;
     original_url?: string;
   };
+  carousel_items?: Array<{ url?: string; type?: string }>;
+  items?: Array<{ url?: string; type?: string }>;
 }
 
 export interface Message {
