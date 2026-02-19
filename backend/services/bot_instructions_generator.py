@@ -16,6 +16,12 @@ logger = logging.getLogger(__name__)
 
 # Base instructions per relationship type
 BASE_INSTRUCTIONS = {
+    RelationshipType.FAMILIA.value: (
+        "Esta es una relación familiar. "
+        "Usa un tono cálido, cercano y protector. "
+        "NUNCA intentes vender ni promocionar productos. "
+        "Responde como lo haría un familiar de confianza."
+    ),
     RelationshipType.INTIMA.value: (
         "Esta es una relación íntima/romántica. "
         "Usa un tono muy cariñoso, vulnerable y amoroso. "
@@ -142,6 +148,7 @@ class BotInstructionsGenerator:
 
         # Tone indicator
         tone_map = {
+            RelationshipType.FAMILIA.value: "TONE:family",
             RelationshipType.INTIMA.value: "TONE:intimate",
             RelationshipType.AMISTAD_CERCANA.value: "TONE:fraternal",
             RelationshipType.AMISTAD_CASUAL.value: "TONE:casual",

@@ -69,6 +69,7 @@ CREATE TABLE IF NOT EXISTS relationship_dna (
 
     CONSTRAINT chk_relationship_type_valid
         CHECK (relationship_type IN (
+            'FAMILIA',
             'INTIMA',
             'AMISTAD_CERCANA',
             'AMISTAD_CASUAL',
@@ -126,7 +127,7 @@ COMMENT ON TABLE relationship_dna IS
     'Stores relationship-specific context for personalized communication per lead';
 
 COMMENT ON COLUMN relationship_dna.relationship_type IS
-    'Classification: INTIMA, AMISTAD_CERCANA, AMISTAD_CASUAL, CLIENTE, COLABORADOR, DESCONOCIDO';
+    'Classification: FAMILIA, INTIMA, AMISTAD_CERCANA, AMISTAD_CASUAL, CLIENTE, COLABORADOR, DESCONOCIDO';
 
 COMMENT ON COLUMN relationship_dna.vocabulary_uses IS
     'JSON array of words/phrases to use with this lead';

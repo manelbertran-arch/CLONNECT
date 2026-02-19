@@ -119,6 +119,7 @@ ENABLE_FACT_TRACKING = os.getenv("ENABLE_FACT_TRACKING", "true").lower() == "tru
 # P3: Personalization
 ENABLE_ADVANCED_PROMPTS = os.getenv("ENABLE_ADVANCED_PROMPTS", "true").lower() == "true"
 ENABLE_DNA_TRIGGERS = os.getenv("ENABLE_DNA_TRIGGERS", "true").lower() == "true"
+ENABLE_DNA_AUTO_CREATE = os.getenv("ENABLE_DNA_AUTO_CREATE", "true").lower() == "true"
 ENABLE_RELATIONSHIP_DETECTION = (
     os.getenv("ENABLE_RELATIONSHIP_DETECTION", "true").lower() == "true"
 )
@@ -828,6 +829,7 @@ class DMResponderAgentV2:
 
             import asyncio
             from services.dm_agent_context_integration import build_context_prompt as _build_ctx
+            from services.relationship_dna_repository import get_relationship_dna as _get_raw_dna
 
             async def _load_conv_state():
                 if not ENABLE_CONVERSATION_STATE:
@@ -843,8 +845,8 @@ class DMResponderAgentV2:
                     logger.debug(f"Conversation state failed: {e}")
                     return "", {}
 
-            # Parallel: memory (file I/O) + DNA+PostCtx (2 DB queries) + conv_state (1 DB query)
-            follower, dna_context, (state_context, state_meta) = await asyncio.gather(
+            # Parallel: memory (file I/O) + DNA+PostCtx (2 DB queries) + conv_state (1 DB query) + raw DNA
+            follower, dna_context, (state_context, state_meta), raw_dna = await asyncio.gather(
                 self.memory_store.get_or_create(
                     creator_id=self.creator_id,
                     follower_id=sender_id,
@@ -852,10 +854,56 @@ class DMResponderAgentV2:
                 ),
                 _build_ctx(self.creator_id, sender_id),
                 _load_conv_state(),
+                asyncio.to_thread(_get_raw_dna, self.creator_id, sender_id),
             )
             cognitive_metadata.update(state_meta)
+            _bot_instructions = ""
             if dna_context:
                 logger.debug(f"DNA context loaded for {sender_id}")
+            if raw_dna:
+                _bot_instructions = raw_dna.get("bot_instructions", "") or ""
+                metadata["dna_data"] = raw_dna  # Store for trigger check later
+
+            # Auto-create seed DNA if none exists and lead has some history
+            if ENABLE_DNA_AUTO_CREATE and not dna_context and follower.total_messages >= 2:
+                try:
+                    hist = metadata.get("history", [])
+                    if len(hist) >= 2:
+                        det_result = RelationshipTypeDetector().detect(hist)
+                        detected_type = det_result.get("type", "DESCONOCIDO")
+                        det_confidence = det_result.get("confidence", 0)
+
+                        async def _create_seed_dna():
+                            try:
+                                from services.relationship_dna_repository import (
+                                    create_relationship_dna,
+                                    get_relationship_dna as _get_dna,
+                                )
+                                existing = await asyncio.to_thread(
+                                    _get_dna, self.creator_id, sender_id
+                                )
+                                if existing:
+                                    return  # Already exists, race condition
+                                await asyncio.to_thread(
+                                    create_relationship_dna,
+                                    creator_id=self.creator_id,
+                                    follower_id=sender_id,
+                                    relationship_type=detected_type,
+                                    trust_score=round(det_confidence * 0.3, 2),
+                                    depth_level=0,
+                                )
+                                logger.info(
+                                    f"[DNA-SEED] Created seed DNA for {sender_id}: "
+                                    f"type={detected_type} confidence={det_confidence}"
+                                )
+                            except Exception as e:
+                                logger.debug(f"Seed DNA creation failed: {e}")
+
+                        asyncio.create_task(_create_seed_dna())
+                        cognitive_metadata["relationship_type"] = detected_type
+                        cognitive_metadata["dna_seed_created"] = True
+                except Exception as e:
+                    logger.debug(f"DNA auto-create check failed: {e}")
 
             _t1b = time.monotonic()
             logger.info(f"[TIMING] Phase 2 sub: intent={int((_t1a - _t1) * 1000)}ms parallel_io={int((_t1b - _t1a) * 1000)}ms")
@@ -1038,8 +1086,14 @@ class DMResponderAgentV2:
                 cognitive_metadata["response_strategy"] = strategy_hint.split(".")[0]
                 logger.info(f"[STRATEGY] {strategy_hint.split('.')[0]}")
 
-            # Step 6: Build full prompt with strategy + frustration context
+            # Step 6: Build full prompt with bot_instructions + strategy + frustration
             prompt_parts = [user_context]
+            if _bot_instructions:
+                prompt_parts.append(
+                    "=== INSTRUCCIONES ESPECÍFICAS PARA ESTE LEAD ===\n"
+                    f"{_bot_instructions}\n"
+                    "=== FIN INSTRUCCIONES ==="
+                )
             if strategy_hint:
                 prompt_parts.append(strategy_hint)
             if frustration_level > 0.5:
@@ -1519,10 +1573,23 @@ class DMResponderAgentV2:
             try:
                 triggers = get_dna_triggers()
                 existing_dna = metadata.get("dna_data")
-                if triggers.should_update(existing_dna, follower.total_messages):
-                    msgs = follower.last_messages[-20:]
+
+                # Seed DNA (version 0 or total_messages_analyzed=0): trigger full analysis sooner
+                is_seed_dna = (
+                    existing_dna
+                    and existing_dna.get("total_messages_analyzed", 0) == 0
+                    and follower.total_messages >= 5
+                )
+
+                if is_seed_dna or triggers.should_update(existing_dna, follower.total_messages):
+                    msgs = follower.last_messages[-30:]
                     triggers.schedule_async_update(self.creator_id, sender_id, msgs)
                     cognitive_metadata["dna_update_scheduled"] = True
+                    if is_seed_dna:
+                        logger.info(
+                            f"[DNA-TRIGGER] Seed DNA upgrade scheduled for {sender_id} "
+                            f"(messages={follower.total_messages})"
+                        )
             except Exception as e:
                 logger.debug(f"DNA trigger check failed: {e}")
 

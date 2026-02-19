@@ -36,6 +36,7 @@ MULETILLAS = {
 
 # Forbidden words per relationship type
 FORBIDDEN_WORDS = {
+    RelationshipType.FAMILIA.value: ["bro", "crack", "tio", "colega", "compa"],
     RelationshipType.INTIMA.value: ["hermano", "bro", "crack", "tio", "colega", "compa"],
     RelationshipType.AMISTAD_CERCANA.value: ["amor", "cariño", "mi vida", "bebe", "preciosa"],
     RelationshipType.AMISTAD_CASUAL.value: ["amor", "cariño", "mi vida"],

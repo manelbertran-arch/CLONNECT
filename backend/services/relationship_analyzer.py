@@ -140,7 +140,22 @@ class RelationshipAnalyzer:
         }
 
     def _detect_relationship_type(self, text: str, messages: List[Dict]) -> str:
-        """Detect relationship type from conversation content."""
+        """Detect relationship type from conversation content.
+
+        Delegates to RelationshipTypeDetector (Sprint 1) which supports
+        FAMILIA and all other types with weighted scoring.
+        Falls back to legacy detection if detector fails.
+        """
+        # Use Sprint 1 detector (supports FAMILIA, weighted scoring, thresholds)
+        try:
+            from services.relationship_type_detector import RelationshipTypeDetector
+            result = RelationshipTypeDetector().detect(messages)
+            if result.get("confidence", 0) > 0.4:
+                return result["type"]
+        except Exception:
+            pass
+
+        # Legacy fallback
         text_lower = text.lower()
 
         # Check for INTIMA indicators (highest priority)
@@ -202,6 +217,7 @@ class RelationshipAnalyzer:
     ) -> float:
         """Calculate trust score based on relationship type and interaction depth."""
         base_scores = {
+            RelationshipType.FAMILIA.value: 0.95,
             RelationshipType.INTIMA.value: 0.9,
             RelationshipType.AMISTAD_CERCANA.value: 0.75,
             RelationshipType.AMISTAD_CASUAL.value: 0.5,
@@ -365,6 +381,7 @@ class RelationshipAnalyzer:
     def _describe_tone(self, relationship_type: str) -> str:
         """Generate tone description based on relationship type."""
         tones = {
+            RelationshipType.FAMILIA.value: "Familiar, cálido, protector, sin formalidades",
             RelationshipType.INTIMA.value: "Íntimo, cariñoso, vulnerable, con mucho amor",
             RelationshipType.AMISTAD_CERCANA.value: "Cercano, fraternal, espiritual, de confianza",
             RelationshipType.AMISTAD_CASUAL.value: "Amigable, relajado, divertido",
@@ -438,7 +455,12 @@ class RelationshipAnalyzer:
         instructions = []
 
         # Relationship-specific base instructions
-        if relationship_type == RelationshipType.INTIMA.value:
+        if relationship_type == RelationshipType.FAMILIA.value:
+            instructions.append(
+                "Esta es una relación familiar. Usa un tono cálido y protector. "
+                "NUNCA intentes vender ni promocionar productos."
+            )
+        elif relationship_type == RelationshipType.INTIMA.value:
             instructions.append(
                 "Esta es una relación íntima. Usa un tono muy cariñoso y vulnerable."
             )
