@@ -465,8 +465,63 @@ class CopilotService:
 
         return pending
 
+    def _get_conversation_context(self, session, lead_id, max_messages: int = 15) -> list:
+        """
+        Get conversation context for a lead using session-based detection.
+
+        A "session" is a group of messages separated by >24h gaps.
+        Returns the last 2 sessions, up to max_messages total.
+        Messages are returned in chronological order (oldest first).
+        """
+        from api.models import Message
+
+        # Fetch recent messages (up to 50 to find session boundaries)
+        recent = (
+            session.query(Message.role, Message.content, Message.created_at)
+            .filter(
+                Message.lead_id == lead_id,
+                Message.status.in_(["sent", "edited", "pending_approval"]),
+            )
+            .order_by(Message.created_at.desc())
+            .limit(50)
+            .all()
+        )
+
+        if not recent:
+            return []
+
+        # Detect session boundaries (gap >24h between consecutive messages)
+        # Messages are in desc order, so we walk backwards in time
+        sessions: list[list] = [[]]
+        for i, msg in enumerate(recent):
+            sessions[-1].append(msg)
+            if i + 1 < len(recent):
+                gap = (msg.created_at - recent[i + 1].created_at).total_seconds()
+                if gap > 86400:  # >24h gap = new session boundary
+                    if len(sessions) >= 2:
+                        break  # We have 2 sessions, stop
+                    sessions.append([])
+
+        # Flatten last 2 sessions and reverse to chronological order
+        context_msgs = []
+        for s in reversed(sessions):
+            context_msgs.extend(reversed(s))
+
+        # Trim to max_messages (keep most recent)
+        if len(context_msgs) > max_messages:
+            context_msgs = context_msgs[-max_messages:]
+
+        return [
+            {
+                "role": msg.role,
+                "content": msg.content or "",
+                "timestamp": msg.created_at.isoformat() if msg.created_at else "",
+            }
+            for msg in context_msgs
+        ]
+
     async def get_pending_responses(
-        self, creator_id: str, limit: int = 20, offset: int = 0
+        self, creator_id: str, limit: int = 20, offset: int = 0, include_context: bool = False
     ) -> Dict:
         """Obtener respuestas pendientes - OPTIMIZADO para velocidad"""
         from api.database import SessionLocal
@@ -530,24 +585,26 @@ class CopilotService:
                         seen_leads.add(lead_id)
 
             # Build results from tuple rows (faster than ORM objects)
-            # Tuple: (id, content, intent, created_at, status, lead_id, platform_user_id, platform, username, full_name)
             results = []
             for row in pending_messages:
-                results.append(
-                    {
-                        "id": str(row.id),
-                        "lead_id": str(row.lead_id),
-                        "follower_id": row.platform_user_id,
-                        "platform": row.platform,
-                        "username": row.username or "",
-                        "full_name": row.full_name or "",
-                        "user_message": user_msg_lookup.get(str(row.lead_id), ""),
-                        "suggested_response": row.content,
-                        "intent": row.intent or "",
-                        "created_at": row.created_at.isoformat() if row.created_at else "",
-                        "status": row.status,
-                    }
-                )
+                item = {
+                    "id": str(row.id),
+                    "lead_id": str(row.lead_id),
+                    "follower_id": row.platform_user_id,
+                    "platform": row.platform,
+                    "username": row.username or "",
+                    "full_name": row.full_name or "",
+                    "user_message": user_msg_lookup.get(str(row.lead_id), ""),
+                    "suggested_response": row.content,
+                    "intent": row.intent or "",
+                    "created_at": row.created_at.isoformat() if row.created_at else "",
+                    "status": row.status,
+                }
+                if include_context:
+                    item["conversation_context"] = self._get_conversation_context(
+                        session, row.lead_id
+                    )
+                results.append(item)
 
             return {
                 "pending": results,

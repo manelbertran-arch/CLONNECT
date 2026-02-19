@@ -1258,6 +1258,12 @@ export async function restoreConversation(
 // COPILOT MODE
 // =============================================================================
 
+export interface ContextMessage {
+  role: string;
+  content: string;
+  timestamp: string;
+}
+
 export interface PendingResponse {
   id: string;
   lead_id: string;
@@ -1270,6 +1276,7 @@ export interface PendingResponse {
   intent: string;
   created_at: string;
   status: string;
+  conversation_context?: ContextMessage[];
 }
 
 export interface CopilotStatus {
@@ -1368,6 +1375,16 @@ export async function approveAllCopilot(
   return apiFetch(`/copilot/${creatorId}/approve-all`, {
     method: "POST",
   });
+}
+
+/**
+ * Get pending suggestion for a specific lead (for inbox banner)
+ */
+export async function getPendingForLead(
+  creatorId: string = CREATOR_ID,
+  leadId: string
+): Promise<{ pending: PendingResponse | null }> {
+  return apiFetch(`/copilot/${creatorId}/pending-for-lead/${leadId}`);
 }
 
 export interface CopilotStats {
@@ -2070,6 +2087,7 @@ export const apiKeys = {
   copilotNotifications: (creatorId: string) => ["copilotNotifications", creatorId] as const,
   copilotStats: (creatorId: string, days?: number) => ["copilotStats", creatorId, days] as const,
   copilotComparisons: (creatorId: string) => ["copilotComparisons", creatorId] as const,
+  copilotPendingForLead: (creatorId: string, leadId: string) => ["copilotPendingForLead", creatorId, leadId] as const,
   toneProfile: (creatorId: string) => ["toneProfile", creatorId] as const,
   contentStats: (creatorId: string) => ["contentStats", creatorId] as const,
   escalations: (creatorId: string) => ["escalations", creatorId] as const,
@@ -2360,6 +2378,7 @@ export default {
   toggleCopilotMode,
   getCopilotNotifications,
   approveAllCopilot,
+  getPendingForLead,
   getCopilotStats,
   getCopilotComparisons,
   // Escalations

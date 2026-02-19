@@ -185,6 +185,17 @@ async def get_conversations(creator_id: str, limit: int = 50, offset: int = 0):
                         .subquery()
                     )
 
+                    # Pending copilot suggestions per lead
+                    pending_copilot_subq = (
+                        session.query(Message.lead_id, func.count(Message.id).label("pending_count"))
+                        .filter(
+                            Message.role == "assistant",
+                            Message.status == "pending_approval",
+                        )
+                        .group_by(Message.lead_id)
+                        .subquery()
+                    )
+
                     # Count total for pagination
                     total_count = (
                         session.query(func.count(Lead.id))
@@ -199,8 +210,10 @@ async def get_conversations(creator_id: str, limit: int = 50, offset: int = 0):
                         session.query(
                             Lead,
                             func.coalesce(msg_count_subq.c.msg_count, 0).label("total_messages"),
+                            func.coalesce(pending_copilot_subq.c.pending_count, 0).label("pending_copilot"),
                         )
                         .outerjoin(msg_count_subq, Lead.id == msg_count_subq.c.lead_id)
+                        .outerjoin(pending_copilot_subq, Lead.id == pending_copilot_subq.c.lead_id)
                         .filter(
                             Lead.creator_id == creator.id,
                             not_(Lead.status.in_(["archived", "spam"])),
@@ -242,7 +255,7 @@ async def get_conversations(creator_id: str, limit: int = 50, offset: int = 0):
                     last_msg_by_lead = {msg.lead_id: msg for msg in last_messages_query}
 
                     conversations = []
-                    for lead, msg_count in results:
+                    for lead, msg_count, pending_copilot in results:
                         ctx = lead.context or {}
 
                         # Get last message from pre-fetched data
@@ -326,6 +339,8 @@ async def get_conversations(creator_id: str, limit: int = 50, offset: int = 0):
                                 "last_message_role": last_message_role,
                                 "is_unread": is_unread,
                                 "is_verified": is_verified,
+                                # Copilot pending
+                                "has_pending_copilot": pending_copilot > 0,
                                 # CRM fields
                                 "email": ctx.get("email") or lead.email or "",
                                 "phone": ctx.get("phone") or lead.phone or "",

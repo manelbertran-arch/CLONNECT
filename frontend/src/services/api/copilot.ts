@@ -1,5 +1,11 @@
 import { apiFetch, CREATOR_ID } from "./client";
 
+export interface ContextMessage {
+  role: string;
+  content: string;
+  timestamp: string;
+}
+
 export interface PendingResponse {
   id: string;
   lead_id: string;
@@ -12,6 +18,7 @@ export interface PendingResponse {
   intent: string;
   created_at: string;
   status: string;
+  conversation_context?: ContextMessage[];
 }
 
 export interface CopilotStatus {
@@ -59,6 +66,10 @@ export async function getCopilotNotifications(creatorId: string = CREATOR_ID, si
 
 export async function approveAllCopilot(creatorId: string = CREATOR_ID): Promise<{ creator_id: string; results: { approved: number; failed: number; errors: any[] } }> {
   return apiFetch(`/copilot/${creatorId}/approve-all`, { method: "POST" });
+}
+
+export async function getPendingForLead(creatorId: string = CREATOR_ID, leadId: string): Promise<{ pending: PendingResponse | null }> {
+  return apiFetch(`/copilot/${creatorId}/pending-for-lead/${leadId}`);
 }
 
 export interface CopilotStats {

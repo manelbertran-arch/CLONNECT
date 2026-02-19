@@ -456,3 +456,96 @@ class TestDedupChecks:
         assert mock_session.add.call_count == 1
         # Result should reference existing pending ID
         assert result.id == str(mock_existing_pending.id)
+
+
+class TestConversationContext:
+    """Test conversation context with session-based detection."""
+
+    def test_empty_context_when_no_messages(self):
+        """Returns empty list when no messages found for lead."""
+        from datetime import datetime, timezone
+
+        service = CopilotService()
+        mock_session = MagicMock()
+        mock_session.query.return_value.filter.return_value.order_by.return_value.limit.return_value.all.return_value = []
+
+        result = service._get_conversation_context(mock_session, "lead_123")
+        assert result == []
+
+    def test_context_returns_messages_in_chronological_order(self):
+        """Context messages should be oldest-first (chronological)."""
+        from datetime import datetime, timedelta, timezone
+
+        service = CopilotService()
+        mock_session = MagicMock()
+
+        now = datetime(2026, 2, 19, 12, 0, 0, tzinfo=timezone.utc)
+        msgs = []
+        for i in range(5):
+            m = MagicMock()
+            m.role = "user" if i % 2 == 0 else "assistant"
+            m.content = f"Message {i}"
+            m.created_at = now - timedelta(hours=5 - i)  # oldest to newest
+            msgs.append(m)
+
+        # query returns desc order (newest first)
+        mock_session.query.return_value.filter.return_value.order_by.return_value.limit.return_value.all.return_value = list(reversed(msgs))
+
+        result = service._get_conversation_context(mock_session, "lead_1")
+        assert len(result) == 5
+        assert result[0]["content"] == "Message 0"  # oldest first
+        assert result[-1]["content"] == "Message 4"  # newest last
+
+    def test_context_detects_session_boundary(self):
+        """Messages with >24h gap form a session boundary."""
+        from datetime import datetime, timedelta, timezone
+
+        service = CopilotService()
+        mock_session = MagicMock()
+
+        now = datetime(2026, 2, 19, 12, 0, 0, tzinfo=timezone.utc)
+        # Session 2: recent (within last hour)
+        m3 = MagicMock(role="user", content="msg3", created_at=now - timedelta(minutes=30))
+        m2 = MagicMock(role="assistant", content="msg2", created_at=now - timedelta(minutes=60))
+        # Session 1: 2 days ago (>24h gap from session 2)
+        m1 = MagicMock(role="user", content="msg1", created_at=now - timedelta(days=2, hours=1))
+        m0 = MagicMock(role="assistant", content="msg0", created_at=now - timedelta(days=2, hours=2))
+        # Session 0: 5 days ago (should NOT be included — only last 2 sessions)
+        m_old = MagicMock(role="user", content="old", created_at=now - timedelta(days=5))
+
+        # desc order
+        mock_session.query.return_value.filter.return_value.order_by.return_value.limit.return_value.all.return_value = [
+            m3, m2, m1, m0, m_old
+        ]
+
+        result = service._get_conversation_context(mock_session, "lead_1")
+        contents = [r["content"] for r in result]
+        # Should include sessions 1+2 (4 messages), not session 0
+        assert len(contents) == 4
+        assert "msg0" in contents
+        assert "msg1" in contents
+        assert "msg2" in contents
+        assert "msg3" in contents
+        assert "old" not in contents
+
+    def test_context_max_15_messages(self):
+        """Context is capped at 15 messages."""
+        from datetime import datetime, timedelta, timezone
+
+        service = CopilotService()
+        mock_session = MagicMock()
+
+        now = datetime(2026, 2, 19, 12, 0, 0, tzinfo=timezone.utc)
+        msgs = []
+        for i in range(25):
+            m = MagicMock()
+            m.role = "user" if i % 2 == 0 else "assistant"
+            m.content = f"msg_{i}"
+            m.created_at = now - timedelta(minutes=25 - i)
+            msgs.append(m)
+
+        # desc order (all in one session — no 24h gaps)
+        mock_session.query.return_value.filter.return_value.order_by.return_value.limit.return_value.all.return_value = list(reversed(msgs))
+
+        result = service._get_conversation_context(mock_session, "lead_1")
+        assert len(result) == 15

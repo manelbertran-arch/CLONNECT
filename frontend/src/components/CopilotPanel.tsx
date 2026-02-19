@@ -888,18 +888,20 @@ export default function CopilotPanel() {
         onToggle={handleModeToggle}
       />
 
-      {/* Tabbed Content: Respuestas | Métricas | Comparaciones */}
-      <Tabs defaultValue="responses" className="w-full">
-        <TabsList className="grid w-full grid-cols-3">
-          <TabsTrigger value="responses" className="gap-1.5">
-            <MessageSquare className="w-4 h-4" />
-            Respuestas
-            {pendingCount > 0 && (
-              <Badge variant="destructive" className="text-[10px] px-1.5 py-0 ml-1">
-                {pendingCount}
-              </Badge>
-            )}
-          </TabsTrigger>
+      {/* Info: pending responses now in inbox */}
+      {pendingCount > 0 && (
+        <div className="flex items-center gap-3 p-3 rounded-lg bg-violet-500/10 border border-violet-500/20">
+          <MessageSquare className="w-5 h-5 text-violet-400 shrink-0" />
+          <p className="text-sm text-violet-300">
+            {pendingCount} respuesta{pendingCount > 1 ? "s" : ""} pendiente{pendingCount > 1 ? "s" : ""} para
+            revisar en la <a href="/inbox" className="underline font-medium hover:text-violet-200">Bandeja</a>
+          </p>
+        </div>
+      )}
+
+      {/* Tabbed Content: Métricas | Comparaciones */}
+      <Tabs defaultValue="metrics" className="w-full">
+        <TabsList className="grid w-full grid-cols-2">
           <TabsTrigger value="metrics" className="gap-1.5">
             <BarChart3 className="w-4 h-4" />
             Métricas
@@ -909,51 +911,6 @@ export default function CopilotPanel() {
             Comparaciones
           </TabsTrigger>
         </TabsList>
-
-        {/* Tab: Respuestas */}
-        <TabsContent value="responses" className="mt-4">
-          {isManualMode ? (
-            <>
-              {isPendingLoading ? (
-                <div className="space-y-4 animate-pulse">
-                  {[1, 2, 3].map(i => (
-                    <div key={i} className="h-40 rounded-lg bg-muted/15 border border-border/20" />
-                  ))}
-                </div>
-              ) : pendingResponses.length === 0 ? (
-                <div className="text-center py-12 bg-secondary/20 rounded-lg">
-                  <Bot className="w-12 h-12 mx-auto text-muted-foreground mb-4" />
-                  <h3 className="font-medium text-lg">No hay respuestas pendientes</h3>
-                  <p className="text-muted-foreground text-sm mt-1">
-                    Las nuevas respuestas del bot aparecerán aquí para tu aprobación
-                  </p>
-                </div>
-              ) : (
-                <div className="space-y-4">
-                  {pendingResponses.map((item) => (
-                    <PendingCard
-                      key={item.id}
-                      item={item}
-                      onApprove={handleApprove}
-                      onDiscard={handleDiscard}
-                      isLoading={isAnyLoading}
-                      isFading={fadingIds.has(item.id)}
-                    />
-                  ))}
-                </div>
-              )}
-            </>
-          ) : (
-            <div className="text-center py-8 bg-secondary/20 rounded-lg">
-              <Bot className="w-12 h-12 mx-auto text-success mb-4" />
-              <h3 className="font-medium text-lg">Bot en piloto automático</h3>
-              <p className="text-muted-foreground text-sm mt-1 max-w-md mx-auto">
-                El bot está respondiendo automáticamente a todos los mensajes.
-                Cambia a Modo Copilot si quieres revisar las respuestas antes de enviarlas.
-              </p>
-            </div>
-          )}
-        </TabsContent>
 
         {/* Tab: Métricas */}
         <TabsContent value="metrics" className="mt-4">

@@ -44,9 +44,12 @@ class ManualResponseRequest(BaseModel):
 # GET /copilot/{creator_id}/pending
 # =============================================================================
 @router.get("/{creator_id}/pending")
-async def get_pending_responses(creator_id: str, limit: int = 500, offset: int = 0, _auth: str = Depends(require_creator_access)):
+async def get_pending_responses(creator_id: str, limit: int = 500, offset: int = 0, include_context: bool = False, _auth: str = Depends(require_creator_access)):
     """
     Obtener todas las respuestas pendientes de aprobación con paginación.
+
+    Args:
+        include_context: If True, include conversation_context (last 2 sessions, max 15 msgs) per pending item
 
     Returns:
         List de respuestas pendientes con info del usuario y sugerencia del bot
@@ -54,7 +57,7 @@ async def get_pending_responses(creator_id: str, limit: int = 500, offset: int =
     from core.copilot_service import get_copilot_service
 
     service = get_copilot_service()
-    result = await service.get_pending_responses(creator_id, limit, offset)
+    result = await service.get_pending_responses(creator_id, limit, offset, include_context=include_context)
 
     # Handle both old (list) and new (dict with pagination) return formats
     if isinstance(result, dict):
@@ -409,6 +412,84 @@ async def approve_all_pending(creator_id: str, _auth: str = Depends(require_crea
             results["errors"].append({"message_id": item["id"], "error": result.get("error")})
 
     return {"creator_id": creator_id, "results": results}
+
+
+# =============================================================================
+# GET /copilot/{creator_id}/pending-for-lead/{lead_id}
+# =============================================================================
+@router.get("/{creator_id}/pending-for-lead/{lead_id}")
+async def get_pending_for_lead(creator_id: str, lead_id: str, _auth: str = Depends(require_creator_access)):
+    """
+    Get the pending copilot suggestion for a specific lead, with conversation context.
+
+    Used by the inbox CopilotBanner to show inline approve/edit/discard.
+    Returns null if no pending suggestion exists.
+    """
+    from api.database import SessionLocal
+    from api.models import Creator, Lead, Message
+    from core.copilot_service import get_copilot_service
+
+    session = SessionLocal()
+    try:
+        creator = session.query(Creator).filter_by(name=creator_id).first()
+        if not creator:
+            raise HTTPException(status_code=404, detail="Creator not found")
+
+        # Find the lead
+        lead = session.query(Lead).filter_by(id=lead_id, creator_id=creator.id).first()
+        if not lead:
+            raise HTTPException(status_code=404, detail="Lead not found")
+
+        # Find pending suggestion for this lead
+        pending_msg = (
+            session.query(Message)
+            .filter(
+                Message.lead_id == lead.id,
+                Message.role == "assistant",
+                Message.status == "pending_approval",
+            )
+            .order_by(Message.created_at.desc())
+            .first()
+        )
+
+        if not pending_msg:
+            return {"pending": None}
+
+        # Get last user message
+        user_msg = (
+            session.query(Message)
+            .filter(Message.lead_id == lead.id, Message.role == "user")
+            .order_by(Message.created_at.desc())
+            .first()
+        )
+
+        service = get_copilot_service()
+        context = service._get_conversation_context(session, lead.id)
+
+        return {
+            "pending": {
+                "id": str(pending_msg.id),
+                "lead_id": str(lead.id),
+                "follower_id": lead.platform_user_id,
+                "platform": lead.platform,
+                "username": lead.username or "",
+                "full_name": lead.full_name or "",
+                "user_message": user_msg.content if user_msg else "",
+                "suggested_response": pending_msg.content,
+                "intent": pending_msg.intent or "",
+                "created_at": pending_msg.created_at.isoformat() if pending_msg.created_at else "",
+                "status": pending_msg.status,
+                "conversation_context": context,
+            }
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"[Copilot] Error getting pending for lead: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+    finally:
+        session.close()
 
 
 # =============================================================================

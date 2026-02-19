@@ -2,7 +2,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   getCopilotPending, getCopilotStatus, approveCopilotResponse,
   discardCopilotResponse, toggleCopilotMode, approveAllCopilot,
-  getCopilotStats, getCopilotComparisons,
+  getCopilotStats, getCopilotComparisons, getPendingForLead,
   apiKeys, getCreatorId,
 } from "@/services/api";
 
@@ -121,5 +121,16 @@ export function useCopilotComparisons(creatorId: string = getCreatorId()) {
     queryFn: () => getCopilotComparisons(creatorId),
     staleTime: 5 * 60 * 1000,
     gcTime: 10 * 60 * 1000,
+  });
+}
+
+export function usePendingForLead(leadId: string | null, creatorId: string = getCreatorId()) {
+  return useQuery({
+    queryKey: apiKeys.copilotPendingForLead(creatorId, leadId || ""),
+    queryFn: () => getPendingForLead(creatorId, leadId!),
+    enabled: !!leadId,
+    staleTime: 10000,
+    gcTime: 60000,
+    refetchInterval: 15000,
   });
 }

@@ -83,6 +83,8 @@ export interface Conversation {
   tags?: string[];
   last_messages?: Message[];
   products_discussed?: string[];
+  // Copilot
+  has_pending_copilot?: boolean;
   // Contact info stored in Lead.context JSON
   email?: string;
   phone?: string;

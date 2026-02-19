@@ -1,6 +1,6 @@
 import { useState, useMemo, useEffect, useCallback } from "react";
 import { useSearchParams } from "react-router-dom";
-import { Search, Send, MoreHorizontal, Loader2, AlertCircle, Instagram, MessageCircle, Archive, Trash2, AlertTriangle, RotateCcw, ArrowLeft } from "lucide-react";
+import { Search, Send, MoreHorizontal, Loader2, AlertCircle, Instagram, MessageCircle, Archive, Trash2, AlertTriangle, RotateCcw, ArrowLeft, Bot } from "lucide-react";
 import { MessageRenderer, type ChatPlatform } from "@/components/chat/MessageRenderer";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -29,6 +29,7 @@ import { useToast } from "@/hooks/use-toast";
 import type { Conversation, Message } from "@/types/api";
 import { getPurchaseIntent, detectPlatform, getFriendlyName, extractNameFromMessages, getMessages } from "@/types/api";
 import { RelationshipBadge, RelationshipDot } from "@/components/RelationshipBadge";
+import { CopilotBanner } from "@/components/CopilotBanner";
 
 // Brand colors
 const BRAND_COLORS = {
@@ -581,6 +582,7 @@ export default function Inbox() {
                         </div>
                         <div className="flex items-center gap-1.5 shrink-0">
                           <span className="text-xs text-muted-foreground">{formatTimeAgo(convo.last_contact)}</span>
+                          {convo.has_pending_copilot && <Bot className="w-3.5 h-3.5 text-violet-400" />}
                           {convo.is_unread && <div className="w-2.5 h-2.5 rounded-full bg-[#0095F6]"></div>}
                         </div>
                       </div>
@@ -765,6 +767,12 @@ export default function Inbox() {
                 </div>
               )}
             </div>
+
+            {/* Copilot Banner — shows pending suggestion inline */}
+            <CopilotBanner
+              leadId={selectedConversation.id || null}
+              platform={chatPlatform}
+            />
 
             {/* Input */}
             <div className={cn(
