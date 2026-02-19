@@ -2168,8 +2168,22 @@ class InstagramHandler:
                 transcript = await transcriber.transcribe_url(media_info["url"])
                 if transcript and transcript.full_text.strip():
                     transcribed_text = transcript.full_text.strip()
-                    message_text = f"[\U0001f3a4 Audio]: {transcribed_text}"
-                    media_info["transcription"] = transcribed_text
+
+                    # Post-process transcription with LLM
+                    try:
+                        from services.audio_transcription_processor import process_audio_transcription
+
+                        result = await process_audio_transcription(transcribed_text, self.creator_id)
+                        media_info["transcript_raw"] = result["transcript_raw"]
+                        media_info["transcript_full"] = result["transcript_full"]
+                        media_info["transcript_summary"] = result["transcript_summary"]
+                        message_text = f"[\U0001f3a4 Audio]: {result['transcript_full']}"
+                        media_info["transcription"] = result["transcript_summary"]
+                    except Exception as pp_err:
+                        logger.warning(f"[IG] Audio post-processing failed: {pp_err}")
+                        message_text = f"[\U0001f3a4 Audio]: {transcribed_text}"
+                        media_info["transcription"] = transcribed_text
+
                     logger.info(
                         f"[IG:{message.sender_id}] Audio transcribed: "
                         f"{transcribed_text[:50]}..."

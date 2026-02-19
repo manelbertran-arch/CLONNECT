@@ -1075,15 +1075,15 @@ async def evolution_webhook(request: Request):
         # If no text yet, set a descriptive placeholder so the message isn't dropped
         if not text.strip():
             if detected_media_type == "audio":
-                text = f"[🎤 Audio]: {audio_transcription}" if audio_transcription else "[🎤 Audio message]"
+                text = f"[\U0001f3a4 Audio]: {audio_transcription}" if audio_transcription else "[\U0001f3a4 Audio message]"
             else:
                 placeholder_map = {
-                    "image": "[📷 Photo]",
-                    "video": "[🎬 Video]",
-                    "sticker": "[🏷️ Sticker]",
-                    "document": "[📄 Document]",
+                    "image": "[\U0001f4f7 Photo]",
+                    "video": "[\U0001f3ac Video]",
+                    "sticker": "[\U0001f3f7\ufe0f Sticker]",
+                    "document": "[\U0001f4c4 Document]",
                 }
-                text = placeholder_map.get(detected_media_type, "[📎 Media]")
+                text = placeholder_map.get(detected_media_type, "[\U0001f4ce Media]")
 
     if not text.strip():
         return {"status": "ok", "ignored": "no_text"}
@@ -1111,6 +1111,23 @@ async def evolution_webhook(request: Request):
         logger.info(
             f"[EVO:{instance}] Outgoing (fromMe) to {sender_number}: {text[:80]}"
         )
+        # Build outgoing msg_metadata from media_result
+        outgoing_meta = None
+        if detected_media_type:
+            outgoing_meta = {
+                "type": detected_media_type,
+                "platform": "whatsapp",
+                "source": "evolution_outgoing",
+            }
+            if media_result and media_result.get("url"):
+                outgoing_meta["url"] = media_result["url"]
+            if audio_transcription:
+                outgoing_meta["transcription"] = audio_transcription
+            if detected_media_type == "audio" and isinstance(audio_obj, dict):
+                duration = audio_obj.get("seconds") or audio_obj.get("duration")
+                if duration:
+                    outgoing_meta["duration"] = duration
+
         asyncio.create_task(
             _save_evolution_outgoing_message(
                 instance=instance,
@@ -1119,6 +1136,7 @@ async def evolution_webhook(request: Request):
                 text=text,
                 message_id=message_id,
                 push_name=push_name,
+                msg_metadata=outgoing_meta,
             )
         )
         return {
@@ -1339,6 +1357,7 @@ async def _save_evolution_outgoing_message(
     text: str,
     message_id: str,
     push_name: str,
+    msg_metadata: dict = None,
 ):
     """
     Save a creator's outgoing WhatsApp message (fromMe=true) to the DB.
@@ -1389,8 +1408,35 @@ async def _save_evolution_outgoing_message(
                 db.flush()
                 logger.info(f"[EVO:{instance}] Outgoing: created lead {follower_id}")
 
+            # Post-process outgoing audio transcription (already transcribed by _download_evolution_media)
+            if (
+                msg_metadata
+                and msg_metadata.get("type") == "audio"
+                and msg_metadata.get("transcription")
+            ):
+                try:
+                    from services.audio_transcription_processor import process_audio_transcription
+
+                    raw_text = msg_metadata["transcription"]
+                    result = await process_audio_transcription(raw_text, creator_id)
+                    msg_metadata["transcript_raw"] = result["transcript_raw"]
+                    msg_metadata["transcript_full"] = result["transcript_full"]
+                    msg_metadata["transcript_summary"] = result["transcript_summary"]
+                    msg_metadata["transcription"] = result["transcript_summary"]
+                    text = f"[\U0001f3a4 Audio]: {result['transcript_full']}"
+                    logger.info(
+                        f"[EVO:{instance}] Outgoing audio post-processed: "
+                        f"{result['transcript_summary'][:50]}..."
+                    )
+                except Exception as e:
+                    logger.warning(f"[EVO:{instance}] Outgoing audio post-processing failed: {e}")
+
             # Save the outgoing message (role=assistant, same as creator manual sends)
             import uuid
+
+            msg_meta = {"source": "evolution_outgoing", "platform": "whatsapp"}
+            if msg_metadata:
+                msg_meta.update(msg_metadata)
 
             msg = Message(
                 id=uuid.uuid4(),
@@ -1400,7 +1446,7 @@ async def _save_evolution_outgoing_message(
                 status="sent",
                 approved_by="creator_manual",
                 platform_message_id=message_id,
-                msg_metadata={"source": "evolution_outgoing", "platform": "whatsapp"},
+                msg_metadata=msg_meta,
             )
             db.add(msg)
 
@@ -1451,6 +1497,28 @@ async def _process_evolution_message_safe(
 
         follower_id = f"wa_{sender_number}"
 
+        # Post-process audio transcription (already transcribed by _download_evolution_media)
+        if (
+            msg_metadata
+            and msg_metadata.get("type") == "audio"
+            and msg_metadata.get("transcription")
+        ):
+            try:
+                from services.audio_transcription_processor import process_audio_transcription
+
+                raw_text = msg_metadata["transcription"]
+                result = await process_audio_transcription(raw_text, creator_id)
+                msg_metadata["transcript_raw"] = result["transcript_raw"]
+                msg_metadata["transcript_full"] = result["transcript_full"]
+                msg_metadata["transcript_summary"] = result["transcript_summary"]
+                msg_metadata["transcription"] = result["transcript_summary"]
+                text = f"[\U0001f3a4 Audio]: {result['transcript_full']}"
+                logger.info(
+                    f"[EVO:{instance}] Audio post-processed: {result['transcript_summary'][:50]}..."
+                )
+            except Exception as e:
+                logger.warning(f"[EVO:{instance}] Audio post-processing failed: {e}")
+
         # Generate suggestion via DM agent
         agent = get_dm_agent(creator_id)
         response = await agent.process_dm(
@@ -1470,6 +1538,7 @@ async def _process_evolution_message_safe(
 
         # Save as pending response (copilot mode — no auto-send)
         copilot = get_copilot_service()
+
         pending = await copilot.create_pending_response(
             creator_id=creator_id,
             lead_id="",

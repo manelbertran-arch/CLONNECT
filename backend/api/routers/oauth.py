@@ -845,10 +845,32 @@ async def _simple_dm_sync_internal(
                                 )
                                 if transcript and transcript.full_text.strip():
                                     transcribed_text = transcript.full_text.strip()
-                                    new_msg.content = (
-                                        f"[\U0001f3a4 Audio]: {transcribed_text}"
-                                    )
-                                    new_msg.msg_metadata["transcription"] = transcribed_text
+
+                                    # Post-process transcription with LLM
+                                    try:
+                                        from services.audio_transcription_processor import (
+                                            process_audio_transcription,
+                                        )
+
+                                        result = await process_audio_transcription(
+                                            transcribed_text, creator_id
+                                        )
+                                        new_msg.msg_metadata["transcript_raw"] = result["transcript_raw"]
+                                        new_msg.msg_metadata["transcript_full"] = result["transcript_full"]
+                                        new_msg.msg_metadata["transcript_summary"] = result["transcript_summary"]
+                                        new_msg.content = (
+                                            f"[\U0001f3a4 Audio]: {result['transcript_full']}"
+                                        )
+                                        new_msg.msg_metadata["transcription"] = result["transcript_summary"]
+                                    except Exception as pp_err:
+                                        logger.warning(
+                                            f"[DM Sync] Audio post-processing failed for {msg_id}: {pp_err}"
+                                        )
+                                        new_msg.content = (
+                                            f"[\U0001f3a4 Audio]: {transcribed_text}"
+                                        )
+                                        new_msg.msg_metadata["transcription"] = transcribed_text
+
                                     logger.info(
                                         f"[DM Sync] Audio transcribed for msg {msg_id}: "
                                         f"{transcribed_text[:50]}..."

@@ -552,15 +552,23 @@ function MediaMessage({ message, isOutgoing, isLastInGroup, type, platform }: {
 function AudioMessage({ message, isOutgoing, isLastInGroup, isFirstInGroup, platform }: {
   message: Message; isOutgoing: boolean; isLastInGroup: boolean; isFirstInGroup: boolean; platform: ChatPlatform;
 }) {
+  const [expanded, setExpanded] = useState(false);
   const metadata = message.metadata || {};
   const audioUrl = metadata.url;
   const duration = metadata.duration;
-  const transcription = (metadata as Record<string, unknown>).transcription as string | undefined;
+  const meta = metadata as Record<string, unknown>;
+  const transcriptSummary = meta.transcript_summary as string | undefined;
+  const transcriptFull = meta.transcript_full as string | undefined;
+  const transcription = meta.transcription as string | undefined;
   const th = getInlineTheme(platform);
   const bubble = makeBubbleProps(platform, isOutgoing, isLastInGroup);
   const showTail = isFirstInGroup && th?.hasTail;
 
   const formatDuration = (s?: number) => { if (!s) return '0:00'; return `${Math.floor(s / 60)}:${Math.floor(s % 60).toString().padStart(2, '0')}`; };
+
+  // Display logic: prefer transcript_summary, fallback to legacy transcription
+  const displayText = transcriptSummary || transcription;
+  const hasFullText = !!transcriptFull && transcriptFull !== transcriptSummary;
 
   return (
     <div className={`flex ${isOutgoing ? 'justify-end' : 'justify-start'}`}>
@@ -577,10 +585,21 @@ function AudioMessage({ message, isOutgoing, isLastInGroup, isFirstInGroup, plat
               )}
             </div>
           </div>
-          {transcription && (
-            <p className="text-sm text-white/80 italic mt-2 leading-snug">
-              &ldquo;{transcription}&rdquo;
-            </p>
+          {displayText && (
+            <div className="mt-2">
+              <p className="text-sm text-white/80 italic leading-snug">
+                &ldquo;{expanded && hasFullText ? transcriptFull : displayText}&rdquo;
+              </p>
+              {hasFullText && (
+                <button
+                  onClick={() => setExpanded(!expanded)}
+                  className="text-xs mt-1 opacity-60 hover:opacity-100 transition-opacity cursor-pointer"
+                  style={th ? { color: th.accent } : { color: '#a78bfa' }}
+                >
+                  {expanded ? 'Ver resumen' : 'Ver transcripción completa'}
+                </button>
+              )}
+            </div>
           )}
           {th ? <div style={{ position: 'relative', marginTop: 4 }}><InlineTimestamp timestamp={message.timestamp} isOutgoing={isOutgoing} th={th} /><span style={{ display: 'inline-block', width: 50, height: 15 }} /></div>
             : <IGTimestamp timestamp={message.timestamp} isOutgoing={isOutgoing} />}

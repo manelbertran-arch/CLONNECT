@@ -135,6 +135,49 @@ async def generate_response_gemini(
     return result  # dict or None
 
 
+async def generate_simple(
+    prompt: str,
+    system_prompt: str = "",
+    max_tokens: int = 1024,
+    temperature: float = 0.2,
+) -> Optional[str]:
+    """Simple text generation for non-DM uses (audio processing, tools).
+
+    Returns raw text string or None. Gemini primary → GPT-4o-mini fallback.
+    """
+    messages = []
+    if system_prompt:
+        messages.append({"role": "system", "content": system_prompt})
+    messages.append({"role": "user", "content": prompt})
+
+    # 1. Try Gemini
+    api_key = os.getenv("GOOGLE_API_KEY")
+    if api_key:
+        model = os.getenv("GEMINI_MODEL", DEFAULT_GEMINI_MODEL)
+        try:
+            result = await asyncio.wait_for(
+                _call_gemini(model, api_key, system_prompt, prompt, max_tokens, temperature),
+                timeout=float(os.getenv("LLM_PRIMARY_TIMEOUT", "8")),
+            )
+            if result and result.get("content"):
+                return result["content"]
+            logger.warning("generate_simple: Gemini returned empty, falling back")
+        except asyncio.TimeoutError:
+            logger.warning("generate_simple: Gemini timeout, falling back")
+        except Exception as e:
+            logger.warning("generate_simple: Gemini failed: %s, falling back", e)
+
+    # 2. Fallback: GPT-4o-mini
+    try:
+        result = await _call_openai_mini(messages, max_tokens, temperature)
+        if result and result.get("content"):
+            return result["content"]
+    except Exception as e:
+        logger.error("generate_simple: OpenAI fallback failed: %s", e)
+
+    return None
+
+
 # =============================================================================
 # GPT-4o-mini fallback (used only when Gemini fails)
 # =============================================================================
