@@ -32,8 +32,12 @@ RAG_CACHE_TTL = 300  # 5 minutes
 ENABLE_RERANKING = os.getenv("ENABLE_RERANKING", "true").lower() == "true"
 
 # BM25 hybrid search: combines semantic + lexical search
-# Default: FALSE - Disable to simplify cold start
-ENABLE_BM25_HYBRID = os.getenv("ENABLE_BM25_HYBRID", "false").lower() == "true"
+# Default: TRUE - Improves recall for keyword-heavy queries
+ENABLE_BM25_HYBRID = os.getenv("ENABLE_BM25_HYBRID", "true").lower() == "true"
+
+# Hybrid weights: semantic vs BM25 (must sum to 1.0)
+HYBRID_SEMANTIC_WEIGHT = float(os.getenv("HYBRID_SEMANTIC_WEIGHT", "0.7"))
+HYBRID_BM25_WEIGHT = float(os.getenv("HYBRID_BM25_WEIGHT", "0.3"))
 
 
 @dataclass
@@ -242,23 +246,33 @@ class SemanticRAG:
                 for r in bm25_results
             ]
 
-            # Reciprocal Rank Fusion
-            fused = self._reciprocal_rank_fusion(semantic_results, bm25_dicts, k=60)
+            # Weighted Reciprocal Rank Fusion (0.7 semantic + 0.3 BM25)
+            fused = self._reciprocal_rank_fusion(
+                semantic_results, bm25_dicts,
+                k=60,
+                weights=[HYBRID_SEMANTIC_WEIGHT, HYBRID_BM25_WEIGHT],
+            )
 
-            logger.info(f"BM25 hybrid: {len(semantic_results)} semantic + {len(bm25_results)} bm25 -> {len(fused)} fused")
+            logger.info(
+                f"BM25 hybrid: {len(semantic_results)} semantic + {len(bm25_results)} bm25 "
+                f"-> {len(fused)} fused (weights={HYBRID_SEMANTIC_WEIGHT}/{HYBRID_BM25_WEIGHT})"
+            )
             return fused
 
         except Exception as e:
             logger.error(f"BM25 hybrid search failed: {e}")
             return semantic_results
 
-    def _reciprocal_rank_fusion(self, *result_lists, k: int = 60) -> List[Dict]:
+    def _reciprocal_rank_fusion(
+        self, *result_lists, k: int = 60, weights: List[float] = None
+    ) -> List[Dict]:
         """
-        Combine multiple ranked lists using Reciprocal Rank Fusion.
+        Combine multiple ranked lists using Weighted Reciprocal Rank Fusion.
 
         Args:
             result_lists: Multiple lists of results
             k: Ranking constant (default 60)
+            weights: Per-list weights (e.g. [0.7, 0.3]). Default: equal weights.
 
         Returns:
             Fused and re-ranked results
@@ -266,14 +280,15 @@ class SemanticRAG:
         doc_scores = {}
         doc_data = {}
 
-        for results in result_lists:
+        for list_idx, results in enumerate(result_lists):
+            w = weights[list_idx] if weights and list_idx < len(weights) else 1.0
             for rank, doc in enumerate(results):
                 doc_id = doc.get("doc_id")
                 if not doc_id:
                     continue
 
-                # RRF score contribution
-                rrf_score = 1.0 / (k + rank + 1)
+                # Weighted RRF score contribution
+                rrf_score = w / (k + rank + 1)
 
                 if doc_id in doc_scores:
                     doc_scores[doc_id] += rrf_score
