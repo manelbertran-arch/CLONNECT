@@ -71,6 +71,9 @@ import {
   toggleCopilotMode,
   getCopilotNotifications,
   approveAllCopilot,
+  getPendingSuggestion,
+  getCopilotStats,
+  getCopilotComparisons,
   // Escalations
   getEscalations,
   // CRM Activities & Tasks
@@ -1171,6 +1174,45 @@ export function useApproveAllCopilot(creatorId: string = getCreatorId()) {
       queryClient.invalidateQueries({ queryKey: apiKeys.copilotStatus(creatorId) });
       queryClient.invalidateQueries({ queryKey: apiKeys.conversations(creatorId) });
     },
+  });
+}
+
+/**
+ * Hook to get pending suggestion for a specific conversation
+ * Used by Inbox to show inline approval banner
+ */
+export function usePendingSuggestion(leadId: string | null, creatorId: string = getCreatorId()) {
+  return useQuery({
+    queryKey: ["pendingSuggestion", creatorId, leadId],
+    queryFn: () => getPendingSuggestion(creatorId, leadId!),
+    enabled: !!leadId,
+    staleTime: 10000, // Data fresh for 10s
+    refetchInterval: 15000, // Poll every 15s when conversation is active
+    refetchIntervalInBackground: false,
+  });
+}
+
+/**
+ * Hook to get copilot stats with separated metrics
+ */
+export function useCopilotStats(days: number = 30, creatorId: string = getCreatorId()) {
+  return useQuery({
+    queryKey: ["copilotStats", creatorId, days],
+    queryFn: () => getCopilotStats(creatorId, days),
+    staleTime: 60000, // Data fresh for 60s
+    gcTime: 5 * 60 * 1000, // Keep in cache 5 min
+  });
+}
+
+/**
+ * Hook to get copilot comparisons (bot vs creator responses)
+ */
+export function useCopilotComparisons(days: number = 30, limit: number = 50, creatorId: string = getCreatorId()) {
+  return useQuery({
+    queryKey: ["copilotComparisons", creatorId, days, limit],
+    queryFn: () => getCopilotComparisons(creatorId, days, limit),
+    staleTime: 60000, // Data fresh for 60s
+    gcTime: 5 * 60 * 1000, // Keep in cache 5 min
   });
 }
 

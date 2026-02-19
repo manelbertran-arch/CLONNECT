@@ -1370,6 +1370,95 @@ export async function approveAllCopilot(
   });
 }
 
+/**
+ * Get pending suggestion for a specific conversation (for inline Inbox banner)
+ */
+export interface PendingSuggestion {
+  id: string;
+  lead_id: string;
+  follower_id: string;
+  username: string;
+  platform: string;
+  user_message: string;
+  suggested_response: string;
+  conversation_context: { role: string; content: string; created_at: string }[];
+  created_at: string;
+  hora: string;
+}
+
+export interface PendingSuggestionResponse {
+  has_pending: boolean;
+  suggestion: PendingSuggestion | null;
+}
+
+export async function getPendingSuggestion(
+  creatorId: string = CREATOR_ID,
+  leadId: string
+): Promise<PendingSuggestionResponse> {
+  return apiFetch(`/dm/conversations/${creatorId}/${leadId}/pending-suggestion`);
+}
+
+/**
+ * Get copilot stats with separated metrics
+ */
+export interface CopilotStats {
+  creator_id: string;
+  period_days: number;
+  copilot_metrics: {
+    approved: number;
+    edited: number;
+    discarded: number;
+    pending: number;
+    total_manual: number;
+  };
+  legacy_metrics: {
+    auto_sent: number;
+  };
+  learning_progress: {
+    days_active: number;
+    total_interactions: number;
+    patterns_detected: number;
+    learning_stage: "exploring" | "learning" | "optimizing";
+  };
+}
+
+export async function getCopilotStats(
+  creatorId: string = CREATOR_ID,
+  days: number = 30
+): Promise<CopilotStats> {
+  return apiFetch(`/copilot/${creatorId}/stats?days=${days}`);
+}
+
+/**
+ * Get copilot comparisons (bot vs creator responses)
+ */
+export interface CopilotComparison {
+  id: string;
+  lead_id: string;
+  username: string;
+  platform: string;
+  conversation_context: { role: string; content: string; created_at: string }[];
+  bot_suggestion: string;
+  creator_responses: { content: string; status: string; created_at: string }[];
+  is_identical: boolean;
+  created_at: string;
+}
+
+export interface CopilotComparisonsResponse {
+  creator_id: string;
+  period_days: number;
+  total_comparisons: number;
+  comparisons: CopilotComparison[];
+}
+
+export async function getCopilotComparisons(
+  creatorId: string = CREATOR_ID,
+  days: number = 30,
+  limit: number = 50
+): Promise<CopilotComparisonsResponse> {
+  return apiFetch(`/copilot/${creatorId}/comparisons?days=${days}&limit=${limit}`);
+}
+
 // =============================================================================
 // ESCALATIONS
 // =============================================================================

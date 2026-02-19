@@ -18,11 +18,18 @@ import {
   Clock,
   CheckCheck,
   Zap,
-  UserCheck
+  UserCheck,
+  BarChart3,
+  ArrowRight,
+  GitCompare,
+  TrendingUp,
+  Target,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
 import {
   useCopilotPending,
@@ -31,6 +38,8 @@ import {
   useDiscardCopilotResponse,
   useToggleCopilotMode,
   useApproveAllCopilot,
+  useCopilotStats,
+  useCopilotComparisons,
 } from "@/hooks/useApi";
 import type { PendingResponse } from "@/services/api";
 
@@ -319,8 +328,11 @@ function ResponseModeToggle({ isManualMode, isLoading, onToggle }: ResponseModeT
 
 export default function CopilotPanel() {
   const { toast } = useToast();
+  const [activeTab, setActiveTab] = useState<"pending" | "metrics" | "comparisons">("pending");
   const { data: pendingData, isLoading: isPendingLoading } = useCopilotPending();
   const { data: statusData, isLoading: isStatusLoading } = useCopilotStatus();
+  const { data: statsData, isLoading: isStatsLoading } = useCopilotStats();
+  const { data: comparisonsData, isLoading: isComparisonsLoading } = useCopilotComparisons();
   const approveMutation = useApproveCopilotResponse();
   const discardMutation = useDiscardCopilotResponse();
   const toggleMutation = useToggleCopilotMode();
@@ -512,17 +524,28 @@ export default function CopilotPanel() {
         onToggle={handleModeToggle}
       />
 
+      {/* Tabs for Pending, Metrics, Comparisons */}
+      <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as typeof activeTab)} className="border-t pt-6">
+        <TabsList className="grid w-full grid-cols-3 mb-6">
+          <TabsTrigger value="pending" className="gap-2">
+            <MessageSquare className="w-4 h-4" />
+            Pendientes
+            {pendingCount > 0 && <Badge variant="destructive" className="ml-1 h-5 px-1.5">{pendingCount}</Badge>}
+          </TabsTrigger>
+          <TabsTrigger value="metrics" className="gap-2">
+            <BarChart3 className="w-4 h-4" />
+            Métricas
+          </TabsTrigger>
+          <TabsTrigger value="comparisons" className="gap-2">
+            <GitCompare className="w-4 h-4" />
+            Comparaciones
+          </TabsTrigger>
+        </TabsList>
 
-      {/* Pending Responses Section */}
-      {isManualMode && (
-        <>
-          <div className="border-t pt-6">
-            <h3 className="font-semibold mb-4 flex items-center gap-2">
-              <MessageSquare className="w-5 h-5" />
-              Respuestas Pendientes
-            </h3>
-
-            {isPendingLoading ? (
+        {/* Pending Responses Tab */}
+        <TabsContent value="pending" className="mt-0">
+          {isManualMode ? (
+            isPendingLoading ? (
               <div className="flex items-center justify-center py-12">
                 <Loader2 className="w-8 h-8 animate-spin text-primary" />
               </div>
@@ -547,22 +570,192 @@ export default function CopilotPanel() {
                   />
                 ))}
               </div>
-            )}
-          </div>
-        </>
-      )}
+            )
+          ) : (
+            <div className="text-center py-8 bg-secondary/20 rounded-lg">
+              <Bot className="w-12 h-12 mx-auto text-success mb-4" />
+              <h3 className="font-medium text-lg">Bot en piloto automático</h3>
+              <p className="text-muted-foreground text-sm mt-1 max-w-md mx-auto">
+                El bot está respondiendo automáticamente a todos los mensajes.
+                Cambia a Modo Copilot si quieres revisar las respuestas antes de enviarlas.
+              </p>
+            </div>
+          )}
+        </TabsContent>
 
-      {/* Info when in automatic mode */}
-      {!isManualMode && (
-        <div className="text-center py-8 bg-secondary/20 rounded-lg">
-          <Bot className="w-12 h-12 mx-auto text-success mb-4" />
-          <h3 className="font-medium text-lg">Bot en piloto automático</h3>
-          <p className="text-muted-foreground text-sm mt-1 max-w-md mx-auto">
-            El bot está respondiendo automáticamente a todos los mensajes.
-            Cambia a Modo Copilot si quieres revisar las respuestas antes de enviarlas.
-          </p>
-        </div>
-      )}
+        {/* Metrics Tab */}
+        <TabsContent value="metrics" className="mt-0">
+          {isStatsLoading ? (
+            <div className="flex items-center justify-center py-12">
+              <Loader2 className="w-8 h-8 animate-spin text-primary" />
+            </div>
+          ) : statsData ? (
+            <div className="space-y-6">
+              {/* Learning Progress */}
+              <Card>
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-lg flex items-center gap-2">
+                    <TrendingUp className="w-5 h-5 text-primary" />
+                    Progreso de Aprendizaje
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="grid grid-cols-3 gap-4">
+                    <div className="text-center p-4 bg-secondary/30 rounded-lg">
+                      <p className="text-2xl font-bold text-primary">{statsData.learning_progress.days_active}</p>
+                      <p className="text-xs text-muted-foreground">Días activo</p>
+                    </div>
+                    <div className="text-center p-4 bg-secondary/30 rounded-lg">
+                      <p className="text-2xl font-bold text-primary">{statsData.learning_progress.total_interactions}</p>
+                      <p className="text-xs text-muted-foreground">Interacciones</p>
+                    </div>
+                    <div className="text-center p-4 bg-secondary/30 rounded-lg">
+                      <p className="text-2xl font-bold text-primary">{statsData.learning_progress.patterns_detected}</p>
+                      <p className="text-xs text-muted-foreground">Patrones</p>
+                    </div>
+                  </div>
+                  <div className="mt-4">
+                    <Badge variant={statsData.learning_progress.learning_stage === "optimizing" ? "default" : "secondary"}>
+                      {statsData.learning_progress.learning_stage === "exploring" && "Explorando"}
+                      {statsData.learning_progress.learning_stage === "learning" && "Aprendiendo"}
+                      {statsData.learning_progress.learning_stage === "optimizing" && "Optimizando"}
+                    </Badge>
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Copilot Metrics */}
+              <Card>
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-lg flex items-center gap-2">
+                    <Target className="w-5 h-5 text-emerald-500" />
+                    Métricas Copilot (últimos {statsData.period_days} días)
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+                    <div className="text-center p-4 bg-emerald-500/10 rounded-lg">
+                      <p className="text-2xl font-bold text-emerald-500">{statsData.copilot_metrics.approved}</p>
+                      <p className="text-xs text-muted-foreground">Aprobadas</p>
+                    </div>
+                    <div className="text-center p-4 bg-amber-500/10 rounded-lg">
+                      <p className="text-2xl font-bold text-amber-500">{statsData.copilot_metrics.edited}</p>
+                      <p className="text-xs text-muted-foreground">Editadas</p>
+                    </div>
+                    <div className="text-center p-4 bg-red-500/10 rounded-lg">
+                      <p className="text-2xl font-bold text-red-500">{statsData.copilot_metrics.discarded}</p>
+                      <p className="text-xs text-muted-foreground">Descartadas</p>
+                    </div>
+                    <div className="text-center p-4 bg-blue-500/10 rounded-lg">
+                      <p className="text-2xl font-bold text-blue-500">{statsData.copilot_metrics.pending}</p>
+                      <p className="text-xs text-muted-foreground">Pendientes</p>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Legacy Auto-sent */}
+              {statsData.legacy_metrics.auto_sent > 0 && (
+                <Card className="bg-secondary/20">
+                  <CardContent className="py-4">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <Zap className="w-4 h-4 text-muted-foreground" />
+                        <span className="text-sm text-muted-foreground">Auto-enviadas (antes de copilot)</span>
+                      </div>
+                      <span className="font-medium">{statsData.legacy_metrics.auto_sent}</span>
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
+            </div>
+          ) : (
+            <div className="text-center py-12 bg-secondary/20 rounded-lg">
+              <BarChart3 className="w-12 h-12 mx-auto text-muted-foreground mb-4" />
+              <h3 className="font-medium text-lg">No hay datos disponibles</h3>
+            </div>
+          )}
+        </TabsContent>
+
+        {/* Comparisons Tab */}
+        <TabsContent value="comparisons" className="mt-0">
+          {isComparisonsLoading ? (
+            <div className="flex items-center justify-center py-12">
+              <Loader2 className="w-8 h-8 animate-spin text-primary" />
+            </div>
+          ) : comparisonsData && comparisonsData.comparisons.length > 0 ? (
+            <div className="space-y-4">
+              <p className="text-sm text-muted-foreground mb-4">
+                Mostrando {comparisonsData.total_comparisons} comparaciones de los últimos {comparisonsData.period_days} días
+              </p>
+              {comparisonsData.comparisons.map((comparison) => (
+                <Card key={comparison.id} className="overflow-hidden">
+                  <CardHeader className="pb-2 bg-secondary/30">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <User className="w-4 h-4" />
+                        <span className="font-medium">{comparison.username}</span>
+                        <Badge variant="outline" className="text-[10px]">{comparison.platform}</Badge>
+                      </div>
+                      <span className="text-xs text-muted-foreground">
+                        {new Date(comparison.created_at).toLocaleDateString()}
+                      </span>
+                    </div>
+                  </CardHeader>
+                  <CardContent className="pt-4 space-y-4">
+                    {/* Conversation Context */}
+                    {comparison.conversation_context.length > 0 && (
+                      <div className="space-y-2 p-3 bg-secondary/20 rounded-lg">
+                        <p className="text-xs font-medium text-muted-foreground mb-2">Contexto:</p>
+                        {comparison.conversation_context.slice(-3).map((ctx, idx) => (
+                          <div key={idx} className={`text-sm ${ctx.role === "user" ? "text-blue-400" : "text-emerald-400"}`}>
+                            <span className="font-medium">{ctx.role === "user" ? "Usuario" : "Bot"}:</span>{" "}
+                            <span className="text-foreground/80">{ctx.content.slice(0, 100)}{ctx.content.length > 100 ? "..." : ""}</span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+
+                    {/* Bot Suggestion vs Creator Response */}
+                    <div className="grid gap-3">
+                      <div className="p-3 border border-muted rounded-lg">
+                        <div className="flex items-center gap-2 mb-2">
+                          <Bot className="w-4 h-4 text-muted-foreground" />
+                          <span className="text-xs font-medium text-muted-foreground">Sugerencia del Bot</span>
+                        </div>
+                        <p className="text-sm">{comparison.bot_suggestion || "Sin sugerencia"}</p>
+                      </div>
+
+                      <ArrowRight className="w-4 h-4 mx-auto text-muted-foreground" />
+
+                      <div className="p-3 border border-emerald-500/30 bg-emerald-500/5 rounded-lg">
+                        <div className="flex items-center gap-2 mb-2">
+                          <UserCheck className="w-4 h-4 text-emerald-500" />
+                          <span className="text-xs font-medium text-emerald-500">Respuesta del Creator</span>
+                          {comparison.is_identical && (
+                            <Badge variant="outline" className="text-[10px] text-emerald-500 border-emerald-500/30">Idéntica</Badge>
+                          )}
+                        </div>
+                        {comparison.creator_responses.map((resp, idx) => (
+                          <p key={idx} className="text-sm">{resp.content}</p>
+                        ))}
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          ) : (
+            <div className="text-center py-12 bg-secondary/20 rounded-lg">
+              <GitCompare className="w-12 h-12 mx-auto text-muted-foreground mb-4" />
+              <h3 className="font-medium text-lg">No hay comparaciones disponibles</h3>
+              <p className="text-muted-foreground text-sm mt-1">
+                Las comparaciones aparecerán cuando edites respuestas del bot
+              </p>
+            </div>
+          )}
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }

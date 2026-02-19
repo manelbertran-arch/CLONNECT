@@ -174,6 +174,18 @@ async def get_conversations(creator_id: str, limit: int = 50):
                     # Build lookup dict for last messages
                     last_msg_by_lead = {msg.lead_id: msg for msg in last_messages_query}
 
+                    # Check which leads have pending copilot suggestions
+                    pending_leads = set(
+                        msg.lead_id
+                        for msg in session.query(Message.lead_id)
+                        .filter(
+                            Message.lead_id.in_(lead_ids),
+                            Message.role == "assistant",
+                            Message.status == "pending_approval",
+                        )
+                        .all()
+                    )
+
                     conversations = []
                     for lead, msg_count in results:
                         ctx = lead.context or {}
@@ -243,6 +255,7 @@ async def get_conversations(creator_id: str, limit: int = 50):
                                 "last_message_role": last_message_role,
                                 "is_unread": is_unread,
                                 "is_verified": is_verified,
+                                "has_pending_copilot": lead.id in pending_leads,
                                 # CRM fields
                                 "email": ctx.get("email") or lead.email or "",
                                 "phone": ctx.get("phone") or lead.phone or "",
@@ -991,3 +1004,115 @@ async def sync_last_contact_timestamps(creator_id: str):
     except Exception as e:
         logger.error(f"[SyncTimestamps] Error: {e}")
         return {"status": "error", "message": str(e)}
+
+
+# =============================================================================
+# GET /dm/conversations/{creator_id}/{lead_id}/pending-suggestion
+# =============================================================================
+@router.get("/conversations/{creator_id}/{lead_id}/pending-suggestion")
+async def get_pending_suggestion(creator_id: str, lead_id: str):
+    """
+    Get pending copilot suggestion for a specific conversation.
+    Used by Inbox to show inline approval banner.
+
+    Returns:
+        - has_pending: boolean
+        - suggestion: pending message data (if exists)
+    """
+    if not USE_DB:
+        return {"has_pending": False, "suggestion": None}
+
+    try:
+        from api.models import Creator, Lead, Message
+        from api.services.db_service import get_session
+
+        session = get_session()
+        if not session:
+            return {"has_pending": False, "suggestion": None}
+
+        try:
+            creator = session.query(Creator).filter_by(name=creator_id).first()
+            if not creator:
+                return {"has_pending": False, "suggestion": None}
+
+            # Find lead by platform_user_id OR UUID
+            lead = (
+                session.query(Lead)
+                .filter(
+                    Lead.creator_id == creator.id,
+                    (Lead.platform_user_id == lead_id) | (Lead.id == lead_id if len(lead_id) == 36 else False),
+                )
+                .first()
+            )
+
+            if not lead:
+                return {"has_pending": False, "suggestion": None}
+
+            # Get pending approval message
+            pending_msg = (
+                session.query(Message)
+                .filter(
+                    Message.lead_id == lead.id,
+                    Message.role == "assistant",
+                    Message.status == "pending_approval",
+                )
+                .order_by(Message.created_at.desc())
+                .first()
+            )
+
+            if not pending_msg:
+                return {"has_pending": False, "suggestion": None}
+
+            # Get conversation context (last 5 messages before the suggestion)
+            context_messages = (
+                session.query(Message)
+                .filter(
+                    Message.lead_id == lead.id,
+                    Message.created_at < pending_msg.created_at,
+                )
+                .order_by(Message.created_at.desc())
+                .limit(5)
+                .all()
+            )
+            context_messages = list(reversed(context_messages))
+
+            # Get the triggering user message (most recent user msg)
+            user_msg = (
+                session.query(Message)
+                .filter(
+                    Message.lead_id == lead.id,
+                    Message.role == "user",
+                )
+                .order_by(Message.created_at.desc())
+                .first()
+            )
+
+            return {
+                "has_pending": True,
+                "suggestion": {
+                    "id": str(pending_msg.id),
+                    "lead_id": str(lead.id),
+                    "follower_id": lead.platform_user_id,
+                    "username": lead.username or "",
+                    "platform": lead.platform,
+                    "user_message": user_msg.content if user_msg else "",
+                    "suggested_response": pending_msg.content,
+                    "conversation_context": [
+                        {
+                            "role": m.role,
+                            "content": m.content,
+                            "created_at": m.created_at.isoformat() if m.created_at else "",
+                        }
+                        for m in context_messages
+                    ],
+                    "created_at": pending_msg.created_at.isoformat() if pending_msg.created_at else "",
+                    "hora": pending_msg.created_at.strftime("%H:%M") if pending_msg.created_at else "",
+                },
+            }
+
+        finally:
+            session.close()
+
+    except Exception as e:
+        logger.error(f"[PendingSuggestion] Error: {e}")
+        return {"has_pending": False, "suggestion": None}

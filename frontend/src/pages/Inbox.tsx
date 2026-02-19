@@ -1,6 +1,6 @@
 import { useState, useMemo, useEffect } from "react";
 import { useSearchParams } from "react-router-dom";
-import { Search, Send, MoreHorizontal, Loader2, AlertCircle, Instagram, MessageCircle, Archive, Trash2, AlertTriangle, RotateCcw, ArrowLeft } from "lucide-react";
+import { Search, Send, MoreHorizontal, Loader2, AlertCircle, Instagram, MessageCircle, Archive, Trash2, AlertTriangle, RotateCcw, ArrowLeft, Check, X, Bot } from "lucide-react";
 import { MessageRenderer } from "@/components/chat/MessageRenderer";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -22,7 +22,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { cn } from "@/lib/utils";
-import { useInfiniteConversations, useFollowerDetail, useSendMessage, useArchiveConversation, useMarkConversationSpam, useDeleteConversation, useArchivedConversations, useRestoreConversation } from "@/hooks/useApi";
+import { useInfiniteConversations, useFollowerDetail, useSendMessage, useArchiveConversation, useMarkConversationSpam, useDeleteConversation, useArchivedConversations, useRestoreConversation, usePendingSuggestion, useApproveCopilotResponse, useDiscardCopilotResponse } from "@/hooks/useApi";
 import { useToast } from "@/hooks/use-toast";
 import type { Conversation, Message } from "@/types/api";
 import { getPurchaseIntent, detectPlatform, getFriendlyName, extractNameFromMessages, getMessages } from "@/types/api";
@@ -218,6 +218,11 @@ export default function Inbox() {
   const spamMutation = useMarkConversationSpam();
   const deleteMutation = useDeleteConversation();
   const restoreMutation = useRestoreConversation();
+
+  // Copilot: Get pending suggestion for selected conversation
+  const { data: pendingSuggestion } = usePendingSuggestion(selectedId);
+  const approveMutation = useApproveCopilotResponse();
+  const discardMutation = useDiscardCopilotResponse();
 
   // Fetch messages for the selected conversation (auto-refreshes every 5s)
   const { data: followerData, isLoading: messagesLoading } = useFollowerDetail(selectedId);
@@ -782,6 +787,45 @@ export default function Inbox() {
                 </div>
               );
             })()}
+
+            {/* Copilot Suggestion Banner */}
+            {pendingSuggestion?.has_pending && pendingSuggestion.suggestion && (
+              <div className="border-t border-amber-500/30 bg-amber-500/5 p-3">
+                <div className="flex items-start gap-3">
+                  <div className="p-2 rounded-full bg-amber-500/20">
+                    <Bot className="w-4 h-4 text-amber-400" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 mb-1">
+                      <span className="text-xs font-medium text-amber-400">Respuesta sugerida</span>
+                      <span className="text-xs text-muted-foreground">{pendingSuggestion.suggestion.hora}</span>
+                    </div>
+                    <p className="text-sm text-foreground/90 line-clamp-2">
+                      {pendingSuggestion.suggestion.suggested_response}
+                    </p>
+                  </div>
+                  <div className="flex gap-2">
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      className="h-8 px-3 text-red-400 hover:text-red-300 hover:bg-red-500/10"
+                      onClick={() => discardMutation.mutate(pendingSuggestion.suggestion!.id)}
+                      disabled={discardMutation.isPending}
+                    >
+                      {discardMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <X className="w-4 h-4" />}
+                    </Button>
+                    <Button
+                      size="sm"
+                      className="h-8 px-3 bg-emerald-600 hover:bg-emerald-500"
+                      onClick={() => approveMutation.mutate({ messageId: pendingSuggestion.suggestion!.id })}
+                      disabled={approveMutation.isPending}
+                    >
+                      {approveMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />}
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            )}
 
             {/* Input - Platform-specific send button */}
             {(() => {

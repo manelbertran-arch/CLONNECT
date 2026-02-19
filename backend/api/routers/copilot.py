@@ -387,3 +387,272 @@ async def approve_all_pending(creator_id: str):
             results["errors"].append({"message_id": item["id"], "error": result.get("error")})
 
     return {"creator_id": creator_id, "results": results}
+
+
+# =============================================================================
+# GET /copilot/{creator_id}/stats
+# =============================================================================
+@router.get("/{creator_id}/stats")
+async def get_copilot_stats(creator_id: str, days: int = 30):
+    """
+    Obtener métricas separadas de copilot vs legacy.
+
+    Returns:
+        - copilot_metrics: approved, edited, discarded, pending (acciones del creator)
+        - legacy_metrics: auto_sent, auto_discarded (antes de copilot)
+        - learning_progress: days active, total interactions, patterns detected
+    """
+    from datetime import timedelta
+
+    from sqlalchemy import func
+
+    from api.database import SessionLocal
+    from api.models import Creator, Lead, Message
+
+    session = SessionLocal()
+    try:
+        creator = session.query(Creator).filter_by(name=creator_id).first()
+        if not creator:
+            raise HTTPException(status_code=404, detail="Creator not found")
+
+        since = datetime.now(timezone.utc) - timedelta(days=days)
+
+        # Copilot metrics: manual creator actions
+        copilot_approved = (
+            session.query(func.count(Message.id))
+            .join(Lead, Message.lead_id == Lead.id)
+            .filter(
+                Lead.creator_id == creator.id,
+                Message.role == "assistant",
+                Message.status == "sent",
+                Message.approved_by.isnot(None),
+                Message.created_at > since,
+            )
+            .scalar()
+            or 0
+        )
+
+        copilot_edited = (
+            session.query(func.count(Message.id))
+            .join(Lead, Message.lead_id == Lead.id)
+            .filter(
+                Lead.creator_id == creator.id,
+                Message.role == "assistant",
+                Message.status == "edited",
+                Message.created_at > since,
+            )
+            .scalar()
+            or 0
+        )
+
+        copilot_discarded = (
+            session.query(func.count(Message.id))
+            .join(Lead, Message.lead_id == Lead.id)
+            .filter(
+                Lead.creator_id == creator.id,
+                Message.role == "assistant",
+                Message.status == "discarded",
+                Message.created_at > since,
+            )
+            .scalar()
+            or 0
+        )
+
+        copilot_pending = (
+            session.query(func.count(Message.id))
+            .join(Lead, Message.lead_id == Lead.id)
+            .filter(
+                Lead.creator_id == creator.id,
+                Message.role == "assistant",
+                Message.status == "pending_approval",
+            )
+            .scalar()
+            or 0
+        )
+
+        # Legacy metrics: auto-sent before copilot
+        legacy_auto_sent = (
+            session.query(func.count(Message.id))
+            .join(Lead, Message.lead_id == Lead.id)
+            .filter(
+                Lead.creator_id == creator.id,
+                Message.role == "assistant",
+                Message.status == "sent",
+                Message.approved_by.is_(None),
+                Message.created_at > since,
+            )
+            .scalar()
+            or 0
+        )
+
+        # Learning progress
+        first_interaction = (
+            session.query(func.min(Message.created_at))
+            .join(Lead, Message.lead_id == Lead.id)
+            .filter(
+                Lead.creator_id == creator.id,
+                Message.role == "assistant",
+                Message.status.in_(["sent", "edited"]),
+                Message.approved_by.isnot(None),
+            )
+            .scalar()
+        )
+
+        days_active = 0
+        if first_interaction:
+            days_active = (datetime.now(timezone.utc) - first_interaction.replace(tzinfo=timezone.utc)).days
+
+        total_interactions = copilot_approved + copilot_edited
+        patterns_detected = min(total_interactions // 10, 50)  # 1 pattern per 10 interactions, max 50
+
+        return {
+            "creator_id": creator_id,
+            "period_days": days,
+            "copilot_metrics": {
+                "approved": copilot_approved,
+                "edited": copilot_edited,
+                "discarded": copilot_discarded,
+                "pending": copilot_pending,
+                "total_manual": copilot_approved + copilot_edited + copilot_discarded,
+            },
+            "legacy_metrics": {
+                "auto_sent": legacy_auto_sent,
+            },
+            "learning_progress": {
+                "days_active": days_active,
+                "total_interactions": total_interactions,
+                "patterns_detected": patterns_detected,
+                "learning_stage": (
+                    "exploring" if total_interactions < 50
+                    else "learning" if total_interactions < 200
+                    else "optimizing"
+                ),
+            },
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"[Copilot] Error getting stats: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+    finally:
+        session.close()
+
+
+# =============================================================================
+# GET /copilot/{creator_id}/comparisons
+# =============================================================================
+@router.get("/{creator_id}/comparisons")
+async def get_copilot_comparisons(creator_id: str, days: int = 30, limit: int = 50):
+    """
+    Obtener comparaciones bot vs creator con contexto de conversación.
+
+    Returns:
+        Lista de comparaciones con:
+        - conversation_context: últimos 5 mensajes de contexto
+        - bot_suggestion: lo que sugirió el bot
+        - creator_responses: TODAS las respuestas del creator (puede ser múltiple)
+        - is_identical: si el creator aprobó sin editar
+    """
+    from datetime import timedelta
+
+    from api.database import SessionLocal
+    from api.models import Creator, Lead, Message
+
+    session = SessionLocal()
+    try:
+        creator = session.query(Creator).filter_by(name=creator_id).first()
+        if not creator:
+            raise HTTPException(status_code=404, detail="Creator not found")
+
+        since = datetime.now(timezone.utc) - timedelta(days=days)
+
+        # Get edited messages (where creator modified bot suggestion)
+        edited_messages = (
+            session.query(Message, Lead)
+            .join(Lead, Message.lead_id == Lead.id)
+            .filter(
+                Lead.creator_id == creator.id,
+                Message.role == "assistant",
+                Message.status == "edited",
+                Message.created_at > since,
+            )
+            .order_by(Message.created_at.desc())
+            .limit(limit)
+            .all()
+        )
+
+        comparisons = []
+        for msg, lead in edited_messages:
+            # Get conversation context (last 5 messages before this one)
+            context_messages = (
+                session.query(Message)
+                .filter(
+                    Message.lead_id == lead.id,
+                    Message.created_at < msg.created_at,
+                )
+                .order_by(Message.created_at.desc())
+                .limit(5)
+                .all()
+            )
+
+            # Reverse to chronological order
+            context_messages = list(reversed(context_messages))
+
+            conversation_context = [
+                {
+                    "role": m.role,
+                    "content": m.content,
+                    "created_at": m.created_at.isoformat() if m.created_at else "",
+                }
+                for m in context_messages
+            ]
+
+            # Get ALL creator responses after this message (consecutive assistant messages)
+            creator_responses = []
+            next_messages = (
+                session.query(Message)
+                .filter(
+                    Message.lead_id == lead.id,
+                    Message.role == "assistant",
+                    Message.created_at >= msg.created_at,
+                    Message.status.in_(["sent", "edited"]),
+                )
+                .order_by(Message.created_at.asc())
+                .limit(5)  # Max 5 consecutive responses
+                .all()
+            )
+
+            for nm in next_messages:
+                creator_responses.append({
+                    "content": nm.content,
+                    "status": nm.status,
+                    "created_at": nm.created_at.isoformat() if nm.created_at else "",
+                })
+
+            comparisons.append({
+                "id": str(msg.id),
+                "lead_id": str(lead.id),
+                "username": lead.username or "",
+                "platform": lead.platform,
+                "conversation_context": conversation_context,
+                "bot_suggestion": msg.suggested_response or "",
+                "creator_responses": creator_responses,
+                "is_identical": msg.content == msg.suggested_response,
+                "created_at": msg.created_at.isoformat() if msg.created_at else "",
+            })
+
+        return {
+            "creator_id": creator_id,
+            "period_days": days,
+            "total_comparisons": len(comparisons),
+            "comparisons": comparisons,
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"[Copilot] Error getting comparisons: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+    finally:
+        session.close()
