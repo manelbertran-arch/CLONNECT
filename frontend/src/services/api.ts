@@ -1370,6 +1370,50 @@ export async function approveAllCopilot(
   });
 }
 
+export interface CopilotStats {
+  creator_id: string;
+  period_days: number;
+  total_actions: number;
+  approved: number;
+  edited: number;
+  discarded: number;
+  manual_override: number;
+  approval_rate: number;
+  edit_rate: number;
+  discard_rate: number;
+  manual_rate: number;
+  avg_response_time_ms: number | null;
+  avg_confidence: number | null;
+  edit_categories: Record<string, number>;
+}
+
+export interface CopilotComparison {
+  message_id: string;
+  bot_original: string;
+  creator_final: string;
+  action: string;
+  edit_diff: { length_delta: number; categories: string[] } | null;
+  confidence: number | null;
+  response_time_ms: number | null;
+  created_at: string;
+  username: string;
+  platform: string;
+}
+
+export async function getCopilotStats(
+  creatorId: string = CREATOR_ID,
+  days: number = 30
+): Promise<CopilotStats> {
+  return apiFetch(`/copilot/${creatorId}/stats?days=${days}`);
+}
+
+export async function getCopilotComparisons(
+  creatorId: string = CREATOR_ID,
+  limit: number = 20
+): Promise<{ creator_id: string; comparisons: CopilotComparison[]; count: number; has_more: boolean }> {
+  return apiFetch(`/copilot/${creatorId}/comparisons?limit=${limit}`);
+}
+
 // =============================================================================
 // ESCALATIONS
 // =============================================================================
@@ -2022,6 +2066,8 @@ export const apiKeys = {
   copilotPending: (creatorId: string) => ["copilotPending", creatorId] as const,
   copilotStatus: (creatorId: string) => ["copilotStatus", creatorId] as const,
   copilotNotifications: (creatorId: string) => ["copilotNotifications", creatorId] as const,
+  copilotStats: (creatorId: string, days?: number) => ["copilotStats", creatorId, days] as const,
+  copilotComparisons: (creatorId: string) => ["copilotComparisons", creatorId] as const,
   toneProfile: (creatorId: string) => ["toneProfile", creatorId] as const,
   contentStats: (creatorId: string) => ["contentStats", creatorId] as const,
   escalations: (creatorId: string) => ["escalations", creatorId] as const,
@@ -2312,6 +2358,8 @@ export default {
   toggleCopilotMode,
   getCopilotNotifications,
   approveAllCopilot,
+  getCopilotStats,
+  getCopilotComparisons,
   // Escalations
   getEscalations,
   // Intelligence
