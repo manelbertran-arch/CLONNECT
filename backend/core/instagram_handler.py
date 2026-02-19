@@ -937,6 +937,7 @@ class InstagramHandler:
                         username=username,
                         full_name=full_name,
                         profile_pic_url=profile_pic_url,
+                        source="instagram_dm",
                         status=status,
                         context=context,
                         purchase_intent=(
@@ -2451,6 +2452,7 @@ class InstagramHandler:
                             platform_user_id=msg.sender_id,  # No prefix - prevents duplicates
                             username=username or None,
                             full_name=full_name or None,
+                            source="instagram_dm",
                             status="nuevo",
                         )
                         session.add(lead)
@@ -2720,6 +2722,7 @@ class InstagramHandler:
                             platform_user_id=msg.sender_id,  # No prefix - prevents duplicates
                             username=username or None,
                             full_name=full_name or None,
+                            source="instagram_dm",
                             status="nuevo",
                         )
                         session.add(lead)

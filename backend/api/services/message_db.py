@@ -96,6 +96,7 @@ def get_or_create_lead_sync(creator_id: str, platform_id: str, platform: str = "
             username=username or name or platform_id,
             full_name=name or username or "",
             platform=platform,
+            source=f"{platform}_dm",
             status="new",
             context={"platform_id": platform_id, "username": username}
         )

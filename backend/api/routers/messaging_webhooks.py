@@ -1157,6 +1157,7 @@ async def _save_evolution_outgoing_message(
                     username=push_name or sender_number,
                     full_name=push_name or "",
                     phone=f"+{sender_number}" if sender_number else None,
+                    source="whatsapp_dm",
                     status="nuevo",
                     purchase_intent=0.0,
                 )

@@ -163,6 +163,7 @@ class CopilotService:
                     username=username,
                     full_name=full_name,
                     phone=phone_number,
+                    source=f"{platform}_dm",
                     status="new",
                     purchase_intent=0.0,
                 )
