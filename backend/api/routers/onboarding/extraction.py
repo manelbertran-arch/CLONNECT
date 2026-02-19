@@ -91,6 +91,15 @@ async def run_extraction_sync(
             limit_leads=request.limit_leads,
         )
 
+    # Invalidate caches so new Doc D is picked up immediately
+    try:
+        from core.personality_loader import invalidate_cache as invalidate_personality
+        from core.dm_agent_v2 import invalidate_dm_agent_cache
+        invalidate_personality(creator_id)
+        invalidate_dm_agent_cache(creator_id)
+    except Exception:
+        pass
+
     return {
         "status": "completed" if not result.errors else "completed_with_errors",
         "duration_seconds": result.duration_seconds,
@@ -146,6 +155,16 @@ async def _run_extraction_background(
                 skip_llm=skip_llm,
                 limit_leads=limit_leads,
             )
+
+        # Invalidate caches so new Doc D is picked up immediately
+        try:
+            from core.personality_loader import invalidate_cache as invalidate_personality
+            from core.dm_agent_v2 import invalidate_dm_agent_cache
+            invalidate_personality(creator_id)
+            invalidate_dm_agent_cache(creator_id)
+            logger.info("[EXTRACTION] Cache invalidated after extraction for %s", creator_id)
+        except Exception as cache_err:
+            logger.warning("[EXTRACTION] Cache invalidation failed: %s", cache_err)
 
         _extraction_progress[creator_id] = {
             "status": "completed" if not result.errors else "completed_with_errors",

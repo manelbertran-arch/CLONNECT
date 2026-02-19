@@ -14,13 +14,17 @@ Used by:
 import logging
 import os
 import re
+import time
 from dataclasses import dataclass, field
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Tuple
 
 logger = logging.getLogger(__name__)
 
-# In-memory cache: creator_id -> ExtractionData
-_cache: Dict[str, "ExtractionData"] = {}
+# In-memory cache: creator_id -> (ExtractionData, timestamp)
+_cache: Dict[str, Tuple[Optional["ExtractionData"], float]] = {}
+
+# Cache TTL: 5 minutes (hot-reload without restart)
+_CACHE_TTL = float(os.getenv("PERSONALITY_CACHE_TTL", "300"))
 
 EXTRACTIONS_DIR = os.path.join(
     os.path.dirname(os.path.dirname(__file__)),
@@ -82,20 +86,26 @@ def load_extraction(creator_id: str) -> Optional[ExtractionData]:
     """Load and cache personality extraction for a creator.
 
     Returns None if no extraction exists.
+    Cache expires after PERSONALITY_CACHE_TTL seconds (default 300s / 5 min).
     """
+    now = time.time()
     if creator_id in _cache:
-        return _cache[creator_id]
+        cached_data, cached_ts = _cache[creator_id]
+        if (now - cached_ts) < _CACHE_TTL:
+            return cached_data
+        # TTL expired — reload
+        logger.info("Personality cache expired for %s, reloading", creator_id)
 
     doc_path = _find_doc_path(creator_id)
     if not doc_path:
-        _cache[creator_id] = None
+        _cache[creator_id] = (None, now)
         return None
 
     try:
         with open(doc_path, "r", encoding="utf-8") as f:
             content = f.read()
         data = _parse_doc_d(creator_id, content)
-        _cache[creator_id] = data
+        _cache[creator_id] = (data, now)
         logger.info(
             "Loaded personality extraction for %s: "
             "prompt=%d chars, blacklist=%d, pools=%d cats, multi_bubble=%d",
@@ -105,7 +115,7 @@ def load_extraction(creator_id: str) -> Optional[ExtractionData]:
         return data
     except Exception as e:
         logger.error("Failed to parse personality extraction for %s: %s", creator_id, e)
-        _cache[creator_id] = None
+        _cache[creator_id] = (None, now)
         return None
 
 

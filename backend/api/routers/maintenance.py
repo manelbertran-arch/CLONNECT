@@ -500,3 +500,31 @@ async def batch_embed_conversations(creator_name: str, batch_size: int = Query(5
         raise HTTPException(status_code=500, detail=str(e))
     finally:
         session.close()
+
+
+@router.post("/reload-personality/{creator_name}")
+async def reload_personality(creator_name: str):
+    """
+    Invalidate Doc D personality cache for a creator, forcing hot-reload on next DM.
+
+    Clears: personality_loader cache, DM agent cache, creator_data cache.
+    The next DM will re-parse doc_d_bot_configuration.md from disk.
+    """
+    try:
+        from core.personality_loader import invalidate_cache as invalidate_personality
+        from core.dm_agent_v2 import invalidate_dm_agent_cache
+        from core.creator_data_loader import invalidate_creator_cache
+
+        invalidate_personality(creator_name)
+        invalidate_dm_agent_cache(creator_name)
+        invalidate_creator_cache(creator_name)
+
+        logger.info(f"[HOT-RELOAD] All caches invalidated for {creator_name}")
+        return {
+            "status": "ok",
+            "message": f"Personality cache invalidated for {creator_name}",
+            "caches_cleared": ["personality_loader", "dm_agent", "creator_data"],
+        }
+    except Exception as e:
+        logger.error(f"[HOT-RELOAD] Error: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
