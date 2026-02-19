@@ -1232,7 +1232,7 @@ class DMResponderAgentV2:
     def _get_history_from_follower(self, follower) -> List[Dict[str, str]]:
         """Extract conversation history from follower memory."""
         history = []
-        for msg in follower.last_messages[-10:]:
+        for msg in follower.last_messages[-20:]:
             if isinstance(msg, dict):
                 history.append(
                     {
@@ -1826,7 +1826,7 @@ class DMResponderAgentV2:
             "is_customer": follower.is_customer,
             "status": getattr(follower, "status", None),
             "preferred_language": follower.preferred_language or "es",
-            "last_messages": follower.last_messages[-10:] if follower.last_messages else [],
+            "last_messages": follower.last_messages[-20:] if follower.last_messages else [],
             # CRM fields (from leads) - defaults
             "email": None,
             "phone": None,
