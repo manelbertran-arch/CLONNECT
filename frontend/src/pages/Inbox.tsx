@@ -25,7 +25,7 @@ import {
 import { cn } from "@/lib/utils";
 import { useQueryClient } from "@tanstack/react-query";
 import { useConversations, useFollowerDetail, useSendMessage, useArchiveConversation, useMarkConversationSpam, useDeleteConversation, useArchivedConversations, useRestoreConversation, useEventStream, useTrackManualCopilot } from "@/hooks/useApi";
-import { getFollowerDetail, apiKeys, getCreatorId } from "@/services/api";
+import { getFollowerDetail, apiKeys, getCreatorId, transcribeAudio } from "@/services/api";
 import { useToast } from "@/hooks/use-toast";
 import type { Conversation, Message } from "@/types/api";
 import { getPurchaseIntent, detectPlatform, getFriendlyName, extractNameFromMessages, getMessages } from "@/types/api";
@@ -252,6 +252,27 @@ export default function Inbox() {
         description: error instanceof Error ? error.message : "Failed to send",
         variant: "destructive",
       });
+    }
+  };
+
+  // Handle sending audio: transcribe then send as text message
+  const handleSendAudio = async (blob: Blob) => {
+    if (!selectedId) return;
+    try {
+      const result = await transcribeAudio(blob);
+      if (!result.text.trim()) {
+        toast({ title: "Audio vacio", description: "No se detecto voz en la grabacion", variant: "destructive" });
+        return;
+      }
+      const audioText = result.text.trim();
+      await sendMessageMutation.mutateAsync({
+        followerId: selectedId,
+        message: audioText,
+      });
+      toast({ title: "Audio enviado", description: audioText.slice(0, 60) + (audioText.length > 60 ? "..." : "") });
+      setMessage("");
+    } catch (err) {
+      toast({ title: "Error", description: err instanceof Error ? err.message : "No se pudo enviar el audio", variant: "destructive" });
     }
   };
 
@@ -819,6 +840,7 @@ export default function Inbox() {
               <div className="flex items-center gap-2">
                 <AudioRecorder
                   onTranscription={(text) => setMessage((prev) => prev ? `${prev} ${text}` : text)}
+                  onSendAudio={handleSendAudio}
                   disabled={sendMessageMutation.isPending}
                 />
                 <Input

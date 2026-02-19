@@ -1,5 +1,5 @@
 import { useState, useRef, useCallback, useEffect } from "react";
-import { Mic, Square, FileText, Trash2, Loader2 } from "lucide-react";
+import { Mic, Square, FileText, Send, Trash2, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { transcribeAudio } from "@/services/api";
 
@@ -7,10 +7,11 @@ type RecorderState = "idle" | "recording" | "recorded" | "transcribing";
 
 interface AudioRecorderProps {
   onTranscription: (text: string) => void;
+  onSendAudio?: (blob: Blob) => void;
   disabled?: boolean;
 }
 
-export function AudioRecorder({ onTranscription, disabled }: AudioRecorderProps) {
+export function AudioRecorder({ onTranscription, onSendAudio, disabled }: AudioRecorderProps) {
   const [state, setState] = useState<RecorderState>("idle");
   const [duration, setDuration] = useState(0);
   const [error, setError] = useState<string | null>(null);
@@ -100,6 +101,15 @@ export function AudioRecorder({ onTranscription, disabled }: AudioRecorderProps)
     }
   }, [onTranscription]);
 
+  const handleSendAudio = useCallback(() => {
+    if (!audioBlobRef.current || !onSendAudio) return;
+    onSendAudio(audioBlobRef.current);
+    audioBlobRef.current = null;
+    setState("idle");
+    setDuration(0);
+    setError(null);
+  }, [onSendAudio]);
+
   const handleDiscard = useCallback(() => {
     audioBlobRef.current = null;
     setState("idle");
@@ -168,7 +178,7 @@ export function AudioRecorder({ onTranscription, disabled }: AudioRecorderProps)
         onClick={handleTranscribe}
         disabled={state === "transcribing"}
         className="h-7 w-7 text-primary hover:text-primary/80"
-        title="Transcribir"
+        title="Transcribir a texto"
       >
         {state === "transcribing" ? (
           <Loader2 className="w-4 h-4 animate-spin" />
@@ -176,6 +186,19 @@ export function AudioRecorder({ onTranscription, disabled }: AudioRecorderProps)
           <FileText className="w-4 h-4" />
         )}
       </Button>
+      {onSendAudio && (
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon"
+          onClick={handleSendAudio}
+          disabled={state === "transcribing"}
+          className="h-7 w-7 text-green-500 hover:text-green-400"
+          title="Enviar audio"
+        >
+          <Send className="w-4 h-4" />
+        </Button>
+      )}
       <Button
         type="button"
         variant="ghost"
