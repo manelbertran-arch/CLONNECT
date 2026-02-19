@@ -1,8 +1,10 @@
-import { useState, useMemo, useEffect, useCallback } from "react";
+import { useState, useMemo, useEffect, useCallback, useRef } from "react";
 import { useSearchParams } from "react-router-dom";
 import { Search, Send, MoreHorizontal, Loader2, AlertCircle, Instagram, MessageCircle, Archive, Trash2, AlertTriangle, RotateCcw, ArrowLeft, Bot } from "lucide-react";
 import { MessageRenderer, type ChatPlatform } from "@/components/chat/MessageRenderer";
 import { AudioRecorder } from "@/components/chat/AudioRecorder";
+import { EmojiPicker } from "@/components/chat/EmojiPicker";
+import { AttachmentButton, AttachmentPreview } from "@/components/chat/AttachmentButton";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import {
@@ -25,7 +27,7 @@ import {
 import { cn } from "@/lib/utils";
 import { useQueryClient } from "@tanstack/react-query";
 import { useConversations, useFollowerDetail, useSendMessage, useArchiveConversation, useMarkConversationSpam, useDeleteConversation, useArchivedConversations, useRestoreConversation, useEventStream, useTrackManualCopilot } from "@/hooks/useApi";
-import { getFollowerDetail, apiKeys, getCreatorId, transcribeAudio } from "@/services/api";
+import { getFollowerDetail, apiKeys, getCreatorId, transcribeAudio, sendMediaMessage } from "@/services/api";
 import { useToast } from "@/hooks/use-toast";
 import type { Conversation, Message } from "@/types/api";
 import { getPurchaseIntent, detectPlatform, getFriendlyName, extractNameFromMessages, getMessages } from "@/types/api";
@@ -157,6 +159,8 @@ export default function Inbox() {
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [activeTab, setActiveTab] = useState<"all" | "archived">("all");
   const [platformFilter, setPlatformFilter] = useState<"all" | "instagram" | "whatsapp" | "telegram">("all");
+  const [attachment, setAttachment] = useState<{ file: File; uploading: boolean } | null>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
   const sendMessageMutation = useSendMessage();
   const archiveMutation = useArchiveConversation();
@@ -215,11 +219,34 @@ export default function Inbox() {
     }
   };
 
-  // Handle sending a manual message
+  // Handle sending a manual message (text or media)
   const handleSend = async () => {
-    if (!selectedId || !message.trim()) {
+    if (!selectedId) return;
+
+    // If there's an attachment, send as media
+    if (attachment) {
+      setAttachment((prev) => prev ? { ...prev, uploading: true } : null);
+      try {
+        const result = await sendMediaMessage(selectedId, attachment.file, message.trim());
+        toast({
+          title: result.sent ? "Media enviado" : "Enviando...",
+          description: result.media_type,
+        });
+        setAttachment(null);
+        setMessage("");
+      } catch (error) {
+        toast({
+          title: "Error enviando media",
+          description: error instanceof Error ? error.message : "Failed to send",
+          variant: "destructive",
+        });
+        setAttachment((prev) => prev ? { ...prev, uploading: false } : null);
+      }
       return;
     }
+
+    // Text-only send
+    if (!message.trim()) return;
 
     try {
       const result = await sendMessageMutation.mutateAsync({
@@ -233,7 +260,6 @@ export default function Inbox() {
           description: `Sent via ${result.platform}`,
         });
       } else {
-        // Pending delivery is normal - not an error
         toast({
           title: "Enviando...",
           description: "Tu mensaje se está enviando. Esto puede tardar unos segundos.",
@@ -245,7 +271,7 @@ export default function Inbox() {
         trackManualMutation.mutate({ leadId: selectedConversation.id, content: message.trim() });
       }
 
-      setMessage(""); // Clear input on success
+      setMessage("");
     } catch (error) {
       toast({
         title: "Error sending message",
@@ -837,13 +863,38 @@ export default function Inbox() {
               chatPlatform === 'telegram' ? 'bg-[#17212b] border-[#1e2c3a]' :
               'border-border/50'
             )}>
+              {/* Attachment preview */}
+              {attachment && (
+                <div className="mb-2">
+                  <AttachmentPreview
+                    file={attachment.file}
+                    uploading={attachment.uploading}
+                    onRemove={() => setAttachment(null)}
+                  />
+                </div>
+              )}
               <div className="flex items-center gap-2">
                 <AudioRecorder
-                  onTranscription={(text) => setMessage((prev) => prev ? `${prev} ${text}` : text)}
+                  onTranscription={(text) => {
+                    setMessage((prev) => prev ? `${prev} ${text}` : text);
+                    inputRef.current?.focus();
+                  }}
                   onSendAudio={handleSendAudio}
                   disabled={sendMessageMutation.isPending}
                 />
+                <EmojiPicker
+                  onSelect={(emoji) => {
+                    setMessage((prev) => prev + emoji);
+                    inputRef.current?.focus();
+                  }}
+                  disabled={sendMessageMutation.isPending}
+                />
+                <AttachmentButton
+                  onFileSelected={(file) => setAttachment({ file, uploading: false })}
+                  disabled={sendMessageMutation.isPending}
+                />
                 <Input
+                  ref={inputRef}
                   value={message}
                   onChange={(e) => setMessage(e.target.value)}
                   onKeyDown={handleKeyDown}
@@ -863,7 +914,7 @@ export default function Inbox() {
                 <Button
                   type="button"
                   onClick={handleSend}
-                  disabled={!selectedId || !message.trim() || sendMessageMutation.isPending}
+                  disabled={!selectedId || (!message.trim() && !attachment) || sendMessageMutation.isPending}
                   className={cn(
                     "hover:opacity-90 transition-opacity shrink-0",
                     chatPlatform === 'whatsapp' ? 'bg-[#00a884] hover:bg-[#00a884]' :

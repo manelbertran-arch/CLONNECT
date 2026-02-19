@@ -375,6 +375,40 @@ export async function transcribeAudio(
 }
 
 /**
+ * Send a media file (image, video, audio, document) to a follower
+ */
+export async function sendMediaMessage(
+  followerId: string,
+  file: File,
+  caption: string = "",
+  creatorId: string = CREATOR_ID
+): Promise<{ status: string; sent: boolean; platform: string; media_url: string; media_type: string }> {
+  const formData = new FormData();
+  formData.append("file", file);
+  formData.append("follower_id", followerId);
+  formData.append("caption", caption);
+
+  const token = getAuthToken();
+  const headers: HeadersInit = {};
+  if (token) {
+    headers["Authorization"] = `Bearer ${token}`;
+  }
+
+  const response = await fetch(`${API_URL}/dm/send-media/${creatorId}`, {
+    method: "POST",
+    headers,
+    body: formData,
+  });
+
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
+    throw new Error(errorData.detail || `Media send failed: ${response.status}`);
+  }
+
+  return response.json();
+}
+
+/**
  * Mark a conversation as read
  */
 export async function markConversationRead(

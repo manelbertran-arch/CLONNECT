@@ -8,7 +8,7 @@ import logging
 import os
 from datetime import datetime, timezone
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, File, Form, HTTPException, UploadFile
 from pydantic import BaseModel
 
 logger = logging.getLogger(__name__)
@@ -811,6 +811,137 @@ async def send_manual_message(creator_id: str, request: SendMessageRequest):
     except Exception as e:
         logger.error(f"Error sending manual message: {e}")
         raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/send-media/{creator_id}")
+async def send_media_message(
+    creator_id: str,
+    follower_id: str = Form(...),
+    caption: str = Form(""),
+    file: UploadFile = File(...),
+):
+    """
+    Upload media to Cloudinary and send to a follower via their platform.
+
+    Supports: images, videos, audio, documents. Max 16MB.
+    The media is permanently stored in Cloudinary before sending.
+    """
+    import tempfile
+
+    content_type = file.content_type or ""
+
+    # Determine media type
+    if "image" in content_type:
+        media_type = "image"
+    elif "video" in content_type:
+        media_type = "video"
+    elif "audio" in content_type:
+        media_type = "audio"
+    elif "pdf" in content_type or "document" in content_type or "msword" in content_type:
+        media_type = "document"
+    else:
+        raise HTTPException(400, f"Unsupported file type: {content_type}")
+
+    # Read and validate size
+    content = await file.read()
+    if len(content) > 16 * 1024 * 1024:
+        raise HTTPException(413, "File too large (max 16MB)")
+    if len(content) < 100:
+        raise HTTPException(400, "File too small or empty")
+
+    # Save to temp file and upload to Cloudinary
+    suffix = os.path.splitext(file.filename or ".bin")[1]
+    with tempfile.NamedTemporaryFile(delete=False, suffix=suffix) as tmp:
+        tmp.write(content)
+        tmp_path = tmp.name
+
+    try:
+        from services.cloudinary_service import get_cloudinary_service
+
+        cloud = get_cloudinary_service()
+        if not cloud.is_configured:
+            raise HTTPException(500, "Cloudinary not configured")
+
+        cloud_media = media_type
+        if media_type == "document":
+            cloud_media = "raw"
+
+        upload = cloud.upload_from_file(
+            file_path=tmp_path,
+            media_type=cloud_media,
+            folder=f"clonnect/{creator_id}/sent",
+            tags=[creator_id, "sent", media_type],
+        )
+        if not upload.success or not upload.url:
+            raise HTTPException(500, f"Upload failed: {upload.error}")
+
+        media_url = upload.url
+    finally:
+        try:
+            os.unlink(tmp_path)
+        except OSError:
+            pass
+
+    # Send via platform
+    follower_id_str = follower_id
+    sent = False
+    platform = "unknown"
+
+    if follower_id_str.startswith("wa_"):
+        platform = "whatsapp"
+        phone = follower_id_str.replace("wa_", "")
+        try:
+            from api.routers.messaging_webhooks import EVOLUTION_INSTANCE_MAP
+            from services.evolution_api import send_evolution_media
+
+            evo_instance = None
+            for inst_name, cid in EVOLUTION_INSTANCE_MAP.items():
+                if cid == creator_id:
+                    evo_instance = inst_name
+                    break
+
+            if evo_instance:
+                result = await send_evolution_media(
+                    evo_instance, phone, media_url, media_type, caption, approved=True
+                )
+                sent = "error" not in str(result).lower()
+        except Exception as e:
+            logger.error(f"Error sending WhatsApp media: {e}")
+
+    elif follower_id_str.startswith("ig_"):
+        platform = "instagram"
+        # Instagram Send API doesn't support media from inbox — save as text with URL
+        if caption:
+            message_text = f"{caption}\n{media_url}"
+        else:
+            message_text = media_url
+        try:
+            handler = get_instagram_handler()
+            if handler.connector:
+                sent = await handler.send_response(
+                    follower_id_str.replace("ig_", ""), message_text, approved=True
+                )
+        except Exception as e:
+            logger.error(f"Error sending Instagram media: {e}")
+
+    # Save in conversation history
+    display_text = caption or {
+        "image": "[📷 Photo]",
+        "video": "[🎬 Video]",
+        "audio": "[🎤 Audio]",
+        "document": "[📄 Document]",
+    }.get(media_type, "[📎 Media]")
+
+    agent = get_dm_agent(creator_id)
+    await agent.save_manual_message(follower_id_str, display_text, sent)
+
+    return {
+        "status": "ok",
+        "sent": sent,
+        "platform": platform,
+        "media_url": media_url,
+        "media_type": media_type,
+    }
 
 
 @router.put("/follower/{creator_id}/{follower_id}/status")
