@@ -91,4 +91,8 @@ echo "=== STATIC FILES CHECK ==="
 ls -la /app/static/assets/ 2>/dev/null || echo "No static/assets folder"
 cat /app/static/index.html 2>/dev/null | grep "index-" || echo "No index.html"
 echo "==========================="
+
+echo "Running migrations..."
+alembic upgrade head 2>&1 || echo "WARNING: migrations failed, continuing..."
+
 exec uvicorn api.main:app --host 0.0.0.0 --port $PORT --log-level info
