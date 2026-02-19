@@ -191,6 +191,7 @@ async def _auto_onboard_after_instagram_oauth(
                         if not creator.knowledge_about:
                             creator.knowledge_about = {}
                         creator.knowledge_about["website_url"] = url_to_scrape
+                        creator.website_url = url_to_scrape  # B10: dedicated column
                         from sqlalchemy.orm.attributes import flag_modified
 
                         flag_modified(creator, "knowledge_about")

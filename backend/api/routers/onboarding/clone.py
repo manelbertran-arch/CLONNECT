@@ -282,6 +282,7 @@ async def start_clone_creation(request: StartCloneRequest, background_tasks: Bac
                 if not creator.knowledge_about:
                     creator.knowledge_about = {}
                 creator.knowledge_about["website_url"] = request.website_url
+                creator.website_url = request.website_url  # B10: dedicated column
                 # CRITICAL: flag_modified required for SQLAlchemy to detect JSON field changes
                 from sqlalchemy.orm.attributes import flag_modified
 
@@ -413,7 +414,9 @@ async def _run_clone_creation(creator_id: str, website_url: str = None):
             instagram_user_id = creator.instagram_user_id or ""
             page_id = creator.instagram_page_id or ""
 
-            # FALLBACK: Get website_url from knowledge_about if not provided as parameter
+            # B10: Read from dedicated column first, fallback to knowledge_about
+            if not website_url and creator.website_url:
+                website_url = creator.website_url
             if not website_url and creator.knowledge_about:
                 website_url = creator.knowledge_about.get("website_url")
                 if website_url:

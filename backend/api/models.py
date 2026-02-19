@@ -119,6 +119,8 @@ class Creator(Base):
     email_capture_config = Column(JSON, default=dict)
     # Product price for lead scoring (default €97)
     product_price = Column(Float, default=97.0)
+    # Website URL (promoted from knowledge_about JSON to dedicated column)
+    website_url = Column(String(500), nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
 
