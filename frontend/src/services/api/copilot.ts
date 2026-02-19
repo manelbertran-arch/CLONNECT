@@ -89,6 +89,8 @@ export interface CopilotComparison {
   created_at: string;
   username: string;
   platform: string;
+  is_identical?: boolean;
+  source?: string;
 }
 
 export async function getCopilotStats(creatorId: string = CREATOR_ID, days: number = 30): Promise<CopilotStats> {

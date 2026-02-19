@@ -512,12 +512,13 @@ async def get_copilot_stats(
     """
     Get copilot action statistics for a creator.
 
-    Returns approval/edit/discard/manual rates and average response times.
-    Used by the autolearning engine and the frontend metrics dashboard.
+    Returns two sections:
+    - copilot_metrics: Real creator decisions (approve/edit/discard/manual) from copilot era
+    - legacy_metrics: Historical auto-sent bot messages from before copilot was enabled
     """
     from datetime import timedelta
 
-    from sqlalchemy import case, func
+    from sqlalchemy import func
 
     from api.database import SessionLocal
     from api.models import Creator, Lead, Message
@@ -530,27 +531,14 @@ async def get_copilot_stats(
 
         since = datetime.now(timezone.utc) - timedelta(days=days)
 
-        # Aggregate copilot actions — combines new copilot_action field with legacy status values
-        # Legacy: status='sent' + approved_by='creator' → approved
-        # Legacy: status='sent' + approved_by='creator_manual' → manual_override
-        # Legacy: status='discarded' → discarded
-        from sqlalchemy import or_
-
-        effective_action = case(
-            (Message.copilot_action.isnot(None), Message.copilot_action),
-            (Message.status.in_(["approved", "sent"]), "approved"),
-            (Message.status == "discarded", "discarded"),
-            (Message.status == "expired", "discarded"),
-            else_="unknown",
-        )
-
-        stats = (
+        # ── COPILOT METRICS: Only messages with copilot_action set ──
+        copilot_stats = (
             session.query(
                 func.count().label("total"),
-                func.count(case((effective_action == "approved", 1))).label("approved"),
-                func.count(case((effective_action == "edited", 1))).label("edited"),
-                func.count(case((effective_action == "discarded", 1))).label("discarded"),
-                func.count(case((effective_action == "manual_override", 1))).label("manual"),
+                func.count(func.nullif(Message.copilot_action != "approved", True)).label("approved"),
+                func.count(func.nullif(Message.copilot_action != "edited", True)).label("edited"),
+                func.count(func.nullif(Message.copilot_action != "discarded", True)).label("discarded"),
+                func.count(func.nullif(Message.copilot_action != "manual_override", True)).label("manual"),
                 func.avg(Message.response_time_ms).label("avg_response_time_ms"),
                 func.avg(Message.confidence_score).label("avg_confidence"),
             )
@@ -558,20 +546,87 @@ async def get_copilot_stats(
             .filter(
                 Lead.creator_id == creator.id,
                 Message.role == "assistant",
-                or_(
-                    Message.copilot_action.isnot(None),
-                    Message.status.in_(["approved", "sent", "discarded", "expired"]),
-                ),
+                Message.copilot_action.isnot(None),
                 Message.created_at >= since,
             )
             .first()
         )
 
-        total = stats.total or 0
-        approved = stats.approved or 0
-        edited = stats.edited or 0
-        discarded = stats.discarded or 0
-        manual = stats.manual or 0
+        # Pending count
+        pending_count = (
+            session.query(func.count())
+            .select_from(Message)
+            .join(Lead, Message.lead_id == Lead.id)
+            .filter(
+                Lead.creator_id == creator.id,
+                Message.role == "assistant",
+                Message.status == "pending_approval",
+            )
+            .scalar() or 0
+        )
+
+        c_total = copilot_stats.total or 0
+        c_approved = copilot_stats.approved or 0
+        c_edited = copilot_stats.edited or 0
+        c_discarded = copilot_stats.discarded or 0
+        c_manual = copilot_stats.manual or 0
+
+        # ── LEGACY METRICS: Messages without copilot_action ──
+        legacy_auto_sent = (
+            session.query(func.count())
+            .select_from(Message)
+            .join(Lead, Message.lead_id == Lead.id)
+            .filter(
+                Lead.creator_id == creator.id,
+                Message.role == "assistant",
+                Message.copilot_action.is_(None),
+                Message.status == "sent",
+                Message.approved_by.is_(None),
+                Message.created_at >= since,
+            )
+            .scalar() or 0
+        )
+
+        legacy_creator_manual = (
+            session.query(func.count())
+            .select_from(Message)
+            .join(Lead, Message.lead_id == Lead.id)
+            .filter(
+                Lead.creator_id == creator.id,
+                Message.role == "assistant",
+                Message.copilot_action.is_(None),
+                Message.approved_by == "creator_manual",
+                Message.created_at >= since,
+            )
+            .scalar() or 0
+        )
+
+        legacy_discarded = (
+            session.query(func.count())
+            .select_from(Message)
+            .join(Lead, Message.lead_id == Lead.id)
+            .filter(
+                Lead.creator_id == creator.id,
+                Message.role == "assistant",
+                Message.copilot_action.is_(None),
+                Message.status == "discarded",
+                Message.created_at >= since,
+            )
+            .scalar() or 0
+        )
+
+        legacy_expired = (
+            session.query(func.count())
+            .select_from(Message)
+            .join(Lead, Message.lead_id == Lead.id)
+            .filter(
+                Lead.creator_id == creator.id,
+                Message.role == "assistant",
+                Message.status == "expired",
+                Message.created_at >= since,
+            )
+            .scalar() or 0
+        )
 
         # Edit category breakdown
         edit_categories = (
@@ -595,17 +650,42 @@ async def get_copilot_stats(
         return {
             "creator_id": creator_id,
             "period_days": days,
-            "total_actions": total,
-            "approved": approved,
-            "edited": edited,
-            "discarded": discarded,
-            "manual_override": manual,
-            "approval_rate": round(approved / total, 3) if total else 0,
-            "edit_rate": round(edited / total, 3) if total else 0,
-            "discard_rate": round(discarded / total, 3) if total else 0,
-            "manual_rate": round(manual / total, 3) if total else 0,
-            "avg_response_time_ms": round(stats.avg_response_time_ms) if stats.avg_response_time_ms else None,
-            "avg_confidence": round(float(stats.avg_confidence), 3) if stats.avg_confidence else None,
+            # Copilot-era metrics (real creator decisions)
+            "copilot_metrics": {
+                "total": c_total,
+                "approved": c_approved,
+                "edited": c_edited,
+                "discarded": c_discarded,
+                "manual_override": c_manual,
+                "pending": pending_count,
+                "approval_rate": round(c_approved / c_total, 3) if c_total else 0,
+                "edit_rate": round(c_edited / c_total, 3) if c_total else 0,
+                "discard_rate": round(c_discarded / c_total, 3) if c_total else 0,
+                "manual_rate": round(c_manual / c_total, 3) if c_total else 0,
+                "avg_response_time_ms": round(copilot_stats.avg_response_time_ms) if copilot_stats.avg_response_time_ms else None,
+                "avg_confidence": round(float(copilot_stats.avg_confidence), 3) if copilot_stats.avg_confidence else None,
+                "edit_categories": category_counts,
+            },
+            # Legacy metrics (pre-copilot automatic mode)
+            "legacy_metrics": {
+                "auto_sent": legacy_auto_sent,
+                "creator_manual": legacy_creator_manual,
+                "discarded": legacy_discarded,
+                "expired": legacy_expired,
+                "total": legacy_auto_sent + legacy_creator_manual + legacy_discarded + legacy_expired,
+            },
+            # Backward compatibility — total includes both sections
+            "total_actions": c_total,
+            "approved": c_approved,
+            "edited": c_edited,
+            "discarded": c_discarded,
+            "manual_override": c_manual,
+            "approval_rate": round(c_approved / c_total, 3) if c_total else 0,
+            "edit_rate": round(c_edited / c_total, 3) if c_total else 0,
+            "discard_rate": round(c_discarded / c_total, 3) if c_total else 0,
+            "manual_rate": round(c_manual / c_total, 3) if c_total else 0,
+            "avg_response_time_ms": round(copilot_stats.avg_response_time_ms) if copilot_stats.avg_response_time_ms else None,
+            "avg_confidence": round(float(copilot_stats.avg_confidence), 3) if copilot_stats.avg_confidence else None,
             "edit_categories": category_counts,
         }
 
@@ -629,13 +709,17 @@ async def get_copilot_comparisons(
     _auth: str = Depends(require_creator_access),
 ):
     """
-    Get side-by-side comparisons of bot suggestions vs creator edits.
+    Get side-by-side comparisons of bot suggestions vs real creator responses.
 
-    Returns messages where the creator edited the bot's suggestion,
-    showing original and final text for the split view UI.
+    Two sources of comparisons:
+    1. Copilot-era: messages with copilot_action='edited' (suggested_response vs content)
+    2. Legacy: bot auto-sent messages paired with nearby creator manual responses
+       for the same lead (what bot said vs what creator actually said)
     """
+    from sqlalchemy import text
+
     from api.database import SessionLocal
-    from api.models import Creator, Lead, Message
+    from api.models import Creator
 
     session = SessionLocal()
     try:
@@ -643,39 +727,79 @@ async def get_copilot_comparisons(
         if not creator:
             raise HTTPException(status_code=404, detail="Creator not found")
 
-        # Get edited/manual messages — include both new copilot_action and legacy data
-        from sqlalchemy import or_
-
-        rows = (
-            session.query(
-                Message.id,
-                Message.content,
-                Message.suggested_response,
-                Message.edit_diff,
-                Message.confidence_score,
-                Message.response_time_ms,
-                Message.copilot_action,
-                Message.created_at,
-                Lead.username,
-                Lead.platform,
-                Lead.platform_user_id,
+        # Use raw SQL for the lateral join to pair bot auto-sent with creator manual
+        rows = session.execute(text("""
+            WITH
+            -- Source 1: Copilot-era edits (bot suggested → creator edited)
+            copilot_edits AS (
+                SELECT
+                    m.id, m.suggested_response as bot_suggestion, m.content as creator_response,
+                    m.copilot_action as action, m.edit_diff, m.confidence_score,
+                    m.response_time_ms, m.created_at,
+                    COALESCE(l.full_name, l.username, l.platform_user_id) as lead_name,
+                    l.platform, l.platform_user_id,
+                    (m.suggested_response = m.content) as is_identical,
+                    'copilot' as source
+                FROM messages m
+                JOIN leads l ON m.lead_id = l.id
+                WHERE l.creator_id = :creator_id
+                AND m.role = 'assistant'
+                AND m.copilot_action IN ('edited', 'manual_override', 'approved')
+                AND m.suggested_response IS NOT NULL
+            ),
+            -- Source 2: Legacy — bot auto-sent paired with creator manual response
+            bot_auto AS (
+                SELECT m.id, m.lead_id, m.content as bot_suggestion,
+                       m.created_at, m.intent, m.confidence_score,
+                       COALESCE(l.full_name, l.username, l.platform_user_id) as lead_name,
+                       l.platform, l.platform_user_id
+                FROM messages m
+                JOIN leads l ON m.lead_id = l.id
+                WHERE l.creator_id = :creator_id
+                AND m.role = 'assistant'
+                AND m.copilot_action IS NULL
+                AND (m.approved_by IS NULL OR m.approved_by = 'auto')
+                AND m.status = 'sent'
+                AND m.content NOT IN ('Mentioned you in their story', 'Shared content')
+            ),
+            legacy_pairs AS (
+                SELECT
+                    ba.id, ba.bot_suggestion, cr.content as creator_response,
+                    'legacy_comparison' as action,
+                    NULL::json as edit_diff, ba.confidence_score,
+                    NULL::integer as response_time_ms,
+                    ba.created_at,
+                    ba.lead_name, ba.platform, ba.platform_user_id,
+                    (ba.bot_suggestion = cr.content) as is_identical,
+                    'legacy' as source
+                FROM bot_auto ba
+                CROSS JOIN LATERAL (
+                    SELECT content, created_at
+                    FROM messages
+                    WHERE lead_id = ba.lead_id
+                    AND role = 'assistant'
+                    AND approved_by = 'creator_manual'
+                    AND created_at BETWEEN ba.created_at - INTERVAL '4 hours'
+                                        AND ba.created_at + INTERVAL '24 hours'
+                    ORDER BY created_at ASC
+                    LIMIT 1
+                ) cr
+            ),
+            -- Combine both sources
+            all_comparisons AS (
+                SELECT * FROM copilot_edits
+                UNION ALL
+                SELECT * FROM legacy_pairs
             )
-            .join(Lead, Message.lead_id == Lead.id)
-            .filter(
-                Lead.creator_id == creator.id,
-                Message.role == "assistant",
-                or_(
-                    Message.copilot_action.in_(["edited", "manual_override"]),
-                    # Legacy: creator manually sent + bot had a suggestion
-                    Message.approved_by == "creator_manual",
-                ),
-                Message.suggested_response.isnot(None),
-            )
-            .order_by(Message.created_at.desc())
-            .offset(offset)
-            .limit(limit + 1)
-            .all()
-        )
+            SELECT * FROM all_comparisons
+            ORDER BY created_at DESC
+            OFFSET :offset
+            LIMIT :limit_plus_one
+        """), {
+            "creator_id": str(creator.id),
+            "offset": offset,
+            "limit_plus_one": limit + 1,
+        }).fetchall()
 
         has_more = len(rows) > limit
         if has_more:
@@ -685,15 +809,17 @@ async def get_copilot_comparisons(
         for row in rows:
             comparisons.append({
                 "message_id": str(row.id),
-                "bot_original": row.suggested_response or "",
-                "creator_final": row.content or "",
-                "action": row.copilot_action,
+                "bot_original": row.bot_suggestion or "",
+                "creator_final": row.creator_response or "",
+                "action": row.action,
                 "edit_diff": row.edit_diff,
                 "confidence": row.confidence_score,
                 "response_time_ms": row.response_time_ms,
                 "created_at": row.created_at.isoformat() if row.created_at else "",
-                "username": row.username or "",
+                "username": row.lead_name or "",
                 "platform": row.platform,
+                "is_identical": row.is_identical,
+                "source": row.source,
             })
 
         return {

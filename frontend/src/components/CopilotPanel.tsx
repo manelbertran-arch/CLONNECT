@@ -77,7 +77,13 @@ function PendingCard({ item, onApprove, onDiscard, isLoading, isFading }: Pendin
   };
 
   const displayName = item.full_name || item.username || item.follower_id;
-  const timeAgo = new Date(item.created_at).toLocaleTimeString();
+  const timeAgo = new Date(item.created_at).toLocaleString("es-ES", {
+    timeZone: "Europe/Madrid",
+    day: "2-digit",
+    month: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
 
   return (
     <div
@@ -347,7 +353,11 @@ function MetricsTab() {
     );
   }
 
-  if (!stats || stats.total_actions === 0) {
+  // Extract copilot and legacy metrics from response
+  const copilot = (stats as any)?.copilot_metrics;
+  const legacy = (stats as any)?.legacy_metrics;
+
+  if (!stats || (stats.total_actions === 0 && (!legacy || legacy.total === 0))) {
     return (
       <div className="text-center py-12 bg-secondary/20 rounded-lg">
         <BarChart3 className="w-12 h-12 mx-auto text-muted-foreground mb-4" />
@@ -486,6 +496,50 @@ function MetricsTab() {
           </CardContent>
         </Card>
       )}
+
+      {/* Legacy Metrics (pre-copilot automatic mode) */}
+      {legacy && legacy.total > 0 && (
+        <Card className="opacity-70">
+          <CardHeader className="pb-3">
+            <CardTitle className="text-sm font-medium text-muted-foreground">
+              Historial automático (pre-copilot)
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 text-sm">
+              <div>
+                <p className="text-xs text-muted-foreground">Auto-enviadas</p>
+                <p className="text-lg font-semibold text-muted-foreground">{legacy.auto_sent}</p>
+              </div>
+              <div>
+                <p className="text-xs text-muted-foreground">Manual (creador)</p>
+                <p className="text-lg font-semibold text-muted-foreground">{legacy.creator_manual}</p>
+              </div>
+              <div>
+                <p className="text-xs text-muted-foreground">Descartadas</p>
+                <p className="text-lg font-semibold text-muted-foreground">{legacy.discarded}</p>
+              </div>
+              <div>
+                <p className="text-xs text-muted-foreground">Expiradas</p>
+                <p className="text-lg font-semibold text-muted-foreground">{legacy.expired}</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Pending count */}
+      {copilot && copilot.pending > 0 && (
+        <Card className="border-amber-200 bg-amber-50/50">
+          <CardContent className="pt-4 pb-3 px-4 flex items-center justify-between">
+            <div>
+              <p className="text-sm font-medium">Pendientes de revisión</p>
+              <p className="text-xs text-muted-foreground">Sugerencias esperando tu aprobación</p>
+            </div>
+            <Badge variant="destructive" className="text-lg px-3 py-1">{copilot.pending}</Badge>
+          </CardContent>
+        </Card>
+      )}
     </div>
   );
 }
@@ -534,21 +588,36 @@ function ComparisonsTab() {
 
 function ComparisonCard({ comparison: c }: { comparison: CopilotComparison }) {
   const categories = c.edit_diff?.categories || [];
+  const isIdentical = c.is_identical ?? (c.bot_original === c.creator_final);
+  const formattedDate = c.created_at
+    ? new Date(c.created_at).toLocaleString("es-ES", {
+        timeZone: "Europe/Madrid",
+        day: "2-digit",
+        month: "2-digit",
+        year: "numeric",
+        hour: "2-digit",
+        minute: "2-digit",
+      })
+    : "";
 
   return (
     <div className="border border-border rounded-lg overflow-hidden">
       {/* Header */}
       <div className="flex items-center justify-between px-4 py-2 bg-muted/30 border-b">
         <div className="flex items-center gap-2 text-sm">
-          <span className="font-medium">@{c.username || "usuario"}</span>
+          <span className="font-medium">{c.username || "usuario"}</span>
           <Badge variant="outline" className="text-[10px]">{c.platform}</Badge>
-          <Badge variant={c.action === "edited" ? "default" : "secondary"} className="text-[10px]">
-            {c.action === "edited" ? "Editada" : "Manual"}
-          </Badge>
+          {isIdentical ? (
+            <Badge className="text-[10px] bg-green-500/20 text-green-700 border-green-300">
+              Match
+            </Badge>
+          ) : (
+            <Badge className="text-[10px] bg-amber-500/20 text-amber-700 border-amber-300">
+              Diferente
+            </Badge>
+          )}
         </div>
-        <span className="text-xs text-muted-foreground">
-          {new Date(c.created_at).toLocaleDateString()}
-        </span>
+        <span className="text-xs text-muted-foreground">{formattedDate}</span>
       </div>
 
       {/* Split View */}
