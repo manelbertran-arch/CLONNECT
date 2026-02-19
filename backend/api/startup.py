@@ -872,7 +872,7 @@ def register_startup_handlers(app: "FastAPI"):
                 await asyncio.sleep(480)  # 8 min after boot
                 while True:
                     try:
-                        from datetime import timedelta
+                        from datetime import datetime, timedelta, timezone
 
                         from api.database import SessionLocal as _SL17
                         from api.models import Creator
@@ -892,9 +892,7 @@ def register_startup_handlers(app: "FastAPI"):
                             for c in creators:
                                 expires = c.instagram_token_expires_at
                                 if expires.tzinfo is None:
-                                    from datetime import timezone as _tz
-
-                                    expires = expires.replace(tzinfo=_tz.utc)
+                                    expires = expires.replace(tzinfo=timezone.utc)
                                 days_left = (expires - now).days
                                 if days_left <= 0:
                                     from core.alerts import get_alert_manager
