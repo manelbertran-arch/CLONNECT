@@ -6,7 +6,7 @@
  * leaving the inbox.
  */
 import { useState } from "react";
-import { Bot, Check, X, Edit3, Loader2, MessageSquare, Clock } from "lucide-react";
+import { Bot, Check, X, Edit3, Loader2, MessageSquare, Clock, Minus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import {
@@ -16,6 +16,8 @@ import {
 } from "@/hooks/useApi";
 import { useToast } from "@/hooks/use-toast";
 import { getCreatorId } from "@/services/api";
+import type { ContextMessage } from "@/services/api";
+import { formatSessionLabel } from "@/utils/time";
 
 interface CopilotBannerProps {
   leadId: string | null;
@@ -114,8 +116,29 @@ export function CopilotBanner({ leadId, platform }: CopilotBannerProps) {
         )}
       </div>
 
-      {/* User's message (context) */}
-      {pending.user_message && (
+      {/* Conversation context with session break markers */}
+      {pending.conversation_context && pending.conversation_context.length > 0 && (
+        <div className="mb-2 space-y-1 max-h-32 overflow-y-auto">
+          {(pending.conversation_context as ContextMessage[]).map((msg, i) => (
+            <div key={i}>
+              {msg.session_break && msg.session_label && (
+                <div className="flex items-center gap-2 my-1">
+                  <Minus className="w-3 h-3 text-muted-foreground/50" />
+                  <span className="text-[10px] text-muted-foreground/60">{formatSessionLabel(msg.session_label)}</span>
+                  <div className="flex-1 border-t border-white/5" />
+                </div>
+              )}
+              <div className={`px-2 py-1 rounded text-[11px] ${msg.role === "user" ? "bg-white/5 text-foreground/60" : "bg-white/3 text-foreground/50 italic"}`}>
+                <span className="text-muted-foreground/50 mr-1">{msg.role === "user" ? ">" : "<"}</span>
+                {msg.content.length > 80 ? msg.content.slice(0, 80) + "..." : msg.content}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* User's message (context) — fallback if no conversation_context */}
+      {(!pending.conversation_context || pending.conversation_context.length === 0) && pending.user_message && (
         <div className="mb-2 px-2 py-1.5 rounded-lg bg-white/5 border border-white/5">
           <p className="text-[11px] text-muted-foreground mb-0.5 flex items-center gap-1">
             <MessageSquare className="w-3 h-3" />

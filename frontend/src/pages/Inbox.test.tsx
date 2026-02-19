@@ -105,6 +105,10 @@ vi.mock("@/hooks/useApi", () => ({
     data: null,
     isLoading: false,
   })),
+  useTrackManualCopilot: vi.fn(() => ({ mutate: vi.fn(), isPending: false })),
+  usePendingForLead: vi.fn(() => ({ data: null, isLoading: false })),
+  useApproveCopilotResponse: vi.fn(() => ({ mutateAsync: vi.fn(), isPending: false })),
+  useDiscardCopilotResponse: vi.fn(() => ({ mutateAsync: vi.fn(), isPending: false })),
 }));
 
 describe("Inbox Page", () => {

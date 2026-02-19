@@ -21,6 +21,10 @@ vi.mock("@/hooks/useApi", () => ({
   useRestoreConversation: vi.fn(() => ({ mutateAsync: vi.fn(), isPending: false })),
   useArchivedConversations: vi.fn(() => ({ data: { conversations: [] }, isLoading: false })),
   useEventStream: vi.fn(() => ({ data: null, isLoading: false })),
+  useTrackManualCopilot: vi.fn(() => ({ mutate: vi.fn(), isPending: false })),
+  usePendingForLead: vi.fn(() => ({ data: null, isLoading: false })),
+  useApproveCopilotResponse: vi.fn(() => ({ mutateAsync: vi.fn(), isPending: false })),
+  useDiscardCopilotResponse: vi.fn(() => ({ mutateAsync: vi.fn(), isPending: false })),
 }));
 
 describe("Inbox Accessibility", () => {

@@ -2,11 +2,12 @@
  * CopilotPanel - UI for reviewing and approving bot responses
  *
  * Tabs:
- * - Respuestas: Pending approval queue
- * - Métricas: Approval/edit/discard rates and stats
- * - Comparaciones: Side-by-side bot vs creator split view
+ * - Pendientes: Quick approval queue
+ * - Métricas: Approval/edit/discard rates, learning progress
+ * - Comparaciones: Side-by-side bot vs creator split view (expandable)
  */
 import { useState, useRef, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import {
   Bot,
   Check,
@@ -23,6 +24,11 @@ import {
   BarChart3,
   GitCompareArrows,
   ArrowRight,
+  ChevronDown,
+  ChevronUp,
+  Brain,
+  Minus,
+  Inbox,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -41,7 +47,8 @@ import {
   useCopilotStats,
   useCopilotComparisons,
 } from "@/hooks/useApi";
-import type { PendingResponse, CopilotComparison } from "@/services/api";
+import type { PendingResponse, CopilotComparison, ContextMessage } from "@/services/api";
+import { formatDateTimeCET, formatFullDateTimeCET, formatSessionLabel } from "@/utils/time";
 
 interface PendingCardProps {
   item: PendingResponse;
@@ -75,13 +82,7 @@ function PendingCard({ item, onApprove, onDiscard, isLoading, isFading }: Pendin
   };
 
   const displayName = item.full_name || item.username || item.follower_id;
-  const timeAgo = new Date(item.created_at).toLocaleString("es-ES", {
-    timeZone: "Europe/Madrid",
-    day: "2-digit",
-    month: "2-digit",
-    hour: "2-digit",
-    minute: "2-digit",
-  });
+  const timeAgo = formatDateTimeCET(item.created_at);
 
   return (
     <div
@@ -333,6 +334,131 @@ function ResponseModeToggle({ isManualMode, isLoading, onToggle }: ResponseModeT
 }
 
 /**
+ * E1: Pending Tab — compact list with click-to-navigate
+ */
+interface PendingTabProps {
+  pendingResponses: PendingResponse[];
+  pendingCount: number;
+  isPendingLoading: boolean;
+  fadingIds: Set<string>;
+  isAnyLoading: boolean;
+  onApprove: (messageId: string, editedText?: string) => void;
+  onDiscard: (messageId: string) => void;
+  onApproveAll: () => void;
+  isApproveAllPending: boolean;
+}
+
+function PendingTab({
+  pendingResponses, pendingCount, isPendingLoading, fadingIds,
+  isAnyLoading, onApprove, onDiscard, onApproveAll, isApproveAllPending,
+}: PendingTabProps) {
+  const navigate = useNavigate();
+
+  if (isPendingLoading) {
+    return (
+      <div className="space-y-3 animate-pulse">
+        {[1, 2, 3].map(i => (
+          <div key={i} className="h-20 rounded-lg bg-muted/20 border border-border/20" />
+        ))}
+      </div>
+    );
+  }
+
+  if (pendingCount === 0) {
+    return (
+      <div className="text-center py-12 bg-secondary/20 rounded-lg">
+        <Check className="w-12 h-12 mx-auto text-green-500 mb-4" />
+        <h3 className="font-medium text-lg">Todo al dia</h3>
+        <p className="text-muted-foreground text-sm mt-1">
+          No hay respuestas pendientes de revisar
+        </p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-4">
+      {/* Approve All header */}
+      {pendingCount > 1 && (
+        <div className="flex items-center justify-between">
+          <p className="text-sm text-muted-foreground">{pendingCount} pendientes</p>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={onApproveAll}
+            disabled={isApproveAllPending}
+            className="gap-1.5"
+          >
+            {isApproveAllPending ? <Loader2 className="w-3 h-3 animate-spin" /> : <CheckCheck className="w-3 h-3" />}
+            Aprobar Todas
+          </Button>
+        </div>
+      )}
+
+      {/* Compact pending cards */}
+      <div className="space-y-2">
+        {pendingResponses.map(item => (
+          <div
+            key={item.id}
+            className={`border border-border rounded-lg p-3 bg-card hover:bg-accent/5 transition-all duration-150 ${
+              fadingIds.has(item.id) ? 'opacity-0 -translate-x-4 scale-95' : ''
+            }`}
+          >
+            {/* Compact row: avatar + name + intent + time + suggestion preview */}
+            <div className="flex items-center gap-3">
+              <button
+                onClick={() => navigate(`/inbox?id=${item.lead_id}`)}
+                className="flex items-center gap-2 flex-1 min-w-0 text-left"
+              >
+                <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
+                  <User className="w-4 h-4 text-primary" />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm font-medium truncate">{item.full_name || item.username || item.follower_id}</span>
+                    <Badge variant="outline" className="text-[10px] px-1 py-0 shrink-0">{item.platform}</Badge>
+                    {item.intent && (
+                      <Badge variant="secondary" className="text-[10px] px-1 py-0 shrink-0">{item.intent}</Badge>
+                    )}
+                    <span className="text-[10px] text-muted-foreground shrink-0 ml-auto">{formatDateTimeCET(item.created_at)}</span>
+                  </div>
+                  <p className="text-xs text-muted-foreground truncate mt-0.5">
+                    {item.suggested_response.length > 60 ? item.suggested_response.slice(0, 60) + "..." : item.suggested_response}
+                  </p>
+                </div>
+              </button>
+              {/* Quick actions */}
+              <div className="flex items-center gap-1 shrink-0">
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-7 w-7 text-green-500 hover:text-green-400 hover:bg-green-500/10"
+                  onClick={() => onApprove(item.id)}
+                  disabled={isAnyLoading}
+                  title="Aprobar"
+                >
+                  <Check className="w-4 h-4" />
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-7 w-7 text-red-400 hover:text-red-300 hover:bg-red-500/10"
+                  onClick={() => onDiscard(item.id)}
+                  disabled={isAnyLoading}
+                  title="Descartar"
+                >
+                  <X className="w-4 h-4" />
+                </Button>
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+/**
  * Metrics Dashboard Tab
  */
 function MetricsTab() {
@@ -369,8 +495,45 @@ function MetricsTab() {
   const hasCopilotUsage = stats.approved > 0 || stats.edited > 0 || stats.discarded > 0;
   const allManualOverride = !hasCopilotUsage && stats.manual_override > 0;
 
+  const lp = stats.learning_progress;
+
   return (
     <div className="space-y-6">
+      {/* E2: Learning progress */}
+      {lp && (lp.days_active > 0 || lp.total_interactions > 0) && (
+        <Card className="border-violet-500/20 bg-gradient-to-r from-violet-500/5 to-blue-500/5">
+          <CardContent className="pt-4 pb-3 px-4">
+            <div className="flex items-center gap-2 mb-3">
+              <Brain className="w-5 h-5 text-violet-400" />
+              <span className="text-sm font-medium">Progreso de aprendizaje</span>
+            </div>
+            <div className="grid grid-cols-3 gap-4">
+              <div>
+                <p className="text-2xl font-bold text-violet-400">{lp.days_active}</p>
+                <p className="text-xs text-muted-foreground">dias aprendiendo</p>
+              </div>
+              <div>
+                <p className="text-2xl font-bold text-blue-400">{lp.total_interactions}</p>
+                <p className="text-xs text-muted-foreground">interacciones</p>
+              </div>
+              <div>
+                <p className="text-2xl font-bold text-emerald-400">{lp.patterns_detected.length}</p>
+                <p className="text-xs text-muted-foreground">patrones detectados</p>
+              </div>
+            </div>
+            {lp.patterns_detected.length > 0 && (
+              <div className="flex flex-wrap gap-1.5 mt-3">
+                {lp.patterns_detected.map(p => (
+                  <Badge key={p} variant="outline" className="text-[10px] text-violet-300 border-violet-500/30">
+                    {p.replace(/_/g, " ")}
+                  </Badge>
+                ))}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      )}
+
       {/* Callout: Creator hasn't used copilot approve/edit yet */}
       {allManualOverride && (
         <Card className="border-violet-500/30 bg-violet-500/5">
@@ -588,24 +751,21 @@ const ACTION_LABELS: Record<string, string> = {
 };
 
 function ComparisonCard({ comparison: c }: { comparison: CopilotComparison }) {
+  const [isExpanded, setIsExpanded] = useState(false);
   const categories = c.edit_diff?.categories || [];
   const isIdentical = c.is_identical ?? (c.bot_original === c.creator_final);
   const isLegacy = c.source === "legacy";
-  const formattedDate = c.created_at
-    ? new Date(c.created_at).toLocaleString("es-ES", {
-        timeZone: "Europe/Madrid",
-        day: "2-digit",
-        month: "2-digit",
-        year: "numeric",
-        hour: "2-digit",
-        minute: "2-digit",
-      })
-    : "";
+  const formattedDate = c.created_at ? formatFullDateTimeCET(c.created_at) : "";
+  const hasContext = c.conversation_context && c.conversation_context.length > 0;
+  const hasMultipleResponses = c.creator_responses && c.creator_responses.length > 1;
 
   return (
     <div className="border border-border rounded-lg overflow-hidden">
       {/* Header */}
-      <div className="flex items-center justify-between px-4 py-2 bg-muted/30 border-b">
+      <div
+        className="flex items-center justify-between px-4 py-2 bg-muted/30 border-b cursor-pointer hover:bg-muted/40 transition-colors"
+        onClick={() => setIsExpanded(!isExpanded)}
+      >
         <div className="flex items-center gap-2 text-sm">
           <span className="font-medium">{c.username || "usuario"}</span>
           <Badge variant="outline" className="text-[10px]">{c.platform}</Badge>
@@ -625,15 +785,42 @@ function ComparisonCard({ comparison: c }: { comparison: CopilotComparison }) {
         <div className="flex items-center gap-2">
           <span className="text-[10px] text-muted-foreground">{ACTION_LABELS[c.action] || c.action}</span>
           <span className="text-xs text-muted-foreground">{formattedDate}</span>
+          {isExpanded ? (
+            <ChevronUp className="w-4 h-4 text-muted-foreground" />
+          ) : (
+            <ChevronDown className="w-4 h-4 text-muted-foreground" />
+          )}
         </div>
       </div>
+
+      {/* B4: Expanded conversation context */}
+      {isExpanded && hasContext && (
+        <div className="px-4 py-3 bg-secondary/20 border-b space-y-1">
+          <p className="text-[10px] text-muted-foreground mb-1.5 font-medium">Contexto de la conversacion</p>
+          {(c.conversation_context as ContextMessage[]).map((msg, i) => (
+            <div key={i}>
+              {msg.session_break && msg.session_label && (
+                <div className="flex items-center gap-2 my-1">
+                  <Minus className="w-3 h-3 text-muted-foreground/50" />
+                  <span className="text-[10px] text-muted-foreground/60">{formatSessionLabel(msg.session_label)}</span>
+                  <div className="flex-1 border-t border-border/30" />
+                </div>
+              )}
+              <div className={`px-2 py-0.5 rounded text-[11px] ${msg.role === "user" ? "text-foreground/70" : "text-foreground/50 italic"}`}>
+                <span className="text-muted-foreground/50 mr-1 text-[10px]">{msg.role === "user" ? ">" : "<"}</span>
+                {msg.content.length > 120 ? msg.content.slice(0, 120) + "..." : msg.content}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
 
       {/* Split View */}
       <div className="grid grid-cols-1 sm:grid-cols-[1fr_auto_1fr] gap-0">
         {/* Bot Original */}
         <div className="p-4 bg-red-500/5">
           <p className="text-xs text-muted-foreground mb-2 flex items-center gap-1">
-            <Bot className="w-3 h-3" /> {isLegacy ? "Bot envió (auto)" : "Bot sugirió"}
+            <Bot className="w-3 h-3" /> {isLegacy ? "Bot envio (auto)" : "Bot sugirio"}
           </p>
           <p className="text-sm whitespace-pre-wrap">{c.bot_original}</p>
         </div>
@@ -646,9 +833,21 @@ function ComparisonCard({ comparison: c }: { comparison: CopilotComparison }) {
         {/* Creator Final */}
         <div className="p-4 bg-green-500/5 border-t sm:border-t-0">
           <p className="text-xs text-muted-foreground mb-2 flex items-center gap-1">
-            <User className="w-3 h-3" /> Creador envió
+            <User className="w-3 h-3" /> Creador envio
           </p>
           <p className="text-sm whitespace-pre-wrap">{c.creator_final}</p>
+          {/* B4: Show additional creator responses when expanded */}
+          {isExpanded && hasMultipleResponses && (
+            <div className="mt-3 space-y-2 border-t border-green-500/10 pt-2">
+              <p className="text-[10px] text-muted-foreground">Respuestas adicionales:</p>
+              {c.creator_responses!.slice(1).map((resp, i) => (
+                <div key={i} className="text-xs text-foreground/70 bg-green-500/5 rounded p-2">
+                  <p className="whitespace-pre-wrap">{resp.content}</p>
+                  <p className="text-[10px] text-muted-foreground mt-1">{formatDateTimeCET(resp.timestamp)}</p>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       </div>
 
@@ -896,20 +1095,18 @@ export default function CopilotPanel() {
         onToggle={handleModeToggle}
       />
 
-      {/* Info: pending responses now in inbox */}
-      {pendingCount > 0 && (
-        <div className="flex items-center gap-3 p-3 rounded-lg bg-violet-500/10 border border-violet-500/20">
-          <MessageSquare className="w-5 h-5 text-violet-400 shrink-0" />
-          <p className="text-sm text-violet-300">
-            {pendingCount} respuesta{pendingCount > 1 ? "s" : ""} pendiente{pendingCount > 1 ? "s" : ""} para
-            revisar en la <a href="/inbox" className="underline font-medium hover:text-violet-200">Bandeja</a>
-          </p>
-        </div>
-      )}
-
-      {/* Tabbed Content: Métricas | Comparaciones */}
-      <Tabs defaultValue="metrics" className="w-full">
-        <TabsList className="grid w-full grid-cols-2">
+      {/* E1: Tabbed Content — 3 tabs: Pendientes | Métricas | Comparaciones */}
+      <Tabs defaultValue={pendingCount > 0 ? "pending" : "metrics"} className="w-full">
+        <TabsList className="grid w-full grid-cols-3">
+          <TabsTrigger value="pending" className="gap-1.5">
+            <Inbox className="w-4 h-4" />
+            Pendientes
+            {pendingCount > 0 && (
+              <Badge variant="destructive" className="ml-1 h-5 min-w-[20px] px-1.5 text-[10px]">
+                {pendingCount}
+              </Badge>
+            )}
+          </TabsTrigger>
           <TabsTrigger value="metrics" className="gap-1.5">
             <BarChart3 className="w-4 h-4" />
             Métricas
@@ -919,6 +1116,21 @@ export default function CopilotPanel() {
             Comparaciones
           </TabsTrigger>
         </TabsList>
+
+        {/* Tab: Pendientes */}
+        <TabsContent value="pending" className="mt-4">
+          <PendingTab
+            pendingResponses={pendingResponses}
+            pendingCount={pendingCount}
+            isPendingLoading={isPendingLoading}
+            fadingIds={fadingIds}
+            isAnyLoading={isAnyLoading}
+            onApprove={handleApprove}
+            onDiscard={handleDiscard}
+            onApproveAll={handleApproveAll}
+            isApproveAllPending={approveAllMutation.isPending}
+          />
+        </TabsContent>
 
         {/* Tab: Métricas */}
         <TabsContent value="metrics" className="mt-4">

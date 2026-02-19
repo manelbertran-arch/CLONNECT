@@ -3,6 +3,7 @@ import {
   getCopilotPending, getCopilotStatus, approveCopilotResponse,
   discardCopilotResponse, toggleCopilotMode, approveAllCopilot,
   getCopilotStats, getCopilotComparisons, getPendingForLead,
+  trackManualCopilotResponse,
   apiKeys, getCreatorId,
 } from "@/services/api";
 
@@ -124,6 +125,19 @@ export function useCopilotComparisons(creatorId: string = getCreatorId()) {
     queryFn: () => getCopilotComparisons(creatorId),
     staleTime: 5 * 60 * 1000,
     gcTime: 10 * 60 * 1000,
+  });
+}
+
+export function useTrackManualCopilot(creatorId: string = getCreatorId()) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ leadId, content }: { leadId: string; content: string }) =>
+      trackManualCopilotResponse(creatorId, leadId, content),
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: apiKeys.copilotPending(creatorId) });
+      queryClient.invalidateQueries({ queryKey: apiKeys.copilotStatus(creatorId) });
+      queryClient.invalidateQueries({ queryKey: ["copilotPendingForLead"] });
+    },
   });
 }
 

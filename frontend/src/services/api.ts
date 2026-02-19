@@ -1262,6 +1262,8 @@ export interface ContextMessage {
   role: string;
   content: string;
   timestamp: string;
+  session_break?: boolean;
+  session_label?: string;
 }
 
 export interface PendingResponse {
@@ -1411,11 +1413,18 @@ export interface LegacyMetrics {
   total: number;
 }
 
+export interface LearningProgress {
+  days_active: number;
+  total_interactions: number;
+  patterns_detected: string[];
+}
+
 export interface CopilotStats {
   creator_id: string;
   period_days: number;
   copilot_metrics: CopilotMetrics;
   legacy_metrics: LegacyMetrics;
+  learning_progress?: LearningProgress;
   // Backward compatibility — top-level fields
   total_actions: number;
   approved: number;
@@ -1444,6 +1453,22 @@ export interface CopilotComparison {
   platform: string;
   is_identical?: boolean;
   source?: string;
+  creator_responses?: { content: string; timestamp: string }[] | null;
+  conversation_context?: ContextMessage[];
+}
+
+/**
+ * Track when creator sends a manual message (auto-discards pending suggestion)
+ */
+export async function trackManualCopilotResponse(
+  creatorId: string = CREATOR_ID,
+  leadId: string,
+  content: string
+): Promise<{ success: boolean; message_id: string; had_pending_suggestion: boolean }> {
+  return apiFetch(`/copilot/${creatorId}/manual/${leadId}`, {
+    method: "POST",
+    body: JSON.stringify({ content }),
+  });
 }
 
 export async function getCopilotStats(
@@ -2408,6 +2433,7 @@ export default {
   getPendingForLead,
   getCopilotStats,
   getCopilotComparisons,
+  trackManualCopilotResponse,
   // Escalations
   getEscalations,
   // Intelligence

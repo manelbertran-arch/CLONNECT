@@ -23,7 +23,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { cn } from "@/lib/utils";
 import { useQueryClient } from "@tanstack/react-query";
-import { useConversations, useFollowerDetail, useSendMessage, useArchiveConversation, useMarkConversationSpam, useDeleteConversation, useArchivedConversations, useRestoreConversation, useEventStream } from "@/hooks/useApi";
+import { useConversations, useFollowerDetail, useSendMessage, useArchiveConversation, useMarkConversationSpam, useDeleteConversation, useArchivedConversations, useRestoreConversation, useEventStream, useTrackManualCopilot } from "@/hooks/useApi";
 import { getFollowerDetail, apiKeys, getCreatorId } from "@/services/api";
 import { useToast } from "@/hooks/use-toast";
 import type { Conversation, Message } from "@/types/api";
@@ -152,6 +152,7 @@ export default function Inbox() {
   const [message, setMessage] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
   const [showOnlyLeads, setShowOnlyLeads] = useState(false);
+  const [showOnlyPending, setShowOnlyPending] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [activeTab, setActiveTab] = useState<"all" | "archived">("all");
   const [platformFilter, setPlatformFilter] = useState<"all" | "instagram" | "whatsapp" | "telegram">("all");
@@ -161,6 +162,7 @@ export default function Inbox() {
   const spamMutation = useMarkConversationSpam();
   const deleteMutation = useDeleteConversation();
   const restoreMutation = useRestoreConversation();
+  const trackManualMutation = useTrackManualCopilot();
 
   // Fetch messages for the selected conversation (auto-refreshes every 5s)
   const { data: followerData, isLoading: messagesLoading } = useFollowerDetail(selectedId);
@@ -236,6 +238,12 @@ export default function Inbox() {
           description: "Tu mensaje se está enviando. Esto puede tardar unos segundos.",
         });
       }
+
+      // A2: Auto-discard pending copilot suggestion on manual send (fire-and-forget)
+      if (selectedConversation?.id) {
+        trackManualMutation.mutate({ leadId: selectedConversation.id, content: message.trim() });
+      }
+
       setMessage(""); // Clear input on success
     } catch (error) {
       toast({
@@ -300,13 +308,22 @@ export default function Inbox() {
       filtered = filtered.filter(c => leadTypes.includes(c.relationship_type || 'nuevo'));
     }
 
+    // A5: Filter to show only conversations with pending copilot suggestions
+    if (showOnlyPending) {
+      filtered = filtered.filter(c => c.has_pending_copilot);
+    }
+
     // Sort by last contact (most recent first)
     return filtered.sort((a, b) =>
       new Date(b.last_contact || 0).getTime() - new Date(a.last_contact || 0).getTime()
     );
-  }, [data?.conversations, archivedData, searchQuery, activeTab, showOnlyLeads, platformFilter]);
+  }, [data?.conversations, archivedData, searchQuery, activeTab, showOnlyLeads, showOnlyPending, platformFilter]);
 
   const archivedCount = archivedData?.length || 0;
+  const pendingCopilotCount = useMemo(() => {
+    const all = data?.conversations || [];
+    return all.filter(c => c.has_pending_copilot).length;
+  }, [data?.conversations]);
 
   // Handle URL query param for direct navigation (from Pipeline)
   useEffect(() => {
@@ -498,17 +515,34 @@ export default function Inbox() {
               onChange={(e) => setSearchQuery(e.target.value)}
             />
           </div>
-          <button
-            onClick={() => setShowOnlyLeads(!showOnlyLeads)}
-            className={cn(
-              "text-xs px-3 py-1 rounded-full border transition-colors",
-              showOnlyLeads
-                ? "bg-violet-500/20 text-violet-400 border-violet-400/30"
-                : "bg-secondary text-muted-foreground border-border/50 hover:text-foreground"
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setShowOnlyLeads(!showOnlyLeads)}
+              className={cn(
+                "text-xs px-3 py-1 rounded-full border transition-colors",
+                showOnlyLeads
+                  ? "bg-violet-500/20 text-violet-400 border-violet-400/30"
+                  : "bg-secondary text-muted-foreground border-border/50 hover:text-foreground"
+              )}
+            >
+              {showOnlyLeads ? "Solo leads" : "Todos"}
+            </button>
+            {pendingCopilotCount > 0 && (
+              <button
+                onClick={() => setShowOnlyPending(!showOnlyPending)}
+                className={cn(
+                  "text-xs px-3 py-1 rounded-full border transition-colors flex items-center gap-1",
+                  showOnlyPending
+                    ? "bg-violet-500/20 text-violet-400 border-violet-400/30"
+                    : "bg-secondary text-muted-foreground border-border/50 hover:text-foreground"
+                )}
+              >
+                <Bot className="w-3 h-3" />
+                Pendientes
+                <span className="bg-violet-500/30 text-violet-300 text-[10px] px-1.5 py-0.5 rounded-full min-w-[18px] text-center">{pendingCopilotCount}</span>
+              </button>
             )}
-          >
-            {showOnlyLeads ? "Solo leads" : "Todos"}
-          </button>
+          </div>
         </div>
 
         <div className="flex-1 overflow-auto space-y-1">

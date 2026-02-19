@@ -147,7 +147,7 @@ async def process_dm(payload: ProcessDMRequest):
 
 
 @router.get("/conversations/{creator_id}")
-async def get_conversations(creator_id: str, limit: int = 50, offset: int = 0):
+async def get_conversations(creator_id: str, limit: int = 500, offset: int = 0):
     """Listar conversaciones del creador - OPTIMIZED with caching"""
     import time as _time
 

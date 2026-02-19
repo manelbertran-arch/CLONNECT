@@ -728,9 +728,66 @@ async def get_copilot_stats(
                 for cat in diff.get("categories", []):
                     category_counts[cat] = category_counts.get(cat, 0) + 1
 
+        # ── LEARNING PROGRESS from copilot_evaluations ──
+        learning_progress = {
+            "days_active": 0,
+            "total_interactions": 0,
+            "patterns_detected": [],
+        }
+        try:
+            from api.models import CopilotEvaluation
+
+            days_active = (
+                session.query(func.count(func.distinct(CopilotEvaluation.eval_date)))
+                .filter(
+                    CopilotEvaluation.creator_id == creator.id,
+                    CopilotEvaluation.eval_type == "daily",
+                )
+                .scalar() or 0
+            )
+
+            # Sum total_actions from daily evaluations
+            from sqlalchemy import cast, Integer
+            total_interactions_result = (
+                session.query(
+                    func.sum(cast(CopilotEvaluation.metrics["total_actions"].astext, Integer))
+                )
+                .filter(
+                    CopilotEvaluation.creator_id == creator.id,
+                    CopilotEvaluation.eval_type == "daily",
+                )
+                .scalar() or 0
+            )
+
+            # Collect distinct pattern types
+            pattern_rows = (
+                session.query(CopilotEvaluation.patterns)
+                .filter(
+                    CopilotEvaluation.creator_id == creator.id,
+                    CopilotEvaluation.eval_type == "daily",
+                    CopilotEvaluation.patterns.isnot(None),
+                )
+                .all()
+            )
+            pattern_types = set()
+            for (patterns,) in pattern_rows:
+                if isinstance(patterns, list):
+                    for p in patterns:
+                        if isinstance(p, dict) and "type" in p:
+                            pattern_types.add(p["type"])
+
+            learning_progress = {
+                "days_active": days_active,
+                "total_interactions": int(total_interactions_result),
+                "patterns_detected": sorted(pattern_types),
+            }
+        except Exception as lp_err:
+            logger.warning(f"[Copilot] Learning progress query failed: {lp_err}")
+
         return {
             "creator_id": creator_id,
             "period_days": days,
+            "learning_progress": learning_progress,
             # Copilot-era metrics (real creator decisions)
             "copilot_metrics": {
                 "total": c_total,
@@ -814,13 +871,14 @@ async def get_copilot_comparisons(
             -- Source 1: Copilot-era edits (bot suggested → creator edited)
             copilot_edits AS (
                 SELECT
-                    m.id, m.suggested_response as bot_suggestion, m.content as creator_response,
+                    m.id, m.lead_id, m.suggested_response as bot_suggestion, m.content as creator_response,
                     m.copilot_action as action, m.edit_diff, m.confidence_score,
                     m.response_time_ms, m.created_at,
                     COALESCE(l.full_name, l.username, l.platform_user_id) as lead_name,
                     l.platform, l.platform_user_id,
                     (m.suggested_response = m.content) as is_identical,
-                    'copilot' as source
+                    'copilot' as source,
+                    NULL::json as creator_responses_json
                 FROM messages m
                 JOIN leads l ON m.lead_id = l.id
                 WHERE l.creator_id = :creator_id
@@ -828,7 +886,7 @@ async def get_copilot_comparisons(
                 AND m.copilot_action IN ('edited', 'manual_override', 'approved')
                 AND m.suggested_response IS NOT NULL
             ),
-            -- Source 2: Legacy — bot auto-sent paired with creator manual response
+            -- Source 2: Legacy — bot auto-sent paired with ALL creator manual responses
             bot_auto AS (
                 SELECT m.id, m.lead_id, m.content as bot_suggestion,
                        m.created_at, m.intent, m.confidence_score,
@@ -845,26 +903,37 @@ async def get_copilot_comparisons(
             ),
             legacy_pairs AS (
                 SELECT
-                    ba.id, ba.bot_suggestion, cr.content as creator_response,
+                    ba.id, ba.lead_id, ba.bot_suggestion, cr.first_response as creator_response,
                     'legacy_comparison' as action,
                     NULL::json as edit_diff, ba.confidence_score,
                     NULL::integer as response_time_ms,
                     ba.created_at,
                     ba.lead_name, ba.platform, ba.platform_user_id,
-                    (ba.bot_suggestion = cr.content) as is_identical,
-                    'legacy' as source
+                    (ba.bot_suggestion = cr.first_response) as is_identical,
+                    'legacy' as source,
+                    cr.all_responses as creator_responses_json
                 FROM bot_auto ba
                 CROSS JOIN LATERAL (
-                    SELECT content, created_at
-                    FROM messages
-                    WHERE lead_id = ba.lead_id
-                    AND role = 'assistant'
-                    AND approved_by = 'creator_manual'
-                    AND created_at BETWEEN ba.created_at - INTERVAL '4 hours'
-                                        AND ba.created_at + INTERVAL '24 hours'
-                    ORDER BY created_at ASC
-                    LIMIT 1
+                    SELECT
+                        (SELECT content FROM messages
+                         WHERE lead_id = ba.lead_id AND role = 'assistant'
+                         AND approved_by = 'creator_manual'
+                         AND created_at BETWEEN ba.created_at - INTERVAL '4 hours'
+                                             AND ba.created_at + INTERVAL '24 hours'
+                         ORDER BY created_at ASC LIMIT 1
+                        ) as first_response,
+                        (SELECT json_agg(json_build_object(
+                            'content', content,
+                            'timestamp', created_at::text
+                         ) ORDER BY created_at ASC)
+                         FROM messages
+                         WHERE lead_id = ba.lead_id AND role = 'assistant'
+                         AND approved_by = 'creator_manual'
+                         AND created_at BETWEEN ba.created_at - INTERVAL '4 hours'
+                                             AND ba.created_at + INTERVAL '24 hours'
+                        ) as all_responses
                 ) cr
+                WHERE cr.first_response IS NOT NULL
             ),
             -- Combine both sources
             all_comparisons AS (
@@ -886,8 +955,30 @@ async def get_copilot_comparisons(
         if has_more:
             rows = rows[:limit]
 
+        # B3: Collect conversation context per unique lead
+        from core.copilot_service import get_copilot_service
+
+        copilot_svc = get_copilot_service()
+        lead_context_cache: dict = {}
+
         comparisons = []
         for row in rows:
+            # Build creator_responses array
+            creator_responses = None
+            if row.creator_responses_json:
+                creator_responses = row.creator_responses_json
+
+            # B3: Get conversation context (cached per lead)
+            lead_id = row.lead_id
+            if lead_id not in lead_context_cache:
+                try:
+                    before_ts = row.created_at if row.created_at else None
+                    lead_context_cache[lead_id] = copilot_svc._get_conversation_context(
+                        session, lead_id, max_messages=5, before_timestamp=before_ts
+                    )
+                except Exception:
+                    lead_context_cache[lead_id] = []
+
             comparisons.append({
                 "message_id": str(row.id),
                 "bot_original": row.bot_suggestion or "",
@@ -901,6 +992,8 @@ async def get_copilot_comparisons(
                 "platform": row.platform,
                 "is_identical": row.is_identical,
                 "source": row.source,
+                "creator_responses": creator_responses,
+                "conversation_context": lead_context_cache.get(lead_id, []),
             })
 
         return {

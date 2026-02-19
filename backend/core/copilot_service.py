@@ -465,27 +465,31 @@ class CopilotService:
 
         return pending
 
-    def _get_conversation_context(self, session, lead_id, max_messages: int = 15) -> list:
+    def _get_conversation_context(
+        self, session, lead_id, max_messages: int = 15, before_timestamp=None
+    ) -> list:
         """
         Get conversation context for a lead using session-based detection.
 
         A "session" is a group of messages separated by >24h gaps.
         Returns the last 2 sessions, up to max_messages total.
         Messages are returned in chronological order (oldest first).
+        Adds session_break markers when gaps >24h are detected.
+
+        Args:
+            before_timestamp: If set, only include messages before this datetime.
         """
         from api.models import Message
 
         # Fetch recent messages (up to 50 to find session boundaries)
-        recent = (
-            session.query(Message.role, Message.content, Message.created_at)
-            .filter(
-                Message.lead_id == lead_id,
-                Message.status.in_(["sent", "edited", "pending_approval"]),
-            )
-            .order_by(Message.created_at.desc())
-            .limit(50)
-            .all()
+        query = session.query(Message.role, Message.content, Message.created_at).filter(
+            Message.lead_id == lead_id,
+            Message.status.in_(["sent", "edited", "pending_approval"]),
         )
+        if before_timestamp:
+            query = query.filter(Message.created_at < before_timestamp)
+
+        recent = query.order_by(Message.created_at.desc()).limit(50).all()
 
         if not recent:
             return []
@@ -511,14 +515,23 @@ class CopilotService:
         if len(context_msgs) > max_messages:
             context_msgs = context_msgs[-max_messages:]
 
-        return [
-            {
+        # Build output with session break markers
+        result = []
+        for i, msg in enumerate(context_msgs):
+            item = {
                 "role": msg.role,
                 "content": msg.content or "",
                 "timestamp": msg.created_at.isoformat() if msg.created_at else "",
             }
-            for msg in context_msgs
-        ]
+            # Detect session breaks: gap >24h from previous message
+            if i > 0 and msg.created_at and context_msgs[i - 1].created_at:
+                gap = (msg.created_at - context_msgs[i - 1].created_at).total_seconds()
+                if gap > 86400:
+                    item["session_break"] = True
+                    item["session_label"] = msg.created_at.isoformat()
+            result.append(item)
+
+        return result
 
     async def get_pending_responses(
         self, creator_id: str, limit: int = 20, offset: int = 0, include_context: bool = False
