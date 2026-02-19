@@ -756,7 +756,7 @@ async def send_manual_message(creator_id: str, request: SendMessageRequest):
             try:
                 handler = get_instagram_handler()
                 if handler.connector:
-                    sent = await handler.send_response(recipient_id, message_text)
+                    sent = await handler.send_response(recipient_id, message_text, approved=True)
                     if sent:
                         logger.info(f"Manual message sent to Instagram {recipient_id}")
             except Exception as e:
@@ -776,7 +776,7 @@ async def send_manual_message(creator_id: str, request: SendMessageRequest):
                         break
 
                 if evo_instance:
-                    result = await send_evolution_message(evo_instance, phone, message_text)
+                    result = await send_evolution_message(evo_instance, phone, message_text, approved=True)
                     sent = "error" not in str(result).lower()
                     if sent:
                         logger.info(f"Manual message sent via Evolution [{evo_instance}] to {phone}")

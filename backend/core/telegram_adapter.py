@@ -553,17 +553,25 @@ class TelegramAdapter:
             self.status.errors += 1
             return None
 
-    async def send_message(self, chat_id: int, text: str) -> bool:
+    async def send_message(self, chat_id: int, text: str, approved: bool = False) -> bool:
         """
-        Send a message to a chat.
+        Send a message to a chat — GUARDED by send_guard.
 
         Args:
             chat_id: Telegram chat ID
             text: Message text
+            approved: True if message was explicitly approved by creator
 
         Returns:
             True if sent successfully
         """
+        from core.send_guard import SendBlocked, check_send_permission
+
+        try:
+            check_send_permission(self.creator_id, approved=approved, caller="tg_adapter.send_message")
+        except SendBlocked:
+            return False
+
         if not self.bot:
             logger.error("Bot not initialized")
             return False

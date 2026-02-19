@@ -181,7 +181,7 @@ class MetaRetryQueue:
             from core.instagram_handler import InstagramHandler
 
             handler = InstagramHandler(creator_id=item.creator_id)
-            return await handler.send_response(item.recipient_id, item.message)
+            return await handler.send_response(item.recipient_id, item.message, approved=True)
         except Exception as e:
             logger.error(f"[RetryQueue] Default send failed: {e}")
             raise

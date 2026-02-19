@@ -611,7 +611,7 @@ async def _try_send_message(creator_id: str, follower_id: str, message: str) -> 
                 return {"sent": False, "simulated": False, "error": "Instagram handler not initialized"}
 
             # send_response handles ig_ prefix stripping internally
-            sent = await handler.send_response(follower_id, message)
+            sent = await handler.send_response(follower_id, message, approved=True)
 
             if sent:
                 logger.info(f"[NURTURING] REAL message sent to {follower_id} via Instagram")

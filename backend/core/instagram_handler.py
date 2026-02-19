@@ -675,32 +675,10 @@ class InstagramHandler:
                             }
                         )
                     else:
-                        # CRITICAL FIX 2026-02-19: AUTOPILOT MODE DISABLED
-                        # The bot must NEVER send messages without creator approval.
-                        # Save as pending instead of sending directly.
-                        # To re-enable autopilot in future: check creator.autopilot_premium_enabled
-
-                        logger.warning(
-                            f"[Copilot] AUTOPILOT BLOCKED - copilot_mode=False but auto-send disabled. "
-                            f"Saving as pending for {message.sender_id}"
-                        )
-
-                        from core.copilot_service import get_copilot_service
-                        copilot = get_copilot_service()
-
-                        pending = await copilot.create_pending_response(
-                            creator_id=self.creator_id,
-                            lead_id="",
-                            follower_id=message.sender_id,
-                            platform="instagram",
-                            user_message=message.text or "[Media/Attachment]",
-                            user_message_id=message.message_id,
-                            suggested_response=response_text,
-                            intent=intent_str,
-                            confidence=response.confidence,
-                            username=username,
-                            full_name=full_name,
-                        )
+                        # AUTOPILOT MODE: Bot sends directly.
+                        # Safety guard in send_response() will block unless
+                        # creator has both copilot_mode=False AND autopilot_premium_enabled=True.
+                        sent = await self.send_response(message.sender_id, response_text)
 
                         # Save user message to DB
                         await self._save_user_message_to_db(
@@ -709,19 +687,54 @@ class InstagramHandler:
                             full_name=full_name,
                         )
 
-                        results.append(
-                            {
-                                "message_id": message.message_id,
-                                "sender_id": message.sender_id,
-                                "copilot_mode": False,
-                                "autopilot_blocked": True,
-                                "pending_id": pending.id,
-                                "suggested_response": response_text,
-                                "intent": intent_str,
-                                "confidence": response.confidence,
-                                "status": "pending_approval",
-                            }
-                        )
+                        if sent:
+                            # Save bot response to DB via DM agent
+                            await self.dm_agent.save_manual_message(
+                                message.sender_id, response_text, sent=True
+                            )
+                            results.append(
+                                {
+                                    "message_id": message.message_id,
+                                    "sender_id": message.sender_id,
+                                    "copilot_mode": False,
+                                    "response": response_text[:50] + "...",
+                                    "intent": intent_str,
+                                    "confidence": response.confidence,
+                                    "status": "sent",
+                                }
+                            )
+                        else:
+                            # Guard blocked it — save as pending instead
+                            from core.copilot_service import get_copilot_service
+                            copilot = get_copilot_service()
+
+                            pending = await copilot.create_pending_response(
+                                creator_id=self.creator_id,
+                                lead_id="",
+                                follower_id=message.sender_id,
+                                platform="instagram",
+                                user_message=message.text or "[Media/Attachment]",
+                                user_message_id=message.message_id,
+                                suggested_response=response_text,
+                                intent=intent_str,
+                                confidence=response.confidence,
+                                username=username,
+                                full_name=full_name,
+                            )
+
+                            results.append(
+                                {
+                                    "message_id": message.message_id,
+                                    "sender_id": message.sender_id,
+                                    "copilot_mode": False,
+                                    "autopilot_blocked": True,
+                                    "pending_id": pending.id,
+                                    "suggested_response": response_text,
+                                    "intent": intent_str,
+                                    "confidence": response.confidence,
+                                    "status": "pending_approval",
+                                }
+                            )
 
             except Exception as e:
                 import traceback
@@ -2323,17 +2336,25 @@ class InstagramHandler:
         except Exception as e:
             logger.warning(f"Could not update lead profile: {e}")
 
-    async def send_response(self, recipient_id: str, text: str) -> bool:
+    async def send_response(self, recipient_id: str, text: str, approved: bool = False) -> bool:
         """
-        Send a response message via Instagram.
+        Send a response message via Instagram — GUARDED by send_guard.
 
         Args:
             recipient_id: Instagram user ID to send to (may have "ig_" prefix)
             text: Message text
+            approved: True if message was explicitly approved by creator
 
         Returns:
             True if sent successfully
         """
+        from core.send_guard import SendBlocked, check_send_permission
+
+        try:
+            check_send_permission(self.creator_id, approved=approved, caller="ig_handler.send_response")
+        except SendBlocked:
+            return False
+
         if not self.connector:
             logger.error("Instagram connector not initialized")
             return False

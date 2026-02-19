@@ -258,7 +258,7 @@ async def send_message(creator_id: str, data: dict = Body(...)):
 
             handler = WhatsAppHandler()
             recipient_id = follower_id.replace("wa_", "")
-            sent = await handler.send_response(recipient_id, message_text)
+            sent = await handler.send_response(recipient_id, message_text, approved=True)
             if sent:
                 logger.info(f"Message sent to WhatsApp {recipient_id}")
         elif follower_id.startswith("ig_"):
@@ -269,7 +269,7 @@ async def send_message(creator_id: str, data: dict = Body(...)):
             handler = get_instagram_handler()
             if handler.connector:
                 recipient_id = follower_id.replace("ig_", "")
-                sent = await handler.send_response(recipient_id, message_text)
+                sent = await handler.send_response(recipient_id, message_text, approved=True)
                 if sent:
                     logger.info(f"Message sent to Instagram {recipient_id}")
         else:
@@ -279,7 +279,7 @@ async def send_message(creator_id: str, data: dict = Body(...)):
 
             handler = get_instagram_handler()
             if handler.connector:
-                sent = await handler.send_response(follower_id, message_text)
+                sent = await handler.send_response(follower_id, message_text, approved=True)
                 if sent:
                     logger.info(f"Message sent to Instagram {follower_id}")
     except Exception as e:

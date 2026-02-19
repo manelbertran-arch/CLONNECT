@@ -666,8 +666,11 @@ class CopilotService:
             final_text = edited_text if edited_text else msg.content
             was_edited = edited_text is not None and edited_text != msg.suggested_response
 
-            # Enviar mensaje
-            send_result = await self._send_message(creator=creator, lead=lead, text=final_text)
+            # Send message — pass copilot_action so guard knows this is approved
+            send_result = await self._send_message(
+                creator=creator, lead=lead, text=final_text,
+                copilot_action="edited" if was_edited else "approved",
+            )
 
             if not send_result.get("success"):
                 return {"success": False, "error": send_result.get("error", "Failed to send")}
@@ -801,8 +804,16 @@ class CopilotService:
         finally:
             session.close()
 
-    async def _send_message(self, creator, lead, text: str) -> Dict[str, Any]:
-        """Enviar mensaje via la plataforma correspondiente"""
+    async def _send_message(self, creator, lead, text: str, copilot_action: str = None) -> Dict[str, Any]:
+        """Send message via platform — GUARDED by send_guard."""
+        from core.send_guard import SendBlocked, check_send_permission
+
+        try:
+            approved = copilot_action in ("approved", "edited")
+            check_send_permission(creator.name, approved=approved, caller="copilot_service")
+        except SendBlocked as e:
+            return {"success": False, "error": str(e), "blocked": True}
+
         try:
             if lead.platform == "instagram":
                 return await self._send_instagram_message(creator, lead, text)
@@ -937,7 +948,7 @@ class CopilotService:
 
             if evo_instance:
                 logger.info(f"[Copilot] Sending WhatsApp via Evolution [{evo_instance}] to {recipient}")
-                result = await send_evolution_message(evo_instance, recipient, text)
+                result = await send_evolution_message(evo_instance, recipient, text, approved=True)
                 msg_id = result.get("key", {}).get("id", "")
                 logger.info(f"[Copilot] Evolution API response: {result}")
                 return {"success": True, "message_id": msg_id}

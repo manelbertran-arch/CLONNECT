@@ -65,7 +65,7 @@ async def send_followup_message(
             from core.instagram_handler import get_instagram_handler
             handler = get_instagram_handler(creator_id=creator_id)
             real_id = follower_id[3:]  # Quitar prefijo "ig_"
-            success = await handler.send_response(real_id, message)
+            success = await handler.send_response(real_id, message, approved=True)
             return success
 
         elif follower_id.startswith("tg_"):
@@ -73,7 +73,7 @@ async def send_followup_message(
             from core.telegram_adapter import get_telegram_adapter
             adapter = get_telegram_adapter(creator_id=creator_id)
             chat_id = int(follower_id[3:])  # Quitar prefijo "tg_"
-            success = await adapter.send_message(chat_id, message)
+            success = await adapter.send_message(chat_id, message, approved=True)
             return success
 
         else:

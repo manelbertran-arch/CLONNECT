@@ -77,6 +77,7 @@ ALLOWED_MIGRATION_COLUMNS = frozenset(
         "source",
         "assigned_to",
         "updated_at",
+        "autopilot_premium_enabled",
     }
 )
 
@@ -194,6 +195,8 @@ def run_migrations(engine):
         ("messages", "platform_message_id", "VARCHAR(255)"),
         # Copilot mode setting for creators
         ("creators", "copilot_mode", "BOOLEAN DEFAULT TRUE"),
+        # Autopilot premium: if True AND copilot_mode=False, bot sends without approval
+        ("creators", "autopilot_premium_enabled", "BOOLEAN DEFAULT FALSE"),
         # Product price for lead scoring
         ("creators", "product_price", "FLOAT DEFAULT 97.0"),
         # Email capture configuration

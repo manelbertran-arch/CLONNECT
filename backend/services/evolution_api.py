@@ -28,20 +28,39 @@ def _headers() -> Dict[str, str]:
     }
 
 
+def _resolve_creator_from_instance(instance: str) -> str:
+    """Resolve creator_id from Evolution API instance name."""
+    try:
+        from api.routers.messaging_webhooks import EVOLUTION_INSTANCE_MAP
+
+        return EVOLUTION_INSTANCE_MAP.get(instance, "unknown")
+    except ImportError:
+        return "unknown"
+
+
 async def send_evolution_message(
-    instance: str, to_number: str, text: str
+    instance: str, to_number: str, text: str, approved: bool = False
 ) -> Dict[str, Any]:
     """
-    Send a text message via Evolution API.
+    Send a text message via Evolution API — GUARDED by send_guard.
 
     Args:
         instance: Instance name (e.g. "stefano-fitpack")
         to_number: Phone number with country code, no + (e.g. "34612345678")
         text: Message text
+        approved: True if message was explicitly approved by creator
 
     Returns:
         API response dict
     """
+    from core.send_guard import SendBlocked, check_send_permission
+
+    creator_id = _resolve_creator_from_instance(instance)
+    try:
+        check_send_permission(creator_id, approved=approved, caller="evolution_api")
+    except SendBlocked:
+        return {"error": "Message blocked — not approved by creator", "blocked": True}
+
     url = f"{EVOLUTION_API_URL}/message/sendText/{instance}"
     payload = {
         "number": to_number,

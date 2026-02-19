@@ -115,6 +115,8 @@ class Creator(Base):
     clone_error = Column(Text)  # Error message if clone_status is "error"
     # Copilot mode: if True, bot suggestions require approval before sending
     copilot_mode = Column(Boolean, default=True)
+    # Autopilot premium: if True AND copilot_mode=False, bot sends without approval
+    autopilot_premium_enabled = Column(Boolean, default=False, nullable=False)
     # Email capture configuration (JSON with messages per level, discount codes, etc.)
     email_capture_config = Column(JSON, default=dict)
     # Product price for lead scoring (default €97)

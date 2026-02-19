@@ -632,44 +632,110 @@ class WhatsAppHandler:
                 intent = str(response.intent) if hasattr(response, "intent") else "unknown"
                 confidence = response.confidence if hasattr(response, "confidence") else 0.0
 
-                # Save as pending for copilot approval (never auto-send)
-                logger.info(
-                    f"[WA:{message.sender_id}] Saving as pending for copilot approval"
-                )
-
-                from core.copilot_service import get_copilot_service
-                copilot = get_copilot_service()
-
-                pending = await copilot.create_pending_response(
-                    creator_id=self.creator_id,
-                    lead_id="",
-                    follower_id=f"wa_{message.sender_id}",
-                    platform="whatsapp",
-                    user_message=message.text,
-                    user_message_id=message.message_id,
-                    suggested_response=response_text,
-                    intent=intent,
-                    confidence=confidence,
-                    username="",
-                    full_name="",
-                )
-
                 # Mark as read (so user knows we received it)
                 if self.connector:
                     await self.connector.mark_as_read(message.message_id)
 
-                self._record_response(message, response)
+                # Check copilot mode
+                copilot_enabled = True
+                try:
+                    from api.database import SessionLocal as _WaSL
+                    from api.models import Creator as _WaCreator
+                    _wa_sess = _WaSL()
+                    try:
+                        _wa_creator = _wa_sess.query(_WaCreator).filter_by(name=self.creator_id).first()
+                        if _wa_creator:
+                            copilot_enabled = _wa_creator.copilot_mode
+                    finally:
+                        _wa_sess.close()
+                except Exception:
+                    pass
 
-                results.append(
-                    {
-                        "message_id": message.message_id,
-                        "sender_id": message.sender_id,
-                        "suggested_response": response_text,
-                        "intent": intent,
-                        "confidence": confidence,
-                        "status": "pending_approval",
-                    }
-                )
+                if copilot_enabled:
+                    # Copilot mode: save as pending for approval
+                    logger.info(
+                        f"[WA:{message.sender_id}] Saving as pending for copilot approval"
+                    )
+
+                    from core.copilot_service import get_copilot_service
+                    copilot = get_copilot_service()
+
+                    pending = await copilot.create_pending_response(
+                        creator_id=self.creator_id,
+                        lead_id="",
+                        follower_id=f"wa_{message.sender_id}",
+                        platform="whatsapp",
+                        user_message=message.text,
+                        user_message_id=message.message_id,
+                        suggested_response=response_text,
+                        intent=intent,
+                        confidence=confidence,
+                        username="",
+                        full_name="",
+                    )
+
+                    self._record_response(message, response)
+
+                    results.append(
+                        {
+                            "message_id": message.message_id,
+                            "sender_id": message.sender_id,
+                            "suggested_response": response_text,
+                            "intent": intent,
+                            "confidence": confidence,
+                            "status": "pending_approval",
+                        }
+                    )
+                else:
+                    # Autopilot mode: attempt direct send.
+                    # Safety guard in send_response() will block unless
+                    # creator has both copilot_mode=False AND autopilot_premium_enabled=True.
+                    sent = await self.send_response(message.sender_id, response_text)
+
+                    self._record_response(message, response)
+
+                    if sent:
+                        results.append(
+                            {
+                                "message_id": message.message_id,
+                                "sender_id": message.sender_id,
+                                "response": response_text[:50] + "...",
+                                "intent": intent,
+                                "confidence": confidence,
+                                "status": "sent",
+                            }
+                        )
+                    else:
+                        # Guard blocked it — save as pending instead
+                        from core.copilot_service import get_copilot_service
+                        copilot = get_copilot_service()
+
+                        pending = await copilot.create_pending_response(
+                            creator_id=self.creator_id,
+                            lead_id="",
+                            follower_id=f"wa_{message.sender_id}",
+                            platform="whatsapp",
+                            user_message=message.text,
+                            user_message_id=message.message_id,
+                            suggested_response=response_text,
+                            intent=intent,
+                            confidence=confidence,
+                            username="",
+                            full_name="",
+                        )
+
+                        results.append(
+                            {
+                                "message_id": message.message_id,
+                                "sender_id": message.sender_id,
+                                "autopilot_blocked": True,
+                                "pending_id": pending.id,
+                                "suggested_response": response_text,
+                                "intent": intent,
+                                "confidence": confidence,
+                                "status": "pending_approval",
+                            }
+                        )
 
             except Exception as e:
                 logger.error(f"Error processing WhatsApp message {message.message_id}: {e}")
@@ -741,17 +807,25 @@ class WhatsAppHandler:
 
         return response
 
-    async def send_response(self, recipient: str, text: str) -> bool:
+    async def send_response(self, recipient: str, text: str, approved: bool = False) -> bool:
         """
-        Send response via WhatsApp.
+        Send response via WhatsApp — GUARDED by send_guard.
 
         Args:
             recipient: Phone number
             text: Message text
+            approved: True if message was explicitly approved by creator
 
         Returns:
             True if sent successfully
         """
+        from core.send_guard import SendBlocked, check_send_permission
+
+        try:
+            check_send_permission(self.creator_id, approved=approved, caller="wa_handler.send_response")
+        except SendBlocked:
+            return False
+
         if not self.connector:
             logger.error("WhatsApp connector not initialized")
             return False
