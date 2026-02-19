@@ -1317,9 +1317,23 @@ class DMResponderAgentV2:
         follower.last_messages.append(
             {"role": "user", "content": message, "timestamp": now}
         )
-        follower.last_messages.append(
-            {"role": "assistant", "content": formatted_content, "timestamp": now}
-        )
+
+        # COPILOT FIX: Don't save bot suggestion to memory in copilot mode.
+        # Unsent suggestions in memory cause "mixed context" — the bot thinks
+        # it said things that were never actually sent to the user.
+        # The approved response will be added to memory when the creator approves.
+        is_copilot = False
+        try:
+            from core.copilot_service import get_copilot_service
+
+            is_copilot = get_copilot_service().is_copilot_enabled(self.creator_id)
+        except Exception:
+            pass
+
+        if not is_copilot:
+            follower.last_messages.append(
+                {"role": "assistant", "content": formatted_content, "timestamp": now}
+            )
         follower.last_messages = follower.last_messages[-20:]
         follower.total_messages += 1
         follower.last_contact = now

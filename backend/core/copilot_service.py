@@ -510,6 +510,26 @@ class CopilotService:
             except Exception as sse_err:
                 logger.debug(f"[Copilot] SSE notification failed: {sse_err}")
 
+            # Update follower memory with the APPROVED response
+            # (not saved during process_dm in copilot mode to prevent phantom context)
+            try:
+                from core.dm_agent_v2 import get_dm_agent
+
+                agent = get_dm_agent(creator_id)
+                follower = await agent.memory_store.get(
+                    creator_id, lead.platform_user_id
+                )
+                if follower:
+                    now_iso = datetime.now(timezone.utc).isoformat()
+                    follower.last_messages.append(
+                        {"role": "assistant", "content": final_text, "timestamp": now_iso}
+                    )
+                    follower.last_messages = follower.last_messages[-20:]
+                    agent.memory_store._save_to_json(follower)
+                    logger.debug(f"[Copilot] Updated memory for {lead.platform_user_id}")
+            except Exception as mem_err:
+                logger.debug(f"[Copilot] Memory update failed (non-blocking): {mem_err}")
+
             logger.info(
                 f"[Copilot] Approved and sent message {message_id} to {lead.platform_user_id}"
             )
