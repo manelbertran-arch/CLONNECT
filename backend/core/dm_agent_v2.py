@@ -1635,8 +1635,14 @@ class DMResponderAgentV2:
             )
 
             # Send notification (async, non-blocking)
+            import time as _time
+
+            _t_notif = _time.time()
             results = await notification_service.notify_escalation(notification)
-            logger.info(f"Escalation notification sent for {sender_id}: {results}")
+            _elapsed = _time.time() - _t_notif
+            logger.info(
+                f"[A17] DM→Telegram escalation: {_elapsed:.1f}s for {sender_id}: {results}"
+            )
 
         except Exception as e:
             # Don't fail the main flow if notification fails
