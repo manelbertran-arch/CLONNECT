@@ -1042,11 +1042,12 @@ async def evolution_webhook(request: Request):
     )
 
     # Detect audio/voice messages (audioMessage or pttMessage = push-to-talk voice note)
-    is_audio = bool(message_obj.get("audioMessage") or message_obj.get("pttMessage"))
+    audio_obj = message_obj.get("audioMessage") or message_obj.get("pttMessage")
+    is_audio = bool(audio_obj)
     audio_transcription = None
 
     if is_audio and not text.strip():
-        # Audio message with no caption — transcribe it
+        # Audio message with no caption — transcribe it for the bot
         try:
             audio_transcription = await _transcribe_evolution_audio(instance, data)
             if audio_transcription:
@@ -1107,6 +1108,22 @@ async def evolution_webhook(request: Request):
         f"[EVO:{instance}] Message from {push_name} ({sender_number}): {text[:80]}"
     )
 
+    # Build metadata for audio messages
+    msg_metadata = None
+    if is_audio:
+        msg_metadata = {"type": "audio", "platform": "whatsapp", "source": "evolution"}
+        if audio_transcription:
+            msg_metadata["transcription"] = audio_transcription
+        # Extract audio duration (seconds) from Baileys payload
+        if isinstance(audio_obj, dict):
+            duration = audio_obj.get("seconds") or audio_obj.get("duration")
+            if duration:
+                msg_metadata["duration"] = duration
+            # Extract media URL if available (WhatsApp CDN, may expire)
+            media_url = audio_obj.get("url")
+            if media_url:
+                msg_metadata["url"] = media_url
+
     # Process with DM agent in background so webhook returns 200 fast
     asyncio.create_task(
         _process_evolution_message_safe(
@@ -1116,6 +1133,7 @@ async def evolution_webhook(request: Request):
             push_name=push_name,
             text=text,
             message_id=message_id,
+            msg_metadata=msg_metadata,
         )
     )
 
@@ -1314,6 +1332,7 @@ async def _process_evolution_message_safe(
     push_name: str,
     text: str,
     message_id: str,
+    msg_metadata: dict = None,
 ):
     """
     Process an incoming Evolution API message in COPILOT mode.
@@ -1359,6 +1378,7 @@ async def _process_evolution_message_safe(
             confidence=confidence,
             username=push_name or "",
             full_name=push_name or "",
+            msg_metadata=msg_metadata,
         )
 
         # Fetch and save WhatsApp profile picture (fire-and-forget style)

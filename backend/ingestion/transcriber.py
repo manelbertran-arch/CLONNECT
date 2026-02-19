@@ -207,10 +207,10 @@ class Transcriber:
             if include_timestamps and hasattr(response, "segments"):
                 segments = [
                     TranscriptSegment(
-                        text=seg.get("text", "").strip(),
-                        start_time=seg.get("start", 0),
-                        end_time=seg.get("end", 0),
-                        confidence=seg.get("confidence", 1.0) if "confidence" in seg else 1.0,
+                        text=getattr(seg, "text", "").strip(),
+                        start_time=getattr(seg, "start", 0),
+                        end_time=getattr(seg, "end", 0),
+                        confidence=getattr(seg, "confidence", 1.0),
                     )
                     for seg in response.segments
                 ]
