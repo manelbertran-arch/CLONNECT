@@ -425,6 +425,24 @@ def health_scheduler():
         "description": "Finds ghost leads and schedules re-engagement nurturing",
     })
 
+    # 15. Copilot daily evaluation (24h)
+    jobs.append({
+        "name": "copilot_daily_eval",
+        "interval": "24h",
+        "initial_delay": "420s",
+        "enabled": os.getenv("ENABLE_COPILOT_EVAL", "true").lower() == "true",
+        "description": "Autolearning: daily copilot action evaluation and pattern detection",
+    })
+
+    # 16. Copilot weekly recalibration (7d)
+    jobs.append({
+        "name": "copilot_weekly_recal",
+        "interval": "7d",
+        "initial_delay": "450s",
+        "enabled": os.getenv("ENABLE_COPILOT_RECAL", "true").lower() == "true",
+        "description": "Autolearning: weekly trend analysis and confidence recalibration",
+    })
+
     return {
         "status": "ok",
         "timestamp": datetime.now(timezone.utc).isoformat(),

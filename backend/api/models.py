@@ -280,6 +280,20 @@ class Message(Base):
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
 
+class CopilotEvaluation(Base):
+    """Autolearning evaluation snapshots (daily/weekly)."""
+    __tablename__ = "copilot_evaluations"
+    __table_args__ = {"extend_existing": True}
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    creator_id = Column(UUID(as_uuid=True), ForeignKey("creators.id"), nullable=False, index=True)
+    eval_type = Column(String(20), nullable=False)  # daily, weekly
+    eval_date = Column(Date, nullable=False)
+    metrics = Column(JSON, nullable=False)
+    patterns = Column(JSON)
+    recommendations = Column(JSON)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+
 class Product(Base):
     __tablename__ = "products"
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)

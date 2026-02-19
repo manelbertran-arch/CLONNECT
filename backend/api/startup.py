@@ -487,6 +487,86 @@ def register_startup_handlers(app: "FastAPI"):
         asyncio.create_task(start_ghost_reactivation_scheduler())
         logger.info("Ghost reactivation scheduler scheduled (every 24h, 390s delay)")
 
+        # JOB 15: Copilot daily evaluation (autolearning)
+        async def start_copilot_daily_eval_scheduler():
+            enable = os.getenv("ENABLE_COPILOT_EVAL", "true").lower() == "true"
+            await asyncio.sleep(420)
+            if not enable:
+                logger.info("[COPILOT_EVAL] Disabled via env var")
+                return
+            logger.info("[COPILOT_EVAL] Daily evaluation scheduler started — runs every 24h")
+
+            while True:
+                try:
+                    from api.models import Creator
+                    from core.autolearning_evaluator import run_daily_evaluation
+
+                    session = SessionLocal()
+                    try:
+                        creators = (
+                            session.query(Creator.id, Creator.name)
+                            .filter(Creator.bot_active.is_(True))
+                            .all()
+                        )
+                        results = []
+                        for creator_db_id, creator_name in creators:
+                            result = await run_daily_evaluation(creator_name, creator_db_id)
+                            if result.get("stored"):
+                                results.append(creator_name)
+                        if results:
+                            logger.info(
+                                f"[COPILOT_EVAL] Daily evals stored for: {', '.join(results)}"
+                            )
+                    finally:
+                        session.close()
+                except Exception as e:
+                    logger.error(f"[COPILOT_EVAL] Daily scheduler error: {e}")
+
+                await asyncio.sleep(86400)  # 24 hours
+
+        asyncio.create_task(start_copilot_daily_eval_scheduler())
+        logger.info("Copilot daily eval scheduler scheduled (every 24h, 420s delay)")
+
+        # JOB 16: Copilot weekly recalibration (autolearning)
+        async def start_copilot_weekly_recal_scheduler():
+            enable = os.getenv("ENABLE_COPILOT_RECAL", "true").lower() == "true"
+            await asyncio.sleep(450)
+            if not enable:
+                logger.info("[COPILOT_RECAL] Disabled via env var")
+                return
+            logger.info("[COPILOT_RECAL] Weekly recalibration scheduler started — runs every 7d")
+
+            while True:
+                try:
+                    from api.models import Creator
+                    from core.autolearning_evaluator import run_weekly_recalibration
+
+                    session = SessionLocal()
+                    try:
+                        creators = (
+                            session.query(Creator.id, Creator.name)
+                            .filter(Creator.bot_active.is_(True))
+                            .all()
+                        )
+                        results = []
+                        for creator_db_id, creator_name in creators:
+                            result = await run_weekly_recalibration(creator_name, creator_db_id)
+                            if result.get("stored"):
+                                results.append(creator_name)
+                        if results:
+                            logger.info(
+                                f"[COPILOT_RECAL] Weekly recalibration stored for: {', '.join(results)}"
+                            )
+                    finally:
+                        session.close()
+                except Exception as e:
+                    logger.error(f"[COPILOT_RECAL] Weekly scheduler error: {e}")
+
+                await asyncio.sleep(604800)  # 7 days
+
+        asyncio.create_task(start_copilot_weekly_recal_scheduler())
+        logger.info("Copilot weekly recalibration scheduler scheduled (every 7d, 450s delay)")
+
         logger.info("Message reconciliation on startup DISABLED (use /maintenance/reconcile)")
 
         # Hydrate RAG from PostgreSQL
