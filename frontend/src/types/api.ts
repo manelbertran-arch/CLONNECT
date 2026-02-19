@@ -91,6 +91,8 @@ export interface Conversation {
   email?: string;
   phone?: string;
   notes?: string;
+  // Copilot pending indicator
+  has_pending_copilot?: boolean;
 }
 
 export interface Lead {

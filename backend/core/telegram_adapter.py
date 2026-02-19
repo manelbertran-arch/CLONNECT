@@ -343,22 +343,32 @@ class TelegramAdapter:
                 self._record_response(telegram_msg, response)
 
             else:
-                # AUTOPILOT MODE: Send response immediately
-                # Check for inline keyboard in metadata (for booking responses)
-                reply_markup = None
-                if response.metadata and "telegram_keyboard" in response.metadata:
-                    reply_markup = self._build_inline_keyboard(response.metadata["telegram_keyboard"])
+                # CRITICAL FIX 2026-02-19: AUTOPILOT MODE DISABLED
+                # The bot must NEVER send messages without creator approval.
+                # Save as pending instead of sending directly.
+                logger.warning(
+                    f"[Telegram] AUTOPILOT BLOCKED - copilot_mode=False but auto-send disabled. "
+                    f"Saving as pending for {telegram_msg.display_name}"
+                )
 
-                # Send response with optional inline keyboard
-                if reply_markup:
-                    await update.message.reply_text(
-                        response.response_text,
-                        reply_markup=reply_markup
-                    )
-                else:
-                    await update.message.reply_text(response.response_text)
+                from core.copilot_service import get_copilot_service
+                copilot = get_copilot_service()
 
-                self._record_sent()
+                pending = await copilot.create_pending_response(
+                    creator_id=self.creator_id,
+                    lead_id="",
+                    follower_id=telegram_msg.follower_id,
+                    platform="telegram",
+                    user_message=telegram_msg.text,
+                    user_message_id=str(telegram_msg.message_id),
+                    suggested_response=response.response_text,
+                    intent=response.intent.value if hasattr(response.intent, 'value') else str(response.intent),
+                    confidence=response.confidence,
+                    username=telegram_msg.username,
+                    full_name=f"{telegram_msg.first_name} {telegram_msg.last_name}".strip()
+                )
+
+                logger.info(f"[Copilot] Created pending response {pending.id} for {telegram_msg.display_name} (autopilot blocked)")
                 self._record_response(telegram_msg, response)
 
         except Exception as e:
@@ -508,19 +518,32 @@ class TelegramAdapter:
                 self._record_response(telegram_msg, response)
 
             else:
-                # AUTOPILOT MODE: Send response immediately
-                # Check for inline keyboard in metadata (for booking responses)
-                reply_markup = None
-                if response.metadata and "telegram_keyboard" in response.metadata:
-                    reply_markup = self._build_inline_keyboard(response.metadata["telegram_keyboard"])
-
-                # Send response via bot with optional inline keyboard
-                await self.bot.send_message(
-                    chat_id=telegram_msg.chat_id,
-                    text=response.response_text,
-                    reply_markup=reply_markup
+                # CRITICAL FIX 2026-02-19: AUTOPILOT MODE DISABLED
+                # The bot must NEVER send messages without creator approval.
+                # Save as pending instead of sending directly.
+                logger.warning(
+                    f"[Telegram] AUTOPILOT BLOCKED (webhook) - copilot_mode=False but auto-send disabled. "
+                    f"Saving as pending for {telegram_msg.display_name}"
                 )
-                self._record_sent()
+
+                from core.copilot_service import get_copilot_service
+                copilot = get_copilot_service()
+
+                pending = await copilot.create_pending_response(
+                    creator_id=self.creator_id,
+                    lead_id="",
+                    follower_id=telegram_msg.follower_id,
+                    platform="telegram",
+                    user_message=telegram_msg.text,
+                    user_message_id=str(telegram_msg.message_id),
+                    suggested_response=response.response_text,
+                    intent=response.intent.value if hasattr(response.intent, 'value') else str(response.intent),
+                    confidence=response.confidence,
+                    username=telegram_msg.username,
+                    full_name=f"{telegram_msg.first_name} {telegram_msg.last_name}".strip()
+                )
+
+                logger.info(f"[Copilot] Created pending response {pending.id} for {telegram_msg.display_name} (autopilot blocked)")
                 self._record_response(telegram_msg, response)
 
             return response

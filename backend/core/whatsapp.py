@@ -632,10 +632,29 @@ class WhatsAppHandler:
                 intent = str(response.intent) if hasattr(response, "intent") else "unknown"
                 confidence = response.confidence if hasattr(response, "confidence") else 0.0
 
-                # Send response
-                await self.send_response(message.sender_id, response_text)
+                # Save as pending for copilot approval (never auto-send)
+                logger.info(
+                    f"[WA:{message.sender_id}] Saving as pending for copilot approval"
+                )
 
-                # Mark as read
+                from core.copilot_service import get_copilot_service
+                copilot = get_copilot_service()
+
+                pending = await copilot.create_pending_response(
+                    creator_id=self.creator_id,
+                    lead_id="",
+                    follower_id=f"wa_{message.sender_id}",
+                    platform="whatsapp",
+                    user_message=message.text,
+                    user_message_id=message.message_id,
+                    suggested_response=response_text,
+                    intent=intent,
+                    confidence=confidence,
+                    username="",
+                    full_name="",
+                )
+
+                # Mark as read (so user knows we received it)
                 if self.connector:
                     await self.connector.mark_as_read(message.message_id)
 
@@ -645,9 +664,10 @@ class WhatsAppHandler:
                     {
                         "message_id": message.message_id,
                         "sender_id": message.sender_id,
-                        "response": response_text,
+                        "suggested_response": response_text,
                         "intent": intent,
                         "confidence": confidence,
+                        "status": "pending_approval",
                     }
                 )
 

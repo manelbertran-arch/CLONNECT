@@ -675,15 +675,36 @@ class InstagramHandler:
                             }
                         )
                     else:
-                        # AUTOPILOT MODE: Send response immediately
-                        await self.send_response(message.sender_id, response.response_text)
-                        self._record_response(message, response)
+                        # CRITICAL FIX 2026-02-19: AUTOPILOT MODE DISABLED
+                        # The bot must NEVER send messages without creator approval.
+                        # Save as pending instead of sending directly.
+                        # To re-enable autopilot in future: check creator.autopilot_premium_enabled
 
-                        # CRITICAL FIX: Save messages to database
-                        # Without this, messages only exist in memory and are lost!
-                        await self._save_messages_to_db(
+                        logger.warning(
+                            f"[Copilot] AUTOPILOT BLOCKED - copilot_mode=False but auto-send disabled. "
+                            f"Saving as pending for {message.sender_id}"
+                        )
+
+                        from core.copilot_service import get_copilot_service
+                        copilot = get_copilot_service()
+
+                        pending = await copilot.create_pending_response(
+                            creator_id=self.creator_id,
+                            lead_id="",
+                            follower_id=message.sender_id,
+                            platform="instagram",
+                            user_message=message.text or "[Media/Attachment]",
+                            user_message_id=message.message_id,
+                            suggested_response=response_text,
+                            intent=intent_str,
+                            confidence=response.confidence,
+                            username=username,
+                            full_name=full_name,
+                        )
+
+                        # Save user message to DB
+                        await self._save_user_message_to_db(
                             msg=message,
-                            response=response,
                             username=username,
                             full_name=full_name,
                         )
@@ -693,14 +714,12 @@ class InstagramHandler:
                                 "message_id": message.message_id,
                                 "sender_id": message.sender_id,
                                 "copilot_mode": False,
-                                "response": response.response_text,
-                                "intent": (
-                                    response.intent.value
-                                    if hasattr(response.intent, "value")
-                                    else str(response.intent)
-                                ),
+                                "autopilot_blocked": True,
+                                "pending_id": pending.id,
+                                "suggested_response": response_text,
+                                "intent": intent_str,
                                 "confidence": response.confidence,
-                                "status": "sent",
+                                "status": "pending_approval",
                             }
                         )
 
