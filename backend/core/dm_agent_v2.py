@@ -347,6 +347,20 @@ class DMResponderAgentV2:
             self.products = products
             self.style_prompt = ""
 
+        # Load calibration data (few-shot examples, tone targets)
+        self.calibration = None
+        try:
+            from services.calibration_loader import load_calibration
+
+            self.calibration = load_calibration(creator_id)
+            if self.calibration:
+                logger.info(
+                    f"Loaded calibration for {creator_id}: "
+                    f"fse={len(self.calibration.get('few_shot_examples', []))}"
+                )
+        except Exception as e:
+            logger.warning(f"Could not load calibration for {creator_id}: {e}")
+
         # Initialize all services
         self._init_services()
 
@@ -850,11 +864,22 @@ class DMResponderAgentV2:
                 )
                 logger.info("[A1] Friend detected — suppressing acquisition behavior")
 
+            # Load few-shot examples from calibration
+            few_shot_section = ""
+            if self.calibration:
+                try:
+                    from services.calibration_loader import get_few_shot_section
+
+                    few_shot_section = get_few_shot_section(self.calibration)
+                except Exception as e:
+                    logger.debug(f"Few-shot loading failed: {e}")
+
             combined_context = "\n\n".join(
                 filter(
                     None,
                     [
                         self.style_prompt,
+                        few_shot_section,
                         friend_context,
                         rag_context,
                         dna_context,
@@ -1016,7 +1041,19 @@ class DMResponderAgentV2:
                 except Exception as e:
                     logger.debug(f"Response fixes failed: {e}")
 
-            # Step 7a2b: Question removal
+            # Step 7a2b: Tone enforcement (emoji/excl/question rates from calibration)
+            if self.calibration:
+                try:
+                    from services.tone_enforcer import enforce_tone
+
+                    response_content = enforce_tone(
+                        response_content, self.calibration,
+                        sender_id=sender_id, message=message,
+                    )
+                except Exception as e:
+                    logger.debug(f"Tone enforcement failed: {e}")
+
+            # Step 7a2c: Question removal
             if ENABLE_QUESTION_REMOVAL:
                 try:
                     response_content = process_questions(response_content, message)

@@ -352,6 +352,27 @@ async def generate_bot_response(
         except Exception as e:
             print(f"  [Scout error: {e}] Falling back to mock")
 
+    elif model == "gemini":
+        try:
+            from core.providers.gemini_provider import generate_dm_response
+
+            system_prompt = _build_finetuned_system_prompt(calibration or {})
+            messages = [
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": user_message},
+            ]
+            gemini_result = await generate_dm_response(messages, max_tokens=150, temperature=0.7)
+            if gemini_result:
+                return {
+                    "bot_response": gemini_result["content"],
+                    "pool_matched": False,
+                    "pool_category": None,
+                    "confidence": 0.8,
+                    "source": "gemini",
+                }
+        except Exception as e:
+            print(f"  [Gemini error: {e}] Falling back to mock")
+
     elif model == "scout-ft" or use_finetuned:
         # Legacy: together_provider removed. Scout FT now runs via deepinfra_provider
         # with SCOUT_LORA_ADAPTER env var (same as production).
@@ -630,6 +651,8 @@ async def run_backtest(
     total_turns = len(clean_turns)
     if use_finetuned:
         print(f"Generating responses with fine-tuned model ({total_turns} turns)...")
+    elif model == "gemini":
+        print(f"Generating responses with Gemini Flash-Lite ({total_turns} turns)...")
     elif model == "scout":
         print(f"Generating responses with Llama 4 Scout BASE ({total_turns} turns)...")
     elif model == "scout-ft":
@@ -651,8 +674,8 @@ async def run_backtest(
         turn.update(bot_result)
 
         # Pace non-pool API calls
-        if model in ("scout", "scout-ft") and not bot_result.get("pool_matched", False):
-            await asyncio.sleep(1.0 if model == "scout-ft" else 0.3)
+        if model in ("scout", "scout-ft", "gemini") and not bot_result.get("pool_matched", False):
+            await asyncio.sleep(0.3)
 
         # Post-processing for non-pool responses (matches dm_agent_v2 Phase 5)
         if not bot_result.get("pool_matched", False):
@@ -671,7 +694,7 @@ async def run_backtest(
             turn["bot_response"] = resp
 
         # Progress indicator for API runs (API calls are slow)
-        if (use_finetuned or model in ("scout", "scout-ft")) and (i + 1) % 20 == 0:
+        if (use_finetuned or model in ("scout", "scout-ft", "gemini")) and (i + 1) % 20 == 0:
             print(f"  Generated {i + 1}/{total_turns} turns...")
 
     # Step 6.5: Global tone enforcement (two-pass)
@@ -683,7 +706,7 @@ async def run_backtest(
 
     # Step 8: Build output
     result = {
-        "version": "v9-scout-ft" if model == "scout-ft" else ("v9-scout" if model == "scout" else ("v9-finetuned" if use_finetuned else "v9")),
+        "version": "v9-gemini" if model == "gemini" else ("v9-scout-ft" if model == "scout-ft" else ("v9-scout" if model == "scout" else ("v9-finetuned" if use_finetuned else "v9"))),
         "timestamp": datetime.now().isoformat(),
         "creator_id": creator_id,
         "creator_name": creator_name,
@@ -766,8 +789,8 @@ if __name__ == "__main__":
         help="Use Together.ai fine-tuned model instead of mock for non-pool turns",
     )
     parser.add_argument(
-        "--model", default=None, choices=["scout", "scout-ft"],
-        help="Use a specific model: 'scout' = Scout BASE via DeepInfra, 'scout-ft' = Scout FT via Together.ai",
+        "--model", default=None, choices=["scout", "scout-ft", "gemini"],
+        help="Use a specific model: 'scout' = Scout BASE via DeepInfra, 'scout-ft' = Scout FT, 'gemini' = Gemini Flash-Lite",
     )
     args = parser.parse_args()
 
