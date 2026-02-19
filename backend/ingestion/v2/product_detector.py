@@ -792,6 +792,100 @@ class ProductDetector:
         return False
 
 
+    async def detect_with_fallback(
+        self, pages: List['ScrapedPage'], creator_id: str = "unknown"
+    ) -> List[DetectedProduct]:
+        """
+        Detect products with LLM fallback when signal-based detection finds nothing.
+
+        1. Run normal signal-based detection (>=3 signals)
+        2. If 0 products found, use LLM to analyze page content
+        3. LLM-detected products are marked source="llm_fallback", status="pending_confirmation"
+        """
+        # Step 1: Normal detection
+        products = self.detect_products(pages, creator_id)
+        if products:
+            return products
+
+        # Step 2: LLM fallback
+        logger.info(f"[B9] No products via signals for {creator_id}, trying LLM fallback...")
+
+        # Concatenate page text (max 5000 chars)
+        page_texts = []
+        total_chars = 0
+        for page in pages:
+            text = getattr(page, "text", "") or getattr(page, "content", "") or ""
+            if text and len(text) > 50:
+                page_texts.append(f"URL: {page.url}\n{text[:1000]}")
+                total_chars += min(len(text), 1000)
+                if total_chars > 5000:
+                    break
+
+        if not page_texts:
+            logger.info("[B9] No page text available for LLM fallback")
+            return []
+
+        combined_text = "\n---\n".join(page_texts)
+
+        try:
+            import json
+            import os
+
+            import google.generativeai as genai
+
+            api_key = os.getenv("GEMINI_API_KEY") or os.getenv("GOOGLE_API_KEY")
+            if not api_key:
+                logger.warning("[B9] No Gemini API key for LLM fallback")
+                return []
+
+            genai.configure(api_key=api_key)
+            model = genai.GenerativeModel("gemini-2.0-flash-lite")
+
+            prompt = (
+                "Analiza este contenido web y extrae servicios/productos reales.\n"
+                "Retorna SOLO un JSON array con objetos: "
+                '{"name": "...", "type": "servicio|producto|recurso", '
+                '"price": null, "url": "...", "description": "..."}\n'
+                "Solo servicios REALES. NO inventes precios. Si no hay productos, retorna [].\n\n"
+                f"Contenido:\n{combined_text[:4000]}"
+            )
+
+            response = model.generate_content(prompt)
+            response_text = response.text.strip()
+
+            # Extract JSON from response
+            if "```json" in response_text:
+                response_text = response_text.split("```json")[1].split("```")[0].strip()
+            elif "```" in response_text:
+                response_text = response_text.split("```")[1].split("```")[0].strip()
+
+            llm_products = json.loads(response_text)
+            if not isinstance(llm_products, list):
+                return []
+
+            results = []
+            for p in llm_products[:5]:  # Max 5 from LLM
+                product = DetectedProduct(
+                    name=p.get("name", "Unknown"),
+                    description=p.get("description", "")[:500],
+                    price=p.get("price"),
+                    source_url=p.get("url", ""),
+                    signals_matched=["llm_fallback"],
+                    confidence=0.5,
+                    category="service" if p.get("type") == "servicio" else "product",
+                    product_type=p.get("type", "otro"),
+                    short_description=p.get("description", "")[:150],
+                )
+                results.append(product)
+
+            logger.info(f"[B9] LLM fallback found {len(results)} products for {creator_id}")
+            return results
+
+        except Exception as e:
+            logger.error(f"[B9] LLM fallback error: {e}")
+            return []
+
+
 def get_product_detector() -> ProductDetector:
     """Get detector instance."""
     return ProductDetector()

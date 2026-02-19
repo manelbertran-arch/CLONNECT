@@ -181,7 +181,7 @@ class IngestionV2Pipeline:
             detector = ProductDetector()
 
             try:
-                detected_products = detector.detect_products(pages)
+                detected_products = await detector.detect_with_fallback(pages, creator_id)
             except SuspiciousExtractionError as e:
                 result.errors.append(str(e))
                 result.status = "failed"
