@@ -232,6 +232,10 @@ app.include_router(citations.router)
 app.include_router(copilot.router)
 app.include_router(ingestion_v2.router)
 
+from api import autolearning_api
+
+app.include_router(autolearning_api.router)
+
 # Instagram router (multi-creator support)
 from api.routers import instagram as instagram_router
 
