@@ -30,7 +30,7 @@ import { getRevenueStats, getPurchases } from './payments';
 import { getBookings, getCalendarStats, getBookingLinks, getCalendlySyncStatus, createBookingLink, deleteBookingLink } from './calendar';
 import { getNurturingSequences, getNurturingFollowups, getNurturingStats, toggleNurturingSequence, updateNurturingSequence, getNurturingEnrolled, cancelNurturing, runNurturing } from './nurturing';
 import { addContent, getKnowledge, getFAQs, addFAQ, deleteFAQ, updateFAQ, getAbout, updateAbout, generateKnowledge, deleteKnowledge } from './knowledge';
-import { getVisualOnboardingStatus, completeVisualOnboarding, startFullSetup, getSetupProgress } from './onboarding';
+import { getVisualOnboardingStatus, completeVisualOnboarding } from './onboarding';
 import { getCopilotPending, getCopilotStatus, approveCopilotResponse, discardCopilotResponse, toggleCopilotMode, getCopilotNotifications, approveAllCopilot } from './copilot';
 import { getEscalations } from './leads';
 import { getIntelligenceDashboard, getIntelligencePredictions, getIntelligenceRecommendations, getIntelligencePatterns, getWeeklyReport, generateWeeklyReport } from './intelligence';
@@ -46,7 +46,7 @@ export default {
   getBookings, getCalendarStats, getBookingLinks, getCalendlySyncStatus, createBookingLink, deleteBookingLink,
   getNurturingSequences, getNurturingFollowups, getNurturingStats, toggleNurturingSequence, updateNurturingSequence, getNurturingEnrolled, cancelNurturing, runNurturing,
   addContent, getKnowledge, getFAQs, addFAQ, deleteFAQ, updateFAQ, getAbout, updateAbout, generateKnowledge, deleteKnowledge,
-  getVisualOnboardingStatus, completeVisualOnboarding, startFullSetup, getSetupProgress,
+  getVisualOnboardingStatus, completeVisualOnboarding,
   getToneProfile, regenerateToneProfile, getContentStats, testClone,
   getCopilotPending, getCopilotStatus, approveCopilotResponse, discardCopilotResponse, toggleCopilotMode, getCopilotNotifications, approveAllCopilot,
   getEscalations,
