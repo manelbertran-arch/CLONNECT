@@ -534,6 +534,50 @@ async def _try_send_message(creator_id: str, follower_id: str, message: str) -> 
 
     logger.info(f"[NURTURING] Sending REAL to {follower_id} via {channel}")
 
+    # A16: If copilot_mode is enabled, create pending_approval instead of sending
+    try:
+        from api.database import SessionLocal as _SL_nurture
+        from api.models import Creator as _Creator_nurture
+
+        _sess = _SL_nurture()
+        try:
+            _creator = _sess.query(_Creator_nurture).filter_by(name=creator_id).first()
+            if _creator and getattr(_creator, "copilot_mode", False):
+                logger.info(
+                    f"[A16] Copilot mode active for {creator_id}, "
+                    f"creating pending_approval for nurturing to {follower_id}"
+                )
+                from core.copilot_service import get_copilot_service
+
+                svc = get_copilot_service()
+                # Get lead_id for this follower
+                from api.models import Lead as _Lead_nurture
+
+                _lead = (
+                    _sess.query(_Lead_nurture)
+                    .filter_by(creator_id=_creator.id, platform_user_id=follower_id)
+                    .first()
+                )
+                if _lead:
+                    await svc.create_pending_response(
+                        creator_id=creator_id,
+                        lead_id=str(_lead.id),
+                        follower_id=follower_id,
+                        platform=channel,
+                        user_message="[nurturing followup]",
+                        user_message_id="",
+                        suggested_response=message,
+                        intent="nurturing",
+                        confidence=1.0,
+                        username=_lead.username or "",
+                        full_name=_lead.full_name or "",
+                    )
+                return {"sent": True, "simulated": False, "copilot_pending": True, "error": None}
+        finally:
+            _sess.close()
+    except Exception as copilot_err:
+        logger.warning(f"[A16] Copilot check failed (proceeding with direct send): {copilot_err}")
+
     # Telegram
     if channel == "telegram":
         try:
