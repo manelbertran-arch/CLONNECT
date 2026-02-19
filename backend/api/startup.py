@@ -692,6 +692,50 @@ def register_startup_handlers(app: "FastAPI"):
                 "Evolution API health check scheduled (every 5min, 420s delay)"
             )
 
+        # Job 16: Auto-expire stale pending_approval messages (>24h)
+        enable_pending_expiry = os.getenv(
+            "ENABLE_PENDING_EXPIRY", "true"
+        ).lower() == "true"
+        if enable_pending_expiry:
+
+            async def start_pending_expiry_job():
+                await asyncio.sleep(450)  # 7.5 min after boot
+                while True:
+                    try:
+                        from api.database import SessionLocal as _SL16
+                        from sqlalchemy import text
+
+                        session = _SL16()
+                        try:
+                            result = session.execute(
+                                text(
+                                    """
+                                    UPDATE messages
+                                    SET status = 'expired',
+                                        msg_metadata = COALESCE(msg_metadata, '{}'::jsonb)
+                                            || '{"expired_reason": "auto_24h"}'::jsonb
+                                    WHERE status = 'pending_approval'
+                                    AND created_at < NOW() - INTERVAL '24 hours'
+                                    """
+                                )
+                            )
+                            count = result.rowcount
+                            session.commit()
+                            if count > 0:
+                                logger.info(
+                                    f"[A15] Auto-expired {count} stale pending_approval messages (>24h)"
+                                )
+                        finally:
+                            session.close()
+                    except Exception as e:
+                        logger.error(f"[A15] Pending expiry error: {e}")
+                    await asyncio.sleep(3600)  # 1 hour
+
+            asyncio.create_task(start_pending_expiry_job())
+            logger.info(
+                "Pending approval expiry job scheduled (every 1h, 450s delay)"
+            )
+
         logger.info("Ready to receive requests!")
 
 
