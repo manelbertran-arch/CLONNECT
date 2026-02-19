@@ -159,7 +159,7 @@ def create_creator(db: Session, creator_id: str) -> Creator:
         email="demo@fitpack.com",
         name=creator_id,
         api_key=f"demo_key_{uuid.uuid4().hex[:16]}",
-        bot_active=True,
+        bot_active=False,  # Demo creator — activate manually
         copilot_mode=True,
         clone_tone="friendly",
         clone_style="Comunicación cercana y motivadora. Uso de emojis moderado. Enfoque en resultados.",

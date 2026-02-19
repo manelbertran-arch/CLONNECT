@@ -381,8 +381,8 @@ def init_database():
                 api_key="clonnect_manel_key",
                 clone_tone="friendly",
                 clone_name="Manel",
-                bot_active=True,
-                copilot_mode=True,  # Enable copilot by default
+                bot_active=False,  # Test creator — activate manually
+                copilot_mode=True,
             )
             session.add(creator)
             session.commit()
@@ -397,8 +397,8 @@ def init_database():
                 api_key="clonnect_stefano_key",
                 clone_tone="professional",
                 clone_name="Stefano Bonanno",
-                bot_active=True,
-                copilot_mode=False,  # Default to autopilot (bot responds automatically)
+                bot_active=False,  # Test creator — activate manually
+                copilot_mode=False,
             )
             session.add(stefano)
             session.commit()
