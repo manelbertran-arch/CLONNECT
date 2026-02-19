@@ -1149,13 +1149,15 @@ async def _save_evolution_outgoing_message(
                 import uuid
 
                 sender_number = follower_id.removeprefix("wa_")
+                # push_name here is the CREATOR's name (fromMe=true), not the contact's.
+                # Use phone number as placeholder; inbound handler will set the real name.
                 lead = Lead(
                     id=uuid.uuid4(),
                     creator_id=creator.id,
                     platform="whatsapp",
                     platform_user_id=follower_id,
-                    username=push_name or sender_number,
-                    full_name=push_name or "",
+                    username=f"+{sender_number}",
+                    full_name=f"+{sender_number}",
                     phone=f"+{sender_number}" if sender_number else None,
                     source="whatsapp_dm",
                     status="nuevo",
