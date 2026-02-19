@@ -1041,6 +1041,24 @@ async def evolution_webhook(request: Request):
         or ""
     )
 
+    # Detect audio/voice messages (audioMessage or pttMessage = push-to-talk voice note)
+    is_audio = bool(message_obj.get("audioMessage") or message_obj.get("pttMessage"))
+    audio_transcription = None
+
+    if is_audio and not text.strip():
+        # Audio message with no caption — transcribe it
+        try:
+            audio_transcription = await _transcribe_evolution_audio(instance, data)
+            if audio_transcription:
+                text = f"[🎤 Audio]: {audio_transcription}"
+                logger.info(f"[EVO:{instance}] Audio transcribed: {audio_transcription[:80]}")
+            else:
+                text = "[🎤 Audio message]"
+                logger.warning(f"[EVO:{instance}] Audio transcription returned empty")
+        except Exception as transcribe_err:
+            text = "[🎤 Audio message]"
+            logger.error(f"[EVO:{instance}] Audio transcription failed: {transcribe_err}")
+
     if not text.strip():
         return {"status": "ok", "ignored": "no_text"}
 
@@ -1108,6 +1126,88 @@ async def evolution_webhook(request: Request):
         "sender": sender_number,
         "processing": True,
     }
+
+
+async def _transcribe_evolution_audio(instance: str, data: dict) -> str:
+    """
+    Download and transcribe an audio/voice message from Evolution API.
+
+    Uses Evolution's getBase64FromMediaMessage endpoint to fetch the audio,
+    then transcribes via Whisper.
+
+    Returns transcribed text, or empty string on failure.
+    """
+    import base64
+    import tempfile
+
+    from services.evolution_api import EVOLUTION_API_KEY, EVOLUTION_API_URL
+
+    if not EVOLUTION_API_URL:
+        logger.warning(f"[EVO:{instance}] Cannot transcribe audio: EVOLUTION_API_URL not set")
+        return ""
+
+    message_obj = data.get("message", {})
+    key = data.get("key", {})
+
+    # Build the payload for getBase64FromMediaMessage
+    # Evolution API expects the message key + message content
+    media_payload = {"message": {"key": key, "message": message_obj}}
+
+    url = f"{EVOLUTION_API_URL}/chat/getBase64FromMediaMessage/{instance}"
+    headers = {"apikey": EVOLUTION_API_KEY, "Content-Type": "application/json"}
+
+    try:
+        async with httpx.AsyncClient(timeout=30.0) as client:
+            resp = await client.post(url, json=media_payload, headers=headers)
+
+            if resp.status_code >= 400:
+                logger.error(
+                    f"[EVO:{instance}] getBase64FromMediaMessage failed: "
+                    f"HTTP {resp.status_code} {resp.text[:200]}"
+                )
+                return ""
+
+            result = resp.json()
+            b64_data = result.get("base64", "")
+            mimetype = result.get("mimetype", "audio/ogg")
+
+            if not b64_data:
+                logger.warning(f"[EVO:{instance}] No base64 data in audio response")
+                return ""
+
+            # Determine file extension from mimetype
+            ext_map = {
+                "audio/ogg": ".ogg",
+                "audio/ogg; codecs=opus": ".ogg",
+                "audio/mpeg": ".mp3",
+                "audio/mp4": ".m4a",
+                "audio/wav": ".wav",
+                "audio/webm": ".webm",
+            }
+            ext = ext_map.get(mimetype.split(";")[0].strip(), ".ogg")
+
+            # Decode base64 and write to temp file
+            audio_bytes = base64.b64decode(b64_data)
+
+            with tempfile.NamedTemporaryFile(delete=False, suffix=ext) as tmp:
+                tmp.write(audio_bytes)
+                tmp_path = tmp.name
+
+            try:
+                from ingestion.transcriber import get_transcriber
+
+                transcriber = get_transcriber()
+                transcript = await transcriber.transcribe_file(tmp_path, language="es")
+                return transcript.full_text.strip() if transcript else ""
+            finally:
+                try:
+                    os.unlink(tmp_path)
+                except OSError:
+                    pass
+
+    except Exception as e:
+        logger.error(f"[EVO:{instance}] Audio download/transcription error: {e}")
+        return ""
 
 
 async def _save_evolution_outgoing_message(
