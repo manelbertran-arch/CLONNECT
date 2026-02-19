@@ -46,8 +46,9 @@ import {
   useApproveAllCopilot,
   useCopilotStats,
   useCopilotComparisons,
+  useLearningProgress,
 } from "@/hooks/useApi";
-import type { PendingResponse, CopilotComparison, ContextMessage } from "@/services/api";
+import type { PendingResponse, CopilotComparison, ContextMessage, LearningDashboard } from "@/services/api";
 import { formatDateTimeCET, formatFullDateTimeCET, formatSessionLabel } from "@/utils/time";
 
 interface PendingCardProps {
@@ -459,6 +460,136 @@ function PendingTab({
 }
 
 /**
+ * Learning Dashboard Card — "Tu clon está aprendiendo"
+ * Shows match rate, patterns, weekly stats, temporal progress, and tip
+ */
+function LearningDashboardCard() {
+  const { data, isLoading } = useLearningProgress();
+
+  if (isLoading) {
+    return (
+      <Card className="border-violet-500/20 bg-gradient-to-r from-violet-500/5 to-blue-500/5 animate-pulse">
+        <CardContent className="pt-4 pb-3 px-4">
+          <div className="h-5 w-48 bg-muted/30 rounded mb-3" />
+          <div className="h-4 w-full bg-muted/20 rounded mb-2" />
+          <div className="h-20 bg-muted/20 rounded" />
+        </CardContent>
+      </Card>
+    );
+  }
+
+  if (!data) return null;
+
+  const { match_rate, learned_patterns, weekly_stats, daily_progress, has_temporal_data, tip } = data;
+  const matchPercent = Math.round(match_rate.value * 100);
+
+  // Temporal progress text (Día 1 → Hoy)
+  let temporalText = "";
+  if (has_temporal_data && daily_progress.length >= 3) {
+    const firstRate = Math.round(daily_progress[0].match_rate * 100);
+    const lastRate = Math.round(daily_progress[daily_progress.length - 1].match_rate * 100);
+    temporalText = `Día 1: ${firstRate}% → Hoy: ${lastRate}%`;
+  }
+
+  // Tip emoji
+  const tipEmoji: Record<string, string> = {
+    needs_data: "📊",
+    improving: "📈",
+    high_match: "🎯",
+    high_discards: "💡",
+    high_edits: "✏️",
+    keep_going: "💪",
+  };
+
+  return (
+    <Card className="border-violet-500/20 bg-gradient-to-r from-violet-500/5 to-blue-500/5">
+      <CardContent className="pt-4 pb-3 px-4 space-y-4">
+        {/* Header */}
+        <div className="flex items-center gap-2">
+          <Brain className="w-5 h-5 text-violet-400" />
+          <span className="text-sm font-medium">Tu clon está aprendiendo</span>
+        </div>
+
+        {/* Match rate bar */}
+        {match_rate.has_enough_data ? (
+          <div>
+            <div className="flex items-center justify-between mb-1.5">
+              <span className="text-xs text-muted-foreground">Tasa de acierto</span>
+              <span className="text-sm font-bold text-violet-400">{matchPercent}%</span>
+            </div>
+            <Progress value={matchPercent} className="h-2 [&>div]:bg-violet-500" />
+            <p className="text-[10px] text-muted-foreground mt-1">
+              {match_rate.pure_approvals} aprobadas sin editar de {match_rate.total_suggestions} sugerencias
+            </p>
+          </div>
+        ) : (
+          <div className="bg-violet-500/10 rounded-lg p-3">
+            <p className="text-xs text-muted-foreground">
+              Necesita más datos — {match_rate.total_suggestions} de 5 sugerencias mínimas
+            </p>
+          </div>
+        )}
+
+        {/* Learned patterns */}
+        {learned_patterns.length > 0 ? (
+          <div>
+            <p className="text-xs text-muted-foreground mb-1.5">Patrones aprendidos</p>
+            <div className="space-y-1.5">
+              {learned_patterns.slice(0, 5).map((p) => (
+                <div key={p.type} className="flex items-center gap-2">
+                  <Badge variant="outline" className="text-[10px] text-violet-300 border-violet-500/30 shrink-0">
+                    {p.label}
+                  </Badge>
+                  {p.description && (
+                    <span className="text-[10px] text-muted-foreground truncate">{p.description}</span>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+        ) : weekly_stats.total > 0 ? (
+          <p className="text-xs text-muted-foreground italic">Analizando primeras ediciones...</p>
+        ) : null}
+
+        {/* Weekly stats */}
+        {weekly_stats.total > 0 && (
+          <div className="grid grid-cols-3 gap-4">
+            <div>
+              <p className="text-2xl font-bold text-green-400">{weekly_stats.approved}</p>
+              <p className="text-xs text-muted-foreground">aprobadas</p>
+            </div>
+            <div>
+              <p className="text-2xl font-bold text-blue-400">{weekly_stats.edited}</p>
+              <p className="text-xs text-muted-foreground">editadas</p>
+            </div>
+            <div>
+              <p className="text-2xl font-bold text-red-400">{weekly_stats.discarded}</p>
+              <p className="text-xs text-muted-foreground">descartadas</p>
+            </div>
+          </div>
+        )}
+
+        {/* Temporal progress */}
+        {temporalText && (
+          <div className="bg-violet-500/10 rounded-lg px-3 py-2">
+            <p className="text-xs font-medium text-violet-300">{temporalText}</p>
+          </div>
+        )}
+
+        {/* Gamification tip */}
+        {tip && (
+          <div className="bg-violet-500/10 border border-violet-500/20 rounded-lg px-3 py-2">
+            <p className="text-xs text-violet-200">
+              {tipEmoji[tip.type] || "💡"} {tip.message}
+            </p>
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
+/**
  * Metrics Dashboard Tab
  */
 function MetricsTab() {
@@ -495,44 +626,10 @@ function MetricsTab() {
   const hasCopilotUsage = stats.approved > 0 || stats.edited > 0 || stats.discarded > 0;
   const allManualOverride = !hasCopilotUsage && stats.manual_override > 0;
 
-  const lp = stats.learning_progress;
-
   return (
     <div className="space-y-6">
-      {/* E2: Learning progress */}
-      {lp && (lp.days_active > 0 || lp.total_interactions > 0) && (
-        <Card className="border-violet-500/20 bg-gradient-to-r from-violet-500/5 to-blue-500/5">
-          <CardContent className="pt-4 pb-3 px-4">
-            <div className="flex items-center gap-2 mb-3">
-              <Brain className="w-5 h-5 text-violet-400" />
-              <span className="text-sm font-medium">Progreso de aprendizaje</span>
-            </div>
-            <div className="grid grid-cols-3 gap-4">
-              <div>
-                <p className="text-2xl font-bold text-violet-400">{lp.days_active}</p>
-                <p className="text-xs text-muted-foreground">dias aprendiendo</p>
-              </div>
-              <div>
-                <p className="text-2xl font-bold text-blue-400">{lp.total_interactions}</p>
-                <p className="text-xs text-muted-foreground">interacciones</p>
-              </div>
-              <div>
-                <p className="text-2xl font-bold text-emerald-400">{lp.patterns_detected.length}</p>
-                <p className="text-xs text-muted-foreground">patrones detectados</p>
-              </div>
-            </div>
-            {lp.patterns_detected.length > 0 && (
-              <div className="flex flex-wrap gap-1.5 mt-3">
-                {lp.patterns_detected.map(p => (
-                  <Badge key={p} variant="outline" className="text-[10px] text-violet-300 border-violet-500/30">
-                    {p.replace(/_/g, " ")}
-                  </Badge>
-                ))}
-              </div>
-            )}
-          </CardContent>
-        </Card>
-      )}
+      {/* Learning Dashboard Card */}
+      <LearningDashboardCard />
 
       {/* Callout: Creator hasn't used copilot approve/edit yet */}
       {allManualOverride && (

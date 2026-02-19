@@ -14,7 +14,7 @@ Endpoints:
 """
 
 import logging
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException
@@ -834,6 +834,260 @@ async def get_copilot_stats(
         raise
     except Exception as e:
         logger.error(f"[Copilot] Error getting stats: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+    finally:
+        session.close()
+
+
+# =============================================================================
+# GET /copilot/{creator_id}/learning-progress
+# =============================================================================
+
+# Map pattern types from autolearning evaluator to Spanish UI labels
+PATTERN_UI_MAP = {
+    "consistent_shortening": "Acortar respuestas",
+    "consistent_lengthening": "Alargar respuestas",
+    "tone_adjustment": "Ajuste de tono",
+    "emoji_removal": "Quitar emojis",
+    "emoji_addition": "Añadir emojis",
+    "formality_increase": "Más formal",
+    "formality_decrease": "Más informal",
+    "greeting_change": "Cambio de saludo",
+    "closing_change": "Cambio de despedida",
+    "question_addition": "Añadir preguntas",
+    "link_addition": "Añadir enlaces",
+    "price_mention": "Mencionar precios",
+    "cta_adjustment": "Ajuste de CTA",
+    "high_discard_rate": "Descartes frecuentes",
+    "high_edit_rate": "Ediciones frecuentes",
+}
+
+
+def _compute_tip(match_rate: float, has_enough_data: bool, weekly_stats: dict, daily_progress: list) -> dict:
+    """Generate a contextual gamification tip based on learning data."""
+    if not has_enough_data:
+        return {
+            "type": "needs_data",
+            "message": "Sigue aprobando o editando respuestas para que tu clon aprenda tu estilo.",
+        }
+
+    discard_rate = weekly_stats["discarded"] / weekly_stats["total"] if weekly_stats["total"] > 0 else 0
+    edit_rate = weekly_stats["edited"] / weekly_stats["total"] if weekly_stats["total"] > 0 else 0
+
+    # Check for improving trend
+    if len(daily_progress) >= 3:
+        first_half = daily_progress[: len(daily_progress) // 2]
+        second_half = daily_progress[len(daily_progress) // 2 :]
+        first_avg = sum(d["match_rate"] for d in first_half) / len(first_half) if first_half else 0
+        second_avg = sum(d["match_rate"] for d in second_half) / len(second_half) if second_half else 0
+        if second_avg > first_avg + 0.05:
+            return {
+                "type": "improving",
+                "message": "Tu clon mejora cada dia. La tasa de acierto subió esta semana.",
+            }
+
+    if match_rate >= 0.80:
+        return {
+            "type": "high_match",
+            "message": "Tu clon ya habla como tú. Puedes confiar en el modo automático.",
+        }
+
+    if discard_rate > 0.40:
+        return {
+            "type": "high_discards",
+            "message": "Muchos descartes. Prueba editar en vez de descartar para que el clon aprenda más rápido.",
+        }
+
+    if edit_rate > 0.50:
+        return {
+            "type": "high_edits",
+            "message": "Tus ediciones le enseñan mucho al clon. Sigue así y verás menos ediciones pronto.",
+        }
+
+    return {
+        "type": "keep_going",
+        "message": "Cada aprobación y edición mejora a tu clon. Sigue entrenándolo.",
+    }
+
+
+@router.get("/{creator_id}/learning-progress")
+async def get_learning_progress(
+    creator_id: str,
+    _auth: str = Depends(require_creator_access),
+):
+    """
+    Get learning progress dashboard data for the clone training visualization.
+
+    Returns match rate, learned patterns, weekly stats, daily progress, and a tip.
+    """
+    from sqlalchemy import Date, cast, func
+
+    from api.database import SessionLocal
+    from api.models import Creator, Lead, Message
+
+    session = SessionLocal()
+    try:
+        creator = session.query(Creator).filter_by(name=creator_id).first()
+        if not creator:
+            raise HTTPException(status_code=404, detail="Creator not found")
+
+        since = datetime.now(timezone.utc) - timedelta(days=7)
+
+        # ── Match rate + weekly stats from messages ──
+        copilot_actions = (
+            session.query(
+                func.count().label("total"),
+                func.count(func.nullif(Message.copilot_action != "approved", True)).label("approved"),
+                func.count(func.nullif(Message.copilot_action != "edited", True)).label("edited"),
+                func.count(func.nullif(Message.copilot_action != "discarded", True)).label("discarded"),
+            )
+            .join(Lead, Message.lead_id == Lead.id)
+            .filter(
+                Lead.creator_id == creator.id,
+                Message.role == "assistant",
+                Message.copilot_action.in_(["approved", "edited", "discarded"]),
+                Message.created_at >= since,
+            )
+            .first()
+        )
+
+        total = copilot_actions.total or 0
+        approved = copilot_actions.approved or 0
+        edited = copilot_actions.edited or 0
+        discarded = copilot_actions.discarded or 0
+        has_enough_data = total >= 5
+        match_rate_value = round(approved / total, 3) if total > 0 else 0
+
+        weekly_stats = {
+            "approved": approved,
+            "edited": edited,
+            "discarded": discarded,
+            "total": total,
+        }
+
+        # ── Learned patterns from copilot_evaluations ──
+        learned_patterns = []
+        try:
+            from api.models import CopilotEvaluation
+
+            pattern_rows = (
+                session.query(CopilotEvaluation.patterns)
+                .filter(
+                    CopilotEvaluation.creator_id == creator.id,
+                    CopilotEvaluation.eval_type == "daily",
+                    CopilotEvaluation.patterns.isnot(None),
+                    CopilotEvaluation.eval_date >= since.date(),
+                )
+                .all()
+            )
+
+            # Merge patterns by type, keeping highest frequency
+            pattern_map: dict = {}
+            for (patterns,) in pattern_rows:
+                if isinstance(patterns, list):
+                    for p in patterns:
+                        if isinstance(p, dict) and "type" in p:
+                            ptype = p["type"]
+                            freq = p.get("frequency", 0)
+                            if ptype not in pattern_map or freq > pattern_map[ptype].get("frequency", 0):
+                                pattern_map[ptype] = p
+
+            for ptype, p in sorted(pattern_map.items(), key=lambda x: x[1].get("frequency", 0), reverse=True):
+                label = PATTERN_UI_MAP.get(ptype, ptype.replace("_", " ").capitalize())
+                learned_patterns.append({
+                    "type": ptype,
+                    "label": label,
+                    "description": p.get("description", ""),
+                    "frequency": round(p.get("frequency", 0), 2),
+                })
+        except Exception as pat_err:
+            logger.warning(f"[Copilot] Learning patterns query failed: {pat_err}")
+
+        # ── Daily progress ──
+        daily_progress = []
+        try:
+            # Try copilot_evaluations first
+            from api.models import CopilotEvaluation
+
+            daily_evals = (
+                session.query(
+                    CopilotEvaluation.eval_date,
+                    CopilotEvaluation.metrics,
+                )
+                .filter(
+                    CopilotEvaluation.creator_id == creator.id,
+                    CopilotEvaluation.eval_type == "daily",
+                    CopilotEvaluation.eval_date >= since.date(),
+                )
+                .order_by(CopilotEvaluation.eval_date)
+                .all()
+            )
+
+            if daily_evals:
+                for eval_row in daily_evals:
+                    metrics = eval_row.metrics or {}
+                    total_actions = metrics.get("total_actions", 0)
+                    approved_actions = metrics.get("approved", 0)
+                    rate = round(approved_actions / total_actions, 3) if total_actions > 0 else 0
+                    daily_progress.append({
+                        "date": str(eval_row.eval_date),
+                        "match_rate": rate,
+                        "total": total_actions,
+                    })
+            else:
+                # Fallback: group messages by date
+                daily_rows = (
+                    session.query(
+                        cast(Message.created_at, Date).label("day"),
+                        func.count().label("total"),
+                        func.count(func.nullif(Message.copilot_action != "approved", True)).label("approved"),
+                    )
+                    .join(Lead, Message.lead_id == Lead.id)
+                    .filter(
+                        Lead.creator_id == creator.id,
+                        Message.role == "assistant",
+                        Message.copilot_action.in_(["approved", "edited", "discarded"]),
+                        Message.created_at >= since,
+                    )
+                    .group_by(cast(Message.created_at, Date))
+                    .order_by(cast(Message.created_at, Date))
+                    .all()
+                )
+
+                for row in daily_rows:
+                    day_total = row.total or 0
+                    day_approved = row.approved or 0
+                    rate = round(day_approved / day_total, 3) if day_total > 0 else 0
+                    daily_progress.append({
+                        "date": str(row.day),
+                        "match_rate": rate,
+                        "total": day_total,
+                    })
+        except Exception as dp_err:
+            logger.warning(f"[Copilot] Daily progress query failed: {dp_err}")
+
+        has_temporal_data = len(daily_progress) >= 3
+        tip = _compute_tip(match_rate_value, has_enough_data, weekly_stats, daily_progress)
+
+        return {
+            "creator_id": creator_id,
+            "match_rate": {
+                "value": match_rate_value,
+                "total_suggestions": total,
+                "pure_approvals": approved,
+                "has_enough_data": has_enough_data,
+            },
+            "learned_patterns": learned_patterns,
+            "weekly_stats": weekly_stats,
+            "daily_progress": daily_progress,
+            "has_temporal_data": has_temporal_data,
+            "tip": tip,
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"[Copilot] Error getting learning progress: {e}")
         raise HTTPException(status_code=500, detail=str(e))
     finally:
         session.close()

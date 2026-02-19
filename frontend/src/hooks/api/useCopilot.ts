@@ -3,7 +3,7 @@ import {
   getCopilotPending, getCopilotStatus, approveCopilotResponse,
   discardCopilotResponse, toggleCopilotMode, approveAllCopilot,
   getCopilotStats, getCopilotComparisons, getPendingForLead,
-  trackManualCopilotResponse,
+  trackManualCopilotResponse, getLearningProgress,
   apiKeys, getCreatorId,
 } from "@/services/api";
 
@@ -114,6 +114,15 @@ export function useCopilotStats(days: number = 30, creatorId: string = getCreato
   return useQuery({
     queryKey: apiKeys.copilotStats(creatorId, days),
     queryFn: () => getCopilotStats(creatorId, days),
+    staleTime: 5 * 60 * 1000,
+    gcTime: 10 * 60 * 1000,
+  });
+}
+
+export function useLearningProgress(creatorId: string = getCreatorId()) {
+  return useQuery({
+    queryKey: apiKeys.copilotLearning(creatorId),
+    queryFn: () => getLearningProgress(creatorId),
     staleTime: 5 * 60 * 1000,
     gcTime: 10 * 60 * 1000,
   });

@@ -1457,6 +1457,38 @@ export interface CopilotStats {
   edit_categories: Record<string, number>;
 }
 
+export interface LearningDashboard {
+  creator_id: string;
+  match_rate: {
+    value: number;
+    total_suggestions: number;
+    pure_approvals: number;
+    has_enough_data: boolean;
+  };
+  learned_patterns: {
+    type: string;
+    label: string;
+    description: string;
+    frequency: number;
+  }[];
+  weekly_stats: {
+    approved: number;
+    edited: number;
+    discarded: number;
+    total: number;
+  };
+  daily_progress: {
+    date: string;
+    match_rate: number;
+    total: number;
+  }[];
+  has_temporal_data: boolean;
+  tip: {
+    type: string;
+    message: string;
+  };
+}
+
 export interface CopilotComparison {
   message_id: string;
   bot_original: string;
@@ -1493,6 +1525,12 @@ export async function getCopilotStats(
   days: number = 30
 ): Promise<CopilotStats> {
   return apiFetch(`/copilot/${creatorId}/stats?days=${days}`);
+}
+
+export async function getLearningProgress(
+  creatorId: string = CREATOR_ID
+): Promise<LearningDashboard> {
+  return apiFetch(`/copilot/${creatorId}/learning-progress`);
 }
 
 export async function getCopilotComparisons(
@@ -2156,6 +2194,7 @@ export const apiKeys = {
   copilotNotifications: (creatorId: string) => ["copilotNotifications", creatorId] as const,
   copilotStats: (creatorId: string, days?: number) => ["copilotStats", creatorId, days] as const,
   copilotComparisons: (creatorId: string) => ["copilotComparisons", creatorId] as const,
+  copilotLearning: (creatorId: string) => ["copilotLearning", creatorId] as const,
   copilotPendingForLead: (creatorId: string, leadId: string) => ["copilotPendingForLead", creatorId, leadId] as const,
   toneProfile: (creatorId: string) => ["toneProfile", creatorId] as const,
   contentStats: (creatorId: string) => ["contentStats", creatorId] as const,
@@ -2449,6 +2488,7 @@ export default {
   approveAllCopilot,
   getPendingForLead,
   getCopilotStats,
+  getLearningProgress,
   getCopilotComparisons,
   trackManualCopilotResponse,
   // Escalations
