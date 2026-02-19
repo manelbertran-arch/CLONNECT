@@ -27,7 +27,7 @@ import {
 import { cn } from "@/lib/utils";
 import { useQueryClient } from "@tanstack/react-query";
 import { useConversations, useFollowerDetail, useSendMessage, useArchiveConversation, useMarkConversationSpam, useDeleteConversation, useArchivedConversations, useRestoreConversation, useEventStream, useTrackManualCopilot } from "@/hooks/useApi";
-import { getFollowerDetail, apiKeys, getCreatorId, transcribeAudio, sendMediaMessage } from "@/services/api";
+import { getFollowerDetail, apiKeys, getCreatorId, sendMediaMessage } from "@/services/api";
 import { useToast } from "@/hooks/use-toast";
 import type { Conversation, Message } from "@/types/api";
 import { getPurchaseIntent, detectPlatform, getFriendlyName, extractNameFromMessages, getMessages } from "@/types/api";
@@ -281,22 +281,16 @@ export default function Inbox() {
     }
   };
 
-  // Handle sending audio: transcribe then send as text message
+  // Handle sending audio as a real voice note via media endpoint
   const handleSendAudio = async (blob: Blob) => {
     if (!selectedId) return;
     try {
-      const result = await transcribeAudio(blob);
-      if (!result.text.trim()) {
-        toast({ title: "Audio vacio", description: "No se detecto voz en la grabacion", variant: "destructive" });
-        return;
-      }
-      const audioText = result.text.trim();
-      await sendMessageMutation.mutateAsync({
-        followerId: selectedId,
-        message: audioText,
+      const file = new File([blob], "voice_note.webm", { type: blob.type || "audio/webm" });
+      const result = await sendMediaMessage(selectedId, file, "");
+      toast({
+        title: result.sent ? "Audio enviado" : "Enviando audio...",
+        description: "Voice note",
       });
-      toast({ title: "Audio enviado", description: audioText.slice(0, 60) + (audioText.length > 60 ? "..." : "") });
-      setMessage("");
     } catch (err) {
       toast({ title: "Error", description: err instanceof Error ? err.message : "No se pudo enviar el audio", variant: "destructive" });
     }

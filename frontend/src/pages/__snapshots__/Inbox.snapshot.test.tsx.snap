@@ -909,7 +909,7 @@ exports[`Inbox Snapshots > renders inbox with conversations - snapshot 1`] = `
                 <p
                   class="text-[10px] text-gray-500 text-right px-4 pb-2"
                 >
-                  17:58
+                  21:24
                 </p>
               </div>
             </div>
@@ -939,7 +939,7 @@ exports[`Inbox Snapshots > renders inbox with conversations - snapshot 1`] = `
                 <p
                   class="text-[10px] text-white/60 text-right px-4 pb-2"
                 >
-                  17:58
+                  21:24
                 </p>
               </div>
             </div>
@@ -950,15 +950,116 @@ exports[`Inbox Snapshots > renders inbox with conversations - snapshot 1`] = `
         class="p-4 border-t border-border/50"
       >
         <div
-          class="flex gap-3"
+          class="flex items-center gap-2"
         >
+          <button
+            class="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 hover:bg-accent h-10 w-10 text-muted-foreground hover:text-primary shrink-0"
+            title="Grabar audio"
+            type="button"
+          >
+            <svg
+              class="lucide lucide-mic w-5 h-5"
+              fill="none"
+              height="24"
+              stroke="currentColor"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="2"
+              viewBox="0 0 24 24"
+              width="24"
+              xmlns="http://www.w3.org/2000/svg"
+            >
+              <path
+                d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"
+              />
+              <path
+                d="M19 10v2a7 7 0 0 1-14 0v-2"
+              />
+              <line
+                x1="12"
+                x2="12"
+                y1="19"
+                y2="22"
+              />
+            </svg>
+          </button>
+          <div
+            class="relative"
+          >
+            <button
+              class="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 hover:bg-accent h-10 w-10 text-muted-foreground hover:text-primary shrink-0"
+              title="Emojis"
+              type="button"
+            >
+              <svg
+                class="lucide lucide-smile w-5 h-5"
+                fill="none"
+                height="24"
+                stroke="currentColor"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                viewBox="0 0 24 24"
+                width="24"
+                xmlns="http://www.w3.org/2000/svg"
+              >
+                <circle
+                  cx="12"
+                  cy="12"
+                  r="10"
+                />
+                <path
+                  d="M8 14s1.5 2 4 2 4-2 4-2"
+                />
+                <line
+                  x1="9"
+                  x2="9.01"
+                  y1="9"
+                  y2="9"
+                />
+                <line
+                  x1="15"
+                  x2="15.01"
+                  y1="9"
+                  y2="9"
+                />
+              </svg>
+            </button>
+          </div>
+          <button
+            class="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 hover:bg-accent h-10 w-10 text-muted-foreground hover:text-primary shrink-0"
+            title="Adjuntar archivo"
+            type="button"
+          >
+            <svg
+              class="lucide lucide-paperclip w-5 h-5"
+              fill="none"
+              height="24"
+              stroke="currentColor"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="2"
+              viewBox="0 0 24 24"
+              width="24"
+              xmlns="http://www.w3.org/2000/svg"
+            >
+              <path
+                d="m21.44 11.05-9.19 9.19a6 6 0 0 1-8.49-8.49l8.57-8.57A4 4 0 1 1 18 8.84l-8.59 8.57a2 2 0 0 1-2.83-2.83l8.49-8.48"
+              />
+            </svg>
+          </button>
+          <input
+            accept="image/*,video/*,audio/*,.pdf,.doc,.docx"
+            class="hidden"
+            type="file"
+          />
           <input
             class="flex h-10 w-full rounded-md border-input px-3 py-2 text-base ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium file:text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 md:text-sm flex-1 border-0 bg-secondary"
             placeholder="Type a message..."
             value=""
           />
           <button
-            class="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 bg-primary text-primary-foreground hover:bg-primary/90 h-10 px-4 py-2 hover:opacity-90 transition-opacity bg-gradient-to-r from-primary to-accent"
+            class="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 bg-primary text-primary-foreground hover:bg-primary/90 h-10 px-4 py-2 hover:opacity-90 transition-opacity shrink-0 bg-gradient-to-r from-primary to-accent"
             disabled=""
             type="button"
           >
