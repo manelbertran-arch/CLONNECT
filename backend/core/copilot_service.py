@@ -139,6 +139,20 @@ class CopilotService:
                 logger.error(f"Creator {creator_id} not found")
                 return pending
 
+            # ── DEDUP CHECK #1: platform_message_id already in DB ──
+            # Prevents duplicates from webhook retries (Meta/Telegram resend)
+            if user_message_id:
+                existing_user_msg = (
+                    session.query(Message.id)
+                    .filter(Message.platform_message_id == user_message_id)
+                    .first()
+                )
+                if existing_user_msg:
+                    logger.info(
+                        f"[Copilot:Dedup] user_message_id {user_message_id} already in DB — skipping"
+                    )
+                    return pending
+
             # Check both with and without ig_ prefix to avoid duplicates
             lead = (
                 session.query(Lead)
@@ -173,6 +187,77 @@ class CopilotService:
             elif platform == "whatsapp" and not lead.phone and follower_id.startswith("wa_"):
                 # Backfill phone for existing WhatsApp leads that are missing it
                 lead.phone = "+" + follower_id[3:]
+
+            # ── DEDUP CHECK #2: lead already has pending_approval ──
+            # Prevents multiple suggestions stacking up for the same lead
+            existing_pending = (
+                session.query(Message)
+                .filter(
+                    Message.lead_id == lead.id,
+                    Message.role == "assistant",
+                    Message.status == "pending_approval",
+                )
+                .first()
+            )
+            if existing_pending:
+                logger.info(
+                    f"[Copilot:Dedup] Lead {lead.id} already has pending suggestion "
+                    f"{existing_pending.id} — saving user message only"
+                )
+                # Still save the user message so no messages are lost
+                user_msg = Message(
+                    lead_id=lead.id,
+                    role="user",
+                    content=user_message,
+                    intent=intent,
+                    status="sent",
+                    platform_message_id=user_message_id,
+                    msg_metadata=msg_metadata,
+                )
+                session.add(user_msg)
+
+                # Update the existing pending suggestion with the new response
+                # (so the creator sees the latest suggestion for the latest message)
+                existing_pending.content = suggested_response
+                existing_pending.suggested_response = suggested_response
+                existing_pending.intent = intent
+                existing_pending.created_at = now
+
+                # Update lead scoring
+                lead.last_contact_at = now
+                try:
+                    from services.lead_scoring import recalculate_lead_score
+
+                    recalculate_lead_score(session, str(lead.id))
+                except Exception as score_err:
+                    logger.warning(f"[Copilot] Scoring failed: {score_err}")
+
+                session.commit()
+                pending.id = str(existing_pending.id)
+                pending.lead_id = str(lead.id)
+
+                # Invalidate caches
+                try:
+                    from api.cache import api_cache
+
+                    api_cache.invalidate(f"conversations:{creator_id}")
+                    api_cache.invalidate(f"follower_detail:{creator_id}:{follower_id}")
+                except Exception:
+                    pass
+
+                # Notify frontend
+                try:
+                    from api.routers.events import notify_creator
+
+                    await notify_creator(
+                        creator_id,
+                        "new_message",
+                        {"follower_id": follower_id, "role": "user"},
+                    )
+                except Exception:
+                    pass
+
+                return pending
 
             # Update last contact time (must be set before scoring)
             lead.last_contact_at = now

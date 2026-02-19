@@ -252,3 +252,117 @@ class TestEmptyQueue:
         with patch("api.database.SessionLocal", side_effect=RuntimeError("should not be called")):
             result = service.is_copilot_enabled("creator1")
         assert result is False
+
+
+class TestDedupChecks:
+    """Test 6: Dedup logic in create_pending_response."""
+
+    @pytest.mark.asyncio
+    async def test_dedup_skips_when_platform_message_id_exists(self):
+        """create_pending_response skips if user_message_id already in DB."""
+        service = CopilotService()
+        mock_session = MagicMock()
+
+        # Creator found
+        mock_creator = MagicMock()
+        mock_creator.id = 1
+
+        # First query().filter_by() = creator lookup
+        # Second query().filter() = platform_message_id check → found
+        call_count = [0]
+        original_query = mock_session.query
+
+        def query_side_effect(*args, **kwargs):
+            call_count[0] += 1
+            result = MagicMock()
+            if call_count[0] == 1:
+                # Creator lookup
+                result.filter_by.return_value.first.return_value = mock_creator
+            elif call_count[0] == 2:
+                # platform_message_id check → found (dedup hit)
+                result.filter.return_value.first.return_value = MagicMock(id="existing_msg")
+            return result
+
+        mock_session.query.side_effect = query_side_effect
+
+        with patch("api.database.SessionLocal", return_value=mock_session):
+            result = await service.create_pending_response(
+                creator_id="creator1",
+                lead_id="",
+                follower_id="ig_123",
+                platform="instagram",
+                user_message="Hello",
+                user_message_id="mid_existing",
+                suggested_response="Hi!",
+                intent="greeting",
+                confidence=0.9,
+            )
+
+        # Should return without creating new messages (no session.add calls)
+        assert mock_session.add.call_count == 0
+
+    @pytest.mark.asyncio
+    async def test_dedup_updates_existing_pending_when_lead_has_one(self):
+        """create_pending_response updates existing pending instead of creating new."""
+        import uuid
+
+        service = CopilotService()
+        mock_session = MagicMock()
+
+        mock_creator = MagicMock()
+        mock_creator.id = uuid.uuid4()
+
+        mock_lead = MagicMock()
+        mock_lead.id = uuid.uuid4()
+        mock_lead.phone = None
+        mock_lead.purchase_intent = 0.0
+        mock_lead.status = "new"
+
+        mock_existing_pending = MagicMock()
+        mock_existing_pending.id = uuid.uuid4()
+        mock_existing_pending.content = "old suggestion"
+
+        call_count = [0]
+
+        def query_side_effect(*args, **kwargs):
+            call_count[0] += 1
+            result = MagicMock()
+            if call_count[0] == 1:
+                # Creator lookup
+                result.filter_by.return_value.first.return_value = mock_creator
+            elif call_count[0] == 2:
+                # platform_message_id check → not found
+                result.filter.return_value.first.return_value = None
+            elif call_count[0] == 3:
+                # Lead lookup → found
+                result.filter.return_value.first.return_value = mock_lead
+            elif call_count[0] == 4:
+                # Pending approval check → found (dedup)
+                result.filter.return_value.first.return_value = mock_existing_pending
+            return result
+
+        mock_session.query.side_effect = query_side_effect
+
+        with (
+            patch("api.database.SessionLocal", return_value=mock_session),
+            patch("services.lead_scoring.recalculate_lead_score"),
+        ):
+            result = await service.create_pending_response(
+                creator_id="creator1",
+                lead_id="",
+                follower_id="ig_456",
+                platform="instagram",
+                user_message="New message",
+                user_message_id="mid_new",
+                suggested_response="New suggestion",
+                intent="question_product",
+                confidence=0.8,
+            )
+
+        # Should have updated existing pending's content
+        assert mock_existing_pending.content == "New suggestion"
+        assert mock_existing_pending.suggested_response == "New suggestion"
+        # Should have added user message (1 add call for user msg)
+        assert mock_session.add.call_count == 1
+        # Result should reference existing pending ID
+        assert result.id == str(mock_existing_pending.id)
