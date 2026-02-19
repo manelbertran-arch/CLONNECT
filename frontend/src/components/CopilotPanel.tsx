@@ -1,9 +1,10 @@
 /**
  * CopilotPanel - UI for reviewing and approving bot responses
  *
- * Modes:
- * - Automático (copilot_enabled: false): Bot responds automatically
- * - Manual (copilot_enabled: true): Human reviews and approves responses
+ * Tabs:
+ * - Respuestas: Pending approval queue
+ * - Métricas: Approval/edit/discard rates and stats
+ * - Comparaciones: Side-by-side bot vs creator split view
  */
 import { useState, useRef, useEffect, useCallback } from "react";
 import {
@@ -18,11 +19,19 @@ import {
   Clock,
   CheckCheck,
   Zap,
-  UserCheck
+  UserCheck,
+  BarChart3,
+  GitCompareArrows,
+  ArrowRight,
+  TrendingUp,
+  Timer,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Progress } from "@/components/ui/progress";
 import { useToast } from "@/hooks/use-toast";
 import {
   useCopilotPending,
@@ -31,8 +40,10 @@ import {
   useDiscardCopilotResponse,
   useToggleCopilotMode,
   useApproveAllCopilot,
+  useCopilotStats,
+  useCopilotComparisons,
 } from "@/hooks/useApi";
-import type { PendingResponse } from "@/services/api";
+import type { PendingResponse, CopilotComparison } from "@/services/api";
 
 interface PendingCardProps {
   item: PendingResponse;
@@ -317,6 +328,272 @@ function ResponseModeToggle({ isManualMode, isLoading, onToggle }: ResponseModeT
   );
 }
 
+/**
+ * Metrics Dashboard Tab
+ */
+function MetricsTab() {
+  const { data: stats, isLoading } = useCopilotStats();
+
+  if (isLoading) {
+    return (
+      <div className="space-y-4 animate-pulse">
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+          {[1, 2, 3, 4].map(i => (
+            <div key={i} className="h-24 rounded-lg bg-muted/20 border border-border/20" />
+          ))}
+        </div>
+        <div className="h-40 rounded-lg bg-muted/20 border border-border/20" />
+      </div>
+    );
+  }
+
+  if (!stats || stats.total_actions === 0) {
+    return (
+      <div className="text-center py-12 bg-secondary/20 rounded-lg">
+        <BarChart3 className="w-12 h-12 mx-auto text-muted-foreground mb-4" />
+        <h3 className="font-medium text-lg">Sin datos todavía</h3>
+        <p className="text-muted-foreground text-sm mt-1">
+          Las métricas aparecerán cuando empieces a aprobar o editar respuestas
+        </p>
+      </div>
+    );
+  }
+
+  const formatMs = (ms: number | null) => {
+    if (!ms) return "—";
+    if (ms < 60000) return `${Math.round(ms / 1000)}s`;
+    return `${Math.round(ms / 60000)}min`;
+  };
+
+  return (
+    <div className="space-y-6">
+      {/* Summary Cards */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+        <Card>
+          <CardContent className="pt-4 pb-3 px-4">
+            <p className="text-xs text-muted-foreground">Total acciones</p>
+            <p className="text-2xl font-bold">{stats.total_actions}</p>
+            <p className="text-xs text-muted-foreground">últimos {stats.period_days} días</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="pt-4 pb-3 px-4">
+            <p className="text-xs text-muted-foreground flex items-center gap-1">
+              <Check className="w-3 h-3 text-green-500" /> Aprobadas
+            </p>
+            <p className="text-2xl font-bold text-green-600">{Math.round(stats.approval_rate * 100)}%</p>
+            <p className="text-xs text-muted-foreground">{stats.approved} respuestas</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="pt-4 pb-3 px-4">
+            <p className="text-xs text-muted-foreground flex items-center gap-1">
+              <Edit3 className="w-3 h-3 text-blue-500" /> Editadas
+            </p>
+            <p className="text-2xl font-bold text-blue-600">{Math.round(stats.edit_rate * 100)}%</p>
+            <p className="text-xs text-muted-foreground">{stats.edited} respuestas</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="pt-4 pb-3 px-4">
+            <p className="text-xs text-muted-foreground flex items-center gap-1">
+              <X className="w-3 h-3 text-red-500" /> Descartadas
+            </p>
+            <p className="text-2xl font-bold text-red-600">{Math.round(stats.discard_rate * 100)}%</p>
+            <p className="text-xs text-muted-foreground">{stats.discarded} respuestas</p>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Action Distribution Bar */}
+      <Card>
+        <CardHeader className="pb-3">
+          <CardTitle className="text-sm font-medium">Distribución de acciones</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-3">
+            <div className="flex items-center gap-3">
+              <span className="text-xs text-muted-foreground w-20">Aprobadas</span>
+              <Progress value={stats.approval_rate * 100} className="flex-1 [&>div]:bg-green-500" />
+              <span className="text-xs font-medium w-10 text-right">{stats.approved}</span>
+            </div>
+            <div className="flex items-center gap-3">
+              <span className="text-xs text-muted-foreground w-20">Editadas</span>
+              <Progress value={stats.edit_rate * 100} className="flex-1 [&>div]:bg-blue-500" />
+              <span className="text-xs font-medium w-10 text-right">{stats.edited}</span>
+            </div>
+            <div className="flex items-center gap-3">
+              <span className="text-xs text-muted-foreground w-20">Descartadas</span>
+              <Progress value={stats.discard_rate * 100} className="flex-1 [&>div]:bg-red-500" />
+              <span className="text-xs font-medium w-10 text-right">{stats.discarded}</span>
+            </div>
+            {stats.manual_override > 0 && (
+              <div className="flex items-center gap-3">
+                <span className="text-xs text-muted-foreground w-20">Manuales</span>
+                <Progress value={stats.manual_rate * 100} className="flex-1 [&>div]:bg-orange-500" />
+                <span className="text-xs font-medium w-10 text-right">{stats.manual_override}</span>
+              </div>
+            )}
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Additional Stats */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <Card>
+          <CardContent className="pt-4 pb-3 px-4">
+            <p className="text-xs text-muted-foreground flex items-center gap-1">
+              <Timer className="w-3 h-3" /> Tiempo respuesta promedio
+            </p>
+            <p className="text-xl font-bold">{formatMs(stats.avg_response_time_ms)}</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="pt-4 pb-3 px-4">
+            <p className="text-xs text-muted-foreground flex items-center gap-1">
+              <TrendingUp className="w-3 h-3" /> Confianza promedio
+            </p>
+            <p className="text-xl font-bold">
+              {stats.avg_confidence ? `${Math.round(stats.avg_confidence * 100)}%` : "—"}
+            </p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="pt-4 pb-3 px-4">
+            <p className="text-xs text-muted-foreground">Edits manuales</p>
+            <p className="text-xl font-bold">{stats.manual_override}</p>
+            <p className="text-xs text-muted-foreground">respuestas desde cero</p>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Edit Categories */}
+      {Object.keys(stats.edit_categories).length > 0 && (
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="text-sm font-medium">Tipos de edición más comunes</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="flex flex-wrap gap-2">
+              {Object.entries(stats.edit_categories)
+                .sort(([, a], [, b]) => b - a)
+                .map(([category, count]) => (
+                  <Badge key={category} variant="secondary" className="text-xs">
+                    {category.replace(/_/g, " ")} ({count})
+                  </Badge>
+                ))}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+    </div>
+  );
+}
+
+/**
+ * Comparisons Split View Tab
+ */
+function ComparisonsTab() {
+  const { data, isLoading } = useCopilotComparisons();
+
+  if (isLoading) {
+    return (
+      <div className="space-y-4 animate-pulse">
+        {[1, 2, 3].map(i => (
+          <div key={i} className="h-48 rounded-lg bg-muted/20 border border-border/20" />
+        ))}
+      </div>
+    );
+  }
+
+  const comparisons = data?.comparisons || [];
+
+  if (comparisons.length === 0) {
+    return (
+      <div className="text-center py-12 bg-secondary/20 rounded-lg">
+        <GitCompareArrows className="w-12 h-12 mx-auto text-muted-foreground mb-4" />
+        <h3 className="font-medium text-lg">Sin comparaciones todavía</h3>
+        <p className="text-muted-foreground text-sm mt-1">
+          Cuando edites respuestas del bot, las comparaciones aparecerán aquí
+        </p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-4">
+      <p className="text-sm text-muted-foreground">
+        Comparación lado a lado: lo que sugirió el bot vs lo que enviaste
+      </p>
+      {comparisons.map((c: CopilotComparison) => (
+        <ComparisonCard key={c.message_id} comparison={c} />
+      ))}
+    </div>
+  );
+}
+
+function ComparisonCard({ comparison: c }: { comparison: CopilotComparison }) {
+  const categories = c.edit_diff?.categories || [];
+
+  return (
+    <div className="border border-border rounded-lg overflow-hidden">
+      {/* Header */}
+      <div className="flex items-center justify-between px-4 py-2 bg-muted/30 border-b">
+        <div className="flex items-center gap-2 text-sm">
+          <span className="font-medium">@{c.username || "usuario"}</span>
+          <Badge variant="outline" className="text-[10px]">{c.platform}</Badge>
+          <Badge variant={c.action === "edited" ? "default" : "secondary"} className="text-[10px]">
+            {c.action === "edited" ? "Editada" : "Manual"}
+          </Badge>
+        </div>
+        <span className="text-xs text-muted-foreground">
+          {new Date(c.created_at).toLocaleDateString()}
+        </span>
+      </div>
+
+      {/* Split View */}
+      <div className="grid grid-cols-1 sm:grid-cols-[1fr_auto_1fr] gap-0">
+        {/* Bot Original */}
+        <div className="p-4 bg-red-500/5">
+          <p className="text-xs text-muted-foreground mb-2 flex items-center gap-1">
+            <Bot className="w-3 h-3" /> Bot sugirió
+          </p>
+          <p className="text-sm whitespace-pre-wrap">{c.bot_original}</p>
+        </div>
+
+        {/* Arrow divider */}
+        <div className="hidden sm:flex items-center justify-center px-2 bg-muted/20">
+          <ArrowRight className="w-4 h-4 text-muted-foreground" />
+        </div>
+
+        {/* Creator Final */}
+        <div className="p-4 bg-green-500/5 border-t sm:border-t-0">
+          <p className="text-xs text-muted-foreground mb-2 flex items-center gap-1">
+            <User className="w-3 h-3" /> Creador envió
+          </p>
+          <p className="text-sm whitespace-pre-wrap">{c.creator_final}</p>
+        </div>
+      </div>
+
+      {/* Footer with categories */}
+      {categories.length > 0 && (
+        <div className="px-4 py-2 bg-muted/20 border-t flex items-center gap-2 flex-wrap">
+          {categories.map(cat => (
+            <Badge key={cat} variant="outline" className="text-[10px]">
+              {cat.replace(/_/g, " ")}
+            </Badge>
+          ))}
+          {c.edit_diff && (
+            <span className="text-[10px] text-muted-foreground ml-auto">
+              {c.edit_diff.length_delta > 0 ? "+" : ""}{c.edit_diff.length_delta} chars
+            </span>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function CopilotPanel() {
   const { toast } = useToast();
   const { data: pendingData, isLoading: isPendingLoading } = useCopilotPending();
@@ -535,66 +812,90 @@ export default function CopilotPanel() {
         )}
       </div>
 
-      {/* Mode Toggle - New Design */}
+      {/* Mode Toggle */}
       <ResponseModeToggle
         isManualMode={isManualMode}
         isLoading={toggleMutation.isPending}
         onToggle={handleModeToggle}
       />
 
-
-      {/* Pending Responses Section */}
-      {isManualMode && (
-        <>
-          <div className="border-t pt-6">
-            <h3 className="font-semibold mb-4 flex items-center gap-2">
-              <MessageSquare className="w-5 h-5" />
-              Respuestas Pendientes
-            </h3>
-
-            {isPendingLoading ? (
-              <div className="space-y-4 animate-pulse">
-                {[1, 2, 3].map(i => (
-                  <div key={i} className="h-40 rounded-lg bg-muted/15 border border-border/20" />
-                ))}
-              </div>
-            ) : pendingResponses.length === 0 ? (
-              <div className="text-center py-12 bg-secondary/20 rounded-lg">
-                <Bot className="w-12 h-12 mx-auto text-muted-foreground mb-4" />
-                <h3 className="font-medium text-lg">No hay respuestas pendientes</h3>
-                <p className="text-muted-foreground text-sm mt-1">
-                  Las nuevas respuestas del bot aparecerán aquí para tu aprobación
-                </p>
-              </div>
-            ) : (
-              <div className="space-y-4">
-                {pendingResponses.map((item) => (
-                  <PendingCard
-                    key={item.id}
-                    item={item}
-                    onApprove={handleApprove}
-                    onDiscard={handleDiscard}
-                    isLoading={isAnyLoading}
-                    isFading={fadingIds.has(item.id)}
-                  />
-                ))}
-              </div>
+      {/* Tabbed Content: Respuestas | Métricas | Comparaciones */}
+      <Tabs defaultValue="responses" className="w-full">
+        <TabsList className="grid w-full grid-cols-3">
+          <TabsTrigger value="responses" className="gap-1.5">
+            <MessageSquare className="w-4 h-4" />
+            Respuestas
+            {pendingCount > 0 && (
+              <Badge variant="destructive" className="text-[10px] px-1.5 py-0 ml-1">
+                {pendingCount}
+              </Badge>
             )}
-          </div>
-        </>
-      )}
+          </TabsTrigger>
+          <TabsTrigger value="metrics" className="gap-1.5">
+            <BarChart3 className="w-4 h-4" />
+            Métricas
+          </TabsTrigger>
+          <TabsTrigger value="comparisons" className="gap-1.5">
+            <GitCompareArrows className="w-4 h-4" />
+            Comparaciones
+          </TabsTrigger>
+        </TabsList>
 
-      {/* Info when in automatic mode */}
-      {!isManualMode && (
-        <div className="text-center py-8 bg-secondary/20 rounded-lg">
-          <Bot className="w-12 h-12 mx-auto text-success mb-4" />
-          <h3 className="font-medium text-lg">Bot en piloto automático</h3>
-          <p className="text-muted-foreground text-sm mt-1 max-w-md mx-auto">
-            El bot está respondiendo automáticamente a todos los mensajes.
-            Cambia a Modo Copilot si quieres revisar las respuestas antes de enviarlas.
-          </p>
-        </div>
-      )}
+        {/* Tab: Respuestas */}
+        <TabsContent value="responses" className="mt-4">
+          {isManualMode ? (
+            <>
+              {isPendingLoading ? (
+                <div className="space-y-4 animate-pulse">
+                  {[1, 2, 3].map(i => (
+                    <div key={i} className="h-40 rounded-lg bg-muted/15 border border-border/20" />
+                  ))}
+                </div>
+              ) : pendingResponses.length === 0 ? (
+                <div className="text-center py-12 bg-secondary/20 rounded-lg">
+                  <Bot className="w-12 h-12 mx-auto text-muted-foreground mb-4" />
+                  <h3 className="font-medium text-lg">No hay respuestas pendientes</h3>
+                  <p className="text-muted-foreground text-sm mt-1">
+                    Las nuevas respuestas del bot aparecerán aquí para tu aprobación
+                  </p>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {pendingResponses.map((item) => (
+                    <PendingCard
+                      key={item.id}
+                      item={item}
+                      onApprove={handleApprove}
+                      onDiscard={handleDiscard}
+                      isLoading={isAnyLoading}
+                      isFading={fadingIds.has(item.id)}
+                    />
+                  ))}
+                </div>
+              )}
+            </>
+          ) : (
+            <div className="text-center py-8 bg-secondary/20 rounded-lg">
+              <Bot className="w-12 h-12 mx-auto text-success mb-4" />
+              <h3 className="font-medium text-lg">Bot en piloto automático</h3>
+              <p className="text-muted-foreground text-sm mt-1 max-w-md mx-auto">
+                El bot está respondiendo automáticamente a todos los mensajes.
+                Cambia a Modo Copilot si quieres revisar las respuestas antes de enviarlas.
+              </p>
+            </div>
+          )}
+        </TabsContent>
+
+        {/* Tab: Métricas */}
+        <TabsContent value="metrics" className="mt-4">
+          <MetricsTab />
+        </TabsContent>
+
+        {/* Tab: Comparaciones */}
+        <TabsContent value="comparisons" className="mt-4">
+          <ComparisonsTab />
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }

@@ -600,3 +600,91 @@ async def get_copilot_stats(
         raise HTTPException(status_code=500, detail=str(e))
     finally:
         session.close()
+
+
+# =============================================================================
+# GET /copilot/{creator_id}/comparisons
+# =============================================================================
+@router.get("/{creator_id}/comparisons")
+async def get_copilot_comparisons(
+    creator_id: str,
+    limit: int = 20,
+    offset: int = 0,
+    _auth: str = Depends(require_creator_access),
+):
+    """
+    Get side-by-side comparisons of bot suggestions vs creator edits.
+
+    Returns messages where the creator edited the bot's suggestion,
+    showing original and final text for the split view UI.
+    """
+    from api.database import SessionLocal
+    from api.models import Creator, Lead, Message
+
+    session = SessionLocal()
+    try:
+        creator = session.query(Creator).filter_by(name=creator_id).first()
+        if not creator:
+            raise HTTPException(status_code=404, detail="Creator not found")
+
+        # Get edited messages with their diffs
+        rows = (
+            session.query(
+                Message.id,
+                Message.content,
+                Message.suggested_response,
+                Message.edit_diff,
+                Message.confidence_score,
+                Message.response_time_ms,
+                Message.copilot_action,
+                Message.created_at,
+                Lead.username,
+                Lead.platform,
+                Lead.platform_user_id,
+            )
+            .join(Lead, Message.lead_id == Lead.id)
+            .filter(
+                Lead.creator_id == creator.id,
+                Message.role == "assistant",
+                Message.copilot_action.in_(["edited", "manual_override"]),
+                Message.suggested_response.isnot(None),
+            )
+            .order_by(Message.created_at.desc())
+            .offset(offset)
+            .limit(limit + 1)
+            .all()
+        )
+
+        has_more = len(rows) > limit
+        if has_more:
+            rows = rows[:limit]
+
+        comparisons = []
+        for row in rows:
+            comparisons.append({
+                "message_id": str(row.id),
+                "bot_original": row.suggested_response or "",
+                "creator_final": row.content or "",
+                "action": row.copilot_action,
+                "edit_diff": row.edit_diff,
+                "confidence": row.confidence_score,
+                "response_time_ms": row.response_time_ms,
+                "created_at": row.created_at.isoformat() if row.created_at else "",
+                "username": row.username or "",
+                "platform": row.platform,
+            })
+
+        return {
+            "creator_id": creator_id,
+            "comparisons": comparisons,
+            "count": len(comparisons),
+            "has_more": has_more,
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"[Copilot] Error getting comparisons: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+    finally:
+        session.close()

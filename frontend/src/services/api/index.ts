@@ -31,7 +31,7 @@ import { getBookings, getCalendarStats, getBookingLinks, getCalendlySyncStatus, 
 import { getNurturingSequences, getNurturingFollowups, getNurturingStats, toggleNurturingSequence, updateNurturingSequence, getNurturingEnrolled, cancelNurturing, runNurturing } from './nurturing';
 import { addContent, getKnowledge, getFAQs, addFAQ, deleteFAQ, updateFAQ, getAbout, updateAbout, generateKnowledge, deleteKnowledge } from './knowledge';
 import { getVisualOnboardingStatus, completeVisualOnboarding } from './onboarding';
-import { getCopilotPending, getCopilotStatus, approveCopilotResponse, discardCopilotResponse, toggleCopilotMode, getCopilotNotifications, approveAllCopilot } from './copilot';
+import { getCopilotPending, getCopilotStatus, approveCopilotResponse, discardCopilotResponse, toggleCopilotMode, getCopilotNotifications, approveAllCopilot, getCopilotStats, getCopilotComparisons } from './copilot';
 import { getEscalations } from './leads';
 import { getIntelligenceDashboard, getIntelligencePredictions, getIntelligenceRecommendations, getIntelligencePatterns, getWeeklyReport, generateWeeklyReport } from './intelligence';
 import { apiKeys } from './keys';
@@ -48,7 +48,7 @@ export default {
   addContent, getKnowledge, getFAQs, addFAQ, deleteFAQ, updateFAQ, getAbout, updateAbout, generateKnowledge, deleteKnowledge,
   getVisualOnboardingStatus, completeVisualOnboarding,
   getToneProfile, regenerateToneProfile, getContentStats, testClone,
-  getCopilotPending, getCopilotStatus, approveCopilotResponse, discardCopilotResponse, toggleCopilotMode, getCopilotNotifications, approveAllCopilot,
+  getCopilotPending, getCopilotStatus, approveCopilotResponse, discardCopilotResponse, toggleCopilotMode, getCopilotNotifications, approveAllCopilot, getCopilotStats, getCopilotComparisons,
   getEscalations,
   getIntelligenceDashboard, getIntelligencePredictions, getIntelligenceRecommendations, getIntelligencePatterns, getWeeklyReport, generateWeeklyReport,
   apiKeys, CREATOR_ID, API_URL,

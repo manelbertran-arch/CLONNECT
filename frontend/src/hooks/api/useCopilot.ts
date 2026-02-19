@@ -2,6 +2,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   getCopilotPending, getCopilotStatus, approveCopilotResponse,
   discardCopilotResponse, toggleCopilotMode, approveAllCopilot,
+  getCopilotStats, getCopilotComparisons,
   apiKeys, getCreatorId,
 } from "@/services/api";
 
@@ -102,5 +103,23 @@ export function useApproveAllCopilot(creatorId: string = getCreatorId()) {
       queryClient.invalidateQueries({ queryKey: apiKeys.copilotStatus(creatorId) });
       queryClient.invalidateQueries({ queryKey: apiKeys.conversations(creatorId) });
     },
+  });
+}
+
+export function useCopilotStats(days: number = 30, creatorId: string = getCreatorId()) {
+  return useQuery({
+    queryKey: apiKeys.copilotStats(creatorId, days),
+    queryFn: () => getCopilotStats(creatorId, days),
+    staleTime: 5 * 60 * 1000,
+    gcTime: 10 * 60 * 1000,
+  });
+}
+
+export function useCopilotComparisons(creatorId: string = getCreatorId()) {
+  return useQuery({
+    queryKey: apiKeys.copilotComparisons(creatorId),
+    queryFn: () => getCopilotComparisons(creatorId),
+    staleTime: 5 * 60 * 1000,
+    gcTime: 10 * 60 * 1000,
   });
 }
