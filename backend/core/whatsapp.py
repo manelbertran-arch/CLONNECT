@@ -555,10 +555,37 @@ class WhatsAppHandler:
                 # Process with DM agent
                 response = await self.process_message(message)
 
-                # Send response
-                await self.send_response(message.sender_id, response.response_text)
+                # CRITICAL FIX 2026-02-19: NEVER AUTO-SEND
+                # The bot must NEVER send messages without creator approval.
+                # Save as pending instead of sending directly.
+                logger.warning(
+                    f"[WA] AUTO-SEND BLOCKED - Saving as pending for {message.sender_id}"
+                )
 
-                # Mark as read
+                from core.copilot_service import get_copilot_service
+                copilot = get_copilot_service()
+
+                intent_str = (
+                    response.intent.value
+                    if hasattr(response.intent, "value")
+                    else str(response.intent)
+                )
+
+                pending = await copilot.create_pending_response(
+                    creator_id=self.creator_id,
+                    lead_id="",
+                    follower_id=f"wa_{message.sender_id}",
+                    platform="whatsapp",
+                    user_message=message.text,
+                    user_message_id=message.message_id,
+                    suggested_response=response.response_text,
+                    intent=intent_str,
+                    confidence=response.confidence,
+                    username="",
+                    full_name="",
+                )
+
+                # Mark as read (so user knows we received it)
                 if self.connector:
                     await self.connector.mark_as_read(message.message_id)
 
@@ -568,13 +595,12 @@ class WhatsAppHandler:
                     {
                         "message_id": message.message_id,
                         "sender_id": message.sender_id,
-                        "response": response.response_text,
-                        "intent": (
-                            response.intent.value
-                            if hasattr(response.intent, "value")
-                            else str(response.intent)
-                        ),
+                        "autopilot_blocked": True,
+                        "pending_id": pending.id,
+                        "suggested_response": response.response_text,
+                        "intent": intent_str,
                         "confidence": response.confidence,
+                        "status": "pending_approval",
                     }
                 )
 

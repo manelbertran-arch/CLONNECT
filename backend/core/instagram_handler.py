@@ -495,64 +495,53 @@ class InstagramHandler:
                         }
                     )
                 else:
-                    # AUTOPILOT MODE: Check if creator already responded before sending
-                    creator_already_responded = await self._has_creator_responded_recently(
-                        message.sender_id, window_seconds=300  # 5 minute window
+                    # CRITICAL FIX 2026-02-19: AUTOPILOT MODE DISABLED
+                    # The bot should NEVER send messages without creator approval.
+                    # Even if copilot_mode=False, we save as pending instead of sending.
+                    # This prevents accidental auto-sends that damage creator reputation.
+
+                    logger.warning(
+                        f"[Copilot] AUTOPILOT BLOCKED - copilot_mode=False but auto-send disabled. "
+                        f"Saving as pending for {message.sender_id}"
                     )
 
-                    if creator_already_responded:
-                        # Creator already replied manually, skip bot response
-                        # BUT still save user message to database!
-                        logger.info(
-                            f"[AntiDup] Skipping autopilot response to {message.sender_id} - "
-                            f"creator already responded"
-                        )
+                    from core.copilot_service import get_copilot_service
+                    copilot = get_copilot_service()
 
-                        # Save user message even if bot doesn't respond
-                        await self._save_user_message_to_db(
-                            msg=message,
-                            username=username,
-                            full_name=full_name,
-                        )
+                    pending = await copilot.create_pending_response(
+                        creator_id=self.creator_id,
+                        lead_id="",
+                        follower_id=message.sender_id,
+                        platform="instagram",
+                        user_message=message.text,
+                        user_message_id=message.message_id,
+                        suggested_response=response_text,
+                        intent=intent_str,
+                        confidence=response.confidence,
+                        username=username,
+                        full_name=full_name,
+                    )
 
-                        results.append(
-                            {
-                                "message_id": message.message_id,
-                                "sender_id": message.sender_id,
-                                "copilot_mode": False,
-                                "status": "skipped_creator_responded",
-                                "reason": "Creator already responded manually",
-                            }
-                        )
-                    else:
-                        # AUTOPILOT MODE: Send response immediately
-                        await self.send_response(message.sender_id, response.response_text)
-                        self._record_response(message, response)
+                    # Save user message to DB
+                    await self._save_user_message_to_db(
+                        msg=message,
+                        username=username,
+                        full_name=full_name,
+                    )
 
-                        # CRITICAL FIX: Save messages to database
-                        # Without this, messages only exist in memory and are lost!
-                        await self._save_messages_to_db(
-                            msg=message,
-                            response=response,
-                            username=username,
-                            full_name=full_name,
-                        )
-
-                        results.append(
-                            {
-                                "message_id": message.message_id,
-                                "sender_id": message.sender_id,
-                                "copilot_mode": False,
-                                "response": response.response_text,
-                                "intent": (
-                                    response.intent.value
-                                    if hasattr(response.intent, "value")
-                                    else str(response.intent)
-                                ),
-                                "confidence": response.confidence,
-                                "status": "sent",
-                            }
-                        )
+                    results.append(
+                        {
+                            "message_id": message.message_id,
+                            "sender_id": message.sender_id,
+                            "copilot_mode": False,
+                            "autopilot_blocked": True,
+                            "pending_id": pending.id,
+                            "suggested_response": response_text,
+                            "intent": intent_str,
+                            "confidence": response.confidence,
+                            "status": "pending_approval",
+                        }
+                    )
 
             except Exception as e:
                 import traceback

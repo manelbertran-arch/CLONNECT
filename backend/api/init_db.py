@@ -398,11 +398,11 @@ def init_database():
                 clone_tone="professional",
                 clone_name="Stefano Bonanno",
                 bot_active=True,
-                copilot_mode=False,  # Default to autopilot (bot responds automatically)
+                copilot_mode=True,  # CRITICAL FIX: Always copilot mode - bot must never auto-send
             )
             session.add(stefano)
             session.commit()
-            logger.info("Creator 'stefano_auto' created with copilot_mode=False (autopilot)")
+            logger.info("Creator 'stefano_auto' created with copilot_mode=True (manual approval required)")
         else:
             # Don't override existing copilot_mode setting
             # The user can toggle this via the API
@@ -413,7 +413,46 @@ def init_database():
         # Create demo user for Stefano
         create_demo_user(session)
 
+        # CRITICAL FIX 2026-02-19: Force copilot_mode=True for ALL creators
+        # The bot must NEVER auto-send messages without creator approval.
+        # This prevents incidents like the Andrea AS auto-send.
+        force_copilot_mode_all_creators(session)
+
     return True
+
+
+def force_copilot_mode_all_creators(session):
+    """
+    CRITICAL FIX: Force copilot_mode=True for ALL existing creators.
+
+    The bot must NEVER send messages without explicit creator approval.
+    This function runs on every startup to ensure no creator has auto-send enabled.
+    """
+    try:
+        from api.models import Creator
+    except ImportError:
+        from models import Creator
+
+    # Find all creators with copilot_mode=False or NULL
+    creators_to_fix = session.query(Creator).filter(
+        (Creator.copilot_mode == False) | (Creator.copilot_mode.is_(None))
+    ).all()
+
+    if creators_to_fix:
+        for creator in creators_to_fix:
+            logger.warning(
+                f"[SECURITY] Forcing copilot_mode=True for '{creator.name}' "
+                f"(was: {creator.copilot_mode})"
+            )
+            creator.copilot_mode = True
+
+        session.commit()
+        logger.warning(
+            f"[SECURITY] Forced copilot_mode=True for {len(creators_to_fix)} creators. "
+            f"Auto-send is now disabled for all creators."
+        )
+    else:
+        logger.info("[SECURITY] All creators already have copilot_mode=True")
 
 
 def create_demo_user(session):
