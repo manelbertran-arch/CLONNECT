@@ -254,6 +254,93 @@ class TestEmptyQueue:
         assert result is False
 
 
+class TestEditDiffCalculation:
+    """Test 6: Edit diff calculation for copilot tracking."""
+
+    def test_empty_inputs(self):
+        """Empty or None inputs return zero diff."""
+        service = CopilotService()
+        assert service._calculate_edit_diff("", "") == {"length_delta": 0, "categories": []}
+        assert service._calculate_edit_diff(None, "hi") == {"length_delta": 0, "categories": []}
+        assert service._calculate_edit_diff("hi", None) == {"length_delta": 0, "categories": []}
+
+    def test_shortened(self):
+        """Significant shortening is categorized."""
+        service = CopilotService()
+        result = service._calculate_edit_diff(
+            "This is a long response with many words",
+            "Short reply",
+        )
+        assert "shortened" in result["categories"]
+        assert result["length_delta"] < 0
+
+    def test_lengthened(self):
+        """Significant lengthening is categorized."""
+        service = CopilotService()
+        result = service._calculate_edit_diff(
+            "Short",
+            "This is a much longer response added by the creator",
+        )
+        assert "lengthened" in result["categories"]
+        assert result["length_delta"] > 0
+
+    def test_removed_question(self):
+        """Removing a question mark is detected."""
+        service = CopilotService()
+        result = service._calculate_edit_diff(
+            "Hola! Te interesa el curso? Contame",
+            "Hola! Te interesa el curso. Contame",
+        )
+        assert "removed_question" in result["categories"]
+
+    def test_removed_emoji(self):
+        """Removing emojis is detected."""
+        service = CopilotService()
+        result = service._calculate_edit_diff(
+            "Hola! 😊 Bienvenido 🎉",
+            "Hola! Bienvenido",
+        )
+        assert "removed_emoji" in result["categories"]
+
+    def test_added_emoji(self):
+        """Adding emojis is detected."""
+        service = CopilotService()
+        result = service._calculate_edit_diff(
+            "Hola! Bienvenido",
+            "Hola! 😊 Bienvenido",
+        )
+        assert "added_emoji" in result["categories"]
+
+    def test_complete_rewrite(self):
+        """Completely different text is a complete_rewrite."""
+        service = CopilotService()
+        result = service._calculate_edit_diff(
+            "El programa incluye mentoria grupal semanal",
+            "Gracias por escribirnos, te envio toda la info",
+        )
+        assert "complete_rewrite" in result["categories"]
+
+    def test_minor_edit_no_categories(self):
+        """Minor edits (same length, similar words) produce no categories."""
+        service = CopilotService()
+        result = service._calculate_edit_diff(
+            "Hola, el curso cuesta 297 euros",
+            "Hola, el curso cuesta 300 euros",
+        )
+        assert result["categories"] == [] or "major_edit" not in result["categories"]
+
+    def test_diff_has_length_fields(self):
+        """Diff always includes length stats."""
+        service = CopilotService()
+        result = service._calculate_edit_diff("abc", "abcdef")
+        assert "length_delta" in result
+        assert "original_length" in result
+        assert "edited_length" in result
+        assert result["original_length"] == 3
+        assert result["edited_length"] == 6
+        assert result["length_delta"] == 3
+
+
 class TestDedupChecks:
     """Test 6: Dedup logic in create_pending_response."""
 

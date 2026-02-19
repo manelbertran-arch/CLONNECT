@@ -9,6 +9,8 @@ Endpoints:
 - GET /copilot/{creator_id}/status - Estado del modo copilot
 - PUT /copilot/{creator_id}/toggle - Activar/desactivar modo copilot
 - GET /copilot/{creator_id}/notifications - Notificaciones en tiempo real (polling)
+- POST /copilot/{creator_id}/manual/{lead_id} - Track manual response (creator writes from scratch)
+- GET /copilot/{creator_id}/stats - Copilot action statistics
 """
 
 import logging
@@ -30,6 +32,12 @@ class ApproveRequest(BaseModel):
 
 class ToggleRequest(BaseModel):
     enabled: bool
+
+
+class ManualResponseRequest(BaseModel):
+    """Body for manual response tracking (creator writes from scratch)."""
+    content: str
+    response_time_ms: Optional[int] = None
 
 
 # =============================================================================
@@ -401,3 +409,194 @@ async def approve_all_pending(creator_id: str, _auth: str = Depends(require_crea
             results["errors"].append({"message_id": item["id"], "error": result.get("error")})
 
     return {"creator_id": creator_id, "results": results}
+
+
+# =============================================================================
+# POST /copilot/{creator_id}/manual/{lead_id}
+# =============================================================================
+@router.post("/{creator_id}/manual/{lead_id}")
+async def track_manual_response(
+    creator_id: str,
+    lead_id: str,
+    body: ManualResponseRequest,
+    _auth: str = Depends(require_creator_access),
+):
+    """
+    Track when creator writes a manual response from scratch (bypassing bot suggestion).
+
+    This records copilot_action='manual_override' on the sent message
+    so the autolearning engine can compare manual vs bot patterns.
+    """
+    from api.database import SessionLocal
+    from api.models import Lead, Message
+
+    session = SessionLocal()
+    try:
+        lead = session.query(Lead).filter_by(id=lead_id).first()
+        if not lead:
+            raise HTTPException(status_code=404, detail="Lead not found")
+
+        now = datetime.now(timezone.utc)
+
+        # Discard any existing pending_approval for this lead (creator chose manual)
+        existing_pending = (
+            session.query(Message)
+            .filter(
+                Message.lead_id == lead.id,
+                Message.role == "assistant",
+                Message.status == "pending_approval",
+            )
+            .first()
+        )
+
+        original_suggestion = None
+        if existing_pending:
+            original_suggestion = existing_pending.content
+            existing_pending.status = "discarded"
+            existing_pending.approved_at = now
+            existing_pending.approved_by = "creator"
+            existing_pending.copilot_action = "discarded"
+            if existing_pending.created_at:
+                delta = now - existing_pending.created_at
+                existing_pending.response_time_ms = int(delta.total_seconds() * 1000)
+
+        # Record the manual message with copilot_action tracking
+        from core.copilot_service import get_copilot_service
+
+        service = get_copilot_service()
+        edit_diff = None
+        if original_suggestion:
+            edit_diff = service._calculate_edit_diff(original_suggestion, body.content)
+
+        manual_msg = Message(
+            lead_id=lead.id,
+            role="assistant",
+            content=body.content,
+            status="sent",
+            copilot_action="manual_override",
+            response_time_ms=body.response_time_ms,
+            edit_diff=edit_diff,
+        )
+        session.add(manual_msg)
+        session.commit()
+
+        logger.info(
+            f"[Copilot] Manual response tracked for lead {lead_id} by {creator_id}"
+        )
+
+        return {
+            "success": True,
+            "message_id": str(manual_msg.id),
+            "had_pending_suggestion": original_suggestion is not None,
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"[Copilot] Error tracking manual response: {e}")
+        session.rollback()
+        raise HTTPException(status_code=500, detail=str(e))
+    finally:
+        session.close()
+
+
+# =============================================================================
+# GET /copilot/{creator_id}/stats
+# =============================================================================
+@router.get("/{creator_id}/stats")
+async def get_copilot_stats(
+    creator_id: str,
+    days: int = 30,
+    _auth: str = Depends(require_creator_access),
+):
+    """
+    Get copilot action statistics for a creator.
+
+    Returns approval/edit/discard/manual rates and average response times.
+    Used by the autolearning engine and the frontend metrics dashboard.
+    """
+    from datetime import timedelta
+
+    from sqlalchemy import case, func
+
+    from api.database import SessionLocal
+    from api.models import Creator, Lead, Message
+
+    session = SessionLocal()
+    try:
+        creator = session.query(Creator).filter_by(name=creator_id).first()
+        if not creator:
+            raise HTTPException(status_code=404, detail="Creator not found")
+
+        since = datetime.now(timezone.utc) - timedelta(days=days)
+
+        # Aggregate copilot actions
+        stats = (
+            session.query(
+                func.count().label("total"),
+                func.count(case((Message.copilot_action == "approved", 1))).label("approved"),
+                func.count(case((Message.copilot_action == "edited", 1))).label("edited"),
+                func.count(case((Message.copilot_action == "discarded", 1))).label("discarded"),
+                func.count(case((Message.copilot_action == "manual_override", 1))).label("manual"),
+                func.avg(Message.response_time_ms).label("avg_response_time_ms"),
+                func.avg(Message.confidence_score).label("avg_confidence"),
+            )
+            .join(Lead, Message.lead_id == Lead.id)
+            .filter(
+                Lead.creator_id == creator.id,
+                Message.role == "assistant",
+                Message.copilot_action.isnot(None),
+                Message.created_at >= since,
+            )
+            .first()
+        )
+
+        total = stats.total or 0
+        approved = stats.approved or 0
+        edited = stats.edited or 0
+        discarded = stats.discarded or 0
+        manual = stats.manual or 0
+
+        # Edit category breakdown
+        edit_categories = (
+            session.query(Message.edit_diff)
+            .join(Lead, Message.lead_id == Lead.id)
+            .filter(
+                Lead.creator_id == creator.id,
+                Message.copilot_action == "edited",
+                Message.edit_diff.isnot(None),
+                Message.created_at >= since,
+            )
+            .all()
+        )
+
+        category_counts = {}
+        for (diff,) in edit_categories:
+            if isinstance(diff, dict):
+                for cat in diff.get("categories", []):
+                    category_counts[cat] = category_counts.get(cat, 0) + 1
+
+        return {
+            "creator_id": creator_id,
+            "period_days": days,
+            "total_actions": total,
+            "approved": approved,
+            "edited": edited,
+            "discarded": discarded,
+            "manual_override": manual,
+            "approval_rate": round(approved / total, 3) if total else 0,
+            "edit_rate": round(edited / total, 3) if total else 0,
+            "discard_rate": round(discarded / total, 3) if total else 0,
+            "manual_rate": round(manual / total, 3) if total else 0,
+            "avg_response_time_ms": round(stats.avg_response_time_ms) if stats.avg_response_time_ms else None,
+            "avg_confidence": round(float(stats.avg_confidence), 3) if stats.avg_confidence else None,
+            "edit_categories": category_counts,
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"[Copilot] Error getting stats: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+    finally:
+        session.close()

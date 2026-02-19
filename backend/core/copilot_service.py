@@ -90,6 +90,57 @@ class CopilotService:
             return "warm"
         return "new"
 
+    def _calculate_edit_diff(self, original: str, edited: str) -> dict:
+        """Calculate diff between original suggestion and creator's edit."""
+        if not original or not edited:
+            return {"length_delta": 0, "categories": []}
+
+        categories = []
+        length_delta = len(edited) - len(original)
+
+        if length_delta < -10:
+            categories.append("shortened")
+        elif length_delta > 10:
+            categories.append("lengthened")
+
+        # Check if questions were removed
+        orig_questions = original.count("?")
+        edit_questions = edited.count("?")
+        if orig_questions > edit_questions:
+            categories.append("removed_question")
+
+        # Check if emojis were removed
+        import re
+        emoji_pattern = re.compile(
+            "[\U0001F600-\U0001F64F\U0001F300-\U0001F5FF"
+            "\U0001F680-\U0001F6FF\U0001F900-\U0001F9FF"
+            "\U00002600-\U000027BF\U0001FA00-\U0001FA6F]+",
+            flags=re.UNICODE,
+        )
+        orig_emojis = len(emoji_pattern.findall(original))
+        edit_emojis = len(emoji_pattern.findall(edited))
+        if orig_emojis > edit_emojis:
+            categories.append("removed_emoji")
+        elif edit_emojis > orig_emojis:
+            categories.append("added_emoji")
+
+        # Check for complete rewrite (low similarity)
+        orig_words = set(original.lower().split())
+        edit_words = set(edited.lower().split())
+        if orig_words and edit_words:
+            overlap = len(orig_words & edit_words) / max(len(orig_words), len(edit_words))
+            if overlap < 0.3:
+                categories.append("complete_rewrite")
+            elif overlap < 0.6:
+                categories.append("major_edit")
+
+        return {
+            "length_delta": length_delta,
+            "original_length": len(original),
+            "edited_length": len(edited),
+            "categories": categories,
+        }
+
     async def create_pending_response(
         self,
         creator_id: str,
@@ -295,6 +346,7 @@ class CopilotService:
                 suggested_response=suggested_response,  # Guardar original
                 status="pending_approval",
                 intent=intent,
+                confidence_score=confidence,
             )
             session.add(bot_msg)
             session.commit()
@@ -475,14 +527,25 @@ class CopilotService:
                 return {"success": False, "error": send_result.get("error", "Failed to send")}
 
             # Actualizar mensaje en DB
+            now = datetime.now(timezone.utc)
             msg.content = final_text
             msg.status = "edited" if was_edited else "sent"
-            msg.approved_at = datetime.now(timezone.utc)
+            msg.approved_at = now
             msg.approved_by = "creator"
             msg.platform_message_id = send_result.get("message_id")
 
+            # Copilot tracking (Phase 2)
+            msg.copilot_action = "edited" if was_edited else "approved"
+            if msg.created_at:
+                delta = now - msg.created_at
+                msg.response_time_ms = int(delta.total_seconds() * 1000)
+            if was_edited and msg.suggested_response:
+                msg.edit_diff = self._calculate_edit_diff(
+                    msg.suggested_response, final_text
+                )
+
             # Actualizar last_contact del lead
-            lead.last_contact_at = datetime.now(timezone.utc)
+            lead.last_contact_at = now
 
             session.commit()
 
@@ -562,15 +625,22 @@ class CopilotService:
             if not msg:
                 return {"success": False, "error": "Message not found"}
 
+            now = datetime.now(timezone.utc)
             msg.status = "discarded"
-            msg.approved_at = datetime.now(timezone.utc)
+            msg.approved_at = now
             msg.approved_by = "creator"
+
+            # Copilot tracking (Phase 2)
+            msg.copilot_action = "discarded"
+            if msg.created_at:
+                delta = now - msg.created_at
+                msg.response_time_ms = int(delta.total_seconds() * 1000)
 
             # A10: Persist discard_reason in msg_metadata (no migration needed)
             if discard_reason:
                 meta = msg.msg_metadata or {}
                 meta["discard_reason"] = discard_reason
-                meta["discarded_at"] = datetime.now(timezone.utc).isoformat()
+                meta["discarded_at"] = now.isoformat()
                 msg.msg_metadata = meta
 
             session.commit()

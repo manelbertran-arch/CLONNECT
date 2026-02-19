@@ -272,6 +272,11 @@ class Message(Base):
     msg_metadata = Column(
         JSON, default=dict
     )  # {type: "story_mention", url: "...", emoji_type: "camera"}
+    # Copilot autolearning tracking (Phase 2)
+    copilot_action = Column(String(30))  # approved, edited, discarded, manual_override
+    edit_diff = Column(JSON)  # {length_delta, categories: [shortened, removed_question, ...]}
+    confidence_score = Column(Float)  # Bot confidence for this suggestion (0.0-1.0)
+    response_time_ms = Column(Integer)  # ms between suggestion created and creator action
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
 
