@@ -296,6 +296,38 @@ class CopilotEvaluation(Base):
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
 
+class LearningRule(Base):
+    """Autolearning rules extracted from creator copilot actions.
+
+    Each rule represents a behavioral correction the bot should apply
+    when generating responses for similar contexts.
+    """
+    __tablename__ = "learning_rules"
+    __table_args__ = (
+        Index("idx_learning_rules_creator_active", "creator_id", "is_active"),
+        Index("idx_learning_rules_pattern", "pattern"),
+        {"extend_existing": True},
+    )
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    creator_id = Column(UUID(as_uuid=True), ForeignKey("creators.id"), nullable=False)
+    rule_text = Column(Text, nullable=False)
+    pattern = Column(String(50), nullable=False)
+    applies_to_relationship_types = Column(JSONB, default=list)
+    applies_to_message_types = Column(JSONB, default=list)
+    applies_to_lead_stages = Column(JSONB, default=list)
+    example_bad = Column(Text, nullable=True)
+    example_good = Column(Text, nullable=True)
+    confidence = Column(Float, default=0.5)
+    times_applied = Column(Integer, default=0)
+    times_helped = Column(Integer, default=0)
+    source_message_id = Column(UUID(as_uuid=True), nullable=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    is_active = Column(Boolean, default=True)
+    superseded_by = Column(UUID(as_uuid=True), ForeignKey("learning_rules.id"), nullable=True)
+    version = Column(Integer, default=1)
+
+
 class Product(Base):
     __tablename__ = "products"
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)

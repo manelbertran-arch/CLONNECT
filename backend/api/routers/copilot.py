@@ -564,6 +564,29 @@ async def track_manual_response(
         session.add(manual_msg)
         session.commit()
 
+        # Autolearning hook: fire-and-forget rule extraction from manual override
+        try:
+            import asyncio as _aio
+            from api.models import Creator as _Cr
+            from services.autolearning_analyzer import analyze_creator_action
+
+            _creator = session.query(_Cr).filter_by(name=creator_id).first()
+            if _creator:
+                _aio.create_task(analyze_creator_action(
+                    action="manual_override",
+                    creator_id=creator_id,
+                    creator_db_id=_creator.id,
+                    suggested_response=original_suggestion,
+                    final_response=body.content,
+                    edit_diff=edit_diff,
+                    intent=None,
+                    lead_stage=lead.status,
+                    relationship_type=getattr(lead, "relationship_type", None),
+                    source_message_id=manual_msg.id,
+                ))
+        except Exception as learn_err:
+            logger.debug(f"[Copilot] Autolearning manual hook failed: {learn_err}")
+
         logger.info(
             f"[Copilot] Manual response tracked for lead {lead_id} by {creator_id}"
         )

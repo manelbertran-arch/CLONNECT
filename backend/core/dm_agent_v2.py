@@ -132,6 +132,7 @@ ENABLE_VOCABULARY_EXTRACTION = os.getenv("ENABLE_VOCABULARY_EXTRACTION", "true")
 ENABLE_SELF_CONSISTENCY = os.getenv("ENABLE_SELF_CONSISTENCY", "false").lower() == "true"
 ENABLE_FINETUNED_MODEL = os.getenv("ENABLE_FINETUNED_MODEL", "false").lower() == "true"
 USE_SCOUT_MODEL = os.getenv("USE_SCOUT_MODEL", "true").lower() == "true"
+ENABLE_LEARNING_RULES = os.getenv("ENABLE_LEARNING_RULES", "false").lower() == "true"
 
 logger = logging.getLogger(__name__)
 
@@ -1086,6 +1087,47 @@ class DMResponderAgentV2:
                 cognitive_metadata["response_strategy"] = strategy_hint.split(".")[0]
                 logger.info(f"[STRATEGY] {strategy_hint.split('.')[0]}")
 
+            # Step 5c: Load learning rules (autolearning feedback loop)
+            learning_rules_section = ""
+            if ENABLE_LEARNING_RULES:
+                try:
+                    from services.learning_rules_service import get_applicable_rules
+
+                    def _load_rules():
+                        from api.database import SessionLocal
+                        from api.models import Creator
+                        _s = SessionLocal()
+                        try:
+                            _c = _s.query(Creator.id).filter_by(name=self.creator_id).first()
+                            if not _c:
+                                return []
+                            return get_applicable_rules(
+                                _c[0], intent=intent_value,
+                                relationship_type=_rel_type,
+                                lead_stage=current_stage,
+                            )
+                        finally:
+                            _s.close()
+
+                    _learning_rules = await asyncio.to_thread(_load_rules)
+                    if _learning_rules:
+                        lines = []
+                        for r in _learning_rules:
+                            lines.append(f"- {r['rule_text']}")
+                            if r.get("example_bad"):
+                                lines.append(f'  NO: "{r["example_bad"]}"')
+                            if r.get("example_good"):
+                                lines.append(f'  SI: "{r["example_good"]}"')
+                        learning_rules_section = (
+                            "=== REGLAS APRENDIDAS (del propio creador) ===\n"
+                            + "\n".join(lines) + "\n"
+                            "=== FIN REGLAS ==="
+                        )
+                        cognitive_metadata["learning_rules_applied"] = len(_learning_rules)
+                        logger.info(f"[LEARNING] Injected {len(_learning_rules)} rules for {sender_id}")
+                except Exception as lr_err:
+                    logger.debug(f"[LEARNING] Rule loading failed: {lr_err}")
+
             # Step 6: Build full prompt with bot_instructions + strategy + frustration
             prompt_parts = [user_context]
             if _bot_instructions:
@@ -1094,6 +1136,8 @@ class DMResponderAgentV2:
                     f"{_bot_instructions}\n"
                     "=== FIN INSTRUCCIONES ==="
                 )
+            if learning_rules_section:
+                prompt_parts.append(learning_rules_section)
             if strategy_hint:
                 prompt_parts.append(strategy_hint)
             if frustration_level > 0.5:

@@ -567,6 +567,52 @@ def register_startup_handlers(app: "FastAPI"):
         asyncio.create_task(start_copilot_weekly_recal_scheduler())
         logger.info("Copilot weekly recalibration scheduler scheduled (every 7d, 450s delay)")
 
+        # JOB 18: Learning rule consolidation (24h, 510s delay, ENABLE_LEARNING_CONSOLIDATION)
+        async def start_learning_consolidation_scheduler():
+            enable = os.getenv("ENABLE_LEARNING_CONSOLIDATION", "false").lower() == "true"
+            await asyncio.sleep(510)
+            if not enable:
+                logger.info("[LEARNING_CONSOLIDATION] Disabled via env var")
+                return
+            logger.info("[LEARNING_CONSOLIDATION] Scheduler started — runs every 24h")
+
+            while True:
+                try:
+                    from api.models import Creator
+                    from services.learning_consolidator import consolidate_rules_for_creator
+
+                    session = SessionLocal()
+                    try:
+                        creators = (
+                            session.query(Creator.id, Creator.name)
+                            .filter(Creator.bot_active.is_(True))
+                            .all()
+                        )
+                        for creator_db_id, creator_name in creators:
+                            try:
+                                result = await consolidate_rules_for_creator(
+                                    creator_name, creator_db_id
+                                )
+                                if result.get("status") == "done":
+                                    logger.info(
+                                        f"[LEARNING_CONSOLIDATION] {creator_name}: "
+                                        f"consolidated={result.get('consolidated', 0)} "
+                                        f"deactivated={result.get('deactivated', 0)}"
+                                    )
+                            except Exception as creator_err:
+                                logger.error(
+                                    f"[LEARNING_CONSOLIDATION] Error for {creator_name}: {creator_err}"
+                                )
+                    finally:
+                        session.close()
+                except Exception as e:
+                    logger.error(f"[LEARNING_CONSOLIDATION] Scheduler error: {e}")
+
+                await asyncio.sleep(86400)  # 24 hours
+
+        asyncio.create_task(start_learning_consolidation_scheduler())
+        logger.info("Learning consolidation scheduler scheduled (every 24h, 510s delay)")
+
         logger.info("Message reconciliation on startup DISABLED (use /maintenance/reconcile)")
 
         # Hydrate RAG from PostgreSQL
