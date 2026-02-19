@@ -736,6 +736,81 @@ def register_startup_handlers(app: "FastAPI"):
                 "Pending approval expiry job scheduled (every 1h, 450s delay)"
             )
 
+        # Job 17: Instagram token expiry warning (daily)
+        enable_token_expiry_check = os.getenv(
+            "ENABLE_TOKEN_EXPIRY_CHECK", "true"
+        ).lower() == "true"
+        if enable_token_expiry_check:
+
+            async def start_token_expiry_check():
+                await asyncio.sleep(480)  # 8 min after boot
+                while True:
+                    try:
+                        from datetime import timedelta
+
+                        from api.database import SessionLocal as _SL17
+                        from api.models import Creator
+
+                        session = _SL17()
+                        try:
+                            creators = (
+                                session.query(Creator)
+                                .filter(
+                                    Creator.instagram_token.isnot(None),
+                                    Creator.instagram_token_expires_at.isnot(None),
+                                    Creator.bot_active.is_(True),
+                                )
+                                .all()
+                            )
+                            now = datetime.now(timezone.utc)
+                            for c in creators:
+                                expires = c.instagram_token_expires_at
+                                if expires.tzinfo is None:
+                                    from datetime import timezone as _tz
+
+                                    expires = expires.replace(tzinfo=_tz.utc)
+                                days_left = (expires - now).days
+                                if days_left <= 0:
+                                    from core.alerts import get_alert_manager
+
+                                    mgr = get_alert_manager()
+                                    await mgr.critical(
+                                        title=f"Token IG EXPIRADO: {c.name}",
+                                        message=f"El token de Instagram de {c.name} ha expirado. Bot detenido.",
+                                        source="token_expiry_check",
+                                    )
+                                elif days_left <= 3:
+                                    from core.alerts import get_alert_manager
+
+                                    mgr = get_alert_manager()
+                                    await mgr.critical(
+                                        title=f"URGENTE: Token IG de {c.name} expira en {days_left} dias",
+                                        message=f"El token de Instagram de {c.name} expira en {days_left} dias. Renovar ASAP.",
+                                        source="token_expiry_check",
+                                    )
+                                elif days_left <= 14:
+                                    from core.alerts import get_alert_manager
+
+                                    mgr = get_alert_manager()
+                                    await mgr.warning(
+                                        title=f"Token IG de {c.name} expira en {days_left} dias",
+                                        message=f"Token de Instagram de {c.name} expira el {expires.strftime('%Y-%m-%d')}. Planificar renovacion.",
+                                        source="token_expiry_check",
+                                    )
+                                    logger.info(
+                                        f"[B11] Token expiry warning: {c.name} expires in {days_left} days"
+                                    )
+                        finally:
+                            session.close()
+                    except Exception as e:
+                        logger.error(f"[B11] Token expiry check error: {e}")
+                    await asyncio.sleep(86400)  # 24 hours
+
+            asyncio.create_task(start_token_expiry_check())
+            logger.info(
+                "Instagram token expiry check scheduled (daily, 480s delay)"
+            )
+
         logger.info("Ready to receive requests!")
 
 
