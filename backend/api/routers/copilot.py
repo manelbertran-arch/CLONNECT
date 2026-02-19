@@ -688,3 +688,23 @@ async def get_copilot_comparisons(
         raise HTTPException(status_code=500, detail=str(e))
     finally:
         session.close()
+
+
+# =============================================================================
+# GET /copilot/{creator_id}/historical-rates
+# =============================================================================
+@router.get("/{creator_id}/historical-rates")
+async def get_historical_rates(
+    creator_id: str,
+    _auth: str = Depends(require_creator_access),
+):
+    """
+    Get historical approval rates per intent for confidence calibration.
+
+    Used by the autolearning engine to adjust confidence thresholds
+    based on how the creator has historically acted on each intent type.
+    """
+    from core.confidence_scorer import get_historical_rates
+
+    result = get_historical_rates(creator_id)
+    return {"creator_id": creator_id, **result}

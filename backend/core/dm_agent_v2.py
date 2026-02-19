@@ -1207,11 +1207,24 @@ class DMResponderAgentV2:
             )
             # A4: Include model/provider/latency in metadata for auditing
             llm_meta = llm_response.metadata or {}
+
+            # Confidence scoring (multi-factor)
+            try:
+                from core.confidence_scorer import calculate_confidence
+                scored_confidence = calculate_confidence(
+                    intent=intent_value,
+                    response_text=formatted_content,
+                    response_type="llm_generation",
+                    creator_id=self.creator_id,
+                )
+            except Exception:
+                scored_confidence = 0.7
+
             return DMResponse(
                 content=formatted_content,
                 intent=intent_value,
                 lead_stage=new_stage.value if hasattr(new_stage, "value") else str(new_stage),
-                confidence=0.9,  # Default confidence
+                confidence=scored_confidence,
                 tokens_used=llm_response.tokens_used,
                 metadata={
                     "model": llm_response.model,
