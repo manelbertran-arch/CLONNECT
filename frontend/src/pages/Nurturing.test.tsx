@@ -244,8 +244,8 @@ describe("Nurturing Page", () => {
       refetch: vi.fn(),
     } as any);
 
-    render(<Nurturing />);
-    const loader = document.querySelector(".animate-spin");
+    const { container } = render(<Nurturing />);
+    const loader = container.querySelector(".animate-pulse") || container.querySelector(".animate-spin");
     expect(loader).toBeInTheDocument();
   });
 

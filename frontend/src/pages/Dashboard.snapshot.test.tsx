@@ -32,6 +32,7 @@ vi.mock("@/hooks/useApi", () => ({
   })),
   useToggleBot: vi.fn(() => ({ mutate: vi.fn(), isPending: false })),
   useRevenue: vi.fn(() => ({ data: mockRevenueData, isLoading: false })),
+  useEscalations: vi.fn(() => ({ data: { escalations: [], count: 0 }, isLoading: false })),
 }));
 
 describe("Dashboard Snapshots", () => {

@@ -63,24 +63,66 @@ exports[`Settings Snapshots > renders settings error state - snapshot 1`] = `
 exports[`Settings Snapshots > renders settings loading state - snapshot 1`] = `
 <div>
   <div
-    class="flex items-center justify-center h-[60vh]"
+    class="space-y-6 animate-pulse"
   >
-    <svg
-      class="lucide lucide-loader-circle w-8 h-8 animate-spin text-primary"
-      fill="none"
-      height="24"
-      stroke="currentColor"
-      stroke-linecap="round"
-      stroke-linejoin="round"
-      stroke-width="2"
-      viewBox="0 0 24 24"
-      width="24"
-      xmlns="http://www.w3.org/2000/svg"
-    >
-      <path
-        d="M21 12a9 9 0 1 1-6.219-8.56"
+    <div>
+      <div
+        class="h-7 w-28 bg-muted/40 rounded mb-2"
       />
-    </svg>
+      <div
+        class="h-4 w-56 bg-muted/30 rounded"
+      />
+    </div>
+    <div
+      class="flex gap-2"
+    >
+      <div
+        class="h-9 w-24 bg-muted/20 rounded-lg"
+      />
+      <div
+        class="h-9 w-24 bg-muted/20 rounded-lg"
+      />
+      <div
+        class="h-9 w-24 bg-muted/20 rounded-lg"
+      />
+      <div
+        class="h-9 w-24 bg-muted/20 rounded-lg"
+      />
+    </div>
+    <div
+      class="space-y-4"
+    >
+      <div
+        class="p-6 rounded-2xl bg-muted/15 border border-border/20"
+      >
+        <div
+          class="h-5 w-32 bg-muted/30 rounded mb-4"
+        />
+        <div
+          class="space-y-3"
+        >
+          <div
+            class="h-10 bg-muted/20 rounded-lg"
+          />
+          <div
+            class="h-10 bg-muted/20 rounded-lg"
+          />
+          <div
+            class="h-24 bg-muted/20 rounded-lg"
+          />
+        </div>
+      </div>
+      <div
+        class="p-6 rounded-2xl bg-muted/15 border border-border/20"
+      >
+        <div
+          class="h-5 w-40 bg-muted/30 rounded mb-4"
+        />
+        <div
+          class="h-32 bg-muted/20 rounded-lg"
+        />
+      </div>
+    </div>
   </div>
   <div
     aria-label="Notifications (F8)"
@@ -290,150 +332,217 @@ exports[`Settings Snapshots > renders settings page - snapshot 1`] = `
         tabindex="0"
       >
         <div
-          class="p-5 rounded-2xl bg-card border border-border/50"
+          class="space-y-6"
         >
-          <label
-            class="peer-disabled:cursor-not-allowed peer-disabled:opacity-70 text-sm font-medium mb-3 block"
-            for="botName"
-          >
-            Nombre del bot
-          </label>
-          <input
-            class="flex h-10 w-full rounded-md border px-3 py-2 text-base ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium file:text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 md:text-sm bg-muted/30 border-border/30"
-            id="botName"
-            placeholder="Tu nombre o marca"
-            value="Test Bot"
-          />
-        </div>
-        <div
-          class="p-5 rounded-2xl bg-card border border-border/50"
-        >
-          <h3
-            class="text-sm font-medium mb-1"
-          >
-            Estilo de comunicación
-          </h3>
-          <p
-            class="text-xs text-muted-foreground mb-4"
-          >
-            Elige un estilo base
-          </p>
           <div
-            class="grid grid-cols-2 sm:grid-cols-4 gap-3"
+            class="p-5 rounded-2xl bg-card border border-border/50"
           >
-            <button
-              class="p-4 rounded-xl border text-center transition-all border-border/30 hover:border-border"
+            <label
+              class="peer-disabled:cursor-not-allowed peer-disabled:opacity-70 text-sm font-medium mb-3 block"
+              for="botName"
             >
-              <span
-                class="text-xl block mb-2"
-              >
-                😊
-              </span>
-              <span
-                class="text-xs font-medium"
-              >
-                Amigo
-              </span>
-            </button>
-            <button
-              class="p-4 rounded-xl border text-center transition-all border-border/30 hover:border-border"
-            >
-              <span
-                class="text-xl block mb-2"
-              >
-                🎓
-              </span>
-              <span
-                class="text-xs font-medium"
-              >
-                Mentor
-              </span>
-            </button>
-            <button
-              class="p-4 rounded-xl border text-center transition-all border-border/30 hover:border-border"
-            >
-              <span
-                class="text-xl block mb-2"
-              >
-                🎯
-              </span>
-              <span
-                class="text-xs font-medium"
-              >
-                Vendedor
-              </span>
-            </button>
-            <button
-              class="p-4 rounded-xl border text-center transition-all border-border/30 hover:border-border"
-            >
-              <span
-                class="text-xl block mb-2"
-              >
-                💼
-              </span>
-              <span
-                class="text-xs font-medium"
-              >
-                Profesional
-              </span>
-            </button>
+              Nombre del bot
+            </label>
+            <input
+              class="flex h-10 w-full rounded-md border px-3 py-2 text-base ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium file:text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 md:text-sm bg-muted/30 border-border/30"
+              id="botName"
+              placeholder="Tu nombre o marca"
+              value="Test Bot"
+            />
           </div>
-        </div>
-        <div
-          class="rounded-xl p-6 border border-primary/30 bg-gradient-to-br from-primary/10 via-accent/5 to-primary/10"
-        >
           <div
-            class="flex items-center gap-2 mb-4"
+            class="p-5 rounded-2xl bg-card border border-border/50"
           >
-            <svg
-              class="lucide lucide-sparkles w-5 h-5 text-primary"
-              fill="none"
-              height="24"
-              stroke="currentColor"
-              stroke-linecap="round"
-              stroke-linejoin="round"
-              stroke-width="2"
-              viewBox="0 0 24 24"
-              width="24"
-              xmlns="http://www.w3.org/2000/svg"
-            >
-              <path
-                d="M9.937 15.5A2 2 0 0 0 8.5 14.063l-6.135-1.582a.5.5 0 0 1 0-.962L8.5 9.936A2 2 0 0 0 9.937 8.5l1.582-6.135a.5.5 0 0 1 .963 0L14.063 8.5A2 2 0 0 0 15.5 9.937l6.135 1.581a.5.5 0 0 1 0 .964L15.5 14.063a2 2 0 0 0-1.437 1.437l-1.582 6.135a.5.5 0 0 1-.963 0z"
-              />
-              <path
-                d="M20 3v4"
-              />
-              <path
-                d="M22 5h-4"
-              />
-              <path
-                d="M4 17v2"
-              />
-              <path
-                d="M5 18H3"
-              />
-            </svg>
             <h3
-              class="text-lg font-semibold"
+              class="text-sm font-medium mb-1"
             >
-              Personalizar con IA
+              Estilo de comunicación
             </h3>
+            <p
+              class="text-xs text-muted-foreground mb-4"
+            >
+              Elige un estilo base
+            </p>
+            <div
+              class="grid grid-cols-2 sm:grid-cols-4 gap-3"
+            >
+              <button
+                class="p-4 rounded-xl border text-center transition-all border-border/30 hover:border-border"
+              >
+                <span
+                  class="text-xl block mb-2"
+                >
+                  😊
+                </span>
+                <span
+                  class="text-xs font-medium"
+                >
+                  Amigo
+                </span>
+              </button>
+              <button
+                class="p-4 rounded-xl border text-center transition-all border-border/30 hover:border-border"
+              >
+                <span
+                  class="text-xl block mb-2"
+                >
+                  🎓
+                </span>
+                <span
+                  class="text-xs font-medium"
+                >
+                  Mentor
+                </span>
+              </button>
+              <button
+                class="p-4 rounded-xl border text-center transition-all border-border/30 hover:border-border"
+              >
+                <span
+                  class="text-xl block mb-2"
+                >
+                  🎯
+                </span>
+                <span
+                  class="text-xs font-medium"
+                >
+                  Vendedor
+                </span>
+              </button>
+              <button
+                class="p-4 rounded-xl border text-center transition-all border-border/30 hover:border-border"
+              >
+                <span
+                  class="text-xl block mb-2"
+                >
+                  💼
+                </span>
+                <span
+                  class="text-xs font-medium"
+                >
+                  Profesional
+                </span>
+              </button>
+            </div>
           </div>
-          <p
-            class="text-muted-foreground text-sm mb-4"
+          <div
+            class="rounded-xl p-6 border border-primary/30 bg-gradient-to-br from-primary/10 via-accent/5 to-primary/10"
           >
-            Describe cómo quieres que sea tu bot y generaremos las instrucciones
-          </p>
-          <textarea
-            class="flex w-full rounded-md border-input px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 bg-background/80 border-0 min-h-[80px] resize-none mb-3"
-            placeholder="Ej: Quiero que sea cercano, use emojis, tutee al usuario, y mencione mi curso de trading cuando pregunten por inversiones..."
-          />
+            <div
+              class="flex items-center gap-2 mb-4"
+            >
+              <svg
+                class="lucide lucide-sparkles w-5 h-5 text-primary"
+                fill="none"
+                height="24"
+                stroke="currentColor"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                viewBox="0 0 24 24"
+                width="24"
+                xmlns="http://www.w3.org/2000/svg"
+              >
+                <path
+                  d="M9.937 15.5A2 2 0 0 0 8.5 14.063l-6.135-1.582a.5.5 0 0 1 0-.962L8.5 9.936A2 2 0 0 0 9.937 8.5l1.582-6.135a.5.5 0 0 1 .963 0L14.063 8.5A2 2 0 0 0 15.5 9.937l6.135 1.581a.5.5 0 0 1 0 .964L15.5 14.063a2 2 0 0 0-1.437 1.437l-1.582 6.135a.5.5 0 0 1-.963 0z"
+                />
+                <path
+                  d="M20 3v4"
+                />
+                <path
+                  d="M22 5h-4"
+                />
+                <path
+                  d="M4 17v2"
+                />
+                <path
+                  d="M5 18H3"
+                />
+              </svg>
+              <h3
+                class="text-lg font-semibold"
+              >
+                Personalizar con IA
+              </h3>
+            </div>
+            <p
+              class="text-muted-foreground text-sm mb-4"
+            >
+              Describe cómo quieres que sea tu bot y generaremos las instrucciones
+            </p>
+            <textarea
+              class="flex w-full rounded-md border-input px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 bg-background/80 border-0 min-h-[80px] resize-none mb-3"
+              placeholder="Ej: Quiero que sea cercano, use emojis, tutee al usuario, y mencione mi curso de trading cuando pregunten por inversiones..."
+            />
+            <button
+              class="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 bg-primary text-primary-foreground hover:bg-primary/90 h-10 px-4 py-2 bg-gradient-to-r from-primary to-accent hover:opacity-90"
+              disabled=""
+            >
+              <svg
+                class="lucide lucide-wand-sparkles w-4 h-4 mr-2"
+                fill="none"
+                height="24"
+                stroke="currentColor"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                viewBox="0 0 24 24"
+                width="24"
+                xmlns="http://www.w3.org/2000/svg"
+              >
+                <path
+                  d="m21.64 3.64-1.28-1.28a1.21 1.21 0 0 0-1.72 0L2.36 18.64a1.21 1.21 0 0 0 0 1.72l1.28 1.28a1.2 1.2 0 0 0 1.72 0L21.64 5.36a1.2 1.2 0 0 0 0-1.72"
+                />
+                <path
+                  d="m14 7 3 3"
+                />
+                <path
+                  d="M5 6v4"
+                />
+                <path
+                  d="M19 14v4"
+                />
+                <path
+                  d="M10 2v2"
+                />
+                <path
+                  d="M7 8H3"
+                />
+                <path
+                  d="M21 16h-4"
+                />
+                <path
+                  d="M11 3H9"
+                />
+              </svg>
+              Generar instrucciones
+            </button>
+          </div>
+          <div
+            class="metric-card"
+          >
+            <h3
+              class="text-lg font-semibold mb-2"
+            >
+              Instrucciones del bot
+            </h3>
+            <p
+              class="text-muted-foreground text-sm mb-4"
+            >
+              Puedes editar estas reglas manualmente
+            </p>
+            <textarea
+              class="flex w-full rounded-md border-input px-3 py-2 ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 bg-secondary border-0 min-h-[160px] font-mono text-sm resize-none"
+              placeholder="Las instrucciones aparecerán aquí..."
+            >
+              - Tutea siempre
+- Usa emojis
+            </textarea>
+          </div>
           <button
-            class="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 bg-primary text-primary-foreground hover:bg-primary/90 h-10 px-4 py-2 bg-gradient-to-r from-primary to-accent hover:opacity-90"
-            disabled=""
+            class="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 bg-primary text-primary-foreground hover:bg-primary/90 h-10 px-4 py-2 w-full bg-gradient-to-r from-primary to-accent hover:opacity-90 transition-opacity"
           >
             <svg
-              class="lucide lucide-wand-sparkles w-4 h-4 mr-2"
+              class="lucide lucide-save w-4 h-4 mr-2"
               fill="none"
               height="24"
               stroke="currentColor"
@@ -445,81 +554,18 @@ exports[`Settings Snapshots > renders settings page - snapshot 1`] = `
               xmlns="http://www.w3.org/2000/svg"
             >
               <path
-                d="m21.64 3.64-1.28-1.28a1.21 1.21 0 0 0-1.72 0L2.36 18.64a1.21 1.21 0 0 0 0 1.72l1.28 1.28a1.2 1.2 0 0 0 1.72 0L21.64 5.36a1.2 1.2 0 0 0 0-1.72"
+                d="M15.2 3a2 2 0 0 1 1.4.6l3.8 3.8a2 2 0 0 1 .6 1.4V19a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z"
               />
               <path
-                d="m14 7 3 3"
+                d="M17 21v-7a1 1 0 0 0-1-1H8a1 1 0 0 0-1 1v7"
               />
               <path
-                d="M5 6v4"
-              />
-              <path
-                d="M19 14v4"
-              />
-              <path
-                d="M10 2v2"
-              />
-              <path
-                d="M7 8H3"
-              />
-              <path
-                d="M21 16h-4"
-              />
-              <path
-                d="M11 3H9"
+                d="M7 3v4a1 1 0 0 0 1 1h7"
               />
             </svg>
-            Generar instrucciones
+            Guardar cambios
           </button>
         </div>
-        <div
-          class="metric-card"
-        >
-          <h3
-            class="text-lg font-semibold mb-2"
-          >
-            Instrucciones del bot
-          </h3>
-          <p
-            class="text-muted-foreground text-sm mb-4"
-          >
-            Puedes editar estas reglas manualmente
-          </p>
-          <textarea
-            class="flex w-full rounded-md border-input px-3 py-2 ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 bg-secondary border-0 min-h-[160px] font-mono text-sm resize-none"
-            placeholder="Las instrucciones aparecerán aquí..."
-          >
-            - Tutea siempre
-- Usa emojis
-          </textarea>
-        </div>
-        <button
-          class="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 bg-primary text-primary-foreground hover:bg-primary/90 h-10 px-4 py-2 w-full bg-gradient-to-r from-primary to-accent hover:opacity-90 transition-opacity"
-        >
-          <svg
-            class="lucide lucide-save w-4 h-4 mr-2"
-            fill="none"
-            height="24"
-            stroke="currentColor"
-            stroke-linecap="round"
-            stroke-linejoin="round"
-            stroke-width="2"
-            viewBox="0 0 24 24"
-            width="24"
-            xmlns="http://www.w3.org/2000/svg"
-          >
-            <path
-              d="M15.2 3a2 2 0 0 1 1.4.6l3.8 3.8a2 2 0 0 1 .6 1.4V19a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z"
-            />
-            <path
-              d="M17 21v-7a1 1 0 0 0-1-1H8a1 1 0 0 0-1 1v7"
-            />
-            <path
-              d="M7 3v4a1 1 0 0 0 1 1h7"
-            />
-          </svg>
-          Guardar cambios
-        </button>
       </div>
       <div
         aria-labelledby="radix-:r0:-trigger-connections"

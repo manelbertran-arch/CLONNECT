@@ -47,311 +47,152 @@ exports[`Leads Snapshots > renders leads empty state - snapshot 1`] = `
       </button>
     </div>
     <div
-      class="overflow-x-auto pb-4 -mx-4 px-4 md:mx-0 md:px-0"
+      class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3"
+    >
+      <button
+        class="flex flex-col items-center gap-1 p-3 rounded-xl border transition-all duration-150 cursor-pointer hover:shadow-md border-border/50 bg-card/50 hover:border-border"
+      >
+        <span
+          class="text-xl"
+        >
+          🆕
+        </span>
+        <span
+          class="text-2xl font-bold tabular-nums text-gray-400"
+        >
+          0
+        </span>
+        <span
+          class="text-xs text-muted-foreground"
+        >
+          Nuevos
+        </span>
+      </button>
+      <button
+        class="flex flex-col items-center gap-1 p-3 rounded-xl border transition-all duration-150 cursor-pointer hover:shadow-md border-border/50 bg-card/50 hover:border-border"
+      >
+        <span
+          class="text-xl"
+        >
+          💙
+        </span>
+        <span
+          class="text-2xl font-bold tabular-nums text-blue-500"
+        >
+          0
+        </span>
+        <span
+          class="text-xs text-muted-foreground"
+        >
+          Amigos
+        </span>
+      </button>
+      <button
+        class="flex flex-col items-center gap-1 p-3 rounded-xl border transition-all duration-150 cursor-pointer hover:shadow-md border-border/50 bg-card/50 hover:border-border"
+      >
+        <span
+          class="text-xl"
+        >
+          🤝
+        </span>
+        <span
+          class="text-2xl font-bold tabular-nums text-amber-500"
+        >
+          0
+        </span>
+        <span
+          class="text-xs text-muted-foreground"
+        >
+          Colaboradores
+        </span>
+      </button>
+      <button
+        class="flex flex-col items-center gap-1 p-3 rounded-xl border transition-all duration-150 cursor-pointer hover:shadow-md border-border/50 bg-card/50 hover:border-border"
+      >
+        <span
+          class="text-xl"
+        >
+          🔥
+        </span>
+        <span
+          class="text-2xl font-bold tabular-nums text-red-500"
+        >
+          0
+        </span>
+        <span
+          class="text-xs text-muted-foreground"
+        >
+          Calientes
+        </span>
+      </button>
+      <button
+        class="flex flex-col items-center gap-1 p-3 rounded-xl border transition-all duration-150 cursor-pointer hover:shadow-md border-border/50 bg-card/50 hover:border-border"
+      >
+        <span
+          class="text-xl"
+        >
+          ✅
+        </span>
+        <span
+          class="text-2xl font-bold tabular-nums text-green-500"
+        >
+          0
+        </span>
+        <span
+          class="text-xs text-muted-foreground"
+        >
+          Clientes
+        </span>
+      </button>
+      <button
+        class="flex flex-col items-center gap-1 p-3 rounded-xl border transition-all duration-150 cursor-pointer hover:shadow-md border-border/50 bg-card/50 hover:border-border"
+      >
+        <span
+          class="text-xl"
+        >
+          ❄️
+        </span>
+        <span
+          class="text-2xl font-bold tabular-nums text-cyan-500"
+        >
+          0
+        </span>
+        <span
+          class="text-xs text-muted-foreground"
+        >
+          Fríos
+        </span>
+      </button>
+    </div>
+    <div
+      class="rounded-xl border border-border/50 bg-card/50 overflow-hidden"
     >
       <div
-        class="flex md:grid md:grid-cols-5 gap-3 h-[calc(100vh-12rem)] min-w-max md:min-w-0"
+        class="grid grid-cols-[1fr_80px] md:grid-cols-[1fr_200px_100px_80px] gap-4 px-4 py-2.5 border-b border-border/30 text-xs text-muted-foreground uppercase tracking-wide"
       >
-        <div
-          class="flex flex-col rounded-2xl overflow-hidden w-64 md:w-auto shrink-0 md:shrink bg-card/50 border border-border/50"
+        <span>
+          Contacto
+        </span>
+        <span
+          class="hidden md:block"
         >
-          <div
-            class="px-4 py-3 border-b border-border/30"
-          >
-            <div
-              class="flex items-center gap-2"
-            >
-              <span
-                class="opacity-80 text-blue-400"
-              >
-                <svg
-                  class="lucide lucide-users w-4 h-4"
-                  fill="none"
-                  height="24"
-                  stroke="currentColor"
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                  stroke-width="2"
-                  viewBox="0 0 24 24"
-                  width="24"
-                  xmlns="http://www.w3.org/2000/svg"
-                >
-                  <path
-                    d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"
-                  />
-                  <circle
-                    cx="9"
-                    cy="7"
-                    r="4"
-                  />
-                  <path
-                    d="M22 21v-2a4 4 0 0 0-3-3.87"
-                  />
-                  <path
-                    d="M16 3.13a4 4 0 0 1 0 7.75"
-                  />
-                </svg>
-              </span>
-              <span
-                class="font-semibold text-sm text-blue-400"
-              >
-                Nuevos
-              </span>
-              <span
-                class="text-xs font-semibold px-2 py-0.5 rounded-full ml-auto text-blue-400 bg-current/10"
-              >
-                0
-              </span>
-            </div>
-            <p
-              class="text-xs text-muted-foreground mt-1"
-            >
-              Primer contacto
-            </p>
-          </div>
-          <div
-            class="flex-1 overflow-auto p-2 space-y-2"
-          >
-            <div
-              class="text-center py-16 text-muted-foreground/40 text-xs"
-            >
-              Sin leads
-            </div>
-          </div>
-        </div>
-        <div
-          class="flex flex-col rounded-2xl overflow-hidden w-64 md:w-auto shrink-0 md:shrink bg-card/50 border border-border/50"
+          Último mensaje
+        </span>
+        <span
+          class="hidden md:block"
         >
-          <div
-            class="px-4 py-3 border-b border-border/30"
-          >
-            <div
-              class="flex items-center gap-2"
-            >
-              <span
-                class="opacity-80 text-amber-400"
-              >
-                <svg
-                  class="lucide lucide-star w-4 h-4"
-                  fill="none"
-                  height="24"
-                  stroke="currentColor"
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                  stroke-width="2"
-                  viewBox="0 0 24 24"
-                  width="24"
-                  xmlns="http://www.w3.org/2000/svg"
-                >
-                  <path
-                    d="M11.525 2.295a.53.53 0 0 1 .95 0l2.31 4.679a2.123 2.123 0 0 0 1.595 1.16l5.166.756a.53.53 0 0 1 .294.904l-3.736 3.638a2.123 2.123 0 0 0-.611 1.878l.882 5.14a.53.53 0 0 1-.771.56l-4.618-2.428a2.122 2.122 0 0 0-1.973 0L6.396 21.01a.53.53 0 0 1-.77-.56l.881-5.139a2.122 2.122 0 0 0-.611-1.879L2.16 9.795a.53.53 0 0 1 .294-.906l5.165-.755a2.122 2.122 0 0 0 1.597-1.16z"
-                  />
-                </svg>
-              </span>
-              <span
-                class="font-semibold text-sm text-amber-400"
-              >
-                Interesados
-              </span>
-              <span
-                class="text-xs font-semibold px-2 py-0.5 rounded-full ml-auto text-amber-400 bg-current/10"
-              >
-                0
-              </span>
-            </div>
-            <p
-              class="text-xs text-muted-foreground mt-1"
-            >
-              Mostró interés
-            </p>
-          </div>
-          <div
-            class="flex-1 overflow-auto p-2 space-y-2"
-          >
-            <div
-              class="text-center py-16 text-muted-foreground/40 text-xs"
-            >
-              Sin leads
-            </div>
-          </div>
-        </div>
-        <div
-          class="flex flex-col rounded-2xl overflow-hidden w-64 md:w-auto shrink-0 md:shrink bg-card/50 border border-border/50"
+          Tipo
+        </span>
+        <span
+          class="text-right"
         >
-          <div
-            class="px-4 py-3 border-b border-border/30"
-          >
-            <div
-              class="flex items-center gap-2"
-            >
-              <span
-                class="opacity-80 text-red-400"
-              >
-                <svg
-                  class="lucide lucide-flame w-4 h-4"
-                  fill="none"
-                  height="24"
-                  stroke="currentColor"
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                  stroke-width="2"
-                  viewBox="0 0 24 24"
-                  width="24"
-                  xmlns="http://www.w3.org/2000/svg"
-                >
-                  <path
-                    d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 2.5z"
-                  />
-                </svg>
-              </span>
-              <span
-                class="font-semibold text-sm text-red-400"
-              >
-                Calientes
-              </span>
-              <span
-                class="text-xs font-semibold px-2 py-0.5 rounded-full ml-auto text-red-400 bg-current/10"
-              >
-                0
-              </span>
-            </div>
-            <p
-              class="text-xs text-muted-foreground mt-1"
-            >
-              Listo para comprar
-            </p>
-          </div>
-          <div
-            class="flex-1 overflow-auto p-2 space-y-2"
-          >
-            <div
-              class="text-center py-16 text-muted-foreground/40 text-xs"
-            >
-              Sin leads
-            </div>
-          </div>
-        </div>
-        <div
-          class="flex flex-col rounded-2xl overflow-hidden w-64 md:w-auto shrink-0 md:shrink bg-card/50 border border-border/50"
-        >
-          <div
-            class="px-4 py-3 border-b border-border/30"
-          >
-            <div
-              class="flex items-center gap-2"
-            >
-              <span
-                class="opacity-80 text-emerald-400"
-              >
-                <svg
-                  class="lucide lucide-circle-check-big w-4 h-4"
-                  fill="none"
-                  height="24"
-                  stroke="currentColor"
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                  stroke-width="2"
-                  viewBox="0 0 24 24"
-                  width="24"
-                  xmlns="http://www.w3.org/2000/svg"
-                >
-                  <path
-                    d="M21.801 10A10 10 0 1 1 17 3.335"
-                  />
-                  <path
-                    d="m9 11 3 3L22 4"
-                  />
-                </svg>
-              </span>
-              <span
-                class="font-semibold text-sm text-emerald-400"
-              >
-                Clientes
-              </span>
-              <span
-                class="text-xs font-semibold px-2 py-0.5 rounded-full ml-auto text-emerald-400 bg-current/10"
-              >
-                0
-              </span>
-            </div>
-            <p
-              class="text-xs text-muted-foreground mt-1"
-            >
-              Ya compró
-            </p>
-          </div>
-          <div
-            class="flex-1 overflow-auto p-2 space-y-2"
-          >
-            <div
-              class="text-center py-16 text-muted-foreground/40 text-xs"
-            >
-              Sin leads
-            </div>
-          </div>
-        </div>
-        <div
-          class="flex flex-col rounded-2xl overflow-hidden w-64 md:w-auto shrink-0 md:shrink bg-card/50 border border-border/50"
-        >
-          <div
-            class="px-4 py-3 border-b border-border/30"
-          >
-            <div
-              class="flex items-center gap-2"
-            >
-              <span
-                class="opacity-80 text-gray-500"
-              >
-                <svg
-                  class="lucide lucide-ghost w-4 h-4"
-                  fill="none"
-                  height="24"
-                  stroke="currentColor"
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                  stroke-width="2"
-                  viewBox="0 0 24 24"
-                  width="24"
-                  xmlns="http://www.w3.org/2000/svg"
-                >
-                  <path
-                    d="M9 10h.01"
-                  />
-                  <path
-                    d="M15 10h.01"
-                  />
-                  <path
-                    d="M12 2a8 8 0 0 0-8 8v12l3-3 2.5 2.5L12 19l2.5 2.5L17 19l3 3V10a8 8 0 0 0-8-8z"
-                  />
-                </svg>
-              </span>
-              <span
-                class="font-semibold text-sm text-gray-500"
-              >
-                Fantasmas
-              </span>
-              <span
-                class="text-xs font-semibold px-2 py-0.5 rounded-full ml-auto text-gray-500 bg-current/10"
-              >
-                0
-              </span>
-            </div>
-            <p
-              class="text-xs text-muted-foreground mt-1"
-            >
-              +7 días sin respuesta
-            </p>
-          </div>
-          <div
-            class="flex-1 overflow-auto p-2 space-y-2"
-          >
-            <div
-              class="text-center py-16 text-muted-foreground/40 text-xs"
-            >
-              Sin leads
-            </div>
-          </div>
-        </div>
+          Tiempo
+        </span>
+      </div>
+      <div
+        class="text-center py-16 text-muted-foreground/40 text-sm"
+      >
+        Sin leads
       </div>
     </div>
   </div>
@@ -432,24 +273,281 @@ exports[`Leads Snapshots > renders leads error state - snapshot 1`] = `
 exports[`Leads Snapshots > renders leads loading state - snapshot 1`] = `
 <div>
   <div
-    class="flex items-center justify-center h-[60vh]"
+    class="space-y-4 p-4"
   >
-    <svg
-      class="lucide lucide-loader-circle w-6 h-6 animate-spin text-primary"
-      fill="none"
-      height="24"
-      stroke="currentColor"
-      stroke-linecap="round"
-      stroke-linejoin="round"
-      stroke-width="2"
-      viewBox="0 0 24 24"
-      width="24"
-      xmlns="http://www.w3.org/2000/svg"
+    <div
+      class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3"
     >
-      <path
-        d="M21 12a9 9 0 1 1-6.219-8.56"
+      <div
+        class="flex flex-col items-center gap-2 p-3 rounded-xl border border-border/30 bg-card/30"
+      >
+        <div
+          class="w-8 h-8 rounded-full bg-muted/40 animate-pulse"
+        />
+        <div
+          class="w-10 h-6 rounded bg-muted/40 animate-pulse"
+        />
+        <div
+          class="w-16 h-3 rounded bg-muted/30 animate-pulse"
+        />
+      </div>
+      <div
+        class="flex flex-col items-center gap-2 p-3 rounded-xl border border-border/30 bg-card/30"
+      >
+        <div
+          class="w-8 h-8 rounded-full bg-muted/40 animate-pulse"
+        />
+        <div
+          class="w-10 h-6 rounded bg-muted/40 animate-pulse"
+        />
+        <div
+          class="w-16 h-3 rounded bg-muted/30 animate-pulse"
+        />
+      </div>
+      <div
+        class="flex flex-col items-center gap-2 p-3 rounded-xl border border-border/30 bg-card/30"
+      >
+        <div
+          class="w-8 h-8 rounded-full bg-muted/40 animate-pulse"
+        />
+        <div
+          class="w-10 h-6 rounded bg-muted/40 animate-pulse"
+        />
+        <div
+          class="w-16 h-3 rounded bg-muted/30 animate-pulse"
+        />
+      </div>
+      <div
+        class="flex flex-col items-center gap-2 p-3 rounded-xl border border-border/30 bg-card/30"
+      >
+        <div
+          class="w-8 h-8 rounded-full bg-muted/40 animate-pulse"
+        />
+        <div
+          class="w-10 h-6 rounded bg-muted/40 animate-pulse"
+        />
+        <div
+          class="w-16 h-3 rounded bg-muted/30 animate-pulse"
+        />
+      </div>
+      <div
+        class="flex flex-col items-center gap-2 p-3 rounded-xl border border-border/30 bg-card/30"
+      >
+        <div
+          class="w-8 h-8 rounded-full bg-muted/40 animate-pulse"
+        />
+        <div
+          class="w-10 h-6 rounded bg-muted/40 animate-pulse"
+        />
+        <div
+          class="w-16 h-3 rounded bg-muted/30 animate-pulse"
+        />
+      </div>
+      <div
+        class="flex flex-col items-center gap-2 p-3 rounded-xl border border-border/30 bg-card/30"
+      >
+        <div
+          class="w-8 h-8 rounded-full bg-muted/40 animate-pulse"
+        />
+        <div
+          class="w-10 h-6 rounded bg-muted/40 animate-pulse"
+        />
+        <div
+          class="w-16 h-3 rounded bg-muted/30 animate-pulse"
+        />
+      </div>
+    </div>
+    <div
+      class="rounded-xl border border-border/30 bg-card/30 overflow-hidden"
+    >
+      <div
+        class="h-10 border-b border-border/20 bg-muted/10"
       />
-    </svg>
+      <div
+        class="flex items-center gap-3 px-4 py-3 border-b border-border/10"
+      >
+        <div
+          class="w-9 h-9 rounded-full bg-muted/40 animate-pulse shrink-0"
+        />
+        <div
+          class="flex-1 space-y-1.5"
+        >
+          <div
+            class="w-32 h-4 rounded bg-muted/40 animate-pulse"
+          />
+          <div
+            class="w-20 h-3 rounded bg-muted/30 animate-pulse"
+          />
+        </div>
+        <div
+          class="hidden md:block w-40 h-3 rounded bg-muted/30 animate-pulse"
+        />
+        <div
+          class="w-12 h-3 rounded bg-muted/30 animate-pulse"
+        />
+      </div>
+      <div
+        class="flex items-center gap-3 px-4 py-3 border-b border-border/10"
+      >
+        <div
+          class="w-9 h-9 rounded-full bg-muted/40 animate-pulse shrink-0"
+        />
+        <div
+          class="flex-1 space-y-1.5"
+        >
+          <div
+            class="w-32 h-4 rounded bg-muted/40 animate-pulse"
+          />
+          <div
+            class="w-20 h-3 rounded bg-muted/30 animate-pulse"
+          />
+        </div>
+        <div
+          class="hidden md:block w-40 h-3 rounded bg-muted/30 animate-pulse"
+        />
+        <div
+          class="w-12 h-3 rounded bg-muted/30 animate-pulse"
+        />
+      </div>
+      <div
+        class="flex items-center gap-3 px-4 py-3 border-b border-border/10"
+      >
+        <div
+          class="w-9 h-9 rounded-full bg-muted/40 animate-pulse shrink-0"
+        />
+        <div
+          class="flex-1 space-y-1.5"
+        >
+          <div
+            class="w-32 h-4 rounded bg-muted/40 animate-pulse"
+          />
+          <div
+            class="w-20 h-3 rounded bg-muted/30 animate-pulse"
+          />
+        </div>
+        <div
+          class="hidden md:block w-40 h-3 rounded bg-muted/30 animate-pulse"
+        />
+        <div
+          class="w-12 h-3 rounded bg-muted/30 animate-pulse"
+        />
+      </div>
+      <div
+        class="flex items-center gap-3 px-4 py-3 border-b border-border/10"
+      >
+        <div
+          class="w-9 h-9 rounded-full bg-muted/40 animate-pulse shrink-0"
+        />
+        <div
+          class="flex-1 space-y-1.5"
+        >
+          <div
+            class="w-32 h-4 rounded bg-muted/40 animate-pulse"
+          />
+          <div
+            class="w-20 h-3 rounded bg-muted/30 animate-pulse"
+          />
+        </div>
+        <div
+          class="hidden md:block w-40 h-3 rounded bg-muted/30 animate-pulse"
+        />
+        <div
+          class="w-12 h-3 rounded bg-muted/30 animate-pulse"
+        />
+      </div>
+      <div
+        class="flex items-center gap-3 px-4 py-3 border-b border-border/10"
+      >
+        <div
+          class="w-9 h-9 rounded-full bg-muted/40 animate-pulse shrink-0"
+        />
+        <div
+          class="flex-1 space-y-1.5"
+        >
+          <div
+            class="w-32 h-4 rounded bg-muted/40 animate-pulse"
+          />
+          <div
+            class="w-20 h-3 rounded bg-muted/30 animate-pulse"
+          />
+        </div>
+        <div
+          class="hidden md:block w-40 h-3 rounded bg-muted/30 animate-pulse"
+        />
+        <div
+          class="w-12 h-3 rounded bg-muted/30 animate-pulse"
+        />
+      </div>
+      <div
+        class="flex items-center gap-3 px-4 py-3 border-b border-border/10"
+      >
+        <div
+          class="w-9 h-9 rounded-full bg-muted/40 animate-pulse shrink-0"
+        />
+        <div
+          class="flex-1 space-y-1.5"
+        >
+          <div
+            class="w-32 h-4 rounded bg-muted/40 animate-pulse"
+          />
+          <div
+            class="w-20 h-3 rounded bg-muted/30 animate-pulse"
+          />
+        </div>
+        <div
+          class="hidden md:block w-40 h-3 rounded bg-muted/30 animate-pulse"
+        />
+        <div
+          class="w-12 h-3 rounded bg-muted/30 animate-pulse"
+        />
+      </div>
+      <div
+        class="flex items-center gap-3 px-4 py-3 border-b border-border/10"
+      >
+        <div
+          class="w-9 h-9 rounded-full bg-muted/40 animate-pulse shrink-0"
+        />
+        <div
+          class="flex-1 space-y-1.5"
+        >
+          <div
+            class="w-32 h-4 rounded bg-muted/40 animate-pulse"
+          />
+          <div
+            class="w-20 h-3 rounded bg-muted/30 animate-pulse"
+          />
+        </div>
+        <div
+          class="hidden md:block w-40 h-3 rounded bg-muted/30 animate-pulse"
+        />
+        <div
+          class="w-12 h-3 rounded bg-muted/30 animate-pulse"
+        />
+      </div>
+      <div
+        class="flex items-center gap-3 px-4 py-3 border-b border-border/10"
+      >
+        <div
+          class="w-9 h-9 rounded-full bg-muted/40 animate-pulse shrink-0"
+        />
+        <div
+          class="flex-1 space-y-1.5"
+        >
+          <div
+            class="w-32 h-4 rounded bg-muted/40 animate-pulse"
+          />
+          <div
+            class="w-20 h-3 rounded bg-muted/30 animate-pulse"
+          />
+        </div>
+        <div
+          class="hidden md:block w-40 h-3 rounded bg-muted/30 animate-pulse"
+        />
+        <div
+          class="w-12 h-3 rounded bg-muted/30 animate-pulse"
+        />
+      </div>
+    </div>
   </div>
   <div
     aria-label="Notifications (F8)"
@@ -512,25 +610,188 @@ exports[`Leads Snapshots > renders leads pipeline - snapshot 1`] = `
       </button>
     </div>
     <div
-      class="overflow-x-auto pb-4 -mx-4 px-4 md:mx-0 md:px-0"
+      class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3"
+    >
+      <button
+        class="flex flex-col items-center gap-1 p-3 rounded-xl border transition-all duration-150 cursor-pointer hover:shadow-md border-border/50 bg-card/50 hover:border-border"
+      >
+        <span
+          class="text-xl"
+        >
+          🆕
+        </span>
+        <span
+          class="text-2xl font-bold tabular-nums text-gray-400"
+        >
+          0
+        </span>
+        <span
+          class="text-xs text-muted-foreground"
+        >
+          Nuevos
+        </span>
+      </button>
+      <button
+        class="flex flex-col items-center gap-1 p-3 rounded-xl border transition-all duration-150 cursor-pointer hover:shadow-md border-border/50 bg-card/50 hover:border-border"
+      >
+        <span
+          class="text-xl"
+        >
+          💙
+        </span>
+        <span
+          class="text-2xl font-bold tabular-nums text-blue-500"
+        >
+          0
+        </span>
+        <span
+          class="text-xs text-muted-foreground"
+        >
+          Amigos
+        </span>
+      </button>
+      <button
+        class="flex flex-col items-center gap-1 p-3 rounded-xl border transition-all duration-150 cursor-pointer hover:shadow-md border-border/50 bg-card/50 hover:border-border"
+      >
+        <span
+          class="text-xl"
+        >
+          🤝
+        </span>
+        <span
+          class="text-2xl font-bold tabular-nums text-amber-500"
+        >
+          0
+        </span>
+        <span
+          class="text-xs text-muted-foreground"
+        >
+          Colaboradores
+        </span>
+      </button>
+      <button
+        class="flex flex-col items-center gap-1 p-3 rounded-xl border transition-all duration-150 cursor-pointer hover:shadow-md border-border/50 bg-card/50 hover:border-border"
+      >
+        <span
+          class="text-xl"
+        >
+          🔥
+        </span>
+        <span
+          class="text-2xl font-bold tabular-nums text-red-500"
+        >
+          0
+        </span>
+        <span
+          class="text-xs text-muted-foreground"
+        >
+          Calientes
+        </span>
+      </button>
+      <button
+        class="flex flex-col items-center gap-1 p-3 rounded-xl border transition-all duration-150 cursor-pointer hover:shadow-md border-border/50 bg-card/50 hover:border-border"
+      >
+        <span
+          class="text-xl"
+        >
+          ✅
+        </span>
+        <span
+          class="text-2xl font-bold tabular-nums text-green-500"
+        >
+          0
+        </span>
+        <span
+          class="text-xs text-muted-foreground"
+        >
+          Clientes
+        </span>
+      </button>
+      <button
+        class="flex flex-col items-center gap-1 p-3 rounded-xl border transition-all duration-150 cursor-pointer hover:shadow-md border-border/50 bg-card/50 hover:border-border"
+      >
+        <span
+          class="text-xl"
+        >
+          ❄️
+        </span>
+        <span
+          class="text-2xl font-bold tabular-nums text-cyan-500"
+        >
+          0
+        </span>
+        <span
+          class="text-xs text-muted-foreground"
+        >
+          Fríos
+        </span>
+      </button>
+    </div>
+    <div
+      class="rounded-xl border border-border/50 bg-card/50 overflow-hidden"
     >
       <div
-        class="flex md:grid md:grid-cols-5 gap-3 h-[calc(100vh-12rem)] min-w-max md:min-w-0"
+        class="grid grid-cols-[1fr_80px] md:grid-cols-[1fr_200px_100px_80px] gap-4 px-4 py-2.5 border-b border-border/30 text-xs text-muted-foreground uppercase tracking-wide"
+      >
+        <span>
+          Contacto
+        </span>
+        <span
+          class="hidden md:block"
+        >
+          Último mensaje
+        </span>
+        <span
+          class="hidden md:block"
+        >
+          Tipo
+        </span>
+        <span
+          class="text-right"
+        >
+          Tiempo
+        </span>
+      </div>
+      <div
+        class="divide-y divide-border/20"
       >
         <div
-          class="flex flex-col rounded-2xl overflow-hidden w-64 md:w-auto shrink-0 md:shrink bg-card/50 border border-border/50"
+          class="group grid grid-cols-[1fr_80px] md:grid-cols-[1fr_200px_100px_80px] gap-4 px-4 py-3 items-center cursor-pointer transition-all duration-150 hover:bg-muted/30"
+          draggable="true"
         >
           <div
-            class="px-4 py-3 border-b border-border/30"
+            class="flex items-center gap-3 min-w-0"
           >
             <div
-              class="flex items-center gap-2"
+              class="relative shrink-0"
             >
+              <button
+                class="w-9 h-9 rounded-full overflow-hidden hover:ring-2 hover:ring-violet-500 cursor-pointer"
+                title="Abrir @hotlead"
+              >
+                <div
+                  class="w-full h-full bg-gradient-to-br flex items-center justify-center text-white text-[10px] font-medium from-violet-600 to-purple-600"
+                >
+                  HL
+                </div>
+              </button>
               <span
-                class="opacity-80 text-blue-400"
+                class="absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full border-2 border-card bg-red-500"
+              />
+            </div>
+            <div
+              class="min-w-0 flex-1"
+            >
+              <p
+                class="font-medium text-sm truncate"
+              >
+                Hot Lead
+              </p>
+              <p
+                class="text-xs text-muted-foreground truncate flex items-center gap-1"
               >
                 <svg
-                  class="lucide lucide-users w-4 h-4"
+                  class="lucide lucide-instagram w-3 h-3"
                   fill="none"
                   height="24"
                   stroke="currentColor"
@@ -541,158 +802,144 @@ exports[`Leads Snapshots > renders leads pipeline - snapshot 1`] = `
                   width="24"
                   xmlns="http://www.w3.org/2000/svg"
                 >
-                  <path
-                    d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"
-                  />
-                  <circle
-                    cx="9"
-                    cy="7"
-                    r="4"
-                  />
-                  <path
-                    d="M22 21v-2a4 4 0 0 0-3-3.87"
+                  <rect
+                    height="20"
+                    rx="5"
+                    ry="5"
+                    width="20"
+                    x="2"
+                    y="2"
                   />
                   <path
-                    d="M16 3.13a4 4 0 0 1 0 7.75"
+                    d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z"
+                  />
+                  <line
+                    x1="17.5"
+                    x2="17.51"
+                    y1="6.5"
+                    y2="6.5"
                   />
                 </svg>
-              </span>
-              <span
-                class="font-semibold text-sm text-blue-400"
-              >
-                Nuevos
-              </span>
-              <span
-                class="text-xs font-semibold px-2 py-0.5 rounded-full ml-auto text-blue-400 bg-current/10"
-              >
-                1
-              </span>
+                @
+                Hot Lead
+              </p>
             </div>
-            <p
-              class="text-xs text-muted-foreground mt-1"
+            <button
+              aria-expanded="false"
+              aria-haspopup="menu"
+              class="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 hover:bg-accent hover:text-accent-foreground h-7 w-7 opacity-0 group-hover:opacity-100 transition-opacity shrink-0"
+              data-state="closed"
+              id="radix-:r0:"
+              type="button"
             >
-              Primer contacto
-            </p>
-          </div>
-          <div
-            class="flex-1 overflow-auto p-2 space-y-2"
-          >
-            <div
-              class="group p-3 rounded-xl bg-card border border-border/30 cursor-pointer transition-all hover:border-violet-500/50 hover:shadow-md hover:shadow-violet-500/10 hover:bg-card/80"
-              draggable="true"
-            >
-              <div
-                class="flex items-start gap-3"
+              <svg
+                class="lucide lucide-ellipsis w-4 h-4"
+                fill="none"
+                height="24"
+                stroke="currentColor"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                viewBox="0 0 24 24"
+                width="24"
+                xmlns="http://www.w3.org/2000/svg"
               >
-                <button
-                  class="w-10 h-10 rounded-full shrink-0 overflow-hidden cursor-default"
-                >
-                  <div
-                    class="w-full h-full bg-gradient-to-br from-violet-600 to-purple-600 flex items-center justify-center text-white text-xs font-medium"
-                  >
-                    NL
-                  </div>
-                </button>
-                <div
-                  class="flex-1 min-w-0"
-                >
-                  <div
-                    class="flex items-center gap-2"
-                  >
-                    <p
-                      class="font-medium text-sm truncate"
-                    >
-                      New Lead
-                    </p>
-                  </div>
-                  <p
-                    class="text-xs text-muted-foreground flex items-center gap-1"
-                  >
-                    <svg
-                      class="lucide lucide-send w-3 h-3"
-                      fill="none"
-                      height="24"
-                      stroke="currentColor"
-                      stroke-linecap="round"
-                      stroke-linejoin="round"
-                      stroke-width="2"
-                      viewBox="0 0 24 24"
-                      width="24"
-                      xmlns="http://www.w3.org/2000/svg"
-                    >
-                      <path
-                        d="M14.536 21.686a.5.5 0 0 0 .937-.024l6.5-19a.496.496 0 0 0-.635-.635l-19 6.5a.5.5 0 0 0-.024.937l7.93 3.18a2 2 0 0 1 1.112 1.11z"
-                      />
-                      <path
-                        d="m21.854 2.147-10.94 10.939"
-                      />
-                    </svg>
-                    <span
-                      class="truncate"
-                    >
-                      @
-                      New Lead
-                    </span>
-                  </p>
-                </div>
-                <div
-                  class="flex flex-col items-end shrink-0 text-muted-foreground"
+                <circle
+                  cx="12"
+                  cy="12"
+                  r="1"
                 />
-                <button
-                  aria-expanded="false"
-                  aria-haspopup="menu"
-                  class="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 hover:bg-accent hover:text-accent-foreground h-7 w-7 opacity-0 group-hover:opacity-100 transition-opacity shrink-0"
-                  data-state="closed"
-                  id="radix-:r0:"
-                  type="button"
-                >
-                  <svg
-                    class="lucide lucide-ellipsis w-4 h-4"
-                    fill="none"
-                    height="24"
-                    stroke="currentColor"
-                    stroke-linecap="round"
-                    stroke-linejoin="round"
-                    stroke-width="2"
-                    viewBox="0 0 24 24"
-                    width="24"
-                    xmlns="http://www.w3.org/2000/svg"
-                  >
-                    <circle
-                      cx="12"
-                      cy="12"
-                      r="1"
-                    />
-                    <circle
-                      cx="19"
-                      cy="12"
-                      r="1"
-                    />
-                    <circle
-                      cx="5"
-                      cy="12"
-                      r="1"
-                    />
-                  </svg>
-                </button>
-              </div>
-            </div>
+                <circle
+                  cx="19"
+                  cy="12"
+                  r="1"
+                />
+                <circle
+                  cx="5"
+                  cy="12"
+                  r="1"
+                />
+              </svg>
+            </button>
           </div>
+          <span
+            class="hidden md:block text-xs text-muted-foreground truncate"
+          >
+            —
+          </span>
+          <span
+            class="hidden md:block"
+          >
+            <span
+              style="color: rgb(156, 163, 175); background-color: rgba(156, 163, 175, 0.125); padding: 2px 8px; border-radius: 9999px; font-size: 11px; font-weight: 600; white-space: nowrap;"
+            >
+              Nuevo
+            </span>
+          </span>
+          <span
+            class="text-xs text-muted-foreground text-right flex items-center justify-end gap-1"
+          >
+            <svg
+              class="lucide lucide-clock w-3 h-3"
+              fill="none"
+              height="24"
+              stroke="currentColor"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="2"
+              viewBox="0 0 24 24"
+              width="24"
+              xmlns="http://www.w3.org/2000/svg"
+            >
+              <circle
+                cx="12"
+                cy="12"
+                r="10"
+              />
+              <polyline
+                points="12 6 12 12 16 14"
+              />
+            </svg>
+            —
+          </span>
         </div>
         <div
-          class="flex flex-col rounded-2xl overflow-hidden w-64 md:w-auto shrink-0 md:shrink bg-card/50 border border-border/50"
+          class="group grid grid-cols-[1fr_80px] md:grid-cols-[1fr_200px_100px_80px] gap-4 px-4 py-3 items-center cursor-pointer transition-all duration-150 hover:bg-muted/30"
+          draggable="true"
         >
           <div
-            class="px-4 py-3 border-b border-border/30"
+            class="flex items-center gap-3 min-w-0"
           >
             <div
-              class="flex items-center gap-2"
+              class="relative shrink-0"
             >
+              <button
+                class="w-9 h-9 rounded-full overflow-hidden hover:ring-2 hover:ring-violet-500 cursor-pointer"
+                title="Abrir @activelead"
+              >
+                <div
+                  class="w-full h-full bg-gradient-to-br flex items-center justify-center text-white text-[10px] font-medium from-violet-600 to-purple-600"
+                >
+                  AL
+                </div>
+              </button>
               <span
-                class="opacity-80 text-amber-400"
+                class="absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full border-2 border-card bg-blue-500"
+              />
+            </div>
+            <div
+              class="min-w-0 flex-1"
+            >
+              <p
+                class="font-medium text-sm truncate"
+              >
+                Active Lead
+              </p>
+              <p
+                class="text-xs text-muted-foreground truncate flex items-center gap-1"
               >
                 <svg
-                  class="lucide lucide-star w-4 h-4"
+                  class="lucide lucide-instagram w-3 h-3"
                   fill="none"
                   height="24"
                   stroke="currentColor"
@@ -703,181 +950,143 @@ exports[`Leads Snapshots > renders leads pipeline - snapshot 1`] = `
                   width="24"
                   xmlns="http://www.w3.org/2000/svg"
                 >
+                  <rect
+                    height="20"
+                    rx="5"
+                    ry="5"
+                    width="20"
+                    x="2"
+                    y="2"
+                  />
                   <path
-                    d="M11.525 2.295a.53.53 0 0 1 .95 0l2.31 4.679a2.123 2.123 0 0 0 1.595 1.16l5.166.756a.53.53 0 0 1 .294.904l-3.736 3.638a2.123 2.123 0 0 0-.611 1.878l.882 5.14a.53.53 0 0 1-.771.56l-4.618-2.428a2.122 2.122 0 0 0-1.973 0L6.396 21.01a.53.53 0 0 1-.77-.56l.881-5.139a2.122 2.122 0 0 0-.611-1.879L2.16 9.795a.53.53 0 0 1 .294-.906l5.165-.755a2.122 2.122 0 0 0 1.597-1.16z"
+                    d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z"
+                  />
+                  <line
+                    x1="17.5"
+                    x2="17.51"
+                    y1="6.5"
+                    y2="6.5"
                   />
                 </svg>
-              </span>
-              <span
-                class="font-semibold text-sm text-amber-400"
-              >
-                Interesados
-              </span>
-              <span
-                class="text-xs font-semibold px-2 py-0.5 rounded-full ml-auto text-amber-400 bg-current/10"
-              >
-                1
-              </span>
+                @
+                Active Lead
+              </p>
             </div>
-            <p
-              class="text-xs text-muted-foreground mt-1"
+            <button
+              aria-expanded="false"
+              aria-haspopup="menu"
+              class="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 hover:bg-accent hover:text-accent-foreground h-7 w-7 opacity-0 group-hover:opacity-100 transition-opacity shrink-0"
+              data-state="closed"
+              id="radix-:r2:"
+              type="button"
             >
-              Mostró interés
-            </p>
-          </div>
-          <div
-            class="flex-1 overflow-auto p-2 space-y-2"
-          >
-            <div
-              class="group p-3 rounded-xl bg-card border border-border/30 cursor-pointer transition-all hover:border-violet-500/50 hover:shadow-md hover:shadow-violet-500/10 hover:bg-card/80"
-              draggable="true"
-            >
-              <div
-                class="flex items-start gap-3"
+              <svg
+                class="lucide lucide-ellipsis w-4 h-4"
+                fill="none"
+                height="24"
+                stroke="currentColor"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                viewBox="0 0 24 24"
+                width="24"
+                xmlns="http://www.w3.org/2000/svg"
               >
-                <button
-                  class="w-10 h-10 rounded-full shrink-0 overflow-hidden hover:ring-2 hover:ring-violet-500 cursor-pointer"
-                  title="Abrir @activelead"
-                >
-                  <div
-                    class="w-full h-full bg-gradient-to-br from-violet-600 to-purple-600 flex items-center justify-center text-white text-xs font-medium"
-                  >
-                    AL
-                  </div>
-                </button>
-                <div
-                  class="flex-1 min-w-0"
-                >
-                  <div
-                    class="flex items-center gap-2"
-                  >
-                    <p
-                      class="font-medium text-sm truncate"
-                    >
-                      Active Lead
-                    </p>
-                    <svg
-                      class="lucide lucide-external-link w-3 h-3 text-muted-foreground/50 opacity-0 group-hover:opacity-100"
-                      fill="none"
-                      height="24"
-                      stroke="currentColor"
-                      stroke-linecap="round"
-                      stroke-linejoin="round"
-                      stroke-width="2"
-                      viewBox="0 0 24 24"
-                      width="24"
-                      xmlns="http://www.w3.org/2000/svg"
-                    >
-                      <path
-                        d="M15 3h6v6"
-                      />
-                      <path
-                        d="M10 14 21 3"
-                      />
-                      <path
-                        d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"
-                      />
-                    </svg>
-                  </div>
-                  <p
-                    class="text-xs text-muted-foreground flex items-center gap-1"
-                  >
-                    <svg
-                      class="lucide lucide-instagram w-3 h-3"
-                      fill="none"
-                      height="24"
-                      stroke="currentColor"
-                      stroke-linecap="round"
-                      stroke-linejoin="round"
-                      stroke-width="2"
-                      viewBox="0 0 24 24"
-                      width="24"
-                      xmlns="http://www.w3.org/2000/svg"
-                    >
-                      <rect
-                        height="20"
-                        rx="5"
-                        ry="5"
-                        width="20"
-                        x="2"
-                        y="2"
-                      />
-                      <path
-                        d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z"
-                      />
-                      <line
-                        x1="17.5"
-                        x2="17.51"
-                        y1="6.5"
-                        y2="6.5"
-                      />
-                    </svg>
-                    <span
-                      class="truncate"
-                    >
-                      @
-                      Active Lead
-                    </span>
-                  </p>
-                </div>
-                <div
-                  class="flex flex-col items-end shrink-0 text-muted-foreground"
+                <circle
+                  cx="12"
+                  cy="12"
+                  r="1"
                 />
-                <button
-                  aria-expanded="false"
-                  aria-haspopup="menu"
-                  class="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 hover:bg-accent hover:text-accent-foreground h-7 w-7 opacity-0 group-hover:opacity-100 transition-opacity shrink-0"
-                  data-state="closed"
-                  id="radix-:r2:"
-                  type="button"
-                >
-                  <svg
-                    class="lucide lucide-ellipsis w-4 h-4"
-                    fill="none"
-                    height="24"
-                    stroke="currentColor"
-                    stroke-linecap="round"
-                    stroke-linejoin="round"
-                    stroke-width="2"
-                    viewBox="0 0 24 24"
-                    width="24"
-                    xmlns="http://www.w3.org/2000/svg"
-                  >
-                    <circle
-                      cx="12"
-                      cy="12"
-                      r="1"
-                    />
-                    <circle
-                      cx="19"
-                      cy="12"
-                      r="1"
-                    />
-                    <circle
-                      cx="5"
-                      cy="12"
-                      r="1"
-                    />
-                  </svg>
-                </button>
-              </div>
-            </div>
+                <circle
+                  cx="19"
+                  cy="12"
+                  r="1"
+                />
+                <circle
+                  cx="5"
+                  cy="12"
+                  r="1"
+                />
+              </svg>
+            </button>
           </div>
+          <span
+            class="hidden md:block text-xs text-muted-foreground truncate"
+          >
+            —
+          </span>
+          <span
+            class="hidden md:block"
+          >
+            <span
+              style="color: rgb(156, 163, 175); background-color: rgba(156, 163, 175, 0.125); padding: 2px 8px; border-radius: 9999px; font-size: 11px; font-weight: 600; white-space: nowrap;"
+            >
+              Nuevo
+            </span>
+          </span>
+          <span
+            class="text-xs text-muted-foreground text-right flex items-center justify-end gap-1"
+          >
+            <svg
+              class="lucide lucide-clock w-3 h-3"
+              fill="none"
+              height="24"
+              stroke="currentColor"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="2"
+              viewBox="0 0 24 24"
+              width="24"
+              xmlns="http://www.w3.org/2000/svg"
+            >
+              <circle
+                cx="12"
+                cy="12"
+                r="10"
+              />
+              <polyline
+                points="12 6 12 12 16 14"
+              />
+            </svg>
+            —
+          </span>
         </div>
         <div
-          class="flex flex-col rounded-2xl overflow-hidden w-64 md:w-auto shrink-0 md:shrink bg-card/50 border border-border/50"
+          class="group grid grid-cols-[1fr_80px] md:grid-cols-[1fr_200px_100px_80px] gap-4 px-4 py-3 items-center cursor-pointer transition-all duration-150 hover:bg-muted/30"
+          draggable="true"
         >
           <div
-            class="px-4 py-3 border-b border-border/30"
+            class="flex items-center gap-3 min-w-0"
           >
             <div
-              class="flex items-center gap-2"
+              class="relative shrink-0"
             >
+              <button
+                class="w-9 h-9 rounded-full overflow-hidden cursor-default"
+              >
+                <div
+                  class="w-full h-full bg-gradient-to-br flex items-center justify-center text-white text-[10px] font-medium from-sky-400 to-blue-500"
+                >
+                  NL
+                </div>
+              </button>
               <span
-                class="opacity-80 text-red-400"
+                class="absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full border-2 border-card bg-gray-400"
+              />
+            </div>
+            <div
+              class="min-w-0 flex-1"
+            >
+              <p
+                class="font-medium text-sm truncate"
+              >
+                New Lead
+              </p>
+              <p
+                class="text-xs text-muted-foreground truncate flex items-center gap-1"
               >
                 <svg
-                  class="lucide lucide-flame w-4 h-4"
+                  class="lucide lucide-send w-3 h-3"
                   fill="none"
                   height="24"
                   stroke="currentColor"
@@ -889,368 +1098,132 @@ exports[`Leads Snapshots > renders leads pipeline - snapshot 1`] = `
                   xmlns="http://www.w3.org/2000/svg"
                 >
                   <path
-                    d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 2.5z"
+                    d="M14.536 21.686a.5.5 0 0 0 .937-.024l6.5-19a.496.496 0 0 0-.635-.635l-19 6.5a.5.5 0 0 0-.024.937l7.93 3.18a2 2 0 0 1 1.112 1.11z"
+                  />
+                  <path
+                    d="m21.854 2.147-10.94 10.939"
                   />
                 </svg>
-              </span>
-              <span
-                class="font-semibold text-sm text-red-400"
-              >
-                Calientes
-              </span>
-              <span
-                class="text-xs font-semibold px-2 py-0.5 rounded-full ml-auto text-red-400 bg-current/10"
-              >
-                1
-              </span>
+                @
+                New Lead
+              </p>
             </div>
-            <p
-              class="text-xs text-muted-foreground mt-1"
+            <button
+              aria-expanded="false"
+              aria-haspopup="menu"
+              class="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 hover:bg-accent hover:text-accent-foreground h-7 w-7 opacity-0 group-hover:opacity-100 transition-opacity shrink-0"
+              data-state="closed"
+              id="radix-:r4:"
+              type="button"
             >
-              Listo para comprar
-            </p>
-          </div>
-          <div
-            class="flex-1 overflow-auto p-2 space-y-2"
-          >
-            <div
-              class="group p-3 rounded-xl bg-card border border-border/30 cursor-pointer transition-all hover:border-violet-500/50 hover:shadow-md hover:shadow-violet-500/10 hover:bg-card/80"
-              draggable="true"
-            >
-              <div
-                class="flex items-start gap-3"
+              <svg
+                class="lucide lucide-ellipsis w-4 h-4"
+                fill="none"
+                height="24"
+                stroke="currentColor"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                viewBox="0 0 24 24"
+                width="24"
+                xmlns="http://www.w3.org/2000/svg"
               >
-                <button
-                  class="w-10 h-10 rounded-full shrink-0 overflow-hidden hover:ring-2 hover:ring-violet-500 cursor-pointer"
-                  title="Abrir @hotlead"
-                >
-                  <div
-                    class="w-full h-full bg-gradient-to-br from-violet-600 to-purple-600 flex items-center justify-center text-white text-xs font-medium"
-                  >
-                    HL
-                  </div>
-                </button>
-                <div
-                  class="flex-1 min-w-0"
-                >
-                  <div
-                    class="flex items-center gap-2"
-                  >
-                    <p
-                      class="font-medium text-sm truncate"
-                    >
-                      Hot Lead
-                    </p>
-                    <svg
-                      class="lucide lucide-external-link w-3 h-3 text-muted-foreground/50 opacity-0 group-hover:opacity-100"
-                      fill="none"
-                      height="24"
-                      stroke="currentColor"
-                      stroke-linecap="round"
-                      stroke-linejoin="round"
-                      stroke-width="2"
-                      viewBox="0 0 24 24"
-                      width="24"
-                      xmlns="http://www.w3.org/2000/svg"
-                    >
-                      <path
-                        d="M15 3h6v6"
-                      />
-                      <path
-                        d="M10 14 21 3"
-                      />
-                      <path
-                        d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"
-                      />
-                    </svg>
-                  </div>
-                  <p
-                    class="text-xs text-muted-foreground flex items-center gap-1"
-                  >
-                    <svg
-                      class="lucide lucide-instagram w-3 h-3"
-                      fill="none"
-                      height="24"
-                      stroke="currentColor"
-                      stroke-linecap="round"
-                      stroke-linejoin="round"
-                      stroke-width="2"
-                      viewBox="0 0 24 24"
-                      width="24"
-                      xmlns="http://www.w3.org/2000/svg"
-                    >
-                      <rect
-                        height="20"
-                        rx="5"
-                        ry="5"
-                        width="20"
-                        x="2"
-                        y="2"
-                      />
-                      <path
-                        d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z"
-                      />
-                      <line
-                        x1="17.5"
-                        x2="17.51"
-                        y1="6.5"
-                        y2="6.5"
-                      />
-                    </svg>
-                    <span
-                      class="truncate"
-                    >
-                      @
-                      Hot Lead
-                    </span>
-                  </p>
-                </div>
-                <div
-                  class="flex flex-col items-end shrink-0 text-muted-foreground"
+                <circle
+                  cx="12"
+                  cy="12"
+                  r="1"
                 />
-                <button
-                  aria-expanded="false"
-                  aria-haspopup="menu"
-                  class="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 hover:bg-accent hover:text-accent-foreground h-7 w-7 opacity-0 group-hover:opacity-100 transition-opacity shrink-0"
-                  data-state="closed"
-                  id="radix-:r4:"
-                  type="button"
-                >
-                  <svg
-                    class="lucide lucide-ellipsis w-4 h-4"
-                    fill="none"
-                    height="24"
-                    stroke="currentColor"
-                    stroke-linecap="round"
-                    stroke-linejoin="round"
-                    stroke-width="2"
-                    viewBox="0 0 24 24"
-                    width="24"
-                    xmlns="http://www.w3.org/2000/svg"
-                  >
-                    <circle
-                      cx="12"
-                      cy="12"
-                      r="1"
-                    />
-                    <circle
-                      cx="19"
-                      cy="12"
-                      r="1"
-                    />
-                    <circle
-                      cx="5"
-                      cy="12"
-                      r="1"
-                    />
-                  </svg>
-                </button>
-              </div>
-            </div>
+                <circle
+                  cx="19"
+                  cy="12"
+                  r="1"
+                />
+                <circle
+                  cx="5"
+                  cy="12"
+                  r="1"
+                />
+              </svg>
+            </button>
           </div>
+          <span
+            class="hidden md:block text-xs text-muted-foreground truncate"
+          >
+            —
+          </span>
+          <span
+            class="hidden md:block"
+          >
+            <span
+              style="color: rgb(156, 163, 175); background-color: rgba(156, 163, 175, 0.125); padding: 2px 8px; border-radius: 9999px; font-size: 11px; font-weight: 600; white-space: nowrap;"
+            >
+              Nuevo
+            </span>
+          </span>
+          <span
+            class="text-xs text-muted-foreground text-right flex items-center justify-end gap-1"
+          >
+            <svg
+              class="lucide lucide-clock w-3 h-3"
+              fill="none"
+              height="24"
+              stroke="currentColor"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="2"
+              viewBox="0 0 24 24"
+              width="24"
+              xmlns="http://www.w3.org/2000/svg"
+            >
+              <circle
+                cx="12"
+                cy="12"
+                r="10"
+              />
+              <polyline
+                points="12 6 12 12 16 14"
+              />
+            </svg>
+            —
+          </span>
         </div>
         <div
-          class="flex flex-col rounded-2xl overflow-hidden w-64 md:w-auto shrink-0 md:shrink bg-card/50 border border-border/50"
+          class="group grid grid-cols-[1fr_80px] md:grid-cols-[1fr_200px_100px_80px] gap-4 px-4 py-3 items-center cursor-pointer transition-all duration-150 hover:bg-muted/30"
+          draggable="true"
         >
           <div
-            class="px-4 py-3 border-b border-border/30"
+            class="flex items-center gap-3 min-w-0"
           >
             <div
-              class="flex items-center gap-2"
+              class="relative shrink-0"
             >
-              <span
-                class="opacity-80 text-emerald-400"
+              <button
+                class="w-9 h-9 rounded-full overflow-hidden hover:ring-2 hover:ring-violet-500 cursor-pointer"
+                title="Abrir @customer"
               >
-                <svg
-                  class="lucide lucide-circle-check-big w-4 h-4"
-                  fill="none"
-                  height="24"
-                  stroke="currentColor"
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                  stroke-width="2"
-                  viewBox="0 0 24 24"
-                  width="24"
-                  xmlns="http://www.w3.org/2000/svg"
-                >
-                  <path
-                    d="M21.801 10A10 10 0 1 1 17 3.335"
-                  />
-                  <path
-                    d="m9 11 3 3L22 4"
-                  />
-                </svg>
-              </span>
-              <span
-                class="font-semibold text-sm text-emerald-400"
-              >
-                Clientes
-              </span>
-              <span
-                class="text-xs font-semibold px-2 py-0.5 rounded-full ml-auto text-emerald-400 bg-current/10"
-              >
-                1
-              </span>
-            </div>
-            <p
-              class="text-xs text-muted-foreground mt-1"
-            >
-              Ya compró
-            </p>
-          </div>
-          <div
-            class="flex-1 overflow-auto p-2 space-y-2"
-          >
-            <div
-              class="group p-3 rounded-xl bg-card border border-border/30 cursor-pointer transition-all hover:border-violet-500/50 hover:shadow-md hover:shadow-violet-500/10 hover:bg-card/80"
-              draggable="true"
-            >
-              <div
-                class="flex items-start gap-3"
-              >
-                <button
-                  class="w-10 h-10 rounded-full shrink-0 overflow-hidden hover:ring-2 hover:ring-violet-500 cursor-pointer"
-                  title="Abrir @customer"
-                >
-                  <div
-                    class="w-full h-full bg-gradient-to-br from-violet-600 to-purple-600 flex items-center justify-center text-white text-xs font-medium"
-                  >
-                    C
-                  </div>
-                </button>
                 <div
-                  class="flex-1 min-w-0"
+                  class="w-full h-full bg-gradient-to-br flex items-center justify-center text-white text-[10px] font-medium from-violet-600 to-purple-600"
                 >
-                  <div
-                    class="flex items-center gap-2"
-                  >
-                    <p
-                      class="font-medium text-sm truncate"
-                    >
-                      Customer
-                    </p>
-                    <svg
-                      class="lucide lucide-external-link w-3 h-3 text-muted-foreground/50 opacity-0 group-hover:opacity-100"
-                      fill="none"
-                      height="24"
-                      stroke="currentColor"
-                      stroke-linecap="round"
-                      stroke-linejoin="round"
-                      stroke-width="2"
-                      viewBox="0 0 24 24"
-                      width="24"
-                      xmlns="http://www.w3.org/2000/svg"
-                    >
-                      <path
-                        d="M15 3h6v6"
-                      />
-                      <path
-                        d="M10 14 21 3"
-                      />
-                      <path
-                        d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"
-                      />
-                    </svg>
-                  </div>
-                  <p
-                    class="text-xs text-muted-foreground flex items-center gap-1"
-                  >
-                    <svg
-                      class="lucide lucide-instagram w-3 h-3"
-                      fill="none"
-                      height="24"
-                      stroke="currentColor"
-                      stroke-linecap="round"
-                      stroke-linejoin="round"
-                      stroke-width="2"
-                      viewBox="0 0 24 24"
-                      width="24"
-                      xmlns="http://www.w3.org/2000/svg"
-                    >
-                      <rect
-                        height="20"
-                        rx="5"
-                        ry="5"
-                        width="20"
-                        x="2"
-                        y="2"
-                      />
-                      <path
-                        d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z"
-                      />
-                      <line
-                        x1="17.5"
-                        x2="17.51"
-                        y1="6.5"
-                        y2="6.5"
-                      />
-                    </svg>
-                    <span
-                      class="truncate"
-                    >
-                      @
-                      Customer
-                    </span>
-                  </p>
+                  C
                 </div>
-                <div
-                  class="flex flex-col items-end shrink-0 text-muted-foreground"
-                />
-                <button
-                  aria-expanded="false"
-                  aria-haspopup="menu"
-                  class="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 hover:bg-accent hover:text-accent-foreground h-7 w-7 opacity-0 group-hover:opacity-100 transition-opacity shrink-0"
-                  data-state="closed"
-                  id="radix-:r6:"
-                  type="button"
-                >
-                  <svg
-                    class="lucide lucide-ellipsis w-4 h-4"
-                    fill="none"
-                    height="24"
-                    stroke="currentColor"
-                    stroke-linecap="round"
-                    stroke-linejoin="round"
-                    stroke-width="2"
-                    viewBox="0 0 24 24"
-                    width="24"
-                    xmlns="http://www.w3.org/2000/svg"
-                  >
-                    <circle
-                      cx="12"
-                      cy="12"
-                      r="1"
-                    />
-                    <circle
-                      cx="19"
-                      cy="12"
-                      r="1"
-                    />
-                    <circle
-                      cx="5"
-                      cy="12"
-                      r="1"
-                    />
-                  </svg>
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-        <div
-          class="flex flex-col rounded-2xl overflow-hidden w-64 md:w-auto shrink-0 md:shrink bg-card/50 border border-border/50"
-        >
-          <div
-            class="px-4 py-3 border-b border-border/30"
-          >
-            <div
-              class="flex items-center gap-2"
-            >
+              </button>
               <span
-                class="opacity-80 text-gray-500"
+                class="absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full border-2 border-card bg-green-500"
+              />
+            </div>
+            <div
+              class="min-w-0 flex-1"
+            >
+              <p
+                class="font-medium text-sm truncate"
+              >
+                Customer
+              </p>
+              <p
+                class="text-xs text-muted-foreground truncate flex items-center gap-1"
               >
                 <svg
-                  class="lucide lucide-ghost w-4 h-4"
+                  class="lucide lucide-instagram w-3 h-3"
                   fill="none"
                   height="24"
                   stroke="currentColor"
@@ -1261,43 +1234,106 @@ exports[`Leads Snapshots > renders leads pipeline - snapshot 1`] = `
                   width="24"
                   xmlns="http://www.w3.org/2000/svg"
                 >
-                  <path
-                    d="M9 10h.01"
+                  <rect
+                    height="20"
+                    rx="5"
+                    ry="5"
+                    width="20"
+                    x="2"
+                    y="2"
                   />
                   <path
-                    d="M15 10h.01"
+                    d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z"
                   />
-                  <path
-                    d="M12 2a8 8 0 0 0-8 8v12l3-3 2.5 2.5L12 19l2.5 2.5L17 19l3 3V10a8 8 0 0 0-8-8z"
+                  <line
+                    x1="17.5"
+                    x2="17.51"
+                    y1="6.5"
+                    y2="6.5"
                   />
                 </svg>
-              </span>
-              <span
-                class="font-semibold text-sm text-gray-500"
-              >
-                Fantasmas
-              </span>
-              <span
-                class="text-xs font-semibold px-2 py-0.5 rounded-full ml-auto text-gray-500 bg-current/10"
-              >
-                0
-              </span>
+                @
+                Customer
+              </p>
             </div>
-            <p
-              class="text-xs text-muted-foreground mt-1"
+            <button
+              aria-expanded="false"
+              aria-haspopup="menu"
+              class="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 hover:bg-accent hover:text-accent-foreground h-7 w-7 opacity-0 group-hover:opacity-100 transition-opacity shrink-0"
+              data-state="closed"
+              id="radix-:r6:"
+              type="button"
             >
-              +7 días sin respuesta
-            </p>
+              <svg
+                class="lucide lucide-ellipsis w-4 h-4"
+                fill="none"
+                height="24"
+                stroke="currentColor"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                viewBox="0 0 24 24"
+                width="24"
+                xmlns="http://www.w3.org/2000/svg"
+              >
+                <circle
+                  cx="12"
+                  cy="12"
+                  r="1"
+                />
+                <circle
+                  cx="19"
+                  cy="12"
+                  r="1"
+                />
+                <circle
+                  cx="5"
+                  cy="12"
+                  r="1"
+                />
+              </svg>
+            </button>
           </div>
-          <div
-            class="flex-1 overflow-auto p-2 space-y-2"
+          <span
+            class="hidden md:block text-xs text-muted-foreground truncate"
           >
-            <div
-              class="text-center py-16 text-muted-foreground/40 text-xs"
+            —
+          </span>
+          <span
+            class="hidden md:block"
+          >
+            <span
+              style="color: rgb(156, 163, 175); background-color: rgba(156, 163, 175, 0.125); padding: 2px 8px; border-radius: 9999px; font-size: 11px; font-weight: 600; white-space: nowrap;"
             >
-              Sin leads
-            </div>
-          </div>
+              Nuevo
+            </span>
+          </span>
+          <span
+            class="text-xs text-muted-foreground text-right flex items-center justify-end gap-1"
+          >
+            <svg
+              class="lucide lucide-clock w-3 h-3"
+              fill="none"
+              height="24"
+              stroke="currentColor"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="2"
+              viewBox="0 0 24 24"
+              width="24"
+              xmlns="http://www.w3.org/2000/svg"
+            >
+              <circle
+                cx="12"
+                cy="12"
+                r="10"
+              />
+              <polyline
+                points="12 6 12 12 16 14"
+              />
+            </svg>
+            —
+          </span>
         </div>
       </div>
     </div>

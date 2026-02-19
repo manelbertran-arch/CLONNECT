@@ -20,6 +20,7 @@ vi.mock("@/hooks/useApi", () => ({
   useDeleteConversation: vi.fn(() => ({ mutateAsync: vi.fn(), isPending: false })),
   useRestoreConversation: vi.fn(() => ({ mutateAsync: vi.fn(), isPending: false })),
   useArchivedConversations: vi.fn(() => ({ data: { conversations: [] }, isLoading: false })),
+  useEventStream: vi.fn(() => ({ data: null, isLoading: false })),
 }));
 
 describe("Inbox Accessibility", () => {

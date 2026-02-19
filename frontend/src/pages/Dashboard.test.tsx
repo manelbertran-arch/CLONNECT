@@ -52,6 +52,11 @@ vi.mock("@/hooks/useApi", () => ({
     isLoading: false,
     error: null,
   })),
+  useEscalations: vi.fn(() => ({
+    data: { escalations: [], count: 0 },
+    isLoading: false,
+    error: null,
+  })),
 }));
 
 describe("Dashboard Page", () => {
@@ -156,8 +161,8 @@ describe("Dashboard Page", () => {
       error: null,
     } as any);
 
-    render(<Dashboard />);
-    const loader = document.querySelector(".animate-spin");
+    const { container } = render(<Dashboard />);
+    const loader = container.querySelector(".animate-pulse") || container.querySelector(".animate-spin");
     expect(loader).toBeInTheDocument();
   });
 

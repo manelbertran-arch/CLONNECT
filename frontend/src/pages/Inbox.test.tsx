@@ -101,6 +101,10 @@ vi.mock("@/hooks/useApi", () => ({
     isLoading: false,
     error: null,
   })),
+  useEventStream: vi.fn(() => ({
+    data: null,
+    isLoading: false,
+  })),
 }));
 
 describe("Inbox Page", () => {
@@ -286,8 +290,8 @@ describe("Inbox Page", () => {
       error: null,
     } as any);
 
-    render(<Inbox />);
-    const loader = document.querySelector(".animate-spin");
+    const { container } = render(<Inbox />);
+    const loader = container.querySelector(".animate-pulse") || container.querySelector(".animate-spin");
     expect(loader).toBeInTheDocument();
   });
 

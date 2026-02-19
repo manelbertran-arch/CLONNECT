@@ -130,20 +130,21 @@ describe("Leads Page", () => {
   });
 
   // Kanban Columns Tests - Spanish names
-  it("displays 5 Kanban columns in Spanish", () => {
+  it("displays 6 Kanban columns in Spanish", () => {
     render(<Leads />);
     expect(screen.getByText("Nuevos")).toBeInTheDocument();
-    expect(screen.getByText("Interesados")).toBeInTheDocument();
+    expect(screen.getByText("Amigos")).toBeInTheDocument();
+    expect(screen.getByText("Colaboradores")).toBeInTheDocument();
     expect(screen.getByText("Calientes")).toBeInTheDocument();
     expect(screen.getByText("Clientes")).toBeInTheDocument();
-    expect(screen.getByText("Fantasmas")).toBeInTheDocument();
+    expect(screen.getByText("Fríos")).toBeInTheDocument();
   });
 
   it("shows column lead counts", () => {
     const { container } = render(<Leads />);
-    // Each column header shows count
-    const countElements = container.querySelectorAll(".text-xs.font-semibold");
-    expect(countElements.length).toBeGreaterThan(0);
+    // Column headers with counts
+    const countBadges = container.querySelectorAll("[class*='text-xs']");
+    expect(countBadges.length).toBeGreaterThan(0);
   });
 
   // Lead Cards Tests
@@ -213,8 +214,8 @@ describe("Leads Page", () => {
       error: null,
     } as any);
 
-    render(<Leads />);
-    const loader = document.querySelector(".animate-spin");
+    const { container } = render(<Leads />);
+    const loader = container.querySelector(".animate-pulse") || container.querySelector(".animate-spin");
     expect(loader).toBeInTheDocument();
   });
 
