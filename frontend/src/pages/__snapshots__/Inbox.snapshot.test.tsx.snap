@@ -901,7 +901,7 @@ exports[`Inbox Snapshots > renders inbox with conversations - snapshot 1`] = `
                 <p
                   class="text-[10px] text-gray-500 text-right px-4 pb-2"
                 >
-                  07:58
+                  08:16
                 </p>
               </div>
             </div>
@@ -931,7 +931,7 @@ exports[`Inbox Snapshots > renders inbox with conversations - snapshot 1`] = `
                 <p
                   class="text-[10px] text-white/60 text-right px-4 pb-2"
                 >
-                  07:58
+                  08:16
                 </p>
               </div>
             </div>
