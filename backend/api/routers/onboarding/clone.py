@@ -611,6 +611,25 @@ async def _run_clone_creation(creator_id: str, website_url: str = None):
             creator.clone_status = "complete"
             session.commit()
 
+            # B8: Post-onboarding verification
+            _update_clone_progress(
+                creator_id,
+                step="verifying",
+                step_status="active",
+                percent=95,
+            )
+            try:
+                from .verification import _verify_onboarding_internal
+
+                verification = await _verify_onboarding_internal(creator_id, session)
+                if verification.get("pending_items"):
+                    logger.warning(
+                        f"[B8] Post-onboarding pending items for {creator_id}: "
+                        f"{verification['pending_items']}"
+                    )
+            except Exception as ve:
+                logger.error(f"[B8] Verification failed (non-blocking): {ve}")
+
             _update_clone_progress(
                 creator_id,
                 status="complete",

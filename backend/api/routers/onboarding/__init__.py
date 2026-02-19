@@ -29,6 +29,7 @@ from .progress import router as progress_router
 from .scrape import router as scrape_router
 from .setup import router as setup_router
 from .sync import router as sync_router
+from .verification import router as verification_router
 
 # Main router that combines all onboarding sub-routers
 # Note: All sub-routers have prefix="/onboarding", so we don't add one here
@@ -42,6 +43,7 @@ router.include_router(setup_router)
 router.include_router(sync_router)
 router.include_router(dm_sync_router)
 router.include_router(extraction_router)
+router.include_router(verification_router)
 
 # DISABLED (P1-B7): pipeline.py, seed_data.py, auto_setup.py
 # Files preserved for reference but not registered as routers.
@@ -62,4 +64,5 @@ __all__ = [
     "sync_router",
     "dm_sync_router",
     "extraction_router",
+    "verification_router",
 ]
