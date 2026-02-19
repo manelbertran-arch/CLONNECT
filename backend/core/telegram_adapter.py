@@ -346,8 +346,6 @@ class TelegramAdapter:
                 # CRITICAL FIX 2026-02-19: AUTOPILOT MODE DISABLED
                 # The bot must NEVER send messages without creator approval.
                 # Save as pending instead of sending directly.
-                # To re-enable autopilot in future: check creator.autopilot_premium_enabled
-
                 logger.warning(
                     f"[Telegram] AUTOPILOT BLOCKED - copilot_mode=False but auto-send disabled. "
                     f"Saving as pending for {telegram_msg.display_name}"
@@ -523,8 +521,6 @@ class TelegramAdapter:
                 # CRITICAL FIX 2026-02-19: AUTOPILOT MODE DISABLED
                 # The bot must NEVER send messages without creator approval.
                 # Save as pending instead of sending directly.
-                # To re-enable autopilot in future: check creator.autopilot_premium_enabled
-
                 logger.warning(
                     f"[Telegram] AUTOPILOT BLOCKED (webhook) - copilot_mode=False but auto-send disabled. "
                     f"Saving as pending for {telegram_msg.display_name}"

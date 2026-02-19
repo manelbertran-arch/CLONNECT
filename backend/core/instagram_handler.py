@@ -10,7 +10,7 @@ Usage:
 """
 import logging
 import os
-from dataclasses import asdict, dataclass, field
+from dataclasses import asdict, dataclass
 from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional
 
@@ -159,7 +159,7 @@ class InstagramHandler:
 
         try:
             # Get pages connected to this token
-            url = f"https://graph.facebook.com/v18.0/me/accounts"
+            url = "https://graph.facebook.com/v18.0/me/accounts"
             params = {"access_token": self.access_token}
 
             response = requests.get(url, params=params, timeout=10)
@@ -282,6 +282,9 @@ class InstagramHandler:
             if await self._record_creator_manual_response(echo_msg):
                 echo_recorded += 1
 
+        # Record message reactions (❤️ on a message) — don't trigger bot response
+        reactions_recorded = await self._process_reaction_events(payload)
+
         # Extract messages from webhook
         messages = await self._extract_messages(payload)
 
@@ -290,6 +293,7 @@ class InstagramHandler:
                 "status": "ok",
                 "messages_processed": 0,
                 "echo_messages_recorded": echo_recorded,
+                "reactions_recorded": reactions_recorded,
                 "results": [],
             }
 
@@ -405,6 +409,35 @@ class InstagramHandler:
                     # Remove oldest entries (convert to list, slice, back to set)
                     self._processed_message_ids = set(list(self._processed_message_ids)[-500:])
 
+                # PERSISTENT DEDUP: Check if message already exists in DB
+                # (survives redeploys, unlike the in-memory set above)
+                if message.message_id:
+                    try:
+                        from api.database import SessionLocal
+                        from api.models import Message as MsgModel
+
+                        _dedup_session = SessionLocal()
+                        try:
+                            existing_in_db = (
+                                _dedup_session.query(MsgModel.id)
+                                .filter(MsgModel.platform_message_id == message.message_id)
+                                .first()
+                            )
+                            if existing_in_db:
+                                logger.info(
+                                    f"[DEDUP:DB] Message {message.message_id} already in DB — skipping"
+                                )
+                                results.append({
+                                    "message_id": message.message_id,
+                                    "sender_id": message.sender_id,
+                                    "status": "duplicate_db_skipped",
+                                })
+                                continue
+                        finally:
+                            _dedup_session.close()
+                    except Exception as e:
+                        logger.warning(f"[DEDUP:DB] Check failed: {e}")
+
                 # Process with DM agent to get suggested response
                 response = await self.process_message(message)
 
@@ -464,18 +497,135 @@ class InstagramHandler:
 
                     copilot = get_copilot_service()
 
+                    # --- Anti-zombie check #1: Creator already responded? ---
+                    creator_already_responded = await self._has_creator_responded_recently(
+                        message.sender_id, window_seconds=1800  # 30 min window
+                    )
+                    if creator_already_responded:
+                        logger.info(
+                            f"[Copilot:AntiZombie] Skipping suggestion for {message.sender_id} — "
+                            "creator already responded"
+                        )
+                        # Still save user message to DB
+                        await self._save_user_message_to_db(
+                            msg=message, username=username, full_name=full_name,
+                        )
+                        results.append({
+                            "message_id": message.message_id,
+                            "sender_id": message.sender_id,
+                            "copilot_mode": True,
+                            "status": "skipped_creator_responded",
+                        })
+                        continue
+
+                    # --- Anti-zombie check #2: Already has pending suggestion? ---
+                    try:
+                        from api.database import SessionLocal
+                        from api.models import Creator, Lead, Message as MsgModel
+
+                        _session = SessionLocal()
+                        try:
+                            _creator = _session.query(Creator).filter_by(name=self.creator_id).first()
+                            if _creator:
+                                _lead = (
+                                    _session.query(Lead)
+                                    .filter(
+                                        Lead.creator_id == _creator.id,
+                                        Lead.platform_user_id.in_([message.sender_id, f"ig_{message.sender_id}"]),
+                                    )
+                                    .first()
+                                )
+                                if _lead:
+                                    existing_pending = (
+                                        _session.query(MsgModel)
+                                        .filter(
+                                            MsgModel.lead_id == _lead.id,
+                                            MsgModel.role == "assistant",
+                                            MsgModel.status == "pending_approval",
+                                        )
+                                        .first()
+                                    )
+                                    if existing_pending:
+                                        logger.info(
+                                            f"[Copilot:AntiZombie] Skipping — already has pending "
+                                            f"suggestion {existing_pending.id} for {message.sender_id}"
+                                        )
+                                        # Still save user message
+                                        await self._save_user_message_to_db(
+                                            msg=message, username=username, full_name=full_name,
+                                        )
+                                        results.append({
+                                            "message_id": message.message_id,
+                                            "sender_id": message.sender_id,
+                                            "copilot_mode": True,
+                                            "status": "skipped_existing_pending",
+                                        })
+                                        continue
+                        finally:
+                            _session.close()
+                    except Exception as e:
+                        logger.warning(f"[Copilot:AntiZombie] Pending check failed: {e}")
+
+                    # Extract media info for attachment messages (same as _save_user_message_to_db)
+                    copilot_user_msg = message.text
+                    copilot_msg_metadata = {}
+
+                    # Handle story messages first (story data is separate from attachments)
+                    if message.story:
+                        story_data = message.story
+                        if story_data.get("reply_to"):
+                            copilot_msg_metadata["type"] = "story_reply"
+                            copilot_msg_metadata["link"] = story_data["reply_to"].get("link", "")
+                        elif story_data.get("mention"):
+                            copilot_msg_metadata["type"] = "story_mention"
+                            copilot_msg_metadata["link"] = story_data["mention"].get("link", "")
+                        # Extract CDN URL from attachments for stories
+                        if message.attachments:
+                            att = message.attachments[0]
+                            cdn_url = (
+                                att.get("video_data", {}).get("url")
+                                or att.get("image_data", {}).get("url")
+                                or (att.get("payload", {}).get("url") if isinstance(att.get("payload"), dict) else None)
+                                or att.get("url")
+                            )
+                            if cdn_url:
+                                copilot_msg_metadata["url"] = cdn_url
+                    elif message.attachments:
+                        media_info = self._extract_media_info(message.attachments)
+                        if media_info:
+                            copilot_msg_metadata["type"] = media_info.get("type", "unknown")
+                            if media_info.get("url"):
+                                copilot_msg_metadata["url"] = media_info["url"]
+                            if media_info.get("permalink"):
+                                copilot_msg_metadata["permalink"] = media_info["permalink"]
+                            if not copilot_user_msg:
+                                media_type = media_info.get("type", "media")
+                                copilot_user_msg = {
+                                    "image": "Sent a photo",
+                                    "video": "Sent a video",
+                                    "audio": "Sent a voice message",
+                                    "gif": "Sent a GIF",
+                                    "sticker": "Sent a sticker",
+                                    "story_mention": "Mentioned you in their story",
+                                    "share": "Shared a post",
+                                    "shared_reel": "Shared a reel",
+                                }.get(media_type, "Sent an attachment")
+                    if not copilot_user_msg:
+                        copilot_user_msg = "[Media/Attachment]"
+
                     pending = await copilot.create_pending_response(
                         creator_id=self.creator_id,
                         lead_id="",  # Will be set by service
                         follower_id=message.sender_id,
                         platform="instagram",
-                        user_message=message.text,
+                        user_message=copilot_user_msg,
                         user_message_id=message.message_id,
                         suggested_response=response_text,
                         intent=intent_str,
                         confidence=response.confidence,
                         username=username,
                         full_name=full_name,
+                        msg_metadata=copilot_msg_metadata if copilot_msg_metadata else None,
                     )
 
                     logger.info(
@@ -495,53 +645,83 @@ class InstagramHandler:
                         }
                     )
                 else:
-                    # CRITICAL FIX 2026-02-19: AUTOPILOT MODE DISABLED
-                    # The bot should NEVER send messages without creator approval.
-                    # Even if copilot_mode=False, we save as pending instead of sending.
-                    # This prevents accidental auto-sends that damage creator reputation.
-
-                    logger.warning(
-                        f"[Copilot] AUTOPILOT BLOCKED - copilot_mode=False but auto-send disabled. "
-                        f"Saving as pending for {message.sender_id}"
+                    # AUTOPILOT MODE: Check if creator already responded before sending
+                    creator_already_responded = await self._has_creator_responded_recently(
+                        message.sender_id, window_seconds=300  # 5 minute window
                     )
 
-                    from core.copilot_service import get_copilot_service
-                    copilot = get_copilot_service()
+                    if creator_already_responded:
+                        # Creator already replied manually, skip bot response
+                        # BUT still save user message to database!
+                        logger.info(
+                            f"[AntiDup] Skipping autopilot response to {message.sender_id} - "
+                            "creator already responded"
+                        )
 
-                    pending = await copilot.create_pending_response(
-                        creator_id=self.creator_id,
-                        lead_id="",
-                        follower_id=message.sender_id,
-                        platform="instagram",
-                        user_message=message.text,
-                        user_message_id=message.message_id,
-                        suggested_response=response_text,
-                        intent=intent_str,
-                        confidence=response.confidence,
-                        username=username,
-                        full_name=full_name,
-                    )
+                        # Save user message even if bot doesn't respond
+                        await self._save_user_message_to_db(
+                            msg=message,
+                            username=username,
+                            full_name=full_name,
+                        )
 
-                    # Save user message to DB
-                    await self._save_user_message_to_db(
-                        msg=message,
-                        username=username,
-                        full_name=full_name,
-                    )
+                        results.append(
+                            {
+                                "message_id": message.message_id,
+                                "sender_id": message.sender_id,
+                                "copilot_mode": False,
+                                "status": "skipped_creator_responded",
+                                "reason": "Creator already responded manually",
+                            }
+                        )
+                    else:
+                        # CRITICAL FIX 2026-02-19: AUTOPILOT MODE DISABLED
+                        # The bot must NEVER send messages without creator approval.
+                        # Save as pending instead of sending directly.
+                        # To re-enable autopilot in future: check creator.autopilot_premium_enabled
 
-                    results.append(
-                        {
-                            "message_id": message.message_id,
-                            "sender_id": message.sender_id,
-                            "copilot_mode": False,
-                            "autopilot_blocked": True,
-                            "pending_id": pending.id,
-                            "suggested_response": response_text,
-                            "intent": intent_str,
-                            "confidence": response.confidence,
-                            "status": "pending_approval",
-                        }
-                    )
+                        logger.warning(
+                            f"[Copilot] AUTOPILOT BLOCKED - copilot_mode=False but auto-send disabled. "
+                            f"Saving as pending for {message.sender_id}"
+                        )
+
+                        from core.copilot_service import get_copilot_service
+                        copilot = get_copilot_service()
+
+                        pending = await copilot.create_pending_response(
+                            creator_id=self.creator_id,
+                            lead_id="",
+                            follower_id=message.sender_id,
+                            platform="instagram",
+                            user_message=message.text or "[Media/Attachment]",
+                            user_message_id=message.message_id,
+                            suggested_response=response_text,
+                            intent=intent_str,
+                            confidence=response.confidence,
+                            username=username,
+                            full_name=full_name,
+                        )
+
+                        # Save user message to DB
+                        await self._save_user_message_to_db(
+                            msg=message,
+                            username=username,
+                            full_name=full_name,
+                        )
+
+                        results.append(
+                            {
+                                "message_id": message.message_id,
+                                "sender_id": message.sender_id,
+                                "copilot_mode": False,
+                                "autopilot_blocked": True,
+                                "pending_id": pending.id,
+                                "suggested_response": response_text,
+                                "intent": intent_str,
+                                "confidence": response.confidence,
+                                "status": "pending_approval",
+                            }
+                        )
 
             except Exception as e:
                 import traceback
@@ -671,8 +851,8 @@ class InstagramHandler:
                         )
                         if oldest_date is None or created_time < oldest_date:
                             oldest_date = created_time
-                    except Exception:
-                        pass
+                    except Exception as e:
+                        logger.warning("Suppressed error in created_time = datetime.fromisoformat(: %s", e)
 
             logger.info(
                 f"[LeadHistory] Found {len(messages)} messages for {sender_id}, "
@@ -776,6 +956,7 @@ class InstagramHandler:
                         username=username,
                         full_name=full_name,
                         profile_pic_url=profile_pic_url,
+                        source="instagram_dm",
                         status=status,
                         context=context,
                         purchase_intent=(
@@ -798,7 +979,7 @@ class InstagramHandler:
                     session.rollback()
                     if "uq_lead_creator_platform" in str(e) or "duplicate" in str(e).lower():
                         logger.info(
-                            f"[LeadHistory] Lead already exists (race condition), fetching..."
+                            "[LeadHistory] Lead already exists (race condition), fetching..."
                         )
                         lead = (
                             session.query(Lead)
@@ -810,7 +991,7 @@ class InstagramHandler:
                         )
                         if not lead:
                             logger.error(
-                                f"[LeadHistory] Could not find lead after constraint error"
+                                "[LeadHistory] Could not find lead after constraint error"
                             )
                             return None
                     else:
@@ -838,8 +1019,24 @@ class InstagramHandler:
                             continue
 
                         # Determine role (is this from the creator or the follower?)
-                        is_from_creator = msg_from.get("id") in [self.page_id, self.ig_user_id]
-                        role = "assistant" if is_from_creator else "user"
+                        # Primary check: if sender matches the follower's ID, it's from the follower
+                        # This is more reliable than checking against page_id/ig_user_id
+                        # which may not match the ID format in the Conversations API
+                        msg_sender_id = str(msg_from.get("id", ""))
+                        is_from_follower = msg_sender_id == str(sender_id)
+                        is_from_creator = (
+                            not is_from_follower
+                            and msg_sender_id in [self.page_id, self.ig_user_id]
+                        ) if msg_sender_id else False
+
+                        # If sender is follower → "user", if sender is creator → "assistant"
+                        # If neither matched, use fallback: non-follower = creator
+                        if is_from_follower:
+                            role = "user"
+                        elif is_from_creator or (msg_sender_id and not is_from_follower):
+                            role = "assistant"
+                        else:
+                            role = "user"  # Default to user if no ID available
 
                         # Parse timestamp
                         created_at = None
@@ -848,8 +1045,8 @@ class InstagramHandler:
                                 created_at = datetime.fromisoformat(
                                     msg_time_str.replace("Z", "+00:00").replace("+0000", "+00:00")
                                 )
-                            except Exception:
-                                pass
+                            except Exception as e:
+                                logger.warning("Suppressed error in created_at = datetime.fromisoformat(: %s", e)
 
                         # Generate link preview if message has URLs
                         msg_metadata = None
@@ -860,8 +1057,8 @@ class InstagramHandler:
                                 if preview:
                                     msg_metadata = {"link_preview": preview}
                                     previews_generated += 1
-                            except Exception:
-                                pass
+                            except Exception as e:
+                                logger.warning("Suppressed error in preview = await extract_link_preview(urls[0]): %s", e)
 
                         new_msg = Message(
                             lead_id=lead.id,
@@ -1077,8 +1274,21 @@ class InstagramHandler:
                             sender_id = messaging.get("sender", {}).get("id", "")
                             recipient_id = messaging.get("recipient", {}).get("id", "")
                             text = message_data.get("text", "")
+                            attachments = message_data.get("attachments", [])
 
-                            if text:  # Only record text messages
+                            # Derive display text for attachment-only echoes
+                            if not text and attachments:
+                                att_type = attachments[0].get("type", "attachment")
+                                text = {
+                                    "image": "Sent a photo",
+                                    "video": "Sent a video",
+                                    "audio": "Sent a voice message",
+                                    "share": "Shared content",
+                                    "template": "Shared content",
+                                    "fallback": "Shared content",
+                                }.get(att_type, "Sent an attachment")
+
+                            if text:  # Record text AND attachment echo messages
                                 echo_messages.append(
                                     {
                                         "message_id": message_data.get("mid", ""),
@@ -1086,6 +1296,7 @@ class InstagramHandler:
                                         "recipient_id": recipient_id,  # This is the follower
                                         "text": text,
                                         "timestamp": messaging.get("timestamp", 0),
+                                        "attachments": attachments,  # Pass raw attachments for media capture
                                     }
                                 )
                                 logger.info(
@@ -1150,6 +1361,60 @@ class InstagramHandler:
                     session.commit()
                     return True
 
+                # Extract media info from echo attachments (if any)
+                msg_meta: Dict[str, Any] = {"source": "instagram_echo", "is_manual": True}
+                attachments = echo_msg.get("attachments", [])
+                if attachments:
+                    media_info = self._extract_media_info(attachments)
+                    if media_info:
+                        media_url = media_info.get("url")
+                        media_type = media_info.get("type", "unknown")
+
+                        # Capture CDN media permanently before it expires
+                        if media_url:
+                            try:
+                                from services.media_capture_service import capture_media_from_url, is_cdn_url
+
+                                uploaded = False
+                                cloudinary_svc = get_cloudinary_service()
+                                if cloudinary_svc.is_configured and is_cdn_url(media_url):
+                                    folder = f"clonnect/{self.creator_id or 'unknown'}/media"
+                                    result = cloudinary_svc.upload_from_url(
+                                        url=media_url,
+                                        media_type=media_type,
+                                        folder=folder,
+                                        tags=["instagram", "echo", f"creator_{self.creator_id}"],
+                                    )
+                                    if result.success:
+                                        media_info["original_url"] = media_url
+                                        media_info["url"] = result.url
+                                        media_info["cloudinary_id"] = result.public_id
+                                        uploaded = True
+                                        logger.info(f"[Echo] Media uploaded to Cloudinary: {result.public_id}")
+
+                                # Fallback: base64 or permanent_url
+                                if not uploaded and is_cdn_url(media_url):
+                                    captured = await capture_media_from_url(
+                                        url=media_url,
+                                        media_type=media_type,
+                                        creator_id=self.creator_id,
+                                        use_cloudinary=False,
+                                    )
+                                    if captured:
+                                        if captured.startswith("data:"):
+                                            media_info["thumbnail_base64"] = captured
+                                        else:
+                                            media_info["permanent_url"] = captured
+                            except Exception as e:
+                                logger.warning(f"[Echo] Media capture failed: {e}")
+
+                        # Merge media fields into msg_metadata (outside media_url check
+                        # so share attachments with only permalink/type also get merged)
+                        for key in ("type", "url", "permanent_url", "thumbnail_base64",
+                                    "original_url", "cloudinary_id", "permalink"):
+                            if key in media_info:
+                                msg_meta[key] = media_info[key]
+
                 # Record the creator's manual response
                 msg = Message(
                     lead_id=lead.id,
@@ -1158,13 +1423,47 @@ class InstagramHandler:
                     status="sent",
                     approved_by="creator_manual",  # Mark as manually sent by creator
                     platform_message_id=echo_msg["message_id"],
-                    msg_metadata={"source": "instagram_echo", "is_manual": True},
+                    msg_metadata=msg_meta,
                 )
                 session.add(msg)
 
                 # Update lead last_contact
                 lead.last_contact_at = datetime.now(timezone.utc)
+
+                # Auto-discard pending copilot suggestions for this lead
+                try:
+                    from core.copilot_service import get_copilot_service
+
+                    get_copilot_service().auto_discard_pending_for_lead(lead.id, session=session)
+                except Exception as e:
+                    logger.warning(f"[Echo] Auto-discard failed: {e}")
+
                 session.commit()
+
+                # Invalidate cache and notify frontend
+                try:
+                    from api.cache import api_cache
+
+                    api_cache.invalidate(f"conversations:{self.creator_id}")
+                    api_cache.invalidate(
+                        f"follower_detail:{self.creator_id}:{lead.platform_user_id}"
+                    )
+                except Exception:
+                    pass
+
+                try:
+                    from api.routers.events import notify_creator
+
+                    await notify_creator(
+                        self.creator_id,
+                        "new_message",
+                        {
+                            "follower_id": lead.platform_user_id,
+                            "role": "assistant",
+                        },
+                    )
+                except Exception:
+                    pass
 
                 logger.info(f"[Echo] Recorded creator manual response to {follower_id}")
                 return True
@@ -1175,6 +1474,180 @@ class InstagramHandler:
         except Exception as e:
             logger.error(f"[Echo] Error recording creator response: {e}")
             return False
+
+    async def _process_reaction_events(self, payload: Dict[str, Any]) -> int:
+        """
+        Process message reaction events from webhook.
+
+        Instagram sends reactions as:
+        {
+            "sender": {"id": "user_123"},
+            "recipient": {"id": "page_123"},
+            "timestamp": 1704067200000,
+            "reaction": {
+                "mid": "mid.abc123",       # message being reacted to
+                "action": "react",          # "react" or "unreact"
+                "reaction": "love",         # reaction type
+                "emoji": "❤️"               # emoji (may not always be present)
+            }
+        }
+
+        Reactions are saved as messages with metadata.type="reaction" so the
+        frontend can render them as small emoji bubbles. They do NOT trigger
+        the bot response pipeline.
+        """
+        recorded = 0
+
+        try:
+            for entry in payload.get("entry", []):
+                for messaging in entry.get("messaging", []):
+                    if "reaction" not in messaging:
+                        continue
+
+                    reaction_data = messaging["reaction"]
+                    action = reaction_data.get("action", "")
+
+                    # Only process "react" (ignore "unreact" — we don't delete messages)
+                    if action != "react":
+                        continue
+
+                    sender_id = messaging.get("sender", {}).get("id", "")
+                    recipient_id = messaging.get("recipient", {}).get("id", "")
+
+                    # Determine emoji
+                    emoji = reaction_data.get("emoji", "")
+                    if not emoji:
+                        # Map reaction type names to emojis
+                        reaction_type = reaction_data.get("reaction", "love")
+                        emoji_map = {
+                            "love": "❤️",
+                            "haha": "😂",
+                            "wow": "😮",
+                            "sad": "😢",
+                            "angry": "😠",
+                            "like": "👍",
+                        }
+                        emoji = emoji_map.get(reaction_type, "❤️")
+
+                    # Ensure heart has variation selector
+                    if emoji == "❤" or emoji == "\u2764":
+                        emoji = "❤️"
+
+                    reacted_to_mid = reaction_data.get("mid", "")
+
+                    # Determine role: if sender is a known creator ID, it's from the creator
+                    known_ids = getattr(self, "known_creator_ids", set())
+                    if not known_ids:
+                        known_ids = {self.page_id, self.ig_user_id}
+                    role = "assistant" if sender_id in known_ids else "user"
+
+                    # The follower_id is the other party
+                    follower_id = recipient_id if role == "user" else sender_id
+                    # Wait, if role=user (follower reacted), sender=follower, recipient=page
+                    # If role=assistant (creator reacted), sender=page, recipient=follower
+                    follower_id = sender_id if role == "user" else recipient_id
+
+                    # Save to DB
+                    try:
+                        from api.database import SessionLocal
+                        from api.models import Creator, Lead, Message
+
+                        session = SessionLocal()
+                        try:
+                            creator = session.query(Creator).filter_by(name=self.creator_id).first()
+                            if not creator:
+                                continue
+
+                            lead = (
+                                session.query(Lead)
+                                .filter_by(creator_id=creator.id, platform_user_id=follower_id)
+                                .first()
+                            )
+                            if not lead:
+                                lead = (
+                                    session.query(Lead)
+                                    .filter_by(creator_id=creator.id, platform_user_id=f"ig_{follower_id}")
+                                    .first()
+                                )
+                            if not lead:
+                                logger.debug(f"[Reaction] Lead not found for {follower_id}")
+                                continue
+
+                            # Check if we already recorded this exact reaction
+                            # Use reacted_to_mid + emoji + sender as uniqueness key
+                            # msg_metadata is JSON (not JSONB), so use text() for ->> operator
+                            from sqlalchemy import text as sa_text
+                            existing = (
+                                session.query(Message)
+                                .filter(
+                                    Message.lead_id == lead.id,
+                                    sa_text("msg_metadata->>'type' = 'reaction'"),
+                                    sa_text("msg_metadata->>'reacted_to_mid' = :mid"),
+                                    Message.role == role,
+                                )
+                                .params(mid=reacted_to_mid)
+                                .first()
+                            )
+                            if existing:
+                                logger.debug(f"[Reaction] Already recorded reaction on {reacted_to_mid}")
+                                continue
+
+                            msg = Message(
+                                lead_id=lead.id,
+                                role=role,
+                                content=emoji,
+                                status="sent",
+                                msg_metadata={
+                                    "type": "reaction",
+                                    "emoji": emoji,
+                                    "reacted_to_mid": reacted_to_mid,
+                                },
+                            )
+                            session.add(msg)
+
+                            # Update last_contact so conversation rises to top of Inbox
+                            lead.last_contact_at = datetime.now(timezone.utc)
+
+                            session.commit()
+                            recorded += 1
+                            logger.info(
+                                f"[Reaction] {role} reacted {emoji} to {reacted_to_mid} "
+                                f"(lead={lead.username})"
+                            )
+
+                            # Invalidate cache and notify frontend
+                            try:
+                                from api.cache import api_cache
+
+                                api_cache.invalidate(f"conversations:{self.creator_id}")
+                                api_cache.invalidate(
+                                    f"follower_detail:{self.creator_id}:{lead.platform_user_id}"
+                                )
+                            except Exception:
+                                pass
+
+                            try:
+                                from api.routers.events import notify_creator
+
+                                await notify_creator(
+                                    self.creator_id,
+                                    "new_message",
+                                    {
+                                        "follower_id": lead.platform_user_id,
+                                        "role": role,
+                                    },
+                                )
+                            except Exception:
+                                pass
+                        finally:
+                            session.close()
+                    except Exception as e:
+                        logger.error(f"[Reaction] Error saving reaction: {e}")
+
+        except Exception as e:
+            logger.error(f"[Reaction] Error processing reaction events: {e}")
+
+        return recorded
 
     async def _has_creator_responded_recently(
         self, follower_id: str, window_seconds: int = 300
@@ -1286,6 +1759,38 @@ class InstagramHandler:
         for att in attachments:
             att_type = (att.get("type") or "").lower()
 
+            # Handle share/reel attachments — these have permalink + sometimes a CDN thumbnail
+            # Instagram share webhook format: {"type": "share", "share": {"link": "https://instagram.com/p/..."}}
+            if att_type in ("share", "reel"):
+                share_data = att.get("share", {})
+                share_link = share_data.get("link", "") if isinstance(share_data, dict) else ""
+                if share_link and "reel" in share_link.lower():
+                    media_type = "shared_reel"
+                elif att_type == "reel":
+                    media_type = "shared_reel"
+                else:
+                    media_type = "share"
+
+                result: Dict[str, Any] = {
+                    "type": media_type,
+                    "captured_at": datetime.now(timezone.utc).isoformat(),
+                }
+                if share_link:
+                    result["permalink"] = share_link
+
+                # Extract CDN thumbnail URL if present (payload.url, image_data, etc.)
+                payload = att.get("payload", {})
+                cdn_url = (
+                    (payload.get("url") if isinstance(payload, dict) else None)
+                    or att.get("image_data", {}).get("url")
+                    or att.get("video_data", {}).get("url")
+                    or att.get("url")
+                )
+                if cdn_url:
+                    result["url"] = cdn_url
+
+                return result
+
             # Try new payload format first (Instagram Messaging API)
             payload = att.get("payload", {})
             payload_url = payload.get("url") if isinstance(payload, dict) else None
@@ -1315,7 +1820,8 @@ class InstagramHandler:
                     or att.get("src")
                     or att.get("source")
                     or att.get("link")
-                    # Try nested structures
+                    # Try nested structures (share.link for shares that reach here)
+                    or att.get("share", {}).get("link")
                     or att.get("target", {}).get("url")
                     or att.get("media", {}).get("url")
                     or att.get("media", {}).get("source")
@@ -1334,7 +1840,8 @@ class InstagramHandler:
             elif "image" in att_type or "photo" in att_type or has_image:
                 media_type = "image"
             else:
-                media_type = att_type or "file"
+                # Instagram sends "unsupported_type" for various media — treat as unknown renderable
+                media_type = "unknown" if att_type == "unsupported_type" else (att_type or "file")
 
             if media_url:
                 return {
@@ -1395,14 +1902,14 @@ class InstagramHandler:
                         # CRITICAL: Skip echo messages (messages sent BY the page/bot)
                         # Meta sends is_echo=true for messages we sent
                         if message_data.get("is_echo"):
-                            logger.info(f"Skipping echo message (sent by bot)")
+                            logger.info("Skipping echo message (sent by bot)")
                             continue
 
                         # Skip if sender is same as recipient (edge case)
                         sender_id = messaging.get("sender", {}).get("id", "")
                         recipient_id = messaging.get("recipient", {}).get("id", "")
                         if sender_id == recipient_id:
-                            logger.info(f"Skipping message where sender==recipient")
+                            logger.info("Skipping message where sender==recipient")
                             continue
 
                         msg = InstagramMessage(
@@ -1635,6 +2142,31 @@ class InstagramHandler:
                                     f"[IG:{message.sender_id}] Captured media for permanent storage"
                                 )
 
+        # AUDIO TRANSCRIPTION: Transcribe audio messages with Whisper
+        if (
+            media_info
+            and media_info.get("type") == "audio"
+            and media_info.get("url")
+        ):
+            try:
+                from ingestion.transcriber import get_transcriber
+
+                transcriber = get_transcriber()
+                transcript = await transcriber.transcribe_url(media_info["url"])
+                if transcript and transcript.full_text.strip():
+                    transcribed_text = transcript.full_text.strip()
+                    message_text = f"[\U0001f3a4 Audio]: {transcribed_text}"
+                    media_info["transcription"] = transcribed_text
+                    logger.info(
+                        f"[IG:{message.sender_id}] Audio transcribed: "
+                        f"{transcribed_text[:50]}..."
+                    )
+            except Exception as transcribe_err:
+                logger.error(
+                    f"[IG:{message.sender_id}] Audio transcription failed: "
+                    f"{transcribe_err}"
+                )
+
         # Build metadata including media and story info if present
         dm_metadata = {
             "message_id": message.message_id,
@@ -1781,6 +2313,13 @@ class InstagramHandler:
                 logger.info(
                     f"[IG:{sender_id}] Updated lead profile: pic={'yes' if profile_pic_url else 'no'}, verified={is_verified}"
                 )
+                # Fire-and-forget identity resolution
+                try:
+                    import asyncio
+                    from core.identity_resolver import resolve_identity
+                    asyncio.create_task(resolve_identity(self.creator_id, result["id"], "instagram"))
+                except Exception as ir_err:
+                    logger.debug(f"[IG] Identity resolution skipped: {ir_err}")
         except Exception as e:
             logger.warning(f"Could not update lead profile: {e}")
 
@@ -1966,6 +2505,7 @@ class InstagramHandler:
                             platform_user_id=msg.sender_id,  # No prefix - prevents duplicates
                             username=username or None,
                             full_name=full_name or None,
+                            source="instagram_dm",
                             status="nuevo",
                         )
                         session.add(lead)
@@ -1976,7 +2516,7 @@ class InstagramHandler:
                         session.rollback()
                         if "uq_lead_creator_platform" in str(e) or "duplicate" in str(e).lower():
                             logger.info(
-                                f"[SaveMsg] Lead already exists (race condition), fetching..."
+                                "[SaveMsg] Lead already exists (race condition), fetching..."
                             )
                             lead = (
                                 session.query(Lead)
@@ -1990,7 +2530,7 @@ class InstagramHandler:
                             )
                             if not lead:
                                 logger.error(
-                                    f"[SaveMsg] Could not find lead after constraint error"
+                                    "[SaveMsg] Could not find lead after constraint error"
                                 )
                                 return False
                         else:
@@ -2002,16 +2542,44 @@ class InstagramHandler:
                 )
 
                 if not existing_user_msg:
-                    # Extract media info if present
+                    # Extract media/story info if present
                     media_info = None
                     msg_metadata = {}
                     content = msg.text
-                    if msg.attachments:
+
+                    # Handle story messages first (story data is separate from attachments)
+                    if msg.story:
+                        story_data = msg.story
+                        if story_data.get("reply_to"):
+                            msg_metadata["type"] = "story_reply"
+                            msg_metadata["link"] = story_data["reply_to"].get("link", "")
+                        elif story_data.get("mention"):
+                            msg_metadata["type"] = "story_mention"
+                            msg_metadata["link"] = story_data["mention"].get("link", "")
+                        # Extract CDN URL from attachments for stories
+                        if msg.attachments:
+                            att = msg.attachments[0]
+                            cdn_url = (
+                                att.get("video_data", {}).get("url")
+                                or att.get("image_data", {}).get("url")
+                                or (att.get("payload", {}).get("url") if isinstance(att.get("payload"), dict) else None)
+                                or att.get("url")
+                            )
+                            if cdn_url:
+                                msg_metadata["url"] = cdn_url
+                        if not content:
+                            content = {
+                                "story_reply": "Respuesta a story",
+                                "story_mention": "Mención en story",
+                            }.get(msg_metadata.get("type", ""), "Story")
+                    elif msg.attachments:
                         media_info = self._extract_media_info(msg.attachments)
                         if media_info:
                             msg_metadata["type"] = media_info.get("type", "unknown")
                             if media_info.get("url"):
                                 msg_metadata["url"] = media_info["url"]
+                            if media_info.get("permalink"):
+                                msg_metadata["permalink"] = media_info["permalink"]
                             # Use descriptive content if no text
                             if not content:
                                 media_type = media_info.get("type", "media")
@@ -2094,8 +2662,15 @@ class InstagramHandler:
                 )
                 session.add(bot_msg)
 
-                # Update lead's last_contact
+                # Update lead's last_contact and recalculate score
                 lead.last_contact_at = datetime.now(timezone.utc)
+
+                try:
+                    from services.lead_scoring import recalculate_lead_score
+
+                    recalculate_lead_score(session, str(lead.id))
+                except Exception as score_err:
+                    logger.warning(f"[SaveMsg] Scoring failed: {score_err}")
 
                 session.commit()
                 logger.info(f"[SaveMsg] Saved messages for {msg.sender_id} (lead_id={lead.id})")
@@ -2106,8 +2681,26 @@ class InstagramHandler:
 
                     api_cache.invalidate(f"conversations:{self.creator_id}")
                     api_cache.invalidate(f"leads:{self.creator_id}")
+                    api_cache.invalidate(
+                        f"follower_detail:{self.creator_id}:{lead.platform_user_id}"
+                    )
                 except Exception as cache_err:
                     logger.debug(f"[SaveMsg] Cache invalidation failed: {cache_err}")
+
+                # Notify frontend via SSE
+                try:
+                    from api.routers.events import notify_creator
+
+                    await notify_creator(
+                        self.creator_id,
+                        "new_message",
+                        {
+                            "follower_id": lead.platform_user_id,
+                            "role": "user",
+                        },
+                    )
+                except Exception as sse_err:
+                    logger.debug(f"[SaveMsg] SSE notification failed: {sse_err}")
 
                 return True
 
@@ -2182,6 +2775,7 @@ class InstagramHandler:
                             platform_user_id=msg.sender_id,  # No prefix - prevents duplicates
                             username=username or None,
                             full_name=full_name or None,
+                            source="instagram_dm",
                             status="nuevo",
                         )
                         session.add(lead)
@@ -2192,7 +2786,7 @@ class InstagramHandler:
                         session.rollback()
                         if "uq_lead_creator_platform" in str(e) or "duplicate" in str(e).lower():
                             logger.info(
-                                f"[SaveUserMsg] Lead already exists (race condition), fetching..."
+                                "[SaveUserMsg] Lead already exists (race condition), fetching..."
                             )
                             lead = (
                                 session.query(Lead)
@@ -2206,7 +2800,7 @@ class InstagramHandler:
                             )
                             if not lead:
                                 logger.error(
-                                    f"[SaveUserMsg] Could not find lead after constraint error"
+                                    "[SaveUserMsg] Could not find lead after constraint error"
                                 )
                                 return False
                         else:
@@ -2290,8 +2884,15 @@ class InstagramHandler:
                 )
                 session.add(user_msg)
 
-                # Update lead's last_contact
+                # Update lead's last_contact and recalculate score
                 lead.last_contact_at = datetime.now(timezone.utc)
+
+                try:
+                    from services.lead_scoring import recalculate_lead_score
+
+                    recalculate_lead_score(session, str(lead.id))
+                except Exception as score_err:
+                    logger.warning(f"[SaveUserMsg] Scoring failed: {score_err}")
 
                 session.commit()
                 logger.info(
@@ -2304,8 +2905,26 @@ class InstagramHandler:
 
                     api_cache.invalidate(f"conversations:{self.creator_id}")
                     api_cache.invalidate(f"leads:{self.creator_id}")
+                    api_cache.invalidate(
+                        f"follower_detail:{self.creator_id}:{lead.platform_user_id}"
+                    )
                 except Exception as cache_err:
                     logger.debug(f"[SaveUserMsg] Cache invalidation failed: {cache_err}")
+
+                # Notify frontend via SSE
+                try:
+                    from api.routers.events import notify_creator
+
+                    await notify_creator(
+                        self.creator_id,
+                        "new_message",
+                        {
+                            "follower_id": lead.platform_user_id,
+                            "role": "user",
+                        },
+                    )
+                except Exception as sse_err:
+                    logger.debug(f"[SaveUserMsg] SSE notification failed: {sse_err}")
 
                 return True
 

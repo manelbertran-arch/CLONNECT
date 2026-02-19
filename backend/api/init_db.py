@@ -381,8 +381,8 @@ def init_database():
                 api_key="clonnect_manel_key",
                 clone_tone="friendly",
                 clone_name="Manel",
-                bot_active=True,
-                copilot_mode=True,  # Enable copilot by default
+                bot_active=False,  # Test creator — activate manually
+                copilot_mode=True,
             )
             session.add(creator)
             session.commit()
@@ -397,7 +397,7 @@ def init_database():
                 api_key="clonnect_stefano_key",
                 clone_tone="professional",
                 clone_name="Stefano Bonanno",
-                bot_active=True,
+                bot_active=False,  # Test creator — activate manually
                 copilot_mode=True,  # CRITICAL FIX: Always copilot mode - bot must never auto-send
             )
             session.add(stefano)
@@ -415,7 +415,6 @@ def init_database():
 
         # CRITICAL FIX 2026-02-19: Force copilot_mode=True for ALL creators
         # The bot must NEVER auto-send messages without creator approval.
-        # This prevents incidents like the Andrea AS auto-send.
         force_copilot_mode_all_creators(session)
 
     return True

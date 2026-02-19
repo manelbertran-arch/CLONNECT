@@ -15,7 +15,7 @@ import hmac
 import json
 import logging
 import os
-from dataclasses import asdict, dataclass, field
+from dataclasses import asdict, dataclass
 from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional
 
@@ -39,6 +39,7 @@ class WhatsAppMessage:
     text: str
     timestamp: datetime
     message_type: str = "text"  # text, image, audio, video, document, etc.
+    sender_name: str = ""  # Profile name from contacts[].profile.name
     attachments: List[dict] = None
     context: Dict[str, Any] = None  # Reply context
 
@@ -113,7 +114,8 @@ class WhatsAppConnector:
     async def _get_session(self) -> aiohttp.ClientSession:
         """Get or create HTTP session"""
         if self._session is None or self._session.closed:
-            self._session = aiohttp.ClientSession()
+            timeout = aiohttp.ClientTimeout(total=30)
+            self._session = aiohttp.ClientSession(timeout=timeout)
         return self._session
 
     async def close(self):
@@ -229,6 +231,7 @@ class WhatsAppConnector:
                                 int(msg.get("timestamp", 0)), tz=timezone.utc
                             ),
                             message_type=msg_type,
+                            sender_name=contacts.get(sender_id, ""),
                             attachments=attachments,
                             context=context,
                         )
@@ -429,6 +432,77 @@ class WhatsAppConnector:
 
 
 # =============================================================================
+# EMBEDDED SIGNUP HELPERS
+# =============================================================================
+
+
+async def register_phone_number(
+    phone_number_id: str, access_token: str, pin: str = None
+) -> dict:
+    """
+    Register a phone number for WhatsApp Cloud API.
+
+    Required after Embedded Signup to activate the number.
+    POST /{phone_number_id}/register
+
+    Args:
+        phone_number_id: WhatsApp phone number ID from Embedded Signup
+        access_token: System User Access Token
+        pin: Optional 2FA PIN (6 digits). If not provided, uses default.
+
+    Returns:
+        API response dict
+    """
+    url = f"https://graph.facebook.com/v21.0/{phone_number_id}/register"
+    payload = {
+        "messaging_product": "whatsapp",
+        "pin": pin or "000000",
+    }
+    headers = {
+        "Authorization": f"Bearer {access_token}",
+        "Content-Type": "application/json",
+    }
+
+    async with aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=30)) as session:
+        async with session.post(url, json=payload, headers=headers) as resp:
+            result = await resp.json()
+            if "error" in result:
+                logger.error(f"Phone registration failed for {phone_number_id}: {result['error']}")
+            else:
+                logger.info(f"Phone {phone_number_id} registered successfully")
+            return result
+
+
+async def subscribe_waba_webhooks(waba_id: str, access_token: str) -> dict:
+    """
+    Subscribe the app to receive webhooks for a WhatsApp Business Account.
+
+    POST /{waba_id}/subscribed_apps
+
+    Args:
+        waba_id: WhatsApp Business Account ID
+        access_token: System User Access Token
+
+    Returns:
+        API response dict
+    """
+    url = f"https://graph.facebook.com/v21.0/{waba_id}/subscribed_apps"
+    headers = {
+        "Authorization": f"Bearer {access_token}",
+        "Content-Type": "application/json",
+    }
+
+    async with aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=30)) as session:
+        async with session.post(url, headers=headers) as resp:
+            result = await resp.json()
+            if "error" in result:
+                logger.error(f"WABA webhook subscription failed for {waba_id}: {result['error']}")
+            else:
+                logger.info(f"WABA {waba_id} webhook subscription successful")
+            return result
+
+
+# =============================================================================
 # WHATSAPP HANDLER
 # =============================================================================
 
@@ -501,9 +575,9 @@ class WhatsAppHandler:
     def _init_agent(self):
         """Initialize DM agent"""
         try:
-            from core.dm_agent_v2 import DMResponderAgent
+            from core.dm_agent_v2 import get_dm_agent
 
-            self.dm_agent = DMResponderAgent(creator_id=self.creator_id)
+            self.dm_agent = get_dm_agent(self.creator_id)
             logger.info(f"DM Agent initialized for creator: {self.creator_id}")
         except Exception as e:
             logger.error(f"Failed to initialize DM agent: {e}")
@@ -554,6 +628,9 @@ class WhatsAppHandler:
             try:
                 # Process with DM agent
                 response = await self.process_message(message)
+                response_text = response.content if hasattr(response, "content") else str(response)
+                intent = str(response.intent) if hasattr(response, "intent") else "unknown"
+                confidence = response.confidence if hasattr(response, "confidence") else 0.0
 
                 # CRITICAL FIX 2026-02-19: NEVER AUTO-SEND
                 # The bot must NEVER send messages without creator approval.
@@ -565,12 +642,6 @@ class WhatsAppHandler:
                 from core.copilot_service import get_copilot_service
                 copilot = get_copilot_service()
 
-                intent_str = (
-                    response.intent.value
-                    if hasattr(response.intent, "value")
-                    else str(response.intent)
-                )
-
                 pending = await copilot.create_pending_response(
                     creator_id=self.creator_id,
                     lead_id="",
@@ -578,9 +649,9 @@ class WhatsAppHandler:
                     platform="whatsapp",
                     user_message=message.text,
                     user_message_id=message.message_id,
-                    suggested_response=response.response_text,
-                    intent=intent_str,
-                    confidence=response.confidence,
+                    suggested_response=response_text,
+                    intent=intent,
+                    confidence=confidence,
                     username="",
                     full_name="",
                 )
@@ -597,9 +668,9 @@ class WhatsAppHandler:
                         "sender_id": message.sender_id,
                         "autopilot_blocked": True,
                         "pending_id": pending.id,
-                        "suggested_response": response.response_text,
-                        "intent": intent_str,
-                        "confidence": response.confidence,
+                        "suggested_response": response_text,
+                        "intent": intent,
+                        "confidence": confidence,
                         "status": "pending_approval",
                     }
                 )
@@ -666,10 +737,11 @@ class WhatsAppHandler:
             },
         )
 
-        logger.info(
-            f"[WA:{message.sender_id}] Intent: {response.intent.value} ({response.confidence:.0%})"
-        )
-        logger.info(f"[WA:{message.sender_id}] Output: {response.response_text[:100]}...")
+        intent = str(response.intent) if hasattr(response, "intent") else "unknown"
+        confidence = response.confidence if hasattr(response, "confidence") else 0.0
+        response_text = response.content if hasattr(response, "content") else str(response)
+        logger.info(f"[WA:{message.sender_id}] Intent: {intent} ({confidence:.0%})")
+        logger.info(f"[WA:{message.sender_id}] Output: {response_text[:100]}...")
 
         return response
 
@@ -755,13 +827,11 @@ class WhatsAppHandler:
             "follower_id": f"wa_{msg.sender_id}",
             "sender_id": msg.sender_id,
             "input": msg.text,
-            "response": response.response_text,
-            "intent": (
-                response.intent.value if hasattr(response.intent, "value") else str(response.intent)
-            ),
-            "confidence": response.confidence,
-            "product": response.product_mentioned,
-            "escalate": response.escalate_to_human,
+            "response": response.content if hasattr(response, "content") else str(response),
+            "intent": str(response.intent) if hasattr(response, "intent") else "unknown",
+            "confidence": response.confidence if hasattr(response, "confidence") else 0.0,
+            "product": response.metadata.get("product_mentioned") if hasattr(response, "metadata") else None,
+            "escalate": response.metadata.get("escalate_to_human", False) if hasattr(response, "metadata") else False,
             "timestamp": datetime.now(timezone.utc).isoformat(),
         }
         self.recent_responses.append(record)
