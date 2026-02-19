@@ -100,14 +100,17 @@ async def approve_response(creator_id: str, message_id: str, request: ApproveReq
     """
     from core.copilot_service import get_copilot_service
 
-    service = get_copilot_service()
     edited_text = request.edited_text if request else None
+    logger.info(f"[Copilot] POST approve: creator={creator_id} msg={message_id} edited={edited_text is not None}")
 
+    service = get_copilot_service()
     result = await service.approve_response(creator_id, message_id, edited_text)
 
     if not result.get("success"):
+        logger.warning(f"[Copilot] Approve failed: {result.get('error')}")
         raise HTTPException(status_code=400, detail=result.get("error", "Failed to approve"))
 
+    logger.info(f"[Copilot] Approve success: msg={message_id} was_edited={result.get('was_edited')}")
     return result
 
 
@@ -747,10 +750,10 @@ async def get_copilot_stats(
             )
 
             # Sum total_actions from daily evaluations
-            from sqlalchemy import cast, Integer
+            from sqlalchemy import cast, Integer, text
             total_interactions_result = (
                 session.query(
-                    func.sum(cast(CopilotEvaluation.metrics["total_actions"].astext, Integer))
+                    func.sum(cast(CopilotEvaluation.metrics["total_actions"].as_string(), Integer))
                 )
                 .filter(
                     CopilotEvaluation.creator_id == creator.id,

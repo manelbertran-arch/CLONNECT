@@ -128,13 +128,30 @@ async function apiFetch<T>(
     (defaultHeaders as Record<string, string>)["Authorization"] = `Bearer ${token}`;
   }
 
-  const response = await fetch(url, {
-    ...options,
-    headers: {
-      ...defaultHeaders,
-      ...options.headers,
-    },
-  });
+  // Add timeout for mutation requests (POST/PUT/DELETE) to prevent infinite spinners
+  const method = (options.method || "GET").toUpperCase();
+  const timeoutMs = method !== "GET" ? 30000 : 60000;
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+
+  let response: Response;
+  try {
+    response = await fetch(url, {
+      ...options,
+      signal: controller.signal,
+      headers: {
+        ...defaultHeaders,
+        ...options.headers,
+      },
+    });
+  } catch (err) {
+    clearTimeout(timeoutId);
+    if (err instanceof DOMException && err.name === "AbortError") {
+      throw new Error(`Request timeout after ${timeoutMs / 1000}s: ${method} ${endpoint}`);
+    }
+    throw err;
+  }
+  clearTimeout(timeoutId);
 
   if (!response.ok) {
     const errorData = await response.json().catch(() => ({}));

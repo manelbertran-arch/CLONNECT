@@ -159,6 +159,11 @@ def register_static_routes(app: "FastAPI"):
 
         index_path = os.path.join(_static_dir, "index.html")
         if os.path.exists(index_path):
-            return FileResponse(index_path, media_type="text/html")
+            response = FileResponse(index_path, media_type="text/html")
+            # Prevent browser caching of index.html so new deploys are picked up immediately
+            response.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
+            response.headers["Pragma"] = "no-cache"
+            response.headers["Expires"] = "0"
+            return response
 
         raise HTTPException(status_code=404, detail="Frontend not found")
