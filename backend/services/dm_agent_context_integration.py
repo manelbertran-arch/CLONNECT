@@ -164,6 +164,7 @@ def _format_dna_for_prompt(dna: Dict[str, Any]) -> Optional[str]:
 
     # Map relationship type to communication style hint
     rel_hints = {
+        "FAMILIA": "Familiar directo — trato cariñoso, personal, NUNCA vender",
         "INTIMA": "Comunicación muy cercana y personal",
         "AMISTAD_CERCANA": "Como un buen amigo, confianza alta",
         "AMISTAD_CASUAL": "Amigable pero no demasiado personal",

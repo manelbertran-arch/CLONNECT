@@ -161,11 +161,18 @@ class PromptBuilder:
             if lead_info.get("interests"):
                 interests = ", ".join(lead_info["interests"])
                 context_parts.append(f"Intereses: {interests}")
+            if lead_info.get("products_discussed"):
+                products = ", ".join(lead_info["products_discussed"])
+                context_parts.append(f"Productos que le interesan: {products}")
             if lead_info.get("objections"):
                 objections = ", ".join(lead_info["objections"])
                 context_parts.append(f"Objeciones previas: {objections}")
             if lead_info.get("purchase_score"):
                 context_parts.append(f"Score de compra: {lead_info['purchase_score']}")
+            if lead_info.get("is_customer"):
+                context_parts.append("Estado: CLIENTE (ya compró)")
+            if lead_info.get("summary"):
+                context_parts.append(f"Resumen conversación: {lead_info['summary']}")
 
         context_parts.append("=== FIN CONTEXTO ===")
 

@@ -111,3 +111,162 @@ class TestRelationshipTypeDetector:
         assert result["type"] == RelationshipType.DESCONOCIDO.value
         # Low confidence for unknown
         assert result["confidence"] <= 0.5
+
+    def test_detect_familia(self):
+        """Should detect FAMILIA from family conversation (e.g. Richard case)."""
+        from services.relationship_type_detector import RelationshipTypeDetector
+
+        detector = RelationshipTypeDetector()
+        messages = [
+            {"role": "user", "content": "hola hijo"},
+            {"role": "assistant", "content": "Hola! Como estas?"},
+            {"role": "user", "content": "hijo necesito ayuda con el wifi"},
+            {"role": "assistant", "content": "Claro, que necesitas?"},
+        ]
+
+        result = detector.detect(messages)
+
+        assert result["type"] == RelationshipType.FAMILIA.value
+        assert result["confidence"] >= 0.6
+
+    def test_detect_familia_parent(self):
+        """Should detect FAMILIA when someone mentions papá/mamá."""
+        from services.relationship_type_detector import RelationshipTypeDetector
+
+        detector = RelationshipTypeDetector()
+        messages = [
+            {"role": "user", "content": "papá me puedes ayudar?"},
+            {"role": "assistant", "content": "Si claro"},
+            {"role": "user", "content": "necesito que me expliques algo papi"},
+        ]
+
+        result = detector.detect(messages)
+
+        assert result["type"] == RelationshipType.FAMILIA.value
+        assert result["confidence"] >= 0.6
+
+    def test_familia_not_triggered_by_casual_tio(self):
+        """Should NOT detect FAMILIA from casual Spanish 'tio' usage."""
+        from services.relationship_type_detector import RelationshipTypeDetector
+
+        detector = RelationshipTypeDetector()
+        messages = [
+            {"role": "user", "content": "Que pasa tio!"},
+            {"role": "assistant", "content": "Todo bien!"},
+            {"role": "user", "content": "Maquina, vi tu video"},
+        ]
+
+        result = detector.detect(messages)
+
+        assert result["type"] != RelationshipType.FAMILIA.value
+
+
+class TestResponseStrategy:
+    """Tests for the response strategy function."""
+
+    def test_family_strategy(self):
+        """Family members should get PERSONAL strategy."""
+        from core.dm_agent_v2 import _determine_response_strategy
+
+        result = _determine_response_strategy(
+            message="hola hijo",
+            intent_value="greeting",
+            relationship_type="FAMILIA",
+            is_first_message=False,
+            is_friend=True,
+            follower_interests=[],
+            lead_stage="nuevo",
+        )
+        assert "PERSONAL" in result
+        assert "NUNCA" in result
+
+    def test_help_strategy(self):
+        """Help requests should get AYUDA strategy."""
+        from core.dm_agent_v2 import _determine_response_strategy
+
+        result = _determine_response_strategy(
+            message="necesito ayuda con el wifi",
+            intent_value="support",
+            relationship_type="DESCONOCIDO",
+            is_first_message=False,
+            is_friend=False,
+            follower_interests=[],
+            lead_stage="nuevo",
+        )
+        assert "AYUDA" in result
+
+    def test_sales_strategy(self):
+        """Product interest should get VENTA strategy."""
+        from core.dm_agent_v2 import _determine_response_strategy
+
+        result = _determine_response_strategy(
+            message="cuanto cuesta el programa?",
+            intent_value="pricing",
+            relationship_type="CLIENTE",
+            is_first_message=False,
+            is_friend=False,
+            follower_interests=["coaching"],
+            lead_stage="interesado",
+        )
+        assert "VENTA" in result
+
+    def test_first_message_greeting(self):
+        """First message without need should get BIENVENIDA strategy."""
+        from core.dm_agent_v2 import _determine_response_strategy
+
+        result = _determine_response_strategy(
+            message="hola",
+            intent_value="greeting",
+            relationship_type="DESCONOCIDO",
+            is_first_message=True,
+            is_friend=False,
+            follower_interests=[],
+            lead_stage="nuevo",
+        )
+        assert "BIENVENIDA" in result
+
+    def test_first_message_with_pricing(self):
+        """First message with pricing intent should get VENTA strategy (intent priority)."""
+        from core.dm_agent_v2 import _determine_response_strategy
+
+        result = _determine_response_strategy(
+            message="hola, cuanto cuesta el curso?",
+            intent_value="pricing",
+            relationship_type="DESCONOCIDO",
+            is_first_message=True,
+            is_friend=False,
+            follower_interests=[],
+            lead_stage="nuevo",
+        )
+        # Pricing intent takes priority over first-message greeting
+        assert "VENTA" in result
+
+    def test_first_message_with_help(self):
+        """First message with help request should get AYUDA strategy."""
+        from core.dm_agent_v2 import _determine_response_strategy
+
+        result = _determine_response_strategy(
+            message="hola, necesito ayuda con algo",
+            intent_value="support",
+            relationship_type="DESCONOCIDO",
+            is_first_message=True,
+            is_friend=False,
+            follower_interests=[],
+            lead_stage="nuevo",
+        )
+        assert "AYUDA" in result
+
+    def test_no_strategy_for_normal_convo(self):
+        """Normal ongoing conversation should return empty string."""
+        from core.dm_agent_v2 import _determine_response_strategy
+
+        result = _determine_response_strategy(
+            message="si me parece bien",
+            intent_value="affirmation",
+            relationship_type="DESCONOCIDO",
+            is_first_message=False,
+            is_friend=False,
+            follower_interests=[],
+            lead_stage="interesado",
+        )
+        assert result == ""

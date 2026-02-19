@@ -308,6 +308,90 @@ class DMResponse:
         }
 
 
+def _determine_response_strategy(
+    message: str,
+    intent_value: str,
+    relationship_type: str,
+    is_first_message: bool,
+    is_friend: bool,
+    follower_interests: list,
+    lead_stage: str,
+) -> str:
+    """Determine response strategy to inject as LLM guidance.
+
+    Returns a short instruction string that tells the LLM HOW to approach
+    the response (not what to say). This prevents the bot from using generic
+    greetings when the user clearly needs help, or selling to family.
+
+    Strategies:
+    - help: User has a concrete need/question → answer it directly
+    - personal: Family/close friend → warm, no selling
+    - greeting: First contact, no specific need → welcome naturally
+    - sales: Showing product interest → inform + soft CTA
+    - reactivation: Returning after long absence → re-engage
+    """
+    msg_lower = message.lower().strip()
+
+    # Priority 1: Family/close friends → personal mode, never sell
+    if relationship_type in ("FAMILIA", "INTIMA"):
+        return (
+            "ESTRATEGIA: PERSONAL. Esta persona es cercana (familia/íntimo). "
+            "Responde con cariño y naturalidad. Si pide ayuda, ayúdale. "
+            "NUNCA vendas ni ofrezcas productos."
+        )
+
+    if is_friend:
+        return (
+            "ESTRATEGIA: PERSONAL. Esta persona es amigo/a. "
+            "Responde relajado y natural. No vendas."
+        )
+
+    # Priority 2: Detect concrete help requests
+    help_signals = [
+        "ayuda", "problema", "no funciona", "no puedo", "error",
+        "cómo", "como hago", "necesito", "urgente", "no me deja",
+        "no entiendo", "explícame", "explicame", "qué hago", "que hago",
+    ]
+    if any(signal in msg_lower for signal in help_signals):
+        return (
+            "ESTRATEGIA: AYUDA. El usuario tiene una necesidad concreta. "
+            "Responde DIRECTAMENTE a lo que necesita. NO saludes genéricamente. "
+            "Si no sabes la respuesta exacta, pregunta detalles específicos."
+        )
+
+    # Priority 3: Product interest → sales mode
+    if intent_value in ("purchase", "pricing", "product_info"):
+        return (
+            "ESTRATEGIA: VENTA. El usuario muestra interés en productos/servicios. "
+            "Da la información concreta que pide (precio, contenido, duración). "
+            "Añade un CTA suave al final."
+        )
+
+    # Priority 4: First message → greeting (but check for embedded needs)
+    if is_first_message:
+        # Check if first message contains a question or need
+        if "?" in message or any(s in msg_lower for s in help_signals):
+            return (
+                "ESTRATEGIA: BIENVENIDA + AYUDA. Es el primer mensaje y contiene una pregunta. "
+                "Saluda brevemente y responde a su necesidad en la misma respuesta."
+            )
+        return (
+            "ESTRATEGIA: BIENVENIDA. Primer mensaje del usuario. "
+            "Saluda brevemente y pregunta en qué puedes ayudar. "
+            "NO hagas un saludo genérico largo."
+        )
+
+    # Priority 5: Ghost/reactivation
+    if lead_stage in ("fantasma",):
+        return (
+            "ESTRATEGIA: REACTIVACIÓN. El usuario vuelve después de mucho tiempo. "
+            "Muestra que te alegra verle. No seas agresivo con la venta."
+        )
+
+    # Default: natural conversation
+    return ""
+
+
 class DMResponderAgentV2:
     """
     DM Responder Agent V2 - Slim Orchestrator.
@@ -813,8 +897,9 @@ class DMResponderAgentV2:
                 except Exception as e:
                     logger.debug(f"Relationship detection failed: {e}")
 
-            # A1 FIX: Detect friend relationship to suppress acquisition behavior
-            is_friend = cognitive_metadata.get("relationship_type") == "amigo"
+            # A1 FIX: Detect friend/family relationship to suppress acquisition behavior
+            _rel_type = cognitive_metadata.get("relationship_type", "")
+            is_friend = _rel_type in ("amigo", "FAMILIA", "AMISTAD_CERCANA", "INTIMA")
 
             # Lead stage (depends on follower)
             current_stage = self._get_lead_stage(follower, metadata)
@@ -853,16 +938,25 @@ class DMResponderAgentV2:
                 except Exception as e:
                     logger.debug(f"Citation loading failed: {e}")
 
-            # A1 FIX: Suppress acquisition/sales for friends
+            # A1 FIX: Suppress acquisition/sales for friends/family
             friend_context = ""
             if is_friend:
-                friend_context = (
-                    "IMPORTANTE: Esta persona es un AMIGO/A del creador, NO un lead. "
-                    "NO intentes vender, ofrecer productos, ni hacer preguntas de cualificación. "
-                    "Habla de forma natural, personal y relajada como con un amigo cercano. "
-                    "NO uses frases como 'contame qué te trae por acá' ni similares."
-                )
-                logger.info("[A1] Friend detected — suppressing acquisition behavior")
+                if _rel_type == "FAMILIA":
+                    friend_context = (
+                        "IMPORTANTE: Esta persona es FAMILIAR del creador (padre, madre, hijo, etc.). "
+                        "NO intentes vender, ofrecer productos, ni hacer preguntas de cualificación. "
+                        "Habla con cariño y naturalidad. Si pide ayuda, ayúdale directamente. "
+                        "NO uses frases como 'contame qué te trae por acá' ni similares."
+                    )
+                    logger.info("[A1] Family member detected — suppressing acquisition behavior")
+                else:
+                    friend_context = (
+                        "IMPORTANTE: Esta persona es un AMIGO/A del creador, NO un lead. "
+                        "NO intentes vender, ofrecer productos, ni hacer preguntas de cualificación. "
+                        "Habla de forma natural, personal y relajada como con un amigo cercano. "
+                        "NO uses frases como 'contame qué te trae por acá' ni similares."
+                    )
+                    logger.info("[A1] Friend detected — suppressing acquisition behavior")
 
             # Load few-shot examples from calibration
             few_shot_section = ""
@@ -902,10 +996,26 @@ class DMResponderAgentV2:
             _t1c = time.monotonic()
             logger.info(f"[TIMING] Phase 3 sub: fast_ops={int((_t1c - _t1b) * 1000)}ms")
 
+            # Build lead_info from follower memory for richer context
+            _lead_info = {}
+            if follower.interests:
+                _lead_info["interests"] = follower.interests[:5]
+            if follower.objections_raised:
+                _lead_info["objections"] = follower.objections_raised[:5]
+            if follower.products_discussed:
+                _lead_info["products_discussed"] = follower.products_discussed[:5]
+            if follower.purchase_intent_score > 0:
+                _lead_info["purchase_score"] = round(follower.purchase_intent_score, 2)
+            if follower.is_customer:
+                _lead_info["is_customer"] = True
+            if follower.conversation_summary:
+                _lead_info["summary"] = follower.conversation_summary[:200]
+
             user_context = self.prompt_builder.build_user_context(
                 username=follower.username or sender_id,
                 stage=current_stage,
                 history=history,
+                lead_info=_lead_info if _lead_info else None,
             )
 
             # =================================================================
@@ -914,16 +1024,31 @@ class DMResponderAgentV2:
             _t2 = time.monotonic()
             logger.info(f"[TIMING] Phase 2-3 (context+RAG+prompt): {int((_t2 - _t1) * 1000)}ms")
 
-            # Step 6: Inject frustration context if detected
+            # Step 5b: Determine response strategy
+            strategy_hint = _determine_response_strategy(
+                message=message,
+                intent_value=intent_value,
+                relationship_type=_rel_type,
+                is_first_message=(follower.total_messages <= 1),
+                is_friend=is_friend,
+                follower_interests=follower.interests,
+                lead_stage=current_stage,
+            )
+            if strategy_hint:
+                cognitive_metadata["response_strategy"] = strategy_hint.split(".")[0]
+                logger.info(f"[STRATEGY] {strategy_hint.split('.')[0]}")
+
+            # Step 6: Build full prompt with strategy + frustration context
+            prompt_parts = [user_context]
+            if strategy_hint:
+                prompt_parts.append(strategy_hint)
             if frustration_level > 0.5:
-                full_prompt = (
-                    f"{user_context}\n\n"
+                prompt_parts.append(
                     f"⚠️ NOTA: El usuario parece frustrado (nivel: {frustration_level:.0%}). "
-                    f"Responde con empatía y ofrece ayuda concreta.\n\n"
-                    f"Mensaje actual: {message}"
+                    f"Responde con empatía y ofrece ayuda concreta."
                 )
-            else:
-                full_prompt = f"{user_context}\n\nMensaje actual: {message}"
+            prompt_parts.append(f"Mensaje actual: {message}")
+            full_prompt = "\n\n".join(prompt_parts)
 
             # Log prompt size for latency diagnosis
             logger.info(f"[TIMING] System prompt: {len(system_prompt)} chars (~{len(system_prompt) // 4} tokens)")

@@ -19,6 +19,7 @@ class RelationshipType(str, Enum):
     Used to determine communication style and vocabulary.
     Each type has specific vocabulary rules:
 
+    - FAMILIA: Family member - warm, personal, never sell
     - INTIMA: Romantic/very close - uses 💙, vulnerable tone, no "hermano"
     - AMISTAD_CERCANA: Close friend - uses "hermano", "bro", spiritual tone
     - AMISTAD_CASUAL: Casual friend - uses "crack", light and fun tone
@@ -27,6 +28,7 @@ class RelationshipType(str, Enum):
     - DESCONOCIDO: New lead - neutral, no assumptions
     """
 
+    FAMILIA = "FAMILIA"
     INTIMA = "INTIMA"
     AMISTAD_CERCANA = "AMISTAD_CERCANA"
     AMISTAD_CASUAL = "AMISTAD_CASUAL"

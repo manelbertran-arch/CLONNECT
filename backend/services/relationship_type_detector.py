@@ -15,6 +15,19 @@ logger = logging.getLogger(__name__)
 
 # Scoring weights for different indicators
 INDICATORS = {
+    RelationshipType.FAMILIA.value: {
+        "words": {
+            "hijo": 5, "hija": 5, "hola hijo": 6, "hola hija": 6,
+            "papá": 5, "papa": 4, "mamá": 5, "mama": 4,
+            "padre": 4, "madre": 4, "viejo": 3, "vieja": 3,
+            "nene": 3, "nena": 3, "abuelo": 4, "abuela": 4,
+            "sobrino": 3, "sobrina": 3,
+            "familia": 3, "familiar": 2, "pariente": 2,
+            "papi": 4, "mami": 4,
+        },
+        "emojis": {"👨‍👩‍👧": 3, "👪": 3, "🏠": 1, "💛": 1},
+        "threshold": 8,
+    },
     RelationshipType.INTIMA.value: {
         "words": {
             "amor": 5, "te amo": 5, "te quiero": 4, "mi vida": 4,
