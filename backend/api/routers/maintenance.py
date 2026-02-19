@@ -381,3 +381,122 @@ async def recalculate_lead_scores(creator_name: str):
         return result
     finally:
         session.close()
+
+
+@router.post("/batch-embed-conversations/{creator_name}")
+async def batch_embed_conversations(creator_name: str, batch_size: int = Query(50, ge=1, le=200)):
+    """
+    Generate conversation embeddings for all un-embedded messages of a creator.
+    Uses OpenAI text-embedding-3-small (1536 dims).
+    RUNTIME: Execute post-deploy, not in CI.
+    """
+    import json
+    import time
+
+    session = SessionLocal()
+    try:
+        creator = session.query(Creator).filter_by(name=creator_name).first()
+        if not creator:
+            raise HTTPException(status_code=404, detail="Creator not found")
+
+        creator_uuid = str(creator.id)
+
+        # Find messages not yet embedded
+        result = session.execute(
+            text(
+                """
+                SELECT m.id, m.lead_id, m.role, m.content, m.created_at,
+                       l.platform_user_id
+                FROM messages m
+                JOIN leads l ON m.lead_id = l.id
+                WHERE l.creator_id = :creator_id
+                AND m.content IS NOT NULL
+                AND LENGTH(m.content) > 10
+                AND m.id NOT IN (
+                    SELECT CAST(message_id AS UUID)
+                    FROM conversation_embeddings
+                    WHERE creator_id = :creator_str
+                    AND message_id IS NOT NULL
+                )
+                ORDER BY m.created_at
+                """
+            ),
+            {"creator_id": creator_uuid, "creator_str": creator_name},
+        )
+        messages = result.fetchall()
+        total = len(messages)
+
+        if total == 0:
+            return {
+                "creator_id": creator_name,
+                "total_messages": 0,
+                "embedded": 0,
+                "message": "All messages already embedded",
+            }
+
+        # Process in batches
+        from core.embeddings import generate_embeddings_batch
+
+        embedded = 0
+        errors = 0
+        start_time = time.time()
+
+        for i in range(0, total, batch_size):
+            batch = messages[i : i + batch_size]
+            texts = [row[3] for row in batch]  # content column
+
+            embeddings = generate_embeddings_batch(texts)
+
+            for j, emb in enumerate(embeddings):
+                if emb is None:
+                    errors += 1
+                    continue
+                msg = batch[j]
+                try:
+                    session.execute(
+                        text(
+                            """
+                            INSERT INTO conversation_embeddings
+                            (creator_id, follower_id, message_role, content, embedding, message_id)
+                            VALUES (:creator_id, :follower_id, :role, :content,
+                                    CAST(:embedding AS vector), :message_id)
+                            ON CONFLICT DO NOTHING
+                            """
+                        ),
+                        {
+                            "creator_id": creator_name,
+                            "follower_id": str(msg[5]),  # platform_user_id
+                            "role": msg[2],  # role
+                            "content": msg[3][:500],  # content preview
+                            "embedding": json.dumps(emb),
+                            "message_id": str(msg[0]),  # message id
+                        },
+                    )
+                    embedded += 1
+                except Exception as e:
+                    logger.error(f"[A13] Embed insert error: {e}")
+                    errors += 1
+
+            session.commit()
+            await asyncio.sleep(0.5)  # Rate limit between batches
+
+        elapsed = time.time() - start_time
+        logger.info(
+            f"[A13] Batch embed for {creator_name}: {embedded}/{total} in {elapsed:.1f}s"
+        )
+
+        return {
+            "creator_id": creator_name,
+            "total_messages": total,
+            "embedded": embedded,
+            "errors": errors,
+            "duration_seconds": round(elapsed, 1),
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"[A13] Batch embed error: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+    finally:
+        session.close()
