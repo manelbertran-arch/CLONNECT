@@ -555,6 +555,7 @@ function AudioMessage({ message, isOutgoing, isLastInGroup, isFirstInGroup, plat
   const metadata = message.metadata || {};
   const audioUrl = metadata.url;
   const duration = metadata.duration;
+  const transcription = (metadata as Record<string, unknown>).transcription as string | undefined;
   const th = getInlineTheme(platform);
   const bubble = makeBubbleProps(platform, isOutgoing, isLastInGroup);
   const showTail = isFirstInGroup && th?.hasTail;
@@ -565,7 +566,7 @@ function AudioMessage({ message, isOutgoing, isLastInGroup, isFirstInGroup, plat
     <div className={`flex ${isOutgoing ? 'justify-end' : 'justify-start'}`}>
       <div style={{ position: 'relative', ...(showTail ? { [isOutgoing ? 'marginRight' : 'marginLeft']: 8 } : {}) }}>
         {showTail && <MessageTail isOutgoing={isOutgoing} color={isOutgoing ? th!.outgoingBg : th!.incomingBg} />}
-        <div className={bubble.className} style={{ ...bubble.style, padding: '12px 16px', minWidth: 200 }}>
+        <div className={bubble.className} style={{ ...bubble.style, padding: '12px 16px', minWidth: 200, maxWidth: 340 }}>
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-full bg-white/20 flex items-center justify-center flex-shrink-0"><Mic className="w-5 h-5 text-white" /></div>
             <div className="flex-1">
@@ -576,6 +577,11 @@ function AudioMessage({ message, isOutgoing, isLastInGroup, isFirstInGroup, plat
               )}
             </div>
           </div>
+          {transcription && (
+            <p className="text-sm text-white/80 italic mt-2 leading-snug">
+              &ldquo;{transcription}&rdquo;
+            </p>
+          )}
           {th ? <div style={{ position: 'relative', marginTop: 4 }}><InlineTimestamp timestamp={message.timestamp} isOutgoing={isOutgoing} th={th} /><span style={{ display: 'inline-block', width: 50, height: 15 }} /></div>
             : <IGTimestamp timestamp={message.timestamp} isOutgoing={isOutgoing} />}
         </div>

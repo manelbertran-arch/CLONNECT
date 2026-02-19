@@ -830,6 +830,35 @@ async def _simple_dm_sync_internal(
                         session.add(new_msg)
                         results["messages_saved"] += 1
 
+                        # AUDIO TRANSCRIPTION: Transcribe audio messages with Whisper
+                        if (
+                            msg_metadata
+                            and msg_metadata.get("type") == "audio"
+                            and msg_metadata.get("url")
+                        ):
+                            try:
+                                from ingestion.transcriber import get_transcriber
+
+                                transcriber = get_transcriber()
+                                transcript = await transcriber.transcribe_url(
+                                    msg_metadata["url"]
+                                )
+                                if transcript and transcript.full_text.strip():
+                                    transcribed_text = transcript.full_text.strip()
+                                    new_msg.content = (
+                                        f"[\U0001f3a4 Audio]: {transcribed_text}"
+                                    )
+                                    new_msg.msg_metadata["transcription"] = transcribed_text
+                                    logger.info(
+                                        f"[DM Sync] Audio transcribed for msg {msg_id}: "
+                                        f"{transcribed_text[:50]}..."
+                                    )
+                            except Exception as transcribe_err:
+                                logger.error(
+                                    f"[DM Sync] Audio transcription failed for msg {msg_id}: "
+                                    f"{transcribe_err}"
+                                )
+
                     session.commit()
                     results["conversations_processed"] += 1
 

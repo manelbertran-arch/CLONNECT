@@ -344,6 +344,37 @@ export async function sendMessage(
 }
 
 /**
+ * Transcribe an audio file using Whisper API
+ */
+export async function transcribeAudio(
+  audioBlob: Blob,
+  language: string = "es"
+): Promise<{ text: string; language: string }> {
+  const formData = new FormData();
+  formData.append("file", audioBlob, "recording.webm");
+  formData.append("language", language);
+
+  const token = getAuthToken();
+  const headers: HeadersInit = {};
+  if (token) {
+    headers["Authorization"] = `Bearer ${token}`;
+  }
+
+  const response = await fetch(`${API_URL}/audio/transcribe`, {
+    method: "POST",
+    headers,
+    body: formData,
+  });
+
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
+    throw new Error(errorData.detail || `Transcription failed: ${response.status}`);
+  }
+
+  return response.json();
+}
+
+/**
  * Mark a conversation as read
  */
 export async function markConversationRead(

@@ -2123,6 +2123,31 @@ class InstagramHandler:
                                     f"[IG:{message.sender_id}] Captured media for permanent storage"
                                 )
 
+        # AUDIO TRANSCRIPTION: Transcribe audio messages with Whisper
+        if (
+            media_info
+            and media_info.get("type") == "audio"
+            and media_info.get("url")
+        ):
+            try:
+                from ingestion.transcriber import get_transcriber
+
+                transcriber = get_transcriber()
+                transcript = await transcriber.transcribe_url(media_info["url"])
+                if transcript and transcript.full_text.strip():
+                    transcribed_text = transcript.full_text.strip()
+                    message_text = f"[\U0001f3a4 Audio]: {transcribed_text}"
+                    media_info["transcription"] = transcribed_text
+                    logger.info(
+                        f"[IG:{message.sender_id}] Audio transcribed: "
+                        f"{transcribed_text[:50]}..."
+                    )
+            except Exception as transcribe_err:
+                logger.error(
+                    f"[IG:{message.sender_id}] Audio transcription failed: "
+                    f"{transcribe_err}"
+                )
+
         # Build metadata including media and story info if present
         dm_metadata = {
             "message_id": message.message_id,

@@ -2,6 +2,7 @@ import { useState, useMemo, useEffect, useCallback } from "react";
 import { useSearchParams } from "react-router-dom";
 import { Search, Send, MoreHorizontal, Loader2, AlertCircle, Instagram, MessageCircle, Archive, Trash2, AlertTriangle, RotateCcw, ArrowLeft, Bot } from "lucide-react";
 import { MessageRenderer, type ChatPlatform } from "@/components/chat/MessageRenderer";
+import { AudioRecorder } from "@/components/chat/AudioRecorder";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import {
@@ -815,7 +816,11 @@ export default function Inbox() {
               chatPlatform === 'telegram' ? 'bg-[#17212b] border-[#1e2c3a]' :
               'border-border/50'
             )}>
-              <div className="flex gap-3">
+              <div className="flex items-center gap-2">
+                <AudioRecorder
+                  onTranscription={(text) => setMessage((prev) => prev ? `${prev} ${text}` : text)}
+                  disabled={sendMessageMutation.isPending}
+                />
                 <Input
                   value={message}
                   onChange={(e) => setMessage(e.target.value)}
@@ -838,7 +843,7 @@ export default function Inbox() {
                   onClick={handleSend}
                   disabled={!selectedId || !message.trim() || sendMessageMutation.isPending}
                   className={cn(
-                    "hover:opacity-90 transition-opacity",
+                    "hover:opacity-90 transition-opacity shrink-0",
                     chatPlatform === 'whatsapp' ? 'bg-[#00a884] hover:bg-[#00a884]' :
                     chatPlatform === 'telegram' ? 'bg-[#3390ec] hover:bg-[#3390ec]' :
                     'bg-gradient-to-r from-primary to-accent'

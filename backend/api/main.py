@@ -287,6 +287,11 @@ from api.routers import ai as ai_router
 
 app.include_router(ai_router.router)
 
+# Audio router (Whisper transcription)
+from api.routers import audio as audio_router
+
+app.include_router(audio_router.router)
+
 # Debug router (diagnostic endpoints)
 from api.routers import debug as debug_router
 

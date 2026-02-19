@@ -33,6 +33,8 @@ export interface MessageMetadata {
   caption?: string;
   platform?: string;
   reacted_to_mid?: string;
+  duration?: number;
+  transcription?: string;
   link_preview?: {
     url: string;
     title?: string;
