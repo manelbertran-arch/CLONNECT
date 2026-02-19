@@ -1387,9 +1387,36 @@ export async function getPendingForLead(
   return apiFetch(`/copilot/${creatorId}/pending-for-lead/${leadId}`);
 }
 
+export interface CopilotMetrics {
+  total: number;
+  approved: number;
+  edited: number;
+  discarded: number;
+  manual_override: number;
+  pending: number;
+  approval_rate: number;
+  edit_rate: number;
+  discard_rate: number;
+  manual_rate: number;
+  avg_response_time_ms: number | null;
+  avg_confidence: number | null;
+  edit_categories: Record<string, number>;
+}
+
+export interface LegacyMetrics {
+  auto_sent: number;
+  creator_manual: number;
+  discarded: number;
+  expired: number;
+  total: number;
+}
+
 export interface CopilotStats {
   creator_id: string;
   period_days: number;
+  copilot_metrics: CopilotMetrics;
+  legacy_metrics: LegacyMetrics;
+  // Backward compatibility — top-level fields
   total_actions: number;
   approved: number;
   edited: number;

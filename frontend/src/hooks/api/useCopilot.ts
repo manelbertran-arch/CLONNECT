@@ -48,6 +48,7 @@ export function useApproveCopilotResponse(creatorId: string = getCreatorId()) {
       queryClient.invalidateQueries({ queryKey: apiKeys.copilotPending(creatorId) });
       queryClient.invalidateQueries({ queryKey: apiKeys.copilotStatus(creatorId) });
       queryClient.invalidateQueries({ queryKey: apiKeys.conversations(creatorId) });
+      queryClient.invalidateQueries({ queryKey: ["copilotPendingForLead"] });
     },
   });
 }
@@ -71,6 +72,8 @@ export function useDiscardCopilotResponse(creatorId: string = getCreatorId()) {
     onSettled: () => {
       queryClient.invalidateQueries({ queryKey: apiKeys.copilotPending(creatorId) });
       queryClient.invalidateQueries({ queryKey: apiKeys.copilotStatus(creatorId) });
+      queryClient.invalidateQueries({ queryKey: apiKeys.conversations(creatorId) });
+      queryClient.invalidateQueries({ queryKey: ["copilotPendingForLead"] });
     },
   });
 }

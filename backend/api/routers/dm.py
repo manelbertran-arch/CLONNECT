@@ -225,7 +225,7 @@ async def get_conversations(creator_id: str, limit: int = 50, offset: int = 0):
                     )
 
                     # OPTIMIZED: Get last message for each lead in ONE query
-                    lead_ids = [lead.id for lead, _ in results]
+                    lead_ids = [lead.id for lead, _, _ in results]
 
                     # Subquery to get the latest SENT message per lead
                     last_msg_subq = (

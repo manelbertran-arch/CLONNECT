@@ -6,7 +6,7 @@
  * leaving the inbox.
  */
 import { useState } from "react";
-import { Bot, Check, X, Edit3, Loader2 } from "lucide-react";
+import { Bot, Check, X, Edit3, Loader2, MessageSquare, Clock } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import {
@@ -20,6 +20,20 @@ import { getCreatorId } from "@/services/api";
 interface CopilotBannerProps {
   leadId: string | null;
   platform?: string;
+}
+
+function timeAgo(dateStr: string): string {
+  const date = new Date(dateStr);
+  const now = new Date();
+  const diffMs = now.getTime() - date.getTime();
+  const diffMins = Math.floor(diffMs / 60000);
+  const diffHours = Math.floor(diffMins / 60);
+  const diffDays = Math.floor(diffHours / 24);
+
+  if (diffMins < 1) return "ahora";
+  if (diffMins < 60) return `hace ${diffMins}m`;
+  if (diffHours < 24) return `hace ${diffHours}h`;
+  return `hace ${diffDays}d`;
 }
 
 export function CopilotBanner({ leadId, platform }: CopilotBannerProps) {
@@ -92,7 +106,24 @@ export function CopilotBanner({ leadId, platform }: CopilotBannerProps) {
             {pending.intent}
           </span>
         )}
+        {pending.created_at && (
+          <span className="text-[10px] text-muted-foreground ml-auto flex items-center gap-1">
+            <Clock className="w-3 h-3" />
+            {timeAgo(pending.created_at)}
+          </span>
+        )}
       </div>
+
+      {/* User's message (context) */}
+      {pending.user_message && (
+        <div className="mb-2 px-2 py-1.5 rounded-lg bg-white/5 border border-white/5">
+          <p className="text-[11px] text-muted-foreground mb-0.5 flex items-center gap-1">
+            <MessageSquare className="w-3 h-3" />
+            Mensaje del usuario
+          </p>
+          <p className="text-xs text-foreground/70">{pending.user_message}</p>
+        </div>
+      )}
 
       {/* Suggestion text or edit area */}
       {isEditing ? (

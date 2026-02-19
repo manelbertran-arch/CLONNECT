@@ -6,7 +6,7 @@
  * - Métricas: Approval/edit/discard rates and stats
  * - Comparaciones: Side-by-side bot vs creator split view
  */
-import { useState, useRef, useEffect, useCallback } from "react";
+import { useState, useRef, useEffect } from "react";
 import {
   Bot,
   Check,
@@ -23,8 +23,6 @@ import {
   BarChart3,
   GitCompareArrows,
   ArrowRight,
-  TrendingUp,
-  Timer,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -353,9 +351,8 @@ function MetricsTab() {
     );
   }
 
-  // Extract copilot and legacy metrics from response
-  const copilot = (stats as any)?.copilot_metrics;
-  const legacy = (stats as any)?.legacy_metrics;
+  const copilot = stats?.copilot_metrics;
+  const legacy = stats?.legacy_metrics;
 
   if (!stats || (stats.total_actions === 0 && (!legacy || legacy.total === 0))) {
     return (
@@ -369,19 +366,35 @@ function MetricsTab() {
     );
   }
 
-  const formatMs = (ms: number | null) => {
-    if (!ms) return "—";
-    if (ms < 60000) return `${Math.round(ms / 1000)}s`;
-    return `${Math.round(ms / 60000)}min`;
-  };
+  const hasCopilotUsage = stats.approved > 0 || stats.edited > 0 || stats.discarded > 0;
+  const allManualOverride = !hasCopilotUsage && stats.manual_override > 0;
 
   return (
     <div className="space-y-6">
+      {/* Callout: Creator hasn't used copilot approve/edit yet */}
+      {allManualOverride && (
+        <Card className="border-violet-500/30 bg-violet-500/5">
+          <CardContent className="pt-4 pb-3 px-4">
+            <div className="flex items-start gap-3">
+              <Zap className="w-5 h-5 text-violet-400 shrink-0 mt-0.5" />
+              <div>
+                <p className="text-sm font-medium">Usa el botón "Aprobar" en la Bandeja</p>
+                <p className="text-xs text-muted-foreground mt-1">
+                  Detectamos que escribes tus respuestas manualmente. En {stats.manual_override} de {stats.manual_override} casos,
+                  tu respuesta fue idéntica a la del bot. Prueba el botón "Aprobar y enviar" en la conversación
+                  — un solo click en vez de escribir.
+                </p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       {/* Summary Cards */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
         <Card>
           <CardContent className="pt-4 pb-3 px-4">
-            <p className="text-xs text-muted-foreground">Total acciones</p>
+            <p className="text-xs text-muted-foreground">Decisiones copilot</p>
             <p className="text-2xl font-bold">{stats.total_actions}</p>
             <p className="text-xs text-muted-foreground">últimos {stats.period_days} días</p>
           </CardContent>
@@ -391,8 +404,8 @@ function MetricsTab() {
             <p className="text-xs text-muted-foreground flex items-center gap-1">
               <Check className="w-3 h-3 text-green-500" /> Aprobadas
             </p>
-            <p className="text-2xl font-bold text-green-600">{Math.round(stats.approval_rate * 100)}%</p>
-            <p className="text-xs text-muted-foreground">{stats.approved} respuestas</p>
+            <p className="text-2xl font-bold text-green-600">{stats.approved}</p>
+            <p className="text-xs text-muted-foreground">{hasCopilotUsage ? `${Math.round(stats.approval_rate * 100)}%` : "—"}</p>
           </CardContent>
         </Card>
         <Card>
@@ -400,82 +413,61 @@ function MetricsTab() {
             <p className="text-xs text-muted-foreground flex items-center gap-1">
               <Edit3 className="w-3 h-3 text-blue-500" /> Editadas
             </p>
-            <p className="text-2xl font-bold text-blue-600">{Math.round(stats.edit_rate * 100)}%</p>
-            <p className="text-xs text-muted-foreground">{stats.edited} respuestas</p>
+            <p className="text-2xl font-bold text-blue-600">{stats.edited}</p>
+            <p className="text-xs text-muted-foreground">{hasCopilotUsage ? `${Math.round(stats.edit_rate * 100)}%` : "—"}</p>
           </CardContent>
         </Card>
         <Card>
           <CardContent className="pt-4 pb-3 px-4">
             <p className="text-xs text-muted-foreground flex items-center gap-1">
-              <X className="w-3 h-3 text-red-500" /> Descartadas
+              <UserCheck className="w-3 h-3 text-orange-500" /> Manuales
             </p>
-            <p className="text-2xl font-bold text-red-600">{Math.round(stats.discard_rate * 100)}%</p>
-            <p className="text-xs text-muted-foreground">{stats.discarded} respuestas</p>
+            <p className="text-2xl font-bold text-orange-600">{stats.manual_override}</p>
+            <p className="text-xs text-muted-foreground">{stats.total_actions > 0 ? `${Math.round(stats.manual_rate * 100)}%` : "—"}</p>
           </CardContent>
         </Card>
       </div>
 
       {/* Action Distribution Bar */}
-      <Card>
-        <CardHeader className="pb-3">
-          <CardTitle className="text-sm font-medium">Distribución de acciones</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-3">
-            <div className="flex items-center gap-3">
-              <span className="text-xs text-muted-foreground w-20">Aprobadas</span>
-              <Progress value={stats.approval_rate * 100} className="flex-1 [&>div]:bg-green-500" />
-              <span className="text-xs font-medium w-10 text-right">{stats.approved}</span>
-            </div>
-            <div className="flex items-center gap-3">
-              <span className="text-xs text-muted-foreground w-20">Editadas</span>
-              <Progress value={stats.edit_rate * 100} className="flex-1 [&>div]:bg-blue-500" />
-              <span className="text-xs font-medium w-10 text-right">{stats.edited}</span>
-            </div>
-            <div className="flex items-center gap-3">
-              <span className="text-xs text-muted-foreground w-20">Descartadas</span>
-              <Progress value={stats.discard_rate * 100} className="flex-1 [&>div]:bg-red-500" />
-              <span className="text-xs font-medium w-10 text-right">{stats.discarded}</span>
-            </div>
-            {stats.manual_override > 0 && (
-              <div className="flex items-center gap-3">
-                <span className="text-xs text-muted-foreground w-20">Manuales</span>
-                <Progress value={stats.manual_rate * 100} className="flex-1 [&>div]:bg-orange-500" />
-                <span className="text-xs font-medium w-10 text-right">{stats.manual_override}</span>
-              </div>
-            )}
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Additional Stats */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+      {stats.total_actions > 0 && (
         <Card>
-          <CardContent className="pt-4 pb-3 px-4">
-            <p className="text-xs text-muted-foreground flex items-center gap-1">
-              <Timer className="w-3 h-3" /> Tiempo respuesta promedio
-            </p>
-            <p className="text-xl font-bold">{formatMs(stats.avg_response_time_ms)}</p>
+          <CardHeader className="pb-3">
+            <CardTitle className="text-sm font-medium">Distribución de acciones</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-3">
+              {stats.approved > 0 && (
+                <div className="flex items-center gap-3">
+                  <span className="text-xs text-muted-foreground w-20">Aprobadas</span>
+                  <Progress value={stats.approval_rate * 100} className="flex-1 [&>div]:bg-green-500" />
+                  <span className="text-xs font-medium w-10 text-right">{stats.approved}</span>
+                </div>
+              )}
+              {stats.edited > 0 && (
+                <div className="flex items-center gap-3">
+                  <span className="text-xs text-muted-foreground w-20">Editadas</span>
+                  <Progress value={stats.edit_rate * 100} className="flex-1 [&>div]:bg-blue-500" />
+                  <span className="text-xs font-medium w-10 text-right">{stats.edited}</span>
+                </div>
+              )}
+              {stats.discarded > 0 && (
+                <div className="flex items-center gap-3">
+                  <span className="text-xs text-muted-foreground w-20">Descartadas</span>
+                  <Progress value={stats.discard_rate * 100} className="flex-1 [&>div]:bg-red-500" />
+                  <span className="text-xs font-medium w-10 text-right">{stats.discarded}</span>
+                </div>
+              )}
+              {stats.manual_override > 0 && (
+                <div className="flex items-center gap-3">
+                  <span className="text-xs text-muted-foreground w-20">Manuales</span>
+                  <Progress value={stats.manual_rate * 100} className="flex-1 [&>div]:bg-orange-500" />
+                  <span className="text-xs font-medium w-10 text-right">{stats.manual_override}</span>
+                </div>
+              )}
+            </div>
           </CardContent>
         </Card>
-        <Card>
-          <CardContent className="pt-4 pb-3 px-4">
-            <p className="text-xs text-muted-foreground flex items-center gap-1">
-              <TrendingUp className="w-3 h-3" /> Confianza promedio
-            </p>
-            <p className="text-xl font-bold">
-              {stats.avg_confidence ? `${Math.round(stats.avg_confidence * 100)}%` : "—"}
-            </p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="pt-4 pb-3 px-4">
-            <p className="text-xs text-muted-foreground">Edits manuales</p>
-            <p className="text-xl font-bold">{stats.manual_override}</p>
-            <p className="text-xs text-muted-foreground">respuestas desde cero</p>
-          </CardContent>
-        </Card>
-      </div>
+      )}
 
       {/* Edit Categories */}
       {Object.keys(stats.edit_categories).length > 0 && (
@@ -502,7 +494,7 @@ function MetricsTab() {
         <Card className="opacity-70">
           <CardHeader className="pb-3">
             <CardTitle className="text-sm font-medium text-muted-foreground">
-              Historial automático (pre-copilot)
+              Modo automático (pre-copilot)
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -530,11 +522,13 @@ function MetricsTab() {
 
       {/* Pending count */}
       {copilot && copilot.pending > 0 && (
-        <Card className="border-amber-200 bg-amber-50/50">
+        <Card className="border-violet-500/20 bg-violet-500/5">
           <CardContent className="pt-4 pb-3 px-4 flex items-center justify-between">
             <div>
               <p className="text-sm font-medium">Pendientes de revisión</p>
-              <p className="text-xs text-muted-foreground">Sugerencias esperando tu aprobación</p>
+              <p className="text-xs text-muted-foreground">
+                Revísalas en la <a href="/inbox" className="underline text-violet-400">Bandeja</a>
+              </p>
             </div>
             <Badge variant="destructive" className="text-lg px-3 py-1">{copilot.pending}</Badge>
           </CardContent>
@@ -586,9 +580,17 @@ function ComparisonsTab() {
   );
 }
 
+const ACTION_LABELS: Record<string, string> = {
+  manual_override: "Respuesta manual",
+  legacy_comparison: "Histórica",
+  edited: "Editada",
+  approved: "Aprobada",
+};
+
 function ComparisonCard({ comparison: c }: { comparison: CopilotComparison }) {
   const categories = c.edit_diff?.categories || [];
   const isIdentical = c.is_identical ?? (c.bot_original === c.creator_final);
+  const isLegacy = c.source === "legacy";
   const formattedDate = c.created_at
     ? new Date(c.created_at).toLocaleString("es-ES", {
         timeZone: "Europe/Madrid",
@@ -607,17 +609,23 @@ function ComparisonCard({ comparison: c }: { comparison: CopilotComparison }) {
         <div className="flex items-center gap-2 text-sm">
           <span className="font-medium">{c.username || "usuario"}</span>
           <Badge variant="outline" className="text-[10px]">{c.platform}</Badge>
+          <Badge className={`text-[10px] ${isLegacy ? "bg-zinc-500/20 text-zinc-400 border-zinc-500/30" : "bg-violet-500/20 text-violet-400 border-violet-500/30"}`}>
+            {isLegacy ? "Pre-copilot" : "Copilot"}
+          </Badge>
           {isIdentical ? (
-            <Badge className="text-[10px] bg-green-500/20 text-green-700 border-green-300">
+            <Badge className="text-[10px] bg-green-500/20 text-green-400 border-green-500/30">
               Match
             </Badge>
           ) : (
-            <Badge className="text-[10px] bg-amber-500/20 text-amber-700 border-amber-300">
+            <Badge className="text-[10px] bg-amber-500/20 text-amber-400 border-amber-500/30">
               Diferente
             </Badge>
           )}
         </div>
-        <span className="text-xs text-muted-foreground">{formattedDate}</span>
+        <div className="flex items-center gap-2">
+          <span className="text-[10px] text-muted-foreground">{ACTION_LABELS[c.action] || c.action}</span>
+          <span className="text-xs text-muted-foreground">{formattedDate}</span>
+        </div>
       </div>
 
       {/* Split View */}
@@ -625,7 +633,7 @@ function ComparisonCard({ comparison: c }: { comparison: CopilotComparison }) {
         {/* Bot Original */}
         <div className="p-4 bg-red-500/5">
           <p className="text-xs text-muted-foreground mb-2 flex items-center gap-1">
-            <Bot className="w-3 h-3" /> Bot sugirió
+            <Bot className="w-3 h-3" /> {isLegacy ? "Bot envió (auto)" : "Bot sugirió"}
           </p>
           <p className="text-sm whitespace-pre-wrap">{c.bot_original}</p>
         </div>
