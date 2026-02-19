@@ -9,6 +9,7 @@ from core.response_fixes import (
     fix_identity_claim,
     fix_price_typo,
     hide_technical_errors,
+    remove_catchphrases,
 )
 
 # =========================================================================
@@ -240,3 +241,40 @@ class TestMultipleFixesIntegration:
         result = fix_broken_links(text)
         assert "https://www.a.com" in result
         assert "https://www.b.com" in result
+
+
+class TestCatchphraseRemoval:
+    """FIX 9: Global catchphrase removal tests."""
+
+    def test_removes_que_te_llamo_la_atencion(self):
+        """Core catchphrase is removed."""
+        result = remove_catchphrases("Bueno, qué te llamó la atención? Contame más!")
+        assert "llamó la atención" not in result
+        assert "Contame más" in result
+
+    def test_removes_without_accents(self):
+        """Catchphrase without accents is also removed."""
+        result = remove_catchphrases("Hola! que te llamo la atencion? Contame")
+        assert "llamo la atencion" not in result
+
+    def test_removes_que_te_trajo(self):
+        """'Qué te trajo por acá' variant is removed."""
+        result = remove_catchphrases("Hola! ¿Qué te trajo por acá? Me alegra verte!")
+        assert "trajo por acá" not in result
+        assert "Me alegra verte" in result
+
+    def test_preserves_surrounding_content(self):
+        """Content before and after catchphrase is preserved."""
+        result = remove_catchphrases("Hola! ¿Qué te llamó la atención? Contame de lo que comparto!")
+        assert "Hola" in result
+        assert "Contame de lo que comparto" in result
+
+    def test_no_match_unchanged(self):
+        """Responses without catchphrases are unchanged."""
+        text = "Hola! Cómo estás?"
+        assert remove_catchphrases(text) == text
+
+    def test_entire_catchphrase_returns_original(self):
+        """If removing catchphrase would leave empty, return original."""
+        result = remove_catchphrases("¿Qué te llamó la atención?")
+        assert len(result) > 0

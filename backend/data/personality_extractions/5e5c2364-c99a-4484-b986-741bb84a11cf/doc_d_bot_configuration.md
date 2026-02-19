@@ -313,6 +313,9 @@ Total frases prohibidas: 52
   - "será un placer"
   - "si necesitas algo más"
   - "¿En qué puedo ayudarle hoy?"
+  - "qué te llamó la atención"
+  - "qué te trajo por acá"
+  - "contame qué te trae por acá"
 
 ## 4.3 PARAMETROS DE CALIBRACION
 - max_message_length_chars: 63

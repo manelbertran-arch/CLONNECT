@@ -343,6 +343,51 @@ def apply_emoji_limit(response: str, creator_id: str = None) -> str:
     return response
 
 
+# =============================================================================
+# FIX 9: Global catchphrase removal (accent-insensitive via unicode NFKD)
+# =============================================================================
+
+# Regex patterns for LLM-overused catchphrases.
+# Uses [eé], [oó], [aá] for accent-insensitive matching without NFKD complexity.
+_CATCHPHRASE_PATTERNS = [
+    # "¿Qué te llamó la atención?" (core phrase only, not trailing content)
+    re.compile(
+        r"[¿]?\s*[Qq]u[eé] te llam[oó] la atenci[oó]n\s*[?]?\s*",
+        re.IGNORECASE,
+    ),
+    # "¿Qué te trajo por acá?"
+    re.compile(
+        r"[¿]?\s*[Qq]u[eé] te trajo por ac[aá]\s*[?]?\s*",
+        re.IGNORECASE,
+    ),
+    # "Contame qué te trae por acá"
+    re.compile(
+        r"[Cc]ontame\s+qu[eé] te trae por ac[aá]\s*[?]?\s*",
+        re.IGNORECASE,
+    ),
+]
+
+
+def remove_catchphrases(response: str) -> str:
+    """FIX 9: Remove global catchphrases using accent-insensitive regex."""
+    if not response:
+        return response
+
+    original = response
+    for pattern in _CATCHPHRASE_PATTERNS:
+        response = pattern.sub(" ", response)
+
+    if response != original:
+        response = re.sub(r"\s{2,}", " ", response).strip()
+        logger.info("[FIX 9] Catchphrase removed: %d chars removed", len(original) - len(response))
+
+    # Don't return empty
+    if not response.strip():
+        return original
+
+    return response
+
+
 def apply_all_response_fixes(
     response: str,
     creator_name: str = None,
@@ -376,6 +421,9 @@ def apply_all_response_fixes(
 
     # FIX 8: Emoji limit from calibration
     response = apply_emoji_limit(response, creator_id)
+
+    # FIX 9: Global catchphrase removal (after blacklist to catch remaining)
+    response = remove_catchphrases(response)
 
     return response
 
