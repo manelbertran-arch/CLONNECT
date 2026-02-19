@@ -265,9 +265,9 @@ class TestCatchphraseRemoval:
 
     def test_preserves_surrounding_content(self):
         """Content before and after catchphrase is preserved."""
-        result = remove_catchphrases("Hola! ¿Qué te llamó la atención? Contame de lo que comparto!")
+        result = remove_catchphrases("Hola! ¿Qué te llamó la atención? Me encanta ayudarte!")
         assert "Hola" in result
-        assert "Contame de lo que comparto" in result
+        assert "Me encanta ayudarte" in result
 
     def test_no_match_unchanged(self):
         """Responses without catchphrases are unchanged."""

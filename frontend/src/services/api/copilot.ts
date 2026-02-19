@@ -32,7 +32,7 @@ export interface CopilotNotifications {
   hot_leads: any[];
 }
 
-export async function getCopilotPending(creatorId: string = CREATOR_ID, limit: number = 50): Promise<{ creator_id: string; pending_count: number; pending_responses: PendingResponse[] }> {
+export async function getCopilotPending(creatorId: string = CREATOR_ID, limit: number = 500): Promise<{ creator_id: string; pending_count: number; pending_responses: PendingResponse[] }> {
   return apiFetch(`/copilot/${creatorId}/pending?limit=${limit}`);
 }
 
@@ -95,6 +95,6 @@ export async function getCopilotStats(creatorId: string = CREATOR_ID, days: numb
   return apiFetch(`/copilot/${creatorId}/stats?days=${days}`);
 }
 
-export async function getCopilotComparisons(creatorId: string = CREATOR_ID, limit: number = 20): Promise<{ creator_id: string; comparisons: CopilotComparison[]; count: number; has_more: boolean }> {
+export async function getCopilotComparisons(creatorId: string = CREATOR_ID, limit: number = 500): Promise<{ creator_id: string; comparisons: CopilotComparison[]; count: number; has_more: boolean }> {
   return apiFetch(`/copilot/${creatorId}/comparisons?limit=${limit}`);
 }

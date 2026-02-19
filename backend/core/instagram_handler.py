@@ -1410,6 +1410,15 @@ class InstagramHandler:
 
                 # Update lead last_contact
                 lead.last_contact_at = datetime.now(timezone.utc)
+
+                # Auto-discard pending copilot suggestions for this lead
+                try:
+                    from core.copilot_service import get_copilot_service
+
+                    get_copilot_service().auto_discard_pending_for_lead(lead.id, session=session)
+                except Exception as e:
+                    logger.warning(f"[Echo] Auto-discard failed: {e}")
+
                 session.commit()
 
                 # Invalidate cache and notify frontend

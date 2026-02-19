@@ -130,10 +130,10 @@ class TestResponseFixesAndConfidence:
 
     def test_catchphrase_removed_before_scoring(self):
         """Catchphrase is removed by response_fixes."""
-        raw = "Hola! Qué te llamó la atención? Contame de lo que comparto!"
+        raw = "Hola! Qué te llamó la atención? Me encanta ayudarte!"
         fixed = remove_catchphrases(raw)
         assert "llamó la atención" not in fixed
-        assert "Contame de lo que comparto" in fixed
+        assert "Me encanta ayudarte" in fixed
 
     def test_broken_link_fixed_before_scoring(self):
         """Broken links are fixed by response_fixes."""

@@ -424,6 +424,9 @@ class TestDedupChecks:
                 # Lead lookup → found
                 result.filter.return_value.first.return_value = mock_lead
             elif call_count[0] == 4:
+                # has_creator_reply_after check → no recent reply
+                result.filter.return_value.first.return_value = None
+            elif call_count[0] == 5:
                 # Pending approval check → found (dedup)
                 result.filter.return_value.first.return_value = mock_existing_pending
             return result

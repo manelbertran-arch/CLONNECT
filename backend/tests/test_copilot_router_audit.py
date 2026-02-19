@@ -177,5 +177,5 @@ class TestCreatorIsolation:
         with _patch_copilot_service(mock_service):
             result = await discard_response("creator_beta", "msg_42")
 
-        mock_service.discard_response.assert_called_once_with("creator_beta", "msg_42")
+        mock_service.discard_response.assert_called_once_with("creator_beta", "msg_42", discard_reason=None)
         assert result["success"] is True

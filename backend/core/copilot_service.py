@@ -9,12 +9,55 @@ Este servicio maneja:
 """
 
 import logging
+import re
 import uuid
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from typing import Any, Dict, Optional
 
 logger = logging.getLogger(__name__)
+
+# Media detection patterns — these are not real text and should not get copilot suggestions
+_MEDIA_HASH_PATTERN = re.compile(r"^[A-Za-z0-9+/=]{15,}$")
+_ATTACHMENT_PLACEHOLDERS = {
+    "sent an attachment",
+    "[media]",
+    "[imagen]",
+    "[video]",
+    "[audio]",
+    "[sticker]",
+    "[file]",
+    "[gif]",
+    "[document]",
+    "[contact]",
+    "[location]",
+}
+
+
+def is_non_text_message(content: str) -> bool:
+    """Detect media keys, attachment placeholders, and non-text content."""
+    if not content or not content.strip():
+        return True
+
+    stripped = content.strip()
+
+    # Evolution API media keys (hash-like strings without spaces)
+    if _MEDIA_HASH_PATTERN.match(stripped):
+        return True
+
+    # Attachment placeholders from Instagram/WhatsApp
+    if stripped.lower() in _ATTACHMENT_PLACEHOLDERS:
+        return True
+
+    # "Sent a photo/video/reel" from IG handler
+    if stripped.lower().startswith("sent a "):
+        return True
+
+    # "Shared a post/reel" from IG handler
+    if stripped.lower().startswith("shared a "):
+        return True
+
+    return False
 
 
 @dataclass
@@ -204,6 +247,14 @@ class CopilotService:
                     )
                     return pending
 
+            # ── CHECK: non-text messages (media, attachments) ──
+            # Don't generate copilot suggestions for media the bot can't understand
+            if is_non_text_message(user_message):
+                logger.info(
+                    f"[Copilot:Skip] Non-text message detected: '{user_message[:50]}' — skipping suggestion"
+                )
+                return pending
+
             # Check both with and without ig_ prefix to avoid duplicates
             lead = (
                 session.query(Lead)
@@ -238,6 +289,31 @@ class CopilotService:
             elif platform == "whatsapp" and not lead.phone and follower_id.startswith("wa_"):
                 # Backfill phone for existing WhatsApp leads that are missing it
                 lead.phone = "+" + follower_id[3:]
+
+            # ── CHECK: creator already replied to this lead recently ──
+            # If creator sent a manual response in the last 2 hours, skip suggestion
+            from datetime import timedelta
+
+            two_hours_ago = now - timedelta(hours=2)
+            if self.has_creator_reply_after(lead.id, two_hours_ago, session):
+                logger.info(
+                    f"[Copilot:Skip] Creator already replied to lead {lead.id} — skipping suggestion"
+                )
+                # Still save the user message
+                user_msg = Message(
+                    lead_id=lead.id,
+                    role="user",
+                    content=user_message,
+                    intent=intent,
+                    status="sent",
+                    platform_message_id=user_message_id,
+                    msg_metadata=msg_metadata,
+                )
+                session.add(user_msg)
+                lead.last_contact_at = now
+                session.commit()
+                pending.lead_id = str(lead.id)
+                return pending
 
             # ── DEDUP CHECK #2: lead already has pending_approval ──
             # Prevents multiple suggestions stacking up for the same lead
@@ -853,6 +929,92 @@ class CopilotService:
             for k in sorted_keys[:excess]:
                 self._copilot_mode_cache.pop(k, None)
                 self._copilot_mode_cache_ttl.pop(k, None)
+
+    def auto_discard_pending_for_lead(self, lead_id, session=None) -> int:
+        """
+        Auto-discard all pending_approval suggestions for a lead.
+
+        Called when the creator manually replies (via phone/IG echo/WA fromMe),
+        which means the bot suggestion is no longer needed.
+
+        Returns count of discarded suggestions.
+        """
+        from api.models import Message
+
+        close_session = False
+        if session is None:
+            from api.database import SessionLocal
+
+            session = SessionLocal()
+            close_session = True
+
+        try:
+            pending = (
+                session.query(Message)
+                .filter(
+                    Message.lead_id == lead_id,
+                    Message.role == "assistant",
+                    Message.status == "pending_approval",
+                )
+                .all()
+            )
+
+            count = 0
+            for msg in pending:
+                msg.status = "discarded"
+                msg.copilot_action = "manual_override"
+                count += 1
+
+            if count > 0:
+                session.commit()
+                logger.info(
+                    f"[Copilot] Auto-discarded {count} pending suggestion(s) for lead {lead_id}"
+                )
+
+            return count
+        except Exception as e:
+            logger.error(f"[Copilot] Auto-discard error for lead {lead_id}: {e}")
+            if close_session:
+                session.rollback()
+            return 0
+        finally:
+            if close_session:
+                session.close()
+
+    def has_creator_reply_after(self, lead_id, since_time, session=None) -> bool:
+        """
+        Check if the creator manually replied to a lead after a given time.
+
+        Used to prevent generating copilot suggestions for messages the creator
+        already answered.
+        """
+        from api.models import Message
+
+        close_session = False
+        if session is None:
+            from api.database import SessionLocal
+
+            session = SessionLocal()
+            close_session = True
+
+        try:
+            reply = (
+                session.query(Message.id)
+                .filter(
+                    Message.lead_id == lead_id,
+                    Message.role == "assistant",
+                    Message.approved_by == "creator_manual",
+                    Message.created_at > since_time,
+                )
+                .first()
+            )
+            return reply is not None
+        except Exception as e:
+            logger.error(f"[Copilot] has_creator_reply check error: {e}")
+            return False
+        finally:
+            if close_session:
+                session.close()
 
     def is_copilot_enabled(self, creator_id: str) -> bool:
         """

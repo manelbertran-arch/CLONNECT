@@ -348,24 +348,55 @@ def apply_emoji_limit(response: str, creator_id: str = None) -> str:
 # =============================================================================
 
 # Regex patterns for LLM-overused catchphrases.
-# Uses [eé], [oó], [aá] for accent-insensitive matching without NFKD complexity.
+# Matches the phrase + any trailing content up to the next sentence or end.
+# Production variants found:
+#   "Que te llamo la atencion?"
+#   "Qué te llamó la atención? 😀"
+#   "qué te llamó la atención de Menoutthebox?"
+#   "Che, qué onda?? 😀 Qué te llamo la atención?"
+#   "Daleee! Que te llamó la atención?"
 _CATCHPHRASE_PATTERNS = [
-    # "¿Qué te llamó la atención?" (core phrase only, not trailing content)
+    # "¿Qué te llamó la atención [de X]?" — matches the whole question including trailing content
     re.compile(
-        r"[¿]?\s*[Qq]u[eé] te llam[oó] la atenci[oó]n\s*[?]?\s*",
+        r"[¿]?\s*qu[eé]\s+te\s+llam[oó]\s+la\s+atenci[oó]n[^.!?\n]*[?]?\s*",
         re.IGNORECASE,
     ),
-    # "¿Qué te trajo por acá?"
+    # "¿Qué te trajo por acá [...]?"
     re.compile(
-        r"[¿]?\s*[Qq]u[eé] te trajo por ac[aá]\s*[?]?\s*",
+        r"[¿]?\s*qu[eé]\s+te\s+trajo\s+por\s+ac[aá][^.!?\n]*[?]?\s*",
         re.IGNORECASE,
     ),
     # "Contame qué te trae por acá"
     re.compile(
-        r"[Cc]ontame\s+qu[eé] te trae por ac[aá]\s*[?]?\s*",
+        r"contame\s+qu[eé]\s+te\s+trae\s+por\s+ac[aá][^.!?\n]*[?]?\s*",
+        re.IGNORECASE,
+    ),
+    # "Contame de lo que comparto" / "Contame qué te llamó"
+    re.compile(
+        r"contame\s+(?:de\s+lo\s+que\s+comparto|qu[eé]\s+te\s+llam[oó])[^.!?\n]*[?]?\s*",
         re.IGNORECASE,
     ),
 ]
+
+# Standalone filler responses (complete response = just this phrase)
+_FILLER_EXACT = {
+    "contame mas",
+    "contame más",
+    "cuentame mas",
+    "cuéntame más",
+}
+
+
+def _normalize_for_filler_check(text: str) -> str:
+    """Normalize for filler check: lowercase, strip emojis and punctuation."""
+    import unicodedata
+
+    # Remove emojis and special chars, keep letters/spaces
+    cleaned = ""
+    for ch in text:
+        if unicodedata.category(ch).startswith(("L", "Z")):
+            cleaned += ch
+    return re.sub(r"\s+", " ", cleaned).strip().lower()
 
 
 def remove_catchphrases(response: str) -> str:
@@ -374,11 +405,21 @@ def remove_catchphrases(response: str) -> str:
         return response
 
     original = response
+
+    # Check for standalone filler responses first
+    normalized = _normalize_for_filler_check(response)
+    if normalized in _FILLER_EXACT:
+        logger.info("[FIX 9] Standalone filler detected: '%s'", normalized)
+        return original  # Return original — caller should regenerate
+
     for pattern in _CATCHPHRASE_PATTERNS:
         response = pattern.sub(" ", response)
 
     if response != original:
+        # Clean up: collapse whitespace, remove orphan emojis at start/end
         response = re.sub(r"\s{2,}", " ", response).strip()
+        # Remove leading/trailing punctuation that became orphaned
+        response = re.sub(r"^[,;:\s]+", "", response).strip()
         logger.info("[FIX 9] Catchphrase removed: %d chars removed", len(original) - len(response))
 
     # Don't return empty

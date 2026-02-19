@@ -44,7 +44,7 @@ class ManualResponseRequest(BaseModel):
 # GET /copilot/{creator_id}/pending
 # =============================================================================
 @router.get("/{creator_id}/pending")
-async def get_pending_responses(creator_id: str, limit: int = 50, offset: int = 0, _auth: str = Depends(require_creator_access)):
+async def get_pending_responses(creator_id: str, limit: int = 500, offset: int = 0, _auth: str = Depends(require_creator_access)):
     """
     Obtener todas las respuestas pendientes de aprobación con paginación.
 
@@ -530,14 +530,27 @@ async def get_copilot_stats(
 
         since = datetime.now(timezone.utc) - timedelta(days=days)
 
-        # Aggregate copilot actions
+        # Aggregate copilot actions — combines new copilot_action field with legacy status values
+        # Legacy: status='sent' + approved_by='creator' → approved
+        # Legacy: status='sent' + approved_by='creator_manual' → manual_override
+        # Legacy: status='discarded' → discarded
+        from sqlalchemy import or_
+
+        effective_action = case(
+            (Message.copilot_action.isnot(None), Message.copilot_action),
+            (Message.status.in_(["approved", "sent"]), "approved"),
+            (Message.status == "discarded", "discarded"),
+            (Message.status == "expired", "discarded"),
+            else_="unknown",
+        )
+
         stats = (
             session.query(
                 func.count().label("total"),
-                func.count(case((Message.copilot_action == "approved", 1))).label("approved"),
-                func.count(case((Message.copilot_action == "edited", 1))).label("edited"),
-                func.count(case((Message.copilot_action == "discarded", 1))).label("discarded"),
-                func.count(case((Message.copilot_action == "manual_override", 1))).label("manual"),
+                func.count(case((effective_action == "approved", 1))).label("approved"),
+                func.count(case((effective_action == "edited", 1))).label("edited"),
+                func.count(case((effective_action == "discarded", 1))).label("discarded"),
+                func.count(case((effective_action == "manual_override", 1))).label("manual"),
                 func.avg(Message.response_time_ms).label("avg_response_time_ms"),
                 func.avg(Message.confidence_score).label("avg_confidence"),
             )
@@ -545,7 +558,10 @@ async def get_copilot_stats(
             .filter(
                 Lead.creator_id == creator.id,
                 Message.role == "assistant",
-                Message.copilot_action.isnot(None),
+                or_(
+                    Message.copilot_action.isnot(None),
+                    Message.status.in_(["approved", "sent", "discarded", "expired"]),
+                ),
                 Message.created_at >= since,
             )
             .first()
@@ -608,7 +624,7 @@ async def get_copilot_stats(
 @router.get("/{creator_id}/comparisons")
 async def get_copilot_comparisons(
     creator_id: str,
-    limit: int = 20,
+    limit: int = 500,
     offset: int = 0,
     _auth: str = Depends(require_creator_access),
 ):
@@ -627,7 +643,9 @@ async def get_copilot_comparisons(
         if not creator:
             raise HTTPException(status_code=404, detail="Creator not found")
 
-        # Get edited messages with their diffs
+        # Get edited/manual messages — include both new copilot_action and legacy data
+        from sqlalchemy import or_
+
         rows = (
             session.query(
                 Message.id,
@@ -646,7 +664,11 @@ async def get_copilot_comparisons(
             .filter(
                 Lead.creator_id == creator.id,
                 Message.role == "assistant",
-                Message.copilot_action.in_(["edited", "manual_override"]),
+                or_(
+                    Message.copilot_action.in_(["edited", "manual_override"]),
+                    # Legacy: creator manually sent + bot had a suggestion
+                    Message.approved_by == "creator_manual",
+                ),
                 Message.suggested_response.isnot(None),
             )
             .order_by(Message.created_at.desc())

@@ -1185,6 +1185,14 @@ async def _save_evolution_outgoing_message(
             # Update last_contact_at so the lead appears fresh in the dashboard
             lead.last_contact_at = datetime.now(timezone.utc)
 
+            # Auto-discard pending copilot suggestions for this lead
+            try:
+                from core.copilot_service import get_copilot_service
+
+                get_copilot_service().auto_discard_pending_for_lead(lead.id, session=db)
+            except Exception as e:
+                logger.warning(f"[EVO:{instance}] Auto-discard failed: {e}")
+
             db.commit()
             logger.info(
                 f"[EVO:{instance}] Saved outgoing msg {message_id} for {follower_id}: "
