@@ -15,12 +15,17 @@ import sys
 # Add backend to path
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
+# Force-enable audio intelligence for backfill (before importing service)
+os.environ["ENABLE_AUDIO_INTELLIGENCE"] = "true"
+
 logging.basicConfig(level=logging.INFO, format="%(levelname)s:%(name)s:%(message)s")
 logger = logging.getLogger(__name__)
 
 
 async def backfill(limit: int = 50, dry_run: bool = False):
     """Reprocess audio messages through 4-layer pipeline."""
+    from sqlalchemy import text
+
     from api.database import SessionLocal
     from services.audio_intelligence import get_audio_intelligence
 
@@ -30,7 +35,7 @@ async def backfill(limit: int = 50, dry_run: bool = False):
     try:
         # Find audio messages that need processing
         rows = db.execute(
-            """
+            text("""
             SELECT m.id, m.content, m.role, m.msg_metadata
             FROM messages m
             WHERE m.msg_metadata->>'type' = 'audio'
@@ -38,7 +43,7 @@ async def backfill(limit: int = 50, dry_run: bool = False):
               AND m.msg_metadata->>'audio_intel' IS NULL
             ORDER BY m.created_at DESC
             LIMIT :limit
-            """,
+            """),
             {"limit": limit},
         ).fetchall()
 
@@ -73,11 +78,11 @@ async def backfill(limit: int = 50, dry_run: bool = False):
                 metadata["audio_intel"] = result.to_metadata()
 
                 db.execute(
-                    """
+                    text("""
                     UPDATE messages
                     SET msg_metadata = :meta
                     WHERE id = :id
-                    """,
+                    """),
                     {"meta": json.dumps(metadata), "id": str(msg_id)},
                 )
 

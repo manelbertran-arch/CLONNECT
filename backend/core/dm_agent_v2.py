@@ -1021,6 +1021,37 @@ class DMResponderAgentV2:
                 except Exception as e:
                     logger.debug(f"Few-shot loading failed: {e}")
 
+            # Build audio context if message comes from audio intelligence
+            audio_context = ""
+            audio_intel = metadata.get("audio_intel")
+            if audio_intel and isinstance(audio_intel, dict):
+                parts = []
+                if audio_intel.get("intent"):
+                    parts.append(f"Intención del audio: {audio_intel['intent']}")
+                entities = audio_intel.get("entities", {})
+                entity_parts = []
+                for key, label in [
+                    ("people", "Personas"), ("places", "Lugares"),
+                    ("dates", "Fechas"), ("numbers", "Cifras"),
+                    ("products", "Productos/servicios"),
+                ]:
+                    vals = entities.get(key, [])
+                    if vals:
+                        entity_parts.append(f"{label}: {', '.join(vals)}")
+                if entity_parts:
+                    parts.append("Datos mencionados: " + ". ".join(entity_parts))
+                actions = audio_intel.get("action_items", [])
+                if actions:
+                    parts.append("Acciones pendientes: " + "; ".join(actions))
+                if audio_intel.get("emotional_tone"):
+                    parts.append(f"Tono: {audio_intel['emotional_tone']}")
+                if parts:
+                    audio_context = (
+                        "CONTEXTO DE AUDIO (mensaje de voz transcrito):\n"
+                        + "\n".join(parts)
+                    )
+                    cognitive_metadata["audio_enriched"] = True
+
             combined_context = "\n\n".join(
                 filter(
                     None,
@@ -1028,6 +1059,7 @@ class DMResponderAgentV2:
                         self.style_prompt,
                         few_shot_section,
                         friend_context,
+                        audio_context,
                         rag_context,
                         dna_context,
                         state_context,

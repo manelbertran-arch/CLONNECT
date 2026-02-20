@@ -1534,15 +1534,19 @@ async def _process_evolution_message_safe(
 
         # Generate suggestion via DM agent
         agent = get_dm_agent(creator_id)
+        dm_metadata = {
+            "message_id": message_id,
+            "username": push_name or "amigo",
+            "platform": "whatsapp",
+            "source": "evolution",
+        }
+        # Pass audio intelligence to DM agent for enriched context
+        if msg_metadata and msg_metadata.get("audio_intel"):
+            dm_metadata["audio_intel"] = msg_metadata["audio_intel"]
         response = await agent.process_dm(
             message=text,
             sender_id=follower_id,
-            metadata={
-                "message_id": message_id,
-                "username": push_name or "amigo",
-                "platform": "whatsapp",
-                "source": "evolution",
-            },
+            metadata=dm_metadata,
         )
 
         response_text = response.content if hasattr(response, "content") else str(response)

@@ -2211,6 +2211,9 @@ class InstagramHandler:
         }
         if media_info:
             dm_metadata["media"] = media_info
+            # Pass audio intelligence to DM agent for enriched context
+            if media_info.get("audio_intel"):
+                dm_metadata["audio_intel"] = media_info["audio_intel"]
         if story_info:
             # Story info becomes the msg_metadata directly (type, url, link, emoji)
             dm_metadata["story"] = story_info
