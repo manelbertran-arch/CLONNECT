@@ -15,6 +15,9 @@ import sys
 # Add backend to path
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
+from dotenv import load_dotenv
+load_dotenv(os.path.join(os.path.dirname(__file__), "..", ".env"))
+
 # Force-enable audio intelligence for backfill (before importing service)
 os.environ["ENABLE_AUDIO_INTELLIGENCE"] = "true"
 
