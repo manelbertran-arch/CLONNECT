@@ -559,6 +559,7 @@ function AudioMessage({ message, isOutgoing, isLastInGroup, isFirstInGroup, plat
   const meta = metadata as Record<string, unknown>;
   const transcriptSummary = meta.transcript_summary as string | undefined;
   const transcriptFull = meta.transcript_full as string | undefined;
+  const transcriptRaw = meta.transcript_raw as string | undefined;
   const transcription = meta.transcription as string | undefined;
   const th = getInlineTheme(platform);
   const bubble = makeBubbleProps(platform, isOutgoing, isLastInGroup);
@@ -566,9 +567,39 @@ function AudioMessage({ message, isOutgoing, isLastInGroup, isFirstInGroup, plat
 
   const formatDuration = (s?: number) => { if (!s) return '0:00'; return `${Math.floor(s / 60)}:${Math.floor(s % 60).toString().padStart(2, '0')}`; };
 
-  // Display logic: prefer transcript_summary, fallback to legacy transcription
-  const displayText = transcriptSummary || transcription;
-  const hasFullText = !!transcriptFull && transcriptFull !== transcriptSummary;
+  // Detect if LLM post-processing actually ran (summary significantly shorter than full)
+  const rawText = transcriptRaw || transcriptFull || transcription || '';
+  const summaryText = transcriptSummary || transcription || '';
+  const fullText = transcriptFull || transcriptRaw || transcription || '';
+  const hasRealSummary = !!summaryText && !!fullText && summaryText.length < fullText.length * 0.8;
+
+  // Truncation for long literal text (fallback case where summary ≈ full)
+  const TRUNCATE_LEN = 150;
+  const isLongLiteral = !hasRealSummary && rawText.length > TRUNCATE_LEN;
+
+  // What to show by default
+  let visibleText: string;
+  let expandedText: string | undefined;
+  let toggleLabel: [string, string]; // [expand, collapse]
+
+  if (hasRealSummary) {
+    // LLM processed: summary visible, full text expandable
+    visibleText = summaryText;
+    expandedText = fullText !== summaryText ? fullText : undefined;
+    toggleLabel = ['Ver transcripción completa', 'Ver resumen'];
+  } else if (isLongLiteral) {
+    // Fallback with long text: truncate + "Ver más"
+    visibleText = rawText.slice(0, TRUNCATE_LEN).replace(/\s+\S*$/, '') + '...';
+    expandedText = rawText;
+    toggleLabel = ['Ver más', 'Ver menos'];
+  } else {
+    // Short text: show as-is
+    visibleText = rawText;
+    expandedText = undefined;
+    toggleLabel = ['', ''];
+  }
+
+  const hasToggle = !!expandedText;
 
   return (
     <div className={`flex ${isOutgoing ? 'justify-end' : 'justify-start'}`}>
@@ -585,18 +616,28 @@ function AudioMessage({ message, isOutgoing, isLastInGroup, isFirstInGroup, plat
               )}
             </div>
           </div>
-          {displayText && (
+          {visibleText && (
             <div className="mt-2">
-              <p className="text-sm text-white/80 italic leading-snug">
-                &ldquo;{expanded && hasFullText ? transcriptFull : displayText}&rdquo;
-              </p>
-              {hasFullText && (
+              {hasRealSummary && !expanded ? (
+                <p className="text-sm text-white/80 italic leading-snug">
+                  &ldquo;{visibleText}&rdquo;
+                </p>
+              ) : expanded && expandedText ? (
+                <div className="text-sm text-white/70 leading-snug max-h-48 overflow-y-auto whitespace-pre-line">
+                  {expandedText}
+                </div>
+              ) : (
+                <p className="text-sm text-white/80 leading-snug">
+                  {visibleText}
+                </p>
+              )}
+              {hasToggle && (
                 <button
                   onClick={() => setExpanded(!expanded)}
                   className="text-xs mt-1 opacity-60 hover:opacity-100 transition-opacity cursor-pointer"
                   style={th ? { color: th.accent } : { color: '#a78bfa' }}
                 >
-                  {expanded ? 'Ver resumen' : 'Ver transcripción completa'}
+                  {expanded ? toggleLabel[1] : toggleLabel[0]}
                 </button>
               )}
             </div>

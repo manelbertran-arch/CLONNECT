@@ -24,7 +24,7 @@ logger = logging.getLogger(__name__)
 
 # Configuration
 MIN_WORDS_FOR_PROCESSING = 30
-LLM_TIMEOUT_SECONDS = 15
+LLM_TIMEOUT_SECONDS = 25
 ENABLE_AUDIO_INTELLIGENCE = os.getenv("ENABLE_AUDIO_INTELLIGENCE", "false").lower() == "true"
 
 AUDIO_INTELLIGENCE_PROMPT = """You are an audio transcription post-processor. You receive raw speech-to-text output from Whisper and must restructure it into clean, readable text.
@@ -37,13 +37,14 @@ RULES:
 5. NEVER change the speaker's meaning or intent
 6. Keep the speaker's natural tone and vocabulary (formal/informal)
 7. Output in the SAME LANGUAGE as the input
+8. CRITICAL: The transcript_summary MUST be written in FIRST PERSON — as if the speaker wrote it. NEVER use third person ("La persona dice...", "El usuario menciona..."). Example: "Me voy a una maratón de biodanza" NOT "La persona va a una maratón de biodanza"
 
 {style_context}
 
 Respond with ONLY a JSON object (no markdown fences, no explanation):
 {{
-  "transcript_full": "Complete restructured text with all facts preserved. Use paragraph breaks for topic changes.",
-  "transcript_summary": "2-3 sentence summary capturing the key points. Max 120 words."
+  "transcript_full": "Complete restructured text with all facts preserved. Use paragraph breaks for topic changes. First person.",
+  "transcript_summary": "2-3 sentence summary capturing the key points. Max 120 words. MUST be first person."
 }}
 
 RAW TRANSCRIPTION:
