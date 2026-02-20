@@ -1,24 +1,28 @@
 """
-Transcriber - Convierte audio/video a texto usando Whisper.
+Transcriber - 3-Tier Cascade: Groq → Gemini → OpenAI Whisper.
 
-Soporta:
-- Archivos de audio locales (mp3, wav, m4a, ogg)
-- Archivos de video locales (mp4, mov, webm)
-- URLs de audio/video
-- Timestamps para citaciones
+Tier 0 (FREE):    Groq Whisper v3 Turbo (2000 req/day, 8h audio/day)
+Tier 1 ($0.0006): Gemini 2.0 Flash audio native (httpx REST)
+Tier 2 ($0.006):  OpenAI Whisper-1 (existing fallback)
 
-Dependencias:
-- openai (Whisper API)
-- httpx (para descargas)
+Supports:
+- Local audio/video files (mp3, wav, m4a, ogg, webm, mp4)
+- URLs (auto-download + cascade)
+
+Dependencies:
+- openai (Whisper API + Groq via OpenAI-compatible client)
+- httpx (Gemini REST + URL downloads)
 """
 
+import base64
 import logging
-import tempfile
+import os
+import time
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from enum import Enum
 from pathlib import Path
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Tuple
 
 logger = logging.getLogger(__name__)
 
@@ -89,44 +93,43 @@ class Transcript:
 
 class Transcriber:
     """
-    Servicio de transcripcion usando Whisper API.
+    3-Tier cascade transcription service.
 
-    Uso:
+    Tier 0: Groq Whisper v3 Turbo (free, 2000 req/day)
+    Tier 1: Gemini 2.0 Flash audio native (~$0.0006/min)
+    Tier 2: OpenAI Whisper-1 ($0.006/min)
+
+    Usage:
         transcriber = Transcriber()
         transcript = await transcriber.transcribe_file("audio.mp3")
-        # Access result: transcript.full_text
     """
 
     SUPPORTED_FORMATS = {"mp3", "wav", "m4a", "ogg", "webm", "mp4", "mov", "avi"}
-    MAX_FILE_SIZE_MB = 25  # Limite de Whisper API
+    MAX_FILE_SIZE_MB = 25  # Whisper API limit
+
+    EXT_TO_MIME = {
+        "ogg": "audio/ogg",
+        "mp3": "audio/mpeg",
+        "m4a": "audio/mp4",
+        "wav": "audio/wav",
+        "webm": "audio/webm",
+        "mp4": "video/mp4",
+        "mov": "video/quicktime",
+        "avi": "video/x-msvideo",
+    }
 
     def __init__(self, api_key: Optional[str] = None):
-        """
-        Inicializa el transcriber.
-
-        Args:
-            api_key: OpenAI API key. Si no se proporciona, usa OPENAI_API_KEY env var.
-        """
-        import os
-
         self.api_key = api_key or os.getenv("OPENAI_API_KEY")
         if not self.api_key:
-            logger.warning("No OpenAI API key provided. Transcription will fail.")
+            logger.warning("No OpenAI API key provided. Tier 2 fallback will fail.")
+
+        self.groq_api_key = os.getenv("GROQ_API_KEY")
+        self.google_api_key = os.getenv("GOOGLE_API_KEY")
 
     async def transcribe_file(
         self, file_path: str, language: str = "es", include_timestamps: bool = True
     ) -> Transcript:
-        """
-        Transcribe un archivo de audio/video.
-
-        Args:
-            file_path: Ruta al archivo
-            language: Codigo de idioma (es, en, etc.)
-            include_timestamps: Si incluir timestamps por segmento
-
-        Returns:
-            Transcript con el texto y metadatos
-        """
+        """Transcribe a local audio/video file using the 3-tier cascade."""
         path = Path(file_path)
 
         if not path.exists():
@@ -138,62 +141,203 @@ class Transcriber:
                 f"Formato no soportado: {suffix}. Soportados: {self.SUPPORTED_FORMATS}"
             )
 
-        # Verificar tamano
         size_mb = path.stat().st_size / (1024 * 1024)
         if size_mb > self.MAX_FILE_SIZE_MB:
             logger.warning(f"Archivo grande ({size_mb:.1f}MB). Puede requerir chunking.")
 
-        # Transcribir con Whisper
-        return await self._call_whisper_api(
-            file_path=str(path), language=language, include_timestamps=include_timestamps
+        audio_bytes = path.read_bytes()
+        mime_type = self.EXT_TO_MIME.get(suffix, "audio/ogg")
+
+        text, model_used = await self._transcribe_cascade(audio_bytes, mime_type, language)
+
+        return Transcript(
+            source_file=str(path),
+            full_text=text,
+            segments=[],
+            language=language,
+            duration_seconds=0,
+            model_used=model_used,
         )
 
     async def transcribe_url(
         self, url: str, language: str = "es", include_timestamps: bool = True
     ) -> Transcript:
-        """
-        Descarga y transcribe audio/video desde URL.
-
-        Args:
-            url: URL del archivo
-            language: Codigo de idioma
-            include_timestamps: Si incluir timestamps
-
-        Returns:
-            Transcript con el texto y metadatos
-        """
+        """Download and transcribe audio/video from URL using the 3-tier cascade."""
         import httpx
 
-        # Descargar a archivo temporal
         async with httpx.AsyncClient(timeout=120.0) as client:
             response = await client.get(url, follow_redirects=True)
             response.raise_for_status()
 
-            # Determinar extension
             content_type = response.headers.get("content-type", "")
             ext = self._get_extension_from_content_type(content_type) or "mp3"
+            mime_type = self.EXT_TO_MIME.get(ext, "audio/ogg")
+            audio_bytes = response.content
 
-            with tempfile.NamedTemporaryFile(suffix=f".{ext}", delete=False) as tmp:
-                tmp.write(response.content)
-                tmp_path = tmp.name
+        text, model_used = await self._transcribe_cascade(audio_bytes, mime_type, language)
 
-        try:
-            return await self.transcribe_file(tmp_path, language, include_timestamps)
-        finally:
-            # Limpiar archivo temporal
-            Path(tmp_path).unlink(missing_ok=True)
+        return Transcript(
+            source_file=url,
+            full_text=text,
+            segments=[],
+            language=language,
+            duration_seconds=0,
+            model_used=model_used,
+        )
+
+    # ── Cascade orchestrator ──────────────────────────────────────────
+
+    async def _transcribe_cascade(
+        self, audio_bytes: bytes, mime_type: str, language: str
+    ) -> Tuple[str, str]:
+        """Try Tier 0 → Tier 1 → Tier 2. Returns (text, model_name)."""
+
+        # TIER 0: Groq Whisper v3 Turbo (free)
+        if self.groq_api_key:
+            try:
+                t0 = time.monotonic()
+                text = await self._transcribe_groq(audio_bytes, mime_type, language)
+                elapsed = time.monotonic() - t0
+                logger.info(
+                    f"[TRANSCRIBE] TIER 0 Groq: {len(text)} chars in {elapsed:.1f}s — $0.00"
+                )
+                return text, "groq-whisper-v3-turbo"
+            except Exception as e:
+                logger.warning(f"[TRANSCRIBE] TIER 0 Groq failed ({e}) → escalating")
+        else:
+            logger.debug("[TRANSCRIBE] TIER 0 Groq skipped (no GROQ_API_KEY)")
+
+        # TIER 1: Gemini 2.0 Flash audio native
+        if self.google_api_key:
+            try:
+                t0 = time.monotonic()
+                text = await self._transcribe_gemini_audio(audio_bytes, mime_type, language)
+                elapsed = time.monotonic() - t0
+                logger.info(
+                    f"[TRANSCRIBE] TIER 1 Gemini audio: {len(text)} chars in {elapsed:.1f}s — ~$0.0006"
+                )
+                return text, "gemini-2.0-flash-audio"
+            except Exception as e:
+                logger.warning(f"[TRANSCRIBE] TIER 1 Gemini failed ({e}) → escalating")
+        else:
+            logger.debug("[TRANSCRIBE] TIER 1 Gemini skipped (no GOOGLE_API_KEY)")
+
+        # TIER 2: OpenAI Whisper-1 (always available)
+        t0 = time.monotonic()
+        text = await self._transcribe_openai(audio_bytes, mime_type, language)
+        elapsed = time.monotonic() - t0
+        logger.info(
+            f"[TRANSCRIBE] TIER 2 OpenAI: {len(text)} chars in {elapsed:.1f}s — ~$0.006/min"
+        )
+        return text, "whisper-1"
+
+    # ── Tier 0: Groq ─────────────────────────────────────────────────
+
+    async def _transcribe_groq(
+        self, audio_bytes: bytes, mime_type: str, language: str
+    ) -> str:
+        """Groq Whisper v3 Turbo via OpenAI-compatible API."""
+        from openai import AsyncOpenAI
+
+        client = AsyncOpenAI(
+            api_key=self.groq_api_key,
+            base_url="https://api.groq.com/openai/v1",
+        )
+
+        response = await client.audio.transcriptions.create(
+            model="whisper-large-v3-turbo",
+            file=("audio.ogg", audio_bytes, mime_type),
+            language=language,
+            response_format="text",
+        )
+
+        text = response if isinstance(response, str) else response.text
+        return text.strip()
+
+    # ── Tier 1: Gemini 2.0 Flash audio native ────────────────────────
+
+    async def _transcribe_gemini_audio(
+        self, audio_bytes: bytes, mime_type: str, language: str
+    ) -> str:
+        """Gemini 2.0 Flash with inline audio data (REST, no SDK)."""
+        import httpx
+
+        url = (
+            f"https://generativelanguage.googleapis.com/v1beta/models/"
+            f"gemini-2.0-flash:generateContent?key={self.google_api_key}"
+        )
+
+        lang_name = "español" if language == "es" else "inglés" if language == "en" else language
+        prompt = (
+            f"Transcribe este audio palabra por palabra en {lang_name}. "
+            f"Devuelve SOLO la transcripción literal, nada más."
+        )
+
+        payload = {
+            "contents": [
+                {
+                    "parts": [
+                        {"text": prompt},
+                        {
+                            "inline_data": {
+                                "mime_type": mime_type,
+                                "data": base64.b64encode(audio_bytes).decode(),
+                            }
+                        },
+                    ]
+                }
+            ],
+            "generationConfig": {"temperature": 0.1, "maxOutputTokens": 4096},
+        }
+
+        async with httpx.AsyncClient(timeout=60.0) as client:
+            resp = await client.post(url, json=payload)
+            resp.raise_for_status()
+
+        data = resp.json()
+        candidates = data.get("candidates", [])
+        if not candidates:
+            raise ValueError("Gemini returned no candidates")
+
+        parts = candidates[0].get("content", {}).get("parts", [])
+        if not parts:
+            raise ValueError("Gemini returned no parts")
+
+        return parts[0].get("text", "").strip()
+
+    # ── Tier 2: OpenAI Whisper-1 ──────────────────────────────────────
+
+    async def _transcribe_openai(
+        self, audio_bytes: bytes, mime_type: str, language: str
+    ) -> str:
+        """OpenAI Whisper-1 — last resort, always has API key."""
+        from openai import AsyncOpenAI
+
+        client = AsyncOpenAI(api_key=self.api_key)
+
+        response = await client.audio.transcriptions.create(
+            model="whisper-1",
+            file=("audio.ogg", audio_bytes, mime_type),
+            language=language,
+            response_format="text",
+            prompt="Hola, ¿cómo estás? Bueno, te cuento que estuve en el evento. Me pareció genial, la verdad. Te mando un beso.",
+        )
+
+        text = response if isinstance(response, str) else response.text
+        return text.strip()
+
+    # ── Legacy method (kept for backward compat) ──────────────────────
 
     async def _call_whisper_api(
         self, file_path: str, language: str, include_timestamps: bool
     ) -> Transcript:
-        """Llama a la API de Whisper."""
+        """Legacy Whisper API call. Kept for backward compatibility."""
         try:
             from openai import AsyncOpenAI
 
             client = AsyncOpenAI(api_key=self.api_key)
 
             with open(file_path, "rb") as audio_file:
-                # Usar verbose_json para obtener timestamps
                 response_format = "verbose_json" if include_timestamps else "text"
 
                 response = await client.audio.transcriptions.create(
@@ -204,7 +348,6 @@ class Transcriber:
                     prompt="Hola, ¿cómo estás? Bueno, te cuento que estuve en el evento. Me pareció genial, la verdad. Te mando un beso.",
                 )
 
-            # Parsear respuesta segun formato
             if include_timestamps and hasattr(response, "segments"):
                 segments = [
                     TranscriptSegment(
@@ -236,6 +379,8 @@ class Transcriber:
         except Exception as e:
             logger.error(f"Error en transcripcion: {e}")
             raise
+
+    # ── Helpers ────────────────────────────────────────────────────────
 
     def _get_extension_from_content_type(self, content_type: str) -> Optional[str]:
         """Mapea content-type a extension de archivo."""
