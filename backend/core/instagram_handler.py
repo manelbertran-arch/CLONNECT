@@ -2173,18 +2173,23 @@ class InstagramHandler:
                 if transcript and transcript.full_text.strip():
                     transcribed_text = transcript.full_text.strip()
 
-                    # Post-process transcription with LLM
+                    # Audio Intelligence Pipeline (4-layer)
                     try:
-                        from services.audio_transcription_processor import process_audio_transcription
+                        from services.audio_intelligence import get_audio_intelligence
 
-                        result = await process_audio_transcription(transcribed_text, self.creator_id)
-                        media_info["transcript_raw"] = result["transcript_raw"]
-                        media_info["transcript_full"] = result["transcript_full"]
-                        media_info["transcript_summary"] = result["transcript_summary"]
-                        message_text = f"[\U0001f3a4 Audio]: {result['transcript_full']}"
-                        media_info["transcription"] = result["transcript_summary"]
+                        intel = get_audio_intelligence()
+                        ai_result = await intel.process(
+                            raw_text=transcribed_text,
+                            duration_seconds=int(media_info.get("duration", 0)),
+                            language="es",
+                            role="user",
+                        )
+                        legacy = ai_result.to_legacy_fields()
+                        media_info.update(legacy)
+                        media_info["audio_intel"] = ai_result.to_metadata()
+                        message_text = f"[\U0001f3a4 Audio]: {ai_result.clean_text or transcribed_text}"
                     except Exception as pp_err:
-                        logger.warning(f"[IG] Audio post-processing failed: {pp_err}")
+                        logger.warning(f"[IG] Audio intelligence failed: {pp_err}")
                         message_text = f"[\U0001f3a4 Audio]: {transcribed_text}"
                         media_info["transcription"] = transcribed_text
 

@@ -846,25 +846,32 @@ async def _simple_dm_sync_internal(
                                 if transcript and transcript.full_text.strip():
                                     transcribed_text = transcript.full_text.strip()
 
-                                    # Post-process transcription with LLM
+                                    # Audio Intelligence Pipeline (4-layer)
                                     try:
-                                        from services.audio_transcription_processor import (
-                                            process_audio_transcription,
+                                        from services.audio_intelligence import (
+                                            get_audio_intelligence,
                                         )
 
-                                        result = await process_audio_transcription(
-                                            transcribed_text, creator_id
+                                        intel = get_audio_intelligence()
+                                        ai_result = await intel.process(
+                                            raw_text=transcribed_text,
+                                            duration_seconds=int(
+                                                new_msg.msg_metadata.get("duration", 0)
+                                            ),
+                                            language="es",
+                                            role="user",
                                         )
-                                        new_msg.msg_metadata["transcript_raw"] = result["transcript_raw"]
-                                        new_msg.msg_metadata["transcript_full"] = result["transcript_full"]
-                                        new_msg.msg_metadata["transcript_summary"] = result["transcript_summary"]
+                                        legacy = ai_result.to_legacy_fields()
+                                        new_msg.msg_metadata.update(legacy)
+                                        new_msg.msg_metadata["audio_intel"] = (
+                                            ai_result.to_metadata()
+                                        )
                                         new_msg.content = (
-                                            f"[\U0001f3a4 Audio]: {result['transcript_full']}"
+                                            f"[\U0001f3a4 Audio]: {ai_result.clean_text or transcribed_text}"
                                         )
-                                        new_msg.msg_metadata["transcription"] = result["transcript_summary"]
                                     except Exception as pp_err:
                                         logger.warning(
-                                            f"[DM Sync] Audio post-processing failed for {msg_id}: {pp_err}"
+                                            f"[DM Sync] Audio intelligence failed for {msg_id}: {pp_err}"
                                         )
                                         new_msg.content = (
                                             f"[\U0001f3a4 Audio]: {transcribed_text}"

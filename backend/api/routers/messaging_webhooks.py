@@ -1408,28 +1408,33 @@ async def _save_evolution_outgoing_message(
                 db.flush()
                 logger.info(f"[EVO:{instance}] Outgoing: created lead {follower_id}")
 
-            # Post-process outgoing audio transcription (already transcribed by _download_evolution_media)
+            # Audio Intelligence Pipeline (outgoing — creator's voice)
             if (
                 msg_metadata
                 and msg_metadata.get("type") == "audio"
                 and msg_metadata.get("transcription")
             ):
                 try:
-                    from services.audio_transcription_processor import process_audio_transcription
+                    from services.audio_intelligence import get_audio_intelligence
 
                     raw_text = msg_metadata["transcription"]
-                    result = await process_audio_transcription(raw_text, creator_id)
-                    msg_metadata["transcript_raw"] = result["transcript_raw"]
-                    msg_metadata["transcript_full"] = result["transcript_full"]
-                    msg_metadata["transcript_summary"] = result["transcript_summary"]
-                    msg_metadata["transcription"] = result["transcript_summary"]
-                    text = f"[\U0001f3a4 Audio]: {result['transcript_full']}"
+                    intel = get_audio_intelligence()
+                    ai_result = await intel.process(
+                        raw_text=raw_text,
+                        duration_seconds=msg_metadata.get("duration", 0),
+                        language="es",
+                        role="assistant",
+                    )
+                    legacy = ai_result.to_legacy_fields()
+                    msg_metadata.update(legacy)
+                    msg_metadata["audio_intel"] = ai_result.to_metadata()
+                    text = f"[\U0001f3a4 Audio]: {ai_result.clean_text or raw_text}"
                     logger.info(
-                        f"[EVO:{instance}] Outgoing audio post-processed: "
-                        f"{result['transcript_summary'][:50]}..."
+                        f"[EVO:{instance}] Outgoing AudioIntel: "
+                        f"{ai_result.summary[:60]}..."
                     )
                 except Exception as e:
-                    logger.warning(f"[EVO:{instance}] Outgoing audio post-processing failed: {e}")
+                    logger.warning(f"[EVO:{instance}] Outgoing audio intelligence failed: {e}")
 
             # Save the outgoing message (role=assistant, same as creator manual sends)
             import uuid
@@ -1497,27 +1502,35 @@ async def _process_evolution_message_safe(
 
         follower_id = f"wa_{sender_number}"
 
-        # Post-process audio transcription (already transcribed by _download_evolution_media)
+        # Audio Intelligence Pipeline (4-layer: clean → extract → synthesize)
         if (
             msg_metadata
             and msg_metadata.get("type") == "audio"
             and msg_metadata.get("transcription")
         ):
             try:
-                from services.audio_transcription_processor import process_audio_transcription
+                from services.audio_intelligence import get_audio_intelligence
 
                 raw_text = msg_metadata["transcription"]
-                result = await process_audio_transcription(raw_text, creator_id)
-                msg_metadata["transcript_raw"] = result["transcript_raw"]
-                msg_metadata["transcript_full"] = result["transcript_full"]
-                msg_metadata["transcript_summary"] = result["transcript_summary"]
-                msg_metadata["transcription"] = result["transcript_summary"]
-                text = f"[\U0001f3a4 Audio]: {result['transcript_full']}"
+                intel = get_audio_intelligence()
+                ai_result = await intel.process(
+                    raw_text=raw_text,
+                    duration_seconds=msg_metadata.get("duration", 0),
+                    language="es",
+                    role="user",
+                )
+                # Legacy fields (backward compat)
+                legacy = ai_result.to_legacy_fields()
+                msg_metadata.update(legacy)
+                # Structured intelligence data
+                msg_metadata["audio_intel"] = ai_result.to_metadata()
+                text = f"[\U0001f3a4 Audio]: {ai_result.clean_text or raw_text}"
                 logger.info(
-                    f"[EVO:{instance}] Audio post-processed: {result['transcript_summary'][:50]}..."
+                    f"[EVO:{instance}] AudioIntel: {ai_result.summary[:60]}... "
+                    f"({ai_result.processing_time_ms}ms)"
                 )
             except Exception as e:
-                logger.warning(f"[EVO:{instance}] Audio post-processing failed: {e}")
+                logger.warning(f"[EVO:{instance}] Audio intelligence failed: {e}")
 
         # Generate suggestion via DM agent
         agent = get_dm_agent(creator_id)

@@ -552,60 +552,75 @@ function MediaMessage({ message, isOutgoing, isLastInGroup, type, platform }: {
 function AudioMessage({ message, isOutgoing, isLastInGroup, isFirstInGroup, platform }: {
   message: Message; isOutgoing: boolean; isLastInGroup: boolean; isFirstInGroup: boolean; platform: ChatPlatform;
 }) {
-  const [expanded, setExpanded] = useState(false);
+  const [activeTab, setActiveTab] = useState<'summary' | 'transcript'>('summary');
   const metadata = message.metadata || {};
   const audioUrl = metadata.url;
   const duration = metadata.duration;
   const meta = metadata as Record<string, unknown>;
-  const transcriptSummary = meta.transcript_summary as string | undefined;
-  const transcriptFull = meta.transcript_full as string | undefined;
-  const transcriptRaw = meta.transcript_raw as string | undefined;
-  const transcription = meta.transcription as string | undefined;
   const th = getInlineTheme(platform);
   const bubble = makeBubbleProps(platform, isOutgoing, isLastInGroup);
   const showTail = isFirstInGroup && th?.hasTail;
 
   const formatDuration = (s?: number) => { if (!s) return '0:00'; return `${Math.floor(s / 60)}:${Math.floor(s % 60).toString().padStart(2, '0')}`; };
 
-  // Detect if LLM post-processing actually ran (summary significantly shorter than full)
-  const rawText = transcriptRaw || transcriptFull || transcription || '';
-  const summaryText = transcriptSummary || transcription || '';
-  const fullText = transcriptFull || transcriptRaw || transcription || '';
-  const hasRealSummary = !!summaryText && !!fullText && summaryText.length < fullText.length * 0.8;
+  // Read structured audio_intel (new format) or fall back to legacy fields
+  const audioIntel = meta.audio_intel as Record<string, unknown> | undefined;
+  const summary = (audioIntel?.summary as string) || (meta.transcript_summary as string) || '';
+  const cleanText = (audioIntel?.clean_text as string) || (meta.transcript_full as string) || '';
+  const rawText = (audioIntel?.raw_text as string) || (meta.transcript_raw as string) || (meta.transcription as string) || '';
+  const fullText = cleanText || rawText;
 
-  // Truncation for long literal text (fallback case where summary ≈ full)
+  // Entities (new format only)
+  const entities = audioIntel?.entities as Record<string, string[]> | undefined;
+  const actionItems = audioIntel?.action_items as string[] | undefined;
+  const hasPeople = (entities?.people?.length || 0) > 0;
+  const hasPlaces = (entities?.places?.length || 0) > 0;
+  const hasDates = (entities?.dates?.length || 0) > 0;
+  const hasEntities = hasPeople || hasPlaces || hasDates;
+  const hasActions = (actionItems?.length || 0) > 0;
+
+  // Determine if we have real summary vs fallback
+  const hasRealSummary = !!summary && !!fullText && summary.length < fullText.length * 0.8;
+  const hasBothTabs = hasRealSummary && fullText.length > 0;
+
+  // For fallback (no real summary): truncate long text
   const TRUNCATE_LEN = 150;
-  const isLongLiteral = !hasRealSummary && rawText.length > TRUNCATE_LEN;
+  const fallbackText = !hasRealSummary && rawText.length > TRUNCATE_LEN
+    ? rawText.slice(0, TRUNCATE_LEN).replace(/\s+\S*$/, '') + '...'
+    : rawText;
 
-  // What to show by default
-  let visibleText: string;
-  let expandedText: string | undefined;
-  let toggleLabel: [string, string]; // [expand, collapse]
-
-  if (hasRealSummary) {
-    // LLM processed: summary visible, full text expandable
-    visibleText = summaryText;
-    expandedText = fullText !== summaryText ? fullText : undefined;
-    toggleLabel = ['Ver transcripción completa', 'Ver resumen'];
-  } else if (isLongLiteral) {
-    // Fallback with long text: truncate + "Ver más"
-    visibleText = rawText.slice(0, TRUNCATE_LEN).replace(/\s+\S*$/, '') + '...';
-    expandedText = rawText;
-    toggleLabel = ['Ver más', 'Ver menos'];
-  } else {
-    // Short text: show as-is
-    visibleText = rawText;
-    expandedText = undefined;
-    toggleLabel = ['', ''];
+  const displayText = hasRealSummary ? summary : fallbackText;
+  if (!displayText && !fullText) {
+    // No transcription at all — just show player
+    return (
+      <div className={`flex ${isOutgoing ? 'justify-end' : 'justify-start'}`}>
+        <div style={{ position: 'relative', ...(showTail ? { [isOutgoing ? 'marginRight' : 'marginLeft']: 8 } : {}) }}>
+          {showTail && <MessageTail isOutgoing={isOutgoing} color={isOutgoing ? th!.outgoingBg : th!.incomingBg} />}
+          <div className={bubble.className} style={{ ...bubble.style, padding: '12px 16px', minWidth: 200, maxWidth: 340 }}>
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-full bg-white/20 flex items-center justify-center flex-shrink-0"><Mic className="w-5 h-5 text-white" /></div>
+              <div className="flex-1">
+                {audioUrl ? (
+                  <audio src={audioUrl} controls preload="metadata" className="w-full h-8" style={{ filter: isOutgoing ? 'invert(1) hue-rotate(180deg)' : 'invert(1)', opacity: 0.9 }}>Your browser does not support audio playback.</audio>
+                ) : (
+                  <><div className="h-1 bg-white/30 rounded-full w-32"><div className="h-1 bg-white rounded-full w-1/3"></div></div><p className="text-xs text-white/70 mt-1">{formatDuration(duration)}</p></>
+                )}
+              </div>
+            </div>
+            {th ? <div style={{ position: 'relative', marginTop: 4 }}><InlineTimestamp timestamp={message.timestamp} isOutgoing={isOutgoing} th={th} /><span style={{ display: 'inline-block', width: 50, height: 15 }} /></div>
+              : <IGTimestamp timestamp={message.timestamp} isOutgoing={isOutgoing} />}
+          </div>
+        </div>
+      </div>
+    );
   }
-
-  const hasToggle = !!expandedText;
 
   return (
     <div className={`flex ${isOutgoing ? 'justify-end' : 'justify-start'}`}>
       <div style={{ position: 'relative', ...(showTail ? { [isOutgoing ? 'marginRight' : 'marginLeft']: 8 } : {}) }}>
         {showTail && <MessageTail isOutgoing={isOutgoing} color={isOutgoing ? th!.outgoingBg : th!.incomingBg} />}
         <div className={bubble.className} style={{ ...bubble.style, padding: '12px 16px', minWidth: 200, maxWidth: 340 }}>
+          {/* Audio player */}
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-full bg-white/20 flex items-center justify-center flex-shrink-0"><Mic className="w-5 h-5 text-white" /></div>
             <div className="flex-1">
@@ -616,32 +631,72 @@ function AudioMessage({ message, isOutgoing, isLastInGroup, isFirstInGroup, plat
               )}
             </div>
           </div>
-          {visibleText && (
-            <div className="mt-2">
-              {hasRealSummary && !expanded ? (
-                <p className="text-sm text-white/80 italic leading-snug">
-                  &ldquo;{visibleText}&rdquo;
-                </p>
-              ) : expanded && expandedText ? (
-                <div className="text-sm text-white/70 leading-snug max-h-48 overflow-y-auto whitespace-pre-line">
-                  {expandedText}
-                </div>
-              ) : (
-                <p className="text-sm text-white/80 leading-snug">
-                  {visibleText}
-                </p>
-              )}
-              {hasToggle && (
+
+          {/* Transcription content */}
+          <div className="mt-2">
+            {/* Tab selector — only show if we have both summary + full text */}
+            {hasBothTabs && (
+              <div className="flex items-center gap-1 mb-2">
                 <button
-                  onClick={() => setExpanded(!expanded)}
-                  className="text-xs mt-1 opacity-60 hover:opacity-100 transition-opacity cursor-pointer"
-                  style={th ? { color: th.accent } : { color: '#a78bfa' }}
+                  onClick={() => setActiveTab('summary')}
+                  className={`text-xs px-3 py-1 rounded-full transition-all cursor-pointer ${
+                    activeTab === 'summary' ? 'bg-white/20 text-white font-medium' : 'text-white/50 hover:text-white/70'
+                  }`}
                 >
-                  {expanded ? toggleLabel[1] : toggleLabel[0]}
+                  Resumen
                 </button>
-              )}
-            </div>
-          )}
+                <button
+                  onClick={() => setActiveTab('transcript')}
+                  className={`text-xs px-3 py-1 rounded-full transition-all cursor-pointer ${
+                    activeTab === 'transcript' ? 'bg-white/20 text-white font-medium' : 'text-white/50 hover:text-white/70'
+                  }`}
+                >
+                  Transcripción
+                </button>
+              </div>
+            )}
+
+            {/* Tab content */}
+            {(!hasBothTabs || activeTab === 'summary') ? (
+              <div>
+                <p className="text-sm text-white/85 leading-snug">
+                  {hasBothTabs ? summary : displayText}
+                </p>
+                {/* Entity tags */}
+                {hasEntities && activeTab === 'summary' && (
+                  <div className="flex flex-wrap gap-1 mt-2">
+                    {entities?.people?.map((p, i) => (
+                      <span key={`p-${i}`} className="text-xs px-2 py-0.5 rounded-full bg-white/10 text-white/70">
+                        {'👤 '}{p}
+                      </span>
+                    ))}
+                    {entities?.places?.map((p, i) => (
+                      <span key={`l-${i}`} className="text-xs px-2 py-0.5 rounded-full bg-white/10 text-white/70">
+                        {'📍 '}{p}
+                      </span>
+                    ))}
+                    {entities?.dates?.map((d, i) => (
+                      <span key={`d-${i}`} className="text-xs px-2 py-0.5 rounded-full bg-white/10 text-white/70">
+                        {'📅 '}{d}
+                      </span>
+                    ))}
+                  </div>
+                )}
+                {/* Action items */}
+                {hasActions && activeTab === 'summary' && (
+                  <div className="mt-2 text-xs text-white/50">
+                    {'📌 '}{actionItems!.join(' · ')}
+                  </div>
+                )}
+              </div>
+            ) : (
+              /* Full transcription tab */
+              <div className="text-sm text-white/80 leading-snug max-h-48 overflow-y-auto whitespace-pre-line">
+                {fullText}
+              </div>
+            )}
+          </div>
+
           {th ? <div style={{ position: 'relative', marginTop: 4 }}><InlineTimestamp timestamp={message.timestamp} isOutgoing={isOutgoing} th={th} /><span style={{ display: 'inline-block', width: 50, height: 15 }} /></div>
             : <IGTimestamp timestamp={message.timestamp} isOutgoing={isOutgoing} />}
         </div>
