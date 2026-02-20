@@ -39,6 +39,7 @@ const BookService = lazy(() => import("./pages/BookService"));
 const AnalyticsDashboard = lazy(() => import("./pages/Analytics").then(m => ({ default: m.AnalyticsDashboard })));
 const TuAudiencia = lazy(() => import("./pages/TuAudiencia"));
 const Personas = lazy(() => import("./pages/Personas"));
+const Autolearning = lazy(() => import("./pages/Autolearning"));
 
 // Loading fallback for lazy-loaded pages
 function PageLoader() {
@@ -127,6 +128,7 @@ const AppRoutes = () => {
         {/* Sprint 4 Intelligence routes */}
         <Route path="/tu-audiencia" element={<Suspense fallback={<PageLoader />}><TuAudiencia /></Suspense>} />
         <Route path="/personas" element={<Suspense fallback={<PageLoader />}><Personas /></Suspense>} />
+        <Route path="/autolearning" element={<Suspense fallback={<PageLoader />}><Autolearning /></Suspense>} />
       </Route>
 
       {/* Protected: new dashboard routes */}

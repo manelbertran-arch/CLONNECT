@@ -14,6 +14,7 @@ import {
   Settings,
   Bot,
   Zap,
+  Brain,
   LogOut,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -26,6 +27,7 @@ import {
   getBookings,
   getCreatorConfig,
   getCopilotStatus,
+  getAutolearningDashboard,
   apiKeys,
   getCreatorId,
 } from "@/services/api";
@@ -51,6 +53,7 @@ const navItems: NavItem[] = [
   { path: "/products", label: "Productos", icon: ShoppingBag },
   { path: "/copilot", label: "Copiloto", icon: Bot },
   { path: "/nurturing", label: "Nurturing", icon: Zap },
+  { path: "/autolearning", label: "Entrenamiento", icon: Brain },
 
   // Divider before settings
   { type: "divider", label: "" },
@@ -120,6 +123,14 @@ const prefetchByPath: Record<string, (qc: ReturnType<typeof useQueryClient>) => 
       queryKey: apiKeys.config(cid),
       queryFn: () => getCreatorConfig(cid),
       staleTime: 300000,
+    });
+  },
+  "/autolearning": (qc) => {
+    const cid = getCreatorId();
+    qc.prefetchQuery({
+      queryKey: apiKeys.autolearningDashboard(cid),
+      queryFn: () => getAutolearningDashboard(cid),
+      staleTime: 60000,
     });
   },
 };

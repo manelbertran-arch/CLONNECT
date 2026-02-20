@@ -2233,6 +2233,98 @@ export async function getAudienciaPerception(
   return apiFetch(`/audiencia/${creatorId}/perception`);
 }
 
+// =============================================================================
+// AUTOLEARNING DASHBOARD
+// =============================================================================
+
+export interface AutolearningLevel {
+  number: number;
+  name: string;
+  emoji: string;
+  xp_threshold: number;
+  next_level_xp: number | null;
+  next_level_name: string | null;
+  progress_pct: number;
+}
+
+export interface AutolearningBreakdown {
+  approved: number;
+  edited: number;
+  discarded: number;
+}
+
+export interface AutolearningCloneXP {
+  total_xp: number;
+  level: AutolearningLevel;
+  streak: { current: number };
+  breakdown: AutolearningBreakdown;
+}
+
+export interface AutopilotReadiness {
+  intent: string;
+  label: string;
+  total: number;
+  approved: number;
+  edited: number;
+  discarded: number;
+  approval_rate: number;
+  avg_edit_severity: string;
+  recent_discards: number;
+  consistency_days: number;
+  status: "ready" | "learning" | "needs_work" | "needs_data";
+}
+
+export interface AutolearningLinkedRule {
+  id: string;
+  rule_text: string;
+  pattern: string;
+}
+
+export interface AutolearningLesson {
+  id: string;
+  intent: string;
+  action: string;
+  suggested_response: string | null;
+  final_response: string | null;
+  edit_diff: { length_delta?: number; categories?: string[] } | null;
+  created_at: string | null;
+  linked_rule: AutolearningLinkedRule | null;
+}
+
+export interface AutolearningSkill {
+  pattern: string;
+  label: string;
+  rule_count: number;
+  avg_confidence: number;
+  total_applied: number;
+  total_helped: number;
+  help_ratio: number;
+  status: "mastered" | "learning" | "detected";
+}
+
+export interface AutolearningAchievement {
+  id: string;
+  name: string;
+  icon: string;
+  unlocked: boolean;
+  description: string;
+}
+
+export interface AutolearningDashboardData {
+  creator_id: string;
+  clone_xp: AutolearningCloneXP;
+  autopilot_readiness: AutopilotReadiness[];
+  lessons: AutolearningLesson[];
+  skills: AutolearningSkill[];
+  achievements: AutolearningAchievement[];
+}
+
+export async function getAutolearningDashboard(
+  creatorId: string = getCreatorId()
+): Promise<AutolearningDashboardData> {
+  return apiFetch(`/autolearning/${creatorId}/dashboard`);
+}
+
 export const apiKeys = {
   dashboard: (creatorId: string) => ["dashboard", creatorId] as const,
   conversations: (creatorId: string) => ["conversations", creatorId] as const,
@@ -2288,6 +2380,8 @@ export const apiKeys = {
   audienciaContentRequests: (creatorId: string) => ["audiencia", "content-requests", creatorId] as const,
   audienciaPurchaseObjections: (creatorId: string) => ["audiencia", "purchase-objections", creatorId] as const,
   audienciaPerception: (creatorId: string) => ["audiencia", "perception", creatorId] as const,
+  // Autolearning Dashboard
+  autolearningDashboard: (creatorId: string) => ["autolearning", "dashboard", creatorId] as const,
 };
 
 // =============================================================================

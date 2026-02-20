@@ -11,3 +11,4 @@ export * from './useKnowledge';
 export * from './useConnections';
 export * from './useOnboarding';
 export * from './useEventStream';
+export * from './useAutolearning';
