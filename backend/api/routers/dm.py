@@ -65,7 +65,8 @@ _META_KEEP = {
     "animated_gif_url", "author_username", "platform",
     "duration", "render_as_sticker", "link_preview",
     "carousel_items", "items", "reacted_to_mid",
-    "transcription", "filename", "width", "height",
+    "transcription", "transcript_summary", "transcript_full", "transcript_raw",
+    "audio_intel", "filename", "width", "height",
 }
 _BASE64_MAX = 5_000_000  # ~3.7 MB decoded — matches media_capture_service limit
 
