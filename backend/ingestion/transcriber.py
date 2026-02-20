@@ -199,13 +199,13 @@ class Transcriber:
                 text = await self._transcribe_groq(audio_bytes, mime_type, language)
                 elapsed = time.monotonic() - t0
                 logger.info(
-                    f"[TRANSCRIBE] TIER 0 Groq: {len(text)} chars in {elapsed:.1f}s — $0.00"
+                    f"[AUDIO_CASCADE] TIER 0 Groq free OK ({len(text)} chars, {elapsed:.1f}s)"
                 )
                 return text, "groq-whisper-v3-turbo"
             except Exception as e:
-                logger.warning(f"[TRANSCRIBE] TIER 0 Groq failed ({e}) → escalating")
+                logger.warning(f"[AUDIO_CASCADE] TIER 0 Groq failed ({e}) → escalating")
         else:
-            logger.debug("[TRANSCRIBE] TIER 0 Groq skipped (no GROQ_API_KEY)")
+            logger.debug("[AUDIO_CASCADE] TIER 0 Groq skipped (no GROQ_API_KEY)")
 
         # TIER 1: Gemini 2.0 Flash audio native
         if self.google_api_key:
@@ -214,20 +214,20 @@ class Transcriber:
                 text = await self._transcribe_gemini_audio(audio_bytes, mime_type, language)
                 elapsed = time.monotonic() - t0
                 logger.info(
-                    f"[TRANSCRIBE] TIER 1 Gemini audio: {len(text)} chars in {elapsed:.1f}s — ~$0.0006"
+                    f"[AUDIO_CASCADE] TIER 1 Gemini audio OK ({len(text)} chars, {elapsed:.1f}s)"
                 )
                 return text, "gemini-2.0-flash-audio"
             except Exception as e:
-                logger.warning(f"[TRANSCRIBE] TIER 1 Gemini failed ({e}) → escalating")
+                logger.warning(f"[AUDIO_CASCADE] TIER 1 Gemini failed ({e}) → escalating")
         else:
-            logger.debug("[TRANSCRIBE] TIER 1 Gemini skipped (no GOOGLE_API_KEY)")
+            logger.debug("[AUDIO_CASCADE] TIER 1 Gemini skipped (no GOOGLE_API_KEY)")
 
         # TIER 2: OpenAI Whisper-1 (always available)
         t0 = time.monotonic()
         text = await self._transcribe_openai(audio_bytes, mime_type, language)
         elapsed = time.monotonic() - t0
         logger.info(
-            f"[TRANSCRIBE] TIER 2 OpenAI: {len(text)} chars in {elapsed:.1f}s — ~$0.006/min"
+            f"[AUDIO_CASCADE] TIER 2 OpenAI Whisper OK ({len(text)} chars, {elapsed:.1f}s)"
         )
         return text, "whisper-1"
 
