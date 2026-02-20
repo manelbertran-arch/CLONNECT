@@ -52,6 +52,8 @@ class FollowerMemory:
     alternative_contact: str = ""
     alternative_contact_type: str = ""
     contact_requested: bool = False
+    # Conversation summary (used by dm_agent_v2 for lead context)
+    conversation_summary: str = ""
 
     def __post_init__(self) -> None:
         """Sanitize None values that may come from JSON loading."""

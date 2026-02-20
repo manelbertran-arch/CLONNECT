@@ -1,10 +1,11 @@
 """Audit tests for core/copilot_service.py."""
 
+import asyncio
 import time
-from unittest.mock import MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
-from core.copilot_service import CopilotService, PendingResponse, get_copilot_service
+from core.copilot_service import DEBOUNCE_SECONDS, CopilotService, PendingResponse, get_copilot_service
 
 
 class TestCopilotInit:
@@ -389,8 +390,8 @@ class TestDedupChecks:
         assert mock_session.add.call_count == 0
 
     @pytest.mark.asyncio
-    async def test_dedup_updates_existing_pending_when_lead_has_one(self):
-        """create_pending_response updates existing pending instead of creating new."""
+    async def test_dedup_preserves_existing_pending_and_schedules_regen(self):
+        """create_pending_response preserves existing pending (no overwrite) and schedules debounced regen."""
         import uuid
 
         service = CopilotService()
@@ -408,6 +409,7 @@ class TestDedupChecks:
         mock_existing_pending = MagicMock()
         mock_existing_pending.id = uuid.uuid4()
         mock_existing_pending.content = "old suggestion"
+        mock_existing_pending.suggested_response = "old suggestion"
 
         call_count = [0]
 
@@ -436,6 +438,7 @@ class TestDedupChecks:
         with (
             patch("api.database.SessionLocal", return_value=mock_session),
             patch("services.lead_scoring.recalculate_lead_score"),
+            patch.object(service, "_schedule_debounced_regen") as mock_sched,
         ):
             result = await service.create_pending_response(
                 creator_id="creator1",
@@ -449,13 +452,15 @@ class TestDedupChecks:
                 confidence=0.8,
             )
 
-        # Should have updated existing pending's content
-        assert mock_existing_pending.content == "New suggestion"
-        assert mock_existing_pending.suggested_response == "New suggestion"
+        # Existing pending content should NOT be overwritten
+        assert mock_existing_pending.content == "old suggestion"
+        assert mock_existing_pending.suggested_response == "old suggestion"
         # Should have added user message (1 add call for user msg)
         assert mock_session.add.call_count == 1
         # Result should reference existing pending ID
         assert result.id == str(mock_existing_pending.id)
+        # Debounced regen should be scheduled
+        mock_sched.assert_called_once()
 
 
 class TestConversationContext:
@@ -549,3 +554,162 @@ class TestConversationContext:
 
         result = service._get_conversation_context(mock_session, "lead_1")
         assert len(result) == 15
+
+
+class TestDebounce:
+    """Tests for message debounce logic."""
+
+    def test_debounce_task_scheduled_on_dedup(self):
+        """_schedule_debounced_regen creates an asyncio task for the lead."""
+        service = CopilotService()
+        lead_key = "lead-123"
+
+        mock_task = MagicMock()
+        with patch("core.copilot_service.asyncio.create_task", return_value=mock_task) as mock_create:
+            service._schedule_debounced_regen(
+                creator_id="creator1",
+                follower_id="ig_456",
+                platform="instagram",
+                pending_message_id="msg-1",
+                lead_id=lead_key,
+                username="testuser",
+            )
+
+        mock_create.assert_called_once()
+        assert service._debounce_tasks[lead_key] is mock_task
+        assert service._debounce_metadata[lead_key]["creator_id"] == "creator1"
+
+    def test_debounce_cancels_previous_task(self):
+        """Scheduling a new regen cancels the previous task for the same lead."""
+        service = CopilotService()
+        lead_key = "lead-456"
+
+        old_task = MagicMock()
+        old_task.done.return_value = False
+        service._debounce_tasks[lead_key] = old_task
+
+        new_task = MagicMock()
+        with patch("core.copilot_service.asyncio.create_task", return_value=new_task):
+            service._schedule_debounced_regen(
+                creator_id="creator1",
+                follower_id="ig_789",
+                platform="instagram",
+                pending_message_id="msg-2",
+                lead_id=lead_key,
+                username="testuser",
+            )
+
+        old_task.cancel.assert_called_once()
+        assert service._debounce_tasks[lead_key] is new_task
+
+    @pytest.mark.asyncio
+    async def test_debounced_regen_updates_pending(self):
+        """After sleep, _debounced_regeneration updates pending message content."""
+        service = CopilotService()
+        lead_key = "lead-789"
+
+        service._debounce_metadata[lead_key] = {
+            "creator_id": "creator1",
+            "follower_id": "ig_111",
+            "platform": "instagram",
+            "pending_message_id": "msg-3",
+            "username": "testuser",
+        }
+
+        mock_pending_msg = MagicMock()
+        mock_pending_msg.status = "pending_approval"
+        mock_pending_msg.lead_id = "lead-789"
+
+        mock_latest_user = MagicMock()
+        mock_latest_user.content = "latest user message"
+
+        mock_session = MagicMock()
+
+        call_count = [0]
+
+        def query_side_effect(*args, **kwargs):
+            call_count[0] += 1
+            result = MagicMock()
+            if call_count[0] == 1:
+                # pending msg lookup
+                result.filter_by.return_value.first.return_value = mock_pending_msg
+            elif call_count[0] == 2:
+                # latest user msg lookup
+                result.filter.return_value.order_by.return_value.first.return_value = mock_latest_user
+            return result
+
+        mock_session.query.side_effect = query_side_effect
+
+        mock_agent = MagicMock()
+        mock_agent.process_dm = AsyncMock(return_value="regenerated response")
+
+        with (
+            patch("core.copilot_service.asyncio.sleep", new_callable=AsyncMock),
+            patch("api.database.SessionLocal", return_value=mock_session),
+            patch("core.dm_agent_v2.get_dm_agent", return_value=mock_agent),
+        ):
+            await service._debounced_regeneration(lead_key)
+
+        assert mock_pending_msg.content == "regenerated response"
+        assert mock_pending_msg.suggested_response == "regenerated response"
+        mock_session.commit.assert_called_once()
+
+    @pytest.mark.asyncio
+    async def test_debounced_regen_skips_if_approved(self):
+        """Regen exits early if the pending message was already approved."""
+        service = CopilotService()
+        lead_key = "lead-skipped"
+
+        service._debounce_metadata[lead_key] = {
+            "creator_id": "creator1",
+            "follower_id": "ig_222",
+            "platform": "instagram",
+            "pending_message_id": "msg-approved",
+            "username": "testuser",
+        }
+
+        mock_pending_msg = MagicMock()
+        mock_pending_msg.status = "sent"  # Already approved and sent
+
+        mock_session = MagicMock()
+        mock_session.query.return_value.filter_by.return_value.first.return_value = mock_pending_msg
+
+        with (
+            patch("core.copilot_service.asyncio.sleep", new_callable=AsyncMock),
+            patch("api.database.SessionLocal", return_value=mock_session),
+        ):
+            await service._debounced_regeneration(lead_key)
+
+        # Should NOT have committed (no update)
+        mock_session.commit.assert_not_called()
+
+    def test_auto_discard_cancels_debounce(self):
+        """auto_discard_pending_for_lead cancels any pending debounce task."""
+        service = CopilotService()
+        lead_key = "lead-discard"
+
+        mock_task = MagicMock()
+        mock_task.done.return_value = False
+        service._debounce_tasks[lead_key] = mock_task
+        service._debounce_metadata[lead_key] = {"creator_id": "c1"}
+
+        mock_session = MagicMock()
+        mock_session.query.return_value.filter.return_value.all.return_value = []
+
+        service.auto_discard_pending_for_lead(lead_key, session=mock_session)
+
+        mock_task.cancel.assert_called_once()
+        assert lead_key not in service._debounce_tasks
+        assert lead_key not in service._debounce_metadata
+
+    def test_debounce_constant_is_30(self):
+        """DEBOUNCE_SECONDS is set to 30."""
+        assert DEBOUNCE_SECONDS == 30
+
+    def test_init_has_debounce_dicts(self):
+        """CopilotService.__init__ creates debounce dicts."""
+        service = CopilotService()
+        assert hasattr(service, "_debounce_tasks")
+        assert hasattr(service, "_debounce_metadata")
+        assert service._debounce_tasks == {}
+        assert service._debounce_metadata == {}

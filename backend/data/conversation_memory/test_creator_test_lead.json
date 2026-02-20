@@ -673,6 +673,321 @@
       "message_id": null,
       "timestamp": "2026-02-15T09:55:12.088437",
       "confidence": 0.95
+    },
+    {
+      "fact_type": "price_given",
+      "content": "150€",
+      "message_id": null,
+      "timestamp": "2026-02-15T10:23:21.504080",
+      "confidence": 0.95
+    },
+    {
+      "fact_type": "price_given",
+      "content": "97€",
+      "message_id": null,
+      "timestamp": "2026-02-15T10:23:21.506784",
+      "confidence": 0.95
+    },
+    {
+      "fact_type": "product_explained",
+      "content": "círculo",
+      "message_id": null,
+      "timestamp": "2026-02-15T10:23:21.506787",
+      "confidence": 0.8
+    },
+    {
+      "fact_type": "product_explained",
+      "content": "sesion",
+      "message_id": null,
+      "timestamp": "2026-02-15T10:23:21.506791",
+      "confidence": 0.8
+    },
+    {
+      "fact_type": "price_given",
+      "content": "150€",
+      "message_id": null,
+      "timestamp": "2026-02-15T10:23:21.507749",
+      "confidence": 0.95
+    },
+    {
+      "fact_type": "price_given",
+      "content": "150€",
+      "message_id": null,
+      "timestamp": "2026-02-15T15:25:53.076902",
+      "confidence": 0.95
+    },
+    {
+      "fact_type": "price_given",
+      "content": "97€",
+      "message_id": null,
+      "timestamp": "2026-02-15T15:25:53.079811",
+      "confidence": 0.95
+    },
+    {
+      "fact_type": "product_explained",
+      "content": "círculo",
+      "message_id": null,
+      "timestamp": "2026-02-15T15:25:53.079814",
+      "confidence": 0.8
+    },
+    {
+      "fact_type": "product_explained",
+      "content": "sesion",
+      "message_id": null,
+      "timestamp": "2026-02-15T15:25:53.079819",
+      "confidence": 0.8
+    },
+    {
+      "fact_type": "price_given",
+      "content": "150€",
+      "message_id": null,
+      "timestamp": "2026-02-15T15:25:53.080823",
+      "confidence": 0.95
+    },
+    {
+      "fact_type": "price_given",
+      "content": "150€",
+      "message_id": null,
+      "timestamp": "2026-02-15T22:20:02.605793",
+      "confidence": 0.95
+    },
+    {
+      "fact_type": "price_given",
+      "content": "97€",
+      "message_id": null,
+      "timestamp": "2026-02-15T22:20:02.608735",
+      "confidence": 0.95
+    },
+    {
+      "fact_type": "product_explained",
+      "content": "círculo",
+      "message_id": null,
+      "timestamp": "2026-02-15T22:20:02.608738",
+      "confidence": 0.8
+    },
+    {
+      "fact_type": "product_explained",
+      "content": "sesion",
+      "message_id": null,
+      "timestamp": "2026-02-15T22:20:02.608742",
+      "confidence": 0.8
+    },
+    {
+      "fact_type": "price_given",
+      "content": "150€",
+      "message_id": null,
+      "timestamp": "2026-02-15T22:20:02.609756",
+      "confidence": 0.95
+    },
+    {
+      "fact_type": "price_given",
+      "content": "150€",
+      "message_id": null,
+      "timestamp": "2026-02-15T22:22:05.109564",
+      "confidence": 0.95
+    },
+    {
+      "fact_type": "price_given",
+      "content": "97€",
+      "message_id": null,
+      "timestamp": "2026-02-15T22:22:05.112389",
+      "confidence": 0.95
+    },
+    {
+      "fact_type": "product_explained",
+      "content": "círculo",
+      "message_id": null,
+      "timestamp": "2026-02-15T22:22:05.112392",
+      "confidence": 0.8
+    },
+    {
+      "fact_type": "product_explained",
+      "content": "sesion",
+      "message_id": null,
+      "timestamp": "2026-02-15T22:22:05.112396",
+      "confidence": 0.8
+    },
+    {
+      "fact_type": "price_given",
+      "content": "150€",
+      "message_id": null,
+      "timestamp": "2026-02-15T22:22:05.113483",
+      "confidence": 0.95
+    },
+    {
+      "fact_type": "price_given",
+      "content": "150€",
+      "message_id": null,
+      "timestamp": "2026-02-19T13:08:38.824421",
+      "confidence": 0.95
+    },
+    {
+      "fact_type": "price_given",
+      "content": "97€",
+      "message_id": null,
+      "timestamp": "2026-02-19T13:08:38.827511",
+      "confidence": 0.95
+    },
+    {
+      "fact_type": "product_explained",
+      "content": "círculo",
+      "message_id": null,
+      "timestamp": "2026-02-19T13:08:38.827514",
+      "confidence": 0.8
+    },
+    {
+      "fact_type": "product_explained",
+      "content": "sesion",
+      "message_id": null,
+      "timestamp": "2026-02-19T13:08:38.827519",
+      "confidence": 0.8
+    },
+    {
+      "fact_type": "price_given",
+      "content": "150€",
+      "message_id": null,
+      "timestamp": "2026-02-19T13:08:38.828560",
+      "confidence": 0.95
+    },
+    {
+      "fact_type": "price_given",
+      "content": "150€",
+      "message_id": null,
+      "timestamp": "2026-02-19T13:10:10.885249",
+      "confidence": 0.95
+    },
+    {
+      "fact_type": "price_given",
+      "content": "97€",
+      "message_id": null,
+      "timestamp": "2026-02-19T13:10:10.888154",
+      "confidence": 0.95
+    },
+    {
+      "fact_type": "product_explained",
+      "content": "círculo",
+      "message_id": null,
+      "timestamp": "2026-02-19T13:10:10.888157",
+      "confidence": 0.8
+    },
+    {
+      "fact_type": "product_explained",
+      "content": "sesion",
+      "message_id": null,
+      "timestamp": "2026-02-19T13:10:10.888161",
+      "confidence": 0.8
+    },
+    {
+      "fact_type": "price_given",
+      "content": "150€",
+      "message_id": null,
+      "timestamp": "2026-02-19T13:10:10.889208",
+      "confidence": 0.95
+    },
+    {
+      "fact_type": "price_given",
+      "content": "150€",
+      "message_id": null,
+      "timestamp": "2026-02-19T14:20:02.273080",
+      "confidence": 0.95
+    },
+    {
+      "fact_type": "price_given",
+      "content": "97€",
+      "message_id": null,
+      "timestamp": "2026-02-19T14:20:02.276022",
+      "confidence": 0.95
+    },
+    {
+      "fact_type": "product_explained",
+      "content": "círculo",
+      "message_id": null,
+      "timestamp": "2026-02-19T14:20:02.276024",
+      "confidence": 0.8
+    },
+    {
+      "fact_type": "product_explained",
+      "content": "sesion",
+      "message_id": null,
+      "timestamp": "2026-02-19T14:20:02.276029",
+      "confidence": 0.8
+    },
+    {
+      "fact_type": "price_given",
+      "content": "150€",
+      "message_id": null,
+      "timestamp": "2026-02-19T14:20:02.277136",
+      "confidence": 0.95
+    },
+    {
+      "fact_type": "price_given",
+      "content": "150€",
+      "message_id": null,
+      "timestamp": "2026-02-19T17:12:25.064390",
+      "confidence": 0.95
+    },
+    {
+      "fact_type": "price_given",
+      "content": "97€",
+      "message_id": null,
+      "timestamp": "2026-02-19T17:12:25.067420",
+      "confidence": 0.95
+    },
+    {
+      "fact_type": "product_explained",
+      "content": "círculo",
+      "message_id": null,
+      "timestamp": "2026-02-19T17:12:25.067424",
+      "confidence": 0.8
+    },
+    {
+      "fact_type": "product_explained",
+      "content": "sesion",
+      "message_id": null,
+      "timestamp": "2026-02-19T17:12:25.067429",
+      "confidence": 0.8
+    },
+    {
+      "fact_type": "price_given",
+      "content": "150€",
+      "message_id": null,
+      "timestamp": "2026-02-19T17:12:25.068589",
+      "confidence": 0.95
+    },
+    {
+      "fact_type": "price_given",
+      "content": "150€",
+      "message_id": null,
+      "timestamp": "2026-02-19T21:30:51.252668",
+      "confidence": 0.95
+    },
+    {
+      "fact_type": "price_given",
+      "content": "97€",
+      "message_id": null,
+      "timestamp": "2026-02-19T21:30:51.256236",
+      "confidence": 0.95
+    },
+    {
+      "fact_type": "product_explained",
+      "content": "círculo",
+      "message_id": null,
+      "timestamp": "2026-02-19T21:30:51.256239",
+      "confidence": 0.8
+    },
+    {
+      "fact_type": "product_explained",
+      "content": "sesion",
+      "message_id": null,
+      "timestamp": "2026-02-19T21:30:51.256243",
+      "confidence": 0.8
+    },
+    {
+      "fact_type": "price_given",
+      "content": "150€",
+      "message_id": null,
+      "timestamp": "2026-02-19T21:30:51.257402",
+      "confidence": 0.95
     }
   ],
   "info_given": {
@@ -684,6 +999,6 @@
   "pending_questions": [],
   "unanswered_lead_questions": [],
   "last_interaction": null,
-  "total_messages": 116,
+  "total_messages": 170,
   "conversation_started": null
 }

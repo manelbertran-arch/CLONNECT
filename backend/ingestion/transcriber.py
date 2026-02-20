@@ -201,6 +201,7 @@ class Transcriber:
                     file=audio_file,
                     language=language,
                     response_format=response_format,
+                    prompt="Hola, ¿cómo estás? Bueno, te cuento que estuve en el evento. Me pareció genial, la verdad. Te mando un beso.",
                 )
 
             # Parsear respuesta segun formato

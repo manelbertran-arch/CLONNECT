@@ -8,6 +8,7 @@ Este servicio maneja:
 4. Notificar al creador de mensajes pendientes
 """
 
+import asyncio
 import logging
 import re
 import uuid
@@ -16,6 +17,9 @@ from datetime import datetime, timezone
 from typing import Any, Dict, Optional
 
 logger = logging.getLogger(__name__)
+
+# Debounce: wait this many seconds after the last burst message before regenerating
+DEBOUNCE_SECONDS = 30
 
 # Media detection patterns — these are not real text and should not get copilot suggestions
 _MEDIA_HASH_PATTERN = re.compile(r"^[A-Za-z0-9+/=]{15,}$")
@@ -91,6 +95,9 @@ class CopilotService:
         )  # FIX P1: Cache copilot mode to avoid duplicate DB queries
         self._copilot_mode_cache_ttl: Dict[str, float] = {}  # Cache timestamps
         self._CACHE_TTL = 60  # 60 second cache
+        # Debounce: tracks pending regeneration tasks per lead
+        self._debounce_tasks: Dict[str, asyncio.Task] = {}
+        self._debounce_metadata: Dict[str, dict] = {}
 
     def _calculate_purchase_intent(self, current_intent: float, message_intent: str) -> float:
         """
@@ -329,7 +336,7 @@ class CopilotService:
             if existing_pending:
                 logger.info(
                     f"[Copilot:Dedup] Lead {lead.id} already has pending suggestion "
-                    f"{existing_pending.id} — saving user message only"
+                    f"{existing_pending.id} — preserving existing, scheduling regen"
                 )
                 # Still save the user message so no messages are lost
                 user_msg = Message(
@@ -343,12 +350,9 @@ class CopilotService:
                 )
                 session.add(user_msg)
 
-                # Update the existing pending suggestion with the new response
-                # (so the creator sees the latest suggestion for the latest message)
-                existing_pending.content = suggested_response
-                existing_pending.suggested_response = suggested_response
-                existing_pending.intent = intent
-                existing_pending.created_at = now
+                # DO NOT overwrite existing pending suggestion — preserve the
+                # first (often best) response. Schedule a debounced regeneration
+                # that will fire after DEBOUNCE_SECONDS of silence with full context.
 
                 # Update lead scoring
                 lead.last_contact_at = now
@@ -383,6 +387,16 @@ class CopilotService:
                     )
                 except Exception:
                     pass
+
+                # Schedule debounced regeneration (cancels any previous timer)
+                self._schedule_debounced_regen(
+                    creator_id=creator_id,
+                    follower_id=follower_id,
+                    platform=platform,
+                    pending_message_id=str(existing_pending.id),
+                    lead_id=str(lead.id),
+                    username=username,
+                )
 
                 return pending
 
@@ -1032,6 +1046,153 @@ class CopilotService:
         finally:
             await connector.close()
 
+    # ── Debounce regeneration ──────────────────────────────────────────────
+
+    def _schedule_debounced_regen(
+        self,
+        creator_id: str,
+        follower_id: str,
+        platform: str,
+        pending_message_id: str,
+        lead_id: str,
+        username: str = "",
+    ):
+        """Schedule (or reschedule) a debounced regeneration for a lead."""
+        lead_key = lead_id
+
+        # Cancel any existing debounce task for this lead
+        existing_task = self._debounce_tasks.get(lead_key)
+        if existing_task and not existing_task.done():
+            existing_task.cancel()
+            logger.info(f"[Copilot:Debounce] Cancelled previous regen timer for lead {lead_key}")
+
+        # Store metadata for the regeneration
+        self._debounce_metadata[lead_key] = {
+            "creator_id": creator_id,
+            "follower_id": follower_id,
+            "platform": platform,
+            "pending_message_id": pending_message_id,
+            "username": username,
+        }
+
+        # Schedule new delayed regeneration
+        task = asyncio.create_task(self._debounced_regeneration(lead_key))
+        self._debounce_tasks[lead_key] = task
+        logger.info(
+            f"[Copilot:Debounce] Scheduled regen in {DEBOUNCE_SECONDS}s for lead {lead_key}"
+        )
+
+    async def _debounced_regeneration(self, lead_key: str):
+        """Wait for silence, then regenerate the pending suggestion with full context."""
+        try:
+            await asyncio.sleep(DEBOUNCE_SECONDS)
+        except asyncio.CancelledError:
+            logger.info(f"[Copilot:Debounce] Regen cancelled for lead {lead_key}")
+            return
+
+        meta = self._debounce_metadata.pop(lead_key, None)
+        self._debounce_tasks.pop(lead_key, None)
+
+        if not meta:
+            logger.warning(f"[Copilot:Debounce] No metadata for lead {lead_key} — skipping")
+            return
+
+        from api.database import SessionLocal
+        from api.models import Lead, Message
+
+        session = SessionLocal()
+        try:
+            # Verify pending message still exists and is pending
+            pending_msg = (
+                session.query(Message)
+                .filter_by(id=meta["pending_message_id"])
+                .first()
+            )
+            if not pending_msg or pending_msg.status != "pending_approval":
+                logger.info(
+                    f"[Copilot:Debounce] Pending msg {meta['pending_message_id']} "
+                    f"no longer pending (status={getattr(pending_msg, 'status', 'gone')}) — skipping regen"
+                )
+                return
+
+            # Get the latest user message for this lead
+            latest_user_msg = (
+                session.query(Message)
+                .filter(
+                    Message.lead_id == pending_msg.lead_id,
+                    Message.role == "user",
+                )
+                .order_by(Message.created_at.desc())
+                .first()
+            )
+            if not latest_user_msg:
+                logger.warning(f"[Copilot:Debounce] No user messages for lead {lead_key}")
+                return
+
+            # Call process_dm to generate a new response with full context
+            from core.dm_agent_v2 import get_dm_agent
+
+            agent = get_dm_agent(meta["creator_id"])
+            new_response = await agent.process_dm(
+                message=latest_user_msg.content,
+                sender_id=meta["follower_id"],
+                platform=meta["platform"],
+                metadata={"platform": meta["platform"]},
+            )
+
+            if not new_response or not new_response.strip():
+                logger.warning(f"[Copilot:Debounce] Empty regen response for lead {lead_key}")
+                return
+
+            # Re-fetch pending msg in case status changed during LLM call
+            session.refresh(pending_msg)
+            if pending_msg.status != "pending_approval":
+                logger.info(
+                    f"[Copilot:Debounce] Pending msg changed to {pending_msg.status} during regen — skipping"
+                )
+                return
+
+            # Update the pending suggestion with the regenerated response
+            now = datetime.now(timezone.utc)
+            pending_msg.content = new_response
+            pending_msg.suggested_response = new_response
+            pending_msg.created_at = now
+            session.commit()
+
+            logger.info(
+                f"[Copilot:Debounce] Regenerated pending suggestion for lead {lead_key} "
+                f"(msg {meta['pending_message_id']})"
+            )
+
+            # Invalidate caches
+            try:
+                from api.cache import api_cache
+
+                api_cache.invalidate(f"conversations:{meta['creator_id']}")
+                api_cache.invalidate(
+                    f"follower_detail:{meta['creator_id']}:{meta['follower_id']}"
+                )
+            except Exception:
+                pass
+
+            # Notify frontend of updated suggestion
+            try:
+                from api.routers.events import notify_creator
+
+                await notify_creator(
+                    meta["creator_id"],
+                    "new_message",
+                    {"follower_id": meta["follower_id"], "role": "assistant"},
+                )
+            except Exception:
+                pass
+
+        except Exception as e:
+            logger.error(f"[Copilot:Debounce] Regen failed for lead {lead_key}: {e}")
+            session.rollback()
+        finally:
+            session.close()
+
     def _evict_stale_cache_entries(self, now: float):
         """Remove cache entries older than _CACHE_EVICTION_TTL and enforce max size."""
         if len(self._copilot_mode_cache) <= self._MAX_CACHE_ENTRIES:
@@ -1062,6 +1223,14 @@ class CopilotService:
         Returns count of discarded suggestions.
         """
         from api.models import Message
+
+        # Cancel any pending debounce regeneration for this lead
+        lead_key = str(lead_id)
+        task = self._debounce_tasks.pop(lead_key, None)
+        if task and not task.done():
+            task.cancel()
+            logger.info(f"[Copilot:Debounce] Cancelled regen for lead {lead_key} (creator replied)")
+        self._debounce_metadata.pop(lead_key, None)
 
         close_session = False
         if session is None:

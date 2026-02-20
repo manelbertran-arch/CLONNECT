@@ -133,6 +133,7 @@ ENABLE_SELF_CONSISTENCY = os.getenv("ENABLE_SELF_CONSISTENCY", "false").lower() 
 ENABLE_FINETUNED_MODEL = os.getenv("ENABLE_FINETUNED_MODEL", "false").lower() == "true"
 USE_SCOUT_MODEL = os.getenv("USE_SCOUT_MODEL", "true").lower() == "true"
 ENABLE_LEARNING_RULES = os.getenv("ENABLE_LEARNING_RULES", "false").lower() == "true"
+ENABLE_EMAIL_CAPTURE = os.getenv("ENABLE_EMAIL_CAPTURE", "false").lower() == "true"
 
 logger = logging.getLogger(__name__)
 
@@ -1371,19 +1372,20 @@ class DMResponderAgentV2:
             # Step 9: Update lead score (synchronous - needed for response)
             new_stage = self._update_lead_score(follower, intent_value, metadata)
 
-            # Step 9c: Email capture (non-blocking)
-            try:
-                formatted_content = self._step_email_capture(
-                    message=message,
-                    formatted_content=formatted_content,
-                    intent_value=intent_value,
-                    sender_id=sender_id,
-                    follower=follower,
-                    platform=metadata.get("platform", "instagram"),
-                    cognitive_metadata=cognitive_metadata,
-                )
-            except Exception as e:
-                logger.warning(f"Email capture step failed (non-blocking): {e}")
+            # Step 9c: Email capture (non-blocking) — disabled by default
+            if ENABLE_EMAIL_CAPTURE:
+                try:
+                    formatted_content = self._step_email_capture(
+                        message=message,
+                        formatted_content=formatted_content,
+                        intent_value=intent_value,
+                        sender_id=sender_id,
+                        follower=follower,
+                        platform=metadata.get("platform", "instagram"),
+                        cognitive_metadata=cognitive_metadata,
+                    )
+                except Exception as e:
+                    logger.warning(f"Email capture step failed (non-blocking): {e}")
 
             # Steps 8, 8b, 9b: Run in background thread (non-blocking)
             asyncio.create_task(

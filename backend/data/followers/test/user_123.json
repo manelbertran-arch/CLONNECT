@@ -4,8 +4,8 @@
   "username": "user_123",
   "name": "",
   "first_contact": "2026-01-28T14:16:32.186230",
-  "last_contact": "2026-02-15T08:55:13.263146+00:00",
-  "total_messages": 39,
+  "last_contact": "2026-02-19T20:30:52.303166+00:00",
+  "total_messages": 51,
   "interests": [],
   "products_discussed": [],
   "objections_raised": [],
@@ -18,12 +18,39 @@
     {
       "role": "user",
       "content": "Cuanto cuesta el curso?",
-      "timestamp": "2026-02-14T21:48:55.425848"
+      "timestamp": "2026-02-15T09:23:22.963638+00:00"
+    },
+    {
+      "role": "assistant",
+      "content": "¡Hola! Me da gusto que te intereses. ¿Qué te llamó la atención de lo que viste?",
+      "timestamp": "2026-02-15T09:23:22.963638+00:00",
+      "facts": [
+        "QUESTION_ASKED"
+      ]
+    },
+    {
+      "role": "user",
+      "content": "Me gustaria saber mas detalles sobre tu programa de coaching personalizado para deportistas",
+      "timestamp": "2026-02-15T09:23:23.888609+00:00"
+    },
+    {
+      "role": "assistant",
+      "content": "¡Hola! Qué bueno que te interesa mi programa de coaching. ¿Qué es lo que más te llamó la atención o te generó curiosidad sobre él?",
+      "timestamp": "2026-02-15T09:23:23.888609+00:00",
+      "facts": [
+        "INTEREST_EXPRESSED",
+        "QUESTION_ASKED"
+      ]
+    },
+    {
+      "role": "user",
+      "content": "Cuanto cuesta el curso?",
+      "timestamp": "2026-02-15T14:25:54.287896+00:00"
     },
     {
       "role": "assistant",
       "content": "El curso cuesta 97 euros.",
-      "timestamp": "2026-02-14T21:48:55.425848",
+      "timestamp": "2026-02-15T14:25:54.287896+00:00",
       "facts": [
         "PRICE_GIVEN"
       ]
@@ -31,12 +58,12 @@
     {
       "role": "user",
       "content": "Cuanto cuesta el curso?",
-      "timestamp": "2026-02-14T21:49:11.728087"
+      "timestamp": "2026-02-15T21:20:03.578657+00:00"
     },
     {
       "role": "assistant",
       "content": "El curso cuesta 97 euros.",
-      "timestamp": "2026-02-14T21:49:11.728087",
+      "timestamp": "2026-02-15T21:20:03.578657+00:00",
       "facts": [
         "PRICE_GIVEN"
       ]
@@ -44,12 +71,12 @@
     {
       "role": "user",
       "content": "Cuanto cuesta el curso?",
-      "timestamp": "2026-02-14T21:49:33.003867"
+      "timestamp": "2026-02-15T21:22:06.108281+00:00"
     },
     {
       "role": "assistant",
       "content": "El curso cuesta 97 euros.",
-      "timestamp": "2026-02-14T21:49:33.003867",
+      "timestamp": "2026-02-15T21:22:06.108281+00:00",
       "facts": [
         "PRICE_GIVEN"
       ]
@@ -57,12 +84,42 @@
     {
       "role": "user",
       "content": "Cuanto cuesta el curso?",
-      "timestamp": "2026-02-14T21:49:46.299631"
+      "timestamp": "2026-02-19T12:08:40.004881+00:00"
+    },
+    {
+      "role": "assistant",
+      "content": "Contame más",
+      "timestamp": "2026-02-19T12:08:40.004881+00:00"
+    },
+    {
+      "role": "user",
+      "content": "Cuanto cuesta el curso?",
+      "timestamp": "2026-02-19T12:10:11.928266+00:00"
+    },
+    {
+      "role": "assistant",
+      "content": "Contame más",
+      "timestamp": "2026-02-19T12:10:11.928266+00:00"
+    },
+    {
+      "role": "user",
+      "content": "Cuanto cuesta el curso?",
+      "timestamp": "2026-02-19T13:20:03.410922+00:00"
+    },
+    {
+      "role": "assistant",
+      "content": "Contame más",
+      "timestamp": "2026-02-19T13:20:03.410922+00:00"
+    },
+    {
+      "role": "user",
+      "content": "Cuanto cuesta el curso?",
+      "timestamp": "2026-02-19T16:12:26.080456+00:00"
     },
     {
       "role": "assistant",
       "content": "El curso cuesta 97 euros.",
-      "timestamp": "2026-02-14T21:49:46.299631",
+      "timestamp": "2026-02-19T16:12:26.080456+00:00",
       "facts": [
         "PRICE_GIVEN"
       ]
@@ -70,80 +127,12 @@
     {
       "role": "user",
       "content": "Cuanto cuesta el curso?",
-      "timestamp": "2026-02-15T00:44:08.296703"
+      "timestamp": "2026-02-19T20:30:52.303166+00:00"
     },
     {
       "role": "assistant",
-      "content": "El curso cuesta 97 euros.",
-      "timestamp": "2026-02-15T00:44:08.296703",
-      "facts": [
-        "PRICE_GIVEN"
-      ]
-    },
-    {
-      "role": "user",
-      "content": "Cuanto cuesta el curso?",
-      "timestamp": "2026-02-15T00:48:27.448750"
-    },
-    {
-      "role": "assistant",
-      "content": "El curso cuesta 97 euros.",
-      "timestamp": "2026-02-15T00:48:27.448750",
-      "facts": [
-        "PRICE_GIVEN"
-      ]
-    },
-    {
-      "role": "user",
-      "content": "Cuanto cuesta el curso?",
-      "timestamp": "2026-02-15T08:42:32.094152"
-    },
-    {
-      "role": "assistant",
-      "content": "El curso cuesta 97 euros.",
-      "timestamp": "2026-02-15T08:42:32.094152",
-      "facts": [
-        "PRICE_GIVEN"
-      ]
-    },
-    {
-      "role": "user",
-      "content": "Cuanto cuesta el curso?",
-      "timestamp": "2026-02-15T08:45:59.217542"
-    },
-    {
-      "role": "assistant",
-      "content": "El curso cuesta 97 euros.",
-      "timestamp": "2026-02-15T08:45:59.217542",
-      "facts": [
-        "PRICE_GIVEN"
-      ]
-    },
-    {
-      "role": "user",
-      "content": "Cuanto cuesta el curso?",
-      "timestamp": "2026-02-15T08:47:10.721459+00:00"
-    },
-    {
-      "role": "assistant",
-      "content": "El curso cuesta 97 euros.",
-      "timestamp": "2026-02-15T08:47:10.721459+00:00",
-      "facts": [
-        "PRICE_GIVEN"
-      ]
-    },
-    {
-      "role": "user",
-      "content": "Cuanto cuesta el curso?",
-      "timestamp": "2026-02-15T08:55:13.263146+00:00"
-    },
-    {
-      "role": "assistant",
-      "content": "El curso cuesta 97 euros.",
-      "timestamp": "2026-02-15T08:55:13.263146+00:00",
-      "facts": [
-        "PRICE_GIVEN"
-      ]
+      "content": "Contame más",
+      "timestamp": "2026-02-19T20:30:52.303166+00:00"
     }
   ],
   "links_sent_count": 0,
