@@ -613,6 +613,81 @@ def register_startup_handlers(app: "FastAPI"):
         asyncio.create_task(start_learning_consolidation_scheduler())
         logger.info("Learning consolidation scheduler scheduled (every 24h, 510s delay)")
 
+        # JOB 19: Pattern analyzer — batch LLM-as-Judge (12h, 540s delay, ENABLE_PATTERN_ANALYZER)
+        async def start_pattern_analyzer_scheduler():
+            enable = os.getenv("ENABLE_PATTERN_ANALYZER", "false").lower() == "true"
+            await asyncio.sleep(540)
+            if not enable:
+                logger.info("[PATTERN_ANALYZER] Disabled via env var")
+                return
+            logger.info("[PATTERN_ANALYZER] Scheduler started — runs every 12h")
+
+            while True:
+                try:
+                    from services.pattern_analyzer import run_pattern_analysis_all
+
+                    results = await run_pattern_analysis_all()
+                    for creator_name, result in results.items():
+                        if result.get("status") == "done":
+                            logger.info(
+                                f"[PATTERN_ANALYZER] {creator_name}: "
+                                f"pairs={result.get('pairs_analyzed', 0)} "
+                                f"rules={result.get('rules_created', 0)}"
+                            )
+                except Exception as e:
+                    logger.error(f"[PATTERN_ANALYZER] Scheduler error: {e}")
+
+                await asyncio.sleep(43200)  # 12 hours
+
+        asyncio.create_task(start_pattern_analyzer_scheduler())
+        logger.info("Pattern analyzer scheduler scheduled (every 12h, 540s delay)")
+
+        # JOB 20: Gold examples curation + preference profile refresh (12h, 570s delay)
+        async def start_gold_examples_scheduler():
+            enable_gold = os.getenv("ENABLE_GOLD_EXAMPLES", "false").lower() == "true"
+            enable_profile = os.getenv("ENABLE_PREFERENCE_PROFILE", "false").lower() == "true"
+            await asyncio.sleep(570)
+            if not enable_gold and not enable_profile:
+                logger.info("[GOLD_EXAMPLES] Both gold examples and preference profile disabled")
+                return
+            logger.info("[GOLD_EXAMPLES] Scheduler started — runs every 12h")
+
+            while True:
+                try:
+                    from api.models import Creator
+
+                    session = SessionLocal()
+                    try:
+                        creators = (
+                            session.query(Creator.id, Creator.name)
+                            .filter(Creator.bot_active.is_(True))
+                            .all()
+                        )
+                    finally:
+                        session.close()
+
+                    for creator_db_id, creator_name in creators:
+                        try:
+                            if enable_gold:
+                                from services.gold_examples_service import curate_examples
+                                result = await curate_examples(creator_name, creator_db_id)
+                                if result.get("status") == "done":
+                                    logger.info(
+                                        f"[GOLD_EXAMPLES] {creator_name}: "
+                                        f"created={result.get('created', 0)} "
+                                        f"expired={result.get('expired', 0)}"
+                                    )
+                        except Exception as creator_err:
+                            logger.error(f"[GOLD_EXAMPLES] Error for {creator_name}: {creator_err}")
+
+                except Exception as e:
+                    logger.error(f"[GOLD_EXAMPLES] Scheduler error: {e}")
+
+                await asyncio.sleep(43200)  # 12 hours
+
+        asyncio.create_task(start_gold_examples_scheduler())
+        logger.info("Gold examples scheduler scheduled (every 12h, 570s delay)")
+
         logger.info("Message reconciliation on startup DISABLED (use /maintenance/reconcile)")
 
         # Hydrate RAG from PostgreSQL

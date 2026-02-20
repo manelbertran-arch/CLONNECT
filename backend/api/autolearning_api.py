@@ -15,7 +15,7 @@ from typing import Any, Dict, List, Optional
 
 from api.cache import api_cache
 from api.database import SessionLocal
-from api.models import Creator, Lead, LearningRule, Message
+from api.models import Creator, GoldExample, Lead, LearningRule, Message
 from fastapi import APIRouter, HTTPException, Query
 from sqlalchemy import case, cast, func, text, Date
 from sqlalchemy.orm import Session
@@ -640,3 +640,165 @@ async def get_dashboard(creator_id: str):
         return result
     finally:
         session.close()
+
+
+# =============================================================================
+# POST /autolearning/{creator_id}/analyze-patterns — Manual pattern analysis trigger
+# =============================================================================
+@router.post("/{creator_id}/analyze-patterns")
+async def analyze_patterns(creator_id: str):
+    """Manually trigger LLM-as-Judge pattern analysis on accumulated preference pairs."""
+    session = SessionLocal()
+    try:
+        creator = session.query(Creator).filter_by(name=creator_id).first()
+        if not creator:
+            raise HTTPException(status_code=404, detail="Creator not found")
+        cid = creator.id
+    finally:
+        session.close()
+
+    from services.pattern_analyzer import run_pattern_analysis
+
+    result = await run_pattern_analysis(creator_id, cid)
+    return {"creator_id": creator_id, **result}
+
+
+# =============================================================================
+# GET /autolearning/{creator_id}/pattern-analysis — View batch-derived rules
+# =============================================================================
+@router.get("/{creator_id}/pattern-analysis")
+async def get_pattern_analysis(
+    creator_id: str,
+    limit: int = Query(default=20, le=100),
+):
+    """View learning rules derived from pattern batch analysis."""
+    session = SessionLocal()
+    try:
+        creator = session.query(Creator).filter_by(name=creator_id).first()
+        if not creator:
+            raise HTTPException(status_code=404, detail="Creator not found")
+
+        rules = (
+            session.query(LearningRule)
+            .filter(
+                LearningRule.creator_id == creator.id,
+                LearningRule.is_active.is_(True),
+                LearningRule.source == "pattern_batch",
+            )
+            .order_by(LearningRule.created_at.desc())
+            .limit(limit)
+            .all()
+        )
+
+        return {
+            "creator_id": creator_id,
+            "count": len(rules),
+            "rules": [
+                {
+                    "id": str(r.id),
+                    "rule_text": r.rule_text,
+                    "pattern": r.pattern,
+                    "example_bad": r.example_bad,
+                    "example_good": r.example_good,
+                    "confidence": r.confidence,
+                    "source": r.source,
+                    "created_at": r.created_at.isoformat() if r.created_at else None,
+                }
+                for r in rules
+            ],
+        }
+    finally:
+        session.close()
+
+
+# =============================================================================
+# GET /autolearning/{creator_id}/gold-examples — List gold examples
+# =============================================================================
+@router.get("/{creator_id}/gold-examples")
+async def get_gold_examples(
+    creator_id: str,
+    limit: int = Query(default=20, le=100),
+):
+    """List active gold examples for a creator."""
+    session = SessionLocal()
+    try:
+        creator = session.query(Creator).filter_by(name=creator_id).first()
+        if not creator:
+            raise HTTPException(status_code=404, detail="Creator not found")
+
+        examples = (
+            session.query(GoldExample)
+            .filter(
+                GoldExample.creator_id == creator.id,
+                GoldExample.is_active.is_(True),
+            )
+            .order_by(GoldExample.quality_score.desc())
+            .limit(limit)
+            .all()
+        )
+
+        return {
+            "creator_id": creator_id,
+            "count": len(examples),
+            "examples": [
+                {
+                    "id": str(e.id),
+                    "user_message": e.user_message,
+                    "creator_response": e.creator_response,
+                    "intent": e.intent,
+                    "lead_stage": e.lead_stage,
+                    "source": e.source,
+                    "quality_score": e.quality_score,
+                    "times_used": e.times_used,
+                    "times_helpful": e.times_helpful,
+                    "created_at": e.created_at.isoformat() if e.created_at else None,
+                }
+                for e in examples
+            ],
+        }
+    finally:
+        session.close()
+
+
+# =============================================================================
+# GET /autolearning/{creator_id}/preference-profile — View preference profile
+# =============================================================================
+@router.get("/{creator_id}/preference-profile")
+async def get_preference_profile(creator_id: str):
+    """Compute and return the creator's preference profile."""
+    session = SessionLocal()
+    try:
+        creator = session.query(Creator).filter_by(name=creator_id).first()
+        if not creator:
+            raise HTTPException(status_code=404, detail="Creator not found")
+        cid = creator.id
+    finally:
+        session.close()
+
+    from services.preference_profile_service import compute_preference_profile
+
+    profile = compute_preference_profile(cid)
+    if not profile:
+        return {"creator_id": creator_id, "profile": None, "message": "Insufficient data (need 10+ messages)"}
+    return {"creator_id": creator_id, "profile": profile}
+
+
+# =============================================================================
+# POST /autolearning/{creator_id}/curate-examples — Manual gold examples curation
+# =============================================================================
+@router.post("/{creator_id}/curate-examples")
+async def curate_gold_examples(creator_id: str):
+    """Manually trigger gold examples curation from recent copilot messages."""
+    session = SessionLocal()
+    try:
+        creator = session.query(Creator).filter_by(name=creator_id).first()
+        if not creator:
+            raise HTTPException(status_code=404, detail="Creator not found")
+        cid = creator.id
+    finally:
+        session.close()
+
+    from services.gold_examples_service import curate_examples
+
+    result = await curate_examples(creator_id, cid)
+    return {"creator_id": creator_id, **result}

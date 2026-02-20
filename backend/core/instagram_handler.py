@@ -613,6 +613,10 @@ class InstagramHandler:
                     if not copilot_user_msg:
                         copilot_user_msg = "[Media/Attachment]"
 
+                    # Carry Best-of-N candidates from DM response metadata
+                    if response.metadata and response.metadata.get("best_of_n"):
+                        copilot_msg_metadata["best_of_n"] = response.metadata["best_of_n"]
+
                     pending = await copilot.create_pending_response(
                         creator_id=self.creator_id,
                         lead_id="",  # Will be set by service

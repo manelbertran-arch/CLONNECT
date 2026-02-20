@@ -40,6 +40,7 @@ def create_rule(
     example_good: Optional[str] = None,
     confidence: float = 0.5,
     source_message_id=None,
+    source: str = "realtime",
 ) -> Optional[Dict]:
     """Create a learning rule. Deduplicates: same pattern+text → increment confidence."""
     from api.database import SessionLocal
@@ -82,6 +83,7 @@ def create_rule(
             example_good=example_good,
             confidence=confidence,
             source_message_id=source_message_id,
+            source=source,
         )
         session.add(rule)
         session.commit()
@@ -180,6 +182,10 @@ def get_applicable_rules(
             if rule.times_applied > 0:
                 help_ratio = rule.times_helped / rule.times_applied
                 score += help_ratio * 1.5
+
+            # Bonus for pattern_batch rules (higher quality from LLM judge)
+            if getattr(rule, "source", None) == "pattern_batch":
+                score += 1.0
 
             scored.append((score, rule))
 

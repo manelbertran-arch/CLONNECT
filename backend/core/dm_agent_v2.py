@@ -134,6 +134,9 @@ ENABLE_FINETUNED_MODEL = os.getenv("ENABLE_FINETUNED_MODEL", "false").lower() ==
 USE_SCOUT_MODEL = os.getenv("USE_SCOUT_MODEL", "true").lower() == "true"
 ENABLE_LEARNING_RULES = os.getenv("ENABLE_LEARNING_RULES", "false").lower() == "true"
 ENABLE_EMAIL_CAPTURE = os.getenv("ENABLE_EMAIL_CAPTURE", "false").lower() == "true"
+ENABLE_BEST_OF_N = os.getenv("ENABLE_BEST_OF_N", "false").lower() == "true"
+ENABLE_GOLD_EXAMPLES = os.getenv("ENABLE_GOLD_EXAMPLES", "false").lower() == "true"
+ENABLE_PREFERENCE_PROFILE = os.getenv("ENABLE_PREFERENCE_PROFILE", "false").lower() == "true"
 
 logger = logging.getLogger(__name__)
 
@@ -1129,6 +1132,77 @@ class DMResponderAgentV2:
                 except Exception as lr_err:
                     logger.debug(f"[LEARNING] Rule loading failed: {lr_err}")
 
+            # Step 5d: Load preference profile
+            preference_profile_section = ""
+            if ENABLE_PREFERENCE_PROFILE:
+                try:
+                    from services.preference_profile_service import (
+                        compute_preference_profile,
+                        format_preference_profile_for_prompt,
+                    )
+
+                    def _load_profile():
+                        from api.database import SessionLocal
+                        from api.models import Creator
+                        _s = SessionLocal()
+                        try:
+                            _c = _s.query(Creator.id).filter_by(name=self.creator_id).first()
+                            if not _c:
+                                return None
+                            return compute_preference_profile(_c[0])
+                        finally:
+                            _s.close()
+
+                    _profile = await asyncio.to_thread(_load_profile)
+                    if _profile:
+                        preference_profile_section = format_preference_profile_for_prompt(
+                            _profile, self.creator_id
+                        )
+                        cognitive_metadata["preference_profile"] = True
+                        logger.info(f"[PREFERENCE] Profile applied for {sender_id}")
+                except Exception as pp_err:
+                    logger.debug(f"[PREFERENCE] Profile loading failed: {pp_err}")
+
+            # Step 5e: Load gold examples (few-shot)
+            gold_examples_section = ""
+            if ENABLE_GOLD_EXAMPLES:
+                try:
+                    from services.gold_examples_service import get_matching_examples
+
+                    def _load_examples():
+                        from api.database import SessionLocal
+                        from api.models import Creator
+                        _s = SessionLocal()
+                        try:
+                            _c = _s.query(Creator.id).filter_by(name=self.creator_id).first()
+                            if not _c:
+                                return []
+                            return get_matching_examples(
+                                _c[0], intent=intent_value,
+                                relationship_type=_rel_type,
+                                lead_stage=current_stage,
+                            )
+                        finally:
+                            _s.close()
+
+                    _gold_examples = await asyncio.to_thread(_load_examples)
+                    if _gold_examples:
+                        ex_lines = []
+                        for ex in _gold_examples:
+                            ex_lines.append(
+                                f"Lead: \"{ex['user_message']}\"\n"
+                                f"{self.creator_id}: \"{ex['creator_response']}\""
+                            )
+                        gold_examples_section = (
+                            f"=== EJEMPLOS DE COMO RESPONDE {self.creator_id.upper()} ===\n"
+                            + "\n---\n".join(ex_lines) + "\n"
+                            "=== FIN EJEMPLOS ==="
+                        )
+                        cognitive_metadata["gold_examples_injected"] = len(_gold_examples)
+                        logger.info(f"[FEWSHOT] Injected {len(_gold_examples)} examples for {sender_id}")
+                except Exception as ge_err:
+                    logger.debug(f"[FEWSHOT] Example loading failed: {ge_err}")
+
             # Step 6: Build full prompt with bot_instructions + strategy + frustration
             prompt_parts = [user_context]
             if _bot_instructions:
@@ -1139,6 +1213,10 @@ class DMResponderAgentV2:
                 )
             if learning_rules_section:
                 prompt_parts.append(learning_rules_section)
+            if preference_profile_section:
+                prompt_parts.append(preference_profile_section)
+            if gold_examples_section:
+                prompt_parts.append(gold_examples_section)
             if strategy_hint:
                 prompt_parts.append(strategy_hint)
             if frustration_level > 0.5:
@@ -1160,8 +1238,32 @@ class DMResponderAgentV2:
                 {"role": "system", "content": system_prompt},
                 {"role": "user", "content": full_prompt},
             ]
-            # A4/A5: generate_dm_response returns dict with model/provider/latency
-            llm_result = await generate_dm_response(llm_messages, max_tokens=150)
+
+            # Best-of-N: generate 3 candidates at different temperatures (copilot only)
+            best_of_n_result = None
+            if ENABLE_BEST_OF_N:
+                try:
+                    from core.copilot_service import get_copilot_service
+                    _is_copilot = get_copilot_service().is_copilot_enabled(self.creator_id)
+                    if _is_copilot:
+                        from core.best_of_n import generate_best_of_n, serialize_candidates
+                        best_of_n_result = await generate_best_of_n(
+                            llm_messages, 150, intent_value, "llm_generation", self.creator_id
+                        )
+                except Exception as bon_err:
+                    logger.debug("[BestOfN] Failed, using single call: %s", bon_err)
+
+            if best_of_n_result:
+                llm_result = {
+                    "content": best_of_n_result.best.content,
+                    "model": best_of_n_result.best.model,
+                    "provider": best_of_n_result.best.provider,
+                    "latency_ms": best_of_n_result.total_latency_ms,
+                }
+                cognitive_metadata["best_of_n"] = serialize_candidates(best_of_n_result)
+            else:
+                # A4/A5: generate_dm_response returns dict with model/provider/latency
+                llm_result = await generate_dm_response(llm_messages, max_tokens=150)
 
             _t3 = time.monotonic()
             logger.info(f"[TIMING] LLM call: {int((_t3 - _t2) * 1000)}ms")
@@ -1445,21 +1547,25 @@ class DMResponderAgentV2:
             except Exception:
                 scored_confidence = 0.7
 
+            _dm_metadata = {
+                "model": llm_response.model,
+                "provider": llm_meta.get("provider", "unknown"),
+                "latency_ms": llm_meta.get("latency_ms", 0),
+                "rag_results": len(rag_results),
+                "history_length": len(history),
+                "follower_id": sender_id,
+                "message_parts": message_parts,
+            }
+            if cognitive_metadata.get("best_of_n"):
+                _dm_metadata["best_of_n"] = cognitive_metadata["best_of_n"]
+
             return DMResponse(
                 content=formatted_content,
                 intent=intent_value,
                 lead_stage=new_stage.value if hasattr(new_stage, "value") else str(new_stage),
                 confidence=scored_confidence,
                 tokens_used=llm_response.tokens_used,
-                metadata={
-                    "model": llm_response.model,
-                    "provider": llm_meta.get("provider", "unknown"),
-                    "latency_ms": llm_meta.get("latency_ms", 0),
-                    "rag_results": len(rag_results),
-                    "history_length": len(history),
-                    "follower_id": sender_id,
-                    "message_parts": message_parts,
-                },
+                metadata=_dm_metadata,
             )
 
         except Exception as e:

@@ -429,6 +429,10 @@ class CopilotService:
             session.add(user_msg)
 
             # Guardar respuesta sugerida como pendiente
+            # Store best_of_n candidates on bot message for preference pair extraction
+            bot_meta = {}
+            if msg_metadata and msg_metadata.get("best_of_n"):
+                bot_meta["best_of_n"] = msg_metadata["best_of_n"]
             bot_msg = Message(
                 lead_id=lead.id,
                 role="assistant",
@@ -437,6 +441,7 @@ class CopilotService:
                 status="pending_approval",
                 intent=intent,
                 confidence_score=confidence,
+                msg_metadata=bot_meta if bot_meta else None,
             )
             session.add(bot_msg)
             session.commit()
@@ -732,6 +737,29 @@ class CopilotService:
             except Exception as learn_err:
                 logger.debug(f"[Copilot] Autolearning hook failed: {learn_err}")
 
+            # Preference pairs hook: fire-and-forget training data collection
+            try:
+                from services.preference_pairs_service import create_pairs_from_action
+
+                _meta = msg.msg_metadata or {}
+                _bon_candidates = _meta.get("best_of_n", {}).get("candidates")
+                _aio.create_task(create_pairs_from_action(
+                    action="edited" if was_edited else "approved",
+                    creator_db_id=creator.id,
+                    source_message_id=msg.id,
+                    suggested_response=msg.suggested_response,
+                    final_response=final_text if was_edited else None,
+                    user_message=None,
+                    intent=msg.intent,
+                    lead_stage=lead.status,
+                    edit_diff=msg.edit_diff if was_edited else None,
+                    best_of_n_candidates=_bon_candidates,
+                    chosen_confidence=msg.confidence_score,
+                    rejected_confidence=msg.confidence_score if was_edited else None,
+                ))
+            except Exception as pp_err:
+                logger.debug(f"[Copilot] Preference pairs hook failed: {pp_err}")
+
             # Invalidate caches so approved message appears in conversation
             try:
                 from api.cache import api_cache
@@ -848,6 +876,27 @@ class CopilotService:
                     ))
             except Exception as learn_err:
                 logger.debug(f"[Copilot] Autolearning discard hook failed: {learn_err}")
+
+            # Preference pairs hook: fire-and-forget training data collection
+            try:
+                from services.preference_pairs_service import create_pairs_from_action
+
+                _cr = session.query(_Cr).filter_by(name=creator_id).first() if not locals().get("_creator") else _creator
+                if _cr:
+                    _meta = msg.msg_metadata or {}
+                    _bon_candidates = _meta.get("best_of_n", {}).get("candidates")
+                    _aio.create_task(create_pairs_from_action(
+                        action="discarded",
+                        creator_db_id=_cr.id,
+                        source_message_id=msg.id,
+                        suggested_response=msg.suggested_response,
+                        intent=msg.intent,
+                        lead_stage=None,
+                        best_of_n_candidates=_bon_candidates,
+                        rejected_confidence=msg.confidence_score,
+                    ))
+            except Exception as pp_err:
+                logger.debug(f"[Copilot] Preference pairs discard hook failed: {pp_err}")
 
             logger.info(f"[Copilot] Discarded message {message_id} reason={discard_reason}")
             return {"success": True, "message_id": str(msg.id)}

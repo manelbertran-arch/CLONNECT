@@ -587,6 +587,24 @@ async def track_manual_response(
         except Exception as learn_err:
             logger.debug(f"[Copilot] Autolearning manual hook failed: {learn_err}")
 
+        # Preference pairs hook: fire-and-forget training data collection
+        try:
+            from services.preference_pairs_service import create_pairs_from_action
+
+            if _creator:
+                _aio.create_task(create_pairs_from_action(
+                    action="manual_override",
+                    creator_db_id=_creator.id,
+                    source_message_id=manual_msg.id,
+                    suggested_response=original_suggestion,
+                    final_response=body.content,
+                    intent=None,
+                    lead_stage=lead.status,
+                    edit_diff=edit_diff,
+                ))
+        except Exception as pp_err:
+            logger.debug(f"[Copilot] Preference pairs manual hook failed: {pp_err}")
+
         logger.info(
             f"[Copilot] Manual response tracked for lead {lead_id} by {creator_id}"
         )
@@ -1310,3 +1328,54 @@ async def get_historical_rates(
 
     result = get_historical_rates(creator_id)
     return {"creator_id": creator_id, **result}
+
+
+# =============================================================================
+# GET /copilot/{creator_id}/preference-pairs
+# =============================================================================
+@router.get("/{creator_id}/preference-pairs")
+async def get_preference_pairs(
+    creator_id: str,
+    limit: int = 50,
+    offset: int = 0,
+    action_type: Optional[str] = None,
+    unexported_only: bool = False,
+    _auth: str = Depends(require_creator_access),
+):
+    """List preference pairs for export or viewing."""
+    from api.database import SessionLocal
+    from api.models import Creator
+    from services.preference_pairs_service import get_pairs_for_export
+
+    session = SessionLocal()
+    try:
+        creator = session.query(Creator).filter_by(name=creator_id).first()
+        if not creator:
+            raise HTTPException(status_code=404, detail="Creator not found")
+        pairs = get_pairs_for_export(
+            creator.id, limit=limit, offset=offset,
+            action_type=action_type, unexported_only=unexported_only,
+        )
+        return {"creator_id": creator_id, "count": len(pairs), "pairs": pairs}
+    finally:
+        session.close()
+
+
+# =============================================================================
+# POST /copilot/{creator_id}/preference-pairs/mark-exported
+# =============================================================================
+class MarkExportedRequest(BaseModel):
+    pair_ids: list[str]
+
+
+@router.post("/{creator_id}/preference-pairs/mark-exported")
+async def mark_pairs_exported(
+    creator_id: str,
+    body: MarkExportedRequest,
+    _auth: str = Depends(require_creator_access),
+):
+    """Mark preference pairs as exported for training."""
+    from services.preference_pairs_service import mark_exported
+
+    count = mark_exported(body.pair_ids)
+    return {"creator_id": creator_id, "marked": count}
