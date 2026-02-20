@@ -83,6 +83,11 @@ async def analyze_creator_action(
                 creator_db_id, suggested_response, discard_reason,
                 intent, lead_stage, relationship_type, source_message_id,
             )
+        elif action == "resolved_externally":
+            await _handle_resolved_externally(
+                creator_db_id, suggested_response, final_response,
+                intent, lead_stage, relationship_type, source_message_id,
+            )
         elif action == "manual_override":
             await _handle_manual_override(
                 creator_db_id, suggested_response, final_response,
@@ -164,6 +169,34 @@ async def _handle_discard(
     if rule_data:
         _store_rule(
             creator_db_id, rule_data, confidence=0.6,
+            intent=intent, lead_stage=lead_stage,
+            relationship_type=relationship_type,
+            source_message_id=source_message_id,
+        )
+
+
+async def _handle_resolved_externally(
+    creator_db_id, suggested_response, final_response,
+    intent, lead_stage, relationship_type, source_message_id,
+):
+    """Resolved externally = highest signal. Creator replied from app without seeing bot suggestion."""
+    if not suggested_response and not final_response:
+        return
+
+    bot_text = suggested_response or "(no habia sugerencia del bot)"
+    creator_text = final_response or "(el creador respondió directamente desde la app)"
+
+    rule_data = await _llm_extract_rule(
+        bot_response=bot_text,
+        creator_response=creator_text,
+        action_description="ignoró la sugerencia del bot y respondió directamente desde la app",
+        intent=intent,
+        lead_stage=lead_stage,
+    )
+
+    if rule_data:
+        _store_rule(
+            creator_db_id, rule_data, confidence=0.7,
             intent=intent, lead_stage=lead_stage,
             relationship_type=relationship_type,
             source_message_id=source_message_id,

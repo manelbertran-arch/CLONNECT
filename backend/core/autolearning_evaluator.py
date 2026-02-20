@@ -90,6 +90,7 @@ async def run_daily_evaluation(creator_id: str, creator_db_id, eval_date: Option
         edited = action_counts.get("edited", 0)
         discarded = action_counts.get("discarded", 0)
         manual = action_counts.get("manual_override", 0)
+        resolved_ext = action_counts.get("resolved_externally", 0)
 
         metrics = {
             "total_actions": total,
@@ -97,6 +98,7 @@ async def run_daily_evaluation(creator_id: str, creator_db_id, eval_date: Option
             "edited": edited,
             "discarded": discarded,
             "manual_override": manual,
+            "resolved_externally": resolved_ext,
             "approval_rate": round((approved + edited) / total, 3) if total else 0,
             "edit_rate": round(edited / total, 3) if total else 0,
             "discard_rate": round(discarded / total, 3) if total else 0,

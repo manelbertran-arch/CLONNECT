@@ -664,6 +664,7 @@ async def get_copilot_stats(
                 func.count(func.nullif(Message.copilot_action != "edited", True)).label("edited"),
                 func.count(func.nullif(Message.copilot_action != "discarded", True)).label("discarded"),
                 func.count(func.nullif(Message.copilot_action != "manual_override", True)).label("manual"),
+                func.count(func.nullif(Message.copilot_action != "resolved_externally", True)).label("resolved_ext"),
                 func.avg(Message.response_time_ms).label("avg_response_time_ms"),
                 func.avg(Message.confidence_score).label("avg_confidence"),
             )
@@ -695,6 +696,7 @@ async def get_copilot_stats(
         c_edited = copilot_stats.edited or 0
         c_discarded = copilot_stats.discarded or 0
         c_manual = copilot_stats.manual or 0
+        c_resolved_ext = copilot_stats.resolved_ext or 0
 
         # ── LEGACY METRICS: Messages without copilot_action ──
         legacy_auto_sent = (
@@ -839,6 +841,8 @@ async def get_copilot_stats(
                 "edited": c_edited,
                 "discarded": c_discarded,
                 "manual_override": c_manual,
+                "resolved_externally": c_resolved_ext,
+                "resolved_ext_rate": round(c_resolved_ext / c_total, 3) if c_total else 0,
                 "pending": pending_count,
                 "approval_rate": round(c_approved / c_total, 3) if c_total else 0,
                 "edit_rate": round(c_edited / c_total, 3) if c_total else 0,
@@ -862,6 +866,7 @@ async def get_copilot_stats(
             "edited": c_edited,
             "discarded": c_discarded,
             "manual_override": c_manual,
+            "resolved_externally": c_resolved_ext,
             "approval_rate": round(c_approved / c_total, 3) if c_total else 0,
             "edit_rate": round(c_edited / c_total, 3) if c_total else 0,
             "discard_rate": round(c_discarded / c_total, 3) if c_total else 0,
@@ -1181,7 +1186,7 @@ async def get_copilot_comparisons(
                 JOIN leads l ON m.lead_id = l.id
                 WHERE l.creator_id = :creator_id
                 AND m.role = 'assistant'
-                AND m.copilot_action IN ('edited', 'manual_override', 'approved')
+                AND m.copilot_action IN ('edited', 'manual_override', 'approved', 'resolved_externally')
                 AND m.suggested_response IS NOT NULL
             ),
             -- Source 2: Legacy — bot auto-sent paired with ALL creator manual responses
@@ -1305,6 +1310,152 @@ async def get_copilot_comparisons(
         raise
     except Exception as e:
         logger.error(f"[Copilot] Error getting comparisons: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+    finally:
+        session.close()
+
+
+# =============================================================================
+# GET /copilot/{creator_id}/history
+# =============================================================================
+@router.get("/{creator_id}/history")
+async def get_copilot_history(
+    creator_id: str,
+    limit: int = 50,
+    offset: int = 0,
+    _auth: str = Depends(require_creator_access),
+):
+    """
+    Get full copilot action history for a creator.
+
+    Includes all actions (approved, edited, discarded, manual_override, resolved_externally)
+    ordered by most recent first. For resolved_externally items, includes similarity_score.
+    """
+    from sqlalchemy import func
+
+    from api.database import SessionLocal
+    from api.models import Creator, Lead, Message
+
+    session = SessionLocal()
+    try:
+        creator = session.query(Creator).filter_by(name=creator_id).first()
+        if not creator:
+            raise HTTPException(status_code=404, detail="Creator not found")
+
+        # Query messages with copilot_action, join with Lead
+        query = (
+            session.query(
+                Message.id,
+                Message.lead_id,
+                Message.status,
+                Message.copilot_action,
+                Message.suggested_response,
+                Message.content,
+                Message.intent,
+                Message.confidence_score,
+                Message.response_time_ms,
+                Message.created_at,
+                Message.approved_at,
+                Message.msg_metadata,
+                Lead.username,
+                Lead.platform,
+                Lead.platform_user_id,
+            )
+            .join(Lead, Message.lead_id == Lead.id)
+            .filter(
+                Lead.creator_id == creator.id,
+                Message.role == "assistant",
+                Message.copilot_action.isnot(None),
+            )
+            .order_by(Message.created_at.desc())
+            .offset(offset)
+            .limit(limit + 1)
+        )
+
+        rows = query.all()
+        has_more = len(rows) > limit
+        if has_more:
+            rows = rows[:limit]
+
+        # Build items
+        items = []
+        for row in rows:
+            meta = row.msg_metadata or {}
+            similarity = meta.get("similarity_score") if row.copilot_action == "resolved_externally" else None
+
+            items.append({
+                "id": str(row.id),
+                "lead_name": row.username or row.platform_user_id or "",
+                "platform": row.platform,
+                "status": row.status,
+                "copilot_action": row.copilot_action,
+                "bot_suggestion": row.suggested_response or "",
+                "creator_actual": row.content or "",
+                "similarity_score": similarity,
+                "confidence": row.confidence_score,
+                "intent": row.intent or "",
+                "response_time_ms": row.response_time_ms,
+                "created_at": row.created_at.isoformat() if row.created_at else "",
+                "resolved_at": row.approved_at.isoformat() if row.approved_at else "",
+            })
+
+        # Aggregate stats
+        stats_query = (
+            session.query(
+                Message.copilot_action,
+                func.count().label("cnt"),
+            )
+            .join(Lead, Message.lead_id == Lead.id)
+            .filter(
+                Lead.creator_id == creator.id,
+                Message.role == "assistant",
+                Message.copilot_action.isnot(None),
+            )
+            .group_by(Message.copilot_action)
+            .all()
+        )
+
+        action_counts = {action: cnt for action, cnt in stats_query}
+        total_all = sum(action_counts.values())
+
+        # Average similarity for resolved_externally
+        avg_sim = None
+        resolved_ext_count = action_counts.get("resolved_externally", 0)
+        if resolved_ext_count > 0:
+            from sqlalchemy import text as sa_text
+
+            avg_sim_result = session.execute(sa_text("""
+                SELECT AVG((msg_metadata->>'similarity_score')::float)
+                FROM messages m
+                JOIN leads l ON m.lead_id = l.id
+                WHERE l.creator_id = :cid
+                AND m.copilot_action = 'resolved_externally'
+                AND m.msg_metadata->>'similarity_score' IS NOT NULL
+            """), {"cid": str(creator.id)}).scalar()
+            if avg_sim_result is not None:
+                avg_sim = round(float(avg_sim_result), 2)
+
+        stats = {
+            "total": total_all,
+            "approved": action_counts.get("approved", 0),
+            "edited": action_counts.get("edited", 0),
+            "discarded": action_counts.get("discarded", 0),
+            "manual_override": action_counts.get("manual_override", 0),
+            "resolved_externally": resolved_ext_count,
+            "avg_similarity": avg_sim,
+        }
+
+        return {
+            "items": items,
+            "stats": stats,
+            "count": len(items),
+            "has_more": has_more,
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"[Copilot] Error getting history: {e}")
         raise HTTPException(status_code=500, detail=str(e))
     finally:
         session.close()

@@ -1448,10 +1448,15 @@ class InstagramHandler:
                 lead.last_contact_at = datetime.now(timezone.utc)
 
                 # Auto-discard pending copilot suggestions for this lead
+                # Pass creator_response so resolved_externally learning kicks in
                 try:
                     from core.copilot_service import get_copilot_service
 
-                    get_copilot_service().auto_discard_pending_for_lead(lead.id, session=session)
+                    get_copilot_service().auto_discard_pending_for_lead(
+                        lead.id, session=session,
+                        creator_response=echo_msg["text"],
+                        creator_id=self.creator_id,
+                    )
                 except Exception as e:
                     logger.warning(f"[Echo] Auto-discard failed: {e}")
 

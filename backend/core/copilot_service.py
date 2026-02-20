@@ -1262,14 +1262,27 @@ class CopilotService:
                 self._copilot_mode_cache.pop(k, None)
                 self._copilot_mode_cache_ttl.pop(k, None)
 
-    def auto_discard_pending_for_lead(self, lead_id, session=None) -> int:
+    def _compute_similarity(self, bot_text: str, creator_text: str) -> float:
+        """Compute text similarity between bot suggestion and creator response."""
+        from difflib import SequenceMatcher
+
+        if not bot_text or not creator_text:
+            return 0.0
+        return round(SequenceMatcher(None, bot_text.lower(), creator_text.lower()).ratio(), 2)
+
+    def auto_discard_pending_for_lead(
+        self, lead_id, session=None, creator_response: str = None, creator_id: str = None,
+    ) -> int:
         """
         Auto-discard all pending_approval suggestions for a lead.
 
         Called when the creator manually replies (via phone/IG echo/WA fromMe),
         which means the bot suggestion is no longer needed.
 
-        Returns count of discarded suggestions.
+        When creator_response is provided, marks suggestions as 'resolved_externally'
+        instead of 'discarded', enabling autolearning from direct replies.
+
+        Returns count of discarded/resolved suggestions.
         """
         from api.models import Message
 
@@ -1300,16 +1313,58 @@ class CopilotService:
             )
 
             count = 0
+            now = datetime.now(timezone.utc)
             for msg in pending:
-                msg.status = "discarded"
-                msg.copilot_action = "manual_override"
+                if creator_response:
+                    # Resolved externally — creator replied directly from app
+                    msg.status = "resolved_externally"
+                    msg.copilot_action = "resolved_externally"
+                    # Set content to creator's actual response so comparisons SQL works
+                    # (suggested_response = bot original, content = creator actual)
+                    msg.content = creator_response
+                    similarity = self._compute_similarity(msg.suggested_response or "", creator_response)
+                    meta = msg.msg_metadata or {}
+                    meta["creator_actual_response"] = creator_response[:500]
+                    meta["similarity_score"] = similarity
+                    meta["resolved_source"] = "direct_reply"
+                    msg.msg_metadata = meta
+                    msg.approved_at = now
+                    if msg.created_at:
+                        delta = now - msg.created_at
+                        msg.response_time_ms = int(delta.total_seconds() * 1000)
+                else:
+                    msg.status = "discarded"
+                    msg.copilot_action = "manual_override"
                 count += 1
 
             if count > 0:
                 session.commit()
-                logger.info(
-                    f"[Copilot] Auto-discarded {count} pending suggestion(s) for lead {lead_id}"
-                )
+
+                if creator_response:
+                    logger.info(
+                        f"[Copilot] Resolved externally {count} pending suggestion(s) for lead {lead_id}"
+                    )
+                    # Fire autolearning hook for each resolved suggestion
+                    for msg in pending:
+                        try:
+                            from services.autolearning_analyzer import analyze_creator_action
+
+                            asyncio.create_task(analyze_creator_action(
+                                action="resolved_externally",
+                                creator_id=creator_id or "",
+                                creator_db_id=self._get_creator_db_id(creator_id, session),
+                                suggested_response=msg.suggested_response,
+                                final_response=creator_response,
+                                intent=msg.intent,
+                                lead_stage=None,
+                                source_message_id=msg.id,
+                            ))
+                        except Exception as learn_err:
+                            logger.debug(f"[Copilot] Autolearning resolved_externally hook failed: {learn_err}")
+                else:
+                    logger.info(
+                        f"[Copilot] Auto-discarded {count} pending suggestion(s) for lead {lead_id}"
+                    )
 
             return count
         except Exception as e:
@@ -1317,6 +1372,27 @@ class CopilotService:
             if close_session:
                 session.rollback()
             return 0
+        finally:
+            if close_session:
+                session.close()
+
+    def _get_creator_db_id(self, creator_name: str, session=None):
+        """Get creator DB id from creator name."""
+        if not creator_name:
+            return None
+        from api.models import Creator
+
+        close_session = False
+        if session is None:
+            from api.database import SessionLocal
+
+            session = SessionLocal()
+            close_session = True
+        try:
+            creator = session.query(Creator.id).filter_by(name=creator_name).first()
+            return creator[0] if creator else None
+        except Exception:
+            return None
         finally:
             if close_session:
                 session.close()
