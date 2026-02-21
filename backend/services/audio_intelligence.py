@@ -105,28 +105,38 @@ class AudioIntelligence:
 # PROMPTS
 # ═══════════════════════════════════════════════════════
 
-CLEAN_PROMPT = """Tu tarea es ESTRUCTURAR esta transcripción de audio para que sea legible.
+CLEAN_PROMPT = """Tu tarea es hacer esta transcripción de audio COMPRENSIBLE para lectura.
 
-REGLAS ESTRICTAS:
-1. MANTÉN todas las palabras y expresiones del hablante — es SU voz
-2. NO reescribas frases — solo añade puntuación y párrafos
-3. NO elimines expresiones coloquiales ("bueno", "vale", "o sea", "pues")
-4. NO hagas el texto más formal — mantén el registro exacto
-5. AÑADE: puntos, comas, signos de interrogación donde correspondan
-6. AÑADE: saltos de párrafo cada 2-4 oraciones o cuando cambie de tema
-7. CORRIGE: mayúsculas después de punto, nombres propios (WhatsApp, Clonet, Instagram)
-8. ELIMINA SOLO: repeticiones LITERALES inmediatas (cuando dice exactamente lo mismo dos veces seguidas)
-9. ELIMINA SOLO: muletillas vacías sin contenido ("eh", "um", "este este este", "mmm")
-10. El resultado debe tener entre 85-95% de las palabras del original
+MANTENER (es la voz de la persona):
+- Expresiones con significado: "vale", "esto es oro", "me la voy a enchufar"
+- Vocabulario y registro del hablante
+- TODA la información y datos mencionados
+- Tono emocional y estilo personal
 
-El resultado debe sonar EXACTAMENTE como la persona, solo que con puntuación y estructura.
+ELIMINAR (es ruido del habla, no aporta nada al LEER):
+- "Bueno" cuando es muletilla de arranque o relleno (NO cuando tiene significado)
+- Falsos arranques: "dije, bueno, me lo pediste" → "me lo pediste"
+- Palabras duplicadas inmediatas: "cuando, cuando" → "cuando"
+- Frases que repiten la misma idea que ya se dijo
+- Muletillas vacías entre frases: "o sea nada", "así que bueno", "pues nada"
+- Auto-correcciones: "literal, no literal, pasada por un" → "pasada por un"
+
+ESTRUCTURA:
+- Añadir puntuación correcta
+- Separar en párrafos por tema
+- Mayúsculas en nombres propios
+
+CRITERIO: Si una palabra o frase NO aporta información ni personalidad al LEERLA, elimínala. Si aporta carácter o datos, mantenla.
+
+El resultado debe ser 70-85% del largo original.
+Debe leerse fluido en 30 segundos lo que en audio tarda 2 minutos.
 
 Transcripción cruda:
 \"\"\"
 {raw_text}
 \"\"\"
 
-Transcripción estructurada:"""
+Transcripción limpia:"""
 
 EXTRACT_PROMPT = """Analiza esta transcripción de un mensaje de audio en una conversación por DM.
 
@@ -286,9 +296,9 @@ class AudioIntelligenceService:
         prompt = CLEAN_PROMPT.format(raw_text=raw_text)
         result = await self._call_llm(
             prompt=prompt,
-            system="Estructurador de transcripciones. Añades puntuación y párrafos. NUNCA reescribes ni eliminas expresiones del hablante.",
-            temperature=0.1,
-            max_tokens=len(raw_text.split()) * 6,
+            system="Editor de transcripciones. Mantienes la voz y personalidad del hablante pero eliminas ruido del habla (falsos arranques, duplicados, muletillas vacías). El texto debe leerse fluido.",
+            temperature=0.2,
+            max_tokens=len(raw_text.split()) * 5,
         )
         return result or raw_text
 
