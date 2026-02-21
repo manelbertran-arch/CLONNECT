@@ -105,35 +105,28 @@ class AudioIntelligence:
 # PROMPTS
 # ═══════════════════════════════════════════════════════
 
-CLEAN_PROMPT = """Limpia esta transcripción de audio de un DM. El resultado debe ser 30-60% MÁS CORTO que el original.
+CLEAN_PROMPT = """Tu tarea es ESTRUCTURAR esta transcripción de audio para que sea legible.
 
-ELIMINA AGRESIVAMENTE:
-- Muletillas: bueno, vale, eh, o sea, pues, como que, digamos, a ver, mira, mmm, la verdad, básicamente, ¿sabes?, ¿no?, ¿me entiendes?, entonces, nada, tipo, claro, exacto, total
-- Repeticiones: si una idea se dice 2+ veces, quédate con la versión más clara UNA sola vez
-- Frases rotas: arranques que se cortan, autocorrecciones, titubeos
-- Relleno vacío: "te cuento que", "la cosa es que", "lo que pasa es que", "o sea que nada"
-- Conectores redundantes: "y bueno", "y nada", "y tal", "y eso"
+REGLAS ESTRICTAS:
+1. MANTÉN todas las palabras y expresiones del hablante — es SU voz
+2. NO reescribas frases — solo añade puntuación y párrafos
+3. NO elimines expresiones coloquiales ("bueno", "vale", "o sea", "pues")
+4. NO hagas el texto más formal — mantén el registro exacto
+5. AÑADE: puntos, comas, signos de interrogación donde correspondan
+6. AÑADE: saltos de párrafo cada 2-4 oraciones o cuando cambie de tema
+7. CORRIGE: mayúsculas después de punto, nombres propios (WhatsApp, Clonet, Instagram)
+8. ELIMINA SOLO: repeticiones LITERALES inmediatas (cuando dice exactamente lo mismo dos veces seguidas)
+9. ELIMINA SOLO: muletillas vacías sin contenido ("eh", "um", "este este este", "mmm")
+10. El resultado debe tener entre 85-95% de las palabras del original
 
-MANTÉN INTACTO:
-- Datos: nombres, fechas, lugares, cifras, precios, productos
-- Propuestas, acuerdos, peticiones concretas
-- El tono del hablante (formal/informal)
-
-ESTRUCTURA:
-- Párrafos separados si hay cambios de tema
-- Puntuación correcta (el audio no la tiene)
-- Frases completas y bien formadas
-
-EJEMPLO:
-Input: "Bueno pues nada o sea te cuento que el otro día estuve en el evento ese de Barcelona ¿no? Y la verdad es que estuvo genial o sea genial genial. Y bueno nada pues eso que me gustó mucho la verdad."
-Output: "El otro día estuve en el evento de Barcelona y estuvo genial, me gustó mucho."
+El resultado debe sonar EXACTAMENTE como la persona, solo que con puntuación y estructura.
 
 Transcripción cruda:
 \"\"\"
 {raw_text}
 \"\"\"
 
-Texto limpio (30-60% más corto):"""
+Transcripción estructurada:"""
 
 EXTRACT_PROMPT = """Analiza esta transcripción de un mensaje de audio en una conversación por DM.
 
@@ -293,9 +286,9 @@ class AudioIntelligenceService:
         prompt = CLEAN_PROMPT.format(raw_text=raw_text)
         result = await self._call_llm(
             prompt=prompt,
-            system="Editor agresivo de transcripciones. Cortas muletillas y relleno sin piedad. El resultado SIEMPRE es más corto que el original.",
-            temperature=0.3,
-            max_tokens=len(raw_text.split()) * 4,
+            system="Estructurador de transcripciones. Añades puntuación y párrafos. NUNCA reescribes ni eliminas expresiones del hablante.",
+            temperature=0.1,
+            max_tokens=len(raw_text.split()) * 6,
         )
         return result or raw_text
 
