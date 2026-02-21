@@ -660,6 +660,11 @@ class WhatsAppHandler:
                     from core.copilot_service import get_copilot_service
                     copilot = get_copilot_service()
 
+                    # Carry Best-of-N candidates from DM response metadata
+                    _wa_cloud_meta = {}
+                    if hasattr(response, "metadata") and response.metadata and response.metadata.get("best_of_n"):
+                        _wa_cloud_meta["best_of_n"] = response.metadata["best_of_n"]
+
                     pending = await copilot.create_pending_response(
                         creator_id=self.creator_id,
                         lead_id="",
@@ -672,6 +677,7 @@ class WhatsAppHandler:
                         confidence=confidence,
                         username="",
                         full_name="",
+                        msg_metadata=_wa_cloud_meta if _wa_cloud_meta else None,
                     )
 
                     self._record_response(message, response)
@@ -710,6 +716,11 @@ class WhatsAppHandler:
                         from core.copilot_service import get_copilot_service
                         copilot = get_copilot_service()
 
+                        # Carry Best-of-N candidates
+                        _wa_guard_meta = {}
+                        if hasattr(response, "metadata") and response.metadata and response.metadata.get("best_of_n"):
+                            _wa_guard_meta["best_of_n"] = response.metadata["best_of_n"]
+
                         pending = await copilot.create_pending_response(
                             creator_id=self.creator_id,
                             lead_id="",
@@ -722,6 +733,7 @@ class WhatsAppHandler:
                             confidence=confidence,
                             username="",
                             full_name="",
+                            msg_metadata=_wa_guard_meta if _wa_guard_meta else None,
                         )
 
                         results.append(

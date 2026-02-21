@@ -369,6 +369,11 @@ async def whatsapp_webhook_receive(request: Request):
                     try:
                         from core.copilot_service import get_copilot_service
                         copilot = get_copilot_service()
+                        # Carry Best-of-N candidates from DM response metadata
+                        _wa_msg_meta = {}
+                        if hasattr(response, "metadata") and response.metadata and response.metadata.get("best_of_n"):
+                            _wa_msg_meta["best_of_n"] = response.metadata["best_of_n"]
+
                         pending = await copilot.create_pending_response(
                             creator_id=creator_id,
                             lead_id="",
@@ -381,6 +386,7 @@ async def whatsapp_webhook_receive(request: Request):
                             confidence=confidence,
                             username=display_name,
                             full_name=message.sender_name or message.sender_id,
+                            msg_metadata=_wa_msg_meta if _wa_msg_meta else None,
                         )
                         results.append({
                             "message_id": message.message_id,
@@ -866,6 +872,11 @@ async def telegram_webhook(request: Request):
                 from core.copilot_service import get_copilot_service
 
                 copilot = get_copilot_service()
+                # Carry Best-of-N candidates from DM response metadata
+                _tg_msg_meta = {}
+                if hasattr(response, "metadata") and response.metadata and response.metadata.get("best_of_n"):
+                    _tg_msg_meta["best_of_n"] = response.metadata["best_of_n"]
+
                 pending = await copilot.create_pending_response(
                     creator_id=creator_id,
                     lead_id="",
@@ -878,6 +889,7 @@ async def telegram_webhook(request: Request):
                     confidence=response.confidence if hasattr(response, "confidence") else 0.9,
                     username=sender_name,
                     full_name=full_name,
+                    msg_metadata=_tg_msg_meta if _tg_msg_meta else None,
                 )
                 logger.info(f"[Copilot] Created pending response {pending.id}")
 
@@ -1594,6 +1606,12 @@ async def _process_evolution_message_safe(
         # Save as pending response (copilot mode — no auto-send)
         copilot = get_copilot_service()
 
+        # Merge Best-of-N candidates from DM response into existing metadata
+        if not msg_metadata:
+            msg_metadata = {}
+        if hasattr(response, "metadata") and response.metadata and response.metadata.get("best_of_n"):
+            msg_metadata["best_of_n"] = response.metadata["best_of_n"]
+
         pending = await copilot.create_pending_response(
             creator_id=creator_id,
             lead_id="",
@@ -1606,7 +1624,7 @@ async def _process_evolution_message_safe(
             confidence=confidence,
             username=push_name or "",
             full_name=push_name or "",
-            msg_metadata=msg_metadata,
+            msg_metadata=msg_metadata if msg_metadata else None,
         )
 
         # Fetch and save WhatsApp profile picture (fire-and-forget style)
