@@ -1203,14 +1203,14 @@ class CopilotService:
             from core.dm_agent_v2 import get_dm_agent
 
             agent = get_dm_agent(meta["creator_id"])
-            new_response = await agent.process_dm(
+            dm_response = await agent.process_dm(
                 message=latest_user_msg.content,
                 sender_id=meta["follower_id"],
-                platform=meta["platform"],
                 metadata={"platform": meta["platform"]},
             )
 
-            if not new_response or not new_response.strip():
+            response_text = dm_response.content if hasattr(dm_response, "content") else str(dm_response)
+            if not response_text or not response_text.strip():
                 logger.warning(f"[Copilot:Debounce] Empty regen response for lead {lead_key}")
                 return
 
@@ -1224,9 +1224,16 @@ class CopilotService:
 
             # Update the pending suggestion with the regenerated response
             now = datetime.now(timezone.utc)
-            pending_msg.content = new_response
-            pending_msg.suggested_response = new_response
+            pending_msg.content = response_text
+            pending_msg.suggested_response = response_text
             pending_msg.created_at = now
+
+            # Carry Best-of-N candidates from DM response metadata
+            if hasattr(dm_response, "metadata") and dm_response.metadata and dm_response.metadata.get("best_of_n"):
+                existing_meta = pending_msg.msg_metadata or {}
+                existing_meta["best_of_n"] = dm_response.metadata["best_of_n"]
+                pending_msg.msg_metadata = existing_meta
+
             session.commit()
 
             logger.info(
