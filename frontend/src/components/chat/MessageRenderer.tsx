@@ -570,15 +570,6 @@ function AudioMessage({ message, isOutgoing, isLastInGroup, isFirstInGroup, plat
   const rawText = (audioIntel?.raw_text as string) || (meta.transcript_raw as string) || (meta.transcription as string) || '';
   const fullText = cleanText || rawText;
 
-  // Entities (new format only)
-  const entities = audioIntel?.entities as Record<string, string[]> | undefined;
-  const actionItems = audioIntel?.action_items as string[] | undefined;
-  const hasPeople = (entities?.people?.length || 0) > 0;
-  const hasPlaces = (entities?.places?.length || 0) > 0;
-  const hasDates = (entities?.dates?.length || 0) > 0;
-  const hasEntities = hasPeople || hasPlaces || hasDates;
-  const hasActions = (actionItems?.length || 0) > 0;
-
   // Determine if we have real summary vs fallback
   const hasRealSummary = !!summary && !!fullText && summary.length < fullText.length * 0.8;
   const hasBothTabs = hasRealSummary && fullText.length > 0;
@@ -658,37 +649,9 @@ function AudioMessage({ message, isOutgoing, isLastInGroup, isFirstInGroup, plat
 
             {/* Tab content */}
             {(!hasBothTabs || activeTab === 'summary') ? (
-              <div>
-                <p className="text-sm text-white/85 leading-snug">
-                  {hasBothTabs ? summary : displayText}
-                </p>
-                {/* Entity tags */}
-                {hasEntities && activeTab === 'summary' && (
-                  <div className="flex flex-wrap gap-1 mt-2">
-                    {entities?.people?.map((p, i) => (
-                      <span key={`p-${i}`} className="text-xs px-2 py-0.5 rounded-full bg-white/10 text-white/70">
-                        {'👤 '}{p}
-                      </span>
-                    ))}
-                    {entities?.places?.map((p, i) => (
-                      <span key={`l-${i}`} className="text-xs px-2 py-0.5 rounded-full bg-white/10 text-white/70">
-                        {'📍 '}{p}
-                      </span>
-                    ))}
-                    {entities?.dates?.map((d, i) => (
-                      <span key={`d-${i}`} className="text-xs px-2 py-0.5 rounded-full bg-white/10 text-white/70">
-                        {'📅 '}{d}
-                      </span>
-                    ))}
-                  </div>
-                )}
-                {/* Action items */}
-                {hasActions && activeTab === 'summary' && (
-                  <div className="mt-2 text-xs text-white/50">
-                    {'📌 '}{actionItems!.join(' · ')}
-                  </div>
-                )}
-              </div>
+              <p className="text-sm text-white/85 leading-snug">
+                {hasBothTabs ? summary : displayText}
+              </p>
             ) : (
               /* Full transcription tab */
               <div className="text-sm text-white/80 leading-snug max-h-48 overflow-y-auto whitespace-pre-line">
